@@ -8,7 +8,18 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
+        // Check for OAuth error in hash first
+        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const errorParam = hashParams.get('error')
+        
+        if (errorParam) {
+          console.error('OAuth error:', errorParam)
+          navigate('/login?error=oauth_failed')
+          return
+        }
+
         // Handle the OAuth callback - Supabase adds the session to the URL hash
+        // First, let Supabase process the hash
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
@@ -18,34 +29,36 @@ export default function AuthCallback() {
         }
 
         if (session) {
-          // Successfully authenticated
-          navigate('/dashboard') // or wherever you want to redirect
+          // Successfully authenticated - clear the hash and redirect
+          window.history.replaceState(null, '', '/auth/callback')
+          navigate('/dashboard', { replace: true })
         } else {
-          // No session found - try to get it from the URL hash
-          const hashParams = new URLSearchParams(window.location.hash.substring(1))
+          // No session found - check if we have access_token in hash
           const accessToken = hashParams.get('access_token')
-          const errorParam = hashParams.get('error')
-          
-          if (errorParam) {
-            console.error('OAuth error:', errorParam)
-            navigate('/login?error=oauth_failed')
-            return
-          }
           
           if (!accessToken) {
             navigate('/login')
             return
           }
           
-          // Wait a bit for Supabase to process the token
-          setTimeout(async () => {
-            const { data: { session: newSession } } = await supabase.auth.getSession()
+          // Wait for Supabase to process the token from hash
+          // Supabase should automatically extract it from the URL hash
+          const checkSession = async () => {
+            const { data: { session: newSession }, error: sessionError } = await supabase.auth.getSession()
             if (newSession) {
-              navigate('/dashboard')
+              window.history.replaceState(null, '', '/auth/callback')
+              navigate('/dashboard', { replace: true })
+            } else if (sessionError) {
+              console.error('Session error:', sessionError)
+              navigate('/login?error=session_failed')
             } else {
-              navigate('/login')
+              // Still no session, wait a bit more
+              setTimeout(checkSession, 500)
             }
-          }, 1000)
+          }
+          
+          // Start checking for session
+          setTimeout(checkSession, 100)
         }
       } catch (err) {
         console.error('Callback error:', err)
