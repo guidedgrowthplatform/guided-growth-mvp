@@ -1,24 +1,17 @@
+import { Routes, Route, Navigate } from 'react-router-dom'
 import './App.css'
-import { signInWithGoogle } from './lib/supabase'
+import Login from './pages/Login'
+import AuthCallback from './pages/AuthCallback'
+import Dashboard from './pages/Dashboard'
 
 function App() {
-  const handleGoogleSignIn = async () => {
-    try {
-      await signInWithGoogle()
-    } catch (error) {
-      console.error('Error signing in with Google', error)
-      alert('There was a problem signing in. Please try again.')
-    }
-  }
-
   return (
-    <div className="card">
-      <h1>Guided Growth</h1>
-      <p>Sign in to continue</p>
-      <button onClick={handleGoogleSignIn}>
-        Continue with Google
-      </button>
-    </div>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
+    </Routes>
   )
 }
 
