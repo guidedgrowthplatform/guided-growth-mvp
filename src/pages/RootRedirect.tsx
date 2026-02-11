@@ -5,13 +5,14 @@ export default function RootRedirect() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Check if this is an OAuth callback (has access_token in hash)
     const hash = window.location.hash
+
     if (hash && hash.includes('access_token')) {
-      // Redirect to /auth/callback with the hash
+      // OAuth callback landed at root (/#access_token=...)
+      // Send it to the real callback route so AuthCallback can process it
       navigate(`/auth/callback${hash}`, { replace: true })
     } else {
-      // Normal redirect to login
+      // Normal case: just go to login
       navigate('/login', { replace: true })
     }
   }, [navigate])
