@@ -12,7 +12,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const user = await requireUser(req, res);
   if (!user) return;
 
-  const segments = (req.query.path as string[] | undefined) || [];
+  const raw = req.query.path;
+  const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] || '';
 
   // GET/PUT /api/reflections/config

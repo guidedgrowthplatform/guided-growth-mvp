@@ -3,7 +3,8 @@ import pool from '../_lib/db.js';
 import { signToken, setAuthCookie, clearAuthCookie, getUser } from '../_lib/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const segments = (req.query.path as string[] | undefined) || [];
+  const raw = req.query.path;
+  const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] || '';
 
   // GET /api/auth/google

@@ -6,7 +6,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const user = await requireAdmin(req, res);
   if (!user) return;
 
-  const segments = (req.query.path as string[] | undefined) || [];
+  const raw = req.query.path;
+  const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] || '';
 
   // /api/admin/users
