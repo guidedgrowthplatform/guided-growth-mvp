@@ -1,29 +1,24 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { getStoredSession, signOut, type User } from '../lib/auth'
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser()
-      
-      if (error || !user) {
-        navigate('/login')
-        return
-      }
-      
-      setUser(user)
+    const session = getStoredSession()
+    
+    if (!session) {
+      navigate('/login')
+      return
     }
-
-    getUser()
+    
+    setUser(session)
   }, [navigate])
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    navigate('/login')
+  const handleSignOut = () => {
+    signOut()
   }
 
   if (!user) {

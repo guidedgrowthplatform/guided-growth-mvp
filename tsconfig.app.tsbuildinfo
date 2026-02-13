@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/lib/supabase.ts","./src/pages/authcallback.tsx","./src/pages/dashboard.tsx","./src/pages/login.tsx","./src/pages/rootredirect.tsx"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/errorboundary.tsx","./src/lib/auth.ts","./src/lib/supabase.ts","./src/pages/authcallback.tsx","./src/pages/dashboard.tsx","./src/pages/login.tsx","./src/pages/rootredirect.tsx"],"version":"5.9.3"}

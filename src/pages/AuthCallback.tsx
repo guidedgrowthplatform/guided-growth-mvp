@@ -1,35 +1,41 @@
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { storeSession, getSession } from '../lib/auth'
 
 export default function AuthCallback() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // First, try to get the session directly (similar to the snippet you provided)
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
+        const token = searchParams.get('token')
+        const error = searchParams.get('error')
 
-        if (session) {
-          navigate('/dashboard', { replace: true })
-          return
-        }
-
-        // If there's no session yet, fall back to inspecting the URL hash for errors
-        const hashParams = new URLSearchParams(window.location.hash.substring(1))
-        const errorParam = hashParams.get('error')
-
-        if (errorParam) {
-          console.error('OAuth error:', errorParam)
+        if (error) {
+          console.error('OAuth error:', error)
           navigate('/login?error=oauth_failed')
           return
         }
 
-        // Still no session and no explicit error – send user back to login
-        navigate('/login')
+        if (!token) {
+          navigate('/login?error=no_token')
+          return
+        }
+
+        // Verify and get user info from token
+        const user = await getSession(token)
+        
+        if (!user) {
+          navigate('/login?error=invalid_token')
+          return
+        }
+
+        // Store the session token
+        storeSession(token)
+        
+        // Redirect to dashboard
+        navigate('/dashboard', { replace: true })
       } catch (err) {
         console.error('Callback error:', err)
         navigate('/login?error=callback_failed')
@@ -37,7 +43,7 @@ export default function AuthCallback() {
     }
 
     handleAuthCallback()
-  }, [navigate])
+  }, [navigate, searchParams])
 
   return (
     <div className="flex items-center justify-center min-h-screen">
