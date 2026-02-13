@@ -41,9 +41,8 @@ coverage/
 # Misc
 *.pem
 
-# Server
-server/node_modules/
-server/.env
+# Old files
+old/server/node_modules/
 
 .vercel
 
