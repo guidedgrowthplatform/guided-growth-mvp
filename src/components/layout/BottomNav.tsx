@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { logout } from '@/api/auth';
 
 const navItems = [
   { path: '/capture', label: 'Capture', icon: '\u{1F4DD}' },
@@ -31,6 +32,13 @@ export function BottomNav() {
             </Link>
           );
         })}
+        <button
+          onClick={() => logout()}
+          className="flex flex-col items-center gap-1 px-3 py-1 min-w-[56px] rounded-lg transition-all text-slate-500"
+        >
+          <span className="text-xl">{'\u{1F6AA}'}</span>
+          <span className="text-[10px] font-medium">Sign out</span>
+        </button>
       </div>
     </nav>
   );
