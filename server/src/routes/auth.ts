@@ -102,7 +102,8 @@ router.get(
   '/google/callback',
   passport.authenticate('google', { failureRedirect: '/login?error=access_denied' }),
   (_req, res) => {
-    res.redirect(env.CORS_ORIGIN);
+    // Redirect to app root — works both in dev (proxy) and production (same origin)
+    res.redirect('/');
   }
 );
 

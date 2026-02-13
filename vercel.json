@@ -6,13 +6,14 @@
   "installCommand": "npm install",
   "functions": {
     "api/[...path].ts": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "server/**"
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/auth/(.*)", "destination": "/api/auth/$1" },
     { "source": "/health", "destination": "/api/health" },
+    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!api|auth|health).*)", "destination": "/index.html" }
   ]
 }
