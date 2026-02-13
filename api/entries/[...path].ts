@@ -8,7 +8,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
-  const route = segments[0] || '';
+  const route = segments[0] === '__index' ? '' : (segments[0] || '');
 
   // PUT /api/entries/bulk
   if (route === 'bulk') {

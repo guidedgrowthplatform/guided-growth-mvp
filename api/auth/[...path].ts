@@ -20,11 +20,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
   }
 
-  // GET /api/auth/callback — debug mode
+  // GET /api/auth/callback
   if (route === 'callback') {
     try {
       const code = req.query.code as string;
-      if (!code) return res.json({ step: 'no_code', query: req.query });
+      if (!code) return res.redirect('/login?error=no_code');
 
       const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }),
       });
       const tokens = await tokenRes.json();
-      if (!tokens.access_token) return res.json({ step: 'token_failed', tokens, callback_url: process.env.GOOGLE_CALLBACK_URL });
+      if (!tokens.access_token) return res.redirect('/login?error=token_failed');
 
       const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
@@ -74,7 +74,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.setHeader('Set-Cookie', setAuthCookie(token));
       return res.redirect('/');
     } catch (err: any) {
-      return res.json({ step: 'error', message: err.message, stack: err.stack });
+      console.error('OAuth callback error:', err);
+      return res.redirect('/login?error=server_error');
     }
   }
 
