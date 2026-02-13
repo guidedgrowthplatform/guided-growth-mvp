@@ -63,8 +63,8 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Health check
-app.get('/health', async (_req, res) => {
+// Health check (both paths for Vercel rewrite and direct access)
+app.get(['/health', '/api/health'], async (_req, res) => {
   try {
     await pool.query('SELECT 1');
     res.json({ status: 'healthy', timestamp: new Date().toISOString(), database: 'connected' });
@@ -78,8 +78,9 @@ app.get('/health', async (_req, res) => {
   }
 });
 
-// Routes
+// Routes — mount at both paths so it works in dev (direct) and Vercel (rewritten)
 app.use('/auth', authLimiter, authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/metrics', metricsRoutes);
 app.use('/api/entries', entriesRoutes);

@@ -10,12 +10,10 @@
       "includeFiles": "server/**,packages/**"
     }
   },
-  "routes": [
-    { "src": "/auth/(.*)", "dest": "/api/[...path]" },
-    { "src": "/health", "dest": "/api/[...path]" },
-    { "src": "/api/(.*)", "dest": "/api/[...path]" }
-  ],
   "rewrites": [
-    { "source": "/((?!api|auth|health|assets).*)", "destination": "/index.html" }
+    { "source": "/auth/:path*", "destination": "/api/auth/:path*" },
+    { "source": "/health", "destination": "/api/health" },
+    { "source": "/api/:path*", "destination": "/api/:path*" },
+    { "source": "/:path((?!api|auth|health|assets).*)", "destination": "/index.html" }
   ]
 }
