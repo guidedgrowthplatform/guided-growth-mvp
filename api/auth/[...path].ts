@@ -95,5 +95,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.json({ message: 'Logged out' });
   }
 
-  res.status(404).json({ error: 'Not found' });
+  res.status(404).json({ error: 'Not found', debug: { route, raw: req.query.path, query: req.query, url: req.url } });
 }
