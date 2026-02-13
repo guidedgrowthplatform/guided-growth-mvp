@@ -7,13 +7,15 @@
   "functions": {
     "api/[...path].ts": {
       "maxDuration": 30,
-      "includeFiles": "server/**"
+      "includeFiles": "server/**,packages/**"
     }
   },
+  "routes": [
+    { "src": "/auth/(.*)", "dest": "/api/[...path]" },
+    { "src": "/health", "dest": "/api/[...path]" },
+    { "src": "/api/(.*)", "dest": "/api/[...path]" }
+  ],
   "rewrites": [
-    { "source": "/auth/(.*)", "destination": "/api/auth/$1" },
-    { "source": "/health", "destination": "/api/health" },
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/((?!api|auth|health).*)", "destination": "/index.html" }
+    { "source": "/((?!api|auth|health|assets).*)", "destination": "/index.html" }
   ]
 }

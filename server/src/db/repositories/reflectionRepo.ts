@@ -1,6 +1,6 @@
-import pool from '../pool.js';
-import type { ReflectionConfig, DayReflections } from '@life-growth-tracker/shared';
-import { DEFAULT_REFLECTION_FIELDS } from '@life-growth-tracker/shared';
+import pool from '../pool';
+import type { ReflectionConfig, DayReflections } from '../../../../packages/shared/src/types';
+import { DEFAULT_REFLECTION_FIELDS } from '../../../../packages/shared/src/constants';
 
 export const reflectionRepo = {
   async getConfig(userId: string): Promise<ReflectionConfig> {

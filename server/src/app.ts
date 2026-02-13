@@ -4,15 +4,15 @@ import connectPgSimple from 'connect-pg-simple';
 import passport from 'passport';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { env } from './config/env.js';
-import { requestLogger } from './middleware/logging.js';
-import { errorHandler } from './middleware/errorHandler.js';
-import pool from './db/pool.js';
-import authRoutes from './routes/auth.js';
-import adminRoutes from './routes/admin.js';
-import metricsRoutes from './routes/metrics.js';
-import entriesRoutes from './routes/entries.js';
-import reflectionsRoutes from './routes/reflections.js';
+import { env } from './config/env';
+import { requestLogger } from './middleware/logging';
+import { errorHandler } from './middleware/errorHandler';
+import pool from './db/pool';
+import authRoutes from './routes/auth';
+import adminRoutes from './routes/admin';
+import metricsRoutes from './routes/metrics';
+import entriesRoutes from './routes/entries';
+import reflectionsRoutes from './routes/reflections';
 
 const app = express();
 

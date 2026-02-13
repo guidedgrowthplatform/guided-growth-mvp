@@ -1,5 +1,5 @@
-import pool from '../pool.js';
-import type { Metric, MetricCreate, MetricUpdate } from '@life-growth-tracker/shared';
+import pool from '../pool';
+import type { Metric, MetricCreate, MetricUpdate } from '../../../../packages/shared/src/types';
 
 export const metricRepo = {
   async findByUserId(userId: string): Promise<Metric[]> {

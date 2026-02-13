@@ -1,5 +1,5 @@
-import pool from '../pool.js';
-import type { User, AllowlistEntry, AuditLogEntry } from '@life-growth-tracker/shared';
+import pool from '../pool';
+import type { User, AllowlistEntry, AuditLogEntry } from '../../../../packages/shared/src/types';
 
 export const adminRepo = {
   async getAllUsers(): Promise<User[]> {

@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import pool from '../db/pool.js';
-import logger from '../middleware/logging.js';
-import { requireAuth } from '../middleware/auth.js';
-import { env } from '../config/env.js';
+import pool from '../db/pool';
+import logger from '../middleware/logging';
+import { requireAuth } from '../middleware/auth';
+import { env } from '../config/env';
 
 const router = Router();
 

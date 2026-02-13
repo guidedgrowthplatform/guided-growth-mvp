@@ -1,5 +1,5 @@
-import pool from '../pool.js';
-import type { DayEntries, EntriesMap } from '@life-growth-tracker/shared';
+import pool from '../pool';
+import type { DayEntries, EntriesMap } from '../../../../packages/shared/src/types';
 
 export const entryRepo = {
   async findByDateRange(userId: string, start: string, end: string): Promise<EntriesMap> {

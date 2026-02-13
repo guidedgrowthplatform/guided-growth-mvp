@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { requireAuth, requireAdmin } from '../middleware/auth.js';
-import { adminRepo } from '../db/repositories/adminRepo.js';
-import logger from '../middleware/logging.js';
+import { requireAuth, requireAdmin } from '../middleware/auth';
+import { adminRepo } from '../db/repositories/adminRepo';
+import logger from '../middleware/logging';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);

@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth.js';
-import { entryRepo } from '../db/repositories/entryRepo.js';
-import { validateDateString, validateDayEntries } from '@life-growth-tracker/shared';
-import logger from '../middleware/logging.js';
+import { requireAuth } from '../middleware/auth';
+import { entryRepo } from '../db/repositories/entryRepo';
+import { validateDateString, validateDayEntries } from '../../../packages/shared/src/validation';
+import logger from '../middleware/logging';
 
 const router = Router();
 router.use(requireAuth);

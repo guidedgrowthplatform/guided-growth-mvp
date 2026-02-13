@@ -1,6 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import pool from '../db/pool.js';
-import type { User } from '@life-growth-tracker/shared';
+import pool from '../db/pool';
 
 // Extend Express Request with user
 declare global {
