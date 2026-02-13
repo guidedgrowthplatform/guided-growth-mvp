@@ -3,7 +3,7 @@ import pool from '../_lib/db.js';
 import { signToken, setAuthCookie, clearAuthCookie, getUser } from '../_lib/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const raw = req.query.path;
+  const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] || '';
 
@@ -95,5 +95,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.json({ message: 'Logged out' });
   }
 
-  res.status(404).json({ error: 'Not found', debug: { route, raw: req.query.path, query: req.query, url: req.url } });
+  res.status(404).json({ error: 'Not found' });
 }
