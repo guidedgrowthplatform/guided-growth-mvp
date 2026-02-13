@@ -3,7 +3,7 @@ import type { User } from '@shared/types';
 
 export async function fetchCurrentUser(): Promise<User | null> {
   try {
-    return await apiGet<User>('/api/auth/me');
+    return await apiGet<User | null>('/api/auth/me');
   } catch {
     return null;
   }
