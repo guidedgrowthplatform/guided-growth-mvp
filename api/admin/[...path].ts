@@ -48,5 +48,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // /api/admin/audit-log
+  if (route === 'audit-log') {
+    if (req.method === 'GET') {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const result = await pool.query(
+        `SELECT a.*, u.email as actor_email FROM admin_audit_log a LEFT JOIN users u ON a.actor_id = u.id ORDER BY a.created_at DESC LIMIT $1`,
+        [limit]
+      );
+      return res.json(result.rows);
+    }
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   res.status(404).json({ error: 'Not found' });
 }
