@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import pool from '../_lib/db';
-import { requireUser } from '../_lib/auth';
+import pool from '../_lib/db.js';
+import { requireUser } from '../_lib/auth.js';
 
 const DEFAULT_FIELDS = [
   { id: 'wins', label: 'Wins', order: 0 },

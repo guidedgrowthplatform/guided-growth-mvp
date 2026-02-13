@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import pool from '../_lib/db';
-import { signToken, setAuthCookie } from '../_lib/auth';
+import pool from '../_lib/db.js';
+import { signToken, setAuthCookie } from '../_lib/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {

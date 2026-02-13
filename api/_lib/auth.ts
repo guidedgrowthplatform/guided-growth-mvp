@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import pool from './db';
+import pool from './db.js';
 
 const SECRET = () => process.env.SESSION_SECRET || 'dev-secret';
 
