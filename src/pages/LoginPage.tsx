@@ -1,7 +1,27 @@
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { initiateGoogleLogin } from '@/api/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 
+const ERROR_MESSAGES: Record<string, string> = {
+  not_invited: 'Your account is not on the invite list. Contact your admin to request access.',
+  disabled: 'Your account has been disabled. Contact your admin.',
+  no_code: 'Something went wrong during sign-in. Please try again.',
+  token_failed: 'Something went wrong during sign-in. Please try again.',
+  no_email: 'Something went wrong during sign-in. Please try again.',
+  server_error: 'Something went wrong during sign-in. Please try again.',
+};
+
 export function LoginPage() {
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const errorCode = searchParams.get('error');
+  const errorMessage = errorCode ? ERROR_MESSAGES[errorCode] : null;
+
+  if (user) {
+    return <Navigate to="/capture" replace />;
+  }
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-cyan-50 to-blue-100">
       <div className="glass rounded-2xl shadow-2xl border border-cyan-200/50 p-8 max-w-md w-full mx-4 text-center">
@@ -9,6 +29,12 @@ export function LoginPage() {
           Life Growth Tracker
         </h1>
         <p className="text-slate-600 mb-8">Track your habits, grow every day.</p>
+
+        {errorMessage && (
+          <div className="mb-6 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            {errorMessage}
+          </div>
+        )}
 
         <Button
           size="lg"

@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { logout } from '@/api/auth';
 
 const APP_VERSION = 'v2.0.0';
 
@@ -80,6 +81,17 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             })}
           </ul>
         </nav>
+
+        {user && (
+          <div className="p-4 border-t border-cyan-200/30">
+            <button
+              onClick={() => logout()}
+              className="w-full text-sm text-slate-500 hover:text-slate-700 transition-colors py-2"
+            >
+              Sign out
+            </button>
+          </div>
+        )}
       </aside>
     </>
   );
