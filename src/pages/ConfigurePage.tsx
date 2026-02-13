@@ -5,14 +5,26 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { INPUT_TYPES, FREQUENCIES } from '@shared/constants';
-import type { MetricCreate } from '@shared/types';
+import type { InputType, Frequency } from '@shared/types';
 
-const emptyForm: MetricCreate & { active: boolean } = {
+interface MetricForm {
+  name: string;
+  input_type: InputType;
+  question: string;
+  frequency: Frequency;
+  active: boolean;
+  target_value: string;
+  target_unit: string;
+}
+
+const emptyForm: MetricForm = {
   name: '',
   input_type: 'binary',
   question: '',
   frequency: 'daily',
   active: true,
+  target_value: '',
+  target_unit: '',
 };
 
 export function ConfigurePage() {
@@ -22,11 +34,16 @@ export function ConfigurePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = {
+      ...formData,
+      target_value: formData.target_value ? parseFloat(formData.target_value) : null,
+      target_unit: formData.target_unit || null,
+    };
     if (editingId) {
-      await update(editingId, formData);
+      await update(editingId, payload);
       setEditingId(null);
     } else {
-      await create(formData);
+      await create(payload);
     }
     setFormData(emptyForm);
   };
@@ -38,6 +55,8 @@ export function ConfigurePage() {
       question: metric.question,
       frequency: metric.frequency,
       active: metric.active,
+      target_value: metric.target_value != null ? String(metric.target_value) : '',
+      target_unit: metric.target_unit || '',
     });
     setEditingId(metric.id);
   };
@@ -94,6 +113,24 @@ export function ConfigurePage() {
             />
           </div>
 
+          {formData.input_type === 'numeric' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Target Value"
+                type="number"
+                value={formData.target_value}
+                onChange={(e) => setFormData({ ...formData, target_value: e.target.value })}
+                placeholder="e.g., 10000"
+              />
+              <Input
+                label="Target Unit"
+                value={formData.target_unit}
+                onChange={(e) => setFormData({ ...formData, target_unit: e.target.value })}
+                placeholder="e.g., steps, minutes, glasses"
+              />
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -139,6 +176,11 @@ export function ConfigurePage() {
                     {metric.question && <p className="text-slate-600 text-sm">{metric.question}</p>}
                     <div className="text-xs text-slate-500 mt-1">
                       Type: {INPUT_TYPES.find((t) => t.value === metric.input_type)?.label}
+                      {metric.target_value != null && (
+                        <span className="ml-2">
+                          | Target: {metric.target_value}{metric.target_unit ? ` ${metric.target_unit}` : ''}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">

@@ -17,6 +17,7 @@ interface SpreadsheetRowProps {
   onEditSave: () => void;
   onEditCancel: () => void;
   onFillHandleStart: (e: React.MouseEvent, date: string, metricId: string) => void;
+  onQuickToggle?: (date: string, metricId: string, value: string) => void;
   // Drag reorder
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: (e: React.DragEvent) => void;
@@ -36,7 +37,7 @@ export function SpreadsheetRow({
   metric, metricIndex, days, dateStrings, entries,
   selectedCell, editingCell, editValue, onEditChange,
   onCellClick, onCellMouseDown, onCellDoubleClick,
-  onEditSave, onEditCancel, onFillHandleStart,
+  onEditSave, onEditCancel, onFillHandleStart, onQuickToggle,
   onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop, isDragOver,
   editingHabitName, onHabitNameDoubleClick, onHabitNameSave, onHabitNameCancel,
   isCellSelected,
@@ -57,7 +58,7 @@ export function SpreadsheetRow({
             draggable
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            className="cursor-grab text-slate-400 hover:text-slate-600 flex-shrink-0"
+            className="cursor-grab text-slate-400 hover:text-slate-600 flex-shrink-0 hidden sm:inline"
           >
             &#x2630;
           </span>
@@ -108,6 +109,7 @@ export function SpreadsheetRow({
             onEditSave={onEditSave}
             onEditCancel={onEditCancel}
             onFillHandleStart={(e) => onFillHandleStart(e, dateStr, metric.id)}
+            onQuickToggle={onQuickToggle}
           />
         );
       })}

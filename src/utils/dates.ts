@@ -28,4 +28,10 @@ export function getWeekRange(date: Date | string): { start: Date; end: Date } {
   };
 }
 
+export function getWeekDays(date: Date | string): Date[] {
+  const d = typeof date === 'string' ? parseISO(date) : date;
+  const { start, end } = getWeekRange(d);
+  return eachDayOfInterval({ start, end });
+}
+
 export const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;

@@ -1,7 +1,9 @@
 import { useState, useCallback, useMemo } from 'react';
 import { format, getDay, parseISO } from 'date-fns';
-import type { Metric, EntriesMap, MetricCreate } from '@shared/types';
-import { DAYS_OF_WEEK, getMonthDays } from '@/utils/dates';
+import type { Metric, EntriesMap, MetricCreate, SpreadsheetRange } from '@shared/types';
+import { DAYS_OF_WEEK, getMonthDays, getWeekDays } from '@/utils/dates';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
+import { useClipboard } from '@/hooks/useClipboard';
 import { SpreadsheetRow } from './SpreadsheetRow';
 import { CellEditPopup } from './CellEditPopup';
 import { AddHabitModal } from './AddHabitModal';
@@ -10,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 
 interface SpreadsheetViewProps {
   date: string;
+  spreadsheetRange: SpreadsheetRange;
   metrics: Metric[];
   entries: EntriesMap;
   onCellChange: (date: string, metricId: string, value: string) => void;
@@ -26,7 +29,7 @@ interface SpreadsheetViewProps {
 }
 
 export function SpreadsheetView({
-  date, metrics, entries, onCellChange, onSaveDay, onAddHabit,
+  date, spreadsheetRange, metrics, entries, onCellChange, onSaveDay, onAddHabit,
   onReorderMetrics, onRenameMetric,
   canUndo, canRedo, onUndo, onRedo, onPushHistory,
 }: SpreadsheetViewProps) {
@@ -39,7 +42,7 @@ export function SpreadsheetView({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
-  const days = useMemo(() => getMonthDays(date), [date]);
+  const days = useMemo(() => spreadsheetRange === 'week' ? getWeekDays(date) : getMonthDays(date), [date, spreadsheetRange]);
   const dateStrings = useMemo(() => days.map((d) => format(d, 'yyyy-MM-dd')), [days]);
 
   const isCellSelected = useCallback((dateStr: string, metricId: string) => {
@@ -135,6 +138,47 @@ export function SpreadsheetView({
     document.addEventListener('mouseup', handleMouseUp, { once: true });
   }, [entries, onCellChange, onPushHistory]);
 
+  const handleQuickToggle = useCallback((dateStr: string, metricId: string, value: string) => {
+    onPushHistory();
+    onCellChange(dateStr, metricId, value);
+    onSaveDay(dateStr);
+  }, [onPushHistory, onCellChange, onSaveDay]);
+
+  const handleSelectCell = useCallback((dateStr: string, metricId: string) => {
+    if (!dateStr && !metricId) {
+      setSelectedCell(null);
+    } else {
+      setSelectedCell({ date: dateStr, metricId });
+    }
+  }, []);
+
+  const handleStartEdit = useCallback((dateStr: string, metricId: string) => {
+    const cellEl = document.querySelector(`td[data-date="${dateStr}"][data-metric-id="${metricId}"]`) as HTMLElement | null;
+    if (cellEl) handleCellDoubleClick(dateStr, metricId, cellEl);
+  }, [handleCellDoubleClick]);
+
+  const handleDelete = useCallback((dateStr: string, metricId: string) => {
+    onPushHistory();
+    onCellChange(dateStr, metricId, '');
+    onSaveDay(dateStr);
+  }, [onPushHistory, onCellChange, onSaveDay]);
+
+  const { copy, paste } = useClipboard(entries, onCellChange, onPushHistory);
+
+  useKeyboardNavigation({
+    selectedCell,
+    editingCell,
+    dateStrings,
+    metrics,
+    onSelectCell: handleSelectCell,
+    onStartEdit: handleStartEdit,
+    onDelete: handleDelete,
+    onCopy: copy,
+    onPaste: paste,
+    onUndo,
+    onRedo,
+  });
+
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
     if (editingHabitName) { e.preventDefault(); return; }
     setDraggedIndex(index);
@@ -166,18 +210,19 @@ export function SpreadsheetView({
         <Button size="sm" variant="secondary" onClick={() => setShowAddModal(true)}>+ Add Habit</Button>
       </div>
 
-      <div className="glass rounded-2xl shadow-xl border border-cyan-200/50 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse min-w-[800px] lg:min-w-0">
+      <div className="glass rounded-2xl shadow-xl border border-cyan-200/50 overflow-hidden -mx-4 sm:mx-0 rounded-none sm:rounded-2xl">
+        <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
+          <table className={`w-full border-collapse ${spreadsheetRange === 'week' ? 'min-w-[400px]' : 'min-w-[800px]'} lg:min-w-0`}>
             <thead>
               <tr className="bg-cyan-100/50 border-b-2 border-cyan-300/50">
-                <th className="sticky left-0 z-20 bg-cyan-100/50 px-2 py-2 text-left text-xs font-semibold text-slate-800 border-r-2 border-cyan-300/50 min-w-[120px]">
+                <th className="sticky left-0 z-20 bg-cyan-100/50 px-2 py-2 text-left text-xs font-semibold text-slate-800 border-r-2 border-cyan-300/50 min-w-[100px] sm:min-w-[120px]">
                   HABITS
                 </th>
                 {days.map((day, idx) => {
                   const dayOfWeek = DAYS_OF_WEEK[getDay(day)];
+                  const cellMinW = spreadsheetRange === 'week' ? 'min-w-[44px]' : 'min-w-[32px]';
                   return (
-                    <th key={dateStrings[idx]} className="px-1 py-2 text-center border-l border-cyan-200/30 min-w-[32px]">
+                    <th key={dateStrings[idx]} className={`px-1 py-2 text-center border-l border-cyan-200/30 ${cellMinW}`}>
                       <div className="text-[10px] font-medium text-slate-600">{dayOfWeek}</div>
                       <div className="text-xs font-semibold text-slate-800">{format(day, 'd')}</div>
                     </th>
@@ -204,6 +249,7 @@ export function SpreadsheetView({
                   onEditSave={handleEditSave}
                   onEditCancel={handleEditCancel}
                   onFillHandleStart={handleFillHandleStart}
+                  onQuickToggle={handleQuickToggle}
                   onDragStart={(e) => handleDragStart(e, idx)}
                   onDragEnd={handleDragEnd}
                   onDragOver={(e) => { e.preventDefault(); setDragOverIndex(idx); }}

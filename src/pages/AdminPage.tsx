@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -8,6 +9,7 @@ import type { User, AllowlistEntry, AuditLogEntry } from '@shared/types';
 
 export function AdminPage() {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [allowlist, setAllowlist] = useState<AllowlistEntry[]>([]);
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
@@ -55,15 +57,16 @@ export function AdminPage() {
       await adminApi.addToAllowlist(newEmail, newEmailNote);
       setNewEmail('');
       setNewEmailNote('');
+      addToast('success', `Added ${newEmail} to allowlist`);
       fetchData();
     } catch (err: any) {
-      alert(err.message || 'Failed to add email');
+      addToast('error', err.message || 'Failed to add email');
     }
   };
 
   const handleRemoveFromAllowlist = async (id: string) => {
-    if (!confirm('Remove this email from allowlist?')) return;
     await adminApi.removeFromAllowlist(id);
+    addToast('info', 'Removed from allowlist');
     fetchData();
   };
 

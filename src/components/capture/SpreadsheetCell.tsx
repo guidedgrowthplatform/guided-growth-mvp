@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 import type { Metric } from '@shared/types';
 import { getCellColor, getCellDisplayValue } from '@/utils/cellColors';
 
@@ -16,29 +16,47 @@ interface SpreadsheetCellProps {
   onEditSave: () => void;
   onEditCancel: () => void;
   onFillHandleStart: (e: React.MouseEvent) => void;
+  onQuickToggle?: (date: string, metricId: string, value: string) => void;
 }
 
 export function SpreadsheetCell({
   date, metric, value, isSelected, isEditing, editValue, onEditChange,
   onClick, onMouseDown, onDoubleClick, onEditSave, onEditCancel, onFillHandleStart,
+  onQuickToggle,
 }: SpreadsheetCellProps) {
   const cellRef = useRef<HTMLTableCellElement>(null);
   const color = getCellColor(value, metric);
   const display = getCellDisplayValue(value, metric);
 
   const isTextType = metric.input_type === 'text' || metric.input_type === 'short_text';
+  const isTouchDevice = 'ontouchstart' in window;
+
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    // Binary cells: single-click toggles empty → yes → no → empty
+    if (metric.input_type === 'binary' && onQuickToggle) {
+      const nextValue = !value || value === '' ? 'yes' : value === 'yes' ? 'no' : '';
+      onQuickToggle(date, metric.id, nextValue);
+      return;
+    }
+    onClick(e);
+  }, [metric, value, date, onQuickToggle, onClick]);
+
+  const handleDoubleClick = useCallback(() => {
+    // On touch, non-binary cells open popup on single tap (handled via onClick/select flow)
+    if (cellRef.current) onDoubleClick(cellRef.current);
+  }, [onDoubleClick]);
 
   return (
     <td
       ref={cellRef}
       data-date={date}
       data-metric-id={metric.id}
-      className={`relative px-1 py-1 text-center text-xs border-l border-cyan-200/30 cursor-pointer select-none min-w-[32px] ${color}
+      className={`relative px-1 py-1 text-center text-xs border-l border-cyan-200/30 cursor-pointer select-none min-w-[32px] h-[44px] sm:h-auto ${color}
         ${isSelected ? 'ring-2 ring-blue-500 ring-inset z-10' : ''}
       `}
-      onClick={onClick}
+      onClick={handleClick}
       onMouseDown={onMouseDown}
-      onDoubleClick={() => cellRef.current && onDoubleClick(cellRef.current)}
+      onDoubleClick={handleDoubleClick}
     >
       {isEditing && isTextType ? (
         <input
@@ -56,6 +74,14 @@ export function SpreadsheetCell({
       ) : (
         <>
           <span data-cell-value className="block truncate">{display || ''}</span>
+          {metric.input_type === 'numeric' && metric.target_value != null && value && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-200">
+              <div
+                className="h-full bg-cyan-500 transition-all"
+                style={{ width: `${Math.min(100, (parseFloat(value) / metric.target_value) * 100)}%` }}
+              />
+            </div>
+          )}
           {isSelected && (
             <>
               <div className="cell-selected-overlay" />

@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Metric, MetricCreate, MetricUpdate } from '@shared/types';
 import * as metricsApi from '@/api/metrics';
 import { cache } from '@/cache/cacheManager';
+import { useToast } from '@/contexts/ToastContext';
 
 export function useMetrics() {
+  const { addToast } = useToast();
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +33,9 @@ export function useMetrics() {
     const metric = await metricsApi.createMetric(data);
     setMetrics((prev) => [...prev, metric]);
     cache.invalidate('metrics');
+    addToast('success', `Habit "${data.name}" created`);
     return metric;
-  }, []);
+  }, [addToast]);
 
   const update = useCallback(async (id: string, data: MetricUpdate) => {
     const metric = await metricsApi.updateMetric(id, data);
@@ -45,7 +48,8 @@ export function useMetrics() {
     await metricsApi.deleteMetric(id);
     setMetrics((prev) => prev.filter((m) => m.id !== id));
     cache.invalidate('metrics');
-  }, []);
+    addToast('info', 'Habit removed');
+  }, [addToast]);
 
   const reorder = useCallback(async (metricIds: string[]) => {
     const reordered = await metricsApi.reorderMetrics(metricIds);

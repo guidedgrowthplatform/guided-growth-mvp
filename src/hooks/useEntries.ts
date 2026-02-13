@@ -1,8 +1,11 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { EntriesMap, DayEntries } from '@shared/types';
 import * as entriesApi from '@/api/entries';
+import { useToast } from '@/contexts/ToastContext';
+import { offlineQueue } from '@/cache/offlineQueue';
 
 export function useEntries() {
+  const { addToast } = useToast();
   const [entries, setEntries] = useState<EntriesMap>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,8 +45,26 @@ export function useEntries() {
       await entriesApi.saveEntries(date, dayEntries);
     } catch (err: any) {
       setError(err.message);
+      // Queue for offline retry
+      offlineQueue.enqueue(`/api/entries/${date}`, 'PUT', dayEntries);
+      addToast('error', 'Saved offline — will sync when back online');
     }
-  }, []);
+  }, [addToast]);
+
+  // Flush offline queue when online
+  useEffect(() => {
+    const handleOnline = () => {
+      if (offlineQueue.length > 0) {
+        offlineQueue.flush().then(() => {
+          if (offlineQueue.length === 0) addToast('success', 'Offline entries synced');
+        });
+      }
+    };
+    window.addEventListener('online', handleOnline);
+    // Try flushing on mount
+    handleOnline();
+    return () => window.removeEventListener('online', handleOnline);
+  }, [addToast]);
 
   const saveDayDebounced = useCallback((date: string, dayEntries: DayEntries) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);

@@ -40,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const fields: string[] = [];
       const values: unknown[] = [];
       let i = 1;
-      for (const key of ['name', 'input_type', 'question', 'active', 'frequency']) {
+      for (const key of ['name', 'input_type', 'question', 'active', 'frequency', 'target_value', 'target_unit']) {
         if (req.body[key] !== undefined) {
           fields.push(`${key} = $${i++}`);
           values.push(req.body[key]);
@@ -73,16 +73,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'POST') {
-    const { name, input_type, question, frequency, active } = req.body;
+    const { name, input_type, question, frequency, active, target_value, target_unit } = req.body;
     if (!name) return res.status(400).json({ error: 'Name required' });
     const orderRes = await pool.query(
       'SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM metrics WHERE user_id = $1',
       [user.id]
     );
     const result = await pool.query(
-      `INSERT INTO metrics (user_id, name, input_type, question, active, frequency, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [user.id, name, input_type || 'binary', question || '', active ?? true, frequency || 'daily', orderRes.rows[0].next]
+      `INSERT INTO metrics (user_id, name, input_type, question, active, frequency, sort_order, target_value, target_unit)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [user.id, name, input_type || 'binary', question || '', active ?? true, frequency || 'daily', orderRes.rows[0].next, target_value ?? null, target_unit || null]
     );
     return res.status(201).json(result.rows[0]);
   }

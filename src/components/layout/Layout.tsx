@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
+import { ToastContainer } from '@/components/ui/Toast';
 
 export function Layout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -30,6 +31,7 @@ export function Layout({ children }: { children: ReactNode }) {
       </main>
 
       <BottomNav />
+      <ToastContainer />
     </div>
   );
 }

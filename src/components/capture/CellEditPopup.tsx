@@ -29,10 +29,15 @@ export function CellEditPopup({ position, metric, value, onChange, onSave, onCan
     e.stopPropagation();
   };
 
+  const isMobile = window.innerWidth < 640;
+  const style = isMobile
+    ? { left: Math.min(position.x - 75, window.innerWidth - 170), top: position.y + 30, minWidth: 150 }
+    : { left: position.x, top: position.y, minWidth: 150 };
+
   return createPortal(
     <div
       className="fixed z-50 glass rounded-lg shadow-xl border border-cyan-300/50 p-2"
-      style={{ left: position.x, top: position.y, minWidth: 150 }}
+      style={style}
     >
       <textarea
         ref={inputRef}
