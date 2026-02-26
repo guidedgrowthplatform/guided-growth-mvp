@@ -2,14 +2,6 @@ import { parseISO, getDay, format } from 'date-fns';
 import type { Metric, Frequency, EntriesMap } from '@shared/types';
 import { getWeekRange } from './dates';
 
-export function capitalizeHabitName(name: string): string {
-  if (!name) return name;
-  return name
-    .split(' ')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
-}
-
 export function isMetricDue(metric: Pick<Metric, 'frequency'>, dateStr: string, entries?: EntriesMap): boolean {
   const date = parseISO(dateStr);
   const dayOfWeek = getDay(date);

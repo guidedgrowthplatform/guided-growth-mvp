@@ -41,13 +41,4 @@ coverage/
 # Misc
 *.pem
 
-# Old files
-old/server/node_modules/
-
 .vercel
-
-# Old shell scripts
-*.sh
-
-# Stray files
-zidt8zji

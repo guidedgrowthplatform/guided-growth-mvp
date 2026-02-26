@@ -10,13 +10,13 @@ life-growth-tracker/
 │   │   ├── auth.ts         # JWT middleware: requireUser, requireAdmin
 │   │   └── db.ts           # pg.Pool with max: 1 (serverless-safe)
 │   ├── admin/[...path].ts  # Admin catch-all (audit log, user mgmt, allowlist)
+│   ├── auth/[...path].ts   # Google OAuth + JWT cookie
 │   ├── entries/[...path].ts # Entries catch-all (CRUD + CSV export)
 │   ├── metrics/[...path].ts # Metrics catch-all (CRUD with targets)
-│   ├── auth.ts             # Google OAuth + JWT cookie
-│   ├── me.ts               # Current user info
-│   ├── preferences.ts      # User preferences (view mode, range)
-│   ├── reflections.ts      # Daily reflections
-│   └── users.ts            # User lookup
+│   ├── reflections/[...path].ts # Daily reflections catch-all
+│   ├── affirmation.ts      # Affirmation endpoint
+│   ├── health.ts           # Health check
+│   └── preferences.ts      # User preferences (view mode, range)
 ├── packages/shared/src/types/index.ts  # Single source of truth for ALL types
 ├── src/                    # React frontend (Vite + Tailwind)
 ├── public/                 # Static assets + PWA manifest
@@ -56,15 +56,11 @@ Vercel Hobby plan allows **12 serverless functions**. We currently use **8**. Do
 
 **Do NOT use `composite: true` or `references` in tsconfig.** Vite resolves aliases at build time. TypeScript composite mode expects pre-built output which doesn't exist. The `tsconfig.json` has `paths` configured for editor intellisense only — Vite does the actual resolution.
 
-### 4. `allowJs: true` Includes Old Files
-
-`tsconfig.json` has `allowJs: true` which means old `.js` and `.jsx` files in `src/` get included in the build. These are legacy files from before the TypeScript migration. They should eventually be removed but currently don't cause build errors.
-
-### 5. Database Pool `max: 1`
+### 4. Database Pool `max: 1`
 
 `api/_lib/db.ts` creates a `pg.Pool` with `max: 1` because each serverless function invocation is short-lived. Don't increase this — it can exhaust Supabase connection limits under load.
 
-### 6. Toast Context Requirement
+### 5. Toast Context Requirement
 
 `useToast()` must be called within `<ToastProvider>`. This wraps the entire app in `App.tsx`. If you create a new hook that uses `useToast()`, make sure it's only called from components rendered inside the provider tree.
 
@@ -171,8 +167,6 @@ ALTER TABLE metrics ADD COLUMN IF NOT EXISTS target_unit VARCHAR(20) NULL;
 ```
 
 ### Cleanup
-- Remove old `.js`/`.jsx` files in `src/` (legacy pre-TypeScript code)
-- Consider adding jsdom-based component tests
 - PWA icons: currently using `vite.svg` as placeholder — replace with proper app icons
 
 ---

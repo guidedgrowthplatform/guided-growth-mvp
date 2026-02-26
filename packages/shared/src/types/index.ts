@@ -103,13 +103,6 @@ export interface ApiError {
   requestId?: string;
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  offset: number;
-  limit: number;
-}
-
 // ─── Allowlist ──────────────────────────────────────
 export interface AllowlistEntry {
   id: string;
