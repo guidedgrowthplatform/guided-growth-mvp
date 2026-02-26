@@ -14,8 +14,3 @@ export const FREQUENCIES: { value: Frequency; label: string }[] = [
   { value: 'weekly', label: 'Weekly' },
 ];
 
-export const DEFAULT_REFLECTION_FIELDS = [
-  { id: '1', label: 'PROUD', order: 0 },
-  { id: '2', label: 'FORGIVE', order: 1 },
-  { id: '3', label: 'GRATEFUL', order: 2 },
-];
