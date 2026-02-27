@@ -183,6 +183,130 @@ export default function EvaluatePage() {
         []
     );
 
+    // Test with Whisper.cpp (OpenAI Whisper API)
+    const testWhisper = useCallback(
+        async (phrase: TestPhrase, audioBlob: Blob) => {
+            setActivePhrase(phrase);
+            setActiveProvider('Whisper.cpp');
+            setIsProcessing(true);
+
+            const start = performance.now();
+            try {
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.webm');
+                const res = await fetch('/api/whisper', { method: 'POST', body: formData });
+                const latencyMs = Math.round(performance.now() - start);
+                const data = await res.json();
+
+                if (!res.ok) {
+                    setResults((prev) => [
+                        ...prev,
+                        {
+                            phraseId: phrase.id,
+                            expected: phrase.text,
+                            provider: 'Whisper.cpp',
+                            transcript: '',
+                            latencyMs,
+                            accuracy: 0,
+                            error: data.error,
+                        },
+                    ]);
+                } else {
+                    setResults((prev) => [
+                        ...prev,
+                        {
+                            phraseId: phrase.id,
+                            expected: phrase.text,
+                            provider: 'Whisper.cpp',
+                            transcript: data.transcript,
+                            latencyMs,
+                            accuracy: calculateAccuracy(phrase.text, data.transcript),
+                        },
+                    ]);
+                }
+            } catch (err) {
+                setResults((prev) => [
+                    ...prev,
+                    {
+                        phraseId: phrase.id,
+                        expected: phrase.text,
+                        provider: 'Whisper.cpp',
+                        transcript: '',
+                        latencyMs: Math.round(performance.now() - start),
+                        accuracy: 0,
+                        error: `${err}`,
+                    },
+                ]);
+            }
+
+            setIsProcessing(false);
+            setActivePhrase(null);
+        },
+        []
+    );
+
+    // Test with Faster Whisper (self-hosted)
+    const testFasterWhisper = useCallback(
+        async (phrase: TestPhrase, audioBlob: Blob) => {
+            setActivePhrase(phrase);
+            setActiveProvider('Faster Whisper');
+            setIsProcessing(true);
+
+            const start = performance.now();
+            try {
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.webm');
+                const res = await fetch('/api/faster-whisper', { method: 'POST', body: formData });
+                const latencyMs = Math.round(performance.now() - start);
+                const data = await res.json();
+
+                if (!res.ok) {
+                    setResults((prev) => [
+                        ...prev,
+                        {
+                            phraseId: phrase.id,
+                            expected: phrase.text,
+                            provider: 'Faster Whisper',
+                            transcript: '',
+                            latencyMs,
+                            accuracy: 0,
+                            error: data.error,
+                        },
+                    ]);
+                } else {
+                    setResults((prev) => [
+                        ...prev,
+                        {
+                            phraseId: phrase.id,
+                            expected: phrase.text,
+                            provider: 'Faster Whisper',
+                            transcript: data.transcript,
+                            latencyMs,
+                            accuracy: calculateAccuracy(phrase.text, data.transcript),
+                        },
+                    ]);
+                }
+            } catch (err) {
+                setResults((prev) => [
+                    ...prev,
+                    {
+                        phraseId: phrase.id,
+                        expected: phrase.text,
+                        provider: 'Faster Whisper',
+                        transcript: '',
+                        latencyMs: Math.round(performance.now() - start),
+                        accuracy: 0,
+                        error: `${err}`,
+                    },
+                ]);
+            }
+
+            setIsProcessing(false);
+            setActivePhrase(null);
+        },
+        []
+    );
+
     // Export results
     const exportResults = useCallback(() => {
         const blob = new Blob([JSON.stringify(results, null, 2)], {
@@ -218,14 +342,14 @@ export default function EvaluatePage() {
                 <div className="mb-8 text-center">
                     <h1 className="text-3xl font-bold text-white">STT Provider Evaluation</h1>
                     <p className="mt-2 text-slate-400">
-                        Compare Web Speech API vs Deepgram on accuracy and latency
+                        Compare Web Speech API vs Deepgram vs Whisper.cpp vs Faster Whisper
                     </p>
                 </div>
 
                 {/* Summary Cards */}
                 {results.length > 0 && (
-                    <div className="mb-8 grid gap-4 sm:grid-cols-2">
-                        {['Web Speech API', 'Deepgram'].map((provider) => {
+                    <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {['Web Speech API', 'Deepgram', 'Whisper.cpp', 'Faster Whisper'].map((provider) => {
                             const stats = getProviderStats(provider);
                             if (!stats) return null;
                             return (
@@ -336,6 +460,48 @@ export default function EvaluatePage() {
                                                     🔊 Deepgram
                                                 </button>
                                             )}
+
+                                            {/* Whisper.cpp Test (needs recording) */}
+                                            {recorder.audioBlob && !recorder.isRecording ? (
+                                                <button
+                                                    onClick={() => testWhisper(phrase, recorder.audioBlob!)}
+                                                    disabled={isProcessing}
+                                                    className="rounded-lg bg-purple-600/80 px-3 py-1.5 text-xs text-white hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                                >
+                                                    {isActive && activeProvider === 'Whisper.cpp'
+                                                        ? '⏳ Processing...'
+                                                        : '🤖 Whisper.cpp'}
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    disabled
+                                                    className="rounded-lg bg-purple-600/30 px-3 py-1.5 text-xs text-white/40 cursor-not-allowed"
+                                                    title="Record audio first"
+                                                >
+                                                    🤖 Whisper.cpp
+                                                </button>
+                                            )}
+
+                                            {/* Faster Whisper Test (needs recording) */}
+                                            {recorder.audioBlob && !recorder.isRecording ? (
+                                                <button
+                                                    onClick={() => testFasterWhisper(phrase, recorder.audioBlob!)}
+                                                    disabled={isProcessing}
+                                                    className="rounded-lg bg-orange-600/80 px-3 py-1.5 text-xs text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                                >
+                                                    {isActive && activeProvider === 'Faster Whisper'
+                                                        ? '⏳ Processing...'
+                                                        : '⚡ Faster Whisper'}
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    disabled
+                                                    className="rounded-lg bg-orange-600/30 px-3 py-1.5 text-xs text-white/40 cursor-not-allowed"
+                                                    title="Record audio first"
+                                                >
+                                                    ⚡ Faster Whisper
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
 
@@ -389,7 +555,7 @@ export default function EvaluatePage() {
                             <h3 className="text-sm font-medium text-white">
                                 Audio Recorder
                                 <span className="ml-2 text-xs text-slate-400">
-                                    (Record once, test with Deepgram on any phrase)
+                                    (Record once, test with Deepgram / Whisper / Faster Whisper)
                                 </span>
                             </h3>
                             {recorder.isRecording && (
@@ -400,7 +566,7 @@ export default function EvaluatePage() {
                             {recorder.audioBlob && !recorder.isRecording && (
                                 <p className="text-xs text-emerald-400 mt-1">
                                     ✓ Audio recorded ({Math.round(recorder.audioBlob.size / 1024)}KB) — click
-                                    &ldquo;Deepgram&rdquo; on any phrase to test
+                                    Deepgram / Whisper.cpp / Faster Whisper on any phrase to test
                                 </p>
                             )}
                             {recorder.error && (
@@ -438,11 +604,12 @@ export default function EvaluatePage() {
                     </div>
                 </div>
 
-                {/* Whisper note */}
-                <div className="mt-6 rounded-xl bg-amber-900/20 border border-amber-500/20 p-4">
-                    <p className="text-xs text-amber-300">
-                        ⚠️ <strong>OpenAI Whisper</strong> is not tested in this evaluation — no API key
-                        provided. See the evaluation document for a research-based comparison.
+                {/* Provider info */}
+                <div className="mt-6 rounded-xl bg-slate-800/50 border border-white/10 p-4">
+                    <p className="text-xs text-slate-400">
+                        🤖 <strong className="text-purple-300">Whisper.cpp</strong> — OpenAI Whisper API (cloud, whisper-1 model)
+                        &nbsp;|&nbsp;
+                        ⚡ <strong className="text-orange-300">Faster Whisper</strong> — Self-hosted CTranslate2 (requires FASTER_WHISPER_URL env var)
                     </p>
                 </div>
 
