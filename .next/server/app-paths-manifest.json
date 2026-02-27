@@ -1,0 +1,10 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/deepgram/route": "app/api/deepgram/route.js",
+  "/api/process-command/route": "app/api/process-command/route.js",
+  "/command-test/page": "app/command-test/page.js",
+  "/evaluate/page": "app/evaluate/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/page": "app/page.js"
+}

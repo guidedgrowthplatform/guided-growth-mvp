@@ -1,0 +1,10 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/deepgram/route": "/api/deepgram",
+  "/api/process-command/route": "/api/process-command",
+  "/command-test/page": "/command-test",
+  "/evaluate/page": "/evaluate",
+  "/favicon.ico/route": "/favicon.ico",
+  "/page": "/"
+}
