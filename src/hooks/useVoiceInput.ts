@@ -87,7 +87,7 @@ export function useVoiceInput() {
             isStartingRef.current = false;
             const errorMessages: Record<string, string> = {
                 'not-allowed': 'Microphone access denied. Please allow microphone permissions.',
-                'no-speech': 'No speech detected. Please try again.',
+                'no-speech': '',  // silently restart — don't show error
                 'audio-capture': 'No microphone found. Please connect a microphone.',
                 'network': 'Network error. Please check your connection.',
                 'aborted': '',
