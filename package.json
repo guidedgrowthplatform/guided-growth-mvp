@@ -15,6 +15,7 @@
     "@capacitor/ios": "^8.1.0",
     "@deepgram/sdk": "^4.11.3",
     "next": "16.1.6",
+    "openai": "^6.25.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "zustand": "^5.0.11"
