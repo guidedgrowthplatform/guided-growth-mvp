@@ -68,7 +68,7 @@ export function useVoiceInput() {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = '';  // auto-detect language (supports English + Indonesian)
+        recognition.lang = navigator.language || 'en-US';  // use browser language
 
         recognition.onstart = () => {
             isStartingRef.current = false;
@@ -88,9 +88,9 @@ export function useVoiceInput() {
             isStartingRef.current = false;
             const errorMessages: Record<string, string> = {
                 'not-allowed': 'Microphone access denied. Please allow microphone permissions.',
-                'no-speech': '',  // silently restart — don't show error
+                'no-speech': '',  // silently restart
                 'audio-capture': 'No microphone found. Please connect a microphone.',
-                'network': 'Network error. Please check your connection.',
+                'network': '',  // silently retry — don't scare user
                 'aborted': '',
                 'service-not-available': 'Speech recognition not available. Try Chrome or Edge.',
             };
