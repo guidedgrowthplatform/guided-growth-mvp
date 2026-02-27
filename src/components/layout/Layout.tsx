@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { ToastContainer } from '@/components/ui/Toast';
+import { VoiceMicButton } from '@/components/voice/VoiceMicButton';
+import { VoiceTranscript } from '@/components/voice/VoiceTranscript';
 
 export function Layout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -32,6 +34,10 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <BottomNav />
       <ToastContainer />
+
+      {/* Voice input — floating mic + transcript panel */}
+      <VoiceMicButton />
+      <VoiceTranscript />
     </div>
   );
 }
