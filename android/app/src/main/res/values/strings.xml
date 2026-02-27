@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Guided Growth</string>
+    <string name="title_activity_main">Guided Growth</string>
+    <string name="package_name">com.guidedgrowth.voicepoc</string>
+    <string name="custom_url_scheme">com.guidedgrowth.voicepoc</string>
+</resources>
