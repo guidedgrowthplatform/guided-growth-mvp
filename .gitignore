@@ -61,15 +61,16 @@ workbox-*.js
 # Next.js
 next-env.d.ts
 
-# Android
+# Android (Capacitor - auto-generated)
 android/.gradle/
 android/app/build/
 android/build/
+android/capacitor-cordova-android-plugins/
 
-# iOS
+# iOS (Capacitor - auto-generated)
 ios/App/Pods/
-ios/App/App/public/cordova.js
-ios/App/App/public/cordova_plugins.js
+ios/App/App/public/
+ios/capacitor-cordova-ios-plugins/
 
 # Capacitor / Cordova
 capacitor-cordova-ios-plugins/
