@@ -4,12 +4,21 @@ node_modules/
 # Build outputs
 dist/
 build/
+out/
+.next/
 *.local
+
+# TypeScript
+tsconfig.tsbuildinfo
+*.tsbuildinfo
 
 # Environment variables
 .env
 .env.local
 .env.production
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Editor directories and files
 .vscode/
@@ -41,4 +50,10 @@ coverage/
 # Misc
 *.pem
 
+# Vercel
 .vercel
+
+# PWA / Service Worker
+dev-dist/
+sw.js
+workbox-*.js

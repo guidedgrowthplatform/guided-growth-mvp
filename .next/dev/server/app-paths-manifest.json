@@ -1,4 +1,0 @@
-{
-  "/api/process-command/route": "app/api/process-command/route.js",
-  "/command-test/page": "app/command-test/page.js"
-}
