@@ -66,6 +66,7 @@ android/.gradle/
 android/app/build/
 android/build/
 android/capacitor-cordova-android-plugins/
+android/app/src/main/assets/public/
 
 # iOS (Capacitor - auto-generated)
 ios/App/Pods/
