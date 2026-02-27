@@ -49,6 +49,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  if (!ctx) {
+    // Demo mode — return a mock user when AuthProvider is not present
+    return {
+      user: { id: 'demo', email: 'demo@guidedgrowth.app', role: 'admin' } as User,
+      loading: false,
+      refresh: async () => {},
+    };
+  }
   return ctx;
 }
