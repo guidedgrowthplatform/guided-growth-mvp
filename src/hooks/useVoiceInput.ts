@@ -36,6 +36,7 @@ declare global {
 
 export function useVoiceInput() {
     const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+    const isStartingRef = useRef(false);
     const {
         isListening,
         transcript,
@@ -69,9 +70,13 @@ export function useVoiceInput() {
         if (!SpeechRecognition) return null;
 
         const recognition = new SpeechRecognition();
-        recognition.continuous = true;
+        recognition.continuous = false; // Use single-shot mode for better compatibility
         recognition.interimResults = false;
         recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+            isStartingRef.current = false;
+        };
 
         recognition.onresult = (event: SpeechRecognitionEvent) => {
             const lastResultIndex = event.results.length - 1;
@@ -83,25 +88,48 @@ export function useVoiceInput() {
         };
 
         recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+            isStartingRef.current = false;
             const errorMessages: Record<string, string> = {
-                'not-allowed': 'Microphone access denied. Please allow microphone permissions.',
+                'not-allowed': 'Microphone access denied. Please allow microphone permissions in your browser settings.',
                 'no-speech': 'No speech detected. Please try again.',
                 'audio-capture': 'No microphone found. Please connect a microphone.',
                 'network': 'Network error occurred. Please check your connection.',
-                'aborted': 'Speech recognition was aborted.',
+                'aborted': '', // Don't show error for intentional aborts
+                'service-not-available': 'Speech recognition service is not available. Try Chrome or Edge browser.',
             };
-            setError(errorMessages[event.error] || `Speech recognition error: ${event.error}`);
+
+            const errorMsg = errorMessages[event.error];
+            if (errorMsg === '') {
+                // Silently ignore aborted errors
+                return;
+            }
+
+            setError(errorMsg || `Speech recognition error: ${event.error}`);
+
+            // Stop listening on critical errors
+            if (event.error === 'not-allowed' || event.error === 'audio-capture' || event.error === 'service-not-available') {
+                stopListening();
+            }
         };
 
         recognition.onend = () => {
+            isStartingRef.current = false;
             // Auto-restart if still in listening mode (handles browser auto-stop)
             const state = useVoiceStore.getState();
             if (state.isListening) {
-                try {
-                    recognition.start();
-                } catch {
-                    stopListening();
-                }
+                // Small delay before restarting to avoid rapid restart loops
+                setTimeout(() => {
+                    const currentState = useVoiceStore.getState();
+                    if (currentState.isListening && !isStartingRef.current) {
+                        try {
+                            isStartingRef.current = true;
+                            recognition.start();
+                        } catch {
+                            isStartingRef.current = false;
+                            stopListening();
+                        }
+                    }
+                }, 100);
             }
         };
 
@@ -115,25 +143,46 @@ export function useVoiceInput() {
             return;
         }
 
+        // Prevent double-start
+        if (isStartingRef.current) return;
+
         const recognition = getRecognition();
         if (!recognition) {
             setError('Failed to initialize speech recognition.');
             return;
         }
 
+        // Reset any previous error
+        setError('');
+
         try {
+            // Abort any existing session first
+            try {
+                recognition.abort();
+            } catch {
+                // Ignore
+            }
+
+            isStartingRef.current = true;
             recognition.start();
             startListening();
         } catch (err) {
-            setError(`Failed to start speech recognition: ${err}`);
+            isStartingRef.current = false;
+            if (err instanceof DOMException && err.name === 'InvalidStateError') {
+                // Already started - just update state
+                startListening();
+            } else {
+                setError(`Failed to start speech recognition: ${err instanceof Error ? err.message : err}`);
+            }
         }
     }, [isSupported, getRecognition, startListening, setError]);
 
     const stop = useCallback(() => {
+        isStartingRef.current = false;
         const recognition = recognitionRef.current;
         if (recognition) {
             try {
-                recognition.stop();
+                recognition.abort();
             } catch {
                 // Ignore errors when stopping
             }
@@ -152,6 +201,7 @@ export function useVoiceInput() {
     // Cleanup on unmount
     useEffect(() => {
         return () => {
+            isStartingRef.current = false;
             const recognition = recognitionRef.current;
             if (recognition) {
                 try {
