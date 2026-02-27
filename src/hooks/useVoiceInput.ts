@@ -66,8 +66,8 @@ export function useVoiceInput() {
         if (!SpeechRecognition) return null;
 
         const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
+        recognition.continuous = true;
+        recognition.interimResults = true;
         recognition.lang = 'en-US';
 
         recognition.onstart = () => {
@@ -75,11 +75,12 @@ export function useVoiceInput() {
         };
 
         recognition.onresult = (event: SpeechRecognitionEvent) => {
-            const lastResultIndex = event.results.length - 1;
-            const lastResult = event.results[lastResultIndex];
-            if (lastResult.isFinal) {
-                const text = lastResult[0].transcript.trim();
-                if (text) appendTranscript(text);
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const result = event.results[i];
+                if (result.isFinal) {
+                    const text = result[0].transcript.trim();
+                    if (text) appendTranscript(text);
+                }
             }
         };
 
