@@ -3,6 +3,7 @@ import { useVoiceStore } from '@/stores/voiceStore';
 
 // Track interim text separately so we can show live speech
 let currentInterim = '';
+let networkErrorCount = 0;
 
 // Extend Window interface for webkit prefix
 interface SpeechRecognitionEvent extends Event {
@@ -106,13 +107,27 @@ export function useVoiceInput() {
                 'not-allowed': 'Microphone access denied. Please allow microphone permissions.',
                 'no-speech': '',  // silently restart
                 'audio-capture': 'No microphone found. Please connect a microphone.',
-                'network': '',  // silently retry — don't scare user
+                'network': '',  // handled below with adblock detection
                 'aborted': '',
                 'service-not-available': 'Speech recognition not available. Try Chrome or Edge.',
             };
 
             const errorMsg = errorMessages[event.error];
-            if (errorMsg === '') return;
+            if (errorMsg === '') {
+                // Track network errors for adblock detection
+                if (event.error === 'network') {
+                    networkErrorCount++;
+                    if (networkErrorCount >= 2) {
+                        const isBrave = 'brave' in navigator;
+                        setError(
+                            isBrave
+                                ? '⚠️ Brave Shield may block voice recognition. Please disable Shields for this site.'
+                                : '⚠️ Ad blocker may block voice recognition. Please disable it for this site.'
+                        );
+                    }
+                }
+                return;
+            }
 
             setError(errorMsg || `Speech recognition error: ${event.error}`);
 
@@ -159,6 +174,7 @@ export function useVoiceInput() {
         }
 
         setError('');
+        networkErrorCount = 0;
 
         try {
             try { recognition.abort(); } catch { /* ignore */ }
