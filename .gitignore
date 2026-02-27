@@ -57,3 +57,19 @@ coverage/
 dev-dist/
 sw.js
 workbox-*.js
+
+# Next.js
+next-env.d.ts
+
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+
+# iOS
+ios/App/Pods/
+ios/App/App/public/cordova.js
+ios/App/App/public/cordova_plugins.js
+
+# Capacitor / Cordova
+capacitor-cordova-ios-plugins/
