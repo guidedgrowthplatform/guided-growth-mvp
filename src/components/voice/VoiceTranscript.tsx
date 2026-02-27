@@ -1,7 +1,7 @@
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 
 export function VoiceTranscript() {
-    const { isListening, transcript, error, resetTranscript } = useVoiceInput();
+    const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
 
     if (!isListening && !transcript && !error) return null;
 
@@ -38,8 +38,15 @@ export function VoiceTranscript() {
                     </div>
                 )}
 
+                {/* Live interim text */}
+                {isListening && interim && (
+                    <p className="text-sm text-slate-400 italic mt-1">
+                        {interim}...
+                    </p>
+                )}
+
                 {/* Prompt when listening but no transcript yet */}
-                {isListening && !transcript && !error && (
+                {isListening && !transcript && !interim && !error && (
                     <p className="text-xs text-slate-400 italic">Speak now...</p>
                 )}
             </div>

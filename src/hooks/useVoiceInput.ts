@@ -1,6 +1,9 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useVoiceStore } from '@/stores/voiceStore';
 
+// Track interim text separately so we can show live speech
+let currentInterim = '';
+
 // Extend Window interface for webkit prefix
 interface SpeechRecognitionEvent extends Event {
     results: SpeechRecognitionResultList;
@@ -38,11 +41,13 @@ export function useVoiceInput() {
     const {
         isListening,
         transcript,
+        interim,
         error,
         isSupported,
         startListening,
         stopListening,
         appendTranscript,
+        setInterim,
         setError,
         resetTranscript,
         setSupported,
@@ -75,12 +80,23 @@ export function useVoiceInput() {
         };
 
         recognition.onresult = (event: SpeechRecognitionEvent) => {
+            let interim = '';
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const result = event.results[i];
                 if (result.isFinal) {
                     const text = result[0].transcript.trim();
-                    if (text) appendTranscript(text);
+                    if (text) {
+                        currentInterim = '';
+                        appendTranscript(text);
+                    }
+                } else {
+                    interim += result[0].transcript;
                 }
+            }
+            // Show live interim text
+            if (interim) {
+                currentInterim = interim;
+                setInterim(interim);
             }
         };
 
@@ -126,7 +142,7 @@ export function useVoiceInput() {
 
         recognitionRef.current = recognition;
         return recognition;
-    }, [appendTranscript, setError, stopListening]);
+    }, [appendTranscript, setInterim, setError, stopListening]);
 
     const start = useCallback(() => {
         if (!isSupported) {
@@ -161,9 +177,11 @@ export function useVoiceInput() {
 
     const stop = useCallback(() => {
         isStartingRef.current = false;
+        currentInterim = '';
         const recognition = recognitionRef.current;
         if (recognition) {
-            try { recognition.abort(); } catch { /* ignore */ }
+            // Use stop() not abort() — stop() processes final result first
+            try { recognition.stop(); } catch { /* ignore */ }
         }
         stopListening();
     }, [stopListening]);
@@ -190,6 +208,7 @@ export function useVoiceInput() {
     return {
         isListening,
         transcript,
+        interim,
         error,
         isSupported,
         start,
