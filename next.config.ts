@@ -1,10 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "export",
-  // Capacitor uses the 'out' directory as webDir
+  // Note: static export disabled on this branch because API routes
+  // are needed for the STT evaluation test harness.
+  // Re-enable `output: "export"` after evaluation is complete.
   images: {
-    unoptimized: true, // Required for static export
+    unoptimized: true,
   },
 };
 
