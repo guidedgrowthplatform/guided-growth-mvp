@@ -1,12 +1,30 @@
-import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { useEffect, useRef } from 'react';
+import { useVoiceInput } from '../../hooks/useVoiceInput';
+import { useVoiceCommand } from '../../hooks/useVoiceCommand';
+import { VoiceCommandResult } from './VoiceCommandResult';
 
 export function VoiceTranscript() {
     const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
+    const { processTranscript, isProcessing } = useVoiceCommand();
+    const lastProcessedRef = useRef<string>('');
+
+    // Auto-process transcript when user stops speaking
+    useEffect(() => {
+        if (
+            !isListening &&
+            transcript &&
+            transcript !== lastProcessedRef.current &&
+            !isProcessing
+        ) {
+            lastProcessedRef.current = transcript;
+            processTranscript(transcript);
+        }
+    }, [isListening, transcript, isProcessing, processTranscript]);
 
     if (!isListening && !transcript && !error) return null;
 
     return (
-        <div className="fixed bottom-24 right-24 z-50 lg:bottom-6 lg:right-24 w-72 max-w-[calc(100vw-8rem)]">
+        <div className="fixed bottom-24 right-24 z-50 lg:bottom-6 lg:right-24 w-80 max-w-[calc(100vw-8rem)]">
             <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl border border-slate-200 p-3">
                 {/* Status */}
                 {isListening && (
@@ -28,10 +46,13 @@ export function VoiceTranscript() {
                 {/* Transcript */}
                 {transcript && (
                     <div className="text-sm text-slate-700 leading-relaxed">
-                        <p className="italic">"{transcript}"</p>
+                        <p className="italic">&ldquo;{transcript}&rdquo;</p>
                         <button
-                            onClick={resetTranscript}
-                            className="text-xs text-slate-400 hover:text-slate-600 mt-1 underline"
+                            onClick={() => {
+                                resetTranscript();
+                                lastProcessedRef.current = '';
+                            }}
+                            className="text-xs text-slate-400 hover:text-slate-600 mt-1 underline cursor-pointer"
                         >
                             Clear
                         </button>
@@ -49,6 +70,9 @@ export function VoiceTranscript() {
                 {isListening && !transcript && !interim && !error && (
                     <p className="text-xs text-slate-400 italic">Speak now...</p>
                 )}
+
+                {/* Command Result (auto-processed) */}
+                <VoiceCommandResult />
             </div>
         </div>
     );
