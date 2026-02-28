@@ -33,21 +33,17 @@ export function useAudioRecorder() {
                 mediaRecorderRef.current.stop();
             }
 
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    sampleRate: 44100,
-                },
-            });
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
             streamRef.current = stream;
 
-            const mediaRecorder = new MediaRecorder(stream, {
-                mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                    ? 'audio/webm;codecs=opus'
-                    : 'audio/webm',
-            });
+            // Try opus first, then plain webm, then whatever is available
+            let mimeType = 'audio/webm';
+            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                mimeType = 'audio/webm;codecs=opus';
+            }
+
+            const mediaRecorder = new MediaRecorder(stream, { mimeType });
 
             chunksRef.current = [];
             mediaRecorderRef.current = mediaRecorder;
