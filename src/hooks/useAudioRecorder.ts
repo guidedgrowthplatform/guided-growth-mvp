@@ -20,13 +20,29 @@ export function useAudioRecorder() {
     });
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
     const chunksRef = useRef<Blob[]>([]);
     const startTimeRef = useRef<number>(0);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const isRecordingRef = useRef<boolean>(false);
 
     const startRecording = useCallback(async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Clean up any previous recording
+            if (mediaRecorderRef.current && isRecordingRef.current) {
+                mediaRecorderRef.current.stop();
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    sampleRate: 44100,
+                },
+            });
+
+            streamRef.current = stream;
+
             const mediaRecorder = new MediaRecorder(stream, {
                 mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
                     ? 'audio/webm;codecs=opus'
@@ -45,26 +61,38 @@ export function useAudioRecorder() {
             mediaRecorder.onstop = () => {
                 const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
                 const url = URL.createObjectURL(blob);
+                const finalDuration = Math.floor((Date.now() - startTimeRef.current) / 1000);
+
                 setState((prev) => ({
                     ...prev,
                     isRecording: false,
                     audioBlob: blob,
                     audioUrl: url,
+                    duration: finalDuration,
                 }));
+
+                isRecordingRef.current = false;
+
                 // Stop all tracks
-                stream.getTracks().forEach((track) => track.stop());
+                if (streamRef.current) {
+                    streamRef.current.getTracks().forEach((track) => track.stop());
+                    streamRef.current = null;
+                }
             };
 
-            mediaRecorder.start(100); // Collect data every 100ms
+            // Start recording — timeslice 250ms for more reliable chunk collection
+            mediaRecorder.start(250);
             startTimeRef.current = Date.now();
+            isRecordingRef.current = true;
 
             // Duration timer
+            if (timerRef.current) clearInterval(timerRef.current);
             timerRef.current = setInterval(() => {
                 setState((prev) => ({
                     ...prev,
                     duration: Math.floor((Date.now() - startTimeRef.current) / 1000),
                 }));
-            }, 1000);
+            }, 500); // Update every 500ms for smoother display
 
             setState({
                 isRecording: true,
@@ -82,19 +110,26 @@ export function useAudioRecorder() {
     }, []);
 
     const stopRecording = useCallback(() => {
-        if (mediaRecorderRef.current && state.isRecording) {
-            mediaRecorderRef.current.stop();
+        // Use ref instead of state to avoid stale closure
+        if (mediaRecorderRef.current && isRecordingRef.current) {
+            // Request final data before stopping
+            if (mediaRecorderRef.current.state === 'recording') {
+                mediaRecorderRef.current.requestData();
+                mediaRecorderRef.current.stop();
+            }
+
             if (timerRef.current) {
                 clearInterval(timerRef.current);
                 timerRef.current = null;
             }
         }
-    }, [state.isRecording]);
+    }, []);
 
     const reset = useCallback(() => {
         if (state.audioUrl) {
             URL.revokeObjectURL(state.audioUrl);
         }
+        chunksRef.current = [];
         setState({
             isRecording: false,
             audioBlob: null,

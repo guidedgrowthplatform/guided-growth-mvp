@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Faster Whisper self-hosted server proxy
-// Proxies audio to a Faster Whisper REST API server
 export async function POST(request: NextRequest) {
     const serverUrl = process.env.FASTER_WHISPER_URL;
 
@@ -13,8 +12,8 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const formData = await request.formData();
-        const audioFile = formData.get('audio') as File;
+        const incomingFormData = await request.formData();
+        const audioFile = incomingFormData.get('audio') as File;
 
         if (!audioFile) {
             return NextResponse.json(
@@ -23,11 +22,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Forward to Faster Whisper server
+        // Forward audio to Faster Whisper server using native fetch + FormData
         const forwardFormData = new FormData();
-        const audioBuffer = await audioFile.arrayBuffer();
-        const blob = new Blob([audioBuffer], { type: audioFile.type || 'audio/webm' });
-        forwardFormData.append('file', blob, 'recording.webm');
+        forwardFormData.append('file', audioFile, 'recording.webm');
 
         const res = await fetch(`${serverUrl}/v1/audio/transcriptions`, {
             method: 'POST',
@@ -36,6 +33,7 @@ export async function POST(request: NextRequest) {
 
         if (!res.ok) {
             const errText = await res.text();
+            console.error('Faster Whisper error:', res.status, errText);
             return NextResponse.json(
                 { error: `Faster Whisper server error ${res.status}: ${errText}` },
                 { status: 502 }
@@ -51,6 +49,7 @@ export async function POST(request: NextRequest) {
                 provider: 'faster-whisper',
                 language: data.language,
                 duration: data.duration,
+                processing_time: data.processing_time,
             },
         });
     } catch (err) {

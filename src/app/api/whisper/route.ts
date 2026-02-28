@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import https from 'node:https';
 
-// Whisper.cpp API proxy
-// Uses the OpenAI Whisper API as the whisper.cpp compatible endpoint
-// In production, this would point to a self-hosted whisper.cpp server
+// Whisper.cpp API proxy — uses OpenAI Whisper API
 export async function POST(request: NextRequest) {
     const apiKey = process.env.OPENAI_API_KEY;
 
@@ -15,8 +12,8 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const formData = await request.formData();
-        const audioFile = formData.get('audio') as File;
+        const incomingFormData = await request.formData();
+        const audioFile = incomingFormData.get('audio') as File;
 
         if (!audioFile) {
             return NextResponse.json(
@@ -25,71 +22,30 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
+        // Forward the audio to OpenAI Whisper API using native fetch + FormData
+        const openaiFormData = new FormData();
+        openaiFormData.append('file', audioFile, 'recording.webm');
+        openaiFormData.append('model', 'whisper-1');
+        openaiFormData.append('language', 'en');
 
-        // Build multipart form data for OpenAI Whisper API
-        const boundary = '----WhisperBoundary' + Date.now();
-        const fileField = 'file';
-        const modelField = 'whisper-1';
-
-        const parts: Buffer[] = [];
-
-        // File part
-        parts.push(Buffer.from(
-            `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="${fileField}"; filename="audio.webm"\r\n` +
-            `Content-Type: audio/webm\r\n\r\n`
-        ));
-        parts.push(audioBuffer);
-        parts.push(Buffer.from('\r\n'));
-
-        // Model part
-        parts.push(Buffer.from(
-            `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="model"\r\n\r\n` +
-            `${modelField}\r\n`
-        ));
-
-        // Close
-        parts.push(Buffer.from(`--${boundary}--\r\n`));
-
-        const body = Buffer.concat(parts);
-
-        const result = await new Promise<string>((resolve, reject) => {
-            const options = {
-                hostname: 'api.openai.com',
-                path: '/v1/audio/transcriptions',
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': `multipart/form-data; boundary=${boundary}`,
-                    'Content-Length': body.length,
-                },
-            };
-
-            const req = https.request(options, (res) => {
-                let data = '';
-                res.on('data', (chunk: string) => {
-                    data += chunk;
-                });
-                res.on('end', () => {
-                    if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-                        resolve(data);
-                    } else {
-                        reject(new Error(`Whisper API error ${res.statusCode}: ${data}`));
-                    }
-                });
-            });
-
-            req.on('error', (err: Error) => {
-                reject(err);
-            });
-
-            req.write(body);
-            req.end();
+        const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+            },
+            body: openaiFormData,
         });
 
-        const data = JSON.parse(result);
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error('Whisper API error:', response.status, errText);
+            return NextResponse.json(
+                { error: `Whisper API error ${response.status}: ${errText}` },
+                { status: 502 }
+            );
+        }
+
+        const data = await response.json();
 
         return NextResponse.json({
             transcript: data.text || '',
