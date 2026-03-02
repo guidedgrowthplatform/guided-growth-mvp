@@ -4,6 +4,7 @@ import { useCommandStore } from '@/stores/commandStore';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { mockDataService } from '@/lib/services/mock-data-service';
 import { useToast } from '@/contexts/ToastContext';
+import { speakPreAck } from '@/lib/services/tts-service';
 
 const dispatcher = new ActionDispatcher(mockDataService);
 
@@ -127,6 +128,9 @@ export function useVoiceCommand() {
       }
 
       const apiLatency = intent.latency || (Date.now() - startTime);
+
+      // Pre-acknowledgment TTS: immediate audio feedback before action runs
+      speakPreAck(intent.action, intent.params as Record<string, unknown>);
 
       // Dispatch the action against MockDataService
       const result = await dispatcher.dispatch(intent);

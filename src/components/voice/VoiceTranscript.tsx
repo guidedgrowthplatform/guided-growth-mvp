@@ -2,20 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoiceCommand } from '@/hooks/useVoiceCommand';
 import { useVoiceStore } from '@/stores/voiceStore';
-
-// TTS talk-back — speak the result message aloud
-function speak(text: string) {
-    if (!('speechSynthesis' in window)) return;
-    // Strip emoji for cleaner TTS
-    const clean = text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
-    if (!clean) return;
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.rate = 1.1;
-    utterance.pitch = 1.0;
-    utterance.volume = 0.8;
-    window.speechSynthesis.cancel(); // stop any previous speech
-    window.speechSynthesis.speak(utterance);
-}
+import { speak } from '@/lib/services/tts-service';
 
 export function VoiceTranscript() {
     const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();

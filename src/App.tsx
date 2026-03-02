@@ -7,6 +7,7 @@ import { CapturePage } from '@/pages/CapturePage';
 import { ConfigurePage } from '@/pages/ConfigurePage';
 import { ReportPage } from '@/pages/ReportPage';
 import { AdminPage } from '@/pages/AdminPage';
+import { SettingsPage } from '@/pages/SettingsPage';
 import { mockDataService } from '@/lib/services/mock-data-service';
 
 // Seed mock data on first load (only if localStorage is empty)
@@ -32,6 +33,7 @@ function AppRoutes() {
           <Route path="/configure" element={<ConfigurePage />} />
           <Route path="/report" element={<ReportPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/capture" replace />} />
         </Routes>
       </ErrorBoundary>

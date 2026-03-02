@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, addDays, subDays } from 'date-fns';
 import type { ViewMode, SpreadsheetRange, MetricCreate, EntriesMap } from '@shared/types';
 import { getWeekRange } from '@/utils/dates';
@@ -43,18 +43,25 @@ export function CaptureView() {
   const { entries, load: loadEntries, updateCell, saveDay, setEntries } = useEntries();
 
   const { state: undoState, setState: setUndoState, pushHistory, undo, redo, canUndo, canRedo } = useUndoRedo<EntriesMap>({});
+  const syncingRef = useRef(false);
 
-  // Sync entries into undo state
+  // Sync entries into undo state (from data layer → undo stack)
   useEffect(() => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
     setUndoState(entries);
+    syncingRef.current = false;
   }, [entries, setUndoState]);
 
-  // When undo/redo changes state, push back to entries
+  // When undo/redo changes state, push back to entries (from undo stack → data layer)
   useEffect(() => {
+    if (syncingRef.current) return;
     if (undoState !== entries) {
+      syncingRef.current = true;
       setEntries(undoState);
+      syncingRef.current = false;
     }
-  }, [undoState]);
+  }, [undoState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load entries when date or range changes
   useEffect(() => {

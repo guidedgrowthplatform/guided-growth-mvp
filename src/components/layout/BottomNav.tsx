@@ -5,6 +5,7 @@ const navItems = [
   { path: '/capture', label: 'Capture', icon: '\u{1F4DD}' },
   { path: '/configure', label: 'Config', icon: '\u{2699}\u{FE0F}' },
   { path: '/report', label: 'Report', icon: '\u{1F4CA}' },
+  { path: '/settings', label: 'Settings', icon: '\u{1F527}' },
   { path: '/admin', label: 'Admin', icon: '\u{1F510}', adminOnly: true },
 ];
 

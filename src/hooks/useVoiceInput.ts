@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useVoiceStore } from '@/stores/voiceStore';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 // Track interim text separately so we can show live speech
 let currentInterim = '';
@@ -69,6 +70,13 @@ export function useVoiceInput() {
 
     // Reset silence timer — called on every speech result
     const resetSilenceTimer = useCallback(() => {
+        // In 'always-on' mode, skip silence detection entirely
+        const { recordingMode } = useVoiceSettingsStore.getState();
+        if (recordingMode === 'always-on') {
+            clearSilenceTimer();
+            return;
+        }
+
         clearSilenceTimer();
         silenceTimerRef.current = setTimeout(() => {
             // Auto-stop after silence (only if user has spoken something)
