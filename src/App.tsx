@@ -12,7 +12,10 @@ import { mockDataService } from '@/lib/services/mock-data-service';
 // Seed mock data on first load (only if localStorage is empty)
 function useSeedData() {
   useEffect(() => {
-    mockDataService.seedData().catch(console.error);
+    mockDataService.seedData().then(() => {
+      // Trigger UI refresh after seed data is available
+      window.dispatchEvent(new CustomEvent('voice-data-changed'));
+    }).catch(console.error);
   }, []);
 }
 
