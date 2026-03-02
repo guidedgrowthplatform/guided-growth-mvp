@@ -43,26 +43,44 @@ export class ActionDispatcher {
     const { action, entity, params } = intent;
 
     try {
+      let result: ActionResult;
+
       switch (action) {
         case 'create':
-          return this.handleCreate(entity, params);
+          result = await this.handleCreate(entity, params);
+          break;
         case 'complete':
-          return this.handleComplete(entity, params);
+          result = await this.handleComplete(entity, params);
+          break;
         case 'delete':
-          return this.handleDelete(entity, params);
+          result = await this.handleDelete(entity, params);
+          break;
         case 'update':
-          return this.handleUpdate(entity, params);
+          result = await this.handleUpdate(entity, params);
+          break;
         case 'query':
-          return this.handleQuery(entity, params);
+          result = await this.handleQuery(entity, params);
+          break;
         case 'log':
-          return this.handleLog(entity, params);
+          result = await this.handleLog(entity, params);
+          break;
         case 'reflect':
-          return this.handleReflect(entity, params);
+          result = await this.handleReflect(entity, params);
+          break;
         case 'suggest':
-          return this.handleSuggest(entity, params);
+          result = await this.handleSuggest(entity, params);
+          break;
         default:
-          return { success: false, message: `Unknown action: ${action}`, uiAction: 'toast' };
+          result = { success: false, message: `Unknown action: ${action}`, uiAction: 'toast' };
+          break;
       }
+
+      // Notify UI to re-fetch data after any successful mutation
+      if (result.success && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('voice-data-changed'));
+      }
+
+      return result;
     } catch (err) {
       return {
         success: false,

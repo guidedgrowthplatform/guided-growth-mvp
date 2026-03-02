@@ -29,6 +29,13 @@ export function useMetrics() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Re-fetch when voice commands change data
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener('voice-data-changed', handler);
+    return () => window.removeEventListener('voice-data-changed', handler);
+  }, [load]);
+
   const create = useCallback(async (data: MetricCreate) => {
     const metric = await metricsApi.createMetric(data);
     setMetrics((prev) => [...prev, metric]);
