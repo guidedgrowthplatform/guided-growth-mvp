@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
@@ -6,9 +7,18 @@ import { CapturePage } from '@/pages/CapturePage';
 import { ConfigurePage } from '@/pages/ConfigurePage';
 import { ReportPage } from '@/pages/ReportPage';
 import { AdminPage } from '@/pages/AdminPage';
+import { mockDataService } from '@/lib/services/mock-data-service';
+
+// Seed mock data on first load (only if localStorage is empty)
+function useSeedData() {
+  useEffect(() => {
+    mockDataService.seedData().catch(console.error);
+  }, []);
+}
 
 // Auth disabled for preview/demo — see feat/voice-integration branch
 function AppRoutes() {
+  useSeedData();
   return (
     <Layout>
       <ErrorBoundary>
