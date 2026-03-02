@@ -26,12 +26,12 @@ export async function saveEntries(date: string, dayEntries: DayEntries): Promise
     await apiPut(`/api/entries/${date}`, dayEntries);
   } catch {
     // Fallback: save completions to MockDataService
+    // Don't dispatch voice-data-changed here — manual grid clicks already update local state
     for (const [metricId, value] of Object.entries(dayEntries)) {
       if (value === 'yes' || value === '1' || value === 'true') {
         await mockDataService.completeHabit(metricId, date);
       }
     }
-    window.dispatchEvent(new CustomEvent('voice-data-changed'));
   }
 }
 
@@ -46,6 +46,5 @@ export async function saveBulkEntries(entriesMap: EntriesMap): Promise<void> {
         }
       }
     }
-    window.dispatchEvent(new CustomEvent('voice-data-changed'));
   }
 }
