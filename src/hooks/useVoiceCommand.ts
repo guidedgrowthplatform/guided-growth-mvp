@@ -13,9 +13,20 @@ function localParse(transcript: string): { action: string; entity: string; param
   const t = transcript.toLowerCase().trim();
 
   // Create habit
-  if (t.match(/create.*habit|add.*habit|new.*habit/)) {
-    const nameMatch = t.match(/(?:called|named)\s+(.+?)(?:\s*,|$)/i) || t.match(/habit\s+(.+?)$/i);
-    const name = nameMatch?.[1]?.trim() || 'unnamed';
+  if (t.match(/create.*habits?|add.*habits?|new.*habits?/)) {
+    // Try multiple patterns to extract the habit name
+    const nameMatch =
+      t.match(/(?:called|named|for)\s+(.+?)(?:\s*,|$)/i) ||    // "called X" / "named X"
+      t.match(/habits?\s+(?:called|named|for)\s+(.+?)$/i) ||    // "habit called X"
+      t.match(/(?:create|add|new)\s+(?:a\s+)?(?:new\s+)?(?:daily\s+)?(?:habits?\s+)?(.+?)(?:\s+habit)?$/i); // "add X" / "add new habit X" / "add new habits playing"
+    let name = nameMatch?.[1]
+      ?.replace(/^(?:a\s+|the\s+|new\s+|my\s+)/i, '')  // strip leading articles
+      ?.replace(/\s+habits?$/i, '')                       // strip trailing "habit(s)"
+      ?.trim() || '';
+    // Reject empty or garbage names
+    if (!name || name.length < 2) {
+      return { action: 'create', entity: 'habit', params: { name: '', frequency: 'daily' }, confidence: 0.3 };
+    }
     const freqMatch = t.match(/(\d+)\s*times?\s*(?:a|per)\s*week/i);
     const frequency = freqMatch ? `${freqMatch[1]}x/week` : 'daily';
     return { action: 'create', entity: 'habit', params: { name, frequency }, confidence: 0.7 };
@@ -24,7 +35,7 @@ function localParse(transcript: string): { action: string; entity: string; param
   // Create metric
   if (t.match(/create.*metric|add.*metric|new.*metric/)) {
     const nameMatch = t.match(/(?:called|named|for)\s+(.+?)(?:\s*,|$)/i) || t.match(/metric\s+(.+?)$/i);
-    const name = nameMatch?.[1]?.trim() || 'unnamed';
+    const name = nameMatch?.[1]?.trim() || '';
     const scaleMatch = t.match(/scale\s+(\d+)\s*to\s*(\d+)/i);
     return { action: 'create', entity: 'metric', params: { name, inputType: scaleMatch ? 'scale' : 'binary', scale: scaleMatch ? [Number(scaleMatch[1]), Number(scaleMatch[2])] : undefined }, confidence: 0.7 };
   }
