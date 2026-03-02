@@ -5,6 +5,9 @@ import { useVoiceStore } from '@/stores/voiceStore';
 let currentInterim = '';
 let networkErrorCount = 0;
 
+// Silence detection config
+const SILENCE_TIMEOUT_MS = 2500; // auto-stop after 2.5s of silence (like Siri)
+
 // Extend Window interface for webkit prefix
 interface SpeechRecognitionEvent extends Event {
     results: SpeechRecognitionResultList;
@@ -39,6 +42,8 @@ declare global {
 export function useVoiceInput() {
     const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
     const isStartingRef = useRef(false);
+    const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const hasSpokenRef = useRef(false);
     const {
         isListening,
         transcript,
@@ -53,6 +58,29 @@ export function useVoiceInput() {
         resetTranscript,
         setSupported,
     } = useVoiceStore();
+
+    // Clear silence timer
+    const clearSilenceTimer = useCallback(() => {
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+        }
+    }, []);
+
+    // Reset silence timer — called on every speech result
+    const resetSilenceTimer = useCallback(() => {
+        clearSilenceTimer();
+        silenceTimerRef.current = setTimeout(() => {
+            // Auto-stop after silence (only if user has spoken something)
+            if (hasSpokenRef.current) {
+                const recognition = recognitionRef.current;
+                if (recognition) {
+                    try { recognition.stop(); } catch { /* ignore */ }
+                }
+                stopListening();
+            }
+        }, SILENCE_TIMEOUT_MS);
+    }, [clearSilenceTimer, stopListening]);
 
     // Check browser support on mount
     useEffect(() => {
@@ -88,6 +116,7 @@ export function useVoiceInput() {
                     const text = result[0].transcript.trim();
                     if (text) {
                         currentInterim = '';
+                        hasSpokenRef.current = true;
                         appendTranscript(text);
                     }
                 } else {
@@ -97,8 +126,11 @@ export function useVoiceInput() {
             // Show live interim text
             if (interim) {
                 currentInterim = interim;
+                hasSpokenRef.current = true;
                 setInterim(interim);
             }
+            // Reset silence timer on any speech activity
+            resetSilenceTimer();
         };
 
         recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -133,6 +165,7 @@ export function useVoiceInput() {
 
             if (['not-allowed', 'audio-capture', 'service-not-available'].includes(event.error)) {
                 stopListening();
+                clearSilenceTimer();
             }
         };
 
@@ -149,6 +182,7 @@ export function useVoiceInput() {
                         } catch {
                             isStartingRef.current = false;
                             stopListening();
+                            clearSilenceTimer();
                         }
                     }
                 }, 100);
@@ -157,7 +191,7 @@ export function useVoiceInput() {
 
         recognitionRef.current = recognition;
         return recognition;
-    }, [appendTranscript, setInterim, setError, stopListening]);
+    }, [appendTranscript, setInterim, setError, stopListening, resetSilenceTimer, clearSilenceTimer]);
 
     const start = useCallback(() => {
         if (!isSupported) {
@@ -175,12 +209,15 @@ export function useVoiceInput() {
 
         setError('');
         networkErrorCount = 0;
+        hasSpokenRef.current = false;
 
         try {
             try { recognition.abort(); } catch { /* ignore */ }
             isStartingRef.current = true;
             recognition.start();
             startListening();
+            // Start silence timer (will auto-stop if no speech detected)
+            resetSilenceTimer();
         } catch (err) {
             isStartingRef.current = false;
             if (err instanceof DOMException && err.name === 'InvalidStateError') {
@@ -189,18 +226,20 @@ export function useVoiceInput() {
                 setError(`Failed to start: ${err instanceof Error ? err.message : err}`);
             }
         }
-    }, [isSupported, getRecognition, startListening, setError]);
+    }, [isSupported, getRecognition, startListening, setError, resetSilenceTimer]);
 
     const stop = useCallback(() => {
         isStartingRef.current = false;
         currentInterim = '';
+        hasSpokenRef.current = false;
+        clearSilenceTimer();
         const recognition = recognitionRef.current;
         if (recognition) {
             // Use stop() not abort() — stop() processes final result first
             try { recognition.stop(); } catch { /* ignore */ }
         }
         stopListening();
-    }, [stopListening]);
+    }, [stopListening, clearSilenceTimer]);
 
     const toggle = useCallback(() => {
         if (isListening) {
@@ -213,13 +252,14 @@ export function useVoiceInput() {
     useEffect(() => {
         return () => {
             isStartingRef.current = false;
+            clearSilenceTimer();
             const recognition = recognitionRef.current;
             if (recognition) {
                 try { recognition.abort(); } catch { /* ignore */ }
                 recognitionRef.current = null;
             }
         };
-    }, []);
+    }, [clearSilenceTimer]);
 
     return {
         isListening,

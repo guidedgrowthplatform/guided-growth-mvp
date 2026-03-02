@@ -1,19 +1,72 @@
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoiceCommand } from '@/hooks/useVoiceCommand';
+import { useVoiceStore } from '@/stores/voiceStore';
+
+// TTS talk-back — speak the result message aloud
+function speak(text: string) {
+    if (!('speechSynthesis' in window)) return;
+    // Strip emoji for cleaner TTS
+    const clean = text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
+    if (!clean) return;
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.rate = 1.1;
+    utterance.pitch = 1.0;
+    utterance.volume = 0.8;
+    window.speechSynthesis.cancel(); // stop any previous speech
+    window.speechSynthesis.speak(utterance);
+}
 
 export function VoiceTranscript() {
     const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
     const { processTranscript, isProcessing, lastResult, lastIntent, latency, clearResult } = useVoiceCommand();
+    const setTranscript = useVoiceStore((s) => s.setTranscript);
     const lastProcessedRef = useRef('');
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedText, setEditedText] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
 
-    // Auto-process transcript when user stops speaking
+    // Auto-process transcript when user stops speaking (silence detection triggers stop)
     useEffect(() => {
         if (!isListening && transcript && transcript !== lastProcessedRef.current) {
             lastProcessedRef.current = transcript;
             processTranscript(transcript);
         }
     }, [isListening, transcript, processTranscript]);
+
+    // TTS talk-back: speak the result after processing
+    useEffect(() => {
+        if (lastResult && !isProcessing) {
+            speak(lastResult.message);
+        }
+    }, [lastResult, isProcessing]);
+
+    // Focus input when entering edit mode
+    useEffect(() => {
+        if (isEditing && inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.select();
+        }
+    }, [isEditing]);
+
+    const handleEditStart = () => {
+        setEditedText(transcript);
+        setIsEditing(true);
+    };
+
+    const handleEditSubmit = () => {
+        if (editedText.trim()) {
+            setTranscript(editedText.trim());
+            lastProcessedRef.current = editedText.trim();
+            processTranscript(editedText.trim());
+        }
+        setIsEditing(false);
+    };
+
+    const handleEditKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') handleEditSubmit();
+        if (e.key === 'Escape') setIsEditing(false);
+    };
 
     if (!isListening && !transcript && !error && !lastResult) return null;
 
@@ -26,6 +79,9 @@ export function VoiceTranscript() {
                         <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                         <span className="text-xs font-semibold text-red-600 uppercase tracking-wide">
                             Listening...
+                        </span>
+                        <span className="text-[10px] text-slate-400 ml-auto">
+                            auto-stops after silence
                         </span>
                     </div>
                 )}
@@ -47,10 +103,48 @@ export function VoiceTranscript() {
                     </div>
                 )}
 
-                {/* Transcript */}
-                {transcript && (
-                    <div className="text-sm text-slate-700 leading-relaxed mb-2">
-                        <p className="italic">"{transcript}"</p>
+                {/* Transcript — editable */}
+                {transcript && !isEditing && (
+                    <div className="text-sm text-slate-700 leading-relaxed mb-2 group">
+                        <div className="flex items-start gap-1">
+                            <p className="italic flex-1">"{transcript}"</p>
+                            <button
+                                onClick={handleEditStart}
+                                className="opacity-0 group-hover:opacity-100 text-[10px] text-blue-500 hover:text-blue-700 underline flex-shrink-0 transition-opacity"
+                                title="Edit transcript before reprocessing"
+                            >
+                                ✏️ Edit
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Edit mode */}
+                {isEditing && (
+                    <div className="mb-2">
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={editedText}
+                            onChange={(e) => setEditedText(e.target.value)}
+                            onKeyDown={handleEditKeyDown}
+                            className="w-full text-sm border border-blue-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            placeholder="Edit your command..."
+                        />
+                        <div className="flex gap-2 mt-1">
+                            <button
+                                onClick={handleEditSubmit}
+                                className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded hover:bg-blue-600"
+                            >
+                                Reprocess
+                            </button>
+                            <button
+                                onClick={() => setIsEditing(false)}
+                                className="text-xs text-slate-400 hover:text-slate-600 underline"
+                            >
+                                Cancel
+                            </button>
+                        </div>
                     </div>
                 )}
 
@@ -93,7 +187,7 @@ export function VoiceTranscript() {
                 <div className="flex gap-2 mt-2">
                     {transcript && (
                         <button
-                            onClick={() => { resetTranscript(); clearResult(); lastProcessedRef.current = ''; }}
+                            onClick={() => { resetTranscript(); clearResult(); lastProcessedRef.current = ''; setIsEditing(false); }}
                             className="text-xs text-slate-400 hover:text-slate-600 underline"
                         >
                             Clear

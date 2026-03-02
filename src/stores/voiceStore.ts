@@ -9,6 +9,7 @@ interface VoiceState {
     startListening: () => void;
     stopListening: () => void;
     appendTranscript: (text: string) => void;
+    setTranscript: (text: string) => void;
     setInterim: (text: string) => void;
     setError: (error: string) => void;
     resetTranscript: () => void;
@@ -28,6 +29,7 @@ export const useVoiceStore = create<VoiceState>((set) => ({
             transcript: state.transcript ? `${state.transcript} ${text}` : text,
             interim: '',
         })),
+    setTranscript: (text: string) => set({ transcript: text }),
     setInterim: (text: string) => set({ interim: text }),
     setError: (error: string) => set({ error }),
     resetTranscript: () => set({ transcript: '', error: '', interim: '' }),
