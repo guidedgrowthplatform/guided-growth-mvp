@@ -42,26 +42,36 @@ export function CaptureView() {
   const { activeMetrics: metrics, create: createMetric, reorder: reorderMetrics, update: updateMetric } = useMetrics();
   const { entries, load: loadEntries, updateCell, saveDay, setEntries } = useEntries();
 
-  const { state: undoState, setState: setUndoState, pushHistory, undo, redo, canUndo, canRedo } = useUndoRedo<EntriesMap>({});
-  const syncingRef = useRef(false);
+  const { state: undoState, setState: setUndoState, pushHistory, undo: undoRaw, redo: redoRaw, canUndo, canRedo } = useUndoRedo<EntriesMap>({});
+  const undoAppliedRef = useRef(false);
 
-  // Sync entries into undo state (from data layer → undo stack)
+  // Keep undo state in sync when entries change from data layer (load, voice commands, etc.)
+  // Only sync when it's NOT an undo/redo operation pushing back
   useEffect(() => {
-    if (syncingRef.current) return;
-    syncingRef.current = true;
+    if (undoAppliedRef.current) {
+      undoAppliedRef.current = false;
+      return;
+    }
     setUndoState(entries);
-    syncingRef.current = false;
   }, [entries, setUndoState]);
 
-  // When undo/redo changes state, push back to entries (from undo stack → data layer)
+  // When undo/redo changes state, apply it back to entries
+  const undo = useCallback(() => {
+    undoAppliedRef.current = true;
+    undoRaw();
+  }, [undoRaw]);
+
+  const redo = useCallback(() => {
+    undoAppliedRef.current = true;
+    redoRaw();
+  }, [redoRaw]);
+
+  // Apply undo/redo result back to entries
   useEffect(() => {
-    if (syncingRef.current) return;
-    if (undoState !== entries) {
-      syncingRef.current = true;
+    if (undoAppliedRef.current) {
       setEntries(undoState);
-      syncingRef.current = false;
     }
-  }, [undoState]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [undoState, setEntries]);
 
   // Load entries when date or range changes
   useEffect(() => {
