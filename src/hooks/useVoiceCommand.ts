@@ -32,7 +32,10 @@ function localParse(transcript: string): { action: string; entity: string; param
   // Complete / mark done
   if (t.match(/mark.*done|completed?\s/)) {
     const nameMatch = t.match(/(?:mark|completed?)\s+(.+?)(?:\s+done|\s+for|$)/i);
-    const name = nameMatch?.[1]?.replace(/\s+done.*/, '')?.trim() || '';
+    const name = nameMatch?.[1]
+      ?.replace(/\s+(is|was|has been|has|been)\s*$/i, '') // strip "reading IS" → "reading"
+      ?.replace(/\s+done.*/, '')
+      ?.trim() || '';
     return { action: 'complete', entity: 'habit', params: { name, date: 'today' }, confidence: 0.7 };
   }
 
