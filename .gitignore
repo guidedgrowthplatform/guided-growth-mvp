@@ -75,3 +75,8 @@ ios/capacitor-cordova-ios-plugins/
 
 # Capacitor / Cordova
 capacitor-cordova-ios-plugins/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
