@@ -1,5 +1,6 @@
 // Centralized TTS service with pleasant voice selection + pre-acknowledgment
 // Replaces the inline speak() in VoiceTranscript.tsx
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 const VOICE_PREF_KEY = 'mvp03_tts_voice';
 
@@ -81,6 +82,9 @@ function cleanText(text: string): string {
 /** Speak text aloud using the selected pleasant voice */
 export function speak(text: string, options?: { rate?: number; pitch?: number; volume?: number }): void {
   if (!('speechSynthesis' in window)) return;
+  // Check if TTS is enabled
+  const { ttsEnabled } = useVoiceSettingsStore.getState();
+  if (!ttsEnabled) return;
   const clean = cleanText(text);
   if (!clean) return;
 

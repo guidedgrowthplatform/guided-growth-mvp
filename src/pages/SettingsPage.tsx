@@ -3,7 +3,7 @@ import { useVoiceSettingsStore, type RecordingMode } from '@/stores/voiceSetting
 import { getAvailableVoices, setVoicePreference, speak, getVoicePreference } from '@/lib/services/tts-service';
 
 export function SettingsPage() {
-  const { recordingMode, setRecordingMode } = useVoiceSettingsStore();
+  const { recordingMode, setRecordingMode, ttsEnabled, setTtsEnabled } = useVoiceSettingsStore();
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>(getVoicePreference() || '');
 
@@ -90,6 +90,34 @@ export function SettingsPage() {
         <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
           ⚠️ Note: Apple may restrict "always recording" mode on iOS.
         </p>
+      </section>
+
+      {/* Talk Back Voice Toggle */}
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+          💬 Talk Back Voice
+        </h2>
+        <div className="bg-white/80 rounded-xl border border-slate-200 p-4">
+          <label className="flex items-center justify-between cursor-pointer">
+            <div>
+              <span className="font-medium text-slate-800">Voice feedback</span>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Read results aloud after each voice command
+              </p>
+            </div>
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={ttsEnabled}
+                onChange={(e) => setTtsEnabled(e.target.checked)}
+                className="sr-only peer"
+                id="tts-toggle"
+              />
+              <div className="w-11 h-6 bg-slate-300 peer-focus:ring-2 peer-focus:ring-cyan-400 rounded-full peer peer-checked:bg-cyan-500 transition-colors" />
+              <div className="absolute left-[2px] top-[2px] w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5" />
+            </div>
+          </label>
+        </div>
       </section>
 
       {/* Voice Selection */}
