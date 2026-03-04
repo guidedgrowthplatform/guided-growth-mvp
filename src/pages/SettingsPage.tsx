@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useVoiceSettingsStore, type RecordingMode } from '@/stores/voiceSettingsStore';
+import { useVoiceSettingsStore, type RecordingMode, type SttProvider } from '@/stores/voiceSettingsStore';
 import { getAvailableVoices, setVoicePreference, speak, getVoicePreference } from '@/lib/services/tts-service';
 
 export function SettingsPage() {
-  const { recordingMode, setRecordingMode, ttsEnabled, setTtsEnabled } = useVoiceSettingsStore();
+  const { recordingMode, setRecordingMode, ttsEnabled, setTtsEnabled, sttProvider, setSttProvider } = useVoiceSettingsStore();
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>(getVoicePreference() || '');
 
@@ -50,9 +50,59 @@ export function SettingsPage() {
     },
   ];
 
+  const sttProviders: { value: SttProvider; label: string; description: string; icon: string }[] = [
+    {
+      value: 'webspeech',
+      label: 'Web Speech API',
+      description: 'Browser built-in. Free, real-time interim results. Requires internet.',
+      icon: '🌐',
+    },
+    {
+      value: 'whisper',
+      label: 'Whisper (whisper.cpp)',
+      description: 'OpenAI Whisper base model. Runs locally in browser via WASM. ~75MB download on first use.',
+      icon: '🤖',
+    },
+  ];
+
   return (
     <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold text-slate-800 mb-6">Settings</h1>
+
+      {/* STT Provider */}
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+          🧠 Speech-to-Text Engine
+        </h2>
+        <div className="space-y-3">
+          {sttProviders.map((provider) => (
+            <label
+              key={provider.value}
+              className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                sttProvider === provider.value
+                  ? 'border-cyan-400 bg-cyan-50/50 shadow-md'
+                  : 'border-slate-200 hover:border-slate-300 bg-white/80'
+              }`}
+            >
+              <input
+                type="radio"
+                name="sttProvider"
+                value={provider.value}
+                checked={sttProvider === provider.value}
+                onChange={() => setSttProvider(provider.value)}
+                className="mt-1 accent-cyan-500"
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{provider.icon}</span>
+                  <span className="font-medium text-slate-800">{provider.label}</span>
+                </div>
+                <p className="text-sm text-slate-500 mt-1">{provider.description}</p>
+              </div>
+            </label>
+          ))}
+        </div>
+      </section>
 
       {/* Recording Mode */}
       <section className="mb-8">

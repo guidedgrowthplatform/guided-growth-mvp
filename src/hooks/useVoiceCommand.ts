@@ -2,11 +2,12 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCommandStore } from '@/stores/commandStore';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
-import { mockDataService } from '@/lib/services/mock-data-service';
+import { getDataServiceSync } from '@/lib/services/service-provider';
 import { useToast } from '@/contexts/ToastContext';
 import { speakPreAck } from '@/lib/services/tts-service';
 
-const dispatcher = new ActionDispatcher(mockDataService);
+// Uses service provider toggle (mock vs supabase)
+const dispatcher = new ActionDispatcher(getDataServiceSync());
 
 // Simple local fallback when API is unavailable (e.g. local dev without vercel dev)
 function localParse(transcript: string): { action: string; entity: string; params: Record<string, unknown>; confidence: number } {
@@ -42,9 +43,9 @@ function localParse(transcript: string): { action: string; entity: string; param
 
   // Complete / mark done
   if (t.match(/mark.*done|completed?\s/)) {
-    const nameMatch = t.match(/(?:mark|completed?)\s+(.+?)(?:\s+done|\s+for|$)/i);
+    const nameMatch = t.match(/(?:mark|completed?)\s+(.+?)(?:\s+(?:as\s+)?done|\s+for|$)/i);
     const name = nameMatch?.[1]
-      ?.replace(/\s+(is|was|has been|has|been)\s*$/i, '') // strip "reading IS" → "reading"
+      ?.replace(/\s+(is|as|was|has been|has|been)\s*$/i, '') // strip trailing "is/as/was"
       ?.replace(/\s+done.*/, '')
       ?.trim() || '';
     return { action: 'complete', entity: 'habit', params: { name, date: 'today' }, confidence: 0.7 };

@@ -97,6 +97,17 @@ export class ActionDispatcher {
 
     switch (entity) {
       case 'habit': {
+        // FIX-01 (#21): Check for duplicate habits before creating
+        const existing = await this.dataService.getHabitByName(name);
+        if (existing) {
+          return {
+            success: false,
+            message: `⚠️ You already have a habit called "${existing.name}". Try a different name or update the existing one.`,
+            data: existing,
+            uiAction: 'toast',
+          };
+        }
+
         const frequency = String(params.frequency || 'daily');
         const habit = await this.dataService.createHabit(name, frequency);
         return {

@@ -46,11 +46,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         {user && (
           <div className="p-4 border-b border-cyan-200/30">
             <div className="flex items-center gap-3">
-              {user.avatar_url && (
-                <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+              {user.user_metadata?.avatar_url && (
+                <img src={user.user_metadata.avatar_url} alt="" className="w-8 h-8 rounded-full" />
               )}
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-slate-800 truncate">{user.name}</div>
+                <div className="text-sm font-medium text-slate-800 truncate">{user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}</div>
                 <div className="text-xs text-slate-500 truncate">{user.email}</div>
               </div>
             </div>
