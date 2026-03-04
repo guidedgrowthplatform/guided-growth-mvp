@@ -42,6 +42,7 @@ export function CaptureView() {
   const { activeMetrics: metrics, create: createMetric, reorder: reorderMetrics, update: updateMetric } = useMetrics();
   const { entries, load: loadEntries, updateCell, saveDay, setEntries } = useEntries();
 
+
   const { state: undoState, setState: setUndoState, pushHistory, undo: undoRaw, redo: redoRaw, canUndo, canRedo } = useUndoRedo<EntriesMap>({});
   const undoAppliedRef = useRef(false);
 
@@ -93,8 +94,17 @@ export function CaptureView() {
     updateCell(dateStr, metricId, value);
   }, [updateCell]);
 
-  const handleSaveDay = useCallback((dateStr: string) => {
-    const dayEntries = entries[dateStr] || {};
+  // Accept optional pending cell change to merge before saving (avoids stale setState race)
+  const handleSaveDay = useCallback((dateStr: string, pendingMetricId?: string, pendingValue?: string) => {
+    const dayEntries = { ...(entries[dateStr] || {}) };
+    // Merge pending change that hasn't flushed to state yet
+    if (pendingMetricId !== undefined) {
+      if (pendingValue === '' || pendingValue === null || pendingValue === undefined) {
+        delete dayEntries[pendingMetricId];
+      } else {
+        dayEntries[pendingMetricId] = pendingValue;
+      }
+    }
     saveDay(dateStr, dayEntries);
   }, [entries, saveDay]);
 

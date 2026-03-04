@@ -16,7 +16,7 @@ interface SpreadsheetViewProps {
   metrics: Metric[];
   entries: EntriesMap;
   onCellChange: (date: string, metricId: string, value: string) => void;
-  onSaveDay: (date: string) => void;
+  onSaveDay: (date: string, pendingMetricId?: string, pendingValue?: string) => void;
   onAddHabit: (data: MetricCreate) => void;
   onReorderMetrics: (fromIndex: number, toIndex: number) => void;
   onRenameMetric: (metricId: string, newName: string) => void;
@@ -97,7 +97,7 @@ export function SpreadsheetView({
     }
 
     onCellChange(editingCell.date, editingCell.metricId, valueToSave);
-    onSaveDay(editingCell.date);
+    onSaveDay(editingCell.date, editingCell.metricId, valueToSave);
     setEditingCell(null);
     setEditValue('');
     setPopupPosition(null);
@@ -141,7 +141,7 @@ export function SpreadsheetView({
   const handleQuickToggle = useCallback((dateStr: string, metricId: string, value: string) => {
     onPushHistory();
     onCellChange(dateStr, metricId, value);
-    onSaveDay(dateStr);
+    onSaveDay(dateStr, metricId, value);
   }, [onPushHistory, onCellChange, onSaveDay]);
 
   const handleSelectCell = useCallback((dateStr: string, metricId: string) => {
@@ -160,7 +160,7 @@ export function SpreadsheetView({
   const handleDelete = useCallback((dateStr: string, metricId: string) => {
     onPushHistory();
     onCellChange(dateStr, metricId, '');
-    onSaveDay(dateStr);
+    onSaveDay(dateStr, metricId, '');
   }, [onPushHistory, onCellChange, onSaveDay]);
 
   const { copy, paste } = useClipboard(entries, onCellChange, onPushHistory);

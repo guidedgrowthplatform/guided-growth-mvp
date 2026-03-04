@@ -22,9 +22,19 @@ async function buildEntriesFromDataService(start: string, end: string): Promise<
 
 async function saveEntriesToDataService(date: string, dayEntries: DayEntries): Promise<void> {
   const ds = await getDataService();
+  // Import supabase directly for uncomplete operations
+  const { supabase } = await import('@/lib/supabase');
+  
   for (const [metricId, value] of Object.entries(dayEntries)) {
     if (value === 'yes' || value === '1' || value === 'true') {
       await ds.completeHabit(metricId, date);
+    } else {
+      // Toggle OFF — delete the completion row
+      await supabase
+        .from('habit_completions')
+        .delete()
+        .eq('user_habit_id', metricId)
+        .eq('date', date);
     }
   }
 }
