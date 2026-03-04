@@ -2,7 +2,8 @@ import { apiGet, apiPut } from './client';
 import type { EntriesMap, DayEntries } from '@shared/types';
 import { getDataService } from '@/lib/services/service-provider';
 
-const useSupabase = import.meta.env.VITE_USE_SUPABASE === 'true';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const useSupabase = supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
 
 async function buildEntriesFromDataService(start: string, end: string): Promise<EntriesMap> {
   const ds = await getDataService();

@@ -2,7 +2,8 @@ import { apiGet, apiPost, apiPatch, apiDelete, apiPut } from './client';
 import type { Metric, MetricCreate, MetricUpdate } from '@shared/types';
 import { getDataService } from '@/lib/services/service-provider';
 
-const useSupabase = import.meta.env.VITE_USE_SUPABASE === 'true';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const useSupabase = supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
 
 // Convert DataService habit to Metric format
 function habitToMetric(h: { id: string; name: string; frequency: string; createdAt: string; active: boolean }): Metric {
