@@ -4,6 +4,7 @@ import { SpreadsheetCell } from './SpreadsheetCell';
 interface SpreadsheetRowProps {
   metric: Metric;
   metricIndex: number;
+  metricCount: number;
   days: Date[];
   dateStrings: string[];
   entries: EntriesMap;
@@ -18,13 +19,9 @@ interface SpreadsheetRowProps {
   onEditCancel: () => void;
   onFillHandleStart: (e: React.MouseEvent, date: string, metricId: string) => void;
   onQuickToggle?: (date: string, metricId: string, value: string) => void;
-  // Drag reorder
-  onDragStart: (e: React.DragEvent) => void;
-  onDragEnd: (e: React.DragEvent) => void;
-  onDragOver: (e: React.DragEvent) => void;
-  onDragLeave: () => void;
-  onDrop: (e: React.DragEvent) => void;
-  isDragOver: boolean;
+  // Move reorder
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   // Habit name editing
   editingHabitName: { metricId: string; name: string } | null;
   onHabitNameDoubleClick: (metric: Metric) => void;
@@ -34,34 +31,42 @@ interface SpreadsheetRowProps {
 }
 
 export function SpreadsheetRow({
-  metric, metricIndex, days, dateStrings, entries,
+  metric, metricIndex, metricCount, days, dateStrings, entries,
   selectedCell, editingCell, editValue, onEditChange,
   onCellClick, onCellMouseDown, onCellDoubleClick,
   onEditSave, onEditCancel, onFillHandleStart, onQuickToggle,
-  onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop, isDragOver,
+  onMoveUp, onMoveDown,
   editingHabitName, onHabitNameDoubleClick, onHabitNameSave, onHabitNameCancel,
   isCellSelected,
 }: SpreadsheetRowProps) {
   const isEditingName = editingHabitName?.metricId === metric.id;
+  const isFirst = metricIndex === 0;
+  const isLast = metricIndex === metricCount - 1;
 
   return (
     <tr
-      className={`border-b border-cyan-200/30 ${metricIndex % 2 === 0 ? 'bg-white/30' : 'bg-cyan-50/20'} ${isDragOver ? 'purple-row-border relative' : ''}`}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
+      className={`border-b border-cyan-200/30 ${metricIndex % 2 === 0 ? 'bg-white/30' : 'bg-cyan-50/20'}`}
     >
       {/* Habit name cell */}
       <td className="sticky left-0 z-10 px-1 py-1 text-xs font-semibold text-slate-800 border-r-2 border-cyan-300/50 bg-inherit">
         <div className="flex items-center gap-0.5">
-          <span
-            draggable
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-            className="cursor-grab text-slate-400 hover:text-slate-600 flex-shrink-0 hidden sm:inline"
-          >
-            &#x2630;
-          </span>
+          {/* Up/Down reorder buttons */}
+          <div className="flex flex-col flex-shrink-0" style={{ lineHeight: 0 }}>
+            <button
+              type="button"
+              disabled={isFirst}
+              onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+              className={`text-[9px] leading-none px-0.5 ${isFirst ? 'text-slate-200 cursor-default' : 'text-slate-400 hover:text-cyan-600 cursor-pointer'}`}
+              title="Move up"
+            >▲</button>
+            <button
+              type="button"
+              disabled={isLast}
+              onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+              className={`text-[9px] leading-none px-0.5 ${isLast ? 'text-slate-200 cursor-default' : 'text-slate-400 hover:text-cyan-600 cursor-pointer'}`}
+              title="Move down"
+            >▼</button>
+          </div>
           {isEditingName ? (
             <input
               autoFocus
@@ -116,3 +121,4 @@ export function SpreadsheetRow({
     </tr>
   );
 }
+
