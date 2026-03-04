@@ -44,6 +44,7 @@ export class SupabaseDataService implements DataService {
                  frequency === 'weekdays' ? 'weekdays' : 'daily',
         daily_goal: 1,
         is_active: true,
+        sort_order: 9999,  // Put new habits at end; reorder will fix
       })
       .select()
       .single();
@@ -64,7 +65,7 @@ export class SupabaseDataService implements DataService {
       .from('user_habits')
       .select('*')
       .eq('is_active', true)
-      .order('created_at', { ascending: false });
+      .order('sort_order', { ascending: true });
 
     if (error) throw new Error(error.message);
 
