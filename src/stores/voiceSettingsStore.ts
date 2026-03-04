@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 export type RecordingMode = 'auto-stop' | 'always-on';
-export type SttProvider = 'webspeech' | 'whisper';
+export type SttProvider = 'webspeech' | 'whisper' | 'deepgram';
 
 const SETTINGS_KEY = 'mvp03_voice_settings';
 

@@ -63,6 +63,12 @@ export function SettingsPage() {
       description: 'OpenAI Whisper base model. Runs locally in browser via WASM. ~75MB download on first use.',
       icon: '🤖',
     },
+    {
+      value: 'deepgram',
+      label: 'DeepGram Nova-2',
+      description: 'Cloud-based. Fastest transcription with real-time streaming. Requires API key.',
+      icon: '⚡',
+    },
   ];
 
   return (
@@ -200,6 +206,35 @@ export function SettingsPage() {
               </button>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Voice Command Examples */}
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+          🎤 Voice Command Examples
+        </h2>
+        <div className="bg-white/80 rounded-xl border border-slate-200 p-4">
+          <p className="text-sm text-slate-500 mb-3">
+            Tap the microphone button on any page and try saying:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              { cmd: '"Add a habit called morning meditation"', desc: 'Create a new habit' },
+              { cmd: '"Mark exercise as done"', desc: 'Complete a habit for today' },
+              { cmd: '"Add a new metric called mood, scale 1 to 10"', desc: 'Track a custom metric' },
+              { cmd: '"Log my mood at 8"', desc: 'Record a metric value' },
+              { cmd: '"Show my weekly summary"', desc: 'View progress report' },
+              { cmd: '"How am I doing with reading?"', desc: 'Check habit stats' },
+              { cmd: '"Delete the workout habit"', desc: 'Remove a habit' },
+              { cmd: '"I slept well and feel great today"', desc: 'Journal reflection' },
+            ].map(({ cmd, desc }) => (
+              <div key={cmd} className="bg-cyan-50/50 rounded-lg p-3 border border-cyan-100">
+                <p className="text-sm font-medium text-cyan-700">{cmd}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

@@ -1,6 +1,10 @@
 {
-	"appId": "com.guidedgrowth.voicepoc",
+	"appId": "app.guidedgrowth.mvp",
 	"appName": "Guided Growth",
-	"webDir": "out",
+	"webDir": "dist",
+	"server": {
+		"url": "https://guided-growth-mvp-six.vercel.app",
+		"cleartext": true
+	},
 	"packageClassList": []
 }
