@@ -2,12 +2,19 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCommandStore } from '@/stores/commandStore';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
-import { getDataServiceSync } from '@/lib/services/service-provider';
+import { getDataService } from '@/lib/services/service-provider';
 import { useToast } from '@/contexts/ToastContext';
 import { speakPreAck } from '@/lib/services/tts-service';
 
-// Uses service provider toggle (mock vs supabase)
-const dispatcher = new ActionDispatcher(getDataServiceSync());
+// Lazy-init: wait for the correct data service (Supabase) before creating dispatcher
+let _dispatcher: ActionDispatcher | null = null;
+async function getDispatcher(): Promise<ActionDispatcher> {
+  if (!_dispatcher) {
+    const ds = await getDataService();
+    _dispatcher = new ActionDispatcher(ds);
+  }
+  return _dispatcher;
+}
 
 // Simple local fallback when API is unavailable (e.g. local dev without vercel dev)
 function localParse(transcript: string): { action: string; entity: string; params: Record<string, unknown>; confidence: number } {
@@ -147,7 +154,8 @@ export function useVoiceCommand() {
       // Pre-acknowledgment TTS: immediate audio feedback before action runs
       speakPreAck(intent.action, intent.params as Record<string, unknown>);
 
-      // Dispatch the action against MockDataService
+      // Dispatch the action against the correct data service (Supabase or mock)
+      const dispatcher = await getDispatcher();
       const result = await dispatcher.dispatch(intent);
       setResult(result, intent, apiLatency);
       addHistory(transcript, intent, result);
