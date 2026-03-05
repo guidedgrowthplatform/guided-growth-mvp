@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, addDays, subDays } from 'date-fns';
 import type { ViewMode, SpreadsheetRange, MetricCreate, EntriesMap } from '@shared/types';
 import { getWeekRange } from '@/utils/dates';
@@ -42,19 +42,37 @@ export function CaptureView() {
   const { activeMetrics: metrics, create: createMetric, reorder: reorderMetrics, update: updateMetric } = useMetrics();
   const { entries, load: loadEntries, updateCell, saveDay, setEntries } = useEntries();
 
-  const { state: undoState, setState: setUndoState, pushHistory, undo, redo, canUndo, canRedo } = useUndoRedo<EntriesMap>({});
 
-  // Sync entries into undo state
+  const { state: undoState, setState: setUndoState, pushHistory, undo: undoRaw, redo: redoRaw, canUndo, canRedo } = useUndoRedo<EntriesMap>({});
+  const undoAppliedRef = useRef(false);
+
+  // Keep undo state in sync when entries change from data layer (load, voice commands, etc.)
+  // Only sync when it's NOT an undo/redo operation pushing back
   useEffect(() => {
+    if (undoAppliedRef.current) {
+      undoAppliedRef.current = false;
+      return;
+    }
     setUndoState(entries);
   }, [entries, setUndoState]);
 
-  // When undo/redo changes state, push back to entries
+  // When undo/redo changes state, apply it back to entries
+  const undo = useCallback(() => {
+    undoAppliedRef.current = true;
+    undoRaw();
+  }, [undoRaw]);
+
+  const redo = useCallback(() => {
+    undoAppliedRef.current = true;
+    redoRaw();
+  }, [redoRaw]);
+
+  // Apply undo/redo result back to entries
   useEffect(() => {
-    if (undoState !== entries) {
+    if (undoAppliedRef.current) {
       setEntries(undoState);
     }
-  }, [undoState]);
+  }, [undoState, setEntries]);
 
   // Load entries when date or range changes
   useEffect(() => {
@@ -76,8 +94,17 @@ export function CaptureView() {
     updateCell(dateStr, metricId, value);
   }, [updateCell]);
 
-  const handleSaveDay = useCallback((dateStr: string) => {
-    const dayEntries = entries[dateStr] || {};
+  // Accept optional pending cell change to merge before saving (avoids stale setState race)
+  const handleSaveDay = useCallback((dateStr: string, pendingMetricId?: string, pendingValue?: string) => {
+    const dayEntries = { ...(entries[dateStr] || {}) };
+    // Merge pending change that hasn't flushed to state yet
+    if (pendingMetricId !== undefined) {
+      if (pendingValue === '' || pendingValue === null || pendingValue === undefined) {
+        delete dayEntries[pendingMetricId];
+      } else {
+        dayEntries[pendingMetricId] = pendingValue;
+      }
+    }
     saveDay(dateStr, dayEntries);
   }, [entries, saveDay]);
 

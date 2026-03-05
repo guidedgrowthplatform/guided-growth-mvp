@@ -10,8 +10,10 @@ export function useEntries() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const lastRangeRef = useRef<{ start: string; end: string } | null>(null);
 
   const load = useCallback(async (start: string, end: string) => {
+    lastRangeRef.current = { start, end };
     try {
       setLoading(true);
       setError(null);
@@ -23,6 +25,17 @@ export function useEntries() {
       setLoading(false);
     }
   }, []);
+
+  // Re-fetch when voice commands change data
+  useEffect(() => {
+    const handler = () => {
+      if (lastRangeRef.current) {
+        load(lastRangeRef.current.start, lastRangeRef.current.end);
+      }
+    };
+    window.addEventListener('voice-data-changed', handler);
+    return () => window.removeEventListener('voice-data-changed', handler);
+  }, [load]);
 
   const updateLocal = useCallback((date: string, dayEntries: DayEntries) => {
     setEntries((prev) => ({ ...prev, [date]: dayEntries }));

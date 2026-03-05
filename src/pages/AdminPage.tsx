@@ -18,10 +18,14 @@ export function AdminPage() {
   const [newEmail, setNewEmail] = useState('');
   const [newEmailNote, setNewEmailNote] = useState('');
 
+  const fetchedRef = useState(false);
+
   useEffect(() => {
     if (user?.role !== 'admin') return;
+    if (fetchedRef[0]) return;
+    fetchedRef[1](true);
     fetchData();
-  }, [user]);
+  }, [user?.role]);
 
   const fetchData = async () => {
     setLoading(true);

@@ -16,7 +16,7 @@ interface SpreadsheetViewProps {
   metrics: Metric[];
   entries: EntriesMap;
   onCellChange: (date: string, metricId: string, value: string) => void;
-  onSaveDay: (date: string) => void;
+  onSaveDay: (date: string, pendingMetricId?: string, pendingValue?: string) => void;
   onAddHabit: (data: MetricCreate) => void;
   onReorderMetrics: (fromIndex: number, toIndex: number) => void;
   onRenameMetric: (metricId: string, newName: string) => void;
@@ -39,8 +39,6 @@ export function SpreadsheetView({
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
   const [editingHabitName, setEditingHabitName] = useState<{ metricId: string; name: string } | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const days = useMemo(() => spreadsheetRange === 'week' ? getWeekDays(date) : getMonthDays(date), [date, spreadsheetRange]);
   const dateStrings = useMemo(() => days.map((d) => format(d, 'yyyy-MM-dd')), [days]);
@@ -97,7 +95,7 @@ export function SpreadsheetView({
     }
 
     onCellChange(editingCell.date, editingCell.metricId, valueToSave);
-    onSaveDay(editingCell.date);
+    onSaveDay(editingCell.date, editingCell.metricId, valueToSave);
     setEditingCell(null);
     setEditValue('');
     setPopupPosition(null);
@@ -141,7 +139,7 @@ export function SpreadsheetView({
   const handleQuickToggle = useCallback((dateStr: string, metricId: string, value: string) => {
     onPushHistory();
     onCellChange(dateStr, metricId, value);
-    onSaveDay(dateStr);
+    onSaveDay(dateStr, metricId, value);
   }, [onPushHistory, onCellChange, onSaveDay]);
 
   const handleSelectCell = useCallback((dateStr: string, metricId: string) => {
@@ -160,7 +158,7 @@ export function SpreadsheetView({
   const handleDelete = useCallback((dateStr: string, metricId: string) => {
     onPushHistory();
     onCellChange(dateStr, metricId, '');
-    onSaveDay(dateStr);
+    onSaveDay(dateStr, metricId, '');
   }, [onPushHistory, onCellChange, onSaveDay]);
 
   const { copy, paste } = useClipboard(entries, onCellChange, onPushHistory);
@@ -179,29 +177,7 @@ export function SpreadsheetView({
     onRedo,
   });
 
-  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
-    if (editingHabitName) { e.preventDefault(); return; }
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    const row = (e.target as HTMLElement).closest('tr');
-    if (row) row.style.opacity = '0.5';
-  }, [editingHabitName]);
 
-  const handleDragEnd = useCallback((e: React.DragEvent) => {
-    const row = (e.target as HTMLElement).closest('tr');
-    if (row) row.style.opacity = '';
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    if (draggedIndex !== null && draggedIndex !== dropIndex) {
-      onReorderMetrics(draggedIndex, dropIndex);
-    }
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  }, [draggedIndex, onReorderMetrics]);
 
   return (
     <div>
@@ -232,10 +208,11 @@ export function SpreadsheetView({
             </thead>
             <tbody>
               {metrics.map((metric, idx) => (
-                <SpreadsheetRow
+              <SpreadsheetRow
                   key={metric.id}
                   metric={metric}
                   metricIndex={idx}
+                  metricCount={metrics.length}
                   days={days}
                   dateStrings={dateStrings}
                   entries={entries}
@@ -250,12 +227,8 @@ export function SpreadsheetView({
                   onEditCancel={handleEditCancel}
                   onFillHandleStart={handleFillHandleStart}
                   onQuickToggle={handleQuickToggle}
-                  onDragStart={(e) => handleDragStart(e, idx)}
-                  onDragEnd={handleDragEnd}
-                  onDragOver={(e) => { e.preventDefault(); setDragOverIndex(idx); }}
-                  onDragLeave={() => setDragOverIndex(null)}
-                  onDrop={(e) => handleDrop(e, idx)}
-                  isDragOver={dragOverIndex === idx}
+                  onMoveUp={() => { if (idx > 0) onReorderMetrics(idx, idx - 1); }}
+                  onMoveDown={() => { if (idx < metrics.length - 1) onReorderMetrics(idx, idx + 1); }}
                   editingHabitName={editingHabitName}
                   onHabitNameDoubleClick={(m) => setEditingHabitName({ metricId: m.id, name: m.name })}
                   onHabitNameSave={(id, name) => { onRenameMetric(id, name); setEditingHabitName(null); }}

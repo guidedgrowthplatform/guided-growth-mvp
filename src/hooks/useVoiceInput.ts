@@ -1,9 +1,21 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useVoiceStore } from '@/stores/voiceStore';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+import {
+    loadWhisperModel,
+    transcribeAudio,
+    startAudioCapture,
+    stopAudioCapture,
+    onWhisperStatus,
+    type WhisperStatus,
+} from '@/lib/services/whisper-service';
 
 // Track interim text separately so we can show live speech
 let currentInterim = '';
 let networkErrorCount = 0;
+
+// Silence detection config
+const SILENCE_TIMEOUT_MS = 2500; // auto-stop after 2.5s of silence (like Siri)
 
 // Extend Window interface for webkit prefix
 interface SpeechRecognitionEvent extends Event {
@@ -39,6 +51,13 @@ declare global {
 export function useVoiceInput() {
     const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
     const isStartingRef = useRef(false);
+    const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const hasSpokenRef = useRef(false);
+    const whisperRecordingRef = useRef(false);
+
+    const [whisperStatus, setWhisperStatus] = useState<WhisperStatus>('idle');
+    const [whisperProgress, setWhisperProgress] = useState(0);
+
     const {
         isListening,
         transcript,
@@ -54,15 +73,58 @@ export function useVoiceInput() {
         setSupported,
     } = useVoiceStore();
 
+    // Listen to whisper status changes
+    useEffect(() => {
+        const unsub = onWhisperStatus((status, progress) => {
+            setWhisperStatus(status);
+            if (progress !== undefined) setWhisperProgress(progress);
+        });
+        return () => { unsub(); };
+    }, []);
+
+    // Clear silence timer
+    const clearSilenceTimer = useCallback(() => {
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+        }
+    }, []);
+
+    // Reset silence timer — called on every speech result
+    const resetSilenceTimer = useCallback(() => {
+        const { recordingMode } = useVoiceSettingsStore.getState();
+        if (recordingMode === 'always-on') {
+            clearSilenceTimer();
+            return;
+        }
+
+        clearSilenceTimer();
+        silenceTimerRef.current = setTimeout(() => {
+            if (hasSpokenRef.current) {
+                const recognition = recognitionRef.current;
+                if (recognition) {
+                    try { recognition.stop(); } catch { /* ignore */ }
+                }
+                stopListening();
+            }
+        }, SILENCE_TIMEOUT_MS);
+    }, [clearSilenceTimer, stopListening]);
+
     // Check browser support on mount
     useEffect(() => {
-        const supported =
-            typeof window !== 'undefined' &&
-            ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
-        setSupported(supported);
+        const { sttProvider } = useVoiceSettingsStore.getState();
+        if (sttProvider === 'whisper') {
+            setSupported(true);
+        } else {
+            const supported =
+                typeof window !== 'undefined' &&
+                ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+            setSupported(supported);
+        }
     }, [setSupported]);
 
-    // Initialize recognition instance
+    // ─── Web Speech API Provider ───
+
     const getRecognition = useCallback(() => {
         if (recognitionRef.current) return recognitionRef.current;
 
@@ -74,7 +136,7 @@ export function useVoiceInput() {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = navigator.language || 'en-US';  // use browser language
+        recognition.lang = navigator.language || 'en-US';
 
         recognition.onstart = () => {
             isStartingRef.current = false;
@@ -88,33 +150,34 @@ export function useVoiceInput() {
                     const text = result[0].transcript.trim();
                     if (text) {
                         currentInterim = '';
+                        hasSpokenRef.current = true;
                         appendTranscript(text);
                     }
                 } else {
                     interim += result[0].transcript;
                 }
             }
-            // Show live interim text
             if (interim) {
                 currentInterim = interim;
+                hasSpokenRef.current = true;
                 setInterim(interim);
             }
+            resetSilenceTimer();
         };
 
         recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
             isStartingRef.current = false;
             const errorMessages: Record<string, string> = {
                 'not-allowed': 'Microphone access denied. Please allow microphone permissions.',
-                'no-speech': '',  // silently restart
+                'no-speech': '',
                 'audio-capture': 'No microphone found. Please connect a microphone.',
-                'network': '',  // handled below with adblock detection
+                'network': '',
                 'aborted': '',
                 'service-not-available': 'Speech recognition not available. Try Chrome or Edge.',
             };
 
             const errorMsg = errorMessages[event.error];
             if (errorMsg === '') {
-                // Track network errors for adblock detection
                 if (event.error === 'network') {
                     networkErrorCount++;
                     if (networkErrorCount >= 2) {
@@ -133,6 +196,7 @@ export function useVoiceInput() {
 
             if (['not-allowed', 'audio-capture', 'service-not-available'].includes(event.error)) {
                 stopListening();
+                clearSilenceTimer();
             }
         };
 
@@ -149,6 +213,7 @@ export function useVoiceInput() {
                         } catch {
                             isStartingRef.current = false;
                             stopListening();
+                            clearSilenceTimer();
                         }
                     }
                 }, 100);
@@ -157,9 +222,79 @@ export function useVoiceInput() {
 
         recognitionRef.current = recognition;
         return recognition;
+    }, [appendTranscript, setInterim, setError, stopListening, resetSilenceTimer, clearSilenceTimer]);
+
+    // ─── Whisper Provider (Raw PCM capture + transcription) ───
+
+    const startWhisper = useCallback(async () => {
+        setError('');
+
+        // Pre-load model if not ready
+        if (whisperStatus !== 'ready') {
+            try {
+                setInterim('⏳ Loading Whisper model (~40MB, one-time download)...');
+                await loadWhisperModel();
+                setInterim('');
+            } catch {
+                setError('Failed to load Whisper model. Check your internet connection.');
+                return;
+            }
+        }
+
+        try {
+            await startAudioCapture();
+            whisperRecordingRef.current = true;
+            startListening();
+            setInterim('🎤 Listening with Whisper... (tap mic to stop & transcribe)');
+        } catch (err) {
+            setError(`Microphone error: ${err instanceof Error ? err.message : err}`);
+        }
+    }, [whisperStatus, startListening, setError, setInterim]);
+
+    const stopWhisper = useCallback(async () => {
+        if (!whisperRecordingRef.current) return;
+        whisperRecordingRef.current = false;
+
+        try {
+            setInterim('🔄 Transcribing with Whisper...');
+            const audioData = await stopAudioCapture();
+
+            // Check if we got enough audio (at least 0.5 seconds)
+            if (audioData.length < 8000) {
+                setInterim('');
+                setError('Recording too short. Try speaking for at least 1 second.');
+                stopListening();
+                return;
+            }
+
+            const text = await transcribeAudio(audioData);
+            if (text && text.trim()) {
+                appendTranscript(text.trim());
+                setInterim('');
+            } else {
+                setInterim('');
+                setError('Could not understand audio. Try speaking louder and longer.');
+            }
+        } catch (err) {
+            console.error('[Whisper] Stop/transcribe error:', err);
+            setError('Failed to transcribe audio with Whisper.');
+            setInterim('');
+        }
+
+        stopListening();
     }, [appendTranscript, setInterim, setError, stopListening]);
 
+    // ─── Unified Start/Stop/Toggle ───
+
     const start = useCallback(() => {
+        const { sttProvider } = useVoiceSettingsStore.getState();
+
+        if (sttProvider === 'whisper') {
+            startWhisper();
+            return;
+        }
+
+        // Web Speech API flow
         if (!isSupported) {
             setError('Web Speech API is not supported in this browser. Try Chrome or Edge.');
             return;
@@ -175,12 +310,14 @@ export function useVoiceInput() {
 
         setError('');
         networkErrorCount = 0;
+        hasSpokenRef.current = false;
 
         try {
             try { recognition.abort(); } catch { /* ignore */ }
             isStartingRef.current = true;
             recognition.start();
             startListening();
+            resetSilenceTimer();
         } catch (err) {
             isStartingRef.current = false;
             if (err instanceof DOMException && err.name === 'InvalidStateError') {
@@ -189,18 +326,27 @@ export function useVoiceInput() {
                 setError(`Failed to start: ${err instanceof Error ? err.message : err}`);
             }
         }
-    }, [isSupported, getRecognition, startListening, setError]);
+    }, [isSupported, getRecognition, startListening, setError, resetSilenceTimer, startWhisper]);
 
     const stop = useCallback(() => {
+        const { sttProvider } = useVoiceSettingsStore.getState();
+
+        if (sttProvider === 'whisper') {
+            stopWhisper();
+            return;
+        }
+
+        // Web Speech API flow
         isStartingRef.current = false;
         currentInterim = '';
+        hasSpokenRef.current = false;
+        clearSilenceTimer();
         const recognition = recognitionRef.current;
         if (recognition) {
-            // Use stop() not abort() — stop() processes final result first
             try { recognition.stop(); } catch { /* ignore */ }
         }
         stopListening();
-    }, [stopListening]);
+    }, [stopListening, clearSilenceTimer, stopWhisper]);
 
     const toggle = useCallback(() => {
         if (isListening) {
@@ -213,13 +359,14 @@ export function useVoiceInput() {
     useEffect(() => {
         return () => {
             isStartingRef.current = false;
+            clearSilenceTimer();
             const recognition = recognitionRef.current;
             if (recognition) {
                 try { recognition.abort(); } catch { /* ignore */ }
                 recognitionRef.current = null;
             }
         };
-    }, []);
+    }, [clearSilenceTimer]);
 
     return {
         isListening,
@@ -231,5 +378,7 @@ export function useVoiceInput() {
         stop,
         toggle,
         resetTranscript,
+        whisperStatus,
+        whisperProgress,
     };
 }
