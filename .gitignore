@@ -75,3 +75,6 @@ ios/
 # Capacitor / Cordova plugins (auto-generated)
 capacitor-cordova-ios-plugins/
 capacitor-cordova-android-plugins/
+
+# APK build artifacts
+*.apk
