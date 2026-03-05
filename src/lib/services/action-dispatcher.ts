@@ -343,7 +343,7 @@ export class ActionDispatcher {
     await this.dataService.logMetric(metric.id, value as number | string, date);
     return {
       success: true,
-      message: `✅ Logged ${metric.name}: ${value}`,
+      message: `${MSG.success} Logged ${metric.name}: ${value}`,
       uiAction: 'toast',
     };
   }
