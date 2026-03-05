@@ -1,4 +1,5 @@
 import type { ActionResult, DataService } from './data-service.interface';
+import { DAY_NAMES, HABIT_SUGGESTIONS, DEFAULT_SUGGESTION, MSG } from '../config/dispatcher-config';
 
 interface CommandIntent {
   action: string;
@@ -19,10 +20,9 @@ function parseDateParam(dateStr: unknown): string {
     return d.toISOString().slice(0, 10);
   }
 
-  // Handle day names: "monday", "tuesday" etc
-  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  // Handle day names (multi-language, from config)
   const lower = String(dateStr).toLowerCase();
-  const dayIndex = dayNames.indexOf(lower);
+  const dayIndex = DAY_NAMES[lower] ?? -1;
   if (dayIndex !== -1) {
     const now = new Date();
     const currentDay = now.getDay();
@@ -102,7 +102,7 @@ export class ActionDispatcher {
         if (existing) {
           return {
             success: false,
-            message: `⚠️ You already have a habit called "${existing.name}". Try a different name or update the existing one.`,
+            message: `${MSG.warning} You already have a habit called "${existing.name}". Try a different name or update the existing one.`,
             data: existing,
             uiAction: 'toast',
           };
@@ -112,7 +112,7 @@ export class ActionDispatcher {
         const habit = await this.dataService.createHabit(name, frequency);
         return {
           success: true,
-          message: `✅ Created habit "${habit.name}" (${frequency})`,
+          message: `${MSG.success} Created habit "${habit.name}" (${frequency})`,
           data: habit,
           uiAction: 'navigate',
           navigateTo: '/capture',
@@ -124,7 +124,7 @@ export class ActionDispatcher {
         if (existingMetric) {
           return {
             success: false,
-            message: `⚠️ You already have a metric called "${existingMetric.name}". Try a different name or update the existing one.`,
+            message: `${MSG.warning} You already have a metric called "${existingMetric.name}". Try a different name or update the existing one.`,
             data: existingMetric,
             uiAction: 'toast',
           };
@@ -145,7 +145,7 @@ export class ActionDispatcher {
         );
         return {
           success: true,
-          message: `✅ Created metric "${metric.name}" (${inputType})`,
+          message: `${MSG.success} Created metric "${metric.name}" (${inputType})`,
           data: metric,
           uiAction: 'navigate',
           navigateTo: '/configure',
@@ -165,7 +165,7 @@ export class ActionDispatcher {
     const name = String(params.name || '');
     const habit = await this.dataService.getHabitByName(name);
     if (!habit) {
-      return { success: false, message: `❌ Habit "${name}" not found`, uiAction: 'toast' };
+      return { success: false, message: `${MSG.error} Habit "${name}" not found`, uiAction: 'toast' };
     }
 
     // Handle multiple dates
@@ -179,7 +179,7 @@ export class ActionDispatcher {
       }
       return {
         success: true,
-        message: `✅ Marked "${habit.name}" done for ${completedDates.length} days`,
+        message: `${MSG.success} Marked "${habit.name}" done for ${completedDates.length} days`,
         uiAction: 'navigate',
         navigateTo: '/capture',
       };
@@ -190,7 +190,7 @@ export class ActionDispatcher {
     await this.dataService.completeHabit(habit.id, date);
     return {
       success: true,
-      message: `✅ Marked "${habit.name}" done for ${date === todayStr() ? 'today' : date}`,
+      message: `${MSG.success} Marked "${habit.name}" done for ${date === todayStr() ? 'today' : date}`,
       uiAction: 'navigate',
       navigateTo: '/capture',
     };
@@ -203,22 +203,22 @@ export class ActionDispatcher {
     switch (entity) {
       case 'habit': {
         const habit = await this.dataService.getHabitByName(name);
-        if (!habit) return { success: false, message: `❌ Habit "${name}" not found`, uiAction: 'toast' };
+        if (!habit) return { success: false, message: `${MSG.error} Habit "${name}" not found`, uiAction: 'toast' };
         await this.dataService.deleteHabit(habit.id);
         return {
           success: true,
-          message: `✅ Deleted habit "${habit.name}"`,
+          message: `${MSG.success} Deleted habit "${habit.name}"`,
           uiAction: 'navigate',
           navigateTo: '/capture',
         };
       }
       case 'metric': {
         const metric = await this.dataService.getMetricByName(name);
-        if (!metric) return { success: false, message: `❌ Metric "${name}" not found`, uiAction: 'toast' };
+        if (!metric) return { success: false, message: `${MSG.error} Metric "${name}" not found`, uiAction: 'toast' };
         await this.dataService.deleteMetric(metric.id);
         return {
           success: true,
-          message: `✅ Deleted metric "${metric.name}"`,
+          message: `${MSG.success} Deleted metric "${metric.name}"`,
           uiAction: 'navigate',
           navigateTo: '/configure',
         };
@@ -236,7 +236,7 @@ export class ActionDispatcher {
 
     const name = String(params.name || '');
     const habit = await this.dataService.getHabitByName(name);
-    if (!habit) return { success: false, message: `❌ Habit "${name}" not found`, uiAction: 'toast' };
+    if (!habit) return { success: false, message: `${MSG.error} Habit "${name}" not found`, uiAction: 'toast' };
 
     const updates: Record<string, unknown> = {};
     if (params.newName) updates.name = String(params.newName);
@@ -245,7 +245,7 @@ export class ActionDispatcher {
     const updated = await this.dataService.updateHabit(habit.id, updates as { name?: string; frequency?: string });
     return {
       success: true,
-      message: `✅ Updated habit "${updated.name}"`,
+      message: `${MSG.success} Updated habit "${updated.name}"`,
       data: updated,
       uiAction: 'navigate',
       navigateTo: '/capture',
@@ -260,13 +260,13 @@ export class ActionDispatcher {
         if (name) {
           // Query specific habit
           const habit = await this.dataService.getHabitByName(name);
-          if (!habit) return { success: false, message: `❌ Habit "${name}" not found`, uiAction: 'toast' };
+          if (!habit) return { success: false, message: `${MSG.error} Habit "${name}" not found`, uiAction: 'toast' };
 
           const period = (params.period as 'week' | 'month') || 'week';
           const summary = await this.dataService.getHabitSummary(habit.id, period);
           return {
             success: true,
-            message: `📊 ${habit.name}: ${summary.completionRate}% (${summary.completionsThisPeriod}/${summary.totalDaysInPeriod} days), streak: ${summary.currentStreak} days, longest: ${summary.longestStreak}`,
+            message: `${MSG.chart} ${habit.name}: ${summary.completionRate}% (${summary.completionsThisPeriod}/${summary.totalDaysInPeriod} days), streak: ${summary.currentStreak} days, longest: ${summary.longestStreak}`,
             data: summary,
             uiAction: 'display',
           };
@@ -286,7 +286,7 @@ export class ActionDispatcher {
           }
           return {
             success: true,
-            message: `🏆 Longest streak: ${longestStreak} days (${longestHabit})`,
+            message: `${MSG.trophy} Longest streak: ${longestStreak} days (${longestHabit})`,
             uiAction: 'display',
           };
         }
@@ -296,7 +296,7 @@ export class ActionDispatcher {
         const list = habits.map((h) => h.name).join(', ');
         return {
           success: true,
-          message: `📋 Your habits: ${list || 'none yet'}`,
+          message: `${MSG.list} Your habits: ${list || 'none yet'}`,
           data: habits,
           uiAction: 'navigate',
           navigateTo: '/capture',
@@ -310,7 +310,7 @@ export class ActionDispatcher {
         );
         return {
           success: true,
-          message: `📊 Weekly Summary (${summary.period.start} → ${summary.period.end}):\n${habitLines.join('\n')}\nMetrics logged: ${summary.metricsLogged}\nJournal entries: ${summary.journalEntries}`,
+          message: `${MSG.chart} Weekly Summary (${summary.period.start} - ${summary.period.end}):\n${habitLines.join('\n')}\nMetrics logged: ${summary.metricsLogged}\nJournal entries: ${summary.journalEntries}`,
           data: summary,
           uiAction: 'display',
         };
@@ -334,7 +334,7 @@ export class ActionDispatcher {
 
     const name = String(params.name || '');
     const metric = await this.dataService.getMetricByName(name);
-    if (!metric) return { success: false, message: `❌ Metric "${name}" not found`, uiAction: 'toast' };
+    if (!metric) return { success: false, message: `${MSG.error} Metric "${name}" not found`, uiAction: 'toast' };
 
     const value = params.value != null ? params.value : null;
     if (value == null) return { success: false, message: `Missing value for metric "${name}"`, uiAction: 'toast' };
@@ -374,7 +374,7 @@ export class ActionDispatcher {
     const entry = await this.dataService.createJournalEntry(content, mood, themes);
     return {
       success: true,
-      message: `📝 Journal entry saved (mood: ${mood})`,
+      message: `${MSG.journal} Journal entry saved (mood: ${mood})`,
       data: entry,
       uiAction: 'toast',
     };
@@ -385,19 +385,14 @@ export class ActionDispatcher {
     const habits = await this.dataService.getHabits();
     const existingNames = habits.map((h) => h.name.toLowerCase());
 
-    const suggestions = [
-      'journaling', 'stretching', 'hydration tracking', 'gratitude practice',
-      'deep breathing', 'walking', 'meal prep', 'digital detox', 'cold shower',
-    ];
-
-    const available = suggestions.filter((s) => !existingNames.includes(s));
+    const available = HABIT_SUGGESTIONS.filter((s) => !existingNames.includes(s));
     const suggestion = available.length > 0
       ? available[Math.floor(Math.random() * available.length)]
-      : 'mindful breaks';
+      : DEFAULT_SUGGESTION;
 
     return {
       success: true,
-      message: `💡 Suggestion: Try "${suggestion}" — say "create a habit called ${suggestion}" to add it!`,
+      message: `${MSG.suggest} Suggestion: Try "${suggestion}" — say "create a habit called ${suggestion}" to add it!`,
       uiAction: 'display',
     };
   }
