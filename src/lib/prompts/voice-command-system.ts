@@ -129,12 +129,5 @@ User: "creat a habbit called yoga"
 User: "what habits do I have"
 {"action":"query","entity":"habit","params":{},"confidence":0.9}`;
 
-/**
- * Model configuration for voice command processing
- */
-export const VOICE_COMMAND_MODEL_CONFIG = {
-  model: 'gpt-4o-mini' as const,
-  temperature: 0.1,
-  max_tokens: 200,
-  response_format: { type: 'json_object' as const },
-};
+// Model config is externalised — see src/lib/config/prompt-config.ts
+export { VOICE_COMMAND_MODEL_CONFIG } from '../config/prompt-config';

@@ -53,6 +53,9 @@ coverage/
 # Vercel
 .vercel
 
+# Vite temp files
+vite.config.ts.timestamp-*
+
 # PWA / Service Worker
 dev-dist/
 sw.js
