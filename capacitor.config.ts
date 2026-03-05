@@ -2,12 +2,16 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'app.guidedgrowth.mvp',
-  appName: 'Guided Growth',
+  appName: 'Guided Growth Tracker',
   webDir: 'dist',
   server: {
-    // Use the Vercel production URL for live data
     url: 'https://guided-growth-mvp-six.vercel.app',
     cleartext: true,
+  },
+  ios: {
+    contentInset: 'automatic',
+    preferredContentMode: 'mobile',
+    scheme: 'Guided Growth',
   },
 };
 
