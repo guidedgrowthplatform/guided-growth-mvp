@@ -6,19 +6,22 @@ dist/
 build/
 out/
 .next/
-*.local
 
 # TypeScript
 tsconfig.tsbuildinfo
 *.tsbuildinfo
 
-# Environment variables
+# Environment variables — NEVER commit secrets
 .env
-.env.local
-.env.production
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.local.example
+
+# Vercel
+.vercel
+.env.vercel.check
+
+# Vite temp files
+vite.config.ts.timestamp-*
 
 # Editor directories and files
 .vscode/
@@ -35,6 +38,7 @@ tsconfig.tsbuildinfo
 .Trashes
 ehthumbs.db
 Thumbs.db
+desktop.ini
 
 # Logs
 npm-debug.log*
@@ -42,6 +46,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+*.log
 
 # Testing
 coverage/
@@ -49,12 +54,9 @@ coverage/
 
 # Misc
 *.pem
-
-# Vercel
-.vercel
-
-# Vite temp files
-vite.config.ts.timestamp-*
+*.orig
+*.bak
+*.tmp
 
 # PWA / Service Worker
 dev-dist/
@@ -64,22 +66,12 @@ workbox-*.js
 # Next.js
 next-env.d.ts
 
-# Android (Capacitor - auto-generated)
-android/.gradle/
-android/app/build/
-android/build/
-android/capacitor-cordova-android-plugins/
-android/app/src/main/assets/public/
+# Android (Capacitor - fully auto-generated, rebuild with npx cap sync)
+android/
 
-# iOS (Capacitor - auto-generated)
-ios/App/Pods/
-ios/App/App/public/
-ios/capacitor-cordova-ios-plugins/
+# iOS (Capacitor - fully auto-generated)
+ios/
 
-# Capacitor / Cordova
+# Capacitor / Cordova plugins (auto-generated)
 capacitor-cordova-ios-plugins/
-
-# Environment variables
-.env
-.env.local
-.env.*.local
+capacitor-cordova-android-plugins/
