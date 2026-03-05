@@ -119,6 +119,17 @@ export class ActionDispatcher {
         };
       }
       case 'metric': {
+        // FIX-01 (#21): Check for duplicate metrics before creating
+        const existingMetric = await this.dataService.getMetricByName(name);
+        if (existingMetric) {
+          return {
+            success: false,
+            message: `⚠️ You already have a metric called "${existingMetric.name}". Try a different name or update the existing one.`,
+            data: existingMetric,
+            uiAction: 'toast',
+          };
+        }
+
         const inputType = String(params.inputType || params.input_type || 'scale');
         const frequency = String(params.frequency || 'daily');
         const scaleMin = params.scaleMin != null ? Number(params.scaleMin) : undefined;
@@ -344,6 +355,21 @@ export class ActionDispatcher {
     const content = themes.length > 0
       ? `Feeling ${mood}. Themes: ${themes.join(', ')}`
       : `Feeling ${mood}`;
+
+    // FIX-01 (#21): Check for duplicate journal entries today with same content
+    const today = todayStr();
+    const todayEntries = await this.dataService.getJournalEntries(today, today);
+    const duplicate = todayEntries.find(
+      (e) => e.content.toLowerCase() === content.toLowerCase()
+    );
+    if (duplicate) {
+      return {
+        success: false,
+        message: `⚠️ You already have a similar journal entry for today. Try adding different thoughts or details.`,
+        data: duplicate,
+        uiAction: 'toast',
+      };
+    }
 
     const entry = await this.dataService.createJournalEntry(content, mood, themes);
     return {
