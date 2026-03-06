@@ -5,6 +5,7 @@ import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { getDataService } from '@/lib/services/service-provider';
 import { useToast } from '@/contexts/ToastContext';
 import { speakPreAck, speak } from '@/lib/services/tts-service';
+import { haptic } from '@/lib/services/haptic-service';
 
 // Lazy-init: wait for the correct data service (Supabase) before creating dispatcher
 let _dispatcher: ActionDispatcher | null = null;
@@ -165,10 +166,12 @@ export function useVoiceCommand() {
       setResult(result, intent, apiLatency);
       addHistory(transcript, intent, result);
 
-      // Show visual + audio feedback
+      // Show visual + audio + haptic feedback
       if (result.success) {
+        haptic('success');
         addToast('success', result.message);
       } else {
+        haptic('error');
         addToast('error', result.message);
       }
 
