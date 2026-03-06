@@ -1,12 +1,18 @@
 import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { unlockTTS } from '@/lib/services/tts-service';
 
 export function VoiceMicButton() {
     const { isListening, isSupported, error, toggle } = useVoiceInput();
 
+    const handleTap = () => {
+        unlockTTS(); // Unlock iOS speechSynthesis on user gesture
+        toggle();
+    };
+
     return (
         <button
             id="voice-mic-button"
-            onClick={toggle}
+            onClick={handleTap}
             disabled={!isSupported}
             aria-label={isListening ? 'Stop listening' : 'Start listening'}
             title={
@@ -17,8 +23,8 @@ export function VoiceMicButton() {
                         : 'Tap to start voice input'
             }
             className={`
-                fixed bottom-24 right-6 z-50 lg:bottom-6
-                w-14 h-14 rounded-full
+                fixed bottom-28 right-4 z-50 lg:bottom-6 lg:right-6
+                w-12 h-12 sm:w-14 sm:h-14 rounded-full
                 flex items-center justify-center
                 shadow-lg transition-all duration-300 ease-in-out
                 cursor-pointer select-none

@@ -18,6 +18,7 @@ const PREFERRED_VOICES = [
 
 let cachedVoice: SpeechSynthesisVoice | null = null;
 let voicesLoaded = false;
+let ttsUnlocked = false;
 
 function getVoices(): SpeechSynthesisVoice[] {
   if (!('speechSynthesis' in window)) return [];
@@ -79,6 +80,19 @@ function cleanText(text: string): string {
     .trim();
 }
 
+/**
+ * Unlock TTS on iOS — must be called from a user gesture (click/tap handler).
+ * iOS Safari blocks speechSynthesis.speak() unless the first call happens
+ * inside a user-initiated event. Call this on mic button tap.
+ */
+export function unlockTTS(): void {
+  if (ttsUnlocked || !('speechSynthesis' in window)) return;
+  const utterance = new SpeechSynthesisUtterance('');
+  utterance.volume = 0;
+  window.speechSynthesis.speak(utterance);
+  ttsUnlocked = true;
+}
+
 /** Speak text aloud using the selected pleasant voice */
 export function speak(text: string, options?: { rate?: number; pitch?: number; volume?: number }): void {
   if (!('speechSynthesis' in window)) return;
@@ -88,6 +102,9 @@ export function speak(text: string, options?: { rate?: number; pitch?: number; v
   const clean = cleanText(text);
   if (!clean) return;
 
+  // iOS workaround: cancel any stuck synthesis before speaking
+  window.speechSynthesis.cancel();
+
   const utterance = new SpeechSynthesisUtterance(clean);
   const voice = getSelectedVoice();
   if (voice) utterance.voice = voice;
@@ -96,8 +113,26 @@ export function speak(text: string, options?: { rate?: number; pitch?: number; v
   utterance.pitch = options?.pitch ?? 1.0;
   utterance.volume = options?.volume ?? 0.85;
 
-  window.speechSynthesis.cancel();
+  // iOS workaround: Safari pauses synthesis after ~15s.
+  // Resume periodically to prevent hanging. Clear on end/error.
+  let resumeInterval: ReturnType<typeof setInterval> | null = null;
+
+  const cleanup = () => {
+    if (resumeInterval) { clearInterval(resumeInterval); resumeInterval = null; }
+  };
+
+  utterance.onend = cleanup;
+  utterance.onerror = cleanup;
+
   window.speechSynthesis.speak(utterance);
+
+  resumeInterval = setInterval(() => {
+    if (!window.speechSynthesis.speaking) {
+      cleanup();
+    } else {
+      window.speechSynthesis.resume();
+    }
+  }, 5000);
 }
 
 /** Pre-acknowledgment messages based on action type */

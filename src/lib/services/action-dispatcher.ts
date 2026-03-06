@@ -365,7 +365,7 @@ export class ActionDispatcher {
     if (duplicate) {
       return {
         success: false,
-        message: `⚠️ You already have a similar journal entry for today. Try adding different thoughts or details.`,
+        message: `${MSG.warning} You already have a similar journal entry for today. Try adding different thoughts or details.`,
         data: duplicate,
         uiAction: 'toast',
       };

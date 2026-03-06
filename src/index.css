@@ -4,12 +4,13 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
+    "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 50%, #7dd3fc 100%);
+  background-attachment: fixed;
   min-height: 100vh;
 }
 
@@ -20,18 +21,18 @@ body {
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
   }
-  
+
   .glow {
     box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
   }
-  
+
   .glow-hover:hover {
     box-shadow: 0 0 25px rgba(56, 189, 248, 0.5);
   }
-  
+
   /* Purple row borders that render on top of vertical borders */
   .purple-row-border::before {
-    content: '';
+    content: "";
     position: absolute;
     left: 0;
     right: 0;
@@ -41,9 +42,9 @@ body {
     z-index: 10;
     pointer-events: none;
   }
-  
+
   .purple-row-border::after {
-    content: '';
+    content: "";
     position: absolute;
     left: 0;
     right: 0;
@@ -53,7 +54,7 @@ body {
     z-index: 10;
     pointer-events: none;
   }
-  
+
   /* Fill handle (blue circle) in bottom-right corner of selected cells */
   .cell-selected-fill-handle {
     position: absolute;
@@ -68,25 +69,24 @@ body {
     cursor: crosshair;
     pointer-events: all;
   }
-  
-.cell-selected-fill-handle:hover {
-  background-color: #1d4ed8;
-  transform: scale(1.1);
-}
 
-/* Blue tint overlay for selected cells - tints existing colors */
-.cell-selected-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(26, 115, 232, 0.15);
-  pointer-events: none;
-  z-index: 1;
-}
-}
+  .cell-selected-fill-handle:hover {
+    background-color: #1d4ed8;
+    transform: scale(1.1);
+  }
 
+  /* Blue tint overlay for selected cells - tints existing colors */
+  .cell-selected-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(26, 115, 232, 0.15);
+    pointer-events: none;
+    z-index: 1;
+  }
+}
 
 /* Blue tint overlay for selected cells */
 .cell-selected-overlay {

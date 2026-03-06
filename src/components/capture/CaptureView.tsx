@@ -20,12 +20,16 @@ export function CaptureView() {
     window.innerWidth < 768 ? 'week' : 'month'
   );
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const initializedRef = useRef(false);
 
-  // Initialize from saved preferences once loaded
+  // Initialize from saved preferences once loaded — only once
+  // On mobile, always force week view (month is unusable)
   useEffect(() => {
-    if (prefsLoaded) {
+    if (prefsLoaded && !initializedRef.current) {
+      initializedRef.current = true;
       setViewMode(defaultView);
-      setSpreadsheetRange(savedRange);
+      const isMobile = window.innerWidth < 768;
+      setSpreadsheetRange(isMobile ? 'week' : savedRange);
     }
   }, [prefsLoaded, defaultView, savedRange]);
 
@@ -74,8 +78,9 @@ export function CaptureView() {
     }
   }, [undoState, setEntries]);
 
-  // Load entries when date or range changes
+  // Load entries when date or range changes — wait for prefs first to avoid double-fetch
   useEffect(() => {
+    if (!prefsLoaded) return;
     const d = new Date(date);
     let start: string;
     let end: string;
@@ -88,7 +93,7 @@ export function CaptureView() {
       end = format(endOfMonth(d), 'yyyy-MM-dd');
     }
     loadEntries(start, end);
-  }, [date, spreadsheetRange, viewMode, loadEntries]);
+  }, [prefsLoaded, date, spreadsheetRange, viewMode, loadEntries]);
 
   const handleCellChange = useCallback((dateStr: string, metricId: string, value: string) => {
     updateCell(dateStr, metricId, value);
@@ -172,7 +177,9 @@ export function CaptureView() {
         <DateNavigation date={date} viewMode={viewMode} spreadsheetRange={spreadsheetRange} onChange={setDate} />
         <div className="flex items-center gap-2">
           {viewMode === 'spreadsheet' && (
-            <SpreadsheetRangeToggle range={spreadsheetRange} onChange={handleRangeChange} />
+            <div className="hidden sm:block">
+              <SpreadsheetRangeToggle range={spreadsheetRange} onChange={handleRangeChange} />
+            </div>
           )}
           <ViewModeToggle viewMode={viewMode} onChange={handleViewModeChange} />
         </div>

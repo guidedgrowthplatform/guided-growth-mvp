@@ -12,7 +12,7 @@ export function UndoRedoControls({ canUndo, canRedo, onUndo, onRedo }: UndoRedoC
         onClick={onUndo}
         disabled={!canUndo}
         className={`px-2 py-1 text-sm rounded-lg transition-all ${
-          canUndo ? 'text-slate-600 hover:bg-slate-100/50' : 'text-slate-300 cursor-not-allowed'
+          canUndo ? 'text-slate-700 bg-white/60 hover:bg-white/80 shadow-sm' : 'text-slate-300 cursor-not-allowed'
         }`}
         title="Undo (Ctrl+Z)"
       >
@@ -22,7 +22,7 @@ export function UndoRedoControls({ canUndo, canRedo, onUndo, onRedo }: UndoRedoC
         onClick={onRedo}
         disabled={!canRedo}
         className={`px-2 py-1 text-sm rounded-lg transition-all ${
-          canRedo ? 'text-slate-600 hover:bg-slate-100/50' : 'text-slate-300 cursor-not-allowed'
+          canRedo ? 'text-slate-700 bg-white/60 hover:bg-white/80 shadow-sm' : 'text-slate-300 cursor-not-allowed'
         }`}
         title="Redo (Ctrl+Y)"
       >

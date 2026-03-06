@@ -1,28 +1,72 @@
 import { useState, useEffect } from 'react';
 import { useVoiceSettingsStore, type RecordingMode, type SttProvider } from '@/stores/voiceSettingsStore';
 import { getAvailableVoices, setVoicePreference, speak, getVoicePreference } from '@/lib/services/tts-service';
+import {
+  Brain,
+  Mic,
+  MessageSquare,
+  Volume2,
+  Database,
+  Trash2,
+  Globe,
+  Bot,
+  Zap,
+  Timer,
+  Radio,
+  AlertTriangle,
+  Pencil,
+} from 'lucide-react';
+
+// Keep Pencil export available for other files that may need it
+void Pencil;
 
 export function SettingsPage() {
   const { recordingMode, setRecordingMode, ttsEnabled, setTtsEnabled, sttProvider, setSttProvider } = useVoiceSettingsStore();
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>(getVoicePreference() || '');
 
-  // Load voices (Chrome loads them async)
+  // Load voices — retry with polling for Android (voiceschanged may not fire)
   useEffect(() => {
+    let retries = 0;
+    const maxRetries = 12; // 12 x 250ms = 3 seconds
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
     const loadVoices = () => {
       const available = getAvailableVoices();
-      setVoices(available);
-      if (!selectedVoice && available.length > 0) {
-        setSelectedVoice(available[0].name);
+      if (available.length > 0) {
+        setVoices(available);
+        if (!selectedVoice) {
+          setSelectedVoice(available[0].name);
+        }
+        if (timer) clearTimeout(timer);
+        return true;
       }
+      return false;
     };
 
-    loadVoices();
+    // Try immediately
+    if (!loadVoices()) {
+      // Poll for voices (Android fix)
+      const poll = () => {
+        retries++;
+        if (loadVoices() || retries >= maxRetries) {
+          // If still empty after timeout, set empty to show "No voices" message
+          if (retries >= maxRetries && voices.length === 0) {
+            setVoices([]);
+          }
+          return;
+        }
+        timer = setTimeout(poll, 250);
+      };
+      timer = setTimeout(poll, 250);
+    }
 
     // Chrome fires voiceschanged event after async load
     if ('speechSynthesis' in window) {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
+
+    return () => { if (timer) clearTimeout(timer); };
   }, [selectedVoice]);
 
   const handleVoiceChange = (voiceName: string) => {
@@ -35,39 +79,39 @@ export function SettingsPage() {
     speak('Hello! I am your growth tracker assistant. How can I help you today?');
   };
 
-  const modes: { value: RecordingMode; label: string; description: string; icon: string }[] = [
+  const modes: { value: RecordingMode; label: string; description: string; icon: React.ReactNode }[] = [
     {
       value: 'auto-stop',
       label: 'Auto-stop (Siri-like)',
       description: 'Stops recording after 2.5s of silence. Best for quick voice commands.',
-      icon: '⏱️',
+      icon: <Timer className="w-5 h-5 text-cyan-600" />,
     },
     {
       value: 'always-on',
       label: 'Always recording',
       description: 'Keeps microphone active until manually stopped. Good for longer dictation.',
-      icon: '🎙️',
+      icon: <Radio className="w-5 h-5 text-cyan-600" />,
     },
   ];
 
-  const sttProviders: { value: SttProvider; label: string; description: string; icon: string }[] = [
+  const sttProviders: { value: SttProvider; label: string; description: string; icon: React.ReactNode }[] = [
     {
       value: 'webspeech',
       label: 'Web Speech API',
       description: 'Browser built-in. Free, real-time interim results. Requires internet.',
-      icon: '🌐',
+      icon: <Globe className="w-5 h-5 text-cyan-600" />,
     },
     {
       value: 'whisper',
       label: 'Whisper (whisper.cpp)',
       description: 'OpenAI Whisper base model. Runs locally in browser via WASM. ~75MB download on first use.',
-      icon: '🤖',
+      icon: <Bot className="w-5 h-5 text-cyan-600" />,
     },
     {
       value: 'deepgram',
       label: 'DeepGram Nova-2',
       description: 'Cloud-based. Fastest transcription with real-time streaming. Requires API key.',
-      icon: '⚡',
+      icon: <Zap className="w-5 h-5 text-cyan-600" />,
     },
   ];
 
@@ -78,7 +122,7 @@ export function SettingsPage() {
       {/* STT Provider */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
-          🧠 Speech-to-Text Engine
+          <Brain className="w-5 h-5" /> Speech-to-Text Engine
         </h2>
         <div className="space-y-3">
           {sttProviders.map((provider) => (
@@ -100,7 +144,7 @@ export function SettingsPage() {
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{provider.icon}</span>
+                  {provider.icon}
                   <span className="font-medium text-slate-800">{provider.label}</span>
                 </div>
                 <p className="text-sm text-slate-500 mt-1">{provider.description}</p>
@@ -113,7 +157,7 @@ export function SettingsPage() {
       {/* Recording Mode */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
-          🎤 Recording Mode
+          <Mic className="w-5 h-5" /> Recording Mode
         </h2>
         <div className="space-y-3">
           {modes.map((mode) => (
@@ -135,7 +179,7 @@ export function SettingsPage() {
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{mode.icon}</span>
+                  {mode.icon}
                   <span className="font-medium text-slate-800">{mode.label}</span>
                 </div>
                 <p className="text-sm text-slate-500 mt-1">{mode.description}</p>
@@ -144,14 +188,14 @@ export function SettingsPage() {
           ))}
         </div>
         <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
-          ⚠️ Note: Apple may restrict "always recording" mode on iOS.
+          <AlertTriangle className="w-3.5 h-3.5" /> Note: Apple may restrict "always recording" mode on iOS.
         </p>
       </section>
 
       {/* Talk Back Voice Toggle */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
-          💬 Talk Back Voice
+          <MessageSquare className="w-5 h-5" /> Talk Back Voice
         </h2>
         <div className="bg-white/80 rounded-xl border border-slate-200 p-4">
           <label className="flex items-center justify-between cursor-pointer">
@@ -179,11 +223,15 @@ export function SettingsPage() {
       {/* Voice Selection */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
-          🔊 TTS Voice
+          <Volume2 className="w-5 h-5" /> TTS Voice
         </h2>
         <div className="bg-white/80 rounded-xl border border-slate-200 p-4">
           {voices.length === 0 ? (
-            <p className="text-sm text-slate-400 italic">Loading voices...</p>
+            <p className="text-sm text-slate-400 italic">
+              {!('speechSynthesis' in window)
+                ? 'Text-to-speech is not supported in this browser.'
+                : 'No voice options found — TTS will use the device default voice.'}
+            </p>
           ) : (
             <div className="space-y-3">
               <select
@@ -200,9 +248,9 @@ export function SettingsPage() {
               </select>
               <button
                 onClick={handlePreview}
-                className="text-sm bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-2 rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-md hover:shadow-lg"
+                className="text-sm bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-2 rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-md hover:shadow-lg flex items-center gap-1.5"
               >
-                🔊 Preview Voice
+                <Volume2 className="w-4 h-4" /> Preview Voice
               </button>
             </div>
           )}
@@ -212,7 +260,7 @@ export function SettingsPage() {
       {/* Voice Command Examples */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
-          🎤 Voice Command Examples
+          <Mic className="w-5 h-5" /> Voice Command Examples
         </h2>
         <div className="bg-white/80 rounded-xl border border-slate-200 p-4">
           <p className="text-sm text-slate-500 mb-3">
@@ -241,7 +289,7 @@ export function SettingsPage() {
       {/* Data Management */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
-          🗄️ Data
+          <Database className="w-5 h-5" /> Data
         </h2>
         <div className="bg-white/80 rounded-xl border border-slate-200 p-4">
           <button
@@ -251,9 +299,9 @@ export function SettingsPage() {
                 window.location.reload();
               }
             }}
-            className="text-sm bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 transition-colors"
+            className="text-sm bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1.5"
           >
-            🗑️ Clear All Local Data
+            <Trash2 className="w-4 h-4" /> Clear All Local Data
           </button>
           <p className="text-xs text-slate-400 mt-2">
             Clears all habits, entries, and preferences from this browser.

@@ -191,7 +191,7 @@ export function SpreadsheetView({
           <table className={`w-full border-collapse ${spreadsheetRange === 'week' ? 'min-w-[400px]' : 'min-w-[800px]'} lg:min-w-0`}>
             <thead>
               <tr className="bg-cyan-100/50 border-b-2 border-cyan-300/50">
-                <th className="sticky left-0 z-20 bg-cyan-100/50 px-2 py-2 text-left text-xs font-semibold text-slate-800 border-r-2 border-cyan-300/50 min-w-[100px] sm:min-w-[120px]">
+                <th className="sticky left-0 z-20 bg-cyan-100/50 px-2 py-2 text-left text-xs font-semibold text-slate-800 border-r-2 border-cyan-300/50 w-[80px] sm:w-[120px] max-w-[80px] sm:max-w-[120px]">
                   HABITS
                 </th>
                 {days.map((day, idx) => {
