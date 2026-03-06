@@ -87,7 +87,10 @@ function cleanText(text: string): string {
  */
 export function unlockTTS(): void {
   if (ttsUnlocked || !('speechSynthesis' in window)) return;
-  const utterance = new SpeechSynthesisUtterance('');
+  // FIX #27: iOS SSML parser fails on empty string '' with
+  // "No single root node found. Found 0 nodes at top-level"
+  // Use a single space instead — iOS accepts it silently.
+  const utterance = new SpeechSynthesisUtterance(' ');
   utterance.volume = 0;
   window.speechSynthesis.speak(utterance);
   ttsUnlocked = true;

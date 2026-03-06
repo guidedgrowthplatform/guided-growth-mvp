@@ -1,6 +1,9 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+
+// Whisper WASM (~40MB) crashes mobile Safari — block on mobile devices
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 import {
     loadWhisperModel,
     transcribeAudio,
@@ -175,10 +178,26 @@ export function useVoiceInput() {
                 'network': '',
                 'aborted': '',
                 'service-not-available': 'Speech recognition not available. Try Chrome or Edge.',
-                'service-not-allowed': 'Speech recognition service not allowed. Check browser settings.',
+                'service-not-allowed': '',  // handled below with context
             };
 
             const errorMsg = errorMessages[event.error];
+
+            // service-not-allowed: iOS fires this on restart attempts even after
+            // successful recognition. Only show error if user hasn't spoken yet.
+            if (event.error === 'service-not-allowed') {
+                if (hasSpokenRef.current) {
+                    // Already captured speech — silently stop, don't scare user
+                    stopListening();
+                    clearSilenceTimer();
+                    return;
+                }
+                setError('Speech recognition service not allowed. Check browser settings.');
+                stopListening();
+                clearSilenceTimer();
+                return;
+            }
+
             if (errorMsg === '') {
                 if (event.error === 'network') {
                     networkErrorCount++;
@@ -292,8 +311,15 @@ export function useVoiceInput() {
         const { sttProvider } = useVoiceSettingsStore.getState();
 
         if (sttProvider === 'whisper') {
-            startWhisper();
-            return;
+            if (isMobile) {
+                // Whisper WASM crashes mobile Safari — fall back to Web Speech
+                setError('Whisper is too heavy for mobile. Switching to Web Speech.');
+                useVoiceSettingsStore.getState().setSttProvider('webspeech');
+                // Continue to Web Speech flow below
+            } else {
+                startWhisper();
+                return;
+            }
         }
 
         // Web Speech API flow
