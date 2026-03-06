@@ -9,6 +9,7 @@ import {
     onWhisperStatus,
     type WhisperStatus,
 } from '@/lib/services/whisper-service';
+import { ensureMicPermission } from '@/lib/services/mic-permissions';
 
 // Track interim text separately so we can show live speech
 let currentInterim = '';
@@ -174,6 +175,7 @@ export function useVoiceInput() {
                 'network': '',
                 'aborted': '',
                 'service-not-available': 'Speech recognition not available. Try Chrome or Edge.',
+                'service-not-allowed': 'Speech recognition service not allowed. Check browser settings.',
             };
 
             const errorMsg = errorMessages[event.error];
@@ -184,8 +186,8 @@ export function useVoiceInput() {
                         const isBrave = 'brave' in navigator;
                         setError(
                             isBrave
-                                ? '⚠️ Brave Shield may block voice recognition. Please disable Shields for this site.'
-                                : '⚠️ Ad blocker may block voice recognition. Please disable it for this site.'
+                                ? 'Brave Shield may block voice recognition. Please disable Shields for this site.'
+                                : 'Ad blocker may block voice recognition. Please disable it for this site.'
                         );
                     }
                 }
@@ -232,7 +234,7 @@ export function useVoiceInput() {
         // Pre-load model if not ready
         if (whisperStatus !== 'ready') {
             try {
-                setInterim('⏳ Loading Whisper model (~40MB, one-time download)...');
+                setInterim('Loading Whisper model (~40MB, one-time download)...');
                 await loadWhisperModel();
                 setInterim('');
             } catch {
@@ -245,7 +247,7 @@ export function useVoiceInput() {
             await startAudioCapture();
             whisperRecordingRef.current = true;
             startListening();
-            setInterim('🎤 Listening with Whisper... (tap mic to stop & transcribe)');
+            setInterim('Listening with Whisper... (tap mic to stop and transcribe)');
         } catch (err) {
             setError(`Microphone error: ${err instanceof Error ? err.message : err}`);
         }
@@ -256,7 +258,7 @@ export function useVoiceInput() {
         whisperRecordingRef.current = false;
 
         try {
-            setInterim('🔄 Transcribing with Whisper...');
+            setInterim('Transcribing with Whisper...');
             const audioData = await stopAudioCapture();
 
             // Check if we got enough audio (at least 0.5 seconds)
@@ -286,7 +288,7 @@ export function useVoiceInput() {
 
     // ─── Unified Start/Stop/Toggle ───
 
-    const start = useCallback(() => {
+    const start = useCallback(async () => {
         const { sttProvider } = useVoiceSettingsStore.getState();
 
         if (sttProvider === 'whisper') {
@@ -297,6 +299,13 @@ export function useVoiceInput() {
         // Web Speech API flow
         if (!isSupported) {
             setError('Web Speech API is not supported in this browser. Try Chrome or Edge.');
+            return;
+        }
+
+        // Request mic permission before starting (Issue #24)
+        const micAllowed = await ensureMicPermission();
+        if (!micAllowed) {
+            setError('Microphone permission denied. Please allow microphone access in your browser or device settings.');
             return;
         }
 

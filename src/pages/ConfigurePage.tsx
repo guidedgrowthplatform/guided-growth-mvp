@@ -75,7 +75,7 @@ export function ConfigurePage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent mb-8">
+      <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent mb-6 sm:mb-8">
         Configure Metrics
       </h1>
 

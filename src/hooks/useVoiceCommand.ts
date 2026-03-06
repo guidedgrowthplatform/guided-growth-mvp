@@ -4,7 +4,8 @@ import { useCommandStore } from '@/stores/commandStore';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { getDataService } from '@/lib/services/service-provider';
 import { useToast } from '@/contexts/ToastContext';
-import { speakPreAck } from '@/lib/services/tts-service';
+import { speakPreAck, speak } from '@/lib/services/tts-service';
+import { haptic } from '@/lib/services/haptic-service';
 
 // Lazy-init: wait for the correct data service (Supabase) before creating dispatcher
 let _dispatcher: ActionDispatcher | null = null;
@@ -84,6 +85,11 @@ function localParse(transcript: string): { action: string; entity: string; param
     return { action: 'query', entity: 'summary', params: { period: 'week' }, confidence: 0.7 };
   }
 
+  // Help (Issue #19)
+  if (t.match(/^help$|what can i|available commands|how.*use|what.*commands/)) {
+    return { action: 'help', entity: 'command', params: {}, confidence: 0.95 };
+  }
+
   // Suggest
   if (t.match(/suggest|recommend/)) {
     return { action: 'suggest', entity: 'habit', params: {}, confidence: 0.8 };
@@ -160,12 +166,17 @@ export function useVoiceCommand() {
       setResult(result, intent, apiLatency);
       addHistory(transcript, intent, result);
 
-      // Show feedback
+      // Show visual + audio + haptic feedback
       if (result.success) {
+        haptic('success');
         addToast('success', result.message);
       } else {
+        haptic('error');
         addToast('error', result.message);
       }
+
+      // Talk back: read the result message aloud (if TTS enabled)
+      speak(result.message);
 
       // Navigate if needed
       if (result.uiAction === 'navigate' && result.navigateTo) {

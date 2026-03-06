@@ -3,6 +3,7 @@ import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoiceCommand } from '@/hooks/useVoiceCommand';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { speak } from '@/lib/services/tts-service';
+import { Pencil } from 'lucide-react';
 
 export function VoiceTranscript() {
     const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
@@ -58,7 +59,7 @@ export function VoiceTranscript() {
     if (!isListening && !transcript && !error && !lastResult) return null;
 
     return (
-        <div className="fixed bottom-24 right-24 z-50 lg:bottom-6 lg:right-24 w-80 max-w-[calc(100vw-8rem)]">
+        <div className="fixed bottom-24 left-4 right-20 z-50 lg:left-auto lg:bottom-6 lg:right-24 lg:w-80">
             <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl border border-slate-200 p-3">
                 {/* Status */}
                 {isListening && (
@@ -97,10 +98,10 @@ export function VoiceTranscript() {
                             <p className="italic flex-1">"{transcript}"</p>
                             <button
                                 onClick={handleEditStart}
-                                className="opacity-0 group-hover:opacity-100 text-[10px] text-blue-500 hover:text-blue-700 underline flex-shrink-0 transition-opacity"
+                                className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 text-[10px] text-blue-500 hover:text-blue-700 underline flex-shrink-0 transition-opacity p-1"
                                 title="Edit transcript before reprocessing"
                             >
-                                ✏️ Edit
+                                <Pencil className="w-3 h-3 inline" /> Edit
                             </button>
                         </div>
                     </div>

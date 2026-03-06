@@ -26,15 +26,20 @@ async function saveEntriesToDataService(date: string, dayEntries: DayEntries): P
   const { supabase } = await import('@/lib/supabase');
   
   for (const [metricId, value] of Object.entries(dayEntries)) {
-    if (value === 'yes' || value === '1' || value === 'true') {
-      await ds.completeHabit(metricId, date);
-    } else {
-      // Toggle OFF — delete the completion row
-      await supabase
-        .from('habit_completions')
-        .delete()
-        .eq('user_habit_id', metricId)
-        .eq('date', date);
+    try {
+      if (value === 'yes' || value === '1' || value === 'true') {
+        await ds.completeHabit(metricId, date);
+      } else {
+        // Toggle OFF — delete the completion row
+        const { error } = await supabase
+          .from('habit_completions')
+          .delete()
+          .eq('user_habit_id', metricId)
+          .eq('date', date);
+        if (error) console.error('[Entries] Delete completion error:', error);
+      }
+    } catch (err) {
+      console.error('[Entries] Save entry error:', metricId, err);
     }
   }
 }

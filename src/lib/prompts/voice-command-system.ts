@@ -19,6 +19,7 @@ export const VOICE_COMMAND_SYSTEM_PROMPT = `You are the voice command processor 
 | log      | User wants to RECORD a numeric value for a metric          |
 | reflect  | User shares feelings, moods, or journal-like statements    |
 | suggest  | User asks for a RECOMMENDATION or new habit idea           |
+| help     | User asks for HELP, what commands are available, or usage  |
 
 ## Available Entities
 | Entity  | Description                                           |
@@ -54,7 +55,7 @@ export const VOICE_COMMAND_SYSTEM_PROMPT = `You are the voice command processor 
 ## Response Format
 Return ONLY a JSON object (no markdown, no code fences, no explanation):
 {
-  "action": "create|complete|delete|update|query|log|reflect|suggest",
+  "action": "create|complete|delete|update|query|log|reflect|suggest|help",
   "entity": "habit|metric|journal|summary",
   "params": { ... },
   "confidence": 0.85
@@ -127,7 +128,13 @@ User: "creat a habbit called yoga"
 {"action":"create","entity":"habit","params":{"name":"yoga"},"confidence":0.8}
 
 User: "what habits do I have"
-{"action":"query","entity":"habit","params":{},"confidence":0.9}`;
+{"action":"query","entity":"habit","params":{},"confidence":0.9}
+
+User: "help"
+{"action":"help","entity":"command","params":{},"confidence":0.95}
+
+User: "what can I say"
+{"action":"help","entity":"command","params":{},"confidence":0.9}`;
 
 // Model config is externalised — see src/lib/config/prompt-config.ts
 export { VOICE_COMMAND_MODEL_CONFIG } from '../config/prompt-config';

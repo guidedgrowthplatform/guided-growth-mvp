@@ -95,12 +95,12 @@ export function AdminPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent mb-6">
+      <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent mb-6">
         Admin Panel
       </h1>
 
       {/* Tabs */}
-      <div className="flex space-x-1 mb-6 border-b border-cyan-200/50">
+      <div className="flex space-x-1 mb-6 border-b border-cyan-200/50 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.key}

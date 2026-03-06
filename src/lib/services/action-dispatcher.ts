@@ -70,6 +70,9 @@ export class ActionDispatcher {
         case 'suggest':
           result = await this.handleSuggest(entity, params);
           break;
+        case 'help':
+          result = this.handleHelp();
+          break;
         default:
           result = { success: false, message: `Unknown action: ${action}`, uiAction: 'toast' };
           break;
@@ -266,7 +269,7 @@ export class ActionDispatcher {
           const summary = await this.dataService.getHabitSummary(habit.id, period);
           return {
             success: true,
-            message: `${MSG.chart} ${habit.name}: ${summary.completionRate}% (${summary.completionsThisPeriod}/${summary.totalDaysInPeriod} days), streak: ${summary.currentStreak} days, longest: ${summary.longestStreak}`,
+            message: `${MSG.chart} ${habit.name}: ${Math.round(summary.completionRate * 10) / 10}% (${summary.completionsThisPeriod}/${summary.totalDaysInPeriod} days), streak: ${summary.currentStreak} days, longest: ${summary.longestStreak}`,
             data: summary,
             uiAction: 'display',
           };
@@ -365,7 +368,7 @@ export class ActionDispatcher {
     if (duplicate) {
       return {
         success: false,
-        message: `⚠️ You already have a similar journal entry for today. Try adding different thoughts or details.`,
+        message: `${MSG.warning} You already have a similar journal entry for today. Try adding different thoughts or details.`,
         data: duplicate,
         uiAction: 'toast',
       };
@@ -393,6 +396,27 @@ export class ActionDispatcher {
     return {
       success: true,
       message: `${MSG.suggest} Suggestion: Try "${suggestion}" — say "create a habit called ${suggestion}" to add it!`,
+      uiAction: 'display',
+    };
+  }
+
+  // ─── HELP (Issue #19) ───
+  private handleHelp(): ActionResult {
+    const commands = [
+      '• "Create a habit called meditation" — add a new habit',
+      '• "Mark meditation done" — complete a habit for today',
+      '• "Delete the exercise habit" — remove a habit',
+      '• "Rename exercise to morning workout" — update a habit',
+      '• "Show my habits" — list all habits',
+      '• "How am I doing with meditation?" — view stats',
+      '• "Log sleep quality as 8" — record a metric value',
+      '• "I feel stressed" — save a journal reflection',
+      '• "Suggest a habit" — get a recommendation',
+      '• "Help" — show this list',
+    ];
+    return {
+      success: true,
+      message: `${MSG.info} Available voice commands:\n${commands.join('\n')}`,
       uiAction: 'display',
     };
   }
