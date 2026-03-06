@@ -26,11 +26,16 @@ export function useEntries() {
     }
   }, []);
 
-  // Re-fetch when voice commands change data
+  // Re-fetch when voice commands change data (with delay for Supabase propagation)
   useEffect(() => {
     const handler = () => {
       if (lastRangeRef.current) {
-        load(lastRangeRef.current.start, lastRangeRef.current.end);
+        // Small delay to ensure Supabase write has propagated before read
+        setTimeout(() => {
+          if (lastRangeRef.current) {
+            load(lastRangeRef.current.start, lastRangeRef.current.end);
+          }
+        }, 500);
       }
     };
     window.addEventListener('voice-data-changed', handler);
