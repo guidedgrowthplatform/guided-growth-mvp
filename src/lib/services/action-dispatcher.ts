@@ -269,7 +269,7 @@ export class ActionDispatcher {
           const summary = await this.dataService.getHabitSummary(habit.id, period);
           return {
             success: true,
-            message: `${MSG.chart} ${habit.name}: ${summary.completionRate}% (${summary.completionsThisPeriod}/${summary.totalDaysInPeriod} days), streak: ${summary.currentStreak} days, longest: ${summary.longestStreak}`,
+            message: `${MSG.chart} ${habit.name}: ${Math.round(summary.completionRate * 10) / 10}% (${summary.completionsThisPeriod}/${summary.totalDaysInPeriod} days), streak: ${summary.currentStreak} days, longest: ${summary.longestStreak}`,
             data: summary,
             uiAction: 'display',
           };

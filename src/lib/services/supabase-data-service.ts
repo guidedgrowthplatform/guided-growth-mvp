@@ -328,7 +328,7 @@ export class SupabaseDataService implements DataService {
       habit,
       completionsThisPeriod: completions.length,
       totalDaysInPeriod: daysBack,
-      completionRate: completions.length / daysBack,
+      completionRate: (completions.length / daysBack) * 100,
       currentStreak: streakData?.current_streak || 0,
       longestStreak: streakData?.longest_streak || 0,
     };
