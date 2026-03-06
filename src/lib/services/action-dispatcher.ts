@@ -70,6 +70,9 @@ export class ActionDispatcher {
         case 'suggest':
           result = await this.handleSuggest(entity, params);
           break;
+        case 'help':
+          result = this.handleHelp();
+          break;
         default:
           result = { success: false, message: `Unknown action: ${action}`, uiAction: 'toast' };
           break;
@@ -393,6 +396,27 @@ export class ActionDispatcher {
     return {
       success: true,
       message: `${MSG.suggest} Suggestion: Try "${suggestion}" — say "create a habit called ${suggestion}" to add it!`,
+      uiAction: 'display',
+    };
+  }
+
+  // ─── HELP (Issue #19) ───
+  private handleHelp(): ActionResult {
+    const commands = [
+      '• "Create a habit called meditation" — add a new habit',
+      '• "Mark meditation done" — complete a habit for today',
+      '• "Delete the exercise habit" — remove a habit',
+      '• "Rename exercise to morning workout" — update a habit',
+      '• "Show my habits" — list all habits',
+      '• "How am I doing with meditation?" — view stats',
+      '• "Log sleep quality as 8" — record a metric value',
+      '• "I feel stressed" — save a journal reflection',
+      '• "Suggest a habit" — get a recommendation',
+      '• "Help" — show this list',
+    ];
+    return {
+      success: true,
+      message: `${MSG.info} Available voice commands:\n${commands.join('\n')}`,
       uiAction: 'display',
     };
   }

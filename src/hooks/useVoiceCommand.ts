@@ -84,6 +84,11 @@ function localParse(transcript: string): { action: string; entity: string; param
     return { action: 'query', entity: 'summary', params: { period: 'week' }, confidence: 0.7 };
   }
 
+  // Help (Issue #19)
+  if (t.match(/^help$|what can i|available commands|how.*use|what.*commands/)) {
+    return { action: 'help', entity: 'command', params: {}, confidence: 0.95 };
+  }
+
   // Suggest
   if (t.match(/suggest|recommend/)) {
     return { action: 'suggest', entity: 'habit', params: {}, confidence: 0.8 };
