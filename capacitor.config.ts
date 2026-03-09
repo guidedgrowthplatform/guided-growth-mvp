@@ -4,10 +4,9 @@ const config: CapacitorConfig = {
   appId: 'app.guidedgrowth.mvp',
   appName: 'Guided Growth Tracker',
   webDir: 'dist',
-  server: {
-    url: 'https://guided-growth-mvp-six.vercel.app',
-    cleartext: true,
-  },
+  // Local build: app loads from bundled dist/ folder.
+  // This enables getUserMedia on iOS WKWebView (required for mic).
+  // Trade-off: must rebuild + redeploy app for every code update.
   ios: {
     contentInset: 'automatic',
     preferredContentMode: 'mobile',

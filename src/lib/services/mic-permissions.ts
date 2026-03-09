@@ -1,19 +1,13 @@
 /**
  * Microphone permissions utility for web and Capacitor (mobile).
  * Issue #24: Ensures mic permission is requested before starting voice input.
- * Issue #27: Fixes error logging and adds proper Capacitor native permissions.
+ * Issue #27: Fixes error logging and robust Capacitor handling.
  *
  * Strategy:
- * 1. On Capacitor native: try @capacitor/microphone plugin (if installed),
- *    falling back to getUserMedia for the OS permission dialog.
- * 2. On web: uses navigator.mediaDevices.getUserMedia directly.
+ * - Use navigator.mediaDevices.getUserMedia where available (web + Android Capacitor).
+ * - Guard against undefined mediaDevices (iOS WKWebView with remote URL).
+ * - Never crash — all errors are caught and return false gracefully.
  */
-
-/** Check if running inside a Capacitor native container */
-function isNativeApp(): boolean {
-  return typeof (window as any).Capacitor !== 'undefined' &&
-    (window as any).Capacitor.isNativePlatform?.() === true;
-}
 
 export type MicPermissionStatus = 'granted' | 'denied' | 'prompt' | 'unknown';
 
@@ -21,22 +15,7 @@ export type MicPermissionStatus = 'granted' | 'denied' | 'prompt' | 'unknown';
  * Check current microphone permission status without prompting.
  */
 export async function checkMicPermission(): Promise<MicPermissionStatus> {
-  // Try Capacitor Permissions API first (native)
-  if (isNativeApp()) {
-    try {
-      const { Capacitor } = window as any;
-      const { Plugins } = Capacitor;
-      // If @capacitor/microphone plugin is installed, use it
-      if (Plugins?.Microphone) {
-        const result = await Plugins.Microphone.checkPermissions();
-        return result.microphone as MicPermissionStatus;
-      }
-    } catch {
-      // Plugin not installed, fall through to web API
-    }
-  }
-
-  // Web Permissions API (Chrome, Edge, Firefox)
+  // Web Permissions API (Chrome, Edge, Firefox, Android WebView)
   try {
     if (navigator.permissions) {
       const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
@@ -54,29 +33,15 @@ export async function checkMicPermission(): Promise<MicPermissionStatus> {
  */
 export async function requestMicPermission(): Promise<boolean> {
   try {
-    // On Capacitor native: try the plugin first for proper OS dialog
-    if (isNativeApp()) {
-      console.log('[MicPermissions] Native app detected');
-      try {
-        const { Capacitor } = window as any;
-        const { Plugins } = Capacitor;
-        if (Plugins?.Microphone) {
-          console.log('[MicPermissions] Using @capacitor/microphone plugin');
-          const result = await Plugins.Microphone.requestPermissions();
-          if (result.microphone === 'granted') {
-            console.log('[MicPermissions] Microphone permission granted via Capacitor plugin');
-            return true;
-          }
-          console.warn('[MicPermissions] Capacitor plugin returned:', result.microphone);
-          return false;
-        }
-      } catch {
-        // Plugin not available, fall through to getUserMedia
-        console.log('[MicPermissions] No Capacitor mic plugin, falling back to getUserMedia');
-      }
+    // Guard: some WebViews (iOS WKWebView + remote URL) don't expose mediaDevices
+    if (!navigator.mediaDevices?.getUserMedia) {
+      console.warn(
+        '[MicPermissions] mediaDevices API not available in this WebView.',
+        'Voice input requires a browser with microphone support.'
+      );
+      return false;
     }
 
-    // Web fallback: getUserMedia triggers the permission prompt
     console.log('[MicPermissions] Requesting mic via getUserMedia');
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 

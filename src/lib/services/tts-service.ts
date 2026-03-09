@@ -87,12 +87,16 @@ function cleanText(text: string): string {
  */
 export function unlockTTS(): void {
   if (ttsUnlocked || !('speechSynthesis' in window)) return;
-  // FIX #27: iOS SSML parser fails on empty string '' with
-  // "No single root node found. Found 0 nodes at top-level"
-  // Use a single space instead — iOS accepts it silently.
-  const utterance = new SpeechSynthesisUtterance(' ');
-  utterance.volume = 0;
-  window.speechSynthesis.speak(utterance);
+  try {
+    // FIX #27: iOS Capacitor WebView SSML parser rejects empty/space strings.
+    // Use '.' which iOS accepts. Wrap in try-catch so the unlock still
+    // registers the user-gesture origin even if the parser throws.
+    const utterance = new SpeechSynthesisUtterance('.');
+    utterance.volume = 0;
+    window.speechSynthesis.speak(utterance);
+  } catch (e) {
+    console.warn('[TTS] unlockTTS SSML parse error (safe to ignore):', e);
+  }
   ttsUnlocked = true;
 }
 

@@ -183,13 +183,30 @@ export function useVoiceInput() {
 
             const errorMsg = errorMessages[event.error];
 
-            // service-not-allowed: iOS fires this on restart attempts even after
-            // successful recognition. Only show error if user hasn't spoken yet.
+            // service-not-allowed: iOS fires this on first attempt before
+            // permission is fully processed, and on restart attempts after
+            // successful recognition. Auto-retry once, then show error.
             if (event.error === 'service-not-allowed') {
                 if (hasSpokenRef.current) {
                     // Already captured speech — silently stop, don't scare user
                     stopListening();
                     clearSilenceTimer();
+                    return;
+                }
+                // First attempt on iOS: permission may not be ready yet.
+                // Auto-retry once after a short delay.
+                if (!isStartingRef.current) {
+                    isStartingRef.current = true;
+                    setTimeout(() => {
+                        try {
+                            recognition.start();
+                        } catch {
+                            isStartingRef.current = false;
+                            setError('Speech recognition not available. Try using Chrome or Safari.');
+                            stopListening();
+                            clearSilenceTimer();
+                        }
+                    }, 300);
                     return;
                 }
                 setError('Speech recognition service not allowed. Check browser settings.');
@@ -331,7 +348,14 @@ export function useVoiceInput() {
         // Request mic permission before starting (Issue #24)
         const micAllowed = await ensureMicPermission();
         if (!micAllowed) {
-            setError('Microphone permission denied. Please allow microphone access in your browser or device settings.');
+            // On Capacitor native with remote URL, mediaDevices is unavailable
+            const isNative = typeof (window as any).Capacitor !== 'undefined'
+                && (window as any).Capacitor.isNativePlatform?.() === true;
+            if (isNative) {
+                setError('Microphone not available in this app build. Please use the web version for voice input, or ask the developer to install the Capacitor microphone plugin.');
+            } else {
+                setError('Microphone permission denied. Please allow microphone access in your browser or device settings.');
+            }
             return;
         }
 
