@@ -4,18 +4,57 @@
  * Issue #27: Fixes error logging and robust Capacitor handling.
  *
  * Strategy:
- * - Use navigator.mediaDevices.getUserMedia where available (web + Android Capacitor).
- * - Guard against undefined mediaDevices (iOS WKWebView with remote URL).
+ * - On Capacitor native: use @capacitor-community/speech-recognition plugin
+ *   which handles RECORD_AUDIO + SPEECH_RECOGNITION permissions natively.
+ * - On web: use navigator.mediaDevices.getUserMedia (Chrome, Edge, Firefox).
  * - Never crash — all errors are caught and return false gracefully.
  */
 
+import { Capacitor } from '@capacitor/core';
+import { SpeechRecognition } from '@capacitor-community/speech-recognition';
+
 export type MicPermissionStatus = 'granted' | 'denied' | 'prompt' | 'unknown';
 
-/**
- * Check current microphone permission status without prompting.
- */
-export async function checkMicPermission(): Promise<MicPermissionStatus> {
-  // Web Permissions API (Chrome, Edge, Firefox, Android WebView)
+/** Detect if we're running inside a native Capacitor app */
+function isNative(): boolean {
+  try {
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+}
+
+// ─── Capacitor Native Permissions ───
+
+async function checkNativePermission(): Promise<MicPermissionStatus> {
+  try {
+    const result = await SpeechRecognition.checkPermissions();
+    const status = result.speechRecognition;
+    if (status === 'granted') return 'granted';
+    if (status === 'denied') return 'denied';
+    return 'prompt';
+  } catch (err) {
+    console.warn('[MicPermissions] Native permission check failed:', err);
+    return 'unknown';
+  }
+}
+
+async function requestNativePermission(): Promise<boolean> {
+  try {
+    console.log('[MicPermissions] Requesting native speech recognition permission');
+    const result = await SpeechRecognition.requestPermissions();
+    const granted = result.speechRecognition === 'granted';
+    console.log('[MicPermissions] Native permission result:', result.speechRecognition);
+    return granted;
+  } catch (err) {
+    console.error('[MicPermissions] Native permission request failed:', err);
+    return false;
+  }
+}
+
+// ─── Web Permissions ───
+
+async function checkWebPermission(): Promise<MicPermissionStatus> {
   try {
     if (navigator.permissions) {
       const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
@@ -27,18 +66,10 @@ export async function checkMicPermission(): Promise<MicPermissionStatus> {
   return 'unknown';
 }
 
-/**
- * Request microphone permission. Returns true if granted, false if denied.
- * On first call, this triggers the browser/OS permission dialog.
- */
-export async function requestMicPermission(): Promise<boolean> {
+async function requestWebPermission(): Promise<boolean> {
   try {
-    // Guard: some WebViews (iOS WKWebView + remote URL) don't expose mediaDevices
     if (!navigator.mediaDevices?.getUserMedia) {
-      console.warn(
-        '[MicPermissions] mediaDevices API not available in this WebView.',
-        'Voice input requires a browser with microphone support.'
-      );
+      console.warn('[MicPermissions] mediaDevices API not available.');
       return false;
     }
 
@@ -51,29 +82,43 @@ export async function requestMicPermission(): Promise<boolean> {
     console.log('[MicPermissions] Microphone permission granted');
     return true;
   } catch (err) {
-    // FIX #27: DOMException doesn't serialize to JSON (logs as {}).
-    // Extract name + message for useful error logging.
     const error = err as DOMException;
     const errorInfo = { name: error?.name, message: error?.message, code: error?.code };
 
     if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-      console.warn('[MicPermissions] Microphone permission denied by user:', errorInfo);
+      console.warn('[MicPermissions] Microphone permission denied:', errorInfo);
       return false;
     }
 
     if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-      console.warn('[MicPermissions] No microphone found on this device:', errorInfo);
+      console.warn('[MicPermissions] No microphone found:', errorInfo);
       return false;
     }
 
     if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
-      console.warn('[MicPermissions] Microphone is in use or not readable:', errorInfo);
+      console.warn('[MicPermissions] Microphone in use or not readable:', errorInfo);
       return false;
     }
 
-    console.error('[MicPermissions] Unexpected error requesting mic:', errorInfo);
+    console.error('[MicPermissions] Unexpected error:', errorInfo);
     return false;
   }
+}
+
+// ─── Public API ───
+
+/**
+ * Check current microphone permission status without prompting.
+ */
+export async function checkMicPermission(): Promise<MicPermissionStatus> {
+  return isNative() ? checkNativePermission() : checkWebPermission();
+}
+
+/**
+ * Request microphone permission. Returns true if granted, false if denied.
+ */
+export async function requestMicPermission(): Promise<boolean> {
+  return isNative() ? requestNativePermission() : requestWebPermission();
 }
 
 /**
