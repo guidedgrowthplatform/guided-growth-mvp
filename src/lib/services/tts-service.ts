@@ -102,44 +102,54 @@ export function unlockTTS(): void {
 
 /** Speak text aloud using the selected pleasant voice */
 export function speak(text: string, options?: { rate?: number; pitch?: number; volume?: number }): void {
-  if (!('speechSynthesis' in window)) return;
-  // Check if TTS is enabled
-  const { ttsEnabled } = useVoiceSettingsStore.getState();
-  if (!ttsEnabled) return;
-  const clean = cleanText(text);
-  if (!clean) return;
+  try {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    // Check if TTS is enabled
+    const { ttsEnabled } = useVoiceSettingsStore.getState();
+    if (!ttsEnabled) return;
+    const clean = cleanText(text);
+    if (!clean) return;
 
-  // iOS workaround: cancel any stuck synthesis before speaking
-  window.speechSynthesis.cancel();
+    // iOS workaround: cancel any stuck synthesis before speaking
+    try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
 
-  const utterance = new SpeechSynthesisUtterance(clean);
-  const voice = getSelectedVoice();
-  if (voice) utterance.voice = voice;
+    const utterance = new SpeechSynthesisUtterance(clean);
+    const voice = getSelectedVoice();
+    if (voice) utterance.voice = voice;
 
-  utterance.rate = options?.rate ?? 1.05;
-  utterance.pitch = options?.pitch ?? 1.0;
-  utterance.volume = options?.volume ?? 0.85;
+    utterance.rate = options?.rate ?? 1.05;
+    utterance.pitch = options?.pitch ?? 1.0;
+    utterance.volume = options?.volume ?? 0.85;
 
-  // iOS workaround: Safari pauses synthesis after ~15s.
-  // Resume periodically to prevent hanging. Clear on end/error.
-  let resumeInterval: ReturnType<typeof setInterval> | null = null;
+    // iOS workaround: Safari pauses synthesis after ~15s.
+    // Resume periodically to prevent hanging. Clear on end/error.
+    let resumeInterval: ReturnType<typeof setInterval> | null = null;
 
-  const cleanup = () => {
-    if (resumeInterval) { clearInterval(resumeInterval); resumeInterval = null; }
-  };
+    const cleanup = () => {
+      if (resumeInterval) { clearInterval(resumeInterval); resumeInterval = null; }
+    };
 
-  utterance.onend = cleanup;
-  utterance.onerror = cleanup;
-
-  window.speechSynthesis.speak(utterance);
-
-  resumeInterval = setInterval(() => {
-    if (!window.speechSynthesis.speaking) {
+    utterance.onend = cleanup;
+    utterance.onerror = (e) => {
+      console.warn('[TTS] speak error:', e?.error || e);
       cleanup();
-    } else {
-      window.speechSynthesis.resume();
-    }
-  }, 5000);
+    };
+
+    window.speechSynthesis.speak(utterance);
+
+    resumeInterval = setInterval(() => {
+      try {
+        if (!window.speechSynthesis.speaking) {
+          cleanup();
+        } else {
+          window.speechSynthesis.resume();
+        }
+      } catch { cleanup(); }
+    }, 5000);
+  } catch (err) {
+    // TTS should NEVER crash the app
+    console.warn('[TTS] speak failed (non-critical):', err);
+  }
 }
 
 /** Pre-acknowledgment messages based on action type */

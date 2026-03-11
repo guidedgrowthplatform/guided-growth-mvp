@@ -365,15 +365,23 @@ export function useVoiceInput() {
         }
 
         // Request mic permission before starting (Issue #24)
-        const micAllowed = await ensureMicPermission();
+        let micAllowed = false;
+        try {
+            micAllowed = await ensureMicPermission();
+        } catch (err) {
+            console.error('[VoiceInput] ensureMicPermission threw:', err);
+            micAllowed = false;
+        }
+
         if (!micAllowed) {
-            // On Capacitor native with remote URL, mediaDevices is unavailable
-            const isNative = typeof (window as any).Capacitor !== 'undefined'
-                && (window as any).Capacitor.isNativePlatform?.() === true;
-            if (isNative) {
-                setError('Microphone not available in this app build. Please use the web version for voice input, or ask the developer to install the Capacitor microphone plugin.');
+            // Platform-specific error messages
+            const ua = navigator.userAgent || '';
+            if (/iPhone|iPad|iPod/i.test(ua)) {
+                setError('Microphone access denied. Go to Settings → Safari → Microphone, or Settings → [App Name] → Microphone to enable.');
+            } else if (/Android/i.test(ua)) {
+                setError('Microphone access denied. Go to Settings → Apps → Browser → Permissions → Microphone to enable.');
             } else {
-                setError('Microphone permission denied. Please allow microphone access in your browser or device settings.');
+                setError('Microphone permission denied. Please allow microphone access in your browser settings (click the lock icon in the address bar).');
             }
             return;
         }
