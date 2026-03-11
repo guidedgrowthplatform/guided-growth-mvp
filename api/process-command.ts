@@ -17,6 +17,7 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
 | log      | User wants to RECORD a numeric value for a metric          |
 | reflect  | User shares feelings, moods, or journal-like statements    |
 | suggest  | User asks for a RECOMMENDATION or new habit idea           |
+| help     | User asks for HELP, available commands, or what they can do|
 
 ## Available Entities
 | Entity  | Description                                           |
@@ -41,6 +42,7 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
 12. "log X as Y" / "record X Y" / "my X was Y" = log action for metrics.
 13. "rename X to Y" / "change X to Y" = update action with newName param.
 14. "scale 1 to 10" / "from 1 to 10" = scale metric with \`scale: [1, 10]\`.
+15. "help" / "what can I say" / "what can I do" / "what are the commands" = help action. This takes PRIORITY over suggest.
 15. Return confidence 0.0–1.0:
     - 0.9+ = very clear intent
     - 0.7–0.89 = likely correct but slightly ambiguous
@@ -52,7 +54,7 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
 ## Response Format
 Return ONLY a JSON object (no markdown, no code fences, no explanation):
 {
-  "action": "create|complete|delete|update|query|log|reflect|suggest",
+  "action": "create|complete|delete|update|query|log|reflect|suggest|help",
   "entity": "habit|metric|journal|summary",
   "params": { ... },
   "confidence": 0.85
@@ -125,7 +127,17 @@ User: "creat a habbit called yoga"
 {"action":"create","entity":"habit","params":{"name":"yoga"},"confidence":0.8}
 
 User: "what habits do I have"
-{"action":"query","entity":"habit","params":{},"confidence":0.9}`;
+{"action":"query","entity":"habit","params":{},"confidence":0.9}
+
+### Help
+User: "Help"
+{"action":"help","entity":"summary","params":{},"confidence":0.95}
+
+User: "What can I say?"
+{"action":"help","entity":"summary","params":{},"confidence":0.95}
+
+User: "What are the available commands?"
+{"action":"help","entity":"summary","params":{},"confidence":0.95}`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
