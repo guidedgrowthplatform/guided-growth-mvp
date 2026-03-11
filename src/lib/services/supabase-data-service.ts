@@ -203,73 +203,138 @@ export class SupabaseDataService implements DataService {
   }
 
   // ─── Metrics ───
-  // Note: Metrics map to daily_checkins in the new schema
-  // For MVP, we store them as custom entries
+  // Uses user_tracked_metrics table in Supabase
 
   async createMetric(name: string, inputType = 'scale', frequency = 'daily', scaleMin?: number, scaleMax?: number): Promise<TrackedMetric> {
-    // Store metrics as a special habit type for now
-    // In future, metrics could have their own table
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    const metric: TrackedMetric = {
-      id: crypto.randomUUID(),
-      name,
-      inputType: inputType as 'scale' | 'binary' | 'numeric' | 'text',
-      frequency,
-      scaleMin,
-      scaleMax,
-      createdAt: new Date().toISOString(),
+    const { data, error } = await supabase
+      .from('user_tracked_metrics')
+      .insert({
+        user_id: user.id,
+        name,
+        input_type: inputType,
+        frequency,
+        scale_min: scaleMin ?? (inputType === 'scale' ? 1 : null),
+        scale_max: scaleMax ?? (inputType === 'scale' ? 10 : null),
+        sort_order: 9999,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    return {
+      id: data.id,
+      name: data.name,
+      inputType: data.input_type as TrackedMetric['inputType'],
+      frequency: data.frequency,
+      scaleMin: data.scale_min,
+      scaleMax: data.scale_max,
+      createdAt: data.created_at,
     };
-
-    // Store in localStorage for now (metrics don't have a direct Supabase table in MVP)
-    const existing = JSON.parse(localStorage.getItem('supabase_metrics') || '[]');
-    existing.push(metric);
-    localStorage.setItem('supabase_metrics', JSON.stringify(existing));
-
-    return metric;
   }
 
   async getMetrics(): Promise<TrackedMetric[]> {
-    return JSON.parse(localStorage.getItem('supabase_metrics') || '[]');
+    const { data, error } = await supabase
+      .from('user_tracked_metrics')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (error) throw new Error(error.message);
+
+    return (data || []).map(m => ({
+      id: m.id,
+      name: m.name,
+      inputType: m.input_type as TrackedMetric['inputType'],
+      frequency: m.frequency,
+      scaleMin: m.scale_min,
+      scaleMax: m.scale_max,
+      createdAt: m.created_at,
+    }));
   }
 
   async getMetricByName(name: string): Promise<TrackedMetric | null> {
-    const metrics = await this.getMetrics();
-    return metrics.find(m => m.name.toLowerCase() === name.toLowerCase()) || null;
+    const { data, error } = await supabase
+      .from('user_tracked_metrics')
+      .select('*')
+      .ilike('name', name)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      name: data.name,
+      inputType: data.input_type as TrackedMetric['inputType'],
+      frequency: data.frequency,
+      scaleMin: data.scale_min,
+      scaleMax: data.scale_max,
+      createdAt: data.created_at,
+    };
   }
 
   async deleteMetric(id: string): Promise<void> {
-    const metrics = await this.getMetrics();
-    localStorage.setItem('supabase_metrics', JSON.stringify(metrics.filter(m => m.id !== id)));
+    const { error } = await supabase
+      .from('user_tracked_metrics')
+      .update({ is_active: false })
+      .eq('id', id);
+
+    if (error) throw new Error(error.message);
   }
 
   // ─── Metric Entries ───
 
   async logMetric(metricId: string, value: number | string, date: string): Promise<MetricEntry> {
-    const entry: MetricEntry = {
-      id: crypto.randomUUID(),
-      metricId,
-      value,
-      date,
-      loggedAt: new Date().toISOString(),
+    const { data, error } = await supabase
+      .from('user_metric_entries')
+      .upsert(
+        {
+          metric_id: metricId,
+          value: String(value),
+          date,
+        },
+        { onConflict: 'metric_id,date' }
+      )
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    return {
+      id: data.id,
+      metricId: data.metric_id,
+      value: isNaN(Number(data.value)) ? data.value : Number(data.value),
+      date: data.date,
+      loggedAt: data.created_at,
     };
-
-    const existing = JSON.parse(localStorage.getItem('supabase_metric_entries') || '[]');
-    existing.push(entry);
-    localStorage.setItem('supabase_metric_entries', JSON.stringify(existing));
-
-    return entry;
   }
 
   async getMetricEntries(metricId: string, startDate?: string, endDate?: string): Promise<MetricEntry[]> {
-    const entries: MetricEntry[] = JSON.parse(localStorage.getItem('supabase_metric_entries') || '[]');
-    return entries.filter(e => {
-      if (e.metricId !== metricId) return false;
-      if (startDate && e.date < startDate) return false;
-      if (endDate && e.date > endDate) return false;
-      return true;
-    });
+    let query = supabase
+      .from('user_metric_entries')
+      .select('*')
+      .eq('metric_id', metricId)
+      .order('date', { ascending: false });
+
+    if (startDate) query = query.gte('date', startDate);
+    if (endDate) query = query.lte('date', endDate);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    return (data || []).map(e => ({
+      id: e.id,
+      metricId: e.metric_id,
+      value: isNaN(Number(e.value)) ? e.value : Number(e.value),
+      date: e.date,
+      loggedAt: e.created_at,
+    }));
   }
 
   // ─── Journal ───
@@ -399,12 +464,9 @@ export class SupabaseDataService implements DataService {
   }
 
   async clearData(): Promise<void> {
-    // Clear user's local metric data
-    localStorage.removeItem('supabase_metrics');
-    localStorage.removeItem('supabase_metric_entries');
-    
+    // Metrics and entries are now in Supabase, not localStorage
     // Note: Supabase data is not cleared via this method for safety
-    console.warn('[SupabaseDataService] clearData only clears local metric cache. Supabase data preserved.');
+    console.warn('[SupabaseDataService] clearData is a no-op. Supabase data preserved for safety.');
   }
 }
 

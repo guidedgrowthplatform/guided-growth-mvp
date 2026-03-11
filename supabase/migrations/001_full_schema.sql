@@ -327,6 +327,58 @@ CREATE TABLE habit_streaks (
 );
 
 
+-- ─────────────────────────────────────────
+-- 13. USER TRACKED METRICS (custom numeric metrics)
+-- ─────────────────────────────────────────
+
+CREATE TABLE user_tracked_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR NOT NULL,
+  input_type VARCHAR NOT NULL DEFAULT 'scale' CHECK (input_type IN ('scale', 'binary', 'numeric', 'text')),
+  frequency VARCHAR NOT NULL DEFAULT 'daily',
+  scale_min INT,
+  scale_max INT,
+  sort_order INT NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_tracked_metrics_user ON user_tracked_metrics(user_id, is_active);
+
+
+-- ─────────────────────────────────────────
+-- 14. METRIC ENTRIES (logged values)
+-- ─────────────────────────────────────────
+
+CREATE TABLE user_metric_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  metric_id UUID NOT NULL REFERENCES user_tracked_metrics(id) ON DELETE CASCADE,
+  value VARCHAR NOT NULL,
+  date DATE NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  UNIQUE (metric_id, date)
+);
+
+
+-- ─────────────────────────────────────────
+-- 15. USER PREFERENCES (app settings)
+-- ─────────────────────────────────────────
+
+CREATE TABLE user_preferences (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  default_view VARCHAR NOT NULL DEFAULT 'spreadsheet',
+  spreadsheet_range VARCHAR NOT NULL DEFAULT 'month',
+  reflection_config JSONB DEFAULT '{"fields":[{"id":"gratitude","label":"What are you grateful for?","order":1},{"id":"highlight","label":"Today''s highlight","order":2},{"id":"mood","label":"How do you feel?","order":3}],"show_affirmation":true}',
+  affirmation TEXT DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+
 -- ═══════════════════════════════════════════════════════════════════
 -- ROW LEVEL SECURITY (RLS)
 -- ═══════════════════════════════════════════════════════════════════
@@ -347,6 +399,9 @@ ALTER TABLE onboarding_selected_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE onboarding_selected_subcategories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE habit_streaks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_tracked_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_metric_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
 
 -- Users table: own row only
 CREATE POLICY "users_own_row" ON users
@@ -407,6 +462,20 @@ CREATE POLICY "streaks_own" ON habit_streaks
   FOR ALL USING (
     user_habit_id IN (SELECT id FROM user_habits WHERE user_id = auth.uid())
   );
+
+-- User tracked metrics
+CREATE POLICY "tracked_metrics_own" ON user_tracked_metrics
+  FOR ALL USING (user_id = auth.uid());
+
+-- Metric entries (via user_tracked_metrics join)
+CREATE POLICY "metric_entries_own" ON user_metric_entries
+  FOR ALL USING (
+    metric_id IN (SELECT id FROM user_tracked_metrics WHERE user_id = auth.uid())
+  );
+
+-- User preferences
+CREATE POLICY "preferences_own" ON user_preferences
+  FOR ALL USING (user_id = auth.uid());
 
 -- Seeded tables: readable by all authenticated users, writable by admin only
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;

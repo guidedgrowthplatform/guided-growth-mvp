@@ -1,12 +1,13 @@
 import { apiGet, apiPut } from './client';
 import type { ReflectionConfig, DayReflections } from '@shared/types';
 import { useSupabase } from '@/lib/services/service-provider';
+import { supabase } from '@/lib/supabase';
 
 const LS_CONFIG = 'gg_reflections_config';
 const LS_REFLECTIONS = 'gg_reflections';
 const LS_AFFIRMATION = 'gg_affirmation';
 
-// Default config when API unavailable
+// Default config when no Supabase/API data
 const DEFAULT_CONFIG: ReflectionConfig = {
   fields: [
     { id: 'gratitude', label: 'What are you grateful for?', order: 1 },
@@ -32,8 +33,72 @@ function getLocalReflections(): Record<string, DayReflections> {
   return {};
 }
 
+// ─── Supabase helpers ───
+
+async function getSupabaseReflectionConfig(): Promise<ReflectionConfig> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return getLocalConfig();
+
+  const { data } = await supabase
+    .from('user_preferences')
+    .select('reflection_config')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (!data?.reflection_config) return getLocalConfig();
+
+  const config = data.reflection_config as ReflectionConfig;
+  localStorage.setItem(LS_CONFIG, JSON.stringify(config));
+  return config;
+}
+
+async function saveSupabaseReflectionConfig(config: ReflectionConfig): Promise<ReflectionConfig> {
+  localStorage.setItem(LS_CONFIG, JSON.stringify(config));
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return config;
+
+  await supabase
+    .from('user_preferences')
+    .upsert({
+      user_id: user.id,
+      reflection_config: config,
+    }, { onConflict: 'user_id' });
+
+  return config;
+}
+
+async function getSupabaseAffirmation(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return localStorage.getItem(LS_AFFIRMATION) || '';
+
+  const { data } = await supabase
+    .from('user_preferences')
+    .select('affirmation')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  const val = data?.affirmation || '';
+  localStorage.setItem(LS_AFFIRMATION, val);
+  return val;
+}
+
+async function saveSupabaseAffirmation(value: string): Promise<void> {
+  localStorage.setItem(LS_AFFIRMATION, value);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase
+    .from('user_preferences')
+    .upsert({
+      user_id: user.id,
+      affirmation: value,
+    }, { onConflict: 'user_id' });
+}
+
+// ─── Public API ───
+
 export async function fetchReflectionConfig(): Promise<ReflectionConfig> {
-  if (useSupabase) return getLocalConfig();
+  if (useSupabase) return getSupabaseReflectionConfig();
   try {
     const remote = await apiGet<ReflectionConfig>('/api/reflections/config');
     localStorage.setItem(LS_CONFIG, JSON.stringify(remote));
@@ -44,8 +109,8 @@ export async function fetchReflectionConfig(): Promise<ReflectionConfig> {
 }
 
 export async function saveReflectionConfig(config: ReflectionConfig): Promise<ReflectionConfig> {
+  if (useSupabase) return saveSupabaseReflectionConfig(config);
   localStorage.setItem(LS_CONFIG, JSON.stringify(config));
-  if (useSupabase) return config;
   try {
     return await apiPut<ReflectionConfig>('/api/reflections/config', config);
   } catch {
@@ -54,6 +119,8 @@ export async function saveReflectionConfig(config: ReflectionConfig): Promise<Re
 }
 
 export async function fetchReflections(start: string, end: string): Promise<Record<string, DayReflections>> {
+  // Reflections are stored locally for now (no dedicated Supabase table for day-reflections form data)
+  // Journal entries (voice reflect) already go to journal_entries table
   if (useSupabase) return getLocalReflections();
   try {
     return await apiGet<Record<string, DayReflections>>(`/api/reflections?start=${start}&end=${end}`);
@@ -75,7 +142,7 @@ export async function saveReflections(date: string, reflections: DayReflections)
 }
 
 export async function fetchAffirmation(): Promise<string> {
-  if (useSupabase) return localStorage.getItem(LS_AFFIRMATION) || '';
+  if (useSupabase) return getSupabaseAffirmation();
   try {
     const result = await apiGet<{ value: string }>('/api/affirmation');
     localStorage.setItem(LS_AFFIRMATION, result.value);
@@ -86,8 +153,8 @@ export async function fetchAffirmation(): Promise<string> {
 }
 
 export async function saveAffirmation(value: string): Promise<void> {
+  if (useSupabase) return saveSupabaseAffirmation(value);
   localStorage.setItem(LS_AFFIRMATION, value);
-  if (useSupabase) return;
   try {
     await apiPut('/api/affirmation', { value });
   } catch { /* silent */ }

@@ -1,6 +1,7 @@
 import { apiGet, apiPut } from './client';
 import type { ViewMode, SpreadsheetRange } from '@shared/types';
 import { useSupabase } from '@/lib/services/service-provider';
+import { supabase } from '@/lib/supabase';
 
 export interface PreferencesData {
   default_view: ViewMode;
@@ -27,9 +28,45 @@ function setLocalPrefs(prefs: Partial<PreferencesData>): PreferencesData {
   return merged;
 }
 
+async function getSupabasePrefs(): Promise<PreferencesData> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return getLocalPrefs();
+
+  const { data } = await supabase
+    .from('user_preferences')
+    .select('default_view, spreadsheet_range')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (!data) return getLocalPrefs();
+
+  const prefs: PreferencesData = {
+    default_view: data.default_view as ViewMode,
+    spreadsheet_range: data.spreadsheet_range as SpreadsheetRange,
+  };
+  // Keep local cache in sync
+  localStorage.setItem(LS_KEY, JSON.stringify(prefs));
+  return prefs;
+}
+
+async function saveSupabasePrefs(prefs: Partial<PreferencesData>): Promise<PreferencesData> {
+  const merged = setLocalPrefs(prefs);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return merged;
+
+  await supabase
+    .from('user_preferences')
+    .upsert({
+      user_id: user.id,
+      default_view: merged.default_view,
+      spreadsheet_range: merged.spreadsheet_range,
+    }, { onConflict: 'user_id' });
+
+  return merged;
+}
+
 export async function fetchPreferences(): Promise<PreferencesData> {
-  // When using Supabase, skip /api/* routes entirely (they return 401)
-  if (useSupabase) return getLocalPrefs();
+  if (useSupabase) return getSupabasePrefs();
   try {
     const remote = await apiGet<PreferencesData>('/api/preferences');
     localStorage.setItem(LS_KEY, JSON.stringify(remote));
@@ -40,9 +77,8 @@ export async function fetchPreferences(): Promise<PreferencesData> {
 }
 
 export async function savePreferences(prefs: Partial<PreferencesData>): Promise<PreferencesData> {
+  if (useSupabase) return saveSupabasePrefs(prefs);
   const merged = setLocalPrefs(prefs);
-  // When using Supabase, skip /api/* routes entirely
-  if (useSupabase) return merged;
   try {
     return await apiPut<PreferencesData>('/api/preferences', prefs);
   } catch {
