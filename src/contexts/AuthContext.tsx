@@ -1,12 +1,9 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-// import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+import { AUTH_BYPASS } from '@/lib/services/service-provider';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
-// ============================================================
-// 🚧 AUTH BYPASS — TEST USER MODE
-// Remove this block and uncomment Supabase code below to
-// restore real authentication.
-// ============================================================
+// Test user for AUTH_BYPASS mode (no real Supabase session needed)
 const TEST_USER = {
   id: 'test-user-001',
   email: 'testuser@guidedgrowth.app',
@@ -29,31 +26,13 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // 🚧 TEST MODE: skip Supabase, use hardcoded test user
-  const [user] = useState<SupabaseUser | null>(TEST_USER);
-  const [session] = useState<Session | null>(null);
-  const [loading] = useState(false);
-
-  const signUp = async (_email: string, _password: string) => {
-    return { error: null };
-  };
-
-  const signIn = async (_email: string, _password: string) => {
-    return { error: null };
-  };
-
-  const signOut = async () => {
-    console.log('[Auth] signOut called (test mode — no-op)');
-  };
-
-  /* ==========================================================
-   * REAL SUPABASE AUTH — uncomment this block to restore
-   * ==========================================================
-  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(AUTH_BYPASS ? TEST_USER : null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!AUTH_BYPASS);
 
   useEffect(() => {
+    if (AUTH_BYPASS) return; // Skip Supabase auth in test mode
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -70,16 +49,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string) => {
+    if (AUTH_BYPASS) return { error: null };
     const { error } = await supabase.auth.signUp({ email, password });
     return { error: error?.message ?? null };
   };
 
   const signIn = async (email: string, password: string) => {
+    if (AUTH_BYPASS) return { error: null };
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message ?? null };
   };
 
   const signOut = async () => {
+    if (AUTH_BYPASS) {
+      console.log('[Auth] signOut called (test mode — no-op)');
+      return;
+    }
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
@@ -95,7 +80,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  ========================================================== */
 
   return (
     <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
