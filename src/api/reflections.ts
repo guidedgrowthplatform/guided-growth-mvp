@@ -1,13 +1,14 @@
-import { apiGet, apiPut } from './client';
-import type { ReflectionConfig, DayReflections } from '@shared/types';
-import { useSupabase } from '@/lib/services/service-provider';
-import { supabase } from '@/lib/supabase';
+import { getDataService } from '@/lib/services/service-provider';
+import type { ReflectionConfig } from '@/lib/services/data-service.interface';
+import type { DayReflections } from '@shared/types';
+
+export type { ReflectionConfig };
 
 const LS_CONFIG = 'gg_reflections_config';
 const LS_REFLECTIONS = 'gg_reflections';
 const LS_AFFIRMATION = 'gg_affirmation';
 
-// Default config when no Supabase/API data
+// Default config when no data available
 const DEFAULT_CONFIG: ReflectionConfig = {
   fields: [
     { id: 'gratitude', label: 'What are you grateful for?', order: 1 },
@@ -33,100 +34,33 @@ function getLocalReflections(): Record<string, DayReflections> {
   return {};
 }
 
-// ─── Supabase helpers ───
-
-async function getSupabaseReflectionConfig(): Promise<ReflectionConfig> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return getLocalConfig();
-
-  const { data } = await supabase
-    .from('user_preferences')
-    .select('reflection_config')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!data?.reflection_config) return getLocalConfig();
-
-  const config = data.reflection_config as ReflectionConfig;
-  localStorage.setItem(LS_CONFIG, JSON.stringify(config));
-  return config;
-}
-
-async function saveSupabaseReflectionConfig(config: ReflectionConfig): Promise<ReflectionConfig> {
-  localStorage.setItem(LS_CONFIG, JSON.stringify(config));
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return config;
-
-  await supabase
-    .from('user_preferences')
-    .upsert({
-      user_id: user.id,
-      reflection_config: config,
-    }, { onConflict: 'user_id' });
-
-  return config;
-}
-
-async function getSupabaseAffirmation(): Promise<string> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return localStorage.getItem(LS_AFFIRMATION) || '';
-
-  const { data } = await supabase
-    .from('user_preferences')
-    .select('affirmation')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  const val = data?.affirmation || '';
-  localStorage.setItem(LS_AFFIRMATION, val);
-  return val;
-}
-
-async function saveSupabaseAffirmation(value: string): Promise<void> {
-  localStorage.setItem(LS_AFFIRMATION, value);
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-
-  await supabase
-    .from('user_preferences')
-    .upsert({
-      user_id: user.id,
-      affirmation: value,
-    }, { onConflict: 'user_id' });
-}
-
 // ─── Public API ───
 
 export async function fetchReflectionConfig(): Promise<ReflectionConfig> {
-  if (useSupabase) return getSupabaseReflectionConfig();
   try {
-    const remote = await apiGet<ReflectionConfig>('/api/reflections/config');
-    localStorage.setItem(LS_CONFIG, JSON.stringify(remote));
-    return remote;
+    const ds = await getDataService();
+    const config = await ds.getReflectionConfig();
+    localStorage.setItem(LS_CONFIG, JSON.stringify(config));
+    return config;
   } catch {
     return getLocalConfig();
   }
 }
 
 export async function saveReflectionConfig(config: ReflectionConfig): Promise<ReflectionConfig> {
-  if (useSupabase) return saveSupabaseReflectionConfig(config);
   localStorage.setItem(LS_CONFIG, JSON.stringify(config));
   try {
-    return await apiPut<ReflectionConfig>('/api/reflections/config', config);
+    const ds = await getDataService();
+    return await ds.saveReflectionConfig(config);
   } catch {
     return config;
   }
 }
 
-export async function fetchReflections(start: string, end: string): Promise<Record<string, DayReflections>> {
-  // Reflections are stored locally for now (no dedicated Supabase table for day-reflections form data)
+export async function fetchReflections(_start: string, _end: string): Promise<Record<string, DayReflections>> {
+  // Day-level reflections are stored locally (no dedicated Supabase table)
   // Journal entries (voice reflect) already go to journal_entries table
-  if (useSupabase) return getLocalReflections();
-  try {
-    return await apiGet<Record<string, DayReflections>>(`/api/reflections?start=${start}&end=${end}`);
-  } catch {
-    return getLocalReflections();
-  }
+  return getLocalReflections();
 }
 
 export async function saveReflections(date: string, reflections: DayReflections): Promise<void> {
@@ -135,27 +69,23 @@ export async function saveReflections(date: string, reflections: DayReflections)
     all[date] = reflections;
     localStorage.setItem(LS_REFLECTIONS, JSON.stringify(all));
   } catch { /* ignore */ }
-  if (useSupabase) return;
-  try {
-    await apiPut(`/api/reflections/${date}`, reflections);
-  } catch { /* silent */ }
 }
 
 export async function fetchAffirmation(): Promise<string> {
-  if (useSupabase) return getSupabaseAffirmation();
   try {
-    const result = await apiGet<{ value: string }>('/api/affirmation');
-    localStorage.setItem(LS_AFFIRMATION, result.value);
-    return result.value;
+    const ds = await getDataService();
+    const val = await ds.getAffirmation();
+    localStorage.setItem(LS_AFFIRMATION, val);
+    return val;
   } catch {
     return localStorage.getItem(LS_AFFIRMATION) || '';
   }
 }
 
 export async function saveAffirmation(value: string): Promise<void> {
-  if (useSupabase) return saveSupabaseAffirmation(value);
   localStorage.setItem(LS_AFFIRMATION, value);
   try {
-    await apiPut('/api/affirmation', { value });
+    const ds = await getDataService();
+    await ds.saveAffirmation(value);
   } catch { /* silent */ }
 }

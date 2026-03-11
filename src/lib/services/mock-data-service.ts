@@ -332,6 +332,53 @@ export class MockDataService implements DataService {
     }
   }
 
+  // ─── Preferences ───
+
+  async getPreferences(): Promise<import('./data-service.interface').PreferencesData> {
+    try {
+      const raw = localStorage.getItem('gg_preferences');
+      if (raw) return JSON.parse(raw);
+    } catch { /* ignore */ }
+    return { default_view: 'spreadsheet', spreadsheet_range: 'month' };
+  }
+
+  async savePreferences(prefs: Partial<import('./data-service.interface').PreferencesData>): Promise<import('./data-service.interface').PreferencesData> {
+    const current = await this.getPreferences();
+    const merged = { ...current, ...prefs };
+    localStorage.setItem('gg_preferences', JSON.stringify(merged));
+    return merged;
+  }
+
+  // ─── Reflection Config & Affirmation ───
+
+  async getReflectionConfig(): Promise<import('./data-service.interface').ReflectionConfig> {
+    try {
+      const raw = localStorage.getItem('gg_reflections_config');
+      if (raw) return JSON.parse(raw);
+    } catch { /* ignore */ }
+    return {
+      fields: [
+        { id: 'gratitude', label: 'What are you grateful for?', order: 1 },
+        { id: 'highlight', label: "Today's highlight", order: 2 },
+        { id: 'mood', label: 'How do you feel?', order: 3 },
+      ],
+      show_affirmation: true,
+    };
+  }
+
+  async saveReflectionConfig(config: import('./data-service.interface').ReflectionConfig): Promise<import('./data-service.interface').ReflectionConfig> {
+    localStorage.setItem('gg_reflections_config', JSON.stringify(config));
+    return config;
+  }
+
+  async getAffirmation(): Promise<string> {
+    return localStorage.getItem('gg_affirmation') || '';
+  }
+
+  async saveAffirmation(value: string): Promise<void> {
+    localStorage.setItem('gg_affirmation', value);
+  }
+
   async clearData(): Promise<void> {
     Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
   }

@@ -67,6 +67,22 @@ export interface ActionResult {
   navigateTo?: string;
 }
 
+export interface PreferencesData {
+  default_view: 'spreadsheet' | 'form';
+  spreadsheet_range: 'week' | 'month';
+}
+
+export interface ReflectionField {
+  id: string;
+  label: string;
+  order: number;
+}
+
+export interface ReflectionConfig {
+  fields: ReflectionField[];
+  show_affirmation: boolean;
+}
+
 export interface DataService {
   // Habits
   createHabit(name: string, frequency?: string): Promise<Habit>;
@@ -98,6 +114,16 @@ export interface DataService {
   // Summaries
   getHabitSummary(habitId: string, period: 'week' | 'month'): Promise<HabitSummary>;
   getWeeklySummary(): Promise<WeeklySummary>;
+
+  // Preferences
+  getPreferences(): Promise<PreferencesData>;
+  savePreferences(prefs: Partial<PreferencesData>): Promise<PreferencesData>;
+
+  // Reflection config & affirmation
+  getReflectionConfig(): Promise<ReflectionConfig>;
+  saveReflectionConfig(config: ReflectionConfig): Promise<ReflectionConfig>;
+  getAffirmation(): Promise<string>;
+  saveAffirmation(value: string): Promise<void>;
 
   // Seed
   seedData(): Promise<void>;

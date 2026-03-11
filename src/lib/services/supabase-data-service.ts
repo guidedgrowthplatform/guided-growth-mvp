@@ -463,6 +463,98 @@ export class SupabaseDataService implements DataService {
     }
   }
 
+  // ─── Preferences ───
+
+  async getPreferences(): Promise<import('./data-service.interface').PreferencesData> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { default_view: 'spreadsheet', spreadsheet_range: 'month' };
+
+    const { data } = await supabase
+      .from('user_preferences')
+      .select('default_view, spreadsheet_range')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!data) return { default_view: 'spreadsheet', spreadsheet_range: 'month' };
+    return { default_view: data.default_view, spreadsheet_range: data.spreadsheet_range };
+  }
+
+  async savePreferences(prefs: Partial<import('./data-service.interface').PreferencesData>): Promise<import('./data-service.interface').PreferencesData> {
+    const current = await this.getPreferences();
+    const merged = { ...current, ...prefs };
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return merged;
+
+    await supabase
+      .from('user_preferences')
+      .upsert({
+        user_id: user.id,
+        default_view: merged.default_view,
+        spreadsheet_range: merged.spreadsheet_range,
+      }, { onConflict: 'user_id' });
+
+    return merged;
+  }
+
+  // ─── Reflection Config & Affirmation ───
+
+  async getReflectionConfig(): Promise<import('./data-service.interface').ReflectionConfig> {
+    const defaultConfig: import('./data-service.interface').ReflectionConfig = {
+      fields: [
+        { id: 'gratitude', label: 'What are you grateful for?', order: 1 },
+        { id: 'highlight', label: "Today's highlight", order: 2 },
+        { id: 'mood', label: 'How do you feel?', order: 3 },
+      ],
+      show_affirmation: true,
+    };
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return defaultConfig;
+
+    const { data } = await supabase
+      .from('user_preferences')
+      .select('reflection_config')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!data?.reflection_config) return defaultConfig;
+    return data.reflection_config as import('./data-service.interface').ReflectionConfig;
+  }
+
+  async saveReflectionConfig(config: import('./data-service.interface').ReflectionConfig): Promise<import('./data-service.interface').ReflectionConfig> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return config;
+
+    await supabase
+      .from('user_preferences')
+      .upsert({ user_id: user.id, reflection_config: config }, { onConflict: 'user_id' });
+
+    return config;
+  }
+
+  async getAffirmation(): Promise<string> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return '';
+
+    const { data } = await supabase
+      .from('user_preferences')
+      .select('affirmation')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    return data?.affirmation || '';
+  }
+
+  async saveAffirmation(value: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase
+      .from('user_preferences')
+      .upsert({ user_id: user.id, affirmation: value }, { onConflict: 'user_id' });
+  }
+
   async clearData(): Promise<void> {
     // Metrics and entries are now in Supabase, not localStorage
     // Note: Supabase data is not cleared via this method for safety
