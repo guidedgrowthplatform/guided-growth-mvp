@@ -17,6 +17,12 @@ import { ensureMicPermission } from '@/lib/services/mic-permissions';
 // Track interim text separately so we can show live speech
 let currentInterim = '';
 let networkErrorCount = 0;
+let lastFinalTimestamp = 0;
+
+// If a new isFinal result comes >1.5s after the previous one,
+// treat it as a NEW command attempt (replace, don't append).
+const CHUNK_GAP_MS = 1500;
+const MAX_TRANSCRIPT_LENGTH = 200;
 
 // Silence detection config
 const SILENCE_TIMEOUT_MS = 2500; // auto-stop after 2.5s of silence (like Siri)
@@ -155,7 +161,20 @@ export function useVoiceInput() {
                     if (text) {
                         currentInterim = '';
                         hasSpokenRef.current = true;
-                        appendTranscript(text);
+
+                        const now = Date.now();
+                        const gap = now - lastFinalTimestamp;
+                        lastFinalTimestamp = now;
+
+                        const currentTranscript = useVoiceStore.getState().transcript;
+
+                        // If gap is large OR transcript is already long,
+                        // treat this as a new command (replace, don't append)
+                        if (gap > CHUNK_GAP_MS || currentTranscript.length > MAX_TRANSCRIPT_LENGTH) {
+                            useVoiceStore.getState().setTranscript(text);
+                        } else {
+                            appendTranscript(text);
+                        }
                     }
                 } else {
                     interim += result[0].transcript;
