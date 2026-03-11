@@ -1,6 +1,21 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { supabase } from '@/lib/supabase';
+// import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
+
+// ============================================================
+// 🚧 AUTH BYPASS — TEST USER MODE
+// Remove this block and uncomment Supabase code below to
+// restore real authentication.
+// ============================================================
+const TEST_USER = {
+  id: 'test-user-001',
+  email: 'testuser@guidedgrowth.app',
+  user_metadata: { full_name: 'Test User' },
+  app_metadata: {},
+  aud: 'authenticated',
+  role: 'authenticated',
+  created_at: new Date().toISOString(),
+} as unknown as SupabaseUser;
 
 interface AuthContextValue {
   user: SupabaseUser | null;
@@ -14,19 +29,37 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // 🚧 TEST MODE: skip Supabase, use hardcoded test user
+  const [user] = useState<SupabaseUser | null>(TEST_USER);
+  const [session] = useState<Session | null>(null);
+  const [loading] = useState(false);
+
+  const signUp = async (_email: string, _password: string) => {
+    return { error: null };
+  };
+
+  const signIn = async (_email: string, _password: string) => {
+    return { error: null };
+  };
+
+  const signOut = async () => {
+    console.log('[Auth] signOut called (test mode — no-op)');
+  };
+
+  /* ==========================================================
+   * REAL SUPABASE AUTH — uncomment this block to restore
+   * ==========================================================
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -62,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       </div>
     );
   }
+  ========================================================== */
 
   return (
     <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
