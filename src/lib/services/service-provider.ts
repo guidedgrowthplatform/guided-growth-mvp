@@ -5,7 +5,7 @@ import type { DataService } from './data-service.interface';
 import { mockDataService } from './mock-data-service';
 
 // 🚧 AUTH BYPASS: force MockDataService when using test user (no real Supabase session)
-const AUTH_BYPASS = true; // Set to false when restoring real auth
+export const AUTH_BYPASS = true; // Set to false when restoring real auth
 
 // Auto-detect Supabase mode: if VITE_SUPABASE_URL is set to a real URL, use Supabase
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
