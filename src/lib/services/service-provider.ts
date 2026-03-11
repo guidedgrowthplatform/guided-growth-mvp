@@ -8,8 +8,9 @@ import { mockDataService } from './mock-data-service';
 export const AUTH_BYPASS = true; // Set to false when restoring real auth
 
 // Auto-detect Supabase mode: if VITE_SUPABASE_URL is set to a real URL, use Supabase
+// Exported so API files (entries.ts, metrics.ts) use a single source of truth
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const useSupabase = !AUTH_BYPASS && supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
+export const useSupabase = !AUTH_BYPASS && supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
 
 let _service: DataService | null = null;
 let _initPromise: Promise<DataService> | null = null;
