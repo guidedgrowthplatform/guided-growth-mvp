@@ -1,5 +1,6 @@
 import { apiGet, apiPut } from './client';
 import type { ViewMode, SpreadsheetRange } from '@shared/types';
+import { useSupabase } from '@/lib/services/service-provider';
 
 export interface PreferencesData {
   default_view: ViewMode;
@@ -7,8 +8,6 @@ export interface PreferencesData {
 }
 
 const LS_KEY = 'gg_preferences';
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const useSupabase = supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
 
 function getLocalPrefs(): PreferencesData {
   try {

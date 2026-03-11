@@ -1,12 +1,10 @@
 import { apiGet, apiPut } from './client';
 import type { ReflectionConfig, DayReflections } from '@shared/types';
+import { useSupabase } from '@/lib/services/service-provider';
 
 const LS_CONFIG = 'gg_reflections_config';
 const LS_REFLECTIONS = 'gg_reflections';
 const LS_AFFIRMATION = 'gg_affirmation';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const useSupabase = supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
 
 // Default config when API unavailable
 const DEFAULT_CONFIG: ReflectionConfig = {
