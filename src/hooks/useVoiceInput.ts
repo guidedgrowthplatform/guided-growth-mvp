@@ -196,7 +196,7 @@ export function useVoiceInput() {
                 'audio-capture': 'No microphone found. Please connect a microphone.',
                 'network': '',
                 'aborted': '',
-                'service-not-available': 'Speech recognition not available. Try Chrome or Edge.',
+                'service-not-available': '',  // handled below with auto-fallback
                 'service-not-allowed': '',  // handled below with context
             };
 
@@ -249,9 +249,23 @@ export function useVoiceInput() {
                 return;
             }
 
+            // FALLBACK: service-not-available → suggest alternative or auto-switch
+            if (event.error === 'service-not-available') {
+                stopListening();
+                clearSilenceTimer();
+                if (!isMobile) {
+                    // Desktop: suggest Whisper as alternative (runs locally)
+                    setError('Web Speech API not available in this browser. Try switching to Whisper (Settings → Speech-to-Text) or use Chrome/Edge.');
+                } else {
+                    // Mobile: Whisper is too heavy, no fallback available
+                    setError('Speech recognition not available on this browser. Please use Chrome on Android or Safari on iOS.');
+                }
+                return;
+            }
+
             setError(errorMsg || `Speech recognition error: ${event.error}`);
 
-            if (['not-allowed', 'audio-capture', 'service-not-available'].includes(event.error)) {
+            if (['not-allowed', 'audio-capture'].includes(event.error)) {
                 stopListening();
                 clearSilenceTimer();
             }
@@ -293,7 +307,15 @@ export function useVoiceInput() {
                 await loadWhisperModel();
                 setInterim('');
             } catch {
-                setError('Failed to load Whisper model. Check your internet connection.');
+                // FALLBACK: Whisper model failed → auto-switch to Web Speech
+                console.warn('[VoiceInput] Whisper model load failed, falling back to Web Speech');
+                setError('Whisper model failed to load. Switching to Web Speech automatically.');
+                useVoiceSettingsStore.getState().setSttProvider('webspeech');
+                // Retry with Web Speech after a brief delay so user sees the message
+                setTimeout(() => {
+                    setError('');
+                    start();
+                }, 1500);
                 return;
             }
         }
@@ -334,7 +356,7 @@ export function useVoiceInput() {
             }
         } catch (err) {
             console.error('[Whisper] Stop/transcribe error:', err);
-            setError('Failed to transcribe audio with Whisper.');
+            setError('Whisper transcription failed. Try Web Speech API instead (Settings → Speech-to-Text Engine).');
             setInterim('');
         }
 
