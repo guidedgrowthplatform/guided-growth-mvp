@@ -87,19 +87,8 @@ export async function deleteMetric(id: string): Promise<void> {
 
 export async function reorderMetrics(metricIds: string[]): Promise<Metric[]> {
   if (useSupabase) {
-    // Only persist sort order to Supabase if NOT in auth bypass mode
-    // (MockDataService does not track sort_order)
-    const { AUTH_BYPASS } = await import('@/lib/services/service-provider');
-    if (!AUTH_BYPASS) {
-      const { supabase } = await import('@/lib/supabase');
-      for (let i = 0; i < metricIds.length; i++) {
-        await supabase
-          .from('user_habits')
-          .update({ sort_order: i + 1 })
-          .eq('id', metricIds[i]);
-      }
-    }
     const ds = await getDataService();
+    await ds.reorderHabits(metricIds);
     const habits = await ds.getHabits();
     return habits.map(habitToMetric);
   }
@@ -107,6 +96,7 @@ export async function reorderMetrics(metricIds: string[]): Promise<Metric[]> {
     return await apiPut<Metric[]>('/api/metrics/reorder', { metric_ids: metricIds });
   } catch {
     const ds = await getDataService();
+    await ds.reorderHabits(metricIds);
     const habits = await ds.getHabits();
     return habits.map(habitToMetric);
   }

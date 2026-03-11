@@ -131,6 +131,20 @@ export class MockDataService implements DataService {
     setStore(STORAGE_KEYS.habits, habits);
   }
 
+  async reorderHabits(habitIds: string[]): Promise<void> {
+    const habits = getStore<Habit>(STORAGE_KEYS.habits);
+    const ordered: Habit[] = [];
+    for (const id of habitIds) {
+      const h = habits.find((h) => h.id === id);
+      if (h) ordered.push(h);
+    }
+    // Append any habits not in the reorder list
+    for (const h of habits) {
+      if (!habitIds.includes(h.id)) ordered.push(h);
+    }
+    setStore(STORAGE_KEYS.habits, ordered);
+  }
+
   // ─── Completions ───
   async completeHabit(habitId: string, date: string): Promise<HabitCompletion> {
     const completions = getStore<HabitCompletion>(STORAGE_KEYS.completions);

@@ -74,6 +74,7 @@ export interface DataService {
   getHabitByName(name: string): Promise<Habit | null>;
   updateHabit(id: string, updates: Partial<Pick<Habit, 'name' | 'frequency' | 'active'>>): Promise<Habit>;
   deleteHabit(id: string): Promise<void>;
+  reorderHabits(habitIds: string[]): Promise<void>;
 
   // Habit completions
   completeHabit(habitId: string, date: string): Promise<HabitCompletion>;

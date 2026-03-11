@@ -132,6 +132,17 @@ export class SupabaseDataService implements DataService {
     if (error) throw new Error(error.message);
   }
 
+  async reorderHabits(habitIds: string[]): Promise<void> {
+    for (let i = 0; i < habitIds.length; i++) {
+      const { error } = await supabase
+        .from('user_habits')
+        .update({ sort_order: i + 1 })
+        .eq('id', habitIds[i]);
+
+      if (error) throw new Error(error.message);
+    }
+  }
+
   // ─── Completions ───
 
   async completeHabit(habitId: string, date: string): Promise<HabitCompletion> {
