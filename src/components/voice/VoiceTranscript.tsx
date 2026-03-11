@@ -22,6 +22,18 @@ export function VoiceTranscript() {
         }
     }, [isListening, transcript, processTranscript]);
 
+    // FIX-42: Auto-clear voice context after command execution
+    // Prevents old transcript from accumulating with new voice input
+    useEffect(() => {
+        if (lastResult && !isProcessing) {
+            const timer = setTimeout(() => {
+                resetTranscript();
+                lastProcessedRef.current = '';
+            }, 3000); // Clear after 3s so user can read the result
+            return () => clearTimeout(timer);
+        }
+    }, [lastResult, isProcessing, resetTranscript]);
+
     // TTS talk-back: speak the result after processing
     useEffect(() => {
         if (lastResult && !isProcessing) {

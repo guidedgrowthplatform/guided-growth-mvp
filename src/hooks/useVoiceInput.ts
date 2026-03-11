@@ -370,6 +370,7 @@ export function useVoiceInput() {
         setError('');
         networkErrorCount = 0;
         hasSpokenRef.current = false;
+        resetTranscript(); // FIX-42: Clear old transcript before new session
 
         try {
             try { recognition.abort(); } catch { /* ignore */ }
