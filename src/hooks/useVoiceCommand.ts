@@ -148,6 +148,16 @@ export function useVoiceCommand() {
         }
 
         intent = await response.json();
+
+        // If GPT returns low confidence, check if local parser does better
+        if (intent.confidence < 0.6) {
+          const localIntent = localParse(transcript);
+          if (localIntent.confidence > intent.confidence) {
+            console.info(`[VoiceCommand] GPT low confidence (${intent.confidence}), using local parser (${localIntent.confidence})`);
+            intent = localIntent;
+            intent.latency = Date.now() - startTime;
+          }
+        }
       } catch {
         // Fallback to local keyword parser (works without API)
         console.warn('[VoiceCommand] API unavailable, using local parser');
