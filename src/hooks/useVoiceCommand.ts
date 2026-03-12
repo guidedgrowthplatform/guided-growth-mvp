@@ -17,6 +17,25 @@ async function getDispatcher(): Promise<ActionDispatcher> {
   return _dispatcher;
 }
 
+// Word-number map for frequency parsing
+const WORD_NUMBERS: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5,
+  six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+};
+
+function parseWordNumber(str: string): number | null {
+  const n = parseInt(str);
+  if (!isNaN(n)) return n;
+  return WORD_NUMBERS[str.toLowerCase()] ?? null;
+}
+
+function extractDate(text: string): string {
+  if (text.includes('yesterday')) return 'yesterday';
+  const dayMatch = text.match(/(?:for|on)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
+  if (dayMatch) return dayMatch[1].toLowerCase();
+  return 'today';
+}
+
 // Simple local fallback when API is unavailable (e.g. local dev without vercel dev)
 function localParse(transcript: string): { action: string; entity: string; params: Record<string, unknown>; confidence: number } {
   const t = transcript.toLowerCase().trim();
@@ -36,8 +55,9 @@ function localParse(transcript: string): { action: string; entity: string; param
     if (!name || name.length < 2) {
       return { action: 'create', entity: 'habit', params: { name: '', frequency: 'daily' }, confidence: 0.3 };
     }
-    const freqMatch = t.match(/(\d+)\s*times?\s*(?:a|per)\s*week/i);
-    const frequency = freqMatch ? `${freqMatch[1]}x/week` : 'daily';
+    const freqMatch = t.match(/(\w+)\s*times?\s*(?:a|per)\s*week/i);
+    const freqNum = freqMatch ? parseWordNumber(freqMatch[1]) : null;
+    const frequency = freqNum ? `${freqNum}x/week` : 'daily';
     return { action: 'create', entity: 'habit', params: { name, frequency }, confidence: 0.7 };
   }
 
@@ -52,11 +72,14 @@ function localParse(transcript: string): { action: string; entity: string; param
   // Complete / mark done
   if (t.match(/mark.*done|completed?\s/)) {
     const nameMatch = t.match(/(?:mark|completed?)\s+(.+?)(?:\s+(?:as\s+)?done|\s+for|$)/i);
-    const name = nameMatch?.[1]
+    let name = nameMatch?.[1]
       ?.replace(/\s+(is|as|was|has been|has|been)\s*$/i, '') // strip trailing "is/as/was"
       ?.replace(/\s+done.*/, '')
       ?.trim() || '';
-    return { action: 'complete', entity: 'habit', params: { name, date: 'today' }, confidence: 0.7 };
+    // Strip date references from name
+    name = name.replace(/\s+(?:for\s+)?(?:yesterday|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s*/i, '').trim();
+    const date = extractDate(t);
+    return { action: 'complete', entity: 'habit', params: { name, date }, confidence: 0.7 };
   }
 
   // Delete

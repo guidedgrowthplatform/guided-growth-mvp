@@ -362,12 +362,17 @@ export function useVoiceInput() {
     const start = useCallback(async () => {
         const { sttProvider } = useVoiceSettingsStore.getState();
 
+        // DeepGram (cloud STT) — requires API key configured on server
+        if (sttProvider === 'deepgram') {
+            setError('DeepGram requires a server-side API key. Please configure VITE_DEEPGRAM_KEY in .env or switch to Web Speech / Whisper in Settings.');
+            return;
+        }
+
         if (sttProvider === 'whisper') {
             if (isMobile) {
-                // Whisper WASM crashes mobile Safari — fall back to Web Speech
-                setError('Whisper is too heavy for mobile. Switching to Web Speech.');
-                useVoiceSettingsStore.getState().setSttProvider('webspeech');
-                // Continue to Web Speech flow below
+                // Whisper WASM is too heavy for mobile — warn user but don't silently change their setting
+                setError('Whisper WASM is too heavy for mobile browsers. Please switch to Web Speech in Settings → Speech-to-Text Engine.');
+                return;
             } else {
                 startWhisper();
                 return;
