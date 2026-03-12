@@ -121,16 +121,10 @@ export function useVoiceInput() {
     }, [clearSilenceTimer, stopListening]);
 
     // Check browser support on mount
+    // Always mark as supported — even if Web Speech API is unavailable,
+    // we have text input fallback so the mic button should never be disabled
     useEffect(() => {
-        const { sttProvider } = useVoiceSettingsStore.getState();
-        if (sttProvider === 'whisper') {
-            setSupported(true);
-        } else {
-            const supported =
-                typeof window !== 'undefined' &&
-                ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
-            setSupported(supported);
-        }
+        setSupported(true);
     }, [setSupported]);
 
     // ─── Web Speech API Provider ───
