@@ -379,6 +379,28 @@ CREATE TABLE user_preferences (
 );
 
 
+-- ─────────────────────────────────────────
+-- 16. AI CONVERSATIONS (logs GPT interactions)
+-- ─────────────────────────────────────────
+
+CREATE TABLE ai_conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role VARCHAR NOT NULL CHECK (role IN ('system', 'user', 'assistant')),
+  content TEXT NOT NULL,
+  model VARCHAR NOT NULL DEFAULT 'gpt-4o-mini',
+  prompt_tokens INT,
+  completion_tokens INT,
+  total_tokens INT,
+  latency_ms INT,
+  action_detected VARCHAR,
+  confidence REAL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_ai_conversations_user ON ai_conversations(user_id, created_at);
+
+
 -- ═══════════════════════════════════════════════════════════════════
 -- ROW LEVEL SECURITY (RLS)
 -- ═══════════════════════════════════════════════════════════════════
@@ -402,6 +424,7 @@ ALTER TABLE habit_streaks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_tracked_metrics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_metric_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_conversations ENABLE ROW LEVEL SECURITY;
 
 -- Users table: own row only
 CREATE POLICY "users_own_row" ON users
@@ -475,6 +498,10 @@ CREATE POLICY "metric_entries_own" ON user_metric_entries
 
 -- User preferences
 CREATE POLICY "preferences_own" ON user_preferences
+  FOR ALL USING (user_id = auth.uid());
+
+-- AI conversations
+CREATE POLICY "ai_conversations_own" ON ai_conversations
   FOR ALL USING (user_id = auth.uid());
 
 -- Seeded tables: readable by all authenticated users, writable by admin only
