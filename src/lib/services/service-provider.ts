@@ -4,11 +4,10 @@
 import type { DataService } from './data-service.interface';
 import { mockDataService } from './mock-data-service';
 
-// 🚧 AUTH BYPASS: force MockDataService when using test user (no real Supabase session)
-export const AUTH_BYPASS = false; // Set to true to use test user (MockDataService/localStorage)
+// 🚧 AUTH BYPASS: set to true for local dev/testing (uses MockDataService + test user)
+export const AUTH_BYPASS = true;
 
 // Auto-detect Supabase mode: if VITE_SUPABASE_URL is set to a real URL, use Supabase
-// Exported so API files (entries.ts, metrics.ts) use a single source of truth
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 export const useSupabase = !AUTH_BYPASS && supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
 
