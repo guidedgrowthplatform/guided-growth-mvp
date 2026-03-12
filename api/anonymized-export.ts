@@ -28,19 +28,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ─── Auth: require admin API key ───
-  const adminKey = process.env.ADMIN_API_KEY;
+  const adminKey = process.env.ADMIN_API_KEY?.trim();
   if (!adminKey) {
     return res.status(500).json({ error: 'ADMIN_API_KEY not configured on server' });
   }
 
-  const providedKey = req.headers['x-admin-key'] || req.query.admin_key;
+  const providedKey = ((req.headers['x-admin-key'] || req.query.admin_key) as string)?.trim();
   if (providedKey !== adminKey) {
     return res.status(403).json({ error: 'Forbidden: invalid or missing admin key' });
   }
 
   // ─── Supabase service client (bypasses RLS) ───
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL)?.trim();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
   if (!supabaseUrl || !serviceKey) {
     return res.status(500).json({ error: 'Supabase service credentials not configured' });
