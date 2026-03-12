@@ -40,18 +40,36 @@ function extractDate(text: string): string {
 function localParse(transcript: string): { action: string; entity: string; params: Record<string, unknown>; confidence: number } {
   const t = transcript.toLowerCase().trim();
 
+  // ─── HIGH PRIORITY: Check these FIRST to avoid false matches ───
+
+  // Help (Issue #19) — must be before create/suggest
+  if (t.match(/^help$|what can i|available commands|how.*use|what.*commands/)) {
+    return { action: 'help', entity: 'command', params: {}, confidence: 0.95 };
+  }
+
+  // Suggest — must be before create ("suggest a new habit" contains "new habit")
+  if (t.match(/suggest|recommend/)) {
+    return { action: 'suggest', entity: 'habit', params: {}, confidence: 0.8 };
+  }
+
+  // Rename — must be before create/update
+  if (t.match(/rename/)) {
+    const m = t.match(/rename\s+(.+?)\s+to\s+(.+)/i);
+    return { action: 'update', entity: 'habit', params: { name: m?.[1]?.trim() || '', newName: m?.[2]?.trim() || '' }, confidence: 0.7 };
+  }
+
+  // ─── CREATE ───
+
   // Create habit
   if (t.match(/create.*habits?|add.*habits?|new.*habits?/)) {
-    // Try multiple patterns to extract the habit name
     const nameMatch =
       t.match(/(?:called|named|for)\s+(.+?)(?:\s*,|$)/i) ||    // "called X" / "named X"
       t.match(/habits?\s+(?:called|named|for)\s+(.+?)$/i) ||    // "habit called X"
-      t.match(/(?:create|add|new)\s+(?:a\s+)?(?:new\s+)?(?:daily\s+)?(?:habits?\s+)?(.+?)(?:\s+habit)?$/i); // "add X" / "add new habit X" / "add new habits playing"
+      t.match(/(?:create|add|new)\s+(?:a\s+)?(?:new\s+)?(?:daily\s+)?(?:habits?\s+)?(.+?)(?:\s+habit)?$/i);
     let name = nameMatch?.[1]
-      ?.replace(/^(?:a\s+|the\s+|new\s+|my\s+)/i, '')  // strip leading articles
-      ?.replace(/\s+habits?$/i, '')                       // strip trailing "habit(s)"
+      ?.replace(/^(?:a\s+|the\s+|new\s+|my\s+)/i, '')
+      ?.replace(/\s+habits?$/i, '')
       ?.trim() || '';
-    // Reject empty or garbage names
     if (!name || name.length < 2) {
       return { action: 'create', entity: 'habit', params: { name: '', frequency: 'daily' }, confidence: 0.3 };
     }
@@ -69,27 +87,35 @@ function localParse(transcript: string): { action: string; entity: string; param
     return { action: 'create', entity: 'metric', params: { name, inputType: scaleMatch ? 'scale' : 'binary', scale: scaleMatch ? [Number(scaleMatch[1]), Number(scaleMatch[2])] : undefined }, confidence: 0.7 };
   }
 
+  // ─── COMPLETE ───
+
+  // "I did X" — natural language completion
+  if (t.match(/^i did\s/)) {
+    const nameMatch = t.match(/^i did\s+(.+?)$/i);
+    const name = nameMatch?.[1]?.trim() || '';
+    return { action: 'complete', entity: 'habit', params: { name, date: 'today' }, confidence: 0.7 };
+  }
+
   // Complete / mark done
   if (t.match(/mark.*done|completed?\s/)) {
     const nameMatch = t.match(/(?:mark|completed?)\s+(.+?)(?:\s+(?:as\s+)?done|\s+for|$)/i);
     let name = nameMatch?.[1]
-      ?.replace(/\s+(is|as|was|has been|has|been)\s*$/i, '') // strip trailing "is/as/was"
+      ?.replace(/\s+(is|as|was|has been|has|been)\s*$/i, '')
       ?.replace(/\s+done.*/, '')
       ?.trim() || '';
-    // Strip date references from name
     name = name.replace(/\s+(?:for\s+)?(?:yesterday|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s*/i, '').trim();
     const date = extractDate(t);
     return { action: 'complete', entity: 'habit', params: { name, date }, confidence: 0.7 };
   }
 
-  // Delete
+  // ─── DELETE ───
   if (t.match(/delete|remove/)) {
     const nameMatch = t.match(/(?:delete|remove)\s+(?:the\s+)?(.+?)(?:\s+habit|\s+metric|$)/i);
     const name = nameMatch?.[1]?.trim() || '';
     return { action: 'delete', entity: t.includes('metric') ? 'metric' : 'habit', params: { name }, confidence: 0.7 };
   }
 
-  // Log metric
+  // ─── LOG METRIC ───
   if (t.match(/log|record/)) {
     const nameMatch = t.match(/(?:log|record)\s+(?:my\s+)?(.+?)\s+(?:as|at)\s+(.+)/i);
     const name = nameMatch?.[1]?.trim() || '';
@@ -97,7 +123,13 @@ function localParse(transcript: string): { action: string; entity: string; param
     return { action: 'log', entity: 'metric', params: { name, value }, confidence: 0.6 };
   }
 
-  // Query / show
+  // Natural metric logging: "my mood was 7 today"
+  if (t.match(/^my\s+.+\s+(?:was|is)\s+\d/)) {
+    const m = t.match(/^my\s+(.+?)\s+(?:was|is)\s+(\d+)/i);
+    return { action: 'log', entity: 'metric', params: { name: m?.[1] || '', value: m ? Number(m[2]) : '' }, confidence: 0.6 };
+  }
+
+  // ─── QUERY ───
   if (t.match(/show|list|how.*doing|what.*my|what's/)) {
     const nameMatch = t.match(/(?:with|my|the)\s+(.+?)(?:\s+this|\s+habit|$|\?)/i);
     return { action: 'query', entity: t.includes('streak') ? 'habit' : t.includes('summary') ? 'summary' : 'habit', params: { name: nameMatch?.[1]?.trim(), period: t.includes('month') ? 'month' : 'week', ...(t.includes('streak') ? { metric: 'streak', sort: 'longest' } : {}) }, confidence: 0.6 };
@@ -108,17 +140,7 @@ function localParse(transcript: string): { action: string; entity: string; param
     return { action: 'query', entity: 'summary', params: { period: 'week' }, confidence: 0.7 };
   }
 
-  // Help (Issue #19)
-  if (t.match(/^help$|what can i|available commands|how.*use|what.*commands/)) {
-    return { action: 'help', entity: 'command', params: {}, confidence: 0.95 };
-  }
-
-  // Suggest
-  if (t.match(/suggest|recommend/)) {
-    return { action: 'suggest', entity: 'habit', params: {}, confidence: 0.8 };
-  }
-
-  // Reflect
+  // ─── REFLECT ───
   if (t.match(/feel|slept|stressed|tired|mood/)) {
     const themes: string[] = [];
     if (t.includes('sleep') || t.includes('slept')) themes.push('sleep');
