@@ -12,6 +12,7 @@ import {
     onWhisperStatus,
     type WhisperStatus,
 } from '@/lib/services/whisper-service';
+import { startDeepGram, stopDeepGram } from '@/lib/services/deepgram-service';
 import { ensureMicPermission } from '@/lib/services/mic-permissions';
 
 // Track interim text separately so we can show live speech
@@ -362,9 +363,27 @@ export function useVoiceInput() {
     const start = useCallback(async () => {
         const { sttProvider } = useVoiceSettingsStore.getState();
 
-        // DeepGram (cloud STT) — requires API key configured on server
+        // DeepGram (cloud STT) — real-time WebSocket streaming
         if (sttProvider === 'deepgram') {
-            setError('DeepGram requires a server-side API key. Please configure VITE_DEEPGRAM_KEY in .env or switch to Web Speech / Whisper in Settings.');
+            setError('');
+            resetTranscript();
+            try {
+                await startDeepGram({
+                    onTranscript: (text, isFinal) => {
+                        if (isFinal) {
+                            appendTranscript(text);
+                            setInterim('');
+                        } else {
+                            setInterim(text);
+                        }
+                    },
+                    onError: (err) => setError(err),
+                    onOpen: () => startListening(),
+                    onClose: () => stopListening(),
+                });
+            } catch (err) {
+                setError(`DeepGram failed: ${err instanceof Error ? err.message : err}`);
+            }
             return;
         }
 
@@ -438,6 +457,12 @@ export function useVoiceInput() {
 
     const stop = useCallback(() => {
         const { sttProvider } = useVoiceSettingsStore.getState();
+
+        if (sttProvider === 'deepgram') {
+            stopDeepGram();
+            stopListening();
+            return;
+        }
 
         if (sttProvider === 'whisper') {
             stopWhisper();
