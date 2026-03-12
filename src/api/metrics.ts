@@ -1,6 +1,9 @@
 import { apiGet, apiPost, apiPatch, apiDelete, apiPut } from './client';
 import type { Metric, MetricCreate, MetricUpdate } from '@shared/types';
-import { getDataService, useSupabase } from '@/lib/services/service-provider';
+import { getDataService, useSupabase, AUTH_BYPASS } from '@/lib/services/service-provider';
+
+// Use DataService when Supabase is active OR when auth is bypassed (mock mode)
+const useDataService = useSupabase || AUTH_BYPASS;
 
 // Convert DataService habit to Metric format
 function habitToMetric(h: { id: string; name: string; frequency: string; createdAt: string; active: boolean }): Metric {
@@ -21,7 +24,7 @@ function habitToMetric(h: { id: string; name: string; frequency: string; created
 }
 
 export async function fetchMetrics(): Promise<Metric[]> {
-  if (useSupabase) {
+  if (useDataService) {
     const ds = await getDataService();
     const habits = await ds.getHabits();
     return habits.map(habitToMetric);
@@ -36,7 +39,7 @@ export async function fetchMetrics(): Promise<Metric[]> {
 }
 
 export async function createMetric(data: MetricCreate): Promise<Metric> {
-  if (useSupabase) {
+  if (useDataService) {
     const ds = await getDataService();
     const habit = await ds.createHabit(data.name, data.frequency || 'daily');
     window.dispatchEvent(new CustomEvent('voice-data-changed'));
@@ -53,7 +56,7 @@ export async function createMetric(data: MetricCreate): Promise<Metric> {
 }
 
 export async function updateMetric(id: string, data: MetricUpdate): Promise<Metric> {
-  if (useSupabase) {
+  if (useDataService) {
     const ds = await getDataService();
     const habit = await ds.updateHabit(id, data);
     window.dispatchEvent(new CustomEvent('voice-data-changed'));
@@ -70,7 +73,7 @@ export async function updateMetric(id: string, data: MetricUpdate): Promise<Metr
 }
 
 export async function deleteMetric(id: string): Promise<void> {
-  if (useSupabase) {
+  if (useDataService) {
     const ds = await getDataService();
     await ds.deleteHabit(id);
     window.dispatchEvent(new CustomEvent('voice-data-changed'));
@@ -86,7 +89,7 @@ export async function deleteMetric(id: string): Promise<void> {
 }
 
 export async function reorderMetrics(metricIds: string[]): Promise<Metric[]> {
-  if (useSupabase) {
+  if (useDataService) {
     const ds = await getDataService();
     await ds.reorderHabits(metricIds);
     const habits = await ds.getHabits();
