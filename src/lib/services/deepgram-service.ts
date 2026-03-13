@@ -1,5 +1,6 @@
 // DeepGram WebSocket STT Service
 // Streams microphone audio to DeepGram's real-time transcription API
+// Uses AudioWorklet (modern Web Audio API) for PCM conversion
 
 export interface DeepGramCallbacks {
   onTranscript: (text: string, isFinal: boolean) => void;
@@ -10,7 +11,7 @@ export interface DeepGramCallbacks {
 
 let ws: WebSocket | null = null;
 let mediaStream: MediaStream | null = null;
-let mediaRecorder: MediaRecorder | null = null;
+let audioContext: AudioContext | null = null;
 let isActive = false;
 
 async function getDeepGramToken(): Promise<string> {
@@ -18,6 +19,64 @@ async function getDeepGramToken(): Promise<string> {
   if (!res.ok) throw new Error('Failed to get DeepGram token');
   const data = await res.json();
   return data.token;
+}
+
+// Inline AudioWorklet processor code (avoids separate file / CORS issues)
+const WORKLET_CODE = `
+class PCMProcessor extends AudioWorkletProcessor {
+  process(inputs) {
+    const input = inputs[0];
+    if (input && input[0]) {
+      const float32 = input[0];
+      const int16 = new Int16Array(float32.length);
+      for (let i = 0; i < float32.length; i++) {
+        const s = Math.max(-1, Math.min(1, float32[i]));
+        int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      this.port.postMessage(int16.buffer, [int16.buffer]);
+    }
+    return true;
+  }
+}
+registerProcessor('pcm-processor', PCMProcessor);
+`;
+
+async function createAudioPipeline(stream: MediaStream, onData: (buffer: ArrayBuffer) => void): Promise<void> {
+  audioContext = new AudioContext({ sampleRate: 16000 });
+  const source = audioContext.createMediaStreamSource(stream);
+
+  // Try AudioWorklet first (modern), fall back to ScriptProcessor (legacy)
+  try {
+    const blob = new Blob([WORKLET_CODE], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    await audioContext.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+
+    const workletNode = new AudioWorkletNode(audioContext, 'pcm-processor');
+    workletNode.port.onmessage = (e) => {
+      if (isActive && ws && ws.readyState === WebSocket.OPEN) {
+        onData(e.data);
+      }
+    };
+    source.connect(workletNode);
+    workletNode.connect(audioContext.destination);
+  } catch {
+    // Fallback: ScriptProcessor for older browsers that don't support AudioWorklet
+    console.warn('[DeepGram] AudioWorklet unavailable, using ScriptProcessor fallback');
+    const processor = audioContext.createScriptProcessor(4096, 1, 1);
+    processor.onaudioprocess = (e) => {
+      if (!isActive || !ws || ws.readyState !== WebSocket.OPEN) return;
+      const inputData = e.inputBuffer.getChannelData(0);
+      const int16 = new Int16Array(inputData.length);
+      for (let i = 0; i < inputData.length; i++) {
+        const s = Math.max(-1, Math.min(1, inputData[i]));
+        int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      onData(int16.buffer);
+    };
+    source.connect(processor);
+    processor.connect(audioContext.destination);
+  }
 }
 
 export async function startDeepGram(callbacks: DeepGramCallbacks): Promise<void> {
@@ -53,36 +112,23 @@ export async function startDeepGram(callbacks: DeepGramCallbacks): Promise<void>
     ws = new WebSocket(url, ['token', token]);
     ws.binaryType = 'arraybuffer';
 
-    ws.onopen = () => {
+    ws.onopen = async () => {
       console.log('[DeepGram] WebSocket connected');
       isActive = true;
       callbacks.onOpen();
 
-      // 4. Start MediaRecorder to stream audio
-      // Use AudioContext to get raw PCM data
-      const audioContext = new AudioContext({ sampleRate: 16000 });
-      const source = audioContext.createMediaStreamSource(mediaStream!);
-      const processor = audioContext.createScriptProcessor(4096, 1, 1);
-
-      processor.onaudioprocess = (e) => {
-        if (!isActive || !ws || ws.readyState !== WebSocket.OPEN) return;
-        const inputData = e.inputBuffer.getChannelData(0);
-        // Convert float32 to int16
-        const int16 = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-          const s = Math.max(-1, Math.min(1, inputData[i]));
-          int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-        }
-        ws!.send(int16.buffer);
-      };
-
-      source.connect(processor);
-      processor.connect(audioContext.destination);
-
-      // Store for cleanup
-      (ws as any)._audioContext = audioContext;
-      (ws as any)._processor = processor;
-      (ws as any)._source = source;
+      // 4. Start audio pipeline (AudioWorklet or ScriptProcessor fallback)
+      try {
+        await createAudioPipeline(mediaStream!, (buffer) => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(buffer);
+          }
+        });
+      } catch (err) {
+        console.error('[DeepGram] Audio pipeline error:', err);
+        callbacks.onError('Failed to start audio processing');
+        stopDeepGram();
+      }
     };
 
     ws.onmessage = (event) => {
@@ -123,18 +169,14 @@ export async function startDeepGram(callbacks: DeepGramCallbacks): Promise<void>
 export function stopDeepGram(): void {
   isActive = false;
 
-  // Clean up audio processing
-  if (ws) {
-    try {
-      const ctx = (ws as any)._audioContext as AudioContext | undefined;
-      const proc = (ws as any)._processor as ScriptProcessorNode | undefined;
-      const src = (ws as any)._source as MediaStreamAudioSourceNode | undefined;
-      if (proc) proc.disconnect();
-      if (src) src.disconnect();
-      if (ctx && ctx.state !== 'closed') ctx.close();
-    } catch { /* ignore */ }
+  // Clean up audio context (handles both AudioWorklet and ScriptProcessor)
+  if (audioContext && audioContext.state !== 'closed') {
+    try { audioContext.close(); } catch { /* ignore */ }
+    audioContext = null;
+  }
 
-    // Send close message to DeepGram
+  // Close WebSocket
+  if (ws) {
     if (ws.readyState === WebSocket.OPEN) {
       try { ws.send(JSON.stringify({ type: 'CloseStream' })); } catch { /* ignore */ }
       ws.close();
@@ -146,11 +188,6 @@ export function stopDeepGram(): void {
   if (mediaStream) {
     mediaStream.getTracks().forEach(t => t.stop());
     mediaStream = null;
-  }
-
-  if (mediaRecorder) {
-    try { mediaRecorder.stop(); } catch { /* ignore */ }
-    mediaRecorder = null;
   }
 }
 

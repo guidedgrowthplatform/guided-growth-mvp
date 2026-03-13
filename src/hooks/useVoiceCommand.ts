@@ -141,13 +141,17 @@ function localParse(transcript: string): { action: string; entity: string; param
   }
 
   // ─── REFLECT ───
-  if (t.match(/feel|slept|stressed|tired|mood/)) {
+  // Only match genuine reflective statements, not commands that happen to contain "feel"
+  // e.g. "I feel stressed" YES, "I feel like creating a habit" NO
+  if (t.match(/^i (?:feel|felt|slept|am feeling|'m feeling)|^(?:feeling|slept|stressed|i'?m tired)/)) {
     const themes: string[] = [];
     if (t.includes('sleep') || t.includes('slept')) themes.push('sleep');
     if (t.includes('stress')) themes.push('stress');
-    if (t.includes('tired')) themes.push('fatigue');
-    const mood = t.match(/terrible|terribly|bad|awful/) ? 'low' : t.match(/great|good|amazing/) ? 'high' : 'neutral';
-    return { action: 'reflect', entity: 'journal', params: { mood, themes }, confidence: 0.6 };
+    if (t.includes('tired') || t.includes('exhaust')) themes.push('fatigue');
+    if (t.includes('anxious') || t.includes('anxiety')) themes.push('anxiety');
+    if (t.includes('happy') || t.includes('great') || t.includes('amazing')) themes.push('positive');
+    const mood = t.match(/terrible|terribly|bad|awful|stressed|anxious/) ? 'low' : t.match(/great|good|amazing|happy/) ? 'high' : 'neutral';
+    return { action: 'reflect', entity: 'journal', params: { mood, themes }, confidence: 0.7 };
   }
 
   return { action: 'query', entity: 'habit', params: {}, confidence: 0.3 };
