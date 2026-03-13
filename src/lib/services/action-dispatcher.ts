@@ -20,8 +20,31 @@ function parseDateParam(dateStr: unknown): string {
     return d.toISOString().slice(0, 10);
   }
 
+  const lower = String(dateStr).toLowerCase().trim();
+
+  // Handle "N days ago" / "two days ago" / "a day ago" patterns
+  const WORD_NUMS: Record<string, number> = {
+    a: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
+    eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14,
+  };
+  const daysAgoMatch = lower.match(/^(\d+|a|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen)\s+days?\s+ago$/);
+  if (daysAgoMatch) {
+    const num = WORD_NUMS[daysAgoMatch[1]] ?? parseInt(daysAgoMatch[1], 10);
+    if (!isNaN(num) && num > 0) {
+      const d = new Date();
+      d.setDate(d.getDate() - num);
+      return d.toISOString().slice(0, 10);
+    }
+  }
+
+  // Handle "last week" (7 days ago)
+  if (lower === 'last week') {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  }
+
   // Handle day names (multi-language, from config)
-  const lower = String(dateStr).toLowerCase();
   const dayIndex = DAY_NAMES[lower] ?? -1;
   if (dayIndex !== -1) {
     const now = new Date();
@@ -33,7 +56,14 @@ function parseDateParam(dateStr: unknown): string {
     return target.toISOString().slice(0, 10);
   }
 
-  return String(dateStr);
+  // If it looks like a valid ISO date (YYYY-MM-DD), return as-is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(lower)) {
+    return lower;
+  }
+
+  // Fallback: unknown format — default to today to avoid broken date keys
+  console.warn(`[parseDateParam] Unknown date format: "${dateStr}", defaulting to today`);
+  return todayStr();
 }
 
 export class ActionDispatcher {
