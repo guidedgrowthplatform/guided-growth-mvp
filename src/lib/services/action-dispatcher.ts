@@ -218,7 +218,34 @@ export class ActionDispatcher {
       };
     }
 
-    // Single date
+    // Single date — but first check for "past N days" / "last N days" pattern as fallback
+    const dateRaw = String(params.date || '');
+    const dateRawLower = dateRaw.toLowerCase().trim();
+    const RANGE_WORDS: Record<string, number> = {
+      one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
+      eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14,
+    };
+    const rangeMatch = dateRawLower.match(/(?:past|last)\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen)\s+days?/);
+    if (rangeMatch) {
+      const num = RANGE_WORDS[rangeMatch[1]] ?? parseInt(rangeMatch[1], 10);
+      if (!isNaN(num) && num > 0 && num <= 30) {
+        const completedDates: string[] = [];
+        for (let i = 0; i < num; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const dateStr = d.toISOString().slice(0, 10);
+          await this.dataService.completeHabit(habit.id, dateStr);
+          completedDates.push(dateStr);
+        }
+        return {
+          success: true,
+          message: `${MSG.success} Marked "${habit.name}" done for the past ${num} days`,
+          uiAction: 'navigate',
+          navigateTo: '/capture',
+        };
+      }
+    }
+
     const date = parseDateParam(params.date);
     await this.dataService.completeHabit(habit.id, date);
     return {

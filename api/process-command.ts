@@ -10,7 +10,7 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
 | Action   | When to use                                                |
 |----------|------------------------------------------------------------|
 | create   | User wants to ADD a new habit or metric                    |
-| complete | User wants to MARK a habit as done for a specific date     |
+| complete | User wants to MARK a habit as done for a date or range    |
 | delete   | User wants to REMOVE a habit or metric                     |
 | update   | User wants to RENAME or change settings of a habit/metric  |
 | query    | User wants to SEE data, stats, streaks, or summaries       |
@@ -50,6 +50,7 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
     - Below 0.5 = unclear, but still try
 16. NEVER return "unknown" action. Always make your best guess from the available actions.
 17. If the name is empty or cannot be determined for create/complete/delete, set confidence ≤ 0.3.
+18. For multi-day completions ("past five days", "last three days"), use a "dates" array in params instead of a single "date". Each entry should be a relative phrase like "today", "1 days ago", "2 days ago", etc.
 
 ## Response Format
 Return ONLY a JSON object (no markdown, no code fences, no explanation):
@@ -90,6 +91,12 @@ User: "Log my sleep quality as 8 out of 10"
 
 User: "Mark reading done for Monday"
 {"action":"complete","entity":"habit","params":{"name":"reading","date":"monday"},"confidence":0.9}
+
+User: "Mark meditation done for the past five days"
+{"action":"complete","entity":"habit","params":{"name":"meditation","dates":["today","1 days ago","2 days ago","3 days ago","4 days ago"]},"confidence":0.9}
+
+User: "I did exercise for the last three days"
+{"action":"complete","entity":"habit","params":{"name":"exercise","dates":["today","1 days ago","2 days ago"]},"confidence":0.85}
 
 User: "Rename my exercise habit to morning workout"
 {"action":"update","entity":"habit","params":{"name":"exercise","newName":"morning workout"},"confidence":0.9}
