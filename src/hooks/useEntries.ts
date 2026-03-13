@@ -75,7 +75,7 @@ export function useEntries() {
       if (offlineQueue.length > 0) {
         offlineQueue.flush().then(() => {
           if (offlineQueue.length === 0) addToast('success', 'Offline entries synced');
-        });
+        }).catch(() => { /* flush will retry next time */ });
       }
     };
     window.addEventListener('online', handleOnline);
