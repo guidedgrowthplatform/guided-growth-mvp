@@ -23,7 +23,8 @@ export function setAuthCookie(token: string): string {
 }
 
 export function clearAuthCookie(): string {
-  return 'token=; HttpOnly; Path=/; Max-Age=0';
+  const secure = process.env.NODE_ENV === 'production' ? 'Secure; ' : '';
+  return `token=; HttpOnly; ${secure}SameSite=Lax; Path=/; Max-Age=0`;
 }
 
 export async function getUser(req: VercelRequest) {

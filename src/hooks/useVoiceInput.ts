@@ -509,11 +509,19 @@ export function useVoiceInput() {
             lastFinalTimestampRef.current = 0;
             consecutiveRestartsRef.current = 0;
             clearSilenceTimer();
+            // Stop Web Speech API
             const recognition = recognitionRef.current;
             if (recognition) {
                 try { recognition.abort(); } catch { /* ignore */ }
                 recognitionRef.current = null;
             }
+            // Stop Whisper recording if active
+            if (whisperRecordingRef.current) {
+                whisperRecordingRef.current = false;
+                try { stopAudioCapture(); } catch { /* ignore */ }
+            }
+            // Stop DeepGram WebSocket if active
+            try { stopDeepGram(); } catch { /* ignore */ }
         };
     }, [clearSilenceTimer]);
 

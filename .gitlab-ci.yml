@@ -1,0 +1,76 @@
+image: node:20-slim
+
+stages:
+  - lint
+  - test
+  - build
+  - security
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+.npm-cache: &npm-cache
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - node_modules/
+    policy: pull
+
+install:
+  stage: .pre
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - node_modules/
+    policy: pull-push
+  script:
+    - npm ci
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+lint:
+  stage: lint
+  <<: *npm-cache
+  needs: [install]
+  script:
+    - npx tsc --noEmit
+
+test:
+  stage: test
+  <<: *npm-cache
+  needs: [install]
+  script:
+    - npx vitest run --reporter=junit --outputFile=test-results/junit.xml
+  artifacts:
+    when: always
+    reports:
+      junit: test-results/junit.xml
+    paths:
+      - test-results/
+    expire_in: 30 days
+
+build:
+  stage: build
+  <<: *npm-cache
+  needs: [install]
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 7 days
+
+security:
+  stage: security
+  <<: *npm-cache
+  needs: [install]
+  allow_failure: true
+  script:
+    - npm audit --audit-level=high

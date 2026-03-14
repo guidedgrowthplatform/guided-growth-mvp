@@ -16,8 +16,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'PUT') {
     const { default_view, spreadsheet_range } = req.body;
+    const VALID_VIEWS = ['spreadsheet', 'form', 'calendar'];
+    const VALID_RANGES = ['week', 'month'];
     const view = default_view || 'spreadsheet';
     const range = spreadsheet_range || 'month';
+    if (!VALID_VIEWS.includes(view)) return res.status(400).json({ error: 'Invalid default_view' });
+    if (!VALID_RANGES.includes(range)) return res.status(400).json({ error: 'Invalid spreadsheet_range' });
     await pool.query(
       `INSERT INTO user_preferences (user_id, default_view, spreadsheet_range) VALUES ($1, $2, $3)
        ON CONFLICT (user_id) DO UPDATE SET default_view = $2, spreadsheet_range = $3`,

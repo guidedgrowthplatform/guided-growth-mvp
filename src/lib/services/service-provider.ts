@@ -40,15 +40,11 @@ export async function getDataService(): Promise<DataService> {
 }
 
 // Synchronous getter — returns mock if supabase not yet loaded
+// Note: does NOT cache mock into _service to avoid poisoning the singleton
 export function getDataServiceSync(): DataService {
   if (_service) return _service;
-  // If supabase mode but not yet initialized, return mock temporarily
-  // The async init will swap it once resolved
-  if (useSupabase) {
-    console.log('[ServiceProvider] SupabaseDataService loading... using mock temporarily');
-  }
-  _service = mockDataService;
-  return _service;
+  // Return mock temporarily without caching — async init will set _service correctly
+  return mockDataService;
 }
 
 // Reset (for testing)

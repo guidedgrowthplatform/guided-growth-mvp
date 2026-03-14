@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser } from './_lib/auth.js';
+import { checkRateLimit } from './_lib/rate-limit.js';
 
 // NOTE: Prompt is inlined here because Vercel serverless functions cannot
 // import from ../src/lib/. The canonical version lives in
@@ -162,6 +163,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const user = await requireUser(req, res);
   if (!user) return;
 
+  // Rate limit: 20 requests per minute per user
+  const rl = checkRateLimit(user.id, { windowMs: 60_000, maxRequests: 20, keyPrefix: 'process-command' });
+  if (rl.limited) {
+    return res.status(429).json({ error: 'Too many requests. Try again later.', retryAfter: rl.retryAfter });
+  }
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: 'OPENAI_API_KEY not configured' });
@@ -170,6 +177,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { transcript } = req.body;
   if (!transcript || typeof transcript !== 'string') {
     return res.status(400).json({ error: 'Missing transcript' });
+  }
+  if (transcript.length > 2000) {
+    return res.status(400).json({ error: 'Transcript too long (max 2000 chars)' });
   }
 
   try {

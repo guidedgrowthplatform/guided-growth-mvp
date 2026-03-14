@@ -6,9 +6,9 @@
  * at 16kHz mono — avoids MediaRecorder + WebM decoding issues entirely.
  */
 
-import { pipeline, type AutomaticSpeechRecognitionPipeline } from '@huggingface/transformers';
-
-let whisperPipeline: AutomaticSpeechRecognitionPipeline | null = null;
+// Lazy import — @huggingface/transformers is 21MB+ WASM, only load when user activates Whisper
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let whisperPipeline: any = null;
 let isLoading = false;
 let loadProgress = 0;
 
@@ -36,8 +36,7 @@ export async function loadWhisperModel(): Promise<void> {
   notifyListeners('loading', 0);
 
   try {
-    // @ts-expect-error — TS2590: @huggingface/transformers pipeline() produces a union
-    // type too complex for TS to resolve. Runtime behavior is correct.
+    const { pipeline } = await import('@huggingface/transformers');
     whisperPipeline = await pipeline(
       'automatic-speech-recognition',
       'onnx-community/whisper-base',

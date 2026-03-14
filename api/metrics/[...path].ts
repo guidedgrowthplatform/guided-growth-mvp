@@ -16,6 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { metric_ids } = req.body;
     if (!Array.isArray(metric_ids)) return res.status(400).json({ error: 'metric_ids array required' });
 
+    if (metric_ids.length > 200) return res.status(400).json({ error: 'Too many metrics' });
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -25,7 +26,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');
-      throw err;
+      console.error('Reorder failed:', err);
+      return res.status(500).json({ error: 'Failed to reorder metrics' });
     } finally {
       client.release();
     }

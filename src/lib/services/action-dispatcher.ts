@@ -8,8 +8,15 @@ interface CommandIntent {
   confidence: number;
 }
 
+function localDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr(new Date());
 }
 
 function parseDateParam(dateStr: unknown): string {
@@ -17,7 +24,7 @@ function parseDateParam(dateStr: unknown): string {
   if (dateStr === 'yesterday') {
     const d = new Date();
     d.setDate(d.getDate() - 1);
-    return d.toISOString().slice(0, 10);
+    return localDateStr(d);
   }
 
   const lower = String(dateStr).toLowerCase().trim();
@@ -33,7 +40,7 @@ function parseDateParam(dateStr: unknown): string {
     if (!isNaN(num) && num > 0) {
       const d = new Date();
       d.setDate(d.getDate() - num);
-      return d.toISOString().slice(0, 10);
+      return localDateStr(d);
     }
   }
 
@@ -41,7 +48,7 @@ function parseDateParam(dateStr: unknown): string {
   if (lower === 'last week') {
     const d = new Date();
     d.setDate(d.getDate() - 7);
-    return d.toISOString().slice(0, 10);
+    return localDateStr(d);
   }
 
   // Handle day names (multi-language, from config)
@@ -53,7 +60,7 @@ function parseDateParam(dateStr: unknown): string {
     if (diff <= 0) diff += 7; // go to previous week
     const target = new Date(now);
     target.setDate(target.getDate() - diff);
-    return target.toISOString().slice(0, 10);
+    return localDateStr(target);
   }
 
   // If it looks like a valid ISO date (YYYY-MM-DD), return as-is
@@ -88,7 +95,7 @@ function parseDateParam(dateStr: unknown): string {
       const monthIndex = MONTHS[monthName];
       if (monthIndex !== undefined && day >= 1 && day <= 31) {
         const d = new Date(year, monthIndex, day);
-        return d.toISOString().slice(0, 10);
+        return localDateStr(d);
       }
     }
   }
@@ -265,7 +272,7 @@ export class ActionDispatcher {
         for (let i = 0; i < num; i++) {
           const d = new Date();
           d.setDate(d.getDate() - i);
-          const dateStr = d.toISOString().slice(0, 10);
+          const dateStr = localDateStr(d);
           await this.dataService.completeHabit(habit.id, dateStr);
           completedDates.push(dateStr);
         }

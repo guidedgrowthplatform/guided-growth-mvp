@@ -39,10 +39,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (route) {
     if (req.method !== 'PUT') return res.status(405).json({ error: 'Method not allowed' });
     const date = route;
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+    if (!DATE_RE.test(date)) return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+    const bodyEntries = Object.entries(req.body || {});
+    if (bodyEntries.length > 50) return res.status(400).json({ error: 'Too many fields' });
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      for (const [fieldId, value] of Object.entries(req.body)) {
+      for (const [fieldId, value] of bodyEntries) {
         if (value === '' || value === null || value === undefined) {
           await client.query('DELETE FROM reflections WHERE user_id = $1 AND date = $2 AND field_id = $3', [user.id, date, fieldId]);
         } else {
@@ -56,7 +60,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');
-      throw err;
+      console.error('Save reflection failed:', err);
+      return res.status(500).json({ error: 'Failed to save reflection' });
     } finally {
       client.release();
     }
@@ -67,6 +72,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   const { start, end } = req.query;
   if (!start || !end) return res.status(400).json({ error: 'start and end required' });
+  const DATE_RE2 = /^\d{4}-\d{2}-\d{2}$/;
+  if (!DATE_RE2.test(start as string) || !DATE_RE2.test(end as string)) return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
 
   const result = await pool.query(
     'SELECT date::text, field_id, value FROM reflections WHERE user_id = $1 AND date >= $2 AND date <= $3',

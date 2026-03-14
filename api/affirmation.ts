@@ -13,6 +13,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'PUT') {
     const { value } = req.body;
+    if (typeof value !== 'string') return res.status(400).json({ error: 'value must be a string' });
+    if (value.length > 2000) return res.status(400).json({ error: 'value too long (max 2000 chars)' });
     await pool.query(
       `INSERT INTO affirmations (user_id, value) VALUES ($1, $2)
        ON CONFLICT (user_id) DO UPDATE SET value = $2`,

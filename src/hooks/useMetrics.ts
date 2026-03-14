@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Metric, MetricCreate, MetricUpdate } from '@shared/types';
 import * as metricsApi from '@/api/metrics';
 import { cache } from '@/cache/cacheManager';
@@ -37,34 +37,56 @@ export function useMetrics() {
   }, [load]);
 
   const create = useCallback(async (data: MetricCreate) => {
-    const metric = await metricsApi.createMetric(data);
-    setMetrics((prev) => [...prev, metric]);
-    cache.invalidate('metrics');
-    addToast('success', `Habit "${data.name}" created`);
-    return metric;
+    try {
+      const metric = await metricsApi.createMetric(data);
+      setMetrics((prev) => [...prev, metric]);
+      cache.invalidate('metrics');
+      addToast('success', `Habit "${data.name}" created`);
+      return metric;
+    } catch (err: any) {
+      setError(err.message);
+      addToast('error', `Failed to create habit: ${err.message}`);
+      throw err;
+    }
   }, [addToast]);
 
   const update = useCallback(async (id: string, data: MetricUpdate) => {
-    const metric = await metricsApi.updateMetric(id, data);
-    setMetrics((prev) => prev.map((m) => (m.id === id ? metric : m)));
-    cache.invalidate('metrics');
-    return metric;
-  }, []);
+    try {
+      const metric = await metricsApi.updateMetric(id, data);
+      setMetrics((prev) => prev.map((m) => (m.id === id ? metric : m)));
+      cache.invalidate('metrics');
+      return metric;
+    } catch (err: any) {
+      setError(err.message);
+      addToast('error', `Failed to update habit: ${err.message}`);
+      throw err;
+    }
+  }, [addToast]);
 
   const remove = useCallback(async (id: string) => {
-    await metricsApi.deleteMetric(id);
-    setMetrics((prev) => prev.filter((m) => m.id !== id));
-    cache.invalidate('metrics');
-    addToast('info', 'Habit removed');
+    try {
+      await metricsApi.deleteMetric(id);
+      setMetrics((prev) => prev.filter((m) => m.id !== id));
+      cache.invalidate('metrics');
+      addToast('info', 'Habit removed');
+    } catch (err: any) {
+      setError(err.message);
+      addToast('error', `Failed to remove habit: ${err.message}`);
+    }
   }, [addToast]);
 
   const reorder = useCallback(async (metricIds: string[]) => {
-    const reordered = await metricsApi.reorderMetrics(metricIds);
-    setMetrics(reordered);
-    cache.invalidate('metrics');
-  }, []);
+    try {
+      const reordered = await metricsApi.reorderMetrics(metricIds);
+      setMetrics(reordered);
+      cache.invalidate('metrics');
+    } catch (err: any) {
+      setError(err.message);
+      addToast('error', 'Failed to reorder habits');
+    }
+  }, [addToast]);
 
-  const activeMetrics = metrics.filter((m) => m.active);
+  const activeMetrics = useMemo(() => metrics.filter((m) => m.active), [metrics]);
 
   return { metrics, activeMetrics, loading, error, load, create, update, remove, reorder };
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { EntriesMap, DayEntries } from '@shared/types';
 import * as entriesApi from '@/api/entries';
 import { useToast } from '@/contexts/ToastContext';
@@ -88,6 +88,13 @@ export function useEntries() {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => saveDay(date, dayEntries), 500);
   }, [saveDay]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
 
   const saveBulk = useCallback(async (entriesMap: EntriesMap) => {
     try {

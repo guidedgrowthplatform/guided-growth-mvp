@@ -34,8 +34,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'ADMIN_API_KEY not configured on server' });
   }
 
-  const providedKey = (req.headers['x-admin-key'] as string)?.trim();
-  if (!providedKey || !crypto.timingSafeEqual(Buffer.from(providedKey), Buffer.from(adminKey))) {
+  const providedKey = (req.headers['x-admin-key'] as string)?.trim() || '';
+  const adminKeyBuf = Buffer.from(adminKey);
+  const providedKeyBuf = Buffer.from(providedKey);
+  const keysMatch = providedKeyBuf.length === adminKeyBuf.length && crypto.timingSafeEqual(providedKeyBuf, adminKeyBuf);
+  if (!keysMatch) {
     return res.status(403).json({ error: 'Forbidden: invalid or missing admin key' });
   }
 
@@ -100,8 +103,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (err) {
     console.error('Anonymized export error:', err);
-    return res.status(500).json({
-      error: `Server error: ${err instanceof Error ? err.message : String(err)}`,
-    });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

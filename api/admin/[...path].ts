@@ -92,7 +92,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (req.method === 'POST') {
       const { email, note } = req.body;
-      if (!email?.includes('@')) return res.status(400).json({ error: 'Valid email required' });
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email || !emailRegex.test(email)) return res.status(400).json({ error: 'Valid email required' });
       const exists = await pool.query('SELECT id FROM allowlist WHERE email = $1', [email]);
       if (exists.rows.length > 0) return res.status(409).json({ error: 'Already in allowlist' });
       const result = await pool.query(
@@ -116,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // /api/admin/audit-log
   if (route === 'audit-log') {
     if (req.method === 'GET') {
-      const limit = parseInt(req.query.limit as string) || 50;
+      const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 50, 1), 200);
       const result = await pool.query(
         `SELECT a.*, u.email as admin_email FROM admin_audit_log a LEFT JOIN users u ON a.admin_user_id = u.id ORDER BY a.created_at DESC LIMIT $1`,
         [limit]
