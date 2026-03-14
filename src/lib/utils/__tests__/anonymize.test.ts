@@ -31,12 +31,12 @@ describe('anonymize', () => {
 
     it('handles empty string', () => {
       const h = hashTextSync('');
-      expect(h).toHaveLength(8);
+      expect(h).toHaveLength(16);
     });
 
     it('handles unicode', () => {
       const h = hashTextSync('日本語テスト');
-      expect(h).toHaveLength(8);
+      expect(h).toHaveLength(16);
     });
   });
 
@@ -46,7 +46,7 @@ describe('anonymize', () => {
       const anon = anonymizeHabit(habit);
 
       expect(anon.id).toBe('abc-123');
-      expect(anon.name).toMatch(/^habit_[0-9a-f]{8}$/);
+      expect(anon.name).toMatch(/^habit_[0-9a-f]{16}$/);
       expect(anon.name).not.toContain('Meditation');
       expect(anon.frequency).toBe('daily');
       expect(anon.createdAt).toBe('2026-03-01');
@@ -78,7 +78,7 @@ describe('anonymize', () => {
       const anon = anonymizeJournal(entry);
 
       expect(anon.id).toBe('j-1');
-      expect(anon.content).toMatch(/^journal_[0-9a-f]{8}$/);
+      expect(anon.content).toMatch(/^journal_[0-9a-f]{16}$/);
       expect(anon.content).not.toContain('great');
       expect(anon.content).not.toContain('productive');
       expect(anon.mood).toBe('happy');
@@ -100,9 +100,9 @@ describe('anonymize', () => {
       const anon = anonymizeUser(user);
 
       expect(anon.id).toBe('u-1');
-      expect(anon.email).toMatch(/^user_[0-9a-f]{8}@anon$/);
+      expect(anon.email).toMatch(/^user_[0-9a-f]{16}@anon$/);
       expect(anon.email).not.toContain('test@example.com');
-      expect(anon.nickname).toMatch(/^anon_[0-9a-f]{8}$/);
+      expect(anon.nickname).toMatch(/^anon_[0-9a-f]{16}$/);
       expect(anon.nickname).not.toContain('JohnDoe');
       expect(anon.ageGroup).toBe('25_29');
       expect(anon.gender).toBe('male');
@@ -113,7 +113,7 @@ describe('anonymize', () => {
   describe('anonymizeNotes', () => {
     it('hashes non-null notes', () => {
       const anon = anonymizeNotes('This is a private note');
-      expect(anon).toMatch(/^note_[0-9a-f]{8}$/);
+      expect(anon).toMatch(/^note_[0-9a-f]{16}$/);
       expect(anon).not.toContain('private');
     });
 
@@ -134,7 +134,7 @@ describe('anonymize', () => {
       const anon = anonymizeHabits(habits);
       expect(anon).toHaveLength(3);
       anon.forEach(h => {
-        expect(h.name).toMatch(/^habit_[0-9a-f]{8}$/);
+        expect(h.name).toMatch(/^habit_[0-9a-f]{16}$/);
       });
     });
 
@@ -146,7 +146,7 @@ describe('anonymize', () => {
       const anon = anonymizeJournals(entries);
       expect(anon).toHaveLength(2);
       anon.forEach(e => {
-        expect(e.content).toMatch(/^journal_[0-9a-f]{8}$/);
+        expect(e.content).toMatch(/^journal_[0-9a-f]{16}$/);
       });
     });
   });

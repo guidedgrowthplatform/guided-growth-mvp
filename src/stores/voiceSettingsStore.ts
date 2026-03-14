@@ -6,7 +6,7 @@ export type RecordingMode = 'auto-stop' | 'always-on';
 export type SttProvider = 'webspeech' | 'whisper' | 'deepgram';
 
 const SETTINGS_KEY = 'mvp03_voice_settings';
-const isNative = Capacitor.isNativePlatform();
+const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
 
 interface VoiceSettings {
   recordingMode: RecordingMode;

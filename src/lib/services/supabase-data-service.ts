@@ -32,6 +32,18 @@ export class SupabaseDataService implements DataService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
+    // Determine next sort_order by finding the current max
+    const { data: maxData } = await supabase
+      .from('user_habits')
+      .select('sort_order')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const nextSortOrder = (maxData?.sort_order ?? 0) + 1;
+
     const { data, error } = await supabase
       .from('user_habits')
       .insert({
@@ -44,7 +56,7 @@ export class SupabaseDataService implements DataService {
                  frequency === 'weekdays' ? 'weekdays' : 'daily',
         daily_goal: 1,
         is_active: true,
-        sort_order: 9999,  // Put new habits at end; reorder will fix
+        sort_order: nextSortOrder,
       })
       .select()
       .single();
@@ -133,13 +145,18 @@ export class SupabaseDataService implements DataService {
   }
 
   async reorderHabits(habitIds: string[]): Promise<void> {
-    for (let i = 0; i < habitIds.length; i++) {
-      const { error } = await supabase
-        .from('user_habits')
-        .update({ sort_order: i + 1 })
-        .eq('id', habitIds[i]);
+    const results = await Promise.all(
+      habitIds.map((id, i) =>
+        supabase
+          .from('user_habits')
+          .update({ sort_order: i + 1 })
+          .eq('id', id)
+      )
+    );
 
-      if (error) throw new Error(error.message);
+    const failed = results.filter(r => r.error);
+    if (failed.length > 0) {
+      throw new Error(`Failed to reorder ${failed.length}/${habitIds.length} habits: ${failed[0].error!.message}`);
     }
   }
 

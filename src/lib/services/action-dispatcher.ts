@@ -61,6 +61,38 @@ function parseDateParam(dateStr: unknown): string {
     return lower;
   }
 
+  // Try to parse natural date strings like "8th March 2026", "March 10", "Jan 5th 2026"
+  const MONTHS: Record<string, number> = {
+    january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+    july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+    jan: 0, feb: 1, mar: 2, apr: 3, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+  };
+  // "8th March 2026" or "8 March" or "March 8th 2026" or "March 8"
+  const datePatterns = [
+    /^(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)(?:\s+(\d{4}))?$/,  // 8th March 2026
+    /^([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?$/,  // March 8th 2026
+  ];
+  for (const pattern of datePatterns) {
+    const match = lower.match(pattern);
+    if (match) {
+      let day: number, monthName: string, year: number;
+      if (/^\d/.test(match[1])) {
+        day = parseInt(match[1], 10);
+        monthName = match[2];
+        year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
+      } else {
+        monthName = match[1];
+        day = parseInt(match[2], 10);
+        year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
+      }
+      const monthIndex = MONTHS[monthName];
+      if (monthIndex !== undefined && day >= 1 && day <= 31) {
+        const d = new Date(year, monthIndex, day);
+        return d.toISOString().slice(0, 10);
+      }
+    }
+  }
+
   // Fallback: unknown format — default to today to avoid broken date keys
   console.warn(`[parseDateParam] Unknown date format: "${dateStr}", defaulting to today`);
   return todayStr();

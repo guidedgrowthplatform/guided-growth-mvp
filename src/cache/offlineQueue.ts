@@ -8,6 +8,22 @@ interface QueuedMutation {
   timestamp: number;
 }
 
+function safeGetItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSetItem(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // localStorage unavailable (e.g. iOS Private Browsing)
+  }
+}
+
 export const offlineQueue = {
   enqueue(endpoint: string, method: string, body: unknown): void {
     const queue = this.getQueue();
@@ -18,12 +34,12 @@ export const offlineQueue = {
       body,
       timestamp: Date.now(),
     });
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    safeSetItem(QUEUE_KEY, JSON.stringify(queue));
   },
 
   getQueue(): QueuedMutation[] {
     try {
-      const raw = localStorage.getItem(QUEUE_KEY);
+      const raw = safeGetItem(QUEUE_KEY);
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
@@ -38,22 +54,29 @@ export const offlineQueue = {
 
     for (const mutation of queue) {
       try {
-        await fetch(mutation.endpoint, {
+        const response = await fetch(mutation.endpoint, {
           method: mutation.method,
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(mutation.body),
         });
+        if (!response.ok) {
+          remaining.push(mutation);
+        }
       } catch {
         remaining.push(mutation);
       }
     }
 
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+    safeSetItem(QUEUE_KEY, JSON.stringify(remaining));
   },
 
   clear(): void {
-    localStorage.removeItem(QUEUE_KEY);
+    try {
+      localStorage.removeItem(QUEUE_KEY);
+    } catch {
+      // localStorage unavailable
+    }
   },
 
   get length(): number {

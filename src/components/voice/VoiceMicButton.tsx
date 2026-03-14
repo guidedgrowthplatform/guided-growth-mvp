@@ -22,8 +22,9 @@ export function VoiceMicButton() {
                         ? 'Tap to stop listening'
                         : 'Tap to start voice input'
             }
+            style={{ bottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))' }}
             className={`
-                fixed bottom-28 right-4 z-50 lg:bottom-6 lg:right-6
+                fixed right-4 z-50 lg:bottom-6 lg:right-6
                 w-12 h-12 sm:w-14 sm:h-14 rounded-full
                 flex items-center justify-center
                 shadow-lg transition-all duration-300 ease-in-out

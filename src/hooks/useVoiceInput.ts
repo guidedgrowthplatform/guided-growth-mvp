@@ -3,7 +3,7 @@ import { useVoiceStore } from '@/stores/voiceStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 // Whisper WASM (~40MB) crashes mobile Safari — block on mobile devices
-const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 import {
     loadWhisperModel,
     transcribeAudio,
@@ -14,11 +14,6 @@ import {
 } from '@/lib/services/whisper-service';
 import { startDeepGram, stopDeepGram } from '@/lib/services/deepgram-service';
 import { ensureMicPermission } from '@/lib/services/mic-permissions';
-
-// Track interim text separately so we can show live speech
-let currentInterim = '';
-let networkErrorCount = 0;
-let lastFinalTimestamp = 0;
 
 // If a new isFinal result comes >1.5s after the previous one,
 // treat it as a NEW command attempt (replace, don't append).
@@ -65,6 +60,13 @@ export function useVoiceInput() {
     const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const hasSpokenRef = useRef(false);
     const whisperRecordingRef = useRef(false);
+
+    // Track interim text and error/timing state per-instance (not module-level)
+    const currentInterimRef = useRef('');
+    const networkErrorCountRef = useRef(0);
+    const lastFinalTimestampRef = useRef(0);
+    const consecutiveRestartsRef = useRef(0);
+    const MAX_RESTARTS = 5;
 
     const [whisperStatus, setWhisperStatus] = useState<WhisperStatus>('idle');
     const [whisperProgress, setWhisperProgress] = useState(0);
@@ -154,12 +156,13 @@ export function useVoiceInput() {
                 if (result.isFinal) {
                     const text = result[0].transcript.trim();
                     if (text) {
-                        currentInterim = '';
+                        currentInterimRef.current = '';
                         hasSpokenRef.current = true;
+                        consecutiveRestartsRef.current = 0; // reset on successful result
 
                         const now = Date.now();
-                        const gap = now - lastFinalTimestamp;
-                        lastFinalTimestamp = now;
+                        const gap = now - lastFinalTimestampRef.current;
+                        lastFinalTimestampRef.current = now;
 
                         const currentTranscript = useVoiceStore.getState().transcript;
 
@@ -176,7 +179,7 @@ export function useVoiceInput() {
                 }
             }
             if (interim) {
-                currentInterim = interim;
+                currentInterimRef.current = interim;
                 hasSpokenRef.current = true;
                 setInterim(interim);
             }
@@ -231,8 +234,8 @@ export function useVoiceInput() {
 
             if (errorMsg === '') {
                 if (event.error === 'network') {
-                    networkErrorCount++;
-                    if (networkErrorCount >= 2) {
+                    networkErrorCountRef.current++;
+                    if (networkErrorCountRef.current >= 2) {
                         const isBrave = 'brave' in navigator;
                         setError(
                             isBrave
@@ -270,6 +273,14 @@ export function useVoiceInput() {
             isStartingRef.current = false;
             const state = useVoiceStore.getState();
             if (state.isListening) {
+                if (consecutiveRestartsRef.current >= MAX_RESTARTS) {
+                    // Too many rapid restarts — stop to prevent loop (common on iOS)
+                    consecutiveRestartsRef.current = 0;
+                    stopListening();
+                    clearSilenceTimer();
+                    return;
+                }
+                consecutiveRestartsRef.current++;
                 setTimeout(() => {
                     const currentState = useVoiceStore.getState();
                     if (currentState.isListening && !isStartingRef.current) {
@@ -282,7 +293,7 @@ export function useVoiceInput() {
                             clearSilenceTimer();
                         }
                     }
-                }, 100);
+                }, 500);
             }
         };
 
@@ -435,7 +446,7 @@ export function useVoiceInput() {
         }
 
         setError('');
-        networkErrorCount = 0;
+        networkErrorCountRef.current = 0;
         hasSpokenRef.current = false;
         resetTranscript(); // FIX-42: Clear old transcript before new session
 
@@ -471,8 +482,9 @@ export function useVoiceInput() {
 
         // Web Speech API flow
         isStartingRef.current = false;
-        currentInterim = '';
+        currentInterimRef.current = '';
         hasSpokenRef.current = false;
+        consecutiveRestartsRef.current = 0;
         clearSilenceTimer();
         const recognition = recognitionRef.current;
         if (recognition) {
@@ -492,6 +504,10 @@ export function useVoiceInput() {
     useEffect(() => {
         return () => {
             isStartingRef.current = false;
+            currentInterimRef.current = '';
+            networkErrorCountRef.current = 0;
+            lastFinalTimestampRef.current = 0;
+            consecutiveRestartsRef.current = 0;
             clearSilenceTimer();
             const recognition = recognitionRef.current;
             if (recognition) {

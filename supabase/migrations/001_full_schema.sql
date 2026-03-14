@@ -640,8 +640,8 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE OR REPLACE VIEW anonymized_habits AS
 SELECT
   id,
-  user_id,
-  'habit_' || left(encode(digest(name, 'sha256'), 'hex'), 8) AS name,
+  LEFT(encode(digest(user_id::text::bytea, 'sha256'), 'hex'), 16) AS anon_user_id,
+  'habit_' || left(encode(digest(name, 'sha256'), 'hex'), 16) AS name,
   habit_type,
   cadence,
   is_active,
@@ -652,9 +652,9 @@ FROM user_habits;
 CREATE OR REPLACE VIEW anonymized_journal AS
 SELECT
   id,
-  user_id,
+  LEFT(encode(digest(user_id::text::bytea, 'sha256'), 'hex'), 16) AS anon_user_id,
   date,
-  'journal_' || left(encode(digest(response, 'sha256'), 'hex'), 8) AS response,
+  'journal_' || left(encode(digest(response, 'sha256'), 'hex'), 16) AS response,
   input_mode,
   time_of_day,
   created_at
@@ -664,7 +664,7 @@ FROM journal_entries;
 CREATE OR REPLACE VIEW anonymized_checkins AS
 SELECT
   id,
-  user_id,
+  LEFT(encode(digest(user_id::text::bytea, 'sha256'), 'hex'), 16) AS anon_user_id,
   date,
   mood,
   energy_level,
@@ -672,7 +672,7 @@ SELECT
   sleep_quality,
   sleep_hours,
   CASE WHEN notes IS NOT NULL
-    THEN 'note_' || left(encode(digest(notes, 'sha256'), 'hex'), 8)
+    THEN 'note_' || left(encode(digest(notes, 'sha256'), 'hex'), 16)
     ELSE NULL
   END AS notes,
   created_at
@@ -681,9 +681,9 @@ FROM daily_checkins;
 -- ─── Anonymized Users ───
 CREATE OR REPLACE VIEW anonymized_users AS
 SELECT
-  id,
-  'user_' || left(encode(digest(email::bytea, 'sha256'), 'hex'), 8) || '@anon' AS email,
-  'anon_' || left(encode(digest(nickname::bytea, 'sha256'), 'hex'), 8) AS nickname,
+  LEFT(encode(digest(id::text::bytea, 'sha256'), 'hex'), 16) AS anon_user_id,
+  'user_' || left(encode(digest(email::bytea, 'sha256'), 'hex'), 16) || '@anon' AS email,
+  'anon_' || left(encode(digest(nickname::bytea, 'sha256'), 'hex'), 16) AS nickname,
   age_group,
   gender,
   language,
@@ -699,7 +699,7 @@ SELECT
   hc.completed,
   hc.completed_via,
   CASE WHEN hc.notes IS NOT NULL
-    THEN 'note_' || left(encode(digest(hc.notes, 'sha256'), 'hex'), 8)
+    THEN 'note_' || left(encode(digest(hc.notes, 'sha256'), 'hex'), 16)
     ELSE NULL
   END AS notes,
   hc.created_at
@@ -709,12 +709,12 @@ FROM habit_completions hc;
 CREATE OR REPLACE VIEW anonymized_onboarding AS
 SELECT
   id,
-  user_id,
+  LEFT(encode(digest(user_id::text::bytea, 'sha256'), 'hex'), 16) AS anon_user_id,
   path,
   goal_type,
   trigger_context,
   CASE WHEN brain_dump_raw IS NOT NULL
-    THEN 'braindump_' || left(encode(digest(brain_dump_raw, 'sha256'), 'hex'), 8)
+    THEN 'braindump_' || left(encode(digest(brain_dump_raw, 'sha256'), 'hex'), 16)
     ELSE NULL
   END AS brain_dump_raw,
   current_step,
@@ -726,8 +726,8 @@ FROM onboarding_states;
 CREATE OR REPLACE VIEW anonymized_metrics AS
 SELECT
   id,
-  user_id,
-  'metric_' || left(encode(digest(name, 'sha256'), 'hex'), 8) AS name,
+  LEFT(encode(digest(user_id::text::bytea, 'sha256'), 'hex'), 16) AS anon_user_id,
+  'metric_' || left(encode(digest(name, 'sha256'), 'hex'), 16) AS name,
   input_type,
   frequency,
   scale_min,

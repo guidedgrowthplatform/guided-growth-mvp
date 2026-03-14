@@ -19,6 +19,7 @@ const PREFERRED_VOICES = [
 let cachedVoice: SpeechSynthesisVoice | null = null;
 let voicesLoaded = false;
 let ttsUnlocked = false;
+let currentResumeInterval: ReturnType<typeof setInterval> | null = null;
 
 function getVoices(): SpeechSynthesisVoice[] {
   if (!('speechSynthesis' in window)) return [];
@@ -31,11 +32,13 @@ function findBestVoice(): SpeechSynthesisVoice | null {
   if (voices.length === 0) return null;
 
   // Check saved preference first
-  const savedName = localStorage.getItem(VOICE_PREF_KEY);
-  if (savedName) {
-    const saved = voices.find((v) => v.name === savedName);
-    if (saved) return saved;
-  }
+  try {
+    const savedName = localStorage.getItem(VOICE_PREF_KEY);
+    if (savedName) {
+      const saved = voices.find((v) => v.name === savedName);
+      if (saved) return saved;
+    }
+  } catch { /* localStorage may be unavailable in some contexts */ }
 
   // Try preferred voices in order
   for (const name of PREFERRED_VOICES) {
@@ -58,14 +61,14 @@ export function getSelectedVoice(): SpeechSynthesisVoice | null {
 
 /** Save a specific voice preference */
 export function setVoicePreference(voiceName: string): void {
-  localStorage.setItem(VOICE_PREF_KEY, voiceName);
+  try { localStorage.setItem(VOICE_PREF_KEY, voiceName); } catch { /* ignore */ }
   const voices = getVoices();
   cachedVoice = voices.find((v) => v.name === voiceName) || cachedVoice;
 }
 
 /** Get the saved voice name */
 export function getVoicePreference(): string | null {
-  return localStorage.getItem(VOICE_PREF_KEY);
+  try { return localStorage.getItem(VOICE_PREF_KEY); } catch { return null; }
 }
 
 /** Get all available voices for the settings UI */
@@ -110,6 +113,12 @@ export function speak(text: string, options?: { rate?: number; pitch?: number; v
     const clean = cleanText(text);
     if (!clean) return;
 
+    // Clear any existing resume interval from a previous speak() call
+    if (currentResumeInterval) {
+      clearInterval(currentResumeInterval);
+      currentResumeInterval = null;
+    }
+
     // iOS workaround: cancel any stuck synthesis before speaking
     try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
 
@@ -127,6 +136,7 @@ export function speak(text: string, options?: { rate?: number; pitch?: number; v
 
     const cleanup = () => {
       if (resumeInterval) { clearInterval(resumeInterval); resumeInterval = null; }
+      if (currentResumeInterval === resumeInterval) { currentResumeInterval = null; }
     };
 
     utterance.onend = cleanup;
@@ -146,6 +156,7 @@ export function speak(text: string, options?: { rate?: number; pitch?: number; v
         }
       } catch { cleanup(); }
     }, 5000);
+    currentResumeInterval = resumeInterval;
   } catch (err) {
     // TTS should NEVER crash the app
     console.warn('[TTS] speak failed (non-critical):', err);

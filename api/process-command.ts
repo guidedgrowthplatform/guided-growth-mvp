@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { requireUser } from './_lib/auth.js';
 
 // NOTE: Prompt is inlined here because Vercel serverless functions cannot
 // import from ../src/lib/. The canonical version lives in
@@ -30,7 +31,8 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
 ## Parse Rules
 1. Extract EXACTLY ONE action and entity per transcript.
 2. Default date is "today" if the user doesn't specify one.
-3. Day names (monday, tuesday, etc.) = the most recent past occurrence of that day.
+3. When user specifies an EXACT date (e.g., "8th March 2026", "March 10", "January 5th"), convert it to ISO format YYYY-MM-DD in the params. If no year is given, assume the current year.
+4. Day names (monday, tuesday, etc.) = the most recent past occurrence of that day.
 4. Convert spoken numbers to numeric values ("eight" → 8, "seven out of ten" → 7).
 5. If the user says "habits" (plural) treat it the same as "habit".
 6. Strip filler words: "um", "uh", "like", "please", "can you", "could you", "I want to", "I'd like to".
@@ -92,6 +94,12 @@ User: "Log my sleep quality as 8 out of 10"
 User: "Mark reading done for Monday"
 {"action":"complete","entity":"habit","params":{"name":"reading","date":"monday"},"confidence":0.9}
 
+User: "Mark meditation done for 8th March 2026"
+{"action":"complete","entity":"habit","params":{"name":"meditation","date":"2026-03-08"},"confidence":0.95}
+
+User: "Log mood as 7 for March 10th"
+{"action":"log","entity":"metric","params":{"name":"mood","value":7,"date":"2026-03-10"},"confidence":0.9}
+
 User: "Mark meditation done for the past five days"
 {"action":"complete","entity":"habit","params":{"name":"meditation","dates":["today","1 days ago","2 days ago","3 days ago","4 days ago"]},"confidence":0.9}
 
@@ -151,6 +159,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const user = await requireUser(req, res);
+  if (!user) return;
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: 'OPENAI_API_KEY not configured' });
@@ -198,15 +209,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const parsed = JSON.parse(content);
     const latency = Date.now() - startTime;
 
+    // Sanitize: only allow expected keys to prevent prototype pollution
+    const sanitized = {
+      action: parsed.action,
+      entity: parsed.entity,
+      params: parsed.params,
+      confidence: parsed.confidence,
+    };
+
     return res.status(200).json({
-      ...parsed,
+      ...sanitized,
       latency,
       model: 'gpt-4o-mini',
     });
   } catch (err) {
     console.error('Process command error:', err);
     return res.status(500).json({
-      error: `Server error: ${err instanceof Error ? err.message : String(err)}`,
+      error: 'An internal error occurred while processing the command.',
     });
   }
 }

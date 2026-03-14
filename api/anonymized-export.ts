@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 /**
  * Anonymized Data Export API — MVP-19 (#43)
@@ -33,8 +34,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'ADMIN_API_KEY not configured on server' });
   }
 
-  const providedKey = ((req.headers['x-admin-key'] || req.query.admin_key) as string)?.trim();
-  if (providedKey !== adminKey) {
+  const providedKey = (req.headers['x-admin-key'] as string)?.trim();
+  if (!providedKey || !crypto.timingSafeEqual(Buffer.from(providedKey), Buffer.from(adminKey))) {
     return res.status(403).json({ error: 'Forbidden: invalid or missing admin key' });
   }
 
@@ -83,7 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .limit(limit);
 
       if (error) {
-        return res.status(502).json({ error: `Failed to fetch ${view}: ${error.message}` });
+        return res.status(502).json({ error: 'Failed to fetch data' });
       }
 
       result[exportType] = data || [];

@@ -2,7 +2,16 @@ import * as jwt from 'jsonwebtoken';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from './db.js';
 
-const SECRET = () => process.env.SESSION_SECRET || 'dev-secret';
+const SECRET = () => {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+      throw new Error('SESSION_SECRET is required in production');
+    }
+    return 'dev-secret';
+  }
+  return secret;
+};
 
 export function signToken(userId: string): string {
   return jwt.sign({ userId }, SECRET(), { expiresIn: '7d' });

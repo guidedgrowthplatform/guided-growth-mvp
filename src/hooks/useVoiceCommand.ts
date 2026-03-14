@@ -4,7 +4,7 @@ import { useCommandStore } from '@/stores/commandStore';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { getDataService } from '@/lib/services/service-provider';
 import { useToast } from '@/contexts/ToastContext';
-import { speakPreAck, speak } from '@/lib/services/tts-service';
+import { speakPreAck } from '@/lib/services/tts-service';
 import { haptic } from '@/lib/services/haptic-service';
 
 // Lazy-init: wait for the correct data service (Supabase) before creating dispatcher
@@ -234,8 +234,8 @@ export function useVoiceCommand() {
         addToast('error', result.message);
       }
 
-      // Talk back: read the result message aloud (if TTS enabled)
-      speak(result.message);
+      // TTS talk-back is handled by VoiceTranscript.tsx (single source of TTS)
+      // to avoid double speak() calls.
 
       // Navigate if needed
       if (result.uiAction === 'navigate' && result.navigateTo) {

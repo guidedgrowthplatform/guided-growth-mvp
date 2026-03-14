@@ -42,15 +42,20 @@ registerProcessor('pcm-processor', PCMProcessor);
 `;
 
 async function createAudioPipeline(stream: MediaStream, onData: (buffer: ArrayBuffer) => void): Promise<void> {
-  audioContext = new AudioContext({ sampleRate: 16000 });
+  // Don't force sampleRate — iOS Safari ignores it and uses hardware rate (48000).
+  // We read the actual rate after creation and pass it to the WebSocket URL.
+  audioContext = new AudioContext();
   const source = audioContext.createMediaStreamSource(stream);
 
   // Try AudioWorklet first (modern), fall back to ScriptProcessor (legacy)
   try {
     const blob = new Blob([WORKLET_CODE], { type: 'application/javascript' });
     const url = URL.createObjectURL(blob);
-    await audioContext.audioWorklet.addModule(url);
-    URL.revokeObjectURL(url);
+    try {
+      await audioContext.audioWorklet.addModule(url);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
 
     const workletNode = new AudioWorkletNode(audioContext, 'pcm-processor');
     workletNode.port.onmessage = (e) => {
@@ -61,9 +66,9 @@ async function createAudioPipeline(stream: MediaStream, onData: (buffer: ArrayBu
     source.connect(workletNode);
     workletNode.connect(audioContext.destination);
   } catch {
-    // Fallback: ScriptProcessor for older browsers that don't support AudioWorklet
+    // Fallback: ScriptProcessor for older browsers / iOS WKWebView where Blob URL AudioWorklet fails
     console.warn('[DeepGram] AudioWorklet unavailable, using ScriptProcessor fallback');
-    const processor = audioContext.createScriptProcessor(4096, 1, 1);
+    const processor = audioContext.createScriptProcessor(2048, 1, 1);
     processor.onaudioprocess = (e) => {
       if (!isActive || !ws || ws.readyState !== WebSocket.OPEN) return;
       const inputData = e.inputBuffer.getChannelData(0);
@@ -86,17 +91,26 @@ export async function startDeepGram(callbacks: DeepGramCallbacks): Promise<void>
     // 1. Get API key from server
     const token = await getDeepGramToken();
 
-    // 2. Get microphone access
+    // 2. Get microphone access (don't constrain sampleRate — ignored on most mobile browsers)
     mediaStream = await navigator.mediaDevices.getUserMedia({
       audio: {
         channelCount: 1,
-        sampleRate: 16000,
         echoCancellation: true,
         noiseSuppression: true,
       },
     });
 
-    // 3. Open WebSocket to DeepGram
+    // 3. Create audio pipeline first so we can read the actual sample rate
+    //    (iOS Safari ignores requested sampleRate and uses hardware rate e.g. 48000)
+    await createAudioPipeline(mediaStream, (buffer) => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(buffer);
+      }
+    });
+
+    const actualSampleRate = audioContext ? audioContext.sampleRate : 16000;
+
+    // 4. Open WebSocket to DeepGram with actual sample rate
     const url = 'wss://api.deepgram.com/v1/listen?' + new URLSearchParams({
       model: 'nova-2',
       language: 'en',
@@ -105,30 +119,18 @@ export async function startDeepGram(callbacks: DeepGramCallbacks): Promise<void>
       utterance_end_ms: '1500',
       vad_events: 'true',
       encoding: 'linear16',
-      sample_rate: '16000',
+      sample_rate: String(actualSampleRate),
       channels: '1',
     }).toString();
 
     ws = new WebSocket(url, ['token', token]);
     ws.binaryType = 'arraybuffer';
 
-    ws.onopen = async () => {
+    ws.onopen = () => {
       console.log('[DeepGram] WebSocket connected');
       isActive = true;
       callbacks.onOpen();
-
-      // 4. Start audio pipeline (AudioWorklet or ScriptProcessor fallback)
-      try {
-        await createAudioPipeline(mediaStream!, (buffer) => {
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(buffer);
-          }
-        });
-      } catch (err) {
-        console.error('[DeepGram] Audio pipeline error:', err);
-        callbacks.onError('Failed to start audio processing');
-        stopDeepGram();
-      }
+      // Audio pipeline already started before WebSocket connection (to read actual sample rate)
     };
 
     ws.onmessage = (event) => {
@@ -155,6 +157,15 @@ export async function startDeepGram(callbacks: DeepGramCallbacks): Promise<void>
     ws.onclose = (event) => {
       console.log('[DeepGram] WebSocket closed:', event.code, event.reason);
       isActive = false;
+      // Release mic and AudioContext on WebSocket close to prevent resource leaks
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(t => t.stop());
+        mediaStream = null;
+      }
+      if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close().catch(() => {});
+        audioContext = null;
+      }
       callbacks.onClose();
     };
 

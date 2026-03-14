@@ -15,9 +15,16 @@ import { SpreadsheetView } from './SpreadsheetView';
 export function CaptureView() {
   const { defaultView, spreadsheetRange: savedRange, loaded: prefsLoaded, saveView, saveRange } = usePreferences();
 
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobileView(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const [viewMode, setViewMode] = useState<ViewMode>('spreadsheet');
   const [spreadsheetRange, setSpreadsheetRange] = useState<SpreadsheetRange>(
-    window.innerWidth < 768 ? 'week' : 'month'
+    isMobileView ? 'week' : 'month'
   );
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const initializedRef = useRef(false);
@@ -28,10 +35,9 @@ export function CaptureView() {
     if (prefsLoaded && !initializedRef.current) {
       initializedRef.current = true;
       setViewMode(defaultView);
-      const isMobile = window.innerWidth < 768;
-      setSpreadsheetRange(isMobile ? 'week' : savedRange);
+      setSpreadsheetRange(isMobileView ? 'week' : savedRange);
     }
-  }, [prefsLoaded, defaultView, savedRange]);
+  }, [prefsLoaded, defaultView, savedRange, isMobileView]);
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     setViewMode(mode);
@@ -130,7 +136,7 @@ export function CaptureView() {
 
   const handleFormChange = useCallback((metricId: string, value: string) => {
     handleCellChange(date, metricId, value);
-    handleSaveDay(date);
+    handleSaveDay(date, metricId, value);
   }, [date, handleCellChange, handleSaveDay]);
 
   const dayEntries = useMemo(() => entries[date] || {}, [entries, date]);
@@ -138,16 +144,19 @@ export function CaptureView() {
   // Keyboard shortcuts: Alt+Left/Right (navigate), Alt+T (today), Alt+W/M (week/month)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (!e.altKey) return;
       const d = new Date(date);
       switch (e.key) {
         case 'ArrowLeft':
+          if (!e.ctrlKey) return; // Require Ctrl+Alt to avoid browser Back conflict
           e.preventDefault();
           if (viewMode === 'form') setDate(format(subDays(d, 1), 'yyyy-MM-dd'));
           else if (spreadsheetRange === 'week') setDate(format(subDays(d, 7), 'yyyy-MM-dd'));
           else setDate(format(subMonths(d, 1), 'yyyy-MM-dd'));
           break;
         case 'ArrowRight':
+          if (!e.ctrlKey) return; // Require Ctrl+Alt to avoid browser Forward conflict
           e.preventDefault();
           if (viewMode === 'form') setDate(format(addDays(d, 1), 'yyyy-MM-dd'));
           else if (spreadsheetRange === 'week') setDate(format(addDays(d, 7), 'yyyy-MM-dd'));

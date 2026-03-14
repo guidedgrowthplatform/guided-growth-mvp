@@ -5,7 +5,7 @@
  * information (habit names, journal content, emails) is not connected
  * to user identities when exported for analytics or admin review.
  *
- * Uses SHA-256 → first 8 hex chars as a stable, irreversible token.
+ * Uses SHA-256 → first 16 hex chars as a stable, irreversible token.
  * Same input always produces the same token (deterministic).
  */
 
@@ -15,7 +15,7 @@
  * SHA-256 hash a string, return first `length` hex chars as token.
  * Works in both browser (Web Crypto) and Node.js environments.
  */
-export async function hashText(text: string, length = 8): Promise<string> {
+export async function hashText(text: string, length = 16): Promise<string> {
   try {
     // Browser environment (Web Crypto API)
     if (typeof crypto !== 'undefined' && crypto.subtle) {
@@ -43,7 +43,7 @@ export async function hashText(text: string, length = 8): Promise<string> {
  * Synchronous simple hash for performance-critical paths.
  * Not cryptographic — use hashText() for security-sensitive operations.
  */
-export function hashTextSync(text: string, length = 8): string {
+export function hashTextSync(text: string, length = 16): string {
   let hash = 5381;
   for (let i = 0; i < text.length; i++) {
     hash = ((hash << 5) + hash) + text.charCodeAt(i);
