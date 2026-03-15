@@ -12,25 +12,12 @@ workflow:
     - if: $CI_COMMIT_BRANCH == "main"
 
 .npm-cache: &npm-cache
-  cache:
-    key:
-      files:
-        - package-lock.json
-    paths:
-      - node_modules/
-    policy: pull
+  cache: {}
 
 install:
   stage: .pre
-  cache:
-    key:
-      files:
-        - package-lock.json
-    paths:
-      - node_modules/
-    policy: pull-push
+  cache: {}
   script:
-    - rm -rf node_modules
     - npm install --no-audit --no-fund
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
