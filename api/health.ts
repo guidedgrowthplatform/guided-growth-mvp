@@ -19,7 +19,7 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
       const pg = await import('pg');
       const pool = new pg.default.Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: process.env.NODE_ENV === 'production' },
+        ssl: { rejectUnauthorized: false },
         max: 1,
         connectionTimeoutMillis: 5000,
       });
