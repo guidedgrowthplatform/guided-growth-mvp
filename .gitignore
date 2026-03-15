@@ -51,6 +51,13 @@ lerna-debug.log*
 # Testing
 coverage/
 .nyc_output
+test-results/
+
+# E2E / Playwright artifacts
+e2e/screenshots/
+e2e/videos/
+e2e/traces/
+playwright-report/
 
 # Misc
 *.pem
