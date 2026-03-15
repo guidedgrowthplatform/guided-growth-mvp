@@ -1,5 +1,6 @@
-// ElevenLabs WebSocket STT Service
-// Streams microphone audio to ElevenLabs Speech-to-Text API (Scribe v2)
+// ElevenLabs Realtime STT Service
+// Streams microphone audio to ElevenLabs Speech-to-Text Realtime API (Scribe v2)
+// Docs: https://elevenlabs.io/docs/api-reference/speech-to-text/v-1-speech-to-text-realtime
 
 export interface ElevenLabsCallbacks {
   onTranscript: (text: string, isFinal: boolean) => void;
@@ -18,6 +19,16 @@ async function getElevenLabsToken(): Promise<string> {
   if (!res.ok) throw new Error('Failed to get ElevenLabs token');
   const data = await res.json();
   return data.token;
+}
+
+// Convert ArrayBuffer to base64 string
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
 
 // Inline AudioWorklet processor — converts Float32 → Int16 PCM
@@ -91,28 +102,44 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
 
     await createAudioPipeline(mediaStream, (buffer) => {
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(buffer);
+        // ElevenLabs expects base64-encoded audio in JSON messages
+        const base64 = arrayBufferToBase64(buffer);
+        ws.send(JSON.stringify({
+          message_type: 'input_audio_chunk',
+          audio_base_64: base64,
+        }));
       }
     });
 
     const actualSampleRate = audioContext ? audioContext.sampleRate : 16000;
 
-    // ElevenLabs STT WebSocket endpoint
-    const url = `wss://api.elevenlabs.io/v1/speech-to-text/stream?model_id=scribe_v2&language_code=en&sample_rate=${actualSampleRate}&encoding=pcm_s16le`;
+    // Map sample rate to ElevenLabs supported format
+    const sampleRateMap: Record<number, string> = {
+      8000: 'pcm_8000',
+      16000: 'pcm_16000',
+      22050: 'pcm_22050',
+      24000: 'pcm_24000',
+      44100: 'pcm_44100',
+      48000: 'pcm_48000',
+    };
+    const audioFormat = sampleRateMap[actualSampleRate] || 'pcm_16000';
+
+    // ElevenLabs Realtime STT WebSocket
+    const params = new URLSearchParams({
+      model_id: 'scribe_v2',
+      language_code: 'en',
+      audio_format: audioFormat,
+      commit_strategy: 'vad',
+      vad_silence_threshold_secs: '1.5',
+      token: token,
+    });
+
+    const url = `wss://api.elevenlabs.io/v1/speech-to-text/realtime?${params.toString()}`;
 
     ws = new WebSocket(url);
-    ws.binaryType = 'arraybuffer';
 
     ws.onopen = () => {
       isActive = true;
-      // Send initial config message
-      ws!.send(JSON.stringify({
-        type: 'config',
-        api_key: token,
-        sample_rate: actualSampleRate,
-        encoding: 'pcm_s16le',
-        language_code: 'en',
-      }));
       callbacks.onOpen();
     };
 
@@ -120,19 +147,33 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
       try {
         const data = JSON.parse(event.data);
 
-        if (data.type === 'transcript') {
-          const text = data.text || data.transcript || '';
-          if (text) {
-            const isFinal = data.is_final ?? data.type === 'transcript';
-            callbacks.onTranscript(text, isFinal);
-          }
-        } else if (data.type === 'partial_transcript' || data.type === 'interim') {
-          const text = data.text || data.transcript || '';
-          if (text) {
-            callbacks.onTranscript(text, false);
-          }
-        } else if (data.type === 'error') {
-          callbacks.onError(data.message || 'ElevenLabs transcription error');
+        switch (data.message_type) {
+          case 'session_started':
+            // Session started successfully
+            break;
+
+          case 'partial_transcript':
+            if (data.text) {
+              callbacks.onTranscript(data.text, false);
+            }
+            break;
+
+          case 'committed_transcript':
+          case 'committed_transcript_with_timestamps':
+            if (data.text) {
+              callbacks.onTranscript(data.text, true);
+            }
+            break;
+
+          case 'error':
+          case 'auth_error':
+          case 'quota_exceeded':
+          case 'rate_limited':
+          case 'resource_exhausted':
+          case 'session_time_limit_exceeded':
+          case 'transcriber_error':
+            callbacks.onError(data.error || `ElevenLabs error: ${data.message_type}`);
+            break;
         }
       } catch (err) {
         console.error('[ElevenLabs] Parse error:', err);
@@ -174,7 +215,6 @@ export function stopElevenLabs(): void {
 
   if (ws) {
     if (ws.readyState === WebSocket.OPEN) {
-      try { ws.send(JSON.stringify({ type: 'close' })); } catch { /* ignore */ }
       ws.close();
     }
     ws = null;
