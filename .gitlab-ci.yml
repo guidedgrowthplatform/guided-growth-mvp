@@ -26,6 +26,7 @@ install:
       - node_modules/
     policy: pull-push
   script:
+    - rm -f package-lock.json
     - npm install --no-audit --no-fund
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
