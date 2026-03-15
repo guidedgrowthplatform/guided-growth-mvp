@@ -2,7 +2,7 @@ import { Skeleton } from './Skeleton';
 
 export function SpreadsheetSkeleton() {
   return (
-    <div className="glass rounded-2xl shadow-xl border border-cyan-200/50 overflow-hidden p-4">
+    <div className="bg-surface rounded-lg shadow-card border border-border overflow-hidden p-4">
       {/* Header row */}
       <div className="flex gap-2 mb-3">
         <Skeleton className="h-8 w-28" />

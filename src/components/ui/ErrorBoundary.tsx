@@ -30,8 +30,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       return (
         <div className="flex flex-col items-center justify-center h-64 gap-4">
           <div className="text-center">
-            <h2 className="text-xl font-bold text-red-600 mb-2">Something went wrong</h2>
-            <p className="text-sm text-slate-600 mb-4">
+            <h2 className="text-xl font-bold text-danger mb-2">Something went wrong</h2>
+            <p className="text-sm text-content-secondary mb-4">
               {this.state.error?.message || 'An unexpected error occurred'}
             </p>
             <Button onClick={this.handleRetry}>Try Again</Button>

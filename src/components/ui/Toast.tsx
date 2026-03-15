@@ -1,9 +1,9 @@
 import { useToast } from '@/contexts/ToastContext';
 
 const typeStyles = {
-  success: 'bg-emerald-500 text-white',
-  error: 'bg-red-500 text-white',
-  info: 'bg-cyan-500 text-white',
+  success: 'bg-success text-white',
+  error: 'bg-danger text-white',
+  info: 'bg-primary text-white',
 };
 
 export function ToastContainer() {
@@ -16,7 +16,7 @@ export function ToastContainer() {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`pointer-events-auto px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 animate-slide-in ${typeStyles[toast.type]}`}
+          className={`pointer-events-auto px-4 py-2.5 rounded-md shadow-elevated text-sm font-medium flex items-center gap-2 animate-slide-in ${typeStyles[toast.type]}`}
         >
           <span className="flex-1">{toast.message}</span>
           <button
