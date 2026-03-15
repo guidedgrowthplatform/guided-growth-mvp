@@ -13,6 +13,7 @@ import {
     type WhisperStatus,
 } from '@/lib/services/whisper-service';
 import { startDeepGram, stopDeepGram } from '@/lib/services/deepgram-service';
+import { startElevenLabs, stopElevenLabs } from '@/lib/services/elevenlabs-service';
 import { ensureMicPermission } from '@/lib/services/mic-permissions';
 
 // If a new isFinal result comes >1.5s after the previous one,
@@ -374,6 +375,30 @@ export function useVoiceInput() {
     const start = useCallback(async () => {
         const { sttProvider } = useVoiceSettingsStore.getState();
 
+        // ElevenLabs (cloud STT) — real-time WebSocket streaming (Scribe v2)
+        if (sttProvider === 'elevenlabs') {
+            setError('');
+            resetTranscript();
+            try {
+                await startElevenLabs({
+                    onTranscript: (text, isFinal) => {
+                        if (isFinal) {
+                            appendTranscript(text);
+                            setInterim('');
+                        } else {
+                            setInterim(text);
+                        }
+                    },
+                    onError: (err) => setError(err),
+                    onOpen: () => startListening(),
+                    onClose: () => stopListening(),
+                });
+            } catch (err) {
+                setError(`ElevenLabs failed: ${err instanceof Error ? err.message : err}`);
+            }
+            return;
+        }
+
         // DeepGram (cloud STT) — real-time WebSocket streaming
         if (sttProvider === 'deepgram') {
             setError('');
@@ -469,6 +494,12 @@ export function useVoiceInput() {
     const stop = useCallback(() => {
         const { sttProvider } = useVoiceSettingsStore.getState();
 
+        if (sttProvider === 'elevenlabs') {
+            stopElevenLabs();
+            stopListening();
+            return;
+        }
+
         if (sttProvider === 'deepgram') {
             stopDeepGram();
             stopListening();
@@ -522,6 +553,8 @@ export function useVoiceInput() {
             }
             // Stop DeepGram WebSocket if active
             try { stopDeepGram(); } catch { /* ignore */ }
+            // Stop ElevenLabs WebSocket if active
+            try { stopElevenLabs(); } catch { /* ignore */ }
         };
     }, [clearSilenceTimer]);
 

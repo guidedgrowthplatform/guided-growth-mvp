@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 
 export type RecordingMode = 'auto-stop' | 'always-on';
-export type SttProvider = 'webspeech' | 'whisper' | 'deepgram';
+export type SttProvider = 'webspeech' | 'whisper' | 'deepgram' | 'elevenlabs';
 
 const SETTINGS_KEY = 'mvp03_voice_settings';
 const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();

@@ -113,6 +113,12 @@ export function SettingsPage() {
       description: 'Cloud-based. Fastest transcription with real-time streaming. Requires API key.',
       icon: <Zap className="w-5 h-5 text-cyan-600" />,
     },
+    {
+      value: 'elevenlabs',
+      label: 'ElevenLabs Scribe v2',
+      description: 'Cloud-based. High-accuracy multilingual STT with real-time streaming.',
+      icon: <Zap className="w-5 h-5 text-purple-600" />,
+    },
   ];
 
   return (
