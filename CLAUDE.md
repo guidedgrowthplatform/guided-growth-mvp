@@ -153,6 +153,19 @@ Registered in `CaptureView.tsx` via `useEffect` with `keydown` listener:
 
 ---
 
+## Figma MCP Setup
+
+This project uses the [Figma MCP server](https://www.npmjs.com/package/figma-developer-mcp) for design-to-code workflows in Claude Code. Config lives in `.mcp.json` at project root.
+
+**Setup for new devs:**
+1. Open the project in Claude Code
+2. Run `/mcp` and select `figma` — it will open your browser to authenticate via OAuth
+3. That's it — no API keys or env vars needed
+
+**Usage:** Share a Figma URL in Claude Code and it will read the design context, screenshots, and generate adapted code.
+
+---
+
 ## Pending Items
 
 ### Database Migrations
