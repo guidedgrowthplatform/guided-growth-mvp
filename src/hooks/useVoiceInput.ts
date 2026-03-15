@@ -13,7 +13,7 @@ import {
     type WhisperStatus,
 } from '@/lib/services/whisper-service';
 import { startDeepGram, stopDeepGram } from '@/lib/services/deepgram-service';
-import { startElevenLabs, stopElevenLabs } from '@/lib/services/elevenlabs-service';
+import { startElevenLabs, stopElevenLabs, stopElevenLabsAndTranscribe } from '@/lib/services/elevenlabs-service';
 import { ensureMicPermission } from '@/lib/services/mic-permissions';
 
 // If a new isFinal result comes >1.5s after the previous one,
@@ -375,23 +375,19 @@ export function useVoiceInput() {
     const start = useCallback(async () => {
         const { sttProvider } = useVoiceSettingsStore.getState();
 
-        // ElevenLabs (cloud STT) — real-time WebSocket streaming (Scribe v2)
+        // ElevenLabs (cloud STT) — record then upload (like Whisper flow)
         if (sttProvider === 'elevenlabs') {
             setError('');
             resetTranscript();
             try {
                 await startElevenLabs({
-                    onTranscript: (text, isFinal) => {
-                        if (isFinal) {
-                            appendTranscript(text);
-                            setInterim('');
-                        } else {
-                            setInterim(text);
-                        }
-                    },
+                    onTranscript: () => {},
                     onError: (err) => setError(err),
-                    onOpen: () => startListening(),
-                    onClose: () => stopListening(),
+                    onOpen: () => {
+                        startListening();
+                        setInterim('Listening with ElevenLabs... (tap mic to stop and transcribe)');
+                    },
+                    onClose: () => {},
                 });
             } catch (err) {
                 setError(`ElevenLabs failed: ${err instanceof Error ? err.message : err}`);
@@ -495,8 +491,22 @@ export function useVoiceInput() {
         const { sttProvider } = useVoiceSettingsStore.getState();
 
         if (sttProvider === 'elevenlabs') {
-            stopElevenLabs();
-            stopListening();
+            setInterim('Transcribing with ElevenLabs...');
+            stopElevenLabsAndTranscribe()
+                .then((text) => {
+                    if (text && text.trim()) {
+                        appendTranscript(text.trim());
+                        setInterim('');
+                    } else {
+                        setInterim('');
+                        setError('Could not understand audio. Try speaking louder and longer.');
+                    }
+                })
+                .catch((err) => {
+                    setInterim('');
+                    setError(err instanceof Error ? err.message : 'ElevenLabs transcription failed.');
+                })
+                .finally(() => stopListening());
             return;
         }
 

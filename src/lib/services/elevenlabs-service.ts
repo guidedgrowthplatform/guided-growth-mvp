@@ -1,6 +1,6 @@
-// ElevenLabs Realtime STT Service
-// Streams microphone audio to ElevenLabs Speech-to-Text Realtime API (Scribe v2)
-// Docs: https://elevenlabs.io/docs/api-reference/speech-to-text/v-1-speech-to-text-realtime
+// ElevenLabs STT Service (REST-based)
+// Records audio, then uploads to ElevenLabs Speech-to-Text API (Scribe v2)
+// Uses REST API instead of WebSocket (WebSocket requires single-use token not yet available in JS SDK)
 
 export interface ElevenLabsCallbacks {
   onTranscript: (text: string, isFinal: boolean) => void;
@@ -9,10 +9,11 @@ export interface ElevenLabsCallbacks {
   onClose: () => void;
 }
 
-let ws: WebSocket | null = null;
 let mediaStream: MediaStream | null = null;
 let audioContext: AudioContext | null = null;
+let audioChunks: Float32Array[] = [];
 let isActive = false;
+let captureNode: ScriptProcessorNode | null = null;
 
 async function getElevenLabsToken(): Promise<string> {
   const res = await fetch('/api/elevenlabs-token');
@@ -21,183 +22,63 @@ async function getElevenLabsToken(): Promise<string> {
   return data.token;
 }
 
-// Convert ArrayBuffer to base64 string
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+function float32ToWavBlob(samples: Float32Array, sampleRate: number): Blob {
+  const numSamples = samples.length;
+  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buffer);
+
+  // WAV header
+  const writeString = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, 'data');
+  view.setUint32(40, numSamples * 2, true);
+
+  // PCM data
+  for (let i = 0; i < numSamples; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
   }
-  return btoa(binary);
-}
 
-// Inline AudioWorklet processor — converts Float32 → Int16 PCM
-const WORKLET_CODE = `
-class PCMProcessor extends AudioWorkletProcessor {
-  process(inputs) {
-    const input = inputs[0];
-    if (input && input[0]) {
-      const float32 = input[0];
-      const int16 = new Int16Array(float32.length);
-      for (let i = 0; i < float32.length; i++) {
-        const s = Math.max(-1, Math.min(1, float32[i]));
-        int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-      }
-      this.port.postMessage(int16.buffer, [int16.buffer]);
-    }
-    return true;
-  }
-}
-registerProcessor('pcm-processor-el', PCMProcessor);
-`;
-
-async function createAudioPipeline(stream: MediaStream, onData: (buffer: ArrayBuffer) => void): Promise<void> {
-  audioContext = new AudioContext();
-  const source = audioContext.createMediaStreamSource(stream);
-
-  try {
-    const blob = new Blob([WORKLET_CODE], { type: 'application/javascript' });
-    const url = URL.createObjectURL(blob);
-    try {
-      await audioContext.audioWorklet.addModule(url);
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-
-    const workletNode = new AudioWorkletNode(audioContext, 'pcm-processor-el');
-    workletNode.port.onmessage = (e) => {
-      if (isActive && ws && ws.readyState === WebSocket.OPEN) {
-        onData(e.data);
-      }
-    };
-    source.connect(workletNode);
-    workletNode.connect(audioContext.destination);
-  } catch {
-    // Fallback: ScriptProcessor for older browsers / iOS WKWebView
-    const processor = audioContext.createScriptProcessor(2048, 1, 1);
-    processor.onaudioprocess = (e) => {
-      if (!isActive || !ws || ws.readyState !== WebSocket.OPEN) return;
-      const inputData = e.inputBuffer.getChannelData(0);
-      const int16 = new Int16Array(inputData.length);
-      for (let i = 0; i < inputData.length; i++) {
-        const s = Math.max(-1, Math.min(1, inputData[i]));
-        int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-      }
-      onData(int16.buffer);
-    };
-    source.connect(processor);
-    processor.connect(audioContext.destination);
-  }
+  return new Blob([buffer], { type: 'audio/wav' });
 }
 
 export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<void> {
   if (isActive) return;
 
   try {
-    const token = await getElevenLabsToken();
-
     mediaStream = await navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
     });
 
-    await createAudioPipeline(mediaStream, (buffer) => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        // ElevenLabs expects base64-encoded audio in JSON messages
-        const base64 = arrayBufferToBase64(buffer);
-        ws.send(JSON.stringify({
-          message_type: 'input_audio_chunk',
-          audio_base_64: base64,
-        }));
-      }
-    });
+    audioContext = new AudioContext();
+    const source = audioContext.createMediaStreamSource(mediaStream);
+    audioChunks = [];
 
-    const actualSampleRate = audioContext ? audioContext.sampleRate : 16000;
-
-    // Map sample rate to ElevenLabs supported format
-    const sampleRateMap: Record<number, string> = {
-      8000: 'pcm_8000',
-      16000: 'pcm_16000',
-      22050: 'pcm_22050',
-      24000: 'pcm_24000',
-      44100: 'pcm_44100',
-      48000: 'pcm_48000',
-    };
-    const audioFormat = sampleRateMap[actualSampleRate] || 'pcm_16000';
-
-    // ElevenLabs Realtime STT WebSocket
-    const params = new URLSearchParams({
-      model_id: 'scribe_v2',
-      language_code: 'en',
-      audio_format: audioFormat,
-      commit_strategy: 'vad',
-      vad_silence_threshold_secs: '1.5',
-      token: token,
-    });
-
-    const url = `wss://api.elevenlabs.io/v1/speech-to-text/realtime?${params.toString()}`;
-
-    ws = new WebSocket(url);
-
-    ws.onopen = () => {
-      isActive = true;
-      callbacks.onOpen();
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-
-        switch (data.message_type) {
-          case 'session_started':
-            // Session started successfully
-            break;
-
-          case 'partial_transcript':
-            if (data.text) {
-              callbacks.onTranscript(data.text, false);
-            }
-            break;
-
-          case 'committed_transcript':
-          case 'committed_transcript_with_timestamps':
-            if (data.text) {
-              callbacks.onTranscript(data.text, true);
-            }
-            break;
-
-          case 'error':
-          case 'auth_error':
-          case 'quota_exceeded':
-          case 'rate_limited':
-          case 'resource_exhausted':
-          case 'session_time_limit_exceeded':
-          case 'transcriber_error':
-            callbacks.onError(data.error || `ElevenLabs error: ${data.message_type}`);
-            break;
-        }
-      } catch (err) {
-        console.error('[ElevenLabs] Parse error:', err);
+    // Capture raw PCM audio
+    captureNode = audioContext.createScriptProcessor(4096, 1, 1);
+    captureNode.onaudioprocess = (e) => {
+      if (isActive) {
+        const data = e.inputBuffer.getChannelData(0);
+        audioChunks.push(new Float32Array(data));
       }
     };
+    source.connect(captureNode);
+    captureNode.connect(audioContext.destination);
 
-    ws.onerror = () => {
-      callbacks.onError('ElevenLabs connection error. Try again or switch to another STT provider.');
-      stopElevenLabs();
-    };
-
-    ws.onclose = () => {
-      isActive = false;
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(t => t.stop());
-        mediaStream = null;
-      }
-      if (audioContext && audioContext.state !== 'closed') {
-        audioContext.close().catch(() => {});
-        audioContext = null;
-      }
-      callbacks.onClose();
-    };
-
+    isActive = true;
+    callbacks.onOpen();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     callbacks.onError(`ElevenLabs failed: ${msg}`);
@@ -205,25 +86,81 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
   }
 }
 
-export function stopElevenLabs(): void {
+export async function stopElevenLabsAndTranscribe(): Promise<string> {
+  if (!isActive) return '';
   isActive = false;
 
+  const sampleRate = audioContext?.sampleRate || 16000;
+
+  // Stop capture
+  if (captureNode) {
+    captureNode.disconnect();
+    captureNode = null;
+  }
   if (audioContext && audioContext.state !== 'closed') {
     try { audioContext.close(); } catch { /* ignore */ }
     audioContext = null;
   }
-
-  if (ws) {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.close();
-    }
-    ws = null;
-  }
-
   if (mediaStream) {
     mediaStream.getTracks().forEach(t => t.stop());
     mediaStream = null;
   }
+
+  // Merge audio chunks
+  const totalLength = audioChunks.reduce((acc, chunk) => acc + chunk.length, 0);
+  if (totalLength < sampleRate * 0.5) {
+    audioChunks = [];
+    throw new Error('Recording too short. Speak for at least 1 second.');
+  }
+
+  const merged = new Float32Array(totalLength);
+  let offset = 0;
+  for (const chunk of audioChunks) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+  audioChunks = [];
+
+  // Convert to WAV and upload
+  const wavBlob = float32ToWavBlob(merged, sampleRate);
+  const token = await getElevenLabsToken();
+
+  const form = new FormData();
+  form.append('file', wavBlob, 'recording.wav');
+  form.append('model_id', 'scribe_v2');
+  form.append('language_code', 'en');
+
+  const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+    method: 'POST',
+    headers: { 'xi-api-key': token },
+    body: form,
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || `ElevenLabs API error: ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.text || '';
+}
+
+export function stopElevenLabs(): void {
+  isActive = false;
+
+  if (captureNode) {
+    captureNode.disconnect();
+    captureNode = null;
+  }
+  if (audioContext && audioContext.state !== 'closed') {
+    try { audioContext.close(); } catch { /* ignore */ }
+    audioContext = null;
+  }
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+  }
+  audioChunks = [];
 }
 
 export function isElevenLabsActive(): boolean {

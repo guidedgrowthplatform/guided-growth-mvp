@@ -23,6 +23,7 @@
     "@huggingface/transformers": "^3.8.1",
     "@supabase/supabase-js": "^2.98.0",
     "date-fns": "^2.30.0",
+    "elevenlabs": "^1.59.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.577.0",
     "pg": "^8.11.3",
