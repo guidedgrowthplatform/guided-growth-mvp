@@ -17,6 +17,11 @@ async function getDispatcher(): Promise<ActionDispatcher> {
   return _dispatcher;
 }
 
+/** Reset the singleton dispatcher (e.g. on sign-out to avoid stale state) */
+export function resetDispatcher(): void {
+  _dispatcher = null;
+}
+
 // Word-number map for frequency parsing
 const WORD_NUMBERS: Record<string, number> = {
   one: 1, two: 2, three: 3, four: 4, five: 5,

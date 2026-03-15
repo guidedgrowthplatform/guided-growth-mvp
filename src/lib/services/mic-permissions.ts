@@ -71,14 +71,14 @@ async function requestNativePermission(): Promise<boolean> {
       console.warn('[MicPermissions] SpeechRecognition plugin not registered, trying web fallback');
       return requestWebPermission();
     }
-    console.log('[MicPermissions] Requesting native speech recognition permission');
+    // Requesting native speech recognition permission
     const result = await plugin.requestPermissions();
     const granted = result?.speechRecognition === 'granted';
-    console.log('[MicPermissions] Native permission result:', result?.speechRecognition);
+    // Native permission result received
     if (granted) return true;
 
     // If native plugin denied, try web as fallback (some WebViews support getUserMedia)
-    console.log('[MicPermissions] Native denied, trying getUserMedia fallback');
+    // Native denied, trying getUserMedia fallback
     return requestWebPermission();
   } catch (err) {
     console.warn('[MicPermissions] Native permission request failed, trying web fallback:', err);
@@ -129,7 +129,7 @@ async function requestWebPermission(): Promise<boolean> {
       return false;
     }
 
-    console.log('[MicPermissions] Requesting mic via getUserMedia');
+    // Requesting mic via getUserMedia
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
     // Got permission — immediately release the stream to free mic
@@ -139,7 +139,7 @@ async function requestWebPermission(): Promise<boolean> {
       });
     }
 
-    console.log('[MicPermissions] Microphone permission granted');
+    // Microphone permission granted
     return true;
   } catch (err) {
     // FIX #27: DOMException doesn't serialize to JSON (logs as {}).

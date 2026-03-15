@@ -20,12 +20,12 @@ function initService(): Promise<DataService> {
   if (useSupabase) {
     _initPromise = import('./supabase-data-service').then(mod => {
       _service = mod.supabaseDataService;
-      console.log('[ServiceProvider] Using SupabaseDataService');
+      // SupabaseDataService selected
       return _service;
     });
   } else {
     _service = mockDataService;
-    console.log('[ServiceProvider] Using MockDataService (localStorage)');
+    // MockDataService (localStorage) selected
     _initPromise = Promise.resolve(_service);
   }
 

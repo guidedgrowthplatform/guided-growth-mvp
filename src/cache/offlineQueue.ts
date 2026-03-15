@@ -1,11 +1,15 @@
 const QUEUE_KEY = 'lgt_offline_queue';
 
+const MAX_RETRIES = 3;
+const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 interface QueuedMutation {
   id: string;
   endpoint: string;
   method: string;
   body: unknown;
   timestamp: number;
+  retries?: number;
 }
 
 function safeGetItem(key: string): string | null {
@@ -50,9 +54,17 @@ export const offlineQueue = {
     const queue = this.getQueue();
     if (queue.length === 0) return;
 
+    const now = Date.now();
     const remaining: QueuedMutation[] = [];
 
     for (const mutation of queue) {
+      // Discard mutations older than 24 hours
+      if (now - mutation.timestamp > MAX_AGE_MS) continue;
+
+      // Discard mutations that have exceeded max retries
+      const retries = mutation.retries ?? 0;
+      if (retries >= MAX_RETRIES) continue;
+
       try {
         const response = await fetch(mutation.endpoint, {
           method: mutation.method,
@@ -61,10 +73,10 @@ export const offlineQueue = {
           body: JSON.stringify(mutation.body),
         });
         if (!response.ok) {
-          remaining.push(mutation);
+          remaining.push({ ...mutation, retries: retries + 1 });
         }
       } catch {
-        remaining.push(mutation);
+        remaining.push({ ...mutation, retries: retries + 1 });
       }
     }
 

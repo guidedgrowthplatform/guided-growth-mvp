@@ -52,7 +52,7 @@ export async function loadWhisperModel(): Promise<void> {
       },
     );
     notifyListeners('ready');
-    console.log('[Whisper] Model loaded successfully');
+    // Whisper model loaded successfully
   } catch (err) {
     console.error('[Whisper] Failed to load model:', err);
     notifyListeners('error');
@@ -100,7 +100,7 @@ export async function startAudioCapture(): Promise<void> {
   sourceNode.connect(processorNode);
   processorNode.connect(audioContext.destination);
 
-  console.log('[Whisper] Audio capture started (16kHz mono PCM)');
+  // Audio capture started
 }
 
 /**
@@ -137,7 +137,7 @@ export async function stopAudioCapture(): Promise<Float32Array> {
 
   const durationSec = (totalLength / 16000).toFixed(2);
   const maxAmp = result.reduce((max, v) => Math.max(max, Math.abs(v)), 0);
-  console.log('[Whisper] Audio captured:', { samples: totalLength, durationSec, maxAmplitude: maxAmp.toFixed(4) });
+  // Audio captured: samples=totalLength, duration=durationSec
 
   return result;
 }
@@ -156,10 +156,7 @@ export async function transcribeAudio(audioData: Float32Array): Promise<string> 
   notifyListeners('transcribing');
 
   try {
-    console.log('[Whisper] Transcribing...', {
-      samples: audioData.length,
-      durationSec: (audioData.length / 16000).toFixed(2),
-    });
+    // Whisper transcribing...
 
     const result = await whisperPipeline(audioData, {
       language: 'english',
@@ -167,7 +164,7 @@ export async function transcribeAudio(audioData: Float32Array): Promise<string> 
     });
 
     notifyListeners('ready');
-    console.log('[Whisper] Raw result:', result);
+    // Raw transcription result received
 
     let text = '';
     if (Array.isArray(result)) {
@@ -189,7 +186,7 @@ export async function transcribeAudio(audioData: Float32Array): Promise<string> 
       return '';
     }
 
-    console.log('[Whisper] Transcription:', text);
+    // Transcription complete
     return text;
   } catch (err) {
     console.error('[Whisper] Transcription error:', err);

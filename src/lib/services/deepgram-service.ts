@@ -127,7 +127,7 @@ export async function startDeepGram(callbacks: DeepGramCallbacks): Promise<void>
     ws.binaryType = 'arraybuffer';
 
     ws.onopen = () => {
-      console.log('[DeepGram] WebSocket connected');
+      // DeepGram WebSocket connected
       isActive = true;
       callbacks.onOpen();
       // Audio pipeline already started before WebSocket connection (to read actual sample rate)
@@ -155,7 +155,7 @@ export async function startDeepGram(callbacks: DeepGramCallbacks): Promise<void>
     };
 
     ws.onclose = (event) => {
-      console.log('[DeepGram] WebSocket closed:', event.code, event.reason);
+      // DeepGram WebSocket closed
       isActive = false;
       // Release mic and AudioContext on WebSocket close to prevent resource leaks
       if (mediaStream) {

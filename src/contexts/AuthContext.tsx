@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     if (AUTH_BYPASS) {
-      console.log('[Auth] signOut called (test mode — no-op)');
+      // signOut no-op in test mode
       return;
     }
     await supabase.auth.signOut();
