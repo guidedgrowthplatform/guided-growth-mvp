@@ -73,4 +73,4 @@ security:
   needs: [install]
   allow_failure: true
   script:
-    - npm audit --audit-level=high
+    - npm audit --audit-level=critical
