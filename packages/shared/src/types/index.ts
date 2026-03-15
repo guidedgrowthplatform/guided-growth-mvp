@@ -113,6 +113,14 @@ export interface AllowlistEntry {
   created_at: string;
 }
 
+// ─── Design System Types ───────────────────────────
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'icon';
+export type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
+export type CardPadding = 'none' | 'sm' | 'md' | 'lg';
+export type BadgeVariant = 'default' | 'success' | 'danger' | 'warning';
+export type NavTab = 'home' | 'progress' | 'voice' | 'focus' | 'profile';
+export type CheckInDimension = 'sleep' | 'mood' | 'energy' | 'stress';
+
 // ─── Audit Log ──────────────────────────────────────
 export interface AuditLogEntry {
   id: string;
