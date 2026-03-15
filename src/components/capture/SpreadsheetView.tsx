@@ -186,21 +186,21 @@ export function SpreadsheetView({
         <Button size="sm" variant="secondary" onClick={() => setShowAddModal(true)}>+ Add Habit</Button>
       </div>
 
-      <div className="glass rounded-2xl shadow-xl border border-cyan-200/50 overflow-hidden -mx-4 sm:mx-0 rounded-none sm:rounded-2xl">
+      <div className="bg-surface shadow-card border border-border overflow-hidden -mx-4 sm:mx-0 rounded-none sm:rounded-2xl">
         <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
           <table className={`w-full border-collapse ${spreadsheetRange === 'week' ? 'min-w-[400px]' : 'min-w-[800px]'} lg:min-w-0`}>
             <thead>
-              <tr className="bg-cyan-100/50 border-b-2 border-cyan-300/50">
-                <th className="sticky left-0 z-20 bg-cyan-100/50 px-2 py-2 text-left text-xs font-semibold text-slate-800 border-r-2 border-cyan-300/50 w-[80px] sm:w-[120px] max-w-[80px] sm:max-w-[120px]">
+              <tr className="bg-surface-secondary border-b-2 border-border">
+                <th className="sticky left-0 z-20 bg-surface-secondary px-2 py-2 text-left text-xs font-semibold text-content border-r-2 border-border w-[80px] sm:w-[120px] max-w-[80px] sm:max-w-[120px]">
                   HABITS
                 </th>
                 {days.map((day, idx) => {
                   const dayOfWeek = DAYS_OF_WEEK[getDay(day)];
                   const cellMinW = spreadsheetRange === 'week' ? 'min-w-[44px]' : 'min-w-[32px]';
                   return (
-                    <th key={dateStrings[idx]} className={`px-1 py-2 text-center border-l border-cyan-200/30 ${cellMinW}`}>
-                      <div className="text-[10px] font-medium text-slate-600">{dayOfWeek}</div>
-                      <div className="text-xs font-semibold text-slate-800">{format(day, 'd')}</div>
+                    <th key={dateStrings[idx]} className={`px-1 py-2 text-center border-l border-border ${cellMinW}`}>
+                      <div className="text-[10px] font-medium text-content-secondary">{dayOfWeek}</div>
+                      <div className="text-xs font-semibold text-content">{format(day, 'd')}</div>
                     </th>
                   );
                 })}

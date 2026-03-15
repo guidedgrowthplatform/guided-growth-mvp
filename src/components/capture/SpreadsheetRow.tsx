@@ -45,10 +45,10 @@ export function SpreadsheetRow({
 
   return (
     <tr
-      className={`border-b border-cyan-200/30 ${metricIndex % 2 === 0 ? 'bg-white/30' : 'bg-cyan-50/20'}`}
+      className={`border-b border-border ${metricIndex % 2 === 0 ? 'bg-surface/30' : 'bg-surface-secondary/20'}`}
     >
       {/* Habit name cell */}
-      <td className="sticky left-0 z-10 px-1 py-1 text-xs font-semibold text-slate-800 border-r-2 border-cyan-300/50 bg-inherit">
+      <td className="sticky left-0 z-10 px-1 py-1 text-xs font-semibold text-content border-r-2 border-border bg-inherit">
         <div className="flex items-center gap-0.5">
           {/* Up/Down reorder buttons */}
           <div className="flex flex-col flex-shrink-0" style={{ lineHeight: 0 }}>
@@ -56,14 +56,14 @@ export function SpreadsheetRow({
               type="button"
               disabled={isFirst}
               onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
-              className={`text-[9px] leading-none px-0.5 ${isFirst ? 'text-slate-200 cursor-default' : 'text-slate-400 hover:text-cyan-600 cursor-pointer'}`}
+              className={`text-[9px] leading-none px-0.5 ${isFirst ? 'text-content-tertiary cursor-default' : 'text-content-tertiary hover:text-primary cursor-pointer'}`}
               title="Move up"
             >▲</button>
             <button
               type="button"
               disabled={isLast}
               onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
-              className={`text-[9px] leading-none px-0.5 ${isLast ? 'text-slate-200 cursor-default' : 'text-slate-400 hover:text-cyan-600 cursor-pointer'}`}
+              className={`text-[9px] leading-none px-0.5 ${isLast ? 'text-content-tertiary cursor-default' : 'text-content-tertiary hover:text-primary cursor-pointer'}`}
               title="Move down"
             >▼</button>
           </div>
@@ -77,7 +77,7 @@ export function SpreadsheetRow({
                 if (e.key === 'Escape') { onHabitNameCancel(); }
                 e.stopPropagation();
               }}
-              className="w-full text-xs px-1 py-0.5 border border-cyan-300/50 rounded bg-white"
+              className="w-full text-xs px-1 py-0.5 border border-border rounded bg-surface"
             />
           ) : (
             <span

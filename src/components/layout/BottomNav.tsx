@@ -1,3 +1,4 @@
+// DEPRECATED: Use src/components/nav/BottomNav.tsx instead
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -14,7 +15,7 @@ export function BottomNav() {
   const { user } = useAuth();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 lg:hidden glass border-t border-cyan-200/50 pb-[env(safe-area-inset-bottom)]">
+    <nav className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-surface shadow-card border border-border border-t pb-[env(safe-area-inset-bottom)]">
       <div className="flex justify-around py-2">
         {navItems.map((item) => {
           if (item.adminOnly && user?.role !== 'admin') return null;
@@ -24,7 +25,7 @@ export function BottomNav() {
               key={item.path}
               to={item.path}
               className={`flex flex-col items-center gap-0.5 px-2 py-1 min-w-[48px] rounded-lg transition-all ${
-                isActive ? 'text-cyan-600' : 'text-slate-500'
+                isActive ? 'text-primary' : 'text-content-secondary'
               }`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

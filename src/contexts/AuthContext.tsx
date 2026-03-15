@@ -54,10 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-cyan-50 to-blue-100">
+      <div className="flex items-center justify-center h-screen bg-primary-bg">
         <div className="text-center">
-          <div className="text-2xl font-bold text-cyan-600 mb-2 animate-pulse">Guided Growth</div>
-          <div className="text-sm text-slate-500">Loading...</div>
+          <div className="text-2xl font-bold text-primary mb-2 animate-pulse">Guided Growth</div>
+          <div className="text-sm text-content-secondary">Loading...</div>
         </div>
       </div>
     );

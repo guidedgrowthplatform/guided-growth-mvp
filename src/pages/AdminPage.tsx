@@ -78,8 +78,8 @@ export function AdminPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
-          <p className="text-slate-600">Admin access required</p>
+          <h1 className="text-2xl font-bold text-danger mb-4">Access Denied</h1>
+          <p className="text-content-secondary">Admin access required</p>
         </div>
       </div>
     );
@@ -95,20 +95,20 @@ export function AdminPage() {
 
   return (
     <div>
-      <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent mb-6">
+      <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-6">
         Admin Panel
       </h1>
 
       {/* Tabs */}
-      <div className="flex space-x-1 mb-6 border-b border-cyan-200/50 overflow-x-auto">
+      <div className="flex space-x-1 mb-6 border-b border-border overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-2 text-sm font-medium transition-all rounded-t-lg ${
               activeTab === tab.key
-                ? 'bg-gradient-to-r from-cyan-400/20 to-blue-400/20 text-cyan-700 border-b-2 border-cyan-500'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-surface-secondary text-primary border-b-2 border-primary'
+                : 'text-content-secondary hover:text-content'
             }`}
           >
             {tab.label}
@@ -118,28 +118,28 @@ export function AdminPage() {
 
       {/* Users Tab */}
       {activeTab === 'users' && (
-        <div className="glass rounded-2xl shadow-xl border border-cyan-200/50 overflow-hidden">
+        <div className="bg-surface shadow-elevated border border-border rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead>
-                <tr className="bg-cyan-100/50 border-b border-cyan-300/50">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-800">Email</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-800">Name</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-800">Role</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-800">Status</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-800">Last Login</th>
+                <tr className="bg-surface-secondary border-b border-border">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-content">Email</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-content">Name</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-content">Role</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-content">Status</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-content">Last Login</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-cyan-200/30">
+              <tbody className="divide-y divide-border">
                 {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-cyan-50/30">
+                  <tr key={u.id} className="hover:bg-surface-secondary">
                     <td className="px-4 py-3 text-sm">{u.email}</td>
                     <td className="px-4 py-3 text-sm">{u.name || '-'}</td>
                     <td className="px-4 py-3">
                       <select
                         value={u.role}
                         onChange={(e) => handleUpdateRole(u.id, e.target.value)}
-                        className="text-sm border border-cyan-300/50 rounded-lg px-2 py-1 bg-white/80"
+                        className="text-sm border border-border rounded-lg px-2 py-1 bg-surface"
                       >
                         <option value="user">User</option>
                         <option value="admin">Admin</option>
@@ -149,13 +149,13 @@ export function AdminPage() {
                       <select
                         value={u.status}
                         onChange={(e) => handleUpdateStatus(u.id, e.target.value)}
-                        className="text-sm border border-cyan-300/50 rounded-lg px-2 py-1 bg-white/80"
+                        className="text-sm border border-border rounded-lg px-2 py-1 bg-surface"
                       >
                         <option value="active">Active</option>
                         <option value="disabled">Disabled</option>
                       </select>
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-500">
+                    <td className="px-4 py-3 text-sm text-content-secondary">
                       {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : 'Never'}
                     </td>
                   </tr>
@@ -169,8 +169,8 @@ export function AdminPage() {
       {/* Allowlist Tab */}
       {activeTab === 'allowlist' && (
         <div>
-          <form onSubmit={handleAddToAllowlist} className="glass rounded-2xl shadow-xl border border-cyan-200/50 p-4 mb-6">
-            <h3 className="font-semibold mb-3 text-slate-800">Add Email</h3>
+          <form onSubmit={handleAddToAllowlist} className="bg-surface shadow-elevated border border-border rounded-2xl p-4 mb-6">
+            <h3 className="font-semibold mb-3 text-content">Add Email</h3>
             <div className="flex flex-col sm:flex-row gap-2">
               <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="email@example.com" required />
               <Input value={newEmailNote} onChange={(e) => setNewEmailNote(e.target.value)} placeholder="Note (optional)" />
@@ -178,11 +178,11 @@ export function AdminPage() {
             </div>
           </form>
 
-          <div className="glass rounded-2xl shadow-xl border border-cyan-200/50 overflow-hidden">
+          <div className="bg-surface shadow-elevated border border-border rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full">
                 <thead>
-                  <tr className="bg-cyan-100/50 border-b border-cyan-300/50">
+                  <tr className="bg-surface-secondary border-b border-border">
                     <th className="px-4 py-3 text-left text-sm font-semibold">Email</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Note</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Added By</th>
@@ -190,9 +190,9 @@ export function AdminPage() {
                     <th className="px-4 py-3 text-left text-sm font-semibold">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-cyan-200/30">
+                <tbody className="divide-y divide-border">
                   {allowlist.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-cyan-50/30">
+                    <tr key={entry.id} className="hover:bg-surface-secondary">
                       <td className="px-4 py-3 text-sm">{entry.email}</td>
                       <td className="px-4 py-3 text-sm">{entry.note || '-'}</td>
                       <td className="px-4 py-3 text-sm">{entry.added_by_email || 'System'}</td>
@@ -211,11 +211,11 @@ export function AdminPage() {
 
       {/* Audit Log Tab */}
       {activeTab === 'audit' && (
-        <div className="glass rounded-2xl shadow-xl border border-cyan-200/50 overflow-hidden">
+        <div className="bg-surface shadow-elevated border border-border rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead>
-                <tr className="bg-cyan-100/50 border-b border-cyan-300/50">
+                <tr className="bg-surface-secondary border-b border-border">
                   <th className="px-4 py-3 text-left text-sm font-semibold">Time</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Admin</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Action</th>
@@ -223,9 +223,9 @@ export function AdminPage() {
                   <th className="px-4 py-3 text-left text-sm font-semibold">Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-cyan-200/30">
+              <tbody className="divide-y divide-border">
                 {auditLog.map((log) => (
-                  <tr key={log.id} className="hover:bg-cyan-50/30">
+                  <tr key={log.id} className="hover:bg-surface-secondary">
                     <td className="px-4 py-3 text-sm">{new Date(log.created_at).toLocaleString()}</td>
                     <td className="px-4 py-3 text-sm">{log.admin_email}</td>
                     <td className="px-4 py-3 text-sm">{log.action}</td>

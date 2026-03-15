@@ -13,13 +13,13 @@ export function Layout({ children }: { children: ReactNode }) {
       {/* Hamburger button — visible on mobile only */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed top-4 left-4 z-50 p-3 glass rounded-lg shadow-lg hover:bg-cyan-100/50 transition-all border border-cyan-200/50 lg:hidden"
+        className="fixed top-4 left-4 z-50 p-3 bg-surface shadow-elevated border border-border rounded-lg hover:bg-surface-secondary transition-all lg:hidden"
         aria-label="Toggle menu"
       >
         <div className="w-5 h-5 flex flex-col justify-center gap-1">
-          <span className={`block h-0.5 w-full bg-slate-700 transition-all ${sidebarOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
-          <span className={`block h-0.5 w-full bg-slate-700 transition-all ${sidebarOpen ? 'opacity-0' : ''}`} />
-          <span className={`block h-0.5 w-full bg-slate-700 transition-all ${sidebarOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
+          <span className={`block h-0.5 w-full bg-content transition-all ${sidebarOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
+          <span className={`block h-0.5 w-full bg-content transition-all ${sidebarOpen ? 'opacity-0' : ''}`} />
+          <span className={`block h-0.5 w-full bg-content transition-all ${sidebarOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
         </div>
       </button>
 

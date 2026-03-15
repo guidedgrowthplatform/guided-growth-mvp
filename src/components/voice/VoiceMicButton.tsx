@@ -30,12 +30,12 @@ export function VoiceMicButton() {
                 cursor-pointer select-none
                 focus:outline-none focus:ring-4
                 ${!isSupported
-                    ? 'bg-gray-400 cursor-not-allowed opacity-50'
+                    ? 'bg-content-tertiary cursor-not-allowed opacity-50'
                     : isListening
-                        ? 'bg-red-500 hover:bg-red-600 focus:ring-red-300 shadow-red-500/50 shadow-2xl'
+                        ? 'bg-danger hover:bg-danger/90 focus:ring-danger shadow-danger/50 shadow-2xl'
                         : error
-                            ? 'bg-amber-500 hover:bg-amber-600 focus:ring-amber-300'
-                            : 'bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 focus:ring-indigo-300 hover:shadow-xl hover:scale-105'
+                            ? 'bg-warning hover:bg-warning/90 focus:ring-warning'
+                            : 'bg-primary hover:bg-primary-dark focus:ring-primary hover:shadow-xl hover:scale-105'
                 }
             `}
         >
@@ -63,8 +63,8 @@ export function VoiceMicButton() {
             {/* Pulsing ring animation when listening */}
             {isListening && (
                 <>
-                    <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-20" />
-                    <span className="absolute inset-[-4px] rounded-full border-2 border-red-400 animate-pulse opacity-60" />
+                    <span className="absolute inset-0 rounded-full bg-danger animate-ping opacity-20" />
+                    <span className="absolute inset-[-4px] rounded-full border-2 border-danger/60 animate-pulse opacity-60" />
                 </>
             )}
         </button>

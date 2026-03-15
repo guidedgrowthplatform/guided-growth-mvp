@@ -16,12 +16,12 @@ export function AffirmationField({ value, onChange }: AffirmationFieldProps) {
   }, [onChange]);
 
   return (
-    <div className="glass rounded-2xl p-4 border border-cyan-200/50">
-      <label className="block text-sm font-semibold text-cyan-700 mb-2">Daily Affirmation</label>
+    <div className="bg-surface shadow-card border border-border rounded-2xl p-4">
+      <label className="block text-sm font-semibold text-primary mb-2">Daily Affirmation</label>
       <textarea
         value={localValue}
         onChange={(e) => handleChange(e.target.value)}
-        className="w-full px-3 py-2 text-sm border border-cyan-200/50 rounded-xl bg-white/80 outline-none focus:ring-2 focus:ring-cyan-400 resize-none transition-all"
+        className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-surface outline-none focus:ring-2 focus:ring-primary resize-none transition-all"
         rows={2}
         placeholder="Write your affirmation for the day..."
       />

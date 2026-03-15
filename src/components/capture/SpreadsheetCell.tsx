@@ -51,8 +51,8 @@ export function SpreadsheetCell({
       ref={cellRef}
       data-date={date}
       data-metric-id={metric.id}
-      className={`relative px-1 py-1 text-center text-xs border-l border-cyan-200/30 cursor-pointer select-none min-w-[32px] h-[44px] sm:h-auto ${color}
-        ${isSelected ? 'ring-2 ring-blue-500 ring-inset z-10' : ''}
+      className={`relative px-1 py-1 text-center text-xs border-l border-border cursor-pointer select-none min-w-[32px] h-[44px] sm:h-auto ${color}
+        ${isSelected ? 'ring-2 ring-primary ring-inset z-10' : ''}
       `}
       onClick={handleClick}
       onMouseDown={onMouseDown}
@@ -69,15 +69,15 @@ export function SpreadsheetCell({
             e.stopPropagation();
           }}
           onBlur={onEditSave}
-          className="absolute inset-0 w-full h-full text-xs text-center bg-white border-2 border-blue-500 z-20 outline-none"
+          className="absolute inset-0 w-full h-full text-xs text-center bg-surface border-2 border-primary z-20 outline-none"
         />
       ) : (
         <>
           <span data-cell-value className="block truncate">{display || ''}</span>
           {metric.input_type === 'numeric' && metric.target_value != null && value && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-200">
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-border">
               <div
-                className="h-full bg-cyan-500 transition-all"
+                className="h-full bg-primary transition-all"
                 style={{ width: `${Math.min(100, (parseFloat(value) / metric.target_value) * 100)}%` }}
               />
             </div>

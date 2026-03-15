@@ -21,7 +21,7 @@ export function ReflectionsPanel({
 
   return (
     <div className="space-y-4 mt-6">
-      <h3 className="text-lg font-bold text-slate-800">Reflections</h3>
+      <h3 className="text-lg font-bold text-content">Reflections</h3>
 
       {config.fields
         .sort((a, b) => a.order - b.order)

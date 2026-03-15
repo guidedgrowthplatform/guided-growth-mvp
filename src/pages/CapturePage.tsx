@@ -25,7 +25,7 @@ export function CapturePage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <h1 className="text-2xl font-bold text-slate-800 mb-4">Capture</h1>
+      <h1 className="text-2xl font-bold text-content mb-4">Capture</h1>
       <CaptureView />
       <ReflectionsPanel
         date={date}

@@ -84,13 +84,13 @@ export function SettingsPage() {
       value: 'auto-stop',
       label: 'Auto-stop (Siri-like)',
       description: 'Stops recording after 2.5s of silence. Best for quick voice commands.',
-      icon: <Timer className="w-5 h-5 text-cyan-600" />,
+      icon: <Timer className="w-5 h-5 text-primary" />,
     },
     {
       value: 'always-on',
       label: 'Always recording',
       description: 'Keeps microphone active until manually stopped. Good for longer dictation.',
-      icon: <Radio className="w-5 h-5 text-cyan-600" />,
+      icon: <Radio className="w-5 h-5 text-primary" />,
     },
   ];
 
@@ -99,29 +99,29 @@ export function SettingsPage() {
       value: 'webspeech',
       label: 'Web Speech API',
       description: 'Browser built-in. Free, real-time interim results. Requires internet.',
-      icon: <Globe className="w-5 h-5 text-cyan-600" />,
+      icon: <Globe className="w-5 h-5 text-primary" />,
     },
     {
       value: 'whisper',
       label: 'Whisper (whisper.cpp)',
       description: 'OpenAI Whisper base model. Runs locally in browser via WASM. ~75MB download on first use.',
-      icon: <Bot className="w-5 h-5 text-cyan-600" />,
+      icon: <Bot className="w-5 h-5 text-primary" />,
     },
     {
       value: 'deepgram',
       label: 'DeepGram Nova-2',
       description: 'Cloud-based. Fastest transcription with real-time streaming. Requires API key.',
-      icon: <Zap className="w-5 h-5 text-cyan-600" />,
+      icon: <Zap className="w-5 h-5 text-primary" />,
     },
   ];
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Settings</h1>
+      <h1 className="text-2xl font-bold text-content mb-6">Settings</h1>
 
       {/* STT Provider */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-content mb-3 flex items-center gap-2">
           <Brain className="w-5 h-5" /> Speech-to-Text Engine
         </h2>
         <div className="space-y-3">
@@ -130,8 +130,8 @@ export function SettingsPage() {
               key={provider.value}
               className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
                 sttProvider === provider.value
-                  ? 'border-cyan-400 bg-cyan-50/50 shadow-md'
-                  : 'border-slate-200 hover:border-slate-300 bg-white/80'
+                  ? 'border-primary bg-surface-secondary shadow-md'
+                  : 'border-border hover:border-content-tertiary bg-surface'
               }`}
             >
               <input
@@ -140,14 +140,14 @@ export function SettingsPage() {
                 value={provider.value}
                 checked={sttProvider === provider.value}
                 onChange={() => setSttProvider(provider.value)}
-                className="mt-1 accent-cyan-500"
+                className="mt-1 accent-primary"
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   {provider.icon}
-                  <span className="font-medium text-slate-800">{provider.label}</span>
+                  <span className="font-medium text-content">{provider.label}</span>
                 </div>
-                <p className="text-sm text-slate-500 mt-1">{provider.description}</p>
+                <p className="text-sm text-content-secondary mt-1">{provider.description}</p>
               </div>
             </label>
           ))}
@@ -156,7 +156,7 @@ export function SettingsPage() {
 
       {/* Recording Mode */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-content mb-3 flex items-center gap-2">
           <Mic className="w-5 h-5" /> Recording Mode
         </h2>
         <div className="space-y-3">
@@ -165,8 +165,8 @@ export function SettingsPage() {
               key={mode.value}
               className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
                 recordingMode === mode.value
-                  ? 'border-cyan-400 bg-cyan-50/50 shadow-md'
-                  : 'border-slate-200 hover:border-slate-300 bg-white/80'
+                  ? 'border-primary bg-surface-secondary shadow-md'
+                  : 'border-border hover:border-content-tertiary bg-surface'
               }`}
             >
               <input
@@ -175,33 +175,33 @@ export function SettingsPage() {
                 value={mode.value}
                 checked={recordingMode === mode.value}
                 onChange={() => setRecordingMode(mode.value)}
-                className="mt-1 accent-cyan-500"
+                className="mt-1 accent-primary"
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   {mode.icon}
-                  <span className="font-medium text-slate-800">{mode.label}</span>
+                  <span className="font-medium text-content">{mode.label}</span>
                 </div>
-                <p className="text-sm text-slate-500 mt-1">{mode.description}</p>
+                <p className="text-sm text-content-secondary mt-1">{mode.description}</p>
               </div>
             </label>
           ))}
         </div>
-        <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+        <p className="text-xs text-warning mt-2 flex items-center gap-1">
           <AlertTriangle className="w-3.5 h-3.5" /> Note: Apple may restrict "always recording" mode on iOS.
         </p>
       </section>
 
       {/* Talk Back Voice Toggle */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-content mb-3 flex items-center gap-2">
           <MessageSquare className="w-5 h-5" /> Talk Back Voice
         </h2>
-        <div className="bg-white/80 rounded-xl border border-slate-200 p-4">
+        <div className="bg-surface rounded-xl border border-border p-4">
           <label className="flex items-center justify-between cursor-pointer">
             <div>
-              <span className="font-medium text-slate-800">Voice feedback</span>
-              <p className="text-sm text-slate-500 mt-0.5">
+              <span className="font-medium text-content">Voice feedback</span>
+              <p className="text-sm text-content-secondary mt-0.5">
                 Read results aloud after each voice command
               </p>
             </div>
@@ -213,8 +213,8 @@ export function SettingsPage() {
                 className="sr-only peer"
                 id="tts-toggle"
               />
-              <div className="w-11 h-6 bg-slate-300 peer-focus:ring-2 peer-focus:ring-cyan-400 rounded-full peer peer-checked:bg-cyan-500 transition-colors" />
-              <div className="absolute left-[2px] top-[2px] w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5" />
+              <div className="w-11 h-6 bg-content-tertiary peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:bg-primary transition-colors" />
+              <div className="absolute left-[2px] top-[2px] w-5 h-5 bg-surface rounded-full shadow transition-transform peer-checked:translate-x-5" />
             </div>
           </label>
         </div>
@@ -222,12 +222,12 @@ export function SettingsPage() {
 
       {/* Voice Selection */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-content mb-3 flex items-center gap-2">
           <Volume2 className="w-5 h-5" /> TTS Voice
         </h2>
-        <div className="bg-white/80 rounded-xl border border-slate-200 p-4">
+        <div className="bg-surface rounded-xl border border-border p-4">
           {voices.length === 0 ? (
-            <p className="text-sm text-slate-400 italic">
+            <p className="text-sm text-content-tertiary italic">
               {!('speechSynthesis' in window)
                 ? 'Text-to-speech is not supported in this browser.'
                 : 'No voice options found — TTS will use the device default voice.'}
@@ -238,7 +238,7 @@ export function SettingsPage() {
                 id="voice-select"
                 value={selectedVoice}
                 onChange={(e) => handleVoiceChange(e.target.value)}
-                className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan-400 bg-white"
+                className="w-full text-sm border border-border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary bg-surface"
               >
                 {voices.map((v) => (
                   <option key={v.name} value={v.name}>
@@ -248,7 +248,7 @@ export function SettingsPage() {
               </select>
               <button
                 onClick={handlePreview}
-                className="text-sm bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-2 rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-md hover:shadow-lg flex items-center gap-1.5"
+                className="text-sm bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-all shadow-md hover:shadow-lg flex items-center gap-1.5"
               >
                 <Volume2 className="w-4 h-4" /> Preview Voice
               </button>
@@ -259,11 +259,11 @@ export function SettingsPage() {
 
       {/* Voice Command Examples */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-content mb-3 flex items-center gap-2">
           <Mic className="w-5 h-5" /> Voice Command Examples
         </h2>
-        <div className="bg-white/80 rounded-xl border border-slate-200 p-4">
-          <p className="text-sm text-slate-500 mb-3">
+        <div className="bg-surface rounded-xl border border-border p-4">
+          <p className="text-sm text-content-secondary mb-3">
             Tap the microphone button on any page and try saying:
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -277,9 +277,9 @@ export function SettingsPage() {
               { cmd: '"Delete the workout habit"', desc: 'Remove a habit' },
               { cmd: '"I slept well and feel great today"', desc: 'Journal reflection' },
             ].map(({ cmd, desc }) => (
-              <div key={cmd} className="bg-cyan-50/50 rounded-lg p-3 border border-cyan-100">
-                <p className="text-sm font-medium text-cyan-700">{cmd}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
+              <div key={cmd} className="bg-surface-secondary rounded-lg p-3 border border-border">
+                <p className="text-sm font-medium text-primary">{cmd}</p>
+                <p className="text-xs text-content-tertiary mt-0.5">{desc}</p>
               </div>
             ))}
           </div>
@@ -288,10 +288,10 @@ export function SettingsPage() {
 
       {/* Data Management */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-content mb-3 flex items-center gap-2">
           <Database className="w-5 h-5" /> Data
         </h2>
-        <div className="bg-white/80 rounded-xl border border-slate-200 p-4">
+        <div className="bg-surface rounded-xl border border-border p-4">
           <button
             onClick={() => {
               if (confirm('Clear all local data? This cannot be undone.')) {
@@ -299,11 +299,11 @@ export function SettingsPage() {
                 window.location.reload();
               }
             }}
-            className="text-sm bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1.5"
+            className="text-sm bg-danger/10 text-danger border border-danger/20 px-4 py-2 rounded-lg hover:bg-danger/20 transition-colors flex items-center gap-1.5"
           >
             <Trash2 className="w-4 h-4" /> Clear All Local Data
           </button>
-          <p className="text-xs text-slate-400 mt-2">
+          <p className="text-xs text-content-tertiary mt-2">
             Clears all habits, entries, and preferences from this browser.
           </p>
         </div>

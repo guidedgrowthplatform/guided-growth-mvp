@@ -82,39 +82,39 @@ export function DateNavigation({ date, viewMode, spreadsheetRange, onChange }: D
 
   return (
     <div className="flex items-center gap-2 relative">
-      <button onClick={prev} className="px-2 py-1 text-slate-600 hover:bg-slate-100/50 rounded-lg transition-all">
+      <button onClick={prev} className="px-2 py-1 text-content-secondary hover:bg-surface-secondary rounded-lg transition-all">
         &larr;
       </button>
       <button
         onClick={handleLabelClick}
-        className="text-sm font-medium text-slate-700 min-w-[120px] text-center hover:bg-slate-100/50 rounded-lg px-2 py-1 transition-all cursor-pointer"
+        className="text-sm font-medium text-content min-w-[120px] text-center hover:bg-surface-secondary rounded-lg px-2 py-1 transition-all cursor-pointer"
       >
         {getLabel()}
       </button>
-      <button onClick={next} className="px-2 py-1 text-slate-600 hover:bg-slate-100/50 rounded-lg transition-all">
+      <button onClick={next} className="px-2 py-1 text-content-secondary hover:bg-surface-secondary rounded-lg transition-all">
         &rarr;
       </button>
-      <button onClick={today} className="px-3 py-1 text-xs text-cyan-600 hover:bg-cyan-50/50 rounded-lg transition-all border border-cyan-200/50">
+      <button onClick={today} className="px-3 py-1 text-xs text-primary hover:bg-surface-secondary rounded-lg transition-all border border-border">
         Today
       </button>
 
       {showPicker && (
         <div
           ref={pickerRef}
-          className="absolute top-full left-0 mt-1 z-50 glass rounded-xl shadow-xl border border-cyan-200/50 p-3 w-[240px]"
+          className="absolute top-full left-0 mt-1 z-50 bg-surface shadow-elevated border border-border rounded-xl p-3 w-[240px]"
         >
           {/* Year navigation */}
           <div className="flex items-center justify-between mb-2">
             <button
               onClick={() => setPickerYear((y) => y - 1)}
-              className="px-2 py-1 text-slate-600 hover:bg-slate-100/50 rounded transition-all text-sm"
+              className="px-2 py-1 text-content-secondary hover:bg-surface-secondary rounded transition-all text-sm"
             >
               &larr;
             </button>
-            <span className="text-sm font-semibold text-slate-800">{pickerYear}</span>
+            <span className="text-sm font-semibold text-content">{pickerYear}</span>
             <button
               onClick={() => setPickerYear((y) => y + 1)}
-              className="px-2 py-1 text-slate-600 hover:bg-slate-100/50 rounded transition-all text-sm"
+              className="px-2 py-1 text-content-secondary hover:bg-surface-secondary rounded transition-all text-sm"
             >
               &rarr;
             </button>
@@ -129,8 +129,8 @@ export function DateNavigation({ date, viewMode, spreadsheetRange, onChange }: D
                   onClick={() => handleMonthSelect(idx)}
                   className={`px-2 py-1.5 text-xs rounded-lg transition-all ${
                     isCurrentMonth
-                      ? 'bg-gradient-to-r from-cyan-400/30 to-blue-400/30 text-cyan-700 font-semibold'
-                      : 'text-slate-600 hover:bg-cyan-50/50'
+                      ? 'bg-surface-secondary text-primary font-semibold'
+                      : 'text-content-secondary hover:bg-surface-secondary'
                   }`}
                 >
                   {month}
@@ -141,7 +141,7 @@ export function DateNavigation({ date, viewMode, spreadsheetRange, onChange }: D
           {/* Today button */}
           <button
             onClick={() => { today(); setShowPicker(false); }}
-            className="w-full mt-2 px-3 py-1.5 text-xs text-cyan-600 hover:bg-cyan-50/50 rounded-lg transition-all border border-cyan-200/50"
+            className="w-full mt-2 px-3 py-1.5 text-xs text-primary hover:bg-surface-secondary rounded-lg transition-all border border-border"
           >
             Today
           </button>

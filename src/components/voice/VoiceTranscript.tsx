@@ -60,15 +60,15 @@ export function VoiceTranscript() {
 
     return (
         <div className="fixed bottom-24 left-4 right-20 z-50 lg:left-auto lg:bottom-6 lg:right-24 lg:w-80">
-            <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl border border-slate-200 p-3">
+            <div className="bg-surface backdrop-blur-sm rounded-xl shadow-elevated border border-border p-3">
                 {/* Status */}
                 {isListening && (
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                        <span className="text-xs font-semibold text-red-600 uppercase tracking-wide">
+                        <span className="w-2 h-2 bg-danger rounded-full animate-pulse" />
+                        <span className="text-xs font-semibold text-danger uppercase tracking-wide">
                             Listening...
                         </span>
-                        <span className="text-[10px] text-slate-400 ml-auto">
+                        <span className="text-[10px] text-content-tertiary ml-auto">
                             auto-stops after silence
                         </span>
                     </div>
@@ -77,8 +77,8 @@ export function VoiceTranscript() {
                 {/* Processing indicator */}
                 {isProcessing && (
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-xs font-semibold text-blue-600">
+                        <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs font-semibold text-primary">
                             Processing command...
                         </span>
                     </div>
@@ -86,19 +86,19 @@ export function VoiceTranscript() {
 
                 {/* Error */}
                 {error && (
-                    <div className="text-xs text-amber-600 bg-amber-50 rounded-lg p-2 mb-2">
+                    <div className="text-xs text-warning bg-warning/10 rounded-lg p-2 mb-2">
                         {error}
                     </div>
                 )}
 
                 {/* Transcript — editable */}
                 {transcript && !isEditing && (
-                    <div className="text-sm text-slate-700 leading-relaxed mb-2 group">
+                    <div className="text-sm text-content leading-relaxed mb-2 group">
                         <div className="flex items-start gap-1">
                             <p className="italic flex-1">"{transcript}"</p>
                             <button
                                 onClick={handleEditStart}
-                                className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 text-[10px] text-blue-500 hover:text-blue-700 underline flex-shrink-0 transition-opacity p-1"
+                                className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 text-[10px] text-primary hover:text-primary underline flex-shrink-0 transition-opacity p-1"
                                 title="Edit transcript before reprocessing"
                             >
                                 <Pencil className="w-3 h-3 inline" /> Edit
@@ -116,19 +116,19 @@ export function VoiceTranscript() {
                             value={editedText}
                             onChange={(e) => setEditedText(e.target.value)}
                             onKeyDown={handleEditKeyDown}
-                            className="w-full text-sm border border-blue-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            className="w-full text-sm border border-primary/20 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary"
                             placeholder="Edit your command..."
                         />
                         <div className="flex gap-2 mt-1">
                             <button
                                 onClick={handleEditSubmit}
-                                className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded hover:bg-blue-600"
+                                className="text-xs bg-primary text-white px-2 py-0.5 rounded hover:bg-primary-dark"
                             >
                                 Reprocess
                             </button>
                             <button
                                 onClick={() => setIsEditing(false)}
-                                className="text-xs text-slate-400 hover:text-slate-600 underline"
+                                className="text-xs text-content-tertiary hover:text-content-secondary underline"
                             >
                                 Cancel
                             </button>
@@ -138,22 +138,22 @@ export function VoiceTranscript() {
 
                 {/* Live interim text */}
                 {isListening && interim && (
-                    <p className="text-sm text-slate-400 italic mt-1">
+                    <p className="text-sm text-content-tertiary italic mt-1">
                         {interim}...
                     </p>
                 )}
 
                 {/* Prompt when listening but no transcript yet */}
                 {isListening && !transcript && !interim && !error && (
-                    <p className="text-xs text-slate-400 italic">Speak now...</p>
+                    <p className="text-xs text-content-tertiary italic">Speak now...</p>
                 )}
 
                 {/* Command Result */}
                 {lastResult && !isProcessing && (
                     <div className={`rounded-lg p-2 mt-2 text-xs ${
                         lastResult.success
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-red-50 text-red-700 border border-red-200'
+                            ? 'bg-success/10 text-success border border-success/20'
+                            : 'bg-danger/10 text-danger border border-danger/20'
                     }`}>
                         <p className="font-medium whitespace-pre-line">{lastResult.message}</p>
                         {lastIntent && (
@@ -176,7 +176,7 @@ export function VoiceTranscript() {
                     {transcript && (
                         <button
                             onClick={() => { resetTranscript(); clearResult(); lastProcessedRef.current = ''; setIsEditing(false); }}
-                            className="text-xs text-slate-400 hover:text-slate-600 underline"
+                            className="text-xs text-content-tertiary hover:text-content-secondary underline"
                         >
                             Clear
                         </button>
@@ -184,7 +184,7 @@ export function VoiceTranscript() {
                     {lastResult && (
                         <button
                             onClick={clearResult}
-                            className="text-xs text-slate-400 hover:text-slate-600 underline"
+                            className="text-xs text-content-tertiary hover:text-content-secondary underline"
                         >
                             Dismiss
                         </button>

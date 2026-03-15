@@ -31,56 +31,55 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-cyan-50 to-blue-100">
-      <div className="glass rounded-2xl shadow-2xl border border-cyan-200/50 p-8 max-w-md w-full mx-4">
+    <div className="flex items-center justify-center min-h-screen bg-primary-bg">
+      <div className="bg-surface shadow-elevated border border-border rounded-2xl p-8 max-w-md w-full mx-4">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent mb-2"
-              style={{ WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <h1 className="text-3xl font-bold text-primary mb-2">
             Guided Growth
           </h1>
-          <p className="text-slate-600">
+          <p className="text-content-secondary">
             {isSignUp ? 'Create your account' : 'Welcome back'}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-content mb-1">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-xl border border-cyan-200 bg-white/70 
-                         focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent
+              className="w-full px-4 py-3 rounded-xl border border-border bg-surface
+                         focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
                          transition-all duration-200"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-content mb-1">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full px-4 py-3 rounded-xl border border-cyan-200 bg-white/70 
-                         focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent
+              className="w-full px-4 py-3 rounded-xl border border-border bg-surface
+                         focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
                          transition-all duration-200"
               placeholder="••••••••"
             />
           </div>
 
           {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm">
+            <div className="p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-600 text-sm">
+            <div className="p-3 rounded-lg bg-success/10 border border-success/20 text-success text-sm">
               {success}
             </div>
           )}
@@ -89,11 +88,10 @@ export function LoginPage() {
             type="submit"
             disabled={loading}
             className="w-full py-3 px-4 rounded-xl font-semibold text-white
-                       bg-gradient-to-r from-cyan-500 to-blue-500 
-                       hover:from-cyan-600 hover:to-blue-600
+                       bg-primary
+                       hover:bg-primary-dark
                        disabled:opacity-50 disabled:cursor-not-allowed
-                       transition-all duration-200 shadow-lg shadow-cyan-500/25
-                       hover:shadow-cyan-500/40"
+                       transition-all duration-200 shadow-lg"
           >
             {loading ? 'Please wait...' : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
@@ -103,7 +101,7 @@ export function LoginPage() {
           <button
             type="button"
             onClick={() => { setIsSignUp(!isSignUp); setError(null); setSuccess(null); }}
-            className="text-sm text-cyan-600 hover:text-cyan-700 transition-colors"
+            className="text-sm text-primary hover:text-primary transition-colors"
           >
             {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
           </button>

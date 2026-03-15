@@ -75,13 +75,13 @@ export function ConfigurePage() {
 
   return (
     <div>
-      <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent mb-6 sm:mb-8">
+      <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-6 sm:mb-8">
         Configure Metrics
       </h1>
 
       {/* Form */}
-      <div className="glass rounded-2xl shadow-xl border border-cyan-200/50 p-6 mb-8 glow-hover">
-        <h2 className="text-xl font-semibold mb-4 text-slate-800">
+      <div className="bg-surface shadow-elevated border border-border rounded-2xl p-6 mb-8">
+        <h2 className="text-xl font-semibold mb-4 text-content">
           {editingId ? 'Edit Metric' : 'Add New Metric'}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -137,9 +137,9 @@ export function ConfigurePage() {
               id="active"
               checked={formData.active}
               onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
-              className="w-4 h-4 text-cyan-500 rounded focus:ring-cyan-400 accent-cyan-500"
+              className="w-4 h-4 text-primary rounded focus:ring-primary accent-primary"
             />
-            <label htmlFor="active" className="text-sm font-medium text-slate-700">Active</label>
+            <label htmlFor="active" className="text-sm font-medium text-content">Active</label>
           </div>
 
           <div className="flex gap-3">
@@ -154,27 +154,27 @@ export function ConfigurePage() {
       </div>
 
       {/* Metrics List */}
-      <div className="glass rounded-2xl shadow-xl border border-cyan-200/50">
-        <div className="p-6 border-b border-cyan-200/30">
-          <h2 className="text-xl font-semibold text-slate-800">Your Metrics</h2>
+      <div className="bg-surface shadow-elevated border border-border rounded-2xl">
+        <div className="p-6 border-b border-border">
+          <h2 className="text-xl font-semibold text-content">Your Metrics</h2>
         </div>
-        <div className="divide-y divide-cyan-200/30">
+        <div className="divide-y divide-border">
           {metrics.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">No metrics configured yet.</div>
+            <div className="p-8 text-center text-content-secondary">No metrics configured yet.</div>
           ) : (
             metrics.map((metric) => (
-              <div key={metric.id} className="p-4 sm:p-6 hover:bg-cyan-50/30 transition-all">
+              <div key={metric.id} className="p-4 sm:p-6 hover:bg-surface-secondary transition-all">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <h3 className="text-lg font-semibold text-slate-800">{metric.name}</h3>
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded ${metric.active ? 'bg-emerald-200/80 text-emerald-800' : 'bg-slate-200/80 text-slate-600'}`}>
+                      <h3 className="text-lg font-semibold text-content">{metric.name}</h3>
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded ${metric.active ? 'bg-success/20 text-success' : 'bg-surface-secondary text-content-secondary'}`}>
                         {metric.active ? 'Active' : 'Inactive'}
                       </span>
-                      <span className="px-2 py-0.5 text-xs font-medium bg-cyan-200/80 text-cyan-800 rounded">{metric.frequency}</span>
+                      <span className="px-2 py-0.5 text-xs font-medium bg-surface-secondary text-primary rounded">{metric.frequency}</span>
                     </div>
-                    {metric.question && <p className="text-slate-600 text-sm">{metric.question}</p>}
-                    <div className="text-xs text-slate-500 mt-1">
+                    {metric.question && <p className="text-content-secondary text-sm">{metric.question}</p>}
+                    <div className="text-xs text-content-secondary mt-1">
                       Type: {INPUT_TYPES.find((t) => t.value === metric.input_type)?.label}
                       {metric.target_value != null && (
                         <span className="ml-2">

@@ -7,13 +7,13 @@ interface ViewModeToggleProps {
 
 export function ViewModeToggle({ viewMode, onChange }: ViewModeToggleProps) {
   return (
-    <div className="inline-flex rounded-xl border border-cyan-300/50 overflow-hidden">
+    <div className="inline-flex rounded-xl border border-border overflow-hidden">
       <button
         onClick={() => onChange('form')}
         className={`px-4 py-2 text-sm font-medium transition-all ${
           viewMode === 'form'
-            ? 'bg-gradient-to-r from-cyan-400/30 to-blue-400/30 text-cyan-700'
-            : 'bg-white/50 text-slate-600 hover:bg-cyan-50/50'
+            ? 'bg-primary/20 text-primary'
+            : 'bg-surface text-content-secondary hover:bg-surface-secondary'
         }`}
       >
         Form
@@ -22,8 +22,8 @@ export function ViewModeToggle({ viewMode, onChange }: ViewModeToggleProps) {
         onClick={() => onChange('spreadsheet')}
         className={`px-4 py-2 text-sm font-medium transition-all ${
           viewMode === 'spreadsheet'
-            ? 'bg-gradient-to-r from-cyan-400/30 to-blue-400/30 text-cyan-700'
-            : 'bg-white/50 text-slate-600 hover:bg-cyan-50/50'
+            ? 'bg-primary/20 text-primary'
+            : 'bg-surface text-content-secondary hover:bg-surface-secondary'
         }`}
       >
         Spreadsheet

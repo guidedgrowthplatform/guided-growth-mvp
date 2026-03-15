@@ -36,7 +36,7 @@ export function CellEditPopup({ position, metric, value, onChange, onSave, onCan
 
   return createPortal(
     <div
-      className="fixed z-50 glass rounded-lg shadow-xl border border-cyan-300/50 p-2"
+      className="fixed z-50 bg-surface shadow-elevated border border-border rounded-lg p-2"
       style={style}
     >
       <textarea
@@ -45,12 +45,12 @@ export function CellEditPopup({ position, metric, value, onChange, onSave, onCan
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={onSave}
-        className="w-full px-2 py-1 text-sm border border-cyan-300/50 rounded bg-white/90 resize-none outline-none focus:ring-2 focus:ring-cyan-400"
+        className="w-full px-2 py-1 text-sm border border-border rounded bg-surface resize-none outline-none focus:ring-2 focus:ring-primary"
         rows={metric.input_type === 'binary' || metric.input_type === 'numeric' ? 1 : 3}
       />
       <div className="flex gap-1 mt-1 justify-end">
-        <button onClick={onCancel} className="px-2 py-0.5 text-xs text-slate-500 hover:bg-slate-100/50 rounded">Esc</button>
-        <button onClick={onSave} className="px-2 py-0.5 text-xs text-cyan-600 hover:bg-cyan-50/50 rounded">Enter</button>
+        <button onClick={onCancel} className="px-2 py-0.5 text-xs text-content-secondary hover:bg-surface-secondary rounded">Esc</button>
+        <button onClick={onSave} className="px-2 py-0.5 text-xs text-primary hover:bg-surface-secondary rounded">Enter</button>
       </div>
     </div>,
     document.body

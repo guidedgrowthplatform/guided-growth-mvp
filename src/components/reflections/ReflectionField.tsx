@@ -19,11 +19,11 @@ export function ReflectionField({ field, value, onChange }: ReflectionFieldProps
 
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">{field.label}</label>
+      <label className="block text-sm font-medium text-content mb-1">{field.label}</label>
       <textarea
         value={localValue}
         onChange={(e) => handleChange(e.target.value)}
-        className="w-full px-3 py-2 text-sm border border-cyan-200/50 rounded-xl bg-white/80 outline-none focus:ring-2 focus:ring-cyan-400 resize-none transition-all"
+        className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-surface outline-none focus:ring-2 focus:ring-primary resize-none transition-all"
         rows={3}
         placeholder={`Enter your ${field.label.toLowerCase()}...`}
       />
