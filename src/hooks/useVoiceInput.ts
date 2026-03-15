@@ -379,18 +379,18 @@ export function useVoiceInput() {
         if (sttProvider === 'elevenlabs') {
             setError('');
             resetTranscript();
+            setInterim('Listening with ElevenLabs... (tap mic to stop and transcribe)');
+            startListening();
             try {
                 await startElevenLabs({
                     onTranscript: () => {},
                     onError: (err) => setError(err),
-                    onOpen: () => {
-                        startListening();
-                        setInterim('Listening with ElevenLabs... (tap mic to stop and transcribe)');
-                    },
+                    onOpen: () => {},
                     onClose: () => {},
                 });
             } catch (err) {
                 setError(`ElevenLabs failed: ${err instanceof Error ? err.message : err}`);
+                stopListening();
             }
             return;
         }
