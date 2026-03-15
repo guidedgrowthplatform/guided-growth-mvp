@@ -10,12 +10,13 @@ async function buildEntriesFromDataService(start: string, end: string): Promise<
   const habits = await ds.getHabits();
   const entries: EntriesMap = {};
 
-  for (const habit of habits) {
-    const completions = await ds.getCompletions(habit.id, start, end);
-    for (const c of completions) {
-      if (!entries[c.date]) entries[c.date] = {};
-      entries[c.date][habit.id] = 'yes';
-    }
+  // Batch fetch all completions in a single query instead of one per habit
+  const habitIds = habits.map(h => h.id);
+  const allCompletions = await ds.getCompletionsBatch(habitIds, start, end);
+
+  for (const c of allCompletions) {
+    if (!entries[c.date]) entries[c.date] = {};
+    entries[c.date][c.habitId] = 'yes';
   }
   return entries;
 }

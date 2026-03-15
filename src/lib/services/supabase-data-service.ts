@@ -219,6 +219,30 @@ export class SupabaseDataService implements DataService {
     }));
   }
 
+  async getCompletionsBatch(habitIds: string[], startDate?: string, endDate?: string): Promise<HabitCompletion[]> {
+    if (habitIds.length === 0) return [];
+
+    let query = supabase
+      .from('habit_completions')
+      .select('*')
+      .in('user_habit_id', habitIds)
+      .eq('completed', true)
+      .order('date', { ascending: false });
+
+    if (startDate) query = query.gte('date', startDate);
+    if (endDate) query = query.lte('date', endDate);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    return (data || []).map(c => ({
+      id: c.id,
+      habitId: c.user_habit_id,
+      date: c.date,
+      completedAt: c.created_at,
+    }));
+  }
+
   // ─── Metrics ───
   // Uses user_tracked_metrics table in Supabase
 
@@ -409,32 +433,65 @@ export class SupabaseDataService implements DataService {
   // ─── Summaries ───
 
   async getHabitSummary(habitId: string, period: 'week' | 'month'): Promise<HabitSummary> {
+    const summaries = await this.getHabitSummaries([habitId], period);
+    if (summaries.length === 0) throw new Error('Habit not found');
+    return summaries[0];
+  }
+
+  async getHabitSummaries(habitIds: string[], period: 'week' | 'month'): Promise<HabitSummary[]> {
+    if (habitIds.length === 0) return [];
+
     const habits = await this.getHabits();
-    const habit = habits.find(h => h.id === habitId);
-    if (!habit) throw new Error('Habit not found');
+    const habitMap = new Map(habits.map(h => [h.id, h]));
+
+    // Validate all requested habit IDs exist
+    const validIds = habitIds.filter(id => habitMap.has(id));
+    if (validIds.length === 0) return [];
 
     const daysBack = period === 'week' ? 7 : 30;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - daysBack);
     const startStr = startDate.toISOString().split('T')[0];
 
-    const completions = await this.getCompletions(habitId, startStr);
+    // Batch fetch: completions and streaks in parallel (2 queries total instead of 2N)
+    const [allCompletions, streakResult] = await Promise.all([
+      this.getCompletionsBatch(validIds, startStr),
+      supabase
+        .from('habit_streaks')
+        .select('*')
+        .in('user_habit_id', validIds),
+    ]);
 
-    // Get streak from habit_streaks table
-    const { data: streakData } = await supabase
-      .from('habit_streaks')
-      .select('*')
-      .eq('user_habit_id', habitId)
-      .maybeSingle();
+    if (streakResult.error) throw new Error(streakResult.error.message);
 
-    return {
-      habit,
-      completionsThisPeriod: completions.length,
-      totalDaysInPeriod: daysBack,
-      completionRate: (completions.length / daysBack) * 100,
-      currentStreak: streakData?.current_streak || 0,
-      longestStreak: streakData?.longest_streak || 0,
-    };
+    // Group completions by habit ID
+    const completionsByHabit = new Map<string, HabitCompletion[]>();
+    for (const c of allCompletions) {
+      const list = completionsByHabit.get(c.habitId) ?? [];
+      list.push(c);
+      completionsByHabit.set(c.habitId, list);
+    }
+
+    // Index streaks by habit ID
+    const streaksByHabit = new Map<string, { current_streak: number; longest_streak: number }>();
+    for (const s of (streakResult.data || [])) {
+      streaksByHabit.set(s.user_habit_id, s);
+    }
+
+    return validIds.map(id => {
+      const habit = habitMap.get(id)!;
+      const completions = completionsByHabit.get(id) ?? [];
+      const streakData = streaksByHabit.get(id);
+
+      return {
+        habit,
+        completionsThisPeriod: completions.length,
+        totalDaysInPeriod: daysBack,
+        completionRate: (completions.length / daysBack) * 100,
+        currentStreak: streakData?.current_streak || 0,
+        longestStreak: streakData?.longest_streak || 0,
+      };
+    });
   }
 
   async getWeeklySummary(): Promise<WeeklySummary> {
@@ -443,13 +500,18 @@ export class SupabaseDataService implements DataService {
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = todayStr();
 
-    const habits = await this.getHabits();
-    const habitSummaries = await Promise.all(
-      habits.map(h => this.getHabitSummary(h.id, 'week'))
-    );
+    // Fetch habits, journal entries, and metrics in parallel
+    const [habits, journalEntries, metrics] = await Promise.all([
+      this.getHabits(),
+      this.getJournalEntries(startStr, endStr),
+      this.getMetrics(),
+    ]);
 
-    const journalEntries = await this.getJournalEntries(startStr, endStr);
-    const metrics = await this.getMetrics();
+    // Batch fetch all habit summaries (2 queries instead of 2N)
+    const habitSummaries = await this.getHabitSummaries(
+      habits.map(h => h.id),
+      'week',
+    );
 
     return {
       habits: habitSummaries,

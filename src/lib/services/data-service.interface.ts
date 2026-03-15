@@ -96,6 +96,7 @@ export interface DataService {
   completeHabit(habitId: string, date: string): Promise<HabitCompletion>;
   uncompleteHabit(habitId: string, date: string): Promise<void>;
   getCompletions(habitId: string, startDate?: string, endDate?: string): Promise<HabitCompletion[]>;
+  getCompletionsBatch(habitIds: string[], startDate?: string, endDate?: string): Promise<HabitCompletion[]>;
 
   // Metrics
   createMetric(name: string, inputType: string, frequency?: string, scaleMin?: number, scaleMax?: number): Promise<TrackedMetric>;
@@ -113,6 +114,7 @@ export interface DataService {
 
   // Summaries
   getHabitSummary(habitId: string, period: 'week' | 'month'): Promise<HabitSummary>;
+  getHabitSummaries(habitIds: string[], period: 'week' | 'month'): Promise<HabitSummary[]>;
   getWeeklySummary(): Promise<WeeklySummary>;
 
   // Preferences

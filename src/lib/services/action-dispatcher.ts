@@ -371,16 +371,19 @@ export class ActionDispatcher {
           };
         }
 
-        // If checking for streaks
+        // If checking for streaks — batch fetch all summaries in one go
         if (params.metric === 'streak') {
           const habits = await this.dataService.getHabits();
+          const summaries = await this.dataService.getHabitSummaries(
+            habits.map(h => h.id),
+            'month',
+          );
           let longestHabit = '';
           let longestStreak = 0;
-          for (const h of habits) {
-            const s = await this.dataService.getHabitSummary(h.id, 'month');
+          for (const s of summaries) {
             if (s.longestStreak > longestStreak) {
               longestStreak = s.longestStreak;
-              longestHabit = h.name;
+              longestHabit = s.habit.name;
             }
           }
           return {

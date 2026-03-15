@@ -176,6 +176,14 @@ export class MockDataService implements DataService {
     return completions;
   }
 
+  async getCompletionsBatch(habitIds: string[], startDate?: string, endDate?: string): Promise<HabitCompletion[]> {
+    const idSet = new Set(habitIds);
+    let completions = getStore<HabitCompletion>(STORAGE_KEYS.completions).filter((c) => idSet.has(c.habitId));
+    if (startDate) completions = completions.filter((c) => c.date >= startDate);
+    if (endDate) completions = completions.filter((c) => c.date <= endDate);
+    return completions;
+  }
+
   // ─── Metrics ───
   async createMetric(name: string, inputType = 'scale', frequency = 'daily', scaleMin?: number, scaleMax?: number): Promise<TrackedMetric> {
     const metrics = getStore<TrackedMetric>(STORAGE_KEYS.metrics);
@@ -255,27 +263,53 @@ export class MockDataService implements DataService {
 
   // ─── Summaries ───
   async getHabitSummary(habitId: string, period: 'week' | 'month'): Promise<HabitSummary> {
+    const summaries = await this.getHabitSummaries([habitId], period);
+    if (summaries.length === 0) throw new Error(`Habit not found: ${habitId}`);
+    return summaries[0];
+  }
+
+  async getHabitSummaries(habitIds: string[], period: 'week' | 'month'): Promise<HabitSummary[]> {
+    if (habitIds.length === 0) return [];
+
     const habits = getStore<Habit>(STORAGE_KEYS.habits);
-    const habit = habits.find((h) => h.id === habitId);
-    if (!habit) throw new Error(`Habit not found: ${habitId}`);
+    const habitMap = new Map(habits.map((h) => [h.id, h]));
+
+    const validIds = habitIds.filter((id) => habitMap.has(id));
+    if (validIds.length === 0) return [];
 
     const now = new Date();
-    const startDate = new Date(now);
     const totalDays = period === 'week' ? 7 : 30;
+    const startDate = new Date(now);
     startDate.setDate(startDate.getDate() - totalDays);
+    const startStr = startDate.toISOString().slice(0, 10);
+    const endStr = todayStr();
 
-    const completions = await this.getCompletions(habitId, startDate.toISOString().slice(0, 10), todayStr());
-    const uniqueDays = new Set(completions.map((c) => c.date)).size;
-    const { current, longest } = calcStreaks(completions);
+    // Batch fetch all completions at once
+    const allCompletions = await this.getCompletionsBatch(validIds, startStr, endStr);
 
-    return {
-      habit,
-      completionsThisPeriod: uniqueDays,
-      totalDaysInPeriod: totalDays,
-      completionRate: Math.round((uniqueDays / totalDays) * 100),
-      currentStreak: current,
-      longestStreak: longest,
-    };
+    // Group completions by habit ID
+    const completionsByHabit = new Map<string, HabitCompletion[]>();
+    for (const c of allCompletions) {
+      const list = completionsByHabit.get(c.habitId) ?? [];
+      list.push(c);
+      completionsByHabit.set(c.habitId, list);
+    }
+
+    return validIds.map((id) => {
+      const habit = habitMap.get(id)!;
+      const completions = completionsByHabit.get(id) ?? [];
+      const uniqueDays = new Set(completions.map((c) => c.date)).size;
+      const { current, longest } = calcStreaks(completions);
+
+      return {
+        habit,
+        completionsThisPeriod: uniqueDays,
+        totalDaysInPeriod: totalDays,
+        completionRate: Math.round((uniqueDays / totalDays) * 100),
+        currentStreak: current,
+        longestStreak: longest,
+      };
+    });
   }
 
   async getWeeklySummary(): Promise<WeeklySummary> {
@@ -286,10 +320,10 @@ export class MockDataService implements DataService {
     const end = todayStr();
 
     const habits = await this.getHabits();
-    const habitSummaries: HabitSummary[] = [];
-    for (const h of habits) {
-      habitSummaries.push(await this.getHabitSummary(h.id, 'week'));
-    }
+    const habitSummaries = await this.getHabitSummaries(
+      habits.map((h) => h.id),
+      'week',
+    );
 
     const allMetricEntries = getStore<MetricEntry>(STORAGE_KEYS.metricEntries)
       .filter((e) => e.date >= start && e.date <= end);
