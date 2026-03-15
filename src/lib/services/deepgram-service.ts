@@ -13,6 +13,7 @@ let ws: WebSocket | null = null;
 let mediaStream: MediaStream | null = null;
 let audioContext: AudioContext | null = null;
 let isActive = false;
+let wsReady = false;
 
 async function getDeepGramToken(): Promise<string> {
   const res = await fetch('/api/deepgram-token');
@@ -103,7 +104,7 @@ export async function startDeepGram(callbacks: DeepGramCallbacks): Promise<void>
     // 3. Create audio pipeline first so we can read the actual sample rate
     //    (iOS Safari ignores requested sampleRate and uses hardware rate e.g. 48000)
     await createAudioPipeline(mediaStream, (buffer) => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
+      if (wsReady && ws && ws.readyState === WebSocket.OPEN) {
         ws.send(buffer);
       }
     });
@@ -129,6 +130,7 @@ export async function startDeepGram(callbacks: DeepGramCallbacks): Promise<void>
     ws.onopen = () => {
       // DeepGram WebSocket connected
       isActive = true;
+      wsReady = true;
       callbacks.onOpen();
       // Audio pipeline already started before WebSocket connection (to read actual sample rate)
     };
@@ -157,6 +159,7 @@ export async function startDeepGram(callbacks: DeepGramCallbacks): Promise<void>
     ws.onclose = (event) => {
       // DeepGram WebSocket closed
       isActive = false;
+      wsReady = false;
       // Release mic and AudioContext on WebSocket close to prevent resource leaks
       if (mediaStream) {
         mediaStream.getTracks().forEach(t => t.stop());
@@ -166,6 +169,7 @@ export async function startDeepGram(callbacks: DeepGramCallbacks): Promise<void>
         audioContext.close().catch(() => {});
         audioContext = null;
       }
+      ws = null;
       callbacks.onClose();
     };
 
@@ -179,6 +183,7 @@ export async function startDeepGram(callbacks: DeepGramCallbacks): Promise<void>
 
 export function stopDeepGram(): void {
   isActive = false;
+  wsReady = false;
 
   // Clean up audio context (handles both AudioWorklet and ScriptProcessor)
   if (audioContext && audioContext.state !== 'closed') {

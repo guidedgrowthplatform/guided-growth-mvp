@@ -15,13 +15,6 @@ let audioChunks: Float32Array[] = [];
 let isActive = false;
 let captureNode: ScriptProcessorNode | null = null;
 
-async function getElevenLabsToken(): Promise<string> {
-  const res = await fetch('/api/elevenlabs-token');
-  if (!res.ok) throw new Error('Failed to get ElevenLabs token');
-  const data = await res.json();
-  return data.token;
-}
-
 function float32ToWavBlob(samples: Float32Array, sampleRate: number): Blob {
   const numSamples = samples.length;
   const buffer = new ArrayBuffer(44 + numSamples * 2);
@@ -121,24 +114,22 @@ export async function stopElevenLabsAndTranscribe(): Promise<string> {
   }
   audioChunks = [];
 
-  // Convert to WAV and upload
+  // Convert to WAV and upload via server-side proxy (API key stays on server)
   const wavBlob = float32ToWavBlob(merged, sampleRate);
-  const token = await getElevenLabsToken();
 
   const form = new FormData();
   form.append('file', wavBlob, 'recording.wav');
   form.append('model_id', 'scribe_v2');
   form.append('language_code', 'en');
 
-  const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+  const res = await fetch('/api/elevenlabs-stt', {
     method: 'POST',
-    headers: { 'xi-api-key': token },
     body: form,
   });
 
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.detail || `ElevenLabs API error: ${res.status}`);
+    throw new Error(errData.error || `ElevenLabs API error: ${res.status}`);
   }
 
   const data = await res.json();

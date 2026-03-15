@@ -22,17 +22,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         time_to_live_in_seconds: 60,
         scopes: ['usage:write'],
       }),
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!response.ok) {
       console.error('DeepGram temp key API failed:', response.status);
-      return res.status(200).json({ token: apiKey, temporary: false });
+      return res.status(503).json({ error: 'Failed to generate temporary DeepGram key' });
     }
 
     const data = await response.json();
     return res.status(200).json({ token: data.api_key || data.key, temporary: true });
   } catch (err) {
     console.error('DeepGram token error:', err);
-    return res.status(200).json({ token: apiKey, temporary: false });
+    return res.status(503).json({ error: 'DeepGram key service unavailable' });
   }
 }

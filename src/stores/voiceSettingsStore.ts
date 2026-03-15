@@ -31,15 +31,24 @@ const DEFAULTS: VoiceSettings = {
   sttProvider: 'webspeech',
 };
 
+const VALID_RECORDING_MODES: readonly RecordingMode[] = ['auto-stop', 'always-on'];
+const VALID_STT_PROVIDERS: readonly SttProvider[] = ['webspeech', 'whisper', 'deepgram', 'elevenlabs'];
+
 function parseStoredSettings(raw: string | null): VoiceSettings {
   if (!raw) return { ...DEFAULTS };
   try {
     const parsed = JSON.parse(raw);
+    const recordingMode = (VALID_RECORDING_MODES as readonly string[]).includes(parsed.recordingMode)
+      ? (parsed.recordingMode as RecordingMode)
+      : DEFAULTS.recordingMode;
+    const sttProvider = (VALID_STT_PROVIDERS as readonly string[]).includes(parsed.sttProvider)
+      ? (parsed.sttProvider as SttProvider)
+      : DEFAULTS.sttProvider;
     return {
-      recordingMode: parsed.recordingMode || DEFAULTS.recordingMode,
+      recordingMode,
       selectedVoiceName: parsed.selectedVoiceName || DEFAULTS.selectedVoiceName,
       ttsEnabled: parsed.ttsEnabled ?? DEFAULTS.ttsEnabled,
-      sttProvider: parsed.sttProvider || DEFAULTS.sttProvider,
+      sttProvider,
     };
   } catch {
     return { ...DEFAULTS };

@@ -33,6 +33,7 @@ export async function loadWhisperModel(): Promise<void> {
   if (isLoading) return;
 
   isLoading = true;
+  loadProgress = 0;
   notifyListeners('loading', 0);
 
   try {
@@ -134,10 +135,6 @@ export async function stopAudioCapture(): Promise<Float32Array> {
     offset += chunk.length;
   }
   recordedChunks = [];
-
-  const durationSec = (totalLength / 16000).toFixed(2);
-  const maxAmp = result.reduce((max, v) => Math.max(max, Math.abs(v)), 0);
-  // Audio captured: samples=totalLength, duration=durationSec
 
   return result;
 }

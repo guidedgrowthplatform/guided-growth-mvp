@@ -216,7 +216,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(502).json({ error: 'Empty response from GPT' });
     }
 
-    const parsed = JSON.parse(content);
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      console.error('GPT returned invalid JSON:', content);
+      return res.status(502).json({ error: 'GPT returned invalid JSON response' });
+    }
+
+    if (!parsed.action || !parsed.entity) {
+      console.error('GPT response missing required fields:', parsed);
+      return res.status(502).json({ error: 'GPT response missing required fields (action, entity)' });
+    }
+
     const latency = Date.now() - startTime;
 
     // Sanitize: only allow expected keys to prevent prototype pollution
