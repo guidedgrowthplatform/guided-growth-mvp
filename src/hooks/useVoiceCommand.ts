@@ -178,8 +178,20 @@ export function useVoiceCommand() {
     addHistory,
   } = useCommandStore();
 
-  const processTranscript = useCallback(async (transcript: string) => {
-    if (!transcript.trim()) return;
+  const processTranscript = useCallback(async (rawTranscript: string) => {
+    if (!rawTranscript.trim()) return;
+
+    // Normalize transcript: ElevenLabs Scribe adds extra punctuation and
+    // capitalization that confuses GPT (e.g., "Create a new habit. Painting."
+    // → GPT extracts "habit. painting" as the name).
+    const transcript = rawTranscript
+      .replace(/\.\s+/g, ' ')       // "habit. painting" → "habit painting"
+      .replace(/[.!?]+$/g, '')       // trailing punctuation
+      .replace(/,\s*/g, ', ')        // normalize comma spacing
+      .replace(/\s{2,}/g, ' ')       // collapse multiple spaces
+      .trim();
+
+    if (!transcript) return;
 
     setProcessing(true);
     const startTime = Date.now();

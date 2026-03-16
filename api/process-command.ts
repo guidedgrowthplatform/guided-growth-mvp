@@ -32,7 +32,7 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
 ## Parse Rules
 1. Extract EXACTLY ONE action and entity per transcript.
 2. Default date is "today" if the user doesn't specify one.
-3. When user specifies an EXACT date (e.g., "8th March 2026", "March 10", "January 5th"), convert it to ISO format YYYY-MM-DD in the params. If no year is given, assume the current year.
+3. IMPORTANT: When user specifies ANY date (e.g., "8th March 2026", "March 10", "26 march 2026", "January 5th", "march 15"), you MUST convert it to ISO format YYYY-MM-DD in the "date" param. If no year is given, assume 2026. NEVER default to "today" when a specific date is mentioned.
 4. Day names (monday, tuesday, etc.) = the most recent past occurrence of that day.
 4. Convert spoken numbers to numeric values ("eight" → 8, "seven out of ten" → 7).
 5. If the user says "habits" (plural) treat it the same as "habit".
@@ -97,6 +97,12 @@ User: "Mark reading done for Monday"
 
 User: "Mark meditation done for 8th March 2026"
 {"action":"complete","entity":"habit","params":{"name":"meditation","date":"2026-03-08"},"confidence":0.95}
+
+User: "Mark painting done for 26 march 2026"
+{"action":"complete","entity":"habit","params":{"name":"painting","date":"2026-03-26"},"confidence":0.95}
+
+User: "Mark exercise done for march 15"
+{"action":"complete","entity":"habit","params":{"name":"exercise","date":"2026-03-15"},"confidence":0.9}
 
 User: "Log mood as 7 for March 10th"
 {"action":"log","entity":"metric","params":{"name":"mood","value":7,"date":"2026-03-10"},"confidence":0.9}

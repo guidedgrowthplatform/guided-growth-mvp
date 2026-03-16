@@ -21,8 +21,8 @@ import { ensureMicPermission } from '@/lib/services/mic-permissions';
 const CHUNK_GAP_MS = 1500;
 const MAX_TRANSCRIPT_LENGTH = 200;
 
-// Silence detection config
-const SILENCE_TIMEOUT_MS = 2500; // auto-stop after 2.5s of silence (like Siri)
+// Silence detection config — 4.5s gives time for natural pauses mid-sentence
+const SILENCE_TIMEOUT_MS = 4500;
 
 // Extend Window interface for webkit prefix
 interface SpeechRecognitionEvent extends Event {
