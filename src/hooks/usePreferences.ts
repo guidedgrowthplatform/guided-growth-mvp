@@ -22,15 +22,24 @@ export function usePreferences() {
   const spreadsheetRange = data?.spreadsheet_range ?? defaultPrefs.spreadsheet_range;
   const loaded = !isLoading;
 
-  const saveView = useCallback((view: ViewMode) => {
-    qc.setQueryData(queryKeys.preferences.all, (old: any) => ({ ...old, default_view: view }));
-    prefsApi.savePreferences({ default_view: view }).catch(() => {});
-  }, [qc]);
+  const saveView = useCallback(
+    (view: ViewMode) => {
+      qc.setQueryData(queryKeys.preferences.all, (old: any) => ({ ...old, default_view: view }));
+      prefsApi.savePreferences({ default_view: view }).catch(() => {});
+    },
+    [qc],
+  );
 
-  const saveRange = useCallback((range: SpreadsheetRange) => {
-    qc.setQueryData(queryKeys.preferences.all, (old: any) => ({ ...old, spreadsheet_range: range }));
-    prefsApi.savePreferences({ spreadsheet_range: range }).catch(() => {});
-  }, [qc]);
+  const saveRange = useCallback(
+    (range: SpreadsheetRange) => {
+      qc.setQueryData(queryKeys.preferences.all, (old: any) => ({
+        ...old,
+        spreadsheet_range: range,
+      }));
+      prefsApi.savePreferences({ spreadsheet_range: range }).catch(() => {});
+    },
+    [qc],
+  );
 
   return { defaultView, spreadsheetRange, loaded, saveView, saveRange };
 }

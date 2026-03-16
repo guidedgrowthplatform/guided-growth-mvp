@@ -6,11 +6,7 @@ export interface StreakResult {
   longest: number;
 }
 
-export function computeStreak(
-  entries: EntriesMap,
-  metricId: string,
-  metric: Metric
-): StreakResult {
+export function computeStreak(entries: EntriesMap, metricId: string, metric: Metric): StreakResult {
   const today = new Date();
   let current = 0;
   let longest = 0;

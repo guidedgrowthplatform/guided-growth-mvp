@@ -15,7 +15,7 @@ function initService(): Promise<DataService> {
   if (_initPromise) return _initPromise;
 
   if (useSupabase) {
-    _initPromise = import('./supabase-data-service').then(mod => {
+    _initPromise = import('./supabase-data-service').then((mod) => {
       _service = mod.supabaseDataService;
       console.log('[ServiceProvider] Using SupabaseDataService');
       return _service;
@@ -53,4 +53,3 @@ export function resetServiceProvider(): void {
   _service = null;
   _initPromise = null;
 }
-

@@ -14,7 +14,7 @@ export function FormView({ date, metrics, entries, onChange }: FormViewProps) {
 
   if (dueMetrics.length === 0) {
     return (
-      <div className="bg-surface shadow-card border border-border rounded-2xl p-8 text-center text-content-secondary">
+      <div className="rounded-2xl border border-border bg-surface p-8 text-center text-content-secondary shadow-card">
         No metrics due for this day.
       </div>
     );

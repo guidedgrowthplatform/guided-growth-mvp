@@ -19,7 +19,6 @@ function todayStr(): string {
 }
 
 export class SupabaseDataService implements DataService {
-
   // ─── Habits ───
 
   async createHabit(name: string, frequency = 'daily'): Promise<Habit> {
@@ -29,7 +28,9 @@ export class SupabaseDataService implements DataService {
       throw new Error(`You already have a habit called "${existing.name}"`);
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
     const { data, error } = await supabase
@@ -38,13 +39,19 @@ export class SupabaseDataService implements DataService {
         user_id: user.id,
         name,
         habit_type: 'binary_do',
-        cadence: frequency === 'daily' ? 'daily' :
-                 frequency === '3x/week' ? '3_specific_days' :
-                 frequency === 'weekly' ? 'once_a_week' :
-                 frequency === 'weekdays' ? 'weekdays' : 'daily',
+        cadence:
+          frequency === 'daily'
+            ? 'daily'
+            : frequency === '3x/week'
+              ? '3_specific_days'
+              : frequency === 'weekly'
+                ? 'once_a_week'
+                : frequency === 'weekdays'
+                  ? 'weekdays'
+                  : 'daily',
         daily_goal: 1,
         is_active: true,
-        sort_order: 9999,  // Put new habits at end; reorder will fix
+        sort_order: 9999, // Put new habits at end; reorder will fix
       })
       .select()
       .single();
@@ -69,7 +76,7 @@ export class SupabaseDataService implements DataService {
 
     if (error) throw new Error(error.message);
 
-    return (data || []).map(h => ({
+    return (data || []).map((h) => ({
       id: h.id,
       name: h.name,
       frequency: h.cadence,
@@ -98,7 +105,10 @@ export class SupabaseDataService implements DataService {
     };
   }
 
-  async updateHabit(id: string, updates: Partial<Pick<Habit, 'name' | 'frequency' | 'active'>>): Promise<Habit> {
+  async updateHabit(
+    id: string,
+    updates: Partial<Pick<Habit, 'name' | 'frequency' | 'active'>>,
+  ): Promise<Habit> {
     const supaUpdates: Record<string, unknown> = {};
     if (updates.name !== undefined) supaUpdates.name = updates.name;
     if (updates.frequency !== undefined) supaUpdates.cadence = updates.frequency;
@@ -144,7 +154,7 @@ export class SupabaseDataService implements DataService {
           completed: true,
           completed_via: 'ui',
         },
-        { onConflict: 'user_habit_id,date' }
+        { onConflict: 'user_habit_id,date' },
       )
       .select()
       .single();
@@ -159,7 +169,11 @@ export class SupabaseDataService implements DataService {
     };
   }
 
-  async getCompletions(habitId: string, startDate?: string, endDate?: string): Promise<HabitCompletion[]> {
+  async getCompletions(
+    habitId: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<HabitCompletion[]> {
     let query = supabase
       .from('habit_completions')
       .select('*')
@@ -173,7 +187,7 @@ export class SupabaseDataService implements DataService {
     const { data, error } = await query;
     if (error) throw new Error(error.message);
 
-    return (data || []).map(c => ({
+    return (data || []).map((c) => ({
       id: c.id,
       habitId: c.user_habit_id,
       date: c.date,
@@ -185,10 +199,18 @@ export class SupabaseDataService implements DataService {
   // Note: Metrics map to daily_checkins in the new schema
   // For MVP, we store them as custom entries
 
-  async createMetric(name: string, inputType = 'scale', frequency = 'daily', scaleMin?: number, scaleMax?: number): Promise<TrackedMetric> {
+  async createMetric(
+    name: string,
+    inputType = 'scale',
+    frequency = 'daily',
+    scaleMin?: number,
+    scaleMax?: number,
+  ): Promise<TrackedMetric> {
     // Store metrics as a special habit type for now
     // In future, metrics could have their own table
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
     const metric: TrackedMetric = {
@@ -215,12 +237,12 @@ export class SupabaseDataService implements DataService {
 
   async getMetricByName(name: string): Promise<TrackedMetric | null> {
     const metrics = await this.getMetrics();
-    return metrics.find(m => m.name.toLowerCase() === name.toLowerCase()) || null;
+    return metrics.find((m) => m.name.toLowerCase() === name.toLowerCase()) || null;
   }
 
   async deleteMetric(id: string): Promise<void> {
     const metrics = await this.getMetrics();
-    localStorage.setItem('supabase_metrics', JSON.stringify(metrics.filter(m => m.id !== id)));
+    localStorage.setItem('supabase_metrics', JSON.stringify(metrics.filter((m) => m.id !== id)));
   }
 
   // ─── Metric Entries ───
@@ -241,9 +263,15 @@ export class SupabaseDataService implements DataService {
     return entry;
   }
 
-  async getMetricEntries(metricId: string, startDate?: string, endDate?: string): Promise<MetricEntry[]> {
-    const entries: MetricEntry[] = JSON.parse(localStorage.getItem('supabase_metric_entries') || '[]');
-    return entries.filter(e => {
+  async getMetricEntries(
+    metricId: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<MetricEntry[]> {
+    const entries: MetricEntry[] = JSON.parse(
+      localStorage.getItem('supabase_metric_entries') || '[]',
+    );
+    return entries.filter((e) => {
       if (e.metricId !== metricId) return false;
       if (startDate && e.date < startDate) return false;
       if (endDate && e.date > endDate) return false;
@@ -253,8 +281,14 @@ export class SupabaseDataService implements DataService {
 
   // ─── Journal ───
 
-  async createJournalEntry(content: string, mood?: string, themes?: string[]): Promise<JournalEntry> {
-    const { data: { user } } = await supabase.auth.getUser();
+  async createJournalEntry(
+    content: string,
+    mood?: string,
+    themes?: string[],
+  ): Promise<JournalEntry> {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
     const { data, error } = await supabase
@@ -293,7 +327,7 @@ export class SupabaseDataService implements DataService {
     const { data, error } = await query;
     if (error) throw new Error(error.message);
 
-    return (data || []).map(j => ({
+    return (data || []).map((j) => ({
       id: j.id,
       content: j.response,
       mood: undefined,
@@ -307,7 +341,7 @@ export class SupabaseDataService implements DataService {
 
   async getHabitSummary(habitId: string, period: 'week' | 'month'): Promise<HabitSummary> {
     const habits = await this.getHabits();
-    const habit = habits.find(h => h.id === habitId);
+    const habit = habits.find((h) => h.id === habitId);
     if (!habit) throw new Error('Habit not found');
 
     const daysBack = period === 'week' ? 7 : 30;
@@ -341,9 +375,7 @@ export class SupabaseDataService implements DataService {
     const endStr = todayStr();
 
     const habits = await this.getHabits();
-    const habitSummaries = await Promise.all(
-      habits.map(h => this.getHabitSummary(h.id, 'week'))
-    );
+    const habitSummaries = await Promise.all(habits.map((h) => this.getHabitSummary(h.id, 'week')));
 
     const journalEntries = await this.getJournalEntries(startStr, endStr);
     const metrics = await this.getMetrics();
@@ -361,7 +393,9 @@ export class SupabaseDataService implements DataService {
   async seedData(): Promise<void> {
     // Seeded data already exists in Supabase via seed.sql
     // This method seeds user-specific demo data for testing
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       console.warn('[SupabaseDataService] Not authenticated — cannot seed data');
       return;
@@ -381,9 +415,11 @@ export class SupabaseDataService implements DataService {
     // Clear user's local metric data
     localStorage.removeItem('supabase_metrics');
     localStorage.removeItem('supabase_metric_entries');
-    
+
     // Note: Supabase data is not cleared via this method for safety
-    console.warn('[SupabaseDataService] clearData only clears local metric cache. Supabase data preserved.');
+    console.warn(
+      '[SupabaseDataService] clearData only clears local metric cache. Supabase data preserved.',
+    );
   }
 }
 

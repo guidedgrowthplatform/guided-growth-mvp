@@ -89,7 +89,10 @@ export class ActionDispatcher {
   }
 
   // ─── CREATE ───
-  private async handleCreate(entity: string, params: Record<string, unknown>): Promise<ActionResult> {
+  private async handleCreate(
+    entity: string,
+    params: Record<string, unknown>,
+  ): Promise<ActionResult> {
     const name = String(params.name || '');
     if (!name) return { success: false, message: 'Missing name for creation', uiAction: 'toast' };
 
@@ -155,7 +158,10 @@ export class ActionDispatcher {
   }
 
   // ─── COMPLETE ───
-  private async handleComplete(entity: string, params: Record<string, unknown>): Promise<ActionResult> {
+  private async handleComplete(
+    entity: string,
+    params: Record<string, unknown>,
+  ): Promise<ActionResult> {
     if (entity !== 'habit') {
       return { success: false, message: `Can't complete ${entity}`, uiAction: 'toast' };
     }
@@ -163,7 +169,11 @@ export class ActionDispatcher {
     const name = String(params.name || '');
     const habit = await this.dataService.getHabitByName(name);
     if (!habit) {
-      return { success: false, message: `${MSG.error} Habit "${name}" not found`, uiAction: 'toast' };
+      return {
+        success: false,
+        message: `${MSG.error} Habit "${name}" not found`,
+        uiAction: 'toast',
+      };
     }
 
     // Handle multiple dates
@@ -195,13 +205,21 @@ export class ActionDispatcher {
   }
 
   // ─── DELETE ───
-  private async handleDelete(entity: string, params: Record<string, unknown>): Promise<ActionResult> {
+  private async handleDelete(
+    entity: string,
+    params: Record<string, unknown>,
+  ): Promise<ActionResult> {
     const name = String(params.name || '');
 
     switch (entity) {
       case 'habit': {
         const habit = await this.dataService.getHabitByName(name);
-        if (!habit) return { success: false, message: `${MSG.error} Habit "${name}" not found`, uiAction: 'toast' };
+        if (!habit)
+          return {
+            success: false,
+            message: `${MSG.error} Habit "${name}" not found`,
+            uiAction: 'toast',
+          };
         await this.dataService.deleteHabit(habit.id);
         return {
           success: true,
@@ -212,7 +230,12 @@ export class ActionDispatcher {
       }
       case 'metric': {
         const metric = await this.dataService.getMetricByName(name);
-        if (!metric) return { success: false, message: `${MSG.error} Metric "${name}" not found`, uiAction: 'toast' };
+        if (!metric)
+          return {
+            success: false,
+            message: `${MSG.error} Metric "${name}" not found`,
+            uiAction: 'toast',
+          };
         await this.dataService.deleteMetric(metric.id);
         return {
           success: true,
@@ -227,20 +250,31 @@ export class ActionDispatcher {
   }
 
   // ─── UPDATE ───
-  private async handleUpdate(entity: string, params: Record<string, unknown>): Promise<ActionResult> {
+  private async handleUpdate(
+    entity: string,
+    params: Record<string, unknown>,
+  ): Promise<ActionResult> {
     if (entity !== 'habit') {
       return { success: false, message: `Can't update ${entity} yet`, uiAction: 'toast' };
     }
 
     const name = String(params.name || '');
     const habit = await this.dataService.getHabitByName(name);
-    if (!habit) return { success: false, message: `${MSG.error} Habit "${name}" not found`, uiAction: 'toast' };
+    if (!habit)
+      return {
+        success: false,
+        message: `${MSG.error} Habit "${name}" not found`,
+        uiAction: 'toast',
+      };
 
     const updates: Record<string, unknown> = {};
     if (params.newName) updates.name = String(params.newName);
     if (params.frequency) updates.frequency = String(params.frequency);
 
-    const updated = await this.dataService.updateHabit(habit.id, updates as { name?: string; frequency?: string });
+    const updated = await this.dataService.updateHabit(
+      habit.id,
+      updates as { name?: string; frequency?: string },
+    );
     return {
       success: true,
       message: `${MSG.success} Updated habit "${updated.name}"`,
@@ -251,14 +285,22 @@ export class ActionDispatcher {
   }
 
   // ─── QUERY ───
-  private async handleQuery(entity: string, params: Record<string, unknown>): Promise<ActionResult> {
+  private async handleQuery(
+    entity: string,
+    params: Record<string, unknown>,
+  ): Promise<ActionResult> {
     switch (entity) {
       case 'habit': {
         const name = params.name ? String(params.name) : null;
         if (name) {
           // Query specific habit
           const habit = await this.dataService.getHabitByName(name);
-          if (!habit) return { success: false, message: `${MSG.error} Habit "${name}" not found`, uiAction: 'toast' };
+          if (!habit)
+            return {
+              success: false,
+              message: `${MSG.error} Habit "${name}" not found`,
+              uiAction: 'toast',
+            };
 
           const period = (params.period as 'week' | 'month') || 'week';
           const summary = await this.dataService.getHabitSummary(habit.id, period);
@@ -304,7 +346,7 @@ export class ActionDispatcher {
       case 'summary': {
         const summary = await this.dataService.getWeeklySummary();
         const habitLines = summary.habits.map(
-          (h) => `• ${h.habit.name}: ${h.completionRate}% (streak: ${h.currentStreak})`
+          (h) => `• ${h.habit.name}: ${h.completionRate}% (streak: ${h.currentStreak})`,
         );
         return {
           success: true,
@@ -332,10 +374,16 @@ export class ActionDispatcher {
 
     const name = String(params.name || '');
     const metric = await this.dataService.getMetricByName(name);
-    if (!metric) return { success: false, message: `${MSG.error} Metric "${name}" not found`, uiAction: 'toast' };
+    if (!metric)
+      return {
+        success: false,
+        message: `${MSG.error} Metric "${name}" not found`,
+        uiAction: 'toast',
+      };
 
     const value = params.value != null ? params.value : null;
-    if (value == null) return { success: false, message: `Missing value for metric "${name}"`, uiAction: 'toast' };
+    if (value == null)
+      return { success: false, message: `Missing value for metric "${name}"`, uiAction: 'toast' };
 
     const date = parseDateParam(params.date);
     await this.dataService.logMetric(metric.id, value as number | string, date);
@@ -347,19 +395,19 @@ export class ActionDispatcher {
   }
 
   // ─── REFLECT ───
-  private async handleReflect(_entity: string, params: Record<string, unknown>): Promise<ActionResult> {
+  private async handleReflect(
+    _entity: string,
+    params: Record<string, unknown>,
+  ): Promise<ActionResult> {
     const mood = String(params.mood || 'neutral');
     const themes = (params.themes as string[]) || [];
-    const content = themes.length > 0
-      ? `Feeling ${mood}. Themes: ${themes.join(', ')}`
-      : `Feeling ${mood}`;
+    const content =
+      themes.length > 0 ? `Feeling ${mood}. Themes: ${themes.join(', ')}` : `Feeling ${mood}`;
 
     // FIX-01 (#21): Check for duplicate journal entries today with same content
     const today = todayStr();
     const todayEntries = await this.dataService.getJournalEntries(today, today);
-    const duplicate = todayEntries.find(
-      (e) => e.content.toLowerCase() === content.toLowerCase()
-    );
+    const duplicate = todayEntries.find((e) => e.content.toLowerCase() === content.toLowerCase());
     if (duplicate) {
       return {
         success: false,
@@ -379,14 +427,18 @@ export class ActionDispatcher {
   }
 
   // ─── SUGGEST ───
-  private async handleSuggest(_entity: string, _params: Record<string, unknown>): Promise<ActionResult> {
+  private async handleSuggest(
+    _entity: string,
+    _params: Record<string, unknown>,
+  ): Promise<ActionResult> {
     const habits = await this.dataService.getHabits();
     const existingNames = habits.map((h) => h.name.toLowerCase());
 
     const available = HABIT_SUGGESTIONS.filter((s) => !existingNames.includes(s));
-    const suggestion = available.length > 0
-      ? available[Math.floor(Math.random() * available.length)]
-      : DEFAULT_SUGGESTION;
+    const suggestion =
+      available.length > 0
+        ? available[Math.floor(Math.random() * available.length)]
+        : DEFAULT_SUGGESTION;
 
     return {
       success: true,

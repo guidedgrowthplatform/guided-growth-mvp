@@ -30,7 +30,12 @@
 
 body {
   margin: 0;
-  font-family: 'Urbanist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    'Urbanist',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   background: rgb(var(--color-primary-bg));
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
@@ -43,7 +48,7 @@ body {
   }
 
   .purple-row-border::before {
-    content: "";
+    content: '';
     position: absolute;
     left: 0;
     right: 0;
@@ -55,7 +60,7 @@ body {
   }
 
   .purple-row-border::after {
-    content: "";
+    content: '';
     position: absolute;
     left: 0;
     right: 0;

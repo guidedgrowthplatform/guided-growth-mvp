@@ -6,7 +6,13 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const useSupabase = supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
 
 // Convert DataService habit to Metric format
-function habitToMetric(h: { id: string; name: string; frequency: string; createdAt: string; active: boolean }): Metric {
+function habitToMetric(h: {
+  id: string;
+  name: string;
+  frequency: string;
+  createdAt: string;
+  active: boolean;
+}): Metric {
   return {
     id: h.id,
     name: h.name,
@@ -84,7 +90,6 @@ export async function deleteMetric(id: string): Promise<void> {
   } catch {
     const ds = await getDataService();
     await ds.deleteHabit(id);
-
   }
 }
 

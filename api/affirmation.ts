@@ -16,7 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await pool.query(
       `INSERT INTO affirmations (user_id, value) VALUES ($1, $2)
        ON CONFLICT (user_id) DO UPDATE SET value = $2`,
-      [user.id, value]
+      [user.id, value],
     );
     return res.json({ value });
   }

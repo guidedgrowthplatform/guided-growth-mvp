@@ -10,7 +10,11 @@ export function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<ForgotPasswordForm>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ForgotPasswordForm>({
     resolver: zodResolver(forgotPasswordSchema),
   });
 
@@ -32,25 +36,21 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-primary-bg">
-      <div className="bg-surface shadow-elevated border border-border rounded-2xl p-8 max-w-md w-full mx-4">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary mb-2">
-            Reset Password
-          </h1>
-          <p className="text-content-secondary">
-            Enter your email and we'll send you a reset link
-          </p>
+    <div className="flex min-h-screen items-center justify-center bg-primary-bg">
+      <div className="mx-4 w-full max-w-md rounded-2xl border border-border bg-surface p-8 shadow-elevated">
+        <div className="mb-8 text-center">
+          <h1 className="mb-2 text-3xl font-bold text-primary">Reset Password</h1>
+          <p className="text-content-secondary">Enter your email and we'll send you a reset link</p>
         </div>
 
         {sent ? (
-          <div className="text-center space-y-4">
-            <div className="p-4 rounded-lg bg-success/10 border border-success/20 text-success text-sm">
+          <div className="space-y-4 text-center">
+            <div className="rounded-lg border border-success/20 bg-success/10 p-4 text-sm text-success">
               Check your email for a password reset link.
             </div>
             <Link
               to="/login"
-              className="inline-block text-sm text-primary hover:text-primary-dark font-semibold underline transition-colors"
+              className="inline-block text-sm font-semibold text-primary underline transition-colors hover:text-primary-dark"
             >
               Back to sign in
             </Link>
@@ -59,20 +59,18 @@ export function ForgotPasswordPage() {
           <>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-content mb-1">Email</label>
+                <label className="mb-1 block text-sm font-medium text-content">Email</label>
                 <input
                   type="email"
                   {...register('email')}
-                  className="w-full px-4 py-3 rounded-xl border border-border bg-surface
-                             focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
-                             transition-all duration-200"
+                  className="w-full rounded-xl border border-border bg-surface px-4 py-3 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="you@example.com"
                 />
                 {errors.email && <p className="mt-1 text-xs text-danger">{errors.email.message}</p>}
               </div>
 
               {error && (
-                <div className="p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
+                <div className="rounded-lg border border-danger/20 bg-danger/10 p-3 text-sm text-danger">
                   {error}
                 </div>
               )}
@@ -80,10 +78,7 @@ export function ForgotPasswordPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 px-4 rounded-xl font-semibold text-white
-                           bg-primary hover:bg-primary-dark
-                           disabled:opacity-50 disabled:cursor-not-allowed
-                           transition-all duration-200 shadow-lg"
+                className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? 'Sending...' : 'Send Reset Link'}
               </button>
@@ -93,7 +88,7 @@ export function ForgotPasswordPage() {
               Remember your password?{' '}
               <Link
                 to="/login"
-                className="text-primary hover:text-primary-dark font-semibold underline transition-colors"
+                className="font-semibold text-primary underline transition-colors hover:text-primary-dark"
               >
                 Sign in
               </Link>

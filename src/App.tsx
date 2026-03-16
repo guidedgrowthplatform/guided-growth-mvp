@@ -21,9 +21,12 @@ import { getDataService } from '@/lib/services/service-provider';
 function useSeedData() {
   const qc = useQueryClient();
   useEffect(() => {
-    getDataService().then(ds => ds.seedData()).then(() => {
-      qc.invalidateQueries();
-    }).catch(console.error);
+    getDataService()
+      .then((ds) => ds.seedData())
+      .then(() => {
+        qc.invalidateQueries();
+      })
+      .catch(console.error);
   }, [qc]);
 }
 
@@ -53,7 +56,7 @@ function ProtectedRoutes() {
   );
 }
 
-// Login route — redirect to app if already authenticated  
+// Login route — redirect to app if already authenticated
 function LoginRoute() {
   const { user } = useAuth();
   if (user) return <Navigate to="/capture" replace />;

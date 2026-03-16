@@ -33,14 +33,23 @@ function loadFromStorage(): VoiceSettings {
         sttProvider: parsed.sttProvider || 'webspeech',
       };
     }
-  } catch { /* ignore */ }
-  return { recordingMode: 'auto-stop', selectedVoiceName: null, ttsEnabled: true, sttProvider: 'webspeech' };
+  } catch {
+    /* ignore */
+  }
+  return {
+    recordingMode: 'auto-stop',
+    selectedVoiceName: null,
+    ttsEnabled: true,
+    sttProvider: 'webspeech',
+  };
 }
 
 function saveToStorage(settings: VoiceSettings): void {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export const useVoiceSettingsStore = create<VoiceSettingsState>((set, get) => ({

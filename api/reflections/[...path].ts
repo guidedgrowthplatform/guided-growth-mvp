@@ -14,13 +14,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
-  const route = segments[0] === '__index' ? '' : (segments[0] || '');
+  const route = segments[0] === '__index' ? '' : segments[0] || '';
 
   // GET/PUT /api/reflections/config
   if (route === 'config') {
     if (req.method === 'GET') {
-      const result = await pool.query('SELECT fields, show_affirmation FROM reflection_configs WHERE user_id = $1', [user.id]);
-      if (result.rows.length === 0) return res.json({ fields: DEFAULT_FIELDS, show_affirmation: true });
+      const result = await pool.query(
+        'SELECT fields, show_affirmation FROM reflection_configs WHERE user_id = $1',
+        [user.id],
+      );
+      if (result.rows.length === 0)
+        return res.json({ fields: DEFAULT_FIELDS, show_affirmation: true });
       return res.json(result.rows[0]);
     }
     if (req.method === 'PUT') {
@@ -28,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await pool.query(
         `INSERT INTO reflection_configs (user_id, fields, show_affirmation) VALUES ($1, $2, $3)
          ON CONFLICT (user_id) DO UPDATE SET fields = $2, show_affirmation = $3`,
-        [user.id, JSON.stringify(fields), show_affirmation]
+        [user.id, JSON.stringify(fields), show_affirmation],
       );
       return res.json({ fields, show_affirmation });
     }
@@ -44,12 +48,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await client.query('BEGIN');
       for (const [fieldId, value] of Object.entries(req.body)) {
         if (value === '' || value === null || value === undefined) {
-          await client.query('DELETE FROM reflections WHERE user_id = $1 AND date = $2 AND field_id = $3', [user.id, date, fieldId]);
+          await client.query(
+            'DELETE FROM reflections WHERE user_id = $1 AND date = $2 AND field_id = $3',
+            [user.id, date, fieldId],
+          );
         } else {
           await client.query(
             `INSERT INTO reflections (user_id, date, field_id, value) VALUES ($1, $2, $3, $4)
              ON CONFLICT (user_id, date, field_id) DO UPDATE SET value = $4`,
-            [user.id, date, fieldId, value]
+            [user.id, date, fieldId, value],
           );
         }
       }
@@ -70,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const result = await pool.query(
     'SELECT date::text, field_id, value FROM reflections WHERE user_id = $1 AND date >= $2 AND date <= $3',
-    [user.id, start, end]
+    [user.id, start, end],
   );
 
   const map: Record<string, Record<string, string>> = {};

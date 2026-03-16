@@ -11,19 +11,22 @@ export function ReflectionField({ field, value, onChange }: ReflectionFieldProps
   const [localValue, setLocalValue] = useState(value);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const handleChange = useCallback((newValue: string) => {
-    setLocalValue(newValue);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => onChange(field.id, newValue), 500);
-  }, [field.id, onChange]);
+  const handleChange = useCallback(
+    (newValue: string) => {
+      setLocalValue(newValue);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => onChange(field.id, newValue), 500);
+    },
+    [field.id, onChange],
+  );
 
   return (
     <div>
-      <label className="block text-sm font-medium text-content mb-1">{field.label}</label>
+      <label className="mb-1 block text-sm font-medium text-content">{field.label}</label>
       <textarea
         value={localValue}
         onChange={(e) => handleChange(e.target.value)}
-        className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-surface outline-none focus:ring-2 focus:ring-primary resize-none transition-all"
+        className="w-full resize-none rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none transition-all focus:ring-2 focus:ring-primary"
         rows={3}
         placeholder={`Enter your ${field.label.toLowerCase()}...`}
       />

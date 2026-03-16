@@ -9,9 +9,9 @@ const PREFERRED_VOICES = [
   'Google UK English Female',
   'Google US English',
   'Microsoft Zira',
-  'Samantha',            // macOS
-  'Karen',               // macOS Australian
-  'Daniel',              // macOS British
+  'Samantha', // macOS
+  'Karen', // macOS Australian
+  'Daniel', // macOS British
   'Google UK English Male',
   'Microsoft David',
 ];
@@ -75,9 +75,7 @@ export function getAvailableVoices(): SpeechSynthesisVoice[] {
 
 /** Strip emoji for cleaner TTS */
 function cleanText(text: string): string {
-  return text
-    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
-    .trim();
+  return text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
 }
 
 /**
@@ -94,7 +92,10 @@ export function unlockTTS(): void {
 }
 
 /** Speak text aloud using the selected pleasant voice */
-export function speak(text: string, options?: { rate?: number; pitch?: number; volume?: number }): void {
+export function speak(
+  text: string,
+  options?: { rate?: number; pitch?: number; volume?: number },
+): void {
   if (!('speechSynthesis' in window)) return;
   // Check if TTS is enabled
   const { ttsEnabled } = useVoiceSettingsStore.getState();
@@ -118,7 +119,10 @@ export function speak(text: string, options?: { rate?: number; pitch?: number; v
   let resumeInterval: ReturnType<typeof setInterval> | null = null;
 
   const cleanup = () => {
-    if (resumeInterval) { clearInterval(resumeInterval); resumeInterval = null; }
+    if (resumeInterval) {
+      clearInterval(resumeInterval);
+      resumeInterval = null;
+    }
   };
 
   utterance.onend = cleanup;

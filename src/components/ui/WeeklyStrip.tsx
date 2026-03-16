@@ -23,25 +23,22 @@ export function WeeklyStrip({ selectedDate, onDateSelect, markedDates = {} }: We
           <button
             key={dateStr}
             onClick={() => onDateSelect(dateStr)}
-            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-lg transition-colors min-w-[40px] ${
-              isToday && isSelected ? 'bg-primary text-white' :
-              isToday ? 'bg-primary/10 text-primary' :
-              isSelected ? 'ring-2 ring-primary bg-surface' :
-              'text-content-secondary hover:bg-surface-secondary'
+            className={`flex min-w-[40px] flex-col items-center gap-0.5 rounded-lg p-1.5 transition-colors ${
+              isToday && isSelected
+                ? 'bg-primary text-white'
+                : isToday
+                  ? 'bg-primary/10 text-primary'
+                  : isSelected
+                    ? 'bg-surface ring-2 ring-primary'
+                    : 'text-content-secondary hover:bg-surface-secondary'
             }`}
           >
-            <span className="text-[10px] font-medium uppercase">
-              {format(day, 'EEE')}
-            </span>
+            <span className="text-[10px] font-medium uppercase">{format(day, 'EEE')}</span>
             <span className={`text-sm font-semibold ${isToday && isSelected ? 'text-white' : ''}`}>
               {format(day, 'd')}
             </span>
-            {mark === 'complete' && (
-              <span className="w-1.5 h-1.5 rounded-full bg-success" />
-            )}
-            {mark === 'partial' && (
-              <span className="w-1.5 h-1.5 rounded-full bg-warning" />
-            )}
+            {mark === 'complete' && <span className="h-1.5 w-1.5 rounded-full bg-success" />}
+            {mark === 'partial' && <span className="h-1.5 w-1.5 rounded-full bg-warning" />}
           </button>
         );
       })}

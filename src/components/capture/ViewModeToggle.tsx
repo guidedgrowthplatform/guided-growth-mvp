@@ -7,7 +7,7 @@ interface ViewModeToggleProps {
 
 export function ViewModeToggle({ viewMode, onChange }: ViewModeToggleProps) {
   return (
-    <div className="inline-flex rounded-xl border border-border overflow-hidden">
+    <div className="inline-flex overflow-hidden rounded-xl border border-border">
       <button
         onClick={() => onChange('form')}
         className={`px-4 py-2 text-sm font-medium transition-all ${

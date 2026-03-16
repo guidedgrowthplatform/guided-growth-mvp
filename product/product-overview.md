@@ -7,9 +7,11 @@ Guided Growth App is a comprehensive personal development platform that empowers
 ## Problems & Solutions
 
 ### Problem 1: Lack of Consistency
+
 The number one challenge people face in personal development is maintaining consistency. Without structure and accountability, good intentions fade, habits fail to stick, and progress stalls. Guided Growth App solves this through habit tracking, streak monitoring, and aggressive app blocking features that enforce focus time and break boundaries, helping users build sustainable routines that lead to meaningful growth.
 
 ### Problem 2: Lack of Presence
+
 Life moves fast, and without intentional reflection, days blur together. People often let life pass them by without truly being present, missing opportunities for self-awareness and growth. Guided Growth App addresses this through journaling features that create space for mindfulness and intentional living, combined with AI-powered insights that help users understand their patterns and make more conscious choices.
 
 ## Key Features

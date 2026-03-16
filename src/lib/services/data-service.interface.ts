@@ -72,7 +72,10 @@ export interface DataService {
   createHabit(name: string, frequency?: string): Promise<Habit>;
   getHabits(): Promise<Habit[]>;
   getHabitByName(name: string): Promise<Habit | null>;
-  updateHabit(id: string, updates: Partial<Pick<Habit, 'name' | 'frequency' | 'active'>>): Promise<Habit>;
+  updateHabit(
+    id: string,
+    updates: Partial<Pick<Habit, 'name' | 'frequency' | 'active'>>,
+  ): Promise<Habit>;
   deleteHabit(id: string): Promise<void>;
 
   // Habit completions
@@ -80,7 +83,13 @@ export interface DataService {
   getCompletions(habitId: string, startDate?: string, endDate?: string): Promise<HabitCompletion[]>;
 
   // Metrics
-  createMetric(name: string, inputType: string, frequency?: string, scaleMin?: number, scaleMax?: number): Promise<TrackedMetric>;
+  createMetric(
+    name: string,
+    inputType: string,
+    frequency?: string,
+    scaleMin?: number,
+    scaleMax?: number,
+  ): Promise<TrackedMetric>;
   getMetrics(): Promise<TrackedMetric[]>;
   getMetricByName(name: string): Promise<TrackedMetric | null>;
   deleteMetric(id: string): Promise<void>;

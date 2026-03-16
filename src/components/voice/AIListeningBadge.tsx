@@ -9,27 +9,32 @@ interface AIListeningBadgeProps {
   onDone?: () => void;
 }
 
-export function AIListeningBadge({ isListening, transcript, onMicPress, onDone }: AIListeningBadgeProps) {
+export function AIListeningBadge({
+  isListening,
+  transcript,
+  onMicPress,
+  onDone,
+}: AIListeningBadgeProps) {
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="relative">
         {isListening && (
-          <div className="absolute inset-0 rounded-full bg-primary/30 animate-pulse-ring" />
+          <div className="absolute inset-0 animate-pulse-ring rounded-full bg-primary/30" />
         )}
         <button
           onClick={onMicPress}
-          className={`relative w-20 h-20 rounded-full flex items-center justify-center shadow-elevated transition-colors ${
+          className={`relative flex h-20 w-20 items-center justify-center rounded-full shadow-elevated transition-colors ${
             isListening ? 'bg-danger' : 'bg-primary'
           }`}
         >
-          <Mic className="w-8 h-8 text-white" />
+          <Mic className="h-8 w-8 text-white" />
         </button>
       </div>
       <p className="text-sm text-content-secondary">
         {isListening ? 'Listening...' : 'Tap to speak'}
       </p>
       {transcript && (
-        <Card className="w-full max-h-40 overflow-y-auto">
+        <Card className="max-h-40 w-full overflow-y-auto">
           <p className="text-sm text-content">{transcript}</p>
         </Card>
       )}

@@ -13,11 +13,17 @@ import { FormView } from './FormView';
 import { SpreadsheetView } from './SpreadsheetView';
 
 export function CaptureView() {
-  const { defaultView, spreadsheetRange: savedRange, loaded: prefsLoaded, saveView, saveRange } = usePreferences();
+  const {
+    defaultView,
+    spreadsheetRange: savedRange,
+    loaded: prefsLoaded,
+    saveView,
+    saveRange,
+  } = usePreferences();
 
   const [viewMode, setViewMode] = useState<ViewMode>('spreadsheet');
   const [spreadsheetRange, setSpreadsheetRange] = useState<SpreadsheetRange>(
-    window.innerWidth < 768 ? 'week' : 'month'
+    window.innerWidth < 768 ? 'week' : 'month',
   );
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const initializedRef = useRef(false);
@@ -33,21 +39,39 @@ export function CaptureView() {
     }
   }, [prefsLoaded, defaultView, savedRange]);
 
-  const handleViewModeChange = useCallback((mode: ViewMode) => {
-    setViewMode(mode);
-    saveView(mode);
-  }, [saveView]);
+  const handleViewModeChange = useCallback(
+    (mode: ViewMode) => {
+      setViewMode(mode);
+      saveView(mode);
+    },
+    [saveView],
+  );
 
-  const handleRangeChange = useCallback((range: SpreadsheetRange) => {
-    setSpreadsheetRange(range);
-    saveRange(range);
-  }, [saveRange]);
+  const handleRangeChange = useCallback(
+    (range: SpreadsheetRange) => {
+      setSpreadsheetRange(range);
+      saveRange(range);
+    },
+    [saveRange],
+  );
 
-  const { activeMetrics: metrics, create: createMetric, reorder: reorderMetrics, update: updateMetric } = useMetrics();
+  const {
+    activeMetrics: metrics,
+    create: createMetric,
+    reorder: reorderMetrics,
+    update: updateMetric,
+  } = useMetrics();
   const { entries, load: loadEntries, updateCell, saveDay, setEntries } = useEntries();
 
-
-  const { state: undoState, setState: setUndoState, pushHistory, undo: undoRaw, redo: redoRaw, canUndo, canRedo } = useUndoRedo<EntriesMap>({});
+  const {
+    state: undoState,
+    setState: setUndoState,
+    pushHistory,
+    undo: undoRaw,
+    redo: redoRaw,
+    canUndo,
+    canRedo,
+  } = useUndoRedo<EntriesMap>({});
   const undoAppliedRef = useRef(false);
 
   // Keep undo state in sync when entries change from data layer (load, voice commands, etc.)
@@ -95,43 +119,61 @@ export function CaptureView() {
     loadEntries(start, end);
   }, [prefsLoaded, date, spreadsheetRange, viewMode, loadEntries]);
 
-  const handleCellChange = useCallback((dateStr: string, metricId: string, value: string) => {
-    updateCell(dateStr, metricId, value);
-  }, [updateCell]);
+  const handleCellChange = useCallback(
+    (dateStr: string, metricId: string, value: string) => {
+      updateCell(dateStr, metricId, value);
+    },
+    [updateCell],
+  );
 
   // Accept optional pending cell change to merge before saving (avoids stale setState race)
-  const handleSaveDay = useCallback((dateStr: string, pendingMetricId?: string, pendingValue?: string) => {
-    const dayEntries = { ...(entries[dateStr] || {}) };
-    // Merge pending change that hasn't flushed to state yet
-    if (pendingMetricId !== undefined) {
-      if (pendingValue === '' || pendingValue === null || pendingValue === undefined) {
-        delete dayEntries[pendingMetricId];
-      } else {
-        dayEntries[pendingMetricId] = pendingValue;
+  const handleSaveDay = useCallback(
+    (dateStr: string, pendingMetricId?: string, pendingValue?: string) => {
+      const dayEntries = { ...(entries[dateStr] || {}) };
+      // Merge pending change that hasn't flushed to state yet
+      if (pendingMetricId !== undefined) {
+        if (pendingValue === '' || pendingValue === null || pendingValue === undefined) {
+          delete dayEntries[pendingMetricId];
+        } else {
+          dayEntries[pendingMetricId] = pendingValue;
+        }
       }
-    }
-    saveDay(dateStr, dayEntries);
-  }, [entries, saveDay]);
+      saveDay(dateStr, dayEntries);
+    },
+    [entries, saveDay],
+  );
 
-  const handleAddHabit = useCallback(async (data: MetricCreate) => {
-    await createMetric(data);
-  }, [createMetric]);
+  const handleAddHabit = useCallback(
+    async (data: MetricCreate) => {
+      await createMetric(data);
+    },
+    [createMetric],
+  );
 
-  const handleReorderMetrics = useCallback((fromIndex: number, toIndex: number) => {
-    const reordered = [...metrics];
-    const [moved] = reordered.splice(fromIndex, 1);
-    reordered.splice(toIndex, 0, moved);
-    reorderMetrics(reordered.map((m) => m.id));
-  }, [metrics, reorderMetrics]);
+  const handleReorderMetrics = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      const reordered = [...metrics];
+      const [moved] = reordered.splice(fromIndex, 1);
+      reordered.splice(toIndex, 0, moved);
+      reorderMetrics(reordered.map((m) => m.id));
+    },
+    [metrics, reorderMetrics],
+  );
 
-  const handleRenameMetric = useCallback((metricId: string, newName: string) => {
-    updateMetric(metricId, { name: newName });
-  }, [updateMetric]);
+  const handleRenameMetric = useCallback(
+    (metricId: string, newName: string) => {
+      updateMetric(metricId, { name: newName });
+    },
+    [updateMetric],
+  );
 
-  const handleFormChange = useCallback((metricId: string, value: string) => {
-    handleCellChange(date, metricId, value);
-    handleSaveDay(date);
-  }, [date, handleCellChange, handleSaveDay]);
+  const handleFormChange = useCallback(
+    (metricId: string, value: string) => {
+      handleCellChange(date, metricId, value);
+      handleSaveDay(date);
+    },
+    [date, handleCellChange, handleSaveDay],
+  );
 
   const dayEntries = useMemo(() => entries[date] || {}, [entries, date]);
 
@@ -173,8 +215,13 @@ export function CaptureView() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-        <DateNavigation date={date} viewMode={viewMode} spreadsheetRange={spreadsheetRange} onChange={setDate} />
+      <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+        <DateNavigation
+          date={date}
+          viewMode={viewMode}
+          spreadsheetRange={spreadsheetRange}
+          onChange={setDate}
+        />
         <div className="flex items-center gap-2">
           {viewMode === 'spreadsheet' && (
             <div className="hidden sm:block">
@@ -186,12 +233,7 @@ export function CaptureView() {
       </div>
 
       {viewMode === 'form' ? (
-        <FormView
-          date={date}
-          metrics={metrics}
-          entries={dayEntries}
-          onChange={handleFormChange}
-        />
+        <FormView date={date} metrics={metrics} entries={dayEntries} onChange={handleFormChange} />
       ) : (
         <SpreadsheetView
           date={date}

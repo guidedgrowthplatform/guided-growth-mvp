@@ -15,8 +15,8 @@ const VIBRATION_PATTERNS: Record<HapticStyle, number | number[]> = {
   light: 10,
   medium: 25,
   heavy: 50,
-  success: [15, 50, 15],        // double-tap
-  error: [50, 30, 50, 30, 50],  // triple-buzz
+  success: [15, 50, 15], // double-tap
+  error: [50, 30, 50, 30, 50], // triple-buzz
 };
 
 /**

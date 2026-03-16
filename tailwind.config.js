@@ -1,9 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       fontFamily: {
@@ -48,7 +45,7 @@ export default {
       },
       animation: {
         'slide-in': 'slideIn 0.2s ease-out',
-        'shimmer': 'shimmer 1.5s infinite',
+        shimmer: 'shimmer 1.5s infinite',
         'pulse-ring': 'pulseRing 1.5s ease-out infinite',
       },
       keyframes: {
@@ -68,4 +65,4 @@ export default {
     },
   },
   plugins: [],
-}
+};

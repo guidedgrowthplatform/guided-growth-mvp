@@ -13,13 +13,19 @@ export function Layout({ children }: { children: ReactNode }) {
       {/* Hamburger button — visible on mobile only */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed top-4 left-4 z-50 p-3 bg-surface shadow-elevated border border-border rounded-lg hover:bg-surface-secondary transition-all lg:hidden"
+        className="fixed left-4 top-4 z-50 rounded-lg border border-border bg-surface p-3 shadow-elevated transition-all hover:bg-surface-secondary lg:hidden"
         aria-label="Toggle menu"
       >
-        <div className="w-5 h-5 flex flex-col justify-center gap-1">
-          <span className={`block h-0.5 w-full bg-content transition-all ${sidebarOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
-          <span className={`block h-0.5 w-full bg-content transition-all ${sidebarOpen ? 'opacity-0' : ''}`} />
-          <span className={`block h-0.5 w-full bg-content transition-all ${sidebarOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
+        <div className="flex h-5 w-5 flex-col justify-center gap-1">
+          <span
+            className={`block h-0.5 w-full bg-content transition-all ${sidebarOpen ? 'translate-y-1.5 rotate-45' : ''}`}
+          />
+          <span
+            className={`block h-0.5 w-full bg-content transition-all ${sidebarOpen ? 'opacity-0' : ''}`}
+          />
+          <span
+            className={`block h-0.5 w-full bg-content transition-all ${sidebarOpen ? '-translate-y-1.5 -rotate-45' : ''}`}
+          />
         </div>
       </button>
 
@@ -27,9 +33,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
       {/* Main content */}
       <main className="flex-1 lg:ml-60">
-        <div className="max-w-5xl mx-auto px-4 pt-16 lg:pt-6 pb-32 lg:pb-6">
-          {children}
-        </div>
+        <div className="mx-auto max-w-5xl px-4 pb-32 pt-16 lg:pb-6 lg:pt-6">{children}</div>
       </main>
 
       <BottomNav />

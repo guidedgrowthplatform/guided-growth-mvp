@@ -1,4 +1,13 @@
-import { format, parseISO, getDay, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek } from 'date-fns';
+import {
+  format,
+  parseISO,
+  getDay,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  startOfWeek,
+  endOfWeek,
+} from 'date-fns';
 
 export function formatDate(date: Date | string, fmt = 'yyyy-MM-dd'): string {
   const d = typeof date === 'string' ? parseISO(date) : date;

@@ -39,7 +39,12 @@ export type MetricCreate = Pick<Metric, 'name' | 'input_type' | 'question' | 'fr
   target_unit?: string | null;
 };
 
-export type MetricUpdate = Partial<Pick<Metric, 'name' | 'input_type' | 'question' | 'active' | 'frequency' | 'target_value' | 'target_unit'>>;
+export type MetricUpdate = Partial<
+  Pick<
+    Metric,
+    'name' | 'input_type' | 'question' | 'active' | 'frequency' | 'target_value' | 'target_unit'
+  >
+>;
 
 // ─── Entry ──────────────────────────────────────────
 export interface Entry {

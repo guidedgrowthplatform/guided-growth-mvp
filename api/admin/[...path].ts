@@ -7,11 +7,11 @@ async function logAuditAction(
   action: string,
   targetType: string,
   targetIdentifier: string | null,
-  payload: Record<string, unknown> | null
+  payload: Record<string, unknown> | null,
 ) {
   await pool.query(
     'INSERT INTO admin_audit_log (admin_user_id, action, target_type, target_identifier, payload_json) VALUES ($1, $2, $3, $4, $5)',
-    [adminUserId, action, targetType, targetIdentifier, payload ? JSON.stringify(payload) : null]
+    [adminUserId, action, targetType, targetIdentifier, payload ? JSON.stringify(payload) : null],
   );
 }
 
@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const result = await pool.query(
         'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, email, name, avatar_url, role, status, created_at, last_login_at',
-        [role, userId]
+        [role, userId],
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
       await logAuditAction(user.id, 'update_role', 'user', userId, { role });
@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const result = await pool.query(
         'UPDATE users SET status = $1 WHERE id = $2 RETURNING id, email, name, avatar_url, role, status, created_at, last_login_at',
-        [status, userId]
+        [status, userId],
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
       await logAuditAction(user.id, 'update_status', 'user', userId, { status });
@@ -75,7 +75,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // /api/admin/users (list all)
     if (!userId && req.method === 'GET') {
-      const result = await pool.query('SELECT id, email, name, avatar_url, role, status, created_at, last_login_at FROM users ORDER BY created_at DESC');
+      const result = await pool.query(
+        'SELECT id, email, name, avatar_url, role, status, created_at, last_login_at FROM users ORDER BY created_at DESC',
+      );
       return res.json(result.rows);
     }
 
@@ -86,7 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (route === 'allowlist') {
     if (req.method === 'GET') {
       const result = await pool.query(
-        `SELECT a.*, u.email as added_by_email FROM allowlist a LEFT JOIN users u ON a.added_by_user_id = u.id ORDER BY a.created_at DESC`
+        `SELECT a.*, u.email as added_by_email FROM allowlist a LEFT JOIN users u ON a.added_by_user_id = u.id ORDER BY a.created_at DESC`,
       );
       return res.json(result.rows);
     }
@@ -97,7 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (exists.rows.length > 0) return res.status(409).json({ error: 'Already in allowlist' });
       const result = await pool.query(
         'INSERT INTO allowlist (email, added_by_user_id, note) VALUES ($1, $2, $3) RETURNING *',
-        [email, user.id, note || null]
+        [email, user.id, note || null],
       );
       await logAuditAction(user.id, 'add_allowlist', 'allowlist', email, { note: note || null });
       return res.status(201).json(result.rows[0]);
@@ -119,7 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const limit = parseInt(req.query.limit as string) || 50;
       const result = await pool.query(
         `SELECT a.*, u.email as admin_email FROM admin_audit_log a LEFT JOIN users u ON a.admin_user_id = u.id ORDER BY a.created_at DESC LIMIT $1`,
-        [limit]
+        [limit],
       );
       return res.json(result.rows);
     }

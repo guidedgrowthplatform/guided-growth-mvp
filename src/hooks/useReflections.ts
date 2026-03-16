@@ -45,13 +45,14 @@ export function useReflections(start?: string, end?: string) {
   });
 
   const saveDayMutation = useMutation({
-    mutationFn: ({ date, data }: { date: string; data: DayReflections }) => reflApi.saveReflections(date, data),
+    mutationFn: ({ date, data }: { date: string; data: DayReflections }) =>
+      reflApi.saveReflections(date, data),
     onMutate: ({ date, data }) => {
       if (hasRange) {
-        qc.setQueryData(
-          rangeKey,
-          (old: Record<string, DayReflections> | undefined) => ({ ...old, [date]: data })
-        );
+        qc.setQueryData(rangeKey, (old: Record<string, DayReflections> | undefined) => ({
+          ...old,
+          [date]: data,
+        }));
       }
     },
   });
@@ -63,20 +64,34 @@ export function useReflections(start?: string, end?: string) {
     },
   });
 
-  const saveConfig = useCallback(async (newConfig: ReflectionConfig) => {
-    await saveConfigMutation.mutateAsync(newConfig);
-  }, [saveConfigMutation]);
+  const saveConfig = useCallback(
+    async (newConfig: ReflectionConfig) => {
+      await saveConfigMutation.mutateAsync(newConfig);
+    },
+    [saveConfigMutation],
+  );
 
-  const saveDay = useCallback(async (date: string, data: DayReflections) => {
-    await saveDayMutation.mutateAsync({ date, data });
-  }, [saveDayMutation]);
+  const saveDay = useCallback(
+    async (date: string, data: DayReflections) => {
+      await saveDayMutation.mutateAsync({ date, data });
+    },
+    [saveDayMutation],
+  );
 
-  const saveAffirmationValue = useCallback(async (value: string) => {
-    await saveAffirmationMutation.mutateAsync(value);
-  }, [saveAffirmationMutation]);
+  const saveAffirmationValue = useCallback(
+    async (value: string) => {
+      await saveAffirmationMutation.mutateAsync(value);
+    },
+    [saveAffirmationMutation],
+  );
 
   return {
-    config, reflections, affirmation, loading,
-    saveConfig, saveDay, saveAffirmationValue,
+    config,
+    reflections,
+    affirmation,
+    loading,
+    saveConfig,
+    saveDay,
+    saveAffirmationValue,
   };
 }

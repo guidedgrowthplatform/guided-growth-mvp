@@ -11,7 +11,14 @@ interface CellEditPopupProps {
   onCancel: () => void;
 }
 
-export function CellEditPopup({ position, metric, value, onChange, onSave, onCancel }: CellEditPopupProps) {
+export function CellEditPopup({
+  position,
+  metric,
+  value,
+  onChange,
+  onSave,
+  onCancel,
+}: CellEditPopupProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -24,19 +31,28 @@ export function CellEditPopup({ position, metric, value, onChange, onSave, onCan
   if (!position || !metric) return null;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSave(); }
-    else if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      onSave();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onCancel();
+    }
     e.stopPropagation();
   };
 
   const isMobile = window.innerWidth < 640;
   const style = isMobile
-    ? { left: Math.min(position.x - 75, window.innerWidth - 170), top: position.y + 30, minWidth: 150 }
+    ? {
+        left: Math.min(position.x - 75, window.innerWidth - 170),
+        top: position.y + 30,
+        minWidth: 150,
+      }
     : { left: position.x, top: position.y, minWidth: 150 };
 
   return createPortal(
     <div
-      className="fixed z-50 bg-surface shadow-elevated border border-border rounded-lg p-2"
+      className="fixed z-50 rounded-lg border border-border bg-surface p-2 shadow-elevated"
       style={style}
     >
       <textarea
@@ -45,14 +61,24 @@ export function CellEditPopup({ position, metric, value, onChange, onSave, onCan
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={onSave}
-        className="w-full px-2 py-1 text-sm border border-border rounded bg-surface resize-none outline-none focus:ring-2 focus:ring-primary"
+        className="w-full resize-none rounded border border-border bg-surface px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-primary"
         rows={metric.input_type === 'binary' || metric.input_type === 'numeric' ? 1 : 3}
       />
-      <div className="flex gap-1 mt-1 justify-end">
-        <button onClick={onCancel} className="px-2 py-0.5 text-xs text-content-secondary hover:bg-surface-secondary rounded">Esc</button>
-        <button onClick={onSave} className="px-2 py-0.5 text-xs text-primary hover:bg-surface-secondary rounded">Enter</button>
+      <div className="mt-1 flex justify-end gap-1">
+        <button
+          onClick={onCancel}
+          className="rounded px-2 py-0.5 text-xs text-content-secondary hover:bg-surface-secondary"
+        >
+          Esc
+        </button>
+        <button
+          onClick={onSave}
+          className="rounded px-2 py-0.5 text-xs text-primary hover:bg-surface-secondary"
+        >
+          Enter
+        </button>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

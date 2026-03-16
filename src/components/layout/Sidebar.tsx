@@ -23,41 +23,36 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   return (
     <>
       {/* Overlay */}
-      {open && (
-        <div className="fixed inset-0 bg-black/20 z-40 lg:hidden" onClick={onClose} />
-      )}
+      {open && <div className="fixed inset-0 z-40 bg-black/20 lg:hidden" onClick={onClose} />}
 
       {/* Desktop sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-60 bg-surface border-r border-border flex flex-col shadow-elevated z-40 transition-transform duration-300
-          lg:translate-x-0
-          ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        `}
+        className={`fixed left-0 top-0 z-40 flex h-full w-60 flex-col border-r border-border bg-surface shadow-elevated transition-transform duration-300 lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} `}
       >
-        <div className="p-6 border-b border-border">
-          <h1 className="text-2xl font-bold text-primary">
-            Life Tracker
-          </h1>
-          <div className="mt-2 text-xs text-content-tertiary font-mono bg-surface-secondary px-2 py-1 rounded inline-block">
+        <div className="border-b border-border p-6">
+          <h1 className="text-2xl font-bold text-primary">Life Tracker</h1>
+          <div className="mt-2 inline-block rounded bg-surface-secondary px-2 py-1 font-mono text-xs text-content-tertiary">
             {APP_VERSION}
           </div>
         </div>
 
         {user && (
-          <div className="p-4 border-b border-border">
+          <div className="border-b border-border p-4">
             <div className="flex items-center gap-3">
               {user.user_metadata?.avatar_url && (
-                <img src={user.user_metadata.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+                <img src={user.user_metadata.avatar_url} alt="" className="h-8 w-8 rounded-full" />
               )}
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-content truncate">{user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}</div>
-                <div className="text-xs text-content-secondary truncate">{user.email}</div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-content">
+                  {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+                </div>
+                <div className="truncate text-xs text-content-secondary">{user.email}</div>
               </div>
             </div>
           </div>
         )}
 
-        <nav className="flex-1 p-4 overflow-y-auto">
+        <nav className="flex-1 overflow-y-auto p-4">
           <ul className="space-y-2">
             {navItems.map((item) => {
               if (item.adminOnly && user?.role !== 'admin') return null;
@@ -67,10 +62,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                   <Link
                     to={item.path}
                     onClick={onClose}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-300 ${
                       isActive
-                        ? 'bg-surface-secondary text-primary font-medium shadow-lg border border-border'
-                        : 'text-content hover:bg-surface-secondary hover:border hover:border-border'
+                        ? 'border border-border bg-surface-secondary font-medium text-primary shadow-lg'
+                        : 'text-content hover:border hover:border-border hover:bg-surface-secondary'
                     }`}
                   >
                     <span className="text-xl">{item.icon}</span>

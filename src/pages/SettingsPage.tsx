@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useVoiceSettingsStore, type RecordingMode, type SttProvider } from '@/stores/voiceSettingsStore';
-import { getAvailableVoices, setVoicePreference, speak, getVoicePreference } from '@/lib/services/tts-service';
+import {
+  useVoiceSettingsStore,
+  type RecordingMode,
+  type SttProvider,
+} from '@/stores/voiceSettingsStore';
+import {
+  getAvailableVoices,
+  setVoicePreference,
+  speak,
+  getVoicePreference,
+} from '@/lib/services/tts-service';
 import {
   Brain,
   Mic,
@@ -21,7 +30,14 @@ import {
 void Pencil;
 
 export function SettingsPage() {
-  const { recordingMode, setRecordingMode, ttsEnabled, setTtsEnabled, sttProvider, setSttProvider } = useVoiceSettingsStore();
+  const {
+    recordingMode,
+    setRecordingMode,
+    ttsEnabled,
+    setTtsEnabled,
+    sttProvider,
+    setSttProvider,
+  } = useVoiceSettingsStore();
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>(getVoicePreference() || '');
 
@@ -66,7 +82,9 @@ export function SettingsPage() {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
 
-    return () => { if (timer) clearTimeout(timer); };
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [selectedVoice]);
 
   const handleVoiceChange = (voiceName: string) => {
@@ -79,59 +97,70 @@ export function SettingsPage() {
     speak('Hello! I am your growth tracker assistant. How can I help you today?');
   };
 
-  const modes: { value: RecordingMode; label: string; description: string; icon: React.ReactNode }[] = [
+  const modes: {
+    value: RecordingMode;
+    label: string;
+    description: string;
+    icon: React.ReactNode;
+  }[] = [
     {
       value: 'auto-stop',
       label: 'Auto-stop (Siri-like)',
       description: 'Stops recording after 2.5s of silence. Best for quick voice commands.',
-      icon: <Timer className="w-5 h-5 text-primary" />,
+      icon: <Timer className="h-5 w-5 text-primary" />,
     },
     {
       value: 'always-on',
       label: 'Always recording',
       description: 'Keeps microphone active until manually stopped. Good for longer dictation.',
-      icon: <Radio className="w-5 h-5 text-primary" />,
+      icon: <Radio className="h-5 w-5 text-primary" />,
     },
   ];
 
-  const sttProviders: { value: SttProvider; label: string; description: string; icon: React.ReactNode }[] = [
+  const sttProviders: {
+    value: SttProvider;
+    label: string;
+    description: string;
+    icon: React.ReactNode;
+  }[] = [
     {
       value: 'webspeech',
       label: 'Web Speech API',
       description: 'Browser built-in. Free, real-time interim results. Requires internet.',
-      icon: <Globe className="w-5 h-5 text-primary" />,
+      icon: <Globe className="h-5 w-5 text-primary" />,
     },
     {
       value: 'whisper',
       label: 'Whisper (whisper.cpp)',
-      description: 'OpenAI Whisper base model. Runs locally in browser via WASM. ~75MB download on first use.',
-      icon: <Bot className="w-5 h-5 text-primary" />,
+      description:
+        'OpenAI Whisper base model. Runs locally in browser via WASM. ~75MB download on first use.',
+      icon: <Bot className="h-5 w-5 text-primary" />,
     },
     {
       value: 'deepgram',
       label: 'DeepGram Nova-2',
       description: 'Cloud-based. Fastest transcription with real-time streaming. Requires API key.',
-      icon: <Zap className="w-5 h-5 text-primary" />,
+      icon: <Zap className="h-5 w-5 text-primary" />,
     },
   ];
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-content mb-6">Settings</h1>
+    <div className="mx-auto max-w-2xl">
+      <h1 className="mb-6 text-2xl font-bold text-content">Settings</h1>
 
       {/* STT Provider */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold text-content mb-3 flex items-center gap-2">
-          <Brain className="w-5 h-5" /> Speech-to-Text Engine
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-content">
+          <Brain className="h-5 w-5" /> Speech-to-Text Engine
         </h2>
         <div className="space-y-3">
           {sttProviders.map((provider) => (
             <label
               key={provider.value}
-              className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+              className={`flex cursor-pointer items-start gap-4 rounded-xl border-2 p-4 transition-all duration-200 ${
                 sttProvider === provider.value
                   ? 'border-primary bg-surface-secondary shadow-md'
-                  : 'border-border hover:border-content-tertiary bg-surface'
+                  : 'border-border bg-surface hover:border-content-tertiary'
               }`}
             >
               <input
@@ -147,7 +176,7 @@ export function SettingsPage() {
                   {provider.icon}
                   <span className="font-medium text-content">{provider.label}</span>
                 </div>
-                <p className="text-sm text-content-secondary mt-1">{provider.description}</p>
+                <p className="mt-1 text-sm text-content-secondary">{provider.description}</p>
               </div>
             </label>
           ))}
@@ -156,17 +185,17 @@ export function SettingsPage() {
 
       {/* Recording Mode */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold text-content mb-3 flex items-center gap-2">
-          <Mic className="w-5 h-5" /> Recording Mode
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-content">
+          <Mic className="h-5 w-5" /> Recording Mode
         </h2>
         <div className="space-y-3">
           {modes.map((mode) => (
             <label
               key={mode.value}
-              className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+              className={`flex cursor-pointer items-start gap-4 rounded-xl border-2 p-4 transition-all duration-200 ${
                 recordingMode === mode.value
                   ? 'border-primary bg-surface-secondary shadow-md'
-                  : 'border-border hover:border-content-tertiary bg-surface'
+                  : 'border-border bg-surface hover:border-content-tertiary'
               }`}
             >
               <input
@@ -182,26 +211,27 @@ export function SettingsPage() {
                   {mode.icon}
                   <span className="font-medium text-content">{mode.label}</span>
                 </div>
-                <p className="text-sm text-content-secondary mt-1">{mode.description}</p>
+                <p className="mt-1 text-sm text-content-secondary">{mode.description}</p>
               </div>
             </label>
           ))}
         </div>
-        <p className="text-xs text-warning mt-2 flex items-center gap-1">
-          <AlertTriangle className="w-3.5 h-3.5" /> Note: Apple may restrict "always recording" mode on iOS.
+        <p className="mt-2 flex items-center gap-1 text-xs text-warning">
+          <AlertTriangle className="h-3.5 w-3.5" /> Note: Apple may restrict "always recording" mode
+          on iOS.
         </p>
       </section>
 
       {/* Talk Back Voice Toggle */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold text-content mb-3 flex items-center gap-2">
-          <MessageSquare className="w-5 h-5" /> Talk Back Voice
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-content">
+          <MessageSquare className="h-5 w-5" /> Talk Back Voice
         </h2>
-        <div className="bg-surface rounded-xl border border-border p-4">
-          <label className="flex items-center justify-between cursor-pointer">
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <label className="flex cursor-pointer items-center justify-between">
             <div>
               <span className="font-medium text-content">Voice feedback</span>
-              <p className="text-sm text-content-secondary mt-0.5">
+              <p className="mt-0.5 text-sm text-content-secondary">
                 Read results aloud after each voice command
               </p>
             </div>
@@ -210,11 +240,11 @@ export function SettingsPage() {
                 type="checkbox"
                 checked={ttsEnabled}
                 onChange={(e) => setTtsEnabled(e.target.checked)}
-                className="sr-only peer"
+                className="peer sr-only"
                 id="tts-toggle"
               />
-              <div className="w-11 h-6 bg-content-tertiary peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:bg-primary transition-colors" />
-              <div className="absolute left-[2px] top-[2px] w-5 h-5 bg-surface rounded-full shadow transition-transform peer-checked:translate-x-5" />
+              <div className="peer h-6 w-11 rounded-full bg-content-tertiary transition-colors peer-checked:bg-primary peer-focus:ring-2 peer-focus:ring-primary" />
+              <div className="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-surface shadow transition-transform peer-checked:translate-x-5" />
             </div>
           </label>
         </div>
@@ -222,12 +252,12 @@ export function SettingsPage() {
 
       {/* Voice Selection */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold text-content mb-3 flex items-center gap-2">
-          <Volume2 className="w-5 h-5" /> TTS Voice
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-content">
+          <Volume2 className="h-5 w-5" /> TTS Voice
         </h2>
-        <div className="bg-surface rounded-xl border border-border p-4">
+        <div className="rounded-xl border border-border bg-surface p-4">
           {voices.length === 0 ? (
-            <p className="text-sm text-content-tertiary italic">
+            <p className="text-sm italic text-content-tertiary">
               {!('speechSynthesis' in window)
                 ? 'Text-to-speech is not supported in this browser.'
                 : 'No voice options found — TTS will use the device default voice.'}
@@ -238,7 +268,7 @@ export function SettingsPage() {
                 id="voice-select"
                 value={selectedVoice}
                 onChange={(e) => handleVoiceChange(e.target.value)}
-                className="w-full text-sm border border-border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary bg-surface"
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 {voices.map((v) => (
                   <option key={v.name} value={v.name}>
@@ -248,9 +278,9 @@ export function SettingsPage() {
               </select>
               <button
                 onClick={handlePreview}
-                className="text-sm bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-all shadow-md hover:shadow-lg flex items-center gap-1.5"
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm text-white shadow-md transition-all hover:bg-primary-dark hover:shadow-lg"
               >
-                <Volume2 className="w-4 h-4" /> Preview Voice
+                <Volume2 className="h-4 w-4" /> Preview Voice
               </button>
             </div>
           )}
@@ -259,27 +289,30 @@ export function SettingsPage() {
 
       {/* Voice Command Examples */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold text-content mb-3 flex items-center gap-2">
-          <Mic className="w-5 h-5" /> Voice Command Examples
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-content">
+          <Mic className="h-5 w-5" /> Voice Command Examples
         </h2>
-        <div className="bg-surface rounded-xl border border-border p-4">
-          <p className="text-sm text-content-secondary mb-3">
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <p className="mb-3 text-sm text-content-secondary">
             Tap the microphone button on any page and try saying:
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {[
               { cmd: '"Add a habit called morning meditation"', desc: 'Create a new habit' },
               { cmd: '"Mark exercise as done"', desc: 'Complete a habit for today' },
-              { cmd: '"Add a new metric called mood, scale 1 to 10"', desc: 'Track a custom metric' },
+              {
+                cmd: '"Add a new metric called mood, scale 1 to 10"',
+                desc: 'Track a custom metric',
+              },
               { cmd: '"Log my mood at 8"', desc: 'Record a metric value' },
               { cmd: '"Show my weekly summary"', desc: 'View progress report' },
               { cmd: '"How am I doing with reading?"', desc: 'Check habit stats' },
               { cmd: '"Delete the workout habit"', desc: 'Remove a habit' },
               { cmd: '"I slept well and feel great today"', desc: 'Journal reflection' },
             ].map(({ cmd, desc }) => (
-              <div key={cmd} className="bg-surface-secondary rounded-lg p-3 border border-border">
+              <div key={cmd} className="rounded-lg border border-border bg-surface-secondary p-3">
                 <p className="text-sm font-medium text-primary">{cmd}</p>
-                <p className="text-xs text-content-tertiary mt-0.5">{desc}</p>
+                <p className="mt-0.5 text-xs text-content-tertiary">{desc}</p>
               </div>
             ))}
           </div>
@@ -288,10 +321,10 @@ export function SettingsPage() {
 
       {/* Data Management */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold text-content mb-3 flex items-center gap-2">
-          <Database className="w-5 h-5" /> Data
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-content">
+          <Database className="h-5 w-5" /> Data
         </h2>
-        <div className="bg-surface rounded-xl border border-border p-4">
+        <div className="rounded-xl border border-border bg-surface p-4">
           <button
             onClick={() => {
               if (confirm('Clear all local data? This cannot be undone.')) {
@@ -299,11 +332,11 @@ export function SettingsPage() {
                 window.location.reload();
               }
             }}
-            className="text-sm bg-danger/10 text-danger border border-danger/20 px-4 py-2 rounded-lg hover:bg-danger/20 transition-colors flex items-center gap-1.5"
+            className="flex items-center gap-1.5 rounded-lg border border-danger/20 bg-danger/10 px-4 py-2 text-sm text-danger transition-colors hover:bg-danger/20"
           >
-            <Trash2 className="w-4 h-4" /> Clear All Local Data
+            <Trash2 className="h-4 w-4" /> Clear All Local Data
           </button>
-          <p className="text-xs text-content-tertiary mt-2">
+          <p className="mt-2 text-xs text-content-tertiary">
             Clears all habits, entries, and preferences from this browser.
           </p>
         </div>

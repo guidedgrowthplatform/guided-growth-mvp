@@ -8,10 +8,12 @@ interface FormFieldProps {
 
 export function FormField({ metric, value, onChange }: FormFieldProps) {
   return (
-    <div className="p-4 bg-surface shadow-card border border-border rounded-lg glow-hover">
-      <label className="block text-sm font-semibold text-content mb-2">
+    <div className="glow-hover rounded-lg border border-border bg-surface p-4 shadow-card">
+      <label className="mb-2 block text-sm font-semibold text-content">
         {metric.name}
-        {metric.question && <span className="font-normal text-content-secondary ml-2">- {metric.question}</span>}
+        {metric.question && (
+          <span className="ml-2 font-normal text-content-secondary">- {metric.question}</span>
+        )}
       </label>
 
       {metric.input_type === 'binary' ? (
@@ -19,7 +21,7 @@ export function FormField({ metric, value, onChange }: FormFieldProps) {
           <button
             type="button"
             onClick={() => onChange('yes')}
-            className={`flex-1 py-3 rounded-md text-sm font-medium transition-all min-h-[44px] ${
+            className={`min-h-[44px] flex-1 rounded-md py-3 text-sm font-medium transition-all ${
               value === 'yes'
                 ? 'bg-success text-white shadow-lg'
                 : 'bg-surface-secondary text-content-secondary hover:bg-success/10'
@@ -30,7 +32,7 @@ export function FormField({ metric, value, onChange }: FormFieldProps) {
           <button
             type="button"
             onClick={() => onChange('no')}
-            className={`flex-1 py-3 rounded-md text-sm font-medium transition-all min-h-[44px] ${
+            className={`min-h-[44px] flex-1 rounded-md py-3 text-sm font-medium transition-all ${
               value === 'no'
                 ? 'bg-danger text-white shadow-lg'
                 : 'bg-surface-secondary text-content-secondary hover:bg-danger/10'
@@ -44,14 +46,14 @@ export function FormField({ metric, value, onChange }: FormFieldProps) {
           type="number"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full px-4 py-3 border border-border rounded-md focus:ring-2 focus:ring-primary bg-surface min-h-[44px]"
+          className="min-h-[44px] w-full rounded-md border border-border bg-surface px-4 py-3 focus:ring-2 focus:ring-primary"
           placeholder="Enter a number"
         />
       ) : (
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full px-4 py-3 border border-border rounded-md focus:ring-2 focus:ring-primary bg-surface resize-none min-h-[60px]"
+          className="min-h-[60px] w-full resize-none rounded-md border border-border bg-surface px-4 py-3 focus:ring-2 focus:ring-primary"
           placeholder="Enter text..."
           rows={2}
         />

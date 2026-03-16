@@ -9,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     const result = await pool.query(
       'SELECT default_view, spreadsheet_range FROM user_preferences WHERE user_id = $1',
-      [user.id]
+      [user.id],
     );
     return res.json(result.rows[0] || { default_view: 'spreadsheet', spreadsheet_range: 'month' });
   }
@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await pool.query(
       `INSERT INTO user_preferences (user_id, default_view, spreadsheet_range) VALUES ($1, $2, $3)
        ON CONFLICT (user_id) DO UPDATE SET default_view = $2, spreadsheet_range = $3`,
-      [user.id, view, range]
+      [user.id, view, range],
     );
     return res.json({ default_view: view, spreadsheet_range: range });
   }

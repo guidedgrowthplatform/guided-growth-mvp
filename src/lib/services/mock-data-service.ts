@@ -114,7 +114,10 @@ export class MockDataService implements DataService {
     return habits.find((h) => h.active && h.name.toLowerCase().includes(lower)) || null;
   }
 
-  async updateHabit(id: string, updates: Partial<Pick<Habit, 'name' | 'frequency' | 'active'>>): Promise<Habit> {
+  async updateHabit(
+    id: string,
+    updates: Partial<Pick<Habit, 'name' | 'frequency' | 'active'>>,
+  ): Promise<Habit> {
     const habits = getStore<Habit>(STORAGE_KEYS.habits);
     const idx = habits.findIndex((h) => h.id === id);
     if (idx === -1) throw new Error(`Habit not found: ${id}`);
@@ -149,15 +152,27 @@ export class MockDataService implements DataService {
     return completion;
   }
 
-  async getCompletions(habitId: string, startDate?: string, endDate?: string): Promise<HabitCompletion[]> {
-    let completions = getStore<HabitCompletion>(STORAGE_KEYS.completions).filter((c) => c.habitId === habitId);
+  async getCompletions(
+    habitId: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<HabitCompletion[]> {
+    let completions = getStore<HabitCompletion>(STORAGE_KEYS.completions).filter(
+      (c) => c.habitId === habitId,
+    );
     if (startDate) completions = completions.filter((c) => c.date >= startDate);
     if (endDate) completions = completions.filter((c) => c.date <= endDate);
     return completions;
   }
 
   // ─── Metrics ───
-  async createMetric(name: string, inputType = 'scale', frequency = 'daily', scaleMin?: number, scaleMax?: number): Promise<TrackedMetric> {
+  async createMetric(
+    name: string,
+    inputType = 'scale',
+    frequency = 'daily',
+    scaleMin?: number,
+    scaleMax?: number,
+  ): Promise<TrackedMetric> {
     const metrics = getStore<TrackedMetric>(STORAGE_KEYS.metrics);
     const metric: TrackedMetric = {
       id: generateId(),
@@ -185,7 +200,10 @@ export class MockDataService implements DataService {
 
   async deleteMetric(id: string): Promise<void> {
     const metrics = getStore<TrackedMetric>(STORAGE_KEYS.metrics);
-    setStore(STORAGE_KEYS.metrics, metrics.filter((m) => m.id !== id));
+    setStore(
+      STORAGE_KEYS.metrics,
+      metrics.filter((m) => m.id !== id),
+    );
   }
 
   // ─── Metric Entries ───
@@ -203,15 +221,25 @@ export class MockDataService implements DataService {
     return entry;
   }
 
-  async getMetricEntries(metricId: string, startDate?: string, endDate?: string): Promise<MetricEntry[]> {
-    let entries = getStore<MetricEntry>(STORAGE_KEYS.metricEntries).filter((e) => e.metricId === metricId);
+  async getMetricEntries(
+    metricId: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<MetricEntry[]> {
+    let entries = getStore<MetricEntry>(STORAGE_KEYS.metricEntries).filter(
+      (e) => e.metricId === metricId,
+    );
     if (startDate) entries = entries.filter((e) => e.date >= startDate);
     if (endDate) entries = entries.filter((e) => e.date <= endDate);
     return entries;
   }
 
   // ─── Journal ───
-  async createJournalEntry(content: string, mood?: string, themes?: string[]): Promise<JournalEntry> {
+  async createJournalEntry(
+    content: string,
+    mood?: string,
+    themes?: string[],
+  ): Promise<JournalEntry> {
     const entries = getStore<JournalEntry>(STORAGE_KEYS.journal);
     const entry: JournalEntry = {
       id: generateId(),
@@ -244,7 +272,11 @@ export class MockDataService implements DataService {
     const totalDays = period === 'week' ? 7 : 30;
     startDate.setDate(startDate.getDate() - totalDays);
 
-    const completions = await this.getCompletions(habitId, startDate.toISOString().slice(0, 10), todayStr());
+    const completions = await this.getCompletions(
+      habitId,
+      startDate.toISOString().slice(0, 10),
+      todayStr(),
+    );
     const uniqueDays = new Set(completions.map((c) => c.date)).size;
     const { current, longest } = calcStreaks(completions);
 
@@ -271,8 +303,9 @@ export class MockDataService implements DataService {
       habitSummaries.push(await this.getHabitSummary(h.id, 'week'));
     }
 
-    const allMetricEntries = getStore<MetricEntry>(STORAGE_KEYS.metricEntries)
-      .filter((e) => e.date >= start && e.date <= end);
+    const allMetricEntries = getStore<MetricEntry>(STORAGE_KEYS.metricEntries).filter(
+      (e) => e.date >= start && e.date <= end,
+    );
 
     const journalEntries = await this.getJournalEntries(start, end);
 

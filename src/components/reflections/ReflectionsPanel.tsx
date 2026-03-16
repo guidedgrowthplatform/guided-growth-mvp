@@ -12,15 +12,19 @@ interface ReflectionsPanelProps {
 }
 
 export function ReflectionsPanel({
-  date, config, reflections, affirmation,
-  onFieldChange, onAffirmationChange,
+  date,
+  config,
+  reflections,
+  affirmation,
+  onFieldChange,
+  onAffirmationChange,
 }: ReflectionsPanelProps) {
   if (!config) return null;
 
   const dayReflections = reflections[date] || {};
 
   return (
-    <div className="space-y-4 mt-6">
+    <div className="mt-6 space-y-4">
       <h3 className="text-lg font-bold text-content">Reflections</h3>
 
       {config.fields

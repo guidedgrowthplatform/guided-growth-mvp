@@ -122,7 +122,7 @@ export async function stopAudioCapture(): Promise<Float32Array> {
     audioContext = null;
   }
   if (mediaStream) {
-    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream.getTracks().forEach((t) => t.stop());
     mediaStream = null;
   }
 
@@ -138,7 +138,11 @@ export async function stopAudioCapture(): Promise<Float32Array> {
 
   const durationSec = (totalLength / 16000).toFixed(2);
   const maxAmp = result.reduce((max, v) => Math.max(max, Math.abs(v)), 0);
-  console.log('[Whisper] Audio captured:', { samples: totalLength, durationSec, maxAmplitude: maxAmp.toFixed(4) });
+  console.log('[Whisper] Audio captured:', {
+    samples: totalLength,
+    durationSec,
+    maxAmplitude: maxAmp.toFixed(4),
+  });
 
   return result;
 }
@@ -172,18 +176,34 @@ export async function transcribeAudio(audioData: Float32Array): Promise<string> 
 
     let text = '';
     if (Array.isArray(result)) {
-      text = result.map((r) => r.text).join(' ').trim();
+      text = result
+        .map((r) => r.text)
+        .join(' ')
+        .trim();
     } else {
       text = (result as { text: string }).text.trim();
     }
 
     // Filter known whisper-tiny hallucinations on silence/noise
     const hallucinations = [
-      '[music]', '[Music]', '[MUSIC]', '[ Music ]',
-      '[silence]', '[Silence]', '[BLANK_AUDIO]',
-      '(music)', '(Music)', '[applause]', '[Applause]',
-      'Thank you.', 'Thanks for watching.', 'you', 'You',
-      '...', '.', 'MBC 뉴스 이덕영입니다.',
+      '[music]',
+      '[Music]',
+      '[MUSIC]',
+      '[ Music ]',
+      '[silence]',
+      '[Silence]',
+      '[BLANK_AUDIO]',
+      '(music)',
+      '(Music)',
+      '[applause]',
+      '[Applause]',
+      'Thank you.',
+      'Thanks for watching.',
+      'you',
+      'You',
+      '...',
+      '.',
+      'MBC 뉴스 이덕영입니다.',
     ];
     if (hallucinations.includes(text)) {
       console.warn('[Whisper] Filtered hallucination:', text);

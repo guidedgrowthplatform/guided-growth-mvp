@@ -43,53 +43,53 @@ export class DeepgramSTT {
 
   async start(options: DeepgramTranscribeOptions): Promise<void> {
     const token = await getDeepgramToken();
-    
+
     // Build WebSocket URL with parameters
     const params = new URLSearchParams({
-      model: 'nova-2',           // Latest, fastest model
+      model: 'nova-2', // Latest, fastest model
       language: options.language || 'en',
       smart_format: 'true',
-      interim_results: 'true',   // Get results as user speaks
-      utterance_end_ms: '1500',  // Silence detection
-      vad_events: 'true',        // Voice activity detection
+      interim_results: 'true', // Get results as user speaks
+      utterance_end_ms: '1500', // Silence detection
+      vad_events: 'true', // Voice activity detection
       encoding: 'opus',
       sample_rate: '48000',
     });
-    
+
     const wsUrl = `${DEEPGRAM_WS_URL}?${params.toString()}`;
-    
+
     this.ws = new WebSocket(wsUrl, ['token', token]);
-    
+
     this.ws.onopen = async () => {
       console.log('[DeepgramSTT] WebSocket connected');
-      
+
       // Start microphone capture
       try {
         this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         this.mediaRecorder = new MediaRecorder(this.stream, {
           mimeType: 'audio/webm;codecs=opus',
         });
-        
+
         this.mediaRecorder.ondataavailable = (event) => {
           if (event.data.size > 0 && this.ws?.readyState === WebSocket.OPEN) {
             this.ws.send(event.data);
           }
         };
-        
+
         this.mediaRecorder.start(250); // Send audio chunks every 250ms
       } catch (err) {
         options.onError('Microphone access denied');
       }
     };
-    
+
     this.ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        
+
         if (data.type === 'Results') {
           const result = data as DeepgramResult;
           const transcript = result.channel?.alternatives?.[0]?.transcript || '';
-          
+
           if (transcript) {
             options.onTranscript(transcript, result.is_final || result.speech_final);
           }
@@ -98,37 +98,37 @@ export class DeepgramSTT {
         console.error('[DeepgramSTT] Parse error:', err);
       }
     };
-    
+
     this.ws.onerror = () => {
       options.onError('DeepGram WebSocket error');
     };
-    
+
     this.ws.onclose = () => {
       console.log('[DeepgramSTT] WebSocket closed');
       options.onClose();
     };
   }
-  
+
   stop(): void {
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       this.mediaRecorder.stop();
     }
-    
+
     if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
+      this.stream.getTracks().forEach((track) => track.stop());
       this.stream = null;
     }
-    
+
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       // Send close frame for clean shutdown
       this.ws.send(JSON.stringify({ type: 'CloseStream' }));
       this.ws.close();
     }
-    
+
     this.ws = null;
     this.mediaRecorder = null;
   }
-  
+
   isActive(): boolean {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
@@ -147,9 +147,9 @@ export async function testDeepgramSpeed(): Promise<{
   return new Promise((resolve) => {
     const startTime = Date.now();
     let firstResultTime: number | null = null;
-    
+
     const stt = new DeepgramSTT();
-    
+
     const timeout = setTimeout(() => {
       stt.stop();
       resolve({
@@ -159,11 +159,11 @@ export async function testDeepgramSpeed(): Promise<{
         error: 'Timeout — no speech detected after 10s',
       });
     }, 10000);
-    
+
     stt.start({
       onTranscript: (text, isFinal) => {
         if (!firstResultTime) firstResultTime = Date.now();
-        
+
         if (isFinal && text.length > 0) {
           clearTimeout(timeout);
           stt.stop();

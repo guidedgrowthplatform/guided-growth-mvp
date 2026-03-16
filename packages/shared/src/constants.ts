@@ -13,4 +13,3 @@ export const FREQUENCIES: { value: Frequency; label: string }[] = [
   { value: 'weekends', label: 'Weekends' },
   { value: 'weekly', label: 'Weekly' },
 ];
-

@@ -23,7 +23,13 @@ export function ConfigurePage() {
   const { metrics, loading, create, update, remove } = useMetrics();
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<MetricFormData>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm<MetricFormData>({
     resolver: zodResolver(metricFormSchema),
     defaultValues: emptyForm,
   });
@@ -45,7 +51,7 @@ export function ConfigurePage() {
     reset(emptyForm);
   };
 
-  const handleEdit = (metric: typeof metrics[0]) => {
+  const handleEdit = (metric: (typeof metrics)[0]) => {
     reset({
       name: metric.name,
       input_type: metric.input_type,
@@ -72,21 +78,17 @@ export function ConfigurePage() {
 
   return (
     <div>
-      <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-6 sm:mb-8">
+      <h1 className="mb-6 text-2xl font-bold text-primary sm:mb-8 sm:text-3xl">
         Configure Metrics
       </h1>
 
       {/* Form */}
-      <div className="bg-surface shadow-elevated border border-border rounded-2xl p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-4 text-content">
+      <div className="mb-8 rounded-2xl border border-border bg-surface p-6 shadow-elevated">
+        <h2 className="mb-4 text-xl font-semibold text-content">
           {editingId ? 'Edit Metric' : 'Add New Metric'}
         </h2>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input
-            label="Metric Name"
-            {...register('name')}
-            error={errors.name?.message}
-          />
+          <Input label="Metric Name" {...register('name')} error={errors.name?.message} />
           <Input
             label="Question/Phrase"
             {...register('question')}
@@ -94,7 +96,7 @@ export function ConfigurePage() {
             error={errors.question?.message}
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Select
               label="Input Type"
               {...register('input_type')}
@@ -110,7 +112,7 @@ export function ConfigurePage() {
           </div>
 
           {inputType === 'numeric' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input
                 label="Target Value"
                 type="number"
@@ -130,15 +132,24 @@ export function ConfigurePage() {
               type="checkbox"
               id="active"
               {...register('active')}
-              className="w-4 h-4 text-primary rounded focus:ring-primary accent-primary"
+              className="h-4 w-4 rounded text-primary accent-primary focus:ring-primary"
             />
-            <label htmlFor="active" className="text-sm font-medium text-content">Active</label>
+            <label htmlFor="active" className="text-sm font-medium text-content">
+              Active
+            </label>
           </div>
 
           <div className="flex gap-3">
             <Button type="submit">{editingId ? 'Update' : 'Add Metric'}</Button>
             {editingId && (
-              <Button type="button" variant="secondary" onClick={() => { setEditingId(null); reset(emptyForm); }}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setEditingId(null);
+                  reset(emptyForm);
+                }}
+              >
                 Cancel
               </Button>
             )}
@@ -147,8 +158,8 @@ export function ConfigurePage() {
       </div>
 
       {/* Metrics List */}
-      <div className="bg-surface shadow-elevated border border-border rounded-2xl">
-        <div className="p-6 border-b border-border">
+      <div className="rounded-2xl border border-border bg-surface shadow-elevated">
+        <div className="border-b border-border p-6">
           <h2 className="text-xl font-semibold text-content">Your Metrics</h2>
         </div>
         <div className="divide-y divide-border">
@@ -156,32 +167,47 @@ export function ConfigurePage() {
             <div className="p-8 text-center text-content-secondary">No metrics configured yet.</div>
           ) : (
             metrics.map((metric) => (
-              <div key={metric.id} className="p-4 sm:p-6 hover:bg-surface-secondary transition-all">
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+              <div key={metric.id} className="p-4 transition-all hover:bg-surface-secondary sm:p-6">
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                   <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
                       <h3 className="text-lg font-semibold text-content">{metric.name}</h3>
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded ${metric.active ? 'bg-success/20 text-success' : 'bg-surface-secondary text-content-secondary'}`}>
+                      <span
+                        className={`rounded px-2 py-0.5 text-xs font-medium ${metric.active ? 'bg-success/20 text-success' : 'bg-surface-secondary text-content-secondary'}`}
+                      >
                         {metric.active ? 'Active' : 'Inactive'}
                       </span>
-                      <span className="px-2 py-0.5 text-xs font-medium bg-surface-secondary text-primary rounded">{metric.frequency}</span>
+                      <span className="rounded bg-surface-secondary px-2 py-0.5 text-xs font-medium text-primary">
+                        {metric.frequency}
+                      </span>
                     </div>
-                    {metric.question && <p className="text-content-secondary text-sm">{metric.question}</p>}
-                    <div className="text-xs text-content-secondary mt-1">
+                    {metric.question && (
+                      <p className="text-sm text-content-secondary">{metric.question}</p>
+                    )}
+                    <div className="mt-1 text-xs text-content-secondary">
                       Type: {INPUT_TYPES.find((t) => t.value === metric.input_type)?.label}
                       {metric.target_value != null && (
                         <span className="ml-2">
-                          | Target: {metric.target_value}{metric.target_unit ? ` ${metric.target_unit}` : ''}
+                          | Target: {metric.target_value}
+                          {metric.target_unit ? ` ${metric.target_unit}` : ''}
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-2 flex-shrink-0">
-                    <Button size="sm" variant="secondary" onClick={() => toggleActive(metric.id, metric.active)}>
+                  <div className="flex flex-shrink-0 gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => toggleActive(metric.id, metric.active)}
+                    >
                       {metric.active ? 'Deactivate' : 'Activate'}
                     </Button>
-                    <Button size="sm" variant="secondary" onClick={() => handleEdit(metric)}>Edit</Button>
-                    <Button size="sm" variant="danger" onClick={() => handleDelete(metric.id)}>Delete</Button>
+                    <Button size="sm" variant="secondary" onClick={() => handleEdit(metric)}>
+                      Edit
+                    </Button>
+                    <Button size="sm" variant="danger" onClick={() => handleDelete(metric.id)}>
+                      Delete
+                    </Button>
                   </div>
                 </div>
               </div>

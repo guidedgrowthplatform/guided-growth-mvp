@@ -9,7 +9,11 @@ export function useMetrics() {
   const { addToast } = useToast();
   const qc = useQueryClient();
 
-  const { data: metrics = [], isLoading: loading, error: queryError } = useQuery({
+  const {
+    data: metrics = [],
+    isLoading: loading,
+    error: queryError,
+  } = useQuery({
     queryKey: queryKeys.metrics.all,
     queryFn: metricsApi.fetchMetrics,
   });
@@ -25,7 +29,8 @@ export function useMetrics() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: MetricUpdate }) => metricsApi.updateMetric(id, data),
+    mutationFn: ({ id, data }: { id: string; data: MetricUpdate }) =>
+      metricsApi.updateMetric(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
     },
@@ -46,21 +51,33 @@ export function useMetrics() {
     },
   });
 
-  const create = useCallback(async (data: MetricCreate) => {
-    return createMutation.mutateAsync(data);
-  }, [createMutation]);
+  const create = useCallback(
+    async (data: MetricCreate) => {
+      return createMutation.mutateAsync(data);
+    },
+    [createMutation],
+  );
 
-  const update = useCallback(async (id: string, data: MetricUpdate) => {
-    return updateMutation.mutateAsync({ id, data });
-  }, [updateMutation]);
+  const update = useCallback(
+    async (id: string, data: MetricUpdate) => {
+      return updateMutation.mutateAsync({ id, data });
+    },
+    [updateMutation],
+  );
 
-  const remove = useCallback(async (id: string) => {
-    return removeMutation.mutateAsync(id);
-  }, [removeMutation]);
+  const remove = useCallback(
+    async (id: string) => {
+      return removeMutation.mutateAsync(id);
+    },
+    [removeMutation],
+  );
 
-  const reorder = useCallback(async (metricIds: string[]) => {
-    return reorderMutation.mutateAsync(metricIds);
-  }, [reorderMutation]);
+  const reorder = useCallback(
+    async (metricIds: string[]) => {
+      return reorderMutation.mutateAsync(metricIds);
+    },
+    [reorderMutation],
+  );
 
   const load = useCallback(() => {
     qc.invalidateQueries({ queryKey: queryKeys.metrics.all });

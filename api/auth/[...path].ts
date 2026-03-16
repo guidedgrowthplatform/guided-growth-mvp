@@ -58,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const role = email === process.env.ADMIN_EMAIL ? 'admin' : 'user';
         const result = await pool.query(
           `INSERT INTO users (email, name, avatar_url, role, last_login_at) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-          [email, profile.name, profile.picture, role, now]
+          [email, profile.name, profile.picture, role, now],
         );
         user = result.rows[0];
       } else {
@@ -66,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (user.status === 'disabled') return res.redirect('/login?error=disabled');
         await pool.query(
           `UPDATE users SET name = $1, avatar_url = $2, last_login_at = $3, updated_at = $3 WHERE id = $4`,
-          [profile.name, profile.picture, now, user.id]
+          [profile.name, profile.picture, now, user.id],
         );
       }
 
@@ -84,8 +84,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const user = await getUser(req);
     if (!user) return res.status(401).json({ error: 'Not authenticated' });
     return res.json({
-      id: user.id, email: user.email, name: user.name,
-      avatar_url: user.avatar_url, role: user.role, status: user.status,
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatar_url: user.avatar_url,
+      role: user.role,
+      status: user.status,
     });
   }
 

@@ -12,7 +12,7 @@ const sizeClasses = {
 export function LoadingSpinner({ size = 'md', className = '' }: LoadingSpinnerProps) {
   return (
     <div className={`${sizeClasses[size]} ${className}`}>
-      <div className="w-full h-full border-2 border-border border-t-primary rounded-full animate-spin" />
+      <div className="h-full w-full animate-spin rounded-full border-2 border-border border-t-primary" />
     </div>
   );
 }

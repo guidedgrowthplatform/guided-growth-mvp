@@ -7,7 +7,7 @@ interface SpreadsheetRangeToggleProps {
 
 export function SpreadsheetRangeToggle({ range, onChange }: SpreadsheetRangeToggleProps) {
   return (
-    <div className="inline-flex rounded-xl border border-border overflow-hidden">
+    <div className="inline-flex overflow-hidden rounded-xl border border-border">
       <button
         onClick={() => onChange('week')}
         className={`px-3 py-1.5 text-xs font-medium transition-all ${

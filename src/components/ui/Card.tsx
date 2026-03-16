@@ -18,7 +18,7 @@ interface CardProps {
 export function Card({ children, className = '', padding = 'md', hoverable, onClick }: CardProps) {
   return (
     <div
-      className={`bg-surface rounded-lg shadow-card border border-border ${paddingMap[padding]} ${hoverable ? 'hover:shadow-card-hover transition-shadow cursor-pointer' : ''} ${className}`}
+      className={`rounded-lg border border-border bg-surface shadow-card ${paddingMap[padding]} ${hoverable ? 'cursor-pointer transition-shadow hover:shadow-card-hover' : ''} ${className}`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
     >

@@ -29,6 +29,8 @@ export async function fetchAuditLog(limit = 50): Promise<AuditLogEntry[]> {
   return apiGet<AuditLogEntry[]>(`/api/admin/audit-log?limit=${limit}`);
 }
 
-export async function fetchUserData(userId: string): Promise<{ user_id: string; metrics: number; entries: number; reflections: number }> {
+export async function fetchUserData(
+  userId: string,
+): Promise<{ user_id: string; metrics: number; entries: number; reflections: number }> {
   return apiGet(`/api/admin/users/${userId}/data`);
 }

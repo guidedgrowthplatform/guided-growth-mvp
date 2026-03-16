@@ -22,7 +22,9 @@ function getLocalConfig(): ReflectionConfig {
   try {
     const raw = localStorage.getItem(LS_CONFIG);
     if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return DEFAULT_CONFIG;
 }
 
@@ -30,7 +32,9 @@ function getLocalReflections(): Record<string, DayReflections> {
   try {
     const raw = localStorage.getItem(LS_REFLECTIONS);
     if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return {};
 }
 
@@ -55,10 +59,15 @@ export async function saveReflectionConfig(config: ReflectionConfig): Promise<Re
   }
 }
 
-export async function fetchReflections(start: string, end: string): Promise<Record<string, DayReflections>> {
+export async function fetchReflections(
+  start: string,
+  end: string,
+): Promise<Record<string, DayReflections>> {
   if (useSupabase) return getLocalReflections();
   try {
-    return await apiGet<Record<string, DayReflections>>(`/api/reflections?start=${start}&end=${end}`);
+    return await apiGet<Record<string, DayReflections>>(
+      `/api/reflections?start=${start}&end=${end}`,
+    );
   } catch {
     return getLocalReflections();
   }
@@ -69,11 +78,15 @@ export async function saveReflections(date: string, reflections: DayReflections)
     const all = JSON.parse(localStorage.getItem(LS_REFLECTIONS) || '{}');
     all[date] = reflections;
     localStorage.setItem(LS_REFLECTIONS, JSON.stringify(all));
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   if (useSupabase) return;
   try {
     await apiPut(`/api/reflections/${date}`, reflections);
-  } catch { /* silent */ }
+  } catch {
+    /* silent */
+  }
 }
 
 export async function fetchAffirmation(): Promise<string> {
@@ -92,5 +105,7 @@ export async function saveAffirmation(value: string): Promise<void> {
   if (useSupabase) return;
   try {
     await apiPut('/api/affirmation', { value });
-  } catch { /* silent */ }
+  } catch {
+    /* silent */
+  }
 }

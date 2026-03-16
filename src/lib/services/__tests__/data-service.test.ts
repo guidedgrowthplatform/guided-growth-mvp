@@ -36,7 +36,7 @@ function createDataServiceTests(name: string, factory: () => DataService) {
         await svc.createHabit('Exercise', '3x/week');
         const habits = await svc.getHabits();
         expect(habits.length).toBeGreaterThanOrEqual(2);
-        const names = habits.map(h => h.name);
+        const names = habits.map((h) => h.name);
         expect(names).toContain('Meditation');
         expect(names).toContain('Exercise');
       });
@@ -63,7 +63,7 @@ function createDataServiceTests(name: string, factory: () => DataService) {
         const habit = await svc.createHabit('ToDelete');
         await svc.deleteHabit(habit.id);
         const habits = await svc.getHabits();
-        const names = habits.map(h => h.name);
+        const names = habits.map((h) => h.name);
         expect(names).not.toContain('ToDelete');
       });
     });
@@ -117,7 +117,7 @@ function createDataServiceTests(name: string, factory: () => DataService) {
         const metric = await svc.createMetric('ToDelete', 'binary');
         await svc.deleteMetric(metric.id);
         const metrics = await svc.getMetrics();
-        expect(metrics.map(m => m.name)).not.toContain('ToDelete');
+        expect(metrics.map((m) => m.name)).not.toContain('ToDelete');
       });
     });
 

@@ -16,18 +16,25 @@ export function CapturePage() {
   }, [date]);
 
   const {
-    config, reflections, affirmation, loading,
-    saveDay: saveReflection, saveAffirmationValue,
+    config,
+    reflections,
+    affirmation,
+    loading,
+    saveDay: saveReflection,
+    saveAffirmationValue,
   } = useReflections(start, end);
 
-  const handleFieldChange = useCallback((dateStr: string, fieldId: string, value: string) => {
-    const dayReflections = { ...reflections[dateStr], [fieldId]: value };
-    saveReflection(dateStr, dayReflections);
-  }, [reflections, saveReflection]);
+  const handleFieldChange = useCallback(
+    (dateStr: string, fieldId: string, value: string) => {
+      const dayReflections = { ...reflections[dateStr], [fieldId]: value };
+      saveReflection(dateStr, dayReflections);
+    },
+    [reflections, saveReflection],
+  );
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <h1 className="text-2xl font-bold text-content mb-4">Capture</h1>
+    <div className="mx-auto max-w-7xl">
+      <h1 className="mb-4 text-2xl font-bold text-content">Capture</h1>
       <CaptureView />
       <ReflectionsPanel
         date={date}

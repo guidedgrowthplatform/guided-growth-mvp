@@ -16,9 +16,12 @@ export function useCellSelection() {
     setSelectedCell(null);
   }, []);
 
-  const isCellSelected = useCallback((date: string, metricId: string) => {
-    return selectedCell?.date === date && selectedCell?.metricId === metricId;
-  }, [selectedCell]);
+  const isCellSelected = useCallback(
+    (date: string, metricId: string) => {
+      return selectedCell?.date === date && selectedCell?.metricId === metricId;
+    },
+    [selectedCell],
+  );
 
   return { selectedCell, selectCell, clearSelection, isCellSelected };
 }

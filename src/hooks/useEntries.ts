@@ -46,14 +46,17 @@ export function useEntries() {
     });
   }, []);
 
-  const saveDay = useCallback(async (date: string, dayEntries: DayEntries) => {
-    try {
-      await entriesApi.saveEntries(date, dayEntries);
-    } catch (err: any) {
-      offlineQueue.enqueue(`/api/entries/${date}`, 'PUT', dayEntries);
-      addToast('error', 'Saved offline — will sync when back online');
-    }
-  }, [addToast]);
+  const saveDay = useCallback(
+    async (date: string, dayEntries: DayEntries) => {
+      try {
+        await entriesApi.saveEntries(date, dayEntries);
+      } catch (err: any) {
+        offlineQueue.enqueue(`/api/entries/${date}`, 'PUT', dayEntries);
+        addToast('error', 'Saved offline — will sync when back online');
+      }
+    },
+    [addToast],
+  );
 
   // Flush offline queue when online
   useEffect(() => {
@@ -69,10 +72,13 @@ export function useEntries() {
     return () => window.removeEventListener('online', handleOnline);
   }, [addToast]);
 
-  const saveDayDebounced = useCallback((date: string, dayEntries: DayEntries) => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => saveDay(date, dayEntries), 500);
-  }, [saveDay]);
+  const saveDayDebounced = useCallback(
+    (date: string, dayEntries: DayEntries) => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => saveDay(date, dayEntries), 500);
+    },
+    [saveDay],
+  );
 
   const saveBulk = useCallback(async (entriesMap: EntriesMap) => {
     try {
@@ -82,5 +88,16 @@ export function useEntries() {
     }
   }, []);
 
-  return { entries, loading, error, load, updateLocal, updateCell, saveDay, saveDayDebounced, saveBulk, setEntries };
+  return {
+    entries,
+    loading,
+    error,
+    load,
+    updateLocal,
+    updateCell,
+    saveDay,
+    saveDayDebounced,
+    saveBulk,
+    setEntries,
+  };
 }

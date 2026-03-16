@@ -25,15 +25,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const addToast = useCallback((type: ToastType, message: string) => {
-    const id = ++nextId;
-    setToasts((prev) => {
-      const next = [...prev, { id, type, message }];
-      // Keep max 3 visible
-      return next.slice(-3);
-    });
-    setTimeout(() => removeToast(id), 3000);
-  }, [removeToast]);
+  const addToast = useCallback(
+    (type: ToastType, message: string) => {
+      const id = ++nextId;
+      setToasts((prev) => {
+        const next = [...prev, { id, type, message }];
+        // Keep max 3 visible
+        return next.slice(-3);
+      });
+      setTimeout(() => removeToast(id), 3000);
+    },
+    [removeToast],
+  );
 
   return (
     <ToastContext.Provider value={{ toasts, addToast, removeToast }}>

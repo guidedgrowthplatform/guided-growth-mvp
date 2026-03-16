@@ -12,16 +12,16 @@ export function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-24 lg:bottom-6 right-4 z-[60] flex flex-col gap-2 pointer-events-none">
+    <div className="pointer-events-none fixed bottom-24 right-4 z-[60] flex flex-col gap-2 lg:bottom-6">
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`pointer-events-auto px-4 py-2.5 rounded-md shadow-elevated text-sm font-medium flex items-center gap-2 animate-slide-in ${typeStyles[toast.type]}`}
+          className={`pointer-events-auto flex animate-slide-in items-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium shadow-elevated ${typeStyles[toast.type]}`}
         >
           <span className="flex-1">{toast.message}</span>
           <button
             onClick={() => removeToast(toast.id)}
-            className="opacity-70 hover:opacity-100 text-lg leading-none"
+            className="text-lg leading-none opacity-70 hover:opacity-100"
           >
             &times;
           </button>

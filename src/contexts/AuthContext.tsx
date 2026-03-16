@@ -27,7 +27,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -54,9 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-primary-bg">
+      <div className="flex h-screen items-center justify-center bg-primary-bg">
         <div className="text-center">
-          <div className="text-2xl font-bold text-primary mb-2 animate-pulse">Guided Growth</div>
+          <div className="mb-2 animate-pulse text-2xl font-bold text-primary">Guided Growth</div>
           <div className="text-sm text-content-secondary">Loading...</div>
         </div>
       </div>

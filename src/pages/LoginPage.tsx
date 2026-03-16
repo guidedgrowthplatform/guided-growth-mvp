@@ -14,7 +14,12 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<LoginForm>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   });
 
@@ -45,12 +50,10 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-primary-bg">
-      <div className="bg-surface shadow-elevated border border-border rounded-2xl p-8 max-w-md w-full mx-4">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary mb-2">
-            Guided Growth
-          </h1>
+    <div className="flex min-h-screen items-center justify-center bg-primary-bg">
+      <div className="mx-4 w-full max-w-md rounded-2xl border border-border bg-surface p-8 shadow-elevated">
+        <div className="mb-8 text-center">
+          <h1 className="mb-2 text-3xl font-bold text-primary">Guided Growth</h1>
           <p className="text-content-secondary">
             {isSignUp ? 'Create your account' : 'Welcome back'}
           </p>
@@ -58,45 +61,43 @@ export function LoginPage() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-content mb-1">Email</label>
+            <label className="mb-1 block text-sm font-medium text-content">Email</label>
             <input
               type="email"
               {...register('email')}
-              className="w-full px-4 py-3 rounded-xl border border-border bg-surface
-                         focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
-                         transition-all duration-200"
+              className="w-full rounded-xl border border-border bg-surface px-4 py-3 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="you@example.com"
             />
             {errors.email && <p className="mt-1 text-xs text-danger">{errors.email.message}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-content mb-1">Password</label>
+            <label className="mb-1 block text-sm font-medium text-content">Password</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 {...register('password')}
-                className="w-full px-4 py-3 pr-12 rounded-xl border border-border bg-surface
-                           focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
-                           transition-all duration-200"
+                className="w-full rounded-xl border border-border bg-surface px-4 py-3 pr-12 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-content-tertiary hover:text-content-secondary transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-content-tertiary transition-colors hover:text-content-secondary"
               >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
-            {errors.password && <p className="mt-1 text-xs text-danger">{errors.password.message}</p>}
+            {errors.password && (
+              <p className="mt-1 text-xs text-danger">{errors.password.message}</p>
+            )}
           </div>
 
           {!isSignUp && (
             <div className="text-right">
               <Link
                 to="/forgot-password"
-                className="text-sm text-primary hover:text-primary-dark font-semibold underline transition-colors"
+                className="text-sm font-semibold text-primary underline transition-colors hover:text-primary-dark"
               >
                 Forgot password?
               </Link>
@@ -104,13 +105,13 @@ export function LoginPage() {
           )}
 
           {error && (
-            <div className="p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
+            <div className="rounded-lg border border-danger/20 bg-danger/10 p-3 text-sm text-danger">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="p-3 rounded-lg bg-success/10 border border-success/20 text-success text-sm">
+            <div className="rounded-lg border border-success/20 bg-success/10 p-3 text-sm text-success">
               {success}
             </div>
           )}
@@ -118,10 +119,7 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-4 rounded-xl font-semibold text-white
-                       bg-primary hover:bg-primary-dark
-                       disabled:opacity-50 disabled:cursor-not-allowed
-                       transition-all duration-200 shadow-lg"
+            className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? 'Please wait...' : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
@@ -134,7 +132,7 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => toggleMode(false)}
-                className="text-primary hover:text-primary-dark font-semibold underline transition-colors"
+                className="font-semibold text-primary underline transition-colors hover:text-primary-dark"
               >
                 Sign in
               </button>
@@ -145,7 +143,7 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => toggleMode(true)}
-                className="text-primary hover:text-primary-dark font-semibold underline transition-colors"
+                className="font-semibold text-primary underline transition-colors hover:text-primary-dark"
               >
                 Sign up
               </button>

@@ -42,17 +42,20 @@ export function AdminPage() {
   const loading = usersQuery.isLoading || allowlistQuery.isLoading || auditLogQuery.isLoading;
 
   const updateRoleMutation = useMutation({
-    mutationFn: ({ userId, role }: { userId: string; role: string }) => adminApi.updateUserRole(userId, role),
+    mutationFn: ({ userId, role }: { userId: string; role: string }) =>
+      adminApi.updateUserRole(userId, role),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.users }),
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ userId, status }: { userId: string; status: string }) => adminApi.updateUserStatus(userId, status),
+    mutationFn: ({ userId, status }: { userId: string; status: string }) =>
+      adminApi.updateUserStatus(userId, status),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.users }),
   });
 
   const addAllowlistMutation = useMutation({
-    mutationFn: ({ email, note }: { email: string; note: string }) => adminApi.addToAllowlist(email, note),
+    mutationFn: ({ email, note }: { email: string; note: string }) =>
+      adminApi.addToAllowlist(email, note),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: queryKeys.admin.allowlist });
       addToast('success', `Added ${variables.email} to allowlist`);
@@ -70,7 +73,12 @@ export function AdminPage() {
     },
   });
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<AllowlistForm>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<AllowlistForm>({
     resolver: zodResolver(allowlistSchema),
     defaultValues: { email: '', note: '' },
   });
@@ -82,9 +90,9 @@ export function AdminPage() {
 
   if (!isAdmin) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex h-64 items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-danger mb-4">Access Denied</h1>
+          <h1 className="mb-4 text-2xl font-bold text-danger">Access Denied</h1>
           <p className="text-content-secondary">Admin access required</p>
         </div>
       </div>
@@ -101,19 +109,17 @@ export function AdminPage() {
 
   return (
     <div>
-      <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-6">
-        Admin Panel
-      </h1>
+      <h1 className="mb-6 text-2xl font-bold text-primary sm:text-3xl">Admin Panel</h1>
 
       {/* Tabs */}
-      <div className="flex space-x-1 mb-6 border-b border-border overflow-x-auto">
+      <div className="mb-6 flex space-x-1 overflow-x-auto border-b border-border">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 text-sm font-medium transition-all rounded-t-lg ${
+            className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-all ${
               activeTab === tab.key
-                ? 'bg-surface-secondary text-primary border-b-2 border-primary'
+                ? 'border-b-2 border-primary bg-surface-secondary text-primary'
                 : 'text-content-secondary hover:text-content'
             }`}
           >
@@ -124,16 +130,18 @@ export function AdminPage() {
 
       {/* Users Tab */}
       {activeTab === 'users' && (
-        <div className="bg-surface shadow-elevated border border-border rounded-2xl overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-elevated">
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead>
-                <tr className="bg-surface-secondary border-b border-border">
+                <tr className="border-b border-border bg-surface-secondary">
                   <th className="px-4 py-3 text-left text-sm font-semibold text-content">Email</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-content">Name</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-content">Role</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-content">Status</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-content">Last Login</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-content">
+                    Last Login
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -144,8 +152,10 @@ export function AdminPage() {
                     <td className="px-4 py-3">
                       <select
                         value={u.role}
-                        onChange={(e) => updateRoleMutation.mutate({ userId: u.id, role: e.target.value })}
-                        className="text-sm border border-border rounded-lg px-2 py-1 bg-surface"
+                        onChange={(e) =>
+                          updateRoleMutation.mutate({ userId: u.id, role: e.target.value })
+                        }
+                        className="rounded-lg border border-border bg-surface px-2 py-1 text-sm"
                       >
                         <option value="user">User</option>
                         <option value="admin">Admin</option>
@@ -154,8 +164,10 @@ export function AdminPage() {
                     <td className="px-4 py-3">
                       <select
                         value={u.status}
-                        onChange={(e) => updateStatusMutation.mutate({ userId: u.id, status: e.target.value })}
-                        className="text-sm border border-border rounded-lg px-2 py-1 bg-surface"
+                        onChange={(e) =>
+                          updateStatusMutation.mutate({ userId: u.id, status: e.target.value })
+                        }
+                        className="rounded-lg border border-border bg-surface px-2 py-1 text-sm"
                       >
                         <option value="active">Active</option>
                         <option value="disabled">Disabled</option>
@@ -175,20 +187,30 @@ export function AdminPage() {
       {/* Allowlist Tab */}
       {activeTab === 'allowlist' && (
         <div>
-          <form onSubmit={handleSubmit(onAddAllowlist)} className="bg-surface shadow-elevated border border-border rounded-2xl p-4 mb-6">
-            <h3 className="font-semibold mb-3 text-content">Add Email</h3>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input type="email" {...register('email')} placeholder="email@example.com" error={errors.email?.message} />
+          <form
+            onSubmit={handleSubmit(onAddAllowlist)}
+            className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-elevated"
+          >
+            <h3 className="mb-3 font-semibold text-content">Add Email</h3>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                type="email"
+                {...register('email')}
+                placeholder="email@example.com"
+                error={errors.email?.message}
+              />
               <Input {...register('note')} placeholder="Note (optional)" />
-              <Button type="submit" className="flex-shrink-0">Add</Button>
+              <Button type="submit" className="flex-shrink-0">
+                Add
+              </Button>
             </div>
           </form>
 
-          <div className="bg-surface shadow-elevated border border-border rounded-2xl overflow-hidden">
+          <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-elevated">
             <div className="overflow-x-auto">
               <table className="min-w-full">
                 <thead>
-                  <tr className="bg-surface-secondary border-b border-border">
+                  <tr className="border-b border-border bg-surface-secondary">
                     <th className="px-4 py-3 text-left text-sm font-semibold">Email</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Note</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Added By</th>
@@ -202,9 +224,17 @@ export function AdminPage() {
                       <td className="px-4 py-3 text-sm">{entry.email}</td>
                       <td className="px-4 py-3 text-sm">{entry.note || '-'}</td>
                       <td className="px-4 py-3 text-sm">{entry.added_by_email || 'System'}</td>
-                      <td className="px-4 py-3 text-sm">{new Date(entry.created_at).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-sm">
+                        {new Date(entry.created_at).toLocaleDateString()}
+                      </td>
                       <td className="px-4 py-3">
-                        <Button size="sm" variant="danger" onClick={() => removeAllowlistMutation.mutate(entry.id)}>Remove</Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => removeAllowlistMutation.mutate(entry.id)}
+                        >
+                          Remove
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -217,11 +247,11 @@ export function AdminPage() {
 
       {/* Audit Log Tab */}
       {activeTab === 'audit' && (
-        <div className="bg-surface shadow-elevated border border-border rounded-2xl overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-elevated">
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead>
-                <tr className="bg-surface-secondary border-b border-border">
+                <tr className="border-b border-border bg-surface-secondary">
                   <th className="px-4 py-3 text-left text-sm font-semibold">Time</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Admin</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Action</th>
@@ -232,11 +262,17 @@ export function AdminPage() {
               <tbody className="divide-y divide-border">
                 {auditLog.map((log) => (
                   <tr key={log.id} className="hover:bg-surface-secondary">
-                    <td className="px-4 py-3 text-sm">{new Date(log.created_at).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {new Date(log.created_at).toLocaleString()}
+                    </td>
                     <td className="px-4 py-3 text-sm">{log.admin_email}</td>
                     <td className="px-4 py-3 text-sm">{log.action}</td>
-                    <td className="px-4 py-3 text-sm">{log.target_type}: {log.target_identifier}</td>
-                    <td className="px-4 py-3 text-sm">{log.payload_json ? JSON.stringify(log.payload_json) : '-'}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {log.target_type}: {log.target_identifier}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      {log.payload_json ? JSON.stringify(log.payload_json) : '-'}
+                    </td>
                   </tr>
                 ))}
               </tbody>

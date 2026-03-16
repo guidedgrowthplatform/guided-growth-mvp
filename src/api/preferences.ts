@@ -14,7 +14,9 @@ function getLocalPrefs(): PreferencesData {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return {
     default_view: 'spreadsheet',
     spreadsheet_range: window.innerWidth < 768 ? 'week' : 'month',

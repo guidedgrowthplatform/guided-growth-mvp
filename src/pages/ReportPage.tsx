@@ -1,5 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, parseISO, subDays } from 'date-fns';
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  getDay,
+  parseISO,
+  subDays,
+} from 'date-fns';
 import { useMetrics } from '@/hooks/useMetrics';
 import { useEntries } from '@/hooks/useEntries';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -44,16 +52,14 @@ export function ReportPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-primary">
-          Habit Tracker
-        </h1>
+      <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <h1 className="text-2xl font-bold text-primary sm:text-3xl">Habit Tracker</h1>
         <div className="flex items-center gap-2">
           <input
             type="month"
             value={format(selectedDate, 'yyyy-MM')}
             onChange={(e) => setSelectedDate(parseISO(e.target.value + '-01'))}
-            className="px-4 py-2 border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-primary bg-surface transition-all"
+            className="rounded-xl border border-border bg-surface px-4 py-2 transition-all focus:border-primary focus:ring-2 focus:ring-primary"
           />
           <Button size="sm" variant="secondary" onClick={handleExportCSV}>
             Download CSV
@@ -62,23 +68,34 @@ export function ReportPage() {
       </div>
 
       {activeMetrics.length === 0 ? (
-        <div className="bg-surface shadow-elevated border border-border rounded-2xl p-8 text-center text-content-secondary">
+        <div className="rounded-2xl border border-border bg-surface p-8 text-center text-content-secondary shadow-elevated">
           No metrics configured. Configure metrics first to view reports.
         </div>
       ) : (
-        <div className="bg-surface shadow-elevated border border-border rounded-2xl overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-elevated">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[800px] lg:min-w-0">
+            <table className="w-full min-w-[800px] border-collapse lg:min-w-0">
               <thead>
-                <tr className="bg-surface-secondary border-b-2 border-border">
-                  <th className="sticky left-0 z-10 bg-surface-secondary px-4 py-3 text-left font-semibold text-content border-r-2 border-border min-w-[200px]">
+                <tr className="border-b-2 border-border bg-surface-secondary">
+                  <th className="sticky left-0 z-10 min-w-[200px] border-r-2 border-border bg-surface-secondary px-4 py-3 text-left font-semibold text-content">
                     HABITS
                   </th>
                   {allDays.map((day, idx) => {
-                    if (!day) return <th key={`empty-${idx}`} className="px-2 py-2 text-xs bg-surface-secondary" />;
+                    if (!day)
+                      return (
+                        <th
+                          key={`empty-${idx}`}
+                          className="bg-surface-secondary px-2 py-2 text-xs"
+                        />
+                      );
                     return (
-                      <th key={day.toString()} className="px-2 py-2 text-center border-l border-border">
-                        <div className="text-xs font-medium text-content-secondary">{DAYS_OF_WEEK[getDay(day)]}</div>
+                      <th
+                        key={day.toString()}
+                        className="border-l border-border px-2 py-2 text-center"
+                      >
+                        <div className="text-xs font-medium text-content-secondary">
+                          {DAYS_OF_WEEK[getDay(day)]}
+                        </div>
                         <div className="text-sm font-semibold text-content">{format(day, 'd')}</div>
                       </th>
                     );
@@ -91,12 +108,17 @@ export function ReportPage() {
                     key={metric.id}
                     className={`border-b border-border ${metricIdx % 2 === 0 ? 'bg-surface' : 'bg-surface-secondary'}`}
                   >
-                    <td className="sticky left-0 z-10 px-4 py-3 text-sm font-medium text-content border-r-2 border-border bg-inherit">
+                    <td className="sticky left-0 z-10 border-r-2 border-border bg-inherit px-4 py-3 text-sm font-medium text-content">
                       <div className="font-semibold">{metric.name}</div>
-                      {metric.question && <div className="text-xs text-content-secondary mt-1">{metric.question}</div>}
+                      {metric.question && (
+                        <div className="mt-1 text-xs text-content-secondary">{metric.question}</div>
+                      )}
                     </td>
                     {allDays.map((day, dayIdx) => {
-                      if (!day) return <td key={`empty-${dayIdx}`} className="px-2 py-2 bg-surface-secondary" />;
+                      if (!day)
+                        return (
+                          <td key={`empty-${dayIdx}`} className="bg-surface-secondary px-2 py-2" />
+                        );
                       const dateStr = format(day, 'yyyy-MM-dd');
                       const value = entries[dateStr]?.[metric.id];
                       const display = getCellDisplayValue(value, metric);
@@ -104,7 +126,7 @@ export function ReportPage() {
                       return (
                         <td
                           key={dateStr}
-                          className={`px-2 py-2 text-center text-xs border-l border-border ${color} min-w-[40px]`}
+                          className={`border-l border-border px-2 py-2 text-center text-xs ${color} min-w-[40px]`}
                         >
                           {display || '-'}
                         </td>
@@ -117,21 +139,21 @@ export function ReportPage() {
           </div>
 
           {/* Legend */}
-          <div className="p-4 bg-surface-secondary border-t border-border flex flex-wrap gap-4 text-xs">
+          <div className="flex flex-wrap gap-4 border-t border-border bg-surface-secondary p-4 text-xs">
             <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded bg-emerald-400/80" />
+              <div className="h-5 w-5 rounded bg-emerald-400/80" />
               <span className="text-content">Completed</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded bg-red-400/80" />
+              <div className="h-5 w-5 rounded bg-red-400/80" />
               <span className="text-content">Not Completed</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded bg-emerald-200/60" />
+              <div className="h-5 w-5 rounded bg-emerald-200/60" />
               <span className="text-content">Has Value</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded bg-surface-secondary" />
+              <div className="h-5 w-5 rounded bg-surface-secondary" />
               <span className="text-content">No Entry</span>
             </div>
           </div>
@@ -140,23 +162,30 @@ export function ReportPage() {
 
       {/* Streaks */}
       {activeMetrics.length > 0 && streaks.some((s) => s.current > 0 || s.longest > 0) && (
-        <div className="bg-surface shadow-elevated border border-border rounded-2xl mt-6 p-6">
-          <h2 className="text-xl font-semibold text-content mb-4">Streaks</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {streaks.filter((s) => s.current > 0 || s.longest > 0).map(({ metric, current, longest }) => (
-              <div key={metric.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface">
-                <div className="text-2xl">{current > 0 ? '\uD83D\uDD25' : '\u2B50'}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-content truncate">{metric.name}</div>
-                  <div className="text-xs text-content-secondary">
-                    Current: <span className="font-semibold text-primary">{current} day{current !== 1 ? 's' : ''}</span>
-                    {longest > current && (
-                      <span className="ml-2">Best: <span className="font-semibold text-warning">{longest}</span></span>
-                    )}
+        <div className="mt-6 rounded-2xl border border-border bg-surface p-6 shadow-elevated">
+          <h2 className="mb-4 text-xl font-semibold text-content">Streaks</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {streaks
+              .filter((s) => s.current > 0 || s.longest > 0)
+              .map(({ metric, current, longest }) => (
+                <div key={metric.id} className="flex items-center gap-3 rounded-xl bg-surface p-3">
+                  <div className="text-2xl">{current > 0 ? '\uD83D\uDD25' : '\u2B50'}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-content">{metric.name}</div>
+                    <div className="text-xs text-content-secondary">
+                      Current:{' '}
+                      <span className="font-semibold text-primary">
+                        {current} day{current !== 1 ? 's' : ''}
+                      </span>
+                      {longest > current && (
+                        <span className="ml-2">
+                          Best: <span className="font-semibold text-warning">{longest}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       )}

@@ -24,7 +24,7 @@ async function saveEntriesToDataService(date: string, dayEntries: DayEntries): P
   const ds = await getDataService();
   // Import supabase directly for uncomplete operations
   const { supabase } = await import('@/lib/supabase');
-  
+
   for (const [metricId, value] of Object.entries(dayEntries)) {
     try {
       if (value === 'yes' || value === '1' || value === 'true') {

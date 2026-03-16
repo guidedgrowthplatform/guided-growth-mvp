@@ -8,7 +8,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
-  const route = segments[0] === '__index' ? '' : (segments[0] || '');
+  const route = segments[0] === '__index' ? '' : segments[0] || '';
 
   // GET /api/entries/export?start=&end=
   if (route === 'export' && req.method === 'GET') {
@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       pool.query('SELECT id, name FROM metrics WHERE user_id = $1 ORDER BY sort_order', [user.id]),
       pool.query(
         'SELECT metric_id, date::text, value FROM entries WHERE user_id = $1 AND date >= $2 AND date <= $3 ORDER BY date',
-        [user.id, start, end]
+        [user.id, start, end],
       ),
     ]);
 
@@ -31,8 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Build CSV
-    const header = ['Date', ...metrics.map((m) => `"${m.name.replace(/"/g, '""')}"`)]
-      .join(',');
+    const header = ['Date', ...metrics.map((m) => `"${m.name.replace(/"/g, '""')}"`)].join(',');
     const dates = Object.keys(entryMap).sort();
     const rows = dates.map((date) => {
       const values = metrics.map((m) => {
@@ -57,12 +56,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const [date, dayEntries] of Object.entries(req.body)) {
         for (const [metricId, value] of Object.entries(dayEntries as Record<string, string>)) {
           if (value === '' || value === null || value === undefined) {
-            await client.query('DELETE FROM entries WHERE user_id = $1 AND metric_id = $2 AND date = $3', [user.id, metricId, date]);
+            await client.query(
+              'DELETE FROM entries WHERE user_id = $1 AND metric_id = $2 AND date = $3',
+              [user.id, metricId, date],
+            );
           } else {
             await client.query(
               `INSERT INTO entries (user_id, metric_id, date, value) VALUES ($1, $2, $3, $4)
                ON CONFLICT (user_id, metric_id, date) DO UPDATE SET value = $4`,
-              [user.id, metricId, date, String(value)]
+              [user.id, metricId, date, String(value)],
             );
           }
         }
@@ -86,12 +88,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await client.query('BEGIN');
       for (const [metricId, value] of Object.entries(req.body)) {
         if (value === '' || value === null || value === undefined) {
-          await client.query('DELETE FROM entries WHERE user_id = $1 AND metric_id = $2 AND date = $3', [user.id, metricId, date]);
+          await client.query(
+            'DELETE FROM entries WHERE user_id = $1 AND metric_id = $2 AND date = $3',
+            [user.id, metricId, date],
+          );
         } else {
           await client.query(
             `INSERT INTO entries (user_id, metric_id, date, value) VALUES ($1, $2, $3, $4)
              ON CONFLICT (user_id, metric_id, date) DO UPDATE SET value = $4`,
-            [user.id, metricId, date, String(value)]
+            [user.id, metricId, date, String(value)],
           );
         }
       }
@@ -112,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const result = await pool.query(
     'SELECT metric_id, date::text, value FROM entries WHERE user_id = $1 AND date >= $2 AND date <= $3',
-    [user.id, start, end]
+    [user.id, start, end],
   );
 
   const map: Record<string, Record<string, string>> = {};

@@ -2,7 +2,11 @@ import { parseISO, getDay, format } from 'date-fns';
 import type { Metric, Frequency, EntriesMap } from '@shared/types';
 import { getWeekRange } from './dates';
 
-export function isMetricDue(metric: Pick<Metric, 'frequency'>, dateStr: string, entries?: EntriesMap): boolean {
+export function isMetricDue(
+  metric: Pick<Metric, 'frequency'>,
+  dateStr: string,
+  entries?: EntriesMap,
+): boolean {
   const date = parseISO(dateStr);
   const dayOfWeek = getDay(date);
 
