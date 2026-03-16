@@ -1,96 +1,97 @@
-import { Mic, Loader2, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
-import type { CheckInDimension } from '@shared/types';
-import { checkInDimensions } from './checkInConfig';
-import { EmojiOptionButton } from './EmojiOptionButton';
+import { Icon } from '@iconify/react';
+import { Mic } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 
 interface VoiceCheckInOverlayProps {
   onClose: () => void;
 }
 
-export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
-  const [values, setValues] = useState<Record<CheckInDimension, number | null>>({
-    sleep: null,
-    mood: null,
-    energy: null,
-    stress: null,
-  });
+type VoiceState = 'idle' | 'listening' | 'processing';
 
-  const handleSelect = (dimension: CheckInDimension, value: number) => {
-    setValues((prev) => ({
-      ...prev,
-      [dimension]: prev[dimension] === value ? null : value,
-    }));
+const stateLabel: Record<VoiceState, string> = {
+  idle: 'Tap to speak',
+  listening: 'Listening',
+  processing: 'Thinking...',
+};
+
+const stateMessage: Record<VoiceState, string> = {
+  idle: 'Hi there! how are you feeling right now regarding your energy, mood, or stress?',
+  listening: "I'm listening — tell me how you're feeling today.",
+  processing: 'Processing what you said...',
+};
+
+export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
+  const [state, setState] = useState<VoiceState>('idle');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  const handleMicPress = () => {
+    if (state === 'idle') {
+      setState('listening');
+    } else if (state === 'listening') {
+      setState('processing');
+      timerRef.current = setTimeout(() => setState('idle'), 2000);
+    }
   };
+
+  const pillBg = state === 'listening' ? 'bg-[#fdd017]' : 'bg-primary';
+  const pillText = state === 'listening' ? 'text-content' : 'text-white';
+  const showSpinner = state !== 'idle';
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" onClick={onClose}>
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[rgba(4,4,4,0.3)] via-[rgba(26,26,26,0.18)] to-[rgba(81,81,81,0.09)] backdrop-blur-[15px]" />
-
-      {/* Scrollable content */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[rgba(4,4,4,0.55)] via-[rgba(26,26,26,0.4)] to-[rgba(81,81,81,0.25)]" />
       <div
-        className="relative z-10 flex flex-1 flex-col items-center overflow-y-auto px-5 pb-40 pt-4"
+        className="absolute inset-0 backdrop-blur-[15px]"
+        style={{ maskImage: 'linear-gradient(to bottom, transparent 20%, black 60%)' }}
+      />
+
+      <div
+        className="relative z-10 flex flex-1 flex-col items-center justify-end px-5 pb-28"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Check-in card */}
-        <div className="w-full max-w-sm rounded-2xl border border-border-light bg-surface p-5 shadow-sm">
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-content">How are you feeling?</h2>
-            <ChevronDown className="h-5 w-5 text-content-secondary" />
-          </div>
-
-          <div className="flex flex-col gap-5">
-            {checkInDimensions.map((dim) => (
-              <div key={dim.key}>
-                <p className="mb-2 text-sm font-medium text-content-secondary">{dim.label}</p>
-                <div className="flex justify-between">
-                  {dim.options.map((opt) => (
-                    <EmojiOptionButton
-                      key={opt.value}
-                      icon={opt.icon}
-                      label={opt.label}
-                      color={opt.color}
-                      isSelected={values[dim.key] === opt.value}
-                      onClick={() => handleSelect(dim.key, opt.value)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <button className="mt-5 w-full rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-white shadow-[0px_4px_6px_-1px_rgba(65,105,225,0.2),0px_2px_4px_-2px_rgba(65,105,225,0.2)]">
-            Check In
-          </button>
-        </div>
-
-        {/* Talking pill */}
-        <div className="mt-8 flex items-center gap-2 rounded-[10px] bg-primary px-3 py-1.5">
-          <span className="text-sm font-medium text-white">Talking</span>
-          <Loader2 className="h-6 w-6 animate-spin text-white" />
+        {/* State pill */}
+        <div className={`flex items-center gap-2 rounded-[10px] px-3 py-1.5 ${pillBg}`}>
+          <span className={`text-[14px] font-medium ${pillText}`}>{stateLabel[state]}</span>
+          {showSpinner && (
+            <Icon icon="mingcute:loading-2-line" className={`h-6 w-6 animate-spin ${pillText}`} />
+          )}
         </div>
 
         {/* Chat message */}
-        <p className="mt-4 max-w-[227px] text-center text-sm font-medium text-white">
-          Hi there! how are you feeling right now regarding your energy, mood, or stress?
+        <p className="mt-5 max-w-[227px] text-center text-[14px] font-medium leading-[22px] text-white">
+          {stateMessage[state]}
         </p>
-      </div>
 
-      {/* Mic button */}
-      <div
-        className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="relative flex items-center justify-center">
-          {/* Outer pulse ring 1 */}
-          <div className="absolute h-[93px] w-[93px] animate-pulse rounded-full border-[3px] border-[#89c9ff] opacity-40 shadow-[0px_4px_16px_20px_rgba(65,105,225,0.2)]" />
-          {/* Outer pulse ring 2 */}
-          <div className="absolute h-[87px] w-[87px] animate-pulse rounded-full border-[3px] border-[#89c9ff] opacity-40 shadow-[0px_4px_16px_20px_rgba(65,105,225,0.2)]" />
-          {/* Mic button */}
-          <button className="relative flex h-[75px] w-[75px] items-center justify-center rounded-full bg-gradient-to-br from-[#135bec] to-[#2563eb] shadow-[0px_0px_15px_0px_rgba(19,91,236,0.3)]">
-            <Mic className="h-5 w-5 text-white" />
-          </button>
+        {/* Mic button with rings */}
+        <div className="mt-12">
+          <div className="relative flex items-center justify-center">
+            {/* Outer ring */}
+            <div
+              className={`absolute h-[120px] w-[120px] rounded-full border-[3px] border-[#89c9ff] opacity-40 shadow-[0px_4px_16px_0px_rgba(65,105,225,0.2)] transition-all duration-500 ${
+                state === 'listening' ? 'animate-[pulse_1.5s_ease-in-out_infinite]' : ''
+              }`}
+            />
+            {/* Inner ring */}
+            <div
+              className={`absolute h-[105px] w-[105px] rounded-full border-[3px] border-[#89c9ff] opacity-40 shadow-[0px_4px_16px_0px_rgba(65,105,225,0.2)] transition-all duration-500 ${
+                state === 'listening' ? 'animate-[pulse_1.5s_ease-in-out_infinite_0.3s]' : ''
+              }`}
+            />
+            {/* Mic button */}
+            <button
+              onClick={handleMicPress}
+              disabled={state === 'processing'}
+              className="relative flex h-[75px] w-[75px] items-center justify-center rounded-full bg-gradient-to-br from-primary to-[#2563eb] shadow-[0px_0px_15px_0px_rgba(19,91,236,0.3)] active:scale-95 disabled:active:scale-100"
+            >
+              <Mic className="h-5 w-5 text-white" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

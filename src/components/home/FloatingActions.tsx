@@ -1,10 +1,6 @@
-import { CheckSquare, BookOpen, Mic } from 'lucide-react';
+import { CheckSquare, BookOpen } from 'lucide-react';
 
-interface FloatingActionsProps {
-  onVoiceCheckIn?: () => void;
-}
-
-export function FloatingActions({ onVoiceCheckIn }: FloatingActionsProps) {
+export function FloatingActions() {
   return (
     <div className="fixed bottom-32 right-6 z-30 flex flex-col items-center gap-3 lg:hidden">
       <button
@@ -24,12 +20,6 @@ export function FloatingActions({ onVoiceCheckIn }: FloatingActionsProps) {
         <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full border border-primary bg-surface text-[10px] text-primary">
           +
         </span>
-      </button>
-      <button
-        onClick={onVoiceCheckIn}
-        className="relative flex h-12 w-12 items-center justify-center rounded-full bg-primary shadow-lg"
-      >
-        <Mic className="h-5 w-5 text-white" />
       </button>
     </div>
   );

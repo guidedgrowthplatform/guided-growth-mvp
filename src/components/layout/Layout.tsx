@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
+import { VoiceCheckInOverlay } from '@/components/home/VoiceCheckInOverlay';
 import { ToastContainer } from '@/components/ui/Toast';
 import { VoiceTranscript } from '@/components/voice/VoiceTranscript';
 import { BottomNav } from './BottomNav';
@@ -7,6 +8,7 @@ import { Sidebar } from './Sidebar';
 
 export function Layout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showVoiceCheckIn, setShowVoiceCheckIn] = useState(false);
   const location = useLocation();
   const isHomePage = location.pathname === '/' || location.pathname === '/home';
   const isHabitDetail = location.pathname.startsWith('/habit/');
@@ -43,9 +45,10 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </main>
 
-      <BottomNav />
+      <BottomNav onVoicePress={() => setShowVoiceCheckIn(true)} />
       <ToastContainer />
       <VoiceTranscript />
+      {showVoiceCheckIn && <VoiceCheckInOverlay onClose={() => setShowVoiceCheckIn(false)} />}
     </div>
   );
 }
