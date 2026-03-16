@@ -1,4 +1,4 @@
-import type { SelectHTMLAttributes } from 'react';
+import { forwardRef, type SelectHTMLAttributes } from 'react';
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
@@ -6,19 +6,24 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   error?: string;
 }
 
-export function Select({ label, options, error, className = '', ...props }: SelectProps) {
-  return (
-    <div>
-      {label && <label className="block text-sm font-medium text-content mb-1">{label}</label>}
-      <select
-        className={`w-full px-3 py-2 text-sm border border-border rounded-md bg-surface outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${error ? 'border-danger' : ''} ${className}`}
-        {...props}
-      >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
-        ))}
-      </select>
-      {error && <p className="mt-1 text-xs text-danger">{error}</p>}
-    </div>
-  );
-}
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(
+  ({ label, options, error, className = '', ...props }, ref) => {
+    return (
+      <div>
+        {label && <label className="block text-sm font-medium text-content mb-1">{label}</label>}
+        <select
+          ref={ref}
+          className={`w-full px-3 py-2 text-sm border border-border rounded-md bg-surface outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${error ? 'border-danger' : ''} ${className}`}
+          {...props}
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+      </div>
+    );
+  }
+);
+
+Select.displayName = 'Select';
