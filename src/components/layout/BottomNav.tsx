@@ -1,67 +1,95 @@
+import { Icon } from '@iconify/react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 
-const navItems = [
-  {
-    path: '/capture',
-    label: 'Capture',
-    icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
-  },
-  {
-    path: '/configure',
-    label: 'Config',
-    icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
-  },
-  {
-    path: '/report',
-    label: 'Report',
-    icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
-  },
-  {
-    path: '/settings',
-    label: 'Settings',
-    icon: 'M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4',
-  },
-  {
-    path: '/admin',
-    label: 'Admin',
-    icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
-    adminOnly: true,
-  },
-];
+interface NavTabProps {
+  icon: string;
+  label: string;
+  path: string;
+  isActive: boolean;
+}
 
-export function BottomNav() {
+function NavTab({ icon, label, path, isActive }: NavTabProps) {
+  return (
+    <Link
+      to={path}
+      className={`flex flex-col items-center justify-end ${isActive ? 'text-primary' : 'text-content-tertiary'}`}
+    >
+      <Icon icon={icon} width={24} />
+      <span className="mt-0.5 text-[10px] font-bold">{label}</span>
+    </Link>
+  );
+}
+
+function NavBarBackground() {
+  return (
+    <svg
+      className="absolute inset-0 h-full w-full"
+      viewBox="0 0 400 80"
+      preserveAspectRatio="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ filter: 'drop-shadow(0px -4px 12px rgba(0,0,0,0.06))' }}
+    >
+      <path
+        d="
+          M0 16 C0 6, 6 0, 16 0
+          L165 0
+          C171 0, 174 2, 177 10
+          C182 28, 189 40, 200 40
+          C211 40, 218 28, 223 10
+          C226 2, 229 0, 235 0
+          L384 0
+          C394 0, 400 6, 400 16
+          L400 80 L0 80 Z
+        "
+        fill="white"
+      />
+    </svg>
+  );
+}
+
+interface BottomNavProps {
+  onVoicePress?: () => void;
+}
+
+export function BottomNav({ onVoicePress }: BottomNavProps) {
   const location = useLocation();
-  const { user } = useAuth();
+
+  const isActive = (path: string) => {
+    if (path === '/') return location.pathname === '/' || location.pathname === '/home';
+    return location.pathname === path;
+  };
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] shadow-card lg:hidden">
-      <div className="flex justify-around py-2">
-        {navItems.map((item) => {
-          if (item.adminOnly && user?.role !== 'admin') return null;
-          const isActive = location.pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex min-w-[48px] flex-col items-center gap-0.5 rounded-lg px-2 py-1 transition-all ${
-                isActive ? 'text-primary' : 'text-content-secondary'
-              }`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
-              </svg>
-              <span className="text-[10px] font-medium leading-tight">{item.label}</span>
-            </Link>
-          );
-        })}
+    <nav className="fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <div className="relative" style={{ height: '72px' }}>
+        <NavBarBackground />
+
+        <div className="absolute left-1/2 -translate-x-1/2" style={{ top: '-24px' }}>
+          <button
+            onClick={onVoicePress}
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-[#2563eb] shadow-[0px_0px_15px_rgba(19,91,236,0.3)]"
+          >
+            <Icon icon="ic:round-mic" width={24} className="text-white" />
+          </button>
+        </div>
+
+        <div className="relative grid h-full grid-cols-5 items-end px-6 pb-2">
+          <NavTab icon="ic:round-home" label="Home" path="/" isActive={isActive('/')} />
+          <NavTab
+            icon="ic:round-leaderboard"
+            label="Progress"
+            path="/report"
+            isActive={isActive('/report')}
+          />
+          <div />
+          <NavTab icon="ic:round-timer" label="Focus" path="/focus" isActive={isActive('/focus')} />
+          <NavTab
+            icon="ic:round-person"
+            label="Profile"
+            path="/settings"
+            isActive={isActive('/settings')}
+          />
+        </div>
       </div>
     </nav>
   );
