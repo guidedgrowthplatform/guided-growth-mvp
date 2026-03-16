@@ -1,0 +1,43 @@
+image: node:20-alpine
+
+stages:
+  - validate
+  - test
+  - build
+
+cache:
+  key:
+    files:
+      - package-lock.json
+  paths:
+    - node_modules/
+
+before_script:
+  - npm ci
+
+lint:
+  stage: validate
+  script:
+    - npm run lint
+    - npm run format:check
+
+type-check:
+  stage: validate
+  script:
+    - npm run type-check
+
+test:
+  stage: test
+  script:
+    - npm run test:coverage
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+
+build:
+  stage: build
+  script:
+    - npm run build
