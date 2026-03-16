@@ -8,6 +8,7 @@ import {
   FeedbackButton,
   FloatingActions,
   ReminderSheet,
+  VoiceCheckInOverlay,
 } from '@/components/home';
 import { useAuth } from '@/contexts/AuthContext';
 import type { EntriesMap } from '@shared/types';
@@ -26,6 +27,7 @@ export function HomePage() {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showReminders, setShowReminders] = useState(false);
+  const [showVoiceCheckIn, setShowVoiceCheckIn] = useState(false);
   const mockEntries = useMemo(() => buildMockEntries(), []);
 
   const fullName = user?.user_metadata?.full_name as string | undefined;
@@ -45,8 +47,9 @@ export function HomePage() {
         <HabitsSection selectedDate={selectedDate} />
         <FeedbackButton />
       </div>
-      <FloatingActions />
+      <FloatingActions onVoiceCheckIn={() => setShowVoiceCheckIn(true)} />
       {showReminders && <ReminderSheet onClose={() => setShowReminders(false)} />}
+      {showVoiceCheckIn && <VoiceCheckInOverlay onClose={() => setShowVoiceCheckIn(false)} />}
     </>
   );
 }
