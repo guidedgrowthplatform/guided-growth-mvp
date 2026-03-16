@@ -1,8 +1,8 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { forgotPasswordSchema, type ForgotPasswordForm } from '@/lib/validation';
 
 export function ForgotPasswordPage() {
@@ -50,7 +50,7 @@ export function ForgotPasswordPage() {
             </div>
             <Link
               to="/login"
-              className="inline-block text-sm font-semibold text-primary underline transition-colors hover:text-primary-dark"
+              className="inline-block text-sm font-semibold text-primary transition-colors hover:text-primary-dark"
             >
               Back to sign in
             </Link>
@@ -88,7 +88,7 @@ export function ForgotPasswordPage() {
               Remember your password?{' '}
               <Link
                 to="/login"
-                className="font-semibold text-primary underline transition-colors hover:text-primary-dark"
+                className="font-semibold text-primary transition-colors hover:text-primary-dark"
               >
                 Sign in
               </Link>

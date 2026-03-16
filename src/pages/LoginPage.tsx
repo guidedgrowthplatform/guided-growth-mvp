@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Link } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Eye, EyeOff } from 'lucide-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { loginSchema, type LoginForm } from '@/lib/validation';
 
 export function LoginPage() {
@@ -97,7 +97,7 @@ export function LoginPage() {
             <div className="text-right">
               <Link
                 to="/forgot-password"
-                className="text-sm font-semibold text-primary underline transition-colors hover:text-primary-dark"
+                className="text-sm font-semibold text-primary transition-colors hover:text-primary-dark"
               >
                 Forgot password?
               </Link>
@@ -132,7 +132,7 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => toggleMode(false)}
-                className="font-semibold text-primary underline transition-colors hover:text-primary-dark"
+                className="font-semibold text-primary transition-colors hover:text-primary-dark"
               >
                 Sign in
               </button>
@@ -143,7 +143,7 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => toggleMode(true)}
-                className="font-semibold text-primary underline transition-colors hover:text-primary-dark"
+                className="font-semibold text-primary transition-colors hover:text-primary-dark"
               >
                 Sign up
               </button>
