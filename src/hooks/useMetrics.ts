@@ -1,68 +1,70 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { Metric, MetricCreate, MetricUpdate } from '@shared/types';
+import { useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { MetricCreate, MetricUpdate } from '@shared/types';
 import * as metricsApi from '@/api/metrics';
-import { cache } from '@/cache/cacheManager';
+import { queryKeys } from '@/lib/query';
 import { useToast } from '@/contexts/ToastContext';
 
 export function useMetrics() {
   const { addToast } = useToast();
-  const [metrics, setMetrics] = useState<Metric[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const qc = useQueryClient();
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await metricsApi.fetchMetrics();
-      setMetrics(data);
-      cache.set('metrics', data);
-    } catch (err: any) {
-      setError(err.message);
-      // Try cache fallback
-      const cached = cache.get<Metric[]>('metrics');
-      if (cached) setMetrics(cached);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data: metrics = [], isLoading: loading, error: queryError } = useQuery({
+    queryKey: queryKeys.metrics.all,
+    queryFn: metricsApi.fetchMetrics,
+  });
 
-  useEffect(() => { load(); }, [load]);
+  const error = queryError ? (queryError as Error).message : null;
 
-  // Re-fetch when voice commands change data
-  useEffect(() => {
-    const handler = () => load();
-    window.addEventListener('voice-data-changed', handler);
-    return () => window.removeEventListener('voice-data-changed', handler);
-  }, [load]);
+  const createMutation = useMutation({
+    mutationFn: (data: MetricCreate) => metricsApi.createMetric(data),
+    onSuccess: (_result, data) => {
+      qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
+      addToast('success', `Habit "${data.name}" created`);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: MetricUpdate }) => metricsApi.updateMetric(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (id: string) => metricsApi.deleteMetric(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
+      addToast('info', 'Habit removed');
+    },
+  });
+
+  const reorderMutation = useMutation({
+    mutationFn: (metricIds: string[]) => metricsApi.reorderMetrics(metricIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
+    },
+  });
 
   const create = useCallback(async (data: MetricCreate) => {
-    const metric = await metricsApi.createMetric(data);
-    setMetrics((prev) => [...prev, metric]);
-    cache.invalidate('metrics');
-    addToast('success', `Habit "${data.name}" created`);
-    return metric;
-  }, [addToast]);
+    return createMutation.mutateAsync(data);
+  }, [createMutation]);
 
   const update = useCallback(async (id: string, data: MetricUpdate) => {
-    const metric = await metricsApi.updateMetric(id, data);
-    setMetrics((prev) => prev.map((m) => (m.id === id ? metric : m)));
-    cache.invalidate('metrics');
-    return metric;
-  }, []);
+    return updateMutation.mutateAsync({ id, data });
+  }, [updateMutation]);
 
   const remove = useCallback(async (id: string) => {
-    await metricsApi.deleteMetric(id);
-    setMetrics((prev) => prev.filter((m) => m.id !== id));
-    cache.invalidate('metrics');
-    addToast('info', 'Habit removed');
-  }, [addToast]);
+    return removeMutation.mutateAsync(id);
+  }, [removeMutation]);
 
   const reorder = useCallback(async (metricIds: string[]) => {
-    const reordered = await metricsApi.reorderMetrics(metricIds);
-    setMetrics(reordered);
-    cache.invalidate('metrics');
-  }, []);
+    return reorderMutation.mutateAsync(metricIds);
+  }, [reorderMutation]);
+
+  const load = useCallback(() => {
+    qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
+  }, [qc]);
 
   const activeMetrics = metrics.filter((m) => m.active);
 

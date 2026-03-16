@@ -1,46 +1,34 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { EntriesMap, DayEntries } from '@shared/types';
 import * as entriesApi from '@/api/entries';
 import { useToast } from '@/contexts/ToastContext';
 import { offlineQueue } from '@/cache/offlineQueue';
+import { queryKeys } from '@/lib/query';
 
 export function useEntries() {
   const { addToast } = useToast();
   const [entries, setEntries] = useState<EntriesMap>({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [range, setRange] = useState<{ start: string; end: string } | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const lastRangeRef = useRef<{ start: string; end: string } | null>(null);
 
-  const load = useCallback(async (start: string, end: string) => {
-    lastRangeRef.current = { start, end };
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await entriesApi.fetchEntries(start, end);
-      setEntries(data);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const query = useQuery({
+    queryKey: queryKeys.entries.range(range?.start ?? '', range?.end ?? ''),
+    queryFn: () => entriesApi.fetchEntries(range!.start, range!.end),
+    enabled: !!range,
+  });
 
-  // Re-fetch when voice commands change data (with delay for Supabase propagation)
+  // Sync query data into local state reactively via query.data
   useEffect(() => {
-    const handler = () => {
-      if (lastRangeRef.current) {
-        // Small delay to ensure Supabase write has propagated before read
-        setTimeout(() => {
-          if (lastRangeRef.current) {
-            load(lastRangeRef.current.start, lastRangeRef.current.end);
-          }
-        }, 500);
-      }
-    };
-    window.addEventListener('voice-data-changed', handler);
-    return () => window.removeEventListener('voice-data-changed', handler);
-  }, [load]);
+    if (query.data) setEntries(query.data);
+  }, [query.data]);
+
+  const loading = query.isLoading;
+  const error = query.error ? (query.error as Error).message : null;
+
+  const load = useCallback((start: string, end: string) => {
+    setRange({ start, end });
+  }, []);
 
   const updateLocal = useCallback((date: string, dayEntries: DayEntries) => {
     setEntries((prev) => ({ ...prev, [date]: dayEntries }));
@@ -62,8 +50,6 @@ export function useEntries() {
     try {
       await entriesApi.saveEntries(date, dayEntries);
     } catch (err: any) {
-      setError(err.message);
-      // Queue for offline retry
       offlineQueue.enqueue(`/api/entries/${date}`, 'PUT', dayEntries);
       addToast('error', 'Saved offline — will sync when back online');
     }
@@ -79,7 +65,6 @@ export function useEntries() {
       }
     };
     window.addEventListener('online', handleOnline);
-    // Try flushing on mount
     handleOnline();
     return () => window.removeEventListener('online', handleOnline);
   }, [addToast]);
@@ -92,8 +77,8 @@ export function useEntries() {
   const saveBulk = useCallback(async (entriesMap: EntriesMap) => {
     try {
       await entriesApi.saveBulkEntries(entriesMap);
-    } catch (err: any) {
-      setError(err.message);
+    } catch {
+      // ignore
     }
   }, []);
 

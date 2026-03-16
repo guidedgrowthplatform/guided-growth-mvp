@@ -1,11 +1,13 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCommandStore } from '@/stores/commandStore';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { getDataService } from '@/lib/services/service-provider';
 import { useToast } from '@/contexts/ToastContext';
 import { speakPreAck, speak } from '@/lib/services/tts-service';
 import { haptic } from '@/lib/services/haptic-service';
+import { queryKeys } from '@/lib/query';
 
 // Lazy-init: wait for the correct data service (Supabase) before creating dispatcher
 let _dispatcher: ActionDispatcher | null = null;
@@ -111,6 +113,7 @@ function localParse(transcript: string): { action: string; entity: string; param
 export function useVoiceCommand() {
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const qc = useQueryClient();
   const {
     isProcessing,
     lastResult,
@@ -177,6 +180,10 @@ export function useVoiceCommand() {
 
       // Talk back: read the result message aloud (if TTS enabled)
       speak(result.message);
+
+      // Invalidate queries so data refreshes after voice commands
+      qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
+      qc.invalidateQueries({ queryKey: queryKeys.entries.all });
 
       // Navigate if needed
       if (result.uiAction === 'navigate' && result.navigateTo) {

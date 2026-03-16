@@ -78,11 +78,6 @@ export class ActionDispatcher {
           break;
       }
 
-      // Notify UI to re-fetch data after any successful mutation
-      if (result.success && typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('voice-data-changed'));
-      }
-
       return result;
     } catch (err) {
       return {

@@ -1,64 +1,82 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ReflectionConfig, DayReflections } from '@shared/types';
 import * as reflApi from '@/api/reflections';
+import { queryKeys } from '@/lib/query';
 
-export function useReflections() {
-  const [config, setConfig] = useState<ReflectionConfig | null>(null);
-  const [reflections, setReflections] = useState<Record<string, DayReflections>>({});
-  const [affirmation, setAffirmation] = useState('');
-  const [loading, setLoading] = useState(true);
+export function useReflections(start?: string, end?: string) {
+  const qc = useQueryClient();
+  const hasRange = !!start && !!end;
 
-  const loadConfig = useCallback(async () => {
-    try {
-      const c = await reflApi.fetchReflectionConfig();
-      setConfig(c);
-    } catch {
-      // Use default
-    }
-  }, []);
+  const configQuery = useQuery({
+    queryKey: queryKeys.reflections.config,
+    queryFn: reflApi.fetchReflectionConfig,
+  });
 
-  const loadReflections = useCallback(async (start: string, end: string) => {
-    try {
-      const data = await reflApi.fetchReflections(start, end);
-      setReflections(data);
-    } catch {
-      // Ignore
-    }
-  }, []);
+  const rangeKey = hasRange
+    ? queryKeys.reflections.range(start, end)
+    : queryKeys.reflections.range('', '');
 
-  const loadAffirmation = useCallback(async () => {
-    try {
-      const value = await reflApi.fetchAffirmation();
-      setAffirmation(value);
-    } catch {
-      // Ignore
-    }
-  }, []);
+  const reflectionsQuery = useQuery({
+    queryKey: rangeKey,
+    queryFn: () => reflApi.fetchReflections(start!, end!),
+    enabled: hasRange,
+  });
 
-  const initialize = useCallback(async (start: string, end: string) => {
-    setLoading(true);
-    await Promise.all([loadConfig(), loadReflections(start, end), loadAffirmation()]);
-    setLoading(false);
-  }, [loadConfig, loadReflections, loadAffirmation]);
+  const affirmationQuery = useQuery({
+    queryKey: queryKeys.reflections.affirmation,
+    queryFn: reflApi.fetchAffirmation,
+  });
+
+  const loading = configQuery.isLoading || reflectionsQuery.isLoading || affirmationQuery.isLoading;
+
+  const config = configQuery.data ?? null;
+  const reflections = reflectionsQuery.data ?? {};
+  const affirmation = affirmationQuery.data ?? '';
+
+  const saveConfigMutation = useMutation({
+    mutationFn: (newConfig: ReflectionConfig) => reflApi.saveReflectionConfig(newConfig),
+    onMutate: (newConfig) => {
+      qc.setQueryData(queryKeys.reflections.config, newConfig);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.reflections.config });
+    },
+  });
+
+  const saveDayMutation = useMutation({
+    mutationFn: ({ date, data }: { date: string; data: DayReflections }) => reflApi.saveReflections(date, data),
+    onMutate: ({ date, data }) => {
+      if (hasRange) {
+        qc.setQueryData(
+          rangeKey,
+          (old: Record<string, DayReflections> | undefined) => ({ ...old, [date]: data })
+        );
+      }
+    },
+  });
+
+  const saveAffirmationMutation = useMutation({
+    mutationFn: (value: string) => reflApi.saveAffirmation(value),
+    onMutate: (value) => {
+      qc.setQueryData(queryKeys.reflections.affirmation, value);
+    },
+  });
 
   const saveConfig = useCallback(async (newConfig: ReflectionConfig) => {
-    setConfig(newConfig);
-    await reflApi.saveReflectionConfig(newConfig);
-  }, []);
+    await saveConfigMutation.mutateAsync(newConfig);
+  }, [saveConfigMutation]);
 
   const saveDay = useCallback(async (date: string, data: DayReflections) => {
-    setReflections((prev) => ({ ...prev, [date]: data }));
-    await reflApi.saveReflections(date, data);
-  }, []);
+    await saveDayMutation.mutateAsync({ date, data });
+  }, [saveDayMutation]);
 
   const saveAffirmationValue = useCallback(async (value: string) => {
-    setAffirmation(value);
-    await reflApi.saveAffirmation(value);
-  }, []);
+    await saveAffirmationMutation.mutateAsync(value);
+  }, [saveAffirmationMutation]);
 
   return {
     config, reflections, affirmation, loading,
-    initialize, loadConfig, loadReflections, loadAffirmation,
     saveConfig, saveDay, saveAffirmationValue,
   };
 }

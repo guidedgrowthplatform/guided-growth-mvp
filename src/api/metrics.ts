@@ -42,7 +42,7 @@ export async function createMetric(data: MetricCreate): Promise<Metric> {
   if (useSupabase) {
     const ds = await getDataService();
     const habit = await ds.createHabit(data.name, data.frequency || 'daily');
-    window.dispatchEvent(new CustomEvent('voice-data-changed'));
+
     return habitToMetric(habit);
   }
   try {
@@ -50,7 +50,7 @@ export async function createMetric(data: MetricCreate): Promise<Metric> {
   } catch {
     const ds = await getDataService();
     const habit = await ds.createHabit(data.name, data.frequency || 'daily');
-    window.dispatchEvent(new CustomEvent('voice-data-changed'));
+
     return habitToMetric(habit);
   }
 }
@@ -59,7 +59,7 @@ export async function updateMetric(id: string, data: MetricUpdate): Promise<Metr
   if (useSupabase) {
     const ds = await getDataService();
     const habit = await ds.updateHabit(id, data);
-    window.dispatchEvent(new CustomEvent('voice-data-changed'));
+
     return habitToMetric(habit);
   }
   try {
@@ -67,7 +67,7 @@ export async function updateMetric(id: string, data: MetricUpdate): Promise<Metr
   } catch {
     const ds = await getDataService();
     const habit = await ds.updateHabit(id, data);
-    window.dispatchEvent(new CustomEvent('voice-data-changed'));
+
     return habitToMetric(habit);
   }
 }
@@ -76,7 +76,7 @@ export async function deleteMetric(id: string): Promise<void> {
   if (useSupabase) {
     const ds = await getDataService();
     await ds.deleteHabit(id);
-    window.dispatchEvent(new CustomEvent('voice-data-changed'));
+
     return;
   }
   try {
@@ -84,7 +84,7 @@ export async function deleteMetric(id: string): Promise<void> {
   } catch {
     const ds = await getDataService();
     await ds.deleteHabit(id);
-    window.dispatchEvent(new CustomEvent('voice-data-changed'));
+
   }
 }
 
