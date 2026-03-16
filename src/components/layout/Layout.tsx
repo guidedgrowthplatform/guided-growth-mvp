@@ -9,10 +9,11 @@ export function Layout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const isHomePage = location.pathname === '/' || location.pathname === '/home';
+  const isHabitDetail = location.pathname.startsWith('/habit/');
 
   return (
     <div className="flex min-h-screen">
-      {!isHomePage && (
+      {!isHomePage && !isHabitDetail && (
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="fixed left-4 top-4 z-50 rounded-lg border border-border bg-surface p-3 shadow-elevated transition-all hover:bg-surface-secondary lg:hidden"
@@ -36,7 +37,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <main className="flex-1 lg:ml-60">
         <div
-          className={`mx-auto max-w-5xl px-4 pb-32 lg:pb-6 lg:pt-6 ${isHomePage ? 'pt-4' : 'pt-16'}`}
+          className={`mx-auto max-w-sm px-4 pb-32 lg:pb-6 lg:pt-6 ${isHomePage ? 'pt-4' : 'pt-16'}`}
         >
           {children}
         </div>
