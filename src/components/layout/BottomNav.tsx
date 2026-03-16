@@ -1,4 +1,3 @@
-// DEPRECATED: Use src/components/nav/BottomNav.tsx instead
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
