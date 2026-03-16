@@ -1,23 +1,15 @@
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useMetrics } from '@/hooks/useMetrics';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { INPUT_TYPES, FREQUENCIES } from '@shared/constants';
-import type { InputType, Frequency } from '@shared/types';
+import { metricFormSchema, type MetricFormData } from '@/lib/validation';
 
-interface MetricForm {
-  name: string;
-  input_type: InputType;
-  question: string;
-  frequency: Frequency;
-  active: boolean;
-  target_value: string;
-  target_unit: string;
-}
-
-const emptyForm: MetricForm = {
+const emptyForm: MetricFormData = {
   name: '',
   input_type: 'binary',
   question: '',
@@ -30,14 +22,19 @@ const emptyForm: MetricForm = {
 export function ConfigurePage() {
   const { metrics, loading, create, update, remove } = useMetrics();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState(emptyForm);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<MetricFormData>({
+    resolver: zodResolver(metricFormSchema),
+    defaultValues: emptyForm,
+  });
+
+  const inputType = watch('input_type');
+
+  const onSubmit = async (data: MetricFormData) => {
     const payload = {
-      ...formData,
-      target_value: formData.target_value ? parseFloat(formData.target_value) : null,
-      target_unit: formData.target_unit || null,
+      ...data,
+      target_value: data.target_value ? parseFloat(data.target_value) : null,
+      target_unit: data.target_unit || null,
     };
     if (editingId) {
       await update(editingId, payload);
@@ -45,11 +42,11 @@ export function ConfigurePage() {
     } else {
       await create(payload);
     }
-    setFormData(emptyForm);
+    reset(emptyForm);
   };
 
   const handleEdit = (metric: typeof metrics[0]) => {
-    setFormData({
+    reset({
       name: metric.name,
       input_type: metric.input_type,
       question: metric.question,
@@ -84,48 +81,45 @@ export function ConfigurePage() {
         <h2 className="text-xl font-semibold mb-4 text-content">
           {editingId ? 'Edit Metric' : 'Add New Metric'}
         </h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input
             label="Metric Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
+            {...register('name')}
+            error={errors.name?.message}
           />
           <Input
             label="Question/Phrase"
-            value={formData.question}
-            onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+            {...register('question')}
             placeholder="e.g., Did you exercise today?"
+            error={errors.question?.message}
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Input Type"
-              value={formData.input_type}
-              onChange={(e) => setFormData({ ...formData, input_type: e.target.value as any })}
+              {...register('input_type')}
               options={INPUT_TYPES}
+              error={errors.input_type?.message}
             />
             <Select
               label="Frequency"
-              value={formData.frequency}
-              onChange={(e) => setFormData({ ...formData, frequency: e.target.value as any })}
+              {...register('frequency')}
               options={FREQUENCIES}
+              error={errors.frequency?.message}
             />
           </div>
 
-          {formData.input_type === 'numeric' && (
+          {inputType === 'numeric' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Target Value"
                 type="number"
-                value={formData.target_value}
-                onChange={(e) => setFormData({ ...formData, target_value: e.target.value })}
+                {...register('target_value')}
                 placeholder="e.g., 10000"
               />
               <Input
                 label="Target Unit"
-                value={formData.target_unit}
-                onChange={(e) => setFormData({ ...formData, target_unit: e.target.value })}
+                {...register('target_unit')}
                 placeholder="e.g., steps, minutes, glasses"
               />
             </div>
@@ -135,8 +129,7 @@ export function ConfigurePage() {
             <input
               type="checkbox"
               id="active"
-              checked={formData.active}
-              onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+              {...register('active')}
               className="w-4 h-4 text-primary rounded focus:ring-primary accent-primary"
             />
             <label htmlFor="active" className="text-sm font-medium text-content">Active</label>
@@ -145,7 +138,7 @@ export function ConfigurePage() {
           <div className="flex gap-3">
             <Button type="submit">{editingId ? 'Update' : 'Add Metric'}</Button>
             {editingId && (
-              <Button type="button" variant="secondary" onClick={() => { setEditingId(null); setFormData(emptyForm); }}>
+              <Button type="button" variant="secondary" onClick={() => { setEditingId(null); reset(emptyForm); }}>
                 Cancel
               </Button>
             )}

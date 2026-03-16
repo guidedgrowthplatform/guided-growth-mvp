@@ -1,80 +1,86 @@
-import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import * as adminApi from '@/api/admin';
-import type { User, AllowlistEntry, AuditLogEntry } from '@shared/types';
+import { queryKeys } from '@/lib/query';
+import { allowlistSchema, type AllowlistForm } from '@/lib/validation';
 
 export function AdminPage() {
   const { user } = useAuth();
   const { addToast } = useToast();
-  const [users, setUsers] = useState<User[]>([]);
-  const [allowlist, setAllowlist] = useState<AllowlistEntry[]>([]);
-  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
+  const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<'users' | 'allowlist' | 'audit'>('users');
-  const [loading, setLoading] = useState(true);
-  const [newEmail, setNewEmail] = useState('');
-  const [newEmailNote, setNewEmailNote] = useState('');
+  const isAdmin = user?.role === 'admin';
 
-  const fetchedRef = useState(false);
+  const usersQuery = useQuery({
+    queryKey: queryKeys.admin.users,
+    queryFn: adminApi.fetchUsers,
+    enabled: isAdmin,
+  });
 
-  useEffect(() => {
-    if (user?.role !== 'admin') return;
-    if (fetchedRef[0]) return;
-    fetchedRef[1](true);
-    fetchData();
-  }, [user?.role]);
+  const allowlistQuery = useQuery({
+    queryKey: queryKeys.admin.allowlist,
+    queryFn: adminApi.fetchAllowlist,
+    enabled: isAdmin,
+  });
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [u, a, l] = await Promise.all([
-        adminApi.fetchUsers(),
-        adminApi.fetchAllowlist(),
-        adminApi.fetchAuditLog(),
-      ]);
-      setUsers(u);
-      setAllowlist(a);
-      setAuditLog(l);
-    } catch (err) {
-      console.error('Failed to fetch admin data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const auditLogQuery = useQuery({
+    queryKey: queryKeys.admin.auditLog,
+    queryFn: () => adminApi.fetchAuditLog(),
+    enabled: isAdmin,
+  });
 
-  const handleUpdateRole = async (userId: string, role: string) => {
-    await adminApi.updateUserRole(userId, role);
-    fetchData();
-  };
+  const users = usersQuery.data ?? [];
+  const allowlist = allowlistQuery.data ?? [];
+  const auditLog = auditLogQuery.data ?? [];
+  const loading = usersQuery.isLoading || allowlistQuery.isLoading || auditLogQuery.isLoading;
 
-  const handleUpdateStatus = async (userId: string, status: string) => {
-    await adminApi.updateUserStatus(userId, status);
-    fetchData();
-  };
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: string }) => adminApi.updateUserRole(userId, role),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.users }),
+  });
 
-  const handleAddToAllowlist = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await adminApi.addToAllowlist(newEmail, newEmailNote);
-      setNewEmail('');
-      setNewEmailNote('');
-      addToast('success', `Added ${newEmail} to allowlist`);
-      fetchData();
-    } catch (err: any) {
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ userId, status }: { userId: string; status: string }) => adminApi.updateUserStatus(userId, status),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.users }),
+  });
+
+  const addAllowlistMutation = useMutation({
+    mutationFn: ({ email, note }: { email: string; note: string }) => adminApi.addToAllowlist(email, note),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: queryKeys.admin.allowlist });
+      addToast('success', `Added ${variables.email} to allowlist`);
+    },
+    onError: (err: any) => {
       addToast('error', err.message || 'Failed to add email');
-    }
+    },
+  });
+
+  const removeAllowlistMutation = useMutation({
+    mutationFn: (id: string) => adminApi.removeFromAllowlist(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.admin.allowlist });
+      addToast('info', 'Removed from allowlist');
+    },
+  });
+
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<AllowlistForm>({
+    resolver: zodResolver(allowlistSchema),
+    defaultValues: { email: '', note: '' },
+  });
+
+  const onAddAllowlist = (data: AllowlistForm) => {
+    addAllowlistMutation.mutate({ email: data.email, note: data.note ?? '' });
+    reset();
   };
 
-  const handleRemoveFromAllowlist = async (id: string) => {
-    await adminApi.removeFromAllowlist(id);
-    addToast('info', 'Removed from allowlist');
-    fetchData();
-  };
-
-  if (user?.role !== 'admin') {
+  if (!isAdmin) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -138,7 +144,7 @@ export function AdminPage() {
                     <td className="px-4 py-3">
                       <select
                         value={u.role}
-                        onChange={(e) => handleUpdateRole(u.id, e.target.value)}
+                        onChange={(e) => updateRoleMutation.mutate({ userId: u.id, role: e.target.value })}
                         className="text-sm border border-border rounded-lg px-2 py-1 bg-surface"
                       >
                         <option value="user">User</option>
@@ -148,7 +154,7 @@ export function AdminPage() {
                     <td className="px-4 py-3">
                       <select
                         value={u.status}
-                        onChange={(e) => handleUpdateStatus(u.id, e.target.value)}
+                        onChange={(e) => updateStatusMutation.mutate({ userId: u.id, status: e.target.value })}
                         className="text-sm border border-border rounded-lg px-2 py-1 bg-surface"
                       >
                         <option value="active">Active</option>
@@ -169,11 +175,11 @@ export function AdminPage() {
       {/* Allowlist Tab */}
       {activeTab === 'allowlist' && (
         <div>
-          <form onSubmit={handleAddToAllowlist} className="bg-surface shadow-elevated border border-border rounded-2xl p-4 mb-6">
+          <form onSubmit={handleSubmit(onAddAllowlist)} className="bg-surface shadow-elevated border border-border rounded-2xl p-4 mb-6">
             <h3 className="font-semibold mb-3 text-content">Add Email</h3>
             <div className="flex flex-col sm:flex-row gap-2">
-              <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="email@example.com" required />
-              <Input value={newEmailNote} onChange={(e) => setNewEmailNote(e.target.value)} placeholder="Note (optional)" />
+              <Input type="email" {...register('email')} placeholder="email@example.com" error={errors.email?.message} />
+              <Input {...register('note')} placeholder="Note (optional)" />
               <Button type="submit" className="flex-shrink-0">Add</Button>
             </div>
           </form>
@@ -198,7 +204,7 @@ export function AdminPage() {
                       <td className="px-4 py-3 text-sm">{entry.added_by_email || 'System'}</td>
                       <td className="px-4 py-3 text-sm">{new Date(entry.created_at).toLocaleDateString()}</td>
                       <td className="px-4 py-3">
-                        <Button size="sm" variant="danger" onClick={() => handleRemoveFromAllowlist(entry.id)}>Remove</Button>
+                        <Button size="sm" variant="danger" onClick={() => removeAllowlistMutation.mutate(entry.id)}>Remove</Button>
                       </td>
                     </tr>
                   ))}

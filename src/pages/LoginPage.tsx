@@ -1,24 +1,31 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { Link } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginSchema, type LoginForm } from '@/lib/validation';
 
 export function LoginPage() {
   const { signIn, signUp } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  const onSubmit = async (data: LoginForm) => {
     setError(null);
     setSuccess(null);
     setLoading(true);
 
     const { error: authError } = isSignUp
-      ? await signUp(email, password)
-      : await signIn(email, password);
+      ? await signUp(data.email, data.password)
+      : await signIn(data.email, data.password);
 
     setLoading(false);
 
@@ -28,6 +35,13 @@ export function LoginPage() {
       setSuccess('Account created! You can now sign in.');
       setIsSignUp(false);
     }
+  };
+
+  const toggleMode = (signUp: boolean) => {
+    setIsSignUp(signUp);
+    setError(null);
+    setSuccess(null);
+    reset();
   };
 
   return (
@@ -42,35 +56,52 @@ export function LoginPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-content mb-1">Email</label>
             <input
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              {...register('email')}
               className="w-full px-4 py-3 rounded-xl border border-border bg-surface
                          focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
                          transition-all duration-200"
               placeholder="you@example.com"
             />
+            {errors.email && <p className="mt-1 text-xs text-danger">{errors.email.message}</p>}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-content mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full px-4 py-3 rounded-xl border border-border bg-surface
-                         focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
-                         transition-all duration-200"
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                {...register('password')}
+                className="w-full px-4 py-3 pr-12 rounded-xl border border-border bg-surface
+                           focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
+                           transition-all duration-200"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-content-tertiary hover:text-content-secondary transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+            {errors.password && <p className="mt-1 text-xs text-danger">{errors.password.message}</p>}
           </div>
+
+          {!isSignUp && (
+            <div className="text-right">
+              <Link
+                to="/forgot-password"
+                className="text-sm text-primary hover:text-primary-dark font-semibold underline transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
+          )}
 
           {error && (
             <div className="p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
@@ -88,8 +119,7 @@ export function LoginPage() {
             type="submit"
             disabled={loading}
             className="w-full py-3 px-4 rounded-xl font-semibold text-white
-                       bg-primary
-                       hover:bg-primary-dark
+                       bg-primary hover:bg-primary-dark
                        disabled:opacity-50 disabled:cursor-not-allowed
                        transition-all duration-200 shadow-lg"
           >
@@ -97,14 +127,30 @@ export function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-center">
-          <button
-            type="button"
-            onClick={() => { setIsSignUp(!isSignUp); setError(null); setSuccess(null); }}
-            className="text-sm text-primary hover:text-primary transition-colors"
-          >
-            {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-          </button>
+        <div className="mt-6 text-center text-sm text-content-secondary">
+          {isSignUp ? (
+            <>
+              Already have an account?{' '}
+              <button
+                type="button"
+                onClick={() => toggleMode(false)}
+                className="text-primary hover:text-primary-dark font-semibold underline transition-colors"
+              >
+                Sign in
+              </button>
+            </>
+          ) : (
+            <>
+              Don't have an account?{' '}
+              <button
+                type="button"
+                onClick={() => toggleMode(true)}
+                className="text-primary hover:text-primary-dark font-semibold underline transition-colors"
+              >
+                Sign up
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
