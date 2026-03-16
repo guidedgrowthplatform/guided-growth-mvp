@@ -64,11 +64,14 @@ export function DateStrip({ selectedDate, onSelectDate, entries }: DateStripProp
           );
         })}
       </div>
-      <div className="relative mt-2 h-[3px] rounded-full bg-surface-secondary">
+      <div
+        className="relative mt-2 h-[3px] rounded-full bg-surface-secondary"
+        style={{ width: `${dates.length * CELL_STEP - CELL_GAP}px` }}
+      >
         {selectedIndex >= 0 && (
           <div
             className="absolute h-[3px] w-[35px] rounded-full bg-streak transition-all"
-            style={{ left: `${selectedIndex * CELL_STEP}px` }}
+            style={{ left: `${selectedIndex * CELL_STEP + (CELL_WIDTH - 35) / 2}px` }}
           />
         )}
       </div>
