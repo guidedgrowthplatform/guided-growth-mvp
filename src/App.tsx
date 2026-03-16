@@ -12,6 +12,7 @@ import { AdminPage } from '@/pages/AdminPage';
 import { CapturePage } from '@/pages/CapturePage';
 import { ConfigurePage } from '@/pages/ConfigurePage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
+import { HabitDetailPage } from '@/pages/HabitDetailPage';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
 import { ReportPage } from '@/pages/ReportPage';
@@ -50,6 +51,7 @@ function ProtectedRoutes() {
           <Route path="/report" element={<ReportPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/habit/:habitId" element={<HabitDetailPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ErrorBoundary>
