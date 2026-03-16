@@ -32,11 +32,11 @@ function NavBarBackground() {
       <path
         d="
           M0 16 C0 6, 6 0, 16 0
-          L165 0
-          C171 0, 174 2, 177 10
-          C182 28, 189 40, 200 40
-          C211 40, 218 28, 223 10
-          C226 2, 229 0, 235 0
+          L148 0
+          C154 0, 158 2, 161 8
+          A 38 38 0 0 0 200 42
+          A 38 38 0 0 0 239 8
+          C242 2, 246 0, 252 0
           L384 0
           C394 0, 400 6, 400 16
           L400 80 L0 80 Z
@@ -61,34 +61,41 @@ export function BottomNav({ onVoicePress }: BottomNavProps) {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)] lg:hidden">
-      <div className="relative" style={{ height: '72px' }}>
-        <NavBarBackground />
+      <div className="mx-auto max-w-sm">
+        <div className="relative" style={{ height: '72px' }}>
+          <NavBarBackground />
 
-        <div className="absolute left-1/2 -translate-x-1/2" style={{ top: '-24px' }}>
-          <button
-            onClick={onVoicePress}
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-[#2563eb] shadow-[0px_0px_15px_rgba(19,91,236,0.3)]"
-          >
-            <Icon icon="ic:round-mic" width={24} className="text-white" />
-          </button>
-        </div>
+          <div className="absolute left-1/2 -translate-x-1/2" style={{ top: '-24px' }}>
+            <button
+              onClick={onVoicePress}
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-[#2563eb] shadow-[0px_0px_15px_rgba(19,91,236,0.3)]"
+            >
+              <Icon icon="ic:round-mic" width={24} className="text-white" />
+            </button>
+          </div>
 
-        <div className="relative grid h-full grid-cols-5 items-end px-6 pb-2">
-          <NavTab icon="ic:round-home" label="Home" path="/" isActive={isActive('/')} />
-          <NavTab
-            icon="ic:round-leaderboard"
-            label="Progress"
-            path="/report"
-            isActive={isActive('/report')}
-          />
-          <div />
-          <NavTab icon="ic:round-timer" label="Focus" path="/focus" isActive={isActive('/focus')} />
-          <NavTab
-            icon="ic:round-person"
-            label="Profile"
-            path="/settings"
-            isActive={isActive('/settings')}
-          />
+          <div className="relative grid h-full grid-cols-5 items-end px-6 pb-2">
+            <NavTab icon="ic:round-home" label="Home" path="/" isActive={isActive('/')} />
+            <NavTab
+              icon="ic:round-leaderboard"
+              label="Progress"
+              path="/report"
+              isActive={isActive('/report')}
+            />
+            <div />
+            <NavTab
+              icon="ic:round-calendar-month"
+              label="Calendar"
+              path="/calendar"
+              isActive={isActive('/calendar')}
+            />
+            <NavTab
+              icon="ic:round-person"
+              label="Profile"
+              path="/settings"
+              isActive={isActive('/settings')}
+            />
+          </div>
         </div>
       </div>
     </nav>
