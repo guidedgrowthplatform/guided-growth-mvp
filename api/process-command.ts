@@ -6,6 +6,49 @@ import { checkRateLimit } from './_lib/rate-limit.js';
 // import from ../src/lib/. The canonical version lives in
 // src/lib/prompts/voice-command-system.ts — keep them in sync.
 
+const MONTHS: Record<string, number> = {
+  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
+  july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
+  jan: 1, feb: 2, mar: 3, apr: 4, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+};
+
+/**
+ * Safety net: extract an explicit date from the transcript when GPT misses it.
+ * Matches patterns like "12 march 2026", "march 12th", "8th march", etc.
+ * Returns ISO date string (YYYY-MM-DD) or null if no date found.
+ */
+function extractDateFromTranscript(transcript: string): string | null {
+  const t = transcript.toLowerCase();
+
+  // Pattern: "for|on DD month YYYY" or "for|on DD month"
+  const patterns = [
+    /(?:for|on)\s+(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?([a-z]+)(?:\s+(\d{4}))?/,
+    /(?:for|on)\s+([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = t.match(pattern);
+    if (match) {
+      let day: number, monthName: string, year: number;
+      if (/^\d/.test(match[1])) {
+        day = parseInt(match[1], 10);
+        monthName = match[2];
+        year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
+      } else {
+        monthName = match[1];
+        day = parseInt(match[2], 10);
+        year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
+      }
+      const month = MONTHS[monthName];
+      if (month && day >= 1 && day <= 31) {
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      }
+    }
+  }
+
+  return null;
+}
+
 const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a habit-tracking and self-improvement app. Your ONLY job is to parse a user's spoken transcript into a single structured JSON command.
 
 ## Available Actions
@@ -236,6 +279,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const latency = Date.now() - startTime;
+
+    // ─── Post-processing: extract date from transcript if GPT missed it ───
+    const params = (parsed.params || {}) as Record<string, unknown>;
+    const needsDate = ['complete', 'log'].includes(String(parsed.action));
+    const gptDateIsToday = !params.date || params.date === 'today';
+
+    if (needsDate && gptDateIsToday) {
+      const extractedDate = extractDateFromTranscript(transcript);
+      if (extractedDate) {
+        params.date = extractedDate;
+        parsed.params = params;
+      }
+    }
 
     // Sanitize: only allow expected keys to prevent prototype pollution
     const sanitized = {
