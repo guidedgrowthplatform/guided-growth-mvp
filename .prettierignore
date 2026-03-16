@@ -4,3 +4,4 @@ node_modules/
 public/manifest.json
 package-lock.json
 coverage/
+.claude/
