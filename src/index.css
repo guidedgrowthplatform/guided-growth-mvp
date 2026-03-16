@@ -43,6 +43,14 @@ body {
 }
 
 @layer utilities {
+  .scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
   .glow-hover:hover {
     box-shadow: 0 0 25px rgb(var(--color-primary) / 0.5);
   }
