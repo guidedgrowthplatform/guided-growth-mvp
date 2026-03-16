@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { queryClient } from '@/lib/query';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
@@ -10,15 +13,18 @@ import { ReportPage } from '@/pages/ReportPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { LoginPage } from '@/pages/LoginPage';
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
+import { useQueryClient } from '@tanstack/react-query';
 import { getDataService } from '@/lib/services/service-provider';
 
 // Initialize data on first load
 function useSeedData() {
+  const qc = useQueryClient();
   useEffect(() => {
     getDataService().then(ds => ds.seedData()).then(() => {
-      window.dispatchEvent(new CustomEvent('voice-data-changed'));
+      qc.invalidateQueries();
     }).catch(console.error);
-  }, []);
+  }, [qc]);
 }
 
 // Protected routes — redirect to login if not authenticated
@@ -57,14 +63,18 @@ function LoginRoute() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <Routes>
-            <Route path="/login" element={<LoginRoute />} />
-            <Route path="/*" element={<ProtectedRoutes />} />
-          </Routes>
-        </ToastProvider>
-      </AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ToastProvider>
+            <Routes>
+              <Route path="/login" element={<LoginRoute />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/*" element={<ProtectedRoutes />} />
+            </Routes>
+          </ToastProvider>
+        </AuthProvider>
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
     </BrowserRouter>
   );
 }
