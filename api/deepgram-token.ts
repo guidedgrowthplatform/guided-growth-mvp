@@ -12,15 +12,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Request a temporary scoped key from DeepGram (60 second TTL)
   try {
-    const response = await fetch('https://api.deepgram.com/v1/keys/temporary', {
+    const authHeaders = {
+      'Authorization': `Token ${apiKey}`,
+      'Content-Type': 'application/json',
+    };
+
+    // Step 1: Get project ID (required for key creation endpoint)
+    const projectsRes = await fetch('https://api.deepgram.com/v1/projects', {
+      headers: authHeaders,
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!projectsRes.ok) {
+      console.error('DeepGram projects API failed:', projectsRes.status);
+      return res.status(503).json({ error: 'Failed to fetch DeepGram project' });
+    }
+
+    const projectsData = await projectsRes.json();
+    const projectId = projectsData.projects?.[0]?.project_id;
+    if (!projectId) {
+      console.error('No DeepGram project found');
+      return res.status(503).json({ error: 'No DeepGram project found' });
+    }
+
+    // Step 2: Create temporary key scoped to the project
+    const response = await fetch(`https://api.deepgram.com/v1/projects/${projectId}/keys`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: authHeaders,
       body: JSON.stringify({
-        time_to_live_in_seconds: 60,
+        comment: 'temp-client-key',
         scopes: ['usage:write'],
+        time_to_live_in_seconds: 60,
       }),
       signal: AbortSignal.timeout(5000),
     });
