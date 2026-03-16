@@ -1,9 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
+import type { MouseEvent } from 'react';
 
 interface IconCircleButtonProps {
   icon: LucideIcon;
   active?: boolean;
-  onClick?: () => void;
+  onClick?: (e: MouseEvent<HTMLButtonElement>) => void;
 }
 
 export function IconCircleButton({ icon: Icon, active = false, onClick }: IconCircleButtonProps) {

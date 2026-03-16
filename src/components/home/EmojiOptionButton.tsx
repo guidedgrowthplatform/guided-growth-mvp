@@ -1,5 +1,7 @@
+import type { ComponentType } from 'react';
+
 interface EmojiOptionButtonProps {
-  emoji: string;
+  icon: ComponentType<{ color: string }>;
   label: string;
   color: string;
   isSelected: boolean;
@@ -7,7 +9,7 @@ interface EmojiOptionButtonProps {
 }
 
 export function EmojiOptionButton({
-  emoji,
+  icon: Icon,
   label,
   color,
   isSelected,
@@ -18,11 +20,11 @@ export function EmojiOptionButton({
       <div
         className="flex h-12 w-12 items-center justify-center rounded-full border-2 transition-colors"
         style={{
-          borderColor: isSelected ? color : 'rgb(var(--color-border))',
+          borderColor: color,
           backgroundColor: isSelected ? `${color}1a` : 'rgb(var(--color-surface))',
         }}
       >
-        <span className="text-2xl">{emoji}</span>
+        <Icon color={color} />
       </div>
       <span className="text-[10px] text-content-secondary">{label}</span>
     </button>

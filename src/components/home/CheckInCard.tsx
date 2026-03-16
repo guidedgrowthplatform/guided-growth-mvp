@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import type { CheckInDimension } from '@shared/types';
 import { checkInDimensions } from './checkInConfig';
@@ -36,34 +36,40 @@ export function CheckInCard({ selectedDate: _selectedDate }: CheckInCardProps) {
         className="flex w-full items-center justify-between"
       >
         <span className="text-xl font-bold text-content">How are you feeling?</span>
-        {expanded ? (
-          <ChevronDown className="h-5 w-5 text-content-tertiary" />
-        ) : (
-          <ChevronRight className="h-5 w-5 text-content-tertiary" />
-        )}
+        <ChevronDown
+          className={`h-5 w-5 text-content-tertiary transition-transform duration-300 ${
+            expanded ? 'rotate-0' : '-rotate-90'
+          }`}
+        />
       </button>
 
-      {expanded && (
-        <div className="mt-5 space-y-5">
-          {checkInDimensions.map((dimension) => (
-            <div key={dimension.key}>
-              <p className="mb-2 text-sm font-medium text-content-secondary">{dimension.label}</p>
-              <div className="flex justify-between">
-                {dimension.options.map((option) => (
-                  <EmojiOptionButton
-                    key={option.value}
-                    emoji={option.emoji}
-                    label={option.label}
-                    color={option.color}
-                    isSelected={values[dimension.key] === option.value}
-                    onClick={() => handleSelect(dimension.key, option.value)}
-                  />
-                ))}
+      <div
+        className={`grid transition-all duration-300 ease-in-out ${
+          expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="space-y-5 pt-5">
+            {checkInDimensions.map((dimension) => (
+              <div key={dimension.key}>
+                <p className="mb-2 text-sm font-medium text-content-secondary">{dimension.label}</p>
+                <div className="flex justify-between">
+                  {dimension.options.map((option) => (
+                    <EmojiOptionButton
+                      key={option.value}
+                      icon={option.icon}
+                      label={option.label}
+                      color={option.color}
+                      isSelected={values[dimension.key] === option.value}
+                      onClick={() => handleSelect(dimension.key, option.value)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      )}
+      </div>
 
       <button
         onClick={expanded ? handleCheckIn : () => setExpanded(true)}

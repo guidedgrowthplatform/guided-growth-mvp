@@ -1,8 +1,31 @@
+import type { ComponentType } from 'react';
 import type { CheckInDimension } from '@shared/types';
+import {
+  SleepPoor,
+  SleepFair,
+  SleepGood,
+  SleepGreat,
+  SleepDeep,
+  MoodAwful,
+  MoodBad,
+  MoodMeh,
+  MoodGood,
+  MoodAwesome,
+  EnergyDrained,
+  EnergyLow,
+  EnergyMedium,
+  EnergyActive,
+  EnergyCharged,
+  StressExtreme,
+  StressHigh,
+  StressNeutral,
+  StressCalm,
+  StressZen,
+} from './CheckInIcons';
 
 export interface CheckInOption {
   value: number;
-  emoji: string;
+  icon: ComponentType<{ color: string }>;
   label: string;
   color: string;
 }
@@ -18,44 +41,44 @@ export const checkInDimensions: CheckInDimensionConfig[] = [
     key: 'sleep',
     label: 'Sleep Quality',
     options: [
-      { value: 1, emoji: '🛏️', label: 'Poor', color: '#ef4444' },
-      { value: 2, emoji: '🛏️', label: 'Fair', color: '#f97316' },
-      { value: 3, emoji: '🛏️', label: 'Good', color: '#eab308' },
-      { value: 4, emoji: '🛏️', label: 'Great', color: '#22c55e' },
-      { value: 5, emoji: '🛏️', label: 'Deep!', color: '#3b82f6' },
+      { value: 1, icon: SleepPoor, label: 'Poor', color: '#ef4444' },
+      { value: 2, icon: SleepFair, label: 'Fair', color: '#f97316' },
+      { value: 3, icon: SleepGood, label: 'Good', color: '#eab308' },
+      { value: 4, icon: SleepGreat, label: 'Great', color: '#22c55e' },
+      { value: 5, icon: SleepDeep, label: 'Deep!', color: '#3b82f6' },
     ],
   },
   {
     key: 'mood',
     label: 'Mood',
     options: [
-      { value: 1, emoji: '😟', label: 'Awful', color: '#ef4444' },
-      { value: 2, emoji: '😕', label: 'Bad', color: '#f97316' },
-      { value: 3, emoji: '😐', label: 'Meh', color: '#eab308' },
-      { value: 4, emoji: '🙂', label: 'Good', color: '#22c55e' },
-      { value: 5, emoji: '😄', label: 'Awesome!', color: '#10b981' },
+      { value: 1, icon: MoodAwful, label: 'Awful', color: '#ef4444' },
+      { value: 2, icon: MoodBad, label: 'Bad', color: '#f97316' },
+      { value: 3, icon: MoodMeh, label: 'Meh', color: '#eab308' },
+      { value: 4, icon: MoodGood, label: 'Good', color: '#22c55e' },
+      { value: 5, icon: MoodAwesome, label: 'Awesome!', color: '#10b981' },
     ],
   },
   {
     key: 'energy',
     label: 'Energy Level',
     options: [
-      { value: 1, emoji: '🔋', label: 'Drained', color: '#ef4444' },
-      { value: 2, emoji: '🔋', label: 'Low', color: '#f97316' },
-      { value: 3, emoji: '🔋', label: 'Medium', color: '#eab308' },
-      { value: 4, emoji: '🔋', label: 'Active', color: '#22c55e' },
-      { value: 5, emoji: '🔋', label: 'Charged', color: '#10b981' },
+      { value: 1, icon: EnergyDrained, label: 'Drained', color: '#ef4444' },
+      { value: 2, icon: EnergyLow, label: 'Low', color: '#f97316' },
+      { value: 3, icon: EnergyMedium, label: 'Medium', color: '#eab308' },
+      { value: 4, icon: EnergyActive, label: 'Active', color: '#22c55e' },
+      { value: 5, icon: EnergyCharged, label: 'Charged', color: '#10b981' },
     ],
   },
   {
     key: 'stress',
     label: 'Stress Level',
     options: [
-      { value: 1, emoji: '😰', label: 'Extreme', color: '#ef4444' },
-      { value: 2, emoji: '😟', label: 'High', color: '#f97316' },
-      { value: 3, emoji: '😐', label: 'Neutral', color: '#eab308' },
-      { value: 4, emoji: '🧘', label: 'Calm', color: '#6bcb77' },
-      { value: 5, emoji: '🧘', label: 'Zen', color: '#10b981' },
+      { value: 1, icon: StressExtreme, label: 'Extreme', color: '#ef4444' },
+      { value: 2, icon: StressHigh, label: 'High', color: '#f97316' },
+      { value: 3, icon: StressNeutral, label: 'Neutral', color: '#eab308' },
+      { value: 4, icon: StressCalm, label: 'Calm', color: '#6bcb77' },
+      { value: 5, icon: StressZen, label: 'Zen', color: '#10b981' },
     ],
   },
 ];

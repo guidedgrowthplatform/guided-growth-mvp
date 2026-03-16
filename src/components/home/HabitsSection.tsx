@@ -12,11 +12,10 @@ interface MockHabit {
 }
 
 const initialHabits: MockHabit[] = [
-  { id: '1', name: 'Morning Meditation', subtitle: '1 session', streak: 12, completed: false },
-  { id: '2', name: 'Drink Water', subtitle: '8 glasses', streak: 5, completed: true },
-  { id: '3', name: 'Exercise', subtitle: '30 mins', streak: 3, completed: false },
-  { id: '4', name: 'Read', subtitle: '20 pages', streak: 8, completed: false },
-  { id: '5', name: 'Journal', subtitle: '1 entry', streak: 0, completed: false },
+  { id: '1', name: 'Morning Mindfulness', subtitle: '1 session', streak: 6, completed: false },
+  { id: '2', name: 'Daily Hydration', subtitle: '8 glasses', streak: 2, completed: true },
+  { id: '3', name: 'Deep Reading Novel...', subtitle: '30 mins', streak: 14, completed: false },
+  { id: '4', name: 'Afternoon Walk', subtitle: '10,000 steps', streak: 12, completed: false },
 ];
 
 interface HabitsSectionProps {
@@ -47,6 +46,7 @@ export function HabitsSection({ selectedDate: _selectedDate }: HabitsSectionProp
             streak={habit.streak}
             isCompleted={habit.completed}
             onToggleComplete={() => handleToggle(habit.id)}
+            onClick={() => navigate('/habit/' + habit.id)}
           />
         ))}
       </div>
