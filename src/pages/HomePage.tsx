@@ -7,6 +7,7 @@ import {
   HabitsSection,
   FeedbackButton,
   FloatingActions,
+  ReminderSheet,
 } from '@/components/home';
 import { useAuth } from '@/contexts/AuthContext';
 import type { EntriesMap } from '@shared/types';
@@ -24,6 +25,7 @@ function buildMockEntries(): EntriesMap {
 export function HomePage() {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [showReminders, setShowReminders] = useState(false);
   const mockEntries = useMemo(() => buildMockEntries(), []);
 
   const fullName = user?.user_metadata?.full_name as string | undefined;
@@ -39,11 +41,12 @@ export function HomePage() {
           onSelectDate={setSelectedDate}
           entries={mockEntries}
         />
-        <CheckInCard selectedDate={selectedDate} />
+        <CheckInCard selectedDate={selectedDate} onReminderPress={() => setShowReminders(true)} />
         <HabitsSection selectedDate={selectedDate} />
         <FeedbackButton />
       </div>
       <FloatingActions />
+      {showReminders && <ReminderSheet onClose={() => setShowReminders(false)} />}
     </>
   );
 }

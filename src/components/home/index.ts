@@ -8,3 +8,4 @@ export { FloatingActions } from './FloatingActions';
 export { SectionHeader } from './SectionHeader';
 export { IconCircleButton } from './IconCircleButton';
 export { EmojiOptionButton } from './EmojiOptionButton';
+export { ReminderSheet } from './ReminderSheet';

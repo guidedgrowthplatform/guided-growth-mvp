@@ -8,9 +8,10 @@ type CheckInValues = Record<CheckInDimension, number | null>;
 
 interface CheckInCardProps {
   selectedDate: string;
+  onReminderPress?: () => void;
 }
 
-export function CheckInCard({ selectedDate: _selectedDate }: CheckInCardProps) {
+export function CheckInCard({ selectedDate: _selectedDate, onReminderPress }: CheckInCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [values, setValues] = useState<CheckInValues>({
     sleep: null,
@@ -37,6 +38,12 @@ export function CheckInCard({ selectedDate: _selectedDate }: CheckInCardProps) {
       >
         <span className="text-xl font-bold text-content">How are you feeling?</span>
         <ChevronDown
+          onClick={(e) => {
+            if (onReminderPress) {
+              e.stopPropagation();
+              onReminderPress();
+            }
+          }}
           className={`h-5 w-5 text-content-tertiary transition-transform duration-300 ${
             expanded ? 'rotate-0' : '-rotate-90'
           }`}

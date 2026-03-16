@@ -1,7 +1,7 @@
 import { QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
@@ -35,10 +35,14 @@ function useSeedData() {
 function ProtectedRoutes() {
   const { user } = useAuth();
   useSeedData();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
+
+  const habitMatch = location.pathname.match(/^\/habit\/(.+)$/);
 
   return (
     <Layout>
@@ -51,10 +55,11 @@ function ProtectedRoutes() {
           <Route path="/report" element={<ReportPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/habit/:habitId" element={<HabitDetailPage />} />
+          <Route path="/habit/:habitId" element={<HomePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ErrorBoundary>
+      {habitMatch && <HabitDetailPage habitId={habitMatch[1]} onClose={() => navigate(-1)} />}
     </Layout>
   );
 }
