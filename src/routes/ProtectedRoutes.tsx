@@ -1,0 +1,69 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { Navigate, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { Layout } from '@/components/layout/Layout';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { useAuth } from '@/contexts/AuthContext';
+import { getDataService } from '@/lib/services/service-provider';
+import { AdminPage } from '@/pages/AdminPage';
+import { CapturePage } from '@/pages/CapturePage';
+import { ConfigurePage } from '@/pages/ConfigurePage';
+import { HabitDetailPage } from '@/pages/HabitDetailPage';
+import { HomePage } from '@/pages/HomePage';
+import { OnboardingPage } from '@/pages/OnboardingPage';
+import { OnboardingStep2Page } from '@/pages/OnboardingStep2Page';
+import { OnboardingStep3Page } from '@/pages/OnboardingStep3Page';
+import { OnboardingStep4Page } from '@/pages/OnboardingStep4Page';
+import { ReportPage } from '@/pages/ReportPage';
+import { SettingsPage } from '@/pages/SettingsPage';
+
+function useSeedData() {
+  const qc = useQueryClient();
+  useEffect(() => {
+    getDataService()
+      .then((ds) => ds.seedData())
+      .then(() => {
+        qc.invalidateQueries();
+      })
+      .catch(console.error);
+  }, [qc]);
+}
+
+export function ProtectedRoutes() {
+  const { user } = useAuth();
+  useSeedData();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (location.pathname.startsWith('/onboarding')) {
+    if (location.pathname === '/onboarding/step-2') return <OnboardingStep2Page />;
+    if (location.pathname === '/onboarding/step-3') return <OnboardingStep3Page />;
+    if (location.pathname === '/onboarding/step-4') return <OnboardingStep4Page />;
+    return <OnboardingPage />;
+  }
+
+  const habitMatch = location.pathname.match(/^\/habit\/(.+)$/);
+
+  return (
+    <Layout>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/home" element={<HomePage />} />
+          <Route path="/capture" element={<CapturePage />} />
+          <Route path="/configure" element={<ConfigurePage />} />
+          <Route path="/report" element={<ReportPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/habit/:habitId" element={<HomePage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </ErrorBoundary>
+      {habitMatch && <HabitDetailPage habitId={habitMatch[1]} onClose={() => navigate(-1)} />}
+    </Layout>
+  );
+}
