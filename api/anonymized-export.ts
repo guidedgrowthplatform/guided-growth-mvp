@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { checkRateLimit } from './_lib/rate-limit.js';
 
 /**
  * Anonymized Data Export API — MVP-19 (#43)
@@ -40,6 +41,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const keysMatch = providedKeyBuf.length === adminKeyBuf.length && crypto.timingSafeEqual(providedKeyBuf, adminKeyBuf);
   if (!keysMatch) {
     return res.status(403).json({ error: 'Forbidden: invalid or missing admin key' });
+  }
+
+  // Rate limit: 10 exports per minute per IP
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 'unknown';
+  const rl = checkRateLimit(ip, { windowMs: 60_000, maxRequests: 10, keyPrefix: 'anon-export' });
+  if (rl.limited) {
+    return res.status(429).json({ error: 'Too many requests', retryAfter: rl.retryAfter });
   }
 
   // ─── Supabase service client (bypasses RLS) ───

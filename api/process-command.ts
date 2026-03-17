@@ -293,13 +293,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const user = await requireUser(req, res);
-  if (!user) return;
+  // Always rate-limit by IP regardless of auth mode
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 'unknown';
+  const ipRl = checkRateLimit(ip, { windowMs: 60_000, maxRequests: 30, keyPrefix: 'process-command-ip' });
+  if (ipRl.limited) return res.status(429).json({ error: 'Too many requests', retryAfter: ipRl.retryAfter });
 
-  // Rate limit: 20 requests per minute per user
-  const rl = checkRateLimit(user.id, { windowMs: 60_000, maxRequests: 20, keyPrefix: 'process-command' });
-  if (rl.limited) {
-    return res.status(429).json({ error: 'Too many requests. Try again later.', retryAfter: rl.retryAfter });
+  // Auth guard — skip only when server-side AUTH_BYPASS_MODE is explicitly set
+  if (process.env.AUTH_BYPASS_MODE !== 'true') {
+    const user = await requireUser(req, res);
+    if (!user) return;
+    const rl = checkRateLimit(user.id, { windowMs: 60_000, maxRequests: 20, keyPrefix: 'process-command' });
+    if (rl.limited) {
+      return res.status(429).json({ error: 'Too many requests. Try again later.', retryAfter: rl.retryAfter });
+    }
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
@@ -378,10 +384,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Sanitize: only allow expected keys to prevent prototype pollution
+    const safeParams = Object.create(null);
+    if (parsed.params && typeof parsed.params === 'object') {
+      for (const [k, v] of Object.entries(parsed.params as Record<string, unknown>)) {
+        if (k !== '__proto__' && k !== 'constructor' && k !== 'prototype') {
+          safeParams[k] = v;
+        }
+      }
+    }
     const sanitized = {
       action: parsed.action,
       entity: parsed.entity,
-      params: parsed.params,
+      params: safeParams,
       confidence: parsed.confidence,
     };
 

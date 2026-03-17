@@ -135,8 +135,11 @@ export function speak(text: string, options?: { rate?: number; pitch?: number; v
     let resumeInterval: ReturnType<typeof setInterval> | null = null;
 
     const cleanup = () => {
-      if (resumeInterval) { clearInterval(resumeInterval); resumeInterval = null; }
-      if (currentResumeInterval === resumeInterval) { currentResumeInterval = null; }
+      if (resumeInterval) {
+        if (currentResumeInterval === resumeInterval) { currentResumeInterval = null; }
+        clearInterval(resumeInterval);
+        resumeInterval = null;
+      }
     };
 
     utterance.onend = cleanup;
@@ -195,11 +198,12 @@ export function speakPreAck(action: string, params: Record<string, unknown>): vo
 }
 
 // Load voices when they become available (Chrome loads async)
+// Use addEventListener to avoid overwriting handlers from other modules (e.g. SettingsPage)
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  window.speechSynthesis.onvoiceschanged = () => {
+  window.speechSynthesis.addEventListener('voiceschanged', () => {
     voicesLoaded = true;
     cachedVoice = findBestVoice();
-  };
+  });
   // Trigger initial load
   getVoices();
 }

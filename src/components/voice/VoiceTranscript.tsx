@@ -43,6 +43,7 @@ export function VoiceTranscript() {
             const timer = setTimeout(() => {
                 resetTranscript();
                 lastProcessedRef.current = '';
+                setPendingConfirm(false);
             }, 3000);
             return () => clearTimeout(timer);
         }

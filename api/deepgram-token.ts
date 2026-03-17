@@ -1,8 +1,23 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { requireUser } from './_lib/auth.js';
+import { checkRateLimit } from './_lib/rate-limit.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Always rate-limit by IP regardless of auth mode
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 'unknown';
+  const ipRl = checkRateLimit(ip, { windowMs: 60_000, maxRequests: 15, keyPrefix: 'deepgram-token-ip' });
+  if (ipRl.limited) return res.status(429).json({ error: 'Too many requests', retryAfter: ipRl.retryAfter });
+
+  // Auth guard — skip only when server-side AUTH_BYPASS_MODE is explicitly set
+  if (process.env.AUTH_BYPASS_MODE !== 'true') {
+    const user = await requireUser(req, res);
+    if (!user) return;
+    const rl = checkRateLimit(user.id, { windowMs: 60_000, maxRequests: 10, keyPrefix: 'deepgram-token' });
+    if (rl.limited) return res.status(429).json({ error: 'Too many requests', retryAfter: rl.retryAfter });
   }
 
   const apiKey = process.env.DEEPGRAM_API_KEY;
@@ -41,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       headers: authHeaders,
       body: JSON.stringify({
         comment: 'temp-client-key',
-        scopes: ['usage:write'],
+        scopes: ['usage:write', 'usage:read'],
         time_to_live_in_seconds: 60,
       }),
       signal: AbortSignal.timeout(5000),

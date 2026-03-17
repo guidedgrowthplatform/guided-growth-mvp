@@ -3,24 +3,24 @@
  * Runs on ALL devices defined in playwright.config.ts projects.
  * Each project (chromium, safari, firefox, iphone, pixel, etc.) runs these tests.
  *
+ * BASE_URL comes from playwright.config.ts `use.baseURL` (overridable via BASE_URL env var).
+ *
  * Run: npx playwright test e2e/cross-device.spec.ts
  */
 import { test, expect } from '@playwright/test';
-
-const BASE_URL = 'https://guided-growth-mvp-six.vercel.app';
 
 // ─── 1. Page loads correctly ───
 test('Homepage loads without JS errors', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(err.message));
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'networkidle' });
   await expect(page.locator('body')).not.toBeEmpty();
   expect(errors).toEqual([]);
 });
 
 // ─── 2. Responsive layout — no horizontal overflow ───
 test('Layout adapts to viewport (no horizontal scroll)', async ({ page }) => {
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'networkidle' });
   const viewport = page.viewportSize();
   if (!viewport) return;
   const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
@@ -31,7 +31,7 @@ test('Layout adapts to viewport (no horizontal scroll)', async ({ page }) => {
 
 // ─── 3. API health check ───
 test('API health responds', async ({ request }) => {
-  const res = await request.get(`${BASE_URL}/api/health`);
+  const res = await request.get('/api/health');
   expect(res.status()).toBe(200);
   const data = await res.json();
   expect(data.status).toBe('healthy');
@@ -45,13 +45,13 @@ test('No broken static assets', async ({ page }) => {
       failed.push(`${res.status()} ${res.url()}`);
     }
   });
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'networkidle' });
   expect(failed).toEqual([]);
 });
 
 // ─── 5. PWA manifest loads ───
 test('PWA manifest accessible', async ({ request }) => {
-  const res = await request.get(`${BASE_URL}/manifest.json`);
+  const res = await request.get('/manifest.json');
   expect(res.status()).toBe(200);
   const manifest = await res.json();
   expect(manifest.name).toBeTruthy();
@@ -59,7 +59,7 @@ test('PWA manifest accessible', async ({ request }) => {
 
 // ─── 6. Security headers ───
 test('Security headers present', async ({ request }) => {
-  const res = await request.get(BASE_URL);
+  const res = await request.get('/');
   expect(res.headers()['x-content-type-options']).toBe('nosniff');
   expect(res.headers()['x-frame-options']).toBe('DENY');
 });
@@ -67,7 +67,7 @@ test('Security headers present', async ({ request }) => {
 // ─── 7. Service Worker registers ───
 test('Service Worker registers', async ({ page, browserName }) => {
   if (browserName === 'firefox') { test.skip(); return; }
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
   const swRegistered = await page.evaluate(async () => {
     if (!('serviceWorker' in navigator)) return 'unsupported';
@@ -79,7 +79,7 @@ test('Service Worker registers', async ({ page, browserName }) => {
 
 // ─── 8. Speech API availability ───
 test('Browser speech APIs match expectations', async ({ page, browserName }) => {
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'networkidle' });
   const apis = await page.evaluate(() => ({
     speechRecognition: !!(window.SpeechRecognition || (window as unknown as Record<string, unknown>).webkitSpeechRecognition),
     speechSynthesis: 'speechSynthesis' in window,
@@ -108,7 +108,7 @@ test('Browser speech APIs match expectations', async ({ page, browserName }) => 
 
 // ─── 9. Settings page renders all providers ───
 test('Settings page — all STT providers visible', async ({ page }) => {
-  await page.goto(`${BASE_URL}/settings`, { waitUntil: 'networkidle' });
+  await page.goto('/settings', { waitUntil: 'networkidle' });
   await expect(page.getByText('Web Speech API')).toBeVisible();
   await expect(page.getByText('Whisper (whisper.cpp)')).toBeVisible();
   await expect(page.getByText('DeepGram Nova-2')).toBeVisible();
@@ -119,7 +119,7 @@ test('Settings page — all STT providers visible', async ({ page }) => {
 
 // ─── 10. Settings page — recording modes ───
 test('Settings page — recording modes visible', async ({ page }) => {
-  await page.goto(`${BASE_URL}/settings`, { waitUntil: 'networkidle' });
+  await page.goto('/settings', { waitUntil: 'networkidle' });
   await expect(page.getByText('Auto-stop (Siri-like)')).toBeVisible();
   await expect(page.getByText('4.5s of silence')).toBeVisible();
   await expect(page.getByText('Always recording', { exact: true })).toBeVisible();
@@ -127,7 +127,7 @@ test('Settings page — recording modes visible', async ({ page }) => {
 
 // ─── 11. Settings page — TTS toggle ───
 test('Settings page — TTS toggle works', async ({ page }) => {
-  await page.goto(`${BASE_URL}/settings`, { waitUntil: 'networkidle' });
+  await page.goto('/settings', { waitUntil: 'networkidle' });
   await expect(page.getByText('Voice feedback')).toBeVisible();
   const toggle = page.locator('#tts-toggle');
   await expect(toggle).toBeAttached();
@@ -135,7 +135,7 @@ test('Settings page — TTS toggle works', async ({ page }) => {
 
 // ─── 12. Capture page — main elements ───
 test('Capture page loads with habit grid and reflections', async ({ page }) => {
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'networkidle' });
   await expect(page.getByText('Capture').first()).toBeVisible();
   await expect(page.getByText('Add Habit', { exact: false }).first()).toBeVisible();
   await expect(page.getByText('What are you grateful for?')).toBeVisible();
@@ -143,7 +143,7 @@ test('Capture page loads with habit grid and reflections', async ({ page }) => {
 
 // ─── 13. SPA routing ───
 test('SPA routing — unknown paths serve index.html', async ({ page }) => {
-  const res = await page.goto(`${BASE_URL}/nonexistent-123`);
+  const res = await page.goto('/nonexistent-123');
   expect(res?.status()).toBe(200);
 });
 
@@ -157,7 +157,7 @@ test('No critical console errors on load', async ({ page }) => {
       errors.push(text);
     }
   });
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'networkidle' });
   await page.waitForTimeout(1000);
   expect(errors).toEqual([]);
 });
@@ -170,13 +170,13 @@ test('No broken fonts or icons', async ({ page }) => {
       broken.push(res.url());
     }
   });
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'networkidle' });
   expect(broken).toEqual([]);
 });
 
 // ─── 16. localStorage works ───
 test('localStorage available', async ({ page }) => {
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'networkidle' });
   const works = await page.evaluate(() => {
     try { localStorage.setItem('_t', '1'); localStorage.removeItem('_t'); return true; }
     catch { return false; }
@@ -187,14 +187,14 @@ test('localStorage available', async ({ page }) => {
 // ─── 17. API endpoints security ───
 test('API endpoints require auth', async ({ request }) => {
   for (const path of ['/api/entries', '/api/metrics', '/api/reflections', '/api/preferences']) {
-    const res = await request.get(`${BASE_URL}${path}`);
+    const res = await request.get(path);
     expect(res.status()).toBe(401);
   }
 });
 
 // ─── 18. Settings descriptions accuracy ───
 test('Settings descriptions are accurate', async ({ page }) => {
-  await page.goto(`${BASE_URL}/settings`, { waitUntil: 'networkidle' });
+  await page.goto('/settings', { waitUntil: 'networkidle' });
   // Whisper ~40MB, desktop only
   await expect(page.getByText('~40MB')).toBeVisible();
   await expect(page.getByText('Desktop only')).toBeVisible();
@@ -206,7 +206,7 @@ test('Settings descriptions are accurate', async ({ page }) => {
 
 // ─── 19. Command examples present ───
 test('Voice command examples shown', async ({ page }) => {
-  await page.goto(`${BASE_URL}/settings`, { waitUntil: 'networkidle' });
+  await page.goto('/settings', { waitUntil: 'networkidle' });
   await expect(page.getByText('Voice Command Examples')).toBeVisible();
   await expect(page.getByText('Create a new habit', { exact: false })).toBeVisible();
   await expect(page.getByText('Mark exercise as done', { exact: false })).toBeVisible();
@@ -214,7 +214,7 @@ test('Voice command examples shown', async ({ page }) => {
 
 // ─── 20. View toggles on Capture page ───
 test('Week/Month and Form/Spreadsheet toggles exist in DOM', async ({ page }) => {
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'networkidle' });
   // On small mobile screens these may require scrolling — check DOM presence, not visibility
   await expect(page.getByText('Week').first()).toBeAttached();
   await expect(page.getByText('Month').first()).toBeAttached();

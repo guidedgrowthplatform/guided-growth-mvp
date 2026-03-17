@@ -36,7 +36,7 @@ export async function getUser(req: VercelRequest) {
 
   try {
     const payload = jwt.verify(match[1], SECRET()) as { userId: string };
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [payload.userId]);
+    const result = await pool.query('SELECT id, email, name, avatar_url, role, status FROM users WHERE id = $1', [payload.userId]);
     return result.rows[0] || null;
   } catch {
     return null;

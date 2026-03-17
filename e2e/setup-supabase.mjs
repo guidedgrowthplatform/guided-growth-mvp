@@ -1,14 +1,19 @@
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
-const SUPABASE_PROJECT = 'yqnppwsbedpeebffmaev';
+const SUPABASE_PROJECT = process.env.SUPABASE_PROJECT || 'yqnppwsbedpeebffmaev';
 const sql = readFileSync('supabase/migrations/002_api_tables.sql', 'utf-8');
 
 async function main() {
-  console.log('Launching Chrome... LOGIN KE SUPABASE BEGITU BROWSER MUNCUL!');
+  console.log('Launching Chrome... Please log in to Supabase when the browser opens.');
+
+  // Use OS temp directory instead of hardcoded path
+  const userDataDir = join(tmpdir(), 'pw-supabase-v3');
 
   const context = await chromium.launchPersistentContext(
-    'C:\\Users\\abdul\\AppData\\Local\\Temp\\pw-supabase-v3',
+    userDataDir,
     {
       headless: false,
       viewport: { width: 1400, height: 900 },
@@ -29,13 +34,13 @@ async function main() {
 
   if (url.includes('sign-in') || url.includes('sign-up') || url.includes('auth')) {
     console.log('\n========================================');
-    console.log('  LOGIN SEKARANG DI BROWSER YANG MUNCUL!');
-    console.log('  Menunggu max 10 menit...');
+    console.log('  PLEASE LOG IN NOW IN THE BROWSER!');
+    console.log('  Waiting up to 10 minutes...');
     console.log('========================================\n');
 
     try {
       await page.waitForURL('**/project/**', { timeout: 600000 });
-      console.log('Login berhasil!');
+      console.log('Login successful!');
       await page.waitForTimeout(2000);
 
       // Navigate to SQL editor
@@ -46,7 +51,7 @@ async function main() {
       );
       await page.waitForTimeout(5000);
     } catch {
-      console.log('Timeout. Browser ditutup.');
+      console.log('Timeout — closing browser.');
       await context.close();
       return;
     }
@@ -94,10 +99,10 @@ async function main() {
     // Screenshot result
     await page.screenshot({ path: 'e2e/screenshots/supabase-result.png', fullPage: true });
     console.log('Screenshot saved. Check e2e/screenshots/supabase-result.png');
-    console.log('\nDONE! Cek result di browser. Tutup browser kalo udah OK.');
+    console.log('\nDONE! Check the result in the browser. Close when ready.');
   } else {
-    console.log('Editor ga ketemu otomatis.');
-    console.log('SQL UDAH DI CLIPBOARD — tinggal Ctrl+V di editor, terus Ctrl+Enter');
+    console.log('Editor not found automatically.');
+    console.log('SQL is in your clipboard — paste with Ctrl+V in the editor, then Ctrl+Enter to run.');
   }
 
   // Keep open for user

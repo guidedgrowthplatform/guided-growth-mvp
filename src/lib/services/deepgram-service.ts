@@ -187,19 +187,20 @@ export function stopDeepGram(): void {
   isActive = false;
   wsReady = false;
 
-  // Clean up audio context (handles both AudioWorklet and ScriptProcessor)
-  if (audioContext && audioContext.state !== 'closed') {
-    try { audioContext.close(); } catch { /* ignore */ }
-    audioContext = null;
-  }
-
-  // Close WebSocket
+  // Close WebSocket FIRST — send graceful close before stopping audio pipeline
+  // This ensures any buffered audio is flushed before the context is closed
   if (ws) {
     if (ws.readyState === WebSocket.OPEN) {
       try { ws.send(JSON.stringify({ type: 'CloseStream' })); } catch { /* ignore */ }
       ws.close();
     }
     ws = null;
+  }
+
+  // Then clean up audio context (handles both AudioWorklet and ScriptProcessor)
+  if (audioContext && audioContext.state !== 'closed') {
+    try { audioContext.close(); } catch { /* ignore */ }
+    audioContext = null;
   }
 
   // Release microphone

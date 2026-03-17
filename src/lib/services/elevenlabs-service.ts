@@ -14,6 +14,7 @@ let audioContext: AudioContext | null = null;
 let audioChunks: Float32Array[] = [];
 let isActive = false;
 let captureNode: ScriptProcessorNode | null = null;
+let sourceNode: MediaStreamAudioSourceNode | null = null;
 
 function float32ToWavBlob(samples: Float32Array, sampleRate: number): Blob {
   const numSamples = samples.length;
@@ -57,7 +58,7 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
     });
 
     audioContext = new AudioContext();
-    const source = audioContext.createMediaStreamSource(mediaStream);
+    sourceNode = audioContext.createMediaStreamSource(mediaStream);
     audioChunks = [];
 
     // Capture raw PCM audio
@@ -68,7 +69,7 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
         audioChunks.push(new Float32Array(data));
       }
     };
-    source.connect(captureNode);
+    sourceNode.connect(captureNode);
     captureNode.connect(audioContext.destination);
 
     isActive = true;
@@ -86,7 +87,11 @@ export async function stopElevenLabsAndTranscribe(): Promise<string> {
 
   const sampleRate = audioContext?.sampleRate || 16000;
 
-  // Stop capture
+  // Stop capture — disconnect source before captureNode to avoid dangling references
+  if (sourceNode) {
+    sourceNode.disconnect();
+    sourceNode = null;
+  }
   if (captureNode) {
     captureNode.disconnect();
     captureNode = null;
@@ -123,11 +128,16 @@ export async function stopElevenLabsAndTranscribe(): Promise<string> {
   form.append('model_id', 'scribe_v2');
   form.append('language_code', 'en');
 
+  // Use AbortController + setTimeout for iOS 15 compatibility
+  // (AbortSignal.timeout() is unavailable before Safari 16.4)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
   const res = await fetch('/api/elevenlabs-stt', {
     method: 'POST',
     body: form,
-    signal: AbortSignal.timeout(15000), // 15s timeout — prevents hanging on slow networks
-  });
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeoutId));
 
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
@@ -141,6 +151,10 @@ export async function stopElevenLabsAndTranscribe(): Promise<string> {
 export function stopElevenLabs(): void {
   isActive = false;
 
+  if (sourceNode) {
+    sourceNode.disconnect();
+    sourceNode = null;
+  }
   if (captureNode) {
     captureNode.disconnect();
     captureNode = null;

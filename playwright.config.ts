@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
   use: {
-    baseURL: 'https://guided-growth-mvp-six.vercel.app',
+    baseURL: process.env.BASE_URL || 'https://guided-growth-mvp-six.vercel.app',
   },
   projects: [
     // ─── Desktop browsers ───

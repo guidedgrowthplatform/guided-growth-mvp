@@ -62,11 +62,17 @@ export function SettingsPage() {
     }
 
     // Chrome fires voiceschanged event after async load
+    // Use addEventListener to avoid overwriting tts-service.ts handler
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
+      window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
     }
 
-    return () => { if (timer) clearTimeout(timer); };
+    return () => {
+      if (timer) clearTimeout(timer);
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+      }
+    };
   }, [selectedVoice]);
 
   const handleVoiceChange = (voiceName: string) => {
@@ -116,7 +122,7 @@ export function SettingsPage() {
     {
       value: 'elevenlabs',
       label: 'ElevenLabs Scribe v2',
-      description: 'Cloud-based. High-accuracy multilingual STT with real-time streaming.',
+      description: 'Cloud-based. High-accuracy multilingual STT. Records then uploads for transcription.',
       icon: <Zap className="w-5 h-5 text-purple-600" />,
     },
   ];

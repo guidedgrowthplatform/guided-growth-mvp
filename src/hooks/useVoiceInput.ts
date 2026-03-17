@@ -3,7 +3,7 @@ import { useVoiceStore } from '@/stores/voiceStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 // Feature-based mobile detection (user agent is unreliable in Capacitor/WebView)
-const isMobile = typeof navigator !== 'undefined' && (
+const isMobile = typeof window !== 'undefined' && typeof navigator !== 'undefined' && (
   // Primary: touch + small screen = mobile device
   ('ontouchstart' in window && window.innerWidth < 768) ||
   // Fallback: user agent for edge cases where touch isn't detected

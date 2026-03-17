@@ -76,15 +76,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (allowCheck.rows.length === 0) return res.redirect('/login?error=not_invited');
 
       const now = new Date();
-      const existing = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+      // Sanitize Google profile data — prevent oversized values
+      const safeName = String(profile.name || email.split('@')[0]).slice(0, 255);
+      const safePicture = String(profile.picture || '').slice(0, 2048);
+
+      const existing = await pool.query('SELECT id, email, name, avatar_url, role, status FROM users WHERE email = $1', [email]);
 
       let user;
       if (existing.rows.length === 0) {
         const adminEmail = process.env.ADMIN_EMAIL;
         const role = adminEmail && email === adminEmail ? 'admin' : 'user';
         const result = await pool.query(
-          `INSERT INTO users (email, name, avatar_url, role, last_login_at) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-          [email, profile.name || email.split('@')[0], profile.picture, role, now]
+          `INSERT INTO users (email, name, avatar_url, role, last_login_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name, avatar_url, role, status`,
+          [email, safeName, safePicture, role, now]
         );
         user = result.rows[0];
       } else {
@@ -97,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         await pool.query(
           `UPDATE users SET name = $1, avatar_url = $2, last_login_at = $3, updated_at = $3, role = $5 WHERE id = $4`,
-          [profile.name || user.name, profile.picture, now, user.id, newRole]
+          [safeName || user.name, safePicture, now, user.id, newRole]
         );
         user.role = newRole;
       }
@@ -109,8 +113,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const cookies = Array.isArray(existingCookies) ? [...existingCookies, authCookie] : [authCookie];
       res.setHeader('Set-Cookie', cookies);
       return res.redirect('/');
-    } catch (err: any) {
-      console.error('OAuth callback error:', err);
+    } catch (err: unknown) {
+      console.error('OAuth callback error:', err instanceof Error ? err.message : err);
       return res.redirect('/login?error=server_error');
     }
   }

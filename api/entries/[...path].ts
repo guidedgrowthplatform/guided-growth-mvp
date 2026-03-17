@@ -58,6 +58,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.send(csv);
   }
 
+  // UUID format validation helper
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   // PUT /api/entries/bulk
   if (route === 'bulk') {
     if (req.method !== 'PUT') return res.status(405).json({ error: 'Method not allowed' });
@@ -69,6 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const [date, dayEntries] of bodyEntries) {
         if (!validateDate(date)) continue;
         for (const [metricId, value] of Object.entries(dayEntries as Record<string, string>)) {
+          if (!UUID_RE.test(metricId)) continue; // skip invalid metric IDs
           if (value === '' || value === null || value === undefined) {
             await client.query('DELETE FROM entries WHERE user_id = $1 AND metric_id = $2 AND date = $3', [user.id, metricId, date]);
           } else {
@@ -102,6 +106,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       await client.query('BEGIN');
       for (const [metricId, value] of bodyEntries) {
+        if (!UUID_RE.test(metricId)) continue; // skip invalid metric IDs
         if (value === '' || value === null || value === undefined) {
           await client.query('DELETE FROM entries WHERE user_id = $1 AND metric_id = $2 AND date = $3', [user.id, metricId, date]);
         } else {

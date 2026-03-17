@@ -23,10 +23,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] || '';
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   // /api/admin/users and /api/admin/users/:id/...
   if (route === 'users') {
     const userId = segments[1];
     const subRoute = segments[2];
+
+    // Validate userId format when present
+    if (userId && !UUID_RE.test(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID format' });
+    }
 
     // /api/admin/users/:id/role
     if (userId && subRoute === 'role' && req.method === 'PATCH') {

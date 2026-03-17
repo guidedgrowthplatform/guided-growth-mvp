@@ -59,6 +59,9 @@ e2e/videos/
 e2e/traces/
 playwright-report/
 
+# Demo / internal scripts
+DEMO_SCRIPT.md
+
 # Misc
 *.pem
 *.orig
