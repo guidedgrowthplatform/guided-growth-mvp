@@ -2,8 +2,13 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
-// Whisper WASM (~40MB) crashes mobile Safari — block on mobile devices
-const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+// Feature-based mobile detection (user agent is unreliable in Capacitor/WebView)
+const isMobile = typeof navigator !== 'undefined' && (
+  // Primary: touch + small screen = mobile device
+  ('ontouchstart' in window && window.innerWidth < 768) ||
+  // Fallback: user agent for edge cases where touch isn't detected
+  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+);
 import {
     loadWhisperModel,
     transcribeAudio,
@@ -253,11 +258,12 @@ export function useVoiceInput() {
                 stopListening();
                 clearSilenceTimer();
                 if (!isMobile) {
-                    // Desktop: suggest Whisper as alternative (runs locally)
-                    setError('Web Speech API not available in this browser. Try switching to Whisper (Settings → Speech-to-Text) or use Chrome/Edge.');
+                    // Desktop: suggest Whisper or DeepGram as alternative
+                    setError('Web Speech API not available in this browser. Try switching to DeepGram or Whisper in Settings → Speech-to-Text, or use Chrome/Edge.');
                 } else {
-                    // Mobile: Whisper is too heavy, no fallback available
-                    setError('Speech recognition not available on this browser. Please use Chrome on Android or Safari on iOS.');
+                    // Mobile: Web Speech API not supported (iOS Safari, some Android browsers)
+                    // Note: iOS Safari does NOT support Web Speech API — suggest DeepGram or ElevenLabs
+                    setError('Web Speech API not available on this device. Switch to DeepGram or ElevenLabs in Settings → Speech-to-Text Engine.');
                 }
                 return;
             }
@@ -389,8 +395,13 @@ export function useVoiceInput() {
                     onClose: () => {},
                 });
             } catch (err) {
-                setError(`ElevenLabs failed: ${err instanceof Error ? err.message : err}`);
+                // FALLBACK: ElevenLabs failed → auto-switch to Web Speech
+                console.warn('[VoiceInput] ElevenLabs failed, falling back to Web Speech:', err);
                 stopListening();
+                stopElevenLabs();
+                setError('ElevenLabs unavailable. Switching to Web Speech...');
+                useVoiceSettingsStore.getState().setSttProvider('webspeech');
+                setTimeout(() => { setError(''); start(); }, 1500);
             }
             return;
         }
@@ -409,12 +420,22 @@ export function useVoiceInput() {
                             setInterim(text);
                         }
                     },
-                    onError: (err) => setError(err),
+                    onError: (err) => {
+                        // FALLBACK: DeepGram error → auto-switch to Web Speech
+                        console.warn('[VoiceInput] DeepGram error, falling back to Web Speech:', err);
+                        setError('DeepGram unavailable. Switching to Web Speech...');
+                        useVoiceSettingsStore.getState().setSttProvider('webspeech');
+                        setTimeout(() => { setError(''); start(); }, 1500);
+                    },
                     onOpen: () => startListening(),
                     onClose: () => stopListening(),
                 });
             } catch (err) {
-                setError(`DeepGram failed: ${err instanceof Error ? err.message : err}`);
+                // FALLBACK: DeepGram failed to start → auto-switch to Web Speech
+                console.warn('[VoiceInput] DeepGram failed, falling back to Web Speech:', err);
+                setError('DeepGram unavailable. Switching to Web Speech...');
+                useVoiceSettingsStore.getState().setSttProvider('webspeech');
+                setTimeout(() => { setError(''); start(); }, 1500);
             }
             return;
         }

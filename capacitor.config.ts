@@ -11,6 +11,12 @@ const config: CapacitorConfig = {
     contentInset: 'automatic',
     preferredContentMode: 'mobile',
     scheme: 'Guided Growth',
+    allowsLinkPreview: false,
+  },
+  server: {
+    // Required for getUserMedia and inline audio playback on iOS WKWebView
+    iosScheme: 'capacitor',
+    allowNavigation: ['*.deepgram.com', '*.elevenlabs.io'],
   },
 };
 

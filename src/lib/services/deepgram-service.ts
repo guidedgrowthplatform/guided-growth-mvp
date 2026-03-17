@@ -31,7 +31,8 @@ class PCMProcessor extends AudioWorkletProcessor {
       const float32 = input[0];
       const int16 = new Int16Array(float32.length);
       for (let i = 0; i < float32.length; i++) {
-        const s = Math.max(-1, Math.min(1, float32[i]));
+        const raw = float32[i];
+        const s = (raw === raw && raw !== Infinity && raw !== -Infinity) ? (raw < -1 ? -1 : (raw > 1 ? 1 : raw)) : 0;
         int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
       }
       this.port.postMessage(int16.buffer, [int16.buffer]);
@@ -75,7 +76,8 @@ async function createAudioPipeline(stream: MediaStream, onData: (buffer: ArrayBu
       const inputData = e.inputBuffer.getChannelData(0);
       const int16 = new Int16Array(inputData.length);
       for (let i = 0; i < inputData.length; i++) {
-        const s = Math.max(-1, Math.min(1, inputData[i]));
+        const raw = inputData[i];
+        const s = Number.isFinite(raw) ? Math.max(-1, Math.min(1, raw)) : 0;
         int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
       }
       onData(int16.buffer);

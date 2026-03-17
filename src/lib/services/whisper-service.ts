@@ -170,15 +170,20 @@ export async function transcribeAudio(audioData: Float32Array): Promise<string> 
       text = (result as { text: string }).text.trim();
     }
 
-    // Filter known whisper-tiny hallucinations on silence/noise
-    const hallucinations = [
-      '[music]', '[Music]', '[MUSIC]', '[ Music ]',
-      '[silence]', '[Silence]', '[BLANK_AUDIO]',
-      '(music)', '(Music)', '[applause]', '[Applause]',
-      'Thank you.', 'Thanks for watching.', 'you', 'You',
-      '...', '.', 'MBC 뉴스 이덕영입니다.',
+    // Filter known whisper-tiny hallucinations on silence/noise (case-insensitive)
+    const hallucinationPatterns = [
+      /^\[?\s*music\s*\]?$/i,
+      /^\(?\s*music\s*\)?$/i,
+      /^\[?\s*silence\s*\]?$/i,
+      /^\[?\s*blank.audio\s*\]?$/i,
+      /^\[?\s*applause\s*\]?$/i,
+      /^thank(s| you)\.?$/i,
+      /^thanks for watching\.?$/i,
+      /^you\.?$/i,
+      /^\.{1,3}$/,
+      /^MBC/,
     ];
-    if (hallucinations.includes(text)) {
+    if (hallucinationPatterns.some((p) => p.test(text))) {
       console.warn('[Whisper] Filtered hallucination:', text);
       return '';
     }

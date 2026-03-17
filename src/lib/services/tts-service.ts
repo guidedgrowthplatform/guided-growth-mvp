@@ -147,15 +147,26 @@ export function speak(text: string, options?: { rate?: number; pitch?: number; v
 
     window.speechSynthesis.speak(utterance);
 
+    // iOS workaround: resume polling every 3s (was 5s, too slow to catch hangs)
+    // Plus max timeout of 30s to abort completely stuck synthesis
+    let elapsedMs = 0;
+    const POLL_MS = 3000;
+    const MAX_SPEAK_MS = 30000;
     resumeInterval = setInterval(() => {
       try {
-        if (!window.speechSynthesis.speaking) {
+        elapsedMs += POLL_MS;
+        if (!window.speechSynthesis.speaking || elapsedMs >= MAX_SPEAK_MS) {
+          // Either finished or hung for 30s — abort and clean up
+          if (elapsedMs >= MAX_SPEAK_MS) {
+            console.warn('[TTS] Synthesis hung for 30s, aborting');
+            try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+          }
           cleanup();
         } else {
           window.speechSynthesis.resume();
         }
       } catch { cleanup(); }
-    }, 5000);
+    }, POLL_MS);
     currentResumeInterval = resumeInterval;
   } catch (err) {
     // TTS should NEVER crash the app

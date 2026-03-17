@@ -38,10 +38,11 @@ function float32ToWavBlob(samples: Float32Array, sampleRate: number): Blob {
   writeString(36, 'data');
   view.setUint32(40, numSamples * 2, true);
 
-  // PCM data
+  // PCM data (handle NaN/Infinity from corrupt audio)
   for (let i = 0; i < numSamples; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    const raw = samples[i];
+    const clamped = Number.isFinite(raw) ? Math.max(-1, Math.min(1, raw)) : 0;
+    view.setInt16(44 + i * 2, clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF, true);
   }
 
   return new Blob([buffer], { type: 'audio/wav' });
@@ -125,6 +126,7 @@ export async function stopElevenLabsAndTranscribe(): Promise<string> {
   const res = await fetch('/api/elevenlabs-stt', {
     method: 'POST',
     body: form,
+    signal: AbortSignal.timeout(15000), // 15s timeout — prevents hanging on slow networks
   });
 
   if (!res.ok) {
