@@ -68,6 +68,17 @@ function parseDateParam(dateStr: unknown): string {
     return lower;
   }
 
+  // Numeric date: "03/05/2026" or "3/5/2026" (MM/DD/YYYY)
+  const numericMatch = lower.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (numericMatch) {
+    const m = parseInt(numericMatch[1], 10);
+    const d = parseInt(numericMatch[2], 10);
+    const y = parseInt(numericMatch[3], 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+  }
+
   // Try to parse natural date strings like "8th March 2026", "March 10", "Jan 5th 2026"
   const MONTHS: Record<string, number> = {
     january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,

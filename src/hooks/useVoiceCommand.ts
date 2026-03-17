@@ -44,6 +44,17 @@ function extractDate(text: string): string {
   const t = text.toLowerCase();
   if (t.includes('yesterday')) return 'yesterday';
 
+  // Numeric date: "03/05/2026" or "3/5/2026" (MM/DD/YYYY)
+  const numericMatch = t.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (numericMatch) {
+    const m = parseInt(numericMatch[1], 10);
+    const d = parseInt(numericMatch[2], 10);
+    const y = parseInt(numericMatch[3], 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+  }
+
   // Explicit date: "for 12 march 2026", "for march 5th", "for 8th march"
   const patterns = [
     /(?:for|on)\s+(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?([a-z]+)(?:\s+(\d{4}))?/,
