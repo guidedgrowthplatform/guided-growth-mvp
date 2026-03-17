@@ -28,7 +28,7 @@ export function SettingsPage() {
   // Load voices — retry with polling for Android (voiceschanged may not fire)
   useEffect(() => {
     let retries = 0;
-    const maxRetries = 12; // 12 x 250ms = 3 seconds
+    const maxRetries = 24; // 24 x 250ms = 6 seconds (Android needs more time)
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const loadVoices = () => {
@@ -62,11 +62,17 @@ export function SettingsPage() {
     }
 
     // Chrome fires voiceschanged event after async load
+    // Use addEventListener to avoid overwriting tts-service.ts handler
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
+      window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
     }
 
-    return () => { if (timer) clearTimeout(timer); };
+    return () => {
+      if (timer) clearTimeout(timer);
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+      }
+    };
   }, [selectedVoice]);
 
   const handleVoiceChange = (voiceName: string) => {
@@ -83,7 +89,7 @@ export function SettingsPage() {
     {
       value: 'auto-stop',
       label: 'Auto-stop (Siri-like)',
-      description: 'Stops recording after 2.5s of silence. Best for quick voice commands.',
+      description: 'Stops recording after 4.5s of silence. Best for quick voice commands.',
       icon: <Timer className="w-5 h-5 text-cyan-600" />,
     },
     {
@@ -98,13 +104,13 @@ export function SettingsPage() {
     {
       value: 'webspeech',
       label: 'Web Speech API',
-      description: 'Browser built-in. Free, real-time interim results. Requires internet.',
+      description: 'Browser built-in. Free, real-time. Works on Chrome/Edge. Not supported on iOS Safari.',
       icon: <Globe className="w-5 h-5 text-cyan-600" />,
     },
     {
       value: 'whisper',
       label: 'Whisper (whisper.cpp)',
-      description: 'OpenAI Whisper base model. Runs locally in browser via WASM. ~75MB download on first use.',
+      description: 'OpenAI Whisper base model. Runs locally in browser via WASM. ~40MB download on first use. Desktop only.',
       icon: <Bot className="w-5 h-5 text-cyan-600" />,
     },
     {
@@ -112,6 +118,12 @@ export function SettingsPage() {
       label: 'DeepGram Nova-2',
       description: 'Cloud-based. Fastest transcription with real-time streaming. Requires API key.',
       icon: <Zap className="w-5 h-5 text-cyan-600" />,
+    },
+    {
+      value: 'elevenlabs',
+      label: 'ElevenLabs Scribe v2',
+      description: 'Cloud-based. High-accuracy multilingual STT. Records then uploads for transcription.',
+      icon: <Zap className="w-5 h-5 text-purple-600" />,
     },
   ];
 

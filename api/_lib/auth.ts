@@ -1,8 +1,17 @@
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from './db.js';
 
-const SECRET = () => process.env.SESSION_SECRET || 'dev-secret';
+const SECRET = () => {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+      throw new Error('SESSION_SECRET is required in production');
+    }
+    return 'dev-secret';
+  }
+  return secret;
+};
 
 export function signToken(userId: string): string {
   return jwt.sign({ userId }, SECRET(), { expiresIn: '7d' });
@@ -14,7 +23,8 @@ export function setAuthCookie(token: string): string {
 }
 
 export function clearAuthCookie(): string {
-  return 'token=; HttpOnly; Path=/; Max-Age=0';
+  const secure = process.env.NODE_ENV === 'production' ? 'Secure; ' : '';
+  return `token=; HttpOnly; ${secure}SameSite=Lax; Path=/; Max-Age=0`;
 }
 
 export async function getUser(req: VercelRequest) {
@@ -26,7 +36,7 @@ export async function getUser(req: VercelRequest) {
 
   try {
     const payload = jwt.verify(match[1], SECRET()) as { userId: string };
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [payload.userId]);
+    const result = await pool.query('SELECT id, email, name, avatar_url, role, status FROM users WHERE id = $1', [payload.userId]);
     return result.rows[0] || null;
   } catch {
     return null;

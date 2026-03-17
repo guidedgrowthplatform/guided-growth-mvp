@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -20,9 +20,15 @@ let nextId = 0;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   const removeToast = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+    const timer = timersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      timersRef.current.delete(id);
+    }
   }, []);
 
   const addToast = useCallback((type: ToastType, message: string) => {
@@ -32,8 +38,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       // Keep max 3 visible
       return next.slice(-3);
     });
-    setTimeout(() => removeToast(id), 3000);
+    const timer = setTimeout(() => removeToast(id), 3000);
+    timersRef.current.set(id, timer);
   }, [removeToast]);
+
+  // Cleanup all timers on unmount
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
+    };
+  }, []);
 
   return (
     <ToastContext.Provider value={{ toasts, addToast, removeToast }}>

@@ -16,6 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { metric_ids } = req.body;
     if (!Array.isArray(metric_ids)) return res.status(400).json({ error: 'metric_ids array required' });
 
+    if (metric_ids.length > 200) return res.status(400).json({ error: 'Too many metrics' });
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -25,11 +26,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');
-      throw err;
+      console.error('Reorder failed:', err);
+      return res.status(500).json({ error: 'Failed to reorder metrics' });
     } finally {
       client.release();
     }
-    const result = await pool.query('SELECT * FROM metrics WHERE user_id = $1 ORDER BY sort_order ASC', [user.id]);
+    const result = await pool.query('SELECT id, user_id, name, input_type, question, active, frequency, sort_order, target_value, target_unit, created_at, updated_at FROM metrics WHERE user_id = $1 ORDER BY sort_order ASC', [user.id]);
     return res.json(result.rows);
   }
 
@@ -49,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (fields.length === 0) return res.status(400).json({ error: 'No fields to update' });
       values.push(id, user.id);
       const result = await pool.query(
-        `UPDATE metrics SET ${fields.join(', ')} WHERE id = $${i++} AND user_id = $${i} RETURNING *`,
+        `UPDATE metrics SET ${fields.join(', ')} WHERE id = $${i++} AND user_id = $${i} RETURNING id, user_id, name, input_type, question, active, frequency, sort_order, target_value, target_unit, created_at, updated_at`,
         values
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
@@ -66,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // /api/metrics — GET or POST
   if (req.method === 'GET') {
     const result = await pool.query(
-      'SELECT * FROM metrics WHERE user_id = $1 ORDER BY sort_order ASC, created_at ASC',
+      'SELECT id, user_id, name, input_type, question, active, frequency, sort_order, target_value, target_unit, created_at, updated_at FROM metrics WHERE user_id = $1 ORDER BY sort_order ASC, created_at ASC',
       [user.id]
     );
     return res.json(result.rows);
@@ -81,7 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
     const result = await pool.query(
       `INSERT INTO metrics (user_id, name, input_type, question, active, frequency, sort_order, target_value, target_unit)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, user_id, name, input_type, question, active, frequency, sort_order, target_value, target_unit, created_at, updated_at`,
       [user.id, name, input_type || 'binary', question || '', active ?? true, frequency || 'daily', orderRes.rows[0].next, target_value ?? null, target_unit || null]
     );
     return res.status(201).json(result.rows[0]);

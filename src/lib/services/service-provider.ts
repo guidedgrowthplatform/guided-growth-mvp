@@ -4,9 +4,12 @@
 import type { DataService } from './data-service.interface';
 import { mockDataService } from './mock-data-service';
 
+// 🚧 AUTH BYPASS: set to true for local dev/testing (uses MockDataService + test user)
+export const AUTH_BYPASS = true;
+
 // Auto-detect Supabase mode: if VITE_SUPABASE_URL is set to a real URL, use Supabase
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const useSupabase = supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
+export const useSupabase = !AUTH_BYPASS && supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
 
 let _service: DataService | null = null;
 let _initPromise: Promise<DataService> | null = null;
@@ -17,12 +20,12 @@ function initService(): Promise<DataService> {
   if (useSupabase) {
     _initPromise = import('./supabase-data-service').then(mod => {
       _service = mod.supabaseDataService;
-      console.log('[ServiceProvider] Using SupabaseDataService');
+      // SupabaseDataService selected
       return _service;
     });
   } else {
     _service = mockDataService;
-    console.log('[ServiceProvider] Using MockDataService (localStorage)');
+    // MockDataService (localStorage) selected
     _initPromise = Promise.resolve(_service);
   }
 
@@ -37,15 +40,11 @@ export async function getDataService(): Promise<DataService> {
 }
 
 // Synchronous getter — returns mock if supabase not yet loaded
+// Note: does NOT cache mock into _service to avoid poisoning the singleton
 export function getDataServiceSync(): DataService {
   if (_service) return _service;
-  // If supabase mode but not yet initialized, return mock temporarily
-  // The async init will swap it once resolved
-  if (useSupabase) {
-    console.log('[ServiceProvider] SupabaseDataService loading... using mock temporarily');
-  }
-  _service = mockDataService;
-  return _service;
+  // Return mock temporarily without caching — async init will set _service correctly
+  return mockDataService;
 }
 
 // Reset (for testing)

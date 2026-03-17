@@ -51,6 +51,7 @@ export const VOICE_COMMAND_SYSTEM_PROMPT = `You are the voice command processor 
     - Below 0.5 = unclear, but still try
 16. NEVER return "unknown" action. Always make your best guess from the available actions.
 17. If the name is empty or cannot be determined for create/complete/delete, set confidence ≤ 0.3.
+18. **PRIORITY**: "help" / "what can I say" / "what commands" / "how do I use this" = ALWAYS help action with entity "command". Never confuse help with suggest.
 
 ## Response Format
 Return ONLY a JSON object (no markdown, no code fences, no explanation):
@@ -111,6 +112,19 @@ User: "Suggest a new habit for me"
 User: "Give me a weekly summary"
 {"action":"query","entity":"summary","params":{"period":"week"},"confidence":0.9}
 
+### Help (IMPORTANT — always map to help action)
+User: "help"
+{"action":"help","entity":"command","params":{},"confidence":0.95}
+
+User: "Help"
+{"action":"help","entity":"command","params":{},"confidence":0.95}
+
+User: "what can I say"
+{"action":"help","entity":"command","params":{},"confidence":0.9}
+
+User: "what commands are available"
+{"action":"help","entity":"command","params":{},"confidence":0.9}
+
 ### Edge Cases
 User: "um create new habits playing guitar"
 {"action":"create","entity":"habit","params":{"name":"playing guitar"},"confidence":0.85}
@@ -128,13 +142,7 @@ User: "creat a habbit called yoga"
 {"action":"create","entity":"habit","params":{"name":"yoga"},"confidence":0.8}
 
 User: "what habits do I have"
-{"action":"query","entity":"habit","params":{},"confidence":0.9}
-
-User: "help"
-{"action":"help","entity":"command","params":{},"confidence":0.95}
-
-User: "what can I say"
-{"action":"help","entity":"command","params":{},"confidence":0.9}`;
+{"action":"query","entity":"habit","params":{},"confidence":0.9}`;
 
 // Model config is externalised — see src/lib/config/prompt-config.ts
 export { VOICE_COMMAND_MODEL_CONFIG } from '../config/prompt-config';

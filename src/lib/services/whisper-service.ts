@@ -6,9 +6,9 @@
  * at 16kHz mono — avoids MediaRecorder + WebM decoding issues entirely.
  */
 
-import { pipeline, type AutomaticSpeechRecognitionPipeline } from '@huggingface/transformers';
-
-let whisperPipeline: AutomaticSpeechRecognitionPipeline | null = null;
+// Lazy import — @huggingface/transformers is 21MB+ WASM, only load when user activates Whisper
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let whisperPipeline: any = null;
 let isLoading = false;
 let loadProgress = 0;
 
@@ -33,11 +33,11 @@ export async function loadWhisperModel(): Promise<void> {
   if (isLoading) return;
 
   isLoading = true;
+  loadProgress = 0;
   notifyListeners('loading', 0);
 
   try {
-    // @ts-expect-error — TS2590: @huggingface/transformers pipeline() produces a union
-    // type too complex for TS to resolve. Runtime behavior is correct.
+    const { pipeline } = await import('@huggingface/transformers');
     whisperPipeline = await pipeline(
       'automatic-speech-recognition',
       'onnx-community/whisper-base',
@@ -53,7 +53,7 @@ export async function loadWhisperModel(): Promise<void> {
       },
     );
     notifyListeners('ready');
-    console.log('[Whisper] Model loaded successfully');
+    // Whisper model loaded successfully
   } catch (err) {
     console.error('[Whisper] Failed to load model:', err);
     notifyListeners('error');
@@ -101,7 +101,7 @@ export async function startAudioCapture(): Promise<void> {
   sourceNode.connect(processorNode);
   processorNode.connect(audioContext.destination);
 
-  console.log('[Whisper] Audio capture started (16kHz mono PCM)');
+  // Audio capture started
 }
 
 /**
@@ -136,10 +136,6 @@ export async function stopAudioCapture(): Promise<Float32Array> {
   }
   recordedChunks = [];
 
-  const durationSec = (totalLength / 16000).toFixed(2);
-  const maxAmp = result.reduce((max, v) => Math.max(max, Math.abs(v)), 0);
-  console.log('[Whisper] Audio captured:', { samples: totalLength, durationSec, maxAmplitude: maxAmp.toFixed(4) });
-
   return result;
 }
 
@@ -157,10 +153,7 @@ export async function transcribeAudio(audioData: Float32Array): Promise<string> 
   notifyListeners('transcribing');
 
   try {
-    console.log('[Whisper] Transcribing...', {
-      samples: audioData.length,
-      durationSec: (audioData.length / 16000).toFixed(2),
-    });
+    // Whisper transcribing...
 
     const result = await whisperPipeline(audioData, {
       language: 'english',
@@ -168,7 +161,7 @@ export async function transcribeAudio(audioData: Float32Array): Promise<string> 
     });
 
     notifyListeners('ready');
-    console.log('[Whisper] Raw result:', result);
+    // Raw transcription result received
 
     let text = '';
     if (Array.isArray(result)) {
@@ -177,20 +170,25 @@ export async function transcribeAudio(audioData: Float32Array): Promise<string> 
       text = (result as { text: string }).text.trim();
     }
 
-    // Filter known whisper-tiny hallucinations on silence/noise
-    const hallucinations = [
-      '[music]', '[Music]', '[MUSIC]', '[ Music ]',
-      '[silence]', '[Silence]', '[BLANK_AUDIO]',
-      '(music)', '(Music)', '[applause]', '[Applause]',
-      'Thank you.', 'Thanks for watching.', 'you', 'You',
-      '...', '.', 'MBC 뉴스 이덕영입니다.',
+    // Filter known whisper-tiny hallucinations on silence/noise (case-insensitive)
+    const hallucinationPatterns = [
+      /^\[?\s*music\s*\]?$/i,
+      /^\(?\s*music\s*\)?$/i,
+      /^\[?\s*silence\s*\]?$/i,
+      /^\[?\s*blank.audio\s*\]?$/i,
+      /^\[?\s*applause\s*\]?$/i,
+      /^thank(s| you)\.?$/i,
+      /^thanks for watching\.?$/i,
+      /^you\.?$/i,
+      /^\.{1,3}$/,
+      /^MBC/,
     ];
-    if (hallucinations.includes(text)) {
+    if (hallucinationPatterns.some((p) => p.test(text))) {
       console.warn('[Whisper] Filtered hallucination:', text);
       return '';
     }
 
-    console.log('[Whisper] Transcription:', text);
+    // Transcription complete
     return text;
   } catch (err) {
     console.error('[Whisper] Transcription error:', err);

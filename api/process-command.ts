@@ -1,8 +1,112 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { requireUser } from './_lib/auth.js';
+import { checkRateLimit } from './_lib/rate-limit.js';
 
 // NOTE: Prompt is inlined here because Vercel serverless functions cannot
 // import from ../src/lib/. The canonical version lives in
 // src/lib/prompts/voice-command-system.ts — keep them in sync.
+
+const MONTHS: Record<string, number> = {
+  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
+  july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
+  jan: 1, feb: 2, mar: 3, apr: 4, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+};
+
+const ORDINALS: Record<string, number> = {
+  first:1,second:2,third:3,fourth:4,fifth:5,sixth:6,seventh:7,eighth:8,ninth:9,tenth:10,
+  eleventh:11,twelfth:12,thirteenth:13,fourteenth:14,fifteenth:15,sixteenth:16,
+  seventeenth:17,eighteenth:18,nineteenth:19,twentieth:20,
+  'twenty-first':21,'twenty-second':22,'twenty-third':23,'twenty-fourth':24,'twenty-fifth':25,
+  'twenty-sixth':26,'twenty-seventh':27,'twenty-eighth':28,'twenty-ninth':29,'thirtieth':30,'thirty-first':31,
+  'twenty first':21,'twenty second':22,'twenty third':23,'twenty fourth':24,'twenty fifth':25,
+  'twenty sixth':26,'twenty seventh':27,'twenty eighth':28,'twenty ninth':29,
+};
+
+const YEAR_WORDS: Record<string, number> = {
+  'two thousand twenty-five':2025,'two thousand twenty five':2025,
+  'two thousand twenty-six':2026,'two thousand twenty six':2026,
+  'two thousand twenty-seven':2027,'two thousand twenty seven':2027,
+  'two thousand twenty-eight':2028,'two thousand twenty eight':2028,
+  'twenty twenty-five':2025,'twenty twenty five':2025,
+  'twenty twenty-six':2026,'twenty twenty six':2026,
+  'twenty twenty-seven':2027,'twenty twenty seven':2027,
+  'twenty twenty-eight':2028,'twenty twenty eight':2028,
+};
+
+/** Convert word or digit to day number: "fifteenth" → 15, "5" → 5, "5th" → 5 */
+function parseDay(s: string): number | null {
+  const trimmed = s.trim().toLowerCase();
+  if (ORDINALS[trimmed]) return ORDINALS[trimmed];
+  const n = parseInt(trimmed, 10);
+  return (!isNaN(n) && n >= 1 && n <= 31) ? n : null;
+}
+
+/** Try to extract a year from remaining text: "two thousand twenty six" → 2026 */
+function parseYear(s: string): number {
+  const trimmed = s.trim().toLowerCase();
+  // Numeric year
+  const numMatch = trimmed.match(/\d{4}/);
+  if (numMatch) return parseInt(numMatch[0], 10);
+  // Word year
+  for (const [words, year] of Object.entries(YEAR_WORDS)) {
+    if (trimmed.includes(words)) return year;
+  }
+  return new Date().getFullYear();
+}
+
+/**
+ * Safety net: extract an explicit date from the transcript when GPT misses it.
+ * Handles: "12 march 2026", "march 12th", "fifteenth of march",
+ *          "03/05/2026", "fifteenth march two thousand twenty six"
+ */
+function extractDateFromTranscript(transcript: string): string | null {
+  const t = transcript.toLowerCase();
+
+  // Numeric date: "03/05/2026" or "3/5/2026" (MM/DD/YYYY)
+  const numericMatch = t.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (numericMatch) {
+    const m = parseInt(numericMatch[1], 10);
+    const d = parseInt(numericMatch[2], 10);
+    const y = parseInt(numericMatch[3], 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+  }
+
+  // Build ordinal alternatives for regex: "first|second|...|thirty-first|\d{1,2}(?:st|nd|rd|th)?"
+  const ordinalWords = Object.keys(ORDINALS).join('|');
+  const dayPattern = `(${ordinalWords}|\\d{1,2}(?:st|nd|rd|th)?)`;
+  const monthNames = Object.keys(MONTHS).join('|');
+  const monthPattern = `(${monthNames})`;
+
+  // Pattern: "for|on DAY [of] MONTH [YEAR]"
+  const p1 = new RegExp(`(?:for|on)\\s+${dayPattern}\\s+(?:of\\s+)?${monthPattern}(.*)`, 'i');
+  // Pattern: "for|on MONTH DAY [YEAR]"
+  const p2 = new RegExp(`(?:for|on)\\s+${monthPattern}\\s+${dayPattern}(.*)`, 'i');
+
+  for (const pattern of [p1, p2]) {
+    const match = t.match(pattern);
+    if (match) {
+      let dayStr: string, monthStr: string, rest: string;
+      // Determine which group is day vs month
+      if (match[1] && MONTHS[match[1].toLowerCase()]) {
+        // p2: month first
+        monthStr = match[1]; dayStr = match[2]; rest = match[3] || '';
+      } else {
+        // p1: day first
+        dayStr = match[1]; monthStr = match[2]; rest = match[3] || '';
+      }
+      const day = parseDay(dayStr);
+      const month = MONTHS[monthStr.toLowerCase()];
+      const year = parseYear(rest);
+      if (day && month) {
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      }
+    }
+  }
+
+  return null;
+}
 
 const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a habit-tracking and self-improvement app. Your ONLY job is to parse a user's spoken transcript into a single structured JSON command.
 
@@ -10,13 +114,14 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
 | Action   | When to use                                                |
 |----------|------------------------------------------------------------|
 | create   | User wants to ADD a new habit or metric                    |
-| complete | User wants to MARK a habit as done for a specific date     |
+| complete | User wants to MARK a habit as done for a date or range    |
 | delete   | User wants to REMOVE a habit or metric                     |
 | update   | User wants to RENAME or change settings of a habit/metric  |
 | query    | User wants to SEE data, stats, streaks, or summaries       |
 | log      | User wants to RECORD a numeric value for a metric          |
 | reflect  | User shares feelings, moods, or journal-like statements    |
 | suggest  | User asks for a RECOMMENDATION or new habit idea           |
+| help     | User asks for HELP, available commands, or what they can do|
 
 ## Available Entities
 | Entity  | Description                                           |
@@ -29,7 +134,8 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
 ## Parse Rules
 1. Extract EXACTLY ONE action and entity per transcript.
 2. Default date is "today" if the user doesn't specify one.
-3. Day names (monday, tuesday, etc.) = the most recent past occurrence of that day.
+3. IMPORTANT: When user specifies ANY date (e.g., "8th March 2026", "March 10", "26 march 2026", "January 5th", "march 15"), you MUST convert it to ISO format YYYY-MM-DD in the "date" param. If no year is given, assume 2026. NEVER default to "today" when a specific date is mentioned.
+4. Day names (monday, tuesday, etc.) = the most recent past occurrence of that day.
 4. Convert spoken numbers to numeric values ("eight" → 8, "seven out of ten" → 7).
 5. If the user says "habits" (plural) treat it the same as "habit".
 6. Strip filler words: "um", "uh", "like", "please", "can you", "could you", "I want to", "I'd like to".
@@ -41,6 +147,7 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
 12. "log X as Y" / "record X Y" / "my X was Y" = log action for metrics.
 13. "rename X to Y" / "change X to Y" = update action with newName param.
 14. "scale 1 to 10" / "from 1 to 10" = scale metric with \`scale: [1, 10]\`.
+15. "help" / "what can I say" / "what can I do" / "what are the commands" = help action. This takes PRIORITY over suggest.
 15. Return confidence 0.0–1.0:
     - 0.9+ = very clear intent
     - 0.7–0.89 = likely correct but slightly ambiguous
@@ -48,11 +155,18 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
     - Below 0.5 = unclear, but still try
 16. NEVER return "unknown" action. Always make your best guess from the available actions.
 17. If the name is empty or cannot be determined for create/complete/delete, set confidence ≤ 0.3.
+18. For multi-day completions ("past five days", "last three days"), use a "dates" array in params instead of a single "date". Each entry should be a relative phrase like "today", "1 days ago", "2 days ago", etc.
+19. **STT GARBLING**: Transcripts may come from speech-to-text engines that add punctuation, reorder words, or capitalize randomly. You MUST reconstruct the user's original intent:
+    - "Reading on me, Mark Done. For 03/05/2026." = user said "mark reading on me done for 5 march 2026" → complete habit "reading on me" for 2026-03-05
+    - "Create a new habit. Painting." = user said "create a new habit painting" → create habit "painting"
+    - "Mark Done. Meditation." = user said "mark meditation done" → complete habit "meditation"
+    - Words like "Mark", "Done", "Log", "Delete" are COMMANDS, not names — even when capitalized
+    - Dates like "03/05/2026" = March 5th 2026 (MM/DD/YYYY format)
 
 ## Response Format
 Return ONLY a JSON object (no markdown, no code fences, no explanation):
 {
-  "action": "create|complete|delete|update|query|log|reflect|suggest",
+  "action": "create|complete|delete|update|query|log|reflect|suggest|help",
   "entity": "habit|metric|journal|summary",
   "params": { ... },
   "confidence": 0.85
@@ -88,6 +202,24 @@ User: "Log my sleep quality as 8 out of 10"
 
 User: "Mark reading done for Monday"
 {"action":"complete","entity":"habit","params":{"name":"reading","date":"monday"},"confidence":0.9}
+
+User: "Mark meditation done for 8th March 2026"
+{"action":"complete","entity":"habit","params":{"name":"meditation","date":"2026-03-08"},"confidence":0.95}
+
+User: "Mark painting done for 26 march 2026"
+{"action":"complete","entity":"habit","params":{"name":"painting","date":"2026-03-26"},"confidence":0.95}
+
+User: "Mark exercise done for march 15"
+{"action":"complete","entity":"habit","params":{"name":"exercise","date":"2026-03-15"},"confidence":0.9}
+
+User: "Log mood as 7 for March 10th"
+{"action":"log","entity":"metric","params":{"name":"mood","value":7,"date":"2026-03-10"},"confidence":0.9}
+
+User: "Mark meditation done for the past five days"
+{"action":"complete","entity":"habit","params":{"name":"meditation","dates":["today","1 days ago","2 days ago","3 days ago","4 days ago"]},"confidence":0.9}
+
+User: "I did exercise for the last three days"
+{"action":"complete","entity":"habit","params":{"name":"exercise","dates":["today","1 days ago","2 days ago"]},"confidence":0.85}
 
 User: "Rename my exercise habit to morning workout"
 {"action":"update","entity":"habit","params":{"name":"exercise","newName":"morning workout"},"confidence":0.9}
@@ -125,11 +257,55 @@ User: "creat a habbit called yoga"
 {"action":"create","entity":"habit","params":{"name":"yoga"},"confidence":0.8}
 
 User: "what habits do I have"
-{"action":"query","entity":"habit","params":{},"confidence":0.9}`;
+{"action":"query","entity":"habit","params":{},"confidence":0.9}
+
+### Help
+User: "Help"
+{"action":"help","entity":"summary","params":{},"confidence":0.95}
+
+User: "What can I say?"
+{"action":"help","entity":"summary","params":{},"confidence":0.95}
+
+User: "What are the available commands?"
+{"action":"help","entity":"summary","params":{},"confidence":0.95}
+
+### STT-Garbled Transcripts (ElevenLabs / auto-punctuated)
+User: "Reading on me, Mark Done. For 03/05/2026."
+{"action":"complete","entity":"habit","params":{"name":"reading on me","date":"2026-03-05"},"confidence":0.85}
+
+User: "Create a new habit. Painting."
+{"action":"create","entity":"habit","params":{"name":"painting"},"confidence":0.85}
+
+User: "Mark Done. Meditation."
+{"action":"complete","entity":"habit","params":{"name":"meditation","date":"today"},"confidence":0.85}
+
+User: "Log. My mood. At 8."
+{"action":"log","entity":"metric","params":{"name":"mood","value":8,"date":"today"},"confidence":0.85}
+
+User: "Exercise, Mark Done. For 03/17/2026."
+{"action":"complete","entity":"habit","params":{"name":"exercise","date":"2026-03-17"},"confidence":0.85}
+
+User: "Painting, Mark Done. For 03/26/2026."
+{"action":"complete","entity":"habit","params":{"name":"painting","date":"2026-03-26"},"confidence":0.85}`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Always rate-limit by IP regardless of auth mode
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 'unknown';
+  const ipRl = checkRateLimit(ip, { windowMs: 60_000, maxRequests: 30, keyPrefix: 'process-command-ip' });
+  if (ipRl.limited) return res.status(429).json({ error: 'Too many requests', retryAfter: ipRl.retryAfter });
+
+  // Auth guard — skip only when server-side AUTH_BYPASS_MODE is explicitly set
+  if (process.env.AUTH_BYPASS_MODE !== 'true') {
+    const user = await requireUser(req, res);
+    if (!user) return;
+    const rl = checkRateLimit(user.id, { windowMs: 60_000, maxRequests: 20, keyPrefix: 'process-command' });
+    if (rl.limited) {
+      return res.status(429).json({ error: 'Too many requests. Try again later.', retryAfter: rl.retryAfter });
+    }
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
@@ -140,6 +316,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { transcript } = req.body;
   if (!transcript || typeof transcript !== 'string') {
     return res.status(400).json({ error: 'Missing transcript' });
+  }
+  if (transcript.length > 2000) {
+    return res.status(400).json({ error: 'Transcript too long (max 2000 chars)' });
   }
 
   try {
@@ -176,18 +355,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(502).json({ error: 'Empty response from GPT' });
     }
 
-    const parsed = JSON.parse(content);
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      console.error('GPT returned invalid JSON:', content);
+      return res.status(502).json({ error: 'GPT returned invalid JSON response' });
+    }
+
+    if (!parsed.action || !parsed.entity) {
+      console.error('GPT response missing required fields:', parsed);
+      return res.status(502).json({ error: 'GPT response missing required fields (action, entity)' });
+    }
+
     const latency = Date.now() - startTime;
 
+    // ─── Post-processing: extract date from transcript if GPT missed it ───
+    const params = (parsed.params || {}) as Record<string, unknown>;
+    const needsDate = ['complete', 'log'].includes(String(parsed.action));
+    const gptDateIsToday = !params.date || params.date === 'today';
+
+    if (needsDate && gptDateIsToday) {
+      const extractedDate = extractDateFromTranscript(transcript);
+      if (extractedDate) {
+        params.date = extractedDate;
+        parsed.params = params;
+      }
+    }
+
+    // Sanitize: only allow expected keys to prevent prototype pollution
+    const safeParams = Object.create(null);
+    if (parsed.params && typeof parsed.params === 'object') {
+      for (const [k, v] of Object.entries(parsed.params as Record<string, unknown>)) {
+        if (k !== '__proto__' && k !== 'constructor' && k !== 'prototype') {
+          safeParams[k] = v;
+        }
+      }
+    }
+    const sanitized = {
+      action: parsed.action,
+      entity: parsed.entity,
+      params: safeParams,
+      confidence: parsed.confidence,
+    };
+
     return res.status(200).json({
-      ...parsed,
+      ...sanitized,
       latency,
       model: 'gpt-4o-mini',
     });
   } catch (err) {
     console.error('Process command error:', err);
     return res.status(500).json({
-      error: `Server error: ${err instanceof Error ? err.message : String(err)}`,
+      error: 'An internal error occurred while processing the command.',
     });
   }
 }

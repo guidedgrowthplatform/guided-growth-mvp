@@ -131,6 +131,20 @@ export class MockDataService implements DataService {
     setStore(STORAGE_KEYS.habits, habits);
   }
 
+  async reorderHabits(habitIds: string[]): Promise<void> {
+    const habits = getStore<Habit>(STORAGE_KEYS.habits);
+    const ordered: Habit[] = [];
+    for (const id of habitIds) {
+      const h = habits.find((h) => h.id === id);
+      if (h) ordered.push(h);
+    }
+    // Append any habits not in the reorder list
+    for (const h of habits) {
+      if (!habitIds.includes(h.id)) ordered.push(h);
+    }
+    setStore(STORAGE_KEYS.habits, ordered);
+  }
+
   // ─── Completions ───
   async completeHabit(habitId: string, date: string): Promise<HabitCompletion> {
     const completions = getStore<HabitCompletion>(STORAGE_KEYS.completions);
@@ -149,8 +163,22 @@ export class MockDataService implements DataService {
     return completion;
   }
 
+  async uncompleteHabit(habitId: string, date: string): Promise<void> {
+    const completions = getStore<HabitCompletion>(STORAGE_KEYS.completions);
+    const filtered = completions.filter((c) => !(c.habitId === habitId && c.date === date));
+    setStore(STORAGE_KEYS.completions, filtered);
+  }
+
   async getCompletions(habitId: string, startDate?: string, endDate?: string): Promise<HabitCompletion[]> {
     let completions = getStore<HabitCompletion>(STORAGE_KEYS.completions).filter((c) => c.habitId === habitId);
+    if (startDate) completions = completions.filter((c) => c.date >= startDate);
+    if (endDate) completions = completions.filter((c) => c.date <= endDate);
+    return completions;
+  }
+
+  async getCompletionsBatch(habitIds: string[], startDate?: string, endDate?: string): Promise<HabitCompletion[]> {
+    const idSet = new Set(habitIds);
+    let completions = getStore<HabitCompletion>(STORAGE_KEYS.completions).filter((c) => idSet.has(c.habitId));
     if (startDate) completions = completions.filter((c) => c.date >= startDate);
     if (endDate) completions = completions.filter((c) => c.date <= endDate);
     return completions;
@@ -235,27 +263,53 @@ export class MockDataService implements DataService {
 
   // ─── Summaries ───
   async getHabitSummary(habitId: string, period: 'week' | 'month'): Promise<HabitSummary> {
+    const summaries = await this.getHabitSummaries([habitId], period);
+    if (summaries.length === 0) throw new Error(`Habit not found: ${habitId}`);
+    return summaries[0];
+  }
+
+  async getHabitSummaries(habitIds: string[], period: 'week' | 'month'): Promise<HabitSummary[]> {
+    if (habitIds.length === 0) return [];
+
     const habits = getStore<Habit>(STORAGE_KEYS.habits);
-    const habit = habits.find((h) => h.id === habitId);
-    if (!habit) throw new Error(`Habit not found: ${habitId}`);
+    const habitMap = new Map(habits.map((h) => [h.id, h]));
+
+    const validIds = habitIds.filter((id) => habitMap.has(id));
+    if (validIds.length === 0) return [];
 
     const now = new Date();
-    const startDate = new Date(now);
     const totalDays = period === 'week' ? 7 : 30;
+    const startDate = new Date(now);
     startDate.setDate(startDate.getDate() - totalDays);
+    const startStr = startDate.toISOString().slice(0, 10);
+    const endStr = todayStr();
 
-    const completions = await this.getCompletions(habitId, startDate.toISOString().slice(0, 10), todayStr());
-    const uniqueDays = new Set(completions.map((c) => c.date)).size;
-    const { current, longest } = calcStreaks(completions);
+    // Batch fetch all completions at once
+    const allCompletions = await this.getCompletionsBatch(validIds, startStr, endStr);
 
-    return {
-      habit,
-      completionsThisPeriod: uniqueDays,
-      totalDaysInPeriod: totalDays,
-      completionRate: Math.round((uniqueDays / totalDays) * 100),
-      currentStreak: current,
-      longestStreak: longest,
-    };
+    // Group completions by habit ID
+    const completionsByHabit = new Map<string, HabitCompletion[]>();
+    for (const c of allCompletions) {
+      const list = completionsByHabit.get(c.habitId) ?? [];
+      list.push(c);
+      completionsByHabit.set(c.habitId, list);
+    }
+
+    return validIds.map((id) => {
+      const habit = habitMap.get(id)!;
+      const completions = completionsByHabit.get(id) ?? [];
+      const uniqueDays = new Set(completions.map((c) => c.date)).size;
+      const { current, longest } = calcStreaks(completions);
+
+      return {
+        habit,
+        completionsThisPeriod: uniqueDays,
+        totalDaysInPeriod: totalDays,
+        completionRate: Math.round((uniqueDays / totalDays) * 100),
+        currentStreak: current,
+        longestStreak: longest,
+      };
+    });
   }
 
   async getWeeklySummary(): Promise<WeeklySummary> {
@@ -266,10 +320,10 @@ export class MockDataService implements DataService {
     const end = todayStr();
 
     const habits = await this.getHabits();
-    const habitSummaries: HabitSummary[] = [];
-    for (const h of habits) {
-      habitSummaries.push(await this.getHabitSummary(h.id, 'week'));
-    }
+    const habitSummaries = await this.getHabitSummaries(
+      habits.map((h) => h.id),
+      'week',
+    );
 
     const allMetricEntries = getStore<MetricEntry>(STORAGE_KEYS.metricEntries)
       .filter((e) => e.date >= start && e.date <= end);
@@ -310,6 +364,53 @@ export class MockDataService implements DataService {
       if (i <= 3) await this.completeHabit(exercise.id, dateStr);
       if (i <= 2) await this.completeHabit(reading.id, dateStr);
     }
+  }
+
+  // ─── Preferences ───
+
+  async getPreferences(): Promise<import('./data-service.interface').PreferencesData> {
+    try {
+      const raw = localStorage.getItem('gg_preferences');
+      if (raw) return JSON.parse(raw);
+    } catch { /* ignore */ }
+    return { default_view: 'spreadsheet', spreadsheet_range: 'month' };
+  }
+
+  async savePreferences(prefs: Partial<import('./data-service.interface').PreferencesData>): Promise<import('./data-service.interface').PreferencesData> {
+    const current = await this.getPreferences();
+    const merged = { ...current, ...prefs };
+    localStorage.setItem('gg_preferences', JSON.stringify(merged));
+    return merged;
+  }
+
+  // ─── Reflection Config & Affirmation ───
+
+  async getReflectionConfig(): Promise<import('./data-service.interface').ReflectionConfig> {
+    try {
+      const raw = localStorage.getItem('gg_reflections_config');
+      if (raw) return JSON.parse(raw);
+    } catch { /* ignore */ }
+    return {
+      fields: [
+        { id: 'gratitude', label: 'What are you grateful for?', order: 1 },
+        { id: 'highlight', label: "Today's highlight", order: 2 },
+        { id: 'mood', label: 'How do you feel?', order: 3 },
+      ],
+      show_affirmation: true,
+    };
+  }
+
+  async saveReflectionConfig(config: import('./data-service.interface').ReflectionConfig): Promise<import('./data-service.interface').ReflectionConfig> {
+    localStorage.setItem('gg_reflections_config', JSON.stringify(config));
+    return config;
+  }
+
+  async getAffirmation(): Promise<string> {
+    return localStorage.getItem('gg_affirmation') || '';
+  }
+
+  async saveAffirmation(value: string): Promise<void> {
+    localStorage.setItem('gg_affirmation', value);
   }
 
   async clearData(): Promise<void> {

@@ -1,14 +1,9 @@
-import { apiGet, apiPut } from './client';
-import type { ViewMode, SpreadsheetRange } from '@shared/types';
+import { getDataService } from '@/lib/services/service-provider';
+import type { PreferencesData } from '@/lib/services/data-service.interface';
 
-export interface PreferencesData {
-  default_view: ViewMode;
-  spreadsheet_range: SpreadsheetRange;
-}
+export type { PreferencesData };
 
 const LS_KEY = 'gg_preferences';
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const useSupabase = supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
 
 function getLocalPrefs(): PreferencesData {
   try {
@@ -21,32 +16,28 @@ function getLocalPrefs(): PreferencesData {
   };
 }
 
-function setLocalPrefs(prefs: Partial<PreferencesData>): PreferencesData {
-  const current = getLocalPrefs();
-  const merged = { ...current, ...prefs };
-  localStorage.setItem(LS_KEY, JSON.stringify(merged));
-  return merged;
-}
-
 export async function fetchPreferences(): Promise<PreferencesData> {
-  // When using Supabase, skip /api/* routes entirely (they return 401)
-  if (useSupabase) return getLocalPrefs();
   try {
-    const remote = await apiGet<PreferencesData>('/api/preferences');
-    localStorage.setItem(LS_KEY, JSON.stringify(remote));
-    return remote;
+    const ds = await getDataService();
+    const prefs = await ds.getPreferences();
+    localStorage.setItem(LS_KEY, JSON.stringify(prefs));
+    return prefs;
   } catch {
     return getLocalPrefs();
   }
 }
 
 export async function savePreferences(prefs: Partial<PreferencesData>): Promise<PreferencesData> {
-  const merged = setLocalPrefs(prefs);
-  // When using Supabase, skip /api/* routes entirely
-  if (useSupabase) return merged;
   try {
-    return await apiPut<PreferencesData>('/api/preferences', prefs);
+    const ds = await getDataService();
+    const merged = await ds.savePreferences(prefs);
+    localStorage.setItem(LS_KEY, JSON.stringify(merged));
+    return merged;
   } catch {
+    // Fallback: save locally
+    const current = getLocalPrefs();
+    const merged = { ...current, ...prefs };
+    localStorage.setItem(LS_KEY, JSON.stringify(merged));
     return merged;
   }
 }

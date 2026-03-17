@@ -1,18 +1,34 @@
+import { useCallback, useRef } from 'react';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { unlockTTS } from '@/lib/services/tts-service';
 
 export function VoiceMicButton() {
     const { isListening, isSupported, error, toggle } = useVoiceInput();
+    const handledRef = useRef(false);
 
-    const handleTap = () => {
-        unlockTTS(); // Unlock iOS speechSynthesis on user gesture
+    // Use onPointerDown for immediate response on iOS (no 300ms tap delay)
+    // unlockTTS() MUST fire on user gesture to satisfy iOS activation requirement
+    const handlePointerDown = useCallback(() => {
+        unlockTTS();
+        handledRef.current = true;
         toggle();
-    };
+    }, [toggle]);
+
+    // Fallback for devices that don't fire pointer events (accessibility, keyboard)
+    const handleClick = useCallback(() => {
+        if (handledRef.current) {
+            handledRef.current = false;
+            return; // Already handled by pointerdown
+        }
+        unlockTTS();
+        toggle();
+    }, [toggle]);
 
     return (
         <button
             id="voice-mic-button"
-            onClick={handleTap}
+            onPointerDown={handlePointerDown}
+            onClick={handleClick}
             disabled={!isSupported}
             aria-label={isListening ? 'Stop listening' : 'Start listening'}
             title={
@@ -22,8 +38,9 @@ export function VoiceMicButton() {
                         ? 'Tap to stop listening'
                         : 'Tap to start voice input'
             }
+            style={{ bottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))' }}
             className={`
-                fixed bottom-28 right-4 z-50 lg:bottom-6 lg:right-6
+                fixed right-4 z-50 lg:bottom-6 lg:right-6
                 w-12 h-12 sm:w-14 sm:h-14 rounded-full
                 flex items-center justify-center
                 shadow-lg transition-all duration-300 ease-in-out

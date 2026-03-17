@@ -67,6 +67,22 @@ export interface ActionResult {
   navigateTo?: string;
 }
 
+export interface PreferencesData {
+  default_view: 'spreadsheet' | 'form';
+  spreadsheet_range: 'week' | 'month';
+}
+
+export interface ReflectionField {
+  id: string;
+  label: string;
+  order: number;
+}
+
+export interface ReflectionConfig {
+  fields: ReflectionField[];
+  show_affirmation: boolean;
+}
+
 export interface DataService {
   // Habits
   createHabit(name: string, frequency?: string): Promise<Habit>;
@@ -74,10 +90,13 @@ export interface DataService {
   getHabitByName(name: string): Promise<Habit | null>;
   updateHabit(id: string, updates: Partial<Pick<Habit, 'name' | 'frequency' | 'active'>>): Promise<Habit>;
   deleteHabit(id: string): Promise<void>;
+  reorderHabits(habitIds: string[]): Promise<void>;
 
   // Habit completions
   completeHabit(habitId: string, date: string): Promise<HabitCompletion>;
+  uncompleteHabit(habitId: string, date: string): Promise<void>;
   getCompletions(habitId: string, startDate?: string, endDate?: string): Promise<HabitCompletion[]>;
+  getCompletionsBatch(habitIds: string[], startDate?: string, endDate?: string): Promise<HabitCompletion[]>;
 
   // Metrics
   createMetric(name: string, inputType: string, frequency?: string, scaleMin?: number, scaleMax?: number): Promise<TrackedMetric>;
@@ -95,7 +114,18 @@ export interface DataService {
 
   // Summaries
   getHabitSummary(habitId: string, period: 'week' | 'month'): Promise<HabitSummary>;
+  getHabitSummaries(habitIds: string[], period: 'week' | 'month'): Promise<HabitSummary[]>;
   getWeeklySummary(): Promise<WeeklySummary>;
+
+  // Preferences
+  getPreferences(): Promise<PreferencesData>;
+  savePreferences(prefs: Partial<PreferencesData>): Promise<PreferencesData>;
+
+  // Reflection config & affirmation
+  getReflectionConfig(): Promise<ReflectionConfig>;
+  saveReflectionConfig(config: ReflectionConfig): Promise<ReflectionConfig>;
+  getAffirmation(): Promise<string>;
+  saveAffirmation(value: string): Promise<void>;
 
   // Seed
   seedData(): Promise<void>;
