@@ -34,10 +34,38 @@ function parseWordNumber(str: string): number | null {
   return WORD_NUMBERS[str.toLowerCase()] ?? null;
 }
 
+const MONTH_MAP: Record<string, number> = {
+  january:1,february:2,march:3,april:4,may:5,june:6,
+  july:7,august:8,september:9,october:10,november:11,december:12,
+  jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,
+};
+
 function extractDate(text: string): string {
-  if (text.includes('yesterday')) return 'yesterday';
-  const dayMatch = text.match(/(?:for|on)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
+  const t = text.toLowerCase();
+  if (t.includes('yesterday')) return 'yesterday';
+
+  // Explicit date: "for 12 march 2026", "for march 5th", "for 8th march"
+  const patterns = [
+    /(?:for|on)\s+(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?([a-z]+)(?:\s+(\d{4}))?/,
+    /(?:for|on)\s+([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?/,
+  ];
+  for (const p of patterns) {
+    const m = t.match(p);
+    if (m) {
+      let day: number, monthName: string, year: number;
+      if (/^\d/.test(m[1])) { day = parseInt(m[1]); monthName = m[2]; year = m[3] ? parseInt(m[3]) : new Date().getFullYear(); }
+      else { monthName = m[1]; day = parseInt(m[2]); year = m[3] ? parseInt(m[3]) : new Date().getFullYear(); }
+      const mo = MONTH_MAP[monthName];
+      if (mo && day >= 1 && day <= 31) {
+        return `${year}-${String(mo).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      }
+    }
+  }
+
+  // Day names
+  const dayMatch = t.match(/(?:for|on)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
   if (dayMatch) return dayMatch[1].toLowerCase();
+
   return 'today';
 }
 
@@ -229,6 +257,16 @@ export function useVoiceCommand() {
         console.warn('[VoiceCommand] API unavailable, using local parser');
         intent = localParse(transcript);
         intent.latency = Date.now() - startTime;
+      }
+
+      // Client-side date safety net: if GPT + server both missed the date,
+      // extract it from the transcript before dispatching
+      const intentParams = intent.params as Record<string, unknown>;
+      if (['complete', 'log'].includes(intent.action) && (!intentParams.date || intentParams.date === 'today')) {
+        const extracted = extractDate(transcript);
+        if (extracted !== 'today') {
+          intentParams.date = extracted;
+        }
       }
 
       const apiLatency = intent.latency || (Date.now() - startTime);
