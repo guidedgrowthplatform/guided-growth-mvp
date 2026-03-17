@@ -4,7 +4,7 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
 
-export function OnboardingStep2Page() {
+export function Step2Page() {
   const navigate = useNavigate();
   const [plan, setPlan] = useState<'simple' | 'braindump' | null>(null);
 

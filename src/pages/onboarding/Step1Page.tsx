@@ -24,7 +24,7 @@ const AGE_OPTIONS = [
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
-export function OnboardingPage() {
+export function Step1Page() {
   const navigate = useNavigate();
   const [nickname, setNickname] = useState('');
   const [ageRange, setAgeRange] = useState<string | null>(null);

@@ -10,10 +10,7 @@ import { CapturePage } from '@/pages/CapturePage';
 import { ConfigurePage } from '@/pages/ConfigurePage';
 import { HabitDetailPage } from '@/pages/HabitDetailPage';
 import { HomePage } from '@/pages/HomePage';
-import { OnboardingPage } from '@/pages/OnboardingPage';
-import { OnboardingStep2Page } from '@/pages/OnboardingStep2Page';
-import { OnboardingStep3Page } from '@/pages/OnboardingStep3Page';
-import { OnboardingStep4Page } from '@/pages/OnboardingStep4Page';
+import { Step1Page, Step2Page, Step3Page, Step4Page, Step5Page } from '@/pages/onboarding';
 import { ReportPage } from '@/pages/ReportPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 
@@ -40,10 +37,11 @@ export function ProtectedRoutes() {
   }
 
   if (location.pathname.startsWith('/onboarding')) {
-    if (location.pathname === '/onboarding/step-2') return <OnboardingStep2Page />;
-    if (location.pathname === '/onboarding/step-3') return <OnboardingStep3Page />;
-    if (location.pathname === '/onboarding/step-4') return <OnboardingStep4Page />;
-    return <OnboardingPage />;
+    if (location.pathname === '/onboarding/step-2') return <Step2Page />;
+    if (location.pathname === '/onboarding/step-3') return <Step3Page />;
+    if (location.pathname === '/onboarding/step-4') return <Step4Page />;
+    if (location.pathname === '/onboarding/step-5') return <Step5Page />;
+    return <Step1Page />;
   }
 
   const habitMatch = location.pathname.match(/^\/habit\/(.+)$/);

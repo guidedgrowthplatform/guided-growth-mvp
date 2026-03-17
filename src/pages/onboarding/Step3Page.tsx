@@ -15,7 +15,7 @@ const categories = [
   { label: 'Get more organized', emoji: '📋' },
 ];
 
-export function OnboardingStep3Page() {
+export function Step3Page() {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<string | null>(null);
 

@@ -50,7 +50,7 @@ const goalsByCategory: Record<string, string[]> = {
   ],
 };
 
-export function OnboardingStep4Page() {
+export function Step4Page() {
   const navigate = useNavigate();
   const location = useLocation();
   const category = (location.state as { category?: string })?.category ?? 'Sleep better';
@@ -75,7 +75,9 @@ export function OnboardingStep4Page() {
       totalSteps={7}
       ctaLabel="Continue"
       ctaVariant="inline"
-      onNext={() => navigate('/home')}
+      onNext={() =>
+        navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } })
+      }
       onBack={() => navigate('/onboarding/step-3')}
       showVoiceButton
       aiListeningPrompt='"Within that category, what specific area would you like to improve?"'
