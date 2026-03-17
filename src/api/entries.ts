@@ -1,42 +1,36 @@
 import { apiGet, apiPut } from './client';
 import type { EntriesMap, DayEntries } from '@shared/types';
-import { getDataService } from '@/lib/services/service-provider';
+import { getDataService, useSupabase, AUTH_BYPASS } from '@/lib/services/service-provider';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const useSupabase = supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
+// Use DataService when Supabase is active OR when auth is bypassed (mock mode)
+const useDataService = useSupabase || AUTH_BYPASS;
 
 async function buildEntriesFromDataService(start: string, end: string): Promise<EntriesMap> {
   const ds = await getDataService();
   const habits = await ds.getHabits();
   const entries: EntriesMap = {};
 
-  for (const habit of habits) {
-    const completions = await ds.getCompletions(habit.id, start, end);
-    for (const c of completions) {
-      if (!entries[c.date]) entries[c.date] = {};
-      entries[c.date][habit.id] = 'yes';
-    }
+  // Batch fetch all completions in a single query instead of one per habit
+  const habitIds = habits.map(h => h.id);
+  const allCompletions = await ds.getCompletionsBatch(habitIds, start, end);
+
+  for (const c of allCompletions) {
+    if (!entries[c.date]) entries[c.date] = {};
+    entries[c.date][c.habitId] = 'yes';
   }
   return entries;
 }
 
 async function saveEntriesToDataService(date: string, dayEntries: DayEntries): Promise<void> {
   const ds = await getDataService();
-  // Import supabase directly for uncomplete operations
-  const { supabase } = await import('@/lib/supabase');
   
   for (const [metricId, value] of Object.entries(dayEntries)) {
     try {
       if (value === 'yes' || value === '1' || value === 'true') {
         await ds.completeHabit(metricId, date);
       } else {
-        // Toggle OFF — delete the completion row
-        const { error } = await supabase
-          .from('habit_completions')
-          .delete()
-          .eq('user_habit_id', metricId)
-          .eq('date', date);
-        if (error) console.error('[Entries] Delete completion error:', error);
+        // Toggle OFF — delete the completion via DataService (not raw Supabase)
+        await ds.uncompleteHabit(metricId, date);
       }
     } catch (err) {
       console.error('[Entries] Save entry error:', metricId, err);
@@ -45,7 +39,7 @@ async function saveEntriesToDataService(date: string, dayEntries: DayEntries): P
 }
 
 export async function fetchEntries(start: string, end: string): Promise<EntriesMap> {
-  if (useSupabase) {
+  if (useDataService) {
     return buildEntriesFromDataService(start, end);
   }
   try {
@@ -56,7 +50,7 @@ export async function fetchEntries(start: string, end: string): Promise<EntriesM
 }
 
 export async function saveEntries(date: string, dayEntries: DayEntries): Promise<void> {
-  if (useSupabase) {
+  if (useDataService) {
     return saveEntriesToDataService(date, dayEntries);
   }
   try {
@@ -67,7 +61,7 @@ export async function saveEntries(date: string, dayEntries: DayEntries): Promise
 }
 
 export async function saveBulkEntries(entriesMap: EntriesMap): Promise<void> {
-  if (useSupabase) {
+  if (useDataService) {
     for (const [date, dayEntries] of Object.entries(entriesMap)) {
       await saveEntriesToDataService(date, dayEntries);
     }

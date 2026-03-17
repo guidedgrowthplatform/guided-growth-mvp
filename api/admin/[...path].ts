@@ -23,10 +23,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] || '';
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   // /api/admin/users and /api/admin/users/:id/...
   if (route === 'users') {
     const userId = segments[1];
     const subRoute = segments[2];
+
+    // Validate userId format when present
+    if (userId && !UUID_RE.test(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID format' });
+    }
 
     // /api/admin/users/:id/role
     if (userId && subRoute === 'role' && req.method === 'PATCH') {
@@ -92,7 +99,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (req.method === 'POST') {
       const { email, note } = req.body;
-      if (!email?.includes('@')) return res.status(400).json({ error: 'Valid email required' });
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email || !emailRegex.test(email)) return res.status(400).json({ error: 'Valid email required' });
       const exists = await pool.query('SELECT id FROM allowlist WHERE email = $1', [email]);
       if (exists.rows.length > 0) return res.status(409).json({ error: 'Already in allowlist' });
       const result = await pool.query(
@@ -116,7 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // /api/admin/audit-log
   if (route === 'audit-log') {
     if (req.method === 'GET') {
-      const limit = parseInt(req.query.limit as string) || 50;
+      const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 50, 1), 200);
       const result = await pool.query(
         `SELECT a.*, u.email as admin_email FROM admin_audit_log a LEFT JOIN users u ON a.admin_user_id = u.id ORDER BY a.created_at DESC LIMIT $1`,
         [limit]

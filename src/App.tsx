@@ -12,10 +12,13 @@ import { SettingsPage } from '@/pages/SettingsPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { getDataService } from '@/lib/services/service-provider';
 
-// Initialize data on first load
+// Initialize data on first load — only seed once per session
+const SEED_FLAG = 'gg_data_seeded';
 function useSeedData() {
   useEffect(() => {
+    if (sessionStorage.getItem(SEED_FLAG)) return;
     getDataService().then(ds => ds.seedData()).then(() => {
+      sessionStorage.setItem(SEED_FLAG, '1');
       window.dispatchEvent(new CustomEvent('voice-data-changed'));
     }).catch(console.error);
   }, []);

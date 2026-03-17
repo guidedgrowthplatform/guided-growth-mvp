@@ -8,8 +8,15 @@ interface CommandIntent {
   confidence: number;
 }
 
+function localDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr(new Date());
 }
 
 function parseDateParam(dateStr: unknown): string {
@@ -17,11 +24,34 @@ function parseDateParam(dateStr: unknown): string {
   if (dateStr === 'yesterday') {
     const d = new Date();
     d.setDate(d.getDate() - 1);
-    return d.toISOString().slice(0, 10);
+    return localDateStr(d);
+  }
+
+  const lower = String(dateStr).toLowerCase().trim();
+
+  // Handle "N days ago" / "two days ago" / "a day ago" patterns
+  const WORD_NUMS: Record<string, number> = {
+    a: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
+    eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14,
+  };
+  const daysAgoMatch = lower.match(/^(\d+|a|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen)\s+days?\s+ago$/);
+  if (daysAgoMatch) {
+    const num = WORD_NUMS[daysAgoMatch[1]] ?? parseInt(daysAgoMatch[1], 10);
+    if (!isNaN(num) && num > 0) {
+      const d = new Date();
+      d.setDate(d.getDate() - num);
+      return localDateStr(d);
+    }
+  }
+
+  // Handle "last week" (7 days ago)
+  if (lower === 'last week') {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return localDateStr(d);
   }
 
   // Handle day names (multi-language, from config)
-  const lower = String(dateStr).toLowerCase();
   const dayIndex = DAY_NAMES[lower] ?? -1;
   if (dayIndex !== -1) {
     const now = new Date();
@@ -30,10 +60,60 @@ function parseDateParam(dateStr: unknown): string {
     if (diff <= 0) diff += 7; // go to previous week
     const target = new Date(now);
     target.setDate(target.getDate() - diff);
-    return target.toISOString().slice(0, 10);
+    return localDateStr(target);
   }
 
-  return String(dateStr);
+  // If it looks like a valid ISO date (YYYY-MM-DD), return as-is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(lower)) {
+    return lower;
+  }
+
+  // Numeric date: "03/05/2026" or "3/5/2026" (MM/DD/YYYY)
+  const numericMatch = lower.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (numericMatch) {
+    const m = parseInt(numericMatch[1], 10);
+    const d = parseInt(numericMatch[2], 10);
+    const y = parseInt(numericMatch[3], 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+  }
+
+  // Try to parse natural date strings like "8th March 2026", "March 10", "Jan 5th 2026"
+  const MONTHS: Record<string, number> = {
+    january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+    july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+    jan: 0, feb: 1, mar: 2, apr: 3, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+  };
+  // "8th March 2026" or "8 March" or "March 8th 2026" or "March 8"
+  const datePatterns = [
+    /^(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)(?:\s+(\d{4}))?$/,  // 8th March 2026
+    /^([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?$/,  // March 8th 2026
+  ];
+  for (const pattern of datePatterns) {
+    const match = lower.match(pattern);
+    if (match) {
+      let day: number, monthName: string, year: number;
+      if (/^\d/.test(match[1])) {
+        day = parseInt(match[1], 10);
+        monthName = match[2];
+        year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
+      } else {
+        monthName = match[1];
+        day = parseInt(match[2], 10);
+        year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
+      }
+      const monthIndex = MONTHS[monthName];
+      if (monthIndex !== undefined && day >= 1 && day <= 31) {
+        const d = new Date(year, monthIndex, day);
+        return localDateStr(d);
+      }
+    }
+  }
+
+  // Fallback: unknown format — default to today to avoid broken date keys
+  console.warn(`[parseDateParam] Unknown date format: "${dateStr}", defaulting to today`);
+  return todayStr();
 }
 
 export class ActionDispatcher {
@@ -188,7 +268,34 @@ export class ActionDispatcher {
       };
     }
 
-    // Single date
+    // Single date — but first check for "past N days" / "last N days" pattern as fallback
+    const dateRaw = String(params.date || '');
+    const dateRawLower = dateRaw.toLowerCase().trim();
+    const RANGE_WORDS: Record<string, number> = {
+      one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
+      eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14,
+    };
+    const rangeMatch = dateRawLower.match(/(?:past|last)\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen)\s+days?/);
+    if (rangeMatch) {
+      const num = RANGE_WORDS[rangeMatch[1]] ?? parseInt(rangeMatch[1], 10);
+      if (!isNaN(num) && num > 0 && num <= 30) {
+        const completedDates: string[] = [];
+        for (let i = 0; i < num; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const dateStr = localDateStr(d);
+          await this.dataService.completeHabit(habit.id, dateStr);
+          completedDates.push(dateStr);
+        }
+        return {
+          success: true,
+          message: `${MSG.success} Marked "${habit.name}" done for the past ${num} days`,
+          uiAction: 'navigate',
+          navigateTo: '/capture',
+        };
+      }
+    }
+
     const date = parseDateParam(params.date);
     await this.dataService.completeHabit(habit.id, date);
     return {
@@ -275,16 +382,19 @@ export class ActionDispatcher {
           };
         }
 
-        // If checking for streaks
+        // If checking for streaks — batch fetch all summaries in one go
         if (params.metric === 'streak') {
           const habits = await this.dataService.getHabits();
+          const summaries = await this.dataService.getHabitSummaries(
+            habits.map(h => h.id),
+            'month',
+          );
           let longestHabit = '';
           let longestStreak = 0;
-          for (const h of habits) {
-            const s = await this.dataService.getHabitSummary(h.id, 'month');
+          for (const s of summaries) {
             if (s.longestStreak > longestStreak) {
               longestStreak = s.longestStreak;
-              longestHabit = h.name;
+              longestHabit = s.habit.name;
             }
           }
           return {

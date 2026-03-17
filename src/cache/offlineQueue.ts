@@ -1,11 +1,31 @@
 const QUEUE_KEY = 'lgt_offline_queue';
 
+const MAX_RETRIES = 3;
+const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 interface QueuedMutation {
   id: string;
   endpoint: string;
   method: string;
   body: unknown;
   timestamp: number;
+  retries?: number;
+}
+
+function safeGetItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSetItem(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // localStorage unavailable (e.g. iOS Private Browsing)
+  }
 }
 
 export const offlineQueue = {
@@ -18,12 +38,12 @@ export const offlineQueue = {
       body,
       timestamp: Date.now(),
     });
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    safeSetItem(QUEUE_KEY, JSON.stringify(queue));
   },
 
   getQueue(): QueuedMutation[] {
     try {
-      const raw = localStorage.getItem(QUEUE_KEY);
+      const raw = safeGetItem(QUEUE_KEY);
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
@@ -34,26 +54,41 @@ export const offlineQueue = {
     const queue = this.getQueue();
     if (queue.length === 0) return;
 
+    const now = Date.now();
     const remaining: QueuedMutation[] = [];
 
     for (const mutation of queue) {
+      // Discard mutations older than 24 hours
+      if (now - mutation.timestamp > MAX_AGE_MS) continue;
+
+      // Discard mutations that have exceeded max retries
+      const retries = mutation.retries ?? 0;
+      if (retries >= MAX_RETRIES) continue;
+
       try {
-        await fetch(mutation.endpoint, {
+        const response = await fetch(mutation.endpoint, {
           method: mutation.method,
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(mutation.body),
         });
+        if (!response.ok) {
+          remaining.push({ ...mutation, retries: retries + 1 });
+        }
       } catch {
-        remaining.push(mutation);
+        remaining.push({ ...mutation, retries: retries + 1 });
       }
     }
 
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+    safeSetItem(QUEUE_KEY, JSON.stringify(remaining));
   },
 
   clear(): void {
-    localStorage.removeItem(QUEUE_KEY);
+    try {
+      localStorage.removeItem(QUEUE_KEY);
+    } catch {
+      // localStorage unavailable
+    }
   },
 
   get length(): number {

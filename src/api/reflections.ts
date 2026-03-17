@@ -1,14 +1,14 @@
-import { apiGet, apiPut } from './client';
-import type { ReflectionConfig, DayReflections } from '@shared/types';
+import { getDataService } from '@/lib/services/service-provider';
+import type { ReflectionConfig } from '@/lib/services/data-service.interface';
+import type { DayReflections } from '@shared/types';
+
+export type { ReflectionConfig };
 
 const LS_CONFIG = 'gg_reflections_config';
 const LS_REFLECTIONS = 'gg_reflections';
 const LS_AFFIRMATION = 'gg_affirmation';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const useSupabase = supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
-
-// Default config when API unavailable
+// Default config when no data available
 const DEFAULT_CONFIG: ReflectionConfig = {
   fields: [
     { id: 'gratitude', label: 'What are you grateful for?', order: 1 },
@@ -34,12 +34,14 @@ function getLocalReflections(): Record<string, DayReflections> {
   return {};
 }
 
+// ─── Public API ───
+
 export async function fetchReflectionConfig(): Promise<ReflectionConfig> {
-  if (useSupabase) return getLocalConfig();
   try {
-    const remote = await apiGet<ReflectionConfig>('/api/reflections/config');
-    localStorage.setItem(LS_CONFIG, JSON.stringify(remote));
-    return remote;
+    const ds = await getDataService();
+    const config = await ds.getReflectionConfig();
+    localStorage.setItem(LS_CONFIG, JSON.stringify(config));
+    return config;
   } catch {
     return getLocalConfig();
   }
@@ -47,21 +49,18 @@ export async function fetchReflectionConfig(): Promise<ReflectionConfig> {
 
 export async function saveReflectionConfig(config: ReflectionConfig): Promise<ReflectionConfig> {
   localStorage.setItem(LS_CONFIG, JSON.stringify(config));
-  if (useSupabase) return config;
   try {
-    return await apiPut<ReflectionConfig>('/api/reflections/config', config);
+    const ds = await getDataService();
+    return await ds.saveReflectionConfig(config);
   } catch {
     return config;
   }
 }
 
-export async function fetchReflections(start: string, end: string): Promise<Record<string, DayReflections>> {
-  if (useSupabase) return getLocalReflections();
-  try {
-    return await apiGet<Record<string, DayReflections>>(`/api/reflections?start=${start}&end=${end}`);
-  } catch {
-    return getLocalReflections();
-  }
+export async function fetchReflections(_start: string, _end: string): Promise<Record<string, DayReflections>> {
+  // Day-level reflections are stored locally (no dedicated Supabase table)
+  // Journal entries (voice reflect) already go to journal_entries table
+  return getLocalReflections();
 }
 
 export async function saveReflections(date: string, reflections: DayReflections): Promise<void> {
@@ -70,18 +69,14 @@ export async function saveReflections(date: string, reflections: DayReflections)
     all[date] = reflections;
     localStorage.setItem(LS_REFLECTIONS, JSON.stringify(all));
   } catch { /* ignore */ }
-  if (useSupabase) return;
-  try {
-    await apiPut(`/api/reflections/${date}`, reflections);
-  } catch { /* silent */ }
 }
 
 export async function fetchAffirmation(): Promise<string> {
-  if (useSupabase) return localStorage.getItem(LS_AFFIRMATION) || '';
   try {
-    const result = await apiGet<{ value: string }>('/api/affirmation');
-    localStorage.setItem(LS_AFFIRMATION, result.value);
-    return result.value;
+    const ds = await getDataService();
+    const val = await ds.getAffirmation();
+    localStorage.setItem(LS_AFFIRMATION, val);
+    return val;
   } catch {
     return localStorage.getItem(LS_AFFIRMATION) || '';
   }
@@ -89,8 +84,8 @@ export async function fetchAffirmation(): Promise<string> {
 
 export async function saveAffirmation(value: string): Promise<void> {
   localStorage.setItem(LS_AFFIRMATION, value);
-  if (useSupabase) return;
   try {
-    await apiPut('/api/affirmation', { value });
+    const ds = await getDataService();
+    await ds.saveAffirmation(value);
   } catch { /* silent */ }
 }

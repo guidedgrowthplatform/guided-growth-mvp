@@ -4,7 +4,7 @@ import { useCommandStore } from '@/stores/commandStore';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { getDataService } from '@/lib/services/service-provider';
 import { useToast } from '@/contexts/ToastContext';
-import { speakPreAck, speak } from '@/lib/services/tts-service';
+import { speakPreAck } from '@/lib/services/tts-service';
 import { haptic } from '@/lib/services/haptic-service';
 
 // Lazy-init: wait for the correct data service (Supabase) before creating dispatcher
@@ -17,27 +17,109 @@ async function getDispatcher(): Promise<ActionDispatcher> {
   return _dispatcher;
 }
 
+/** Reset the singleton dispatcher (e.g. on sign-out to avoid stale state) */
+export function resetDispatcher(): void {
+  _dispatcher = null;
+}
+
+// Word-number map for frequency parsing
+const WORD_NUMBERS: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5,
+  six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+};
+
+function parseWordNumber(str: string): number | null {
+  const n = parseInt(str);
+  if (!isNaN(n)) return n;
+  return WORD_NUMBERS[str.toLowerCase()] ?? null;
+}
+
+const MONTH_MAP: Record<string, number> = {
+  january:1,february:2,march:3,april:4,may:5,june:6,
+  july:7,august:8,september:9,october:10,november:11,december:12,
+  jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,
+};
+
+function extractDate(text: string): string {
+  const t = text.toLowerCase();
+  if (t.includes('yesterday')) return 'yesterday';
+
+  // Numeric date: "03/05/2026" or "3/5/2026" (MM/DD/YYYY)
+  const numericMatch = t.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (numericMatch) {
+    const m = parseInt(numericMatch[1], 10);
+    const d = parseInt(numericMatch[2], 10);
+    const y = parseInt(numericMatch[3], 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+  }
+
+  // Explicit date: "for 12 march 2026", "for march 5th", "for 8th march"
+  const patterns = [
+    /(?:for|on)\s+(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?([a-z]+)(?:\s+(\d{4}))?/,
+    /(?:for|on)\s+([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?/,
+  ];
+  for (const p of patterns) {
+    const m = t.match(p);
+    if (m) {
+      let day: number, monthName: string, year: number;
+      if (/^\d/.test(m[1])) { day = parseInt(m[1]); monthName = m[2]; year = m[3] ? parseInt(m[3]) : new Date().getFullYear(); }
+      else { monthName = m[1]; day = parseInt(m[2]); year = m[3] ? parseInt(m[3]) : new Date().getFullYear(); }
+      const mo = MONTH_MAP[monthName];
+      if (mo && day >= 1 && day <= 31) {
+        return `${year}-${String(mo).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      }
+    }
+  }
+
+  // Day names
+  const dayMatch = t.match(/(?:for|on)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
+  if (dayMatch) return dayMatch[1].toLowerCase();
+
+  return 'today';
+}
+
 // Simple local fallback when API is unavailable (e.g. local dev without vercel dev)
 function localParse(transcript: string): { action: string; entity: string; params: Record<string, unknown>; confidence: number } {
   const t = transcript.toLowerCase().trim();
 
+  // ─── HIGH PRIORITY: Check these FIRST to avoid false matches ───
+
+  // Help (Issue #19) — must be before create/suggest
+  if (t.match(/^help$|what can i|available commands|how.*use|what.*commands/)) {
+    return { action: 'help', entity: 'command', params: {}, confidence: 0.95 };
+  }
+
+  // Suggest — must be before create ("suggest a new habit" contains "new habit")
+  if (t.match(/suggest|recommend/)) {
+    return { action: 'suggest', entity: 'habit', params: {}, confidence: 0.8 };
+  }
+
+  // Rename — must be before create/update
+  if (t.match(/rename/)) {
+    const m = t.match(/rename\s+(.+?)\s+to\s+(.+)/i);
+    return { action: 'update', entity: 'habit', params: { name: m?.[1]?.trim() || '', newName: m?.[2]?.trim() || '' }, confidence: 0.7 };
+  }
+
+  // ─── CREATE ───
+
   // Create habit
   if (t.match(/create.*habits?|add.*habits?|new.*habits?/)) {
-    // Try multiple patterns to extract the habit name
     const nameMatch =
       t.match(/(?:called|named|for)\s+(.+?)(?:\s*,|$)/i) ||    // "called X" / "named X"
       t.match(/habits?\s+(?:called|named|for)\s+(.+?)$/i) ||    // "habit called X"
-      t.match(/(?:create|add|new)\s+(?:a\s+)?(?:new\s+)?(?:daily\s+)?(?:habits?\s+)?(.+?)(?:\s+habit)?$/i); // "add X" / "add new habit X" / "add new habits playing"
+      t.match(/(?:create|add|new)\s+(?:a\s+)?(?:new\s+)?(?:daily\s+)?(?:habits?\s+)?(.+?)(?:\s+habit)?$/i);
     let name = nameMatch?.[1]
-      ?.replace(/^(?:a\s+|the\s+|new\s+|my\s+)/i, '')  // strip leading articles
-      ?.replace(/\s+habits?$/i, '')                       // strip trailing "habit(s)"
+      ?.replace(/^(?:a\s+|the\s+|new\s+|my\s+)/i, '')
+      ?.replace(/\s+habits?$/i, '')
       ?.trim() || '';
-    // Reject empty or garbage names
     if (!name || name.length < 2) {
       return { action: 'create', entity: 'habit', params: { name: '', frequency: 'daily' }, confidence: 0.3 };
     }
-    const freqMatch = t.match(/(\d+)\s*times?\s*(?:a|per)\s*week/i);
-    const frequency = freqMatch ? `${freqMatch[1]}x/week` : 'daily';
+    const freqMatch = t.match(/(\w+)\s*times?\s*(?:a|per)\s*week/i);
+    const freqNum = freqMatch ? parseWordNumber(freqMatch[1]) : null;
+    const frequency = freqNum ? `${freqNum}x/week` : 'daily';
     return { action: 'create', entity: 'habit', params: { name, frequency }, confidence: 0.7 };
   }
 
@@ -49,24 +131,35 @@ function localParse(transcript: string): { action: string; entity: string; param
     return { action: 'create', entity: 'metric', params: { name, inputType: scaleMatch ? 'scale' : 'binary', scale: scaleMatch ? [Number(scaleMatch[1]), Number(scaleMatch[2])] : undefined }, confidence: 0.7 };
   }
 
-  // Complete / mark done
-  if (t.match(/mark.*done|completed?\s/)) {
-    const nameMatch = t.match(/(?:mark|completed?)\s+(.+?)(?:\s+(?:as\s+)?done|\s+for|$)/i);
-    const name = nameMatch?.[1]
-      ?.replace(/\s+(is|as|was|has been|has|been)\s*$/i, '') // strip trailing "is/as/was"
-      ?.replace(/\s+done.*/, '')
-      ?.trim() || '';
+  // ─── COMPLETE ───
+
+  // "I did X" — natural language completion
+  if (t.match(/^i did\s/)) {
+    const nameMatch = t.match(/^i did\s+(.+?)$/i);
+    const name = nameMatch?.[1]?.trim() || '';
     return { action: 'complete', entity: 'habit', params: { name, date: 'today' }, confidence: 0.7 };
   }
 
-  // Delete
+  // Complete / mark done
+  if (t.match(/mark.*done|completed?\s/)) {
+    const nameMatch = t.match(/(?:mark|completed?)\s+(.+?)(?:\s+(?:as\s+)?done|\s+for|$)/i);
+    let name = nameMatch?.[1]
+      ?.replace(/\s+(is|as|was|has been|has|been)\s*$/i, '')
+      ?.replace(/\s+done.*/, '')
+      ?.trim() || '';
+    name = name.replace(/\s+(?:for\s+)?(?:yesterday|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s*/i, '').trim();
+    const date = extractDate(t);
+    return { action: 'complete', entity: 'habit', params: { name, date }, confidence: 0.7 };
+  }
+
+  // ─── DELETE ───
   if (t.match(/delete|remove/)) {
     const nameMatch = t.match(/(?:delete|remove)\s+(?:the\s+)?(.+?)(?:\s+habit|\s+metric|$)/i);
     const name = nameMatch?.[1]?.trim() || '';
     return { action: 'delete', entity: t.includes('metric') ? 'metric' : 'habit', params: { name }, confidence: 0.7 };
   }
 
-  // Log metric
+  // ─── LOG METRIC ───
   if (t.match(/log|record/)) {
     const nameMatch = t.match(/(?:log|record)\s+(?:my\s+)?(.+?)\s+(?:as|at)\s+(.+)/i);
     const name = nameMatch?.[1]?.trim() || '';
@@ -74,7 +167,13 @@ function localParse(transcript: string): { action: string; entity: string; param
     return { action: 'log', entity: 'metric', params: { name, value }, confidence: 0.6 };
   }
 
-  // Query / show
+  // Natural metric logging: "my mood was 7 today"
+  if (t.match(/^my\s+.+\s+(?:was|is)\s+\d/)) {
+    const m = t.match(/^my\s+(.+?)\s+(?:was|is)\s+(\d+)/i);
+    return { action: 'log', entity: 'metric', params: { name: m?.[1] || '', value: m ? Number(m[2]) : '' }, confidence: 0.6 };
+  }
+
+  // ─── QUERY ───
   if (t.match(/show|list|how.*doing|what.*my|what's/)) {
     const nameMatch = t.match(/(?:with|my|the)\s+(.+?)(?:\s+this|\s+habit|$|\?)/i);
     return { action: 'query', entity: t.includes('streak') ? 'habit' : t.includes('summary') ? 'summary' : 'habit', params: { name: nameMatch?.[1]?.trim(), period: t.includes('month') ? 'month' : 'week', ...(t.includes('streak') ? { metric: 'streak', sort: 'longest' } : {}) }, confidence: 0.6 };
@@ -85,24 +184,18 @@ function localParse(transcript: string): { action: string; entity: string; param
     return { action: 'query', entity: 'summary', params: { period: 'week' }, confidence: 0.7 };
   }
 
-  // Help (Issue #19)
-  if (t.match(/^help$|what can i|available commands|how.*use|what.*commands/)) {
-    return { action: 'help', entity: 'command', params: {}, confidence: 0.95 };
-  }
-
-  // Suggest
-  if (t.match(/suggest|recommend/)) {
-    return { action: 'suggest', entity: 'habit', params: {}, confidence: 0.8 };
-  }
-
-  // Reflect
-  if (t.match(/feel|slept|stressed|tired|mood/)) {
+  // ─── REFLECT ───
+  // Only match genuine reflective statements, not commands that happen to contain "feel"
+  // e.g. "I feel stressed" YES, "I feel like creating a habit" NO
+  if (t.match(/^i (?:feel|felt|slept|am feeling|'m feeling)|^(?:feeling|slept|stressed|i'?m tired)/)) {
     const themes: string[] = [];
     if (t.includes('sleep') || t.includes('slept')) themes.push('sleep');
     if (t.includes('stress')) themes.push('stress');
-    if (t.includes('tired')) themes.push('fatigue');
-    const mood = t.match(/terrible|terribly|bad|awful/) ? 'low' : t.match(/great|good|amazing/) ? 'high' : 'neutral';
-    return { action: 'reflect', entity: 'journal', params: { mood, themes }, confidence: 0.6 };
+    if (t.includes('tired') || t.includes('exhaust')) themes.push('fatigue');
+    if (t.includes('anxious') || t.includes('anxiety')) themes.push('anxiety');
+    if (t.includes('happy') || t.includes('great') || t.includes('amazing')) themes.push('positive');
+    const mood = t.match(/terrible|terribly|bad|awful|stressed|anxious/) ? 'low' : t.match(/great|good|amazing|happy/) ? 'high' : 'neutral';
+    return { action: 'reflect', entity: 'journal', params: { mood, themes }, confidence: 0.7 };
   }
 
   return { action: 'query', entity: 'habit', params: {}, confidence: 0.3 };
@@ -124,8 +217,20 @@ export function useVoiceCommand() {
     addHistory,
   } = useCommandStore();
 
-  const processTranscript = useCallback(async (transcript: string) => {
-    if (!transcript.trim()) return;
+  const processTranscript = useCallback(async (rawTranscript: string) => {
+    if (!rawTranscript.trim()) return;
+
+    // Normalize transcript: ElevenLabs Scribe adds extra punctuation and
+    // capitalization that confuses GPT (e.g., "Create a new habit. Painting."
+    // → GPT extracts "habit. painting" as the name).
+    const transcript = rawTranscript
+      .replace(/\.\s+/g, ' ')       // "habit. painting" → "habit painting"
+      .replace(/[.!?]+$/g, '')       // trailing punctuation
+      .replace(/,\s*/g, ', ')        // normalize comma spacing
+      .replace(/\s{2,}/g, ' ')       // collapse multiple spaces
+      .trim();
+
+    if (!transcript) return;
 
     setProcessing(true);
     const startTime = Date.now();
@@ -148,11 +253,31 @@ export function useVoiceCommand() {
         }
 
         intent = await response.json();
+
+        // If GPT returns low confidence, check if local parser does better
+        if (intent.confidence < 0.6) {
+          const localIntent = localParse(transcript);
+          if (localIntent.confidence > intent.confidence) {
+            console.info(`[VoiceCommand] GPT low confidence (${intent.confidence}), using local parser (${localIntent.confidence})`);
+            intent = localIntent;
+            intent.latency = Date.now() - startTime;
+          }
+        }
       } catch {
         // Fallback to local keyword parser (works without API)
         console.warn('[VoiceCommand] API unavailable, using local parser');
         intent = localParse(transcript);
         intent.latency = Date.now() - startTime;
+      }
+
+      // Client-side date safety net: if GPT + server both missed the date,
+      // extract it from the transcript before dispatching
+      const intentParams = intent.params as Record<string, unknown>;
+      if (['complete', 'log'].includes(intent.action) && (!intentParams.date || intentParams.date === 'today')) {
+        const extracted = extractDate(transcript);
+        if (extracted !== 'today') {
+          intentParams.date = extracted;
+        }
       }
 
       const apiLatency = intent.latency || (Date.now() - startTime);
@@ -175,8 +300,8 @@ export function useVoiceCommand() {
         addToast('error', result.message);
       }
 
-      // Talk back: read the result message aloud (if TTS enabled)
-      speak(result.message);
+      // TTS talk-back is handled by VoiceTranscript.tsx (single source of TTS)
+      // to avoid double speak() calls.
 
       // Navigate if needed
       if (result.uiAction === 'navigate' && result.navigateTo) {

@@ -32,6 +32,18 @@ export class SupabaseDataService implements DataService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
+    // Determine next sort_order by finding the current max
+    const { data: maxData } = await supabase
+      .from('user_habits')
+      .select('sort_order')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const nextSortOrder = (maxData?.sort_order ?? 0) + 1;
+
     const { data, error } = await supabase
       .from('user_habits')
       .insert({
@@ -44,7 +56,7 @@ export class SupabaseDataService implements DataService {
                  frequency === 'weekdays' ? 'weekdays' : 'daily',
         daily_goal: 1,
         is_active: true,
-        sort_order: 9999,  // Put new habits at end; reorder will fix
+        sort_order: nextSortOrder,
       })
       .select()
       .single();
@@ -132,6 +144,22 @@ export class SupabaseDataService implements DataService {
     if (error) throw new Error(error.message);
   }
 
+  async reorderHabits(habitIds: string[]): Promise<void> {
+    const results = await Promise.all(
+      habitIds.map((id, i) =>
+        supabase
+          .from('user_habits')
+          .update({ sort_order: i + 1 })
+          .eq('id', id)
+      )
+    );
+
+    const failed = results.filter(r => r.error);
+    if (failed.length > 0) {
+      throw new Error(`Failed to reorder ${failed.length}/${habitIds.length} habits: ${failed[0].error!.message}`);
+    }
+  }
+
   // ─── Completions ───
 
   async completeHabit(habitId: string, date: string): Promise<HabitCompletion> {
@@ -159,6 +187,16 @@ export class SupabaseDataService implements DataService {
     };
   }
 
+  async uncompleteHabit(habitId: string, date: string): Promise<void> {
+    const { error } = await supabase
+      .from('habit_completions')
+      .delete()
+      .eq('user_habit_id', habitId)
+      .eq('date', date);
+
+    if (error) throw new Error(error.message);
+  }
+
   async getCompletions(habitId: string, startDate?: string, endDate?: string): Promise<HabitCompletion[]> {
     let query = supabase
       .from('habit_completions')
@@ -181,74 +219,163 @@ export class SupabaseDataService implements DataService {
     }));
   }
 
+  async getCompletionsBatch(habitIds: string[], startDate?: string, endDate?: string): Promise<HabitCompletion[]> {
+    if (habitIds.length === 0) return [];
+
+    let query = supabase
+      .from('habit_completions')
+      .select('*')
+      .in('user_habit_id', habitIds)
+      .eq('completed', true)
+      .order('date', { ascending: false });
+
+    if (startDate) query = query.gte('date', startDate);
+    if (endDate) query = query.lte('date', endDate);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    return (data || []).map(c => ({
+      id: c.id,
+      habitId: c.user_habit_id,
+      date: c.date,
+      completedAt: c.created_at,
+    }));
+  }
+
   // ─── Metrics ───
-  // Note: Metrics map to daily_checkins in the new schema
-  // For MVP, we store them as custom entries
+  // Uses user_tracked_metrics table in Supabase
 
   async createMetric(name: string, inputType = 'scale', frequency = 'daily', scaleMin?: number, scaleMax?: number): Promise<TrackedMetric> {
-    // Store metrics as a special habit type for now
-    // In future, metrics could have their own table
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    const metric: TrackedMetric = {
-      id: crypto.randomUUID(),
-      name,
-      inputType: inputType as 'scale' | 'binary' | 'numeric' | 'text',
-      frequency,
-      scaleMin,
-      scaleMax,
-      createdAt: new Date().toISOString(),
+    const { data, error } = await supabase
+      .from('user_tracked_metrics')
+      .insert({
+        user_id: user.id,
+        name,
+        input_type: inputType,
+        frequency,
+        scale_min: scaleMin ?? (inputType === 'scale' ? 1 : null),
+        scale_max: scaleMax ?? (inputType === 'scale' ? 10 : null),
+        sort_order: 9999,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    return {
+      id: data.id,
+      name: data.name,
+      inputType: data.input_type as TrackedMetric['inputType'],
+      frequency: data.frequency,
+      scaleMin: data.scale_min,
+      scaleMax: data.scale_max,
+      createdAt: data.created_at,
     };
-
-    // Store in localStorage for now (metrics don't have a direct Supabase table in MVP)
-    const existing = JSON.parse(localStorage.getItem('supabase_metrics') || '[]');
-    existing.push(metric);
-    localStorage.setItem('supabase_metrics', JSON.stringify(existing));
-
-    return metric;
   }
 
   async getMetrics(): Promise<TrackedMetric[]> {
-    return JSON.parse(localStorage.getItem('supabase_metrics') || '[]');
+    const { data, error } = await supabase
+      .from('user_tracked_metrics')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (error) throw new Error(error.message);
+
+    return (data || []).map(m => ({
+      id: m.id,
+      name: m.name,
+      inputType: m.input_type as TrackedMetric['inputType'],
+      frequency: m.frequency,
+      scaleMin: m.scale_min,
+      scaleMax: m.scale_max,
+      createdAt: m.created_at,
+    }));
   }
 
   async getMetricByName(name: string): Promise<TrackedMetric | null> {
-    const metrics = await this.getMetrics();
-    return metrics.find(m => m.name.toLowerCase() === name.toLowerCase()) || null;
+    const { data, error } = await supabase
+      .from('user_tracked_metrics')
+      .select('*')
+      .ilike('name', name)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      name: data.name,
+      inputType: data.input_type as TrackedMetric['inputType'],
+      frequency: data.frequency,
+      scaleMin: data.scale_min,
+      scaleMax: data.scale_max,
+      createdAt: data.created_at,
+    };
   }
 
   async deleteMetric(id: string): Promise<void> {
-    const metrics = await this.getMetrics();
-    localStorage.setItem('supabase_metrics', JSON.stringify(metrics.filter(m => m.id !== id)));
+    const { error } = await supabase
+      .from('user_tracked_metrics')
+      .update({ is_active: false })
+      .eq('id', id);
+
+    if (error) throw new Error(error.message);
   }
 
   // ─── Metric Entries ───
 
   async logMetric(metricId: string, value: number | string, date: string): Promise<MetricEntry> {
-    const entry: MetricEntry = {
-      id: crypto.randomUUID(),
-      metricId,
-      value,
-      date,
-      loggedAt: new Date().toISOString(),
+    const { data, error } = await supabase
+      .from('user_metric_entries')
+      .upsert(
+        {
+          metric_id: metricId,
+          value: String(value),
+          date,
+        },
+        { onConflict: 'metric_id,date' }
+      )
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    return {
+      id: data.id,
+      metricId: data.metric_id,
+      value: isNaN(Number(data.value)) ? data.value : Number(data.value),
+      date: data.date,
+      loggedAt: data.created_at,
     };
-
-    const existing = JSON.parse(localStorage.getItem('supabase_metric_entries') || '[]');
-    existing.push(entry);
-    localStorage.setItem('supabase_metric_entries', JSON.stringify(existing));
-
-    return entry;
   }
 
   async getMetricEntries(metricId: string, startDate?: string, endDate?: string): Promise<MetricEntry[]> {
-    const entries: MetricEntry[] = JSON.parse(localStorage.getItem('supabase_metric_entries') || '[]');
-    return entries.filter(e => {
-      if (e.metricId !== metricId) return false;
-      if (startDate && e.date < startDate) return false;
-      if (endDate && e.date > endDate) return false;
-      return true;
-    });
+    let query = supabase
+      .from('user_metric_entries')
+      .select('*')
+      .eq('metric_id', metricId)
+      .order('date', { ascending: false });
+
+    if (startDate) query = query.gte('date', startDate);
+    if (endDate) query = query.lte('date', endDate);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    return (data || []).map(e => ({
+      id: e.id,
+      metricId: e.metric_id,
+      value: isNaN(Number(e.value)) ? e.value : Number(e.value),
+      date: e.date,
+      loggedAt: e.created_at,
+    }));
   }
 
   // ─── Journal ───
@@ -306,32 +433,65 @@ export class SupabaseDataService implements DataService {
   // ─── Summaries ───
 
   async getHabitSummary(habitId: string, period: 'week' | 'month'): Promise<HabitSummary> {
+    const summaries = await this.getHabitSummaries([habitId], period);
+    if (summaries.length === 0) throw new Error('Habit not found');
+    return summaries[0];
+  }
+
+  async getHabitSummaries(habitIds: string[], period: 'week' | 'month'): Promise<HabitSummary[]> {
+    if (habitIds.length === 0) return [];
+
     const habits = await this.getHabits();
-    const habit = habits.find(h => h.id === habitId);
-    if (!habit) throw new Error('Habit not found');
+    const habitMap = new Map(habits.map(h => [h.id, h]));
+
+    // Validate all requested habit IDs exist
+    const validIds = habitIds.filter(id => habitMap.has(id));
+    if (validIds.length === 0) return [];
 
     const daysBack = period === 'week' ? 7 : 30;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - daysBack);
     const startStr = startDate.toISOString().split('T')[0];
 
-    const completions = await this.getCompletions(habitId, startStr);
+    // Batch fetch: completions and streaks in parallel (2 queries total instead of 2N)
+    const [allCompletions, streakResult] = await Promise.all([
+      this.getCompletionsBatch(validIds, startStr),
+      supabase
+        .from('habit_streaks')
+        .select('*')
+        .in('user_habit_id', validIds),
+    ]);
 
-    // Get streak from habit_streaks table
-    const { data: streakData } = await supabase
-      .from('habit_streaks')
-      .select('*')
-      .eq('user_habit_id', habitId)
-      .maybeSingle();
+    if (streakResult.error) throw new Error(streakResult.error.message);
 
-    return {
-      habit,
-      completionsThisPeriod: completions.length,
-      totalDaysInPeriod: daysBack,
-      completionRate: (completions.length / daysBack) * 100,
-      currentStreak: streakData?.current_streak || 0,
-      longestStreak: streakData?.longest_streak || 0,
-    };
+    // Group completions by habit ID
+    const completionsByHabit = new Map<string, HabitCompletion[]>();
+    for (const c of allCompletions) {
+      const list = completionsByHabit.get(c.habitId) ?? [];
+      list.push(c);
+      completionsByHabit.set(c.habitId, list);
+    }
+
+    // Index streaks by habit ID
+    const streaksByHabit = new Map<string, { current_streak: number; longest_streak: number }>();
+    for (const s of (streakResult.data || [])) {
+      streaksByHabit.set(s.user_habit_id, s);
+    }
+
+    return validIds.map(id => {
+      const habit = habitMap.get(id)!;
+      const completions = completionsByHabit.get(id) ?? [];
+      const streakData = streaksByHabit.get(id);
+
+      return {
+        habit,
+        completionsThisPeriod: completions.length,
+        totalDaysInPeriod: daysBack,
+        completionRate: (completions.length / daysBack) * 100,
+        currentStreak: streakData?.current_streak || 0,
+        longestStreak: streakData?.longest_streak || 0,
+      };
+    });
   }
 
   async getWeeklySummary(): Promise<WeeklySummary> {
@@ -340,13 +500,18 @@ export class SupabaseDataService implements DataService {
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = todayStr();
 
-    const habits = await this.getHabits();
-    const habitSummaries = await Promise.all(
-      habits.map(h => this.getHabitSummary(h.id, 'week'))
-    );
+    // Fetch habits, journal entries, and metrics in parallel
+    const [habits, journalEntries, metrics] = await Promise.all([
+      this.getHabits(),
+      this.getJournalEntries(startStr, endStr),
+      this.getMetrics(),
+    ]);
 
-    const journalEntries = await this.getJournalEntries(startStr, endStr);
-    const metrics = await this.getMetrics();
+    // Batch fetch all habit summaries (2 queries instead of 2N)
+    const habitSummaries = await this.getHabitSummaries(
+      habits.map(h => h.id),
+      'week',
+    );
 
     return {
       habits: habitSummaries,
@@ -377,13 +542,102 @@ export class SupabaseDataService implements DataService {
     }
   }
 
+  // ─── Preferences ───
+
+  async getPreferences(): Promise<import('./data-service.interface').PreferencesData> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { default_view: 'spreadsheet', spreadsheet_range: 'month' };
+
+    const { data } = await supabase
+      .from('user_preferences')
+      .select('default_view, spreadsheet_range')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!data) return { default_view: 'spreadsheet', spreadsheet_range: 'month' };
+    return { default_view: data.default_view, spreadsheet_range: data.spreadsheet_range };
+  }
+
+  async savePreferences(prefs: Partial<import('./data-service.interface').PreferencesData>): Promise<import('./data-service.interface').PreferencesData> {
+    const current = await this.getPreferences();
+    const merged = { ...current, ...prefs };
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return merged;
+
+    await supabase
+      .from('user_preferences')
+      .upsert({
+        user_id: user.id,
+        default_view: merged.default_view,
+        spreadsheet_range: merged.spreadsheet_range,
+      }, { onConflict: 'user_id' });
+
+    return merged;
+  }
+
+  // ─── Reflection Config & Affirmation ───
+
+  async getReflectionConfig(): Promise<import('./data-service.interface').ReflectionConfig> {
+    const defaultConfig: import('./data-service.interface').ReflectionConfig = {
+      fields: [
+        { id: 'gratitude', label: 'What are you grateful for?', order: 1 },
+        { id: 'highlight', label: "Today's highlight", order: 2 },
+        { id: 'mood', label: 'How do you feel?', order: 3 },
+      ],
+      show_affirmation: true,
+    };
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return defaultConfig;
+
+    const { data } = await supabase
+      .from('user_preferences')
+      .select('reflection_config')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!data?.reflection_config) return defaultConfig;
+    return data.reflection_config as import('./data-service.interface').ReflectionConfig;
+  }
+
+  async saveReflectionConfig(config: import('./data-service.interface').ReflectionConfig): Promise<import('./data-service.interface').ReflectionConfig> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return config;
+
+    await supabase
+      .from('user_preferences')
+      .upsert({ user_id: user.id, reflection_config: config }, { onConflict: 'user_id' });
+
+    return config;
+  }
+
+  async getAffirmation(): Promise<string> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return '';
+
+    const { data } = await supabase
+      .from('user_preferences')
+      .select('affirmation')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    return data?.affirmation || '';
+  }
+
+  async saveAffirmation(value: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase
+      .from('user_preferences')
+      .upsert({ user_id: user.id, affirmation: value }, { onConflict: 'user_id' });
+  }
+
   async clearData(): Promise<void> {
-    // Clear user's local metric data
-    localStorage.removeItem('supabase_metrics');
-    localStorage.removeItem('supabase_metric_entries');
-    
+    // Metrics and entries are now in Supabase, not localStorage
     // Note: Supabase data is not cleared via this method for safety
-    console.warn('[SupabaseDataService] clearData only clears local metric cache. Supabase data preserved.');
+    console.warn('[SupabaseDataService] clearData is a no-op. Supabase data preserved for safety.');
   }
 }
 
