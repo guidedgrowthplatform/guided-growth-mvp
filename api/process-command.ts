@@ -108,6 +108,12 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
 16. NEVER return "unknown" action. Always make your best guess from the available actions.
 17. If the name is empty or cannot be determined for create/complete/delete, set confidence ≤ 0.3.
 18. For multi-day completions ("past five days", "last three days"), use a "dates" array in params instead of a single "date". Each entry should be a relative phrase like "today", "1 days ago", "2 days ago", etc.
+19. **STT GARBLING**: Transcripts may come from speech-to-text engines that add punctuation, reorder words, or capitalize randomly. You MUST reconstruct the user's original intent:
+    - "Reading on me, Mark Done. For 03/05/2026." = user said "mark reading on me done for 5 march 2026" → complete habit "reading on me" for 2026-03-05
+    - "Create a new habit. Painting." = user said "create a new habit painting" → create habit "painting"
+    - "Mark Done. Meditation." = user said "mark meditation done" → complete habit "meditation"
+    - Words like "Mark", "Done", "Log", "Delete" are COMMANDS, not names — even when capitalized
+    - Dates like "03/05/2026" = March 5th 2026 (MM/DD/YYYY format)
 
 ## Response Format
 Return ONLY a JSON object (no markdown, no code fences, no explanation):
@@ -213,7 +219,26 @@ User: "What can I say?"
 {"action":"help","entity":"summary","params":{},"confidence":0.95}
 
 User: "What are the available commands?"
-{"action":"help","entity":"summary","params":{},"confidence":0.95}`;
+{"action":"help","entity":"summary","params":{},"confidence":0.95}
+
+### STT-Garbled Transcripts (ElevenLabs / auto-punctuated)
+User: "Reading on me, Mark Done. For 03/05/2026."
+{"action":"complete","entity":"habit","params":{"name":"reading on me","date":"2026-03-05"},"confidence":0.85}
+
+User: "Create a new habit. Painting."
+{"action":"create","entity":"habit","params":{"name":"painting"},"confidence":0.85}
+
+User: "Mark Done. Meditation."
+{"action":"complete","entity":"habit","params":{"name":"meditation","date":"today"},"confidence":0.85}
+
+User: "Log. My mood. At 8."
+{"action":"log","entity":"metric","params":{"name":"mood","value":8,"date":"today"},"confidence":0.85}
+
+User: "Exercise, Mark Done. For 03/17/2026."
+{"action":"complete","entity":"habit","params":{"name":"exercise","date":"2026-03-17"},"confidence":0.85}
+
+User: "Painting, Mark Done. For 03/26/2026."
+{"action":"complete","entity":"habit","params":{"name":"painting","date":"2026-03-26"},"confidence":0.85}`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
