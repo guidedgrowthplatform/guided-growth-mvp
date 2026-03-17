@@ -78,7 +78,7 @@ export function BottomSheet({ onClose, children, topOffset, showHandle = true }:
       <div className="absolute inset-0 mx-auto max-w-sm">
         <div
           ref={sheetRef}
-          className={`${sheetPositionClass} flex flex-col overflow-hidden rounded-t-3xl bg-white shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)] ${
+          className={`${sheetPositionClass} flex flex-col overflow-hidden rounded-t-[32px] bg-white shadow-[0px_-8px_30px_0px_rgba(0,0,0,0.08)] ${
             dragY > 0 ? '' : 'transition-transform duration-300 ease-out'
           } ${isVisible && dragY === 0 ? 'translate-y-0' : !isVisible ? 'translate-y-full' : ''}`}
           style={

@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { useState, useCallback, useMemo } from 'react';
 import { CaptureView } from '@/components/capture/CaptureView';
 import { ReflectionsPanel } from '@/components/reflections/ReflectionsPanel';
 import { useReflections } from '@/hooks/useReflections';
@@ -19,7 +19,7 @@ export function CapturePage() {
     config,
     reflections,
     affirmation,
-    loading,
+    // loading,
     saveDay: saveReflection,
     saveAffirmationValue,
   } = useReflections(start, end);

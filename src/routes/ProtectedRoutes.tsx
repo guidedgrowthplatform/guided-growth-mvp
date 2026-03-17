@@ -10,7 +10,14 @@ import { CapturePage } from '@/pages/CapturePage';
 import { ConfigurePage } from '@/pages/ConfigurePage';
 import { HabitDetailPage } from '@/pages/HabitDetailPage';
 import { HomePage } from '@/pages/HomePage';
-import { Step1Page, Step2Page, Step3Page, Step4Page, Step5Page } from '@/pages/onboarding';
+import {
+  Step1Page,
+  Step2Page,
+  Step3Page,
+  Step4Page,
+  Step5Page,
+  Step6Page,
+} from '@/pages/onboarding';
 import { ReportPage } from '@/pages/ReportPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 
@@ -41,6 +48,7 @@ export function ProtectedRoutes() {
     if (location.pathname === '/onboarding/step-3') return <Step3Page />;
     if (location.pathname === '/onboarding/step-4') return <Step4Page />;
     if (location.pathname === '/onboarding/step-5') return <Step5Page />;
+    if (location.pathname === '/onboarding/step-6') return <Step6Page />;
     return <Step1Page />;
   }
 

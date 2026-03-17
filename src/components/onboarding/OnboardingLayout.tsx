@@ -14,6 +14,7 @@ interface OnboardingLayoutProps {
   onBack?: () => void;
   ctaVariant?: 'full' | 'inline';
   aiListeningPrompt?: string;
+  footerText?: string;
 }
 
 export function OnboardingLayout({
@@ -27,6 +28,7 @@ export function OnboardingLayout({
   onBack,
   ctaVariant = 'full',
   aiListeningPrompt,
+  footerText,
 }: OnboardingLayoutProps) {
   const [isListening, setIsListening] = useState(false);
 
@@ -42,7 +44,9 @@ export function OnboardingLayout({
         </button>
       )}
       <OnboardingProgress currentStep={currentStep} totalSteps={totalSteps} />
-      <div className="-mx-[2px] flex flex-1 flex-col gap-[16px] overflow-y-auto px-[2px] py-4">
+      <div
+        className={`-mx-[2px] flex flex-1 flex-col gap-[16px] overflow-y-auto px-[2px] pt-4 ${ctaVariant === 'inline' ? 'pb-[80px]' : 'pb-4'}`}
+      >
         {children}
       </div>
       {ctaVariant === 'full' ? (
@@ -94,6 +98,11 @@ export function OnboardingLayout({
               </button>
             )}
           </div>
+          {footerText && (
+            <p className="mt-[12px] text-center text-[12px] font-medium text-[#94a3b8]">
+              {footerText}
+            </p>
+          )}
         </div>
       )}
     </div>

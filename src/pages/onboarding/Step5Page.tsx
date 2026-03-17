@@ -1,8 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { HabitCustomizeSheet, type HabitConfig } from '@/components/onboarding/HabitCustomizeSheet';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
+import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 
 const habitsByGoal: Record<string, string[]> = {
   'Fall asleep earlier': [
@@ -237,47 +241,136 @@ export function Step5Page() {
   const location = useLocation();
   const state = location.state as { goals?: string[]; category?: string } | null;
   const goals = state?.goals?.length ? state.goals : ['Fall asleep earlier'];
-  const [activeGoal, setActiveGoal] = useState(goals[0]);
+  const [expandedGoal, setExpandedGoal] = useState<string>(goals[0]);
   const [selectedHabits, setSelectedHabits] = useState<Set<string>>(new Set());
-
-  const habits = habitsByGoal[activeGoal] ?? [];
+  const [habitConfigs, setHabitConfigs] = useState<Record<string, HabitConfig>>({});
+  const [customizingHabit, setCustomizingHabit] = useState<string | null>(null);
+  const [habitQueue, setHabitQueue] = useState<string[]>([]);
+  const [phase, setPhase] = useState<'selecting' | 'confirming'>('selecting');
 
   function toggleHabit(habit: string) {
-    setSelectedHabits((prev) => {
-      const next = new Set(prev);
-      if (next.has(habit)) {
-        next.delete(habit);
-      } else if (next.size < 2) {
-        next.add(habit);
-      }
-      return next;
-    });
+    if (selectedHabits.has(habit)) {
+      const next = new Set(selectedHabits);
+      next.delete(habit);
+      setSelectedHabits(next);
+      setHabitConfigs((c) => {
+        const updated = { ...c };
+        delete updated[habit];
+        return updated;
+      });
+      return;
+    }
+    if (selectedHabits.size >= 2) return;
+    const next = new Set(selectedHabits);
+    next.add(habit);
+    setSelectedHabits(next);
   }
+
+  function handleContinue() {
+    const queue = [...selectedHabits];
+    setHabitQueue(queue);
+    setCustomizingHabit(queue[0]);
+  }
+
+  function handleSheetClose() {
+    setCustomizingHabit(null);
+    setHabitQueue([]);
+  }
+
+  function handleSheetNext(config: HabitConfig) {
+    if (!customizingHabit) return;
+
+    const currentIdx = habitQueue.indexOf(customizingHabit);
+    const nextIdx = currentIdx + 1;
+
+    setHabitConfigs((prev) => ({ ...prev, [customizingHabit]: config }));
+
+    if (nextIdx < habitQueue.length) {
+      setCustomizingHabit(habitQueue[nextIdx]);
+    } else {
+      setCustomizingHabit(null);
+      setHabitQueue([]);
+      setPhase('confirming');
+    }
+  }
+
+  function handleEditHabit(habit: string) {
+    setHabitQueue([habit]);
+    setCustomizingHabit(habit);
+  }
+
+  const isLastHabit = customizingHabit
+    ? habitQueue.indexOf(customizingHabit) === habitQueue.length - 1
+    : true;
 
   return (
     <OnboardingLayout
       currentStep={5}
       totalSteps={7}
-      ctaLabel="Continue"
+      ctaLabel={phase === 'confirming' ? 'Confirm & Continue' : 'Continue'}
       ctaVariant="inline"
-      onNext={() => navigate('/home')}
-      onBack={() => navigate('/onboarding/step-4')}
+      onNext={
+        phase === 'confirming'
+          ? () =>
+              navigate('/onboarding/step-6', {
+                state: { habitConfigs, goals, category: state?.category },
+              })
+          : handleContinue
+      }
+      onBack={
+        phase === 'confirming' ? () => setPhase('selecting') : () => navigate('/onboarding/step-4')
+      }
       showVoiceButton
       aiListeningPrompt='"Select up to 2 daily habits to build your foundation."'
-      ctaDisabled={selectedHabits.size === 0}
+      ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
     >
       <OnboardingHeader
         title="Here's a good place to start"
         subtitle="Select up to 2 daily habits to build your foundation."
       />
-      <HabitPickerPanel
-        goals={goals}
-        activeGoal={activeGoal}
-        onChangeGoal={setActiveGoal}
-        habits={habits}
-        selectedHabits={selectedHabits}
-        onToggleHabit={toggleHabit}
-      />
+
+      {phase === 'selecting' ? (
+        <div className="flex flex-col gap-[16px]">
+          {goals.map((goal) => (
+            <HabitPickerPanel
+              key={goal}
+              goal={goal}
+              habits={habitsByGoal[goal] ?? []}
+              expanded={expandedGoal === goal}
+              onToggleExpanded={() => setExpandedGoal((prev) => (prev === goal ? '' : goal))}
+              selectedHabits={selectedHabits}
+              onToggleHabit={toggleHabit}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-[16px]">
+          {Object.entries(habitConfigs).map(([habit, config]) => (
+            <HabitSummaryCard
+              key={habit}
+              habitName={habit}
+              selectedDays={config.days}
+              onEdit={() => handleEditHabit(habit)}
+            />
+          ))}
+          <OnboardingTooltip
+            title="Quick tip"
+            message="You can use the edit function to change the results of the habits you want to have!"
+          />
+        </div>
+      )}
+
+      {customizingHabit && (
+        <BottomSheet onClose={handleSheetClose}>
+          <HabitCustomizeSheet
+            key={customizingHabit}
+            habitName={customizingHabit}
+            onClose={handleSheetClose}
+            onNext={handleSheetNext}
+            isLastHabit={isLastHabit}
+          />
+        </BottomSheet>
+      )}
     </OnboardingLayout>
   );
 }

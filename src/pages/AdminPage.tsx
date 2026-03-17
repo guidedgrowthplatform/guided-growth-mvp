@@ -1,13 +1,13 @@
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/contexts/ToastContext';
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as adminApi from '@/api/admin';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import * as adminApi from '@/api/admin';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { queryKeys } from '@/lib/query';
 import { allowlistSchema, type AllowlistForm } from '@/lib/validation';
 
@@ -60,6 +60,7 @@ export function AdminPage() {
       qc.invalidateQueries({ queryKey: queryKeys.admin.allowlist });
       addToast('success', `Added ${variables.email} to allowlist`);
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (err: any) => {
       addToast('error', err.message || 'Failed to add email');
     },
