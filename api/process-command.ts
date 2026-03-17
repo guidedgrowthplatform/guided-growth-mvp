@@ -12,10 +12,52 @@ const MONTHS: Record<string, number> = {
   jan: 1, feb: 2, mar: 3, apr: 4, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
 };
 
+const ORDINALS: Record<string, number> = {
+  first:1,second:2,third:3,fourth:4,fifth:5,sixth:6,seventh:7,eighth:8,ninth:9,tenth:10,
+  eleventh:11,twelfth:12,thirteenth:13,fourteenth:14,fifteenth:15,sixteenth:16,
+  seventeenth:17,eighteenth:18,nineteenth:19,twentieth:20,
+  'twenty-first':21,'twenty-second':22,'twenty-third':23,'twenty-fourth':24,'twenty-fifth':25,
+  'twenty-sixth':26,'twenty-seventh':27,'twenty-eighth':28,'twenty-ninth':29,'thirtieth':30,'thirty-first':31,
+  'twenty first':21,'twenty second':22,'twenty third':23,'twenty fourth':24,'twenty fifth':25,
+  'twenty sixth':26,'twenty seventh':27,'twenty eighth':28,'twenty ninth':29,
+};
+
+const YEAR_WORDS: Record<string, number> = {
+  'two thousand twenty-five':2025,'two thousand twenty five':2025,
+  'two thousand twenty-six':2026,'two thousand twenty six':2026,
+  'two thousand twenty-seven':2027,'two thousand twenty seven':2027,
+  'two thousand twenty-eight':2028,'two thousand twenty eight':2028,
+  'twenty twenty-five':2025,'twenty twenty five':2025,
+  'twenty twenty-six':2026,'twenty twenty six':2026,
+  'twenty twenty-seven':2027,'twenty twenty seven':2027,
+  'twenty twenty-eight':2028,'twenty twenty eight':2028,
+};
+
+/** Convert word or digit to day number: "fifteenth" → 15, "5" → 5, "5th" → 5 */
+function parseDay(s: string): number | null {
+  const trimmed = s.trim().toLowerCase();
+  if (ORDINALS[trimmed]) return ORDINALS[trimmed];
+  const n = parseInt(trimmed, 10);
+  return (!isNaN(n) && n >= 1 && n <= 31) ? n : null;
+}
+
+/** Try to extract a year from remaining text: "two thousand twenty six" → 2026 */
+function parseYear(s: string): number {
+  const trimmed = s.trim().toLowerCase();
+  // Numeric year
+  const numMatch = trimmed.match(/\d{4}/);
+  if (numMatch) return parseInt(numMatch[0], 10);
+  // Word year
+  for (const [words, year] of Object.entries(YEAR_WORDS)) {
+    if (trimmed.includes(words)) return year;
+  }
+  return new Date().getFullYear();
+}
+
 /**
  * Safety net: extract an explicit date from the transcript when GPT misses it.
- * Matches patterns like "12 march 2026", "march 12th", "8th march", etc.
- * Returns ISO date string (YYYY-MM-DD) or null if no date found.
+ * Handles: "12 march 2026", "march 12th", "fifteenth of march",
+ *          "03/05/2026", "fifteenth march two thousand twenty six"
  */
 function extractDateFromTranscript(transcript: string): string | null {
   const t = transcript.toLowerCase();
@@ -31,27 +73,33 @@ function extractDateFromTranscript(transcript: string): string | null {
     }
   }
 
-  // Natural date: "for|on DD month YYYY" or "for|on month DD"
-  const patterns = [
-    /(?:for|on)\s+(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?([a-z]+)(?:\s+(\d{4}))?/,
-    /(?:for|on)\s+([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?/,
-  ];
+  // Build ordinal alternatives for regex: "first|second|...|thirty-first|\d{1,2}(?:st|nd|rd|th)?"
+  const ordinalWords = Object.keys(ORDINALS).join('|');
+  const dayPattern = `(${ordinalWords}|\\d{1,2}(?:st|nd|rd|th)?)`;
+  const monthNames = Object.keys(MONTHS).join('|');
+  const monthPattern = `(${monthNames})`;
 
-  for (const pattern of patterns) {
+  // Pattern: "for|on DAY [of] MONTH [YEAR]"
+  const p1 = new RegExp(`(?:for|on)\\s+${dayPattern}\\s+(?:of\\s+)?${monthPattern}(.*)`, 'i');
+  // Pattern: "for|on MONTH DAY [YEAR]"
+  const p2 = new RegExp(`(?:for|on)\\s+${monthPattern}\\s+${dayPattern}(.*)`, 'i');
+
+  for (const pattern of [p1, p2]) {
     const match = t.match(pattern);
     if (match) {
-      let day: number, monthName: string, year: number;
-      if (/^\d/.test(match[1])) {
-        day = parseInt(match[1], 10);
-        monthName = match[2];
-        year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
+      let dayStr: string, monthStr: string, rest: string;
+      // Determine which group is day vs month
+      if (match[1] && MONTHS[match[1].toLowerCase()]) {
+        // p2: month first
+        monthStr = match[1]; dayStr = match[2]; rest = match[3] || '';
       } else {
-        monthName = match[1];
-        day = parseInt(match[2], 10);
-        year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
+        // p1: day first
+        dayStr = match[1]; monthStr = match[2]; rest = match[3] || '';
       }
-      const month = MONTHS[monthName];
-      if (month && day >= 1 && day <= 31) {
+      const day = parseDay(dayStr);
+      const month = MONTHS[monthStr.toLowerCase()];
+      const year = parseYear(rest);
+      if (day && month) {
         return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       }
     }

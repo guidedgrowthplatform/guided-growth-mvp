@@ -3,7 +3,7 @@ import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoiceCommand } from '@/hooks/useVoiceCommand';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { speak } from '@/lib/services/tts-service';
-import { Pencil, Keyboard } from 'lucide-react';
+import { Pencil, Keyboard, Send, CheckCircle } from 'lucide-react';
 
 export function VoiceTranscript() {
     const { isListening, transcript, interim, error, resetTranscript, stop } = useVoiceInput();
@@ -19,13 +19,23 @@ export function VoiceTranscript() {
     const [manualText, setManualText] = useState('');
     const manualInputRef = useRef<HTMLInputElement>(null);
 
-    // Auto-process transcript when user stops speaking (silence detection triggers stop)
+    // ─── Confirm-before-process: show transcript, wait for Send/Edit ───
+    const [pendingConfirm, setPendingConfirm] = useState(false);
+
+    // When user stops speaking, show transcript for confirmation instead of auto-processing
     useEffect(() => {
-        if (!isListening && transcript && transcript !== lastProcessedRef.current) {
+        if (!isListening && transcript && transcript !== lastProcessedRef.current && !pendingConfirm) {
+            setPendingConfirm(true);
+        }
+    }, [isListening, transcript, pendingConfirm]);
+
+    const handleConfirmSend = () => {
+        if (transcript) {
             lastProcessedRef.current = transcript;
             processTranscript(transcript);
         }
-    }, [isListening, transcript, processTranscript]);
+        setPendingConfirm(false);
+    };
 
     // FIX-42: Auto-clear voice context after command execution
     useEffect(() => {
@@ -74,6 +84,7 @@ export function VoiceTranscript() {
             processTranscript(editedText.trim());
         }
         setIsEditing(false);
+        setPendingConfirm(false);
     };
 
     const handleEditKeyDown = (e: React.KeyboardEvent) => {
@@ -108,10 +119,11 @@ export function VoiceTranscript() {
         }
     };
 
-    // When voice starts listening again, hide text fallback (mutually exclusive)
+    // When voice starts listening again, hide text fallback and reset confirm state
     useEffect(() => {
         if (isListening) {
             setShowTextFallback(false);
+            setPendingConfirm(false);
         }
     }, [isListening]);
 
@@ -197,19 +209,33 @@ export function VoiceTranscript() {
                     </div>
                 )}
 
-                {/* Transcript — editable */}
+                {/* Transcript — with confirm/edit before processing */}
                 {transcript && !isEditing && (
-                    <div className="text-sm text-slate-700 leading-relaxed mb-2 group">
-                        <div className="flex items-start gap-1">
-                            <p className="italic flex-1">"{transcript}"</p>
-                            <button
-                                onClick={handleEditStart}
-                                className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 text-[10px] text-blue-500 hover:text-blue-700 underline flex-shrink-0 transition-opacity p-1"
-                                title="Edit transcript before reprocessing"
-                            >
-                                <Pencil className="w-3 h-3 inline" /> Edit
-                            </button>
-                        </div>
+                    <div className="text-sm text-slate-700 leading-relaxed mb-2">
+                        <p className="italic">"{transcript}"</p>
+                        {/* Confirm bar: Send or Edit before processing */}
+                        {pendingConfirm && !isProcessing && (
+                            <div className="flex items-center gap-2 mt-2">
+                                <button
+                                    onClick={handleConfirmSend}
+                                    className="flex items-center gap-1 text-xs bg-emerald-500 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-600 font-medium transition-colors"
+                                >
+                                    <Send className="w-3 h-3" /> Send
+                                </button>
+                                <button
+                                    onClick={handleEditStart}
+                                    className="flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-200 font-medium transition-colors"
+                                >
+                                    <Pencil className="w-3 h-3" /> Edit
+                                </button>
+                                <button
+                                    onClick={() => { resetTranscript(); clearResult(); lastProcessedRef.current = ''; setPendingConfirm(false); }}
+                                    className="text-xs text-slate-400 hover:text-slate-600 underline ml-auto"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
 
