@@ -239,14 +239,40 @@ const habitsByGoal: Record<string, string[]> = {
 export function Step5Page() {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as { goals?: string[]; category?: string } | null;
+  const state = location.state as {
+    goals?: string[];
+    category?: string;
+    habitConfigs?: Record<
+      string,
+      { days: number[] | Set<number>; time: string; reminder: boolean }
+    >;
+    phase?: 'confirming';
+    reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string };
+  } | null;
   const goals = state?.goals?.length ? state.goals : ['Fall asleep earlier'];
+
+  // Reconstitute Sets from arrays after router state serialization
+  const incomingConfigs = state?.habitConfigs
+    ? Object.fromEntries(
+        Object.entries(state.habitConfigs).map(([k, v]) => [
+          k,
+          { ...v, days: v.days instanceof Set ? v.days : new Set(v.days) },
+        ]),
+      )
+    : undefined;
+
   const [expandedGoal, setExpandedGoal] = useState<string>(goals[0]);
-  const [selectedHabits, setSelectedHabits] = useState<Set<string>>(new Set());
-  const [habitConfigs, setHabitConfigs] = useState<Record<string, HabitConfig>>({});
+  const [selectedHabits, setSelectedHabits] = useState<Set<string>>(() =>
+    incomingConfigs ? new Set(Object.keys(incomingConfigs)) : new Set(),
+  );
+  const [habitConfigs, setHabitConfigs] = useState<Record<string, HabitConfig>>(
+    () => incomingConfigs ?? {},
+  );
   const [customizingHabit, setCustomizingHabit] = useState<string | null>(null);
   const [habitQueue, setHabitQueue] = useState<string[]>([]);
-  const [phase, setPhase] = useState<'selecting' | 'confirming'>('selecting');
+  const [phase, setPhase] = useState<'selecting' | 'confirming'>(
+    state?.phase === 'confirming' && incomingConfigs ? 'confirming' : 'selecting',
+  );
 
   function toggleHabit(habit: string) {
     if (selectedHabits.has(habit)) {
@@ -311,10 +337,20 @@ export function Step5Page() {
       ctaVariant="inline"
       onNext={
         phase === 'confirming'
-          ? () =>
+          ? () => {
+              // Serialize Set→array for router state consistency
+              const serializedConfigs = Object.fromEntries(
+                Object.entries(habitConfigs).map(([k, v]) => [k, { ...v, days: [...v.days] }]),
+              );
               navigate('/onboarding/step-6', {
-                state: { habitConfigs, goals, category: state?.category },
-              })
+                state: {
+                  habitConfigs: serializedConfigs,
+                  goals,
+                  category: state?.category,
+                  reflectionConfig: state?.reflectionConfig,
+                },
+              });
+            }
           : handleContinue
       }
       onBack={

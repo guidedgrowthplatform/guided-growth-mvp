@@ -14,7 +14,10 @@ export function Step2Page() {
       totalSteps={7}
       ctaLabel="Continue"
       ctaVariant="inline"
-      onNext={() => navigate('/onboarding/step-3')}
+      onNext={() => {
+        if (plan === 'braindump') navigate('/onboarding/advanced-input');
+        else navigate('/onboarding/step-3');
+      }}
       onBack={() => navigate('/onboarding')}
       showVoiceButton
       aiListeningPrompt={'"select which plan you want to have?"'}

@@ -15,6 +15,7 @@ interface OnboardingLayoutProps {
   ctaVariant?: 'full' | 'inline';
   aiListeningPrompt?: string;
   footerText?: string;
+  secondaryAction?: { label: string; onClick: () => void };
 }
 
 export function OnboardingLayout({
@@ -29,6 +30,7 @@ export function OnboardingLayout({
   ctaVariant = 'full',
   aiListeningPrompt,
   footerText,
+  secondaryAction,
 }: OnboardingLayoutProps) {
   const [isListening, setIsListening] = useState(false);
 
@@ -71,6 +73,15 @@ export function OnboardingLayout({
             {ctaLabel}
             <Icon icon="ic:round-arrow-forward" width={18} height={18} />
           </button>
+          {secondaryAction && (
+            <button
+              type="button"
+              onClick={secondaryAction.onClick}
+              className="w-full py-[12px] text-center text-[16px] font-semibold text-[#0f172a]"
+            >
+              {secondaryAction.label}
+            </button>
+          )}
         </>
       ) : (
         <div className="relative -mx-[24px] -mb-[48px] bg-gradient-to-t from-[#f9f9f9] via-[#f9f9f9] to-transparent px-[24px] pb-[40px] pt-[24px]">

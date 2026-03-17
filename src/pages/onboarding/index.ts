@@ -4,3 +4,7 @@ export { Step3Page } from './Step3Page';
 export { Step4Page } from './Step4Page';
 export { Step5Page } from './Step5Page';
 export { Step6Page } from './Step6Page';
+export { Step7Page } from './Step7Page';
+export { AdvancedInputPage } from './AdvancedInputPage';
+export { AdvancedResultsPage } from './AdvancedResultsPage';
+export { EditHabitPage } from './EditHabitPage';

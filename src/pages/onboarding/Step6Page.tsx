@@ -29,15 +29,27 @@ export function Step6Page() {
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as {
-    habitConfigs?: Record<string, unknown>;
+    habitConfigs?: Record<
+      string,
+      { days: number[] | Set<number>; time: string; reminder: boolean }
+    >;
     goals?: string[];
     category?: string;
+    reflectionConfig?: {
+      time: string;
+      days: number[];
+      reminder: boolean;
+      schedule: ScheduleOption;
+    };
   } | null;
 
-  const [time, setTime] = useState('21:45');
-  const [days, setDays] = useState<Set<number>>(new Set(WEEKDAYS));
-  const [reminder, setReminder] = useState(true);
-  const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');
+  const incoming = state?.reflectionConfig;
+  const [time, setTime] = useState(incoming?.time ?? '21:45');
+  const [days, setDays] = useState<Set<number>>(
+    incoming?.days ? new Set(incoming.days) : new Set(WEEKDAYS),
+  );
+  const [reminder, setReminder] = useState(incoming?.reminder ?? true);
+  const [schedule, setSchedule] = useState<ScheduleOption>(incoming?.schedule ?? 'Weekday');
 
   function handleScheduleChange(value: ScheduleOption) {
     setSchedule(value);
@@ -61,10 +73,32 @@ export function Step6Page() {
       ctaVariant="inline"
       showVoiceButton
       footerText="You can change these settings later in your profile."
-      onNext={() => navigate('/home')}
+      onNext={() => {
+        // Serialize Set→array for router state consistency
+        const serializedConfigs = state?.habitConfigs
+          ? Object.fromEntries(
+              Object.entries(state.habitConfigs).map(([k, v]) => [
+                k,
+                { ...v, days: v.days instanceof Set ? [...v.days] : v.days },
+              ]),
+            )
+          : undefined;
+        navigate('/onboarding/step-7', {
+          state: {
+            habitConfigs: serializedConfigs,
+            goals: state?.goals,
+            category: state?.category,
+            reflectionConfig: { time, days: [...days], reminder, schedule },
+          },
+        });
+      }}
       onBack={() =>
         navigate('/onboarding/step-5', {
-          state: { goals: state?.goals, category: state?.category },
+          state: {
+            goals: state?.goals,
+            category: state?.category,
+            habitConfigs: state?.habitConfigs,
+          },
         })
       }
     >

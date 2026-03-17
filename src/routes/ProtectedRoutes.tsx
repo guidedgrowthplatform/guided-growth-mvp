@@ -17,6 +17,10 @@ import {
   Step4Page,
   Step5Page,
   Step6Page,
+  Step7Page,
+  AdvancedInputPage,
+  AdvancedResultsPage,
+  EditHabitPage,
 } from '@/pages/onboarding';
 import { ReportPage } from '@/pages/ReportPage';
 import { SettingsPage } from '@/pages/SettingsPage';
@@ -44,11 +48,15 @@ export function ProtectedRoutes() {
   }
 
   if (location.pathname.startsWith('/onboarding')) {
+    if (location.pathname === '/onboarding/advanced-input') return <AdvancedInputPage />;
+    if (location.pathname === '/onboarding/advanced-results') return <AdvancedResultsPage />;
+    if (location.pathname === '/onboarding/edit-habit') return <EditHabitPage />;
     if (location.pathname === '/onboarding/step-2') return <Step2Page />;
     if (location.pathname === '/onboarding/step-3') return <Step3Page />;
     if (location.pathname === '/onboarding/step-4') return <Step4Page />;
     if (location.pathname === '/onboarding/step-5') return <Step5Page />;
     if (location.pathname === '/onboarding/step-6') return <Step6Page />;
+    if (location.pathname === '/onboarding/step-7') return <Step7Page />;
     return <Step1Page />;
   }
 

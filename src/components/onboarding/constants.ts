@@ -45,3 +45,11 @@ export function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
   for (const item of a) if (!b.has(item)) return false;
   return true;
 }
+
+/** Format a Set of day indices into a human-readable cadence string */
+export function formatCadence(days: Set<number>): string {
+  if (days.size === 7) return 'Daily';
+  if (setsEqual(days, WEEKDAYS)) return 'Weekdays';
+  if (setsEqual(days, WEEKEND)) return 'Weekends';
+  return `${days.size} days/week`;
+}
