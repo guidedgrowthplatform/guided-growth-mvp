@@ -8,3 +8,5 @@ export { Step7Page } from './Step7Page';
 export { AdvancedInputPage } from './AdvancedInputPage';
 export { AdvancedResultsPage } from './AdvancedResultsPage';
 export { EditHabitPage } from './EditHabitPage';
+export { AdvancedStep6Page } from './AdvancedStep6Page';
+export { AdvancedCustomPromptsPage } from './AdvancedCustomPromptsPage';

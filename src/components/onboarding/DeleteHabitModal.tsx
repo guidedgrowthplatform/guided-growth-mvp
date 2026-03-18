@@ -11,7 +11,12 @@ export function DeleteHabitModal({ onDelete, onKeep }: DeleteHabitModalProps) {
       <div className="absolute inset-0 bg-black/40" onClick={onKeep} />
       <div className="relative mx-[32px] flex flex-col items-center rounded-[24px] bg-white p-[32px] shadow-[0px_10px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)]">
         <div className="mb-[16px] rounded-full bg-[#fef2f2] p-[16px]">
-          <Icon icon="ic:round-delete-outline" width={32} height={32} className="text-[#e5484d]" />
+          <Icon
+            icon="material-symbols:delete-outline"
+            width={32}
+            height={32}
+            className="text-[#e5484d]"
+          />
         </div>
         <h2 className="mb-[11px] text-center text-[24px] font-bold leading-[32px] tracking-[-0.6px] text-[#111827]">
           Delete Habit?

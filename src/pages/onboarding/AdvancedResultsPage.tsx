@@ -58,9 +58,9 @@ export function AdvancedResultsPage() {
   function handleConfirm() {
     const habitConfigs = habits.map((h) => ({
       name: h.name,
-      days: h.days,
+      days: [...h.days],
     }));
-    navigate('/onboarding/step-6', { state: { habitConfigs } });
+    navigate('/onboarding/advanced-step-6', { state: { habitConfigs } });
   }
 
   return (

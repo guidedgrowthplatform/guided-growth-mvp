@@ -16,9 +16,10 @@ const CATEGORY_ICONS: Record<string, string> = {
 
 interface Step7State {
   habitConfigs: Record<string, { days: number[]; time: string; reminder: boolean }>;
-  goals: string[];
-  category: string;
+  goals?: string[];
+  category?: string;
   reflectionConfig: { time: string; days: number[]; reminder: boolean; schedule: string };
+  source?: 'advanced';
 }
 
 export function Step7Page() {
@@ -30,8 +31,10 @@ export function Step7Page() {
     return <Navigate to="/onboarding" replace />;
   }
 
-  const { habitConfigs, goals, category, reflectionConfig } = state;
-  const categoryIcon = CATEGORY_ICONS[category] ?? 'ic:outline-check-circle';
+  const { habitConfigs, goals, category, reflectionConfig, source } = state;
+  const categoryIcon = category
+    ? (CATEGORY_ICONS[category] ?? 'ic:outline-check-circle')
+    : 'ic:outline-check-circle';
   const reflectionDays = new Set(reflectionConfig.days);
 
   return (
@@ -41,15 +44,26 @@ export function Step7Page() {
       ctaLabel="Start plan"
       onNext={() => navigate('/home')}
       onBack={() =>
-        navigate('/onboarding/step-6', {
-          state: { habitConfigs, goals, category, reflectionConfig },
+        navigate(source === 'advanced' ? '/onboarding/advanced-step-6' : '/onboarding/step-6', {
+          state:
+            source === 'advanced'
+              ? {
+                  habitConfigs: Object.entries(habitConfigs).map(([name, c]) => ({
+                    name,
+                    days: c.days,
+                  })),
+                }
+              : { habitConfigs, goals, category, reflectionConfig },
         })
       }
       secondaryAction={{
         label: 'Edit plan',
         onClick: () =>
-          navigate('/onboarding/step-5', {
-            state: { habitConfigs, goals, category, reflectionConfig, phase: 'confirming' },
+          navigate(source === 'advanced' ? '/onboarding/advanced-results' : '/onboarding/step-5', {
+            state:
+              source === 'advanced'
+                ? {}
+                : { habitConfigs, goals, category, reflectionConfig, phase: 'confirming' },
           }),
       }}
     >

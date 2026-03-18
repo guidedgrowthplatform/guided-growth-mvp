@@ -21,6 +21,8 @@ import {
   AdvancedInputPage,
   AdvancedResultsPage,
   EditHabitPage,
+  AdvancedStep6Page,
+  AdvancedCustomPromptsPage,
 } from '@/pages/onboarding';
 import { ReportPage } from '@/pages/ReportPage';
 import { SettingsPage } from '@/pages/SettingsPage';
@@ -48,6 +50,9 @@ export function ProtectedRoutes() {
   }
 
   if (location.pathname.startsWith('/onboarding')) {
+    if (location.pathname === '/onboarding/advanced-step-6') return <AdvancedStep6Page />;
+    if (location.pathname === '/onboarding/advanced-custom-prompts')
+      return <AdvancedCustomPromptsPage />;
     if (location.pathname === '/onboarding/advanced-input') return <AdvancedInputPage />;
     if (location.pathname === '/onboarding/advanced-results') return <AdvancedResultsPage />;
     if (location.pathname === '/onboarding/edit-habit') return <EditHabitPage />;

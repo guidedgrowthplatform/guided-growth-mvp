@@ -65,7 +65,12 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
           onClick={() => setShowDeleteModal(true)}
           className="flex size-[40px] items-center justify-end"
         >
-          <Icon icon="ic:round-delete-outline" width={24} height={24} className="text-[#e5484d]" />
+          <Icon
+            icon="material-symbols:delete-outline"
+            width={24}
+            height={24}
+            className="text-[#e5484d]"
+          />
         </button>
       </div>
 
