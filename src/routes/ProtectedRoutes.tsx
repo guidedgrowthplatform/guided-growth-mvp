@@ -10,6 +10,7 @@ import { CapturePage } from '@/pages/CapturePage';
 import { ConfigurePage } from '@/pages/ConfigurePage';
 import { HabitDetailPage } from '@/pages/HabitDetailPage';
 import { HomePage } from '@/pages/HomePage';
+import { InsightsPage } from '@/pages/InsightsPage';
 import {
   Step1Page,
   Step2Page,
@@ -24,7 +25,6 @@ import {
   AdvancedStep6Page,
   AdvancedCustomPromptsPage,
 } from '@/pages/onboarding';
-import { ReportPage } from '@/pages/ReportPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 
 function useSeedData() {
@@ -75,7 +75,7 @@ export function ProtectedRoutes() {
           <Route path="/home" element={<HomePage />} />
           <Route path="/capture" element={<CapturePage />} />
           <Route path="/configure" element={<ConfigurePage />} />
-          <Route path="/report" element={<ReportPage />} />
+          <Route path="/report" element={<InsightsPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/habit/:habitId" element={<HomePage />} />
