@@ -1,6 +1,6 @@
 import { Icon } from '@iconify/react';
 import { useRef, useEffect, useState } from 'react';
-import { GoalCard } from '@/components/onboarding/GoalCard';
+import { GoalCard } from './GoalCard';
 
 interface HabitPickerPanelProps {
   goal: string;

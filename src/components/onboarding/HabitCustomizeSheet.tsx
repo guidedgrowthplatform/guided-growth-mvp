@@ -1,9 +1,9 @@
 import { Icon } from '@iconify/react';
 import { useState } from 'react';
+import { DayPicker } from '@/components/ui/DayPicker';
 import { TimePicker } from '@/components/ui/TimePicker';
+import { Toggle } from '@/components/ui/Toggle';
 import { ALL_DAYS, SECTION_LABEL_CLASS, toggleSetItem } from './constants';
-import { DayPicker } from './DayPicker';
-import { ToggleSwitch } from './ToggleSwitch';
 
 export interface HabitConfig {
   time: string;
@@ -64,7 +64,7 @@ export function HabitCustomizeSheet({
 
       <div className="flex items-center justify-between py-[8px]">
         <span className={SECTION_LABEL_CLASS}>Reminder</span>
-        <ToggleSwitch checked={reminder} onChange={setReminder} />
+        <Toggle checked={reminder} onChange={setReminder} />
       </div>
 
       <div className="flex gap-[8px]">

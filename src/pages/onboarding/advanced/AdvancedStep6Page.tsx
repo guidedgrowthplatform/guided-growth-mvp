@@ -2,6 +2,7 @@ import { Icon } from '@iconify/react';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { WEEKDAYS, WEEKEND, ALL_DAYS } from '@/components/onboarding/constants';
+import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 
 const DEFAULT_QUESTIONS = [
@@ -80,6 +81,7 @@ export function AdvancedStep6Page() {
         >
           <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-[#0f172a]" />
         </button>
+        <OnboardingProgress currentStep={5} totalSteps={6} />
       </div>
 
       {/* Heading + Subtitle */}

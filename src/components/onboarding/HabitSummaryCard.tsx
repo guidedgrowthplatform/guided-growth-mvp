@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { DayPicker } from './DayPicker';
+import { DayPicker } from '@/components/ui/DayPicker';
 
 interface HabitSummaryCardProps {
   habitName: string;

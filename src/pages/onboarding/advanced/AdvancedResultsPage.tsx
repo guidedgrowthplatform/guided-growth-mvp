@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { WEEKDAYS } from '@/components/onboarding/constants';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
+import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 
 interface HabitItem {
   name: string;
@@ -74,6 +75,7 @@ export function AdvancedResultsPage() {
         >
           <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-[#0f172a]" />
         </button>
+        <OnboardingProgress currentStep={4} totalSteps={6} />
       </div>
 
       {/* Header */}

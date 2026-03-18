@@ -19,6 +19,7 @@ export function AdvancedCustomPromptsPage() {
   const [prompts, setPrompts] = useState<string[]>(
     state?.customPrompts?.length ? state.customPrompts : [],
   );
+  const [newPrompt, setNewPrompt] = useState('');
 
   const filledPrompts = prompts.filter((p) => p.trim().length > 0);
   const canSubmit = journalMode === 'freeform' || filledPrompts.length >= 1;
@@ -137,7 +138,7 @@ export function AdvancedCustomPromptsPage() {
 
           {/* Expanded content when custom is selected */}
           {journalMode === 'custom' && (
-            <div className="flex flex-col gap-[16px]">
+            <div className="mt-[16px] flex flex-col gap-[16px]">
               <div className="border-t border-[#e2e8f0]" />
               <span className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-[#718096]">
                 Add at least 1 prompt:
@@ -176,14 +177,22 @@ export function AdvancedCustomPromptsPage() {
               <div className="flex flex-col gap-[8px]">
                 <input
                   type="text"
-                  value=""
-                  onChange={(e) => {
-                    if (e.target.value.trim()) {
-                      setPrompts([...prompts, e.target.value]);
+                  value={newPrompt}
+                  onChange={(e) => setNewPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newPrompt.trim()) {
+                      setPrompts([...prompts, newPrompt.trim()]);
+                      setNewPrompt('');
+                    }
+                  }}
+                  onBlur={() => {
+                    if (newPrompt.trim()) {
+                      setPrompts([...prompts, newPrompt.trim()]);
+                      setNewPrompt('');
                     }
                   }}
                   placeholder="Type your next prompt here..."
-                  className="w-full rounded-[12px] border border-[#e2e8f0] bg-white px-[17px] py-[15px] text-[16px] text-[#1a202c] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] placeholder:text-[#718096]"
+                  className="w-full rounded-[12px] border border-[#e2e8f0] bg-white px-[17px] py-[11px] text-[14px] text-[#1a202c] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] placeholder:text-[#718096]"
                 />
                 <p className="px-[4px] text-[12px] leading-[16px] text-[#718096]">
                   Or just tap the mic and say your prompts out loud. We'll list them for you.
@@ -195,19 +204,19 @@ export function AdvancedCustomPromptsPage() {
       </div>
 
       {/* Voice Button */}
-      <div className="flex justify-center py-[32px]">
-        <div className="rounded-full shadow-[0px_0px_0px_12px_rgba(19,91,236,0.05),0px_0px_0px_24px_rgba(19,91,236,0.02)]">
+      <div className="flex justify-center py-[20px]">
+        <div className="rounded-full shadow-[0px_0px_0px_8px_rgba(19,91,236,0.05),0px_0px_0px_16px_rgba(19,91,236,0.02)]">
           <button
             type="button"
-            className="flex size-[96px] items-center justify-center rounded-full bg-[#135bec] shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)]"
+            className="flex size-[72px] items-center justify-center rounded-full bg-[#135bec] shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)]"
           >
-            <Icon icon="ic:round-mic" width={24} height={24} className="text-white" />
+            <Icon icon="ic:round-mic" width={20} height={20} className="text-white" />
           </button>
         </div>
       </div>
 
       {/* CTA Footer */}
-      <div className="mt-auto pb-[8px] pt-[24px]">
+      <div className="mt-auto pb-[8px] pt-[16px]">
         <button
           type="button"
           onClick={handleDone}

@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoalTextarea } from '@/components/onboarding/GoalTextarea';
 import { GuidanceBadge } from '@/components/onboarding/GuidanceBadge';
+import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import { VoiceMicButton } from '@/components/onboarding/VoiceMicButton';
 
 export function AdvancedInputPage() {
@@ -26,6 +27,8 @@ export function AdvancedInputPage() {
       >
         <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-[#0f172a]" />
       </button>
+
+      <OnboardingProgress currentStep={3} totalSteps={6} />
 
       {/* Header */}
       <div className="flex flex-col gap-[11px]">

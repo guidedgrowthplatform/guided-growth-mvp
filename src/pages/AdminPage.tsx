@@ -6,8 +6,8 @@ import * as adminApi from '@/api/admin';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '@/lib/query';
 import { allowlistSchema, type AllowlistForm } from '@/lib/validation';
 

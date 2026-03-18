@@ -9,7 +9,7 @@ import {
   FloatingActions,
   ReminderSheet,
 } from '@/components/home';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import type { EntriesMap } from '@shared/types';
 
 // Mock entries for date strip activity dots

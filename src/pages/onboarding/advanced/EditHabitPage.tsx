@@ -2,9 +2,9 @@ import { Icon } from '@iconify/react';
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SECTION_LABEL_CLASS, toggleSetItem } from '@/components/onboarding/constants';
-import { DayPicker } from '@/components/onboarding/DayPicker';
 import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { VoiceEditCard } from '@/components/onboarding/VoiceEditCard';
+import { DayPicker } from '@/components/ui/DayPicker';
 import { TimePicker } from '@/components/ui/TimePicker';
 
 interface EditHabitState {

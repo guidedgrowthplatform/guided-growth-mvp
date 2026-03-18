@@ -1,9 +1,9 @@
 import { Icon } from '@iconify/react';
+import { DayPicker } from '@/components/ui/DayPicker';
 import { TimePicker } from '@/components/ui/TimePicker';
+import { Toggle } from '@/components/ui/Toggle';
 import { SECTION_LABEL_CLASS } from './constants';
-import { DayPicker } from './DayPicker';
 import { SchedulePicker, type ScheduleOption } from './SchedulePicker';
-import { ToggleSwitch } from './ToggleSwitch';
 
 interface DailyReflectionCardProps {
   time: string;
@@ -87,7 +87,7 @@ export function DailyReflectionCard({
       {/* Reminder */}
       <div className="flex items-center justify-between py-[8px]">
         <span className={SECTION_LABEL_CLASS}>Reminder</span>
-        <ToggleSwitch checked={reminder} onChange={onToggleReminder} />
+        <Toggle checked={reminder} onChange={onToggleReminder} />
       </div>
     </div>
   );

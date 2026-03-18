@@ -14,7 +14,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   Organization: 'ic:outline-assignment',
 };
 
-interface Step7State {
+interface PlanReviewState {
   habitConfigs: Record<string, { days: number[]; time: string; reminder: boolean }>;
   goals?: string[];
   category?: string;
@@ -22,10 +22,10 @@ interface Step7State {
   source?: 'advanced';
 }
 
-export function Step7Page() {
+export function PlanReviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as Step7State | null;
+  const state = location.state as PlanReviewState | null;
 
   if (!state?.habitConfigs || !state?.reflectionConfig) {
     return <Navigate to="/onboarding" replace />;
@@ -39,8 +39,8 @@ export function Step7Page() {
 
   return (
     <OnboardingLayout
-      currentStep={7}
-      totalSteps={7}
+      currentStep={source === 'advanced' ? 6 : 7}
+      totalSteps={source === 'advanced' ? 6 : 7}
       ctaLabel="Start plan"
       onNext={() => navigate('/home')}
       onBack={() =>

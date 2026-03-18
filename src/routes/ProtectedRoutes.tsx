@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { Navigate, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { getDataService } from '@/lib/services/service-provider';
 import { AdminPage } from '@/pages/AdminPage';
 import { CapturePage } from '@/pages/CapturePage';
@@ -17,7 +17,7 @@ import {
   Step4Page,
   Step5Page,
   Step6Page,
-  Step7Page,
+  PlanReviewPage,
   AdvancedInputPage,
   AdvancedResultsPage,
   EditHabitPage,
@@ -61,7 +61,7 @@ export function ProtectedRoutes() {
     if (location.pathname === '/onboarding/step-4') return <Step4Page />;
     if (location.pathname === '/onboarding/step-5') return <Step5Page />;
     if (location.pathname === '/onboarding/step-6') return <Step6Page />;
-    if (location.pathname === '/onboarding/step-7') return <Step7Page />;
+    if (location.pathname === '/onboarding/step-7') return <PlanReviewPage />;
     return <Step1Page />;
   }
 
