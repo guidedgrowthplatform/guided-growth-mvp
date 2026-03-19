@@ -57,7 +57,7 @@ export function SignUpPage() {
       </div>
 
       <div className="mt-8">
-        <AuthDivider text="or continue with email" />
+        <AuthDivider text="OR CONTINUE WITH EMAIL" uppercase bold />
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">

@@ -33,6 +33,16 @@ input[type='password'] {
   font-size: 0.75em;
   letter-spacing: 0.05em;
 }
+input[type='password']::placeholder {
+  font-family:
+    'Urbanist',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  font-size: 1.333em;
+  letter-spacing: normal;
+}
 @tailwind components;
 @tailwind utilities;
 

@@ -55,7 +55,7 @@ export function SignInPage() {
         <SocialAuthButtons />
       </div>
 
-      <div className="mt-4">
+      <div className="mt-8">
         <AuthDivider text="OR LOGIN WITH EMAIL" uppercase bold />
       </div>
 
