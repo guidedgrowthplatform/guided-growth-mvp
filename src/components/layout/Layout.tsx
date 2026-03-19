@@ -9,7 +9,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const [showVoiceCheckIn, setShowVoiceCheckIn] = useState(false);
   const location = useLocation();
   const isHomePage = location.pathname === '/' || location.pathname === '/home';
-  const isFullWidth = location.pathname === '/report';
+  const isFullWidth = location.pathname === '/report' || location.pathname === '/focus';
 
   return (
     <div className="flex min-h-screen">

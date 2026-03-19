@@ -7,6 +7,7 @@ import { getDataService } from '@/lib/services/service-provider';
 import { AdminPage } from '@/pages/AdminPage';
 import { CapturePage } from '@/pages/CapturePage';
 import { ConfigurePage } from '@/pages/ConfigurePage';
+import { FocusPage } from '@/pages/FocusPage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { HabitDetailPage } from '@/pages/HabitDetailPage';
 import { HomePage } from '@/pages/HomePage';
@@ -196,6 +197,7 @@ export function AppRoutes() {
         <Route path="home" element={<HomePage />} />
         <Route path="capture" element={<CapturePage />} />
         <Route path="configure" element={<ConfigurePage />} />
+        <Route path="focus" element={<FocusPage />} />
         <Route path="report" element={<InsightsPage />} />
         <Route path="admin" element={<AdminPage />} />
         <Route path="settings" element={<SettingsPage />} />
