@@ -29,7 +29,7 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-[4px] rounded-full bg-[#f1f5f9] px-[16px] py-[8px]"
+        className="flex items-center gap-[4px] rounded-full bg-border-light px-[16px] py-[8px]"
       >
         <span className="text-[14px] font-bold text-content-subtle">{value}</span>
         <Icon
@@ -38,7 +38,7 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
         />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-20 mt-[4px] overflow-hidden rounded-[16px] border border-[#f1f5f9] bg-white shadow-[0px_10px_30px_-5px_rgba(0,0,0,0.1)]">
+        <div className="absolute right-0 top-full z-20 mt-[4px] overflow-hidden rounded-[16px] border border-border-light bg-white shadow-[0px_10px_30px_-5px_rgba(0,0,0,0.1)]">
           {SCHEDULE_OPTIONS.map((option) => (
             <button
               key={option}
@@ -49,8 +49,8 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
               }}
               className={`flex w-full items-center px-[20px] py-[12px] text-[14px] font-semibold transition-colors ${
                 option === value
-                  ? 'bg-[#eff6ff] text-primary'
-                  : 'text-content-subtle hover:bg-[#f8fafc]'
+                  ? 'bg-primary/5 text-primary'
+                  : 'text-content-subtle hover:bg-surface-secondary'
               }`}
             >
               {option}

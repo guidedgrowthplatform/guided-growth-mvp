@@ -15,7 +15,9 @@ export function MilestonesSection({ milestones }: MilestonesSectionProps) {
           <MilestoneBadge key={m.target} target={m.target} earned={m.earned} />
         ))}
       </div>
-      <p className="mt-2 text-sm font-medium text-[#64748b]">{earnedCount} Milestones Earned</p>
+      <p className="mt-2 text-sm font-medium text-content-secondary">
+        {earnedCount} Milestones Earned
+      </p>
     </div>
   );
 }

@@ -21,7 +21,7 @@ export function DateFilterBar() {
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between rounded-lg border border-[#f3f4f6] bg-surface px-[17px] py-[13px] shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)] transition-colors active:bg-[#f9fafb]"
+        className="flex w-full items-center justify-between rounded-lg border border-border-light bg-surface px-[17px] py-[13px] shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)] transition-colors active:bg-surface-secondary"
       >
         <div className="flex items-center gap-3">
           <Icon
@@ -55,7 +55,7 @@ export function DateFilterBar() {
                 setSelected(month);
                 setOpen(false);
               }}
-              className={`w-full px-[17px] py-2.5 text-left text-[14px] font-medium transition-colors hover:bg-[#f8fafc] ${
+              className={`w-full px-[17px] py-2.5 text-left text-[14px] font-medium transition-colors hover:bg-surface-secondary ${
                 month === selected ? 'font-bold text-primary' : 'text-content-subtle'
               }`}
             >

@@ -14,7 +14,7 @@ export function StreakCalendarGrid({ data }: StreakCalendarGridProps) {
       {DAY_LABELS.map((dayLabel, i) => (
         <div
           key={i}
-          className="flex h-[15px] items-center justify-center text-[10px] font-bold text-[#94a3b8]"
+          className="flex h-[15px] items-center justify-center text-[10px] font-bold text-content-tertiary"
         >
           {dayLabel}
         </div>
@@ -22,7 +22,7 @@ export function StreakCalendarGrid({ data }: StreakCalendarGridProps) {
 
       {data.map((row, wi) => (
         <Fragment key={wi}>
-          <div className="flex items-center justify-center pr-1 text-[10px] font-bold text-[#94a3b8]">
+          <div className="flex items-center justify-center pr-1 text-[10px] font-bold text-content-tertiary">
             W{wi + 1}
           </div>
           {row.map((cell, ci) => (
@@ -30,10 +30,10 @@ export function StreakCalendarGrid({ data }: StreakCalendarGridProps) {
               key={`${wi}-${ci}`}
               className={`flex aspect-square items-center justify-center rounded-md ${
                 cell === 'done'
-                  ? 'bg-[#1978e5]'
+                  ? 'bg-primary'
                   : cell === 'missed'
                     ? 'border-2 border-[#e5484d] bg-white'
-                    : 'bg-[#f1f5f9]'
+                    : 'bg-border-light'
               }`}
             >
               {cell === 'done' && <Check size={14} className="text-white" />}

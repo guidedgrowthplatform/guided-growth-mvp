@@ -23,7 +23,7 @@ export function GoalTextarea({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full resize-none bg-transparent text-[15px] font-medium leading-[22px] text-content outline-none placeholder:text-[#d1d5db] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-[4px]"
+        className="w-full resize-none bg-transparent text-[15px] font-medium leading-[22px] text-content outline-none placeholder:text-content-tertiary [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-[4px]"
         rows={5}
       />
     </div>

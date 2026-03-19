@@ -18,7 +18,7 @@ export function AdvancedInputPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[#f9f9f9] px-[24px] pb-[32px] pt-[max(16px,env(safe-area-inset-top))]">
+    <div className="flex min-h-dvh flex-col bg-surface-secondary px-[24px] pb-[32px] pt-[max(16px,env(safe-area-inset-top))]">
       {/* Top Nav */}
       <button
         type="button"
@@ -35,7 +35,7 @@ export function AdvancedInputPage() {
         <h1 className="text-[32px] font-bold leading-[40px] tracking-[-0.8px] text-content">
           Tell me what you want to achieve
         </h1>
-        <p className="text-[18px] font-medium leading-[29.25px] text-[#7d7d7d]">
+        <p className="text-[18px] font-medium leading-[29.25px] text-content-secondary">
           You can say or type as much as you want. We'll organize it for you.
         </p>
       </div>
@@ -54,7 +54,7 @@ export function AdvancedInputPage() {
           onClick={handleKeyboardPress}
           className="rounded-full bg-white p-[16px] shadow-[0px_4px_20px_0px_rgba(0,0,0,0.05)]"
         >
-          <Icon icon="ic:round-keyboard" className="size-[24px] text-[#94a3b8]" />
+          <Icon icon="ic:round-keyboard" className="size-[24px] text-content-tertiary" />
         </button>
         <button
           type="button"

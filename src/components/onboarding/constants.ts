@@ -1,6 +1,6 @@
 /** Shared style for uppercase section labels in onboarding cards */
 export const SECTION_LABEL_CLASS =
-  'text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-[#94a3b8]';
+  'text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-content-tertiary';
 
 /** Day index constants (0 = Sunday, 6 = Saturday) */
 export const DAYS = {

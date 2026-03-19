@@ -30,16 +30,16 @@ export function BarChart({ data }: BarChartProps) {
             {isActive && (
               <div
                 role="tooltip"
-                className="absolute -top-1 z-10 animate-fade-in whitespace-nowrap rounded-md bg-[#0f172a] px-2 py-1 text-[10px] font-bold text-white"
+                className="absolute -top-1 z-10 animate-fade-in whitespace-nowrap rounded-md bg-content px-2 py-1 text-[10px] font-bold text-white"
               >
                 {pct}%
-                <div className="absolute left-1/2 top-full h-0 w-0 -translate-x-1/2 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#0f172a]" />
+                <div className="absolute left-1/2 top-full h-0 w-0 -translate-x-1/2 border-l-4 border-r-4 border-t-4 border-transparent border-t-content" />
               </div>
             )}
             <div
               className={`w-[12px] rounded-t-[5px] transition-all duration-300 ${
                 isActive
-                  ? 'scale-x-150 bg-[#0f172a]'
+                  ? 'scale-x-150 bg-content'
                   : activeIndex !== null
                     ? 'bg-primary/40'
                     : 'bg-primary'

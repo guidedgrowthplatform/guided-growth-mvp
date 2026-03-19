@@ -49,7 +49,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[#f9f9f9]">
+    <div className="flex min-h-dvh flex-col bg-surface-secondary">
       {/* Header */}
       <div className="flex items-center justify-between bg-[rgba(249,249,249,0.8)] px-[24px] py-[16px] backdrop-blur-[6px]">
         <button
@@ -59,7 +59,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
         >
           <Icon icon="ic:round-arrow-back" width={24} height={24} className="text-content" />
         </button>
-        <span className="text-[18px] font-bold leading-[28px] text-[#111827]">Edit Habit</span>
+        <span className="text-[18px] font-bold leading-[28px] text-content">Edit Habit</span>
         <button
           type="button"
           onClick={() => setShowDeleteModal(true)}
@@ -85,7 +85,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-[12px] border border-[#e5e7eb] bg-white px-[17px] py-[15px] text-[16px] font-medium leading-[24px] text-[#1f2937] outline-none"
+              className="w-full rounded-[12px] border border-border bg-white px-[17px] py-[15px] text-[16px] font-medium leading-[24px] text-content outline-none"
             />
           </div>
 
@@ -101,7 +101,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
           {/* How Often? */}
           <div className="flex flex-col gap-[12px]">
             <label className={FIELD_LABEL_CLASS}>How Often?</label>
-            <div className="rounded-[12px] border border-[#e5e7eb] bg-white px-[13px] py-[13px]">
+            <div className="rounded-[12px] border border-border bg-white px-[13px] py-[13px]">
               <DayPicker
                 selectedDays={days}
                 onToggleDay={(day) => setDays((prev) => toggleSetItem(prev, day))}
@@ -114,7 +114,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
       </div>
 
       {/* Footer */}
-      <div className="bg-gradient-to-t from-[#f9f9f9] via-[rgba(249,249,249,0.95)] to-transparent p-[24px] px-[24px]">
+      <div className="bg-gradient-to-t from-surface-secondary via-surface-secondary/95 to-transparent p-[24px] px-[24px]">
         <button
           type="button"
           onClick={handleSave}

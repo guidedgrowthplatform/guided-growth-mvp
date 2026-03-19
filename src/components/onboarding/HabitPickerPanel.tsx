@@ -29,15 +29,13 @@ export function HabitPickerPanel({
   }, [expanded, habits, selectedHabits]);
 
   return (
-    <div className="rounded-[20px] border-2 border-primary bg-[#eff6ff] px-[22px] py-[26px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
+    <div className="rounded-[20px] border-2 border-primary bg-primary/5 px-[22px] py-[26px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
       <button
         type="button"
         onClick={onToggleExpanded}
         className="flex w-full cursor-pointer items-center justify-between focus:outline-none"
       >
-        <span className="pl-[12px] text-[18px] font-bold leading-[28px] text-[#1a202c]">
-          {goal}
-        </span>
+        <span className="pl-[12px] text-[18px] font-bold leading-[28px] text-content">{goal}</span>
         <Icon
           icon="icon-park-outline:down"
           width={24}
@@ -51,9 +49,9 @@ export function HabitPickerPanel({
         className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
       >
         <div ref={contentRef}>
-          <div className="my-[16px] w-full border-t border-[#e2e8f0]" />
+          <div className="my-[16px] w-full border-t border-border" />
 
-          <p className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-[#718096]">
+          <p className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-content-secondary">
             Habit List
           </p>
 

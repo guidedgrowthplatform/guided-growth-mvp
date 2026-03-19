@@ -65,7 +65,7 @@ export function AdvancedResultsPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[#f9f9f9]">
+    <div className="flex min-h-dvh flex-col bg-surface-secondary">
       {/* Top Nav */}
       <div className="px-[24px] pt-[max(16px,env(safe-area-inset-top))]">
         <button
@@ -80,10 +80,10 @@ export function AdvancedResultsPage() {
 
       {/* Header */}
       <div className="flex flex-col gap-[11px] px-[24px]">
-        <h1 className="text-[32px] font-bold leading-[40px] tracking-[-0.8px] text-[#0a2540]">
+        <h1 className="text-[32px] font-bold leading-[40px] tracking-[-0.8px] text-content">
           We organized this for you
         </h1>
-        <p className="text-[18px] font-medium leading-[29.25px] text-[#64748b]">
+        <p className="text-[18px] font-medium leading-[29.25px] text-content-secondary">
           Here is the cleanest place to start based on what you shared.
         </p>
       </div>
@@ -120,7 +120,7 @@ export function AdvancedResultsPage() {
         >
           Confirm & Continue
         </button>
-        <button type="button" className="text-[16px] font-semibold text-[#64748b]">
+        <button type="button" className="text-[16px] font-semibold text-content-secondary">
           Regenerate
         </button>
       </div>

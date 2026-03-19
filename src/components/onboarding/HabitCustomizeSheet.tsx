@@ -36,19 +36,19 @@ export function HabitCustomizeSheet({
     <div className="flex flex-col gap-[32px] px-[32px] pb-[40px] pt-[32px]">
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-[4px]">
-          <h3 className="text-[16px] font-bold leading-[24px] text-[#111318]">{habitName}</h3>
-          <p className="text-[14px] font-medium leading-[22px] tracking-[0.21px] text-[#64748b]">
+          <h3 className="text-[16px] font-bold leading-[24px] text-content">{habitName}</h3>
+          <p className="text-[14px] font-medium leading-[22px] tracking-[0.21px] text-content-secondary">
             Customize your habit
           </p>
         </div>
-        <button type="button" onClick={onClose} className="rounded-full bg-[#f1f5f9] p-[8px]">
-          <Icon icon="ic:round-close" className="size-[14px] text-[#111318]" />
+        <button type="button" onClick={onClose} className="rounded-full bg-border-light p-[8px]">
+          <Icon icon="ic:round-close" className="size-[14px] text-content" />
         </button>
       </div>
 
       <div className="flex flex-col gap-[16px]">
         <span className={SECTION_LABEL_CLASS}>When?</span>
-        <div className="flex w-full items-center justify-between rounded-[24px] border border-primary bg-[#eff6ff] px-[21px] py-[15px]">
+        <div className="flex w-full items-center justify-between rounded-[24px] border border-primary bg-primary/5 px-[21px] py-[15px]">
           <TimePicker value={time} onChange={setTime} />
           <Icon icon="ic:round-access-time" className="size-[20px] text-primary" />
         </div>

@@ -29,7 +29,7 @@ export function AiListeningTooltip({ text, visible }: AiListeningTooltipProps) {
             AI Listening
           </span>
         </div>
-        <p className="text-[14px] font-medium leading-[20px] text-[#475569]">{text}</p>
+        <p className="text-[14px] font-medium leading-[20px] text-content-subtle">{text}</p>
         {/* Tooltip arrow */}
         <div className="absolute -bottom-[8.5px] right-[20px] flex items-center justify-center">
           <div className="size-[16px] rotate-45 border-b border-r border-primary bg-white" />

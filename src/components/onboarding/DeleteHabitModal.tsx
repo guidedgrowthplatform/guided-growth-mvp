@@ -18,7 +18,7 @@ export function DeleteHabitModal({ onDelete, onKeep }: DeleteHabitModalProps) {
             className="text-[#e5484d]"
           />
         </div>
-        <h2 className="mb-[11px] text-center text-[24px] font-bold leading-[32px] tracking-[-0.6px] text-[#111827]">
+        <h2 className="mb-[11px] text-center text-[24px] font-bold leading-[32px] tracking-[-0.6px] text-content">
           Delete Habit?
         </h2>
         <p className="mb-[32px] px-[8px] text-center text-[15px] font-normal leading-[24px] text-content-muted">

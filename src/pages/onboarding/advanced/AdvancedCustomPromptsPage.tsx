@@ -43,7 +43,7 @@ export function AdvancedCustomPromptsPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[#f9f9f9] p-[24px]">
+    <div className="flex min-h-dvh flex-col bg-surface-secondary p-[24px]">
       {/* Back Arrow */}
       <div className="pb-[32px]">
         <button
@@ -64,7 +64,7 @@ export function AdvancedCustomPromptsPage() {
         <h1 className="text-[30px] font-bold leading-[36px] text-content">
           How do you want to journal?
         </h1>
-        <p className="text-[16px] leading-[26px] text-[#718096]">
+        <p className="text-[16px] leading-[26px] text-content-secondary">
           Choose a blank canvas or design your own specific questions.
         </p>
       </div>
@@ -77,8 +77,8 @@ export function AdvancedCustomPromptsPage() {
           onClick={() => setJournalMode('freeform')}
           className={`rounded-[20px] p-[21px] text-left shadow-[0px_1px_2px_rgba(0,0,0,0.05)] ${
             journalMode === 'freeform'
-              ? 'border-2 border-primary bg-[#eff6ff]'
-              : 'border border-[#e2e8f0] bg-white'
+              ? 'border-2 border-primary bg-primary/5'
+              : 'border border-border bg-white'
           }`}
         >
           <div className="flex items-start justify-between">
@@ -87,11 +87,11 @@ export function AdvancedCustomPromptsPage() {
                 icon="mdi:pencil"
                 width={18}
                 height={20}
-                className="mt-[2px] shrink-0 text-[#1a202c]"
+                className="mt-[2px] shrink-0 text-content"
               />
               <div className="flex flex-col pl-[12px]">
-                <span className="text-[18px] font-bold text-[#1a202c]">Freeform Journaling</span>
-                <span className="mt-[4px] text-[14px] leading-[22.75px] text-[#718096]">
+                <span className="text-[18px] font-bold text-content">Freeform Journaling</span>
+                <span className="mt-[4px] text-[14px] leading-[22.75px] text-content-secondary">
                   No rules, no set questions. Just a blank space to talk or vent about whatever is
                   on your mind each day.
                 </span>
@@ -99,7 +99,7 @@ export function AdvancedCustomPromptsPage() {
             </div>
             <div
               className={`ml-[12px] mt-[2px] flex size-[20px] shrink-0 items-center justify-center rounded-full border-2 ${
-                journalMode === 'freeform' ? 'border-primary bg-primary' : 'border-[#e2e8f0]'
+                journalMode === 'freeform' ? 'border-primary bg-primary' : 'border-border'
               }`}
             >
               {journalMode === 'freeform' && <div className="size-[8px] rounded-full bg-white" />}
@@ -112,8 +112,8 @@ export function AdvancedCustomPromptsPage() {
           onClick={() => setJournalMode('custom')}
           className={`cursor-pointer rounded-[20px] p-[22px] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] ${
             journalMode === 'custom'
-              ? 'border-2 border-primary bg-[#eff6ff]'
-              : 'border border-[#e2e8f0] bg-white'
+              ? 'border-2 border-primary bg-primary/5'
+              : 'border border-border bg-white'
           }`}
         >
           {/* Header */}
@@ -123,13 +123,13 @@ export function AdvancedCustomPromptsPage() {
                 icon="material-symbols:format-list-bulleted"
                 width={18}
                 height={15}
-                className="text-[#1a202c]"
+                className="text-content"
               />
-              <span className="pl-[12px] text-[18px] font-bold text-[#1a202c]">Custom Prompts</span>
+              <span className="pl-[12px] text-[18px] font-bold text-content">Custom Prompts</span>
             </div>
             <div
               className={`flex size-[20px] items-center justify-center rounded-full border-2 ${
-                journalMode === 'custom' ? 'border-primary bg-primary' : 'border-[#e2e8f0]'
+                journalMode === 'custom' ? 'border-primary bg-primary' : 'border-border'
               }`}
             >
               {journalMode === 'custom' && <div className="size-[8px] rounded-full bg-white" />}
@@ -139,8 +139,8 @@ export function AdvancedCustomPromptsPage() {
           {/* Expanded content when custom is selected */}
           {journalMode === 'custom' && (
             <div className="mt-[16px] flex flex-col gap-[16px]">
-              <div className="border-t border-[#e2e8f0]" />
-              <span className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-[#718096]">
+              <div className="border-t border-border" />
+              <span className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-content-secondary">
                 Add at least 1 prompt:
               </span>
 
@@ -152,7 +152,7 @@ export function AdvancedCustomPromptsPage() {
                       type="text"
                       value={prompt}
                       onChange={(e) => updatePrompt(i, e.target.value)}
-                      className="flex-1 rounded-[12px] border border-[#e2e8f0] bg-white px-[17px] py-[13px] text-[16px] leading-[24px] text-[#1a202c] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
+                      className="flex-1 rounded-[12px] border border-border bg-white px-[17px] py-[13px] text-[16px] leading-[24px] text-content shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
                     />
                     <button
                       type="button"
@@ -166,7 +166,7 @@ export function AdvancedCustomPromptsPage() {
                         icon="ic:round-close"
                         width={12}
                         height={12}
-                        className="text-[#718096]"
+                        className="text-content-secondary"
                       />
                     </button>
                   </div>
@@ -192,9 +192,9 @@ export function AdvancedCustomPromptsPage() {
                     }
                   }}
                   placeholder="Type your next prompt here..."
-                  className="w-full rounded-[12px] border border-[#e2e8f0] bg-white px-[17px] py-[11px] text-[14px] text-[#1a202c] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] placeholder:text-[#718096]"
+                  className="w-full rounded-[12px] border border-border bg-white px-[17px] py-[11px] text-[14px] text-content shadow-[0px_1px_2px_rgba(0,0,0,0.05)] placeholder:text-content-secondary"
                 />
-                <p className="px-[4px] text-[12px] leading-[16px] text-[#718096]">
+                <p className="px-[4px] text-[12px] leading-[16px] text-content-secondary">
                   Or just tap the mic and say your prompts out loud. We'll list them for you.
                 </p>
               </div>

@@ -10,7 +10,7 @@ interface PlanSummaryCardProps {
 
 export function PlanSummaryCard({ icon, typeLabel, title, cadence, rule }: PlanSummaryCardProps) {
   return (
-    <div className="flex gap-[16px] rounded-[16px] border border-[#f1f5f9] bg-white p-[21px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
+    <div className="flex gap-[16px] rounded-[16px] border border-border-light bg-white p-[21px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
       <div className="flex size-[42px] shrink-0 items-center justify-center rounded-[12px] bg-primary/10">
         <Icon icon={icon} className="size-[22px] text-primary" />
       </div>
@@ -21,10 +21,10 @@ export function PlanSummaryCard({ icon, typeLabel, title, cadence, rule }: PlanS
         <span className="text-[18px] font-bold leading-[28px] text-content">{title}</span>
         <p className="pt-[4px] text-[14px] leading-[22px]">
           <span className="font-medium text-content-subtle">Cadence:</span>{' '}
-          <span className="text-[#64748b]">{cadence}</span>
-          <span className="text-[#64748b]"> · </span>
+          <span className="text-content-secondary">{cadence}</span>
+          <span className="text-content-secondary"> · </span>
           <span className="font-medium text-content-subtle">Rule:</span>{' '}
-          <span className="text-[#64748b]">{rule}</span>
+          <span className="text-content-secondary">{rule}</span>
         </p>
       </div>
     </div>

@@ -26,9 +26,7 @@ export function SegmentedControl({ items, value, onChange, size }: SegmentedCont
     <div
       ref={containerRef}
       role="tablist"
-      className={`relative flex rounded-lg p-[4px] ${
-        isLg ? 'bg-[rgba(229,231,235,0.5)]' : 'bg-[#f3f4f6]'
-      }`}
+      className={`relative flex rounded-lg p-[4px] ${isLg ? 'bg-border/50' : 'bg-border-light'}`}
     >
       <div
         className={`absolute bottom-[4px] top-[4px] transition-all duration-300 ease-out ${

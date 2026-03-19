@@ -84,7 +84,7 @@ export function OnboardingLayout({
           )}
         </>
       ) : (
-        <div className="relative -mx-[24px] -mb-[48px] bg-gradient-to-t from-[#f9f9f9] via-[#f9f9f9] to-transparent px-[24px] pb-[40px] pt-[24px]">
+        <div className="relative -mx-[24px] -mb-[48px] bg-gradient-to-t from-surface-secondary via-surface-secondary to-transparent px-[24px] pb-[40px] pt-[24px]">
           {aiListeningPrompt && (
             <div className="absolute bottom-full right-[24px] z-10 mb-[-8px]">
               <AiListeningTooltip text={aiListeningPrompt} visible={isListening} />
@@ -110,7 +110,7 @@ export function OnboardingLayout({
             )}
           </div>
           {footerText && (
-            <p className="mt-[12px] text-center text-[12px] font-medium text-[#94a3b8]">
+            <p className="mt-[12px] text-center text-[12px] font-medium text-content-tertiary">
               {footerText}
             </p>
           )}

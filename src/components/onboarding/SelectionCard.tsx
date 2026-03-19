@@ -25,7 +25,7 @@ export function SelectionCard({
     <button
       type="button"
       onClick={onSelect}
-      className="flex w-full cursor-pointer items-center gap-[16px] rounded-[16px] border border-[#f1f5f9] bg-white p-[21px] text-left shadow-[0px_4px_20px_-2px_rgba(19,91,236,0.05),0px_2px_10px_-2px_rgba(0,0,0,0.02)]"
+      className="flex w-full cursor-pointer items-center gap-[16px] rounded-[16px] border border-border-light bg-white p-[21px] text-left shadow-[0px_4px_20px_-2px_rgba(19,91,236,0.05),0px_2px_10px_-2px_rgba(0,0,0,0.02)]"
     >
       <div
         className="relative flex size-[48px] shrink-0 items-center justify-center rounded-[24px]"
@@ -43,7 +43,7 @@ export function SelectionCard({
       </div>
       <div className="flex-1">
         <div className="text-[18px] font-bold leading-[22.5px] text-content">{title}</div>
-        <div className="pt-[4px] text-[14px] font-medium leading-[19.25px] text-[#64748b]">
+        <div className="pt-[4px] text-[14px] font-medium leading-[19.25px] text-content-secondary">
           {description}
         </div>
       </div>

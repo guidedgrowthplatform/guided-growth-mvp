@@ -58,7 +58,7 @@ function EntryMenu({ anchorEl, onClose }: { anchorEl: HTMLButtonElement; onClose
             e.stopPropagation();
             onClose();
           }}
-          className={`flex w-full items-center gap-2.5 px-3 py-2 text-[13px] font-medium transition-colors hover:bg-[#f8fafc] ${
+          className={`flex w-full items-center gap-2.5 px-3 py-2 text-[13px] font-medium transition-colors hover:bg-surface-secondary ${
             item.danger ? 'text-danger' : 'text-content-subtle'
           }`}
         >
@@ -84,7 +84,7 @@ export function CheckInEntryCard({
   const menuOpen = menuAnchor !== null;
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-[#f9fafb] bg-surface p-[21px] shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)]">
+    <div className="flex flex-col gap-4 rounded-lg border border-border-light bg-surface p-[21px] shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)]">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
@@ -93,7 +93,7 @@ export function CheckInEntryCard({
           </div>
           <div>
             <div className="text-[16px] font-bold leading-6 text-content">{title}</div>
-            <div className="text-[12px] font-medium uppercase leading-4 tracking-[0.6px] text-[#9ca3af]">
+            <div className="text-[12px] font-medium uppercase leading-4 tracking-[0.6px] text-content-tertiary">
               {time}
             </div>
           </div>
@@ -103,9 +103,14 @@ export function CheckInEntryCard({
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           onClick={(e) => setMenuAnchor(menuOpen ? null : e.currentTarget)}
-          className="rounded-md p-1 transition-colors hover:bg-[#f3f4f6] active:bg-[#e5e7eb]"
+          className="rounded-md p-1 transition-colors hover:bg-border-light active:bg-border"
         >
-          <Icon icon="mdi:dots-horizontal" width={24} height={24} className="text-[#d1d5db]" />
+          <Icon
+            icon="mdi:dots-horizontal"
+            width={24}
+            height={24}
+            className="text-content-tertiary"
+          />
         </button>
         {menuAnchor && <EntryMenu anchorEl={menuAnchor} onClose={() => setMenuAnchor(null)} />}
       </div>
@@ -116,7 +121,7 @@ export function CheckInEntryCard({
           {metrics.map((m) => (
             <div
               key={m.label}
-              className="flex flex-1 items-center gap-1 rounded-md border border-primary bg-[#eff6ff] p-[7px]"
+              className="flex flex-1 items-center gap-1 rounded-md border border-primary bg-primary/5 p-[7px]"
             >
               <Icon icon={m.icon} width={16} height={16} />
               <span className="text-[10px] font-bold leading-3 text-content">{m.label}</span>
@@ -128,7 +133,7 @@ export function CheckInEntryCard({
           {metrics.map((m) => (
             <div
               key={m.label}
-              className="flex items-center gap-1 rounded-md border border-[#929292] bg-[#f1f5f9] px-[7px] py-[3px]"
+              className="flex items-center gap-1 rounded-md border border-[#929292] bg-border-light px-[7px] py-[3px]"
             >
               <Icon icon={m.icon} width={16} height={16} />
               <span className="text-[10px] font-bold leading-3 text-[#929292]">{m.label}</span>

@@ -6,7 +6,7 @@ interface OnboardingProgressProps {
 export function OnboardingProgress({ currentStep, totalSteps }: OnboardingProgressProps) {
   return (
     <div className="pb-4">
-      <p className="mb-2 text-[14px] font-medium leading-[22px] tracking-[0.21px] text-[#64748b]">
+      <p className="mb-2 text-[14px] font-medium leading-[22px] tracking-[0.21px] text-content-secondary">
         Step {currentStep} of {totalSteps}
       </p>
       <div className="flex gap-[8px]">
@@ -14,7 +14,7 @@ export function OnboardingProgress({ currentStep, totalSteps }: OnboardingProgre
           <div
             key={i}
             className={`h-[6px] flex-1 rounded-full ${
-              i < currentStep ? 'bg-[#1a2fb0]' : 'bg-[#e2e8f0]'
+              i < currentStep ? 'bg-primary-dark' : 'bg-border'
             }`}
           />
         ))}

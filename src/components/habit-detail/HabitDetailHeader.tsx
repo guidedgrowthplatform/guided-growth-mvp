@@ -9,16 +9,16 @@ interface HabitDetailHeaderProps {
 export function HabitDetailTopBar({ onClose }: { onClose: () => void }) {
   return (
     <div className="sticky top-0 z-10 rounded-t-3xl bg-white px-6 pb-2 pt-4">
-      <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#e2e8f0]" />
+      <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border" />
       <div className="flex items-center justify-end gap-2">
         <button className="rounded-full p-2" type="button">
-          <Share2 size={20} className="text-[#64748b]" />
+          <Share2 size={20} className="text-content-secondary" />
         </button>
         <button className="rounded-full p-2" type="button">
-          <MoreHorizontal size={20} className="text-[#64748b]" />
+          <MoreHorizontal size={20} className="text-content-secondary" />
         </button>
         <button className="rounded-full p-2" type="button" onClick={onClose}>
-          <X size={20} className="text-[#64748b]" />
+          <X size={20} className="text-content-secondary" />
         </button>
       </div>
     </div>
@@ -32,7 +32,9 @@ export function HabitDetailTitle({
   return (
     <div>
       <h1 className="text-[28px] font-semibold leading-normal text-content">{name}</h1>
-      <p className="mb-2 mt-2 text-sm font-medium leading-[22px] text-[#64748b]">{description}</p>
+      <p className="mb-2 mt-2 text-sm font-medium leading-[22px] text-content-secondary">
+        {description}
+      </p>
     </div>
   );
 }

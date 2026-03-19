@@ -110,7 +110,7 @@ export function HabitPerformanceList() {
                   icon="mdi:chevron-right"
                   width={20}
                   height={20}
-                  className={`text-[#d1d5db] transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
+                  className={`text-content-tertiary transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
                 />
               </div>
               {expanded && <HabitDetailPanel habit={habit} />}

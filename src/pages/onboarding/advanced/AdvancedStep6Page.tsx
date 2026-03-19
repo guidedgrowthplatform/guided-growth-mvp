@@ -71,7 +71,7 @@ export function AdvancedStep6Page() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[#f9f9f9]">
+    <div className="flex min-h-dvh flex-col bg-surface-secondary">
       {/* Back Arrow */}
       <div className="px-[24px] pb-[32px] pt-[max(16px,env(safe-area-inset-top))]">
         <button
@@ -86,10 +86,10 @@ export function AdvancedStep6Page() {
 
       {/* Heading + Subtitle */}
       <div className="flex flex-col gap-[11px] px-[24px] py-[16px]">
-        <h1 className="text-[32px] font-bold leading-[40px] tracking-[-0.8px] text-[#0a2540]">
+        <h1 className="text-[32px] font-bold leading-[40px] tracking-[-0.8px] text-content">
           Meet your AI Voice Journal
         </h1>
-        <p className="text-[18px] font-medium leading-[29.25px] text-[#64748b]">
+        <p className="text-[18px] font-medium leading-[29.25px] text-content-secondary">
           We will turn your voice into text and learn from it to personalize your coaching.
         </p>
       </div>
@@ -102,7 +102,7 @@ export function AdvancedStep6Page() {
             <Icon icon="mingcute:mic-fill" width={19} height={14} className="text-primary" />
             <span className="absolute right-[-4px] top-[-4px] text-[10px]">✨</span>
           </div>
-          <span className="text-[20px] font-bold text-[#0a2540]">Daily Reflection</span>
+          <span className="text-[20px] font-bold text-content">Daily Reflection</span>
         </div>
 
         {/* AI Badge */}
@@ -115,12 +115,12 @@ export function AdvancedStep6Page() {
 
         {/* Questions Section */}
         <div className="flex flex-col gap-[12px] pb-[24px] pt-[24px]">
-          <span className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-[#64748b]">
+          <span className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-content-secondary">
             You'll answer {questions.length} quick questions:
           </span>
           {questions.map((q, i) => (
-            <div key={i} className="rounded-[16px] bg-[#f9fafb] p-[12px]">
-              <span className="text-[15px] font-medium leading-[22.5px] text-[#0a2540]">{q}</span>
+            <div key={i} className="rounded-[16px] bg-surface-secondary p-[12px]">
+              <span className="text-[15px] font-medium leading-[22.5px] text-content">{q}</span>
             </div>
           ))}
         </div>
@@ -143,31 +143,31 @@ export function AdvancedStep6Page() {
         </button>
 
         {/* Separator */}
-        <div className="my-[16px] border-t border-[#e5e7eb]" />
+        <div className="my-[16px] border-t border-border" />
 
         {/* Schedule Row */}
         <div className="flex items-center justify-between">
-          <span className="text-[14px] font-semibold uppercase tracking-[0.7px] text-[#64748b]">
+          <span className="text-[14px] font-semibold uppercase tracking-[0.7px] text-content-secondary">
             Schedule:
           </span>
           <div className="relative" ref={dropdownRef}>
             <button
               type="button"
               onClick={() => setShowDropdown(!showDropdown)}
-              className="flex items-center gap-[4px] rounded-full bg-[#f1f5f9] px-[16px] py-[8px]"
+              className="flex items-center gap-[4px] rounded-full bg-border-light px-[16px] py-[8px]"
             >
-              <span className="text-[14px] font-semibold text-[#0a2540]">
+              <span className="text-[14px] font-semibold text-content">
                 {schedule === 'Every day' ? 'Daily' : schedule}
               </span>
               <Icon
                 icon="ic:round-keyboard-arrow-down"
                 width={8}
                 height={5}
-                className="text-[#0a2540]"
+                className="text-content"
               />
             </button>
             {showDropdown && (
-              <div className="absolute right-0 top-full z-10 mt-[4px] rounded-[12px] border border-[#e2e8f0] bg-white py-[4px] shadow-lg">
+              <div className="absolute right-0 top-full z-10 mt-[4px] rounded-[12px] border border-border bg-white py-[4px] shadow-lg">
                 {SCHEDULE_OPTIONS.map((opt) => (
                   <button
                     key={opt}
@@ -177,8 +177,8 @@ export function AdvancedStep6Page() {
                       setShowDropdown(false);
                     }}
                     className={`w-full px-[16px] py-[8px] text-left text-[14px] font-medium ${
-                      schedule === opt ? 'text-primary' : 'text-[#0a2540]'
-                    } hover:bg-[#f1f5f9]`}
+                      schedule === opt ? 'text-primary' : 'text-content'
+                    } hover:bg-border-light`}
                   >
                     {opt === 'Every day' ? 'Daily' : opt}
                   </button>
