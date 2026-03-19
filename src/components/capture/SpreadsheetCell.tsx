@@ -1,6 +1,6 @@
 import { useRef, useCallback } from 'react';
-import type { Metric } from '@shared/types';
 import { getCellColor, getCellDisplayValue } from '@/utils/cellColors';
+import type { Metric } from '@shared/types';
 
 interface SpreadsheetCellProps {
   date: string;
@@ -40,7 +40,6 @@ export function SpreadsheetCell({
   const display = getCellDisplayValue(value, metric);
 
   const isTextType = metric.input_type === 'text' || metric.input_type === 'short_text';
-  const isTouchDevice = 'ontouchstart' in window;
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {

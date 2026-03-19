@@ -41,14 +41,14 @@ export function BarChart({ data }: BarChartProps) {
                 isActive
                   ? 'scale-x-150 bg-[#0f172a]'
                   : activeIndex !== null
-                    ? 'bg-[#135bec]/40'
-                    : 'bg-[#135bec]'
+                    ? 'bg-primary/40'
+                    : 'bg-primary'
               }`}
               style={{ height: `${barHeight}px` }}
             />
             <span
               className={`text-[10px] font-bold uppercase leading-[15px] transition-colors duration-200 ${
-                isActive ? 'text-[#0f172a]' : 'text-content-tertiary'
+                isActive ? 'text-content' : 'text-content-tertiary'
               }`}
             >
               {item.label}

@@ -31,7 +31,7 @@ export function HabitDetailTitle({
 }: Pick<HabitDetailHeaderProps, 'name' | 'description'>) {
   return (
     <div>
-      <h1 className="text-[28px] font-semibold leading-normal text-[#0f172a]">{name}</h1>
+      <h1 className="text-[28px] font-semibold leading-normal text-content">{name}</h1>
       <p className="mb-2 mt-2 text-sm font-medium leading-[22px] text-[#64748b]">{description}</p>
     </div>
   );

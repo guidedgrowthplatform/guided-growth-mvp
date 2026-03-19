@@ -1,6 +1,6 @@
+import { isMetricDue } from '@/utils/metrics';
 import type { Metric, DayEntries } from '@shared/types';
 import { FormField } from './FormField';
-import { isMetricDue } from '@/utils/metrics';
 
 interface FormViewProps {
   date: string;

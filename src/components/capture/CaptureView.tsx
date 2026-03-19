@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, addDays, subDays } from 'date-fns';
-import type { ViewMode, SpreadsheetRange, MetricCreate, EntriesMap } from '@shared/types';
-import { getWeekRange } from '@/utils/dates';
-import { useMetrics } from '@/hooks/useMetrics';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useEntries } from '@/hooks/useEntries';
-import { useUndoRedo } from '@/hooks/useUndoRedo';
+import { useMetrics } from '@/hooks/useMetrics';
 import { usePreferences } from '@/hooks/usePreferences';
-import { ViewModeToggle } from './ViewModeToggle';
-import { SpreadsheetRangeToggle } from './SpreadsheetRangeToggle';
+import { useUndoRedo } from '@/hooks/useUndoRedo';
+import { getWeekRange } from '@/utils/dates';
+import type { ViewMode, SpreadsheetRange, MetricCreate, EntriesMap } from '@shared/types';
 import { DateNavigation } from './DateNavigation';
 import { FormView } from './FormView';
+import { SpreadsheetRangeToggle } from './SpreadsheetRangeToggle';
 import { SpreadsheetView } from './SpreadsheetView';
+import { ViewModeToggle } from './ViewModeToggle';
 
 export function CaptureView() {
   const {
@@ -21,27 +21,13 @@ export function CaptureView() {
     saveRange,
   } = usePreferences();
 
-  const [viewMode, setViewMode] = useState<ViewMode>('spreadsheet');
-  const [spreadsheetRange, setSpreadsheetRange] = useState<SpreadsheetRange>(
-    window.innerWidth < 768 ? 'week' : 'month',
-  );
+  const isMobile = window.innerWidth < 768;
+  const viewMode = defaultView;
+  const spreadsheetRange = isMobile ? 'week' : savedRange;
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const initializedRef = useRef(false);
-
-  // Initialize from saved preferences once loaded — only once
-  // On mobile, always force week view (month is unusable)
-  useEffect(() => {
-    if (prefsLoaded && !initializedRef.current) {
-      initializedRef.current = true;
-      setViewMode(defaultView);
-      const isMobile = window.innerWidth < 768;
-      setSpreadsheetRange(isMobile ? 'week' : savedRange);
-    }
-  }, [prefsLoaded, defaultView, savedRange]);
 
   const handleViewModeChange = useCallback(
     (mode: ViewMode) => {
-      setViewMode(mode);
       saveView(mode);
     },
     [saveView],
@@ -49,7 +35,6 @@ export function CaptureView() {
 
   const handleRangeChange = useCallback(
     (range: SpreadsheetRange) => {
-      setSpreadsheetRange(range);
       saveRange(range);
     },
     [saveRange],

@@ -42,13 +42,13 @@ export function SelectionCard({
         )}
       </div>
       <div className="flex-1">
-        <div className="text-[18px] font-bold leading-[22.5px] text-[#0f172a]">{title}</div>
+        <div className="text-[18px] font-bold leading-[22.5px] text-content">{title}</div>
         <div className="pt-[4px] text-[14px] font-medium leading-[19.25px] text-[#64748b]">
           {description}
         </div>
       </div>
-      <div className="flex size-[28px] shrink-0 items-center justify-center rounded-full border-2 border-[#135bec]">
-        {selected && <div className="size-[18px] rounded-full bg-[#135bec]" />}
+      <div className="flex size-[28px] shrink-0 items-center justify-center rounded-full border-2 border-primary">
+        {selected && <div className="size-[18px] rounded-full bg-primary" />}
       </div>
     </button>
   );

@@ -55,13 +55,13 @@ export function AdvancedCustomPromptsPage() {
           }
           className="flex size-[40px] items-center justify-center"
         >
-          <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-[#0f172a]" />
+          <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-content" />
         </button>
       </div>
 
       {/* Heading + Subtitle */}
       <div className="flex flex-col gap-[12px] pb-[32px]">
-        <h1 className="text-[30px] font-bold leading-[36px] text-[#0f172a]">
+        <h1 className="text-[30px] font-bold leading-[36px] text-content">
           How do you want to journal?
         </h1>
         <p className="text-[16px] leading-[26px] text-[#718096]">
@@ -77,7 +77,7 @@ export function AdvancedCustomPromptsPage() {
           onClick={() => setJournalMode('freeform')}
           className={`rounded-[20px] p-[21px] text-left shadow-[0px_1px_2px_rgba(0,0,0,0.05)] ${
             journalMode === 'freeform'
-              ? 'border-2 border-[#135bec] bg-[#eff6ff]'
+              ? 'border-2 border-primary bg-[#eff6ff]'
               : 'border border-[#e2e8f0] bg-white'
           }`}
         >
@@ -99,7 +99,7 @@ export function AdvancedCustomPromptsPage() {
             </div>
             <div
               className={`ml-[12px] mt-[2px] flex size-[20px] shrink-0 items-center justify-center rounded-full border-2 ${
-                journalMode === 'freeform' ? 'border-[#135bec] bg-[#135bec]' : 'border-[#e2e8f0]'
+                journalMode === 'freeform' ? 'border-primary bg-primary' : 'border-[#e2e8f0]'
               }`}
             >
               {journalMode === 'freeform' && <div className="size-[8px] rounded-full bg-white" />}
@@ -112,7 +112,7 @@ export function AdvancedCustomPromptsPage() {
           onClick={() => setJournalMode('custom')}
           className={`cursor-pointer rounded-[20px] p-[22px] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] ${
             journalMode === 'custom'
-              ? 'border-2 border-[#135bec] bg-[#eff6ff]'
+              ? 'border-2 border-primary bg-[#eff6ff]'
               : 'border border-[#e2e8f0] bg-white'
           }`}
         >
@@ -129,7 +129,7 @@ export function AdvancedCustomPromptsPage() {
             </div>
             <div
               className={`flex size-[20px] items-center justify-center rounded-full border-2 ${
-                journalMode === 'custom' ? 'border-[#135bec] bg-[#135bec]' : 'border-[#e2e8f0]'
+                journalMode === 'custom' ? 'border-primary bg-primary' : 'border-[#e2e8f0]'
               }`}
             >
               {journalMode === 'custom' && <div className="size-[8px] rounded-full bg-white" />}
@@ -208,7 +208,7 @@ export function AdvancedCustomPromptsPage() {
         <div className="rounded-full shadow-[0px_0px_0px_8px_rgba(19,91,236,0.05),0px_0px_0px_16px_rgba(19,91,236,0.02)]">
           <button
             type="button"
-            className="flex size-[72px] items-center justify-center rounded-full bg-[#135bec] shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)]"
+            className="flex size-[72px] items-center justify-center rounded-full bg-primary shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)]"
           >
             <Icon icon="ic:round-mic" width={20} height={20} className="text-white" />
           </button>
@@ -221,7 +221,7 @@ export function AdvancedCustomPromptsPage() {
           type="button"
           onClick={handleDone}
           disabled={!canSubmit}
-          className="w-full rounded-full bg-[#135bec] py-[16px] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] disabled:opacity-50"
+          className="w-full rounded-full bg-primary py-[16px] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] disabled:opacity-50"
         >
           I'm Done
         </button>

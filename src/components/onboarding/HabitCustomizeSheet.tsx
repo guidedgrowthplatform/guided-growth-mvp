@@ -48,9 +48,9 @@ export function HabitCustomizeSheet({
 
       <div className="flex flex-col gap-[16px]">
         <span className={SECTION_LABEL_CLASS}>When?</span>
-        <div className="flex w-full items-center justify-between rounded-[24px] border border-[#135bec] bg-[#eff6ff] px-[21px] py-[15px]">
+        <div className="flex w-full items-center justify-between rounded-[24px] border border-primary bg-[#eff6ff] px-[21px] py-[15px]">
           <TimePicker value={time} onChange={setTime} />
-          <Icon icon="ic:round-access-time" className="size-[20px] text-[#135bec]" />
+          <Icon icon="ic:round-access-time" className="size-[20px] text-primary" />
         </div>
       </div>
 
@@ -71,13 +71,13 @@ export function HabitCustomizeSheet({
         <button
           type="button"
           onClick={handleSubmit}
-          className="h-[56px] flex-1 rounded-full bg-[#135bec] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
+          className="h-[56px] flex-1 rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
         >
           {isLastHabit ? 'Continue' : 'Next Habit'}
         </button>
         <button
           type="button"
-          className="flex size-[56px] items-center justify-center rounded-full bg-[#135bec] shadow-[0px_25px_50px_-12px_rgba(19,91,236,0.4)]"
+          className="flex size-[56px] items-center justify-center rounded-full bg-primary shadow-[0px_25px_50px_-12px_rgba(19,91,236,0.4)]"
         >
           <Icon icon="ic:round-mic" className="h-[22px] w-[22px] text-white" />
         </button>

@@ -17,22 +17,22 @@ export function AiListeningTooltip({ text, visible }: AiListeningTooltipProps) {
         pointerEvents: visible ? 'auto' : 'none',
       }}
     >
-      <div className="relative max-w-[240px] rounded-[16px] border border-[#135bec] bg-white p-[17px] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)]">
+      <div className="relative max-w-[240px] rounded-[16px] border border-primary bg-white p-[17px] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)]">
         <div className="mb-[3.5px] flex items-center gap-[8px]">
           <div
-            className="size-[8px] rounded-full bg-[#135bec]"
+            className="size-[8px] rounded-full bg-primary"
             style={{
               animation: visible ? 'pulse-dot 1.5s ease-in-out infinite' : 'none',
             }}
           />
-          <span className="text-[10px] font-bold uppercase leading-[15px] tracking-[1px] text-[#135bec]">
+          <span className="text-[10px] font-bold uppercase leading-[15px] tracking-[1px] text-primary">
             AI Listening
           </span>
         </div>
         <p className="text-[14px] font-medium leading-[20px] text-[#475569]">{text}</p>
         {/* Tooltip arrow */}
         <div className="absolute -bottom-[8.5px] right-[20px] flex items-center justify-center">
-          <div className="size-[16px] rotate-45 border-b border-r border-[#135bec] bg-white" />
+          <div className="size-[16px] rotate-45 border-b border-r border-primary bg-white" />
         </div>
       </div>
       <style>{`

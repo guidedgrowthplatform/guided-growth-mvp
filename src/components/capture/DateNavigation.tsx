@@ -1,4 +1,3 @@
-import { useState, useRef, useEffect } from 'react';
 import {
   format,
   addMonths,
@@ -9,8 +8,9 @@ import {
   setMonth,
   setYear,
 } from 'date-fns';
-import type { ViewMode, SpreadsheetRange } from '@shared/types';
+import { useState, useRef, useEffect } from 'react';
 import { getWeekRange } from '@/utils/dates';
+import type { ViewMode, SpreadsheetRange } from '@shared/types';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 

@@ -19,8 +19,8 @@ export function DayPicker({ selectedDays, onToggleDay, disabled = false }: DayPi
             disabled={disabled}
             className={`flex size-[40px] items-center justify-center rounded-full border text-[12px] font-bold transition-colors ${
               active
-                ? 'border-[#135bec] bg-[#135bec] text-white'
-                : 'border-[#135bec] bg-white text-[#135bec] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]'
+                ? 'border-primary bg-primary text-white'
+                : 'border-primary bg-white text-primary shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]'
             } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
           >
             {label}

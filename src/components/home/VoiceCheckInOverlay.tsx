@@ -87,7 +87,7 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
             <button
               onClick={handleMicPress}
               disabled={state === 'processing'}
-              className="relative flex h-[75px] w-[75px] items-center justify-center rounded-full bg-gradient-to-br from-primary to-[#2563eb] shadow-[0px_0px_15px_0px_rgba(19,91,236,0.3)] active:scale-95 disabled:active:scale-100"
+              className="relative flex h-[75px] w-[75px] items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dark shadow-[0px_0px_15px_0px_rgba(19,91,236,0.3)] active:scale-95 disabled:active:scale-100"
             >
               <Mic className="h-5 w-5 text-white" />
             </button>

@@ -1,5 +1,5 @@
 const legendItems = [
-  { label: 'Sleep', color: 'bg-[#135bec]' },
+  { label: 'Sleep', color: 'bg-primary' },
   { label: 'Energy', color: 'bg-[#f38601]' },
   { label: 'Stress', color: 'bg-[#8a38f5]' },
   { label: 'Mood', color: 'bg-content-tertiary' },
@@ -9,8 +9,8 @@ export function MoodCorrelationCard() {
   return (
     <div className="rounded-lg bg-surface p-5 shadow-[0px_4px_20px_rgba(0,0,0,0.04)]">
       <div className="mb-4 flex items-start justify-between">
-        <h3 className="text-[16px] font-bold leading-6 text-[#1a1a1a]">Mood Correlation</h3>
-        <span className="rounded-[6px] bg-[#eff6ff] px-2 py-1 text-[12px] font-bold leading-4 text-[#135bec]">
+        <h3 className="text-[16px] font-bold leading-6 text-content">Mood Correlation</h3>
+        <span className="rounded-[6px] bg-[#eff6ff] px-2 py-1 text-[12px] font-bold leading-4 text-primary">
           High Correlation
         </span>
       </div>

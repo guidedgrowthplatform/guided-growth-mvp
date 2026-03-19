@@ -1,11 +1,11 @@
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Modal } from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
-import { INPUT_TYPES, FREQUENCIES } from '@shared/constants';
+import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
+import { Select } from '@/components/ui/Select';
 import { metricCreateSchema, type MetricCreateForm } from '@/lib/validation';
+import { INPUT_TYPES, FREQUENCIES } from '@shared/constants';
 import type { MetricCreate } from '@shared/types';
 
 interface AddHabitModalProps {

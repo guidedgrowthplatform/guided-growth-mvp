@@ -1,6 +1,6 @@
 import type { ReflectionConfig, DayReflections } from '@shared/types';
-import { ReflectionField } from './ReflectionField';
 import { AffirmationField } from './AffirmationField';
+import { ReflectionField } from './ReflectionField';
 
 interface ReflectionsPanelProps {
   date: string;

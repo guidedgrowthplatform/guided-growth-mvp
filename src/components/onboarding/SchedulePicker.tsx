@@ -31,10 +31,10 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-[4px] rounded-full bg-[#f1f5f9] px-[16px] py-[8px]"
       >
-        <span className="text-[14px] font-bold text-[#334155]">{value}</span>
+        <span className="text-[14px] font-bold text-content-subtle">{value}</span>
         <Icon
           icon="ic:round-keyboard-arrow-down"
-          className={`size-[18px] text-[#334155] transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`size-[18px] text-content-subtle transition-transform ${open ? 'rotate-180' : ''}`}
         />
       </button>
       {open && (
@@ -49,8 +49,8 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
               }}
               className={`flex w-full items-center px-[20px] py-[12px] text-[14px] font-semibold transition-colors ${
                 option === value
-                  ? 'bg-[#eff6ff] text-[#135bec]'
-                  : 'text-[#334155] hover:bg-[#f8fafc]'
+                  ? 'bg-[#eff6ff] text-primary'
+                  : 'text-content-subtle hover:bg-[#f8fafc]'
               }`}
             >
               {option}

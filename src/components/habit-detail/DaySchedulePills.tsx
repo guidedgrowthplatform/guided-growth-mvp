@@ -16,7 +16,7 @@ export function DaySchedulePills({ activeDays, frequencyLabel }: DaySchedulePill
             key={i}
             className={`flex h-10 w-10 items-center justify-center rounded-full text-xs shadow-sm ${
               activeDays[i]
-                ? 'bg-[#135bec] font-thin text-white'
+                ? 'bg-primary font-thin text-white'
                 : 'border border-[#94a3b8] bg-white font-thin text-[#94a3b8]'
             }`}
           >

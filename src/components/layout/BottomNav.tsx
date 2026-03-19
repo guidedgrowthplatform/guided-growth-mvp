@@ -68,7 +68,7 @@ export function BottomNav({ onVoicePress }: BottomNavProps) {
           <div className="absolute left-1/2 z-10 -translate-x-1/2" style={{ top: '-24px' }}>
             <button
               onClick={onVoicePress}
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-[#2563eb] shadow-[0px_0px_15px_rgba(19,91,236,0.3)]"
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dark shadow-[0px_0px_15px_rgba(19,91,236,0.3)]"
             >
               <Icon icon="ic:round-mic" width={24} className="text-white" />
             </button>

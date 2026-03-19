@@ -37,7 +37,7 @@ export function SpreadsheetRow({
   days,
   dateStrings,
   entries,
-  selectedCell,
+  // selectedCell,
   editingCell,
   editValue,
   onEditChange,

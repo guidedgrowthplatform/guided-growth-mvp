@@ -15,7 +15,7 @@ interface EditHabitState {
 }
 
 const FIELD_LABEL_CLASS =
-  'px-[4px] text-[12px] font-semibold uppercase leading-[16px] tracking-[0.6px] text-[#6b7280]';
+  'px-[4px] text-[12px] font-semibold uppercase leading-[16px] tracking-[0.6px] text-content-muted';
 
 export function EditHabitPage() {
   const location = useLocation();
@@ -57,7 +57,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
           onClick={() => navigate('/onboarding/advanced-results')}
           className="flex size-[40px] items-center"
         >
-          <Icon icon="ic:round-arrow-back" width={24} height={24} className="text-[#0f172a]" />
+          <Icon icon="ic:round-arrow-back" width={24} height={24} className="text-content" />
         </button>
         <span className="text-[18px] font-bold leading-[28px] text-[#111827]">Edit Habit</span>
         <button
@@ -92,9 +92,9 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
           {/* When? */}
           <div className="flex flex-col gap-[16px]">
             <span className={SECTION_LABEL_CLASS}>When?</span>
-            <div className="flex w-full items-center justify-between rounded-[24px] border border-[#135bec] bg-[rgba(19,91,236,0.05)] px-[21px] py-[15px]">
+            <div className="flex w-full items-center justify-between rounded-[24px] border border-primary bg-primary/5 px-[21px] py-[15px]">
               <TimePicker value={time} onChange={setTime} />
-              <Icon icon="ic:round-access-time" width={20} height={20} className="text-[#135bec]" />
+              <Icon icon="ic:round-access-time" width={20} height={20} className="text-primary" />
             </div>
           </div>
 
@@ -118,7 +118,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
         <button
           type="button"
           onClick={handleSave}
-          className="w-full rounded-full bg-[#135bec] py-[16px] text-center text-[16px] font-bold text-white shadow-[0px_10px_15px_-3px_#bfdbfe,0px_4px_6px_-4px_#bfdbfe]"
+          className="w-full rounded-full bg-primary py-[16px] text-center text-[16px] font-bold text-white shadow-[0px_10px_15px_-3px_#bfdbfe,0px_4px_6px_-4px_#bfdbfe]"
         >
           Save Changes
         </button>

@@ -32,7 +32,7 @@ export function SegmentedControl({ items, value, onChange, size }: SegmentedCont
     >
       <div
         className={`absolute bottom-[4px] top-[4px] transition-all duration-300 ease-out ${
-          isLg ? 'rounded-md bg-[#135bec] shadow-sm' : 'rounded-lg bg-surface shadow-sm'
+          isLg ? 'rounded-md bg-primary shadow-sm' : 'rounded-lg bg-surface shadow-sm'
         }`}
         style={{ left: indicator.left, width: indicator.width }}
       />
@@ -51,10 +51,10 @@ export function SegmentedControl({ items, value, onChange, size }: SegmentedCont
               active
                 ? isLg
                   ? 'font-bold text-white'
-                  : 'font-semibold text-[#135bec]'
+                  : 'font-semibold text-primary'
                 : isLg
-                  ? 'font-semibold text-[#6b7280]'
-                  : 'font-medium text-[#6b7280]'
+                  ? 'font-semibold text-content-muted'
+                  : 'font-medium text-content-muted'
             }`}
           >
             {item.label}

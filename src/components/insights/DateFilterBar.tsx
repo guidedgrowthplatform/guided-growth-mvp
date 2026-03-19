@@ -30,7 +30,7 @@ export function DateFilterBar() {
             height={20}
             className="text-content-secondary"
           />
-          <span className="text-[14px] font-bold leading-5 text-[#334155]">{selected}</span>
+          <span className="text-[14px] font-bold leading-5 text-content-subtle">{selected}</span>
         </div>
         <Icon
           icon="mdi:chevron-down"
@@ -56,7 +56,7 @@ export function DateFilterBar() {
                 setOpen(false);
               }}
               className={`w-full px-[17px] py-2.5 text-left text-[14px] font-medium transition-colors hover:bg-[#f8fafc] ${
-                month === selected ? 'font-bold text-[#135bec]' : 'text-[#334155]'
+                month === selected ? 'font-bold text-primary' : 'text-content-subtle'
               }`}
             >
               {month}
@@ -65,7 +65,7 @@ export function DateFilterBar() {
                   icon="mdi:check"
                   width={16}
                   height={16}
-                  className="ml-2 inline text-[#135bec]"
+                  className="ml-2 inline text-primary"
                 />
               )}
             </button>

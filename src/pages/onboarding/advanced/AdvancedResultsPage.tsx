@@ -73,7 +73,7 @@ export function AdvancedResultsPage() {
           onClick={() => navigate('/onboarding/advanced-input')}
           className="mb-[12px] flex size-[40px] items-center justify-center rounded-full"
         >
-          <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-[#0f172a]" />
+          <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-content" />
         </button>
         <OnboardingProgress currentStep={4} totalSteps={6} />
       </div>
@@ -116,7 +116,7 @@ export function AdvancedResultsPage() {
         <button
           type="button"
           onClick={handleConfirm}
-          className="w-full rounded-full bg-[#135bec] py-[16px] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
+          className="w-full rounded-full bg-primary py-[16px] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
         >
           Confirm & Continue
         </button>

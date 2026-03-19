@@ -9,7 +9,7 @@ export function MilestonesSection({ milestones }: MilestonesSectionProps) {
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-[#0f172a]">Milestones</h2>
+      <h2 className="text-xl font-bold text-content">Milestones</h2>
       <div className="mt-4 flex gap-6 overflow-x-auto pb-2">
         {milestones.map((m) => (
           <MilestoneBadge key={m.target} target={m.target} earned={m.earned} />

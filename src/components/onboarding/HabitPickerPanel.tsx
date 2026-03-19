@@ -29,7 +29,7 @@ export function HabitPickerPanel({
   }, [expanded, habits, selectedHabits]);
 
   return (
-    <div className="rounded-[20px] border-2 border-[#135bec] bg-[#eff6ff] px-[22px] py-[26px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
+    <div className="rounded-[20px] border-2 border-primary bg-[#eff6ff] px-[22px] py-[26px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
       <button
         type="button"
         onClick={onToggleExpanded}

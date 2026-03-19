@@ -21,14 +21,14 @@ export function CheckInDateGroup({ month, day, dayName, daysAgo, entries }: Chec
   return (
     <div>
       <div className="flex items-center gap-2">
-        <div className="flex h-[60px] w-[50px] flex-col items-center justify-center gap-1 overflow-hidden rounded-sm bg-[#135bec] py-1">
+        <div className="flex h-[60px] w-[50px] flex-col items-center justify-center gap-1 overflow-hidden rounded-sm bg-primary py-1">
           <span className="text-[10px] leading-3 text-white">{month}</span>
           <span className="text-[16px] font-semibold text-white">{day}</span>
           <div className="h-1 w-1 rounded-full bg-white/50" />
         </div>
         <div className="flex flex-col">
-          <span className="text-[16px] font-bold leading-6 text-[#135bec]">{dayName}</span>
-          <span className="text-[10px] font-bold leading-3 text-[#135bec]">{daysAgo}</span>
+          <span className="text-[16px] font-bold leading-6 text-primary">{dayName}</span>
+          <span className="text-[10px] font-bold leading-3 text-primary">{daysAgo}</span>
         </div>
       </div>
       <div className="mt-4 flex flex-col gap-4">

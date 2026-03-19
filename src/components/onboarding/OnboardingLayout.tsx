@@ -42,7 +42,7 @@ export function OnboardingLayout({
           onClick={onBack}
           className="mb-2 flex size-[40px] items-center justify-center rounded-full"
         >
-          <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-[#0f172a]" />
+          <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-content" />
         </button>
       )}
       <OnboardingProgress currentStep={currentStep} totalSteps={totalSteps} />
@@ -68,7 +68,7 @@ export function OnboardingLayout({
             type="button"
             onClick={onNext}
             disabled={ctaDisabled}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-[#135bec] py-[20px] text-[18px] font-medium leading-[28px] text-white shadow-[0px_20px_25px_-5px_rgba(26,47,176,0.2),0px_8px_10px_-6px_rgba(26,47,176,0.2)] disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-[20px] text-[18px] font-medium leading-[28px] text-white shadow-[0px_20px_25px_-5px_rgba(26,47,176,0.2),0px_8px_10px_-6px_rgba(26,47,176,0.2)] disabled:opacity-50"
           >
             {ctaLabel}
             <Icon icon="ic:round-arrow-forward" width={18} height={18} />
@@ -77,7 +77,7 @@ export function OnboardingLayout({
             <button
               type="button"
               onClick={secondaryAction.onClick}
-              className="w-full py-[12px] text-center text-[16px] font-semibold text-[#0f172a]"
+              className="w-full py-[12px] text-center text-[16px] font-semibold text-content"
             >
               {secondaryAction.label}
             </button>
@@ -95,7 +95,7 @@ export function OnboardingLayout({
               type="button"
               onClick={onNext}
               disabled={ctaDisabled}
-              className="flex h-[56px] flex-1 items-center justify-center rounded-full bg-[#135bec] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] disabled:opacity-50"
+              className="flex h-[56px] flex-1 items-center justify-center rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] disabled:opacity-50"
             >
               {ctaLabel}
             </button>
@@ -103,7 +103,7 @@ export function OnboardingLayout({
               <button
                 type="button"
                 onClick={() => setIsListening((v) => !v)}
-                className="flex size-[56px] shrink-0 items-center justify-center rounded-full bg-[#135bec] shadow-[0px_25px_50px_-12px_rgba(19,91,236,0.4)]"
+                className="flex size-[56px] shrink-0 items-center justify-center rounded-full bg-primary shadow-[0px_25px_50px_-12px_rgba(19,91,236,0.4)]"
               >
                 <Icon icon="ic:round-mic" width={22} height={22} className="text-white" />
               </button>

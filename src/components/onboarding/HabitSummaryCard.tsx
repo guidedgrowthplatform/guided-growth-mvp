@@ -17,13 +17,13 @@ export function HabitSummaryCard({
   showAiIcon,
 }: HabitSummaryCardProps) {
   return (
-    <div className="w-full overflow-clip rounded-[24px] border-2 border-[#135bec] bg-white p-[2px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.04)]">
+    <div className="w-full overflow-clip rounded-[24px] border-2 border-primary bg-white p-[2px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.04)]">
       <div className="flex items-center justify-between p-[20px]">
         <span className="text-[16px] font-bold leading-[24px] text-[#111318]">{habitName}</span>
         {(showCheckmark || showAiIcon) && (
           <div className="flex items-center gap-[6px]">
             {showCheckmark && (
-              <Icon icon="ic:round-check-circle" className="size-[28px] text-[#135bec]" />
+              <Icon icon="ic:round-check-circle" className="size-[28px] text-primary" />
             )}
             {showAiIcon && (
               <Icon icon="ic:round-auto-awesome" className="size-[24px] text-[#f59e0b]" />
@@ -38,7 +38,7 @@ export function HabitSummaryCard({
           <button
             type="button"
             onClick={onEdit}
-            className="flex cursor-pointer items-center gap-[4px] text-[14px] font-semibold leading-[20px] text-[#135bec]"
+            className="flex cursor-pointer items-center gap-[4px] text-[14px] font-semibold leading-[20px] text-primary"
           >
             Edit
             {showAiIcon && <Icon icon="ic:round-edit" className="size-[16px]" />}

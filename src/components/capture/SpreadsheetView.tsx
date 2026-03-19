@@ -1,14 +1,14 @@
+import { format, getDay } from 'date-fns';
 import { useState, useCallback, useMemo } from 'react';
-import { format, getDay, parseISO } from 'date-fns';
-import type { Metric, EntriesMap, MetricCreate, SpreadsheetRange } from '@shared/types';
-import { DAYS_OF_WEEK, getMonthDays, getWeekDays } from '@/utils/dates';
-import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
-import { useClipboard } from '@/hooks/useClipboard';
-import { SpreadsheetRow } from './SpreadsheetRow';
-import { CellEditPopup } from './CellEditPopup';
-import { AddHabitModal } from './AddHabitModal';
-import { UndoRedoControls } from './UndoRedoControls';
 import { Button } from '@/components/ui/Button';
+import { useClipboard } from '@/hooks/useClipboard';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
+import { DAYS_OF_WEEK, getMonthDays, getWeekDays } from '@/utils/dates';
+import type { Metric, EntriesMap, MetricCreate, SpreadsheetRange } from '@shared/types';
+import { AddHabitModal } from './AddHabitModal';
+import { CellEditPopup } from './CellEditPopup';
+import { SpreadsheetRow } from './SpreadsheetRow';
+import { UndoRedoControls } from './UndoRedoControls';
 
 interface SpreadsheetViewProps {
   date: string;
@@ -67,47 +67,6 @@ export function SpreadsheetView({
     [selectedCell],
   );
 
-  const handleCellClick = useCallback(
-    (dateStr: string, metricId: string, e: React.MouseEvent) => {
-      if (editingCell) {
-        handleEditSave();
-      }
-      setSelectedCell({ date: dateStr, metricId });
-      setEditingCell(null);
-      setPopupPosition(null);
-    },
-    [editingCell],
-  );
-
-  const handleCellMouseDown = useCallback(
-    (dateStr: string, metricId: string, e: React.MouseEvent) => {
-      if (editingCell) handleEditSave();
-      setSelectedCell({ date: dateStr, metricId });
-    },
-    [editingCell],
-  );
-
-  const handleCellDoubleClick = useCallback(
-    (dateStr: string, metricId: string, cellEl: HTMLElement) => {
-      const metric = metrics.find((m) => m.id === metricId);
-      if (!metric) return;
-
-      const currentValue = entries[dateStr]?.[metricId] || '';
-      let displayValue = currentValue;
-      if (metric.input_type === 'binary') {
-        displayValue = currentValue === 'yes' ? '1' : currentValue === 'no' ? '0' : '';
-      }
-
-      setSelectedCell({ date: dateStr, metricId });
-      setEditingCell({ date: dateStr, metricId });
-      setEditValue(displayValue);
-
-      const rect = cellEl.getBoundingClientRect();
-      setPopupPosition({ x: rect.right, y: rect.top });
-    },
-    [metrics, entries],
-  );
-
   const handleEditSave = useCallback(() => {
     if (!editingCell) return;
     const metric = metrics.find((m) => m.id === editingCell.metricId);
@@ -135,6 +94,47 @@ export function SpreadsheetView({
     setEditValue('');
     setPopupPosition(null);
   }, []);
+
+  const handleCellClick = useCallback(
+    (dateStr: string, metricId: string, _e: React.MouseEvent) => {
+      if (editingCell) {
+        handleEditSave();
+      }
+      setSelectedCell({ date: dateStr, metricId });
+      setEditingCell(null);
+      setPopupPosition(null);
+    },
+    [editingCell, handleEditSave],
+  );
+
+  const handleCellMouseDown = useCallback(
+    (dateStr: string, metricId: string, _e: React.MouseEvent) => {
+      if (editingCell) handleEditSave();
+      setSelectedCell({ date: dateStr, metricId });
+    },
+    [editingCell, handleEditSave],
+  );
+
+  const handleCellDoubleClick = useCallback(
+    (dateStr: string, metricId: string, cellEl: HTMLElement) => {
+      const metric = metrics.find((m) => m.id === metricId);
+      if (!metric) return;
+
+      const currentValue = entries[dateStr]?.[metricId] || '';
+      let displayValue = currentValue;
+      if (metric.input_type === 'binary') {
+        displayValue = currentValue === 'yes' ? '1' : currentValue === 'no' ? '0' : '';
+      }
+
+      setSelectedCell({ date: dateStr, metricId });
+      setEditingCell({ date: dateStr, metricId });
+      setEditValue(displayValue);
+
+      const rect = cellEl.getBoundingClientRect();
+      setPopupPosition({ x: rect.right, y: rect.top });
+    },
+    [metrics, entries],
+  );
 
   const handleFillHandleStart = useCallback(
     (e: React.MouseEvent, sourceDate: string, sourceMetricId: string) => {

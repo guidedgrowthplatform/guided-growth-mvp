@@ -51,13 +51,13 @@ function HabitDetailPanel({ habit }: { habit: HabitPerformance }) {
           <span className="text-[10px] font-medium uppercase tracking-wider text-content-tertiary">
             Best Day
           </span>
-          <span className="text-[13px] font-bold text-[#1a1a1a]">{habit.bestDay}</span>
+          <span className="text-[13px] font-bold text-content">{habit.bestDay}</span>
         </div>
         <div className="flex flex-col items-end">
           <span className="text-[10px] font-medium uppercase tracking-wider text-content-tertiary">
             Total
           </span>
-          <span className="text-[13px] font-bold text-[#1a1a1a]">
+          <span className="text-[13px] font-bold text-content">
             {habit.totalCompletions} check-ins
           </span>
         </div>
@@ -89,7 +89,7 @@ export function HabitPerformanceList() {
 
   return (
     <div>
-      <h2 className="text-[18px] font-bold leading-7 text-[#1a1a1a]">Habit Performance</h2>
+      <h2 className="text-[18px] font-bold leading-7 text-content">Habit Performance</h2>
       <div className="mt-4 flex flex-col gap-3">
         {habitPerformanceData.map((habit, i) => {
           const expanded = expandedIndex === i;
@@ -103,10 +103,8 @@ export function HabitPerformanceList() {
               <div className="flex items-center gap-4">
                 <HabitProgressRing percentage={habit.percentage} />
                 <div className="flex flex-1 flex-col">
-                  <span className="text-[14px] font-bold leading-5 text-[#1a1a1a]">
-                    {habit.name}
-                  </span>
-                  <span className="text-[12px] leading-4 text-[#6b7280]">{habit.streak}</span>
+                  <span className="text-[14px] font-bold leading-5 text-content">{habit.name}</span>
+                  <span className="text-[12px] leading-4 text-content-muted">{habit.streak}</span>
                 </div>
                 <Icon
                   icon="mdi:chevron-right"

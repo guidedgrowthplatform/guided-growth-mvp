@@ -26,7 +26,7 @@ export function StatsGrid({
           className="rounded-2xl border border-[#f1f5f9] bg-white p-[17px] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
         >
           <p className="text-sm font-medium leading-[22px] text-[#64748b]">{stat.label}</p>
-          <p className="mt-1 text-xl font-bold leading-7 text-[#0f172a]">{stat.value}</p>
+          <p className="mt-1 text-xl font-bold leading-7 text-content">{stat.value}</p>
         </div>
       ))}
     </div>

@@ -25,14 +25,14 @@ export function AdvancedInputPage() {
         onClick={() => navigate('/onboarding/step-2')}
         className="mb-[12px] flex size-[40px] items-center justify-center rounded-full"
       >
-        <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-[#0f172a]" />
+        <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-content" />
       </button>
 
       <OnboardingProgress currentStep={3} totalSteps={6} />
 
       {/* Header */}
       <div className="flex flex-col gap-[11px]">
-        <h1 className="text-[32px] font-bold leading-[40px] tracking-[-0.8px] text-[#0f172a]">
+        <h1 className="text-[32px] font-bold leading-[40px] tracking-[-0.8px] text-content">
           Tell me what you want to achieve
         </h1>
         <p className="text-[18px] font-medium leading-[29.25px] text-[#7d7d7d]">
@@ -60,7 +60,7 @@ export function AdvancedInputPage() {
           type="button"
           disabled={text.trim() === ''}
           onClick={() => navigate('/onboarding/advanced-results', { state: { text } })}
-          className="flex-1 rounded-full bg-[#135bec] py-[16px] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] disabled:opacity-50"
+          className="flex-1 rounded-full bg-primary py-[16px] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] disabled:opacity-50"
         >
           Done
         </button>

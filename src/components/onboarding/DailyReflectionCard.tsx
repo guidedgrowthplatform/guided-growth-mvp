@@ -36,11 +36,11 @@ export function DailyReflectionCard({
     <div className="flex w-full flex-col gap-[24px] rounded-[24px] border border-[#f1f5f9] bg-white p-[25px] shadow-[0px_10px_30px_-5px_rgba(19,91,236,0.08),0px_4px_12px_-4px_rgba(0,0,0,0.03)]">
       {/* Header */}
       <div className="flex items-center gap-[16px]">
-        <div className="flex size-[48px] items-center justify-center rounded-[24px] bg-[rgba(19,91,236,0.1)]">
-          <Icon icon="ic:round-menu-book" className="size-[24px] text-[#135bec]" />
+        <div className="flex size-[48px] items-center justify-center rounded-[24px] bg-primary/10">
+          <Icon icon="ic:round-menu-book" className="size-[24px] text-primary" />
         </div>
         <div className="flex flex-col">
-          <span className="text-[18px] font-bold text-[#0f172a]">Daily Reflection</span>
+          <span className="text-[18px] font-bold text-content">Daily Reflection</span>
           <span className="text-[14px] font-medium text-[#94a3b8]">
             3 quick questions before bed
           </span>
@@ -49,12 +49,12 @@ export function DailyReflectionCard({
 
       {/* Questions */}
       <div className="flex flex-col gap-[12px]">
-        <span className="text-[14px] font-bold uppercase tracking-[0.35px] text-[#0f172a]">
+        <span className="text-[14px] font-bold uppercase tracking-[0.35px] text-content">
           You'll answer 3 quick questions:
         </span>
         {QUESTIONS.map((q) => (
           <div key={q} className="flex items-center gap-[8px]">
-            <Icon icon="ic:outline-check-circle" className="size-[17px] shrink-0 text-[#135bec]" />
+            <Icon icon="ic:outline-check-circle" className="size-[17px] shrink-0 text-primary" />
             <span className="text-[16px] font-medium text-[#475569]">{q}</span>
           </div>
         ))}
@@ -72,9 +72,9 @@ export function DailyReflectionCard({
       {/* When? */}
       <div className="flex flex-col gap-[16px]">
         <span className={SECTION_LABEL_CLASS}>When?</span>
-        <div className="flex w-full items-center justify-between rounded-[24px] border border-[#135bec] bg-[#eff6ff] px-[21px] py-[15px]">
+        <div className="flex w-full items-center justify-between rounded-[24px] border border-primary bg-[#eff6ff] px-[21px] py-[15px]">
           <TimePicker value={time} onChange={onTimeChange} />
-          <Icon icon="ic:round-access-time" className="size-[20px] text-[#135bec]" />
+          <Icon icon="ic:round-access-time" className="size-[20px] text-primary" />
         </div>
       </div>
 

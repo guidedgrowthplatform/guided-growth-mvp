@@ -18,7 +18,7 @@ export function OnboardingInput({ icon, placeholder, value, onChange }: Onboardi
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-transparent py-[14px] pl-[48px] pr-[16px] text-[18px] text-[#0f172a] outline-none placeholder:font-normal placeholder:text-[#94a3b8]"
+        className="w-full bg-transparent py-[14px] pl-[48px] pr-[16px] text-[18px] text-content outline-none placeholder:font-normal placeholder:text-[#94a3b8]"
       />
     </div>
   );

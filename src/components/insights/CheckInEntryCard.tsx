@@ -59,7 +59,7 @@ function EntryMenu({ anchorEl, onClose }: { anchorEl: HTMLButtonElement; onClose
             onClose();
           }}
           className={`flex w-full items-center gap-2.5 px-3 py-2 text-[13px] font-medium transition-colors hover:bg-[#f8fafc] ${
-            item.danger ? 'text-danger' : 'text-[#334155]'
+            item.danger ? 'text-danger' : 'text-content-subtle'
           }`}
         >
           <Icon icon={item.icon} width={16} height={16} />
@@ -116,7 +116,7 @@ export function CheckInEntryCard({
           {metrics.map((m) => (
             <div
               key={m.label}
-              className="flex flex-1 items-center gap-1 rounded-md border border-[#135bec] bg-[#eff6ff] p-[7px]"
+              className="flex flex-1 items-center gap-1 rounded-md border border-primary bg-[#eff6ff] p-[7px]"
             >
               <Icon icon={m.icon} width={16} height={16} />
               <span className="text-[10px] font-bold leading-3 text-content">{m.label}</span>
@@ -143,7 +143,7 @@ export function CheckInEntryCard({
           <button
             aria-expanded={notesExpanded}
             onClick={() => setNotesExpanded(!notesExpanded)}
-            className="mb-2 flex items-center gap-1 text-[12px] font-medium text-[#135bec]"
+            className="mb-2 flex items-center gap-1 text-[12px] font-medium text-primary"
           >
             <Icon
               icon="mdi:chevron-down"
@@ -158,8 +158,8 @@ export function CheckInEntryCard({
               notesExpanded ? 'max-h-[200px] opacity-100' : 'max-h-0 opacity-0'
             }`}
           >
-            <div className="rounded-md border border-[rgba(19,91,236,0.1)] bg-[rgba(19,91,236,0.05)] px-[17px] py-4">
-              <p className="text-[14px] font-medium leading-[22px] tracking-[0.21px] text-[#334155]">
+            <div className="rounded-md border border-primary/10 bg-primary/5 px-[17px] py-4">
+              <p className="text-[14px] font-medium leading-[22px] tracking-[0.21px] text-content-subtle">
                 {notes}
               </p>
             </div>

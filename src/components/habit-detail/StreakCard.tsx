@@ -23,8 +23,8 @@ export function StreakCard({
         <span className="text-sm font-medium text-[#64748b]">Streak</span>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-4xl font-bold text-[#0f172a]">{currentStreak}</span>
-        <span className="text-[28px] font-semibold text-[#0f172a]">{calendarMonth}</span>
+        <span className="text-4xl font-bold text-content">{currentStreak}</span>
+        <span className="text-[28px] font-semibold text-content">{calendarMonth}</span>
       </div>
       <p className="text-xs text-[#94a3b8]">
         Total Repetitions: {totalRepetitions} — Since {sinceDate}

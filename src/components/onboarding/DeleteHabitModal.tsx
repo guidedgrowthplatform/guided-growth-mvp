@@ -21,7 +21,7 @@ export function DeleteHabitModal({ onDelete, onKeep }: DeleteHabitModalProps) {
         <h2 className="mb-[11px] text-center text-[24px] font-bold leading-[32px] tracking-[-0.6px] text-[#111827]">
           Delete Habit?
         </h2>
-        <p className="mb-[32px] px-[8px] text-center text-[15px] font-normal leading-[24px] text-[#6b7280]">
+        <p className="mb-[32px] px-[8px] text-center text-[15px] font-normal leading-[24px] text-content-muted">
           Are you sure you want to delete this habit? This action cannot be undone
         </p>
         <div className="flex w-full flex-col gap-[12px]">
@@ -35,7 +35,7 @@ export function DeleteHabitModal({ onDelete, onKeep }: DeleteHabitModalProps) {
           <button
             type="button"
             onClick={onKeep}
-            className="w-full rounded-full border-2 border-[#135bec] py-[18px] text-center text-[16px] font-bold text-[#135bec]"
+            className="w-full rounded-full border-2 border-primary py-[18px] text-center text-[16px] font-bold text-primary"
           >
             Keep Habit
           </button>

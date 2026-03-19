@@ -79,7 +79,7 @@ export function AdvancedStep6Page() {
           onClick={() => navigate('/onboarding/advanced-results')}
           className="flex size-[40px] items-center justify-center"
         >
-          <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-[#0f172a]" />
+          <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-content" />
         </button>
         <OnboardingProgress currentStep={5} totalSteps={6} />
       </div>
@@ -95,11 +95,11 @@ export function AdvancedStep6Page() {
       </div>
 
       {/* Daily Reflection Card */}
-      <div className="mx-[24px] mt-[16px] flex flex-col gap-[8px] rounded-[16px] border border-[rgba(19,91,236,0.1)] bg-white p-[25px] shadow-[0px_0px_30px_0px_rgba(19,91,236,0.15)]">
+      <div className="mx-[24px] mt-[16px] flex flex-col gap-[8px] rounded-[16px] border border-primary/10 bg-white p-[25px] shadow-[0px_0px_30px_0px_rgba(19,91,236,0.15)]">
         {/* Card Header */}
         <div className="flex items-center gap-[12px] pb-[16px]">
-          <div className="relative flex size-[40px] items-center justify-center rounded-full bg-[rgba(19,91,236,0.1)]">
-            <Icon icon="mingcute:mic-fill" width={19} height={14} className="text-[#135bec]" />
+          <div className="relative flex size-[40px] items-center justify-center rounded-full bg-primary/10">
+            <Icon icon="mingcute:mic-fill" width={19} height={14} className="text-primary" />
             <span className="absolute right-[-4px] top-[-4px] text-[10px]">✨</span>
           </div>
           <span className="text-[20px] font-bold text-[#0a2540]">Daily Reflection</span>
@@ -107,8 +107,8 @@ export function AdvancedStep6Page() {
 
         {/* AI Badge */}
         <div className="flex items-center gap-[8px] rounded-[16px] bg-[#eef2ff] p-[12px]">
-          <Icon icon="mingcute:mic-ai-fill" width={24} height={24} className="text-[#135bec]" />
-          <span className="text-[14px] font-semibold leading-[20px] text-[#135bec]">
+          <Icon icon="mingcute:mic-ai-fill" width={24} height={24} className="text-primary" />
+          <span className="text-[14px] font-semibold leading-[20px] text-primary">
             Powered by AI Voice-to-Text. Just talk, we'll type.
           </span>
         </div>
@@ -137,7 +137,7 @@ export function AdvancedStep6Page() {
               },
             })
           }
-          className="flex h-[50px] items-center justify-center rounded-full border border-[#135bec] bg-white text-[16px] font-bold text-[#135bec] shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
+          className="flex h-[50px] items-center justify-center rounded-full border border-primary bg-white text-[16px] font-bold text-primary shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
         >
           Optional: Create My Own Prompts
         </button>
@@ -177,7 +177,7 @@ export function AdvancedStep6Page() {
                       setShowDropdown(false);
                     }}
                     className={`w-full px-[16px] py-[8px] text-left text-[14px] font-medium ${
-                      schedule === opt ? 'text-[#135bec]' : 'text-[#0a2540]'
+                      schedule === opt ? 'text-primary' : 'text-[#0a2540]'
                     } hover:bg-[#f1f5f9]`}
                   >
                     {opt === 'Every day' ? 'Daily' : opt}
@@ -194,7 +194,7 @@ export function AdvancedStep6Page() {
         <div className="rounded-full shadow-[0px_0px_0px_12px_rgba(19,91,236,0.05),0px_0px_0px_24px_rgba(19,91,236,0.02)]">
           <button
             type="button"
-            className="flex size-[96px] items-center justify-center rounded-full bg-[#135bec] shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)]"
+            className="flex size-[96px] items-center justify-center rounded-full bg-primary shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)]"
           >
             <Icon icon="ic:round-mic" width={24} height={24} className="text-white" />
           </button>
@@ -206,7 +206,7 @@ export function AdvancedStep6Page() {
         <button
           type="button"
           onClick={handleReviewPlan}
-          className="h-[56px] w-full rounded-full bg-[#135bec] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(10,37,64,0.25),0px_4px_6px_-4px_rgba(10,37,64,0.25)]"
+          className="h-[56px] w-full rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(10,37,64,0.25),0px_4px_6px_-4px_rgba(10,37,64,0.25)]"
         >
           Review My Plan
         </button>

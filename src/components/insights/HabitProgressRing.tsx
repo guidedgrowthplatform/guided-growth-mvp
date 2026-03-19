@@ -57,7 +57,7 @@ export function HabitProgressRing({
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
-        <span className="text-[10px] font-bold leading-[15px] text-[#1a1a1a]">{percentage}%</span>
+        <span className="text-[10px] font-bold leading-[15px] text-content">{percentage}%</span>
       </div>
     </div>
   );
