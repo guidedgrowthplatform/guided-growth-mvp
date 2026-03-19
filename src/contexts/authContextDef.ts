@@ -8,6 +8,7 @@ export interface AuthContextValue {
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

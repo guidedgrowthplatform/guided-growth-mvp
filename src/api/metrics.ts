@@ -1,6 +1,6 @@
-import { apiGet, apiPost, apiPatch, apiDelete, apiPut } from './client';
-import type { Metric, MetricCreate, MetricUpdate } from '@shared/types';
 import { getDataService } from '@/lib/services/service-provider';
+import type { Metric, MetricCreate, MetricUpdate } from '@shared/types';
+import { apiGet, apiPost, apiPatch, apiDelete, apiPut } from './client';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const useSupabase = supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');

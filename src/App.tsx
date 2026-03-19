@@ -7,6 +7,7 @@ import { queryClient } from '@/lib/query';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { LoginRoute } from '@/routes/LoginRoute';
 import { ProtectedRoutes } from '@/routes/ProtectedRoutes';
+import { SignUpRoute } from '@/routes/SignUpRoute';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <ToastProvider>
             <Routes>
               <Route path="/login" element={<LoginRoute />} />
+              <Route path="/signup" element={<SignUpRoute />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/*" element={<ProtectedRoutes />} />
             </Routes>

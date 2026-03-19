@@ -6,6 +6,8 @@ const variants = {
   danger: 'bg-danger text-white hover:bg-danger/90 shadow-sm',
   ghost: 'text-content-secondary hover:bg-surface-secondary',
   icon: 'rounded-full bg-primary text-white hover:bg-primary-dark shadow-card',
+  'social-dark': 'bg-black text-white hover:bg-gray-900',
+  'social-light': 'bg-white text-content border border-border hover:bg-surface-secondary',
 } as const;
 
 const sizes = {
@@ -13,6 +15,8 @@ const sizes = {
   md: 'px-4 py-2 text-sm rounded-md',
   lg: 'px-6 py-3 text-base rounded-md',
   xl: 'px-8 py-4 text-lg rounded-lg',
+  auth: 'px-6 h-14 text-base rounded-full',
+  'auth-rect': 'px-6 h-14 text-base rounded-[24px]',
 } as const;
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

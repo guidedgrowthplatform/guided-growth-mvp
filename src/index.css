@@ -27,6 +27,12 @@
 }
 
 @tailwind base;
+
+input[type='password'] {
+  font-family: Verdana, sans-serif;
+  font-size: 0.75em;
+  letter-spacing: 0.05em;
+}
 @tailwind components;
 @tailwind utilities;
 

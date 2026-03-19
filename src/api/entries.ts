@@ -1,6 +1,6 @@
-import { apiGet, apiPut } from './client';
-import type { EntriesMap, DayEntries } from '@shared/types';
 import { getDataService } from '@/lib/services/service-provider';
+import type { EntriesMap, DayEntries } from '@shared/types';
+import { apiGet, apiPut } from './client';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const useSupabase = supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');

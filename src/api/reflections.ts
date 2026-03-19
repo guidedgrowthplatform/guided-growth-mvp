@@ -1,5 +1,5 @@
-import { apiGet, apiPut } from './client';
 import type { ReflectionConfig, DayReflections } from '@shared/types';
+import { apiGet, apiPut } from './client';
 
 const LS_CONFIG = 'gg_reflections_config';
 const LS_REFLECTIONS = 'gg_reflections';

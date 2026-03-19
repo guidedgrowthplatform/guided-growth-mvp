@@ -1,5 +1,5 @@
-import { apiGet, apiPut } from './client';
 import type { ViewMode, SpreadsheetRange } from '@shared/types';
+import { apiGet, apiPut } from './client';
 
 export interface PreferencesData {
   default_view: ViewMode;

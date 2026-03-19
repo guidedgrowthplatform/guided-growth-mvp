@@ -44,6 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   };
 
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+    return { error: error?.message ?? null };
+  };
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-primary-bg">
@@ -56,7 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{ user, session, loading, signUp, signIn, signOut, signInWithGoogle }}
+    >
       {children}
     </AuthContext.Provider>
   );

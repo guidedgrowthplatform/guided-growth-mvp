@@ -1,5 +1,5 @@
-import { apiGet, apiPost } from './client';
 import type { User } from '@shared/types';
+import { apiGet, apiPost } from './client';
 
 export async function fetchCurrentUser(): Promise<User | null> {
   try {

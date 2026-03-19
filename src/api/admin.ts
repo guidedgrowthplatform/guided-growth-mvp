@@ -1,5 +1,5 @@
-import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 import type { User, AllowlistEntry, AuditLogEntry } from '@shared/types';
+import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 
 export async function fetchUsers(): Promise<User[]> {
   return apiGet<User[]>('/api/admin/users');
