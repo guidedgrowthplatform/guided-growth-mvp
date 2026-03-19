@@ -1,9 +1,16 @@
-import { useState, useEffect } from 'react';
-import {
-  useVoiceSettingsStore,
-  type RecordingMode,
-  type SttProvider,
-} from '@/stores/voiceSettingsStore';
+import { Icon } from '@iconify/react';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
+import { SettingRow } from '@/components/settings/SettingRow';
+import { SettingsCard } from '@/components/settings/SettingsCard';
+import { SettingSectionHeader } from '@/components/settings/SettingSectionHeader';
+import { SettingsHeader } from '@/components/settings/SettingsHeader';
+import { TimeBadge } from '@/components/settings/TimeBadge';
+import { UserInfoSection } from '@/components/settings/UserInfoSection';
+import { VoiceSettingsSheet } from '@/components/settings/VoiceSettingsSheet';
+import { Toggle } from '@/components/ui/Toggle';
+import { useToast } from '@/contexts/ToastContext';
 import {
   getAvailableVoices,
   setVoicePreference,
@@ -11,25 +18,176 @@ import {
   getVoicePreference,
 } from '@/lib/services/tts-service';
 import {
-  Brain,
-  Mic,
-  MessageSquare,
-  Volume2,
-  Database,
-  Trash2,
-  Globe,
-  Bot,
-  Zap,
-  Timer,
-  Radio,
-  AlertTriangle,
-  Pencil,
-} from 'lucide-react';
+  useVoiceSettingsStore,
+  type RecordingMode,
+  type SttProvider,
+} from '@/stores/voiceSettingsStore';
 
-// Keep Pencil export available for other files that may need it
-void Pencil;
+// --- Option data ---
+
+const sttOptions: { value: SttProvider; label: string; description: string }[] = [
+  {
+    value: 'webspeech',
+    label: 'Web Speech API',
+    description: 'Browser built-in. Free, real-time interim results. Requires internet.',
+  },
+  {
+    value: 'whisper',
+    label: 'Whisper (whisper.cpp)',
+    description: 'OpenAI Whisper base model. Runs locally via WASM. ~75MB download on first use.',
+  },
+  {
+    value: 'deepgram',
+    label: 'DeepGram Nova-2',
+    description: 'Cloud-based. Fastest transcription with real-time streaming. Requires API key.',
+  },
+];
+
+const recordingOptions: { value: RecordingMode; label: string; description: string }[] = [
+  {
+    value: 'auto-stop',
+    label: 'Auto-stop (Siri-like)',
+    description: 'Stops recording after 2.5s of silence. Best for quick voice commands.',
+  },
+  {
+    value: 'always-on',
+    label: 'Always recording',
+    description: 'Keeps microphone active until manually stopped. Good for longer dictation.',
+  },
+];
+
+const coachingStyles = [
+  {
+    value: 'friendly',
+    label: 'Friendly & Empathetic',
+    description: 'Warm, supportive tone with gentle encouragement.',
+  },
+  {
+    value: 'direct',
+    label: 'Direct & Motivational',
+    description: 'Straightforward feedback with high-energy motivation.',
+  },
+  {
+    value: 'analytical',
+    label: 'Analytical & Data-Driven',
+    description: 'Focus on numbers, trends, and measurable progress.',
+  },
+];
+
+const voiceModels = [
+  {
+    value: 'alex',
+    label: 'Alex (Male - Calm)',
+    description: 'Calm, steady male voice for a relaxed coaching experience.',
+  },
+  {
+    value: 'sarah',
+    label: 'Sarah (Female - Warm)',
+    description: 'Warm, encouraging female voice with natural intonation.',
+  },
+  {
+    value: 'jordan',
+    label: 'Jordan (Neutral - Energetic)',
+    description: 'Energetic, gender-neutral voice for high-motivation sessions.',
+  },
+];
+
+const languages = [
+  { value: 'en-US', label: 'English (US)', description: 'American English speech recognition.' },
+  { value: 'en-GB', label: 'English (UK)', description: 'British English speech recognition.' },
+  {
+    value: 'es-ES',
+    label: 'Spanish (Spain)',
+    description: 'Castilian Spanish speech recognition.',
+  },
+];
+
+const sttLabels: Record<string, string> = {
+  webspeech: 'Web Speech API',
+  whisper: 'Whisper',
+  deepgram: 'DeepGram Nova-2',
+};
+const modeLabels: Record<string, string> = { 'auto-stop': 'Auto-stop', 'always-on': 'Always On' };
+
+// --- Persistence helpers ---
+
+const SETTINGS_STORAGE_KEY = 'mvp03_page_settings';
+
+interface PageSettings {
+  coachingStyle: string;
+  voiceModel: string;
+  language: string;
+  morningTime: string;
+  nightTime: string;
+  pushNotifications: boolean;
+}
+
+function loadPageSettings(): PageSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (raw) return { ...defaultPageSettings, ...JSON.parse(raw) };
+  } catch {
+    /* ignore */
+  }
+  return defaultPageSettings;
+}
+
+const defaultPageSettings: PageSettings = {
+  coachingStyle: 'friendly',
+  voiceModel: 'alex',
+  language: 'en-US',
+  morningTime: '07:00',
+  nightTime: '22:30',
+  pushNotifications: true,
+};
+
+function savePageSettings(settings: PageSettings) {
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    /* ignore */
+  }
+}
+
+// --- Time helpers ---
+
+function formatTime12h(time24: string): string {
+  const [h, m] = time24.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${String(hour12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+function generateTimeOptions(): { value: string; label: string; description: string }[] {
+  const options: { value: string; label: string; description: string }[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 30]) {
+      const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      options.push({ value, label: formatTime12h(value), description: '' });
+    }
+  }
+  return options;
+}
+
+const timeOptions = generateTimeOptions();
+
+// --- Sheet types ---
+
+type SheetType =
+  | 'stt'
+  | 'recording'
+  | 'ttsVoice'
+  | 'coaching'
+  | 'voiceModel'
+  | 'language'
+  | 'morningTime'
+  | 'nightTime';
+
+// --- Component ---
 
 export function SettingsPage() {
+  const navigate = useNavigate();
+  const { addToast } = useToast();
   const {
     recordingMode,
     setRecordingMode,
@@ -38,46 +196,51 @@ export function SettingsPage() {
     sttProvider,
     setSttProvider,
   } = useVoiceSettingsStore();
+
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>(getVoicePreference() || '');
+  const [activeSheet, setActiveSheet] = useState<SheetType | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Load voices — retry with polling for Android (voiceschanged may not fire)
+  // Page-level settings (persisted in localStorage)
+  const [pageSettings, setPageSettings] = useState<PageSettings>(loadPageSettings);
+
+  const updateSetting = useCallback(
+    <K extends keyof PageSettings>(key: K, value: PageSettings[K]) => {
+      setPageSettings((prev) => {
+        const next = { ...prev, [key]: value };
+        savePageSettings(next);
+        return next;
+      });
+    },
+    [],
+  );
+
+  // Load voices with polling for Android
   useEffect(() => {
     let retries = 0;
-    const maxRetries = 12; // 12 x 250ms = 3 seconds
+    const maxRetries = 12;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const loadVoices = () => {
       const available = getAvailableVoices();
       if (available.length > 0) {
         setVoices(available);
-        if (!selectedVoice) {
-          setSelectedVoice(available[0].name);
-        }
         if (timer) clearTimeout(timer);
         return true;
       }
       return false;
     };
 
-    // Try immediately
     if (!loadVoices()) {
-      // Poll for voices (Android fix)
       const poll = () => {
         retries++;
-        if (loadVoices() || retries >= maxRetries) {
-          // If still empty after timeout, set empty to show "No voices" message
-          if (retries >= maxRetries && voices.length === 0) {
-            setVoices([]);
-          }
-          return;
-        }
+        if (loadVoices() || retries >= maxRetries) return;
         timer = setTimeout(poll, 250);
       };
       timer = setTimeout(poll, 250);
     }
 
-    // Chrome fires voiceschanged event after async load
     if ('speechSynthesis' in window) {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
@@ -85,262 +248,297 @@ export function SettingsPage() {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [selectedVoice]);
+  }, []);
 
-  const handleVoiceChange = (voiceName: string) => {
+  const handleVoiceChange = useCallback((voiceName: string) => {
     setSelectedVoice(voiceName);
     setVoicePreference(voiceName);
     useVoiceSettingsStore.getState().setSelectedVoiceName(voiceName);
-  };
+  }, []);
 
-  const handlePreview = () => {
+  const handlePreview = useCallback(() => {
     speak('Hello! I am your growth tracker assistant. How can I help you today?');
-  };
+  }, []);
 
-  const modes: {
-    value: RecordingMode;
-    label: string;
-    description: string;
-    icon: React.ReactNode;
-  }[] = [
-    {
-      value: 'auto-stop',
-      label: 'Auto-stop (Siri-like)',
-      description: 'Stops recording after 2.5s of silence. Best for quick voice commands.',
-      icon: <Timer className="h-5 w-5 text-primary" />,
-    },
-    {
-      value: 'always-on',
-      label: 'Always recording',
-      description: 'Keeps microphone active until manually stopped. Good for longer dictation.',
-      icon: <Radio className="h-5 w-5 text-primary" />,
-    },
-  ];
+  const handleDeleteAccount = useCallback(() => {
+    localStorage.clear();
+    window.location.reload();
+  }, []);
 
-  const sttProviders: {
-    value: SttProvider;
-    label: string;
-    description: string;
-    icon: React.ReactNode;
-  }[] = [
-    {
-      value: 'webspeech',
-      label: 'Web Speech API',
-      description: 'Browser built-in. Free, real-time interim results. Requires internet.',
-      icon: <Globe className="h-5 w-5 text-primary" />,
-    },
-    {
-      value: 'whisper',
-      label: 'Whisper (whisper.cpp)',
-      description:
-        'OpenAI Whisper base model. Runs locally in browser via WASM. ~75MB download on first use.',
-      icon: <Bot className="h-5 w-5 text-primary" />,
-    },
-    {
-      value: 'deepgram',
-      label: 'DeepGram Nova-2',
-      description: 'Cloud-based. Fastest transcription with real-time streaming. Requires API key.',
-      icon: <Zap className="h-5 w-5 text-primary" />,
-    },
-  ];
+  // Lookup labels
+  const coachingLabel =
+    coachingStyles.find((s) => s.value === pageSettings.coachingStyle)?.label ??
+    'Friendly & Empathetic';
+  const voiceModelLabel =
+    voiceModels.find((m) => m.value === pageSettings.voiceModel)?.label ?? 'Alex (Male - Calm)';
+  const languageLabel =
+    languages.find((l) => l.value === pageSettings.language)?.label ?? 'English (US)';
+
+  // Static user data (placeholder until auth context is available)
+  const user = { name: 'Jeff Doe', email: 'jeff.doe@example.com' };
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <h1 className="mb-6 text-2xl font-bold text-content">Settings</h1>
+    <div>
+      <SettingsHeader onBack={() => navigate(-1)} />
 
-      {/* STT Provider */}
-      <section className="mb-8">
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-content">
-          <Brain className="h-5 w-5" /> Speech-to-Text Engine
-        </h2>
-        <div className="space-y-3">
-          {sttProviders.map((provider) => (
-            <label
-              key={provider.value}
-              className={`flex cursor-pointer items-start gap-4 rounded-xl border-2 p-4 transition-all duration-200 ${
-                sttProvider === provider.value
-                  ? 'border-primary bg-surface-secondary shadow-md'
-                  : 'border-border bg-surface hover:border-content-tertiary'
-              }`}
+      <UserInfoSection
+        name={user.name}
+        email={user.email}
+        onEditProfile={() => addToast('info', 'Edit profile coming soon')}
+        onChangePhoto={() => addToast('info', 'Photo upload coming soon')}
+      />
+
+      {/* AI Assistant */}
+      <section className="mt-8">
+        <SettingSectionHeader title="AI Assistant" />
+        <SettingsCard>
+          <SettingRow
+            icon="mdi:robot-outline"
+            label="AI Coaching Style"
+            isFirst
+            onClick={() => setActiveSheet('coaching')}
+            right={
+              <span className="text-sm font-medium text-content-secondary">{coachingLabel}</span>
+            }
+          />
+          <SettingRow
+            icon="tdesign:user-talk"
+            label="Voice Model"
+            onClick={() => setActiveSheet('voiceModel')}
+            right={
+              <span className="text-sm font-medium text-content-secondary">{voiceModelLabel}</span>
+            }
+          />
+          <SettingRow
+            icon="ic:round-translate"
+            label="Voice-to-Text Language"
+            onClick={() => setActiveSheet('language')}
+            right={
+              <span className="text-sm font-medium text-content-secondary">{languageLabel}</span>
+            }
+          />
+        </SettingsCard>
+      </section>
+
+      {/* Check-In Routine */}
+      <section className="mt-8">
+        <SettingSectionHeader title="Check-In Routine" />
+        <SettingsCard>
+          <SettingRow
+            icon="mingcute:sun-line"
+            label="Morning Check In"
+            isFirst
+            onClick={() => setActiveSheet('morningTime')}
+            right={<TimeBadge>{formatTime12h(pageSettings.morningTime)}</TimeBadge>}
+          />
+          <SettingRow
+            icon="boxicons:moon"
+            label="Night Check in"
+            onClick={() => setActiveSheet('nightTime')}
+            right={<TimeBadge>{formatTime12h(pageSettings.nightTime)}</TimeBadge>}
+          />
+          <SettingRow
+            icon="iconamoon:notification"
+            label="Push Notifications"
+            right={
+              <Toggle
+                checked={pageSettings.pushNotifications}
+                onChange={(v) => {
+                  updateSetting('pushNotifications', v);
+                  addToast('success', v ? 'Notifications enabled' : 'Notifications disabled');
+                }}
+              />
+            }
+          />
+        </SettingsCard>
+      </section>
+
+      {/* Voice & Speech */}
+      <section className="mt-8">
+        <SettingSectionHeader title="Voice & Speech" />
+        <SettingsCard>
+          <SettingRow
+            icon="mdi:brain"
+            label="Speech Engine"
+            isFirst
+            onClick={() => setActiveSheet('stt')}
+            right={
+              <span className="text-sm font-medium text-content-secondary">
+                {sttLabels[sttProvider]}
+              </span>
+            }
+          />
+          <SettingRow
+            icon="ic:round-mic"
+            label="Recording Mode"
+            onClick={() => setActiveSheet('recording')}
+            right={
+              <span className="text-sm font-medium text-content-secondary">
+                {modeLabels[recordingMode]}
+              </span>
+            }
+          />
+          <SettingRow
+            icon="ic:round-volume-up"
+            label="Voice Feedback"
+            right={<Toggle checked={ttsEnabled} onChange={setTtsEnabled} />}
+          />
+          <SettingRow
+            icon="ic:round-record-voice-over"
+            label="TTS Voice"
+            onClick={() => setActiveSheet('ttsVoice')}
+            right={
+              <span className="max-w-[120px] truncate text-sm font-medium text-content-secondary">
+                {selectedVoice || 'Default'}
+              </span>
+            }
+          />
+        </SettingsCard>
+      </section>
+
+      {/* Privacy & Account */}
+      <section className="mt-8">
+        <SettingSectionHeader title="Privacy & Account" />
+        <SettingsCard>
+          <SettingRow
+            icon="hugeicons:google-doc"
+            label="Privacy Policy"
+            isFirst
+            onClick={() => addToast('info', 'Privacy policy coming soon')}
+            right={
+              <Icon icon="ic:round-chevron-right" width={20} className="text-content-tertiary" />
+            }
+          />
+          <SettingRow
+            icon="octicon:trash-24"
+            label="Delete Account & Data"
+            iconBg="bg-[#fef2f2]"
+            iconClass="text-danger"
+            labelClass="text-danger"
+            onClick={() => setShowDeleteConfirm(true)}
+          />
+        </SettingsCard>
+      </section>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Delete Account & Data"
+          message="This will clear all local data including habits, entries, and preferences. This action cannot be undone."
+          confirmLabel="Delete Everything"
+          cancelLabel="Cancel"
+          variant="danger"
+          onConfirm={handleDeleteAccount}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
+
+      {/* Bottom Sheets */}
+      {activeSheet === 'stt' && (
+        <VoiceSettingsSheet
+          title="Speech Engine"
+          options={sttOptions}
+          selected={sttProvider}
+          onSelect={(v) => {
+            setSttProvider(v as SttProvider);
+            setActiveSheet(null);
+          }}
+          onClose={() => setActiveSheet(null)}
+        />
+      )}
+      {activeSheet === 'recording' && (
+        <VoiceSettingsSheet
+          title="Recording Mode"
+          options={recordingOptions}
+          selected={recordingMode}
+          onSelect={(v) => {
+            setRecordingMode(v as RecordingMode);
+            setActiveSheet(null);
+          }}
+          onClose={() => setActiveSheet(null)}
+        />
+      )}
+      {activeSheet === 'ttsVoice' && (
+        <VoiceSettingsSheet
+          title="TTS Voice"
+          options={voices.map((v) => ({ value: v.name, label: v.name, description: v.lang }))}
+          selected={selectedVoice}
+          onSelect={(v) => {
+            handleVoiceChange(v);
+            setActiveSheet(null);
+          }}
+          onClose={() => setActiveSheet(null)}
+          extraContent={
+            <button
+              type="button"
+              onClick={handlePreview}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-md"
             >
-              <input
-                type="radio"
-                name="sttProvider"
-                value={provider.value}
-                checked={sttProvider === provider.value}
-                onChange={() => setSttProvider(provider.value)}
-                className="mt-1 accent-primary"
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  {provider.icon}
-                  <span className="font-medium text-content">{provider.label}</span>
-                </div>
-                <p className="mt-1 text-sm text-content-secondary">{provider.description}</p>
-              </div>
-            </label>
-          ))}
-        </div>
-      </section>
-
-      {/* Recording Mode */}
-      <section className="mb-8">
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-content">
-          <Mic className="h-5 w-5" /> Recording Mode
-        </h2>
-        <div className="space-y-3">
-          {modes.map((mode) => (
-            <label
-              key={mode.value}
-              className={`flex cursor-pointer items-start gap-4 rounded-xl border-2 p-4 transition-all duration-200 ${
-                recordingMode === mode.value
-                  ? 'border-primary bg-surface-secondary shadow-md'
-                  : 'border-border bg-surface hover:border-content-tertiary'
-              }`}
-            >
-              <input
-                type="radio"
-                name="recordingMode"
-                value={mode.value}
-                checked={recordingMode === mode.value}
-                onChange={() => setRecordingMode(mode.value)}
-                className="mt-1 accent-primary"
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  {mode.icon}
-                  <span className="font-medium text-content">{mode.label}</span>
-                </div>
-                <p className="mt-1 text-sm text-content-secondary">{mode.description}</p>
-              </div>
-            </label>
-          ))}
-        </div>
-        <p className="mt-2 flex items-center gap-1 text-xs text-warning">
-          <AlertTriangle className="h-3.5 w-3.5" /> Note: Apple may restrict "always recording" mode
-          on iOS.
-        </p>
-      </section>
-
-      {/* Talk Back Voice Toggle */}
-      <section className="mb-8">
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-content">
-          <MessageSquare className="h-5 w-5" /> Talk Back Voice
-        </h2>
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <label className="flex cursor-pointer items-center justify-between">
-            <div>
-              <span className="font-medium text-content">Voice feedback</span>
-              <p className="mt-0.5 text-sm text-content-secondary">
-                Read results aloud after each voice command
-              </p>
-            </div>
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={ttsEnabled}
-                onChange={(e) => setTtsEnabled(e.target.checked)}
-                className="peer sr-only"
-                id="tts-toggle"
-              />
-              <div className="peer h-6 w-11 rounded-full bg-content-tertiary transition-colors peer-checked:bg-primary peer-focus:ring-2 peer-focus:ring-primary" />
-              <div className="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-surface shadow transition-transform peer-checked:translate-x-5" />
-            </div>
-          </label>
-        </div>
-      </section>
-
-      {/* Voice Selection */}
-      <section className="mb-8">
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-content">
-          <Volume2 className="h-5 w-5" /> TTS Voice
-        </h2>
-        <div className="rounded-xl border border-border bg-surface p-4">
-          {voices.length === 0 ? (
-            <p className="text-sm italic text-content-tertiary">
-              {!('speechSynthesis' in window)
-                ? 'Text-to-speech is not supported in this browser.'
-                : 'No voice options found — TTS will use the device default voice.'}
-            </p>
-          ) : (
-            <div className="space-y-3">
-              <select
-                id="voice-select"
-                value={selectedVoice}
-                onChange={(e) => handleVoiceChange(e.target.value)}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                {voices.map((v) => (
-                  <option key={v.name} value={v.name}>
-                    {v.name} ({v.lang})
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={handlePreview}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm text-white shadow-md transition-all hover:bg-primary-dark hover:shadow-lg"
-              >
-                <Volume2 className="h-4 w-4" /> Preview Voice
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Voice Command Examples */}
-      <section className="mb-8">
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-content">
-          <Mic className="h-5 w-5" /> Voice Command Examples
-        </h2>
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <p className="mb-3 text-sm text-content-secondary">
-            Tap the microphone button on any page and try saying:
-          </p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {[
-              { cmd: '"Add a habit called morning meditation"', desc: 'Create a new habit' },
-              { cmd: '"Mark exercise as done"', desc: 'Complete a habit for today' },
-              {
-                cmd: '"Add a new metric called mood, scale 1 to 10"',
-                desc: 'Track a custom metric',
-              },
-              { cmd: '"Log my mood at 8"', desc: 'Record a metric value' },
-              { cmd: '"Show my weekly summary"', desc: 'View progress report' },
-              { cmd: '"How am I doing with reading?"', desc: 'Check habit stats' },
-              { cmd: '"Delete the workout habit"', desc: 'Remove a habit' },
-              { cmd: '"I slept well and feel great today"', desc: 'Journal reflection' },
-            ].map(({ cmd, desc }) => (
-              <div key={cmd} className="rounded-lg border border-border bg-surface-secondary p-3">
-                <p className="text-sm font-medium text-primary">{cmd}</p>
-                <p className="mt-0.5 text-xs text-content-tertiary">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Data Management */}
-      <section className="mb-8">
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-content">
-          <Database className="h-5 w-5" /> Data
-        </h2>
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <button
-            onClick={() => {
-              if (confirm('Clear all local data? This cannot be undone.')) {
-                localStorage.clear();
-                window.location.reload();
-              }
-            }}
-            className="flex items-center gap-1.5 rounded-lg border border-danger/20 bg-danger/10 px-4 py-2 text-sm text-danger transition-colors hover:bg-danger/20"
-          >
-            <Trash2 className="h-4 w-4" /> Clear All Local Data
-          </button>
-          <p className="mt-2 text-xs text-content-tertiary">
-            Clears all habits, entries, and preferences from this browser.
-          </p>
-        </div>
-      </section>
+              <Icon icon="ic:round-volume-up" width={16} /> Preview Voice
+            </button>
+          }
+        />
+      )}
+      {activeSheet === 'coaching' && (
+        <VoiceSettingsSheet
+          title="AI Coaching Style"
+          options={coachingStyles}
+          selected={pageSettings.coachingStyle}
+          onSelect={(v) => {
+            updateSetting('coachingStyle', v);
+            setActiveSheet(null);
+          }}
+          onClose={() => setActiveSheet(null)}
+        />
+      )}
+      {activeSheet === 'voiceModel' && (
+        <VoiceSettingsSheet
+          title="Voice Model"
+          options={voiceModels}
+          selected={pageSettings.voiceModel}
+          onSelect={(v) => {
+            updateSetting('voiceModel', v);
+            setActiveSheet(null);
+          }}
+          onClose={() => setActiveSheet(null)}
+        />
+      )}
+      {activeSheet === 'language' && (
+        <VoiceSettingsSheet
+          title="Voice-to-Text Language"
+          options={languages}
+          selected={pageSettings.language}
+          onSelect={(v) => {
+            updateSetting('language', v);
+            setActiveSheet(null);
+          }}
+          onClose={() => setActiveSheet(null)}
+        />
+      )}
+      {activeSheet === 'morningTime' && (
+        <VoiceSettingsSheet
+          title="Morning Check-In Time"
+          options={timeOptions}
+          selected={pageSettings.morningTime}
+          onSelect={(v) => {
+            updateSetting('morningTime', v);
+            setActiveSheet(null);
+          }}
+          onClose={() => setActiveSheet(null)}
+        />
+      )}
+      {activeSheet === 'nightTime' && (
+        <VoiceSettingsSheet
+          title="Night Check-In Time"
+          options={timeOptions}
+          selected={pageSettings.nightTime}
+          onSelect={(v) => {
+            updateSetting('nightTime', v);
+            setActiveSheet(null);
+          }}
+          onClose={() => setActiveSheet(null)}
+        />
+      )}
     </div>
   );
 }

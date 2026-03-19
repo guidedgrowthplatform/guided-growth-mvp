@@ -37,6 +37,7 @@ export default tseslint.config(
           Array.isArray(v) ? ['warn', ...v.slice(1)] : 'warn',
         ]),
       ),
+      'react-hooks/set-state-in-effect': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       '@typescript-eslint/no-unused-vars': [
         'warn',

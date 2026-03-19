@@ -5,6 +5,7 @@ import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { getDataService } from '@/lib/services/service-provider';
 import { AdminPage } from '@/pages/AdminPage';
+import { CalendarPage } from '@/pages/CalendarPage';
 import { CapturePage } from '@/pages/CapturePage';
 import { ConfigurePage } from '@/pages/ConfigurePage';
 import { FocusPage } from '@/pages/FocusPage';
@@ -199,6 +200,7 @@ export function AppRoutes() {
         <Route path="configure" element={<ConfigurePage />} />
         <Route path="focus" element={<FocusPage />} />
         <Route path="report" element={<InsightsPage />} />
+        <Route path="report/calendar" element={<CalendarPage />} />
         <Route path="admin" element={<AdminPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="habit/:habitId" element={<HomePage />} />

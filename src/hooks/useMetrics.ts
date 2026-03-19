@@ -1,9 +1,9 @@
-import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { MetricCreate, MetricUpdate } from '@shared/types';
+import { useCallback } from 'react';
 import * as metricsApi from '@/api/metrics';
-import { queryKeys } from '@/lib/query';
 import { useToast } from '@/contexts/ToastContext';
+import { queryKeys } from '@/lib/query';
+import type { MetricCreate, MetricUpdate } from '@shared/types';
 
 export function useMetrics() {
   const { addToast } = useToast();

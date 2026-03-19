@@ -1,10 +1,10 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { EntriesMap, DayEntries } from '@shared/types';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import * as entriesApi from '@/api/entries';
-import { useToast } from '@/contexts/ToastContext';
 import { offlineQueue } from '@/cache/offlineQueue';
+import { useToast } from '@/contexts/ToastContext';
 import { queryKeys } from '@/lib/query';
+import type { EntriesMap, DayEntries } from '@shared/types';
 
 export function useEntries() {
   const { addToast } = useToast();
@@ -18,7 +18,6 @@ export function useEntries() {
     enabled: !!range,
   });
 
-  // Sync query data into local state reactively via query.data
   useEffect(() => {
     if (query.data) setEntries(query.data);
   }, [query.data]);
@@ -50,7 +49,7 @@ export function useEntries() {
     async (date: string, dayEntries: DayEntries) => {
       try {
         await entriesApi.saveEntries(date, dayEntries);
-      } catch (err: any) {
+      } catch {
         offlineQueue.enqueue(`/api/entries/${date}`, 'PUT', dayEntries);
         addToast('error', 'Saved offline — will sync when back online');
       }
@@ -58,7 +57,6 @@ export function useEntries() {
     [addToast],
   );
 
-  // Flush offline queue when online
   useEffect(() => {
     const handleOnline = () => {
       if (offlineQueue.length > 0) {

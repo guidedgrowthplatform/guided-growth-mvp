@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { useVoiceStore } from '@/stores/voiceStore';
-import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+import { ensureMicPermission } from '@/lib/services/mic-permissions';
 import {
   loadWhisperModel,
   transcribeAudio,
@@ -9,10 +8,11 @@ import {
   onWhisperStatus,
   type WhisperStatus,
 } from '@/lib/services/whisper-service';
-import { ensureMicPermission } from '@/lib/services/mic-permissions';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+import { useVoiceStore } from '@/stores/voiceStore';
 
 // Track interim text separately so we can show live speech
-let currentInterim = '';
+let _currentInterim = '';
 let networkErrorCount = 0;
 
 // Silence detection config
@@ -155,7 +155,7 @@ export function useVoiceInput() {
         if (result.isFinal) {
           const text = result[0].transcript.trim();
           if (text) {
-            currentInterim = '';
+            _currentInterim = '';
             hasSpokenRef.current = true;
             appendTranscript(text);
           }
@@ -164,7 +164,7 @@ export function useVoiceInput() {
         }
       }
       if (interim) {
-        currentInterim = interim;
+        _currentInterim = interim;
         hasSpokenRef.current = true;
         setInterim(interim);
       }
@@ -358,7 +358,7 @@ export function useVoiceInput() {
 
     // Web Speech API flow
     isStartingRef.current = false;
-    currentInterim = '';
+    _currentInterim = '';
     hasSpokenRef.current = false;
     clearSilenceTimer();
     const recognition = recognitionRef.current;

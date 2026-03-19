@@ -1,13 +1,13 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { useCommandStore } from '@/stores/commandStore';
-import { ActionDispatcher } from '@/lib/services/action-dispatcher';
-import { getDataService } from '@/lib/services/service-provider';
 import { useToast } from '@/contexts/ToastContext';
-import { speakPreAck, speak } from '@/lib/services/tts-service';
-import { haptic } from '@/lib/services/haptic-service';
 import { queryKeys } from '@/lib/query';
+import { ActionDispatcher } from '@/lib/services/action-dispatcher';
+import { haptic } from '@/lib/services/haptic-service';
+import { getDataService } from '@/lib/services/service-provider';
+import { speakPreAck, speak } from '@/lib/services/tts-service';
+import { useCommandStore } from '@/stores/commandStore';
 
 // Lazy-init: wait for the correct data service (Supabase) before creating dispatcher
 let _dispatcher: ActionDispatcher | null = null;
@@ -37,7 +37,7 @@ function localParse(transcript: string): {
       t.match(
         /(?:create|add|new)\s+(?:a\s+)?(?:new\s+)?(?:daily\s+)?(?:habits?\s+)?(.+?)(?:\s+habit)?$/i,
       ); // "add X" / "add new habit X" / "add new habits playing"
-    let name =
+    const name =
       nameMatch?.[1]
         ?.replace(/^(?:a\s+|the\s+|new\s+|my\s+)/i, '') // strip leading articles
         ?.replace(/\s+habits?$/i, '') // strip trailing "habit(s)"
@@ -249,7 +249,7 @@ export function useVoiceCommand() {
         addToast('error', `Command failed: ${msg}`);
       }
     },
-    [navigate, addToast, setProcessing, setResult, setError, addHistory],
+    [navigate, addToast, setProcessing, setResult, setError, addHistory, qc],
   );
 
   return {

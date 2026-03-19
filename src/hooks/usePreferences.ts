@@ -1,8 +1,8 @@
-import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ViewMode, SpreadsheetRange } from '@shared/types';
+import { useCallback } from 'react';
 import * as prefsApi from '@/api/preferences';
 import { queryKeys } from '@/lib/query';
+import type { ViewMode, SpreadsheetRange } from '@shared/types';
 
 const defaultPrefs = {
   default_view: 'spreadsheet' as ViewMode,
@@ -24,7 +24,11 @@ export function usePreferences() {
 
   const saveView = useCallback(
     (view: ViewMode) => {
-      qc.setQueryData(queryKeys.preferences.all, (old: any) => ({ ...old, default_view: view }));
+      qc.setQueryData(queryKeys.preferences.all, (old: typeof defaultPrefs | undefined) => ({
+        ...defaultPrefs,
+        ...old,
+        default_view: view,
+      }));
       prefsApi.savePreferences({ default_view: view }).catch(() => {});
     },
     [qc],
@@ -32,7 +36,8 @@ export function usePreferences() {
 
   const saveRange = useCallback(
     (range: SpreadsheetRange) => {
-      qc.setQueryData(queryKeys.preferences.all, (old: any) => ({
+      qc.setQueryData(queryKeys.preferences.all, (old: typeof defaultPrefs | undefined) => ({
+        ...defaultPrefs,
         ...old,
         spreadsheet_range: range,
       }));
