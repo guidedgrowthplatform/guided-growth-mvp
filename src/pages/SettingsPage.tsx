@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useVoiceSettingsStore, type RecordingMode, type SttProvider } from '@/stores/voiceSettingsStore';
+import { useVoiceSettingsStore, type RecordingMode } from '@/stores/voiceSettingsStore';
 import { getAvailableVoices, setVoicePreference, speak, getVoicePreference } from '@/lib/services/tts-service';
 import {
   Brain,
@@ -8,20 +8,14 @@ import {
   Volume2,
   Database,
   Trash2,
-  Globe,
-  Bot,
   Zap,
   Timer,
   Radio,
   AlertTriangle,
-  Pencil,
 } from 'lucide-react';
 
-// Keep Pencil export available for other files that may need it
-void Pencil;
-
 export function SettingsPage() {
-  const { recordingMode, setRecordingMode, ttsEnabled, setTtsEnabled, sttProvider, setSttProvider } = useVoiceSettingsStore();
+  const { recordingMode, setRecordingMode, ttsEnabled, setTtsEnabled } = useVoiceSettingsStore();
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>(getVoicePreference() || '');
 
@@ -100,69 +94,26 @@ export function SettingsPage() {
     },
   ];
 
-  const sttProviders: { value: SttProvider; label: string; description: string; icon: React.ReactNode }[] = [
-    {
-      value: 'webspeech',
-      label: 'Web Speech API',
-      description: 'Browser built-in. Free, real-time. Works on Chrome/Edge. Not supported on iOS Safari.',
-      icon: <Globe className="w-5 h-5 text-cyan-600" />,
-    },
-    {
-      value: 'whisper',
-      label: 'Whisper (whisper.cpp)',
-      description: 'OpenAI Whisper base model. Runs locally in browser via WASM. ~40MB download on first use. Desktop only.',
-      icon: <Bot className="w-5 h-5 text-cyan-600" />,
-    },
-    {
-      value: 'deepgram',
-      label: 'DeepGram Nova-2',
-      description: 'Cloud-based. Fastest transcription with real-time streaming. Requires API key.',
-      icon: <Zap className="w-5 h-5 text-cyan-600" />,
-    },
-    {
-      value: 'elevenlabs',
-      label: 'ElevenLabs Scribe v2',
-      description: 'Cloud-based. High-accuracy multilingual STT. Records then uploads for transcription.',
-      icon: <Zap className="w-5 h-5 text-purple-600" />,
-    },
-  ];
+  // ElevenLabs is the only STT provider — no selection needed
 
   return (
     <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold text-slate-800 mb-6">Settings</h1>
 
-      {/* STT Provider */}
+      {/* STT Provider Info */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
           <Brain className="w-5 h-5" /> Speech-to-Text Engine
         </h2>
-        <div className="space-y-3">
-          {sttProviders.map((provider) => (
-            <label
-              key={provider.value}
-              className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                sttProvider === provider.value
-                  ? 'border-cyan-400 bg-cyan-50/50 shadow-md'
-                  : 'border-slate-200 hover:border-slate-300 bg-white/80'
-              }`}
-            >
-              <input
-                type="radio"
-                name="sttProvider"
-                value={provider.value}
-                checked={sttProvider === provider.value}
-                onChange={() => setSttProvider(provider.value)}
-                className="mt-1 accent-cyan-500"
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  {provider.icon}
-                  <span className="font-medium text-slate-800">{provider.label}</span>
-                </div>
-                <p className="text-sm text-slate-500 mt-1">{provider.description}</p>
-              </div>
-            </label>
-          ))}
+        <div className="bg-white/80 rounded-xl border-2 border-purple-300 p-4">
+          <div className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-purple-600" />
+            <span className="font-medium text-slate-800">ElevenLabs Scribe v2</span>
+          </div>
+          <p className="text-sm text-slate-500 mt-1">
+            Cloud-based high-accuracy STT with AI-powered transcript correction.
+            Records audio, then uploads for transcription.
+          </p>
         </div>
       </section>
 

@@ -60,8 +60,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      const detail = (errData as Record<string, unknown>).detail || `ElevenLabs API error: ${response.status}`;
-      return res.status(502).json({ error: detail });
+      console.error('ElevenLabs STT error:', response.status, errData);
+      return res.status(502).json({ error: 'Speech-to-text service error. Please try again.' });
     }
 
     const data = await response.json();

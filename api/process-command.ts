@@ -108,7 +108,17 @@ function extractDateFromTranscript(transcript: string): string | null {
   return null;
 }
 
-const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a habit-tracking and self-improvement app. Your ONLY job is to parse a user's spoken transcript into a single structured JSON command.
+const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a habit-tracking and self-improvement app. Your job is to:
+1. CORRECT any misspoken, misheard, or garbled words from the speech-to-text transcript
+2. PARSE the corrected transcript into a single structured JSON command
+
+## Transcript Correction Rules
+- Fix obvious STT errors: "meditatoin" → "meditation", "exorcise" → "exercise"
+- Fix phonetic mishearing: "mark done reading on me" → "mark reading done"
+- Remove filler words: "um", "uh", "like", "so", "you know"
+- DO NOT change proper nouns or custom habit names the user may have created
+- DO NOT change the user's intent — only fix transcription artifacts
+- Include the corrected transcript in your response as "corrected_transcript"
 
 ## Available Actions
 | Action   | When to use                                                |
@@ -166,6 +176,7 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
 ## Response Format
 Return ONLY a JSON object (no markdown, no code fences, no explanation):
 {
+  "corrected_transcript": "the cleaned-up version of what the user said",
   "action": "create|complete|delete|update|query|log|reflect|suggest|help",
   "entity": "habit|metric|journal|summary",
   "params": { ... },
@@ -330,6 +341,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(10000),
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         temperature: 0.1,
@@ -368,6 +380,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(502).json({ error: 'GPT response missing required fields (action, entity)' });
     }
 
+    // Allowlist validation — prevent prompt injection from returning unexpected actions
+    const VALID_ACTIONS = new Set(['create','complete','delete','update','query','log','reflect','suggest','help']);
+    const VALID_ENTITIES = new Set(['habit','metric','journal','summary']);
+    if (!VALID_ACTIONS.has(String(parsed.action)) || !VALID_ENTITIES.has(String(parsed.entity))) {
+      console.error('GPT returned invalid action/entity:', parsed.action, parsed.entity);
+      return res.status(502).json({ error: 'Unexpected command type returned' });
+    }
+
     const latency = Date.now() - startTime;
 
     // ─── Post-processing: extract date from transcript if GPT missed it ───
@@ -393,6 +413,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
     const sanitized = {
+      corrected_transcript: typeof parsed.corrected_transcript === 'string' ? parsed.corrected_transcript : transcript,
       action: parsed.action,
       entity: parsed.entity,
       params: safeParams,

@@ -1,9 +1,8 @@
 // ElevenLabs STT Service (REST-based)
-// Records audio, then uploads to ElevenLabs Speech-to-Text API (Scribe v2)
-// Uses REST API instead of WebSocket (WebSocket requires single-use token not yet available in JS SDK)
+// Records audio via microphone, then uploads to ElevenLabs Scribe v2 API
+// Uses server-side proxy at /api/elevenlabs-stt to keep API key secure
 
 export interface ElevenLabsCallbacks {
-  onTranscript: (text: string, isFinal: boolean) => void;
   onError: (error: string) => void;
   onOpen: () => void;
   onClose: () => void;
@@ -16,12 +15,13 @@ let isActive = false;
 let captureNode: ScriptProcessorNode | null = null;
 let sourceNode: MediaStreamAudioSourceNode | null = null;
 
+// ─── Audio helpers ───
+
 function float32ToWavBlob(samples: Float32Array, sampleRate: number): Blob {
   const numSamples = samples.length;
   const buffer = new ArrayBuffer(44 + numSamples * 2);
   const view = new DataView(buffer);
 
-  // WAV header
   const writeString = (offset: number, str: string) => {
     for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
   };
@@ -39,7 +39,6 @@ function float32ToWavBlob(samples: Float32Array, sampleRate: number): Blob {
   writeString(36, 'data');
   view.setUint32(40, numSamples * 2, true);
 
-  // PCM data (handle NaN/Infinity from corrupt audio)
   for (let i = 0; i < numSamples; i++) {
     const raw = samples[i];
     const clamped = Number.isFinite(raw) ? Math.max(-1, Math.min(1, raw)) : 0;
@@ -49,45 +48,7 @@ function float32ToWavBlob(samples: Float32Array, sampleRate: number): Blob {
   return new Blob([buffer], { type: 'audio/wav' });
 }
 
-export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<void> {
-  if (isActive) return;
-
-  try {
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
-    });
-
-    audioContext = new AudioContext();
-    sourceNode = audioContext.createMediaStreamSource(mediaStream);
-    audioChunks = [];
-
-    // Capture raw PCM audio
-    captureNode = audioContext.createScriptProcessor(4096, 1, 1);
-    captureNode.onaudioprocess = (e) => {
-      if (isActive) {
-        const data = e.inputBuffer.getChannelData(0);
-        audioChunks.push(new Float32Array(data));
-      }
-    };
-    sourceNode.connect(captureNode);
-    captureNode.connect(audioContext.destination);
-
-    isActive = true;
-    callbacks.onOpen();
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    callbacks.onError(`ElevenLabs failed: ${msg}`);
-    stopElevenLabs();
-  }
-}
-
-export async function stopElevenLabsAndTranscribe(): Promise<string> {
-  if (!isActive) return '';
-  isActive = false;
-
-  const sampleRate = audioContext?.sampleRate || 16000;
-
-  // Stop capture — disconnect source before captureNode to avoid dangling references
+function cleanupAudioResources(): void {
   if (sourceNode) {
     sourceNode.disconnect();
     sourceNode = null;
@@ -104,32 +65,75 @@ export async function stopElevenLabsAndTranscribe(): Promise<string> {
     mediaStream.getTracks().forEach(t => t.stop());
     mediaStream = null;
   }
+  audioChunks = [];
+}
+
+// ─── Public API ───
+
+export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<void> {
+  if (isActive) return;
+  isActive = true; // Set before await to prevent double-tap race condition
+
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+    });
+
+    audioContext = new AudioContext();
+    sourceNode = audioContext.createMediaStreamSource(mediaStream);
+    audioChunks = [];
+
+    const maxChunks = Math.ceil((60 * audioContext.sampleRate) / 4096); // 60s max
+    captureNode = audioContext.createScriptProcessor(4096, 1, 1);
+    captureNode.onaudioprocess = (e) => {
+      if (!isActive) return;
+      if (audioChunks.length >= maxChunks) {
+        callbacks.onError('Recording exceeded 60 seconds. Stopped automatically.');
+        stopElevenLabs();
+        return;
+      }
+      audioChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+    };
+    sourceNode.connect(captureNode);
+    captureNode.connect(audioContext.destination);
+
+    callbacks.onOpen();
+  } catch (err) {
+    isActive = false;
+    const msg = err instanceof Error ? err.message : String(err);
+    callbacks.onError(`Microphone access failed: ${msg}`);
+    cleanupAudioResources();
+  }
+}
+
+export async function stopAndTranscribe(): Promise<string> {
+  if (!isActive) return '';
+  isActive = false;
+
+  const sampleRate = audioContext?.sampleRate || 16000;
+  const chunks = [...audioChunks];
+  cleanupAudioResources();
 
   // Merge audio chunks
-  const totalLength = audioChunks.reduce((acc, chunk) => acc + chunk.length, 0);
+  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
   if (totalLength < sampleRate * 0.5) {
-    audioChunks = [];
     throw new Error('Recording too short. Speak for at least 1 second.');
   }
 
   const merged = new Float32Array(totalLength);
   let offset = 0;
-  for (const chunk of audioChunks) {
+  for (const chunk of chunks) {
     merged.set(chunk, offset);
     offset += chunk.length;
   }
-  audioChunks = [];
 
-  // Convert to WAV and upload via server-side proxy (API key stays on server)
+  // Convert to WAV and upload via server-side proxy
   const wavBlob = float32ToWavBlob(merged, sampleRate);
-
   const form = new FormData();
   form.append('file', wavBlob, 'recording.wav');
   form.append('model_id', 'scribe_v2');
   form.append('language_code', 'en');
 
-  // Use AbortController + setTimeout for iOS 15 compatibility
-  // (AbortSignal.timeout() is unavailable before Safari 16.4)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
 
@@ -150,24 +154,7 @@ export async function stopElevenLabsAndTranscribe(): Promise<string> {
 
 export function stopElevenLabs(): void {
   isActive = false;
-
-  if (sourceNode) {
-    sourceNode.disconnect();
-    sourceNode = null;
-  }
-  if (captureNode) {
-    captureNode.disconnect();
-    captureNode = null;
-  }
-  if (audioContext && audioContext.state !== 'closed') {
-    try { audioContext.close(); } catch { /* ignore */ }
-    audioContext = null;
-  }
-  if (mediaStream) {
-    mediaStream.getTracks().forEach(t => t.stop());
-    mediaStream = null;
-  }
-  audioChunks = [];
+  cleanupAudioResources();
 }
 
 export function isElevenLabsActive(): boolean {

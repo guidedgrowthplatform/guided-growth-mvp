@@ -3,105 +3,68 @@ import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoiceCommand } from '@/hooks/useVoiceCommand';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { speak } from '@/lib/services/tts-service';
-import { Pencil, Keyboard, Send, CheckCircle } from 'lucide-react';
+import { Keyboard } from 'lucide-react';
 
 export function VoiceTranscript() {
     const { isListening, transcript, interim, error, resetTranscript, stop } = useVoiceInput();
     const { processTranscript, isProcessing, lastResult, lastIntent, latency, clearResult } = useVoiceCommand();
+    const correctedTranscript = useVoiceStore((s) => s.correctedTranscript);
     const setTranscript = useVoiceStore((s) => s.setTranscript);
     const lastProcessedRef = useRef('');
-    const [isEditing, setIsEditing] = useState(false);
-    const [editedText, setEditedText] = useState('');
-    const inputRef = useRef<HTMLInputElement>(null);
 
-    // ─── Manual text input fallback (when voice fails) ───
+    // ─── Manual text input fallback ───
     const [showTextFallback, setShowTextFallback] = useState(false);
     const [manualText, setManualText] = useState('');
     const manualInputRef = useRef<HTMLInputElement>(null);
 
-    // ─── Confirm-before-process: show transcript, wait for Send/Edit ───
-    const [pendingConfirm, setPendingConfirm] = useState(false);
-
-    // When user stops speaking, show transcript for confirmation instead of auto-processing
+    // ─── AUTO-EXECUTE: process immediately when transcript arrives ───
     useEffect(() => {
-        if (!isListening && transcript && transcript !== lastProcessedRef.current && !pendingConfirm) {
-            setPendingConfirm(true);
-        }
-    }, [isListening, transcript, pendingConfirm]);
-
-    const handleConfirmSend = () => {
-        if (transcript) {
+        if (!isListening && transcript && transcript !== lastProcessedRef.current) {
             lastProcessedRef.current = transcript;
             processTranscript(transcript);
         }
-        setPendingConfirm(false);
-    };
+    }, [isListening, transcript, processTranscript]);
 
     // FIX-42: Auto-clear voice context after command execution
+    // Cancel timer if user starts new recording (isListening)
     useEffect(() => {
+        if (isListening) return;
         if (lastResult && !isProcessing) {
             const timer = setTimeout(() => {
                 resetTranscript();
                 lastProcessedRef.current = '';
-                setPendingConfirm(false);
             }, 3000);
             return () => clearTimeout(timer);
         }
-    }, [lastResult, isProcessing, resetTranscript]);
+    }, [lastResult, isProcessing, isListening, resetTranscript]);
 
-    // TTS talk-back: speak the result after processing
+    // TTS talk-back
     useEffect(() => {
         if (lastResult && !isProcessing) {
-            try { speak(lastResult.message); } catch { /* TTS fail is non-critical */ }
+            try { speak(lastResult.message); } catch { /* non-critical */ }
         }
     }, [lastResult, isProcessing]);
 
-    // Focus manual input when it appears
+    // Focus manual input
     useEffect(() => {
         if (showTextFallback && manualInputRef.current) {
             manualInputRef.current.focus();
         }
     }, [showTextFallback]);
 
-    // Focus edit input when entering edit mode
+    // Hide text fallback when voice starts
     useEffect(() => {
-        if (isEditing && inputRef.current) {
-            inputRef.current.focus();
-            inputRef.current.select();
-        }
-    }, [isEditing]);
+        if (isListening) setShowTextFallback(false);
+    }, [isListening]);
 
     // ─── Handlers ───
 
-    const handleEditStart = () => {
-        setEditedText(transcript);
-        setIsEditing(true);
-    };
-
-    const handleEditSubmit = () => {
-        if (editedText.trim()) {
-            setTranscript(editedText.trim());
-            lastProcessedRef.current = editedText.trim();
-            processTranscript(editedText.trim());
-        }
-        setIsEditing(false);
-        setPendingConfirm(false);
-    };
-
-    const handleEditKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') handleEditSubmit();
-        if (e.key === 'Escape') setIsEditing(false);
-    };
-
-    // Switch to manual text input — STOP voice completely first
     const handleSwitchToManual = () => {
-        // MUTUALLY EXCLUSIVE: stop voice before enabling text input
         try { stop(); } catch { /* ignore */ }
         setShowTextFallback(true);
         setManualText('');
     };
 
-    // Submit manual text command — same pipeline as voice
     const handleManualSubmit = () => {
         const text = manualText.trim();
         if (!text) return;
@@ -114,34 +77,20 @@ export function VoiceTranscript() {
 
     const handleManualKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') handleManualSubmit();
-        if (e.key === 'Escape') {
-            setShowTextFallback(false);
-            setManualText('');
-        }
+        if (e.key === 'Escape') { setShowTextFallback(false); setManualText(''); }
     };
-
-    // When voice starts listening again, hide text fallback and reset confirm state
-    useEffect(() => {
-        if (isListening) {
-            setShowTextFallback(false);
-            setPendingConfirm(false);
-        }
-    }, [isListening]);
 
     if (!isListening && !transcript && !error && !lastResult && !showTextFallback) return null;
 
     return (
         <div className="fixed bottom-24 left-4 right-20 z-50 lg:left-auto lg:bottom-6 lg:right-24 lg:w-80">
             <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl border border-slate-200 p-3">
-                {/* Status */}
+                {/* Listening indicator */}
                 {isListening && (
                     <div className="flex items-center gap-2 mb-2">
                         <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                         <span className="text-xs font-semibold text-red-600 uppercase tracking-wide">
                             Listening...
-                        </span>
-                        <span className="text-[10px] text-slate-400 ml-auto">
-                            auto-stops after silence
                         </span>
                     </div>
                 )}
@@ -156,13 +105,10 @@ export function VoiceTranscript() {
                     </div>
                 )}
 
-                {/* Error + "Type instead" fallback button */}
+                {/* Error */}
                 {error && (
                     <div className="mb-2">
-                        <div className="text-xs text-amber-600 bg-amber-50 rounded-lg p-2">
-                            {error}
-                        </div>
-                        {/* Show "Type instead" button when there's a voice error */}
+                        <div className="text-xs text-amber-600 bg-amber-50 rounded-lg p-2">{error}</div>
                         {!showTextFallback && !isListening && (
                             <button
                                 onClick={handleSwitchToManual}
@@ -175,7 +121,7 @@ export function VoiceTranscript() {
                     </div>
                 )}
 
-                {/* ─── Manual text input fallback ─── */}
+                {/* Manual text input fallback */}
                 {showTextFallback && (
                     <div className="mb-2">
                         <div className="flex items-center gap-1.5 mb-1.5">
@@ -189,7 +135,7 @@ export function VoiceTranscript() {
                             onChange={(e) => setManualText(e.target.value)}
                             onKeyDown={handleManualKeyDown}
                             className="w-full text-sm border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                            placeholder='e.g. "create habit stretching" or "mark meditation done"'
+                            placeholder='e.g. "create habit stretching"'
                             disabled={isProcessing}
                         />
                         <div className="flex gap-2 mt-1.5">
@@ -210,73 +156,25 @@ export function VoiceTranscript() {
                     </div>
                 )}
 
-                {/* Transcript — with confirm/edit before processing */}
-                {transcript && !isEditing && (
+                {/* Transcript — auto-executed, no confirm needed */}
+                {transcript && (
                     <div className="text-sm text-slate-700 leading-relaxed mb-2">
                         <p className="italic">"{transcript}"</p>
-                        {/* Confirm bar: Send or Edit before processing */}
-                        {pendingConfirm && !isProcessing && (
-                            <div className="flex items-center gap-2 mt-2">
-                                <button
-                                    onClick={handleConfirmSend}
-                                    className="flex items-center gap-1 text-xs bg-emerald-500 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-600 font-medium transition-colors"
-                                >
-                                    <Send className="w-3 h-3" /> Send
-                                </button>
-                                <button
-                                    onClick={handleEditStart}
-                                    className="flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-200 font-medium transition-colors"
-                                >
-                                    <Pencil className="w-3 h-3" /> Edit
-                                </button>
-                                <button
-                                    onClick={() => { resetTranscript(); clearResult(); lastProcessedRef.current = ''; setPendingConfirm(false); }}
-                                    className="text-xs text-slate-400 hover:text-slate-600 underline ml-auto"
-                                >
-                                    Cancel
-                                </button>
-                            </div>
+                        {/* Show corrected version if different */}
+                        {correctedTranscript && correctedTranscript !== transcript && (
+                            <p className="text-xs text-blue-500 mt-0.5">
+                                Corrected: "{correctedTranscript}"
+                            </p>
                         )}
-                    </div>
-                )}
-
-                {/* Edit mode */}
-                {isEditing && (
-                    <div className="mb-2">
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={editedText}
-                            onChange={(e) => setEditedText(e.target.value)}
-                            onKeyDown={handleEditKeyDown}
-                            className="w-full text-sm border border-blue-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                            placeholder="Edit your command..."
-                        />
-                        <div className="flex gap-2 mt-1">
-                            <button
-                                onClick={handleEditSubmit}
-                                className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded hover:bg-blue-600"
-                            >
-                                Reprocess
-                            </button>
-                            <button
-                                onClick={() => setIsEditing(false)}
-                                className="text-xs text-slate-400 hover:text-slate-600 underline"
-                            >
-                                Cancel
-                            </button>
-                        </div>
                     </div>
                 )}
 
                 {/* Live interim text */}
                 {isListening && interim && (
-                    <p className="text-sm text-slate-400 italic mt-1">
-                        {interim}...
-                    </p>
+                    <p className="text-sm text-slate-400 italic mt-1">{interim}...</p>
                 )}
 
-                {/* Prompt when listening but no transcript yet */}
+                {/* Speak now prompt */}
                 {isListening && !transcript && !interim && !error && (
                     <p className="text-xs text-slate-400 italic">Speak now...</p>
                 )}
@@ -291,12 +189,8 @@ export function VoiceTranscript() {
                         <p className="font-medium whitespace-pre-line">{lastResult.message}</p>
                         {lastIntent && (
                             <div className="flex items-center gap-2 mt-1.5 text-[10px] opacity-70">
-                                <span className="px-1.5 py-0.5 bg-white/60 rounded">
-                                    {lastIntent.action}
-                                </span>
-                                <span className="px-1.5 py-0.5 bg-white/60 rounded">
-                                    {lastIntent.entity}
-                                </span>
+                                <span className="px-1.5 py-0.5 bg-white/60 rounded">{lastIntent.action}</span>
+                                <span className="px-1.5 py-0.5 bg-white/60 rounded">{lastIntent.entity}</span>
                                 <span>{Math.round(lastIntent.confidence * 100)}%</span>
                                 {latency && <span>{latency}ms</span>}
                             </div>
@@ -308,22 +202,18 @@ export function VoiceTranscript() {
                 <div className="flex gap-2 mt-2">
                     {transcript && (
                         <button
-                            onClick={() => { resetTranscript(); clearResult(); lastProcessedRef.current = ''; setIsEditing(false); }}
+                            onClick={() => { resetTranscript(); clearResult(); lastProcessedRef.current = ''; }}
                             className="text-xs text-slate-400 hover:text-slate-600 underline"
                         >
                             Clear
                         </button>
                     )}
                     {lastResult && (
-                        <button
-                            onClick={clearResult}
-                            className="text-xs text-slate-400 hover:text-slate-600 underline"
-                        >
+                        <button onClick={clearResult} className="text-xs text-slate-400 hover:text-slate-600 underline">
                             Dismiss
                         </button>
                     )}
-                    {/* Always-available manual input toggle (even without error) */}
-                    {!showTextFallback && !isListening && !isEditing && (
+                    {!showTextFallback && !isListening && (
                         <button
                             onClick={handleSwitchToManual}
                             className="text-xs text-slate-400 hover:text-blue-600 underline ml-auto flex items-center gap-1 transition-colors"

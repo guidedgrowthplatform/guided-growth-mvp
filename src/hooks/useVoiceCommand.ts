@@ -1,6 +1,7 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCommandStore } from '@/stores/commandStore';
+import { useVoiceStore } from '@/stores/voiceStore';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { getDataService } from '@/lib/services/service-provider';
 import { useToast } from '@/contexts/ToastContext';
@@ -204,6 +205,7 @@ function localParse(transcript: string): { action: string; entity: string; param
 export function useVoiceCommand() {
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const processingRef = useRef(false);
   const {
     isProcessing,
     lastResult,
@@ -219,26 +221,20 @@ export function useVoiceCommand() {
 
   const processTranscript = useCallback(async (rawTranscript: string) => {
     if (!rawTranscript.trim()) return;
+    if (processingRef.current) return; // prevent concurrent invocations
 
-    // Normalize transcript: ElevenLabs Scribe adds extra punctuation and
-    // capitalization that confuses GPT (e.g., "Create a new habit. Painting."
-    // → GPT extracts "habit. painting" as the name).
-    const transcript = rawTranscript
-      .replace(/\.\s+/g, ' ')       // "habit. painting" → "habit painting"
-      .replace(/[.!?]+$/g, '')       // trailing punctuation
-      .replace(/,\s*/g, ', ')        // normalize comma spacing
-      .replace(/\s{2,}/g, ' ')       // collapse multiple spaces
-      .trim();
-
+    // Minimal cleanup — GPT handles correction + normalization now
+    const transcript = rawTranscript.replace(/\s{2,}/g, ' ').trim();
     if (!transcript) return;
 
+    processingRef.current = true;
     setProcessing(true);
     const startTime = Date.now();
 
     try {
-      let intent: { action: string; entity: string; params: Record<string, unknown>; confidence: number; latency?: number };
+      let intent: { action: string; entity: string; params: Record<string, unknown>; confidence: number; latency?: number; corrected_transcript?: string };
 
-      // Try GPT-4o-mini API first
+      // Try GPT-4o-mini API first (includes transcript correction + command parsing)
       try {
         const response = await fetch('/api/process-command', {
           method: 'POST',
@@ -246,13 +242,17 @@ export function useVoiceCommand() {
           body: JSON.stringify({ transcript }),
         });
 
-        // Check if response is JSON
         const contentType = response.headers.get('content-type') || '';
         if (!response.ok || !contentType.includes('application/json')) {
           throw new Error('API unavailable');
         }
 
         intent = await response.json();
+
+        // Store corrected transcript from GPT
+        if (intent.corrected_transcript) {
+          useVoiceStore.getState().setCorrectedTranscript(intent.corrected_transcript);
+        }
 
         // If GPT returns low confidence, check if local parser does better
         if (intent.confidence < 0.6) {
@@ -312,6 +312,8 @@ export function useVoiceCommand() {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
       addToast('error', `Command failed: ${msg}`);
+    } finally {
+      processingRef.current = false;
     }
   }, [navigate, addToast, setProcessing, setResult, setError, addHistory]);
 
