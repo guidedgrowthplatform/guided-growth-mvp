@@ -84,10 +84,10 @@ export function BottomNav({ onVoicePress }: BottomNavProps) {
             />
             <div />
             <NavTab
-              icon="ic:round-calendar-month"
-              label="Calendar"
-              path="/calendar"
-              isActive={isActive('/calendar')}
+              icon="mingcute:stopwatch-fill"
+              label="Focus"
+              path="/focus"
+              isActive={isActive('/focus')}
             />
             <NavTab
               icon="ic:round-person"

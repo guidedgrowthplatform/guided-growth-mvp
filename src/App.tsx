@@ -1,13 +1,10 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { queryClient } from '@/lib/query';
-import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
-import { LoginRoute } from '@/routes/LoginRoute';
-import { ProtectedRoutes } from '@/routes/ProtectedRoutes';
-import { SignUpRoute } from '@/routes/SignUpRoute';
+import { AppRoutes } from '@/routes';
 
 export default function App() {
   return (
@@ -15,12 +12,7 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ToastProvider>
-            <Routes>
-              <Route path="/login" element={<LoginRoute />} />
-              <Route path="/signup" element={<SignUpRoute />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/*" element={<ProtectedRoutes />} />
-            </Routes>
+            <AppRoutes />
           </ToastProvider>
         </AuthProvider>
         <ReactQueryDevtools initialIsOpen={false} />
