@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { useVoiceInput } from '@/hooks/useVoiceInput';
-import { useVoiceCommand } from '@/hooks/useVoiceCommand';
-import { useVoiceStore } from '@/stores/voiceStore';
-import { speak } from '@/lib/services/tts-service';
 import { Pencil } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { useVoiceCommand } from '@/hooks/useVoiceCommand';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { speak } from '@/lib/services/tts-service';
+import { useVoiceStore } from '@/stores/voiceStore';
 
 export function VoiceTranscript() {
   const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();

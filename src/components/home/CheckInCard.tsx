@@ -1,4 +1,3 @@
-import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import type { CheckInDimension } from '@shared/types';
 import { checkInDimensions } from './checkInConfig';
@@ -8,11 +7,10 @@ type CheckInValues = Record<CheckInDimension, number | null>;
 
 interface CheckInCardProps {
   selectedDate: string;
-  onReminderPress?: () => void;
+  onClose?: () => void;
 }
 
-export function CheckInCard({ selectedDate: _selectedDate, onReminderPress }: CheckInCardProps) {
-  const [expanded, setExpanded] = useState(false);
+export function CheckInCard({ selectedDate: _selectedDate, onClose }: CheckInCardProps) {
   const [values, setValues] = useState<CheckInValues>({
     sleep: null,
     mood: null,
@@ -27,60 +25,34 @@ export function CheckInCard({ selectedDate: _selectedDate, onReminderPress }: Ch
   const handleCheckIn = () => {
     // TODO: connect to backend
     console.log('Check-in values:', values);
-    setExpanded(false);
+    onClose?.();
   };
 
   return (
     <div className="rounded-2xl border border-border-light bg-surface p-5 shadow-sm">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between"
-      >
-        <span className="text-xl font-bold text-content">How are you feeling?</span>
-        <ChevronDown
-          onClick={(e) => {
-            if (onReminderPress) {
-              e.stopPropagation();
-              onReminderPress();
-            }
-          }}
-          className={`h-5 w-5 text-content-tertiary transition-transform duration-300 ${
-            expanded ? 'rotate-0' : '-rotate-90'
-          }`}
-        />
-      </button>
-
-      <div
-        className={`grid transition-all duration-300 ease-in-out ${
-          expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-        }`}
-      >
-        <div className="overflow-hidden">
-          <div className="space-y-5 pt-5">
-            {checkInDimensions.map((dimension) => (
-              <div key={dimension.key}>
-                <p className="mb-2 text-sm font-medium text-content-secondary">{dimension.label}</p>
-                <div className="flex justify-between">
-                  {dimension.options.map((option) => (
-                    <EmojiOptionButton
-                      key={option.value}
-                      icon={option.icon}
-                      label={option.label}
-                      color={option.color}
-                      isSelected={values[dimension.key] === option.value}
-                      onClick={() => handleSelect(dimension.key, option.value)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+      <div className="space-y-5">
+        {checkInDimensions.map((dimension) => (
+          <div key={dimension.key}>
+            <p className="mb-2 text-sm font-medium text-content-secondary">{dimension.label}</p>
+            <div className="flex justify-between">
+              {dimension.options.map((option) => (
+                <EmojiOptionButton
+                  key={option.value}
+                  icon={option.icon}
+                  label={option.label}
+                  color={option.color}
+                  isSelected={values[dimension.key] === option.value}
+                  onClick={() => handleSelect(dimension.key, option.value)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
+        ))}
       </div>
 
       <button
-        onClick={expanded ? handleCheckIn : () => setExpanded(true)}
-        className="mt-4 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-white shadow-[0px_4px_6px_-1px_rgba(65,105,225,0.2)] transition-colors hover:bg-primary-dark"
+        onClick={handleCheckIn}
+        className="mt-5 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-white shadow-[0px_4px_6px_-1px_rgba(65,105,225,0.2)] transition-colors hover:bg-primary-dark"
       >
         Check In
       </button>

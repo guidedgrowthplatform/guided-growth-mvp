@@ -4,6 +4,7 @@ import {
   HomeHeader,
   DateStrip,
   CheckInCard,
+  QuickActionCards,
   HabitsSection,
   FeedbackButton,
   FloatingActions,
@@ -26,6 +27,7 @@ export function HomePage() {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showReminders, setShowReminders] = useState(false);
+  const [showCheckIn, setShowCheckIn] = useState(false);
   const mockEntries = useMemo(() => buildMockEntries(), []);
 
   const fullName = user?.user_metadata?.full_name as string | undefined;
@@ -41,7 +43,21 @@ export function HomePage() {
           onSelectDate={setSelectedDate}
           entries={mockEntries}
         />
-        <CheckInCard selectedDate={selectedDate} onReminderPress={() => setShowReminders(true)} />
+        <div>
+          <QuickActionCards
+            onCheckInPress={() => setShowCheckIn(!showCheckIn)}
+            onJournalPress={() => {}}
+          />
+          <div
+            className={`grid transition-all duration-300 ease-in-out ${
+              showCheckIn ? 'mt-4 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+            }`}
+          >
+            <div className="overflow-hidden">
+              <CheckInCard selectedDate={selectedDate} onClose={() => setShowCheckIn(false)} />
+            </div>
+          </div>
+        </div>
         <HabitsSection selectedDate={selectedDate} />
         <FeedbackButton />
       </div>

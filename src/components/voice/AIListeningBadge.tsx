@@ -1,6 +1,6 @@
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { Mic } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 
 interface AIListeningBadgeProps {
   isListening: boolean;
