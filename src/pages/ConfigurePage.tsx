@@ -1,13 +1,13 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMetrics } from '@/hooks/useMetrics';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { INPUT_TYPES, FREQUENCIES } from '@shared/constants';
+import { Select } from '@/components/ui/Select';
+import { useMetrics } from '@/hooks/useMetrics';
 import { metricFormSchema, type MetricFormData } from '@/lib/validation';
+import { INPUT_TYPES, FREQUENCIES } from '@shared/constants';
 
 const emptyForm: MetricFormData = {
   name: '',
@@ -32,8 +32,10 @@ export function ConfigurePage() {
   } = useForm<MetricFormData>({
     resolver: zodResolver(metricFormSchema),
     defaultValues: emptyForm,
+    mode: 'onBlur',
   });
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const inputType = watch('input_type');
 
   const onSubmit = async (data: MetricFormData) => {

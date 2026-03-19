@@ -82,6 +82,7 @@ export function AdminPage() {
   } = useForm<AllowlistForm>({
     resolver: zodResolver(allowlistSchema),
     defaultValues: { email: '', note: '' },
+    mode: 'onBlur',
   });
 
   const onAddAllowlist = (data: AllowlistForm) => {

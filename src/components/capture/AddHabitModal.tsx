@@ -30,6 +30,7 @@ export function AddHabitModal({ open, onClose, onAdd }: AddHabitModalProps) {
   } = useForm<MetricCreateForm>({
     resolver: zodResolver(metricCreateSchema),
     defaultValues,
+    mode: 'onBlur',
   });
 
   const onSubmit = (data: MetricCreateForm) => {
