@@ -43,7 +43,6 @@ export function BottomSheet({ onClose, children, topOffset, showHandle = true }:
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isDragging.current) return;
     const delta = e.touches[0].clientY - dragStartY.current;
-    // Only allow dragging downward
     setDragY(Math.max(0, delta));
   }, []);
 
@@ -58,8 +57,6 @@ export function BottomSheet({ onClose, children, topOffset, showHandle = true }:
 
   const isVisible = phase === 'open';
 
-  // Auto-height mode (no topOffset): sheet wraps content, max-height constrains it
-  // Fixed-height mode (topOffset set): sheet stretches from topOffset to bottom
   const isAutoHeight = !topOffset;
 
   const sheetPositionClass = isAutoHeight
@@ -69,16 +66,16 @@ export function BottomSheet({ onClose, children, topOffset, showHandle = true }:
   return (
     <div className="fixed inset-0 z-50">
       <div
-        className={`absolute inset-0 bg-black transition-opacity duration-300 ease-out ${
-          isVisible ? 'opacity-40' : 'opacity-0'
+        className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-all duration-300 ease-out ${
+          isVisible ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={handleClose}
       />
 
-      <div className="absolute inset-0 mx-auto max-w-sm">
+      <div className="pointer-events-none absolute inset-0 mx-auto max-w-sm">
         <div
           ref={sheetRef}
-          className={`${sheetPositionClass} flex flex-col overflow-hidden rounded-t-[32px] bg-white shadow-[0px_-8px_30px_0px_rgba(0,0,0,0.08)] ${
+          className={`pointer-events-auto ${sheetPositionClass} flex flex-col overflow-hidden rounded-t-[32px] bg-white shadow-[0px_-8px_30px_0px_rgba(0,0,0,0.08)] ${
             dragY > 0 ? '' : 'transition-transform duration-300 ease-out'
           } ${isVisible && dragY === 0 ? 'translate-y-0' : !isVisible ? 'translate-y-full' : ''}`}
           style={

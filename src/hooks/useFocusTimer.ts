@@ -12,6 +12,7 @@ export interface UseFocusTimerReturn {
   resume: () => void;
   stop: () => void;
   setDuration: (minutes: number) => void;
+  setDurationSeconds: (seconds: number) => void;
 }
 
 export function useFocusTimer(initialMinutes = 25): UseFocusTimerReturn {
@@ -80,6 +81,15 @@ export function useFocusTimer(initialMinutes = 25): UseFocusTimerReturn {
     [status],
   );
 
+  const setDurationSeconds = useCallback(
+    (secs: number) => {
+      if (status !== 'idle') return;
+      setTotalSeconds(secs);
+      setRemainingSeconds(secs);
+    },
+    [status],
+  );
+
   const progress = totalSeconds > 0 ? (totalSeconds - remainingSeconds) / totalSeconds : 0;
 
   useEffect(() => {
@@ -96,5 +106,6 @@ export function useFocusTimer(initialMinutes = 25): UseFocusTimerReturn {
     resume,
     stop,
     setDuration,
+    setDurationSeconds,
   };
 }
