@@ -23,17 +23,9 @@ export function HabitPickerPanel({
   onToggleHabit,
   onAddCustomHabit,
 }: HabitPickerPanelProps) {
-  const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [height, setHeight] = useState<number>(0);
   const [showInput, setShowInput] = useState(false);
   const [customValue, setCustomValue] = useState('');
-
-  useEffect(() => {
-    if (contentRef.current) {
-      setHeight(contentRef.current.scrollHeight);
-    }
-  }, [expanded, habits, selectedHabits, showInput, customValue]);
 
   useEffect(() => {
     if (showInput && inputRef.current) {
@@ -74,10 +66,9 @@ export function HabitPickerPanel({
       </button>
 
       <div
-        style={{ maxHeight: expanded ? height : 0 }}
-        className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
+        className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
       >
-        <div ref={contentRef}>
+        <div className="overflow-hidden">
           <div className="my-[16px] w-full border-t border-border" />
 
           <p className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-content-secondary">
