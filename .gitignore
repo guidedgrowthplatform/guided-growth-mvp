@@ -78,3 +78,27 @@ capacitor-cordova-android-plugins/
 
 # APK build artifacts
 *.apk
+*.ipa
+*.aab
+
+# Mobile build output
+build/ios/
+build/android/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+fastlane/README.md
+
+# Ruby / Bundler
+vendor/bundle/
+.bundle/
+
+# Signing artifacts (never commit)
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+*.p8

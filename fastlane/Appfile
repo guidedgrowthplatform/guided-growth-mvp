@@ -1,0 +1,8 @@
+app_identifier("app.guidedgrowth.mvp")
+
+apple_id(ENV["APPLE_ID"]) if ENV["APPLE_ID"]
+team_id(ENV["APPLE_TEAM_ID"]) if ENV["APPLE_TEAM_ID"]
+
+for_platform :android do
+  package_name("app.guidedgrowth.mvp")
+end

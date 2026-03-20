@@ -1,0 +1,99 @@
+default_platform(:ios)
+
+# ---------------------------------------------------------------------------
+# iOS — build IPA and upload to TestFlight
+# ---------------------------------------------------------------------------
+platform :ios do
+  desc "Build and upload to TestFlight"
+  lane :beta do
+    # --- App Store Connect API key (preferred over Apple ID in CI) ----------
+    api_key = app_store_connect_api_key(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      key_content: ENV.fetch("ASC_KEY_CONTENT"),   # .p8 contents (base64 in CI)
+      is_key_content_base64: true,
+      in_house: false
+    )
+
+    # --- Code signing -------------------------------------------------------
+    setup_ci if ENV["CI"]
+
+    # Fastlane match pulls certs + profiles from a private git repo.
+    # Set MATCH_GIT_URL, MATCH_PASSWORD in CI variables.
+    match(
+      type: "appstore",
+      app_identifier: "app.guidedgrowth.mvp",
+      readonly: true,
+      api_key: api_key
+    )
+
+    # --- Increment build number to current pipeline ID ---------------------
+    increment_build_number(
+      build_number: ENV.fetch("CI_PIPELINE_IID", Time.now.to_i.to_s),
+      xcodeproj: "ios/App/App.xcodeproj"
+    )
+
+    # --- Build --------------------------------------------------------------
+    build_app(
+      workspace: "ios/App/App.xcworkspace",
+      scheme: "App",
+      export_method: "app-store",
+      output_directory: "./build/ios",
+      output_name: "GuidedGrowth.ipa",
+      clean: true,
+      xcargs: "-allowProvisioningUpdates"
+    )
+
+    # --- Upload to TestFlight -----------------------------------------------
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true
+    )
+  end
+end
+
+# ---------------------------------------------------------------------------
+# Android — build signed release APK + AAB
+# ---------------------------------------------------------------------------
+platform :android do
+  desc "Build signed release APK"
+  lane :build do
+    # --- Build release APK using Gradle -------------------------------------
+    # Signing is injected via Gradle properties from CI variables.
+    gradle(
+      project_dir: "android",
+      task: "assemble",
+      build_type: "Release",
+      properties: {
+        "android.injected.signing.store.file"     => ENV.fetch("ANDROID_KEYSTORE_PATH", ""),
+        "android.injected.signing.store.password"  => ENV.fetch("ANDROID_KEYSTORE_PASSWORD", ""),
+        "android.injected.signing.key.alias"       => ENV.fetch("ANDROID_KEY_ALIAS", ""),
+        "android.injected.signing.key.password"    => ENV.fetch("ANDROID_KEY_PASSWORD", "")
+      }
+    )
+
+    # Copy APK to a known location for CI artifact collection
+    sh("mkdir -p ../build/android")
+    apk_path = lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH]
+    sh("cp '#{apk_path}' ../build/android/GuidedGrowth-release.apk") if apk_path
+  end
+
+  desc "Build signed release AAB (for Play Store)"
+  lane :bundle do
+    gradle(
+      project_dir: "android",
+      task: "bundle",
+      build_type: "Release",
+      properties: {
+        "android.injected.signing.store.file"     => ENV.fetch("ANDROID_KEYSTORE_PATH", ""),
+        "android.injected.signing.store.password"  => ENV.fetch("ANDROID_KEYSTORE_PASSWORD", ""),
+        "android.injected.signing.key.alias"       => ENV.fetch("ANDROID_KEY_ALIAS", ""),
+        "android.injected.signing.key.password"    => ENV.fetch("ANDROID_KEY_PASSWORD", "")
+      }
+    )
+
+    sh("mkdir -p ../build/android")
+    aab_path = lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH]
+    sh("cp '#{aab_path}' ../build/android/GuidedGrowth-release.aab") if aab_path
+  end
+end
