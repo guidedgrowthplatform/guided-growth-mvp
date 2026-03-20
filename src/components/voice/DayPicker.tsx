@@ -13,13 +13,13 @@ export function DayPicker({ days, onChange }: DayPickerProps) {
   };
 
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-1.5">
       {DAY_LABELS.map((label, i) => (
         <button
           key={i}
           type="button"
           onClick={() => toggle(i)}
-          className={`flex h-10 w-10 items-center justify-center rounded-full text-[14px] font-semibold transition-colors ${
+          className={`flex aspect-square w-8 items-center justify-center rounded-full text-[12px] font-semibold transition-colors ${
             days[i] ? 'bg-primary text-white' : 'border border-primary bg-white text-primary'
           }`}
         >
