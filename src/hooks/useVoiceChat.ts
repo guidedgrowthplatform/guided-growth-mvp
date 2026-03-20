@@ -43,7 +43,7 @@ export function useVoiceChat() {
   ]);
   const [mockState, setMockState] = useState<VoiceChatState>('idle');
 
-  const { isListening, isSupported, start, stop, resetTranscript } = useVoiceInput();
+  const { isListening, start, stop, resetTranscript } = useVoiceInput();
   const { processTranscript, isProcessing } = useVoiceCommand();
 
   const transcript = useVoiceStore((s) => s.transcript);
@@ -55,7 +55,7 @@ export function useVoiceChat() {
   const mockIndexRef = useRef(0);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const useMock = !isSupported;
+  const useMock = true;
   const voiceState: VoiceChatState = useMock
     ? mockState
     : isProcessing
