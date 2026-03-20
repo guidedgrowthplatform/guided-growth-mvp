@@ -85,6 +85,23 @@ export class SupabaseDataService implements DataService {
     }));
   }
 
+  async getAllHabits(): Promise<Habit[]> {
+    const { data, error } = await supabase
+      .from('user_habits')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    if (error) throw new Error(error.message);
+
+    return (data || []).map((h) => ({
+      id: h.id,
+      name: h.name,
+      frequency: h.cadence,
+      createdAt: h.created_at,
+      active: h.is_active,
+    }));
+  }
+
   async getHabitByName(name: string): Promise<Habit | null> {
     const { data, error } = await supabase
       .from('user_habits')

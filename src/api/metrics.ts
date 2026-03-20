@@ -29,6 +29,21 @@ function habitToMetric(h: {
   };
 }
 
+export async function fetchAllMetrics(): Promise<Metric[]> {
+  if (useSupabase) {
+    const ds = await getDataService();
+    const habits = await ds.getAllHabits();
+    return habits.map(habitToMetric);
+  }
+  try {
+    return await apiGet<Metric[]>('/api/metrics');
+  } catch {
+    const ds = await getDataService();
+    const habits = await ds.getAllHabits();
+    return habits.map(habitToMetric);
+  }
+}
+
 export async function fetchMetrics(): Promise<Metric[]> {
   if (useSupabase) {
     const ds = await getDataService();

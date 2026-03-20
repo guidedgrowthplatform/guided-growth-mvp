@@ -71,6 +71,7 @@ export interface DataService {
   // Habits
   createHabit(name: string, frequency?: string): Promise<Habit>;
   getHabits(): Promise<Habit[]>;
+  getAllHabits(): Promise<Habit[]>;
   getHabitByName(name: string): Promise<Habit | null>;
   updateHabit(
     id: string,

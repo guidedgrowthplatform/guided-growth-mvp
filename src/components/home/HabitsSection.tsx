@@ -35,7 +35,7 @@ export function HabitsSection({ selectedDate: _selectedDate }: HabitsSectionProp
       <SectionHeader
         title="Today's Habits"
         actionLabel="See all"
-        onAction={() => navigate('/capture')}
+        onAction={() => navigate('/habits')}
       />
       <div className="flex flex-col gap-3">
         {habits.map((habit) => (

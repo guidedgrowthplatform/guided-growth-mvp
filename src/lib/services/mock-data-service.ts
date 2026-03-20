@@ -44,7 +44,6 @@ function calcStreaks(completions: HabitCompletion[]): { current: number; longest
 
   const dates = [...new Set(completions.map((c) => c.date))].sort().reverse();
 
-  let current = 0;
   let longest = 0;
   let streak = 0;
   const today = new Date();
@@ -75,7 +74,7 @@ function calcStreaks(completions: HabitCompletion[]): { current: number; longest
   longest = Math.max(longest, streak);
 
   // Current streak: count back from today/yesterday
-  current = 0;
+  let current = 0;
   if (dates.includes(todayDate) || dates.includes(yesterdayDate)) {
     const startDate = dates.includes(todayDate) ? todayDate : yesterdayDate;
     const checkDate = new Date(startDate);
@@ -106,6 +105,10 @@ export class MockDataService implements DataService {
 
   async getHabits(): Promise<Habit[]> {
     return getStore<Habit>(STORAGE_KEYS.habits).filter((h) => h.active);
+  }
+
+  async getAllHabits(): Promise<Habit[]> {
+    return getStore<Habit>(STORAGE_KEYS.habits);
   }
 
   async getHabitByName(name: string): Promise<Habit | null> {

@@ -11,6 +11,7 @@ import { ConfigurePage } from '@/pages/ConfigurePage';
 import { FocusPage } from '@/pages/FocusPage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { HabitDetailPage } from '@/pages/HabitDetailPage';
+import { HabitsPage } from '@/pages/HabitsPage';
 import { HomePage } from '@/pages/HomePage';
 import { InsightsPage } from '@/pages/InsightsPage';
 import {
@@ -202,6 +203,7 @@ export function AppRoutes() {
         <Route path="report" element={<InsightsPage />} />
         <Route path="report/calendar" element={<CalendarPage />} />
         <Route path="admin" element={<AdminPage />} />
+        <Route path="habits" element={<HabitsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="habit/:habitId" element={<HomePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
