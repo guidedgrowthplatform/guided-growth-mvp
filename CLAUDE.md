@@ -21,6 +21,13 @@ life-growth-tracker/
 ├── packages/shared/src/types/index.ts  # Single source of truth for ALL types
 ├── src/                    # React frontend (Vite + Tailwind)
 ├── public/                 # Static assets + PWA manifest
+├── .claude/                # Claude Code config
+│   ├── skills/             # Auto-loaded skill definitions
+│   │   ├── naming-conventions/SKILL.md  # File & folder naming rules
+│   │   ├── frontend-design/SKILL.md     # UI component guidelines
+│   │   └── voice-poc/                   # Voice command system reference
+│   ├── settings.json       # Shared settings + hooks (committed)
+│   └── settings.local.json # Local permissions (not committed)
 ├── supabase/migrations/    # SQL migrations (run manually on Supabase)
 └── vercel.json             # Rewrites + function config
 ```
@@ -216,3 +223,4 @@ ALTER TABLE metrics ADD COLUMN IF NOT EXISTS target_unit VARCHAR(20) NULL;
 | PWA manifest                             | `public/manifest.json`                                          |
 | Tailwind config (animations)             | `tailwind.config.js`                                            |
 | DB migrations                            | `supabase/migrations/`                                          |
+| Claude skills (naming, frontend design)  | `.claude/skills/*/SKILL.md`                                     |
