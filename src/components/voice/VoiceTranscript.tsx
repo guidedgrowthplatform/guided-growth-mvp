@@ -6,7 +6,7 @@ import { speak } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 export function VoiceTranscript() {
-  const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
+  const { isListening, transcript, interim, resetTranscript } = useVoiceInput();
   const { processTranscript, isProcessing, lastResult, lastIntent, latency, clearResult } =
     useVoiceCommand();
   const setTranscript = useVoiceStore((s) => s.setTranscript);
@@ -57,11 +57,12 @@ export function VoiceTranscript() {
     if (e.key === 'Escape') setIsEditing(false);
   };
 
-  if (!isListening && !transcript && !error && !lastResult) return null;
+  if (!isListening && !transcript && !lastResult) return null;
 
   return (
     <div className="fixed bottom-24 left-4 right-20 z-50 lg:bottom-6 lg:left-auto lg:right-24 lg:w-80">
-      <div className="rounded-xl border border-border bg-surface p-3 shadow-elevated backdrop-blur-sm">
+      <div className="relative rounded-xl border border-border bg-surface p-3 shadow-elevated backdrop-blur-sm">
+        <div className="absolute -bottom-2 right-6 h-4 w-4 rotate-45 border-b border-r border-border bg-surface" />
         {/* Status */}
         {isListening && (
           <div className="mb-2 flex items-center gap-2">
@@ -81,11 +82,6 @@ export function VoiceTranscript() {
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             <span className="text-xs font-semibold text-primary">Processing command...</span>
           </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div className="mb-2 rounded-lg bg-warning/10 p-2 text-xs text-warning">{error}</div>
         )}
 
         {/* Transcript — editable */}
@@ -139,7 +135,7 @@ export function VoiceTranscript() {
         )}
 
         {/* Prompt when listening but no transcript yet */}
-        {isListening && !transcript && !interim && !error && (
+        {isListening && !transcript && !interim && (
           <p className="text-xs italic text-content-tertiary">Speak now...</p>
         )}
 

@@ -27,6 +27,8 @@
 }
 
 @tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 input[type='password'] {
   font-family: Verdana, sans-serif;
@@ -43,8 +45,6 @@ input[type='password']::placeholder {
   font-size: 1.333em;
   letter-spacing: normal;
 }
-@tailwind components;
-@tailwind utilities;
 
 body {
   margin: 0;
@@ -91,30 +91,6 @@ body {
 
   .glow-hover:hover {
     box-shadow: 0 0 25px rgb(var(--color-primary) / 0.5);
-  }
-
-  .purple-row-border::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: 2px;
-    background-color: #a855f7;
-    z-index: 10;
-    pointer-events: none;
-  }
-
-  .purple-row-border::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 2px;
-    background-color: #a855f7;
-    z-index: 10;
-    pointer-events: none;
   }
 
   .cell-selected-fill-handle {
