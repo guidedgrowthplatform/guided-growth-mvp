@@ -4,6 +4,12 @@ stages:
   - validate
   - test
   - build
+  - security
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
 
 cache:
   key:
@@ -32,12 +38,26 @@ test:
     - npm run test:coverage
   coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
   artifacts:
+    when: always
     reports:
       coverage_report:
         coverage_format: cobertura
         path: coverage/cobertura-coverage.xml
+    paths:
+      - coverage/
+    expire_in: 30 days
 
 build:
   stage: build
   script:
     - npm run build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 7 days
+
+security:
+  stage: security
+  allow_failure: true
+  script:
+    - npm audit --audit-level=critical

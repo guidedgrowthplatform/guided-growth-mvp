@@ -1,3 +1,4 @@
+import { Icon } from '@iconify/react';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GoalCard } from '@/components/onboarding/GoalCard';
@@ -84,12 +85,23 @@ export function Step4Page() {
       ctaDisabled={selected.size === 0}
     >
       <OnboardingHeader
-        title={`Let's narrow it down on your ${category} category`}
-        subtitle="Choose 1 or 2 specific goals to shape your habits"
+        title="Let's narrow it down"
+        subtitle={`Choose 1 or 2 specific goals to help you ${category.toLowerCase()}`}
       />
+      <div className="inline-flex items-center gap-1 rounded-[10px] bg-[#0a2540] px-2 py-1">
+        <Icon icon="iconamoon:category" width={24} height={24} className="text-white" />
+        <span className="text-[16px] font-bold leading-[24px] text-white">Category:</span>
+        <span className="text-[16px] font-bold leading-[24px] text-white">{category}</span>
+      </div>
       <div className="flex flex-col gap-[16px]">
         {goals.map((g) => (
-          <GoalCard key={g} label={g} selected={selected.has(g)} onToggle={() => toggleGoal(g)} />
+          <GoalCard
+            key={g}
+            label={g}
+            selected={selected.has(g)}
+            disabled={!selected.has(g) && selected.size >= 2}
+            onToggle={() => toggleGoal(g)}
+          />
         ))}
       </div>
     </OnboardingLayout>

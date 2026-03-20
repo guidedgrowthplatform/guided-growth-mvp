@@ -261,6 +261,7 @@ export function Step5Page() {
       )
     : undefined;
 
+  const [customHabits, setCustomHabits] = useState<Record<string, string[]>>({});
   const [expandedGoal, setExpandedGoal] = useState<string>(goals[0]);
   const [selectedHabits, setSelectedHabits] = useState<Set<string>>(() =>
     incomingConfigs ? new Set(Object.keys(incomingConfigs)) : new Set(),
@@ -287,6 +288,17 @@ export function Step5Page() {
       return;
     }
     if (selectedHabits.size >= 2) return;
+    const next = new Set(selectedHabits);
+    next.add(habit);
+    setSelectedHabits(next);
+  }
+
+  function addCustomHabit(goal: string, habit: string) {
+    if (selectedHabits.size >= 2) return;
+    setCustomHabits((prev) => ({
+      ...prev,
+      [goal]: [...(prev[goal] ?? []), habit],
+    }));
     const next = new Set(selectedHabits);
     next.add(habit);
     setSelectedHabits(next);
@@ -371,11 +383,13 @@ export function Step5Page() {
             <HabitPickerPanel
               key={goal}
               goal={goal}
-              habits={habitsByGoal[goal] ?? []}
+              habits={[...(habitsByGoal[goal] ?? []), ...(customHabits[goal] ?? [])]}
               expanded={expandedGoal === goal}
               onToggleExpanded={() => setExpandedGoal((prev) => (prev === goal ? '' : goal))}
               selectedHabits={selectedHabits}
+              maxReached={selectedHabits.size >= 2}
               onToggleHabit={toggleHabit}
+              onAddCustomHabit={(habit) => addCustomHabit(goal, habit)}
             />
           ))}
         </div>
