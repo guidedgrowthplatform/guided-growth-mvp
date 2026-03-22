@@ -61,6 +61,12 @@ jobs:
 
       - run: npm ci
 
+      # Load SSH key to access the private match certificates repo on GitLab
+      - name: Set up match deploy key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.MATCH_DEPLOY_KEY }}
+
       # Generate the native iOS project from Capacitor config
       - name: Capacitor sync iOS
         run: npx cap sync ios
