@@ -67,9 +67,11 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.MATCH_DEPLOY_KEY }}
 
-      # Generate the native iOS project from Capacitor config
-      - name: Capacitor sync iOS
-        run: npx cap sync ios
+      # Add and sync the iOS platform (ios/ is gitignored, regenerated in CI)
+      - name: Capacitor add & sync iOS
+        run: |
+          npx cap add ios
+          npx cap sync ios
 
       - name: Install CocoaPods
         run: cd ios/App && pod install
@@ -132,9 +134,11 @@ jobs:
 
       - run: npm ci
 
-      # Generate the native Android project from Capacitor config
-      - name: Capacitor sync Android
-        run: npx cap sync android
+      # Add and sync the Android platform (android/ is gitignored, regenerated in CI)
+      - name: Capacitor add & sync Android
+        run: |
+          npx cap add android
+          npx cap sync android
 
       # Decode signing keystore from base64 secret
       - name: Decode keystore
