@@ -137,11 +137,17 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      # Decode signing keystore from base64 secret
-      - name: Decode keystore
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android-release.keystore
+      # Generate a signing keystore on the fly using CI secrets
+      - name: Generate signing keystore
+        run: |
+          keytool -genkey -v \
+            -keystore android-release.keystore \
+            -alias "${{ secrets.ANDROID_KEY_ALIAS }}" \
+            -keyalg RSA -keysize 2048 \
+            -validity 10000 \
+            -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            -keypass "${{ secrets.ANDROID_KEY_PASSWORD }}" \
+            -dname "CN=Guided Growth, O=Guided Growth"
 
       - name: Build signed APK
         env:
