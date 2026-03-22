@@ -73,9 +73,6 @@ jobs:
           npx cap add ios
           npx cap sync ios
 
-      - name: Install CocoaPods
-        run: cd ios/App && pod install
-
       # Auto-increment build number using the GitHub run number
       - name: Set build number
         run: |
