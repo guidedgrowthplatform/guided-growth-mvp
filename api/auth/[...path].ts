@@ -1,103 +1,62 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { toNodeHandler, fromNodeHeaders } from 'better-auth/node';
+import { auth } from '../_lib/better-auth.js';
 import pool from '../_lib/db.js';
-import { signToken, setAuthCookie, clearAuthCookie, getUser } from '../_lib/auth.js';
+
+const betterAuthHandler = toNodeHandler(auth);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] || '';
 
-  // GET /api/auth/google
-  if (route === 'google') {
-    const params = new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID || '',
-      redirect_uri: process.env.GOOGLE_CALLBACK_URL || '',
-      response_type: 'code',
-      scope: 'openid email profile',
-      access_type: 'offline',
-      prompt: 'consent',
-    });
-    return res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+  // Skip __index (Vercel rewrite for bare /api/auth)
+  if (route === '__index' || segments.length === 0) {
+    return res.status(200).json({ ok: true, provider: 'better-auth' });
   }
 
-  // GET /api/auth/callback
-  if (route === 'callback') {
+  // Custom route: GET /api/auth/me — return full user from our users table
+  if (route === 'me') {
     try {
-      const code = req.query.code as string;
-      if (!code) return res.redirect('/login?error=no_code');
-
-      const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          code,
-          client_id: process.env.GOOGLE_CLIENT_ID || '',
-          client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-          redirect_uri: process.env.GOOGLE_CALLBACK_URL || '',
-          grant_type: 'authorization_code',
-        }),
+      const session = await auth.api.getSession({
+        headers: fromNodeHeaders(req.headers),
       });
-      const tokens = await tokenRes.json();
-      if (!tokens.access_token) return res.redirect('/login?error=token_failed');
-
-      const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: { Authorization: `Bearer ${tokens.access_token}` },
-      });
-      const profile = await userRes.json();
-      const email = profile.email;
-      if (!email) return res.redirect('/login?error=no_email');
-
-      const allowCheck = await pool.query('SELECT id FROM allowlist WHERE email = $1', [email]);
-      if (allowCheck.rows.length === 0) return res.redirect('/login?error=not_invited');
-
-      const now = new Date();
-      const existing = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-
-      let user;
-      if (existing.rows.length === 0) {
-        const role = email === process.env.ADMIN_EMAIL ? 'admin' : 'user';
-        const result = await pool.query(
-          `INSERT INTO users (email, name, avatar_url, role, last_login_at) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-          [email, profile.name, profile.picture, role, now],
-        );
-        user = result.rows[0];
-      } else {
-        user = existing.rows[0];
-        if (user.status === 'disabled') return res.redirect('/login?error=disabled');
-        await pool.query(
-          `UPDATE users SET name = $1, avatar_url = $2, last_login_at = $3, updated_at = $3 WHERE id = $4`,
-          [profile.name, profile.picture, now, user.id],
-        );
+      if (!session?.user) {
+        return res.status(401).json({ error: 'Not authenticated' });
       }
 
-      const token = signToken(user.id);
-      res.setHeader('Set-Cookie', setAuthCookie(token));
-      return res.redirect('/');
-    } catch (err: any) {
-      console.error('OAuth callback error:', err);
-      return res.redirect('/login?error=server_error');
+      // Look up user in our app's users table
+      const result = await pool.query(
+        'SELECT id, email, name, avatar_url, role, status FROM users WHERE email = $1',
+        [session.user.email],
+      );
+
+      if (result.rows.length === 0) {
+        // User exists in Better Auth but not in our users table — auto-create
+        const now = new Date();
+        const email = session.user.email;
+        const role = email === process.env.ADMIN_EMAIL ? 'admin' : 'user';
+        const insertResult = await pool.query(
+          `INSERT INTO users (id, email, name, avatar_url, role, last_login_at, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $6, $6)
+           ON CONFLICT (email) DO UPDATE SET last_login_at = $6, updated_at = $6
+           RETURNING id, email, name, avatar_url, role, status`,
+          [session.user.id, email, session.user.name, session.user.image, role, now],
+        );
+        return res.json(insertResult.rows[0]);
+      }
+
+      return res.json(result.rows[0]);
+    } catch (err: unknown) {
+      console.error('Auth /me error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  // GET /api/auth/me
-  if (route === 'me') {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    return res.json({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      avatar_url: user.avatar_url,
-      role: user.role,
-      status: user.status,
-    });
-  }
+  // All other routes: delegate to Better Auth handler
+  // Reconstruct the full path for Better Auth
+  const authPath = `/api/auth/${segments.join('/')}`;
+  req.url = authPath + (req.url?.includes('?') ? '?' + req.url.split('?')[1] : '');
 
-  // POST /api/auth/logout
-  if (route === 'logout') {
-    res.setHeader('Set-Cookie', clearAuthCookie());
-    return res.json({ message: 'Logged out' });
-  }
-
-  res.status(404).json({ error: 'Not found' });
+  return betterAuthHandler(req, res);
 }

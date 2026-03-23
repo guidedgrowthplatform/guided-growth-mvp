@@ -5,7 +5,10 @@ export interface ElevenLabsCallbacks {
   onOpen: () => void;
 }
 
-const TARGET_SAMPLE_RATE = 16000;
+// For short commands (<5s), send at native rate for better accuracy.
+// Only downsample longer recordings to save bandwidth.
+const SHORT_COMMAND_THRESHOLD_SECONDS = 5;
+const DOWNSAMPLE_RATE = 16000;
 
 let mediaStream: MediaStream | null = null;
 let audioContext: AudioContext | null = null;
@@ -16,15 +19,15 @@ let captureNode: ScriptProcessorNode | null = null;
 let sourceNode: MediaStreamAudioSourceNode | null = null;
 let nativeSampleRate = 44100;
 
-async function resampleTo16k(samples: Float32Array, srcRate: number): Promise<Float32Array> {
-  if (srcRate === TARGET_SAMPLE_RATE) return samples;
+async function resampleAudio(
+  samples: Float32Array,
+  srcRate: number,
+  targetRate: number,
+): Promise<Float32Array> {
+  if (srcRate === targetRate) return samples;
 
   const duration = samples.length / srcRate;
-  const offlineCtx = new OfflineAudioContext(
-    1,
-    Math.ceil(duration * TARGET_SAMPLE_RATE),
-    TARGET_SAMPLE_RATE,
-  );
+  const offlineCtx = new OfflineAudioContext(1, Math.ceil(duration * targetRate), targetRate);
   const buffer = offlineCtx.createBuffer(1, samples.length, srcRate);
   buffer.getChannelData(0).set(samples);
 
@@ -35,6 +38,61 @@ async function resampleTo16k(samples: Float32Array, srcRate: number): Promise<Fl
 
   const rendered = await offlineCtx.startRendering();
   return rendered.getChannelData(0);
+}
+
+/** Normalize audio volume: find peak and scale to targetPeak (0.9) */
+function normalizeAudio(samples: Float32Array): Float32Array {
+  let peak = 0;
+  for (let i = 0; i < samples.length; i++) {
+    const abs = Math.abs(samples[i]);
+    if (abs > peak) peak = abs;
+  }
+
+  // Don't amplify silence or already-loud audio
+  if (peak < 0.001 || peak > 0.85) return samples;
+
+  const targetPeak = 0.9;
+  const gain = targetPeak / peak;
+  const normalized = new Float32Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    normalized[i] = samples[i] * gain;
+  }
+  return normalized;
+}
+
+/**
+ * Trim silence from start and end of audio.
+ * Skips samples below the threshold amplitude.
+ */
+function trimSilence(samples: Float32Array, sampleRate: number): Float32Array {
+  const threshold = 0.01;
+  // Minimum padding to keep around speech (50ms)
+  const padSamples = Math.floor(sampleRate * 0.05);
+
+  let start = 0;
+  for (let i = 0; i < samples.length; i++) {
+    if (Math.abs(samples[i]) > threshold) {
+      start = i;
+      break;
+    }
+  }
+
+  let end = samples.length - 1;
+  for (let i = samples.length - 1; i >= start; i--) {
+    if (Math.abs(samples[i]) > threshold) {
+      end = i;
+      break;
+    }
+  }
+
+  // Add padding but clamp to array bounds
+  const trimStart = Math.max(0, start - padSamples);
+  const trimEnd = Math.min(samples.length, end + padSamples + 1);
+
+  // Don't trim if result would be too short (<0.3s)
+  if ((trimEnd - trimStart) / sampleRate < 0.3) return samples;
+
+  return samples.slice(trimStart, trimEnd);
 }
 
 function float32ToWavBlob(samples: Float32Array, sampleRate: number): Blob {
@@ -157,13 +215,24 @@ export async function stopAndTranscribe(): Promise<string> {
       offset += chunk.length;
     }
 
-    const resampled = await resampleTo16k(merged, srcRate);
-    const wavBlob = float32ToWavBlob(resampled, TARGET_SAMPLE_RATE);
+    // Pre-process: trim silence, then normalize volume
+    const trimmed = trimSilence(merged, srcRate);
+    const normalized = normalizeAudio(trimmed);
+
+    // For short commands (<5s), keep native sample rate for better accuracy.
+    // Longer recordings get downsampled to 16kHz to save bandwidth.
+    const durationSeconds = normalized.length / srcRate;
+    const isShortCommand = durationSeconds <= SHORT_COMMAND_THRESHOLD_SECONDS;
+    const outputRate = isShortCommand ? srcRate : DOWNSAMPLE_RATE;
+    const processed = await resampleAudio(normalized, srcRate, outputRate);
+    const wavBlob = float32ToWavBlob(processed, outputRate);
 
     const form = new FormData();
     form.append('file', wavBlob, 'recording.wav');
-    form.append('model_id', 'scribe_v2');
+    form.append('model_id', 'scribe_v1');
     form.append('language_code', 'en');
+    form.append('tag_audio_events', 'false');
+    form.append('diarize', 'false');
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);

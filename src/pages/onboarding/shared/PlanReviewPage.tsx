@@ -5,6 +5,7 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { useToast } from '@/contexts/ToastContext';
+import { getCurrentUserId } from '@/lib/auth-helpers';
 import { getDataService } from '@/lib/services/service-provider';
 import { supabase } from '@/lib/supabase';
 const CATEGORY_ICONS: Record<string, string> = {
@@ -51,13 +52,11 @@ export function PlanReviewPage() {
       }
 
       // Save onboarding state to Supabase
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
+      const userId = await getCurrentUserId();
+      if (userId) {
         await supabase.from('onboarding_states').upsert(
           {
-            user_id: user.id,
+            user_id: userId,
             status: 'completed',
             current_step: state.source === 'advanced' ? 6 : 7,
             data: {

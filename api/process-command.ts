@@ -178,6 +178,13 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
 2. PARSE the corrected transcript into a single structured JSON command
 
 ## Transcript Correction Rules
+- **CRITICAL**: The transcript comes from ElevenLabs Scribe STT which SEVERELY garbles short voice commands (2-5 words). Common failure patterns:
+  - Command words get turned into names/sentences: "mark meditation done" → "Mark made a champagne toast" or "Mark, what is on your mind today?"
+  - Single-word commands get expanded into full sentences by the STT engine
+  - Habit names get replaced with phonetically similar but unrelated phrases
+  - The STT may hallucinate entire sentences that the user never said
+- **ALWAYS assume the user is giving a short command** to their habit tracker, not having a conversation
+- If the transcript sounds like a random sentence but contains words phonetically similar to habit-tracking commands (mark, done, create, delete, log, meditation, exercise, reading, etc.), reconstruct the most likely command
 - Fix obvious STT errors: "meditatoin" → "meditation", "exorcise" → "exercise"
 - Fix phonetic mishearing: "mark done reading on me" → "mark reading done"
 - Remove filler words: "um", "uh", "like", "so", "you know"
@@ -387,7 +394,32 @@ User: "Exercise, Mark Done. For 03/17/2026."
 {"action":"complete","entity":"habit","params":{"name":"exercise","date":"2026-03-17"},"confidence":0.85}
 
 User: "Painting, Mark Done. For 03/26/2026."
-{"action":"complete","entity":"habit","params":{"name":"painting","date":"2026-03-26"},"confidence":0.85}`;
+{"action":"complete","entity":"habit","params":{"name":"painting","date":"2026-03-26"},"confidence":0.85}
+
+### STT-Severely-Garbled (ElevenLabs Scribe hallucinations on short commands)
+User: "Mark made a champagne toast"
+{"corrected_transcript":"mark meditation done today","action":"complete","entity":"habit","params":{"name":"meditation","date":"today"},"confidence":0.7}
+
+User: "Mark, what is on your mind today?"
+{"corrected_transcript":"mark meditation done today","action":"complete","entity":"habit","params":{"name":"meditation","date":"today"},"confidence":0.65}
+
+User: "Marguerite reading"
+{"corrected_transcript":"mark reading done","action":"complete","entity":"habit","params":{"name":"reading","date":"today"},"confidence":0.7}
+
+User: "Marquette, a song today"
+{"corrected_transcript":"mark exercise done today","action":"complete","entity":"habit","params":{"name":"exercise","date":"today"},"confidence":0.6}
+
+User: "Create a hobbit. Meditating."
+{"corrected_transcript":"create a habit meditation","action":"create","entity":"habit","params":{"name":"meditation"},"confidence":0.8}
+
+User: "Deli, the exercise."
+{"corrected_transcript":"delete exercise","action":"delete","entity":"habit","params":{"name":"exercise"},"confidence":0.7}
+
+User: "Lock my mood at seven."
+{"corrected_transcript":"log my mood at 7","action":"log","entity":"metric","params":{"name":"mood","value":7,"date":"today"},"confidence":0.8}
+
+User: "Marc done yoga."
+{"corrected_transcript":"mark done yoga","action":"complete","entity":"habit","params":{"name":"yoga","date":"today"},"confidence":0.8}`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -435,7 +467,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const habitContext =
     Array.isArray(existingHabits) && existingHabits.length > 0
-      ? `\n\n## User's Existing Habits\n${existingHabits.join(', ')}\n\nWhen the user refers to a habit by a misspoken or similar-sounding name, match it to the closest existing habit above. For example if user says "playing pedal" but has "playing paddle", correct to "playing paddle".`
+      ? `\n\n## User's Existing Habits\n${existingHabits.join(', ')}\n\nWhen the user refers to a habit by a misspoken or similar-sounding name, match it to the closest existing habit above. For example if user says "playing pedal" but has "playing paddle", correct to "playing paddle".\n\nIMPORTANT: The ElevenLabs STT engine often garbles short commands beyond recognition. If the transcript seems nonsensical, look for phonetic fragments that match these existing habits and reconstruct the most likely command. The user is ALWAYS trying to interact with their habit tracker — they are NOT having a casual conversation.`
       : '';
 
   try {

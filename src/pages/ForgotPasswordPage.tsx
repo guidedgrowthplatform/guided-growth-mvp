@@ -4,7 +4,6 @@ import { useForm } from 'react-hook-form';
 import { AuthBackButton, AuthFooter, AuthAlert } from '@/components/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { supabase } from '@/lib/supabase';
 import { forgotPasswordSchema, type ForgotPasswordForm } from '@/lib/validation';
 
 export function ForgotPasswordPage() {
@@ -25,16 +24,28 @@ export function ForgotPasswordPage() {
     setError(null);
     setLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-      redirectTo: `${window.location.origin}/login`,
-    });
+    try {
+      const res = await fetch('/api/auth/forget-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: data.email,
+          redirectTo: `${window.location.origin}/login`,
+        }),
+      });
 
-    setLoading(false);
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setSent(true);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.message ?? 'Failed to send reset email');
+      } else {
+        setSent(true);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to send reset email';
+      setError(message);
+    } finally {
+      setLoading(false);
     }
   };
 
