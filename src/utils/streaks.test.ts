@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { computeStreak } from './streaks';
-import type { Metric, EntriesMap } from '@shared/types';
 import { format, subDays } from 'date-fns';
+import { describe, it, expect } from 'vitest';
+import type { Metric, EntriesMap } from '@shared/types';
+import { computeStreak } from './streaks';
 
 const makeMetric = (overrides: Partial<Metric> = {}): Metric => ({
   id: 'm1',

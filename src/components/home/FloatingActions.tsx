@@ -1,10 +1,13 @@
 import { CheckSquare, BookOpen } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export function FloatingActions() {
+  const navigate = useNavigate();
+
   return (
-    <div className="fixed bottom-32 right-6 z-30 flex flex-col items-center gap-3 lg:hidden">
+    <div className="pointer-events-auto fixed bottom-24 right-6 z-30 flex flex-col items-center gap-3 lg:hidden">
       <button
-        onClick={() => console.log('Quick add habit entry')}
+        onClick={() => navigate('/habits')}
         className="relative flex h-12 w-12 items-center justify-center rounded-full bg-primary shadow-lg"
       >
         <CheckSquare className="h-5 w-5 text-white" />
@@ -13,7 +16,7 @@ export function FloatingActions() {
         </span>
       </button>
       <button
-        onClick={() => console.log('Quick journal')}
+        onClick={() => window.dispatchEvent(new CustomEvent('toggle-journal'))}
         className="relative flex h-12 w-12 items-center justify-center rounded-full bg-primary shadow-lg"
       >
         <BookOpen className="h-5 w-5 text-white" />

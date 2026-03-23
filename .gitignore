@@ -80,6 +80,7 @@ capacitor-cordova-android-plugins/
 *.apk
 *.ipa
 *.aab
+.env*.local
 
 # Mobile build output
 build/ios/

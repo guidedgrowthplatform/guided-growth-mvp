@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
+import { supabase } from '@/lib/supabase';
 
 const AGE_OPTIONS = [
   '14 or under',
@@ -30,12 +31,35 @@ export function Step1Page() {
   const [ageRange, setAgeRange] = useState<string | null>(null);
   const [gender, setGender] = useState<string | null>(null);
 
+  const handleNext = useCallback(async () => {
+    // Save onboarding state (step 1) to Supabase
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('onboarding_states').upsert(
+          {
+            user_id: user.id,
+            status: 'in_progress',
+            current_step: 1,
+            data: { nickname, ageRange, gender },
+          },
+          { onConflict: 'user_id' },
+        );
+      }
+    } catch {
+      // Non-blocking: continue even if save fails
+    }
+    navigate('/onboarding/step-2');
+  }, [nickname, ageRange, gender, navigate]);
+
   return (
     <OnboardingLayout
       currentStep={1}
       totalSteps={7}
       ctaLabel="Let's Begin"
-      onNext={() => navigate('/onboarding/step-2')}
+      onNext={handleNext}
       showVoiceButton
     >
       <OnboardingHeader

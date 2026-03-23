@@ -20,13 +20,26 @@ interface UpdatedHabit {
 interface ResultsLocationState {
   updatedHabit?: UpdatedHabit;
   deletedIndex?: number;
+  text?: string;
+  habits?: Array<{ name: string; days?: number[] }>;
 }
 
-const MOCK_HABITS: HabitItem[] = [
+const FALLBACK_HABITS: HabitItem[] = [
   { name: 'Sleep by 11 PM', days: new Set(WEEKDAYS), selected: true },
   { name: 'Morning stretch', days: new Set(WEEKDAYS), selected: true },
   { name: 'No coffee after 3 PM', days: new Set(WEEKDAYS), selected: true },
 ];
+
+function buildInitialHabits(state: ResultsLocationState | null): HabitItem[] {
+  if (state?.habits && state.habits.length > 0) {
+    return state.habits.map((h) => ({
+      name: h.name,
+      days: new Set(h.days ?? WEEKDAYS),
+      selected: true,
+    }));
+  }
+  return FALLBACK_HABITS;
+}
 
 function applyLocationState(base: HabitItem[], state: ResultsLocationState | null): HabitItem[] {
   if (!state) return base;
@@ -47,7 +60,11 @@ export function AdvancedResultsPage() {
   const locationState = location.state as ResultsLocationState | null;
   const clearedRef = useRef(false);
 
-  const habits = useMemo(() => applyLocationState(MOCK_HABITS, locationState), [locationState]);
+  const baseHabits = useMemo(() => buildInitialHabits(locationState), [locationState]);
+  const habits = useMemo(
+    () => applyLocationState(baseHabits, locationState),
+    [baseHabits, locationState],
+  );
 
   useEffect(() => {
     if (locationState && !clearedRef.current) {
@@ -62,6 +79,21 @@ export function AdvancedResultsPage() {
       days: [...h.days],
     }));
     navigate('/onboarding/advanced-step-6', { state: { habitConfigs } });
+  }
+
+  if (habits.length === 0) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center bg-surface-secondary">
+        <p className="text-content-secondary">No habits selected. Go back to add some.</p>
+        <button
+          type="button"
+          onClick={() => navigate('/onboarding/advanced-input')}
+          className="mt-4 rounded-full bg-primary px-6 py-3 text-white"
+        >
+          Go Back
+        </button>
+      </div>
+    );
   }
 
   return (

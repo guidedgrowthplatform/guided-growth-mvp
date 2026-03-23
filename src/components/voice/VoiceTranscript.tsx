@@ -2,7 +2,6 @@ import { Pencil } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useVoiceCommand } from '@/hooks/useVoiceCommand';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
-import { speak } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 export function VoiceTranscript() {
@@ -23,12 +22,17 @@ export function VoiceTranscript() {
     }
   }, [isListening, transcript, processTranscript]);
 
-  // TTS talk-back: speak the result after processing
+  // Auto-dismiss after 5 seconds
   useEffect(() => {
-    if (lastResult && !isProcessing) {
-      speak(lastResult.message);
+    if (lastResult && !isProcessing && !isListening) {
+      const timer = setTimeout(() => {
+        resetTranscript();
+        clearResult();
+        lastProcessedRef.current = '';
+      }, 5000);
+      return () => clearTimeout(timer);
     }
-  }, [lastResult, isProcessing]);
+  }, [lastResult, isProcessing, isListening, resetTranscript, clearResult]);
 
   // Focus input when entering edit mode
   useEffect(() => {
@@ -160,30 +164,20 @@ export function VoiceTranscript() {
           </div>
         )}
 
-        {/* Actions */}
-        <div className="mt-2 flex gap-2">
-          {transcript && (
-            <button
-              onClick={() => {
-                resetTranscript();
-                clearResult();
-                lastProcessedRef.current = '';
-                setIsEditing(false);
-              }}
-              className="text-xs text-content-tertiary underline hover:text-content-secondary"
-            >
-              Clear
-            </button>
-          )}
-          {lastResult && (
-            <button
-              onClick={clearResult}
-              className="text-xs text-content-tertiary underline hover:text-content-secondary"
-            >
-              Dismiss
-            </button>
-          )}
-        </div>
+        {/* Dismiss */}
+        {(transcript || lastResult) && (
+          <button
+            onClick={() => {
+              resetTranscript();
+              clearResult();
+              lastProcessedRef.current = '';
+              setIsEditing(false);
+            }}
+            className="mt-2 text-xs text-content-tertiary underline hover:text-content-secondary"
+          >
+            Dismiss
+          </button>
+        )}
       </div>
     </div>
   );
