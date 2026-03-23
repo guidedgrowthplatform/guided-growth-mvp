@@ -123,7 +123,7 @@ export function SettingsPage() {
   const languageLabel =
     languages.find((l) => l.value === pageSettings.language)?.label ?? 'English (US)';
 
-  const fullName = user?.name ?? undefined;
+  const fullName = user?.user_metadata?.full_name as string | undefined;
   const email = user?.email ?? '';
   const displayName = fullName ?? email.split('@')[0] ?? 'User';
 

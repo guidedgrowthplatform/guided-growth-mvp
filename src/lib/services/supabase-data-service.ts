@@ -1,4 +1,3 @@
-import { getCurrentUserId } from '../auth-helpers';
 import { supabase } from '../supabase';
 import type {
   DataService,
@@ -24,12 +23,15 @@ export class SupabaseDataService implements DataService {
       throw new Error(`You already have a habit called "${existing.name}"`);
     }
 
-    const userId = await getCurrentUserId();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
 
     const { data, error } = await supabase
       .from('user_habits')
       .insert({
-        user_id: userId,
+        user_id: user.id,
         name,
         habit_type: 'binary_do',
         cadence:
@@ -230,12 +232,15 @@ export class SupabaseDataService implements DataService {
     scaleMin?: number,
     scaleMax?: number,
   ): Promise<TrackedMetric> {
-    const userId = await getCurrentUserId();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
 
     const { data, error } = await supabase
       .from('metrics')
       .insert({
-        user_id: userId,
+        user_id: user.id,
         name,
         input_type: inputType,
         frequency,
@@ -357,12 +362,15 @@ export class SupabaseDataService implements DataService {
     mood?: string,
     themes?: string[],
   ): Promise<JournalEntry> {
-    const userId = await getCurrentUserId();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
 
     const { data, error } = await supabase
       .from('journal_entries')
       .insert({
-        user_id: userId,
+        user_id: user.id,
         date: todayStr(),
         response: content,
         prompt: themes?.join(', ') || null,
@@ -463,13 +471,16 @@ export class SupabaseDataService implements DataService {
       stress: number | null;
     },
   ): Promise<CheckInRecord> {
-    const userId = await getCurrentUserId();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
 
     const { data: row, error } = await supabase
       .from('daily_checkins')
       .upsert(
         {
-          user_id: userId,
+          user_id: user.id,
           date,
           sleep_quality: data.sleep,
           mood_score: data.mood,
@@ -561,12 +572,15 @@ export class SupabaseDataService implements DataService {
     actualMinutes: number | null,
     startedAt: string,
   ): Promise<FocusSession> {
-    const userId = await getCurrentUserId();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
 
     const { data, error } = await supabase
       .from('focus_sessions')
       .insert({
-        user_id: userId,
+        user_id: user.id,
         user_habit_id: habitId,
         duration_minutes: durationMinutes,
         actual_minutes: actualMinutes,
@@ -613,9 +627,10 @@ export class SupabaseDataService implements DataService {
   async seedData(): Promise<void> {
     // Seeded data already exists in Supabase via seed.sql
     // This method seeds user-specific demo data for testing
-    try {
-      await getCurrentUserId();
-    } catch {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
       console.warn('[SupabaseDataService] Not authenticated — cannot seed data');
       return;
     }

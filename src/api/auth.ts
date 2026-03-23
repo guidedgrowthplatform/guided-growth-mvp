@@ -1,5 +1,5 @@
 import type { User } from '@shared/types';
-import { apiGet } from './client';
+import { apiGet, apiPost } from './client';
 
 export async function fetchCurrentUser(): Promise<User | null> {
   try {
@@ -10,18 +10,11 @@ export async function fetchCurrentUser(): Promise<User | null> {
 }
 
 export function initiateGoogleLogin(): void {
-  // Better Auth handles Google OAuth redirect via signIn.social()
-  // This function is kept for backward compatibility but should
-  // not be called directly — use authClient.signIn.social() instead
-  window.location.href = '/api/auth/sign-in/social?provider=google';
+  const apiUrl = import.meta.env.VITE_API_URL || '';
+  window.location.href = `${apiUrl}/api/auth/google`;
 }
 
 export async function logout(): Promise<void> {
-  // Better Auth handles signout via authClient.signOut()
-  // This is kept for backward compatibility
-  await fetch('/api/auth/sign-out', {
-    method: 'POST',
-    credentials: 'include',
-  });
+  await apiPost('/api/auth/logout', {});
   window.location.href = '/';
 }
