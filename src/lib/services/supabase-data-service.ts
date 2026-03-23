@@ -122,17 +122,18 @@ export class SupabaseDataService implements DataService {
       .select('*')
       .ilike('name', name)
       .eq('is_active', true)
-      .maybeSingle();
+      .limit(1);
 
     if (error) throw new Error(error.message);
-    if (!data) return null;
+    if (!data || data.length === 0) return null;
+    const row = data[0];
 
     return {
-      id: data.id,
-      name: data.name,
-      frequency: data.cadence,
-      createdAt: data.created_at,
-      active: data.is_active,
+      id: row.id,
+      name: row.name,
+      frequency: row.cadence,
+      createdAt: row.created_at,
+      active: row.is_active,
     };
   }
 
@@ -282,23 +283,20 @@ export class SupabaseDataService implements DataService {
   }
 
   async getMetricByName(name: string): Promise<TrackedMetric | null> {
-    const { data, error } = await supabase
-      .from('metrics')
-      .select('*')
-      .ilike('name', name)
-      .maybeSingle();
+    const { data, error } = await supabase.from('metrics').select('*').ilike('name', name).limit(1);
 
     if (error) throw new Error(error.message);
-    if (!data) return null;
+    if (!data || data.length === 0) return null;
+    const row = data[0];
 
     return {
-      id: data.id,
-      name: data.name,
-      inputType: data.input_type as TrackedMetric['inputType'],
-      frequency: data.frequency,
-      scaleMin: data.scale_min ?? undefined,
-      scaleMax: data.scale_max ?? undefined,
-      createdAt: data.created_at,
+      id: row.id,
+      name: row.name,
+      inputType: row.input_type as TrackedMetric['inputType'],
+      frequency: row.frequency,
+      scaleMin: row.scale_min ?? undefined,
+      scaleMax: row.scale_max ?? undefined,
+      createdAt: row.created_at,
     };
   }
 
