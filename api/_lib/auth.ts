@@ -1,42 +1,21 @@
-import jwt from 'jsonwebtoken';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import pool from './db.js';
-
-const SECRET = () => {
-  const s = process.env.SESSION_SECRET;
-  if (!s) {
-    if (process.env.VERCEL && process.env.NODE_ENV === 'production') {
-      throw new Error('SESSION_SECRET is required in production');
-    }
-    return 'dev-secret';
-  }
-  return s;
-};
-
-export function signToken(userId: string): string {
-  return jwt.sign({ userId }, SECRET(), { expiresIn: '7d' });
-}
-
-export function setAuthCookie(token: string): string {
-  const secure = process.env.NODE_ENV === 'production' ? 'Secure; ' : '';
-  return `token=${token}; HttpOnly; ${secure}SameSite=Lax; Path=/; Max-Age=604800`;
-}
-
-export function clearAuthCookie(): string {
-  return 'token=; HttpOnly; Path=/; Max-Age=0';
-}
+import { auth } from './better-auth.js';
+import { fromNodeHeaders } from 'better-auth/node';
 
 export async function getUser(req: VercelRequest) {
-  const cookie = req.headers.cookie;
-  if (!cookie) return null;
-
-  const match = cookie.match(/token=([^;]+)/);
-  if (!match) return null;
-
   try {
-    const payload = jwt.verify(match[1], SECRET()) as { userId: string };
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [payload.userId]);
-    return result.rows[0] || null;
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    });
+    if (!session?.user) return null;
+    return {
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      image: session.user.image,
+      role: 'user',
+      status: 'active',
+    };
   } catch {
     return null;
   }
@@ -46,10 +25,6 @@ export async function requireUser(req: VercelRequest, res: VercelResponse) {
   const user = await getUser(req);
   if (!user) {
     res.status(401).json({ error: 'Authentication required' });
-    return null;
-  }
-  if (user.status === 'disabled') {
-    res.status(403).json({ error: 'Account disabled' });
     return null;
   }
   return user;

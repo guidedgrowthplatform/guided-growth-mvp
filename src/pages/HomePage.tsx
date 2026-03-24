@@ -62,7 +62,7 @@ export function HomePage() {
     return () => window.removeEventListener('toggle-journal', handler);
   }, []);
 
-  const fullName = user?.user_metadata?.full_name as string | undefined;
+  const fullName = user?.name;
   const email = user?.email;
   const firstName = fullName?.split(' ')[0] ?? email?.split('@')[0] ?? 'there';
 

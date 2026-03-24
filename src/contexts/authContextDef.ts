@@ -1,9 +1,19 @@
-import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { createContext } from 'react';
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string | null;
+  image: string | null;
+  emailVerified: boolean;
+  role?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface AuthContextValue {
-  user: SupabaseUser | null;
-  session: Session | null;
+  user: AuthUser | null;
+  session: { token: string } | null;
   loading: boolean;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
