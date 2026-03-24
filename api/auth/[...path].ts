@@ -19,9 +19,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const response = await auth.handler(webRequest);
 
     res.status(response.status);
+
+    // Forward all headers, handling multiple Set-Cookie correctly
+    const setCookies = response.headers.getSetCookie?.() ?? [];
     response.headers.forEach((value, key) => {
+      if (key.toLowerCase() === 'set-cookie') return; // handle separately
       res.setHeader(key, value);
     });
+    if (setCookies.length > 0) {
+      res.setHeader('set-cookie', setCookies);
+    }
 
     const body = await response.text();
     res.send(body);
