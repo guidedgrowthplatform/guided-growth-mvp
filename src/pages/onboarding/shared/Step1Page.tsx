@@ -5,6 +5,7 @@ import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
+import { authClient } from '@/lib/auth-client';
 import { supabase } from '@/lib/supabase';
 
 const AGE_OPTIONS = [
@@ -34,13 +35,12 @@ export function Step1Page() {
   const handleNext = useCallback(async () => {
     // Save onboarding state (step 1) to Supabase
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
+      const { data: session } = await authClient.getSession();
+      const uid = session?.user?.id;
+      if (uid) {
         await supabase.from('onboarding_states').upsert(
           {
-            user_id: user.id,
+            user_id: uid,
             status: 'in_progress',
             current_step: 1,
             data: { nickname, ageRange, gender },

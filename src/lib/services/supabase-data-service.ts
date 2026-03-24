@@ -1,3 +1,4 @@
+import { authClient } from '../auth-client';
 import { supabase } from '../supabase';
 import type {
   DataService,
@@ -16,6 +17,17 @@ function todayStr(): string {
   return new Date().toISOString().split('T')[0];
 }
 
+async function getCurrentUserId(): Promise<string> {
+  const { data } = await authClient.getSession();
+  if (data?.user?.id) return data.user.id;
+  // Fallback to Supabase auth for backward compat
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user?.id) return user.id;
+  throw new Error('Not authenticated');
+}
+
 export class SupabaseDataService implements DataService {
   async createHabit(name: string, frequency = 'daily'): Promise<Habit> {
     const existing = await this.getHabitByName(name);
@@ -23,15 +35,12 @@ export class SupabaseDataService implements DataService {
       throw new Error(`You already have a habit called "${existing.name}"`);
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = await getCurrentUserId();
 
     const { data, error } = await supabase
       .from('user_habits')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         name,
         habit_type: 'binary_do',
         cadence:
@@ -232,15 +241,12 @@ export class SupabaseDataService implements DataService {
     scaleMin?: number,
     scaleMax?: number,
   ): Promise<TrackedMetric> {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = await getCurrentUserId();
 
     const { data, error } = await supabase
       .from('metrics')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         name,
         input_type: inputType,
         frequency,
@@ -362,15 +368,12 @@ export class SupabaseDataService implements DataService {
     mood?: string,
     themes?: string[],
   ): Promise<JournalEntry> {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = await getCurrentUserId();
 
     const { data, error } = await supabase
       .from('journal_entries')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         date: todayStr(),
         response: content,
         prompt: themes?.join(', ') || null,
@@ -471,16 +474,13 @@ export class SupabaseDataService implements DataService {
       stress: number | null;
     },
   ): Promise<CheckInRecord> {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = await getCurrentUserId();
 
     const { data: row, error } = await supabase
       .from('daily_checkins')
       .upsert(
         {
-          user_id: user.id,
+          user_id: userId,
           date,
           sleep_quality: data.sleep,
           mood_score: data.mood,
@@ -572,15 +572,12 @@ export class SupabaseDataService implements DataService {
     actualMinutes: number | null,
     startedAt: string,
   ): Promise<FocusSession> {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = await getCurrentUserId();
 
     const { data, error } = await supabase
       .from('focus_sessions')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         user_habit_id: habitId,
         duration_minutes: durationMinutes,
         actual_minutes: actualMinutes,
