@@ -23,29 +23,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
-    const { error } = await authClient.signUp.email({
+    const { data, error } = await authClient.signUp.email({
       email,
       password,
       name: email.split('@')[0],
     });
     if (error) return { error: error.message ?? 'Sign up failed' };
 
-    const { data } = await authClient.getSession();
     if (data?.user) {
       setUser(data.user as unknown as AuthUser);
-      setSession({ token: data.session?.token || '' });
+      setSession({ token: (data as { token?: string }).token || '' });
+    } else {
+      const { data: sessionData } = await authClient.getSession();
+      if (sessionData?.user) {
+        setUser(sessionData.user as unknown as AuthUser);
+        setSession({ token: sessionData.session?.token || '' });
+      }
     }
     return { error: null };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await authClient.signIn.email({ email, password });
+    const { data, error } = await authClient.signIn.email({ email, password });
     if (error) return { error: error.message ?? 'Sign in failed' };
 
-    const { data } = await authClient.getSession();
     if (data?.user) {
       setUser(data.user as unknown as AuthUser);
-      setSession({ token: data.session?.token || '' });
+      setSession({ token: (data as { token?: string }).token || '' });
+    } else {
+      // Fallback: fetch session if signIn response didn't include user
+      const { data: sessionData } = await authClient.getSession();
+      if (sessionData?.user) {
+        setUser(sessionData.user as unknown as AuthUser);
+        setSession({ token: sessionData.session?.token || '' });
+      }
     }
     return { error: null };
   }, []);
