@@ -31,6 +31,7 @@
     { "source": "/api/entries", "destination": "/api/entries/__index" },
     { "source": "/api/reflections", "destination": "/api/reflections/__index" },
     { "source": "/api/admin", "destination": "/api/admin/__index" },
+    { "source": "/api/auth/:path*", "destination": "/api/auth/[...path]" },
     { "source": "/((?!api).*)", "destination": "/index.html" }
   ]
 }
