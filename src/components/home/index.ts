@@ -4,7 +4,6 @@ export { CheckInCard } from './CheckInCard';
 export { HabitsSection } from './HabitsSection';
 export { HabitListItem } from './HabitListItem';
 export { FeedbackButton } from './FeedbackButton';
-export { FloatingActions } from './FloatingActions';
 export { SectionHeader } from './SectionHeader';
 export { IconCircleButton } from './IconCircleButton';
 export { EmojiOptionButton } from './EmojiOptionButton';
