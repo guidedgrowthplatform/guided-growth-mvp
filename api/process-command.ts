@@ -467,7 +467,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const habitContext =
     Array.isArray(existingHabits) && existingHabits.length > 0
-      ? `\n\n## User's Existing Habits\n${existingHabits.join(', ')}\n\nWhen the user refers to a habit by a misspoken or similar-sounding name, match it to the closest existing habit above. For example if user says "playing pedal" but has "playing paddle", correct to "playing paddle".\n\nIMPORTANT: The ElevenLabs STT engine often garbles short commands beyond recognition. If the transcript seems nonsensical, look for phonetic fragments that match these existing habits and reconstruct the most likely command. The user is ALWAYS trying to interact with their habit tracker — they are NOT having a casual conversation.`
+      ? `\n\n## User's Existing Habits\n${existingHabits.join(', ')}\n\nOnly correct a habit name to an existing one when the spoken name is PHONETICALLY ALMOST IDENTICAL (e.g. "playing pedal" → "playing paddle"). If the user says a clearly different name (e.g. "playing laptop" vs "playing game"), treat it as a NEW habit — do NOT match to the existing one. When in doubt, use the name exactly as spoken.`
       : '';
 
   try {
