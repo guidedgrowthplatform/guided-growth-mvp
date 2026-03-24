@@ -1,6 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { queryKeys } from '@/lib/query';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { haptic } from '@/lib/services/haptic-service';
@@ -191,7 +190,6 @@ export function localParse(transcript: string): {
 }
 
 export function useVoiceCommand() {
-  const navigate = useNavigate();
   const qc = useQueryClient();
   const processingRef = useRef(false);
   const {
@@ -273,9 +271,8 @@ export function useVoiceCommand() {
         qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
         qc.invalidateQueries({ queryKey: queryKeys.entries.all });
 
-        if (result.uiAction === 'navigate' && result.navigateTo) {
-          navigate(result.navigateTo);
-        }
+        // Don't auto-navigate — user stays in voice overlay per Figma design.
+        // Data updates are reflected via query invalidation above.
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         setError(msg);
@@ -284,7 +281,7 @@ export function useVoiceCommand() {
         setProcessing(false);
       }
     },
-    [navigate, setProcessing, setResult, setError, addHistory, qc],
+    [setProcessing, setResult, setError, addHistory, qc],
   );
 
   return {

@@ -125,7 +125,7 @@ export class ActionDispatcher {
           message: `${MSG.success} Created habit "${habit.name}" (${frequency})`,
           data: habit,
           uiAction: 'navigate',
-          navigateTo: '/capture',
+          navigateTo: '/home',
         };
       }
       case 'metric': {
@@ -157,7 +157,7 @@ export class ActionDispatcher {
           message: `${MSG.success} Created metric "${metric.name}" (${inputType})`,
           data: metric,
           uiAction: 'navigate',
-          navigateTo: '/configure',
+          navigateTo: '/home',
         };
       }
       default:
@@ -196,7 +196,7 @@ export class ActionDispatcher {
         success: true,
         message: `${MSG.success} Marked "${habit.name}" done for ${completedDates.length} days`,
         uiAction: 'navigate',
-        navigateTo: '/capture',
+        navigateTo: '/home',
       };
     }
 
@@ -207,7 +207,7 @@ export class ActionDispatcher {
       success: true,
       message: `${MSG.success} Marked "${habit.name}" done for ${date === todayStr() ? 'today' : date}`,
       uiAction: 'navigate',
-      navigateTo: '/capture',
+      navigateTo: '/home',
     };
   }
 
@@ -231,7 +231,7 @@ export class ActionDispatcher {
           success: true,
           message: `${MSG.success} Deleted habit "${habit.name}"`,
           uiAction: 'navigate',
-          navigateTo: '/capture',
+          navigateTo: '/home',
         };
       }
       case 'metric': {
@@ -247,7 +247,7 @@ export class ActionDispatcher {
           success: true,
           message: `${MSG.success} Deleted metric "${metric.name}"`,
           uiAction: 'navigate',
-          navigateTo: '/configure',
+          navigateTo: '/home',
         };
       }
       default:
@@ -285,7 +285,7 @@ export class ActionDispatcher {
       message: `${MSG.success} Updated habit "${updated.name}"`,
       data: updated,
       uiAction: 'navigate',
-      navigateTo: '/capture',
+      navigateTo: '/home',
     };
   }
 
@@ -343,7 +343,7 @@ export class ActionDispatcher {
           message: `${MSG.list} Your habits: ${list || 'none yet'}`,
           data: habits,
           uiAction: 'navigate',
-          navigateTo: '/capture',
+          navigateTo: '/home',
         };
       }
 
@@ -365,7 +365,7 @@ export class ActionDispatcher {
           success: true,
           message: `Navigating to view ${entity}`,
           uiAction: 'navigate',
-          navigateTo: '/capture',
+          navigateTo: '/home',
         };
     }
   }
