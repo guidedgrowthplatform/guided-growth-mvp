@@ -25,7 +25,7 @@ export function CalendarPage() {
       : null,
   );
 
-  const { calendarData, isLoading } = useCalendarData(
+  const { calendarData, isLoading, error } = useCalendarData(
     currentMonth.getFullYear(),
     currentMonth.getMonth(),
   );
@@ -63,6 +63,13 @@ export function CalendarPage() {
       {isLoading ? (
         <div className="flex justify-center py-12">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center gap-2 py-12 text-center">
+          <p className="text-sm text-red-600">Failed to load calendar data.</p>
+          <p className="text-xs text-content-secondary">
+            Please check your connection and try again.
+          </p>
         </div>
       ) : (
         <CalendarGrid

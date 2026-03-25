@@ -39,8 +39,11 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
   const habitIndex = state.habitIndex;
 
   function handleSave() {
+    if (!name.trim()) return;
     navigate('/onboarding/advanced-results', {
-      state: { updatedHabit: { index: habitIndex, name, time, days: Array.from(days) } },
+      state: {
+        updatedHabit: { index: habitIndex, name: name.trim(), time, days: Array.from(days) },
+      },
     });
   }
 
@@ -85,6 +88,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              maxLength={100}
               className="w-full rounded-[12px] border border-border bg-white px-[17px] py-[15px] text-[16px] font-medium leading-[24px] text-content outline-none"
             />
           </div>
@@ -118,7 +122,8 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
         <button
           type="button"
           onClick={handleSave}
-          className="w-full rounded-full bg-primary py-[16px] text-center text-[16px] font-bold text-white shadow-[0px_10px_15px_-3px_#bfdbfe,0px_4px_6px_-4px_#bfdbfe]"
+          disabled={!name.trim()}
+          className="w-full rounded-full bg-primary py-[16px] text-center text-[16px] font-bold text-white shadow-[0px_10px_15px_-3px_#bfdbfe,0px_4px_6px_-4px_#bfdbfe] disabled:opacity-50"
         >
           Save Changes
         </button>

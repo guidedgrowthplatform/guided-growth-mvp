@@ -4,6 +4,7 @@ import { FocusControls } from '@/components/focus/FocusControls';
 import { FocusSessionSheet } from '@/components/focus/FocusSessionSheet';
 import { FocusTimer } from '@/components/focus/FocusTimer';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { useToast } from '@/contexts/ToastContext';
 import { useFocusSession } from '@/hooks/useFocusSession';
 import { useFocusTimer } from '@/hooks/useFocusTimer';
 import { useHabits } from '@/hooks/useHabits';
@@ -11,7 +12,8 @@ import { useHabits } from '@/hooks/useHabits';
 export function FocusPage() {
   const timer = useFocusTimer();
   const { habits } = useHabits();
-  const { saveFocusSession } = useFocusSession();
+  const { saveFocusSession, error: saveError } = useFocusSession();
+  const { addToast } = useToast();
 
   const [showSheet, setShowSheet] = useState(false);
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
@@ -21,6 +23,13 @@ export function FocusPage() {
   const sessionStartRef = useRef<string | null>(null);
 
   const selectedHabit = habits.find((h) => h.id === selectedHabitId);
+
+  // Show toast when save fails
+  useEffect(() => {
+    if (saveError) {
+      addToast('error', `Failed to save session: ${saveError}`);
+    }
+  }, [saveError, addToast]);
 
   // Save session when timer completes
   const prevStatus = useRef(timer.status);

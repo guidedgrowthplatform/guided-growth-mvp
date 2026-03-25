@@ -22,6 +22,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   }, []);
 
+  // Poll session every 5 minutes to detect expiry
+  useEffect(() => {
+    const interval = setInterval(
+      async () => {
+        try {
+          const { data } = await authClient.getSession();
+          if (!data?.user) {
+            setUser(null);
+            setSession(null);
+          }
+        } catch {
+          // Network error during poll — leave current state intact
+        }
+      },
+      5 * 60 * 1000,
+    );
+    return () => clearInterval(interval);
+  }, []);
+
   const signUp = useCallback(async (email: string, password: string) => {
     const { data, error } = await authClient.signUp.email({
       email,
