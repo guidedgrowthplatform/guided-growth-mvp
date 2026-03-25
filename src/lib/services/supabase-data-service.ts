@@ -362,7 +362,7 @@ export class SupabaseDataService implements DataService {
       metricId: data.metric_id,
       value: data.value,
       date: data.date,
-      loggedAt: data.logged_at,
+      loggedAt: data.created_at,
     };
   }
 
@@ -388,7 +388,7 @@ export class SupabaseDataService implements DataService {
       metricId: e.metric_id,
       value: e.value,
       date: e.date,
-      loggedAt: e.logged_at,
+      loggedAt: e.created_at,
     }));
   }
 

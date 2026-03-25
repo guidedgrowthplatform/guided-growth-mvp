@@ -403,8 +403,10 @@ export class ActionDispatcher {
   ): Promise<ActionResult> {
     const mood = String(params.mood || 'neutral');
     const themes = (params.themes as string[]) || [];
+    const rawContent = params.content ? String(params.content) : null;
     const content =
-      themes.length > 0 ? `Feeling ${mood}. Themes: ${themes.join(', ')}` : `Feeling ${mood}`;
+      rawContent ||
+      (themes.length > 0 ? `Feeling ${mood}. Themes: ${themes.join(', ')}` : `Feeling ${mood}`);
 
     const today = todayStr();
     const todayEntries = await this.dataService.getJournalEntries(today, today);

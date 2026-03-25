@@ -55,7 +55,7 @@ export function PlanReviewPage() {
       const { data: session } = await authClient.getSession();
       const uid = session?.user?.id;
       if (uid) {
-        await supabase.from('onboarding_states').upsert(
+        const { error: obError } = await supabase.from('onboarding_states').upsert(
           {
             user_id: uid,
             path: state.source === 'advanced' ? 'advanced' : 'beginner',
@@ -72,6 +72,7 @@ export function PlanReviewPage() {
           },
           { onConflict: 'user_id' },
         );
+        if (obError) console.error('[Onboarding] Failed to save state:', obError.message);
       }
 
       // Update display name from onboarding Step 1 nickname
