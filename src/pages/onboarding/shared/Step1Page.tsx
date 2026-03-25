@@ -61,6 +61,7 @@ export function Step1Page() {
       totalSteps={7}
       ctaLabel="Let's Begin"
       onNext={handleNext}
+      ctaDisabled={!nickname.trim() || !ageRange || !gender}
       showVoiceButton
       onTranscript={(text) => setNickname(text)}
     >
