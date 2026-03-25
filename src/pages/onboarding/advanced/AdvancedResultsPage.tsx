@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { WEEKDAYS } from '@/components/onboarding/constants';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
+import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 
 interface HabitItem {
   name: string;
@@ -31,6 +32,7 @@ const FALLBACK_HABITS: HabitItem[] = [
 ];
 
 function buildInitialHabits(state: ResultsLocationState | null): HabitItem[] {
+  // If structured habits were passed directly, use them
   if (state?.habits && state.habits.length > 0) {
     return state.habits.map((h) => ({
       name: h.name,
@@ -38,6 +40,19 @@ function buildInitialHabits(state: ResultsLocationState | null): HabitItem[] {
       selected: true,
     }));
   }
+
+  // Parse free-form "brain dump" text into structured habits
+  if (state?.text) {
+    const parsed = parseHabitsFromText(state.text);
+    if (parsed.length > 0) {
+      return parsed.map((h) => ({
+        name: h.name,
+        days: new Set(WEEKDAYS),
+        selected: true,
+      }));
+    }
+  }
+
   return FALLBACK_HABITS;
 }
 

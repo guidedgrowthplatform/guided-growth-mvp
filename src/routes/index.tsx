@@ -1,9 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { authClient } from '@/lib/auth-client';
 import { getDataService } from '@/lib/services/service-provider';
+import { supabase } from '@/lib/supabase';
 import { CalendarPage } from '@/pages/CalendarPage';
 import { FocusPage } from '@/pages/FocusPage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
@@ -35,6 +37,47 @@ function ProtectedLayout() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const habitMatch = useMatch('/habit/:habitId');
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+
+  // Check onboarding status — redirect new users to /onboarding
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkOnboarding() {
+      try {
+        const { data: session } = await authClient.getSession();
+        const uid = session?.user?.id;
+        if (!uid) {
+          setOnboardingChecked(true);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('onboarding_states')
+          .select('status')
+          .eq('user_id', uid)
+          .single();
+
+        if (cancelled) return;
+
+        if (error || !data || data.status !== 'completed') {
+          navigate('/onboarding', { replace: true });
+          return;
+        }
+      } catch {
+        // Non-blocking: allow access if check fails
+      }
+
+      if (!cancelled) {
+        setOnboardingChecked(true);
+      }
+    }
+
+    checkOnboarding();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   useEffect(() => {
     getDataService()
@@ -44,6 +87,10 @@ function ProtectedLayout() {
       })
       .catch(console.error);
   }, [qc]);
+
+  if (!onboardingChecked) {
+    return null;
+  }
 
   return (
     <Layout>
