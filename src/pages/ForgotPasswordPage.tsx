@@ -41,7 +41,10 @@ export function ForgotPasswordPage() {
 
       {sent ? (
         <div className="mt-8 space-y-4">
-          <AuthAlert type="success" message="Check your email for a password reset link." />
+          <AuthAlert
+            type="info"
+            message="Password reset is not available yet. Please contact support."
+          />
           <AuthFooter text="" linkText="Back to sign in" to="/login" />
         </div>
       ) : (

@@ -646,9 +646,44 @@ export class SupabaseDataService implements DataService {
   }
 
   async clearData(): Promise<void> {
-    // Note: Supabase data is not cleared via this method for safety
-    // User data is protected by RLS — deletion requires explicit per-table calls
-    console.warn('[SupabaseDataService] clearData is a no-op. Supabase data preserved for safety.');
+    const userId = await getCurrentUserId();
+
+    // Delete in dependency order: children first, then parents
+    const tables = [
+      { table: 'habit_completions', fk: 'user_habit_id', via: 'user_habits' },
+      { table: 'habit_streaks', fk: 'user_habit_id', via: 'user_habits' },
+      { table: 'focus_sessions', column: 'user_id' },
+      { table: 'journal_entries', column: 'user_id' },
+      { table: 'daily_checkins', column: 'user_id' },
+      { table: 'metric_entries', fk: 'metric_id', via: 'metrics' },
+      { table: 'metrics', column: 'user_id' },
+      { table: 'user_habits', column: 'user_id' },
+      { table: 'user_preferences', column: 'user_id' },
+      { table: 'onboarding_states', column: 'user_id' },
+    ] as const;
+
+    for (const spec of tables) {
+      if ('column' in spec && spec.column) {
+        const { error } = await supabase.from(spec.table).delete().eq(spec.column, userId);
+        if (error) {
+          console.warn(`[clearData] Failed to delete from ${spec.table}:`, error.message);
+        }
+      } else if ('via' in spec && spec.via) {
+        // For child tables that reference a parent owned by the user,
+        // fetch parent IDs first, then delete children
+        const { data: parentRows } = await supabase
+          .from(spec.via)
+          .select('id')
+          .eq('user_id', userId);
+        const parentIds = (parentRows ?? []).map((r) => r.id);
+        if (parentIds.length > 0) {
+          const { error } = await supabase.from(spec.table).delete().in(spec.fk, parentIds);
+          if (error) {
+            console.warn(`[clearData] Failed to delete from ${spec.table}:`, error.message);
+          }
+        }
+      }
+    }
   }
 }
 

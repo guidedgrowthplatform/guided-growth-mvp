@@ -24,6 +24,7 @@ import { Toggle } from '@/components/ui/Toggle';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { getDataService } from '@/lib/services/service-provider';
 import {
   getAvailableVoices,
   setVoicePreference,
@@ -132,6 +133,12 @@ export function SettingsPage() {
   }, []);
 
   const handleDeleteAccount = useCallback(async () => {
+    try {
+      const ds = await getDataService();
+      await ds.clearData();
+    } catch (err) {
+      console.error('[DeleteAccount] Failed to clear Supabase data:', err);
+    }
     localStorage.clear();
     await signOut();
   }, [signOut]);

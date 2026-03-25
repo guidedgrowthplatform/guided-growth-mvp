@@ -1,11 +1,12 @@
 import { Icon } from '@iconify/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SECTION_LABEL_CLASS, toggleSetItem } from '@/components/onboarding/constants';
 import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { VoiceEditCard } from '@/components/onboarding/VoiceEditCard';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { TimePicker } from '@/components/ui/TimePicker';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
 
 interface EditHabitState {
   habitIndex: number;
@@ -30,6 +31,7 @@ export function EditHabitPage() {
 
 function EditHabitForm({ state }: { state: EditHabitState }) {
   const navigate = useNavigate();
+  const { toggle: toggleVoice, transcript, resetTranscript } = useVoiceInput();
 
   const [name, setName] = useState(state.habitName);
   const [time, setTime] = useState(state.time || '21:45');
@@ -37,6 +39,14 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const habitIndex = state.habitIndex;
+
+  // When voice transcript arrives, use it as the habit name
+  useEffect(() => {
+    if (transcript && transcript.trim()) {
+      setName(transcript.trim());
+      resetTranscript();
+    }
+  }, [transcript, resetTranscript]);
 
   function handleSave() {
     if (!name.trim()) return;
@@ -114,7 +124,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
           </div>
         </div>
 
-        <VoiceEditCard />
+        <VoiceEditCard onMicPress={toggleVoice} />
       </div>
 
       {/* Footer */}

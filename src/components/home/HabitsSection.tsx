@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/contexts/ToastContext';
 import type { Habit, HabitCompletion } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
 import { HabitListItem } from './HabitListItem';
@@ -17,9 +18,19 @@ interface HabitsSectionProps {
 
 export function HabitsSection({ selectedDate }: HabitsSectionProps) {
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const [habits, setHabits] = useState<HabitWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleAddNote = useCallback(
+    (habitName: string) => {
+      // Open the journal panel on HomePage via custom event
+      window.dispatchEvent(new CustomEvent('toggle-journal'));
+      addToast('info', `Add a note for "${habitName}"`);
+    },
+    [addToast],
+  );
 
   const loadHabits = useCallback(async () => {
     try {
@@ -134,6 +145,7 @@ export function HabitsSection({ selectedDate }: HabitsSectionProps) {
             streak={streak}
             isCompleted={completed}
             onToggleComplete={() => handleToggle(habit.id, completed)}
+            onAddNote={() => handleAddNote(habit.name)}
             onClick={() => navigate('/habit/' + habit.id)}
           />
         ))}

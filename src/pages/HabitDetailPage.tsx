@@ -1,3 +1,5 @@
+import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DaySchedulePills } from '@/components/habit-detail/DaySchedulePills';
 import { HabitDetailTopBar, HabitDetailTitle } from '@/components/habit-detail/HabitDetailHeader';
 import { MilestonesSection } from '@/components/habit-detail/MilestonesSection';
@@ -22,6 +24,7 @@ interface HabitDetailPageProps {
 }
 
 export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
+  const navigate = useNavigate();
   const {
     habit,
     stats,
@@ -32,6 +35,15 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
     isLoading,
     error,
   } = useHabitDetail(habitId);
+
+  const handleLogReflection = useCallback(() => {
+    onClose();
+    navigate('/home');
+    // Open journal panel after navigation settles
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('toggle-journal'));
+    }, 100);
+  }, [onClose, navigate]);
 
   if (isLoading) {
     return (
@@ -86,7 +98,7 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
               longestStreak={stats.longestStreak}
               failedDays={stats.failedDays}
             />
-            <ReflectionCard habitName={habit.name} />
+            <ReflectionCard habitName={habit.name} onLogReflection={handleLogReflection} />
             <MilestonesSection milestones={milestones} />
           </div>
         </>

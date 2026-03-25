@@ -1,16 +1,29 @@
 import { Icon } from '@iconify/react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AddHabitModal } from '@/components/capture/AddHabitModal';
 import { HabitManageCard } from '@/components/habits/HabitManageCard';
 import { VoiceAiBanner } from '@/components/habits/VoiceAiBanner';
 import { useToast } from '@/contexts/ToastContext';
 import { useAllMetrics } from '@/hooks/useAllMetrics';
+import { useMetrics } from '@/hooks/useMetrics';
+import type { MetricCreate } from '@shared/types';
 
 export function HabitsPage() {
   const navigate = useNavigate();
   const { allMetrics, loading, update } = useAllMetrics();
+  const { create } = useMetrics();
   const { addToast } = useToast();
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const handleAddHabit = async (data: MetricCreate) => {
+    try {
+      await create(data);
+    } catch {
+      addToast('error', 'Failed to create habit. Please try again.');
+    }
+  };
 
   const activeHabits = allMetrics.filter((m) => m.active);
   const pausedHabits = allMetrics.filter((m) => !m.active);
@@ -48,7 +61,7 @@ export function HabitsPage() {
           <h1 className="text-[28px] font-semibold leading-tight text-content">My Habits</h1>
         </div>
         <button
-          onClick={() => navigate('/home')}
+          onClick={() => setShowAddModal(true)}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white"
         >
           <Icon icon="mdi:plus" className="h-5 w-5" />
@@ -107,6 +120,12 @@ export function HabitsPage() {
           {!bannerDismissed && <VoiceAiBanner onDismiss={() => setBannerDismissed(true)} />}
         </>
       )}
+
+      <AddHabitModal
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={handleAddHabit}
+      />
     </div>
   );
 }
