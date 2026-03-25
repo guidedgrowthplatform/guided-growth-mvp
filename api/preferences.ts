@@ -1,8 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from './_lib/db.js';
-import { requireUser } from './_lib/auth.js';
+import { requireUser, handlePreflight } from './_lib/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
   if (!user) return;
 

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
-import { requireAdmin } from '../_lib/auth.js';
+import { requireAdmin, handlePreflight } from '../_lib/auth.js';
 
 async function logAuditAction(
   adminUserId: string,
@@ -16,6 +16,7 @@ async function logAuditAction(
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (handlePreflight(req, res)) return;
   const user = await requireAdmin(req, res);
   if (!user) return;
 

@@ -1,7 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { auth } from '../_lib/better-auth.js';
+import { setCorsHeaders } from '../_lib/cors.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Handle CORS preflight for Capacitor WebView
+  const corsAllowed = setCorsHeaders(req, res);
+  if (req.method === 'OPTIONS') {
+    return res.status(corsAllowed ? 204 : 403).end();
+  }
+
   try {
     const url = new URL(req.url!, `https://${req.headers.host}`);
 

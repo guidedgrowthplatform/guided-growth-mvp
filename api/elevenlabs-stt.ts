@@ -1,10 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireUser } from './_lib/auth.js';
+import { requireUser, handlePreflight } from './_lib/auth.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
 
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10MB max upload
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (handlePreflight(req, res)) return;
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
