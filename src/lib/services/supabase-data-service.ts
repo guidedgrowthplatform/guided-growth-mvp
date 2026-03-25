@@ -340,7 +340,7 @@ export class SupabaseDataService implements DataService {
 
   async logMetric(metricId: string, value: number | string, date: string): Promise<MetricEntry> {
     const { data, error } = await supabase
-      .from('metric_entries')
+      .from('user_metric_entries')
       .upsert(
         {
           metric_id: metricId,
@@ -369,7 +369,7 @@ export class SupabaseDataService implements DataService {
     endDate?: string,
   ): Promise<MetricEntry[]> {
     let query = supabase
-      .from('metric_entries')
+      .from('user_metric_entries')
       .select('*')
       .eq('metric_id', metricId)
       .order('date', { ascending: false });
@@ -511,7 +511,7 @@ export class SupabaseDataService implements DataService {
           user_id: userId,
           date,
           sleep_quality: data.sleep,
-          mood_score: data.mood,
+          mood: data.mood,
           energy_level: data.energy,
           stress_level: data.stress,
         },
@@ -526,7 +526,7 @@ export class SupabaseDataService implements DataService {
       id: row.id,
       date: row.date,
       sleep: row.sleep_quality,
-      mood: row.mood_score,
+      mood: row.mood,
       energy: row.energy_level,
       stress: row.stress_level,
       createdAt: row.created_at,
@@ -549,7 +549,7 @@ export class SupabaseDataService implements DataService {
       id: data.id,
       date: data.date,
       sleep: data.sleep_quality,
-      mood: data.mood_score,
+      mood: data.mood,
       energy: data.energy_level,
       stress: data.stress_level,
       createdAt: data.created_at,
@@ -694,7 +694,7 @@ export class SupabaseDataService implements DataService {
       { table: 'focus_sessions', column: 'user_id' },
       { table: 'journal_entries', column: 'user_id' },
       { table: 'daily_checkins', column: 'user_id' },
-      { table: 'metric_entries', fk: 'metric_id', via: 'metrics' },
+      { table: 'user_metric_entries', fk: 'metric_id', via: 'metrics' },
       { table: 'metrics', column: 'user_id' },
       { table: 'user_habits', column: 'user_id' },
       { table: 'user_preferences', column: 'user_id' },

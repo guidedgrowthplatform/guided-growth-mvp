@@ -56,7 +56,7 @@ function ProtectedLayout() {
           .from('onboarding_states')
           .select('status')
           .eq('user_id', uid)
-          .single();
+          .maybeSingle();
 
         if (cancelled) return;
 
