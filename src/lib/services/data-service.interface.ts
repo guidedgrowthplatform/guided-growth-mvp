@@ -98,6 +98,7 @@ export interface DataService {
 
   // Habit completions
   completeHabit(habitId: string, date: string): Promise<HabitCompletion>;
+  uncompleteHabit(habitId: string, date: string): Promise<void>;
   getCompletions(habitId: string, startDate?: string, endDate?: string): Promise<HabitCompletion[]>;
 
   // Metrics

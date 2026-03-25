@@ -164,6 +164,12 @@ export class MockDataService implements DataService {
     return completion;
   }
 
+  async uncompleteHabit(habitId: string, date: string): Promise<void> {
+    const completions = getStore<HabitCompletion>(STORAGE_KEYS.completions);
+    const filtered = completions.filter((c) => !(c.habitId === habitId && c.date === date));
+    setStore(STORAGE_KEYS.completions, filtered);
+  }
+
   async getCompletions(
     habitId: string,
     startDate?: string,

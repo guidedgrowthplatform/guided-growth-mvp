@@ -61,6 +61,7 @@ export function Step1Page() {
       ctaLabel="Let's Begin"
       onNext={handleNext}
       showVoiceButton
+      onTranscript={(text) => setNickname(text)}
     >
       <OnboardingHeader
         title="Let's get to know you."

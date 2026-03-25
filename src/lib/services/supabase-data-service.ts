@@ -203,6 +203,16 @@ export class SupabaseDataService implements DataService {
     };
   }
 
+  async uncompleteHabit(habitId: string, date: string): Promise<void> {
+    const { error } = await supabase
+      .from('habit_completions')
+      .delete()
+      .eq('user_habit_id', habitId)
+      .eq('date', date);
+
+    if (error) throw new Error(error.message);
+  }
+
   async getCompletions(
     habitId: string,
     startDate?: string,

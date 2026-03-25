@@ -64,7 +64,9 @@ export function HabitsSection({ selectedDate }: HabitsSectionProps) {
   const handleToggle = async (habitId: string, currentlyCompleted: boolean) => {
     try {
       const ds = await getDataService();
-      if (!currentlyCompleted) {
+      if (currentlyCompleted) {
+        await ds.uncompleteHabit(habitId, selectedDate);
+      } else {
         await ds.completeHabit(habitId, selectedDate);
       }
       await loadHabits();
