@@ -44,7 +44,7 @@ export function HabitsPage() {
           <h1 className="text-[28px] font-semibold leading-tight text-content">My Habits</h1>
         </div>
         <button
-          onClick={() => navigate('/configure')}
+          onClick={() => navigate('/home')}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white"
         >
           <Icon icon="mdi:plus" className="h-5 w-5" />
