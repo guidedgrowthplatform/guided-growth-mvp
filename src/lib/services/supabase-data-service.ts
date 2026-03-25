@@ -20,11 +20,6 @@ function todayStr(): string {
 async function getCurrentUserId(): Promise<string> {
   const { data } = await authClient.getSession();
   if (data?.user?.id) return data.user.id;
-  // Fallback to Supabase auth for backward compat
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user?.id) return user.id;
   throw new Error('Not authenticated');
 }
 
@@ -623,11 +618,9 @@ export class SupabaseDataService implements DataService {
 
   async seedData(): Promise<void> {
     // Seeded data already exists in Supabase via seed.sql
-    // This method seeds user-specific demo data for testing
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    try {
+      await getCurrentUserId();
+    } catch {
       console.warn('[SupabaseDataService] Not authenticated — cannot seed data');
       return;
     }
