@@ -88,7 +88,6 @@ function ProtectedLayout() {
 
   useEffect(() => {
     getDataService()
-      .then((ds) => ds.seedData())
       .then(() => {
         qc.invalidateQueries();
       })

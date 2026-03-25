@@ -67,9 +67,11 @@ export class SupabaseDataService implements DataService {
   }
 
   async getHabits(): Promise<Habit[]> {
+    const userId = await getCurrentUserId();
     const { data, error } = await supabase
       .from('user_habits')
       .select('*')
+      .eq('user_id', userId)
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
 
@@ -85,9 +87,11 @@ export class SupabaseDataService implements DataService {
   }
 
   async getAllHabits(): Promise<Habit[]> {
+    const userId = await getCurrentUserId();
     const { data, error } = await supabase
       .from('user_habits')
       .select('*')
+      .eq('user_id', userId)
       .order('sort_order', { ascending: true });
 
     if (error) throw new Error(error.message);
@@ -102,10 +106,12 @@ export class SupabaseDataService implements DataService {
   }
 
   async getHabitById(id: string): Promise<Habit | null> {
+    const userId = await getCurrentUserId();
     const { data, error } = await supabase
       .from('user_habits')
       .select('*')
       .eq('id', id)
+      .eq('user_id', userId)
       .maybeSingle();
 
     if (error) throw new Error(error.message);
@@ -121,9 +127,11 @@ export class SupabaseDataService implements DataService {
   }
 
   async getHabitByName(name: string): Promise<Habit | null> {
+    const userId = await getCurrentUserId();
     const { data, error } = await supabase
       .from('user_habits')
       .select('*')
+      .eq('user_id', userId)
       .ilike('name', name)
       .eq('is_active', true)
       .limit(1);
@@ -145,6 +153,7 @@ export class SupabaseDataService implements DataService {
     id: string,
     updates: Partial<Pick<Habit, 'name' | 'frequency' | 'active'>>,
   ): Promise<Habit> {
+    const userId = await getCurrentUserId();
     const supaUpdates: Record<string, unknown> = {};
     if (updates.name !== undefined) supaUpdates.name = updates.name;
     if (updates.frequency !== undefined) supaUpdates.cadence = updates.frequency;
@@ -154,6 +163,7 @@ export class SupabaseDataService implements DataService {
       .from('user_habits')
       .update(supaUpdates)
       .eq('id', id)
+      .eq('user_id', userId)
       .select()
       .single();
 
@@ -169,11 +179,13 @@ export class SupabaseDataService implements DataService {
   }
 
   async deleteHabit(id: string): Promise<void> {
+    const userId = await getCurrentUserId();
     // Soft delete: archive instead of removing
     const { error } = await supabase
       .from('user_habits')
       .update({ is_active: false, archived_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', userId);
 
     if (error) throw new Error(error.message);
   }
@@ -275,9 +287,11 @@ export class SupabaseDataService implements DataService {
   }
 
   async getMetrics(): Promise<TrackedMetric[]> {
+    const userId = await getCurrentUserId();
     const { data, error } = await supabase
       .from('metrics')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: true });
 
     if (error) throw new Error(error.message);
@@ -294,7 +308,13 @@ export class SupabaseDataService implements DataService {
   }
 
   async getMetricByName(name: string): Promise<TrackedMetric | null> {
-    const { data, error } = await supabase.from('metrics').select('*').ilike('name', name).limit(1);
+    const userId = await getCurrentUserId();
+    const { data, error } = await supabase
+      .from('metrics')
+      .select('*')
+      .eq('user_id', userId)
+      .ilike('name', name)
+      .limit(1);
 
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) return null;
@@ -312,7 +332,8 @@ export class SupabaseDataService implements DataService {
   }
 
   async deleteMetric(id: string): Promise<void> {
-    const { error } = await supabase.from('metrics').delete().eq('id', id);
+    const userId = await getCurrentUserId();
+    const { error } = await supabase.from('metrics').delete().eq('id', id).eq('user_id', userId);
 
     if (error) throw new Error(error.message);
   }
@@ -400,9 +421,11 @@ export class SupabaseDataService implements DataService {
   }
 
   async getJournalEntries(startDate?: string, endDate?: string): Promise<JournalEntry[]> {
+    const userId = await getCurrentUserId();
     let query = supabase
       .from('journal_entries')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (startDate) query = query.gte('date', startDate);
@@ -511,9 +534,11 @@ export class SupabaseDataService implements DataService {
   }
 
   async getCheckIn(date: string): Promise<CheckInRecord | null> {
+    const userId = await getCurrentUserId();
     const { data, error } = await supabase
       .from('daily_checkins')
       .select('*')
+      .eq('user_id', userId)
       .eq('date', date)
       .maybeSingle();
 
@@ -532,9 +557,11 @@ export class SupabaseDataService implements DataService {
   }
 
   async getCheckIns(startDate: string, endDate: string): Promise<CheckInRecord[]> {
+    const userId = await getCurrentUserId();
     const { data, error } = await supabase
       .from('daily_checkins')
       .select('*')
+      .eq('user_id', userId)
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date', { ascending: false });
@@ -553,9 +580,19 @@ export class SupabaseDataService implements DataService {
   }
 
   async getAllCompletions(startDate: string, endDate: string): Promise<HabitCompletion[]> {
+    // Filter by user ownership: get user's habit IDs first, then filter completions
+    const userId = await getCurrentUserId();
+    const { data: userHabits } = await supabase
+      .from('user_habits')
+      .select('id')
+      .eq('user_id', userId);
+    const habitIds = (userHabits ?? []).map((h) => h.id);
+    if (habitIds.length === 0) return [];
+
     const { data, error } = await supabase
       .from('habit_completions')
       .select('*')
+      .in('user_habit_id', habitIds)
       .eq('completed', true)
       .gte('date', startDate)
       .lte('date', endDate)
@@ -605,9 +642,11 @@ export class SupabaseDataService implements DataService {
   }
 
   async getFocusSessions(startDate?: string, endDate?: string): Promise<FocusSession[]> {
+    const userId = await getCurrentUserId();
     let query = supabase
       .from('focus_sessions')
       .select('*')
+      .eq('user_id', userId)
       .order('started_at', { ascending: false });
 
     if (startDate) query = query.gte('started_at', startDate);
