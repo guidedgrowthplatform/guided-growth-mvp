@@ -58,6 +58,7 @@ export function PlanReviewPage() {
         await supabase.from('onboarding_states').upsert(
           {
             user_id: uid,
+            path: state.source === 'advanced' ? 'advanced' : 'beginner',
             status: 'completed',
             current_step: state.source === 'advanced' ? 6 : 7,
             data: {
@@ -71,6 +72,19 @@ export function PlanReviewPage() {
           },
           { onConflict: 'user_id' },
         );
+      }
+
+      // Update display name from onboarding Step 1 nickname
+      if (uid) {
+        const { data: obState } = await supabase
+          .from('onboarding_states')
+          .select('data')
+          .eq('user_id', uid)
+          .maybeSingle();
+        const nickname = obState?.data?.nickname;
+        if (nickname) {
+          await authClient.updateUser({ name: nickname }).catch(() => {});
+        }
       }
 
       navigate('/home');

@@ -41,6 +41,7 @@ export function Step1Page() {
         await supabase.from('onboarding_states').upsert(
           {
             user_id: uid,
+            path: 'beginner',
             status: 'in_progress',
             current_step: 1,
             data: { nickname, ageRange, gender },
