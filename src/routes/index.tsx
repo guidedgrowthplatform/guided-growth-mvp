@@ -67,9 +67,16 @@ function ProtectedLayout() {
           return;
         }
         if (!error && !data) {
-          // No onboarding record at all — new user
-          navigate('/onboarding', { replace: true });
-          return;
+          // No onboarding record — check if user has habits (existing user without record)
+          const { data: habits } = await supabase
+            .from('user_habits')
+            .select('id')
+            .eq('user_id', uid)
+            .limit(1);
+          if (!habits || habits.length === 0) {
+            navigate('/onboarding', { replace: true });
+            return;
+          }
         }
       } catch {
         // Non-blocking: allow access if check fails
