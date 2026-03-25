@@ -474,3 +474,36 @@ describe('localParse — edge cases', () => {
     }
   });
 });
+
+describe('localParse — command duplication edge cases (#53)', () => {
+  it('"create habit playing laptop" creates "playing laptop"', () => {
+    const r = localParse('create habit playing laptop');
+    expect(r.action).toBe('create');
+    expect(r.entity).toBe('habit');
+    expect(r.params.name).toBe('playing laptop');
+  });
+
+  it('"mark playing game done" completes "playing game"', () => {
+    const r = localParse('mark playing game done');
+    expect(r.action).toBe('complete');
+    expect(r.params.name).toBe('playing game');
+  });
+
+  it('"create habit cooking" creates "cooking"', () => {
+    const r = localParse('create habit cooking');
+    expect(r.action).toBe('create');
+    expect(r.params.name).toBe('cooking');
+  });
+
+  it('"delete playing laptop" deletes "playing laptop"', () => {
+    const r = localParse('delete playing laptop');
+    expect(r.action).toBe('delete');
+    expect(r.params.name).toBe('playing laptop');
+  });
+
+  it('"show my habits" queries habits', () => {
+    const r = localParse('show my habits');
+    expect(r.action).toBe('query');
+    expect(r.entity).toBe('habit');
+  });
+});

@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import {
@@ -64,6 +64,28 @@ export function SettingsPage() {
   const [selectedVoice, setSelectedVoice] = useState<string>(getVoicePreference() || '');
   const [activeSheet, setActiveSheet] = useState<SheetType | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const exportAbortRef = useRef(false);
+
+  const handleExportData = useCallback(async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    exportAbortRef.current = false;
+    try {
+      const { exportUserDataCSV } = await import('@/lib/utils/export-csv');
+      await exportUserDataCSV();
+      if (!exportAbortRef.current) {
+        addToast('success', 'Data exported successfully!');
+      }
+    } catch (err) {
+      if (!exportAbortRef.current) {
+        const msg = err instanceof Error ? err.message : 'Export failed';
+        addToast('error', `Export failed: ${msg}`);
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  }, [isExporting, addToast]);
 
   // Load voices with polling for Android
   useEffect(() => {
@@ -257,6 +279,22 @@ export function SettingsPage() {
             onClick={() => addToast('info', 'Privacy policy coming soon')}
             right={
               <Icon icon="ic:round-chevron-right" width={20} className="text-content-tertiary" />
+            }
+          />
+          <SettingRow
+            icon="mdi:download"
+            label={isExporting ? 'Exporting...' : 'Export My Data'}
+            onClick={handleExportData}
+            right={
+              isExporting ? (
+                <Icon
+                  icon="svg-spinners:ring-resize"
+                  width={20}
+                  className="text-content-tertiary"
+                />
+              ) : (
+                <Icon icon="ic:round-chevron-right" width={20} className="text-content-tertiary" />
+              )
             }
           />
           <SettingRow
