@@ -7,7 +7,6 @@ import {
   QuickActionCards,
   HabitsSection,
   FeedbackButton,
-  FloatingActions,
   ReminderSheet,
 } from '@/components/home';
 import { QuickJournal } from '@/components/journal/QuickJournal';
@@ -108,7 +107,7 @@ export function HomePage() {
         <HabitsSection selectedDate={selectedDate} />
         <FeedbackButton />
       </div>
-      <FloatingActions />
+
       {showReminders && <ReminderSheet onClose={() => setShowReminders(false)} />}
     </>
   );
