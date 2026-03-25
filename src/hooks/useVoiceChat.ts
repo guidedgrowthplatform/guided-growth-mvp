@@ -27,7 +27,6 @@ function defaultMessages(): ChatMessage[] {
   return [{ id: 'greeting', role: 'ai', text: GREETING, timestamp: Date.now() }];
 }
 
-/** Load messages from sessionStorage, falling back to greeting. */
 function loadMessages(): ChatMessage[] {
   try {
     const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
@@ -41,12 +40,11 @@ function loadMessages(): ChatMessage[] {
   return defaultMessages();
 }
 
-/** Persist messages to sessionStorage. */
 function saveMessages(messages: ChatMessage[]): void {
   try {
     sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(messages));
   } catch {
-    // Storage full or unavailable — silently ignore
+    // Storage full or unavailable
   }
 }
 
