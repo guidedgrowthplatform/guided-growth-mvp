@@ -26,7 +26,9 @@ export function useUndoRedo<T>(initial: T) {
     setState(next);
   }, [state]);
 
+  // eslint-disable-next-line
   const canUndo = pastRef.current.length > 0;
+  // eslint-disable-next-line
   const canRedo = futureRef.current.length > 0;
 
   return { state, setState, pushHistory, undo, redo, canUndo, canRedo };

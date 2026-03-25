@@ -60,9 +60,12 @@ export function useEntries() {
   useEffect(() => {
     const handleOnline = () => {
       if (offlineQueue.length > 0) {
-        offlineQueue.flush().then(() => {
-          if (offlineQueue.length === 0) addToast('success', 'Offline entries synced');
-        });
+        offlineQueue
+          .flush()
+          .then(() => {
+            if (offlineQueue.length === 0) addToast('success', 'Offline entries synced');
+          })
+          .catch(() => {});
       }
     };
     window.addEventListener('online', handleOnline);

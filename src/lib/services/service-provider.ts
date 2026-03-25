@@ -42,8 +42,7 @@ export function getDataServiceSync(): DataService {
     if (import.meta.env.DEV)
       console.log('[ServiceProvider] SupabaseDataService loading... using mock temporarily');
   }
-  _service = mockDataService;
-  return _service;
+  return mockDataService;
 }
 
 // Reset (for testing)

@@ -19,8 +19,12 @@ export function HabitsPage() {
     const metric = allMetrics.find((m) => m.id === id);
     if (!metric) return;
     const newActive = !metric.active;
-    await update(id, { active: newActive });
-    addToast('success', newActive ? `"${metric.name}" activated` : `"${metric.name}" paused`);
+    try {
+      await update(id, { active: newActive });
+      addToast('success', newActive ? `"${metric.name}" activated` : `"${metric.name}" paused`);
+    } catch {
+      addToast('error', `Failed to update "${metric.name}". Please try again.`);
+    }
   };
 
   const handleMore = (id: string) => {

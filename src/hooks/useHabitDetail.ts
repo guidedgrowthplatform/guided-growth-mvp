@@ -119,7 +119,7 @@ function buildCalendarGrid(
   const grid: CalendarCell[][] = [];
   const startOffset = firstDay.getDay();
 
-  for (let week = 0; week < 5; week++) {
+  for (let week = 0; week < 6; week++) {
     const row: CalendarCell[] = [];
     for (let dow = 0; dow < 7; dow++) {
       const dayNum = week * 7 + dow - startOffset + 1;
