@@ -60,7 +60,14 @@ function ProtectedLayout() {
 
         if (cancelled) return;
 
-        if (error || !data || data.status !== 'completed') {
+        // Only redirect to onboarding if we got a clear "no completed" result.
+        // If query errors (e.g. type mismatch, RLS), allow access (fail-open).
+        if (!error && data && data.status !== 'completed') {
+          navigate('/onboarding', { replace: true });
+          return;
+        }
+        if (!error && !data) {
+          // No onboarding record at all — new user
           navigate('/onboarding', { replace: true });
           return;
         }
