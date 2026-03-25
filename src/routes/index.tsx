@@ -30,6 +30,7 @@ import {
 import { SettingsPage } from '@/pages/SettingsPage';
 import { SignInPage } from '@/pages/SignInPage';
 import { SignUpPage } from '@/pages/SignUpPage';
+import { StatusPage } from '@/pages/StatusPage';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
 
@@ -145,6 +146,9 @@ export function AppRoutes() {
           </PublicRoute>
         }
       />
+
+      {/* Public status dashboard (no auth required) */}
+      <Route path="/status" element={<StatusPage />} />
 
       {/* Onboarding (protected, no Layout) */}
       <Route

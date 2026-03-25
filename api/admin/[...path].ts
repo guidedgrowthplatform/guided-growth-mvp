@@ -1,6 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireAdmin, handlePreflight } from '../_lib/auth.js';
+import {
+  getIssueStats,
+  getMilestoneProgress,
+  getAssigneeWorkload,
+  getRecentClosed,
+  getBlockers,
+} from '../_lib/gitlab.js';
 
 async function logAuditAction(
   adminUserId: string,
@@ -17,12 +24,36 @@ async function logAuditAction(
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
-  const user = await requireAdmin(req, res);
-  if (!user) return;
 
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] || '';
+
+  // --- Public route: project-status (no auth required) ---
+  if (route === 'project-status') {
+    if (req.method !== 'GET') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+    try {
+      const [issueStats, milestones, assignees, recentClosed, blockers] = await Promise.all([
+        getIssueStats(),
+        getMilestoneProgress(),
+        getAssigneeWorkload(),
+        getRecentClosed(5),
+        getBlockers(),
+      ]);
+      res.setHeader('Cache-Control', 'public, s-maxage=300');
+      return res.json({ issueStats, milestones, assignees, recentClosed, blockers });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.error('project-status error:', message);
+      return res.status(502).json({ error: 'Failed to fetch GitLab data', detail: message });
+    }
+  }
+
+  // --- Admin-only routes below ---
+  const user = await requireAdmin(req, res);
+  if (!user) return;
 
   // /api/admin/users and /api/admin/users/:id/...
   if (route === 'users') {
