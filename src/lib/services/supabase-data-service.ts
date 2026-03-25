@@ -13,6 +13,9 @@ import type {
   FocusSession,
 } from './data-service.interface';
 
+const moodFromDb: Record<string, number> = { awful: 1, unhappy: 2, okay: 3, calm: 4, joyful: 5 };
+const stressFromDb: Record<string, number> = { high: 1, moderate: 3, low: 5 };
+
 function todayStr(): string {
   return new Date().toISOString().split('T')[0];
 }
@@ -504,6 +507,21 @@ export class SupabaseDataService implements DataService {
   ): Promise<CheckInRecord> {
     const userId = await getCurrentUserId();
 
+    const moodToDb: Record<number, string> = {
+      1: 'awful',
+      2: 'unhappy',
+      3: 'okay',
+      4: 'calm',
+      5: 'joyful',
+    };
+    const stressToDb: Record<number, string> = {
+      1: 'high',
+      2: 'high',
+      3: 'moderate',
+      4: 'low',
+      5: 'low',
+    };
+
     const { data: row, error } = await supabase
       .from('daily_checkins')
       .upsert(
@@ -511,9 +529,10 @@ export class SupabaseDataService implements DataService {
           user_id: userId,
           date,
           sleep_quality: data.sleep,
-          mood: data.mood,
+          mood: data.mood != null ? (moodToDb[data.mood] ?? String(data.mood)) : null,
           energy_level: data.energy,
-          stress_level: data.stress,
+          stress_level:
+            data.stress != null ? (stressToDb[data.stress] ?? String(data.stress)) : null,
         },
         { onConflict: 'user_id,date' },
       )
@@ -526,9 +545,9 @@ export class SupabaseDataService implements DataService {
       id: row.id,
       date: row.date,
       sleep: row.sleep_quality,
-      mood: row.mood,
+      mood: moodFromDb[row.mood] ?? null,
       energy: row.energy_level,
-      stress: row.stress_level,
+      stress: stressFromDb[row.stress_level] ?? null,
       createdAt: row.created_at,
     };
   }
@@ -549,9 +568,9 @@ export class SupabaseDataService implements DataService {
       id: data.id,
       date: data.date,
       sleep: data.sleep_quality,
-      mood: data.mood,
+      mood: moodFromDb[data.mood] ?? null,
       energy: data.energy_level,
-      stress: data.stress_level,
+      stress: stressFromDb[data.stress_level] ?? null,
       createdAt: data.created_at,
     };
   }
@@ -572,9 +591,9 @@ export class SupabaseDataService implements DataService {
       id: row.id,
       date: row.date,
       sleep: row.sleep_quality,
-      mood: row.mood_score,
+      mood: moodFromDb[row.mood] ?? null,
       energy: row.energy_level,
-      stress: row.stress_level,
+      stress: stressFromDb[row.stress_level] ?? null,
       createdAt: row.created_at,
     }));
   }
