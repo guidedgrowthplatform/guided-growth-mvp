@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { queryKeys } from '@/lib/query';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { haptic } from '@/lib/services/haptic-service';
@@ -8,14 +8,18 @@ import { speakPreAck, speak } from '@/lib/services/tts-service';
 import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 
-let _dispatcher: ActionDispatcher | null = null;
+// Module-level state survives React remounts — prevents double-fire across
+// overlay close/reopen cycles and React StrictMode double-invocation.
+let _processing = false;
+
+// Always get a fresh dispatcher with the current (non-mock) DataService.
+// Never cache — prevents stale mock reference if Supabase loads after first call.
 async function getDispatcher(): Promise<ActionDispatcher> {
-  if (!_dispatcher) {
-    const ds = await getDataService();
-    _dispatcher = new ActionDispatcher(ds);
-  }
-  return _dispatcher;
+  const ds = await getDataService();
+  return new ActionDispatcher(ds);
 }
+
+const MUTATION_ACTIONS = new Set(['create', 'complete', 'delete', 'update', 'log', 'checkin']);
 
 export function localParse(transcript: string): {
   action: string;
@@ -191,7 +195,6 @@ export function localParse(transcript: string): {
 
 export function useVoiceCommand() {
   const qc = useQueryClient();
-  const processingRef = useRef(false);
   const {
     isProcessing,
     lastResult,
@@ -208,12 +211,13 @@ export function useVoiceCommand() {
   const processTranscript = useCallback(
     async (rawTranscript: string) => {
       if (!rawTranscript.trim()) return;
-      if (processingRef.current) return;
+      // Module-level guard — survives remounts, prevents concurrent dispatches
+      if (_processing) return;
 
       const transcript = rawTranscript.replace(/\s{2,}/g, ' ').trim();
       if (!transcript) return;
 
-      processingRef.current = true;
+      _processing = true;
       setProcessing(true);
       const startTime = Date.now();
 
@@ -269,23 +273,25 @@ export function useVoiceCommand() {
 
         speak(result.message);
 
-        // Invalidate all data queries so UI reflects voice command changes
-        qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
-        qc.invalidateQueries({ queryKey: queryKeys.entries.all });
-        qc.invalidateQueries({ queryKey: queryKeys.habits.all });
-        qc.invalidateQueries({
-          queryKey: queryKeys.checkins.byDate(new Date().toISOString().slice(0, 10)),
-        });
-        qc.invalidateQueries({ queryKey: queryKeys.journal.all });
-        qc.invalidateQueries({ queryKey: queryKeys.focusSessions.all });
+        // Only invalidate/refresh on mutation actions (not query/help/suggest)
+        if (MUTATION_ACTIONS.has(intent.action)) {
+          qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
+          qc.invalidateQueries({ queryKey: queryKeys.entries.all });
+          qc.invalidateQueries({ queryKey: queryKeys.habits.all });
+          qc.invalidateQueries({
+            queryKey: queryKeys.checkins.byDate(new Date().toISOString().slice(0, 10)),
+          });
+          qc.invalidateQueries({ queryKey: queryKeys.journal.all });
+          qc.invalidateQueries({ queryKey: queryKeys.focusSessions.all });
 
-        // Notify non-React-Query components (e.g. HabitsSection) to refresh
-        window.dispatchEvent(new CustomEvent('habits-changed'));
+          // Notify non-React-Query components (e.g. HabitsSection) to refresh
+          window.dispatchEvent(new CustomEvent('habits-changed'));
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         setError(msg);
       } finally {
-        processingRef.current = false;
+        _processing = false;
         setProcessing(false);
       }
     },

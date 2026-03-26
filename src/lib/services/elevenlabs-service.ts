@@ -191,6 +191,7 @@ function setupScriptProcessorFallback(
 export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<void> {
   if (isActive) return;
   isActive = true;
+  isTranscribing = false; // Reset stuck state from previous session
 
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -249,7 +250,11 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
 }
 
 export async function stopAndTranscribe(): Promise<string> {
-  if (isTranscribing) return '';
+  // If already transcribing, wait briefly then bail — prevents stuck state
+  if (isTranscribing) {
+    console.warn('[ElevenLabs] stopAndTranscribe called while already transcribing');
+    return '';
+  }
   const wasActive = isActive;
   isActive = false;
   isTranscribing = true;

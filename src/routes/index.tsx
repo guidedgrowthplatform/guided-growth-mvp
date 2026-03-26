@@ -5,7 +5,8 @@ import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { authClient } from '@/lib/auth-client';
 import { getDataService } from '@/lib/services/service-provider';
-import { supabase } from '@/lib/supabase';
+// Note: direct Supabase queries removed from ProtectedLayout — all data access
+// goes through API or DataService to avoid RLS issues under Better Auth.
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
 
@@ -74,7 +75,9 @@ function ProtectedLayout() {
   const habitMatch = useMatch('/habit/:habitId');
   const [onboardingChecked, setOnboardingChecked] = useState(false);
 
-  // Check onboarding status — redirect new users to /onboarding
+  // Check onboarding status — redirect new users to /onboarding.
+  // Uses server-side API (authenticated, service role) to avoid RLS issues
+  // with the Supabase anon client under Better Auth.
   useEffect(() => {
     let cancelled = false;
 
@@ -87,32 +90,28 @@ function ProtectedLayout() {
           return;
         }
 
-        const { data, error } = await supabase
-          .from('onboarding_states')
-          .select('status')
-          .eq('user_id', uid)
-          .maybeSingle();
+        // Call the metrics API as a proxy to check if user has data.
+        // If user has metrics, they've been through onboarding.
+        // This uses the server-side auth (Better Auth session cookie)
+        // which properly identifies the user without RLS issues.
+        const res = await fetch('/api/metrics', {
+          credentials: 'include',
+        });
 
         if (cancelled) return;
 
-        // Only redirect to onboarding if we got a clear "no completed" result.
-        // If query errors (e.g. type mismatch, RLS), allow access (fail-open).
-        if (!error && data && data.status !== 'completed') {
-          navigate('/onboarding', { replace: true });
-          return;
-        }
-        if (!error && !data) {
-          // No onboarding record — check if user has habits (existing user without record)
-          const { data: habits } = await supabase
-            .from('user_habits')
-            .select('id')
-            .eq('user_id', uid)
-            .limit(1);
-          if (!habits || habits.length === 0) {
-            navigate('/onboarding', { replace: true });
+        if (res.ok) {
+          const metrics = await res.json();
+          // User has metrics → already onboarded
+          if (Array.isArray(metrics) && metrics.length > 0) {
+            setOnboardingChecked(true);
             return;
           }
         }
+
+        // No metrics — new user, redirect to onboarding
+        navigate('/onboarding', { replace: true });
+        return;
       } catch {
         // Non-blocking: allow access if check fails
       }

@@ -74,7 +74,9 @@ export function useVoiceChat() {
     saveMessages(messages);
   }, [messages]);
 
-  // Bug 2 fix: add user bubble BEFORE processing the transcript
+  // Process transcript when recording stops and transcript is available.
+  // Dedup relies on module-level `_processing` flag in useVoiceCommand
+  // which survives React remounts and StrictMode double-invocation.
   useEffect(() => {
     if (!transcript || transcript === lastHandledTranscript.current) return;
     if (isListening) return;
