@@ -437,8 +437,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (ipRl.limited)
     return res.status(429).json({ error: 'Too many requests', retryAfter: ipRl.retryAfter });
 
-  // Auth guard — skip only when server-side AUTH_BYPASS_MODE is explicitly set
-  if (process.env.AUTH_BYPASS_MODE !== 'true') {
+  // Auth guard — skip only when server-side AUTH_BYPASS_MODE is explicitly set AND not in production
+  const bypassAuth =
+    process.env.AUTH_BYPASS_MODE === 'true' && process.env.NODE_ENV !== 'production';
+  if (!bypassAuth) {
     const user = await requireUser(req, res);
     if (!user) return;
     const rl = checkRateLimit(user.id, {

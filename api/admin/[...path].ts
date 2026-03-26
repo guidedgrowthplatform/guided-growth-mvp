@@ -29,7 +29,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] || '';
 
-  // --- Public route: project-status (no auth required) ---
+  // --- Admin-only routes below ---
+  const user = await requireAdmin(req, res);
+  if (!user) return;
+
+  // /api/admin/project-status (admin-only)
   if (route === 'project-status') {
     if (req.method !== 'GET') {
       return res.status(405).json({ error: 'Method not allowed' });
@@ -50,10 +54,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(502).json({ error: 'Failed to fetch GitLab data', detail: message });
     }
   }
-
-  // --- Admin-only routes below ---
-  const user = await requireAdmin(req, res);
-  if (!user) return;
 
   // /api/admin/users and /api/admin/users/:id/...
   if (route === 'users') {
@@ -150,7 +150,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // /api/admin/audit-log
   if (route === 'audit-log') {
     if (req.method === 'GET') {
-      const limit = parseInt(req.query.limit as string) || 50;
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 500);
       const result = await pool.query(
         `SELECT a.*, u.email as admin_email FROM admin_audit_log a LEFT JOIN users u ON a.admin_user_id = u.id ORDER BY a.created_at DESC LIMIT $1`,
         [limit],
