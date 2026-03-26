@@ -76,8 +76,8 @@ function ProtectedLayout() {
   const [onboardingChecked, setOnboardingChecked] = useState(false);
 
   // Check onboarding status — redirect new users to /onboarding.
-  // Uses server-side API (authenticated, service role) to avoid RLS issues
-  // with the Supabase anon client under Better Auth.
+  // Uses server-side API to check if user has any data (habits or metrics).
+  // Fail-open: if check fails or is ambiguous, allow access to prevent loops.
   useEffect(() => {
     let cancelled = false;
 
@@ -90,30 +90,49 @@ function ProtectedLayout() {
           return;
         }
 
-        // Call the metrics API as a proxy to check if user has data.
-        // If user has metrics, they've been through onboarding.
-        // This uses the server-side auth (Better Auth session cookie)
-        // which properly identifies the user without RLS issues.
-        const res = await fetch('/api/metrics', {
-          credentials: 'include',
-        });
+        // Check if user has ANY data via server-side APIs (authenticated)
+        // Both use Better Auth session cookie → proper user isolation
+        const [metricsRes, prefsRes] = await Promise.all([
+          fetch('/api/metrics', { credentials: 'include' }).catch(() => null),
+          fetch('/api/preferences', { credentials: 'include' }).catch(() => null),
+        ]);
 
         if (cancelled) return;
 
-        if (res.ok) {
-          const metrics = await res.json();
-          // User has metrics → already onboarded
-          if (Array.isArray(metrics) && metrics.length > 0) {
-            setOnboardingChecked(true);
-            return;
+        // If either API returns data, user has been through some setup
+        let hasData = false;
+
+        if (metricsRes?.ok) {
+          const metrics = await metricsRes.json();
+          if (Array.isArray(metrics) && metrics.length > 0) hasData = true;
+        }
+
+        if (!hasData && prefsRes?.ok) {
+          const prefs = await prefsRes.json();
+          // prefs is null for new users (no row in user_preferences)
+          if (prefs !== null && prefs !== undefined && prefs.default_view) hasData = true;
+        }
+
+        // Also check via DataService (getHabits uses authenticated user ID)
+        if (!hasData) {
+          try {
+            const ds = await getDataService();
+            const habits = await ds.getHabits();
+            if (habits.length > 0) hasData = true;
+          } catch {
+            // DataService failed — treat as new user, redirect to onboarding
+            // (if it's a transient error, user can navigate back)
           }
         }
 
-        // No metrics — new user, redirect to onboarding
-        navigate('/onboarding', { replace: true });
-        return;
+        if (cancelled) return;
+
+        if (!hasData) {
+          navigate('/onboarding', { replace: true });
+          return;
+        }
       } catch {
-        // Non-blocking: allow access if check fails
+        // Non-blocking: allow access if check fails (fail-open)
       }
 
       if (!cancelled) {

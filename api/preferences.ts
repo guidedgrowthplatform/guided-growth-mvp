@@ -12,7 +12,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'SELECT default_view, spreadsheet_range FROM user_preferences WHERE user_id = $1',
       [user.id],
     );
-    return res.json(result.rows[0] || { default_view: 'spreadsheet', spreadsheet_range: 'month' });
+    // Return null if no preferences exist (new user) — onboarding check depends on this
+    return res.json(result.rows[0] || null);
   }
 
   if (req.method === 'PUT') {
