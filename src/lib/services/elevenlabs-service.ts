@@ -15,7 +15,7 @@ let audioContext: AudioContext | null = null;
 let audioChunks: Float32Array[] = [];
 let isActive = false;
 let isTranscribing = false;
-let captureNode: ScriptProcessorNode | null = null;
+let captureNode: ScriptProcessorNode | AudioWorkletNode | null = null;
 let sourceNode: MediaStreamAudioSourceNode | null = null;
 let nativeSampleRate = 44100;
 
@@ -132,6 +132,9 @@ function cleanupAudioResources(): void {
     sourceNode = null;
   }
   if (captureNode) {
+    if (captureNode instanceof AudioWorkletNode) {
+      captureNode.port.close();
+    }
     captureNode.disconnect();
     captureNode = null;
   }
@@ -150,6 +153,41 @@ function cleanupAudioResources(): void {
   audioChunks = [];
 }
 
+const WORKLET_CODE = `
+class CaptureProcessor extends AudioWorkletProcessor {
+  process(inputs) {
+    const input = inputs[0]?.[0];
+    if (input) this.port.postMessage(new Float32Array(input));
+    return true;
+  }
+}
+registerProcessor('capture-processor', CaptureProcessor);
+`;
+
+function setupScriptProcessorFallback(
+  ctx: AudioContext,
+  source: MediaStreamAudioSourceNode,
+  maxChunks: number,
+  callbacks: ElevenLabsCallbacks,
+): void {
+  const node = ctx.createScriptProcessor(4096, 1, 1);
+  node.onaudioprocess = (e: AudioProcessingEvent) => {
+    if (!isActive) return;
+    if (audioChunks.length >= maxChunks) {
+      callbacks.onError('Recording exceeded 60 seconds. Stopped automatically.');
+      stopElevenLabs();
+      return;
+    }
+    audioChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+  };
+  source.connect(node);
+  const silentGain = ctx.createGain();
+  silentGain.gain.value = 0;
+  node.connect(silentGain);
+  silentGain.connect(ctx.destination);
+  captureNode = node;
+}
+
 export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<void> {
   if (isActive) return;
   isActive = true;
@@ -165,21 +203,35 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
     audioChunks = [];
 
     const maxChunks = Math.ceil((60 * nativeSampleRate) / 4096) + 1;
-    captureNode = audioContext.createScriptProcessor(4096, 1, 1);
-    captureNode.onaudioprocess = (e) => {
-      if (!isActive) return;
-      if (audioChunks.length >= maxChunks) {
-        callbacks.onError('Recording exceeded 60 seconds. Stopped automatically.');
-        stopElevenLabs();
-        return;
+
+    // Prefer AudioWorklet (modern), fall back to ScriptProcessor (deprecated)
+    if (audioContext.audioWorklet) {
+      try {
+        const blob = new Blob([WORKLET_CODE], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        await audioContext.audioWorklet.addModule(url);
+        URL.revokeObjectURL(url);
+
+        const workletNode = new AudioWorkletNode(audioContext, 'capture-processor');
+        workletNode.port.onmessage = (e: MessageEvent) => {
+          if (!isActive) return;
+          if (audioChunks.length >= maxChunks) {
+            callbacks.onError('Recording exceeded 60 seconds. Stopped automatically.');
+            stopElevenLabs();
+            return;
+          }
+          audioChunks.push(new Float32Array(e.data));
+        };
+        sourceNode.connect(workletNode);
+        // Don't connect to destination — avoids echo
+        captureNode = workletNode;
+      } catch {
+        // AudioWorklet failed (e.g. insecure context), fall back
+        setupScriptProcessorFallback(audioContext, sourceNode, maxChunks, callbacks);
       }
-      audioChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
-    };
-    sourceNode.connect(captureNode);
-    const silentGain = audioContext.createGain();
-    silentGain.gain.value = 0;
-    captureNode.connect(silentGain);
-    silentGain.connect(audioContext.destination);
+    } else {
+      setupScriptProcessorFallback(audioContext, sourceNode, maxChunks, callbacks);
+    }
 
     callbacks.onOpen();
   } catch (err) {

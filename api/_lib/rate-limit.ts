@@ -1,5 +1,9 @@
-// Simple in-memory rate limiter for Vercel serverless functions
-// Note: Each cold start resets the map. For production at scale, use Redis or Vercel Edge Middleware.
+// Simple in-memory rate limiter for Vercel serverless functions.
+//
+// KNOWN LIMITATION (MVP): Each cold start resets the in-memory Map, so rate
+// limits are only enforced within a single warm invocation lifecycle. This is
+// acceptable for MVP traffic levels. For production at scale, replace with
+// Vercel KV (Redis) or Edge Middleware for persistent, cross-instance limiting.
 
 interface RateLimitEntry {
   count: number;

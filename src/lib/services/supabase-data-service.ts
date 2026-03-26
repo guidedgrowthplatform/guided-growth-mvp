@@ -28,6 +28,8 @@ async function getCurrentUserId(): Promise<string> {
 
 export class SupabaseDataService implements DataService {
   async createHabit(name: string, frequency = 'daily'): Promise<Habit> {
+    if (name.length > 100) throw new Error('Habit name too long (max 100 characters)');
+
     const existing = await this.getHabitByName(name);
     if (existing) {
       throw new Error(`You already have a habit called "${existing.name}"`);
@@ -195,6 +197,17 @@ export class SupabaseDataService implements DataService {
 
   async completeHabit(habitId: string, date: string): Promise<HabitCompletion> {
     if (new Date(date) > new Date()) throw new Error('Cannot complete habit for future dates');
+
+    const userId = await getCurrentUserId();
+    const { data: ownerCheck, error: ownerError } = await supabase
+      .from('user_habits')
+      .select('id')
+      .eq('id', habitId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (ownerError) throw new Error(ownerError.message);
+    if (!ownerCheck) throw new Error('Habit not found');
+
     const { data, error } = await supabase
       .from('habit_completions')
       .upsert(
@@ -220,6 +233,16 @@ export class SupabaseDataService implements DataService {
   }
 
   async uncompleteHabit(habitId: string, date: string): Promise<void> {
+    const userId = await getCurrentUserId();
+    const { data: ownerCheck, error: ownerError } = await supabase
+      .from('user_habits')
+      .select('id')
+      .eq('id', habitId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (ownerError) throw new Error(ownerError.message);
+    if (!ownerCheck) throw new Error('Habit not found');
+
     const { error } = await supabase
       .from('habit_completions')
       .delete()
@@ -234,6 +257,16 @@ export class SupabaseDataService implements DataService {
     startDate?: string,
     endDate?: string,
   ): Promise<HabitCompletion[]> {
+    const userId = await getCurrentUserId();
+    const { data: ownerCheck, error: ownerError } = await supabase
+      .from('user_habits')
+      .select('id')
+      .eq('id', habitId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (ownerError) throw new Error(ownerError.message);
+    if (!ownerCheck) throw new Error('Habit not found');
+
     let query = supabase
       .from('habit_completions')
       .select('*')
@@ -343,6 +376,16 @@ export class SupabaseDataService implements DataService {
   }
 
   async logMetric(metricId: string, value: number | string, date: string): Promise<MetricEntry> {
+    const userId = await getCurrentUserId();
+    const { data: ownerCheck, error: ownerError } = await supabase
+      .from('metrics')
+      .select('id')
+      .eq('id', metricId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (ownerError) throw new Error(ownerError.message);
+    if (!ownerCheck) throw new Error('Metric not found');
+
     const { data, error } = await supabase
       .from('user_metric_entries')
       .upsert(
@@ -372,6 +415,16 @@ export class SupabaseDataService implements DataService {
     startDate?: string,
     endDate?: string,
   ): Promise<MetricEntry[]> {
+    const userId = await getCurrentUserId();
+    const { data: ownerCheck, error: ownerError } = await supabase
+      .from('metrics')
+      .select('id')
+      .eq('id', metricId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (ownerError) throw new Error(ownerError.message);
+    if (!ownerCheck) throw new Error('Metric not found');
+
     let query = supabase
       .from('user_metric_entries')
       .select('*')
