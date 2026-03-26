@@ -1,10 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from './_lib/db.js';
-import { requireUser } from './_lib/auth.js';
+import { requireUser, setUserContext, handlePreflight } from './_lib/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
   if (!user) return;
+  await setUserContext(user.id);
 
   if (req.method === 'GET') {
     const result = await pool.query('SELECT value FROM affirmations WHERE user_id = $1', [user.id]);

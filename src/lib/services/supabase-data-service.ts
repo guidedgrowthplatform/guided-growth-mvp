@@ -1,7 +1,7 @@
-// SupabaseDataService — Real backend implementation
-// Implements DataService interface using Supabase PostgreSQL
-// Replaces MockDataService (localStorage) for production
+// SupabaseDataService — production data layer using Supabase PostgreSQL
+// Auth: user ID from Better Auth session; data queries via Supabase client
 
+import { authClient } from '../auth-client';
 import { supabase } from '../supabase';
 import type {
   DataService,
@@ -18,6 +18,12 @@ function todayStr(): string {
   return new Date().toISOString().split('T')[0];
 }
 
+async function getCurrentUserId(): Promise<string> {
+  const { data } = await authClient.getSession();
+  if (!data?.user?.id) throw new Error('Not authenticated');
+  return data.user.id;
+}
+
 export class SupabaseDataService implements DataService {
   // ─── Habits ───
 
@@ -28,15 +34,12 @@ export class SupabaseDataService implements DataService {
       throw new Error(`You already have a habit called "${existing.name}"`);
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = await getCurrentUserId();
 
     const { data, error } = await supabase
       .from('user_habits')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         name,
         habit_type: 'binary_do',
         cadence:
@@ -225,10 +228,7 @@ export class SupabaseDataService implements DataService {
   ): Promise<TrackedMetric> {
     // Store metrics as a special habit type for now
     // In future, metrics could have their own table
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const _userId = await getCurrentUserId();
 
     const metric: TrackedMetric = {
       id: crypto.randomUUID(),
@@ -303,15 +303,12 @@ export class SupabaseDataService implements DataService {
     mood?: string,
     themes?: string[],
   ): Promise<JournalEntry> {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const userId = await getCurrentUserId();
 
     const { data, error } = await supabase
       .from('journal_entries')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         date: todayStr(),
         response: content,
         prompt: themes?.join(', ') || null,
@@ -410,10 +407,9 @@ export class SupabaseDataService implements DataService {
   async seedData(): Promise<void> {
     // Seeded data already exists in Supabase via seed.sql
     // This method seeds user-specific demo data for testing
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    try {
+      await getCurrentUserId();
+    } catch {
       console.warn('[SupabaseDataService] Not authenticated — cannot seed data');
       return;
     }

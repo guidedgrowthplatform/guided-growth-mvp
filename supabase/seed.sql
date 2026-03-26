@@ -14,13 +14,13 @@
 
 DO $$
 DECLARE
-  test_user_id UUID;
+  test_user_id TEXT;
   habit_meditation UUID;
   habit_exercise UUID;
   habit_reading UUID;
 BEGIN
   -- Use the first user in the system, or create a profile
-  SELECT id INTO test_user_id FROM users LIMIT 1;
+  SELECT id INTO test_user_id FROM "user" LIMIT 1;
 
   IF test_user_id IS NULL THEN
     -- If no user exists yet, we can't seed (need auth.users first)
