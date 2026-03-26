@@ -194,6 +194,7 @@ export class SupabaseDataService implements DataService {
   }
 
   async completeHabit(habitId: string, date: string): Promise<HabitCompletion> {
+    if (new Date(date) > new Date()) throw new Error('Cannot complete habit for future dates');
     const { data, error } = await supabase
       .from('habit_completions')
       .upsert(
@@ -505,6 +506,7 @@ export class SupabaseDataService implements DataService {
       stress: number | null;
     },
   ): Promise<CheckInRecord> {
+    if (new Date(date) > new Date()) throw new Error('Cannot save check-in for future dates');
     const userId = await getCurrentUserId();
 
     const moodToDb: Record<number, string> = {

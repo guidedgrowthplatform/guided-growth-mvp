@@ -51,13 +51,15 @@ export function FocusPage() {
   }, [timer]);
 
   const handleStop = useCallback(() => {
-    // Save partial session on manual stop
+    // Save partial session on manual stop (skip 0-minute sessions)
     if (sessionStartRef.current && timer.status === 'running') {
       const durationMinutes = Math.round(timer.totalSeconds / 60);
       const elapsedSeconds = timer.totalSeconds - timer.remainingSeconds;
       const actualMinutes = Math.round(elapsedSeconds / 60);
 
-      saveFocusSession(selectedHabitId, durationMinutes, actualMinutes, sessionStartRef.current);
+      if (actualMinutes >= 1) {
+        saveFocusSession(selectedHabitId, durationMinutes, actualMinutes, sessionStartRef.current);
+      }
       sessionStartRef.current = null;
     }
     timer.stop();

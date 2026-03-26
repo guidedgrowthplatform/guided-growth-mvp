@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
@@ -31,6 +31,36 @@ export function Step1Page() {
   const [nickname, setNickname] = useState('');
   const [ageRange, setAgeRange] = useState<string | null>(null);
   const [gender, setGender] = useState<string | null>(null);
+
+  // Redirect already-onboarded users back to home
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkCompleted() {
+      try {
+        const { data: session } = await authClient.getSession();
+        const uid = session?.user?.id;
+        if (!uid) return;
+
+        const { data } = await supabase
+          .from('onboarding_states')
+          .select('status')
+          .eq('user_id', uid)
+          .maybeSingle();
+
+        if (!cancelled && data?.status === 'completed') {
+          navigate('/home', { replace: true });
+        }
+      } catch {
+        // Non-blocking: allow access if check fails
+      }
+    }
+
+    checkCompleted();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   const handleNext = useCallback(async () => {
     // Save onboarding state (step 1) to Supabase

@@ -22,6 +22,7 @@ export function HabitsSection({ selectedDate }: HabitsSectionProps) {
   const [habits, setHabits] = useState<HabitWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
 
   const handleAddNote = useCallback(
     (habitName: string) => {
@@ -73,6 +74,9 @@ export function HabitsSection({ selectedDate }: HabitsSectionProps) {
   }, [loadHabits]);
 
   const handleToggle = async (habitId: string, currentlyCompleted: boolean) => {
+    if (togglingIds.has(habitId)) return;
+
+    setTogglingIds((prev) => new Set(prev).add(habitId));
     try {
       const ds = await getDataService();
       if (currentlyCompleted) {
@@ -84,6 +88,12 @@ export function HabitsSection({ selectedDate }: HabitsSectionProps) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to toggle habit';
       setError(msg);
+    } finally {
+      setTogglingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(habitId);
+        return next;
+      });
     }
   };
 

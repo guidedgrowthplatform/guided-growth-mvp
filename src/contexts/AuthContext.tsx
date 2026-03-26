@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { authClient } from '@/lib/auth-client';
+import { queryClient } from '@/lib/query';
 import { AuthContext, type AuthUser } from './authContextDef';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -82,6 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await authClient.signOut();
+    queryClient.clear();
+    localStorage.clear();
+    sessionStorage.clear();
     setUser(null);
     setSession(null);
   }, []);
