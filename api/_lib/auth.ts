@@ -11,19 +11,27 @@ export async function getUser(req: VercelRequest) {
     });
     if (!session?.user) return null;
 
-    // Look up role and status from users table (falls back to defaults)
-    const result = await pool.query('SELECT role, status FROM users WHERE id = $1', [
-      session.user.id,
-    ]);
-    const dbUser = result.rows[0];
+    // Look up role and status from users table (non-blocking — falls back to defaults)
+    let role = 'user';
+    let status = 'active';
+    try {
+      const result = await pool.query('SELECT role, status FROM users WHERE id = $1', [
+        session.user.id,
+      ]);
+      const dbUser = result.rows[0];
+      if (dbUser?.role) role = dbUser.role;
+      if (dbUser?.status) status = dbUser.status;
+    } catch {
+      // Column may not exist yet if migration 007 hasn't been run — use defaults
+    }
 
     return {
       id: session.user.id,
       email: session.user.email,
       name: session.user.name,
       image: session.user.image,
-      role: dbUser?.role ?? 'user',
-      status: dbUser?.status ?? 'active',
+      role,
+      status,
     };
   } catch {
     return null;

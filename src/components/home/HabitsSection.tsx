@@ -73,6 +73,13 @@ export function HabitsSection({ selectedDate }: HabitsSectionProps) {
     loadHabits();
   }, [loadHabits]);
 
+  // Refresh when voice commands or other features create/modify habits
+  useEffect(() => {
+    const handler = () => loadHabits();
+    window.addEventListener('habits-changed', handler);
+    return () => window.removeEventListener('habits-changed', handler);
+  }, [loadHabits]);
+
   const handleToggle = async (habitId: string, currentlyCompleted: boolean) => {
     if (togglingIds.has(habitId)) return;
 

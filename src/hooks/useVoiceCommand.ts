@@ -236,6 +236,7 @@ export function useVoiceCommand() {
 
           const response = await fetch('/api/process-command', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ transcript, existingHabits }),
           });
@@ -268,11 +269,18 @@ export function useVoiceCommand() {
 
         speak(result.message);
 
+        // Invalidate all data queries so UI reflects voice command changes
         qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
         qc.invalidateQueries({ queryKey: queryKeys.entries.all });
+        qc.invalidateQueries({ queryKey: queryKeys.habits.all });
+        qc.invalidateQueries({
+          queryKey: queryKeys.checkins.byDate(new Date().toISOString().slice(0, 10)),
+        });
+        qc.invalidateQueries({ queryKey: queryKeys.journal.all });
+        qc.invalidateQueries({ queryKey: queryKeys.focusSessions.all });
 
-        // Don't auto-navigate — user stays in voice overlay per Figma design.
-        // Data updates are reflected via query invalidation above.
+        // Notify non-React-Query components (e.g. HabitsSection) to refresh
+        window.dispatchEvent(new CustomEvent('habits-changed'));
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         setError(msg);

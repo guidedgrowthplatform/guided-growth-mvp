@@ -202,7 +202,11 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
     sourceNode = audioContext.createMediaStreamSource(mediaStream);
     audioChunks = [];
 
-    const maxChunks = Math.ceil((60 * nativeSampleRate) / 4096) + 1;
+    // ScriptProcessor uses 4096 samples/chunk; AudioWorklet uses 128 samples/chunk.
+    // Track max samples instead of chunks to handle both correctly.
+    const maxRecordingSamples = 60 * nativeSampleRate;
+    let totalSamples = 0;
+    const maxChunks = Math.ceil(maxRecordingSamples / 4096) + 1; // for ScriptProcessor
 
     // Prefer AudioWorklet (modern), fall back to ScriptProcessor (deprecated)
     if (audioContext.audioWorklet) {
@@ -215,12 +219,14 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
         const workletNode = new AudioWorkletNode(audioContext, 'capture-processor');
         workletNode.port.onmessage = (e: MessageEvent) => {
           if (!isActive) return;
-          if (audioChunks.length >= maxChunks) {
+          const chunk = new Float32Array(e.data);
+          totalSamples += chunk.length;
+          if (totalSamples >= maxRecordingSamples) {
             callbacks.onError('Recording exceeded 60 seconds. Stopped automatically.');
             stopElevenLabs();
             return;
           }
-          audioChunks.push(new Float32Array(e.data));
+          audioChunks.push(chunk);
         };
         sourceNode.connect(workletNode);
         // Don't connect to destination — avoids echo
@@ -293,6 +299,7 @@ export async function stopAndTranscribe(): Promise<string> {
     try {
       res = await fetch('/api/elevenlabs-stt', {
         method: 'POST',
+        credentials: 'include',
         body: form,
         signal: controller.signal,
       });
