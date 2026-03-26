@@ -194,6 +194,6 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
-  ALTER TABLE user_habits ADD CONSTRAINT chk_habit_cadence CHECK (cadence IN ('daily', 'weekdays', 'weekends', 'weekly', '3x/week', '2x/week', '1x/week', 'custom'));
+  ALTER TABLE user_habits ADD CONSTRAINT chk_habit_cadence CHECK (cadence IN ('daily', 'weekdays', 'weekends', 'weekly', '3x/week', '2x/week', '1x/week', '3_specific_days', 'once_a_week', 'custom'));
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
