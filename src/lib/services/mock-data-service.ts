@@ -7,6 +7,8 @@ import type {
   JournalEntry,
   HabitSummary,
   WeeklySummary,
+  CheckInRecord,
+  FocusSession,
 } from './data-service.interface';
 
 const STORAGE_KEYS = {
@@ -15,6 +17,8 @@ const STORAGE_KEYS = {
   metrics: 'mvp03_metrics',
   metricEntries: 'mvp03_metric_entries',
   journal: 'mvp03_journal',
+  checkins: 'mvp03_checkins',
+  focusSessions: 'mvp03_focus_sessions',
 } as const;
 
 function generateId(): string {
@@ -111,6 +115,11 @@ export class MockDataService implements DataService {
     return getStore<Habit>(STORAGE_KEYS.habits);
   }
 
+  async getHabitById(id: string): Promise<Habit | null> {
+    const habits = getStore<Habit>(STORAGE_KEYS.habits);
+    return habits.find((h) => h.id === id) ?? null;
+  }
+
   async getHabitByName(name: string): Promise<Habit | null> {
     const habits = getStore<Habit>(STORAGE_KEYS.habits);
     const lower = name.toLowerCase();
@@ -153,6 +162,12 @@ export class MockDataService implements DataService {
     completions.push(completion);
     setStore(STORAGE_KEYS.completions, completions);
     return completion;
+  }
+
+  async uncompleteHabit(habitId: string, date: string): Promise<void> {
+    const completions = getStore<HabitCompletion>(STORAGE_KEYS.completions);
+    const filtered = completions.filter((c) => !(c.habitId === habitId && c.date === date));
+    setStore(STORAGE_KEYS.completions, filtered);
   }
 
   async getCompletions(
@@ -318,6 +333,79 @@ export class MockDataService implements DataService {
       journalEntries: journalEntries.length,
       period: { start, end },
     };
+  }
+
+  // ─── Check-ins ───
+  async saveCheckIn(
+    date: string,
+    data: {
+      sleep: number | null;
+      mood: number | null;
+      energy: number | null;
+      stress: number | null;
+    },
+  ): Promise<CheckInRecord> {
+    const checkins = getStore<CheckInRecord>(STORAGE_KEYS.checkins);
+    const idx = checkins.findIndex((c) => c.date === date);
+    const record: CheckInRecord = {
+      id: idx >= 0 ? checkins[idx].id : generateId(),
+      date,
+      ...data,
+      createdAt: idx >= 0 ? checkins[idx].createdAt : new Date().toISOString(),
+    };
+    if (idx >= 0) {
+      checkins[idx] = record;
+    } else {
+      checkins.push(record);
+    }
+    setStore(STORAGE_KEYS.checkins, checkins);
+    return record;
+  }
+
+  async getCheckIn(date: string): Promise<CheckInRecord | null> {
+    const checkins = getStore<CheckInRecord>(STORAGE_KEYS.checkins);
+    return checkins.find((c) => c.date === date) ?? null;
+  }
+
+  async getCheckIns(startDate: string, endDate: string): Promise<CheckInRecord[]> {
+    return getStore<CheckInRecord>(STORAGE_KEYS.checkins).filter(
+      (c) => c.date >= startDate && c.date <= endDate,
+    );
+  }
+
+  // ─── Focus Sessions ───
+  async saveFocusSession(
+    habitId: string | null,
+    durationMinutes: number,
+    actualMinutes: number | null,
+    startedAt: string,
+  ): Promise<FocusSession> {
+    const sessions = getStore<FocusSession>(STORAGE_KEYS.focusSessions);
+    const session: FocusSession = {
+      id: generateId(),
+      habitId,
+      durationMinutes,
+      actualMinutes,
+      status: actualMinutes ? 'completed' : 'pending',
+      startedAt,
+    };
+    sessions.push(session);
+    setStore(STORAGE_KEYS.focusSessions, sessions);
+    return session;
+  }
+
+  async getFocusSessions(startDate?: string, endDate?: string): Promise<FocusSession[]> {
+    let sessions = getStore<FocusSession>(STORAGE_KEYS.focusSessions);
+    if (startDate) sessions = sessions.filter((s) => s.startedAt >= startDate);
+    if (endDate) sessions = sessions.filter((s) => s.startedAt <= endDate);
+    return sessions;
+  }
+
+  // ─── All Completions ───
+  async getAllCompletions(startDate: string, endDate: string): Promise<HabitCompletion[]> {
+    return getStore<HabitCompletion>(STORAGE_KEYS.completions).filter(
+      (c) => c.date >= startDate && c.date <= endDate,
+    );
   }
 
   // ─── Seed & Clear ───

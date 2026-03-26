@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
-import { requireUser } from '../_lib/auth.js';
+import { requireUser, handlePreflight } from '../_lib/auth.js';
+import { validateDate } from '../_lib/validation.js';
 
 const DEFAULT_FIELDS = [
   { id: 'wins', label: 'Wins', order: 0 },
@@ -9,6 +10,7 @@ const DEFAULT_FIELDS = [
 ];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
   if (!user) return;
 
@@ -42,7 +44,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // PUT /api/reflections/:date
   if (route) {
     if (req.method !== 'PUT') return res.status(405).json({ error: 'Method not allowed' });
-    const date = route;
+    const date = validateDate(route);
+    if (!date) return res.status(400).json({ error: 'Invalid date format (YYYY-MM-DD)' });
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -72,8 +75,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // GET /api/reflections?start=&end=
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  const { start, end } = req.query;
-  if (!start || !end) return res.status(400).json({ error: 'start and end required' });
+  const start = validateDate(req.query.start);
+  const end = validateDate(req.query.end);
+  if (!start || !end)
+    return res.status(400).json({ error: 'Valid start and end dates required (YYYY-MM-DD)' });
 
   const result = await pool.query(
     'SELECT date::text, field_id, value FROM reflections WHERE user_id = $1 AND date >= $2 AND date <= $3',

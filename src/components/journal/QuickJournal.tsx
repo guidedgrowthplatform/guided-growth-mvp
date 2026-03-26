@@ -32,6 +32,7 @@ export function QuickJournal({
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        maxLength={2000}
         placeholder={placeholder}
         className="min-h-[120px] w-full resize-none rounded-md border-none bg-surface-secondary p-3 text-sm text-content outline-none focus:ring-2 focus:ring-primary"
       />

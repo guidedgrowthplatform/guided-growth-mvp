@@ -1,8 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from './_lib/db.js';
-import { requireUser } from './_lib/auth.js';
+import { requireUser, handlePreflight } from './_lib/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
   if (!user) return;
 
@@ -11,7 +12,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'SELECT default_view, spreadsheet_range FROM user_preferences WHERE user_id = $1',
       [user.id],
     );
-    return res.json(result.rows[0] || { default_view: 'spreadsheet', spreadsheet_range: 'month' });
+    // Return null if no preferences exist (new user) — onboarding check depends on this
+    return res.json(result.rows[0] || null);
   }
 
   if (req.method === 'PUT') {

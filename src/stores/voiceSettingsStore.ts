@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 
 export type RecordingMode = 'auto-stop' | 'always-on';
-export type SttProvider = 'webspeech' | 'whisper' | 'deepgram';
+// ElevenLabs is the only STT provider — type kept for backwards compat with UI
+export type SttProvider = 'elevenlabs';
 
 const SETTINGS_KEY = 'mvp03_voice_settings';
 
@@ -9,11 +10,11 @@ interface VoiceSettings {
   recordingMode: RecordingMode;
   selectedVoiceName: string | null;
   ttsEnabled: boolean;
-  sttProvider: SttProvider;
 }
 
 interface VoiceSettingsState extends VoiceSettings {
   loaded: boolean;
+  sttProvider: SttProvider;
   setRecordingMode: (mode: RecordingMode) => void;
   setSelectedVoiceName: (name: string | null) => void;
   setTtsEnabled: (enabled: boolean) => void;
@@ -21,27 +22,41 @@ interface VoiceSettingsState extends VoiceSettings {
   loadSettings: () => void;
 }
 
+const DEFAULTS: VoiceSettings = {
+  recordingMode: 'auto-stop',
+  selectedVoiceName: null,
+  ttsEnabled: true,
+};
+
+const VALID_RECORDING_MODES: readonly RecordingMode[] = ['auto-stop', 'always-on'];
+
+function parseStoredSettings(raw: string | null): VoiceSettings {
+  if (!raw) return { ...DEFAULTS };
+  try {
+    const parsed = JSON.parse(raw);
+    const recordingMode = (VALID_RECORDING_MODES as readonly string[]).includes(
+      parsed.recordingMode,
+    )
+      ? (parsed.recordingMode as RecordingMode)
+      : DEFAULTS.recordingMode;
+    return {
+      recordingMode,
+      selectedVoiceName: parsed.selectedVoiceName || DEFAULTS.selectedVoiceName,
+      ttsEnabled: parsed.ttsEnabled ?? DEFAULTS.ttsEnabled,
+    };
+  } catch {
+    return { ...DEFAULTS };
+  }
+}
+
 function loadFromStorage(): VoiceSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        recordingMode: parsed.recordingMode || 'auto-stop',
-        selectedVoiceName: parsed.selectedVoiceName || null,
-        ttsEnabled: parsed.ttsEnabled ?? true,
-        sttProvider: parsed.sttProvider || 'webspeech',
-      };
-    }
+    return parseStoredSettings(raw);
   } catch {
     /* ignore */
   }
-  return {
-    recordingMode: 'auto-stop',
-    selectedVoiceName: null,
-    ttsEnabled: true,
-    sttProvider: 'webspeech',
-  };
+  return { ...DEFAULTS };
 }
 
 function saveToStorage(settings: VoiceSettings): void {
@@ -53,34 +68,30 @@ function saveToStorage(settings: VoiceSettings): void {
 }
 
 export const useVoiceSettingsStore = create<VoiceSettingsState>((set, get) => ({
-  recordingMode: 'auto-stop',
-  selectedVoiceName: null,
-  ttsEnabled: true,
-  sttProvider: 'webspeech',
+  ...DEFAULTS,
   loaded: false,
+  sttProvider: 'elevenlabs' as SttProvider,
 
   setRecordingMode: (mode) => {
     set({ recordingMode: mode });
-    const { selectedVoiceName, ttsEnabled, sttProvider } = get();
-    saveToStorage({ recordingMode: mode, selectedVoiceName, ttsEnabled, sttProvider });
+    const { selectedVoiceName, ttsEnabled } = get();
+    saveToStorage({ recordingMode: mode, selectedVoiceName, ttsEnabled });
   },
 
   setSelectedVoiceName: (name) => {
     set({ selectedVoiceName: name });
-    const { recordingMode, ttsEnabled, sttProvider } = get();
-    saveToStorage({ recordingMode, selectedVoiceName: name, ttsEnabled, sttProvider });
+    const { recordingMode, ttsEnabled } = get();
+    saveToStorage({ recordingMode, selectedVoiceName: name, ttsEnabled });
   },
 
   setTtsEnabled: (enabled) => {
     set({ ttsEnabled: enabled });
-    const { recordingMode, selectedVoiceName, sttProvider } = get();
-    saveToStorage({ recordingMode, selectedVoiceName, ttsEnabled: enabled, sttProvider });
+    const { recordingMode, selectedVoiceName } = get();
+    saveToStorage({ recordingMode, selectedVoiceName, ttsEnabled: enabled });
   },
 
-  setSttProvider: (provider) => {
-    set({ sttProvider: provider });
-    const { recordingMode, selectedVoiceName, ttsEnabled } = get();
-    saveToStorage({ recordingMode, selectedVoiceName, ttsEnabled, sttProvider: provider });
+  setSttProvider: () => {
+    // No-op: ElevenLabs is the only provider
   },
 
   loadSettings: () => {

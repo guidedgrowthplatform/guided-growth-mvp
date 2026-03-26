@@ -60,9 +60,12 @@ export function useEntries() {
   useEffect(() => {
     const handleOnline = () => {
       if (offlineQueue.length > 0) {
-        offlineQueue.flush().then(() => {
-          if (offlineQueue.length === 0) addToast('success', 'Offline entries synced');
-        });
+        offlineQueue
+          .flush()
+          .then(() => {
+            if (offlineQueue.length === 0) addToast('success', 'Offline entries synced');
+          })
+          .catch(() => {});
       }
     };
     window.addEventListener('online', handleOnline);
@@ -78,13 +81,27 @@ export function useEntries() {
     [saveDay],
   );
 
-  const saveBulk = useCallback(async (entriesMap: EntriesMap) => {
-    try {
-      await entriesApi.saveBulkEntries(entriesMap);
-    } catch {
-      // ignore
-    }
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
   }, []);
+
+  const saveBulk = useCallback(
+    async (entriesMap: EntriesMap) => {
+      try {
+        await entriesApi.saveBulkEntries(entriesMap);
+      } catch {
+        // Enqueue each day to offline queue for retry
+        for (const [date, dayEntries] of Object.entries(entriesMap)) {
+          offlineQueue.enqueue(`/api/entries/${date}`, 'PUT', dayEntries);
+        }
+        addToast('error', 'Saved offline — will sync when back online');
+      }
+    },
+    [addToast],
+  );
 
   return {
     entries,

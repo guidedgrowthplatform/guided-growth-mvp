@@ -2,7 +2,7 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "installCommand": "npm ci",
+  "installCommand": "npm install --legacy-peer-deps",
   "headers": [
     {
       "source": "/(.*)",
@@ -17,7 +17,7 @@
         { "key": "Permissions-Policy", "value": "camera=(), geolocation=(), microphone=(self)" },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; connect-src 'self' https://*.supabase.co wss://api.deepgram.com https://api.elevenlabs.io https://api.openai.com https://cdn-lfs-us-1.hf.co https://huggingface.co https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; frame-ancestors 'none'"
+          "value": "default-src 'self'; connect-src 'self' https://*.supabase.co https://api.elevenlabs.io https://api.openai.com https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; frame-ancestors 'none'"
         }
       ]
     },
@@ -31,6 +31,7 @@
     { "source": "/api/entries", "destination": "/api/entries/__index" },
     { "source": "/api/reflections", "destination": "/api/reflections/__index" },
     { "source": "/api/admin", "destination": "/api/admin/__index" },
+    { "source": "/api/auth/:path*", "destination": "/api/auth/[...path]" },
     { "source": "/((?!api).*)", "destination": "/index.html" }
   ]
 }

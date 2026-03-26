@@ -1,5 +1,3 @@
-// Centralized TTS service with pleasant voice selection + pre-acknowledgment
-// Replaces the inline speak() in VoiceTranscript.tsx
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 const VOICE_PREF_KEY = 'mvp03_tts_voice';

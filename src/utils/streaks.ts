@@ -1,5 +1,5 @@
-import type { Metric, EntriesMap } from '@shared/types';
 import { format, subDays } from 'date-fns';
+import type { Metric, EntriesMap } from '@shared/types';
 
 export interface StreakResult {
   current: number;

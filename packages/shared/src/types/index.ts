@@ -126,6 +126,13 @@ export type BadgeVariant = 'default' | 'success' | 'danger' | 'warning';
 export type NavTab = 'home' | 'progress' | 'voice' | 'focus' | 'profile';
 export type CheckInDimension = 'sleep' | 'mood' | 'energy' | 'stress';
 
+export interface CheckInData {
+  sleep: number | null;
+  mood: number | null;
+  energy: number | null;
+  stress: number | null;
+}
+
 // ─── Audit Log ──────────────────────────────────────
 export interface AuditLogEntry {
   id: string;
