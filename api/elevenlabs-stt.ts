@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser, handlePreflight } from './_lib/auth.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
+import { getClientIp } from './_lib/validation.js';
 
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10MB max upload
 
@@ -11,7 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Always rate-limit by IP regardless of auth mode
-  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 'unknown';
+  const ip = getClientIp(req.headers);
   const ipRl = checkRateLimit(ip, {
     windowMs: 60_000,
     maxRequests: 15,

@@ -49,9 +49,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.setHeader('Cache-Control', 'public, s-maxage=300');
       return res.json({ issueStats, milestones, assignees, recentClosed, blockers });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      console.error('project-status error:', message);
-      return res.status(502).json({ error: 'Failed to fetch GitLab data', detail: message });
+      console.error('project-status error:', err instanceof Error ? err.message : err);
+      return res.status(502).json({ error: 'Failed to fetch GitLab data' });
     }
   }
 
@@ -105,10 +104,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // /api/admin/users (list all)
+    // /api/admin/users (list all, paginated)
     if (!userId && req.method === 'GET') {
+      const limit = Math.min(parseInt(req.query.limit as string) || 100, 500);
+      const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
       const result = await pool.query(
-        'SELECT id, email, name, avatar_url, role, status, created_at, last_login_at FROM users ORDER BY created_at DESC',
+        'SELECT id, email, name, avatar_url, role, status, created_at, last_login_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+        [limit, offset],
       );
       return res.json(result.rows);
     }
@@ -126,7 +128,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (req.method === 'POST') {
       const { email, note } = req.body;
-      if (!email?.includes('@')) return res.status(400).json({ error: 'Valid email required' });
+      if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: 'Valid email required' });
+      }
       const exists = await pool.query('SELECT id FROM allowlist WHERE email = $1', [email]);
       if (exists.rows.length > 0) return res.status(409).json({ error: 'Already in allowlist' });
       const result = await pool.query(

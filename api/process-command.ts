@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser, handlePreflight } from './_lib/auth.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
+import { getClientIp } from './_lib/validation.js';
 
 // NOTE: Prompt is inlined here because Vercel serverless functions cannot
 // import from ../src/lib/. The canonical version lives in
@@ -428,7 +429,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Always rate-limit by IP regardless of auth mode
-  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 'unknown';
+  const ip = getClientIp(req.headers);
   const ipRl = checkRateLimit(ip, {
     windowMs: 60_000,
     maxRequests: 30,
@@ -468,9 +469,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Transcript too long (max 2000 chars)' });
   }
 
+  // Sanitize existingHabits: limit count and per-item length to prevent prompt injection / cost abuse
+  const sanitizedHabits: string[] = [];
+  if (Array.isArray(existingHabits)) {
+    for (const h of existingHabits.slice(0, 50)) {
+      if (typeof h === 'string' && h.length <= 100) {
+        sanitizedHabits.push(h.replace(/[^\w\s\-']/g, '').trim());
+      }
+    }
+  }
+
   const habitContext =
-    Array.isArray(existingHabits) && existingHabits.length > 0
-      ? `\n\n## User's Existing Habits\n${existingHabits.join(', ')}\n\nOnly correct a habit name to an existing one when the spoken name is PHONETICALLY ALMOST IDENTICAL (e.g. "playing pedal" → "playing paddle"). If the user says a clearly different name (e.g. "playing laptop" vs "playing game"), treat it as a NEW habit — do NOT match to the existing one. When in doubt, use the name exactly as spoken.`
+    sanitizedHabits.length > 0
+      ? `\n\n## User's Existing Habits\n${sanitizedHabits.join(', ')}\n\nOnly correct a habit name to an existing one when the spoken name is PHONETICALLY ALMOST IDENTICAL (e.g. "playing pedal" → "playing paddle"). If the user says a clearly different name (e.g. "playing laptop" vs "playing game"), treat it as a NEW habit — do NOT match to the existing one. When in doubt, use the name exactly as spoken.`
       : '';
 
   try {

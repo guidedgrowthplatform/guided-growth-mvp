@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { auth } from './better-auth.js';
 import { setCorsHeaders } from './cors.js';
 import { fromNodeHeaders } from 'better-auth/node';
+import pool from './db.js';
 
 export async function getUser(req: VercelRequest) {
   try {
@@ -9,13 +10,20 @@ export async function getUser(req: VercelRequest) {
       headers: fromNodeHeaders(req.headers),
     });
     if (!session?.user) return null;
+
+    // Look up role and status from users table (falls back to defaults)
+    const result = await pool.query('SELECT role, status FROM users WHERE id = $1', [
+      session.user.id,
+    ]);
+    const dbUser = result.rows[0];
+
     return {
       id: session.user.id,
       email: session.user.email,
       name: session.user.name,
       image: session.user.image,
-      role: 'user',
-      status: 'active',
+      role: dbUser?.role ?? 'user',
+      status: dbUser?.status ?? 'active',
     };
   } catch {
     return null;

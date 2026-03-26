@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       client.release();
     }
     const result = await pool.query(
-      'SELECT * FROM metrics WHERE user_id = $1 ORDER BY sort_order ASC',
+      'SELECT id, name, input_type, question, active, frequency, sort_order, target_value, target_unit, created_at FROM metrics WHERE user_id = $1 ORDER BY sort_order ASC',
       [user.id],
     );
     return res.json(result.rows);
@@ -86,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // /api/metrics — GET or POST
   if (req.method === 'GET') {
     const result = await pool.query(
-      'SELECT * FROM metrics WHERE user_id = $1 ORDER BY sort_order ASC, created_at ASC',
+      'SELECT id, name, input_type, question, active, frequency, sort_order, target_value, target_unit, created_at FROM metrics WHERE user_id = $1 ORDER BY sort_order ASC, created_at ASC',
       [user.id],
     );
     return res.json(result.rows);

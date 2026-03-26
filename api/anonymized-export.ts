@@ -1,8 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createHash } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import pool from './_lib/db.js';
 import { handlePreflight } from './_lib/auth.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
+import { getClientIp } from './_lib/validation.js';
 
 function sha256(value: string): string {
   return `anon_${createHash('sha256').update(value).digest('hex')}`;
@@ -31,12 +32,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const providedKey = req.headers['x-admin-key'];
-  if (!providedKey || providedKey !== adminKey) {
+  if (
+    !providedKey ||
+    typeof providedKey !== 'string' ||
+    providedKey.length !== adminKey.length ||
+    !timingSafeEqual(Buffer.from(providedKey), Buffer.from(adminKey))
+  ) {
     return res.status(401).json({ error: 'Invalid or missing x-admin-key header' });
   }
 
   // Rate limit: 10 requests per 5 minutes per IP
-  const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? 'unknown';
+  const clientIp = getClientIp(req.headers);
   const rl = checkRateLimit(clientIp, {
     windowMs: 5 * 60 * 1000,
     maxRequests: 10,
@@ -71,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       focus_sessions: focusSessions.rows.map(anonymizeUser),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return res.status(500).json({ error: `Export failed: ${message}` });
+    console.error('Anonymized export error:', err instanceof Error ? err.message : err);
+    return res.status(500).json({ error: 'Export failed. Check server logs for details.' });
   }
 }
