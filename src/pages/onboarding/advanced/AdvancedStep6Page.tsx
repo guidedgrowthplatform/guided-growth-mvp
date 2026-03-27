@@ -4,7 +4,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { WEEKDAYS, WEEKEND, ALL_DAYS } from '@/components/onboarding/constants';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
-import { useVoiceInput } from '@/hooks/useVoiceInput';
 
 const DEFAULT_QUESTIONS = [
   'What am I proud of today?',
@@ -190,8 +189,17 @@ export function AdvancedStep6Page() {
         </div>
       </div>
 
-      {/* Voice Button — wired to ElevenLabs */}
-      <VoiceMicSection />
+      {/* Voice Button */}
+      <div className="flex justify-center py-[32px]">
+        <div className="rounded-full shadow-[0px_0px_0px_12px_rgba(19,91,236,0.05),0px_0px_0px_24px_rgba(19,91,236,0.02)]">
+          <button
+            type="button"
+            className="flex size-[96px] items-center justify-center rounded-full bg-primary shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)]"
+          >
+            <Icon icon="ic:round-mic" width={24} height={24} className="text-white" />
+          </button>
+        </div>
+      </div>
 
       {/* CTA Footer */}
       <div className="mt-auto px-[24px] pb-[40px] pt-[32px]">
@@ -203,33 +211,6 @@ export function AdvancedStep6Page() {
           Review My Plan
         </button>
       </div>
-    </div>
-  );
-}
-
-function VoiceMicSection() {
-  const { isListening, toggle } = useVoiceInput();
-  return (
-    <div className="flex flex-col items-center justify-center py-[32px]">
-      <div className="rounded-full shadow-[0px_0px_0px_12px_rgba(19,91,236,0.05),0px_0px_0px_24px_rgba(19,91,236,0.02)]">
-        <button
-          type="button"
-          onClick={toggle}
-          className={`flex size-[96px] items-center justify-center rounded-full shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)] transition-all ${
-            isListening ? 'scale-110 bg-danger' : 'bg-primary'
-          }`}
-        >
-          <Icon
-            icon={isListening ? 'ic:round-stop' : 'ic:round-mic'}
-            width={24}
-            height={24}
-            className="text-white"
-          />
-        </button>
-      </div>
-      {isListening && (
-        <p className="mt-3 animate-pulse text-sm font-medium text-primary">Listening...</p>
-      )}
     </div>
   );
 }

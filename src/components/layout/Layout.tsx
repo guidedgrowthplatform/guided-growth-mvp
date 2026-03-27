@@ -1,8 +1,8 @@
-import { type ReactNode, useState, useCallback } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { VoiceCheckInOverlay } from '@/components/home/VoiceCheckInOverlay';
 import { ToastContainer } from '@/components/ui/Toast';
-import { unlockTTS } from '@/lib/services/tts-service';
+import { VoiceTranscript } from '@/components/voice/VoiceTranscript';
 import { BottomNav } from './BottomNav';
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -10,11 +10,6 @@ export function Layout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const isHomePage = location.pathname === '/' || location.pathname === '/home';
   const isFullWidth = location.pathname === '/report' || location.pathname === '/focus';
-
-  const handleVoicePress = useCallback(() => {
-    unlockTTS();
-    setShowVoiceCheckIn(true);
-  }, []);
 
   return (
     <div className="flex min-h-screen">
@@ -30,8 +25,9 @@ export function Layout({ children }: { children: ReactNode }) {
         )}
       </main>
 
-      <BottomNav onVoicePress={handleVoicePress} />
+      <BottomNav onVoicePress={() => setShowVoiceCheckIn(true)} />
       <ToastContainer />
+      <VoiceTranscript />
       {showVoiceCheckIn && <VoiceCheckInOverlay onClose={() => setShowVoiceCheckIn(false)} />}
     </div>
   );

@@ -1,7 +1,8 @@
 import { Icon } from '@iconify/react';
 import { useState } from 'react';
-import type { HabitPerformance } from '@/hooks/useHabitAnalytics.types';
 import { HabitProgressRing } from './HabitProgressRing';
+import { habitPerformanceData } from './insightsMockData';
+import type { HabitPerformance } from './insightsMockData';
 
 function MiniSparkline({ data }: { data: number[] }) {
   const max = Math.max(...data);
@@ -83,29 +84,14 @@ function HabitDetailPanel({ habit }: { habit: HabitPerformance }) {
   );
 }
 
-interface HabitPerformanceListProps {
-  habits: HabitPerformance[];
-}
-
-export function HabitPerformanceList({ habits }: HabitPerformanceListProps) {
+export function HabitPerformanceList() {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
-
-  if (habits.length === 0) {
-    return (
-      <div>
-        <h2 className="text-[18px] font-bold leading-7 text-content">Habit Performance</h2>
-        <p className="mt-4 text-[14px] text-content-tertiary">
-          No habit data yet. Start tracking habits to see performance insights.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div>
       <h2 className="text-[18px] font-bold leading-7 text-content">Habit Performance</h2>
       <div className="mt-4 flex flex-col gap-3">
-        {habits.map((habit, i) => {
+        {habitPerformanceData.map((habit, i) => {
           const expanded = expandedIndex === i;
           return (
             <button

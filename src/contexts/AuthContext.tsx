@@ -1,103 +1,67 @@
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
-import { authClient } from '@/lib/auth-client';
-import { queryClient } from '@/lib/query';
-import { AuthContext, type AuthUser } from './authContextDef';
+import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { useState, useEffect, type ReactNode } from 'react';
+import { supabase } from '@/lib/supabase';
+import { AuthContext } from './authContextDef';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [session, setSession] = useState<{ token: string } | null>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    authClient
-      .getSession()
-      .then(({ data }) => {
-        if (data?.user) {
-          setUser(data.user as unknown as AuthUser);
-          setSession({ token: data.session?.token || '' });
-        }
-        setLoading(false);
-      })
-      .catch(() => {
-        setLoading(false);
-      });
-  }, []);
-
-  // Poll session every 5 minutes to detect expiry
-  useEffect(() => {
-    const interval = setInterval(
-      async () => {
-        try {
-          const { data } = await authClient.getSession();
-          if (!data?.user) {
-            setUser(null);
-            setSession(null);
-          }
-        } catch {
-          // Network error during poll — leave current state intact
-        }
-      },
-      5 * 60 * 1000,
-    );
-    return () => clearInterval(interval);
-  }, []);
-
-  const signUp = useCallback(async (email: string, password: string) => {
-    const { data, error } = await authClient.signUp.email({
-      email,
-      password,
-      name: email.split('@')[0],
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
     });
-    if (error) return { error: error.message ?? 'Sign up failed' };
 
-    if (data?.user) {
-      setUser(data.user as unknown as AuthUser);
-      setSession({ token: (data as { token?: string }).token || '' });
-    } else {
-      const { data: sessionData } = await authClient.getSession();
-      if (sessionData?.user) {
-        setUser(sessionData.user as unknown as AuthUser);
-        setSession({ token: sessionData.session?.token || '' });
-      }
-    }
-    return { error: null };
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const { data, error } = await authClient.signIn.email({ email, password });
-    if (error) return { error: error.message ?? 'Sign in failed' };
+  const signUp = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({ email, password });
+    return { error: error?.message ?? null };
+  };
 
-    if (data?.user) {
-      setUser(data.user as unknown as AuthUser);
-      setSession({ token: (data as { token?: string }).token || '' });
-    } else {
-      // Fallback: fetch session if signIn response didn't include user
-      const { data: sessionData } = await authClient.getSession();
-      if (sessionData?.user) {
-        setUser(sessionData.user as unknown as AuthUser);
-        setSession({ token: sessionData.session?.token || '' });
-      }
-    }
-    return { error: null };
-  }, []);
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error?.message ?? null };
+  };
 
-  const signOut = useCallback(async () => {
-    await authClient.signOut();
-    queryClient.clear();
-    localStorage.clear();
-    sessionStorage.clear();
+  const signOut = async () => {
+    await supabase.auth.signOut();
     setUser(null);
     setSession(null);
-  }, []);
+  };
 
-  const signInWithGoogle = useCallback(async () => {
-    const { error } = await authClient.signIn.social({
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      callbackURL: window.location.origin,
+      options: { redirectTo: window.location.origin },
     });
-    if (error) return { error: error.message ?? 'Google sign-in failed' };
-    return { error: null };
-  }, []);
+    return { error: error?.message ?? null };
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-primary-bg">
+        <div className="text-center">
+          <div className="mb-2 animate-pulse text-2xl font-bold text-primary">Guided Growth</div>
+          <div className="text-sm text-content-secondary">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider

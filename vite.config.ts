@@ -4,19 +4,6 @@ import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
 export default defineConfig({
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'query-vendor': ['@tanstack/react-query'],
-          'ui-vendor': ['lucide-react', '@iconify/react'],
-          'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
-          supabase: ['@supabase/supabase-js'],
-        },
-      },
-    },
-  },
   plugins: [
     react(),
     VitePWA({
@@ -59,12 +46,12 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.{ts,tsx}', 'api/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'cobertura'],
-      include: ['src/**/*.{ts,tsx}', 'api/**/*.{ts,tsx}'],
-      exclude: ['src/**/*.test.{ts,tsx}', 'api/**/*.test.{ts,tsx}', 'src/**/*.d.ts'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/**/*.d.ts'],
     },
   },
 });

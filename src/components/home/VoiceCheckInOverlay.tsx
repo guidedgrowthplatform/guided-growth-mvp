@@ -18,7 +18,8 @@ const stateLabel: Record<string, string> = {
 };
 
 export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
-  const { messages, voiceState, startListening, stopListening, updateHabitDays } = useVoiceChat();
+  const { messages, voiceState, startListening, stopListening, reset, updateHabitDays } =
+    useVoiceChat();
 
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
@@ -27,12 +28,10 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
     scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
-  // Bug 1 fix: Don't reset chat history on close — messages persist in sessionStorage.
-  // Stop any active listening but keep the conversation intact.
   const handleClose = useCallback(() => {
-    stopListening();
+    reset();
     onClose();
-  }, [stopListening, onClose]);
+  }, [reset, onClose]);
 
   const handleMicPress = () => {
     unlockTTS();

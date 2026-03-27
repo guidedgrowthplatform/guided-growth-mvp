@@ -1,69 +1,16 @@
 import { Icon } from '@iconify/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { FocusControls } from '@/components/focus/FocusControls';
 import { FocusSessionSheet } from '@/components/focus/FocusSessionSheet';
 import { FocusTimer } from '@/components/focus/FocusTimer';
 import { BottomSheet } from '@/components/ui/BottomSheet';
-import { useToast } from '@/contexts/ToastContext';
-import { useFocusSession } from '@/hooks/useFocusSession';
 import { useFocusTimer } from '@/hooks/useFocusTimer';
-import { useHabits } from '@/hooks/useHabits';
 
 export function FocusPage() {
   const timer = useFocusTimer();
-  const { habits } = useHabits();
-  const { saveFocusSession, error: saveError } = useFocusSession();
-  const { addToast } = useToast();
-
   const [showSheet, setShowSheet] = useState(false);
-  const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
+  const [selectedHabit, setSelectedHabit] = useState<string | null>(null);
   const [notify, setNotify] = useState(true);
-
-  // Track session start time
-  const sessionStartRef = useRef<string | null>(null);
-
-  const selectedHabit = habits.find((h) => h.id === selectedHabitId);
-
-  // Show toast when save fails
-  useEffect(() => {
-    if (saveError) {
-      addToast('error', `Failed to save session: ${saveError}`);
-    }
-  }, [saveError, addToast]);
-
-  // Save session when timer completes
-  const prevStatus = useRef(timer.status);
-  useEffect(() => {
-    if (prevStatus.current !== 'completed' && timer.status === 'completed') {
-      const startedAt = sessionStartRef.current || new Date().toISOString();
-      const durationMinutes = Math.round(timer.totalSeconds / 60);
-      const actualMinutes = durationMinutes; // Timer ran to completion
-
-      saveFocusSession(selectedHabitId, durationMinutes, actualMinutes, startedAt);
-      sessionStartRef.current = null;
-    }
-    prevStatus.current = timer.status;
-  }, [timer.status, timer.totalSeconds, selectedHabitId, saveFocusSession]);
-
-  const handleStart = useCallback(() => {
-    sessionStartRef.current = new Date().toISOString();
-    timer.start();
-  }, [timer]);
-
-  const handleStop = useCallback(() => {
-    // Save partial session on manual stop (skip 0-minute sessions)
-    if (sessionStartRef.current && timer.status === 'running') {
-      const durationMinutes = Math.round(timer.totalSeconds / 60);
-      const elapsedSeconds = timer.totalSeconds - timer.remainingSeconds;
-      const actualMinutes = Math.round(elapsedSeconds / 60);
-
-      if (actualMinutes >= 1) {
-        saveFocusSession(selectedHabitId, durationMinutes, actualMinutes, sessionStartRef.current);
-      }
-      sessionStartRef.current = null;
-    }
-    timer.stop();
-  }, [timer, selectedHabitId, saveFocusSession]);
 
   return (
     <div className="flex min-h-screen flex-col bg-surface-secondary pb-24">
@@ -76,7 +23,7 @@ export function FocusPage() {
           >
             <span className="h-2 w-2 rounded-full bg-warning" />
             <span className="max-w-[160px] truncate text-sm font-semibold text-content">
-              {selectedHabit?.name || 'Select a habit'}
+              {selectedHabit || 'Select a habit'}
             </span>
             <Icon
               icon="ic:round-keyboard-arrow-down"
@@ -99,10 +46,10 @@ export function FocusPage() {
       <div className="flex flex-col items-center gap-10 px-6 pb-12">
         <FocusControls
           status={timer.status}
-          onStart={handleStart}
+          onStart={timer.start}
           onPause={timer.pause}
           onResume={timer.resume}
-          onStop={handleStop}
+          onStop={timer.stop}
         />
         <div className="flex w-full items-center gap-2 rounded-full bg-primary-bg px-5 py-2.5">
           <Icon icon="si:ai-fill" width={24} className="text-[#FDD017]" />
@@ -115,14 +62,12 @@ export function FocusPage() {
       {showSheet && (
         <BottomSheet onClose={() => setShowSheet(false)}>
           <FocusSessionSheet
-            habits={habits}
-            selectedHabitId={selectedHabitId}
+            selectedHabit={selectedHabit}
             notify={notify}
-            onSelectHabit={setSelectedHabitId}
+            onSelectHabit={setSelectedHabit}
             onSetDurationSeconds={timer.setDurationSeconds}
             onToggleNotify={setNotify}
             onStart={() => {
-              sessionStartRef.current = new Date().toISOString();
               timer.start();
               setShowSheet(false);
             }}

@@ -1,12 +1,11 @@
 import { Icon } from '@iconify/react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SECTION_LABEL_CLASS, toggleSetItem } from '@/components/onboarding/constants';
 import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { VoiceEditCard } from '@/components/onboarding/VoiceEditCard';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { TimePicker } from '@/components/ui/TimePicker';
-import { useVoiceInput } from '@/hooks/useVoiceInput';
 
 interface EditHabitState {
   habitIndex: number;
@@ -31,7 +30,6 @@ export function EditHabitPage() {
 
 function EditHabitForm({ state }: { state: EditHabitState }) {
   const navigate = useNavigate();
-  const { toggle: toggleVoice, transcript, resetTranscript } = useVoiceInput();
 
   const [name, setName] = useState(state.habitName);
   const [time, setTime] = useState(state.time || '21:45');
@@ -40,20 +38,9 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
 
   const habitIndex = state.habitIndex;
 
-  // When voice transcript arrives, use it as the habit name
-  useEffect(() => {
-    if (transcript && transcript.trim()) {
-      setName(transcript.trim());
-      resetTranscript();
-    }
-  }, [transcript, resetTranscript]);
-
   function handleSave() {
-    if (!name.trim()) return;
     navigate('/onboarding/advanced-results', {
-      state: {
-        updatedHabit: { index: habitIndex, name: name.trim(), time, days: Array.from(days) },
-      },
+      state: { updatedHabit: { index: habitIndex, name, time, days: Array.from(days) } },
     });
   }
 
@@ -98,7 +85,6 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              maxLength={100}
               className="w-full rounded-[12px] border border-border bg-white px-[17px] py-[15px] text-[16px] font-medium leading-[24px] text-content outline-none"
             />
           </div>
@@ -124,7 +110,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
           </div>
         </div>
 
-        <VoiceEditCard onMicPress={toggleVoice} />
+        <VoiceEditCard />
       </div>
 
       {/* Footer */}
@@ -132,8 +118,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
         <button
           type="button"
           onClick={handleSave}
-          disabled={!name.trim()}
-          className="w-full rounded-full bg-primary py-[16px] text-center text-[16px] font-bold text-white shadow-[0px_10px_15px_-3px_#bfdbfe,0px_4px_6px_-4px_#bfdbfe] disabled:opacity-50"
+          className="w-full rounded-full bg-primary py-[16px] text-center text-[16px] font-bold text-white shadow-[0px_10px_15px_-3px_#bfdbfe,0px_4px_6px_-4px_#bfdbfe]"
         >
           Save Changes
         </button>

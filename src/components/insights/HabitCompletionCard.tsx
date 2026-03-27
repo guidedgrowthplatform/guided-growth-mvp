@@ -1,20 +1,12 @@
-import type { CompletionStats } from '@/hooks/useHabitAnalytics.types';
 import { BarChart } from './BarChart';
+import { completionByRange } from './insightsMockData';
 
 interface HabitCompletionCardProps {
   timeRange: string;
-  completionByRange: Record<string, CompletionStats>;
 }
 
-export function HabitCompletionCard({ timeRange, completionByRange }: HabitCompletionCardProps) {
-  const fallback: CompletionStats = {
-    percentage: 0,
-    trend: '0%',
-    trendPositive: false,
-    subtitle: 'No data',
-    bars: [],
-  };
-  const stats = completionByRange[timeRange] ?? fallback;
+export function HabitCompletionCard({ timeRange }: HabitCompletionCardProps) {
+  const stats = completionByRange[timeRange] ?? completionByRange.week;
 
   return (
     <div className="rounded-lg border border-border-light bg-surface p-[25px] shadow-sm">

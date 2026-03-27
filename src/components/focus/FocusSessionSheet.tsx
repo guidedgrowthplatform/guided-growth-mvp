@@ -1,26 +1,24 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Toggle } from '@/components/ui/Toggle';
-import type { Habit } from '@/lib/services/data-service.interface';
 import { TimePicker } from './ScrollWheelPicker';
 
+const HABITS = ['Morning Mindfulness', 'Daily Hydration', 'Deep Reading Novel'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
 const SECONDS = Array.from({ length: 12 }, (_, i) => i * 5);
 
 interface FocusSessionSheetProps {
-  habits: Habit[];
-  selectedHabitId: string | null;
+  selectedHabit: string | null;
   notify: boolean;
-  onSelectHabit: (id: string) => void;
+  onSelectHabit: (name: string) => void;
   onSetDurationSeconds: (totalSeconds: number) => void;
   onToggleNotify: (value: boolean) => void;
   onStart: () => void;
 }
 
 export function FocusSessionSheet({
-  habits,
-  selectedHabitId,
+  selectedHabit,
   notify,
   onSelectHabit,
   onSetDurationSeconds,
@@ -47,18 +45,15 @@ export function FocusSessionSheet({
           Select Habit
         </p>
         <div className="mt-3 flex flex-col gap-3">
-          {habits.length === 0 && (
-            <p className="py-2 text-sm text-content-tertiary">No active habits found.</p>
-          )}
-          {habits.map((h) => (
+          {HABITS.map((h) => (
             <button
-              key={h.id}
-              onClick={() => onSelectHabit(h.id)}
+              key={h}
+              onClick={() => onSelectHabit(h)}
               className={`w-full rounded-[16px] p-3 text-left text-[15px] font-medium text-content transition-colors ${
-                selectedHabitId === h.id ? 'bg-primary-bg ring-2 ring-primary' : 'bg-[#f9fafb]'
+                selectedHabit === h ? 'bg-primary-bg ring-2 ring-primary' : 'bg-[#f9fafb]'
               }`}
             >
-              {h.name}
+              {h}
             </button>
           ))}
         </div>
