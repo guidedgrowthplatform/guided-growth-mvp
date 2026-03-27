@@ -35,9 +35,7 @@ export function SignInPage() {
     setLoading(true);
     const { error: authError } = await signIn(data.email, data.password);
     setLoading(false);
-    if (authError) {
-      setError(authError);
-    }
+    if (authError) setError(authError);
   };
 
   return (
@@ -52,7 +50,7 @@ export function SignInPage() {
       </div>
 
       <div className="mt-10">
-        <SocialAuthButtons />
+        <SocialAuthButtons disabled={loading} />
       </div>
 
       <div className="mt-8">
@@ -64,6 +62,7 @@ export function SignInPage() {
           variant="auth"
           placeholder="Email Address"
           type="email"
+          disabled={loading}
           {...register('email')}
           error={errors.email?.message}
         />
@@ -72,6 +71,7 @@ export function SignInPage() {
           type="password"
           placeholder="Password"
           showPasswordToggle
+          disabled={loading}
           {...register('password')}
           error={errors.password?.message}
         />
@@ -86,10 +86,10 @@ export function SignInPage() {
             size="auth-rect"
             fullWidth
             type="submit"
-            disabled={loading}
+            loading={loading}
             className="shadow-[0_10px_15px_-3px_rgba(19,91,236,0.3)]"
           >
-            {loading ? 'Please wait...' : 'Log In'}
+            Log In
           </Button>
         </div>
         {successMessage && <AuthAlert type="success" message={successMessage} />}

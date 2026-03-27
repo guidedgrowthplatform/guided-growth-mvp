@@ -22,6 +22,20 @@ function mapUser(u: any): AppUser {
   };
 }
 
+const ERROR_MESSAGES: Record<string, string> = {
+  INVALID_EMAIL_OR_PASSWORD: 'Incorrect email or password',
+  FAILED_TO_CREATE_USER: 'Unable to create account',
+  USER_ALREADY_EXISTS: 'An account with this email already exists',
+  INVALID_PASSWORD: 'Password must be at least 8 characters',
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function friendlyError(error: any): string {
+  if (!error) return 'Something went wrong. Please try again.';
+  const code = error.code || error.message;
+  return ERROR_MESSAGES[code] || error.message || 'Something went wrong. Please try again.';
+}
+
 export interface AuthState {
   user: AppUser | null;
   loading: boolean;
@@ -70,7 +84,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       password,
       name: email.split('@')[0],
     });
-    if (error) return { error: error.message ?? 'Sign up failed' };
+    if (error) return { error: friendlyError(error) };
 
     if (data?.user) {
       set({ user: mapUser(data.user) });
@@ -83,7 +97,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signIn: async (email, password) => {
     const { data, error } = await authClient.signIn.email({ email, password });
-    if (error) return { error: error.message ?? 'Sign in failed' };
+    if (error) return { error: friendlyError(error) };
 
     if (data?.user) {
       set({ user: mapUser(data.user) });
@@ -104,6 +118,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       provider: 'google',
       callbackURL: window.location.origin,
     });
-    return { error: error?.message ?? null };
+    return { error: error ? friendlyError(error) : null };
   },
 }));

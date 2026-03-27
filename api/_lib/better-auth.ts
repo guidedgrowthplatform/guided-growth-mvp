@@ -53,7 +53,6 @@ export const auth = betterAuth({
     additionalFields: {
       role: { type: 'string', defaultValue: 'user', input: false },
       status: { type: 'string', defaultValue: 'active', input: false },
-      last_login_at: { type: 'string', required: false, input: false },
     },
   },
 
@@ -75,8 +74,8 @@ export const auth = betterAuth({
   advanced: {
     useSecureCookies: process.env.BETTER_AUTH_SECURE_COOKIES === 'true',
     defaultCookieAttributes: {
-      sameSite: 'none' as const,
-      secure: true,
+      sameSite: 'lax' as const,
+      secure: process.env.NODE_ENV === 'production',
     },
   },
 });

@@ -1,8 +1,10 @@
 import type { User, AllowlistEntry, AuditLogEntry } from '@shared/types';
 import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 
-export async function fetchUsers(): Promise<User[]> {
-  return apiGet<User[]>('/api/admin/users');
+export type AdminUser = User & { last_active: string | null };
+
+export async function fetchUsers(): Promise<AdminUser[]> {
+  return apiGet<AdminUser[]>('/api/admin/users');
 }
 
 export async function updateUserRole(userId: string, role: string): Promise<User> {
