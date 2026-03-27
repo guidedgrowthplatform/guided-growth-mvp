@@ -1,6 +1,6 @@
 # Life Growth Tracker
 
-A voice-powered habit tracking and self-improvement app. Built with React, Vite, TypeScript, and Supabase.
+A voice-powered habit tracking and self-improvement app. Built with React, Vite, TypeScript, and Supabase..
 
 ## Features
 
