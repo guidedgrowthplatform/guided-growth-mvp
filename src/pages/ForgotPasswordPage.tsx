@@ -4,13 +4,10 @@ import { useForm } from 'react-hook-form';
 import { AuthBackButton, AuthFooter, AuthAlert } from '@/components/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { supabase } from '@/lib/supabase';
 import { forgotPasswordSchema, type ForgotPasswordForm } from '@/lib/validation';
 
 export function ForgotPasswordPage() {
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
 
   const {
     register,
@@ -21,21 +18,8 @@ export function ForgotPasswordPage() {
     mode: 'onBlur',
   });
 
-  const onSubmit = async (data: ForgotPasswordForm) => {
-    setError(null);
-    setLoading(true);
-
-    const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-      redirectTo: `${window.location.origin}/login`,
-    });
-
-    setLoading(false);
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setSent(true);
-    }
+  const onSubmit = async (_data: ForgotPasswordForm) => {
+    setError('Password reset is not available yet. Please contact support.');
   };
 
   return (
@@ -49,34 +33,25 @@ export function ForgotPasswordPage() {
         </p>
       </div>
 
-      {sent ? (
-        <div className="mt-8 space-y-4">
-          <AuthAlert type="success" message="Check your email for a password reset link." />
-          <AuthFooter text="" linkText="Back to sign in" to="/login" />
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">
-          <Input
-            variant="auth"
-            type="email"
-            placeholder="Email Address"
-            {...register('email')}
-            error={errors.email?.message}
-          />
-          {error && <AuthAlert type="error" message={error} />}
-          <Button variant="primary" size="auth-rect" fullWidth type="submit" disabled={loading}>
-            {loading ? 'Sending...' : 'Send Reset Link'}
-          </Button>
-        </form>
-      )}
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">
+        <Input
+          variant="auth"
+          type="email"
+          placeholder="Email Address"
+          {...register('email')}
+          error={errors.email?.message}
+        />
+        {error && <AuthAlert type="error" message={error} />}
+        <Button variant="primary" size="auth-rect" fullWidth type="submit">
+          Send Reset Link
+        </Button>
+      </form>
 
       <div className="flex-1" />
 
-      {!sent && (
-        <div className="pb-4">
-          <AuthFooter text="Remember your password?" linkText="Sign in" to="/login" />
-        </div>
-      )}
+      <div className="pb-4">
+        <AuthFooter text="Remember your password?" linkText="Sign in" to="/login" />
+      </div>
     </div>
   );
 }

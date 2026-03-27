@@ -20,6 +20,9 @@ tsconfig.tsbuildinfo
 .vercel
 .env.vercel.check
 
+# Supabase CLI local cache
+supabase/.temp/
+
 # Vite temp files
 vite.config.ts.timestamp-*
 

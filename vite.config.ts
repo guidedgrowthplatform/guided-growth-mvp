@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
@@ -31,8 +31,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3001,
-    strictPort: true,
+    port: parseInt(process.env.PORT || '5173'),
     proxy: {
       '/api': {
         target: process.env.VITE_API_URL || 'http://localhost:3000',

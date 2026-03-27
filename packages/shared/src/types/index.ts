@@ -6,11 +6,11 @@ export interface User {
   id: string;
   email: string;
   name: string | null;
-  avatar_url: string | null;
+  image: string | null;
   role: UserRole;
   status: UserStatus;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
   last_login_at: string | null;
 }
 
