@@ -4,31 +4,29 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { WEEKDAYS } from '@/components/onboarding/constants';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 
 interface HabitItem {
   name: string;
   days: Set<number>;
-  selected: boolean;
-}
-
-interface UpdatedHabit {
-  index: number;
-  name: string;
-  days: number[];
 }
 
 interface ResultsLocationState {
-  updatedHabit?: UpdatedHabit;
+  text?: string;
+  updatedHabit?: { index: number; name: string; days: number[] };
   deletedIndex?: number;
 }
 
-const MOCK_HABITS: HabitItem[] = [
-  { name: 'Sleep by 11 PM', days: new Set(WEEKDAYS), selected: true },
-  { name: 'Morning stretch', days: new Set(WEEKDAYS), selected: true },
-  { name: 'No coffee after 3 PM', days: new Set(WEEKDAYS), selected: true },
-];
+function buildHabitsFromText(text: string | undefined): HabitItem[] {
+  const parsed = parseHabitsFromText(text ?? '');
+  return parsed.map((h) => ({
+    name: h.name,
+    days: new Set(WEEKDAYS),
+  }));
+}
 
-function applyLocationState(base: HabitItem[], state: ResultsLocationState | null): HabitItem[] {
+function applyEdits(base: HabitItem[], state: ResultsLocationState | null): HabitItem[] {
   if (!state) return base;
   let result = base;
   if (state.updatedHabit) {
@@ -44,10 +42,13 @@ function applyLocationState(base: HabitItem[], state: ResultsLocationState | nul
 export function AdvancedResultsPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { state: onboardingState, saveStep } = useOnboarding();
   const locationState = location.state as ResultsLocationState | null;
   const clearedRef = useRef(false);
 
-  const habits = useMemo(() => applyLocationState(MOCK_HABITS, locationState), [locationState]);
+  const brainDumpText = locationState?.text ?? onboardingState?.brain_dump_raw ?? '';
+  const baseHabits = useMemo(() => buildHabitsFromText(brainDumpText), [brainDumpText]);
+  const habits = useMemo(() => applyEdits(baseHabits, locationState), [baseHabits, locationState]);
 
   useEffect(() => {
     if (locationState && !clearedRef.current) {
@@ -61,6 +62,11 @@ export function AdvancedResultsPage() {
       name: h.name,
       days: [...h.days],
     }));
+    const configRecord: Record<string, { days: number[]; time: string; reminder: boolean }> = {};
+    for (const h of habitConfigs) {
+      configRecord[h.name] = { days: h.days, time: '21:45', reminder: true };
+    }
+    saveStep(4, { habitConfigs: configRecord });
     navigate('/onboarding/advanced-step-6', { state: { habitConfigs } });
   }
 

@@ -5,6 +5,7 @@ import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 const AGE_OPTIONS = [
   '14 or under',
@@ -26,17 +27,23 @@ const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
 export function Step1Page() {
   const navigate = useNavigate();
-  const [nickname, setNickname] = useState('');
-  const [ageRange, setAgeRange] = useState<string | null>(null);
-  const [gender, setGender] = useState<string | null>(null);
+  const { state: onboardingState, saveStep } = useOnboarding();
+  const saved = onboardingState?.data;
+  const [nickname, setNickname] = useState(saved?.nickname ?? '');
+  const [ageRange, setAgeRange] = useState<string | null>(saved?.ageRange ?? null);
+  const [gender, setGender] = useState<string | null>(saved?.gender ?? null);
 
   return (
     <OnboardingLayout
       currentStep={1}
       totalSteps={7}
       ctaLabel="Let's Begin"
-      onNext={() => navigate('/onboarding/step-2')}
+      onNext={() => {
+        saveStep(1, { nickname, ageRange: ageRange ?? undefined, gender: gender ?? undefined });
+        navigate('/onboarding/step-2');
+      }}
       showVoiceButton
+      onTranscript={setNickname}
     >
       <OnboardingHeader
         title="Let's get to know you."
@@ -44,7 +51,7 @@ export function Step1Page() {
       />
       <OnboardingSection label="What should I call you?">
         <OnboardingInput
-          icon="ic:round-person-outline"
+          icon="octicon:person-16"
           placeholder="Enter your nickname"
           value={nickname}
           onChange={setNickname}

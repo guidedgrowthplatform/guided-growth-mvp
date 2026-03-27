@@ -125,6 +125,39 @@ export type BadgeVariant = 'default' | 'success' | 'danger' | 'warning';
 export type NavTab = 'home' | 'progress' | 'voice' | 'focus' | 'profile';
 export type CheckInDimension = 'sleep' | 'mood' | 'energy' | 'stress';
 
+// ─── Onboarding ────────────────────────────────────
+export type OnboardingPath = 'beginner' | 'advanced';
+export type OnboardingStatus = 'not_started' | 'in_progress' | 'completed';
+
+export interface OnboardingState {
+  id: string;
+  user_id: string;
+  path: OnboardingPath | null;
+  current_step: number;
+  status: OnboardingStatus;
+  data: OnboardingStepData;
+  brain_dump_raw: string | null;
+  brain_dump_parsed: ParsedHabit[] | null;
+  completed_at: string | null;
+}
+
+export interface OnboardingStepData {
+  nickname?: string;
+  ageRange?: string;
+  gender?: string;
+  category?: string;
+  goals?: string[];
+  habitConfigs?: Record<string, { days: number[]; time: string; reminder: boolean }>;
+  reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string };
+}
+
+export interface ParsedHabit {
+  name: string;
+  frequency?: string;
+  days?: number[];
+  time?: string;
+}
+
 // ─── Audit Log ──────────────────────────────────────
 export interface AuditLogEntry {
   id: string;

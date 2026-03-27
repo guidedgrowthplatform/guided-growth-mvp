@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { deleteAccount } from '@/api/onboarding';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import { SettingRow } from '@/components/settings/SettingRow';
 import { SettingsCard } from '@/components/settings/SettingsCard';
@@ -9,8 +10,11 @@ import { SettingsHeader } from '@/components/settings/SettingsHeader';
 import { TimeBadge } from '@/components/settings/TimeBadge';
 import { UserInfoSection } from '@/components/settings/UserInfoSection';
 import { VoiceSettingsSheet } from '@/components/settings/VoiceSettingsSheet';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Toggle } from '@/components/ui/Toggle';
 import { useToast } from '@/contexts/ToastContext';
+import { useAuth } from '@/hooks/useAuth';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import {
   getAvailableVoices,
   setVoicePreference,
@@ -40,6 +44,11 @@ const sttOptions: { value: SttProvider; label: string; description: string }[] =
     value: 'deepgram',
     label: 'DeepGram Nova-2',
     description: 'Cloud-based. Fastest transcription with real-time streaming. Requires API key.',
+  },
+  {
+    value: 'elevenlabs',
+    label: 'ElevenLabs Scribe v2',
+    description: 'Cloud-based. High accuracy with audio preprocessing. Requires API key.',
   },
 ];
 
@@ -106,6 +115,7 @@ const sttLabels: Record<string, string> = {
   webspeech: 'Web Speech API',
   whisper: 'Whisper',
   deepgram: 'DeepGram Nova-2',
+  elevenlabs: 'ElevenLabs Scribe v2',
 };
 const modeLabels: Record<string, string> = { 'auto-stop': 'Auto-stop', 'always-on': 'Always On' };
 
@@ -188,6 +198,8 @@ type SheetType =
 export function SettingsPage() {
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const { user, signOut } = useAuth();
+  const { state: onboardingState } = useOnboarding();
   const {
     recordingMode,
     setRecordingMode,
@@ -201,6 +213,7 @@ export function SettingsPage() {
   const [selectedVoice, setSelectedVoice] = useState<string>(getVoicePreference() || '');
   const [activeSheet, setActiveSheet] = useState<SheetType | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   // Page-level settings (persisted in localStorage)
   const [pageSettings, setPageSettings] = useState<PageSettings>(loadPageSettings);
@@ -260,10 +273,12 @@ export function SettingsPage() {
     speak('Hello! I am your growth tracker assistant. How can I help you today?');
   }, []);
 
-  const handleDeleteAccount = useCallback(() => {
+  const handleDeleteAccount = useCallback(async () => {
+    await deleteAccount();
+    await signOut();
     localStorage.clear();
-    window.location.reload();
-  }, []);
+    navigate('/login', { replace: true });
+  }, [signOut, navigate]);
 
   // Lookup labels
   const coachingLabel =
@@ -274,16 +289,14 @@ export function SettingsPage() {
   const languageLabel =
     languages.find((l) => l.value === pageSettings.language)?.label ?? 'English (US)';
 
-  // Static user data (placeholder until auth context is available)
-  const user = { name: 'Jeff Doe', email: 'jeff.doe@example.com' };
-
   return (
     <div>
       <SettingsHeader onBack={() => navigate(-1)} />
 
       <UserInfoSection
-        name={user.name}
-        email={user.email}
+        name={onboardingState?.data?.nickname || user?.name || user?.email?.split('@')[0] || 'User'}
+        email={user?.email || ''}
+        avatarUrl={user?.image || undefined}
         onEditProfile={() => addToast('info', 'Edit profile coming soon')}
         onChangePhoto={() => addToast('info', 'Photo upload coming soon')}
       />
@@ -408,6 +421,16 @@ export function SettingsPage() {
             right={
               <Icon icon="ic:round-chevron-right" width={20} className="text-content-tertiary" />
             }
+          />
+          <SettingRow
+            icon="ic:round-logout"
+            label="Log Out"
+            onClick={async () => {
+              setLoggingOut(true);
+              await signOut();
+              navigate('/login', { replace: true });
+            }}
+            right={loggingOut ? <LoadingSpinner size="sm" /> : undefined}
           />
           <SettingRow
             icon="octicon:trash-24"

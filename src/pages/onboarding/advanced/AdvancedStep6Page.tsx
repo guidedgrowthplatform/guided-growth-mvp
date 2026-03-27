@@ -4,6 +4,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { WEEKDAYS, WEEKEND, ALL_DAYS } from '@/components/onboarding/constants';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
 
 const DEFAULT_QUESTIONS = [
   'What am I proud of today?',
@@ -28,6 +30,8 @@ interface LocationState {
 export function AdvancedStep6Page() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { saveStep } = useOnboarding();
+  const { isListening, toggle } = useVoiceInput();
   const state = location.state as LocationState | null;
 
   const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');
@@ -61,10 +65,12 @@ export function AdvancedStep6Page() {
 
     const days = [...(SCHEDULE_DAYS[schedule] ?? WEEKDAYS)];
 
+    const reflectionConfig = { time: '21:45', days, reminder: true, schedule };
+    saveStep(5, { habitConfigs: configRecord, reflectionConfig });
     navigate('/onboarding/step-7', {
       state: {
         habitConfigs: configRecord,
-        reflectionConfig: { time: '21:45', days, reminder: true, schedule },
+        reflectionConfig,
         source: 'advanced',
       },
     });
@@ -194,9 +200,15 @@ export function AdvancedStep6Page() {
         <div className="rounded-full shadow-[0px_0px_0px_12px_rgba(19,91,236,0.05),0px_0px_0px_24px_rgba(19,91,236,0.02)]">
           <button
             type="button"
-            className="flex size-[96px] items-center justify-center rounded-full bg-primary shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)]"
+            onClick={toggle}
+            className={`flex size-[96px] items-center justify-center rounded-full shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)] ${isListening ? 'animate-pulse bg-red-500' : 'bg-primary'}`}
           >
-            <Icon icon="ic:round-mic" width={24} height={24} className="text-white" />
+            <Icon
+              icon={isListening ? 'ic:round-stop' : 'ic:round-mic'}
+              width={24}
+              height={24}
+              className="text-white"
+            />
           </button>
         </div>
       </div>

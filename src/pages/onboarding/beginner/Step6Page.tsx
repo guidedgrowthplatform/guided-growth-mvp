@@ -11,6 +11,7 @@ import { DailyReflectionCard } from '@/components/onboarding/DailyReflectionCard
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 const SCHEDULE_DAYS: Record<ScheduleOption, Set<number>> = {
   Weekday: WEEKDAYS,
@@ -28,6 +29,8 @@ function inferSchedule(days: Set<number>): ScheduleOption | null {
 export function Step6Page() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { state: onboardingState, saveStep } = useOnboarding();
+  const saved = onboardingState?.data;
   const state = location.state as {
     habitConfigs?: Record<
       string,
@@ -43,13 +46,15 @@ export function Step6Page() {
     };
   } | null;
 
-  const incoming = state?.reflectionConfig;
+  const incoming = state?.reflectionConfig ?? saved?.reflectionConfig;
   const [time, setTime] = useState(incoming?.time ?? '21:45');
   const [days, setDays] = useState<Set<number>>(
     incoming?.days ? new Set(incoming.days) : new Set(WEEKDAYS),
   );
   const [reminder, setReminder] = useState(incoming?.reminder ?? true);
-  const [schedule, setSchedule] = useState<ScheduleOption>(incoming?.schedule ?? 'Weekday');
+  const [schedule, setSchedule] = useState<ScheduleOption>(
+    (incoming?.schedule as ScheduleOption) ?? 'Weekday',
+  );
 
   function handleScheduleChange(value: ScheduleOption) {
     setSchedule(value);
@@ -83,12 +88,14 @@ export function Step6Page() {
               ]),
             )
           : undefined;
+        const reflectionConfig = { time, days: [...days], reminder, schedule };
+        saveStep(6, { reflectionConfig });
         navigate('/onboarding/step-7', {
           state: {
             habitConfigs: serializedConfigs,
             goals: state?.goals,
             category: state?.category,
-            reflectionConfig: { time, days: [...days], reminder, schedule },
+            reflectionConfig,
           },
         });
       }}

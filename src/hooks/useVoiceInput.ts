@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { startElevenLabs, stopAndTranscribe } from '@/lib/services/elevenlabs-service';
 import { ensureMicPermission } from '@/lib/services/mic-permissions';
 import {
   loadWhisperModel,
@@ -301,6 +302,30 @@ export function useVoiceInput() {
       return;
     }
 
+    if (sttProvider === 'elevenlabs') {
+      const micAllowed = await ensureMicPermission();
+      if (!micAllowed) {
+        setError('Microphone permission denied.');
+        return;
+      }
+      try {
+        await startElevenLabs({
+          onOpen: () => {
+            startListening();
+            setInterim('Listening... (tap mic to stop and transcribe)');
+          },
+          onError: (msg) => {
+            setError(msg);
+            stopListening();
+          },
+        });
+      } catch (err) {
+        setError(`ElevenLabs failed: ${err instanceof Error ? err.message : err}`);
+        stopListening();
+      }
+      return;
+    }
+
     // Web Speech API flow
     if (!isSupported) {
       setError('Web Speech API is not supported in this browser. Try Chrome or Edge.');
@@ -346,13 +371,37 @@ export function useVoiceInput() {
         setError(`Failed to start: ${err instanceof Error ? err.message : err}`);
       }
     }
-  }, [isSupported, getRecognition, startListening, setError, resetSilenceTimer, startWhisper]);
+  }, [
+    isSupported,
+    getRecognition,
+    startListening,
+    stopListening,
+    setError,
+    setInterim,
+    resetSilenceTimer,
+    startWhisper,
+  ]);
 
-  const stop = useCallback(() => {
+  const stop = useCallback(async () => {
     const { sttProvider } = useVoiceSettingsStore.getState();
 
     if (sttProvider === 'whisper') {
       stopWhisper();
+      return;
+    }
+
+    if (sttProvider === 'elevenlabs') {
+      setInterim('Transcribing...');
+      try {
+        const text = await stopAndTranscribe();
+        if (text) {
+          appendTranscript(text);
+        }
+      } catch (err) {
+        setError(`Transcription failed: ${err instanceof Error ? err.message : err}`);
+      }
+      setInterim('');
+      stopListening();
       return;
     }
 
@@ -370,7 +419,7 @@ export function useVoiceInput() {
       }
     }
     stopListening();
-  }, [stopListening, clearSilenceTimer, stopWhisper]);
+  }, [stopListening, clearSilenceTimer, stopWhisper, appendTranscript, setInterim, setError]);
 
   const toggle = useCallback(() => {
     if (isListening) {

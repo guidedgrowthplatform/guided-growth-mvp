@@ -1,11 +1,12 @@
 import { Icon } from '@iconify/react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SECTION_LABEL_CLASS, toggleSetItem } from '@/components/onboarding/constants';
 import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { VoiceEditCard } from '@/components/onboarding/VoiceEditCard';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { TimePicker } from '@/components/ui/TimePicker';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
 
 interface EditHabitState {
   habitIndex: number;
@@ -30,11 +31,20 @@ export function EditHabitPage() {
 
 function EditHabitForm({ state }: { state: EditHabitState }) {
   const navigate = useNavigate();
+  const { isListening, toggle, transcript } = useVoiceInput();
 
   const [name, setName] = useState(state.habitName);
   const [time, setTime] = useState(state.time || '21:45');
   const [days, setDays] = useState<Set<number>>(new Set(state.days));
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const prevTranscriptRef = useRef(transcript);
+  useEffect(() => {
+    if (transcript && transcript !== prevTranscriptRef.current && !isListening) {
+      setName(transcript);
+    }
+    prevTranscriptRef.current = transcript;
+  }, [transcript, isListening]);
 
   const habitIndex = state.habitIndex;
 
@@ -110,7 +120,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
           </div>
         </div>
 
-        <VoiceEditCard />
+        <VoiceEditCard onMicPress={toggle} />
       </div>
 
       {/* Footer */}

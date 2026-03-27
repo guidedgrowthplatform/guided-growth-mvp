@@ -3,10 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 export function Step2Page() {
   const navigate = useNavigate();
-  const [plan, setPlan] = useState<'simple' | 'braindump' | null>(null);
+  const { state: onboardingState, saveStep } = useOnboarding();
+  const savedPath = onboardingState?.path;
+  const [plan, setPlan] = useState<'simple' | 'braindump' | null>(
+    savedPath === 'advanced' ? 'braindump' : savedPath === 'beginner' ? 'simple' : null,
+  );
 
   return (
     <OnboardingLayout
@@ -15,6 +20,8 @@ export function Step2Page() {
       ctaLabel="Continue"
       ctaVariant="inline"
       onNext={() => {
+        const path = plan === 'braindump' ? 'advanced' : 'beginner';
+        saveStep(2, {}, { path: path as 'beginner' | 'advanced' });
         if (plan === 'braindump') navigate('/onboarding/advanced-input');
         else navigate('/onboarding/step-3');
       }}

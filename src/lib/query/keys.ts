@@ -14,6 +14,9 @@ export const queryKeys = {
     range: (start: string, end: string) => ['reflections', start, end] as const,
     affirmation: ['reflections', 'affirmation'] as const,
   },
+  onboarding: {
+    state: ['onboarding'] as const,
+  },
   admin: {
     users: ['admin', 'users'] as const,
     allowlist: ['admin', 'allowlist'] as const,

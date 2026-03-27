@@ -31,6 +31,7 @@
     { "source": "/api/metrics", "destination": "/api/metrics/__index" },
     { "source": "/api/entries", "destination": "/api/entries/__index" },
     { "source": "/api/reflections", "destination": "/api/reflections/__index" },
+    { "source": "/api/onboarding", "destination": "/api/onboarding/__index" },
     { "source": "/api/admin", "destination": "/api/admin/__index" },
     { "source": "/((?!api).*)", "destination": "/index.html" }
   ]

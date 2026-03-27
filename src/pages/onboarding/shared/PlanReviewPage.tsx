@@ -3,6 +3,7 @@ import { formatCadence } from '@/components/onboarding/constants';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
+import { useOnboarding } from '@/hooks/useOnboarding';
 const CATEGORY_ICONS: Record<string, string> = {
   Sleep: 'ic:outline-nightlight-round',
   Move: 'ic:outline-directions-run',
@@ -25,6 +26,7 @@ interface PlanReviewState {
 export function PlanReviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { complete, isCompleting } = useOnboarding();
   const state = location.state as PlanReviewState | null;
 
   if (!state?.habitConfigs || !state?.reflectionConfig) {
@@ -41,8 +43,11 @@ export function PlanReviewPage() {
     <OnboardingLayout
       currentStep={source === 'advanced' ? 6 : 7}
       totalSteps={source === 'advanced' ? 6 : 7}
-      ctaLabel="Start plan"
-      onNext={() => navigate('/home')}
+      ctaLabel={isCompleting ? 'Setting up...' : 'Start plan'}
+      ctaDisabled={isCompleting}
+      onNext={() => {
+        complete({ habitConfigs, reflectionConfig });
+      }}
       onBack={() =>
         navigate(source === 'advanced' ? '/onboarding/advanced-step-6' : '/onboarding/step-6', {
           state:

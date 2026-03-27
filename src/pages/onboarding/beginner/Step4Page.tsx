@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 const goalsByCategory: Record<string, string[]> = {
   'Sleep better': [
@@ -54,9 +55,15 @@ const goalsByCategory: Record<string, string[]> = {
 export function Step4Page() {
   const navigate = useNavigate();
   const location = useLocation();
-  const category = (location.state as { category?: string })?.category ?? 'Sleep better';
+  const { state: onboardingState, saveStep } = useOnboarding();
+  const category =
+    (location.state as { category?: string })?.category ??
+    onboardingState?.data?.category ??
+    'Sleep better';
   const goals = goalsByCategory[category] ?? goalsByCategory['Sleep better'];
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(
+    new Set(onboardingState?.data?.goals ?? []),
+  );
 
   function toggleGoal(goal: string) {
     setSelected((prev) => {
@@ -76,9 +83,11 @@ export function Step4Page() {
       totalSteps={7}
       ctaLabel="Continue"
       ctaVariant="inline"
-      onNext={() =>
-        navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } })
-      }
+      onNext={() => {
+        const goals = Array.from(selected);
+        saveStep(4, { goals });
+        navigate('/onboarding/step-5', { state: { goals, category } });
+      }}
       onBack={() => navigate('/onboarding/step-3')}
       showVoiceButton
       aiListeningPrompt='"Within that category, what specific area would you like to improve?"'

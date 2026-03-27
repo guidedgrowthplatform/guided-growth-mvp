@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
 
 type JournalMode = 'freeform' | 'custom';
 
@@ -15,11 +16,20 @@ export function AdvancedCustomPromptsPage() {
   const location = useLocation();
   const state = location.state as LocationState | null;
 
+  const { isListening, toggle, transcript } = useVoiceInput();
   const [journalMode, setJournalMode] = useState<JournalMode>(state?.journalMode ?? 'custom');
   const [prompts, setPrompts] = useState<string[]>(
     state?.customPrompts?.length ? state.customPrompts : [],
   );
   const [newPrompt, setNewPrompt] = useState('');
+
+  const prevTranscriptRef = useRef(transcript);
+  useEffect(() => {
+    if (transcript && transcript !== prevTranscriptRef.current && !isListening) {
+      setPrompts((prev) => [...prev, transcript]);
+    }
+    prevTranscriptRef.current = transcript;
+  }, [transcript, isListening]);
 
   const filledPrompts = prompts.filter((p) => p.trim().length > 0);
   const canSubmit = journalMode === 'freeform' || filledPrompts.length >= 1;
@@ -208,9 +218,15 @@ export function AdvancedCustomPromptsPage() {
         <div className="rounded-full shadow-[0px_0px_0px_8px_rgba(19,91,236,0.05),0px_0px_0px_16px_rgba(19,91,236,0.02)]">
           <button
             type="button"
-            className="flex size-[72px] items-center justify-center rounded-full bg-primary shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)]"
+            onClick={toggle}
+            className={`flex size-[72px] items-center justify-center rounded-full shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)] ${isListening ? 'animate-pulse bg-red-500' : 'bg-primary'}`}
           >
-            <Icon icon="ic:round-mic" width={20} height={20} className="text-white" />
+            <Icon
+              icon={isListening ? 'ic:round-stop' : 'ic:round-mic'}
+              width={20}
+              height={20}
+              className="text-white"
+            />
           </button>
         </div>
       </div>

@@ -1,9 +1,6 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
 import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
-import { getDataService } from '@/lib/services/service-provider';
 import { AdminPage } from '@/pages/AdminPage';
 import { CalendarPage } from '@/pages/CalendarPage';
 import { CapturePage } from '@/pages/CapturePage';
@@ -31,22 +28,13 @@ import {
 import { SettingsPage } from '@/pages/SettingsPage';
 import { SignInPage } from '@/pages/SignInPage';
 import { SignUpPage } from '@/pages/SignUpPage';
+import { OnboardingGuard } from './OnboardingGuard';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
 
 function ProtectedLayout() {
-  const qc = useQueryClient();
   const navigate = useNavigate();
   const habitMatch = useMatch('/habit/:habitId');
-
-  useEffect(() => {
-    getDataService()
-      .then((ds) => ds.seedData())
-      .then(() => {
-        qc.invalidateQueries();
-      })
-      .catch(console.error);
-  }, [qc]);
 
   return (
     <Layout>
@@ -94,7 +82,9 @@ export function AppRoutes() {
         path="/onboarding"
         element={
           <ProtectedRoute>
-            <Step1Page />
+            <OnboardingGuard mode="onboarding">
+              <Step1Page />
+            </OnboardingGuard>
           </ProtectedRoute>
         }
       />
@@ -102,7 +92,9 @@ export function AppRoutes() {
         path="/onboarding/step-2"
         element={
           <ProtectedRoute>
-            <Step2Page />
+            <OnboardingGuard mode="onboarding">
+              <Step2Page />
+            </OnboardingGuard>
           </ProtectedRoute>
         }
       />
@@ -110,7 +102,9 @@ export function AppRoutes() {
         path="/onboarding/step-3"
         element={
           <ProtectedRoute>
-            <Step3Page />
+            <OnboardingGuard mode="onboarding">
+              <Step3Page />
+            </OnboardingGuard>
           </ProtectedRoute>
         }
       />
@@ -118,7 +112,9 @@ export function AppRoutes() {
         path="/onboarding/step-4"
         element={
           <ProtectedRoute>
-            <Step4Page />
+            <OnboardingGuard mode="onboarding">
+              <Step4Page />
+            </OnboardingGuard>
           </ProtectedRoute>
         }
       />
@@ -126,7 +122,9 @@ export function AppRoutes() {
         path="/onboarding/step-5"
         element={
           <ProtectedRoute>
-            <Step5Page />
+            <OnboardingGuard mode="onboarding">
+              <Step5Page />
+            </OnboardingGuard>
           </ProtectedRoute>
         }
       />
@@ -134,7 +132,9 @@ export function AppRoutes() {
         path="/onboarding/step-6"
         element={
           <ProtectedRoute>
-            <Step6Page />
+            <OnboardingGuard mode="onboarding">
+              <Step6Page />
+            </OnboardingGuard>
           </ProtectedRoute>
         }
       />
@@ -142,7 +142,9 @@ export function AppRoutes() {
         path="/onboarding/step-7"
         element={
           <ProtectedRoute>
-            <PlanReviewPage />
+            <OnboardingGuard mode="onboarding">
+              <PlanReviewPage />
+            </OnboardingGuard>
           </ProtectedRoute>
         }
       />
@@ -150,7 +152,9 @@ export function AppRoutes() {
         path="/onboarding/edit-habit"
         element={
           <ProtectedRoute>
-            <EditHabitPage />
+            <OnboardingGuard mode="onboarding">
+              <EditHabitPage />
+            </OnboardingGuard>
           </ProtectedRoute>
         }
       />
@@ -158,7 +162,9 @@ export function AppRoutes() {
         path="/onboarding/advanced-input"
         element={
           <ProtectedRoute>
-            <AdvancedInputPage />
+            <OnboardingGuard mode="onboarding">
+              <AdvancedInputPage />
+            </OnboardingGuard>
           </ProtectedRoute>
         }
       />
@@ -166,7 +172,9 @@ export function AppRoutes() {
         path="/onboarding/advanced-results"
         element={
           <ProtectedRoute>
-            <AdvancedResultsPage />
+            <OnboardingGuard mode="onboarding">
+              <AdvancedResultsPage />
+            </OnboardingGuard>
           </ProtectedRoute>
         }
       />
@@ -174,7 +182,9 @@ export function AppRoutes() {
         path="/onboarding/advanced-step-6"
         element={
           <ProtectedRoute>
-            <AdvancedStep6Page />
+            <OnboardingGuard mode="onboarding">
+              <AdvancedStep6Page />
+            </OnboardingGuard>
           </ProtectedRoute>
         }
       />
@@ -182,7 +192,9 @@ export function AppRoutes() {
         path="/onboarding/advanced-custom-prompts"
         element={
           <ProtectedRoute>
-            <AdvancedCustomPromptsPage />
+            <OnboardingGuard mode="onboarding">
+              <AdvancedCustomPromptsPage />
+            </OnboardingGuard>
           </ProtectedRoute>
         }
       />
@@ -191,7 +203,9 @@ export function AppRoutes() {
       <Route
         element={
           <ProtectedRoute>
-            <ProtectedLayout />
+            <OnboardingGuard mode="app">
+              <ProtectedLayout />
+            </OnboardingGuard>
           </ProtectedRoute>
         }
       >

@@ -10,6 +10,7 @@ import {
   ReminderSheet,
 } from '@/components/home';
 import { useAuth } from '@/hooks/useAuth';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import type { EntriesMap } from '@shared/types';
 
 // Mock entries for date strip activity dots
@@ -24,12 +25,17 @@ function buildMockEntries(): EntriesMap {
 
 export function HomePage() {
   const { user } = useAuth();
+  const { state: onboardingState } = useOnboarding();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showReminders, setShowReminders] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
   const mockEntries = useMemo(() => buildMockEntries(), []);
 
-  const firstName = user?.name?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'there';
+  const firstName =
+    onboardingState?.data?.nickname ||
+    user?.name?.split(' ')[0] ||
+    user?.email?.split('@')[0] ||
+    'there';
 
   return (
     <>

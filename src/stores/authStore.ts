@@ -1,5 +1,8 @@
 import { create } from 'zustand';
+import { fetchOnboardingState } from '@/api/onboarding';
 import { authClient } from '@/lib/auth-client';
+import { queryClient } from '@/lib/query';
+import { queryKeys } from '@/lib/query/keys';
 
 export interface AppUser {
   id: string;
@@ -56,7 +59,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     authClient
       .getSession()
       .then(({ data }) => {
-        if (data?.user) set({ user: mapUser(data.user) });
+        if (data?.user) {
+          set({ user: mapUser(data.user) });
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.onboarding.state,
+            queryFn: fetchOnboardingState,
+          });
+        }
         set({ loading: false });
       })
       .catch(() => set({ loading: false }));
@@ -92,6 +101,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data: session } = await authClient.getSession();
       if (session?.user) set({ user: mapUser(session.user) });
     }
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.onboarding.state,
+      queryFn: fetchOnboardingState,
+    });
     return { error: null };
   },
 
@@ -105,6 +118,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data: session } = await authClient.getSession();
       if (session?.user) set({ user: mapUser(session.user) });
     }
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.onboarding.state,
+      queryFn: fetchOnboardingState,
+    });
     return { error: null };
   },
 

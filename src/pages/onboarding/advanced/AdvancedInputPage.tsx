@@ -1,16 +1,27 @@
 import { Icon } from '@iconify/react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoalTextarea } from '@/components/onboarding/GoalTextarea';
 import { GuidanceBadge } from '@/components/onboarding/GuidanceBadge';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import { VoiceMicButton } from '@/components/onboarding/VoiceMicButton';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
 
 export function AdvancedInputPage() {
   const navigate = useNavigate();
-  const [text, setText] = useState('');
-  const [isListening, setIsListening] = useState(false);
+  const { state: onboardingState, saveStep } = useOnboarding();
+  const [text, setText] = useState(onboardingState?.brain_dump_raw ?? '');
   const textareaRef = useRef<HTMLTextAreaElement>(null!);
+  const { isListening, toggle, transcript } = useVoiceInput();
+
+  const prevTranscriptRef = useRef(transcript);
+  useEffect(() => {
+    if (transcript && transcript !== prevTranscriptRef.current && !isListening) {
+      setText((prev) => (prev ? `${prev}\n${transcript}` : transcript));
+    }
+    prevTranscriptRef.current = transcript;
+  }, [transcript, isListening]);
 
   function handleKeyboardPress() {
     textareaRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -42,7 +53,7 @@ export function AdvancedInputPage() {
 
       {/* Center */}
       <div className="flex flex-1 flex-col items-center justify-center gap-[24px] py-[32px]">
-        <VoiceMicButton isListening={isListening} onPress={() => setIsListening((p) => !p)} />
+        <VoiceMicButton isListening={isListening} onPress={toggle} />
         <GuidanceBadge text='TRY: "I WOULD LIKE TO READ FOR 15 MINS EVERY NIGHT AT 8 PM"' />
         <GoalTextarea value={text} onChange={setText} textareaRef={textareaRef} />
       </div>
@@ -59,7 +70,10 @@ export function AdvancedInputPage() {
         <button
           type="button"
           disabled={text.trim() === ''}
-          onClick={() => navigate('/onboarding/advanced-results', { state: { text } })}
+          onClick={() => {
+            saveStep(3, {}, { brainDump: { raw: text } });
+            navigate('/onboarding/advanced-results', { state: { text } });
+          }}
           className="flex-1 rounded-full bg-primary py-[16px] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] disabled:opacity-50"
         >
           Done

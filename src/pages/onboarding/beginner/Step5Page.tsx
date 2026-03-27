@@ -7,6 +7,7 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 const habitsByGoal: Record<string, string[]> = {
   'Fall asleep earlier': [
@@ -239,6 +240,8 @@ const habitsByGoal: Record<string, string[]> = {
 export function Step5Page() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { state: onboardingState, saveStep } = useOnboarding();
+  const saved = onboardingState?.data;
   const state = location.state as {
     goals?: string[];
     category?: string;
@@ -249,12 +252,17 @@ export function Step5Page() {
     phase?: 'confirming';
     reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string };
   } | null;
-  const goals = state?.goals?.length ? state.goals : ['Fall asleep earlier'];
+  const goals = state?.goals?.length
+    ? state.goals
+    : saved?.goals?.length
+      ? saved.goals
+      : ['Fall asleep earlier'];
 
   // Reconstitute Sets from arrays after router state serialization
-  const incomingConfigs = state?.habitConfigs
+  const rawConfigs = state?.habitConfigs ?? saved?.habitConfigs;
+  const incomingConfigs = rawConfigs
     ? Object.fromEntries(
-        Object.entries(state.habitConfigs).map(([k, v]) => [
+        Object.entries(rawConfigs).map(([k, v]) => [
           k,
           { ...v, days: v.days instanceof Set ? v.days : new Set(v.days) },
         ]),
@@ -354,6 +362,7 @@ export function Step5Page() {
               const serializedConfigs = Object.fromEntries(
                 Object.entries(habitConfigs).map(([k, v]) => [k, { ...v, days: [...v.days] }]),
               );
+              saveStep(5, { habitConfigs: serializedConfigs });
               navigate('/onboarding/step-6', {
                 state: {
                   habitConfigs: serializedConfigs,

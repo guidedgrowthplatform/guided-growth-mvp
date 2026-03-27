@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 export type RecordingMode = 'auto-stop' | 'always-on';
-export type SttProvider = 'webspeech' | 'whisper' | 'deepgram';
+export type SttProvider = 'webspeech' | 'whisper' | 'deepgram' | 'elevenlabs';
 
 const SETTINGS_KEY = 'mvp03_voice_settings';
 
@@ -30,7 +30,7 @@ function loadFromStorage(): VoiceSettings {
         recordingMode: parsed.recordingMode || 'auto-stop',
         selectedVoiceName: parsed.selectedVoiceName || null,
         ttsEnabled: parsed.ttsEnabled ?? true,
-        sttProvider: parsed.sttProvider || 'webspeech',
+        sttProvider: parsed.sttProvider || 'elevenlabs',
       };
     }
   } catch {
@@ -40,7 +40,7 @@ function loadFromStorage(): VoiceSettings {
     recordingMode: 'auto-stop',
     selectedVoiceName: null,
     ttsEnabled: true,
-    sttProvider: 'webspeech',
+    sttProvider: 'elevenlabs',
   };
 }
 
@@ -56,7 +56,7 @@ export const useVoiceSettingsStore = create<VoiceSettingsState>((set, get) => ({
   recordingMode: 'auto-stop',
   selectedVoiceName: null,
   ttsEnabled: true,
-  sttProvider: 'webspeech',
+  sttProvider: 'elevenlabs',
   loaded: false,
 
   setRecordingMode: (mode) => {
