@@ -1,54 +1,46 @@
+import jwt from 'jsonwebtoken';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { auth } from './better-auth.js';
-import { setCorsHeaders } from './cors.js';
-import { fromNodeHeaders } from 'better-auth/node';
 import pool from './db.js';
 
+const SECRET = () => process.env.SESSION_SECRET || 'dev-secret';
+
+export function signToken(userId: string): string {
+  return jwt.sign({ userId }, SECRET(), { expiresIn: '7d' });
+}
+
+export function setAuthCookie(token: string): string {
+  const secure = process.env.NODE_ENV === 'production' ? 'Secure; ' : '';
+  return `token=${token}; HttpOnly; ${secure}SameSite=Lax; Path=/; Max-Age=604800`;
+}
+
+export function clearAuthCookie(): string {
+  return 'token=; HttpOnly; Path=/; Max-Age=0';
+}
+
 export async function getUser(req: VercelRequest) {
+  const cookie = req.headers.cookie;
+  if (!cookie) return null;
+
+  const match = cookie.match(/token=([^;]+)/);
+  if (!match) return null;
+
   try {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    });
-    if (!session?.user) return null;
-
-    // Look up role and status from users table (non-blocking — falls back to defaults)
-    let role = 'user';
-    let status = 'active';
-    try {
-      const result = await pool.query('SELECT role, status FROM users WHERE id = $1', [
-        session.user.id,
-      ]);
-      const dbUser = result.rows[0];
-      if (dbUser?.role) role = dbUser.role;
-      if (dbUser?.status) status = dbUser.status;
-    } catch {
-      // Column may not exist yet if migration 007 hasn't been run — use defaults
-    }
-
-    return {
-      id: session.user.id,
-      email: session.user.email,
-      name: session.user.name,
-      image: session.user.image,
-      role,
-      status,
-    };
+    const payload = jwt.verify(match[1], SECRET()) as { userId: string };
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [payload.userId]);
+    return result.rows[0] || null;
   } catch {
     return null;
   }
 }
 
-/**
- * Require authenticated user. Sets CORS headers for Capacitor origins.
- * Returns null (and sends 401) if unauthenticated.
- */
 export async function requireUser(req: VercelRequest, res: VercelResponse) {
-  // Set CORS headers so Capacitor WebView receives proper responses
-  setCorsHeaders(req, res);
-
   const user = await getUser(req);
   if (!user) {
     res.status(401).json({ error: 'Authentication required' });
+    return null;
+  }
+  if (user.status === 'disabled') {
+    res.status(403).json({ error: 'Account disabled' });
     return null;
   }
   return user;
@@ -62,18 +54,4 @@ export async function requireAdmin(req: VercelRequest, res: VercelResponse) {
     return null;
   }
   return user;
-}
-
-/**
- * Handle OPTIONS preflight for Capacitor cross-origin requests.
- * Call at the start of any handler that doesn't use requireUser.
- * Returns true if the request was an OPTIONS preflight (already handled).
- */
-export function handlePreflight(req: VercelRequest, res: VercelResponse): boolean {
-  const corsOk = setCorsHeaders(req, res);
-  if (req.method === 'OPTIONS') {
-    res.status(corsOk ? 204 : 403).end();
-    return true;
-  }
-  return false;
 }

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   AuthBackButton,
   SocialAuthButtons,
@@ -17,7 +17,6 @@ import { loginSchema, type LoginForm } from '@/lib/validation';
 export function SignInPage() {
   const { signIn } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const successMessage = (location.state as { message?: string } | null)?.message ?? null;
@@ -38,8 +37,6 @@ export function SignInPage() {
     setLoading(false);
     if (authError) {
       setError(authError);
-    } else {
-      navigate('/home');
     }
   };
 

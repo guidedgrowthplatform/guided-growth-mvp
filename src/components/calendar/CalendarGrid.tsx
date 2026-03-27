@@ -1,6 +1,6 @@
 import { type MetricType, metricConfigs } from './calendarConfig';
 import { CalendarDayCell } from './CalendarDayCell';
-import type { DayMetrics } from './calendarTypes';
+import type { DayMetrics } from './calendarMockData';
 
 const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 

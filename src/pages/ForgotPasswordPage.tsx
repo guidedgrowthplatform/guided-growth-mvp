@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { AuthBackButton, AuthFooter, AuthAlert } from '@/components/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { supabase } from '@/lib/supabase';
 import { forgotPasswordSchema, type ForgotPasswordForm } from '@/lib/validation';
 
 export function ForgotPasswordPage() {
@@ -20,12 +21,21 @@ export function ForgotPasswordPage() {
     mode: 'onBlur',
   });
 
-  const onSubmit = async (_data: ForgotPasswordForm) => {
+  const onSubmit = async (data: ForgotPasswordForm) => {
     setError(null);
     setLoading(true);
 
+    const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
+      redirectTo: `${window.location.origin}/login`,
+    });
+
     setLoading(false);
-    setSent(true);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setSent(true);
+    }
   };
 
   return (
@@ -41,10 +51,7 @@ export function ForgotPasswordPage() {
 
       {sent ? (
         <div className="mt-8 space-y-4">
-          <AuthAlert
-            type="info"
-            message="Password reset is not available yet. Please contact support."
-          />
+          <AuthAlert type="success" message="Check your email for a password reset link." />
           <AuthFooter text="" linkText="Back to sign in" to="/login" />
         </div>
       ) : (

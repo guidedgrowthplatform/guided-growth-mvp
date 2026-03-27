@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { BarDataPoint } from '@/hooks/useHabitAnalytics.types';
+import type { BarDataPoint } from './insightsMockData';
 
 interface BarChartProps {
   data: BarDataPoint[];

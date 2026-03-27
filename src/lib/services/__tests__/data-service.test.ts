@@ -1,4 +1,3 @@
-/* eslint-disable import-x/order */
 // @vitest-environment jsdom
 // Unit tests for DataService implementations
 // Tests both MockDataService and SupabaseDataService against the same DataService interface
@@ -6,6 +5,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { DataService } from '../data-service.interface';
+
 // ---------------------------------------------------------------------------
 // Shared test suite — runs against ANY DataService implementation
 // ---------------------------------------------------------------------------

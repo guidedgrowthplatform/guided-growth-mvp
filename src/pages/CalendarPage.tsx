@@ -4,11 +4,11 @@ import {
   CalendarGrid,
   CalendarLegend,
   MetricSegmentedControl,
+  mockCalendarData,
   metricConfigs,
 } from '@/components/calendar';
 import type { MetricType } from '@/components/calendar';
 import { useToast } from '@/contexts/ToastContext';
-import { useCalendarData } from '@/hooks/useCalendarData';
 
 export function CalendarPage() {
   const { addToast } = useToast();
@@ -23,11 +23,6 @@ export function CalendarPage() {
       currentMonth.getFullYear() === today.getFullYear()
       ? today.getDate()
       : null,
-  );
-
-  const { calendarData, isLoading, error } = useCalendarData(
-    currentMonth.getFullYear(),
-    currentMonth.getMonth(),
   );
 
   const handlePrevMonth = () => {
@@ -45,7 +40,7 @@ export function CalendarPage() {
     const mo = currentMonth.getMonth();
     const yr = currentMonth.getFullYear();
     const dateStr = `${yr}-${String(mo + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const dayData = calendarData[dateStr];
+    const dayData = mockCalendarData[dateStr];
     const value = dayData?.[activeMetric];
     if (value) {
       const config = metricConfigs[activeMetric];
@@ -60,26 +55,13 @@ export function CalendarPage() {
 
       <MetricSegmentedControl value={activeMetric} onChange={setActiveMetric} />
 
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        </div>
-      ) : error ? (
-        <div className="flex flex-col items-center gap-2 py-12 text-center">
-          <p className="text-sm text-red-600">Failed to load calendar data.</p>
-          <p className="text-xs text-content-secondary">
-            Please check your connection and try again.
-          </p>
-        </div>
-      ) : (
-        <CalendarGrid
-          month={currentMonth}
-          data={calendarData}
-          activeMetric={activeMetric}
-          selectedDay={selectedDay}
-          onSelectDay={handleSelectDay}
-        />
-      )}
+      <CalendarGrid
+        month={currentMonth}
+        data={mockCalendarData}
+        activeMetric={activeMetric}
+        selectedDay={selectedDay}
+        onSelectDay={handleSelectDay}
+      />
 
       <CalendarLegend metricType={activeMetric} />
     </div>

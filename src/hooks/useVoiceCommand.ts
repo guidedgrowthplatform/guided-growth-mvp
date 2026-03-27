@@ -1,27 +1,26 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/contexts/ToastContext';
 import { queryKeys } from '@/lib/query';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { haptic } from '@/lib/services/haptic-service';
 import { getDataService } from '@/lib/services/service-provider';
 import { speakPreAck, speak } from '@/lib/services/tts-service';
 import { useCommandStore } from '@/stores/commandStore';
-import { useVoiceStore } from '@/stores/voiceStore';
 
-// Module-level state survives React remounts — prevents double-fire across
-// overlay close/reopen cycles and React StrictMode double-invocation.
-let _processing = false;
-
-// Always get a fresh dispatcher with the current (non-mock) DataService.
-// Never cache — prevents stale mock reference if Supabase loads after first call.
+// Lazy-init: wait for the correct data service (Supabase) before creating dispatcher
+let _dispatcher: ActionDispatcher | null = null;
 async function getDispatcher(): Promise<ActionDispatcher> {
-  const ds = await getDataService();
-  return new ActionDispatcher(ds);
+  if (!_dispatcher) {
+    const ds = await getDataService();
+    _dispatcher = new ActionDispatcher(ds);
+  }
+  return _dispatcher;
 }
 
-const MUTATION_ACTIONS = new Set(['create', 'complete', 'delete', 'update', 'log', 'checkin']);
-
-export function localParse(transcript: string): {
+// Simple local fallback when API is unavailable (e.g. local dev without vercel dev)
+function localParse(transcript: string): {
   action: string;
   entity: string;
   params: Record<string, unknown>;
@@ -29,21 +28,21 @@ export function localParse(transcript: string): {
 } {
   const t = transcript.toLowerCase().trim();
 
+  // Create habit
   if (t.match(/create.*habits?|add.*habits?|new.*habits?/)) {
+    // Try multiple patterns to extract the habit name
     const nameMatch =
-      t.match(/(?:called|named|for)\s+(.+?)(?:\s*,|$)/i) ||
-      t.match(/habits?\s+(?:called|named|for)\s+(.+?)$/i) ||
+      t.match(/(?:called|named|for)\s+(.+?)(?:\s*,|$)/i) || // "called X" / "named X"
+      t.match(/habits?\s+(?:called|named|for)\s+(.+?)$/i) || // "habit called X"
       t.match(
         /(?:create|add|new)\s+(?:a\s+)?(?:new\s+)?(?:daily\s+)?(?:habits?\s+)?(.+?)(?:\s+habit)?$/i,
-      );
-    const freqMatch = t.match(/(\d+)\s*times?\s*(?:a|per)\s*week/i);
-    const frequency = freqMatch ? `${freqMatch[1]}x/week` : 'daily';
+      ); // "add X" / "add new habit X" / "add new habits playing"
     const name =
       nameMatch?.[1]
-        ?.replace(/^(?:a\s+|the\s+|new\s+|my\s+)/i, '')
-        ?.replace(/\s+habits?$/i, '')
-        ?.replace(/\s*\d+\s*times?\s*(?:a|per)\s*week.*/i, '')
+        ?.replace(/^(?:a\s+|the\s+|new\s+|my\s+)/i, '') // strip leading articles
+        ?.replace(/\s+habits?$/i, '') // strip trailing "habit(s)"
         ?.trim() || '';
+    // Reject empty or garbage names
     if (!name || name.length < 2) {
       return {
         action: 'create',
@@ -52,13 +51,16 @@ export function localParse(transcript: string): {
         confidence: 0.3,
       };
     }
+    const freqMatch = t.match(/(\d+)\s*times?\s*(?:a|per)\s*week/i);
+    const frequency = freqMatch ? `${freqMatch[1]}x/week` : 'daily';
     return { action: 'create', entity: 'habit', params: { name, frequency }, confidence: 0.7 };
   }
 
+  // Create metric
   if (t.match(/create.*metric|add.*metric|new.*metric/)) {
     const nameMatch =
       t.match(/(?:called|named|for)\s+(.+?)(?:\s*,|$)/i) || t.match(/metric\s+(.+?)$/i);
-    const name = nameMatch?.[1]?.replace(/\s*scale\s+\d+\s*to\s*\d+.*/i, '')?.trim() || '';
+    const name = nameMatch?.[1]?.trim() || '';
     const scaleMatch = t.match(/scale\s+(\d+)\s*to\s*(\d+)/i);
     return {
       action: 'create',
@@ -72,6 +74,7 @@ export function localParse(transcript: string): {
     };
   }
 
+  // Complete / mark done
   if (t.match(/mark.*done|completed?\s/)) {
     const nameMatch = t.match(/(?:mark|completed?)\s+(.+?)(?:\s+(?:as\s+)?done|\s+for|$)/i);
     const name =
@@ -87,6 +90,7 @@ export function localParse(transcript: string): {
     };
   }
 
+  // Delete
   if (t.match(/delete|remove/)) {
     const nameMatch = t.match(/(?:delete|remove)\s+(?:the\s+)?(.+?)(?:\s+habit|\s+metric|$)/i);
     const name = nameMatch?.[1]?.trim() || '';
@@ -98,16 +102,16 @@ export function localParse(transcript: string): {
     };
   }
 
+  // Log metric
   if (t.match(/log|record/)) {
-    const nameMatch =
-      t.match(/(?:log|record)\s+(?:my\s+)?(.+?)\s+(?:as|at)\s+(.+)/i) ||
-      t.match(/(?:log|record)\s+(?:my\s+)?(.+?)\s+(\d+(?:\.\d+)?)\s*$/i);
+    const nameMatch = t.match(/(?:log|record)\s+(?:my\s+)?(.+?)\s+(?:as|at)\s+(.+)/i);
     const name = nameMatch?.[1]?.trim() || '';
     const value = nameMatch ? parseFloat(nameMatch[2]) || nameMatch[2] : '';
     return { action: 'log', entity: 'metric', params: { name, value }, confidence: 0.6 };
   }
 
-  if (t.match(/show|list|how.*doing|how's|what.*my|what's/)) {
+  // Query / show
+  if (t.match(/show|list|how.*doing|what.*my|what's/)) {
     const nameMatch = t.match(/(?:with|my|the)\s+(.+?)(?:\s+this|\s+habit|$|\?)/i);
     return {
       action: 'query',
@@ -121,62 +125,22 @@ export function localParse(transcript: string): {
     };
   }
 
+  // Summary
   if (t.match(/summary|report/)) {
     return { action: 'query', entity: 'summary', params: { period: 'week' }, confidence: 0.7 };
   }
 
+  // Help (Issue #19)
   if (t.match(/^help$|what can i|available commands|how.*use|what.*commands/)) {
     return { action: 'help', entity: 'command', params: {}, confidence: 0.95 };
   }
 
+  // Suggest
   if (t.match(/suggest|recommend/)) {
     return { action: 'suggest', entity: 'habit', params: {}, confidence: 0.8 };
   }
 
-  // Check-in: "check in sleep 4 mood 3 energy 5 stress 2"
-  if (t.match(/check\s*-?\s*in/)) {
-    const sleep = t.match(/sleep\s+(\d+)/)?.[1];
-    const mood = t.match(/mood\s+(\d+)/)?.[1];
-    const energy = t.match(/energy\s+(\d+)/)?.[1];
-    const stress = t.match(/stress\s+(\d+)/)?.[1];
-    return {
-      action: 'checkin',
-      entity: 'checkin',
-      params: {
-        sleep: sleep ? Number(sleep) : null,
-        mood: mood ? Number(mood) : null,
-        energy: energy ? Number(energy) : null,
-        stress: stress ? Number(stress) : null,
-      },
-      confidence: 0.8,
-    };
-  }
-
-  // Focus: "start focus session for 25 minutes" or "start focus on meditation for 25 minutes"
-  if (t.match(/(?:start|begin)\s+focus/)) {
-    const durationMatch = t.match(/(?:for\s+)?(\d+)\s*(?:minutes?|mins?)/);
-    const habitMatch = t.match(/focus\s+(?:on|session\s+on)\s+(.+?)(?:\s+for\s+\d+|\s*$)/);
-    const duration = durationMatch ? Number(durationMatch[1]) : 25;
-    const habit = habitMatch?.[1]?.replace(/\s+session.*/, '').trim() || null;
-    return {
-      action: 'focus',
-      entity: 'focus',
-      params: { duration, habit },
-      confidence: 0.8,
-    };
-  }
-
-  // Journal quick entry: "journal I had a productive morning"
-  if (t.match(/^journal\s+/)) {
-    const content = t.replace(/^journal\s+/, '').trim();
-    return {
-      action: 'reflect',
-      entity: 'journal',
-      params: { mood: 'neutral', themes: [], content },
-      confidence: 0.7,
-    };
-  }
-
+  // Reflect
   if (t.match(/feel|slept|stressed|tired|mood/)) {
     const themes: string[] = [];
     if (t.includes('sleep') || t.includes('slept')) themes.push('sleep');
@@ -194,6 +158,8 @@ export function localParse(transcript: string): {
 }
 
 export function useVoiceCommand() {
+  const navigate = useNavigate();
+  const { addToast } = useToast();
   const qc = useQueryClient();
   const {
     isProcessing,
@@ -209,15 +175,9 @@ export function useVoiceCommand() {
   } = useCommandStore();
 
   const processTranscript = useCallback(
-    async (rawTranscript: string) => {
-      if (!rawTranscript.trim()) return;
-      // Module-level guard — survives remounts, prevents concurrent dispatches
-      if (_processing) return;
+    async (transcript: string) => {
+      if (!transcript.trim()) return;
 
-      const transcript = rawTranscript.replace(/\s{2,}/g, ' ').trim();
-      if (!transcript) return;
-
-      _processing = true;
       setProcessing(true);
       const startTime = Date.now();
 
@@ -228,34 +188,25 @@ export function useVoiceCommand() {
           params: Record<string, unknown>;
           confidence: number;
           latency?: number;
-          corrected_transcript?: string;
         };
 
-        const dispatcher = await getDispatcher();
-
+        // Try GPT-4o-mini API first
         try {
-          const ds = dispatcher.getDataService();
-          const habits = await ds.getHabits().catch(() => []);
-          const existingHabits = habits.map((h: { name: string }) => h.name);
-
           const response = await fetch('/api/process-command', {
             method: 'POST',
-            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ transcript, existingHabits }),
+            body: JSON.stringify({ transcript }),
           });
 
+          // Check if response is JSON
           const contentType = response.headers.get('content-type') || '';
           if (!response.ok || !contentType.includes('application/json')) {
             throw new Error('API unavailable');
           }
 
           intent = await response.json();
-
-          if (intent.corrected_transcript) {
-            useVoiceStore.getState().setCorrectedTranscript(intent.corrected_transcript);
-          }
         } catch {
+          // Fallback to local keyword parser (works without API)
           console.warn('[VoiceCommand] API unavailable, using local parser');
           intent = localParse(transcript);
           intent.latency = Date.now() - startTime;
@@ -263,39 +214,42 @@ export function useVoiceCommand() {
 
         const apiLatency = intent.latency || Date.now() - startTime;
 
+        // Pre-acknowledgment TTS: immediate audio feedback before action runs
         speakPreAck(intent.action, intent.params as Record<string, unknown>);
 
+        // Dispatch the action against the correct data service (Supabase or mock)
+        const dispatcher = await getDispatcher();
         const result = await dispatcher.dispatch(intent);
         setResult(result, intent, apiLatency);
         addHistory(transcript, intent, result);
 
-        haptic(result.success ? 'success' : 'error');
+        // Show visual + audio + haptic feedback
+        if (result.success) {
+          haptic('success');
+          addToast('success', result.message);
+        } else {
+          haptic('error');
+          addToast('error', result.message);
+        }
 
+        // Talk back: read the result message aloud (if TTS enabled)
         speak(result.message);
 
-        // Only invalidate/refresh on mutation actions (not query/help/suggest)
-        if (MUTATION_ACTIONS.has(intent.action)) {
-          qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
-          qc.invalidateQueries({ queryKey: queryKeys.entries.all });
-          qc.invalidateQueries({ queryKey: queryKeys.habits.all });
-          qc.invalidateQueries({
-            queryKey: queryKeys.checkins.byDate(new Date().toISOString().slice(0, 10)),
-          });
-          qc.invalidateQueries({ queryKey: queryKeys.journal.all });
-          qc.invalidateQueries({ queryKey: queryKeys.focusSessions.all });
+        // Invalidate queries so data refreshes after voice commands
+        qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
+        qc.invalidateQueries({ queryKey: queryKeys.entries.all });
 
-          // Notify non-React-Query components (e.g. HabitsSection) to refresh
-          window.dispatchEvent(new CustomEvent('habits-changed'));
+        // Navigate if needed
+        if (result.uiAction === 'navigate' && result.navigateTo) {
+          navigate(result.navigateTo);
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         setError(msg);
-      } finally {
-        _processing = false;
-        setProcessing(false);
+        addToast('error', `Command failed: ${msg}`);
       }
     },
-    [setProcessing, setResult, setError, addHistory, qc],
+    [navigate, addToast, setProcessing, setResult, setError, addHistory, qc],
   );
 
   return {

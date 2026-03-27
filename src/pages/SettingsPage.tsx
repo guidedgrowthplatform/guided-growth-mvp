@@ -1,18 +1,7 @@
 import { Icon } from '@iconify/react';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
-import {
-  coachingStyles,
-  formatTime12h,
-  languages,
-  modeLabels,
-  recordingOptions,
-  sttLabels,
-  sttOptions,
-  timeOptions,
-  voiceModels,
-} from '@/components/settings/constants';
 import { SettingRow } from '@/components/settings/SettingRow';
 import { SettingsCard } from '@/components/settings/SettingsCard';
 import { SettingSectionHeader } from '@/components/settings/SettingSectionHeader';
@@ -22,9 +11,6 @@ import { UserInfoSection } from '@/components/settings/UserInfoSection';
 import { VoiceSettingsSheet } from '@/components/settings/VoiceSettingsSheet';
 import { Toggle } from '@/components/ui/Toggle';
 import { useToast } from '@/contexts/ToastContext';
-import { useAuth } from '@/hooks/useAuth';
-import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { getDataService } from '@/lib/services/service-provider';
 import {
   getAvailableVoices,
   setVoicePreference,
@@ -37,6 +23,156 @@ import {
   type SttProvider,
 } from '@/stores/voiceSettingsStore';
 
+// --- Option data ---
+
+const sttOptions: { value: SttProvider; label: string; description: string }[] = [
+  {
+    value: 'webspeech',
+    label: 'Web Speech API',
+    description: 'Browser built-in. Free, real-time interim results. Requires internet.',
+  },
+  {
+    value: 'whisper',
+    label: 'Whisper (whisper.cpp)',
+    description: 'OpenAI Whisper base model. Runs locally via WASM. ~75MB download on first use.',
+  },
+  {
+    value: 'deepgram',
+    label: 'DeepGram Nova-2',
+    description: 'Cloud-based. Fastest transcription with real-time streaming. Requires API key.',
+  },
+];
+
+const recordingOptions: { value: RecordingMode; label: string; description: string }[] = [
+  {
+    value: 'auto-stop',
+    label: 'Auto-stop (Siri-like)',
+    description: 'Stops recording after 2.5s of silence. Best for quick voice commands.',
+  },
+  {
+    value: 'always-on',
+    label: 'Always recording',
+    description: 'Keeps microphone active until manually stopped. Good for longer dictation.',
+  },
+];
+
+const coachingStyles = [
+  {
+    value: 'friendly',
+    label: 'Friendly & Empathetic',
+    description: 'Warm, supportive tone with gentle encouragement.',
+  },
+  {
+    value: 'direct',
+    label: 'Direct & Motivational',
+    description: 'Straightforward feedback with high-energy motivation.',
+  },
+  {
+    value: 'analytical',
+    label: 'Analytical & Data-Driven',
+    description: 'Focus on numbers, trends, and measurable progress.',
+  },
+];
+
+const voiceModels = [
+  {
+    value: 'alex',
+    label: 'Alex (Male - Calm)',
+    description: 'Calm, steady male voice for a relaxed coaching experience.',
+  },
+  {
+    value: 'sarah',
+    label: 'Sarah (Female - Warm)',
+    description: 'Warm, encouraging female voice with natural intonation.',
+  },
+  {
+    value: 'jordan',
+    label: 'Jordan (Neutral - Energetic)',
+    description: 'Energetic, gender-neutral voice for high-motivation sessions.',
+  },
+];
+
+const languages = [
+  { value: 'en-US', label: 'English (US)', description: 'American English speech recognition.' },
+  { value: 'en-GB', label: 'English (UK)', description: 'British English speech recognition.' },
+  {
+    value: 'es-ES',
+    label: 'Spanish (Spain)',
+    description: 'Castilian Spanish speech recognition.',
+  },
+];
+
+const sttLabels: Record<string, string> = {
+  webspeech: 'Web Speech API',
+  whisper: 'Whisper',
+  deepgram: 'DeepGram Nova-2',
+};
+const modeLabels: Record<string, string> = { 'auto-stop': 'Auto-stop', 'always-on': 'Always On' };
+
+// --- Persistence helpers ---
+
+const SETTINGS_STORAGE_KEY = 'mvp03_page_settings';
+
+interface PageSettings {
+  coachingStyle: string;
+  voiceModel: string;
+  language: string;
+  morningTime: string;
+  nightTime: string;
+  pushNotifications: boolean;
+}
+
+function loadPageSettings(): PageSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (raw) return { ...defaultPageSettings, ...JSON.parse(raw) };
+  } catch {
+    /* ignore */
+  }
+  return defaultPageSettings;
+}
+
+const defaultPageSettings: PageSettings = {
+  coachingStyle: 'friendly',
+  voiceModel: 'alex',
+  language: 'en-US',
+  morningTime: '07:00',
+  nightTime: '22:30',
+  pushNotifications: true,
+};
+
+function savePageSettings(settings: PageSettings) {
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    /* ignore */
+  }
+}
+
+// --- Time helpers ---
+
+function formatTime12h(time24: string): string {
+  const [h, m] = time24.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${String(hour12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+function generateTimeOptions(): { value: string; label: string; description: string }[] {
+  const options: { value: string; label: string; description: string }[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 30]) {
+      const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      options.push({ value, label: formatTime12h(value), description: '' });
+    }
+  }
+  return options;
+}
+
+const timeOptions = generateTimeOptions();
+
+// --- Sheet types ---
+
 type SheetType =
   | 'stt'
   | 'recording'
@@ -47,11 +183,11 @@ type SheetType =
   | 'morningTime'
   | 'nightTime';
 
+// --- Component ---
+
 export function SettingsPage() {
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const { user, signOut } = useAuth();
-  const { preferences: pageSettings, updatePreference } = useUserPreferences();
   const {
     recordingMode,
     setRecordingMode,
@@ -65,28 +201,20 @@ export function SettingsPage() {
   const [selectedVoice, setSelectedVoice] = useState<string>(getVoicePreference() || '');
   const [activeSheet, setActiveSheet] = useState<SheetType | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const exportAbortRef = useRef(false);
 
-  const handleExportData = useCallback(async () => {
-    if (isExporting) return;
-    setIsExporting(true);
-    exportAbortRef.current = false;
-    try {
-      const { exportUserDataCSV } = await import('@/lib/utils/export-csv');
-      await exportUserDataCSV();
-      if (!exportAbortRef.current) {
-        addToast('success', 'Data exported successfully!');
-      }
-    } catch (err) {
-      if (!exportAbortRef.current) {
-        const msg = err instanceof Error ? err.message : 'Export failed';
-        addToast('error', `Export failed: ${msg}`);
-      }
-    } finally {
-      setIsExporting(false);
-    }
-  }, [isExporting, addToast]);
+  // Page-level settings (persisted in localStorage)
+  const [pageSettings, setPageSettings] = useState<PageSettings>(loadPageSettings);
+
+  const updateSetting = useCallback(
+    <K extends keyof PageSettings>(key: K, value: PageSettings[K]) => {
+      setPageSettings((prev) => {
+        const next = { ...prev, [key]: value };
+        savePageSettings(next);
+        return next;
+      });
+    },
+    [],
+  );
 
   // Load voices with polling for Android
   useEffect(() => {
@@ -132,16 +260,10 @@ export function SettingsPage() {
     speak('Hello! I am your growth tracker assistant. How can I help you today?');
   }, []);
 
-  const handleDeleteAccount = useCallback(async () => {
-    try {
-      const ds = await getDataService();
-      await ds.clearData();
-    } catch (err) {
-      console.error('[DeleteAccount] Failed to clear Supabase data:', err);
-    }
+  const handleDeleteAccount = useCallback(() => {
     localStorage.clear();
-    await signOut();
-  }, [signOut]);
+    window.location.reload();
+  }, []);
 
   // Lookup labels
   const coachingLabel =
@@ -152,17 +274,16 @@ export function SettingsPage() {
   const languageLabel =
     languages.find((l) => l.value === pageSettings.language)?.label ?? 'English (US)';
 
-  const fullName = user?.name;
-  const email = user?.email ?? '';
-  const displayName = fullName ?? email.split('@')[0] ?? 'User';
+  // Static user data (placeholder until auth context is available)
+  const user = { name: 'Jeff Doe', email: 'jeff.doe@example.com' };
 
   return (
     <div>
       <SettingsHeader onBack={() => navigate(-1)} />
 
       <UserInfoSection
-        name={displayName}
-        email={email}
+        name={user.name}
+        email={user.email}
         onEditProfile={() => addToast('info', 'Edit profile coming soon')}
         onChangePhoto={() => addToast('info', 'Photo upload coming soon')}
       />
@@ -223,7 +344,7 @@ export function SettingsPage() {
               <Toggle
                 checked={pageSettings.pushNotifications}
                 onChange={(v) => {
-                  updatePreference('pushNotifications', v);
+                  updateSetting('pushNotifications', v);
                   addToast('success', v ? 'Notifications enabled' : 'Notifications disabled');
                 }}
               />
@@ -286,22 +407,6 @@ export function SettingsPage() {
             onClick={() => addToast('info', 'Privacy policy coming soon')}
             right={
               <Icon icon="ic:round-chevron-right" width={20} className="text-content-tertiary" />
-            }
-          />
-          <SettingRow
-            icon="mdi:download"
-            label={isExporting ? 'Exporting...' : 'Export My Data'}
-            onClick={handleExportData}
-            right={
-              isExporting ? (
-                <Icon
-                  icon="svg-spinners:ring-resize"
-                  width={20}
-                  className="text-content-tertiary"
-                />
-              ) : (
-                <Icon icon="ic:round-chevron-right" width={20} className="text-content-tertiary" />
-              )
             }
           />
           <SettingRow
@@ -380,7 +485,7 @@ export function SettingsPage() {
           options={coachingStyles}
           selected={pageSettings.coachingStyle}
           onSelect={(v) => {
-            updatePreference('coachingStyle', v);
+            updateSetting('coachingStyle', v);
             setActiveSheet(null);
           }}
           onClose={() => setActiveSheet(null)}
@@ -392,7 +497,7 @@ export function SettingsPage() {
           options={voiceModels}
           selected={pageSettings.voiceModel}
           onSelect={(v) => {
-            updatePreference('voiceModel', v);
+            updateSetting('voiceModel', v);
             setActiveSheet(null);
           }}
           onClose={() => setActiveSheet(null)}
@@ -404,7 +509,7 @@ export function SettingsPage() {
           options={languages}
           selected={pageSettings.language}
           onSelect={(v) => {
-            updatePreference('language', v);
+            updateSetting('language', v);
             setActiveSheet(null);
           }}
           onClose={() => setActiveSheet(null)}
@@ -416,7 +521,7 @@ export function SettingsPage() {
           options={timeOptions}
           selected={pageSettings.morningTime}
           onSelect={(v) => {
-            updatePreference('morningTime', v);
+            updateSetting('morningTime', v);
             setActiveSheet(null);
           }}
           onClose={() => setActiveSheet(null)}
@@ -428,7 +533,7 @@ export function SettingsPage() {
           options={timeOptions}
           selected={pageSettings.nightTime}
           onSelect={(v) => {
-            updatePreference('nightTime', v);
+            updateSetting('nightTime', v);
             setActiveSheet(null);
           }}
           onClose={() => setActiveSheet(null)}

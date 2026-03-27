@@ -80,7 +80,6 @@ capacitor-cordova-android-plugins/
 *.apk
 *.ipa
 *.aab
-.env*.local
 
 # Mobile build output
 build/ios/
@@ -103,6 +102,3 @@ vendor/bundle/
 *.p12
 *.mobileprovision
 *.p8
-
-playwright-report/
-test-results/

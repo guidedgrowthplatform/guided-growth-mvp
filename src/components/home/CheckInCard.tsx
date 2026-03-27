@@ -1,58 +1,32 @@
-import { useState, useEffect } from 'react';
-import { useToast } from '@/contexts/ToastContext';
-import { useCheckIn } from '@/hooks/useCheckIn';
+import { useState } from 'react';
 import type { CheckInDimension } from '@shared/types';
 import { checkInDimensions } from './checkInConfig';
 import { EmojiOptionButton } from './EmojiOptionButton';
 
 type CheckInValues = Record<CheckInDimension, number | null>;
 
-const emptyValues: CheckInValues = { sleep: null, mood: null, energy: null, stress: null };
-
 interface CheckInCardProps {
   selectedDate: string;
   onClose?: () => void;
 }
 
-export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
-  const { checkIn, loading, saving, save } = useCheckIn(selectedDate);
-  const { addToast } = useToast();
-  const [values, setValues] = useState<CheckInValues>(emptyValues);
-
-  useEffect(() => {
-    if (checkIn) {
-      setValues({
-        sleep: checkIn.sleep,
-        mood: checkIn.mood,
-        energy: checkIn.energy,
-        stress: checkIn.stress,
-      });
-    } else {
-      setValues(emptyValues);
-    }
-  }, [checkIn]);
+export function CheckInCard({ selectedDate: _selectedDate, onClose }: CheckInCardProps) {
+  const [values, setValues] = useState<CheckInValues>({
+    sleep: null,
+    mood: null,
+    energy: null,
+    stress: null,
+  });
 
   const handleSelect = (key: CheckInDimension, value: number) => {
     setValues((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleCheckIn = async () => {
-    try {
-      await save(values);
-      onClose?.();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to save check-in';
-      addToast('error', msg);
-    }
+  const handleCheckIn = () => {
+    // TODO: connect to backend
+    console.log('Check-in values:', values);
+    onClose?.();
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center rounded-2xl border border-border-light bg-surface p-5 shadow-sm">
-        <p className="text-sm text-content-secondary">Loading check-in...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="rounded-2xl border border-border-light bg-surface p-5 shadow-sm">
@@ -78,10 +52,9 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
 
       <button
         onClick={handleCheckIn}
-        disabled={saving}
-        className="mt-5 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-white shadow-[0px_4px_6px_-1px_rgba(65,105,225,0.2)] transition-colors hover:bg-primary-dark disabled:opacity-50"
+        className="mt-5 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-white shadow-[0px_4px_6px_-1px_rgba(65,105,225,0.2)] transition-colors hover:bg-primary-dark"
       >
-        {saving ? 'Saving...' : checkIn ? 'Update Check-In' : 'Check In'}
+        Check In
       </button>
     </div>
   );
