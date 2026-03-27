@@ -29,9 +29,7 @@ export function HomePage() {
   const [showCheckIn, setShowCheckIn] = useState(false);
   const mockEntries = useMemo(() => buildMockEntries(), []);
 
-  const fullName = user?.user_metadata?.full_name as string | undefined;
-  const email = user?.email;
-  const firstName = fullName?.split(' ')[0] ?? email?.split('@')[0] ?? 'there';
+  const firstName = user?.name?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'there';
 
   return (
     <>

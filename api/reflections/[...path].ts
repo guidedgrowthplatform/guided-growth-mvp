@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
-import { requireUser } from '../_lib/auth.js';
+import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 
 const DEFAULT_FIELDS = [
   { id: 'wins', label: 'Wins', order: 0 },
@@ -9,8 +9,10 @@ const DEFAULT_FIELDS = [
 ];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
   if (!user) return;
+  await setUserContext(user.id);
 
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];

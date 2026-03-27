@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
-import { requireAdmin } from '../_lib/auth.js';
+import { requireAdmin, handlePreflight } from '../_lib/auth.js';
 
 async function logAuditAction(
   adminUserId: string,
@@ -16,6 +16,7 @@ async function logAuditAction(
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (handlePreflight(req, res)) return;
   const user = await requireAdmin(req, res);
   if (!user) return;
 
@@ -35,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid role. Must be "user" or "admin".' });
       }
       const result = await pool.query(
-        'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, email, name, avatar_url, role, status, created_at, last_login_at',
+        'UPDATE "user" SET role = $1 WHERE id = $2 RETURNING id, email, name, image, role, status, "createdAt", last_login_at',
         [role, userId],
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -50,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid status. Must be "active" or "disabled".' });
       }
       const result = await pool.query(
-        'UPDATE users SET status = $1 WHERE id = $2 RETURNING id, email, name, avatar_url, role, status, created_at, last_login_at',
+        'UPDATE "user" SET status = $1 WHERE id = $2 RETURNING id, email, name, image, role, status, "createdAt", last_login_at',
         [status, userId],
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -76,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // /api/admin/users (list all)
     if (!userId && req.method === 'GET') {
       const result = await pool.query(
-        'SELECT id, email, name, avatar_url, role, status, created_at, last_login_at FROM users ORDER BY created_at DESC',
+        'SELECT id, email, name, image, role, status, "createdAt", last_login_at FROM "user" ORDER BY "createdAt" DESC',
       );
       return res.json(result.rows);
     }
@@ -88,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (route === 'allowlist') {
     if (req.method === 'GET') {
       const result = await pool.query(
-        `SELECT a.*, u.email as added_by_email FROM allowlist a LEFT JOIN users u ON a.added_by_user_id = u.id ORDER BY a.created_at DESC`,
+        `SELECT a.*, u.email as added_by_email FROM allowlist a LEFT JOIN "user" u ON a.added_by_user_id = u.id ORDER BY a.created_at DESC`,
       );
       return res.json(result.rows);
     }
@@ -120,7 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'GET') {
       const limit = parseInt(req.query.limit as string) || 50;
       const result = await pool.query(
-        `SELECT a.*, u.email as admin_email FROM admin_audit_log a LEFT JOIN users u ON a.admin_user_id = u.id ORDER BY a.created_at DESC LIMIT $1`,
+        `SELECT a.*, u.email as admin_email FROM admin_audit_log a LEFT JOIN "user" u ON a.admin_user_id = u.id ORDER BY a.created_at DESC LIMIT $1`,
         [limit],
       );
       return res.json(result.rows);
