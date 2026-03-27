@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
+import { validateDate } from '../_lib/validation.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
@@ -14,8 +15,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // GET /api/entries/export?start=&end=
   if (route === 'export' && req.method === 'GET') {
-    const { start, end } = req.query;
-    if (!start || !end) return res.status(400).json({ error: 'start and end required' });
+    const start = validateDate(req.query.start);
+    const end = validateDate(req.query.end);
+    if (!start || !end)
+      return res.status(400).json({ error: 'Valid start and end dates required (YYYY-MM-DD)' });
 
     const [metricsResult, entriesResult] = await Promise.all([
       pool.query('SELECT id, name FROM metrics WHERE user_id = $1 ORDER BY sort_order', [user.id]),
@@ -45,6 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const csv = [header, ...rows].join('\n');
     res.setHeader('Content-Type', 'text/csv');
+    // start/end are already validated as YYYY-MM-DD by validateDate above
     res.setHeader('Content-Disposition', `attachment; filename="habits-${start}-to-${end}.csv"`);
     return res.send(csv);
   }
@@ -52,10 +56,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // PUT /api/entries/bulk
   if (route === 'bulk') {
     if (req.method !== 'PUT') return res.status(405).json({ error: 'Method not allowed' });
+    if (!req.body || typeof req.body !== 'object' || Object.keys(req.body).length > 400) {
+      return res.status(400).json({ error: 'Invalid or oversized request body' });
+    }
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      for (const [date, dayEntries] of Object.entries(req.body)) {
+      for (const [rawDate, dayEntries] of Object.entries(req.body)) {
+        const date = validateDate(rawDate);
+        if (!date) continue; // skip invalid dates
         for (const [metricId, value] of Object.entries(dayEntries as Record<string, string>)) {
           if (value === '' || value === null || value === undefined) {
             await client.query(
@@ -84,7 +93,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // PUT /api/entries/:date
   if (route && route !== 'bulk') {
     if (req.method !== 'PUT') return res.status(405).json({ error: 'Method not allowed' });
-    const date = route;
+    const date = validateDate(route);
+    if (!date) return res.status(400).json({ error: 'Invalid date format (YYYY-MM-DD)' });
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -114,8 +124,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // GET /api/entries?start=&end=
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  const { start, end } = req.query;
-  if (!start || !end) return res.status(400).json({ error: 'start and end required' });
+  const start = validateDate(req.query.start);
+  const end = validateDate(req.query.end);
+  if (!start || !end)
+    return res.status(400).json({ error: 'Valid start and end dates required (YYYY-MM-DD)' });
 
   const result = await pool.query(
     'SELECT metric_id, date::text, value FROM entries WHERE user_id = $1 AND date >= $2 AND date <= $3',

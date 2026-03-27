@@ -5,4 +5,4 @@ export { MetricSegmentedControl } from './MetricSegmentedControl';
 export { CalendarDayCell } from './CalendarDayCell';
 export type { MetricType } from './calendarConfig';
 export { metricConfigs } from './calendarConfig';
-export { mockCalendarData } from './calendarMockData';
+export type { DayMetrics } from './calendarTypes';

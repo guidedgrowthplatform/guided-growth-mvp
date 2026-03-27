@@ -105,3 +105,6 @@ vendor/bundle/
 *.p12
 *.mobileprovision
 *.p8
+
+playwright-report/
+test-results/

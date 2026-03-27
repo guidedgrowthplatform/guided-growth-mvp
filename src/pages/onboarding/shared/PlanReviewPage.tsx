@@ -1,8 +1,13 @@
+import { useState, useCallback } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { formatCadence } from '@/components/onboarding/constants';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
+import { useToast } from '@/contexts/ToastContext';
+import { authClient } from '@/lib/auth-client';
+import { getDataService } from '@/lib/services/service-provider';
+import { supabase } from '@/lib/supabase';
 const CATEGORY_ICONS: Record<string, string> = {
   Sleep: 'ic:outline-nightlight-round',
   Move: 'ic:outline-directions-run',
@@ -26,6 +31,72 @@ export function PlanReviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as PlanReviewState | null;
+  const { addToast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleStartPlan = useCallback(async () => {
+    if (!state?.habitConfigs) return;
+    setIsSaving(true);
+
+    try {
+      const ds = await getDataService();
+
+      // Create habits from the onboarding config
+      const habitNames = Object.keys(state.habitConfigs);
+      for (const name of habitNames) {
+        try {
+          await ds.createHabit(name, 'daily');
+        } catch {
+          // Ignore duplicate habit errors
+        }
+      }
+
+      // Save onboarding state to Supabase
+      const { data: session } = await authClient.getSession();
+      const uid = session?.user?.id;
+      if (uid) {
+        const { error: obError } = await supabase.from('onboarding_states').upsert(
+          {
+            user_id: uid,
+            path: state.source === 'advanced' ? 'advanced' : 'beginner',
+            status: 'completed',
+            current_step: state.source === 'advanced' ? 6 : 7,
+            data: {
+              habitConfigs: state.habitConfigs,
+              goals: state.goals,
+              category: state.category,
+              reflectionConfig: state.reflectionConfig,
+              source: state.source,
+            },
+            completed_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' },
+        );
+        if (obError) console.error('[Onboarding] Failed to save state:', obError.message);
+      }
+
+      // Update display name from onboarding Step 1 nickname
+      if (uid) {
+        const { data: obState } = await supabase
+          .from('onboarding_states')
+          .select('data')
+          .eq('user_id', uid)
+          .maybeSingle();
+        const nickname = obState?.data?.nickname;
+        if (nickname) {
+          await authClient.updateUser({ name: nickname }).catch(() => {});
+        }
+      }
+
+      navigate('/home');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to save onboarding plan';
+      addToast('error', msg);
+      navigate('/home');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [state, navigate, addToast]);
 
   if (!state?.habitConfigs || !state?.reflectionConfig) {
     return <Navigate to="/onboarding" replace />;
@@ -41,8 +112,9 @@ export function PlanReviewPage() {
     <OnboardingLayout
       currentStep={source === 'advanced' ? 6 : 7}
       totalSteps={source === 'advanced' ? 6 : 7}
-      ctaLabel="Start plan"
-      onNext={() => navigate('/home')}
+      ctaLabel={isSaving ? 'Saving...' : 'Start plan'}
+      onNext={handleStartPlan}
+      ctaDisabled={isSaving}
       onBack={() =>
         navigate(source === 'advanced' ? '/onboarding/advanced-step-6' : '/onboarding/step-6', {
           state:

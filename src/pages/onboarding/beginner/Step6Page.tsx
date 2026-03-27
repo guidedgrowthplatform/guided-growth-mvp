@@ -72,6 +72,7 @@ export function Step6Page() {
       ctaLabel="Review My Plan"
       ctaVariant="inline"
       showVoiceButton
+      aiListeningPrompt='"When would you like to do your daily reflection?"'
       footerText="You can change these settings later in your profile."
       onNext={() => {
         // Serialize Set→array for router state consistency

@@ -1,6 +1,3 @@
-// Service Provider — toggle between Mock and Supabase backends
-// Set VITE_USE_SUPABASE=true in .env.local to use Supabase
-
 import type { DataService } from './data-service.interface';
 import { mockDataService } from './mock-data-service';
 
@@ -17,12 +14,12 @@ function initService(): Promise<DataService> {
   if (useSupabase) {
     _initPromise = import('./supabase-data-service').then((mod) => {
       _service = mod.supabaseDataService;
-      console.log('[ServiceProvider] Using SupabaseDataService');
+      if (import.meta.env.DEV) console.log('[ServiceProvider] Using SupabaseDataService');
       return _service;
     });
   } else {
     _service = mockDataService;
-    console.log('[ServiceProvider] Using MockDataService (localStorage)');
+    if (import.meta.env.DEV) console.log('[ServiceProvider] Using MockDataService (localStorage)');
     _initPromise = Promise.resolve(_service);
   }
 
@@ -42,10 +39,10 @@ export function getDataServiceSync(): DataService {
   // If supabase mode but not yet initialized, return mock temporarily
   // The async init will swap it once resolved
   if (useSupabase) {
-    console.log('[ServiceProvider] SupabaseDataService loading... using mock temporarily');
+    if (import.meta.env.DEV)
+      console.log('[ServiceProvider] SupabaseDataService loading... using mock temporarily');
   }
-  _service = mockDataService;
-  return _service;
+  return mockDataService;
 }
 
 // Reset (for testing)

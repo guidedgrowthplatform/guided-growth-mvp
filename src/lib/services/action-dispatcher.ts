@@ -1,5 +1,5 @@
-import type { ActionResult, DataService } from './data-service.interface';
 import { DAY_NAMES, HABIT_SUGGESTIONS, DEFAULT_SUGGESTION, MSG } from '../config/dispatcher-config';
+import type { ActionResult, DataService } from './data-service.interface';
 
 interface CommandIntent {
   action: string;
@@ -39,6 +39,10 @@ function parseDateParam(dateStr: unknown): string {
 export class ActionDispatcher {
   constructor(private dataService: DataService) {}
 
+  getDataService(): DataService {
+    return this.dataService;
+  }
+
   async dispatch(intent: CommandIntent): Promise<ActionResult> {
     const { action, entity, params } = intent;
 
@@ -67,6 +71,12 @@ export class ActionDispatcher {
         case 'reflect':
           result = await this.handleReflect(entity, params);
           break;
+        case 'checkin':
+          result = await this.handleCheckIn(params);
+          break;
+        case 'focus':
+          result = await this.handleFocus(params);
+          break;
         case 'suggest':
           result = await this.handleSuggest(entity, params);
           break;
@@ -88,7 +98,6 @@ export class ActionDispatcher {
     }
   }
 
-  // ─── CREATE ───
   private async handleCreate(
     entity: string,
     params: Record<string, unknown>,
@@ -116,11 +125,10 @@ export class ActionDispatcher {
           message: `${MSG.success} Created habit "${habit.name}" (${frequency})`,
           data: habit,
           uiAction: 'navigate',
-          navigateTo: '/capture',
+          navigateTo: '/home',
         };
       }
       case 'metric': {
-        // FIX-01 (#21): Check for duplicate metrics before creating
         const existingMetric = await this.dataService.getMetricByName(name);
         if (existingMetric) {
           return {
@@ -149,7 +157,7 @@ export class ActionDispatcher {
           message: `${MSG.success} Created metric "${metric.name}" (${inputType})`,
           data: metric,
           uiAction: 'navigate',
-          navigateTo: '/configure',
+          navigateTo: '/home',
         };
       }
       default:
@@ -157,7 +165,6 @@ export class ActionDispatcher {
     }
   }
 
-  // ─── COMPLETE ───
   private async handleComplete(
     entity: string,
     params: Record<string, unknown>,
@@ -189,7 +196,7 @@ export class ActionDispatcher {
         success: true,
         message: `${MSG.success} Marked "${habit.name}" done for ${completedDates.length} days`,
         uiAction: 'navigate',
-        navigateTo: '/capture',
+        navigateTo: '/home',
       };
     }
 
@@ -200,11 +207,10 @@ export class ActionDispatcher {
       success: true,
       message: `${MSG.success} Marked "${habit.name}" done for ${date === todayStr() ? 'today' : date}`,
       uiAction: 'navigate',
-      navigateTo: '/capture',
+      navigateTo: '/home',
     };
   }
 
-  // ─── DELETE ───
   private async handleDelete(
     entity: string,
     params: Record<string, unknown>,
@@ -225,7 +231,7 @@ export class ActionDispatcher {
           success: true,
           message: `${MSG.success} Deleted habit "${habit.name}"`,
           uiAction: 'navigate',
-          navigateTo: '/capture',
+          navigateTo: '/home',
         };
       }
       case 'metric': {
@@ -241,7 +247,7 @@ export class ActionDispatcher {
           success: true,
           message: `${MSG.success} Deleted metric "${metric.name}"`,
           uiAction: 'navigate',
-          navigateTo: '/configure',
+          navigateTo: '/home',
         };
       }
       default:
@@ -249,7 +255,6 @@ export class ActionDispatcher {
     }
   }
 
-  // ─── UPDATE ───
   private async handleUpdate(
     entity: string,
     params: Record<string, unknown>,
@@ -280,11 +285,10 @@ export class ActionDispatcher {
       message: `${MSG.success} Updated habit "${updated.name}"`,
       data: updated,
       uiAction: 'navigate',
-      navigateTo: '/capture',
+      navigateTo: '/home',
     };
   }
 
-  // ─── QUERY ───
   private async handleQuery(
     entity: string,
     params: Record<string, unknown>,
@@ -339,7 +343,7 @@ export class ActionDispatcher {
           message: `${MSG.list} Your habits: ${list || 'none yet'}`,
           data: habits,
           uiAction: 'navigate',
-          navigateTo: '/capture',
+          navigateTo: '/home',
         };
       }
 
@@ -361,12 +365,11 @@ export class ActionDispatcher {
           success: true,
           message: `Navigating to view ${entity}`,
           uiAction: 'navigate',
-          navigateTo: '/capture',
+          navigateTo: '/home',
         };
     }
   }
 
-  // ─── LOG ───
   private async handleLog(entity: string, params: Record<string, unknown>): Promise<ActionResult> {
     if (entity !== 'metric') {
       return { success: false, message: `Can't log ${entity}`, uiAction: 'toast' };
@@ -394,17 +397,17 @@ export class ActionDispatcher {
     };
   }
 
-  // ─── REFLECT ───
   private async handleReflect(
     _entity: string,
     params: Record<string, unknown>,
   ): Promise<ActionResult> {
     const mood = String(params.mood || 'neutral');
     const themes = (params.themes as string[]) || [];
+    const rawContent = params.content ? String(params.content) : null;
     const content =
-      themes.length > 0 ? `Feeling ${mood}. Themes: ${themes.join(', ')}` : `Feeling ${mood}`;
+      rawContent ||
+      (themes.length > 0 ? `Feeling ${mood}. Themes: ${themes.join(', ')}` : `Feeling ${mood}`);
 
-    // FIX-01 (#21): Check for duplicate journal entries today with same content
     const today = todayStr();
     const todayEntries = await this.dataService.getJournalEntries(today, today);
     const duplicate = todayEntries.find((e) => e.content.toLowerCase() === content.toLowerCase());
@@ -426,7 +429,6 @@ export class ActionDispatcher {
     };
   }
 
-  // ─── SUGGEST ───
   private async handleSuggest(
     _entity: string,
     _params: Record<string, unknown>,
@@ -447,7 +449,65 @@ export class ActionDispatcher {
     };
   }
 
-  // ─── HELP (Issue #19) ───
+  private async handleCheckIn(params: Record<string, unknown>): Promise<ActionResult> {
+    const sleep = params.sleep != null ? Number(params.sleep) : null;
+    const mood = params.mood != null ? Number(params.mood) : null;
+    const energy = params.energy != null ? Number(params.energy) : null;
+    const stress = params.stress != null ? Number(params.stress) : null;
+
+    if (sleep === null && mood === null && energy === null && stress === null) {
+      return {
+        success: false,
+        message: `${MSG.error} Please provide at least one value (sleep, mood, energy, or stress)`,
+        uiAction: 'toast',
+      };
+    }
+
+    const date = todayStr();
+    const record = await this.dataService.saveCheckIn(date, { sleep, mood, energy, stress });
+    const parts: string[] = [];
+    if (sleep !== null) parts.push(`sleep: ${sleep}`);
+    if (mood !== null) parts.push(`mood: ${mood}`);
+    if (energy !== null) parts.push(`energy: ${energy}`);
+    if (stress !== null) parts.push(`stress: ${stress}`);
+
+    return {
+      success: true,
+      message: `${MSG.success} Check-in saved (${parts.join(', ')})`,
+      data: record,
+      uiAction: 'toast',
+    };
+  }
+
+  private async handleFocus(params: Record<string, unknown>): Promise<ActionResult> {
+    const duration = params.duration != null ? Number(params.duration) : 25;
+    const habitName = params.habit ? String(params.habit) : null;
+
+    let habitId: string | null = null;
+    let habitLabel = '';
+    if (habitName) {
+      const habit = await this.dataService.getHabitByName(habitName);
+      if (!habit) {
+        return {
+          success: false,
+          message: `${MSG.error} Habit "${habitName}" not found. Create it first or start a focus session without a habit.`,
+          uiAction: 'toast',
+        };
+      }
+      habitId = habit.id;
+      habitLabel = ` on "${habit.name}"`;
+    }
+
+    await this.dataService.saveFocusSession(habitId, duration, null, new Date().toISOString());
+
+    return {
+      success: true,
+      message: `${MSG.success} Starting ${duration}-minute focus session${habitLabel}`,
+      uiAction: 'navigate',
+      navigateTo: '/focus',
+    };
+  }
+
   private handleHelp(): ActionResult {
     const commands = [
       '• "Create a habit called meditation" — add a new habit',
@@ -458,6 +518,10 @@ export class ActionDispatcher {
       '• "How am I doing with meditation?" — view stats',
       '• "Log sleep quality as 8" — record a metric value',
       '• "I feel stressed" — save a journal reflection',
+      '• "Journal I had a productive morning" — quick journal entry',
+      '• "Check in sleep 4 mood 3 energy 5 stress 2" — daily check-in',
+      '• "Start focus session for 25 minutes" — start focus timer',
+      '• "Start focus on meditation for 25 minutes" — focus on a habit',
       '• "Suggest a habit" — get a recommendation',
       '• "Help" — show this list',
     ];

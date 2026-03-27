@@ -1,10 +1,14 @@
 import { Icon } from '@iconify/react';
 import { useEffect, useRef, useState } from 'react';
-import { availableMonths } from './insightsMockData';
 
-export function DateFilterBar() {
+interface DateFilterBarProps {
+  availableMonths: string[];
+  selected: string;
+  onSelect: (month: string) => void;
+}
+
+export function DateFilterBar({ availableMonths, selected, onSelect }: DateFilterBarProps) {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState(availableMonths[0]);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,7 +56,7 @@ export function DateFilterBar() {
               role="option"
               aria-selected={month === selected}
               onClick={() => {
-                setSelected(month);
+                onSelect(month);
                 setOpen(false);
               }}
               className={`w-full px-[17px] py-2.5 text-left text-[14px] font-medium transition-colors hover:bg-surface-secondary ${

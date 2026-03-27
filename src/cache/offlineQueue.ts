@@ -38,12 +38,18 @@ export const offlineQueue = {
 
     for (const mutation of queue) {
       try {
-        await fetch(mutation.endpoint, {
+        const response = await fetch(mutation.endpoint, {
           method: mutation.method,
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(mutation.body),
         });
+        if (!response.ok) {
+          // Re-enqueue on server errors (5xx); drop on client errors (4xx) to avoid infinite retry
+          if (response.status >= 500) {
+            remaining.push(mutation);
+          }
+        }
       } catch {
         remaining.push(mutation);
       }

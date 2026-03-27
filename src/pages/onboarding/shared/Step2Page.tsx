@@ -14,6 +14,7 @@ export function Step2Page() {
       totalSteps={7}
       ctaLabel="Continue"
       ctaVariant="inline"
+      ctaDisabled={!plan}
       onNext={() => {
         if (plan === 'braindump') navigate('/onboarding/advanced-input');
         else navigate('/onboarding/step-3');

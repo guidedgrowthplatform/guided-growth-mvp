@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { getCellColor, getCellDisplayValue } from './cellColors';
 import type { Metric } from '@shared/types';
+import { getCellColor, getCellDisplayValue } from './cellColors';
 
 const makeMetric = (overrides: Partial<Metric> = {}): Metric => ({
   id: '1',

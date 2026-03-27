@@ -1,5 +1,6 @@
 import { Icon } from '@iconify/react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { AiListeningTooltip } from './AiListeningTooltip';
 import { OnboardingProgress } from './OnboardingProgress';
 
@@ -16,6 +17,7 @@ interface OnboardingLayoutProps {
   aiListeningPrompt?: string;
   footerText?: string;
   secondaryAction?: { label: string; onClick: () => void };
+  onTranscript?: (text: string) => void;
 }
 
 export function OnboardingLayout({
@@ -30,9 +32,19 @@ export function OnboardingLayout({
   ctaVariant = 'full',
   aiListeningPrompt,
   footerText,
+  onTranscript,
   secondaryAction,
 }: OnboardingLayoutProps) {
-  const [isListening, setIsListening] = useState(false);
+  const { isListening, toggle, transcript, interim, error } = useVoiceInput();
+
+  // Track previous transcript to detect new completions
+  const prevTranscriptRef = useRef(transcript);
+  useEffect(() => {
+    if (onTranscript && transcript && transcript !== prevTranscriptRef.current && !isListening) {
+      onTranscript(transcript);
+    }
+    prevTranscriptRef.current = transcript;
+  }, [transcript, isListening, onTranscript]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-primary-bg px-[24px] pb-[48px] pt-[max(16px,env(safe-area-inset-top))]">
@@ -54,14 +66,36 @@ export function OnboardingLayout({
       {ctaVariant === 'full' ? (
         <>
           {showVoiceButton && (
-            <div className="flex justify-center py-4">
+            <div className="flex flex-col items-center gap-2 py-4">
               <button
                 type="button"
-                className="flex h-[56px] w-[56px] items-center justify-center rounded-full shadow-[0px_0px_15px_0px_rgba(19,91,236,0.3)]"
-                style={{ background: 'linear-gradient(135deg, #135bec 0%, #2563eb 100%)' }}
+                onClick={toggle}
+                className={`flex h-[56px] w-[56px] items-center justify-center rounded-full shadow-[0px_0px_15px_0px_rgba(19,91,236,0.3)] transition-colors ${
+                  isListening ? 'bg-red-500' : ''
+                }`}
+                style={
+                  isListening
+                    ? undefined
+                    : { background: 'linear-gradient(135deg, #135bec 0%, #2563eb 100%)' }
+                }
               >
-                <Icon icon="ic:round-mic" width={22} height={22} className="text-white" />
+                <Icon
+                  icon={isListening ? 'ic:round-stop' : 'ic:round-mic'}
+                  width={22}
+                  height={22}
+                  className="text-white"
+                />
               </button>
+              {isListening && (
+                <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>
+              )}
+              {interim && !isListening && (
+                <p className="text-xs text-content-secondary">{interim}</p>
+              )}
+              {transcript && (
+                <p className="max-w-[280px] text-center text-sm text-content">{transcript}</p>
+              )}
+              {error && <p className="max-w-[280px] text-center text-xs text-red-500">{error}</p>}
             </div>
           )}
           <button
@@ -87,7 +121,10 @@ export function OnboardingLayout({
         <div className="relative -mx-[24px] -mb-[48px] bg-gradient-to-t from-surface-secondary via-surface-secondary to-transparent px-[24px] pb-[40px] pt-[24px]">
           {aiListeningPrompt && (
             <div className="absolute bottom-full right-[24px] z-10 mb-[-8px]">
-              <AiListeningTooltip text={aiListeningPrompt} visible={isListening} />
+              <AiListeningTooltip
+                text={transcript || aiListeningPrompt}
+                visible={isListening || !!transcript}
+              />
             </div>
           )}
           <div className="flex items-center gap-[8px]">
@@ -102,13 +139,29 @@ export function OnboardingLayout({
             {showVoiceButton && (
               <button
                 type="button"
-                onClick={() => setIsListening((v) => !v)}
-                className="flex size-[56px] shrink-0 items-center justify-center rounded-full bg-primary shadow-[0px_25px_50px_-12px_rgba(19,91,236,0.4)]"
+                onClick={toggle}
+                className={`flex size-[56px] shrink-0 items-center justify-center rounded-full shadow-[0px_25px_50px_-12px_rgba(19,91,236,0.4)] transition-colors ${
+                  isListening ? 'bg-red-500' : 'bg-primary'
+                }`}
               >
-                <Icon icon="ic:round-mic" width={22} height={22} className="text-white" />
+                <Icon
+                  icon={isListening ? 'ic:round-stop' : 'ic:round-mic'}
+                  width={22}
+                  height={22}
+                  className="text-white"
+                />
               </button>
             )}
           </div>
+          {(transcript || interim || error) && showVoiceButton && (
+            <div className="mt-[8px] flex flex-col items-center gap-1">
+              {interim && <p className="text-xs text-content-secondary">{interim}</p>}
+              {transcript && (
+                <p className="max-w-full text-center text-sm text-content">{transcript}</p>
+              )}
+              {error && <p className="max-w-full text-center text-xs text-red-500">{error}</p>}
+            </div>
+          )}
           {footerText && (
             <p className="mt-[12px] text-center text-[12px] font-medium text-content-tertiary">
               {footerText}
