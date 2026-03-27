@@ -11,7 +11,6 @@ export interface User {
   status: UserStatus;
   createdAt: string;
   updatedAt: string;
-  last_login_at: string | null;
 }
 
 // ─── Metric ─────────────────────────────────────────

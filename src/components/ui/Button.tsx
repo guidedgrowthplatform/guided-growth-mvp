@@ -19,10 +19,19 @@ const sizes = {
   'auth-rect': 'px-6 h-14 text-base rounded-[24px]',
 } as const;
 
+const spinnerColors: Record<string, string> = {
+  primary: 'border-white/30 border-t-white',
+  danger: 'border-white/30 border-t-white',
+  'social-dark': 'border-white/30 border-t-white',
+  icon: 'border-white/30 border-t-white',
+};
+const defaultSpinnerColor = 'border-primary/30 border-t-primary';
+
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof variants;
   size?: keyof typeof sizes;
   fullWidth?: boolean;
+  loading?: boolean;
   children: ReactNode;
 }
 
@@ -30,16 +39,26 @@ export function Button({
   variant = 'primary',
   size = 'md',
   fullWidth,
+  loading,
   className = '',
   children,
+  disabled,
   ...props
 }: ButtonProps) {
   return (
     <button
       className={`font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${fullWidth ? 'w-full' : ''} ${className}`}
+      disabled={disabled || loading}
       {...props}
     >
-      {children}
+      <span className="flex items-center justify-center gap-2">
+        {loading && (
+          <span
+            className={`inline-block h-4 w-4 animate-spin rounded-full border-2 ${spinnerColors[variant] ?? defaultSpinnerColor}`}
+          />
+        )}
+        {children}
+      </span>
     </button>
   );
 }

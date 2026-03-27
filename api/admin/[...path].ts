@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid role. Must be "user" or "admin".' });
       }
       const result = await pool.query(
-        'UPDATE "user" SET role = $1 WHERE id = $2 RETURNING id, email, name, image, role, status, "createdAt", last_login_at',
+        'UPDATE "user" SET role = $1 WHERE id = $2 RETURNING id, email, name, image, role, status, "createdAt"',
         [role, userId],
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid status. Must be "active" or "disabled".' });
       }
       const result = await pool.query(
-        'UPDATE "user" SET status = $1 WHERE id = $2 RETURNING id, email, name, image, role, status, "createdAt", last_login_at',
+        'UPDATE "user" SET status = $1 WHERE id = $2 RETURNING id, email, name, image, role, status, "createdAt"',
         [status, userId],
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -77,7 +77,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // /api/admin/users (list all)
     if (!userId && req.method === 'GET') {
       const result = await pool.query(
-        'SELECT id, email, name, image, role, status, "createdAt", last_login_at FROM "user" ORDER BY "createdAt" DESC',
+        `SELECT u.id, u.email, u.name, u.image, u.role, u.status, u."createdAt",
+                s.last_active
+         FROM "user" u
+         LEFT JOIN (
+           SELECT "userId", MAX("updatedAt") as last_active FROM session GROUP BY "userId"
+         ) s ON s."userId" = u.id
+         ORDER BY u."createdAt" DESC`,
       );
       return res.json(result.rows);
     }

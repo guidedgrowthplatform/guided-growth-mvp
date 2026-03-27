@@ -176,7 +176,7 @@ export function AdminPage() {
                       </select>
                     </td>
                     <td className="px-4 py-3 text-sm text-content-secondary">
-                      {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : 'Never'}
+                      {u.last_active ? new Date(u.last_active).toLocaleDateString() : 'Never'}
                     </td>
                   </tr>
                 ))}

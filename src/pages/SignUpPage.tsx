@@ -53,7 +53,7 @@ export function SignUpPage() {
       </div>
 
       <div className="mt-8">
-        <SocialAuthButtons />
+        <SocialAuthButtons disabled={loading} />
       </div>
 
       <div className="mt-8">
@@ -65,6 +65,7 @@ export function SignUpPage() {
           variant="auth"
           placeholder="Email Address"
           type="email"
+          disabled={loading}
           {...register('email')}
           error={errors.email?.message}
         />
@@ -73,12 +74,13 @@ export function SignUpPage() {
           type="password"
           placeholder="Password"
           showPasswordToggle
+          disabled={loading}
           {...register('password')}
           error={errors.password?.message}
         />
         <div className="mt-2">
-          <Button variant="primary" size="auth" fullWidth type="submit" disabled={loading}>
-            {loading ? 'Please wait...' : 'Sign Up'}
+          <Button variant="primary" size="auth" fullWidth type="submit" loading={loading}>
+            Sign Up
           </Button>
         </div>
         {error && <AuthAlert type="error" message={error} />}

@@ -23,7 +23,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const webRes = await auth.handler(webReq);
 
     res.status(webRes.status);
-    webRes.headers.forEach((value, key) => res.setHeader(key, value));
+
+    const setCookies = webRes.headers.getSetCookie?.() ?? [];
+    webRes.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== 'set-cookie') {
+        res.setHeader(key, value);
+      }
+    });
+    if (setCookies.length > 0) {
+      res.setHeader('set-cookie', setCookies);
+    }
 
     const body = await webRes.text();
     if (body) res.send(body);
