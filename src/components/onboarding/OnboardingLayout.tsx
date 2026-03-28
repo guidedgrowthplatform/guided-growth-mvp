@@ -1,5 +1,8 @@
 import { Icon } from '@iconify/react';
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { OnboardingVoiceOverlay } from '@/components/onboarding/OnboardingVoiceOverlay';
+import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { AiListeningTooltip } from './AiListeningTooltip';
 import { OnboardingProgress } from './OnboardingProgress';
@@ -18,6 +21,11 @@ interface OnboardingLayoutProps {
   footerText?: string;
   secondaryAction?: { label: string; onClick: () => void };
   onTranscript?: (text: string) => void;
+  // New voice overlay props
+  voiceOptions?: string[];
+  voicePrompt?: string;
+  onVoiceAction?: (result: OnboardingVoiceResult) => void;
+  showTooltip?: boolean;
 }
 
 export function OnboardingLayout({
@@ -34,8 +42,16 @@ export function OnboardingLayout({
   footerText,
   onTranscript,
   secondaryAction,
+  voiceOptions = [],
+  voicePrompt = '',
+  onVoiceAction,
+  showTooltip = false,
 }: OnboardingLayoutProps) {
   const { isListening, toggle, transcript, interim, error } = useVoiceInput();
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const [tooltipVisible, setTooltipVisible] = useState(
+    showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
+  );
 
   // Track previous transcript to detect new completions
   const prevTranscriptRef = useRef(transcript);
@@ -46,8 +62,44 @@ export function OnboardingLayout({
     prevTranscriptRef.current = transcript;
   }, [transcript, isListening, onTranscript]);
 
+  const handleMicClick = () => {
+    // If we have onVoiceAction, use the new overlay-based flow
+    if (onVoiceAction && voiceOptions.length > 0) {
+      setOverlayOpen(true);
+      setTooltipVisible(false);
+      // Mark tooltip as seen
+      localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
+    } else {
+      // Fallback to old inline voice behavior
+      toggle();
+    }
+  };
+
+  const handleVoiceAction = (result: OnboardingVoiceResult) => {
+    if (onVoiceAction) {
+      onVoiceAction(result);
+    }
+  };
+
+  const handleTooltipDismiss = () => {
+    setTooltipVisible(false);
+    localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
+  };
+
   return (
     <div className="flex min-h-dvh flex-col bg-primary-bg px-[24px] pb-[48px] pt-[max(16px,env(safe-area-inset-top))]">
+      {overlayOpen && (
+        <OnboardingVoiceOverlay
+          stepContext={{
+            step: currentStep,
+            options: voiceOptions,
+            prompt: voicePrompt,
+          }}
+          onAction={handleVoiceAction}
+          onClose={() => setOverlayOpen(false)}
+        />
+      )}
+
       {onBack && (
         <button
           type="button"
@@ -67,35 +119,42 @@ export function OnboardingLayout({
         <>
           {showVoiceButton && (
             <div className="flex flex-col items-center gap-2 py-4">
-              <button
-                type="button"
-                onClick={toggle}
-                className={`flex h-[56px] w-[56px] items-center justify-center rounded-full shadow-[0px_0px_15px_0px_rgba(19,91,236,0.3)] transition-colors ${
-                  isListening ? 'bg-red-500' : ''
-                }`}
-                style={
-                  isListening
-                    ? undefined
-                    : { background: 'linear-gradient(135deg, #135bec 0%, #2563eb 100%)' }
-                }
-              >
-                <Icon
-                  icon={isListening ? 'ic:round-stop' : 'ic:round-mic'}
-                  width={22}
-                  height={22}
-                  className="text-white"
-                />
-              </button>
-              {isListening && (
+              <div className="relative">
+                {tooltipVisible && (
+                  <VoiceTooltip autoDismissMs={4000} onDismiss={handleTooltipDismiss} />
+                )}
+                <button
+                  type="button"
+                  onClick={handleMicClick}
+                  className={`flex h-[56px] w-[56px] items-center justify-center rounded-full shadow-[0px_0px_15px_0px_rgba(19,91,236,0.3)] transition-colors ${
+                    isListening && !onVoiceAction ? 'bg-red-500' : ''
+                  }`}
+                  style={
+                    isListening && !onVoiceAction
+                      ? undefined
+                      : { background: 'linear-gradient(135deg, #135bec 0%, #2563eb 100%)' }
+                  }
+                >
+                  <Icon
+                    icon={isListening && !onVoiceAction ? 'ic:round-stop' : 'ic:round-mic'}
+                    width={22}
+                    height={22}
+                    className="text-white"
+                  />
+                </button>
+              </div>
+              {isListening && !onVoiceAction && (
                 <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>
               )}
-              {interim && !isListening && (
+              {interim && !isListening && !onVoiceAction && (
                 <p className="text-xs text-content-secondary">{interim}</p>
               )}
-              {transcript && (
+              {transcript && !onVoiceAction && (
                 <p className="max-w-[280px] text-center text-sm text-content">{transcript}</p>
               )}
-              {error && <p className="max-w-[280px] text-center text-xs text-red-500">{error}</p>}
+              {error && !onVoiceAction && (
+                <p className="max-w-[280px] text-center text-xs text-red-500">{error}</p>
+              )}
             </div>
           )}
           <button
@@ -139,13 +198,13 @@ export function OnboardingLayout({
             {showVoiceButton && (
               <button
                 type="button"
-                onClick={toggle}
+                onClick={handleMicClick}
                 className={`flex size-[56px] shrink-0 items-center justify-center rounded-full shadow-[0px_25px_50px_-12px_rgba(19,91,236,0.4)] transition-colors ${
-                  isListening ? 'bg-red-500' : 'bg-primary'
+                  isListening && !onVoiceAction ? 'bg-red-500' : 'bg-primary'
                 }`}
               >
                 <Icon
-                  icon={isListening ? 'ic:round-stop' : 'ic:round-mic'}
+                  icon={isListening && !onVoiceAction ? 'ic:round-stop' : 'ic:round-mic'}
                   width={22}
                   height={22}
                   className="text-white"
@@ -153,7 +212,7 @@ export function OnboardingLayout({
               </button>
             )}
           </div>
-          {(transcript || interim || error) && showVoiceButton && (
+          {(transcript || interim || error) && showVoiceButton && !onVoiceAction && (
             <div className="mt-[8px] flex flex-col items-center gap-1">
               {interim && <p className="text-xs text-content-secondary">{interim}</p>}
               {transcript && (

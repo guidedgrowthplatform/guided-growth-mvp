@@ -42,25 +42,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // The request body is multipart/form-data with the WAV blob.
-    // Vercel parses the raw body — forward it to ElevenLabs.
+    // PRIVACY: audio blob is streamed in-memory only, never persisted to disk or logs on this server
     const contentType = req.headers['content-type'];
     if (!contentType || !contentType.includes('multipart/form-data')) {
       return res.status(400).json({ error: 'Expected multipart/form-data with WAV file' });
     }
 
-    // Read the raw body as a Buffer to forward to ElevenLabs (with size limit)
-    const chunks: Buffer[] = [];
-    let totalBytes = 0;
-    for await (const chunk of req) {
-      const buf = typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
-      totalBytes += buf.length;
-      if (totalBytes > MAX_BODY_BYTES) {
-        return res.status(413).json({ error: 'Audio file too large (max 10MB)' });
-      }
-      chunks.push(buf);
+    // Read the raw body as a Buffer to forward to ElevenLabs
+    let rawBody: Buffer;
+    if (Buffer.isBuffer(req.body)) {
+      rawBody = req.body;
+    } else if (typeof req.body === 'string') {
+      rawBody = Buffer.from(req.body, 'utf-8');
+    } else {
+      // req.body is undefined — read from stream with timeout protection
+      const chunks: Buffer[] = [];
+      let totalBytes = 0;
+
+      rawBody = await new Promise<Buffer>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Body read timeout'));
+        }, 5000);
+
+        req.on('data', (chunk: Buffer | string) => {
+          const buf = typeof chunk === 'string' ? Buffer.from(chunk, 'utf-8') : chunk;
+          totalBytes += buf.length;
+          if (totalBytes > MAX_BODY_BYTES) {
+            clearTimeout(timeout);
+            req.removeAllListeners();
+            reject(new Error('File too large'));
+            return;
+          }
+          chunks.push(buf);
+        });
+
+        req.on('end', () => {
+          clearTimeout(timeout);
+          resolve(Buffer.concat(chunks));
+        });
+
+        req.on('error', reject);
+
+        // Ensure stream starts flowing
+        if (req.readableFlowing === false) {
+          req.resume();
+        }
+      });
     }
-    const rawBody = Buffer.concat(chunks);
+
+    if (rawBody.length === 0) {
+      return res.status(400).json({ error: 'Request body is empty' });
+    }
 
     const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
       method: 'POST',

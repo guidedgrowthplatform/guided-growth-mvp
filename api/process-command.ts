@@ -3,6 +3,61 @@ import { requireUser, handlePreflight } from './_lib/auth.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
 import { getClientIp } from './_lib/validation.js';
 
+// PII scrubber — strips sensitive data before sending to OpenAI
+function scrubPII(text: string): string {
+  let scrubbed = text;
+
+  // Replace email addresses
+  scrubbed = scrubbed.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL]');
+
+  // Replace phone numbers
+  scrubbed = scrubbed.replace(
+    /(?:\+?1[-.\s]?)?(?:\(?[0-9]{3}\)?[-.\s]?)?[0-9]{3}[-.\s]?[0-9]{4}/g,
+    '[PHONE]',
+  );
+
+  // Replace gender words
+  scrubbed = scrubbed.replace(
+    /\b(male|female|man|woman|boy|girl|non-binary|nonbinary|gender-neutral|genderqueer|agender)\b/gi,
+    '[GENDER]',
+  );
+
+  // Replace age numbers and ranges
+  scrubbed = scrubbed.replace(
+    /\b(?:([0-9]{1,3})(?:\s*(?:to|or|-)\s*[0-9]{1,3})?)\b(?!\s*[a-z])/gi,
+    (match) => {
+      const nums = match.match(/[0-9]{1,3}/g);
+      if (nums && nums.every((n) => parseInt(n, 10) >= 1 && parseInt(n, 10) <= 120)) {
+        return '[AGE]';
+      }
+      return match;
+    },
+  );
+
+  // Replace capitalized names (but avoid common words)
+  const commonWords = new Set([
+    'I',
+    'The',
+    'A',
+    'An',
+    'Is',
+    'Are',
+    'Was',
+    'Were',
+    'Be',
+    'Been',
+    'Being',
+  ]);
+  scrubbed = scrubbed.replace(/\b([A-Z][a-z]+)\b/g, (match) => {
+    if (!commonWords.has(match) && match.length > 1) {
+      return '[NAME]';
+    }
+    return match;
+  });
+
+  return scrubbed;
+}
+
 // NOTE: Prompt is inlined here because Vercel serverless functions cannot
 // import from ../src/lib/. The canonical version lives in
 // src/lib/prompts/voice-command-system.ts — keep them in sync.
@@ -422,6 +477,72 @@ User: "Lock my mood at seven."
 User: "Marc done yoga."
 {"corrected_transcript":"mark done yoga","action":"complete","entity":"habit","params":{"name":"yoga","date":"today"},"confidence":0.8}`;
 
+/** Build a system prompt for onboarding steps. Returns JSON with step-specific parsing rules. */
+function buildOnboardingPrompt(ctx: Record<string, unknown>): string {
+  const step = typeof ctx.step === 'number' ? ctx.step : 0;
+  const options = Array.isArray(ctx.options) ? ctx.options : [];
+  const prompt = typeof ctx.prompt === 'string' ? ctx.prompt : '';
+
+  const optionsStr = options.join(', ');
+
+  return `You are an onboarding assistant helping users configure their life-tracking settings.
+
+## Current Step: ${step}
+## User Prompt: "${prompt}"
+## Available Options: ${optionsStr}
+
+Your job is to extract the user's choices from their spoken input and return a JSON object.
+
+IMPORTANT: Always scrub any PII (names, emails, phone numbers, ages) that appear in the user's speech before processing. Replace names with [NAME], ages with [AGE], emails with [EMAIL], etc.
+
+Return ONLY valid JSON in this format:
+{
+  "action": "onboarding_select",
+  "params": {
+    ... step-specific fields (see below) ...
+  },
+  "confidence": 0.0-1.0,
+  "message": "Human-friendly response"
+}
+
+## Step-Specific Instructions:
+
+### Step 1: Demographics
+Parse: nickname, ageRange (from options), gender (Male/Female/Other)
+Example: "I'm Alex, 25 to 34, male"
+Output: {"nickname": "Alex", "ageRange": "25 - 34", "gender": "Male"}
+
+### Step 2: Path Selection
+Parse: "simple" or "braindump" (keep it simple vs brain dump)
+Example: "I want to keep it simple"
+Output: {"path": "simple"}
+
+### Step 3: Category Selection
+Parse: One category from options
+Example: "I want to focus on sleep"
+Output: {"category": "Sleep better"}
+
+### Step 4: Goal Selection
+Parse: Up to 2 goals from options
+Example: "I want to fall asleep earlier and sleep more deeply"
+Output: {"goals": ["Fall asleep earlier", "Sleep more deeply"]}
+
+### Step 5: Habit Selection
+Parse: Up to 2 habits from options
+Example: "No screens after 10 PM and cool room temperature"
+Output: {"habits": ["No screens after 10 PM", "Cool room temperature"]}
+
+### Step 6: Reflection Schedule
+Parse: time (HH:MM format) and schedule (Weekday/Weekend/Every day)
+Example: "I want to reflect at 9 PM on weekdays"
+Output: {"time": "21:00", "schedule": "Weekday"}
+
+## Matching Strategy:
+- Match user input against the available options using fuzzy matching
+- If confidence is below 0.5, return success: false with a helpful error message
+- Always return a message that acknowledges what was understood`;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   if (req.method !== 'POST') {
@@ -461,13 +582,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'OPENAI_API_KEY not configured' });
   }
 
-  const { transcript, existingHabits } = req.body;
+  const { transcript, existingHabits, onboarding_context } = req.body;
   if (!transcript || typeof transcript !== 'string') {
     return res.status(400).json({ error: 'Missing transcript' });
   }
   if (transcript.length > 2000) {
     return res.status(400).json({ error: 'Transcript too long (max 2000 chars)' });
   }
+
+  // Check if this is an onboarding request
+  const isOnboarding = !!(onboarding_context && typeof onboarding_context === 'object');
+  const onboardingCtx = isOnboarding ? (onboarding_context as Record<string, unknown>) : null;
 
   // Sanitize existingHabits: limit count and per-item length to prevent prompt injection / cost abuse
   const sanitizedHabits: string[] = [];
@@ -483,6 +608,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     sanitizedHabits.length > 0
       ? `\n\n## User's Existing Habits\n${sanitizedHabits.join(', ')}\n\nOnly correct a habit name to an existing one when the spoken name is PHONETICALLY ALMOST IDENTICAL (e.g. "playing pedal" → "playing paddle"). If the user says a clearly different name (e.g. "playing laptop" vs "playing game"), treat it as a NEW habit — do NOT match to the existing one. When in doubt, use the name exactly as spoken.`
       : '';
+
+  // For onboarding, build a custom system prompt and sanitize options
+  const systemPrompt = isOnboarding
+    ? buildOnboardingPrompt(onboardingCtx as Record<string, unknown>)
+    : SYSTEM_PROMPT + habitContext;
+
+  // Scrub PII from transcript before sending to OpenAI
+  const sanitizedTranscript = scrubPII(transcript);
 
   try {
     const startTime = Date.now();
@@ -500,8 +633,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         max_tokens: 200,
         response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT + habitContext },
-          { role: 'user', content: transcript },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: sanitizedTranscript },
         ],
       }),
     });
@@ -527,45 +660,60 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(502).json({ error: 'GPT returned invalid JSON response' });
     }
 
-    if (!parsed.action || !parsed.entity) {
-      console.error('GPT response missing required fields:', parsed);
-      return res
-        .status(502)
-        .json({ error: 'GPT response missing required fields (action, entity)' });
+    if (!parsed.action) {
+      console.error('GPT response missing action:', parsed);
+      return res.status(502).json({ error: 'GPT response missing required field (action)' });
     }
 
-    // Allowlist validation — prevent prompt injection from returning unexpected actions
-    const VALID_ACTIONS = new Set([
-      'create',
-      'complete',
-      'delete',
-      'update',
-      'query',
-      'log',
-      'reflect',
-      'suggest',
-      'help',
-      'checkin',
-      'focus',
-    ]);
-    const VALID_ENTITIES = new Set(['habit', 'metric', 'journal', 'summary', 'checkin', 'focus']);
-    if (!VALID_ACTIONS.has(String(parsed.action)) || !VALID_ENTITIES.has(String(parsed.entity))) {
-      console.error('GPT returned invalid action/entity:', parsed.action, parsed.entity);
-      return res.status(502).json({ error: 'Unexpected command type returned' });
+    // Different validation for onboarding vs home voice commands
+    if (isOnboarding) {
+      // Onboarding only allows "onboarding_select" action
+      if (String(parsed.action) !== 'onboarding_select') {
+        console.error('Invalid onboarding action:', parsed.action);
+        return res.status(502).json({ error: 'Invalid onboarding action' });
+      }
+    } else {
+      // Home voice commands need both action and entity
+      if (!parsed.entity) {
+        console.error('GPT response missing entity:', parsed);
+        return res.status(502).json({ error: 'GPT response missing required field (entity)' });
+      }
+
+      // Allowlist validation — prevent prompt injection from returning unexpected actions
+      const VALID_ACTIONS = new Set([
+        'create',
+        'complete',
+        'delete',
+        'update',
+        'query',
+        'log',
+        'reflect',
+        'suggest',
+        'help',
+        'checkin',
+        'focus',
+      ]);
+      const VALID_ENTITIES = new Set(['habit', 'metric', 'journal', 'summary', 'checkin', 'focus']);
+      if (!VALID_ACTIONS.has(String(parsed.action)) || !VALID_ENTITIES.has(String(parsed.entity))) {
+        console.error('GPT returned invalid action/entity:', parsed.action, parsed.entity);
+        return res.status(502).json({ error: 'Unexpected command type returned' });
+      }
     }
 
     const latency = Date.now() - startTime;
 
-    // ─── Post-processing: extract date from transcript if GPT missed it ───
+    // ─── Post-processing: extract date from transcript if GPT missed it (home voice only) ───
     const params = (parsed.params || {}) as Record<string, unknown>;
-    const needsDate = ['complete', 'log'].includes(String(parsed.action));
-    const gptDateIsToday = !params.date || params.date === 'today';
+    if (!isOnboarding) {
+      const needsDate = ['complete', 'log'].includes(String(parsed.action));
+      const gptDateIsToday = !params.date || params.date === 'today';
 
-    if (needsDate && gptDateIsToday) {
-      const extractedDate = extractDateFromTranscript(transcript);
-      if (extractedDate) {
-        params.date = extractedDate;
-        parsed.params = params;
+      if (needsDate && gptDateIsToday) {
+        const extractedDate = extractDateFromTranscript(transcript);
+        if (extractedDate) {
+          params.date = extractedDate;
+          parsed.params = params;
+        }
       }
     }
 

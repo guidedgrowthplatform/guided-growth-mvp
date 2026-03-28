@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const categories = [
   { label: 'Sleep better', emoji: '😴' },
@@ -15,9 +16,21 @@ const categories = [
   { label: 'Get more organized', emoji: '📋' },
 ];
 
+const categoryLabels = categories.map((c) => c.label);
+
 export function Step3Page() {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<string | null>(null);
+
+  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
+    if (result.params && typeof result.params.category === 'string') {
+      setSelected(result.params.category);
+    }
+  }, []);
+
+  const handleNext = useCallback(() => {
+    navigate('/onboarding/step-4', { state: { category: selected } });
+  }, [selected, navigate]);
 
   return (
     <OnboardingLayout
@@ -25,11 +38,14 @@ export function Step3Page() {
       totalSteps={7}
       ctaLabel="Continue"
       ctaVariant="inline"
-      onNext={() => navigate('/onboarding/step-4', { state: { category: selected } })}
+      onNext={handleNext}
       onBack={() => navigate('/onboarding/step-2')}
       showVoiceButton
       aiListeningPrompt='"What is the main category you would like to focus on?"'
       ctaDisabled={!selected}
+      voiceOptions={categoryLabels}
+      voicePrompt="Which category interests you most?"
+      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="What feels most worth improving right now?"

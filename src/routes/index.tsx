@@ -3,8 +3,8 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
-import { authClient } from '@/lib/auth-client';
 import { getDataService } from '@/lib/services/service-provider';
+import { useAuthStore } from '@/stores/authStore';
 // Note: direct Supabase queries removed from ProtectedLayout — all data access
 // goes through API or DataService to avoid RLS issues under Better Auth.
 import { ProtectedRoute } from './ProtectedRoute';
@@ -72,6 +72,7 @@ function PageLoader() {
 function ProtectedLayout() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const habitMatch = useMatch('/habit/:habitId');
   const [onboardingChecked, setOnboardingChecked] = useState(false);
 
@@ -83,8 +84,7 @@ function ProtectedLayout() {
 
     async function checkOnboarding() {
       try {
-        const { data: session } = await authClient.getSession();
-        const uid = session?.user?.id;
+        const uid = user?.id;
         if (!uid) {
           setOnboardingChecked(true);
           return;
@@ -144,7 +144,7 @@ function ProtectedLayout() {
     return () => {
       cancelled = true;
     };
-  }, [navigate]);
+  }, [navigate, user]);
 
   useEffect(() => {
     getDataService()

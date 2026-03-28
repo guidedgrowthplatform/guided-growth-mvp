@@ -5,6 +5,7 @@ import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { authClient } from '@/lib/auth-client';
 import { supabase } from '@/lib/supabase';
 
@@ -85,6 +86,23 @@ export function Step1Page() {
     navigate('/onboarding/step-2');
   }, [nickname, ageRange, gender, navigate]);
 
+  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
+    // Extract parsed values from result
+    if (result.params) {
+      const { nickname: voiceNickname, ageRange: voiceAge, gender: voiceGender } = result.params;
+
+      if (typeof voiceNickname === 'string') {
+        setNickname(voiceNickname);
+      }
+      if (typeof voiceAge === 'string') {
+        setAgeRange(voiceAge);
+      }
+      if (typeof voiceGender === 'string') {
+        setGender(voiceGender);
+      }
+    }
+  }, []);
+
   return (
     <OnboardingLayout
       currentStep={1}
@@ -94,6 +112,10 @@ export function Step1Page() {
       ctaDisabled={!nickname.trim() || !ageRange || !gender}
       showVoiceButton
       onTranscript={(text) => setNickname(text)}
+      voiceOptions={[...AGE_OPTIONS, ...GENDER_OPTIONS, 'name', 'nickname']}
+      voicePrompt="What's your name, age range, and how do you identify?"
+      onVoiceAction={handleVoiceAction}
+      showTooltip
     >
       <OnboardingHeader
         title="Let's get to know you."

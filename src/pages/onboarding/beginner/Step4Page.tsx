@@ -1,9 +1,10 @@
 import { Icon } from '@iconify/react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const goalsByCategory: Record<string, string[]> = {
   'Sleep better': [
@@ -70,19 +71,40 @@ export function Step4Page() {
     });
   }
 
+  const handleVoiceAction = useCallback(
+    (result: OnboardingVoiceResult) => {
+      if (result.params && Array.isArray(result.params.goals)) {
+        const voiceGoals = result.params.goals as string[];
+        const newSelected = new Set<string>();
+        voiceGoals.forEach((g) => {
+          if (goals.includes(g)) {
+            newSelected.add(g);
+          }
+        });
+        setSelected(newSelected);
+      }
+    },
+    [goals],
+  );
+
+  const handleNext = useCallback(() => {
+    navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
+  }, [selected, category, navigate]);
+
   return (
     <OnboardingLayout
       currentStep={4}
       totalSteps={7}
       ctaLabel="Continue"
       ctaVariant="inline"
-      onNext={() =>
-        navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } })
-      }
+      onNext={handleNext}
       onBack={() => navigate('/onboarding/step-3')}
       showVoiceButton
       aiListeningPrompt='"Within that category, what specific area would you like to improve?"'
       ctaDisabled={selected.size === 0}
+      voiceOptions={goals}
+      voicePrompt="Which goals interest you?"
+      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Let's narrow it down"
