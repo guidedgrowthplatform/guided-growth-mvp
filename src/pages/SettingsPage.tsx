@@ -304,6 +304,7 @@ export function SettingsPage() {
               )
             }
           />
+          <SettingRow icon="ic:round-logout" label="Log Out" onClick={signOut} />
           <SettingRow
             icon="octicon:trash-24"
             label="Delete Account & Data"

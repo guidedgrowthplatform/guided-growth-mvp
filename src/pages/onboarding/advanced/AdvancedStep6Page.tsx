@@ -1,10 +1,11 @@
 import { Icon } from '@iconify/react';
-import { useState, useRef, useEffect } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { WEEKDAYS, WEEKEND, ALL_DAYS } from '@/components/onboarding/constants';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
+import { OnboardingVoiceOverlay } from '@/components/onboarding/OnboardingVoiceOverlay';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
-import { useVoiceInput } from '@/hooks/useVoiceInput';
+import type { OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const DEFAULT_QUESTIONS = [
   'What am I proud of today?',
@@ -34,6 +35,7 @@ export function AdvancedStep6Page() {
   const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');
   const [showDropdown, setShowDropdown] = useState(false);
   const [customPrompts] = useState<string[] | null>(state?.customPrompts ?? null);
+  const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const habitConfigs = state?.habitConfigs;
@@ -48,6 +50,16 @@ export function AdvancedStep6Page() {
     if (showDropdown) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showDropdown]);
+
+  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
+    if (result.params && typeof result.params.schedule === 'string') {
+      const s = result.params.schedule.toLowerCase();
+      if (s.includes('weekday')) setSchedule('Weekday');
+      else if (s.includes('weekend')) setSchedule('Weekend');
+      else if (s.includes('every') || s.includes('daily')) setSchedule('Every day');
+    }
+    setShowVoiceOverlay(false);
+  }, []);
 
   const questions = customPrompts ?? DEFAULT_QUESTIONS;
 
@@ -190,11 +202,16 @@ export function AdvancedStep6Page() {
         </div>
       </div>
 
-      {/* Voice Button — wired to ElevenLabs */}
-      <VoiceMicSection />
-
-      {/* CTA Footer */}
+      {/* CTA Footer with Voice FAB */}
       <div className="mt-auto px-[24px] pb-[40px] pt-[32px]">
+        <button
+          type="button"
+          onClick={() => setShowVoiceOverlay(true)}
+          className="mb-4 flex h-[48px] w-full items-center justify-center gap-2 rounded-full border border-primary bg-white text-[14px] font-semibold text-primary shadow-[0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
+        >
+          <Icon icon="ic:round-mic" width={18} height={18} />
+          Set reflection schedule with voice
+        </button>
         <button
           type="button"
           onClick={handleReviewPlan}
@@ -203,32 +220,17 @@ export function AdvancedStep6Page() {
           Review My Plan
         </button>
       </div>
-    </div>
-  );
-}
 
-function VoiceMicSection() {
-  const { isListening, toggle } = useVoiceInput();
-  return (
-    <div className="flex flex-col items-center justify-center py-[32px]">
-      <div className="rounded-full shadow-[0px_0px_0px_12px_rgba(19,91,236,0.05),0px_0px_0px_24px_rgba(19,91,236,0.02)]">
-        <button
-          type="button"
-          onClick={toggle}
-          className={`flex size-[96px] items-center justify-center rounded-full shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)] transition-all ${
-            isListening ? 'scale-110 bg-danger' : 'bg-primary'
-          }`}
-        >
-          <Icon
-            icon={isListening ? 'ic:round-stop' : 'ic:round-mic'}
-            width={24}
-            height={24}
-            className="text-white"
-          />
-        </button>
-      </div>
-      {isListening && (
-        <p className="mt-3 animate-pulse text-sm font-medium text-primary">Listening...</p>
+      {showVoiceOverlay && (
+        <OnboardingVoiceOverlay
+          stepContext={{
+            step: 5,
+            prompt: 'When should you reflect? Say "weekdays", "weekends", or "every day".',
+            options: ['Weekday', 'Weekend', 'Every day'],
+          }}
+          onAction={handleVoiceAction}
+          onClose={() => setShowVoiceOverlay(false)}
+        />
       )}
     </div>
   );
