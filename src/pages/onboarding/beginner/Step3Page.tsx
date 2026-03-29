@@ -21,7 +21,7 @@ const categoryLabels = categories.map((c) => c.label);
 
 export function Step3Page() {
   const navigate = useNavigate();
-  const { state: onboardingState, saveStep } = useOnboarding();
+  const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,10 +36,10 @@ export function Step3Page() {
     }
   }, []);
 
-  const handleNext = useCallback(() => {
-    saveStep(3, { category: selected });
+  const handleNext = useCallback(async () => {
+    await saveStepAsync(3, { category: selected });
     navigate('/onboarding/step-4', { state: { category: selected } });
-  }, [selected, navigate, saveStep]);
+  }, [selected, navigate, saveStepAsync]);
 
   return (
     <OnboardingLayout

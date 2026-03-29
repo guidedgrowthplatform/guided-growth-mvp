@@ -5,6 +5,7 @@ import { WEEKDAYS, WEEKEND, ALL_DAYS } from '@/components/onboarding/constants';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import { OnboardingVoiceOverlay } from '@/components/onboarding/OnboardingVoiceOverlay';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import type { OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const DEFAULT_QUESTIONS = [
@@ -30,6 +31,7 @@ interface LocationState {
 export function AdvancedStep6Page() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { saveStepAsync } = useOnboarding();
   const state = location.state as LocationState | null;
 
   const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');
@@ -40,7 +42,6 @@ export function AdvancedStep6Page() {
 
   const habitConfigs = state?.habitConfigs;
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -63,8 +64,7 @@ export function AdvancedStep6Page() {
 
   const questions = customPrompts ?? DEFAULT_QUESTIONS;
 
-  function handleReviewPlan() {
-    // Convert habitConfigs array to Record format for Step7
+  const handleReviewPlan = useCallback(async () => {
     const configRecord: Record<string, { days: number[]; time: string; reminder: boolean }> = {};
     if (habitConfigs) {
       for (const h of habitConfigs) {
@@ -73,15 +73,18 @@ export function AdvancedStep6Page() {
     }
 
     const days = [...(SCHEDULE_DAYS[schedule] ?? WEEKDAYS)];
+    const reflectionConfig = { time: '21:45', days, reminder: true, schedule };
+
+    await saveStepAsync(5, { habitConfigs: configRecord, reflectionConfig });
 
     navigate('/onboarding/step-7', {
       state: {
         habitConfigs: configRecord,
-        reflectionConfig: { time: '21:45', days, reminder: true, schedule },
+        reflectionConfig,
         source: 'advanced',
       },
     });
-  }
+  }, [habitConfigs, schedule, navigate, saveStepAsync]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface-secondary">

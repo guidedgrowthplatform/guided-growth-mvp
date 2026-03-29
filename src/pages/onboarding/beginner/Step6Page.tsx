@@ -30,7 +30,7 @@ function inferSchedule(days: Set<number>): ScheduleOption | null {
 export function Step6Page() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { state: onboardingState, saveStep } = useOnboarding();
+  const { state: onboardingState, saveStepAsync } = useOnboarding();
   const state = location.state as {
     habitConfigs?: Record<
       string,
@@ -101,7 +101,7 @@ export function Step6Page() {
     }
   }, []);
 
-  const handleOnNext = useCallback(() => {
+  const handleOnNext = useCallback(async () => {
     const serializedConfigs = state?.habitConfigs
       ? Object.fromEntries(
           Object.entries(state.habitConfigs).map(([k, v]) => [
@@ -110,7 +110,7 @@ export function Step6Page() {
           ]),
         )
       : undefined;
-    saveStep(6, { reflectionConfig: { time, days: [...days], reminder, schedule } });
+    await saveStepAsync(6, { reflectionConfig: { time, days: [...days], reminder, schedule } });
     navigate('/onboarding/step-7', {
       state: {
         habitConfigs: serializedConfigs,
@@ -119,7 +119,7 @@ export function Step6Page() {
         reflectionConfig: { time, days: [...days], reminder, schedule },
       },
     });
-  }, [state, time, days, reminder, schedule, navigate, saveStep]);
+  }, [state, time, days, reminder, schedule, navigate, saveStepAsync]);
 
   return (
     <OnboardingLayout

@@ -1,5 +1,7 @@
 import { create } from 'zustand';
+import * as onboardingApi from '@/api/onboarding';
 import { authClient } from '@/lib/auth-client';
+import { queryClient, queryKeys } from '@/lib/query';
 
 export interface AppUser {
   id: string;
@@ -36,6 +38,14 @@ function friendlyError(error: any): string {
   return ERROR_MESSAGES[code] || error.message || 'Something went wrong. Please try again.';
 }
 
+function prefetchOnboardingState() {
+  queryClient.prefetchQuery({
+    queryKey: queryKeys.onboarding.state,
+    queryFn: onboardingApi.fetchOnboardingState,
+    staleTime: 30_000,
+  });
+}
+
 export interface AuthState {
   user: AppUser | null;
   loading: boolean;
@@ -56,7 +66,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     authClient
       .getSession()
       .then(({ data }) => {
-        if (data?.user) set({ user: mapUser(data.user) });
+        if (data?.user) {
+          set({ user: mapUser(data.user) });
+          prefetchOnboardingState();
+        }
         set({ loading: false });
       })
       .catch(() => set({ loading: false }));
@@ -88,9 +101,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (data?.user) {
       set({ user: mapUser(data.user) });
+      prefetchOnboardingState();
     } else {
       const { data: session } = await authClient.getSession();
-      if (session?.user) set({ user: mapUser(session.user) });
+      if (session?.user) {
+        set({ user: mapUser(session.user) });
+        prefetchOnboardingState();
+      }
     }
     return { error: null };
   },
@@ -101,9 +118,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (data?.user) {
       set({ user: mapUser(data.user) });
+      prefetchOnboardingState();
     } else {
       const { data: session } = await authClient.getSession();
-      if (session?.user) set({ user: mapUser(session.user) });
+      if (session?.user) {
+        set({ user: mapUser(session.user) });
+        prefetchOnboardingState();
+      }
     }
     return { error: null };
   },

@@ -3,6 +3,7 @@ import { Mic, X } from 'lucide-react';
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
+import { useAuth } from '@/hooks/useAuth';
 import {
   useOnboardingVoice,
   type OnboardingStepContext,
@@ -34,11 +35,15 @@ export function OnboardingVoiceOverlay({
   onAction,
   onClose,
 }: OnboardingVoiceOverlayProps) {
-  const { isListening, transcript, toggle } = useVoiceInput();
+  const { user } = useAuth();
+  const { isListening, transcript, toggle, error } = useVoiceInput();
   const { processTranscript } = useOnboardingVoice();
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => [
+    { id: 'prompt', role: 'ai', text: stepContext.prompt },
+  ]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const lastErrorRef = useRef('');
 
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
@@ -47,6 +52,13 @@ export function OnboardingVoiceOverlay({
   useEffect(() => {
     scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
+
+  // Show voice errors as AI messages
+  useEffect(() => {
+    if (!error || error === lastErrorRef.current) return;
+    lastErrorRef.current = error;
+    setMessages((prev) => [...prev, { id: `error-${Date.now()}`, role: 'ai', text: error }]);
+  }, [error]);
 
   // Determine the voice state
   const voiceState = isProcessing ? 'processing' : isListening ? 'listening' : 'idle';
@@ -158,14 +170,13 @@ export function OnboardingVoiceOverlay({
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {messages.length === 0 && (
-          <div className="text-center text-white/60">
-            <p className="text-sm">{stepContext.prompt}</p>
-          </div>
-        )}
-
         {messages.map((msg) => (
-          <ChatBubble key={msg.id} role={msg.role} text={msg.text} />
+          <ChatBubble
+            key={msg.id}
+            role={msg.role}
+            text={msg.text}
+            userName={user?.name ?? undefined}
+          />
         ))}
 
         {voiceState === 'processing' && <TypingIndicator />}

@@ -5,11 +5,13 @@ import { GoalTextarea } from '@/components/onboarding/GoalTextarea';
 import { GuidanceBadge } from '@/components/onboarding/GuidanceBadge';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import { VoiceMicButton } from '@/components/onboarding/VoiceMicButton';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 export function AdvancedInputPage() {
   const navigate = useNavigate();
+  const { saveStepAsync } = useOnboarding();
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null!);
   const { isListening, toggle, transcript } = useVoiceInput();
@@ -69,7 +71,10 @@ export function AdvancedInputPage() {
         <button
           type="button"
           disabled={text.trim() === ''}
-          onClick={() => navigate('/onboarding/advanced-results', { state: { text } })}
+          onClick={async () => {
+            await saveStepAsync(3, {}, { brainDump: { raw: text } });
+            navigate('/onboarding/advanced-results', { state: { text } });
+          }}
           className="flex-1 rounded-full bg-primary py-[16px] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] disabled:opacity-50"
         >
           Done

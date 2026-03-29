@@ -241,7 +241,7 @@ const habitsByGoal: Record<string, string[]> = {
 export function Step5Page() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { state: onboardingState, saveStep } = useOnboarding();
+  const { state: onboardingState, saveStepAsync } = useOnboarding();
   const state = location.state as {
     goals?: string[];
     category?: string;
@@ -387,13 +387,12 @@ export function Step5Page() {
     [allHabits],
   );
 
-  const handleOnNext = useCallback(() => {
+  const handleOnNext = useCallback(async () => {
     if (phase === 'confirming') {
-      // Serialize Set→array for router state consistency
       const serializedConfigs = Object.fromEntries(
         Object.entries(habitConfigs).map(([k, v]) => [k, { ...v, days: [...v.days] }]),
       );
-      saveStep(5, { habitConfigs: serializedConfigs });
+      await saveStepAsync(5, { habitConfigs: serializedConfigs });
       navigate('/onboarding/step-6', {
         state: {
           habitConfigs: serializedConfigs,
@@ -405,7 +404,7 @@ export function Step5Page() {
     } else {
       handleContinue();
     }
-  }, [phase, habitConfigs, goals, state, navigate, handleContinue, saveStep]);
+  }, [phase, habitConfigs, goals, state, navigate, handleContinue, saveStepAsync]);
 
   return (
     <OnboardingLayout

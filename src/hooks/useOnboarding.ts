@@ -68,6 +68,22 @@ export function useOnboarding() {
     [saveMutation, state?.path],
   );
 
+  const saveStepAsync = useCallback(
+    (
+      step: number,
+      data: Partial<OnboardingStepData>,
+      options?: { path?: OnboardingPath; brainDump?: { raw?: string; parsed?: ParsedHabit[] } },
+    ) => {
+      return saveMutation.mutateAsync({
+        step,
+        path: options?.path ?? state?.path ?? null,
+        data,
+        brainDump: options?.brainDump,
+      });
+    },
+    [saveMutation, state?.path],
+  );
+
   const complete = useCallback(
     (finalData?: Partial<OnboardingStepData>) => {
       completeMutation.mutate(finalData);
@@ -82,6 +98,7 @@ export function useOnboarding() {
     isSaving: saveMutation.isPending,
     isCompleting: completeMutation.isPending,
     saveStep,
+    saveStepAsync,
     complete,
   };
 }

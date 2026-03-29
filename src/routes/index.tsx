@@ -3,9 +3,6 @@ import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-ro
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { getDataService } from '@/lib/services/service-provider';
-// Note: direct Supabase queries removed from ProtectedLayout — all data access
-// goes through API or DataService to avoid RLS issues under Better Auth.
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
 
@@ -71,19 +68,20 @@ function ProtectedLayout() {
   const habitMatch = useMatch('/habit/:habitId');
   const { state: onboardingState, isLoading: onboardingLoading } = useOnboarding();
 
-  // Resume onboarding if in progress
+  // Route user based on onboarding state
   useEffect(() => {
     if (onboardingLoading) return;
-    if (onboardingState?.status === 'in_progress') {
+    if (onboardingState === null) {
+      navigate('/onboarding', { replace: true });
+    } else if (onboardingState.status === 'in_progress') {
       navigate(`/onboarding/step-${onboardingState.current_step}`, { replace: true });
     }
   }, [onboardingState, onboardingLoading, navigate]);
 
-  useEffect(() => {
-    getDataService()
-      .then((ds) => ds.seedData())
-      .catch(console.error);
-  }, []);
+  // Block rendering until we know where to route — prevents flash of home screen
+  if (onboardingLoading || onboardingState === null || onboardingState.status === 'in_progress') {
+    return <PageLoader />;
+  }
 
   return (
     <Layout>

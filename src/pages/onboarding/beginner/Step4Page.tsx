@@ -56,7 +56,7 @@ const goalsByCategory: Record<string, string[]> = {
 export function Step4Page() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { state: onboardingState, saveStep } = useOnboarding();
+  const { state: onboardingState, saveStepAsync } = useOnboarding();
   const category = (location.state as { category?: string })?.category ?? 'Sleep better';
   const goals = goalsByCategory[category] ?? goalsByCategory['Sleep better'];
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -95,10 +95,10 @@ export function Step4Page() {
     [goals],
   );
 
-  const handleNext = useCallback(() => {
-    saveStep(4, { goals: Array.from(selected) });
+  const handleNext = useCallback(async () => {
+    await saveStepAsync(4, { goals: Array.from(selected) });
     navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
-  }, [selected, category, navigate, saveStep]);
+  }, [selected, category, navigate, saveStepAsync]);
 
   return (
     <OnboardingLayout

@@ -1,9 +1,10 @@
 import { Icon } from '@iconify/react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { WEEKDAYS } from '@/components/onboarding/constants';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 
 interface HabitItem {
@@ -72,6 +73,7 @@ function applyLocationState(base: HabitItem[], state: ResultsLocationState | nul
 export function AdvancedResultsPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { saveStepAsync } = useOnboarding();
   const locationState = location.state as ResultsLocationState | null;
   const clearedRef = useRef(false);
 
@@ -88,13 +90,20 @@ export function AdvancedResultsPage() {
     }
   }, [locationState]);
 
-  function handleConfirm() {
-    const habitConfigs = habits.map((h) => ({
+  const handleConfirm = useCallback(async () => {
+    const habitConfigsArray = habits.map((h) => ({
       name: h.name,
       days: [...h.days],
     }));
-    navigate('/onboarding/advanced-step-6', { state: { habitConfigs } });
-  }
+    const goals = habits.map((h) => h.name);
+    const habitConfigsRecord: Record<string, { days: number[]; time: string; reminder: boolean }> =
+      {};
+    habitConfigsArray.forEach((h) => {
+      habitConfigsRecord[h.name] = { days: h.days, time: '21:45', reminder: true };
+    });
+    await saveStepAsync(4, { goals, habitConfigs: habitConfigsRecord });
+    navigate('/onboarding/advanced-step-6', { state: { habitConfigs: habitConfigsArray } });
+  }, [habits, navigate, saveStepAsync]);
 
   if (habits.length === 0) {
     return (

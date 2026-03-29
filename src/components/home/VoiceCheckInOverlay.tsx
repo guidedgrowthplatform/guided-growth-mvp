@@ -4,6 +4,7 @@ import { useRef, useCallback, useEffect } from 'react';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
+import { useAuth } from '@/hooks/useAuth';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { unlockTTS } from '@/lib/services/tts-service';
 
@@ -18,6 +19,7 @@ const stateLabel: Record<string, string> = {
 };
 
 export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
+  const { user } = useAuth();
   const { messages, voiceState, startListening, stopListening, updateHabitDays } = useVoiceChat();
 
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
@@ -80,7 +82,7 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
       >
         {messages.map((msg) => (
           <div key={msg.id}>
-            <ChatBubble role={msg.role} text={msg.text} />
+            <ChatBubble role={msg.role} text={msg.text} userName={user?.name ?? undefined} />
             {msg.habitCards?.map((card, i) => (
               <HabitSuggestionCard
                 key={i}
