@@ -125,10 +125,25 @@ export function HabitsSection({ selectedDate }: HabitsSectionProps) {
           actionLabel="See all"
           onAction={() => navigate('/habits')}
         />
-        <p className="text-sm text-danger">{error}</p>
-        <button onClick={loadHabits} className="mt-2 text-sm font-medium text-primary">
-          Retry
-        </button>
+        <div className="flex flex-col gap-3 rounded-2xl bg-surface px-6 py-8">
+          <div className="flex items-start gap-3">
+            <div className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full bg-danger/10">
+              <span className="text-sm font-bold text-danger">!</span>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-content">Unable to load habits</p>
+              <p className="mt-1 text-xs text-content-secondary">
+                We're having trouble fetching your habits. Please try again.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={loadHabits}
+            className="mt-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
@@ -186,12 +201,16 @@ function HabitSkeleton({ count = 3 }: { count?: number }) {
   return (
     <div className="flex flex-col gap-3">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="flex animate-pulse items-center gap-3 rounded-2xl bg-surface p-4">
-          <div className="flex-1 space-y-2">
+        <div
+          key={i}
+          className="relative flex items-center gap-3 overflow-hidden rounded-2xl bg-surface p-4"
+        >
+          <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent bg-[length:200%_100%]" />
+          <div className="relative flex-1 space-y-2">
             <div className="bg-surface-raised h-4 w-2/3 rounded" />
             <div className="bg-surface-raised h-3 w-1/3 rounded" />
           </div>
-          <div className="bg-surface-raised h-7 w-7 rounded-full" />
+          <div className="bg-surface-raised relative h-7 w-7 rounded-full" />
         </div>
       ))}
     </div>

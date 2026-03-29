@@ -1,10 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { getDataService } from '@/lib/services/service-provider';
-import { useAuthStore } from '@/stores/authStore';
 // Note: direct Supabase queries removed from ProtectedLayout — all data access
 // goes through API or DataService to avoid RLS issues under Better Auth.
 import { ProtectedRoute } from './ProtectedRoute';
@@ -72,91 +71,16 @@ function PageLoader() {
 function ProtectedLayout() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
   const habitMatch = useMatch('/habit/:habitId');
-  const [onboardingChecked, setOnboardingChecked] = useState(false);
-
-  // Check onboarding status — redirect new users to /onboarding.
-  // Uses server-side API to check if user has any data (habits or metrics).
-  // Fail-open: if check fails or is ambiguous, allow access to prevent loops.
-  useEffect(() => {
-    let cancelled = false;
-
-    async function checkOnboarding() {
-      try {
-        const uid = user?.id;
-        if (!uid) {
-          setOnboardingChecked(true);
-          return;
-        }
-
-        // Check if user has ANY data via server-side APIs (authenticated)
-        // Both use Better Auth session cookie → proper user isolation
-        const [metricsRes, prefsRes] = await Promise.all([
-          fetch('/api/metrics', { credentials: 'include' }).catch(() => null),
-          fetch('/api/preferences', { credentials: 'include' }).catch(() => null),
-        ]);
-
-        if (cancelled) return;
-
-        // If either API returns data, user has been through some setup
-        let hasData = false;
-
-        if (metricsRes?.ok) {
-          const metrics = await metricsRes.json();
-          if (Array.isArray(metrics) && metrics.length > 0) hasData = true;
-        }
-
-        if (!hasData && prefsRes?.ok) {
-          const prefs = await prefsRes.json();
-          // prefs is null for new users (no row in user_preferences)
-          if (prefs !== null && prefs !== undefined && prefs.default_view) hasData = true;
-        }
-
-        // Also check via DataService (getHabits uses authenticated user ID)
-        if (!hasData) {
-          try {
-            const ds = await getDataService();
-            const habits = await ds.getHabits();
-            if (habits.length > 0) hasData = true;
-          } catch {
-            // DataService failed — treat as new user, redirect to onboarding
-            // (if it's a transient error, user can navigate back)
-          }
-        }
-
-        if (cancelled) return;
-
-        if (!hasData) {
-          navigate('/onboarding', { replace: true });
-          return;
-        }
-      } catch {
-        // Non-blocking: allow access if check fails (fail-open)
-      }
-
-      if (!cancelled) {
-        setOnboardingChecked(true);
-      }
-    }
-
-    checkOnboarding();
-    return () => {
-      cancelled = true;
-    };
-  }, [navigate, user]);
 
   useEffect(() => {
     getDataService()
+      .then((ds) => ds.seedData())
       .then(() => {
         qc.invalidateQueries();
       })
       .catch(console.error);
   }, [qc]);
-
-  if (!onboardingChecked) {
-    return null;
-  }
 
   return (
     <Layout>

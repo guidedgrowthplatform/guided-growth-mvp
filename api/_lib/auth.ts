@@ -51,7 +51,6 @@ export async function requireAdmin(req: VercelRequest, res: VercelResponse) {
   return user;
 }
 
-// Set RLS session variable — call after requireUser(), before any queries
 export async function setUserContext(userId: string) {
   await pool.query("SELECT set_config('app.current_user_id', $1, true)", [userId]);
 }

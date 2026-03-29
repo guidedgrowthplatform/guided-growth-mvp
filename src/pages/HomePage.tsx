@@ -105,6 +105,10 @@ export function HomePage() {
           </div>
         </div>
         <HabitsSection selectedDate={selectedDate} />
+      </div>
+
+      {/* Feedback Button - Above Bottom Nav */}
+      <div className="fixed bottom-28 left-6 z-40">
         <FeedbackButton />
       </div>
 
