@@ -211,15 +211,23 @@ Registered in `CaptureView.tsx` via `useEffect` with `keydown` listener:
 
 ### Database Migrations
 
-Run `007_full_schema_sync.sql` on Supabase SQL editor. This is the comprehensive sync that adds:
+Current branch includes migrations **000 → 001 → 002 → 003** which create all core tables and RLS policies. However, the `allowlist` table is referenced in 003_rls.sql but is not created in any migration.
 
-- Missing tables: `entries`, `reflections`, `reflection_configs`, `admin_audit_log`, `allowlist`
-- Missing columns: `users.role/status/name/avatar_url`, `metrics.sort_order/question/active`, `user_preferences.default_view`
-- Better Auth TIMESTAMP → TIMESTAMPTZ fix
-- Missing FK indexes (10+)
-- CHECK constraints for data integrity
+**To add allowlist table**, run this in Supabase SQL editor:
 
-**Run order for fresh DB:** 000 → 001 → 002 → 003 → 004 → 005 → 005b → 006 → 007
+```sql
+CREATE TABLE allowlist (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL UNIQUE,
+  added_by_user_id TEXT REFERENCES "user"(id) ON DELETE SET NULL,
+  note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_allowlist_email ON allowlist(email);
+```
+
+**Run order for fresh DB:** 000_better_auth_tables → 001_onboarding → 002_app_tables → 003_rls → (then manually create allowlist table above)
 
 ### Cleanup
 
