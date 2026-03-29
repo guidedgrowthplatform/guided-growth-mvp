@@ -67,6 +67,7 @@ export function SettingsPage() {
   const [activeSheet, setActiveSheet] = useState<SheetType | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const exportAbortRef = useRef(false);
 
   const handleExportData = useCallback(async () => {
@@ -134,15 +135,18 @@ export function SettingsPage() {
   }, []);
 
   const handleDeleteAccount = useCallback(async () => {
+    setIsDeletingAccount(true);
     try {
       await deleteAccount();
       localStorage.clear();
       await signOut();
+      navigate('/sign-in');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete account';
       addToast('error', msg);
+      setIsDeletingAccount(false);
     }
-  }, [signOut, addToast]);
+  }, [signOut, addToast, navigate]);
 
   // Lookup labels
   const coachingLabel =
@@ -325,6 +329,7 @@ export function SettingsPage() {
           confirmLabel="Delete Everything"
           cancelLabel="Cancel"
           variant="danger"
+          isLoading={isDeletingAccount}
           onConfirm={handleDeleteAccount}
           onCancel={() => setShowDeleteConfirm(false)}
         />
