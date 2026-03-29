@@ -150,7 +150,5 @@ export interface DataService {
   // All completions (across all habits)
   getAllCompletions(startDate: string, endDate: string): Promise<HabitCompletion[]>;
 
-  // Seed
-  seedData(): Promise<void>;
   clearData(): Promise<void>;
 }

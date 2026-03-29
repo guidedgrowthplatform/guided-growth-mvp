@@ -756,25 +756,6 @@ export class SupabaseDataService implements DataService {
     }));
   }
 
-  async seedData(): Promise<void> {
-    // Seeded data already exists in Supabase via seed.sql
-    try {
-      getCurrentUserId();
-    } catch {
-      console.warn('[SupabaseDataService] Not authenticated — cannot seed data');
-      return;
-    }
-
-    // Create some demo habits
-    try {
-      await this.createHabit('Morning meditation', 'daily');
-      await this.createHabit('Read 10 pages', 'daily');
-      await this.createHabit('Workout', '3x/week');
-    } catch {
-      // Ignore duplicate errors
-    }
-  }
-
   async clearData(): Promise<void> {
     const userId = getCurrentUserId();
 

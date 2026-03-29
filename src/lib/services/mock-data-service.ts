@@ -408,34 +408,6 @@ export class MockDataService implements DataService {
     );
   }
 
-  // ─── Seed & Clear ───
-  async seedData(): Promise<void> {
-    // Only seed if empty
-    const habits = getStore<Habit>(STORAGE_KEYS.habits);
-    if (habits.length > 0) return;
-
-    // 3 sample habits
-    const meditation = await this.createHabit('meditation', 'daily');
-    const exercise = await this.createHabit('exercise', 'daily');
-    const reading = await this.createHabit('reading', 'daily');
-
-    // 2 sample metrics
-    await this.createMetric('sleep quality', 'scale', 'daily', 1, 10);
-    await this.createMetric('mood', 'scale', 'daily', 1, 10);
-
-    // Some completions for the past week
-    const today = new Date();
-    for (let i = 1; i <= 5; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().slice(0, 10);
-
-      if (i <= 4) await this.completeHabit(meditation.id, dateStr);
-      if (i <= 3) await this.completeHabit(exercise.id, dateStr);
-      if (i <= 2) await this.completeHabit(reading.id, dateStr);
-    }
-  }
-
   async clearData(): Promise<void> {
     Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
   }

@@ -181,22 +181,6 @@ function createDataServiceTests(name: string, factory: () => DataService) {
         expect(summary.period.end).toBeTruthy();
       });
     });
-
-    // ── Seed & Clear ────────────────────────────────────────────────
-
-    describe('Seed & Clear', () => {
-      it('should seed data without error', async () => {
-        await expect(svc.seedData()).resolves.not.toThrow();
-      });
-
-      it('should clear data', async () => {
-        await svc.seedData();
-        await svc.clearData();
-        const habits = await svc.getHabits();
-        // After clear, should have no habits (or at least fewer than seeded)
-        expect(habits.length).toBe(0);
-      });
-    });
   });
 }
 
