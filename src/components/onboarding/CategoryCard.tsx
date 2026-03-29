@@ -15,7 +15,7 @@ export function CategoryCard({ image, emoji, label, selected, onSelect }: Catego
         className={`relative h-[135px] w-full cursor-pointer overflow-hidden rounded-[24px] border-2 ${selected ? 'border-primary' : 'border-transparent'}`}
       >
         <img src={image} alt={label} className="h-full w-full object-cover" />
-        <div className="absolute inset-x-0 bottom-0 flex items-end justify-center bg-gradient-to-t from-black/60 to-transparent px-3 py-3">
+        <div className="absolute inset-x-0 bottom-0 flex items-end justify-center bg-gradient-to-t from-black/40 to-transparent px-3 py-3 backdrop-blur-sm">
           <span className="text-center text-[14px] font-semibold leading-[17.5px] text-white drop-shadow-md">
             {label}
           </span>

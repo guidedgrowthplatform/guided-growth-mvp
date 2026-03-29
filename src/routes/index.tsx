@@ -3,6 +3,7 @@ import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-ro
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { OnboardingRoute } from './OnboardingRoute';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
 
@@ -132,97 +133,97 @@ export function AppRoutes() {
         <Route
           path="/onboarding"
           element={
-            <ProtectedRoute>
+            <OnboardingRoute>
               <Step1Page />
-            </ProtectedRoute>
+            </OnboardingRoute>
           }
         />
         <Route
           path="/onboarding/step-2"
           element={
-            <ProtectedRoute>
+            <OnboardingRoute>
               <Step2Page />
-            </ProtectedRoute>
+            </OnboardingRoute>
           }
         />
         <Route
           path="/onboarding/step-3"
           element={
-            <ProtectedRoute>
+            <OnboardingRoute>
               <Step3Page />
-            </ProtectedRoute>
+            </OnboardingRoute>
           }
         />
         <Route
           path="/onboarding/step-4"
           element={
-            <ProtectedRoute>
+            <OnboardingRoute>
               <Step4Page />
-            </ProtectedRoute>
+            </OnboardingRoute>
           }
         />
         <Route
           path="/onboarding/step-5"
           element={
-            <ProtectedRoute>
+            <OnboardingRoute>
               <Step5Page />
-            </ProtectedRoute>
+            </OnboardingRoute>
           }
         />
         <Route
           path="/onboarding/step-6"
           element={
-            <ProtectedRoute>
+            <OnboardingRoute>
               <Step6Page />
-            </ProtectedRoute>
+            </OnboardingRoute>
           }
         />
         <Route
           path="/onboarding/step-7"
           element={
-            <ProtectedRoute>
+            <OnboardingRoute>
               <PlanReviewPage />
-            </ProtectedRoute>
+            </OnboardingRoute>
           }
         />
         <Route
           path="/onboarding/edit-habit"
           element={
-            <ProtectedRoute>
+            <OnboardingRoute>
               <EditHabitPage />
-            </ProtectedRoute>
+            </OnboardingRoute>
           }
         />
         <Route
           path="/onboarding/advanced-input"
           element={
-            <ProtectedRoute>
+            <OnboardingRoute>
               <AdvancedInputPage />
-            </ProtectedRoute>
+            </OnboardingRoute>
           }
         />
         <Route
           path="/onboarding/advanced-results"
           element={
-            <ProtectedRoute>
+            <OnboardingRoute>
               <AdvancedResultsPage />
-            </ProtectedRoute>
+            </OnboardingRoute>
           }
         />
         <Route
           path="/onboarding/advanced-step-6"
           element={
-            <ProtectedRoute>
+            <OnboardingRoute>
               <AdvancedStep6Page />
-            </ProtectedRoute>
+            </OnboardingRoute>
           }
         />
         <Route
           path="/onboarding/advanced-custom-prompts"
           element={
-            <ProtectedRoute>
+            <OnboardingRoute>
               <AdvancedCustomPromptsPage />
-            </ProtectedRoute>
+            </OnboardingRoute>
           }
         />
 
