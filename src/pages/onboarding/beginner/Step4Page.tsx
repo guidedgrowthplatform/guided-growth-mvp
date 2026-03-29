@@ -1,9 +1,10 @@
 import { Icon } from '@iconify/react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const goalsByCategory: Record<string, string[]> = {
@@ -55,9 +56,16 @@ const goalsByCategory: Record<string, string[]> = {
 export function Step4Page() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { state: onboardingState, saveStep } = useOnboarding();
   const category = (location.state as { category?: string })?.category ?? 'Sleep better';
   const goals = goalsByCategory[category] ?? goalsByCategory['Sleep better'];
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (onboardingState?.data?.goals && Array.isArray(onboardingState.data.goals)) {
+      setSelected(new Set(onboardingState.data.goals as string[]));
+    }
+  }, [onboardingState?.data?.goals]);
 
   function toggleGoal(goal: string) {
     setSelected((prev) => {
@@ -88,8 +96,9 @@ export function Step4Page() {
   );
 
   const handleNext = useCallback(() => {
+    saveStep(4, { goals: Array.from(selected) });
     navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
-  }, [selected, category, navigate]);
+  }, [selected, category, navigate, saveStep]);
 
   return (
     <OnboardingLayout

@@ -1,26 +1,34 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const categories = [
-  { label: 'Sleep better', emoji: '😴' },
-  { label: 'Move more', emoji: '🏃' },
-  { label: 'Eat better', emoji: '🥗' },
-  { label: 'Feel more energized', emoji: '⚡' },
-  { label: 'Reduce stress', emoji: '🧘' },
-  { label: 'Improve focus', emoji: '🎯' },
-  { label: 'Break bad habits', emoji: '🚫' },
-  { label: 'Get more organized', emoji: '📋' },
+  { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
+  { label: 'Move more', image: '/images/onboarding/move-more.jpg' },
+  { label: 'Eat better', image: '/images/onboarding/eat-better.png' },
+  { label: 'Feel more energized', image: '/images/onboarding/feel-more-energized.png' },
+  { label: 'Reduce stress', image: '/images/onboarding/reduce-stress.png' },
+  { label: 'Improve focus', image: '/images/onboarding/improve-focus.jpg' },
+  { label: 'Break bad habits', image: '/images/onboarding/break-bad-habits.png' },
+  { label: 'Get more organized', image: '/images/onboarding/get-more-organized.png' },
 ];
 
 const categoryLabels = categories.map((c) => c.label);
 
 export function Step3Page() {
   const navigate = useNavigate();
+  const { state: onboardingState, saveStep } = useOnboarding();
   const [selected, setSelected] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (onboardingState?.data?.category) {
+      setSelected(onboardingState.data.category as string);
+    }
+  }, [onboardingState?.data?.category]);
 
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
     if (result.params && typeof result.params.category === 'string') {
@@ -29,8 +37,9 @@ export function Step3Page() {
   }, []);
 
   const handleNext = useCallback(() => {
+    saveStep(3, { category: selected });
     navigate('/onboarding/step-4', { state: { category: selected } });
-  }, [selected, navigate]);
+  }, [selected, navigate, saveStep]);
 
   return (
     <OnboardingLayout
@@ -55,7 +64,7 @@ export function Step3Page() {
         {categories.map((c) => (
           <CategoryCard
             key={c.label}
-            emoji={c.emoji}
+            image={c.image}
             label={c.label}
             selected={selected === c.label}
             onSelect={() => setSelected(c.label)}

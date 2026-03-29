@@ -1,15 +1,14 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { getDataService } from '@/lib/services/service-provider';
 // Note: direct Supabase queries removed from ProtectedLayout — all data access
 // goes through API or DataService to avoid RLS issues under Better Auth.
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
 
-// Lazy-loaded pages for code splitting
 const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })));
 const HabitsPage = lazy(() =>
   import('@/pages/HabitsPage').then((m) => ({ default: m.HabitsPage })),
@@ -40,7 +39,6 @@ const StatusPage = lazy(() =>
   import('@/pages/StatusPage').then((m) => ({ default: m.StatusPage })),
 );
 
-// Onboarding pages (lazy — only loaded when user hits onboarding flow)
 const lazyOnboarding = (name: string) =>
   lazy(() =>
     import('@/pages/onboarding').then((m) => ({
@@ -69,18 +67,23 @@ function PageLoader() {
 }
 
 function ProtectedLayout() {
-  const qc = useQueryClient();
   const navigate = useNavigate();
   const habitMatch = useMatch('/habit/:habitId');
+  const { state: onboardingState, isLoading: onboardingLoading } = useOnboarding();
+
+  // Resume onboarding if in progress
+  useEffect(() => {
+    if (onboardingLoading) return;
+    if (onboardingState?.status === 'in_progress') {
+      navigate(`/onboarding/step-${onboardingState.current_step}`, { replace: true });
+    }
+  }, [onboardingState, onboardingLoading, navigate]);
 
   useEffect(() => {
     getDataService()
       .then((ds) => ds.seedData())
-      .then(() => {
-        qc.invalidateQueries();
-      })
       .catch(console.error);
-  }, [qc]);
+  }, []);
 
   return (
     <Layout>

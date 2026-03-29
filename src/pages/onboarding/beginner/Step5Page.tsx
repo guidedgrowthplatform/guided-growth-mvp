@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { HabitCustomizeSheet, type HabitConfig } from '@/components/onboarding/HabitCustomizeSheet';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
@@ -7,6 +7,7 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const habitsByGoal: Record<string, string[]> = {
@@ -240,6 +241,7 @@ const habitsByGoal: Record<string, string[]> = {
 export function Step5Page() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { state: onboardingState, saveStep } = useOnboarding();
   const state = location.state as {
     goals?: string[];
     category?: string;
@@ -278,6 +280,24 @@ export function Step5Page() {
   const [phase, setPhase] = useState<'selecting' | 'confirming'>(
     state?.phase === 'confirming' && incomingConfigs ? 'confirming' : 'selecting',
   );
+
+  useEffect(() => {
+    if (onboardingState?.data?.habitConfigs) {
+      const savedConfigs = onboardingState.data.habitConfigs as Record<
+        string,
+        { days: number[] | Set<number>; time: string; reminder: boolean }
+      >;
+      const reconstituted = Object.fromEntries(
+        Object.entries(savedConfigs).map(([k, v]) => [
+          k,
+          { ...v, days: v.days instanceof Set ? v.days : new Set(v.days) },
+        ]),
+      );
+      setHabitConfigs(reconstituted);
+      setSelectedHabits(new Set(Object.keys(reconstituted)));
+      setPhase('confirming');
+    }
+  }, [onboardingState?.data?.habitConfigs]);
 
   function toggleHabit(habit: string) {
     if (selectedHabits.has(habit)) {
@@ -373,6 +393,7 @@ export function Step5Page() {
       const serializedConfigs = Object.fromEntries(
         Object.entries(habitConfigs).map(([k, v]) => [k, { ...v, days: [...v.days] }]),
       );
+      saveStep(5, { habitConfigs: serializedConfigs });
       navigate('/onboarding/step-6', {
         state: {
           habitConfigs: serializedConfigs,
@@ -384,7 +405,7 @@ export function Step5Page() {
     } else {
       handleContinue();
     }
-  }, [phase, habitConfigs, goals, state, navigate, handleContinue]);
+  }, [phase, habitConfigs, goals, state, navigate, handleContinue, saveStep]);
 
   return (
     <OnboardingLayout

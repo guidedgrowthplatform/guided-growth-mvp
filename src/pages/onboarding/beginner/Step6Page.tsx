@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   WEEKDAYS,
@@ -11,6 +11,7 @@ import { DailyReflectionCard } from '@/components/onboarding/DailyReflectionCard
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const SCHEDULE_DAYS: Record<ScheduleOption, Set<number>> = {
@@ -29,6 +30,7 @@ function inferSchedule(days: Set<number>): ScheduleOption | null {
 export function Step6Page() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { state: onboardingState, saveStep } = useOnboarding();
   const state = location.state as {
     habitConfigs?: Record<
       string,
@@ -52,6 +54,21 @@ export function Step6Page() {
   const [reminder, setReminder] = useState(incoming?.reminder ?? true);
   const [schedule, setSchedule] = useState<ScheduleOption>(incoming?.schedule ?? 'Weekday');
 
+  useEffect(() => {
+    if (onboardingState?.data?.reflectionConfig) {
+      const saved = onboardingState.data.reflectionConfig as {
+        time: string;
+        days: number[];
+        reminder: boolean;
+        schedule: ScheduleOption;
+      };
+      setTime(saved.time);
+      setDays(new Set(saved.days));
+      setReminder(saved.reminder);
+      setSchedule(saved.schedule);
+    }
+  }, [onboardingState?.data?.reflectionConfig]);
+
   function handleScheduleChange(value: ScheduleOption) {
     setSchedule(value);
     setDays(new Set(SCHEDULE_DAYS[value]));
@@ -68,11 +85,9 @@ export function Step6Page() {
 
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
     if (result.params) {
-      // Handle time setting (e.g., "9 PM" parsed to "21:00")
       if (typeof result.params.time === 'string') {
         setTime(result.params.time);
       }
-      // Handle schedule setting (e.g., "weekdays" parsed to WEEKDAYS set)
       if (typeof result.params.schedule === 'string') {
         const scheduleStr = result.params.schedule.toLowerCase();
         if (scheduleStr.includes('weekday')) {
@@ -87,7 +102,6 @@ export function Step6Page() {
   }, []);
 
   const handleOnNext = useCallback(() => {
-    // Serialize Set→array for router state consistency
     const serializedConfigs = state?.habitConfigs
       ? Object.fromEntries(
           Object.entries(state.habitConfigs).map(([k, v]) => [
@@ -96,6 +110,7 @@ export function Step6Page() {
           ]),
         )
       : undefined;
+    saveStep(6, { reflectionConfig: { time, days: [...days], reminder, schedule } });
     navigate('/onboarding/step-7', {
       state: {
         habitConfigs: serializedConfigs,
@@ -104,7 +119,7 @@ export function Step6Page() {
         reflectionConfig: { time, days: [...days], reminder, schedule },
       },
     });
-  }, [state, time, days, reminder, schedule, navigate]);
+  }, [state, time, days, reminder, schedule, navigate, saveStep]);
 
   return (
     <OnboardingLayout

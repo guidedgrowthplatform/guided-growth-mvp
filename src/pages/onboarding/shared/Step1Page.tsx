@@ -5,9 +5,8 @@ import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
-import { authClient } from '@/lib/auth-client';
-import { supabase } from '@/lib/supabase';
 
 const AGE_OPTIONS = [
   '14 or under',
@@ -29,65 +28,25 @@ const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
 export function Step1Page() {
   const navigate = useNavigate();
+  const { state: onboardingState, saveStep } = useOnboarding();
   const [nickname, setNickname] = useState('');
   const [ageRange, setAgeRange] = useState<string | null>(null);
   const [gender, setGender] = useState<string | null>(null);
 
-  // Redirect already-onboarded users back to home
   useEffect(() => {
-    let cancelled = false;
-
-    async function checkCompleted() {
-      try {
-        const { data: session } = await authClient.getSession();
-        const uid = session?.user?.id;
-        if (!uid) return;
-
-        const { data } = await supabase
-          .from('onboarding_states')
-          .select('status')
-          .eq('user_id', uid)
-          .maybeSingle();
-
-        if (!cancelled && data?.status === 'completed') {
-          navigate('/home', { replace: true });
-        }
-      } catch {
-        // Non-blocking: allow access if check fails
-      }
+    if (onboardingState?.data) {
+      if (onboardingState.data.nickname) setNickname(onboardingState.data.nickname as string);
+      if (onboardingState.data.ageRange) setAgeRange(onboardingState.data.ageRange as string);
+      if (onboardingState.data.gender) setGender(onboardingState.data.gender as string);
     }
+  }, [onboardingState?.data]);
 
-    checkCompleted();
-    return () => {
-      cancelled = true;
-    };
-  }, [navigate]);
-
-  const handleNext = useCallback(async () => {
-    // Save onboarding state (step 1) to Supabase
-    try {
-      const { data: session } = await authClient.getSession();
-      const uid = session?.user?.id;
-      if (uid) {
-        await supabase.from('onboarding_states').upsert(
-          {
-            user_id: uid,
-            path: 'beginner',
-            status: 'in_progress',
-            current_step: 1,
-            data: { nickname, ageRange, gender },
-          },
-          { onConflict: 'user_id' },
-        );
-      }
-    } catch {
-      // Non-blocking: continue even if save fails
-    }
+  const handleNext = useCallback(() => {
+    saveStep(1, { nickname, ageRange, gender });
     navigate('/onboarding/step-2');
-  }, [nickname, ageRange, gender, navigate]);
+  }, [nickname, ageRange, gender, navigate, saveStep]);
 
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    // Extract parsed values from result
     if (result.params) {
       const { nickname: voiceNickname, ageRange: voiceAge, gender: voiceGender } = result.params;
 

@@ -1,6 +1,8 @@
 import { Icon } from '@iconify/react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { logout } from '@/api/auth';
+import { deleteAccount } from '@/api/onboarding';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import {
   coachingStyles,
@@ -24,7 +26,6 @@ import { Toggle } from '@/components/ui/Toggle';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { getDataService } from '@/lib/services/service-provider';
 import {
   getAvailableVoices,
   setVoicePreference,
@@ -134,14 +135,14 @@ export function SettingsPage() {
 
   const handleDeleteAccount = useCallback(async () => {
     try {
-      const ds = await getDataService();
-      await ds.clearData();
+      await deleteAccount();
+      localStorage.clear();
+      await signOut();
     } catch (err) {
-      console.error('[DeleteAccount] Failed to clear Supabase data:', err);
+      const msg = err instanceof Error ? err.message : 'Failed to delete account';
+      addToast('error', msg);
     }
-    localStorage.clear();
-    await signOut();
-  }, [signOut]);
+  }, [signOut, addToast]);
 
   // Lookup labels
   const coachingLabel =
@@ -304,7 +305,7 @@ export function SettingsPage() {
               )
             }
           />
-          <SettingRow icon="ic:round-logout" label="Log Out" onClick={signOut} />
+          <SettingRow icon="ic:round-logout" label="Log Out" onClick={logout} />
           <SettingRow
             icon="octicon:trash-24"
             label="Delete Account & Data"

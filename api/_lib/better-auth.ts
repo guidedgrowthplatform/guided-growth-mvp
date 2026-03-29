@@ -56,6 +56,10 @@ export const auth = betterAuth({
     additionalFields: {
       role: { type: 'string', defaultValue: 'user', input: false },
       status: { type: 'string', defaultValue: 'active', input: false },
+      nickname: { type: 'string', required: false },
+      age_group: { type: 'string', required: false },
+      gender: { type: 'string', required: false },
+      onboarding_path: { type: 'string', required: false },
     },
   },
 

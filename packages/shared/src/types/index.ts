@@ -143,3 +143,41 @@ export interface AuditLogEntry {
   payload_json: Record<string, unknown> | null;
   created_at: string;
 }
+
+// ─── Onboarding ─────────────────────────────────────
+export type OnboardingPath = 'simple' | 'braindump' | 'advanced';
+
+export type OnboardingStatus = 'in_progress' | 'completed';
+
+export interface OnboardingStepData {
+  nickname?: string | null;
+  ageRange?: string | null;
+  gender?: string | null;
+  path?: OnboardingPath | null;
+  category?: string | null;
+  goals?: string[] | null;
+  habitConfigs?: Record<
+    string,
+    { days: number[] | Set<number>; time: string; reminder: boolean }
+  > | null;
+  reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string } | null;
+}
+
+export interface OnboardingState {
+  id: string;
+  user_id: string;
+  path: OnboardingPath | null;
+  status: OnboardingStatus;
+  current_step: number;
+  data: OnboardingStepData;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ParsedHabit {
+  name: string;
+  frequency: string;
+  days?: number[];
+  time?: string;
+}

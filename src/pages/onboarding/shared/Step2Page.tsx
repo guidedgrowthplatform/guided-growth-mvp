@@ -1,13 +1,21 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 export function Step2Page() {
   const navigate = useNavigate();
+  const { state: onboardingState, saveStep } = useOnboarding();
   const [plan, setPlan] = useState<'simple' | 'braindump' | null>(null);
+
+  useEffect(() => {
+    if (onboardingState?.data?.path) {
+      setPlan(onboardingState.data.path as 'simple' | 'braindump');
+    }
+  }, [onboardingState?.data?.path]);
 
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
     if (result.params && typeof result.params.path === 'string') {
@@ -21,12 +29,13 @@ export function Step2Page() {
   }, []);
 
   const handleNext = useCallback(() => {
+    saveStep(2, {}, { path: plan as 'simple' | 'braindump' });
     if (plan === 'braindump') {
       navigate('/onboarding/advanced-input');
     } else {
       navigate('/onboarding/step-3');
     }
-  }, [plan, navigate]);
+  }, [plan, navigate, saveStep]);
 
   return (
     <OnboardingLayout

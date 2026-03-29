@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireUser, handlePreflight } from './_lib/auth.js';
+import { requireUser, setUserContext, handlePreflight } from './_lib/auth.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
 import { getClientIp } from './_lib/validation.js';
 
@@ -565,6 +565,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!bypassAuth) {
     const user = await requireUser(req, res);
     if (!user) return;
+    await setUserContext(user.id);
     const rl = checkRateLimit(user.id, {
       windowMs: 60_000,
       maxRequests: 20,
