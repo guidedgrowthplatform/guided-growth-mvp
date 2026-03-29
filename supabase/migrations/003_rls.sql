@@ -15,6 +15,8 @@ ALTER TABLE journal_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reflection_configs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reflections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE focus_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE affirmations ENABLE ROW LEVEL SECURITY;
 
 -- Standard isolation policy for tables with direct user_id column
 CREATE POLICY "user_isolation" ON onboarding_states
@@ -68,6 +70,12 @@ CREATE POLICY "user_isolation" ON onboarding_selected_subcategories
         AND user_id = current_setting('app.current_user_id', true)
     )
   );
+
+CREATE POLICY "user_isolation" ON entries
+  FOR ALL USING (user_id = current_setting('app.current_user_id', true));
+
+CREATE POLICY "user_isolation" ON affirmations
+  FOR ALL USING (user_id = current_setting('app.current_user_id', true));
 
 -- No RLS on these tables (service role access only):
 -- - allowlist (signup gating, no user FK)

@@ -207,27 +207,11 @@ Registered in `CaptureView.tsx` via `useEffect` with `keydown` listener:
 
 ---
 
-## Pending Items
+## Database Migrations
 
-### Database Migrations
+Run order for fresh DB: **000_better_auth_tables → 001_onboarding → 002_app_tables → 003_rls**
 
-Current branch includes migrations **000 → 001 → 002 → 003** which create all core tables and RLS policies. However, the `allowlist` table is referenced in 003_rls.sql but is not created in any migration.
-
-**To add allowlist table**, run this in Supabase SQL editor:
-
-```sql
-CREATE TABLE allowlist (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT NOT NULL UNIQUE,
-  added_by_user_id TEXT REFERENCES "user"(id) ON DELETE SET NULL,
-  note TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_allowlist_email ON allowlist(email);
-```
-
-**Run order for fresh DB:** 000_better_auth_tables → 001_onboarding → 002_app_tables → 003_rls → (then manually create allowlist table above)
+All core tables are now created in the migrations (previously `allowlist`, `entries`, `affirmations` and schemas for `reflection_configs`, `reflections`, `user_preferences` were missing — fixed).
 
 ### Cleanup
 

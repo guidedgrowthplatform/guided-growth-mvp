@@ -12,6 +12,8 @@ CREATE TABLE user_preferences (
   morning_time TIME DEFAULT '08:00',
   night_time TIME DEFAULT '21:00',
   push_notifications BOOLEAN DEFAULT true,
+  default_view TEXT NOT NULL DEFAULT 'spreadsheet',
+  spreadsheet_range TEXT NOT NULL DEFAULT 'month',
   preferences_json JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -83,23 +85,21 @@ CREATE TABLE journal_entries (
 CREATE TABLE reflection_configs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id TEXT NOT NULL UNIQUE REFERENCES "user"(id) ON DELETE CASCADE,
-  schedule VARCHAR(20) DEFAULT 'Weekday',   -- Weekday | Weekend | Every day
-  schedule_days INT[],
-  reminder_time TIME DEFAULT '21:45',
-  reminder_enabled BOOLEAN DEFAULT true,
-  custom_prompts TEXT[],   -- NULL = use default prompts
+  fields JSONB NOT NULL DEFAULT '[]'::jsonb,
+  show_affirmation BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Reflections (one per user per date)
+-- Reflections (one row per field per date)
 CREATE TABLE reflections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
   date DATE NOT NULL,
-  answers JSONB NOT NULL DEFAULT '{}',   -- { "prompt text": "answer", ... }
+  field_id TEXT NOT NULL,
+  value TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (user_id, date)
+  UNIQUE (user_id, date, field_id)
 );
 
 -- Focus sessions
@@ -126,12 +126,41 @@ CREATE TABLE admin_audit_log (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Entries (metric values keyed by user+metric+date)
+CREATE TABLE entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  metric_id UUID NOT NULL REFERENCES metrics(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  value TEXT NOT NULL,
+  UNIQUE (user_id, metric_id, date)
+);
+
+-- Affirmations (one per user)
+CREATE TABLE affirmations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL UNIQUE REFERENCES "user"(id) ON DELETE CASCADE,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Allowlist (admin-managed signup gating, no RLS)
+CREATE TABLE allowlist (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL UNIQUE,
+  added_by_user_id TEXT REFERENCES "user"(id) ON DELETE SET NULL,
+  note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Performance indexes
 CREATE INDEX idx_habit_completions_user_date ON habit_completions(user_id, date);
 CREATE INDEX idx_habit_completions_habit_date ON habit_completions(habit_id, date);
 CREATE INDEX idx_metric_entries_user_date ON metric_entries(user_id, date);
 CREATE INDEX idx_metric_entries_metric_date ON metric_entries(metric_id, date);
+CREATE INDEX idx_entries_user_date ON entries(user_id, date);
 CREATE INDEX idx_journal_entries_user_date ON journal_entries(user_id, created_at DESC);
 CREATE INDEX idx_reflections_user_date ON reflections(user_id, date);
 CREATE INDEX idx_daily_checkins_user_date ON daily_checkins(user_id, date);
 CREATE INDEX idx_focus_sessions_user_started ON focus_sessions(user_id, started_at DESC);
+CREATE INDEX idx_allowlist_email ON allowlist(email);
