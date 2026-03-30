@@ -22,15 +22,11 @@ import { test, expect, type Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CONFIG
-// ─────────────────────────────────────────────────────────────────────────────
+import { BASE } from './config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BASE = 'https://guided-growth-mvp-six.vercel.app';
 const SCREENSHOT_DIR = path.join(__dirname, 'screenshots', 'journey');
 
 // Fresh email for signup — ensures no "already registered" error

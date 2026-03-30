@@ -1,14 +1,14 @@
 import { test, expect } from '@playwright/test';
-
-const BASE = 'http://localhost:5173';
+import type { ConsoleMessage } from '@playwright/test';
+import { BASE } from './config';
 
 test.describe('Smoke Test - Public Pages Load', () => {
   test('Login page renders with form elements', async ({ page }) => {
     const consoleErrors: string[] = [];
-    page.on('console', (msg) => {
+    page.on('console', (msg: ConsoleMessage) => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());
     });
-    page.on('pageerror', (err) => consoleErrors.push(err.message));
+    page.on('pageerror', (err: Error) => consoleErrors.push(err.message));
 
     await page.goto(`${BASE}/login`);
 
@@ -39,10 +39,10 @@ test.describe('Smoke Test - Public Pages Load', () => {
 
   test('Signup page renders with form elements', async ({ page }) => {
     const consoleErrors: string[] = [];
-    page.on('console', (msg) => {
+    page.on('console', (msg: ConsoleMessage) => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());
     });
-    page.on('pageerror', (err) => consoleErrors.push(err.message));
+    page.on('pageerror', (err: Error) => consoleErrors.push(err.message));
 
     await page.goto(`${BASE}/signup`);
 
@@ -67,10 +67,10 @@ test.describe('Smoke Test - Public Pages Load', () => {
 
   test('Forgot password page renders', async ({ page }) => {
     const consoleErrors: string[] = [];
-    page.on('console', (msg) => {
+    page.on('console', (msg: ConsoleMessage) => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());
     });
-    page.on('pageerror', (err) => consoleErrors.push(err.message));
+    page.on('pageerror', (err: Error) => consoleErrors.push(err.message));
 
     await page.goto(`${BASE}/forgot-password`);
 
