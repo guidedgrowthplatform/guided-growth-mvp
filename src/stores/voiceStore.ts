@@ -3,6 +3,7 @@ import { create } from 'zustand';
 interface VoiceState {
   isListening: boolean;
   transcript: string;
+  correctedTranscript: string;
   interim: string;
   error: string;
   isSupported: boolean;
@@ -10,6 +11,7 @@ interface VoiceState {
   stopListening: () => void;
   appendTranscript: (text: string) => void;
   setTranscript: (text: string) => void;
+  setCorrectedTranscript: (text: string) => void;
   setInterim: (text: string) => void;
   setError: (error: string) => void;
   resetTranscript: () => void;
@@ -19,9 +21,10 @@ interface VoiceState {
 export const useVoiceStore = create<VoiceState>((set) => ({
   isListening: false,
   transcript: '',
+  correctedTranscript: '',
   interim: '',
   error: '',
-  isSupported: false,
+  isSupported: true,
   startListening: () => set({ isListening: true, error: '', interim: '' }),
   stopListening: () => set({ isListening: false, interim: '' }),
   appendTranscript: (text: string) =>
@@ -30,8 +33,9 @@ export const useVoiceStore = create<VoiceState>((set) => ({
       interim: '',
     })),
   setTranscript: (text: string) => set({ transcript: text }),
+  setCorrectedTranscript: (text: string) => set({ correctedTranscript: text }),
   setInterim: (text: string) => set({ interim: text }),
   setError: (error: string) => set({ error }),
-  resetTranscript: () => set({ transcript: '', error: '', interim: '' }),
+  resetTranscript: () => set({ transcript: '', correctedTranscript: '', error: '', interim: '' }),
   setSupported: (supported: boolean) => set({ isSupported: supported }),
 }));

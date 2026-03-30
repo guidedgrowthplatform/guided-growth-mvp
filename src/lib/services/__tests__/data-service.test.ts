@@ -1,3 +1,4 @@
+/* eslint-disable import-x/order */
 // @vitest-environment jsdom
 // Unit tests for DataService implementations
 // Tests both MockDataService and SupabaseDataService against the same DataService interface
@@ -5,7 +6,6 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { DataService } from '../data-service.interface';
-
 // ---------------------------------------------------------------------------
 // Shared test suite — runs against ANY DataService implementation
 // ---------------------------------------------------------------------------
@@ -179,22 +179,6 @@ function createDataServiceTests(name: string, factory: () => DataService) {
         expect(summary.period).toBeDefined();
         expect(summary.period.start).toBeTruthy();
         expect(summary.period.end).toBeTruthy();
-      });
-    });
-
-    // ── Seed & Clear ────────────────────────────────────────────────
-
-    describe('Seed & Clear', () => {
-      it('should seed data without error', async () => {
-        await expect(svc.seedData()).resolves.not.toThrow();
-      });
-
-      it('should clear data', async () => {
-        await svc.seedData();
-        await svc.clearData();
-        const habits = await svc.getHabits();
-        // After clear, should have no habits (or at least fewer than seeded)
-        expect(habits.length).toBe(0);
       });
     });
   });

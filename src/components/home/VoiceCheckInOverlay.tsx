@@ -4,6 +4,7 @@ import { useRef, useCallback, useEffect } from 'react';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
+import { useAuth } from '@/hooks/useAuth';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { unlockTTS } from '@/lib/services/tts-service';
 
@@ -18,8 +19,8 @@ const stateLabel: Record<string, string> = {
 };
 
 export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
-  const { messages, voiceState, startListening, stopListening, reset, updateHabitDays } =
-    useVoiceChat();
+  const { user } = useAuth();
+  const { messages, voiceState, startListening, stopListening, updateHabitDays } = useVoiceChat();
 
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
@@ -28,10 +29,12 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
     scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
+  // Bug 1 fix: Don't reset chat history on close — messages persist in sessionStorage.
+  // Stop any active listening but keep the conversation intact.
   const handleClose = useCallback(() => {
-    reset();
+    stopListening();
     onClose();
-  }, [reset, onClose]);
+  }, [stopListening, onClose]);
 
   const handleMicPress = () => {
     unlockTTS();
@@ -79,7 +82,7 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
       >
         {messages.map((msg) => (
           <div key={msg.id}>
-            <ChatBubble role={msg.role} text={msg.text} />
+            <ChatBubble role={msg.role} text={msg.text} userName={user?.name ?? undefined} />
             {msg.habitCards?.map((card, i) => (
               <HabitSuggestionCard
                 key={i}

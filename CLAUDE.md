@@ -73,7 +73,28 @@ Vercel Hobby plan allows **12 serverless functions**. We currently use **8**. Do
 
 `api/_lib/db.ts` creates a `pg.Pool` with `max: 1` because each serverless function invocation is short-lived. Don't increase this — it can exhaust Supabase connection limits under load.
 
-### 5. Toast Context Requirement
+### 5. RLS Policies Are NOT Functional (Better Auth)
+
+**The Supabase RLS policies in `003_add_rls_policies.sql` use `auth.uid()` which only works with Supabase Auth.** This project uses **Better Auth** — so `auth.uid()` always returns NULL and RLS policies silently block/allow nothing.
+
+**Data isolation is enforced at the API layer** via `WHERE user_id = $1` in every query (the user ID comes from `requireUser()` which reads the Better Auth session). This means:
+
+- Do NOT rely on RLS for security — it's theater right now
+- ALWAYS include `WHERE user_id = $1` in every query that touches user data
+- The database connection uses the **service role** which bypasses RLS entirely
+- If you ever migrate back to Supabase Auth, the RLS policies will need to be re-tested
+
+### 6. Input Validation (validation.ts)
+
+`api/_lib/validation.ts` provides shared validators:
+
+- `validateDate(value)` — validates YYYY-MM-DD format with round-trip check
+- `validateUUID(value)` — validates UUID v4 format
+- `getClientIp(headers)` — gets safe client IP (prefers `x-real-ip` from Vercel infra)
+
+**Always use `validateDate()` for any date from URL params or query strings.** Never pass raw user input as dates to SQL queries.
+
+### 7. Toast Context Requirement
 
 `useToast()` must be called within `<ToastProvider>`. This wraps the entire app in `App.tsx`. If you create a new hook that uses `useToast()`, make sure it's only called from components rendered inside the provider tree.
 
@@ -186,24 +207,16 @@ Registered in `CaptureView.tsx` via `useEffect` with `keydown` listener:
 
 ---
 
-## Pending Items
+## Database Migrations
 
-### Database Migrations
+Run order for fresh DB: **000_better_auth_tables → 001_onboarding → 002_app_tables → 003_rls**
 
-Two migrations need to be run on Supabase SQL editor:
-
-```sql
--- supabase/migrations/001_add_spreadsheet_range.sql
-ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS spreadsheet_range VARCHAR(10) DEFAULT 'month';
-
--- supabase/migrations/002_add_metric_targets.sql
-ALTER TABLE metrics ADD COLUMN IF NOT EXISTS target_value NUMERIC NULL;
-ALTER TABLE metrics ADD COLUMN IF NOT EXISTS target_unit VARCHAR(20) NULL;
-```
+All core tables are now created in the migrations (previously `allowlist`, `entries`, `affirmations` and schemas for `reflection_configs`, `reflections`, `user_preferences` were missing — fixed).
 
 ### Cleanup
 
 - PWA icons: currently using `vite.svg` as placeholder — replace with proper app icons
+- Bundle size: 796KB main chunk needs code splitting
 
 ---
 

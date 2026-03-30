@@ -9,34 +9,36 @@ export function ChatBubble({ role, text, userName, animate = true }: ChatBubbleP
   const isUser = role === 'user';
 
   return (
-    <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} mb-3`}>
-      <div className={`mb-1.5 flex items-center gap-1.5 ${isUser ? 'pr-1' : 'pl-1'}`}>
-        {!isUser && <div className="h-2 w-2 rounded-full bg-primary" />}
+    <div className={`flex flex-col ${isUser ? 'mb-3 items-end' : 'mt-[48px] items-start'}`}>
+      <div className={`flex items-center px-[16px] ${isUser ? 'justify-end' : ''}`}>
+        {!isUser && <div className="size-[8px] rounded-full bg-[#135bec]" />}
         <span
-          className={`text-[12px] font-semibold tracking-[1.2px] ${
-            isUser ? 'text-white/40' : 'text-primary'
+          className={`text-[12px] font-semibold uppercase tracking-[1.2px] ${
+            isUser ? 'text-[rgba(255,255,255,0.4)]' : 'pl-[8px] text-[#135bec]'
           }`}
         >
-          {isUser ? (userName || 'YOU').toUpperCase() : 'AI ASSISTANT'}
+          {isUser ? userName || 'YOU' : 'AI ASSISTANT'}
         </span>
       </div>
 
-      <div
-        className={`max-w-[260px] px-3.5 py-2.5 backdrop-blur-[6px] ${
-          isUser
-            ? 'rounded-bl-2xl rounded-br-2xl rounded-tl-2xl border border-white/10 bg-white/10'
-            : 'rounded-bl-2xl rounded-br-2xl rounded-tr-2xl border border-primary/20 bg-primary/50'
-        } ${animate ? 'animate-bubble-in' : ''}`}
-      >
-        <p
-          className={
+      <div className="pt-[8px]">
+        <div
+          className={`max-w-[290px] backdrop-blur-[6px] ${
             isUser
-              ? 'text-[15px] font-medium leading-[22px] text-white'
-              : 'text-[16px] font-semibold leading-[23px] text-white'
-          }
+              ? 'rounded-bl-[16px] rounded-br-[16px] rounded-tl-[16px] border border-[rgba(255,255,255,0.1)] bg-white py-[21px] pl-[21px] pr-[23px]'
+              : 'rounded-bl-[16px] rounded-br-[16px] rounded-tr-[16px] border border-[rgba(19,91,236,0.2)] bg-[rgba(19,91,236,0.5)] py-[21px] pl-[21px] pr-[30px]'
+          } ${animate ? 'animate-bubble-in' : ''}`}
         >
-          {text}
-        </p>
+          <p
+            className={
+              isUser
+                ? 'text-[18px] font-medium leading-[29.25px] text-[#282828]'
+                : 'text-[20px] font-semibold leading-[27.5px] text-white'
+            }
+          >
+            {text}
+          </p>
+        </div>
       </div>
     </div>
   );

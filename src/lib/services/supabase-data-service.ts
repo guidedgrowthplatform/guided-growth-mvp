@@ -1,8 +1,6 @@
-// SupabaseDataService — production data layer using Supabase PostgreSQL
-// Auth: user ID from Better Auth session; data queries via Supabase client
-
-import { authClient } from '../auth-client';
+import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../supabase';
+import { encryptJournal, decryptJournal } from '../utils/journal-crypto';
 import type {
   DataService,
   Habit,
@@ -12,29 +10,33 @@ import type {
   JournalEntry,
   HabitSummary,
   WeeklySummary,
+  CheckInRecord,
+  FocusSession,
 } from './data-service.interface';
+
+const moodFromDb: Record<string, number> = { awful: 1, unhappy: 2, okay: 3, calm: 4, joyful: 5 };
+const stressFromDb: Record<string, number> = { high: 1, moderate: 3, low: 5 };
 
 function todayStr(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-async function getCurrentUserId(): Promise<string> {
-  const { data } = await authClient.getSession();
-  if (!data?.user?.id) throw new Error('Not authenticated');
-  return data.user.id;
+function getCurrentUserId(): string {
+  const user = useAuthStore.getState().user;
+  if (user?.id) return user.id;
+  throw new Error('Not authenticated');
 }
 
 export class SupabaseDataService implements DataService {
-  // ─── Habits ───
-
   async createHabit(name: string, frequency = 'daily'): Promise<Habit> {
-    // Duplicate check (FIX-01: #21)
+    if (name.length > 100) throw new Error('Habit name too long (max 100 characters)');
+
     const existing = await this.getHabitByName(name);
     if (existing) {
       throw new Error(`You already have a habit called "${existing.name}"`);
     }
 
-    const userId = await getCurrentUserId();
+    const userId = getCurrentUserId();
 
     const { data, error } = await supabase
       .from('user_habits')
@@ -71,9 +73,11 @@ export class SupabaseDataService implements DataService {
   }
 
   async getHabits(): Promise<Habit[]> {
+    const userId = getCurrentUserId();
     const { data, error } = await supabase
       .from('user_habits')
       .select('*')
+      .eq('user_id', userId)
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
 
@@ -89,9 +93,11 @@ export class SupabaseDataService implements DataService {
   }
 
   async getAllHabits(): Promise<Habit[]> {
+    const userId = getCurrentUserId();
     const { data, error } = await supabase
       .from('user_habits')
       .select('*')
+      .eq('user_id', userId)
       .order('sort_order', { ascending: true });
 
     if (error) throw new Error(error.message);
@@ -105,12 +111,13 @@ export class SupabaseDataService implements DataService {
     }));
   }
 
-  async getHabitByName(name: string): Promise<Habit | null> {
+  async getHabitById(id: string): Promise<Habit | null> {
+    const userId = getCurrentUserId();
     const { data, error } = await supabase
       .from('user_habits')
       .select('*')
-      .ilike('name', name)
-      .eq('is_active', true)
+      .eq('id', id)
+      .eq('user_id', userId)
       .maybeSingle();
 
     if (error) throw new Error(error.message);
@@ -125,10 +132,34 @@ export class SupabaseDataService implements DataService {
     };
   }
 
+  async getHabitByName(name: string): Promise<Habit | null> {
+    const userId = getCurrentUserId();
+    const { data, error } = await supabase
+      .from('user_habits')
+      .select('*')
+      .eq('user_id', userId)
+      .ilike('name', name)
+      .eq('is_active', true)
+      .limit(1);
+
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) return null;
+    const row = data[0];
+
+    return {
+      id: row.id,
+      name: row.name,
+      frequency: row.cadence,
+      createdAt: row.created_at,
+      active: row.is_active,
+    };
+  }
+
   async updateHabit(
     id: string,
     updates: Partial<Pick<Habit, 'name' | 'frequency' | 'active'>>,
   ): Promise<Habit> {
+    const userId = getCurrentUserId();
     const supaUpdates: Record<string, unknown> = {};
     if (updates.name !== undefined) supaUpdates.name = updates.name;
     if (updates.frequency !== undefined) supaUpdates.cadence = updates.frequency;
@@ -138,6 +169,7 @@ export class SupabaseDataService implements DataService {
       .from('user_habits')
       .update(supaUpdates)
       .eq('id', id)
+      .eq('user_id', userId)
       .select()
       .single();
 
@@ -153,18 +185,30 @@ export class SupabaseDataService implements DataService {
   }
 
   async deleteHabit(id: string): Promise<void> {
+    const userId = getCurrentUserId();
     // Soft delete: archive instead of removing
     const { error } = await supabase
       .from('user_habits')
       .update({ is_active: false, archived_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', userId);
 
     if (error) throw new Error(error.message);
   }
 
-  // ─── Completions ───
-
   async completeHabit(habitId: string, date: string): Promise<HabitCompletion> {
+    if (new Date(date) > new Date()) throw new Error('Cannot complete habit for future dates');
+
+    const userId = getCurrentUserId();
+    const { data: ownerCheck, error: ownerError } = await supabase
+      .from('user_habits')
+      .select('id')
+      .eq('id', habitId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (ownerError) throw new Error(ownerError.message);
+    if (!ownerCheck) throw new Error('Habit not found');
+
     const { data, error } = await supabase
       .from('habit_completions')
       .upsert(
@@ -189,11 +233,41 @@ export class SupabaseDataService implements DataService {
     };
   }
 
+  async uncompleteHabit(habitId: string, date: string): Promise<void> {
+    const userId = getCurrentUserId();
+    const { data: ownerCheck, error: ownerError } = await supabase
+      .from('user_habits')
+      .select('id')
+      .eq('id', habitId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (ownerError) throw new Error(ownerError.message);
+    if (!ownerCheck) throw new Error('Habit not found');
+
+    const { error } = await supabase
+      .from('habit_completions')
+      .delete()
+      .eq('user_habit_id', habitId)
+      .eq('date', date);
+
+    if (error) throw new Error(error.message);
+  }
+
   async getCompletions(
     habitId: string,
     startDate?: string,
     endDate?: string,
   ): Promise<HabitCompletion[]> {
+    const userId = getCurrentUserId();
+    const { data: ownerCheck, error: ownerError } = await supabase
+      .from('user_habits')
+      .select('id')
+      .eq('id', habitId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (ownerError) throw new Error(ownerError.message);
+    if (!ownerCheck) throw new Error('Habit not found');
+
     let query = supabase
       .from('habit_completions')
       .select('*')
@@ -215,10 +289,6 @@ export class SupabaseDataService implements DataService {
     }));
   }
 
-  // ─── Metrics ───
-  // Note: Metrics map to daily_checkins in the new schema
-  // For MVP, we store them as custom entries
-
   async createMetric(
     name: string,
     inputType = 'scale',
@@ -226,58 +296,119 @@ export class SupabaseDataService implements DataService {
     scaleMin?: number,
     scaleMax?: number,
   ): Promise<TrackedMetric> {
-    // Store metrics as a special habit type for now
-    // In future, metrics could have their own table
-    const _userId = await getCurrentUserId();
+    const userId = getCurrentUserId();
 
-    const metric: TrackedMetric = {
-      id: crypto.randomUUID(),
-      name,
-      inputType: inputType as 'scale' | 'binary' | 'numeric' | 'text',
-      frequency,
-      scaleMin,
-      scaleMax,
-      createdAt: new Date().toISOString(),
+    const { data, error } = await supabase
+      .from('metrics')
+      .insert({
+        user_id: userId,
+        name,
+        input_type: inputType,
+        frequency,
+        scale_min: scaleMin ?? null,
+        scale_max: scaleMax ?? null,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    return {
+      id: data.id,
+      name: data.name,
+      inputType: data.input_type as TrackedMetric['inputType'],
+      frequency: data.frequency,
+      scaleMin: data.scale_min ?? undefined,
+      scaleMax: data.scale_max ?? undefined,
+      createdAt: data.created_at,
     };
-
-    // Store in localStorage for now (metrics don't have a direct Supabase table in MVP)
-    const existing = JSON.parse(localStorage.getItem('supabase_metrics') || '[]');
-    existing.push(metric);
-    localStorage.setItem('supabase_metrics', JSON.stringify(existing));
-
-    return metric;
   }
 
   async getMetrics(): Promise<TrackedMetric[]> {
-    return JSON.parse(localStorage.getItem('supabase_metrics') || '[]');
+    const userId = getCurrentUserId();
+    const { data, error } = await supabase
+      .from('metrics')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw new Error(error.message);
+
+    return (data || []).map((m) => ({
+      id: m.id,
+      name: m.name,
+      inputType: m.input_type as TrackedMetric['inputType'],
+      frequency: m.frequency,
+      scaleMin: m.scale_min ?? undefined,
+      scaleMax: m.scale_max ?? undefined,
+      createdAt: m.created_at,
+    }));
   }
 
   async getMetricByName(name: string): Promise<TrackedMetric | null> {
-    const metrics = await this.getMetrics();
-    return metrics.find((m) => m.name.toLowerCase() === name.toLowerCase()) || null;
+    const userId = getCurrentUserId();
+    const { data, error } = await supabase
+      .from('metrics')
+      .select('*')
+      .eq('user_id', userId)
+      .ilike('name', name)
+      .limit(1);
+
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) return null;
+    const row = data[0];
+
+    return {
+      id: row.id,
+      name: row.name,
+      inputType: row.input_type as TrackedMetric['inputType'],
+      frequency: row.frequency,
+      scaleMin: row.scale_min ?? undefined,
+      scaleMax: row.scale_max ?? undefined,
+      createdAt: row.created_at,
+    };
   }
 
   async deleteMetric(id: string): Promise<void> {
-    const metrics = await this.getMetrics();
-    localStorage.setItem('supabase_metrics', JSON.stringify(metrics.filter((m) => m.id !== id)));
+    const userId = getCurrentUserId();
+    const { error } = await supabase.from('metrics').delete().eq('id', id).eq('user_id', userId);
+
+    if (error) throw new Error(error.message);
   }
 
-  // ─── Metric Entries ───
-
   async logMetric(metricId: string, value: number | string, date: string): Promise<MetricEntry> {
-    const entry: MetricEntry = {
-      id: crypto.randomUUID(),
-      metricId,
-      value,
-      date,
-      loggedAt: new Date().toISOString(),
+    const userId = getCurrentUserId();
+    const { data: ownerCheck, error: ownerError } = await supabase
+      .from('metrics')
+      .select('id')
+      .eq('id', metricId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (ownerError) throw new Error(ownerError.message);
+    if (!ownerCheck) throw new Error('Metric not found');
+
+    const { data, error } = await supabase
+      .from('user_metric_entries')
+      .upsert(
+        {
+          metric_id: metricId,
+          value: String(value),
+          date,
+        },
+        { onConflict: 'metric_id,date' },
+      )
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    return {
+      id: data.id,
+      metricId: data.metric_id,
+      value: data.value,
+      date: data.date,
+      loggedAt: data.created_at,
     };
-
-    const existing = JSON.parse(localStorage.getItem('supabase_metric_entries') || '[]');
-    existing.push(entry);
-    localStorage.setItem('supabase_metric_entries', JSON.stringify(existing));
-
-    return entry;
   }
 
   async getMetricEntries(
@@ -285,32 +416,53 @@ export class SupabaseDataService implements DataService {
     startDate?: string,
     endDate?: string,
   ): Promise<MetricEntry[]> {
-    const entries: MetricEntry[] = JSON.parse(
-      localStorage.getItem('supabase_metric_entries') || '[]',
-    );
-    return entries.filter((e) => {
-      if (e.metricId !== metricId) return false;
-      if (startDate && e.date < startDate) return false;
-      if (endDate && e.date > endDate) return false;
-      return true;
-    });
-  }
+    const userId = getCurrentUserId();
+    const { data: ownerCheck, error: ownerError } = await supabase
+      .from('metrics')
+      .select('id')
+      .eq('id', metricId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (ownerError) throw new Error(ownerError.message);
+    if (!ownerCheck) throw new Error('Metric not found');
 
-  // ─── Journal ───
+    let query = supabase
+      .from('user_metric_entries')
+      .select('*')
+      .eq('metric_id', metricId)
+      .order('date', { ascending: false });
+
+    if (startDate) query = query.gte('date', startDate);
+    if (endDate) query = query.lte('date', endDate);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    return (data || []).map((e) => ({
+      id: e.id,
+      metricId: e.metric_id,
+      value: e.value,
+      date: e.date,
+      loggedAt: e.created_at,
+    }));
+  }
 
   async createJournalEntry(
     content: string,
     mood?: string,
     themes?: string[],
   ): Promise<JournalEntry> {
-    const userId = await getCurrentUserId();
+    const userId = getCurrentUserId();
+
+    // Encrypt content before storing (client-side encryption for privacy)
+    const encryptedContent = await encryptJournal(content, userId);
 
     const { data, error } = await supabase
       .from('journal_entries')
       .insert({
         user_id: userId,
         date: todayStr(),
-        response: content,
+        response: encryptedContent,
         prompt: themes?.join(', ') || null,
         input_mode: 'text',
       })
@@ -321,7 +473,7 @@ export class SupabaseDataService implements DataService {
 
     return {
       id: data.id,
-      content: data.response,
+      content, // Return original plaintext to caller
       mood,
       themes,
       date: data.date,
@@ -330,9 +482,11 @@ export class SupabaseDataService implements DataService {
   }
 
   async getJournalEntries(startDate?: string, endDate?: string): Promise<JournalEntry[]> {
+    const userId = getCurrentUserId();
     let query = supabase
       .from('journal_entries')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (startDate) query = query.gte('date', startDate);
@@ -341,17 +495,28 @@ export class SupabaseDataService implements DataService {
     const { data, error } = await query;
     if (error) throw new Error(error.message);
 
-    return (data || []).map((j) => ({
-      id: j.id,
-      content: j.response,
-      mood: undefined,
-      themes: j.prompt ? j.prompt.split(', ') : undefined,
-      date: j.date,
-      createdAt: j.created_at,
-    }));
+    // Decrypt each journal entry's response field
+    return Promise.all(
+      (data || []).map(async (j) => {
+        let content: string;
+        try {
+          // Try to decrypt; if it fails, treat as unencrypted plaintext
+          content = await decryptJournal(j.response, userId);
+        } catch {
+          // Fallback for unencrypted entries (for backward compatibility)
+          content = j.response;
+        }
+        return {
+          id: j.id,
+          content,
+          mood: undefined,
+          themes: j.prompt ? j.prompt.split(', ') : undefined,
+          date: j.date,
+          createdAt: j.created_at,
+        };
+      }),
+    );
   }
-
-  // ─── Summaries ───
 
   async getHabitSummary(habitId: string, period: 'week' | 'month'): Promise<HabitSummary> {
     const habits = await this.getHabits();
@@ -402,37 +567,234 @@ export class SupabaseDataService implements DataService {
     };
   }
 
-  // ─── Seed & Clear ───
+  async saveCheckIn(
+    date: string,
+    data: {
+      sleep: number | null;
+      mood: number | null;
+      energy: number | null;
+      stress: number | null;
+    },
+  ): Promise<CheckInRecord> {
+    if (new Date(date) > new Date()) throw new Error('Cannot save check-in for future dates');
+    const userId = getCurrentUserId();
 
-  async seedData(): Promise<void> {
-    // Seeded data already exists in Supabase via seed.sql
-    // This method seeds user-specific demo data for testing
-    try {
-      await getCurrentUserId();
-    } catch {
-      console.warn('[SupabaseDataService] Not authenticated — cannot seed data');
-      return;
-    }
+    const moodToDb: Record<number, string> = {
+      1: 'awful',
+      2: 'unhappy',
+      3: 'okay',
+      4: 'calm',
+      5: 'joyful',
+    };
+    const stressToDb: Record<number, string> = {
+      1: 'high',
+      2: 'high',
+      3: 'moderate',
+      4: 'low',
+      5: 'low',
+    };
 
-    // Create some demo habits
-    try {
-      await this.createHabit('Morning meditation', 'daily');
-      await this.createHabit('Read 10 pages', 'daily');
-      await this.createHabit('Workout', '3x/week');
-    } catch {
-      // Ignore duplicate errors
-    }
+    const { data: row, error } = await supabase
+      .from('daily_checkins')
+      .upsert(
+        {
+          user_id: userId,
+          date,
+          sleep_quality: data.sleep,
+          mood: data.mood != null ? (moodToDb[data.mood] ?? String(data.mood)) : null,
+          energy_level: data.energy,
+          stress_level:
+            data.stress != null ? (stressToDb[data.stress] ?? String(data.stress)) : null,
+        },
+        { onConflict: 'user_id,date' },
+      )
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    return {
+      id: row.id,
+      date: row.date,
+      sleep: row.sleep_quality,
+      mood: moodFromDb[row.mood] ?? null,
+      energy: row.energy_level,
+      stress: stressFromDb[row.stress_level] ?? null,
+      createdAt: row.created_at,
+    };
+  }
+
+  async getCheckIn(date: string): Promise<CheckInRecord | null> {
+    const userId = getCurrentUserId();
+    const { data, error } = await supabase
+      .from('daily_checkins')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('date', date)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      date: data.date,
+      sleep: data.sleep_quality,
+      mood: moodFromDb[data.mood] ?? null,
+      energy: data.energy_level,
+      stress: stressFromDb[data.stress_level] ?? null,
+      createdAt: data.created_at,
+    };
+  }
+
+  async getCheckIns(startDate: string, endDate: string): Promise<CheckInRecord[]> {
+    const userId = getCurrentUserId();
+    const { data, error } = await supabase
+      .from('daily_checkins')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    return (data || []).map((row) => ({
+      id: row.id,
+      date: row.date,
+      sleep: row.sleep_quality,
+      mood: moodFromDb[row.mood] ?? null,
+      energy: row.energy_level,
+      stress: stressFromDb[row.stress_level] ?? null,
+      createdAt: row.created_at,
+    }));
+  }
+
+  async getAllCompletions(startDate: string, endDate: string): Promise<HabitCompletion[]> {
+    // Filter by user ownership: get user's habit IDs first, then filter completions
+    const userId = getCurrentUserId();
+    const { data: userHabits } = await supabase
+      .from('user_habits')
+      .select('id')
+      .eq('user_id', userId);
+    const habitIds = (userHabits ?? []).map((h) => h.id);
+    if (habitIds.length === 0) return [];
+
+    const { data, error } = await supabase
+      .from('habit_completions')
+      .select('*')
+      .in('user_habit_id', habitIds)
+      .eq('completed', true)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    return (data || []).map((c) => ({
+      id: c.id,
+      habitId: c.user_habit_id,
+      date: c.date,
+      completedAt: c.created_at,
+    }));
+  }
+
+  async saveFocusSession(
+    habitId: string | null,
+    durationMinutes: number,
+    actualMinutes: number | null,
+    startedAt: string,
+  ): Promise<FocusSession> {
+    const userId = getCurrentUserId();
+
+    const { data, error } = await supabase
+      .from('focus_sessions')
+      .insert({
+        user_id: userId,
+        user_habit_id: habitId,
+        duration_minutes: durationMinutes,
+        actual_minutes: actualMinutes,
+        status: 'completed',
+        started_at: startedAt,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    return {
+      id: data.id,
+      habitId: data.user_habit_id ?? null,
+      durationMinutes: data.duration_minutes,
+      actualMinutes: data.actual_minutes ?? null,
+      status: data.status,
+      startedAt: data.started_at,
+    };
+  }
+
+  async getFocusSessions(startDate?: string, endDate?: string): Promise<FocusSession[]> {
+    const userId = getCurrentUserId();
+    let query = supabase
+      .from('focus_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('started_at', { ascending: false });
+
+    if (startDate) query = query.gte('started_at', startDate);
+    if (endDate) query = query.lte('started_at', endDate);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    return (data || []).map((s) => ({
+      id: s.id,
+      habitId: s.user_habit_id ?? null,
+      durationMinutes: s.duration_minutes,
+      actualMinutes: s.actual_minutes ?? null,
+      status: s.status,
+      startedAt: s.started_at,
+    }));
   }
 
   async clearData(): Promise<void> {
-    // Clear user's local metric data
-    localStorage.removeItem('supabase_metrics');
-    localStorage.removeItem('supabase_metric_entries');
+    const userId = getCurrentUserId();
 
-    // Note: Supabase data is not cleared via this method for safety
-    console.warn(
-      '[SupabaseDataService] clearData only clears local metric cache. Supabase data preserved.',
-    );
+    // Delete in dependency order: children first, then parents
+    const tables = [
+      { table: 'habit_completions', fk: 'user_habit_id', via: 'user_habits' },
+      { table: 'habit_streaks', fk: 'user_habit_id', via: 'user_habits' },
+      { table: 'focus_sessions', column: 'user_id' },
+      { table: 'journal_entries', column: 'user_id' },
+      { table: 'daily_checkins', column: 'user_id' },
+      { table: 'user_metric_entries', fk: 'metric_id', via: 'metrics' },
+      { table: 'metrics', column: 'user_id' },
+      { table: 'user_habits', column: 'user_id' },
+      { table: 'user_preferences', column: 'user_id' },
+      { table: 'onboarding_states', column: 'user_id' },
+    ] as const;
+
+    for (const spec of tables) {
+      if ('column' in spec && spec.column) {
+        const { error } = await supabase.from(spec.table).delete().eq(spec.column, userId);
+        if (error) {
+          console.warn(`[clearData] Failed to delete from ${spec.table}:`, error.message);
+        }
+      } else if ('via' in spec && spec.via) {
+        // For child tables that reference a parent owned by the user,
+        // fetch parent IDs first, then delete children
+        const { data: parentRows } = await supabase
+          .from(spec.via)
+          .select('id')
+          .eq('user_id', userId);
+        const parentIds = (parentRows ?? []).map((r) => r.id);
+        if (parentIds.length > 0) {
+          const { error } = await supabase.from(spec.table).delete().in(spec.fk, parentIds);
+          if (error) {
+            console.warn(`[clearData] Failed to delete from ${spec.table}:`, error.message);
+          }
+        }
+      }
+    }
   }
 }
 

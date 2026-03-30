@@ -7,6 +7,7 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: 'danger' | 'default';
+  isLoading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -17,6 +18,7 @@ export function ConfirmDialog({
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   variant = 'default',
+  isLoading = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -62,16 +64,25 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={() => handleClose(true)}
-            className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition-colors ${
-              isDanger ? 'bg-danger active:bg-danger/80' : 'bg-primary active:bg-primary/80'
+            disabled={isLoading}
+            className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white transition-colors ${
+              isLoading
+                ? isDanger
+                  ? 'cursor-not-allowed bg-danger/60'
+                  : 'cursor-not-allowed bg-primary/60'
+                : isDanger
+                  ? 'bg-danger active:bg-danger/80'
+                  : 'bg-primary active:bg-primary/80'
             }`}
           >
+            {isLoading && <Icon icon="svg-spinners:ring-resize" width={16} />}
             {confirmLabel}
           </button>
           <button
             type="button"
             onClick={() => handleClose(false)}
-            className="w-full rounded-xl border border-border px-4 py-3 text-sm font-semibold text-content transition-colors active:bg-surface-secondary"
+            disabled={isLoading}
+            className="w-full rounded-xl border border-border px-4 py-3 text-sm font-semibold text-content transition-colors active:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-50"
           >
             {cancelLabel}
           </button>

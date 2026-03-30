@@ -1,3 +1,8 @@
+import { useEffect, useState } from 'react';
+import { getDataService } from '@/lib/services/service-provider';
+
+const MIN_CHECKINS_REQUIRED = 7;
+
 const legendItems = [
   { label: 'Sleep', color: 'bg-primary' },
   { label: 'Energy', color: 'bg-[#f38601]' },
@@ -6,12 +11,37 @@ const legendItems = [
 ];
 
 export function MoodCorrelationCard() {
+  const [checkInCount, setCheckInCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCount() {
+      try {
+        const ds = await getDataService();
+        const end = new Date().toISOString().slice(0, 10);
+        const start = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const records = await ds.getCheckIns(start, end);
+        if (!cancelled) setCheckInCount(records.length);
+      } catch {
+        if (!cancelled) setCheckInCount(0);
+      }
+    }
+    loadCount();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Don't render while loading or if insufficient data
+  if (checkInCount === null) return null;
+  if (checkInCount < MIN_CHECKINS_REQUIRED) return null;
+
   return (
     <div className="rounded-lg bg-surface p-5 shadow-[0px_4px_20px_rgba(0,0,0,0.04)]">
       <div className="mb-4 flex items-start justify-between">
         <h3 className="text-[16px] font-bold leading-6 text-content">Mood Correlation</h3>
         <span className="rounded-[6px] bg-primary/5 px-2 py-1 text-[12px] font-bold leading-4 text-primary">
-          High Correlation
+          Illustrative
         </span>
       </div>
       <div className="flex flex-col gap-6 rounded-lg border border-border-light bg-surface p-[25px] shadow-sm">
@@ -56,6 +86,9 @@ export function MoodCorrelationCard() {
             />
           </svg>
         </div>
+        <p className="text-center text-[11px] text-content-tertiary">
+          Data visualization is illustrative. Detailed correlation analysis coming soon.
+        </p>
       </div>
     </div>
   );

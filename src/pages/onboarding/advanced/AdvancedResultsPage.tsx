@@ -1,9 +1,11 @@
 import { Icon } from '@iconify/react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { WEEKDAYS } from '@/components/onboarding/constants';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 
 interface HabitItem {
   name: string;
@@ -20,13 +22,40 @@ interface UpdatedHabit {
 interface ResultsLocationState {
   updatedHabit?: UpdatedHabit;
   deletedIndex?: number;
+  text?: string;
+  habits?: Array<{ name: string; days?: number[] }>;
 }
 
-const MOCK_HABITS: HabitItem[] = [
+const FALLBACK_HABITS: HabitItem[] = [
   { name: 'Sleep by 11 PM', days: new Set(WEEKDAYS), selected: true },
   { name: 'Morning stretch', days: new Set(WEEKDAYS), selected: true },
   { name: 'No coffee after 3 PM', days: new Set(WEEKDAYS), selected: true },
 ];
+
+function buildInitialHabits(state: ResultsLocationState | null): HabitItem[] {
+  // If structured habits were passed directly, use them
+  if (state?.habits && state.habits.length > 0) {
+    return state.habits.map((h) => ({
+      name: h.name,
+      days: new Set(h.days ?? WEEKDAYS),
+      selected: true,
+    }));
+  }
+
+  // Parse free-form "brain dump" text into structured habits
+  if (state?.text) {
+    const parsed = parseHabitsFromText(state.text);
+    if (parsed.length > 0) {
+      return parsed.map((h) => ({
+        name: h.name,
+        days: new Set(WEEKDAYS),
+        selected: true,
+      }));
+    }
+  }
+
+  return FALLBACK_HABITS;
+}
 
 function applyLocationState(base: HabitItem[], state: ResultsLocationState | null): HabitItem[] {
   if (!state) return base;
@@ -44,10 +73,15 @@ function applyLocationState(base: HabitItem[], state: ResultsLocationState | nul
 export function AdvancedResultsPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { saveStepAsync } = useOnboarding();
   const locationState = location.state as ResultsLocationState | null;
   const clearedRef = useRef(false);
 
-  const habits = useMemo(() => applyLocationState(MOCK_HABITS, locationState), [locationState]);
+  const baseHabits = useMemo(() => buildInitialHabits(locationState), [locationState]);
+  const habits = useMemo(
+    () => applyLocationState(baseHabits, locationState),
+    [baseHabits, locationState],
+  );
 
   useEffect(() => {
     if (locationState && !clearedRef.current) {
@@ -56,12 +90,34 @@ export function AdvancedResultsPage() {
     }
   }, [locationState]);
 
-  function handleConfirm() {
-    const habitConfigs = habits.map((h) => ({
+  const handleConfirm = useCallback(async () => {
+    const habitConfigsArray = habits.map((h) => ({
       name: h.name,
       days: [...h.days],
     }));
-    navigate('/onboarding/advanced-step-6', { state: { habitConfigs } });
+    const goals = habits.map((h) => h.name);
+    const habitConfigsRecord: Record<string, { days: number[]; time: string; reminder: boolean }> =
+      {};
+    habitConfigsArray.forEach((h) => {
+      habitConfigsRecord[h.name] = { days: h.days, time: '21:45', reminder: true };
+    });
+    await saveStepAsync(4, { goals, habitConfigs: habitConfigsRecord });
+    navigate('/onboarding/advanced-step-6', { state: { habitConfigs: habitConfigsArray } });
+  }, [habits, navigate, saveStepAsync]);
+
+  if (habits.length === 0) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center bg-surface-secondary">
+        <p className="text-content-secondary">No habits selected. Go back to add some.</p>
+        <button
+          type="button"
+          onClick={() => navigate('/onboarding/advanced-input')}
+          className="mt-4 rounded-full bg-primary px-6 py-3 text-white"
+        >
+          Go Back
+        </button>
+      </div>
+    );
   }
 
   return (

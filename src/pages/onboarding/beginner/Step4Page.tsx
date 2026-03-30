@@ -1,9 +1,11 @@
 import { Icon } from '@iconify/react';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const goalsByCategory: Record<string, string[]> = {
   'Sleep better': [
@@ -54,9 +56,16 @@ const goalsByCategory: Record<string, string[]> = {
 export function Step4Page() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { state: onboardingState, saveStepAsync } = useOnboarding();
   const category = (location.state as { category?: string })?.category ?? 'Sleep better';
   const goals = goalsByCategory[category] ?? goalsByCategory['Sleep better'];
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (onboardingState?.data?.goals && Array.isArray(onboardingState.data.goals)) {
+      setSelected(new Set(onboardingState.data.goals as string[]));
+    }
+  }, [onboardingState?.data?.goals]);
 
   function toggleGoal(goal: string) {
     setSelected((prev) => {
@@ -70,19 +79,41 @@ export function Step4Page() {
     });
   }
 
+  const handleVoiceAction = useCallback(
+    (result: OnboardingVoiceResult) => {
+      if (result.params && Array.isArray(result.params.goals)) {
+        const voiceGoals = result.params.goals as string[];
+        const newSelected = new Set<string>();
+        voiceGoals.forEach((g) => {
+          if (goals.includes(g)) {
+            newSelected.add(g);
+          }
+        });
+        setSelected(newSelected);
+      }
+    },
+    [goals],
+  );
+
+  const handleNext = useCallback(async () => {
+    await saveStepAsync(4, { goals: Array.from(selected) });
+    navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
+  }, [selected, category, navigate, saveStepAsync]);
+
   return (
     <OnboardingLayout
       currentStep={4}
       totalSteps={7}
       ctaLabel="Continue"
       ctaVariant="inline"
-      onNext={() =>
-        navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } })
-      }
+      onNext={handleNext}
       onBack={() => navigate('/onboarding/step-3')}
       showVoiceButton
       aiListeningPrompt='"Within that category, what specific area would you like to improve?"'
       ctaDisabled={selected.size === 0}
+      voiceOptions={goals}
+      voicePrompt="Which goals interest you?"
+      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Let's narrow it down"

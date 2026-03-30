@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { HabitCustomizeSheet, type HabitConfig } from '@/components/onboarding/HabitCustomizeSheet';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
@@ -7,6 +7,8 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const habitsByGoal: Record<string, string[]> = {
   'Fall asleep earlier': [
@@ -239,6 +241,7 @@ const habitsByGoal: Record<string, string[]> = {
 export function Step5Page() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { state: onboardingState, saveStepAsync } = useOnboarding();
   const state = location.state as {
     goals?: string[];
     category?: string;
@@ -249,7 +252,10 @@ export function Step5Page() {
     phase?: 'confirming';
     reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string };
   } | null;
-  const goals = state?.goals?.length ? state.goals : ['Fall asleep earlier'];
+  const goals = useMemo(
+    () => (state?.goals?.length ? state.goals : ['Fall asleep earlier']),
+    [state],
+  );
 
   // Reconstitute Sets from arrays after router state serialization
   const incomingConfigs = state?.habitConfigs
@@ -274,6 +280,24 @@ export function Step5Page() {
   const [phase, setPhase] = useState<'selecting' | 'confirming'>(
     state?.phase === 'confirming' && incomingConfigs ? 'confirming' : 'selecting',
   );
+
+  useEffect(() => {
+    if (onboardingState?.data?.habitConfigs) {
+      const savedConfigs = onboardingState.data.habitConfigs as Record<
+        string,
+        { days: number[] | Set<number>; time: string; reminder: boolean }
+      >;
+      const reconstituted = Object.fromEntries(
+        Object.entries(savedConfigs).map(([k, v]) => [
+          k,
+          { ...v, days: v.days instanceof Set ? v.days : new Set(v.days) },
+        ]),
+      );
+      setHabitConfigs(reconstituted);
+      setSelectedHabits(new Set(Object.keys(reconstituted)));
+      setPhase('confirming');
+    }
+  }, [onboardingState?.data?.habitConfigs]);
 
   function toggleHabit(habit: string) {
     if (selectedHabits.has(habit)) {
@@ -304,11 +328,11 @@ export function Step5Page() {
     setSelectedHabits(next);
   }
 
-  function handleContinue() {
+  const handleContinue = useCallback(() => {
     const queue = [...selectedHabits];
     setHabitQueue(queue);
     setCustomizingHabit(queue[0]);
-  }
+  }, [selectedHabits]);
 
   function handleSheetClose() {
     setCustomizingHabit(null);
@@ -341,36 +365,63 @@ export function Step5Page() {
     ? habitQueue.indexOf(customizingHabit) === habitQueue.length - 1
     : true;
 
+  // Collect all available habits for this phase
+  const allHabits = goals.flatMap((goal) => [
+    ...(habitsByGoal[goal] ?? []),
+    ...(customHabits[goal] ?? []),
+  ]);
+
+  const handleVoiceAction = useCallback(
+    (result: OnboardingVoiceResult) => {
+      if (result.params && Array.isArray(result.params.habits)) {
+        const voiceHabits = result.params.habits as string[];
+        const newSelected = new Set<string>();
+        voiceHabits.forEach((h) => {
+          if (allHabits.includes(h) && newSelected.size < 2) {
+            newSelected.add(h);
+          }
+        });
+        setSelectedHabits(newSelected);
+      }
+    },
+    [allHabits],
+  );
+
+  const handleOnNext = useCallback(async () => {
+    if (phase === 'confirming') {
+      const serializedConfigs = Object.fromEntries(
+        Object.entries(habitConfigs).map(([k, v]) => [k, { ...v, days: [...v.days] }]),
+      );
+      await saveStepAsync(5, { habitConfigs: serializedConfigs });
+      navigate('/onboarding/step-6', {
+        state: {
+          habitConfigs: serializedConfigs,
+          goals,
+          category: state?.category,
+          reflectionConfig: state?.reflectionConfig,
+        },
+      });
+    } else {
+      handleContinue();
+    }
+  }, [phase, habitConfigs, goals, state, navigate, handleContinue, saveStepAsync]);
+
   return (
     <OnboardingLayout
       currentStep={5}
       totalSteps={7}
       ctaLabel={phase === 'confirming' ? 'Confirm & Continue' : 'Continue'}
       ctaVariant="inline"
-      onNext={
-        phase === 'confirming'
-          ? () => {
-              // Serialize Set→array for router state consistency
-              const serializedConfigs = Object.fromEntries(
-                Object.entries(habitConfigs).map(([k, v]) => [k, { ...v, days: [...v.days] }]),
-              );
-              navigate('/onboarding/step-6', {
-                state: {
-                  habitConfigs: serializedConfigs,
-                  goals,
-                  category: state?.category,
-                  reflectionConfig: state?.reflectionConfig,
-                },
-              });
-            }
-          : handleContinue
-      }
+      onNext={handleOnNext}
       onBack={
         phase === 'confirming' ? () => setPhase('selecting') : () => navigate('/onboarding/step-4')
       }
       showVoiceButton
       aiListeningPrompt='"Select up to 2 daily habits to build your foundation."'
       ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
+      voiceOptions={allHabits}
+      voicePrompt="Which habits do you want to build?"
+      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Here's a good place to start"

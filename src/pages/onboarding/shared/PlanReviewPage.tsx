@@ -1,8 +1,10 @@
+import { useCallback } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { formatCadence } from '@/components/onboarding/constants';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
+import { useOnboarding } from '@/hooks/useOnboarding';
 const CATEGORY_ICONS: Record<string, string> = {
   Sleep: 'ic:outline-nightlight-round',
   Move: 'ic:outline-directions-run',
@@ -26,6 +28,17 @@ export function PlanReviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as PlanReviewState | null;
+  const { complete, isCompleting } = useOnboarding();
+
+  const handleStartPlan = useCallback(() => {
+    if (!state?.habitConfigs) return;
+    complete({
+      habitConfigs: state.habitConfigs,
+      goals: state.goals,
+      category: state.category,
+      reflectionConfig: state.reflectionConfig,
+    });
+  }, [state, complete]);
 
   if (!state?.habitConfigs || !state?.reflectionConfig) {
     return <Navigate to="/onboarding" replace />;
@@ -41,8 +54,9 @@ export function PlanReviewPage() {
     <OnboardingLayout
       currentStep={source === 'advanced' ? 6 : 7}
       totalSteps={source === 'advanced' ? 6 : 7}
-      ctaLabel="Start plan"
-      onNext={() => navigate('/home')}
+      ctaLabel={isCompleting ? 'Completing...' : 'Start plan'}
+      onNext={handleStartPlan}
+      ctaDisabled={isCompleting}
       onBack={() =>
         navigate(source === 'advanced' ? '/onboarding/advanced-step-6' : '/onboarding/step-6', {
           state:

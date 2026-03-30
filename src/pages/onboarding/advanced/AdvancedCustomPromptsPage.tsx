@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
 
 type JournalMode = 'freeform' | 'custom';
 
@@ -203,17 +204,7 @@ export function AdvancedCustomPromptsPage() {
         </div>
       </div>
 
-      {/* Voice Button */}
-      <div className="flex justify-center py-[20px]">
-        <div className="rounded-full shadow-[0px_0px_0px_8px_rgba(19,91,236,0.05),0px_0px_0px_16px_rgba(19,91,236,0.02)]">
-          <button
-            type="button"
-            className="flex size-[72px] items-center justify-center rounded-full bg-primary shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)]"
-          >
-            <Icon icon="ic:round-mic" width={20} height={20} className="text-white" />
-          </button>
-        </div>
-      </div>
+      <CustomPromptsMic />
 
       {/* CTA Footer */}
       <div className="mt-auto pb-[8px] pt-[16px]">
@@ -226,6 +217,33 @@ export function AdvancedCustomPromptsPage() {
           I'm Done
         </button>
       </div>
+    </div>
+  );
+}
+
+function CustomPromptsMic() {
+  const { isListening, toggle } = useVoiceInput();
+  return (
+    <div className="flex flex-col items-center justify-center py-[20px]">
+      <div className="rounded-full shadow-[0px_0px_0px_8px_rgba(19,91,236,0.05),0px_0px_0px_16px_rgba(19,91,236,0.02)]">
+        <button
+          type="button"
+          onClick={toggle}
+          className={`flex size-[72px] items-center justify-center rounded-full shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)] transition-all ${
+            isListening ? 'scale-110 bg-danger' : 'bg-primary'
+          }`}
+        >
+          <Icon
+            icon={isListening ? 'ic:round-stop' : 'ic:round-mic'}
+            width={20}
+            height={20}
+            className="text-white"
+          />
+        </button>
+      </div>
+      {isListening && (
+        <p className="mt-3 animate-pulse text-sm font-medium text-primary">Listening...</p>
+      )}
     </div>
   );
 }

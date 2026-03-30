@@ -7,7 +7,7 @@ import importX from 'eslint-plugin-import-x';
 export default tseslint.config(
   // Global ignores
   {
-    ignores: ['dist/', 'node_modules/', '.vercel/', 'public/', 'coverage/', 'android/', 'ios/'],
+    ignores: ['dist/', 'node_modules/', '.vercel/', 'public/', 'coverage/', 'android/', 'ios/', 'scripts/'],
   },
 
   // Base rules for all JS/TS

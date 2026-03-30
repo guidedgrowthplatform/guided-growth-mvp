@@ -1,16 +1,29 @@
 import { Icon } from '@iconify/react';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoalTextarea } from '@/components/onboarding/GoalTextarea';
 import { GuidanceBadge } from '@/components/onboarding/GuidanceBadge';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import { VoiceMicButton } from '@/components/onboarding/VoiceMicButton';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { useVoiceStore } from '@/stores/voiceStore';
 
 export function AdvancedInputPage() {
   const navigate = useNavigate();
+  const { saveStepAsync } = useOnboarding();
   const [text, setText] = useState('');
-  const [isListening, setIsListening] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null!);
+  const { isListening, toggle, transcript } = useVoiceInput();
+  const resetTranscript = useVoiceStore((s) => s.resetTranscript);
+
+  // Append voice transcript to text
+  useEffect(() => {
+    if (!isListening && transcript) {
+      setText((prev) => (prev ? prev + '\n' + transcript : transcript));
+      resetTranscript();
+    }
+  }, [isListening, transcript, resetTranscript]);
 
   function handleKeyboardPress() {
     textareaRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -19,7 +32,6 @@ export function AdvancedInputPage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface-secondary px-[24px] pb-[32px] pt-[max(16px,env(safe-area-inset-top))]">
-      {/* Top Nav */}
       <button
         type="button"
         onClick={() => navigate('/onboarding/step-2')}
@@ -30,7 +42,6 @@ export function AdvancedInputPage() {
 
       <OnboardingProgress currentStep={3} totalSteps={6} />
 
-      {/* Header */}
       <div className="flex flex-col gap-[11px]">
         <h1 className="text-[32px] font-bold leading-[40px] tracking-[-0.8px] text-content">
           Tell me what you want to achieve
@@ -40,14 +51,15 @@ export function AdvancedInputPage() {
         </p>
       </div>
 
-      {/* Center */}
       <div className="flex flex-1 flex-col items-center justify-center gap-[24px] py-[32px]">
-        <VoiceMicButton isListening={isListening} onPress={() => setIsListening((p) => !p)} />
+        <VoiceMicButton isListening={isListening} onPress={toggle} />
+        {isListening && (
+          <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>
+        )}
         <GuidanceBadge text='TRY: "I WOULD LIKE TO READ FOR 15 MINS EVERY NIGHT AT 8 PM"' />
         <GoalTextarea value={text} onChange={setText} textareaRef={textareaRef} />
       </div>
 
-      {/* Footer */}
       <div className="flex items-center gap-[16px]">
         <button
           type="button"
@@ -59,7 +71,10 @@ export function AdvancedInputPage() {
         <button
           type="button"
           disabled={text.trim() === ''}
-          onClick={() => navigate('/onboarding/advanced-results', { state: { text } })}
+          onClick={async () => {
+            await saveStepAsync(3, {}, { brainDump: { raw: text } });
+            navigate('/onboarding/advanced-results', { state: { text } });
+          }}
           className="flex-1 rounded-full bg-primary py-[16px] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] disabled:opacity-50"
         >
           Done
