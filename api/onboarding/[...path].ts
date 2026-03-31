@@ -54,14 +54,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (route === 'complete' && req.method === 'POST') {
     const { finalData } = req.body || {};
-    const existingState = await pool.query(
-      'SELECT status FROM onboarding_states WHERE user_id = $1',
-      [user.id],
-    );
-    if (existingState.rows[0]?.status === 'completed') {
-      return res.json({ message: 'Onboarding completed' });
-    }
-
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -90,7 +82,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         for (const [name, config] of Object.entries(habitConfigs)) {
           await client.query(
             `INSERT INTO user_habits (user_id, name, habit_type, cadence, schedule_days, reminder_time, reminder_enabled, sort_order)
-             VALUES ($1, $2, 'binary_do', 'daily', $3, $4, $5, $6)`,
+             VALUES ($1, $2, 'binary_do', 'daily', $3, $4, $5, $6)
+             ON CONFLICT (user_id, name) DO UPDATE SET
+               schedule_days = EXCLUDED.schedule_days,
+               reminder_time = EXCLUDED.reminder_time,
+               reminder_enabled = EXCLUDED.reminder_enabled,
+               sort_order = EXCLUDED.sort_order`,
             [
               user.id,
               name,
