@@ -87,8 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                schedule_days = EXCLUDED.schedule_days,
                reminder_time = EXCLUDED.reminder_time,
                reminder_enabled = EXCLUDED.reminder_enabled,
-               sort_order = EXCLUDED.sort_order,
-               updated_at = now()`,
+               sort_order = EXCLUDED.sort_order`,
             [
               user.id,
               name,
