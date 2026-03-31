@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const ALLOWED_ORIGINS = [
   process.env.BETTER_AUTH_URL,
+  'https://guided-growth-mvp.vercel.app',
   'capacitor://localhost',
   'http://localhost',
   'http://localhost:5173',

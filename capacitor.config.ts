@@ -18,6 +18,11 @@ const config: CapacitorConfig = {
     iosScheme: 'capacitor',
     allowNavigation: ['api.deepgram.com', 'api.elevenlabs.io'],
   },
+  plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
+  },
 };
 
 export default config;
