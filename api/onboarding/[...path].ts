@@ -54,6 +54,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (route === 'complete' && req.method === 'POST') {
     const { finalData } = req.body || {};
+    const existingState = await pool.query(
+      'SELECT status FROM onboarding_states WHERE user_id = $1',
+      [user.id],
+    );
+    if (existingState.rows[0]?.status === 'completed') {
+      return res.json({ message: 'Onboarding completed' });
+    }
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
