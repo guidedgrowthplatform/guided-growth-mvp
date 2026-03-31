@@ -74,7 +74,8 @@ CREATE TABLE IF NOT EXISTS user_habits (
   is_active        BOOLEAN NOT NULL DEFAULT true,
   sort_order       INT NOT NULL DEFAULT 0,
   archived_at      TIMESTAMPTZ,
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_habits_user_id ON user_habits(user_id);
