@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { OnboardingVoiceOverlay } from '@/components/onboarding/OnboardingVoiceOverlay';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
@@ -52,6 +52,9 @@ export function OnboardingLayout({
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
   );
+  const [autoAdvanceMsg, setAutoAdvanceMsg] = useState(false);
+  const voiceSuccessRef = useRef(false);
+  const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track previous transcript to detect new completions
   const prevTranscriptRef = useRef(transcript);
@@ -75,11 +78,36 @@ export function OnboardingLayout({
     }
   };
 
-  const handleVoiceAction = (result: OnboardingVoiceResult) => {
-    if (onVoiceAction) {
-      onVoiceAction(result);
+  const handleVoiceAction = useCallback(
+    (result: OnboardingVoiceResult) => {
+      if (onVoiceAction) {
+        onVoiceAction(result);
+        if (result.success && result.confidence >= 0.5) {
+          voiceSuccessRef.current = true;
+        }
+      }
+    },
+    [onVoiceAction],
+  );
+
+  // Auto-advance: when voice succeeded, overlay closed, and all fields are filled
+  useEffect(() => {
+    if (voiceSuccessRef.current && !ctaDisabled && !overlayOpen) {
+      voiceSuccessRef.current = false;
+      setAutoAdvanceMsg(true);
+
+      autoAdvanceTimerRef.current = setTimeout(() => {
+        setAutoAdvanceMsg(false);
+        onNext();
+      }, 1500);
     }
-  };
+
+    return () => {
+      if (autoAdvanceTimerRef.current) {
+        clearTimeout(autoAdvanceTimerRef.current);
+      }
+    };
+  }, [ctaDisabled, overlayOpen, onNext]);
 
   const handleTooltipDismiss = () => {
     setTooltipVisible(false);
@@ -110,6 +138,16 @@ export function OnboardingLayout({
         </button>
       )}
       <OnboardingProgress currentStep={currentStep} totalSteps={totalSteps} />
+
+      {/* Voice auto-advance indicator */}
+      {autoAdvanceMsg && (
+        <div className="fixed left-1/2 top-20 z-[60] -translate-x-1/2 animate-[fadeInDown_0.3s_ease-out] rounded-full bg-green-500/90 px-5 py-2 shadow-lg backdrop-blur-sm">
+          <p className="flex items-center gap-2 text-sm font-medium text-white">
+            <Icon icon="ic:round-check-circle" width={18} height={18} />
+            Moving on...
+          </p>
+        </div>
+      )}
       <div
         className={`-mx-[2px] flex flex-1 flex-col gap-[16px] overflow-y-auto px-[2px] pt-4 ${ctaVariant === 'inline' ? 'pb-[80px]' : 'pb-4'}`}
       >
