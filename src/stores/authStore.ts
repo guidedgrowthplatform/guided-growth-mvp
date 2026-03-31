@@ -63,6 +63,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   _pollInterval: null,
 
   initialize: () => {
+    // Dev-only: bypass auth when VITE_AUTH_BYPASS_MODE is set
+    if (import.meta.env.VITE_AUTH_BYPASS_MODE === 'true') {
+      set({
+        user: {
+          id: 'dev-user-001',
+          email: 'dev@guidedgrowth.local',
+          name: 'Dev User',
+          image: null,
+          role: 'user',
+          status: 'active',
+        },
+        loading: false,
+      });
+      return;
+    }
+
     authClient
       .getSession()
       .then(({ data }) => {

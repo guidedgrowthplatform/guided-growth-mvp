@@ -1,9 +1,12 @@
 import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  return {
   build: {
     rollupOptions: {
       output: {
@@ -44,14 +47,14 @@ export default defineConfig({
     },
   },
   server: {
-    port: parseInt(process.env.PORT || '5173'),
+    port: parseInt(env.PORT || '5173'),
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:3000',
+        target: env.VITE_API_URL || 'http://localhost:3000',
         changeOrigin: true,
       },
       '/auth': {
-        target: process.env.VITE_API_URL || 'http://localhost:3000',
+        target: env.VITE_API_URL || 'http://localhost:3000',
         changeOrigin: true,
       },
     },
@@ -66,4 +69,5 @@ export default defineConfig({
       exclude: ['src/**/*.test.{ts,tsx}', 'api/**/*.test.{ts,tsx}', 'src/**/*.d.ts'],
     },
   },
+  };
 });
