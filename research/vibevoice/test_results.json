@@ -1,0 +1,17 @@
+{
+  "test_audio": "https://huggingface.co/datasets/Narsil/asr_dummy/resolve/main/1.flac",
+  "file_size_bytes": 183318,
+  "elevenlabs": {
+    "transcript": "He hoped there would be stew for dinner turnips and carrots and bruised potatoes and fat mutton pieces to be ladled out in thick peppered flour fattened sauce.",
+    "latency_ms": 1568,
+    "status": "ok"
+  },
+  "whisper_v3": {
+    "status": "error",
+    "message": "('Connection broken: IncompleteRead(15773 bytes read, 5688 more expected)', IncompleteRead(15773 bytes read, 5688 more expected))"
+  },
+  "vibevoice_asr": {
+    "status": "error",
+    "message": "('Connection broken: IncompleteRead(15773 bytes read, 5694 more expected)', IncompleteRead(15773 bytes read, 5694 more expected))"
+  }
+}
