@@ -80,6 +80,11 @@ export function PlanReviewPage() {
                 : { habitConfigs, goals, category, reflectionConfig, phase: 'confirming' },
           }),
       }}
+      voicePrompt={
+        source === 'advanced'
+          ? "Here is your full routine and journal setup. Ready to crush it?"
+          : "We're all set! Here is your complete plan. Ready to start your journey?"
+      }
     >
       <OnboardingHeader
         title="Your starting plan"

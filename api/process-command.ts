@@ -485,6 +485,26 @@ function buildOnboardingPrompt(ctx: Record<string, unknown>): string {
 
   const optionsStr = options.join(', ');
 
+  // Mapping expected AI Follow-ups per step based on spreadsheet
+  let successMessageRule = 'Always return a friendly confirmation message acknowledging what was understood.';
+  if (step === 1) {
+    successMessageRule = 'Set "message" exactly to: "Nice to meet you, [Name]! Let\'s get started on building your routine." (replace [Name] with their nickname)';
+  } else if (step === 2) {
+    successMessageRule = 'If path is "simple", set "message" exactly to: "Great! Let\'s take it one step at a time." If path is "braindump", set "message" exactly to: "Awesome. Let\'s jump right in."';
+  } else if (step === 3) {
+    successMessageRule = 'Set "message" exactly to: "[Category] is a great choice. Let\'s dive into that." (replace [Category] with the chosen category)';
+  } else if (step === 4) {
+    successMessageRule = 'Set "message" exactly to: "[Goal] is the foundation of everything." (replace [Goal] with the primary goal chosen)';
+  } else if (step === 5) {
+    successMessageRule = 'Set "message" exactly to: "Perfect choice. Let\'s set up the details."';
+  } else if (step === 6) {
+    successMessageRule = 'Set "message" exactly to: "Got it. Scheduled for [Schedule] at [Time]." (replace with parsed values)';
+  } else if (step === 7) {
+    successMessageRule = 'Set "message" exactly to: "I\'ll prepare some thoughtful questions for you each day."';
+  } else if (step === 8) {
+    successMessageRule = 'Set "message" exactly to: "I\'m excited for you! Your first check-in awaits on the Home Page."';
+  }
+
   return `You are an onboarding assistant helping users configure their life-tracking settings.
 
 ## Current Step: ${step}
@@ -493,7 +513,7 @@ function buildOnboardingPrompt(ctx: Record<string, unknown>): string {
 
 Your job is to extract the user's choices from their spoken input and return a JSON object.
 
-IMPORTANT: Always scrub any PII (names, emails, phone numbers, ages) that appear in the user's speech before processing. Replace names with [NAME], ages with [AGE], emails with [EMAIL], etc.
+IMPORTANT: Always scrub any PII (names, emails, phone numbers, ages) that appear in the user's speech before processing. Replace names with [NAME], ages with [AGE], emails with [EMAIL], etc. EXCEPT for Step 1 where we need the nickname.
 
 Return ONLY valid JSON in this format:
 {
@@ -534,13 +554,13 @@ Output: {"habits": ["No screens after 10 PM", "Cool room temperature"]}
 
 ### Step 6: Reflection Schedule
 Parse: time (HH:MM format) and schedule (Weekday/Weekend/Every day)
-Example: "I want to reflect at 9 PM on weekdays"
-Output: {"time": "21:00", "schedule": "Weekday"}
+Example: "I want to reflect at 9 PM on weekends"
+Output: {"time": "21:00", "schedule": "Weekend"}
 
 ## Matching Strategy:
 - Match user input against the available options using fuzzy matching
-- If confidence is below 0.5, return success: false with a helpful error message
-- Always return a message that acknowledges what was understood`;
+- If confidence is below 0.5, you MUST set success: false and set "message" EXACTLY to: "I didn't quite get this. can you please answer again?"
+- ${successMessageRule}`;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

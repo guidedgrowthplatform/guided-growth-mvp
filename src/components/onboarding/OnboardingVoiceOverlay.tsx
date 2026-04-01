@@ -45,6 +45,15 @@ export function OnboardingVoiceOverlay({
   const [isProcessing, setIsProcessing] = useState(false);
   const lastErrorRef = useRef('');
 
+  // Speak the initial prompt when the overlay opens
+  useEffect(() => {
+    if (stepContext.prompt) {
+      import('@/lib/services/tts-service').then(({ speak }) => {
+        speak(stepContext.prompt);
+      });
+    }
+  }, [stepContext.prompt]);
+
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
 
@@ -104,12 +113,18 @@ export function OnboardingVoiceOverlay({
 
           // If success, wait a bit then close and call onAction
           if (result.success) {
+            import('@/lib/services/tts-service').then(({ speak }) => {
+              speak(result.message);
+            });
             setTimeout(() => {
               onAction(result);
               // Small delay to let the UI update
               setTimeout(handleClose, 100);
             }, 300);
           } else {
+            import('@/lib/services/tts-service').then(({ speak }) => {
+              speak(result.message || 'I didn\'t quite get this. can you please answer again?');
+            });
             setIsProcessing(false);
           }
         })

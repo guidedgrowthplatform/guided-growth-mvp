@@ -228,7 +228,7 @@ export function AdvancedStep6Page() {
         <OnboardingVoiceOverlay
           stepContext={{
             step: 5,
-            prompt: 'When should you reflect? Say "weekdays", "weekends", or "every day".',
+            prompt: 'For your daily journal, we will default to guided prompts. When should you reflect? Say "weekdays", "weekends", or "every day".',
             options: ['Weekday', 'Weekend', 'Every day'],
           }}
           onAction={handleVoiceAction}

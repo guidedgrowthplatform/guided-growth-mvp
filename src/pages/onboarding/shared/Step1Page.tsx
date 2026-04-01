@@ -72,7 +72,7 @@ export function Step1Page() {
       showVoiceButton
       onTranscript={(text) => setNickname(text)}
       voiceOptions={[...AGE_OPTIONS, ...GENDER_OPTIONS, 'name', 'nickname']}
-      voicePrompt="What's your name, age range, and how do you identify?"
+      voicePrompt="Hi! Welcome to Guided Growth. I'm your AI companion. What should I call you, and could you share your age and gender so I can personalize your experience?"
       onVoiceAction={handleVoiceAction}
       showTooltip
     >

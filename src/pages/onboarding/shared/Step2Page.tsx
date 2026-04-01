@@ -49,7 +49,7 @@ export function Step2Page() {
       showVoiceButton
       aiListeningPrompt={'"select which plan you want to have?"'}
       voiceOptions={['simple', 'brain dump', 'braindump', 'beginner', 'advanced']}
-      voicePrompt="Which plan would you like?"
+      voicePrompt="To set up your habits, do you want me to guide you step-by-step, or do you want to just brain-dump your goals and let me organize them?"
       onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader

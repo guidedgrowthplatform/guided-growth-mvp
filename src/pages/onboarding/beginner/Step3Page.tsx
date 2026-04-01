@@ -53,7 +53,7 @@ export function Step3Page() {
       aiListeningPrompt='"What is the main category you would like to focus on?"'
       ctaDisabled={!selected}
       voiceOptions={categoryLabels}
-      voicePrompt="Which category interests you most?"
+      voicePrompt="What's the main area of your life you want to focus on right now? Like Health, Productivity, or Mindfulness?"
       onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader

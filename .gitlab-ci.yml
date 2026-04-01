@@ -5,6 +5,7 @@ stages:
   - test
   - build
   - security
+  - android
 
 workflow:
   rules:
@@ -61,3 +62,52 @@ security:
   allow_failure: true
   script:
     - npm audit --audit-level=critical
+
+# ───────────────────────────────────────────────
+# MVP-26: Automated APK Generation
+# Builds a debug APK from the Capacitor Android project
+# and uploads it as a downloadable artifact.
+# Triggered only on main branch pushes.
+# ───────────────────────────────────────────────
+build-apk:
+  stage: android
+  image: thyrlian/android-sdk:latest
+  needs:
+    - job: build
+      artifacts: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+      allow_failure: true
+  before_script:
+    # Install Node.js 22 inside the Android SDK container
+    - apt-get update && apt-get install -y curl
+    - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    - apt-get install -y nodejs
+    - npm ci
+  script:
+    # 1. Sync web assets into the Capacitor Android project
+    - npx cap copy android
+    - npx cap sync android
+
+    # 2. Build debug APK using Gradle wrapper
+    - cd android
+    - chmod +x gradlew
+    - ./gradlew assembleDebug --no-daemon
+
+    # 3. Rename APK with commit SHA for traceability
+    - APK_DIR="app/build/outputs/apk/debug"
+    - APK_NAME="guided-growth-${CI_COMMIT_SHORT_SHA}.apk"
+    - mv "$APK_DIR/app-debug.apk" "$APK_DIR/$APK_NAME"
+    - echo "✅ APK built successfully"
+    - echo "📦 Download from job artifacts -> $APK_NAME"
+  artifacts:
+    paths:
+      - android/app/build/outputs/apk/debug/*.apk
+    expire_in: 30 days
+    name: "guided-growth-apk-${CI_COMMIT_SHORT_SHA}"
+  cache:
+    key: gradle-cache
+    paths:
+      - android/.gradle/

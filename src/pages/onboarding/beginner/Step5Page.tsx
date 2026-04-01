@@ -420,7 +420,7 @@ export function Step5Page() {
       aiListeningPrompt='"Select up to 2 daily habits to build your foundation."'
       ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
       voiceOptions={allHabits}
-      voicePrompt="Which habits do you want to build?"
+      voicePrompt="Here are a few great habits for that. Which one sounds good to you? You can pick from the list, or just tell me your own idea."
       onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader

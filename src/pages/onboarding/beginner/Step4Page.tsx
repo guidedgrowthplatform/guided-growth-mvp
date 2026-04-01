@@ -112,7 +112,7 @@ export function Step4Page() {
       aiListeningPrompt='"Within that category, what specific area would you like to improve?"'
       ctaDisabled={selected.size === 0}
       voiceOptions={goals}
-      voicePrompt="Which goals interest you?"
+      voicePrompt="Got it! Within that category, what specific area would you like to improve? For example, sleep, exercise, or diet?"
       onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
