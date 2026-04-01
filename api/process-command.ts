@@ -498,10 +498,8 @@ function buildOnboardingPrompt(ctx: Record<string, unknown>): string {
   } else if (step === 5) {
     successMessageRule = 'Set "message" exactly to: "Perfect choice. Let\'s set up the details."';
   } else if (step === 6) {
-    successMessageRule = 'Set "message" exactly to: "Got it. Scheduled for [Schedule] at [Time]." (replace with parsed values)';
+    successMessageRule = 'Set "message" exactly to: "I\'ll prepare some thoughtful questions for you each day. Got it, scheduled for [Schedule]." (replace [Schedule] with the parsed schedule value like "weekdays" or "every day")';
   } else if (step === 7) {
-    successMessageRule = 'Set "message" exactly to: "I\'ll prepare some thoughtful questions for you each day."';
-  } else if (step === 8) {
     successMessageRule = 'Set "message" exactly to: "I\'m excited for you! Your first check-in awaits on the Home Page."';
   }
 

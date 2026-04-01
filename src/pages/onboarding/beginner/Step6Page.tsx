@@ -141,7 +141,7 @@ export function Step6Page() {
         })
       }
       voiceOptions={['Weekday', 'Weekend', 'Every day', '9 PM', '10 PM', '8 PM']}
-      voicePrompt="How often do you want to do this? And what time should I remind you? You can say things like 'every night at 9 PM'."
+      voicePrompt="Now, let's set up your daily reflection. Do you want to use my guided prompts, or do you prefer to write freely? You can also tell me when and how often you'd like to reflect."
       onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader

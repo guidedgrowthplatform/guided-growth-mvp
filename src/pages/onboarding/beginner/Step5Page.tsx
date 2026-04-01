@@ -417,10 +417,14 @@ export function Step5Page() {
         phase === 'confirming' ? () => setPhase('selecting') : () => navigate('/onboarding/step-4')
       }
       showVoiceButton
-      aiListeningPrompt='"Select up to 2 daily habits to build your foundation."'
+      aiListeningPrompt={phase === 'confirming' ? '"Does everything look correct?"' : '"Select up to 2 daily habits to build your foundation."'}
       ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
       voiceOptions={allHabits}
-      voicePrompt="Here are a few great habits for that. Which one sounds good to you? You can pick from the list, or just tell me your own idea."
+      voicePrompt={
+        phase === 'confirming'
+          ? "Here's your new habit. Does everything look correct, or should we tweak something?"
+          : "Here are a few great habits for that. Which one sounds good to you? You can pick from the list, or just tell me your own idea."
+      }
       onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
