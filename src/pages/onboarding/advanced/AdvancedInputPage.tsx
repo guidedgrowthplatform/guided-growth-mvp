@@ -28,7 +28,9 @@ export function AdvancedInputPage() {
   // Speak prompt on mount
   useEffect(() => {
     import('@/lib/services/tts-service').then(({ speak }) => {
-      speak("Tell me what habits you want to build. You can just list them out, like 'I want to read 20 pages and run every morning'.");
+      speak(
+        "Tell me what habits you want to build. You can just list them out, like 'I want to read 20 pages and run every morning'.",
+      );
     });
   }, []);
 

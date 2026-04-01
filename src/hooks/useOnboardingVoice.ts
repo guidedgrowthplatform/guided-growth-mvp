@@ -23,7 +23,6 @@ function mockProcessTranscript(
   ctx: OnboardingStepContext,
 ): OnboardingVoiceResult {
   const t = transcript.toLowerCase().trim();
-  const options = ctx.options.map((o) => o.toLowerCase());
 
   // Step 1: Demographics
   if (ctx.step === 1) {
@@ -39,13 +38,14 @@ function mockProcessTranscript(
     });
 
     // Match gender
-    const gender = t.includes('male') && !t.includes('female')
-      ? 'Male'
-      : t.includes('female')
-        ? 'Female'
-        : t.includes('other')
-          ? 'Other'
-          : null;
+    const gender =
+      t.includes('male') && !t.includes('female')
+        ? 'Male'
+        : t.includes('female')
+          ? 'Female'
+          : t.includes('other')
+            ? 'Other'
+            : null;
 
     if (nickname) {
       return {
@@ -64,7 +64,12 @@ function mockProcessTranscript(
 
   // Step 2: Path selection
   if (ctx.step === 2) {
-    if (t.includes('step') || t.includes('guide') || t.includes('simple') || t.includes('beginner')) {
+    if (
+      t.includes('step') ||
+      t.includes('guide') ||
+      t.includes('simple') ||
+      t.includes('beginner')
+    ) {
       return {
         success: true,
         action: 'onboarding_select',
@@ -101,7 +106,10 @@ function mockProcessTranscript(
   // Step 4: Goals
   if (ctx.step === 4) {
     const matched = ctx.options.filter((opt) =>
-      opt.toLowerCase().split(' ').some((word) => word.length > 3 && t.includes(word)),
+      opt
+        .toLowerCase()
+        .split(' ')
+        .some((word) => word.length > 3 && t.includes(word)),
     );
     if (matched.length > 0) {
       return {
@@ -117,7 +125,10 @@ function mockProcessTranscript(
   // Step 5: Habits
   if (ctx.step === 5) {
     const matched = ctx.options.filter((opt) =>
-      opt.toLowerCase().split(' ').some((word) => word.length > 3 && t.includes(word)),
+      opt
+        .toLowerCase()
+        .split(' ')
+        .some((word) => word.length > 3 && t.includes(word)),
     );
     if (matched.length > 0) {
       return {
@@ -141,11 +152,12 @@ function mockProcessTranscript(
       if (timeMatch[3]?.toLowerCase() === 'am' && hours === 12) hours = 0;
       time = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
     }
-    const schedule = t.includes('every') || t.includes('daily')
-      ? 'Every day'
-      : t.includes('weekend')
-        ? 'Weekend'
-        : 'Weekday';
+    const schedule =
+      t.includes('every') || t.includes('daily')
+        ? 'Every day'
+        : t.includes('weekend')
+          ? 'Weekend'
+          : 'Weekday';
     return {
       success: true,
       action: 'onboarding_select',

@@ -26,6 +26,7 @@
 - [ ] OBS ready, capture seluruh screen
 
 ### Kalau mau demo Whisper:
+
 - Buka app > Settings > pilih Whisper > klik mic sekali > TUNGGU model download (~40MB)
 - Setelah download selesai, switch balik ke Web Speech API
 - Nanti waktu demo tinggal switch, model udah cached
@@ -37,10 +38,12 @@
 **[TAB: GitLab MR !21]**
 
 **NGOMONG:**
+
 > "Oke, jadi ini MR Sprint 1 Final kita. Branch `feat/voice-mock-testing` merge ke `main`.
 > Total 68 file berubah, closing 6 issues sekaligus."
 
 **YANG DILAKUIN:**
+
 1. Tunjukin judul MR dan branch name
 2. Scroll pelan ke **Issues Resolved** — point:
    - "#41 CRUD fix"
@@ -63,14 +66,17 @@
 ### 2a. Unit Tests
 
 **NGOMONG:**
+
 > "Kita buktiin dari kode dulu. 59 unit test, 5 suite."
 
 **KETIK:**
+
 ```bash
 npm test
 ```
 
 **TUNGGU OUTPUT:**
+
 ```
 ✓ cellColors        (11 tests)
 ✓ anonymize         (14 tests)
@@ -83,32 +89,39 @@ Test Files  5 passed (5)
 ```
 
 **NGOMONG:**
+
 > "59/59 passed. Termasuk 14 test baru untuk anonymization."
 
 ### 2b. TypeScript + Build
 
 **NGOMONG:**
+
 > "Type check dan production build."
 
 **KETIK:**
+
 ```bash
 npx tsc --noEmit && echo "=== TSC CLEAN ===" && npm run build
 ```
 
 **NGOMONG (setelah selesai):**
+
 > "Zero TypeScript error, build sukses, PWA service worker ke-generate."
 
 ### 2c. E2E Production Tests
 
 **NGOMONG:**
+
 > "Sekarang E2E test langsung ke production Vercel — 20 automated check."
 
 **KETIK:**
+
 ```bash
 npx playwright test e2e/prod-check.spec.ts
 ```
 
 **NGOMONG (setelah selesai):**
+
 > "20/20 passed. Ini ngecek: homepage load, security headers, auth enforcement
 > di semua API endpoint, PWA manifest, service worker, code splitting, semuanya."
 
@@ -119,17 +132,20 @@ npx playwright test e2e/prod-check.spec.ts
 **[TAB: Chrome Tab 3 — kosong]**
 
 **NGOMONG:**
+
 > "Sekarang kita buktiin security fix secara live. Sebelum MR ini, beberapa API endpoint
 > bisa diakses siapapun tanpa login."
 
 ### 3a. Health endpoint — no env leak
 
 **KETIK di address bar:**
+
 ```
 https://guided-growth-mvp-six.vercel.app/api/health
 ```
 
 **NGOMONG:**
+
 > "Health endpoint return status OK, database connected. Tapi perhatiin:
 > TIDAK ada nama environment variable yang bocor. Sebelumnya, endpoint ini
 > nge-leak nama env var kita."
@@ -137,42 +153,50 @@ https://guided-growth-mvp-six.vercel.app/api/health
 ### 3b. Data endpoint — requires auth
 
 **KETIK:**
+
 ```
 https://guided-growth-mvp-six.vercel.app/api/entries?start=2026-01-01&end=2026-01-31
 ```
 
 **NGOMONG:**
+
 > "Entries API tanpa login — 401 Not Authenticated. Aman."
 
 ### 3c. Process command — requires auth + POST only
 
 **KETIK:**
+
 ```
 https://guided-growth-mvp-six.vercel.app/api/process-command
 ```
 
 **NGOMONG:**
+
 > "Process command — 405 Method Not Allowed karena GET. Dan kalau POST tanpa auth,
 > tetep 401. Sebelumnya endpoint ini open — siapapun bisa abuse OpenAI API kita."
 
 ### 3d. Admin endpoint — protected
 
 **KETIK:**
+
 ```
 https://guided-growth-mvp-six.vercel.app/api/admin/users
 ```
 
 **NGOMONG:**
+
 > "Admin endpoint — 401. Semua API sekarang ter-protect."
 
 ### 3e. Anonymized export — requires admin key
 
 **KETIK:**
+
 ```
 https://guided-growth-mvp-six.vercel.app/api/anonymized-export?type=all
 ```
 
 **NGOMONG:**
+
 > "Anonymized export tanpa admin key — 403 Forbidden.
 > Error message-nya juga ga bocor internal detail. No stack trace."
 
@@ -183,12 +207,14 @@ https://guided-growth-mvp-six.vercel.app/api/anonymized-export?type=all
 **[TAB: Terminal]**
 
 **NGOMONG:**
+
 > "Sekarang kita demo fitur anonymization. Ini buat admin bisa export data user
 > untuk analytics, tapi TANPA bisa tau siapa orangnya."
 
 ### 4a. Export users (anonymized)
 
 **KETIK:**
+
 ```bash
 curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
   "https://guided-growth-mvp-six.vercel.app/api/anonymized-export?type=users&limit=3" \
@@ -196,6 +222,7 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 ```
 
 **NGOMONG (tunjuk output):**
+
 > "Lihat — email jadi `user_2935b44f@anon`, nickname jadi `anon_fb46c79b`.
 > Ini SHA-256 hash, one-way, ga bisa di-reverse balik ke email asli.
 > Tapi data analytics tetep ada: age group, gender, language, created_at."
@@ -203,6 +230,7 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 ### 4b. Export habits (anonymized)
 
 **KETIK:**
+
 ```bash
 curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
   "https://guided-growth-mvp-six.vercel.app/api/anonymized-export?type=habits&limit=5" \
@@ -210,6 +238,7 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 ```
 
 **NGOMONG:**
+
 > "Habits — nama habit di-hash jadi `habit_xxxx`, user_id diganti `anon_user_id`.
 > Admin bisa lihat habit type, cadence, active status buat analytics —
 > tapi ga bisa tau ini habit siapa atau namanya apa."
@@ -217,6 +246,7 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 ### 4c. Export journal (anonymized)
 
 **KETIK:**
+
 ```bash
 curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
   "https://guided-growth-mvp-six.vercel.app/api/anonymized-export?type=journal&limit=3" \
@@ -224,12 +254,14 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 ```
 
 **NGOMONG:**
+
 > "Journal entries — isi jurnal di-hash, tapi date, input_mode, time_of_day tetep ada.
 > Jadi kita bisa analisis kapan user paling aktif journaling, tanpa baca isi jurnalnya."
 
 ### 4d. Rangkuman
 
 **NGOMONG:**
+
 > "Total ada 7 anonymized database view: users, habits, journal, checkins,
 > completions, onboarding, dan metrics. Semua personal data di-hash SHA-256.
 > Ini comply sama privacy requirement dari issue #43."
@@ -241,18 +273,21 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 **[TAB: Chrome Tab 2 — App]**
 
 **NGOMONG:**
+
 > "Sekarang voice features. Kita punya 4 STT provider. Mulai dari Web Speech API —
 > yang built-in di browser, gratis, dan real-time."
 
 ### 5a. Cek settings dulu
 
 **YANG DILAKUIN:**
+
 1. Klik **Settings** di sidebar (icon gear)
 2. Tunjukin **Speech-to-Text Engine** section — pastikan **Web Speech API** terpilih
 3. Tunjukin **Recording Mode** — "Auto-stop (Siri-like): stops after 2.5s silence"
 4. Tunjukin **Talk Back Voice** toggle — enable kalau mau app ngomong balik
 
 **NGOMONG:**
+
 > "Di settings ada pilihan STT engine, recording mode, dan talk back voice.
 > Kita mulai dengan Web Speech API dulu."
 
@@ -270,6 +305,7 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 5. Tunjukin transcript auto-clear setelah ~3 detik
 
 **NGOMONG (ke kamera):**
+
 > "Klik mic, ngomong command, auto-stop setelah 2.5 detik silence,
 > terus command di-process sama GPT. Transcript auto-clear — itu fix dari issue #42."
 
@@ -281,6 +317,7 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 4. Tunjukin habit marked done pada tanggal yang BENAR
 
 **NGOMONG (ke kamera):**
+
 > "Perhatiin tanggalnya — March 8th, bukan hari ini. Sebelumnya date parsing
 > broken, selalu default ke hari ini. Sekarang udah fix."
 
@@ -303,6 +340,7 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 **[TAB: Chrome Tab 2 — App]**
 
 **NGOMONG:**
+
 > "Sekarang switch ke DeepGram Nova-2 — cloud-based, real-time streaming via WebSocket."
 
 ### 6a. Switch provider
@@ -319,6 +357,7 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 4. Tunggu final transcript dan command processed
 
 **NGOMONG (ke kamera):**
+
 > "DeepGram itu streaming — lihat text muncul real-time while I'm still speaking.
 > Ini lebih responsive dibanding Web Speech yang nunggu selesai dulu."
 
@@ -333,6 +372,7 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 ## SCENE 7: Voice Demo — Switch ke ElevenLabs (~1 menit)
 
 **NGOMONG:**
+
 > "Provider ketiga — ElevenLabs Scribe v2. Ini batch upload, bukan streaming."
 
 ### 7a. Switch provider
@@ -349,6 +389,7 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 5. Tunjukin result
 
 **NGOMONG (ke kamera):**
+
 > "ElevenLabs itu batch — record dulu, terus upload WAV file ke API.
 > Beda sama DeepGram yang streaming. Tapi akurasinya tinggi, dan support multilingual."
 
@@ -357,6 +398,7 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 ## SCENE 8: Voice Demo — Whisper WASM (~1 menit)
 
 **NGOMONG:**
+
 > "Provider terakhir — Whisper. Ini jalan LOKAL di browser, pake WASM. No server call."
 
 ### 8a. Switch provider
@@ -373,6 +415,7 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 5. Tunjukin result
 
 **NGOMONG (ke kamera):**
+
 > "Whisper jalan 100% di browser — ga ada data audio yang dikirim ke server.
 > Model-nya ~40MB, download pertama kali aja, setelah itu cached.
 > Cocok buat privacy-conscious users."
@@ -389,16 +432,19 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 **[TAB: Chrome Tab 2 — App, di Capture page]**
 
 **NGOMONG:**
+
 > "Terakhir, beberapa cross-platform fixes."
 
 ### 9a. Keyboard shortcuts
 
 **YANG DILAKUIN:**
+
 1. Tekan `Ctrl+Alt+Right Arrow` — navigate ke next period
 2. Tekan `Ctrl+Alt+Left Arrow` — navigate ke prev period
 3. Tekan `Alt+T` — jump to today
 
 **NGOMONG:**
+
 > "Keyboard shortcuts sekarang pake Ctrl+Alt+Arrow, bukan Alt+Arrow yang
 > konflik sama browser back/forward."
 
@@ -408,6 +454,7 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 2. Tunjukin toast muncul di ATAS
 
 **NGOMONG:**
+
 > "Toast sekarang di atas, ga overlap sama voice UI di bawah."
 
 ### 9c. Undo/Redo (kalau ada data)
@@ -423,22 +470,27 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 **[VS Code]**
 
 **NGOMONG:**
+
 > "Quick code walkthrough."
 
 ### 10a. Anonymization utility
+
 - Buka `src/lib/utils/anonymize.ts`
 - Tunjukin SHA-256 hashing, 16 char truncation
 
 ### 10b. Security — auth.ts
+
 - Buka `api/_lib/auth.ts`
 - Tunjukin hardcoded 'dev-secret' udah dihapus
 
 ### 10c. Database views
+
 - Buka `supabase/migrations/001_full_schema.sql`
 - Scroll ke anonymized views (line ~640)
 - Tunjukin `anon_user_id` = hashed user_id
 
 ### 10d. Deepgram token fix
+
 - Buka `api/deepgram-token.ts`
 - Tunjukin 2-step: fetch project ID, lalu create scoped key
 
@@ -449,11 +501,13 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 **[TAB: GitLab MR]**
 
 **YANG DILAKUIN:**
+
 1. Tunjukin pipeline: **SUCCESS** (hijau)
 2. Tunjukin: **Can be merged**, **No conflicts**
 3. Tunjukin: Closes #41, #42, #43, #24, #27, #45
 
 **NGOMONG:**
+
 > "Pipeline hijau, no conflicts, 6 issues auto-close on merge.
 > 59 unit tests, 20 E2E checks, 4 critical security fixes,
 > 4 STT providers, data anonymization — all working.
@@ -465,29 +519,29 @@ curl -s -H "x-admin-key: gg_admin_2026_s3cur3_k3y_xYz" \
 
 Voice commands yang di-demo-in (buat diinget):
 
-| Scene | Command | Action |
-|-------|---------|--------|
-| 5c | "Add a habit called morning meditation" | Create habit |
-| 5d | "Mark morning meditation done for March 8th 2026" | Complete with date |
-| 5e | "Log my mood at 8" | Log metric |
-| 5f | "I slept well and feel productive today" | Journal reflection |
-| 6b | "Add a habit called reading 30 minutes" | Create (DeepGram) |
-| 6c | "How am I doing with meditation?" | Query stats |
-| 7b | "Mark reading done for today" | Complete (ElevenLabs) |
-| 8b | "Show my habits" | List habits (Whisper) |
+| Scene | Command                                           | Action                |
+| ----- | ------------------------------------------------- | --------------------- |
+| 5c    | "Add a habit called morning meditation"           | Create habit          |
+| 5d    | "Mark morning meditation done for March 8th 2026" | Complete with date    |
+| 5e    | "Log my mood at 8"                                | Log metric            |
+| 5f    | "I slept well and feel productive today"          | Journal reflection    |
+| 6b    | "Add a habit called reading 30 minutes"           | Create (DeepGram)     |
+| 6c    | "How am I doing with meditation?"                 | Query stats           |
+| 7b    | "Mark reading done for today"                     | Complete (ElevenLabs) |
+| 8b    | "Show my habits"                                  | List habits (Whisper) |
 
 ## Tab Switching Order
 
-| Scene | What's on screen |
-|-------|-----------------|
-| 1 | GitLab MR |
-| 2 | Terminal (tests + build + E2E) |
-| 3 | Browser address bar (API URLs) |
-| 4 | Terminal (curl anonymization) |
-| 5-8 | Browser App (voice demos) |
-| 9 | Browser App (UX fixes) |
-| 10 | VS Code (code walkthrough) |
-| 11 | GitLab MR (closing) |
+| Scene | What's on screen               |
+| ----- | ------------------------------ |
+| 1     | GitLab MR                      |
+| 2     | Terminal (tests + build + E2E) |
+| 3     | Browser address bar (API URLs) |
+| 4     | Terminal (curl anonymization)  |
+| 5-8   | Browser App (voice demos)      |
+| 9     | Browser App (UX fixes)         |
+| 10    | VS Code (code walkthrough)     |
+| 11    | GitLab MR (closing)            |
 
 ## Tips
 

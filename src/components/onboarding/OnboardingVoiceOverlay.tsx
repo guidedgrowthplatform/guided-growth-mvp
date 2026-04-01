@@ -123,7 +123,7 @@ export function OnboardingVoiceOverlay({
             }, 300);
           } else {
             import('@/lib/services/tts-service').then(({ speak }) => {
-              speak(result.message || 'I didn\'t quite get this. can you please answer again?');
+              speak(result.message || "I didn't quite get this. can you please answer again?");
             });
             setIsProcessing(false);
           }

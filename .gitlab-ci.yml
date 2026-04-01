@@ -106,7 +106,7 @@ build-apk:
     paths:
       - android/app/build/outputs/apk/debug/*.apk
     expire_in: 30 days
-    name: "guided-growth-apk-${CI_COMMIT_SHORT_SHA}"
+    name: 'guided-growth-apk-${CI_COMMIT_SHORT_SHA}'
   cache:
     key: gradle-cache
     paths:

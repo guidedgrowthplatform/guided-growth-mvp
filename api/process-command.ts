@@ -486,21 +486,28 @@ function buildOnboardingPrompt(ctx: Record<string, unknown>): string {
   const optionsStr = options.join(', ');
 
   // Mapping expected AI Follow-ups per step based on spreadsheet
-  let successMessageRule = 'Always return a friendly confirmation message acknowledging what was understood.';
+  let successMessageRule =
+    'Always return a friendly confirmation message acknowledging what was understood.';
   if (step === 1) {
-    successMessageRule = 'Set "message" exactly to: "Nice to meet you, [Name]! Let\'s get started on building your routine." (replace [Name] with their nickname)';
+    successMessageRule =
+      'Set "message" exactly to: "Nice to meet you, [Name]! Let\'s get started on building your routine." (replace [Name] with their nickname)';
   } else if (step === 2) {
-    successMessageRule = 'If path is "simple", set "message" exactly to: "Great! Let\'s take it one step at a time." If path is "braindump", set "message" exactly to: "Awesome. Let\'s jump right in."';
+    successMessageRule =
+      'If path is "simple", set "message" exactly to: "Great! Let\'s take it one step at a time." If path is "braindump", set "message" exactly to: "Awesome. Let\'s jump right in."';
   } else if (step === 3) {
-    successMessageRule = 'Set "message" exactly to: "[Category] is a great choice. Let\'s dive into that." (replace [Category] with the chosen category)';
+    successMessageRule =
+      'Set "message" exactly to: "[Category] is a great choice. Let\'s dive into that." (replace [Category] with the chosen category)';
   } else if (step === 4) {
-    successMessageRule = 'Set "message" exactly to: "[Goal] is the foundation of everything." (replace [Goal] with the primary goal chosen)';
+    successMessageRule =
+      'Set "message" exactly to: "[Goal] is the foundation of everything." (replace [Goal] with the primary goal chosen)';
   } else if (step === 5) {
     successMessageRule = 'Set "message" exactly to: "Perfect choice. Let\'s set up the details."';
   } else if (step === 6) {
-    successMessageRule = 'Set "message" exactly to: "I\'ll prepare some thoughtful questions for you each day. Got it, scheduled for [Schedule]." (replace [Schedule] with the parsed schedule value like "weekdays" or "every day")';
+    successMessageRule =
+      'Set "message" exactly to: "I\'ll prepare some thoughtful questions for you each day. Got it, scheduled for [Schedule]." (replace [Schedule] with the parsed schedule value like "weekdays" or "every day")';
   } else if (step === 7) {
-    successMessageRule = 'Set "message" exactly to: "I\'m excited for you! Your first check-in awaits on the Home Page."';
+    successMessageRule =
+      'Set "message" exactly to: "I\'m excited for you! Your first check-in awaits on the Home Page."';
   }
 
   return `You are an onboarding assistant helping users configure their life-tracking settings.

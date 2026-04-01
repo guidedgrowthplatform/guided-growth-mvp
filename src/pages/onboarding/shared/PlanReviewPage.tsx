@@ -82,7 +82,7 @@ export function PlanReviewPage() {
       }}
       voicePrompt={
         source === 'advanced'
-          ? "Here is your full routine and journal setup. Ready to crush it?"
+          ? 'Here is your full routine and journal setup. Ready to crush it?'
           : "We're all set! Here is your complete plan. Ready to start your journey?"
       }
     >

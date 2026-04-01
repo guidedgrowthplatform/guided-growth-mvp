@@ -87,10 +87,12 @@ export function AdvancedResultsPage() {
     if (locationState && !clearedRef.current) {
       clearedRef.current = true;
       window.history.replaceState({}, '');
-      
+
       // Speak AI prompt
       import('@/lib/services/tts-service').then(({ speak }) => {
-        speak("I've drafted these habits for you based on what you said. Do they look right, or do you want to adjust or add anything else?");
+        speak(
+          "I've drafted these habits for you based on what you said. Do they look right, or do you want to adjust or add anything else?",
+        );
       });
     }
   }, [locationState]);
