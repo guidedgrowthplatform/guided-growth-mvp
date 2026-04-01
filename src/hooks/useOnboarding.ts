@@ -17,7 +17,7 @@ export function useOnboarding() {
   const { data: state = null, isLoading } = useQuery({
     queryKey: queryKeys.onboarding.state,
     queryFn: onboardingApi.fetchOnboardingState,
-    staleTime: 30_000,
+    staleTime: Infinity,
   });
 
   const isCompleted = state?.status === 'completed';

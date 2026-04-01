@@ -8,6 +8,7 @@ export interface AppUser {
   email: string;
   name: string | null;
   image: string | null;
+  nickname: string | null;
   role: string;
   status: string;
 }
@@ -21,6 +22,7 @@ function mapUser(u: any): AppUser {
     email: u.email,
     name: u.user_metadata?.full_name ?? null,
     image: u.user_metadata?.avatar_url ?? null,
+    nickname: u.user_metadata?.nickname ?? null,
     role: claims.role ?? 'user',
     status: claims.status ?? 'active',
   };
@@ -49,7 +51,6 @@ function prefetchOnboardingState() {
   queryClient.prefetchQuery({
     queryKey: queryKeys.onboarding.state,
     queryFn: onboardingApi.fetchOnboardingState,
-    staleTime: 30_000,
   });
 }
 
@@ -83,10 +84,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!get()._unsubscribe) {
       const {
         data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
+      } = supabase.auth.onAuthStateChange((event, session) => {
         if (session?.user) {
           set({ user: mapUser(session.user) });
-          prefetchOnboardingState();
+          if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+            prefetchOnboardingState();
+          }
         } else {
           set({ user: null });
         }
