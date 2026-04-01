@@ -168,6 +168,7 @@ export function SettingsPage() {
       <UserInfoSection
         name={displayName}
         email={email}
+        nickname={user?.nickname}
         onEditProfile={() => addToast('info', 'Edit profile coming soon')}
         onChangePhoto={() => addToast('info', 'Photo upload coming soon')}
       />

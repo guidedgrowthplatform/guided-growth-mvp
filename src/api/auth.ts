@@ -1,20 +1,32 @@
+import { supabase } from '@/lib/supabase';
 import type { User } from '@shared/types';
-import { apiGet, apiPost } from './client';
 
 export async function fetchCurrentUser(): Promise<User | null> {
   try {
-    return await apiGet<User | null>('/api/auth/me');
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+    return {
+      id: user.id,
+      email: user.email ?? '',
+      name: user.user_metadata?.full_name ?? null,
+    };
   } catch {
     return null;
   }
 }
 
 export function initiateGoogleLogin(): void {
-  const apiUrl = import.meta.env.VITE_API_URL || '';
-  window.location.href = `${apiUrl}/api/auth/google`;
+  supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin + '/auth/callback',
+    },
+  });
 }
 
 export async function logout(): Promise<void> {
-  await apiPost('/api/auth/logout', {});
-  window.location.href = '/';
+  await supabase.auth.signOut();
+  window.location.href = '/sign-in';
 }
