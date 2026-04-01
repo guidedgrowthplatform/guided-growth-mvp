@@ -140,7 +140,7 @@ export function SettingsPage() {
       await deleteAccount();
       localStorage.clear();
       await signOut();
-      navigate('/sign-in');
+      navigate('/login');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete account';
       addToast('error', msg);
