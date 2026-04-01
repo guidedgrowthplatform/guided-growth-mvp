@@ -36,6 +36,9 @@ const ForgotPasswordPage = lazy(() =>
 const StatusPage = lazy(() =>
   import('@/pages/StatusPage').then((m) => ({ default: m.StatusPage })),
 );
+const AuthCallbackPage = lazy(() =>
+  import('@/pages/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage })),
+);
 
 const lazyOnboarding = (name: string) =>
   lazy(() =>
@@ -128,6 +131,9 @@ export function AppRoutes() {
 
         {/* Public status dashboard (no auth required) */}
         <Route path="/status" element={<StatusPage />} />
+
+        {/* OAuth callback (public, no auth guard) */}
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
         {/* Onboarding (protected, no Layout) */}
         <Route

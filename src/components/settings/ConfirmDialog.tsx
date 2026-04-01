@@ -30,10 +30,11 @@ export function ConfirmDialog({
 
   const handleClose = useCallback(
     (confirmed: boolean) => {
+      if (isLoading) return;
       setVisible(false);
       setTimeout(() => (confirmed ? onConfirm() : onCancel()), 200);
     },
-    [onConfirm, onCancel],
+    [onConfirm, onCancel, isLoading],
   );
 
   const isDanger = variant === 'danger';

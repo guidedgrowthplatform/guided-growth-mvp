@@ -213,12 +213,11 @@ export class SupabaseDataService implements DataService {
       .from('habit_completions')
       .upsert(
         {
-          user_habit_id: habitId,
+          user_id: userId,
+          habit_id: habitId,
           date,
-          completed: true,
-          completed_via: 'ui',
         },
-        { onConflict: 'user_habit_id,date' },
+        { onConflict: 'habit_id,date' },
       )
       .select()
       .single();
@@ -227,9 +226,9 @@ export class SupabaseDataService implements DataService {
 
     return {
       id: data.id,
-      habitId: data.user_habit_id,
+      habitId: data.habit_id,
       date: data.date,
-      completedAt: data.created_at,
+      completedAt: data.completed_at,
     };
   }
 
@@ -247,7 +246,7 @@ export class SupabaseDataService implements DataService {
     const { error } = await supabase
       .from('habit_completions')
       .delete()
-      .eq('user_habit_id', habitId)
+      .eq('habit_id', habitId)
       .eq('date', date);
 
     if (error) throw new Error(error.message);
@@ -271,8 +270,7 @@ export class SupabaseDataService implements DataService {
     let query = supabase
       .from('habit_completions')
       .select('*')
-      .eq('user_habit_id', habitId)
-      .eq('completed', true)
+      .eq('habit_id', habitId)
       .order('date', { ascending: false });
 
     if (startDate) query = query.gte('date', startDate);
@@ -283,9 +281,9 @@ export class SupabaseDataService implements DataService {
 
     return (data || []).map((c) => ({
       id: c.id,
-      habitId: c.user_habit_id,
+      habitId: c.habit_id,
       date: c.date,
-      completedAt: c.created_at,
+      completedAt: c.completed_at,
     }));
   }
 
@@ -530,20 +528,13 @@ export class SupabaseDataService implements DataService {
 
     const completions = await this.getCompletions(habitId, startStr);
 
-    // Get streak from habit_streaks table
-    const { data: streakData } = await supabase
-      .from('habit_streaks')
-      .select('*')
-      .eq('user_habit_id', habitId)
-      .maybeSingle();
-
     return {
       habit,
       completionsThisPeriod: completions.length,
       totalDaysInPeriod: daysBack,
       completionRate: (completions.length / daysBack) * 100,
-      currentStreak: streakData?.current_streak || 0,
-      longestStreak: streakData?.longest_streak || 0,
+      currentStreak: 0,
+      longestStreak: 0,
     };
   }
 
@@ -683,8 +674,7 @@ export class SupabaseDataService implements DataService {
     const { data, error } = await supabase
       .from('habit_completions')
       .select('*')
-      .in('user_habit_id', habitIds)
-      .eq('completed', true)
+      .in('habit_id', habitIds)
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date', { ascending: false });
@@ -693,9 +683,9 @@ export class SupabaseDataService implements DataService {
 
     return (data || []).map((c) => ({
       id: c.id,
-      habitId: c.user_habit_id,
+      habitId: c.habit_id,
       date: c.date,
-      completedAt: c.created_at,
+      completedAt: c.completed_at,
     }));
   }
 
@@ -711,7 +701,7 @@ export class SupabaseDataService implements DataService {
       .from('focus_sessions')
       .insert({
         user_id: userId,
-        user_habit_id: habitId,
+        habit_id: habitId,
         duration_minutes: durationMinutes,
         actual_minutes: actualMinutes,
         status: 'completed',
@@ -724,7 +714,7 @@ export class SupabaseDataService implements DataService {
 
     return {
       id: data.id,
-      habitId: data.user_habit_id ?? null,
+      habitId: data.habit_id ?? null,
       durationMinutes: data.duration_minutes,
       actualMinutes: data.actual_minutes ?? null,
       status: data.status,
@@ -748,7 +738,7 @@ export class SupabaseDataService implements DataService {
 
     return (data || []).map((s) => ({
       id: s.id,
-      habitId: s.user_habit_id ?? null,
+      habitId: s.habit_id ?? null,
       durationMinutes: s.duration_minutes,
       actualMinutes: s.actual_minutes ?? null,
       status: s.status,
@@ -761,12 +751,15 @@ export class SupabaseDataService implements DataService {
 
     // Delete in dependency order: children first, then parents
     const tables = [
-      { table: 'habit_completions', fk: 'user_habit_id', via: 'user_habits' },
-      { table: 'habit_streaks', fk: 'user_habit_id', via: 'user_habits' },
+      { table: 'habit_completions', fk: 'habit_id', via: 'user_habits' },
       { table: 'focus_sessions', column: 'user_id' },
       { table: 'journal_entries', column: 'user_id' },
       { table: 'daily_checkins', column: 'user_id' },
-      { table: 'user_metric_entries', fk: 'metric_id', via: 'metrics' },
+      { table: 'metric_entries', fk: 'metric_id', via: 'metrics' },
+      { table: 'entries', fk: 'metric_id', via: 'metrics' },
+      { table: 'reflections', column: 'user_id' },
+      { table: 'reflection_configs', column: 'user_id' },
+      { table: 'affirmations', column: 'user_id' },
       { table: 'metrics', column: 'user_id' },
       { table: 'user_habits', column: 'user_id' },
       { table: 'user_preferences', column: 'user_id' },

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import * as onboardingApi from '@/api/onboarding';
-import { authClient } from '@/lib/auth-client';
 import { queryClient, queryKeys } from '@/lib/query';
+import { supabase } from '@/lib/supabase';
 
 export interface AppUser {
   id: string;
@@ -14,28 +14,35 @@ export interface AppUser {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapUser(u: any): AppUser {
+  // Extract role and status from JWT app_metadata claims
+  const claims = u.app_metadata as { role?: string; status?: string };
   return {
     id: u.id,
     email: u.email,
-    name: u.name ?? null,
-    image: u.image ?? null,
-    role: u.role ?? 'user',
-    status: u.status ?? 'active',
+    name: u.user_metadata?.full_name ?? null,
+    image: u.user_metadata?.avatar_url ?? null,
+    role: claims.role ?? 'user',
+    status: claims.status ?? 'active',
   };
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
-  INVALID_EMAIL_OR_PASSWORD: 'Incorrect email or password',
-  FAILED_TO_CREATE_USER: 'Unable to create account',
-  USER_ALREADY_EXISTS: 'An account with this email already exists',
-  INVALID_PASSWORD: 'Password must be at least 8 characters',
+  invalid_credentials: 'Incorrect email or password',
+  user_already_exists: 'An account with this email already exists',
+  weak_password: 'Password must be at least 8 characters',
+  invalid_email_or_password: 'Incorrect email or password',
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function friendlyError(error: any): string {
   if (!error) return 'Something went wrong. Please try again.';
-  const code = error.code || error.message;
-  return ERROR_MESSAGES[code] || error.message || 'Something went wrong. Please try again.';
+  const message = error.message?.toLowerCase?.() || error.code?.toLowerCase?.() || '';
+  for (const [key, value] of Object.entries(ERROR_MESSAGES)) {
+    if (message.includes(key.toLowerCase())) {
+      return value;
+    }
+  }
+  return error.message || 'Something went wrong. Please try again.';
 }
 
 function prefetchOnboardingState() {
@@ -49,7 +56,7 @@ function prefetchOnboardingState() {
 export interface AuthState {
   user: AppUser | null;
   loading: boolean;
-  _pollInterval: ReturnType<typeof setInterval> | null;
+  _unsubscribe: (() => void) | null;
   initialize: () => void;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
@@ -60,84 +67,81 @@ export interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
-  _pollInterval: null,
+  _unsubscribe: null,
 
   initialize: () => {
-    authClient
+    supabase.auth
       .getSession()
-      .then(({ data }) => {
-        if (data?.user) {
-          set({ user: mapUser(data.user) });
+      .then(({ data: { session } }) => {
+        if (session?.user) {
+          set({ user: mapUser(session.user) });
           prefetchOnboardingState();
         }
         set({ loading: false });
       })
       .catch(() => set({ loading: false }));
+    if (!get()._unsubscribe) {
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          set({ user: mapUser(session.user) });
+          prefetchOnboardingState();
+        } else {
+          set({ user: null });
+        }
+      });
 
-    // Session expiry poll
-    if (!get()._pollInterval) {
-      const interval = setInterval(
-        async () => {
-          try {
-            const { data } = await authClient.getSession();
-            if (!data?.user) set({ user: null });
-          } catch {
-            /* network error — keep current state */
-          }
-        },
-        5 * 60 * 1000,
-      );
-      set({ _pollInterval: interval });
+      set({ _unsubscribe: () => subscription.unsubscribe() });
     }
   },
 
   signUp: async (email, password) => {
-    const { data, error } = await authClient.signUp.email({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      name: email.split('@')[0],
+      options: {
+        data: {
+          full_name: email.split('@')[0],
+        },
+      },
     });
+
     if (error) return { error: friendlyError(error) };
 
     if (data?.user) {
       set({ user: mapUser(data.user) });
       prefetchOnboardingState();
-    } else {
-      const { data: session } = await authClient.getSession();
-      if (session?.user) {
-        set({ user: mapUser(session.user) });
-        prefetchOnboardingState();
-      }
     }
     return { error: null };
   },
 
   signIn: async (email, password) => {
-    const { data, error } = await authClient.signIn.email({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
     if (error) return { error: friendlyError(error) };
 
     if (data?.user) {
       set({ user: mapUser(data.user) });
       prefetchOnboardingState();
-    } else {
-      const { data: session } = await authClient.getSession();
-      if (session?.user) {
-        set({ user: mapUser(session.user) });
-        prefetchOnboardingState();
-      }
     }
     return { error: null };
   },
 
   signOut: async () => {
-    await authClient.signOut();
+    await supabase.auth.signOut();
     set({ user: null });
   },
 
   signInWithGoogle: async () => {
-    const { error } = await authClient.signIn.social({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      callbackURL: window.location.origin,
+      options: {
+        redirectTo: window.location.origin + '/auth/callback',
+      },
     });
     return { error: error ? friendlyError(error) : null };
   },

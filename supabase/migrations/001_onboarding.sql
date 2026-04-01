@@ -1,7 +1,7 @@
 -- ═══════════════════════════════════════════════════════════════════
 -- 001_onboarding.sql
 -- Onboarding state tracking, categories, habits, and related tables
--- Depends on: 000_better_auth_tables.sql ("user" table)
+-- Depends on: 000_schema.sql (profiles table via auth.users)
 -- ═══════════════════════════════════════════════════════════════════
 
 -- ─────────────────────────────────────────
@@ -9,7 +9,7 @@
 -- ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS onboarding_states (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id          TEXT NOT NULL UNIQUE REFERENCES "user"(id) ON DELETE CASCADE,
+  user_id          UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   path             VARCHAR(20),
   current_step     INT NOT NULL DEFAULT 0,
   status           VARCHAR(20) NOT NULL DEFAULT 'not_started',
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS starter_habits (
 -- ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS user_habits (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id          TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  user_id          UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   starter_habit_id UUID REFERENCES starter_habits(id) ON DELETE SET NULL,
   category_id      UUID REFERENCES categories(id) ON DELETE SET NULL,
   name             VARCHAR(200) NOT NULL,
@@ -74,7 +74,8 @@ CREATE TABLE IF NOT EXISTS user_habits (
   is_active        BOOLEAN NOT NULL DEFAULT true,
   sort_order       INT NOT NULL DEFAULT 0,
   archived_at      TIMESTAMPTZ,
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, name)
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_habits_user_id ON user_habits(user_id);
