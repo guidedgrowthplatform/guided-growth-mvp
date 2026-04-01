@@ -18,6 +18,7 @@ export function useOnboarding() {
     queryKey: queryKeys.onboarding.state,
     queryFn: onboardingApi.fetchOnboardingState,
     staleTime: Infinity,
+    gcTime: Infinity,
   });
 
   const isCompleted = state?.status === 'completed';
@@ -86,7 +87,7 @@ export function useOnboarding() {
 
   const complete = useCallback(
     (finalData?: Partial<OnboardingStepData>) => {
-      completeMutation.mutate(finalData);
+      completeMutation.mutate(finalData ?? {});
     },
     [completeMutation],
   );

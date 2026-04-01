@@ -72,7 +72,6 @@ function ProtectedLayout() {
   const habitMatch = useMatch('/habit/:habitId');
   const { state: onboardingState, isLoading: onboardingLoading } = useOnboarding();
 
-  // Route user based on onboarding state
   useEffect(() => {
     if (onboardingLoading) return;
     if (onboardingState === null) {
@@ -82,7 +81,6 @@ function ProtectedLayout() {
     }
   }, [onboardingState, onboardingLoading, navigate]);
 
-  // Block rendering until we know where to route — prevents flash of home screen
   if (onboardingLoading || onboardingState === null || onboardingState.status === 'in_progress') {
     return <PageLoader />;
   }
