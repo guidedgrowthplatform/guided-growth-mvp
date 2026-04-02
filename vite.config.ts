@@ -5,6 +5,7 @@ import path from 'path';
 
 export default defineConfig({
   build: {
+    sourcemap: true,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -13,6 +14,8 @@ export default defineConfig({
           'ui-vendor': ['lucide-react', '@iconify/react'],
           'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
           supabase: ['@supabase/supabase-js'],
+          sentry: ['@sentry/react'],
+          mixpanel: ['mixpanel-browser'],
         },
       },
     },

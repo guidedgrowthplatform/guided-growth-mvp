@@ -3,6 +3,7 @@ import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-ro
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { usePageTracking } from '@/hooks/usePageTracking';
 import { OnboardingRoute } from './OnboardingRoute';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
@@ -97,6 +98,8 @@ function ProtectedLayout() {
 }
 
 export function AppRoutes() {
+  usePageTracking();
+
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>

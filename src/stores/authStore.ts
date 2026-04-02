@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import * as onboardingApi from '@/api/onboarding';
+import { identify, resetIdentity, track } from '@/lib/analytics';
 import { authClient } from '@/lib/auth-client';
 import { queryClient, queryKeys } from '@/lib/query';
+import { Sentry } from '@/lib/sentry';
 
 export interface AppUser {
   id: string;
@@ -38,6 +40,16 @@ function friendlyError(error: any): string {
   return ERROR_MESSAGES[code] || error.message || 'Something went wrong. Please try again.';
 }
 
+function identifyUser(user: AppUser) {
+  identify(user.id, { email: user.email, name: user.name, role: user.role });
+  Sentry.setUser({ id: user.id, email: user.email });
+}
+
+function clearUserIdentity() {
+  resetIdentity();
+  Sentry.setUser(null);
+}
+
 function prefetchOnboardingState() {
   queryClient.prefetchQuery({
     queryKey: queryKeys.onboarding.state,
@@ -67,7 +79,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .getSession()
       .then(({ data }) => {
         if (data?.user) {
-          set({ user: mapUser(data.user) });
+          const user = mapUser(data.user);
+          set({ user });
+          identifyUser(user);
           prefetchOnboardingState();
         }
         set({ loading: false });
@@ -100,12 +114,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (error) return { error: friendlyError(error) };
 
     if (data?.user) {
-      set({ user: mapUser(data.user) });
+      const user = mapUser(data.user);
+      set({ user });
+      identifyUser(user);
+      track('Sign Up', { method: 'email' });
       prefetchOnboardingState();
     } else {
       const { data: session } = await authClient.getSession();
       if (session?.user) {
-        set({ user: mapUser(session.user) });
+        const user = mapUser(session.user);
+        set({ user });
+        identifyUser(user);
+        track('Sign Up', { method: 'email' });
         prefetchOnboardingState();
       }
     }
@@ -117,12 +137,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (error) return { error: friendlyError(error) };
 
     if (data?.user) {
-      set({ user: mapUser(data.user) });
+      const user = mapUser(data.user);
+      set({ user });
+      identifyUser(user);
+      track('Sign In', { method: 'email' });
       prefetchOnboardingState();
     } else {
       const { data: session } = await authClient.getSession();
       if (session?.user) {
-        set({ user: mapUser(session.user) });
+        const user = mapUser(session.user);
+        set({ user });
+        identifyUser(user);
+        track('Sign In', { method: 'email' });
         prefetchOnboardingState();
       }
     }
@@ -131,6 +157,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     await authClient.signOut();
+    track('Sign Out');
+    clearUserIdentity();
     set({ user: null });
   },
 
