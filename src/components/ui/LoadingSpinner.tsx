@@ -1,18 +1,27 @@
+import { Icon } from '@iconify/react';
+
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  color?: string;
 }
 
-const sizeClasses = {
-  sm: 'w-4 h-4',
-  md: 'w-8 h-8',
-  lg: 'w-12 h-12',
+const sizeMap = {
+  sm: 16,
+  md: 24,
+  lg: 32,
 };
 
-export function LoadingSpinner({ size = 'md', className = '' }: LoadingSpinnerProps) {
+export function LoadingSpinner({
+  size = 'md',
+  className = '',
+  color = 'text-primary',
+}: LoadingSpinnerProps) {
   return (
-    <div className={`${sizeClasses[size]} ${className}`}>
-      <div className="h-full w-full animate-spin rounded-full border-2 border-border border-t-primary" />
-    </div>
+    <Icon
+      icon="svg-spinners:ring-resize"
+      width={sizeMap[size]}
+      className={`${color} ${className}`}
+    />
   );
 }

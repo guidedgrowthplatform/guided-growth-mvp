@@ -1,20 +1,6 @@
-import type { User } from '@shared/types';
-import { apiGet, apiPost } from './client';
-
-export async function fetchCurrentUser(): Promise<User | null> {
-  try {
-    return await apiGet<User | null>('/api/auth/me');
-  } catch {
-    return null;
-  }
-}
-
-export function initiateGoogleLogin(): void {
-  const apiUrl = import.meta.env.VITE_API_URL || '';
-  window.location.href = `${apiUrl}/api/auth/google`;
-}
+import { supabase } from '@/lib/supabase';
 
 export async function logout(): Promise<void> {
-  await apiPost('/api/auth/logout', {});
-  window.location.href = '/';
+  await supabase.auth.signOut();
+  window.location.href = '/login';
 }

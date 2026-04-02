@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createClient } from '@supabase/supabase-js';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
+
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
@@ -101,12 +104,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       await client.query(
-        `UPDATE "user" SET
+        `UPDATE profiles SET
           onboarding_path = $1,
-          nickname = COALESCE($3, "user".nickname),
-          age_group = COALESCE($4, "user".age_group),
-          gender = COALESCE($5, "user".gender),
-          "updatedAt" = now()
+          nickname = COALESCE($3, profiles.nickname),
+          age_group = COALESCE($4, profiles.age_group),
+          gender = COALESCE($5, profiles.gender)
          WHERE id = $2`,
         [
           onboardingPath,
@@ -150,6 +152,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'metrics',
         'reflection_configs',
         'reflections',
+        'habit_completions',
+        'metric_entries',
       ];
 
       for (const table of userTables) {
@@ -161,11 +165,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      await client.query('DELETE FROM "session" WHERE "userId" = $1', [user.id]);
-      await client.query('DELETE FROM "account" WHERE "userId" = $1', [user.id]);
-      await client.query('DELETE FROM "user" WHERE id = $1', [user.id]);
-
+      await client.query('DELETE FROM profiles WHERE id = $1', [user.id]);
       await client.query('COMMIT');
+      const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
+      if (deleteError) {
+        console.error('Failed to delete Supabase Auth user:', deleteError);
+        return res.status(500).json({ error: 'Failed to delete auth user' });
+      }
+
       return res.json({ message: 'Account deleted' });
     } catch (err) {
       await client.query('ROLLBACK');

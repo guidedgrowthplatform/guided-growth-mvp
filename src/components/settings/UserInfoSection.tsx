@@ -3,12 +3,20 @@ import { Icon } from '@iconify/react';
 interface Props {
   name: string;
   email: string;
+  nickname?: string | null;
   avatarUrl?: string;
   onEditProfile?: () => void;
   onChangePhoto?: () => void;
 }
 
-export function UserInfoSection({ name, email, avatarUrl, onEditProfile, onChangePhoto }: Props) {
+export function UserInfoSection({
+  name,
+  email,
+  nickname,
+  avatarUrl,
+  onEditProfile,
+  onChangePhoto,
+}: Props) {
   const initials = name
     .split(' ')
     .map((n) => n[0])
@@ -35,6 +43,7 @@ export function UserInfoSection({ name, email, avatarUrl, onEditProfile, onChang
         </button>
       </div>
       <h2 className="mt-4 text-2xl font-bold text-primary">{name}</h2>
+      {nickname && <p className="text-sm font-semibold text-primary">@{nickname}</p>}
       <p className="text-base font-medium text-content-secondary">{email}</p>
       <button
         type="button"

@@ -47,7 +47,7 @@ export function Step2Page() {
       onNext={handleNext}
       onBack={() => navigate('/onboarding')}
       showVoiceButton
-      aiListeningPrompt={'"select which plan you want to have?"'}
+      aiListeningPrompt="Let me know if you are new to habit tracking or already have experience with habit tracking"
       voiceOptions={['simple', 'brain dump', 'braindump', 'beginner', 'advanced']}
       voicePrompt="Which plan would you like?"
       onVoiceAction={handleVoiceAction}
@@ -58,10 +58,10 @@ export function Step2Page() {
       />
       <div className="flex flex-col gap-[20px]">
         <SelectionCard
-          icon="ic:outline-explore"
+          icon="mdi:file-document-outline"
           iconBg="rgba(19,91,236,0.1)"
           iconColor="#135bec"
-          title="Beginner user"
+          title="I'm new to habit tracking"
           description="Start with a few recommended habits"
           selected={plan === 'simple'}
           onSelect={() => setPlan('simple')}
@@ -70,7 +70,7 @@ export function Step2Page() {
           icon="ic:round-mic"
           iconBg="#f5f3ff"
           iconColor="#7c3aed"
-          title="Advanced user"
+          title="I already have experience with habit tracking"
           description="Tell me everything you want to achieve, and I'll organize it"
           selected={plan === 'braindump'}
           onSelect={() => setPlan('braindump')}

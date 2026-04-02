@@ -140,7 +140,7 @@ export function SettingsPage() {
       await deleteAccount();
       localStorage.clear();
       await signOut();
-      navigate('/sign-in');
+      navigate('/login');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete account';
       addToast('error', msg);
@@ -162,12 +162,13 @@ export function SettingsPage() {
   const displayName = fullName ?? email.split('@')[0] ?? 'User';
 
   return (
-    <div>
+    <div className="pb-[calc(8rem+env(safe-area-inset-bottom))]">
       <SettingsHeader onBack={() => navigate(-1)} />
 
       <UserInfoSection
         name={displayName}
         email={email}
+        nickname={user?.nickname}
         onEditProfile={() => addToast('info', 'Edit profile coming soon')}
         onChangePhoto={() => addToast('info', 'Photo upload coming soon')}
       />

@@ -1,12 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const ALLOWED_ORIGINS = [
-  process.env.BETTER_AUTH_URL,
   'https://guided-growth-mvp.vercel.app',
   'capacitor://localhost',
   'http://localhost',
   'http://localhost:5173',
-].filter(Boolean) as string[];
+];
 
 // Returns true if OPTIONS preflight was handled
 export function handleCors(req: VercelRequest, res: VercelResponse): boolean {

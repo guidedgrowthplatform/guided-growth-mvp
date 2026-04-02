@@ -100,7 +100,7 @@ export function StatusPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-dvh items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
           <p className="text-gray-600">Loading project status...</p>
@@ -111,7 +111,7 @@ export function StatusPage() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-dvh items-center justify-center bg-gray-50">
         <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
           <p className="font-medium text-red-800">Error loading status</p>
           <p className="mt-1 text-sm text-red-600">{error}</p>
@@ -125,7 +125,7 @@ export function StatusPage() {
   const { issueStats, milestones, assignees, recentClosed, blockers } = data;
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-8">
+    <div className="min-h-dvh bg-gray-50 px-4 py-8">
       <div className="mx-auto max-w-4xl">
         <h1 className="mb-8 text-3xl font-bold text-gray-900">Project Status</h1>
 

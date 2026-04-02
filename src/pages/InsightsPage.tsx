@@ -35,8 +35,8 @@ export function InsightsPage() {
   const slideClass = direction === 'right' ? '-translate-x-4' : 'translate-x-4';
 
   return (
-    <div className="min-h-screen bg-surface-secondary">
-      <div className="sticky top-0 z-10 flex flex-col gap-6 bg-surface-secondary px-6 pb-4 pt-8">
+    <div className="min-h-dvh bg-surface-secondary">
+      <div className="sticky top-0 z-10 flex flex-col gap-6 bg-surface-secondary px-6 pb-4 pt-[max(2rem,env(safe-area-inset-top))]">
         <InsightsHeader />
         <SegmentedControl items={tabItems} value={activeTab} onChange={handleTabChange} size="lg" />
       </div>

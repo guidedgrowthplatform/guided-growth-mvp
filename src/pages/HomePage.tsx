@@ -61,14 +61,13 @@ export function HomePage() {
     return () => window.removeEventListener('toggle-journal', handler);
   }, []);
 
-  const fullName = user?.name;
-  const email = user?.email;
-  const firstName = fullName?.split(' ')[0] ?? email?.split('@')[0] ?? 'there';
+  const displayName =
+    user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'there';
 
   return (
     <>
       <div className="space-y-6 pb-8 pt-2">
-        <HomeHeader userName={firstName} />
+        <HomeHeader userName={displayName} />
         <DateStrip
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
@@ -108,7 +107,7 @@ export function HomePage() {
       </div>
 
       {/* Feedback Button - Above Bottom Nav */}
-      <div className="fixed bottom-28 left-6 z-40">
+      <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-6 z-40">
         <FeedbackButton />
       </div>
 

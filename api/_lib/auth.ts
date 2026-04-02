@@ -1,58 +1,80 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { auth } from './better-auth.js';
+import { createClient } from '@supabase/supabase-js';
 import { handleCors } from './cors.js';
-import pool from './db.js';
 
-function toWebHeaders(nodeHeaders: Record<string, string | string[] | undefined>): Headers {
-  const headers = new Headers();
-  for (const [key, value] of Object.entries(nodeHeaders)) {
-    if (value === undefined) continue;
-    if (Array.isArray(value)) {
-      for (const v of value) headers.append(key, v);
-    } else {
-      headers.set(key, value);
-    }
-  }
-  return headers;
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+
+interface AuthenticatedUser {
+  id: string;
+  email: string;
+  role: 'user' | 'admin';
+  status: 'active' | 'disabled';
 }
 
-export async function getUser(req: VercelRequest) {
+export async function getUser(req: VercelRequest): Promise<AuthenticatedUser | null> {
   try {
-    const session = await auth.api.getSession({
-      headers: toWebHeaders(req.headers as Record<string, string | string[] | undefined>),
-    });
-    if (!session?.user) return null;
-    return session.user;
+    // Extract Bearer token from Authorization header
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return null;
+    }
+
+    const token = authHeader.slice(7); // Remove 'Bearer '
+
+    // Verify token with Supabase
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token);
+    if (error || !user) {
+      return null;
+    }
+
+    // Extract role and status from JWT app_metadata (set by custom_access_token_hook)
+    const claims = user.app_metadata as { role?: string; status?: string };
+
+    return {
+      id: user.id,
+      email: user.email!,
+      role: (claims.role ?? 'user') as 'user' | 'admin',
+      status: (claims.status ?? 'active') as 'active' | 'disabled',
+    };
   } catch {
     return null;
   }
 }
 
-export async function requireUser(req: VercelRequest, res: VercelResponse) {
+export async function requireUser(
+  req: VercelRequest,
+  res: VercelResponse,
+): Promise<AuthenticatedUser | null> {
   const user = await getUser(req);
   if (!user) {
     res.status(401).json({ error: 'Authentication required' });
     return null;
   }
-  if ((user as Record<string, unknown>).status === 'disabled') {
+  if (user.status === 'disabled') {
     res.status(403).json({ error: 'Account disabled' });
     return null;
   }
   return user;
 }
 
-export async function requireAdmin(req: VercelRequest, res: VercelResponse) {
+export async function requireAdmin(
+  req: VercelRequest,
+  res: VercelResponse,
+): Promise<AuthenticatedUser | null> {
   const user = await requireUser(req, res);
   if (!user) return null;
-  if ((user as Record<string, unknown>).role !== 'admin') {
+  if (user.role !== 'admin') {
     res.status(403).json({ error: 'Admin access required' });
     return null;
   }
   return user;
 }
 
-export async function setUserContext(userId: string) {
-  await pool.query("SELECT set_config('app.current_user_id', $1, true)", [userId]);
+export async function setUserContext(_userId: string) {
+  // No-op
 }
 
 // Returns true if OPTIONS preflight was handled

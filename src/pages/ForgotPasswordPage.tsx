@@ -23,7 +23,7 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface-secondary p-6">
+    <div className="flex min-h-dvh flex-col bg-surface-secondary px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
       <AuthBackButton />
 
       <div className="mt-6">

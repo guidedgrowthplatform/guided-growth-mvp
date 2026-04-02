@@ -1,10 +1,11 @@
 -- App feature tables
--- All user_id columns reference "user"(id) TEXT with ON DELETE CASCADE
+-- All user_id columns reference auth.users(id) UUID with ON DELETE CASCADE
+-- Depends on: 000_schema.sql (profiles + auth.users)
 
 -- User app preferences (settings, not identity)
-CREATE TABLE user_preferences (
+CREATE TABLE IF NOT EXISTS user_preferences (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL UNIQUE REFERENCES "user"(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   coaching_style VARCHAR(50) DEFAULT 'friendly',
   voice_model VARCHAR(50) DEFAULT 'default',
   language VARCHAR(10) DEFAULT 'en',
@@ -20,9 +21,9 @@ CREATE TABLE user_preferences (
 );
 
 -- Habit completions (user_id denormalized for RLS + query performance)
-CREATE TABLE habit_completions (
+CREATE TABLE IF NOT EXISTS habit_completions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   habit_id UUID NOT NULL REFERENCES user_habits(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   completed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -30,9 +31,9 @@ CREATE TABLE habit_completions (
 );
 
 -- Metrics (moved from localStorage)
-CREATE TABLE metrics (
+CREATE TABLE IF NOT EXISTS metrics (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   input_type VARCHAR(20) NOT NULL DEFAULT 'numeric',  -- scale | binary | numeric | text
   scale_min INT,
@@ -45,9 +46,9 @@ CREATE TABLE metrics (
 );
 
 -- Metric entries (one value per metric per date)
-CREATE TABLE metric_entries (
+CREATE TABLE IF NOT EXISTS metric_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   metric_id UUID NOT NULL REFERENCES metrics(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   value TEXT NOT NULL,  -- TEXT supports all input types: scale/binary/numeric/text
@@ -56,9 +57,9 @@ CREATE TABLE metric_entries (
 );
 
 -- Daily check-ins (all 4 dimensions as SMALLINT 1-5, no string mapping in DB)
-CREATE TABLE daily_checkins (
+CREATE TABLE IF NOT EXISTS daily_checkins (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   mood SMALLINT CHECK (mood BETWEEN 1 AND 5),
   energy SMALLINT CHECK (energy BETWEEN 1 AND 5),
@@ -70,9 +71,9 @@ CREATE TABLE daily_checkins (
 );
 
 -- Journal entries (content is client-side encrypted before storage)
-CREATE TABLE journal_entries (
+CREATE TABLE IF NOT EXISTS journal_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   content TEXT NOT NULL,
   mood TEXT,
@@ -82,9 +83,9 @@ CREATE TABLE journal_entries (
 );
 
 -- Reflection config (per user, created at end of onboarding)
-CREATE TABLE reflection_configs (
+CREATE TABLE IF NOT EXISTS reflection_configs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL UNIQUE REFERENCES "user"(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   fields JSONB NOT NULL DEFAULT '[]'::jsonb,
   show_affirmation BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -92,9 +93,9 @@ CREATE TABLE reflection_configs (
 );
 
 -- Reflections (one row per field per date)
-CREATE TABLE reflections (
+CREATE TABLE IF NOT EXISTS reflections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   field_id TEXT NOT NULL,
   value TEXT NOT NULL,
@@ -103,9 +104,9 @@ CREATE TABLE reflections (
 );
 
 -- Focus sessions
-CREATE TABLE focus_sessions (
+CREATE TABLE IF NOT EXISTS focus_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   habit_id UUID REFERENCES user_habits(id) ON DELETE SET NULL,
   duration_minutes INT NOT NULL,
   actual_minutes INT,
@@ -116,9 +117,9 @@ CREATE TABLE focus_sessions (
 );
 
 -- Admin audit log
-CREATE TABLE admin_audit_log (
+CREATE TABLE IF NOT EXISTS admin_audit_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  admin_user_id TEXT NOT NULL REFERENCES "user"(id),
+  admin_user_id UUID NOT NULL REFERENCES auth.users(id),
   action TEXT NOT NULL,
   target_type TEXT,
   target_identifier TEXT,
@@ -127,9 +128,9 @@ CREATE TABLE admin_audit_log (
 );
 
 -- Entries (metric values keyed by user+metric+date)
-CREATE TABLE entries (
+CREATE TABLE IF NOT EXISTS entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   metric_id UUID NOT NULL REFERENCES metrics(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   value TEXT NOT NULL,
@@ -137,18 +138,18 @@ CREATE TABLE entries (
 );
 
 -- Affirmations (one per user)
-CREATE TABLE affirmations (
+CREATE TABLE IF NOT EXISTS affirmations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL UNIQUE REFERENCES "user"(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   value TEXT NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Allowlist (admin-managed signup gating, no RLS)
-CREATE TABLE allowlist (
+CREATE TABLE IF NOT EXISTS allowlist (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT NOT NULL UNIQUE,
-  added_by_user_id TEXT REFERENCES "user"(id) ON DELETE SET NULL,
+  added_by_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   note TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
