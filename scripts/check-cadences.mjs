@@ -14,6 +14,9 @@ const pool = new pg.Pool({
 
 const client = await pool.connect();
 const res = await client.query('SELECT DISTINCT cadence FROM user_habits');
-console.log('Distinct cadences:', res.rows.map(r => r.cadence));
+console.log(
+  'Distinct cadences:',
+  res.rows.map((r) => r.cadence),
+);
 client.release();
 await pool.end();
