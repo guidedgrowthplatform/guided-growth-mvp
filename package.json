@@ -42,6 +42,7 @@
     "@capacitor/core": "^8.1.0",
     "@capacitor/http": "^0.0.2",
     "@capacitor/ios": "^8.1.0",
+    "@capacitor/preferences": "^8.0.1",
     "@hookform/resolvers": "^5.2.2",
     "@huggingface/transformers": "^3.8.1",
     "@iconify/react": "^6.0.2",
