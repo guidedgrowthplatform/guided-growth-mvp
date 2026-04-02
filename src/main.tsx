@@ -2,7 +2,12 @@ import { Capacitor } from '@capacitor/core';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { initAnalytics } from './lib/analytics';
+import { initSentry } from './lib/sentry';
 import './index.css';
+
+initSentry();
+initAnalytics();
 
 // Disable pinch-to-zoom only in native Capacitor shell
 if (Capacitor.isNativePlatform()) {

@@ -3,6 +3,7 @@ import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-ro
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AppGate } from './AppGate';
+import { usePageTracking } from '@/hooks/usePageTracking';
 
 const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })));
 const HabitsPage = lazy(() =>
@@ -81,6 +82,8 @@ function AppLayout() {
 }
 
 export function AppRoutes() {
+  usePageTracking();
+
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>

@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
+import { Sentry } from '@/lib/sentry';
 
 const getApiUrl = (): string => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
@@ -46,7 +47,14 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new ApiError(body.error || `HTTP ${response.status}`, response.status, body);
+    const apiError = new ApiError(body.error || `HTTP ${response.status}`, response.status, body);
+    Sentry.addBreadcrumb({
+      category: 'api',
+      message: `${options.method || 'GET'} ${endpoint} → ${response.status}`,
+      level: response.status >= 500 ? 'error' : 'warning',
+      data: { status: response.status, body },
+    });
+    throw apiError;
   }
 
   return response.json();
