@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 
@@ -125,12 +126,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signInWithGoogle: async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const isNative = Capacitor.isNativePlatform();
+    const redirectTo = isNative
+      ? 'guidedgrowth://auth/callback'
+      : window.location.origin + '/auth/callback';
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + '/auth/callback',
+        redirectTo,
+        skipBrowserRedirect: isNative,
       },
     });
-    return { error: error ? friendlyError(error) : null };
+
+    if (error) return { error: friendlyError(error) };
+
+    if (isNative && data?.url) {
+      const { Browser } = await import('@capacitor/browser');
+      await Browser.open({ url: data.url });
+    }
+
+    return { error: null };
   },
 }));

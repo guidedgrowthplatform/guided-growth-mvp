@@ -17,11 +17,17 @@ const config: CapacitorConfig = {
   server: {
     // Required for getUserMedia and inline audio playback on iOS WKWebView
     iosScheme: 'capacitor',
-    allowNavigation: ['api.deepgram.com', 'api.elevenlabs.io', 'guided-growth-mvp.vercel.app'],
+    allowNavigation: [
+      'api.deepgram.com',
+      'api.elevenlabs.io',
+      'guided-growth-mvp.vercel.app',
+      'pmunbflbjpoawicgimyc.supabase.co',
+      'accounts.google.com',
+    ],
   },
   plugins: {
     CapacitorHttp: {
-      enabled: true,
+      enabled: false,
     },
   },
 };
