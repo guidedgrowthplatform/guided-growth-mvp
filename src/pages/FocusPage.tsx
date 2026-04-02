@@ -66,7 +66,7 @@ export function FocusPage() {
   }, [timer, selectedHabitId, saveFocusSession]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface-secondary pb-24">
+    <div className="flex min-h-dvh flex-col bg-surface-secondary pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <div className="px-6 pt-8">
         <h1 className="text-2xl font-bold text-content">Focus Session</h1>
         <div className="mt-4 flex justify-center">

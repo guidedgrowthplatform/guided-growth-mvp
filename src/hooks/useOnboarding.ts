@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as onboardingApi from '@/api/onboarding';
@@ -14,13 +14,7 @@ export function useOnboarding() {
   const qc = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: state = null, isLoading } = useQuery({
-    queryKey: queryKeys.onboarding.state,
-    queryFn: onboardingApi.fetchOnboardingState,
-    staleTime: Infinity,
-    gcTime: Infinity,
-  });
-
+  const state = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null;
   const isCompleted = state?.status === 'completed';
 
   const saveMutation = useMutation({
@@ -94,7 +88,6 @@ export function useOnboarding() {
 
   return {
     state,
-    isLoading,
     isCompleted,
     isSaving: saveMutation.isPending,
     isCompleting: completeMutation.isPending,

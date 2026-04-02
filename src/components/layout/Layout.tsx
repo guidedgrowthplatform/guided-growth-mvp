@@ -17,13 +17,13 @@ export function Layout({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-dvh">
       <main className="flex-1">
         {isFullWidth ? (
           children
         ) : (
           <div
-            className={`mx-auto max-w-sm px-4 pb-32 lg:pb-6 lg:pt-6 ${isHomePage ? 'pt-4' : 'pt-6'}`}
+            className={`mx-auto max-w-sm px-4 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-6 lg:pt-6 ${isHomePage ? 'pt-4' : 'pt-6'}`}
           >
             {children}
           </div>

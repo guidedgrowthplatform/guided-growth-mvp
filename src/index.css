@@ -46,6 +46,11 @@ input[type='password']::placeholder {
   letter-spacing: normal;
 }
 
+html,
+body {
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
   font-family:
@@ -55,9 +60,18 @@ body {
     'Segoe UI',
     sans-serif;
   background: rgb(var(--color-primary-bg));
-  min-height: 100vh;
+  min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  position: fixed;
+  width: 100%;
+  overflow: hidden;
+}
+
+#root {
+  height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Global rounded scrollbars */

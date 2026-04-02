@@ -1,11 +1,8 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense } from 'react';
 import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
-import { useOnboarding } from '@/hooks/useOnboarding';
-import { OnboardingRoute } from './OnboardingRoute';
-import { ProtectedRoute } from './ProtectedRoute';
-import { PublicRoute } from './PublicRoute';
+import { AppGate } from './AppGate';
 
 const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })));
 const HabitsPage = lazy(() =>
@@ -67,23 +64,9 @@ function PageLoader() {
   );
 }
 
-function ProtectedLayout() {
+function AppLayout() {
   const navigate = useNavigate();
   const habitMatch = useMatch('/habit/:habitId');
-  const { state: onboardingState, isLoading: onboardingLoading } = useOnboarding();
-
-  useEffect(() => {
-    if (onboardingLoading) return;
-    if (onboardingState === null) {
-      navigate('/onboarding', { replace: true });
-    } else if (onboardingState.status === 'in_progress') {
-      navigate(`/onboarding/step-${onboardingState.current_step}`, { replace: true });
-    }
-  }, [onboardingState, onboardingLoading, navigate]);
-
-  if (onboardingLoading || onboardingState === null || onboardingState.status === 'in_progress') {
-    return <PageLoader />;
-  }
 
   return (
     <Layout>
@@ -105,25 +88,25 @@ export function AppRoutes() {
         <Route
           path="/login"
           element={
-            <PublicRoute>
+            <AppGate allow="public">
               <SignInPage />
-            </PublicRoute>
+            </AppGate>
           }
         />
         <Route
           path="/signup"
           element={
-            <PublicRoute>
+            <AppGate allow="public">
               <SignUpPage />
-            </PublicRoute>
+            </AppGate>
           }
         />
         <Route
           path="/forgot-password"
           element={
-            <PublicRoute>
+            <AppGate allow="public">
               <ForgotPasswordPage />
-            </PublicRoute>
+            </AppGate>
           }
         />
 
@@ -137,106 +120,106 @@ export function AppRoutes() {
         <Route
           path="/onboarding"
           element={
-            <OnboardingRoute>
+            <AppGate allow="onboarding">
               <Step1Page />
-            </OnboardingRoute>
+            </AppGate>
           }
         />
         <Route
           path="/onboarding/step-2"
           element={
-            <OnboardingRoute>
+            <AppGate allow="onboarding">
               <Step2Page />
-            </OnboardingRoute>
+            </AppGate>
           }
         />
         <Route
           path="/onboarding/step-3"
           element={
-            <OnboardingRoute>
+            <AppGate allow="onboarding">
               <Step3Page />
-            </OnboardingRoute>
+            </AppGate>
           }
         />
         <Route
           path="/onboarding/step-4"
           element={
-            <OnboardingRoute>
+            <AppGate allow="onboarding">
               <Step4Page />
-            </OnboardingRoute>
+            </AppGate>
           }
         />
         <Route
           path="/onboarding/step-5"
           element={
-            <OnboardingRoute>
+            <AppGate allow="onboarding">
               <Step5Page />
-            </OnboardingRoute>
+            </AppGate>
           }
         />
         <Route
           path="/onboarding/step-6"
           element={
-            <OnboardingRoute>
+            <AppGate allow="onboarding">
               <Step6Page />
-            </OnboardingRoute>
+            </AppGate>
           }
         />
         <Route
           path="/onboarding/step-7"
           element={
-            <OnboardingRoute>
+            <AppGate allow="onboarding">
               <PlanReviewPage />
-            </OnboardingRoute>
+            </AppGate>
           }
         />
         <Route
           path="/onboarding/edit-habit"
           element={
-            <OnboardingRoute>
+            <AppGate allow="onboarding">
               <EditHabitPage />
-            </OnboardingRoute>
+            </AppGate>
           }
         />
         <Route
           path="/onboarding/advanced-input"
           element={
-            <OnboardingRoute>
+            <AppGate allow="onboarding">
               <AdvancedInputPage />
-            </OnboardingRoute>
+            </AppGate>
           }
         />
         <Route
           path="/onboarding/advanced-results"
           element={
-            <OnboardingRoute>
+            <AppGate allow="onboarding">
               <AdvancedResultsPage />
-            </OnboardingRoute>
+            </AppGate>
           }
         />
         <Route
           path="/onboarding/advanced-step-6"
           element={
-            <OnboardingRoute>
+            <AppGate allow="onboarding">
               <AdvancedStep6Page />
-            </OnboardingRoute>
+            </AppGate>
           }
         />
         <Route
           path="/onboarding/advanced-custom-prompts"
           element={
-            <OnboardingRoute>
+            <AppGate allow="onboarding">
               <AdvancedCustomPromptsPage />
-            </OnboardingRoute>
+            </AppGate>
           }
         />
 
         {/* Main app (protected, with Layout) */}
         <Route
           element={
-            <ProtectedRoute>
-              <ProtectedLayout />
-            </ProtectedRoute>
+            <AppGate allow="app">
+              <AppLayout />
+            </AppGate>
           }
         >
           <Route index element={<HomePage />} />

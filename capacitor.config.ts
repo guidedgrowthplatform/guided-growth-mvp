@@ -12,11 +12,12 @@ const config: CapacitorConfig = {
     preferredContentMode: 'mobile',
     scheme: 'Guided Growth',
     allowsLinkPreview: false,
+    scrollEnabled: false,
   },
   server: {
     // Required for getUserMedia and inline audio playback on iOS WKWebView
     iosScheme: 'capacitor',
-    allowNavigation: ['api.deepgram.com', 'api.elevenlabs.io'],
+    allowNavigation: ['api.deepgram.com', 'api.elevenlabs.io', 'guided-growth-mvp.vercel.app'],
   },
   plugins: {
     CapacitorHttp: {

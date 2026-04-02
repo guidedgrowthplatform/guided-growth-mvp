@@ -107,7 +107,7 @@ export function HomePage() {
       </div>
 
       {/* Feedback Button - Above Bottom Nav */}
-      <div className="fixed bottom-28 left-6 z-40">
+      <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-6 z-40">
         <FeedbackButton />
       </div>
 

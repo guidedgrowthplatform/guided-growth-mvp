@@ -1,6 +1,4 @@
 import { create } from 'zustand';
-import * as onboardingApi from '@/api/onboarding';
-import { queryClient, queryKeys } from '@/lib/query';
 import { supabase } from '@/lib/supabase';
 
 export interface AppUser {
@@ -47,13 +45,6 @@ function friendlyError(error: any): string {
   return error.message || 'Something went wrong. Please try again.';
 }
 
-function prefetchOnboardingState() {
-  queryClient.prefetchQuery({
-    queryKey: queryKeys.onboarding.state,
-    queryFn: onboardingApi.fetchOnboardingState,
-  });
-}
-
 export interface AuthState {
   user: AppUser | null;
   loading: boolean;
@@ -76,7 +67,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .then(({ data: { session } }) => {
         if (session?.user) {
           set({ user: mapUser(session.user) });
-          prefetchOnboardingState();
         }
         set({ loading: false });
       })
@@ -87,9 +77,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } = supabase.auth.onAuthStateChange((event, session) => {
         if (session?.user) {
           set({ user: mapUser(session.user) });
-          if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-            prefetchOnboardingState();
-          }
         } else {
           set({ user: null });
         }
@@ -114,7 +101,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (data?.user) {
       set({ user: mapUser(data.user) });
-      prefetchOnboardingState();
     }
     return { error: null };
   },
@@ -129,7 +115,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (data?.user) {
       set({ user: mapUser(data.user) });
-      prefetchOnboardingState();
     }
     return { error: null };
   },

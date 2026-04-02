@@ -1,7 +1,11 @@
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
 
 const getApiUrl = (): string => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (Capacitor.isNativePlatform()) {
+    console.error('[API] VITE_API_URL is not set on native platform — API calls will fail');
+  }
   return '';
 };
 
