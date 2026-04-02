@@ -40,12 +40,6 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     } = await supabase.auth.getSession();
     if (session?.access_token) {
       headers['Authorization'] = `Bearer ${session.access_token}`;
-    } else if (Capacitor.isNativePlatform()) {
-      Sentry.addBreadcrumb({
-        category: 'auth',
-        message: 'No session available on native platform — API call will be unauthenticated',
-        level: 'warning',
-      });
     }
   } catch {
     // Continue without auth if session unavailable
