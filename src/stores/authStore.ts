@@ -1,6 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
+import { identify, resetIdentity, track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
+import { Sentry } from '@/lib/sentry';
 
 export interface AppUser {
   id: string;
@@ -46,6 +48,16 @@ function friendlyError(error: any): string {
   return error.message || 'Something went wrong. Please try again.';
 }
 
+function identifyUser(user: AppUser) {
+  identify(user.id, { email: user.email, name: user.name, role: user.role });
+  Sentry.setUser({ id: user.id, email: user.email });
+}
+
+function clearUserIdentity() {
+  resetIdentity();
+  Sentry.setUser(null);
+}
+
 export interface AuthState {
   user: AppUser | null;
   loading: boolean;
@@ -67,7 +79,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .getSession()
       .then(({ data: { session } }) => {
         if (session?.user) {
-          set({ user: mapUser(session.user) });
+          const user = mapUser(session.user);
+          set({ user });
+          identifyUser(user);
         }
         set({ loading: false });
       })
@@ -101,7 +115,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (error) return { error: friendlyError(error) };
 
     if (data?.user) {
-      set({ user: mapUser(data.user) });
+      const user = mapUser(data.user);
+      set({ user });
+      identifyUser(user);
+      track('Sign Up', { method: 'email' });
     }
     return { error: null };
   },
@@ -115,13 +132,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (error) return { error: friendlyError(error) };
 
     if (data?.user) {
-      set({ user: mapUser(data.user) });
+      const user = mapUser(data.user);
+      set({ user });
+      identifyUser(user);
+      track('Sign In', { method: 'email' });
     }
     return { error: null };
   },
 
   signOut: async () => {
     await supabase.auth.signOut();
+    track('Sign Out');
+    clearUserIdentity();
     set({ user: null });
   },
 
