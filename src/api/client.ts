@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
-import { supabase } from '@/lib/supabase';
 import { Sentry } from '@/lib/sentry';
+import { supabase, sessionReady } from '@/lib/supabase';
 
 const getApiUrl = (): string => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
@@ -28,6 +28,11 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
   };
+
+  // On native, wait for session to be restored from Capacitor Preferences
+  if (Capacitor.isNativePlatform()) {
+    await sessionReady;
+  }
 
   try {
     const {
