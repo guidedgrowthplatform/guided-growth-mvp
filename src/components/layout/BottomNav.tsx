@@ -61,7 +61,7 @@ export function BottomNav({ onVoicePress }: BottomNavProps) {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
-      <div className="mx-auto max-w-sm">
+      <div>
         <div className="relative" style={{ height: '72px' }}>
           <NavBarBackground />
 

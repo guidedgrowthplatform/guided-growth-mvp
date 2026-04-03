@@ -48,7 +48,7 @@ export function DateFilterBar({ availableMonths, selected, onSelect }: DateFilte
         <div
           role="listbox"
           aria-label="Select month"
-          className="absolute left-0 right-0 top-full z-20 mt-1 animate-slide-up rounded-lg border border-border-light bg-surface py-1 shadow-elevated"
+          className="absolute left-0 right-0 top-full z-20 mt-1 origin-top animate-[fadeScale_0.15s_ease-out] rounded-lg border border-border-light bg-surface py-1 shadow-elevated"
         >
           {availableMonths.map((month) => (
             <button
@@ -59,7 +59,7 @@ export function DateFilterBar({ availableMonths, selected, onSelect }: DateFilte
                 onSelect(month);
                 setOpen(false);
               }}
-              className={`w-full px-[17px] py-2.5 text-left text-[14px] font-medium transition-colors hover:bg-surface-secondary ${
+              className={`w-full px-[17px] py-2.5 text-left text-[14px] font-medium transition-colors hover:bg-surface-secondary active:bg-surface-secondary ${
                 month === selected ? 'font-bold text-primary' : 'text-content-subtle'
               }`}
             >

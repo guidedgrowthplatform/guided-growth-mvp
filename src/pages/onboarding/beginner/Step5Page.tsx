@@ -407,59 +407,63 @@ export function Step5Page() {
   }, [phase, habitConfigs, goals, state, navigate, handleContinue, saveStepAsync]);
 
   return (
-    <OnboardingLayout
-      currentStep={5}
-      totalSteps={7}
-      ctaLabel={phase === 'confirming' ? 'Confirm & Continue' : 'Continue'}
-      ctaVariant="inline"
-      onNext={handleOnNext}
-      onBack={
-        phase === 'confirming' ? () => setPhase('selecting') : () => navigate('/onboarding/step-4')
-      }
-      showVoiceButton
-      aiListeningPrompt='"Select up to 2 daily habits to build your foundation."'
-      ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
-      voiceOptions={allHabits}
-      voicePrompt="Which habits do you want to build?"
-      onVoiceAction={handleVoiceAction}
-    >
-      <OnboardingHeader
-        title="Here's a good place to start"
-        subtitle="Select up to 2 daily habits to build your foundation."
-      />
+    <>
+      <OnboardingLayout
+        currentStep={5}
+        totalSteps={7}
+        ctaLabel={phase === 'confirming' ? 'Confirm & Continue' : 'Continue'}
+        ctaVariant="inline"
+        onNext={handleOnNext}
+        onBack={
+          phase === 'confirming'
+            ? () => setPhase('selecting')
+            : () => navigate('/onboarding/step-4')
+        }
+        showVoiceButton
+        aiListeningPrompt='"Select up to 2 daily habits to build your foundation."'
+        ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
+        voiceOptions={allHabits}
+        voicePrompt="Which habits do you want to build?"
+        onVoiceAction={handleVoiceAction}
+      >
+        <OnboardingHeader
+          title="Here's a good place to start"
+          subtitle="Select up to 2 daily habits to build your foundation."
+        />
 
-      {phase === 'selecting' ? (
-        <div className="flex flex-col gap-[16px]">
-          {goals.map((goal) => (
-            <HabitPickerPanel
-              key={goal}
-              goal={goal}
-              habits={[...(habitsByGoal[goal] ?? []), ...(customHabits[goal] ?? [])]}
-              expanded={expandedGoal === goal}
-              onToggleExpanded={() => setExpandedGoal((prev) => (prev === goal ? '' : goal))}
-              selectedHabits={selectedHabits}
-              maxReached={selectedHabits.size >= 2}
-              onToggleHabit={toggleHabit}
-              onAddCustomHabit={(habit) => addCustomHabit(goal, habit)}
+        {phase === 'selecting' ? (
+          <div className="flex flex-col gap-[16px]">
+            {goals.map((goal) => (
+              <HabitPickerPanel
+                key={goal}
+                goal={goal}
+                habits={[...(habitsByGoal[goal] ?? []), ...(customHabits[goal] ?? [])]}
+                expanded={expandedGoal === goal}
+                onToggleExpanded={() => setExpandedGoal((prev) => (prev === goal ? '' : goal))}
+                selectedHabits={selectedHabits}
+                maxReached={selectedHabits.size >= 2}
+                onToggleHabit={toggleHabit}
+                onAddCustomHabit={(habit) => addCustomHabit(goal, habit)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-[16px]">
+            {Object.entries(habitConfigs).map(([habit, config]) => (
+              <HabitSummaryCard
+                key={habit}
+                habitName={habit}
+                selectedDays={config.days}
+                onEdit={() => handleEditHabit(habit)}
+              />
+            ))}
+            <OnboardingTooltip
+              title="Quick tip"
+              message="You can use the edit function to change the results of the habits you want to have!"
             />
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-[16px]">
-          {Object.entries(habitConfigs).map(([habit, config]) => (
-            <HabitSummaryCard
-              key={habit}
-              habitName={habit}
-              selectedDays={config.days}
-              onEdit={() => handleEditHabit(habit)}
-            />
-          ))}
-          <OnboardingTooltip
-            title="Quick tip"
-            message="You can use the edit function to change the results of the habits you want to have!"
-          />
-        </div>
-      )}
+          </div>
+        )}
+      </OnboardingLayout>
 
       {customizingHabit && (
         <BottomSheet onClose={handleSheetClose}>
@@ -472,6 +476,6 @@ export function Step5Page() {
           />
         </BottomSheet>
       )}
-    </OnboardingLayout>
+    </>
   );
 }

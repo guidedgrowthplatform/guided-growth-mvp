@@ -59,9 +59,9 @@ function formatDate(iso: string): string {
 
 function ProgressBar({ percent }: { percent: number }) {
   return (
-    <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
+    <div className="h-3 w-full overflow-hidden rounded-full bg-border">
       <div
-        className="h-full rounded-full bg-indigo-500 transition-all duration-500"
+        className="h-full rounded-full bg-primary transition-all duration-500"
         style={{ width: `${percent}%` }}
       />
     </div>
@@ -100,10 +100,10 @@ export function StatusPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-gray-50">
+      <div className="flex min-h-dvh items-center justify-center bg-surface-secondary">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-          <p className="text-gray-600">Loading project status...</p>
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-content-secondary">Loading project status...</p>
         </div>
       </div>
     );
@@ -111,10 +111,10 @@ export function StatusPage() {
 
   if (error) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-gray-50">
-        <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
-          <p className="font-medium text-red-800">Error loading status</p>
-          <p className="mt-1 text-sm text-red-600">{error}</p>
+      <div className="flex min-h-dvh items-center justify-center bg-surface-secondary">
+        <div className="rounded-lg border border-danger/20 bg-danger/10 p-6 text-center">
+          <p className="font-medium text-danger">Error loading status</p>
+          <p className="mt-1 text-sm text-danger/80">{error}</p>
         </div>
       </div>
     );
@@ -125,19 +125,19 @@ export function StatusPage() {
   const { issueStats, milestones, assignees, recentClosed, blockers } = data;
 
   return (
-    <div className="min-h-dvh bg-gray-50 px-4 py-8">
+    <div className="min-h-dvh bg-surface-secondary px-6 py-8">
       <div className="mx-auto max-w-4xl">
-        <h1 className="mb-8 text-3xl font-bold text-gray-900">Project Status</h1>
+        <h1 className="mb-8 text-3xl font-bold text-content">Project Status</h1>
 
         {/* Summary Cards */}
         <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
           <Card label="Total Issues" value={issueStats.total} />
-          <Card label="Open" value={issueStats.open} color="text-amber-600" />
-          <Card label="Closed" value={issueStats.closed} color="text-green-600" />
+          <Card label="Open" value={issueStats.open} color="text-warning" />
+          <Card label="Closed" value={issueStats.closed} color="text-success" />
           <Card
             label="Completion"
             value={`${issueStats.completionPercent}%`}
-            color="text-indigo-600"
+            color="text-primary"
           />
         </div>
 
@@ -146,15 +146,15 @@ export function StatusPage() {
           <Section title="Milestones">
             <div className="space-y-4">
               {milestones.map((ms) => (
-                <div key={ms.id} className="rounded-lg border bg-white p-4">
+                <div key={ms.id} className="rounded-lg border border-border-light bg-surface p-4">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="font-medium text-gray-900">{ms.title}</span>
-                    <span className="text-sm text-gray-500">
+                    <span className="font-medium text-content">{ms.title}</span>
+                    <span className="text-sm text-content-secondary">
                       {ms.dueDate ? `Due ${formatDate(ms.dueDate)}` : 'No due date'}
                     </span>
                   </div>
                   <ProgressBar percent={ms.completionPercent} />
-                  <div className="mt-1 flex justify-between text-xs text-gray-500">
+                  <div className="mt-1 flex justify-between text-xs text-content-secondary">
                     <span>
                       {ms.closedIssues}/{ms.closedIssues + ms.openIssues} issues
                     </span>
@@ -169,15 +169,15 @@ export function StatusPage() {
         {/* Assignee Workload */}
         {assignees.length > 0 && (
           <Section title="Assignee Workload">
-            <div className="divide-y rounded-lg border bg-white">
+            <div className="divide-y divide-border-light rounded-lg border border-border-light bg-surface">
               {assignees.map((a) => (
                 <div key={a.id} className="flex items-center gap-3 px-4 py-3">
                   <img src={a.avatarUrl} alt={a.name} className="h-8 w-8 rounded-full" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{a.name}</p>
-                    <p className="text-xs text-gray-500">@{a.username}</p>
+                    <p className="text-sm font-medium text-content">{a.name}</p>
+                    <p className="text-xs text-content-tertiary">@{a.username}</p>
                   </div>
-                  <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-800">
+                  <span className="rounded-full bg-warning/10 px-3 py-1 text-sm font-medium text-warning">
                     {a.openIssues} open
                   </span>
                 </div>
@@ -189,19 +189,19 @@ export function StatusPage() {
         {/* Recent Activity */}
         {recentClosed.length > 0 && (
           <Section title="Recently Closed">
-            <div className="divide-y rounded-lg border bg-white">
+            <div className="divide-y divide-border-light rounded-lg border border-border-light bg-surface">
               {recentClosed.map((issue) => (
                 <a
                   key={issue.iid}
                   href={issue.webUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block px-4 py-3 hover:bg-gray-50"
+                  className="block px-4 py-3 active:bg-surface-secondary"
                 >
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-content">
                     #{issue.iid} {issue.title}
                   </p>
-                  <p className="mt-0.5 text-xs text-gray-500">
+                  <p className="mt-0.5 text-xs text-content-secondary">
                     Closed {formatDate(issue.closedAt)}
                     {issue.assignee && ` by ${issue.assignee}`}
                   </p>
@@ -214,29 +214,29 @@ export function StatusPage() {
         {/* Blockers */}
         {blockers.length > 0 && (
           <Section title="Blockers">
-            <div className="divide-y rounded-lg border border-red-200 bg-white">
+            <div className="divide-y divide-border-light rounded-lg border border-danger/20 bg-surface">
               {blockers.map((b) => (
                 <a
                   key={b.iid}
                   href={b.webUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block px-4 py-3 hover:bg-red-50"
+                  className="block px-4 py-3 active:bg-danger/5"
                 >
-                  <p className="text-sm font-medium text-red-800">
+                  <p className="text-sm font-medium text-danger">
                     #{b.iid} {b.title}
                   </p>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {b.labels.map((label) => (
                       <span
                         key={label}
-                        className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-700"
+                        className="rounded bg-danger/10 px-2 py-0.5 text-xs text-danger"
                       >
                         {label}
                       </span>
                     ))}
                   </div>
-                  <p className="mt-0.5 text-xs text-gray-500">
+                  <p className="mt-0.5 text-xs text-content-secondary">
                     Created {formatDate(b.createdAt)}
                     {b.assignee && ` - ${b.assignee}`}
                   </p>
@@ -253,15 +253,15 @@ export function StatusPage() {
 function Card({
   label,
   value,
-  color = 'text-gray-900',
+  color = 'text-content',
 }: {
   label: string;
   value: string | number;
   color?: string;
 }) {
   return (
-    <div className="rounded-lg border bg-white p-4 text-center">
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</p>
+    <div className="rounded-lg border border-border-light bg-surface p-4 text-center">
+      <p className="text-xs font-medium uppercase tracking-wide text-content-secondary">{label}</p>
       <p className={`mt-1 text-2xl font-bold ${color}`}>{value}</p>
     </div>
   );
@@ -270,7 +270,7 @@ function Card({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-8">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">{title}</h2>
+      <h2 className="mb-4 text-lg font-semibold text-content">{title}</h2>
       {children}
     </div>
   );
