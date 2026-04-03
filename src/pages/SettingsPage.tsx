@@ -162,7 +162,7 @@ export function SettingsPage() {
   const displayName = fullName ?? email.split('@')[0] ?? 'User';
 
   return (
-    <div className="pb-[calc(8rem+env(safe-area-inset-bottom))]">
+    <div>
       <SettingsHeader onBack={() => navigate(-1)} />
 
       <UserInfoSection

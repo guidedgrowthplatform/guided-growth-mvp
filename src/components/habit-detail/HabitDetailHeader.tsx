@@ -32,7 +32,7 @@ export function HabitDetailTitle({
   return (
     <div>
       <h1 className="text-[28px] font-semibold leading-normal text-content">{name}</h1>
-      <p className="mb-2 mt-2 text-sm font-medium leading-[22px] text-content-secondary">
+      <p className="pb-1 pt-1 text-sm font-medium leading-[22px] text-content-secondary">
         {description}
       </p>
     </div>

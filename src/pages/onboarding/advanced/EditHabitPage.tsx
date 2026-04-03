@@ -64,7 +64,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
   return (
     <div className="flex min-h-dvh flex-col bg-surface-secondary">
       {/* Header */}
-      <div className="flex items-center justify-between bg-[rgba(249,249,249,0.8)] px-[24px] py-[16px] backdrop-blur-[6px]">
+      <div className="flex items-center justify-between bg-[rgba(249,249,249,0.8)] px-6 py-[16px] backdrop-blur-[6px]">
         <button
           type="button"
           onClick={() => navigate('/onboarding/advanced-results')}
@@ -88,7 +88,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
       </div>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col gap-[32px] overflow-y-auto px-[24px] pb-[128px] pt-[16px]">
+      <div className="flex flex-1 flex-col gap-[32px] overflow-y-auto px-6 pb-[128px] pt-[16px]">
         {/* Form Fields */}
         <div className="flex flex-col gap-[24px]">
           {/* Habit Name */}
@@ -128,7 +128,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
       </div>
 
       {/* Footer */}
-      <div className="bg-gradient-to-t from-surface-secondary via-surface-secondary/95 to-transparent p-[24px] px-[24px]">
+      <div className="bg-gradient-to-t from-surface-secondary via-surface-secondary/95 to-transparent px-6 py-6">
         <button
           type="button"
           onClick={handleSave}

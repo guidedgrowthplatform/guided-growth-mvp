@@ -10,7 +10,7 @@ const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 export function DaySchedulePills({ activeDays, frequencyLabel }: DaySchedulePillsProps) {
   return (
     <div>
-      <div className="mt-1 flex items-center justify-between">
+      <div className="flex items-center justify-between">
         {DAY_LABELS.map((label, i) => (
           <div
             key={i}

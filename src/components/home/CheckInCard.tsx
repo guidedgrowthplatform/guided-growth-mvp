@@ -79,7 +79,7 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
       <button
         onClick={handleCheckIn}
         disabled={saving}
-        className="mt-5 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-white shadow-[0px_4px_6px_-1px_rgba(65,105,225,0.2)] transition-colors hover:bg-primary-dark disabled:opacity-50"
+        className="mt-5 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-white shadow-[0px_4px_6px_-1px_rgba(65,105,225,0.2)] transition-colors hover:bg-primary-dark active:bg-primary-dark disabled:opacity-50"
       >
         {saving ? 'Saving...' : checkIn ? 'Update Check-In' : 'Check In'}
       </button>
