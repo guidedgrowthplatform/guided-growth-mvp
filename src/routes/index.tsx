@@ -2,8 +2,8 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
-import { AppGate } from './AppGate';
 import { usePageTracking } from '@/hooks/usePageTracking';
+import { AppGate } from './AppGate';
 
 const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })));
 const HabitsPage = lazy(() =>
@@ -60,7 +60,7 @@ const AdvancedCustomPromptsPage = lazyOnboarding('AdvancedCustomPromptsPage');
 function PageLoader() {
   return (
     <div className="flex h-full items-center justify-center p-8">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-indigo-600" />
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-primary" />
     </div>
   );
 }

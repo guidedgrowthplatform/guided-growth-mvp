@@ -21,6 +21,14 @@ export function BottomSheet({ onClose, children, topOffset, showHandle = true }:
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  // Prevent body scroll while sheet is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
+
   const handleClose = useCallback(() => {
     setPhase('exiting');
   }, []);
@@ -72,7 +80,7 @@ export function BottomSheet({ onClose, children, topOffset, showHandle = true }:
         onClick={handleClose}
       />
 
-      <div className="pointer-events-none absolute inset-0 mx-auto max-w-sm">
+      <div className="pointer-events-none absolute inset-0">
         <div
           ref={sheetRef}
           className={`pointer-events-auto ${sheetPositionClass} flex flex-col overflow-hidden rounded-t-[32px] bg-white shadow-[0px_-8px_30px_0px_rgba(0,0,0,0.08)] ${
@@ -100,7 +108,9 @@ export function BottomSheet({ onClose, children, topOffset, showHandle = true }:
               <div className="h-1.5 w-12 rounded-full bg-gray-300" />
             </div>
           )}
-          <div className={`${isAutoHeight ? 'overflow-y-auto' : 'flex-1 overflow-y-auto'}`}>
+          <div
+            className={`overscroll-contain pb-[env(safe-area-inset-bottom)] ${isAutoHeight ? 'overflow-y-auto' : 'flex-1 overflow-y-auto'}`}
+          >
             {typeof children === 'function' ? children(handleClose) : children}
           </div>
         </div>

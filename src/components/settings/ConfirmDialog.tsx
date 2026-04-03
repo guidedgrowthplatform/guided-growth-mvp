@@ -46,7 +46,7 @@ export function ConfirmDialog({
         onClick={() => handleClose(false)}
       />
       <div
-        className={`relative w-full max-w-sm rounded-3xl bg-surface p-6 shadow-xl transition-all duration-200 ${
+        className={`relative mx-6 w-full rounded-3xl bg-surface p-6 shadow-xl transition-all duration-200 ${
           visible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
         }`}
       >

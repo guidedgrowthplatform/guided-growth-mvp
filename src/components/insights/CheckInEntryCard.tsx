@@ -58,7 +58,7 @@ function EntryMenu({ anchorEl, onClose }: { anchorEl: HTMLButtonElement; onClose
             e.stopPropagation();
             onClose();
           }}
-          className={`flex w-full items-center gap-2.5 px-3 py-2 text-[13px] font-medium transition-colors hover:bg-surface-secondary ${
+          className={`flex w-full items-center gap-2.5 px-3 py-2 text-[13px] font-medium transition-colors hover:bg-surface-secondary active:bg-surface-secondary ${
             item.danger ? 'text-danger' : 'text-content-subtle'
           }`}
         >

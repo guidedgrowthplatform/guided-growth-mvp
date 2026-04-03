@@ -31,7 +31,7 @@ export function AdvancedInputPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-secondary px-[24px] pb-[32px] pt-[max(16px,env(safe-area-inset-top))]">
+    <div className="flex min-h-dvh flex-col bg-surface-secondary px-6 pb-[32px] pt-[max(16px,env(safe-area-inset-top))]">
       <button
         type="button"
         onClick={() => navigate('/onboarding/step-2')}

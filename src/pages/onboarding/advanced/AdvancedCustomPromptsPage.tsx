@@ -44,7 +44,7 @@ export function AdvancedCustomPromptsPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-secondary p-[24px]">
+    <div className="flex min-h-dvh flex-col bg-surface-secondary px-6 py-6">
       {/* Back Arrow */}
       <div className="pb-[32px]">
         <button

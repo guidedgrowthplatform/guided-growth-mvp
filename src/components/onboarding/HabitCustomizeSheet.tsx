@@ -33,7 +33,7 @@ export function HabitCustomizeSheet({
   }
 
   return (
-    <div className="flex flex-col gap-[32px] px-[32px] pb-[40px] pt-[32px]">
+    <div className="flex flex-col gap-[32px] px-6 pb-[40px] pt-[32px]">
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-[4px]">
           <h3 className="text-[16px] font-bold leading-[24px] text-content">{habitName}</h3>

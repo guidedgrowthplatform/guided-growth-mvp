@@ -8,7 +8,6 @@ import { BottomNav } from './BottomNav';
 export function Layout({ children }: { children: ReactNode }) {
   const [showVoiceCheckIn, setShowVoiceCheckIn] = useState(false);
   const location = useLocation();
-  const isHomePage = location.pathname === '/' || location.pathname === '/home';
   const isFullWidth = location.pathname === '/report' || location.pathname === '/focus';
 
   const handleVoicePress = useCallback(() => {
@@ -18,13 +17,11 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-dvh">
-      <main className="flex-1">
+      <main className="min-w-0 flex-1">
         {isFullWidth ? (
           children
         ) : (
-          <div
-            className={`mx-auto max-w-sm px-4 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-6 lg:pt-6 ${isHomePage ? 'pt-4' : 'pt-6'}`}
-          >
+          <div className="px-6 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
             {children}
           </div>
         )}

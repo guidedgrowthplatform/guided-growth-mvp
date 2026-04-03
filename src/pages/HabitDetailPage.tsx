@@ -47,7 +47,11 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
 
   if (isLoading) {
     return (
-      <BottomSheet onClose={onClose} topOffset="top-4" showHandle={false}>
+      <BottomSheet
+        onClose={onClose}
+        topOffset="top-[max(1rem,env(safe-area-inset-top))]"
+        showHandle={false}
+      >
         {(close) => (
           <>
             <HabitDetailTopBar onClose={close} />
@@ -62,7 +66,11 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
 
   if (error || !habit) {
     return (
-      <BottomSheet onClose={onClose} topOffset="top-4" showHandle={false}>
+      <BottomSheet
+        onClose={onClose}
+        topOffset="top-[max(1rem,env(safe-area-inset-top))]"
+        showHandle={false}
+      >
         {(close) => (
           <>
             <HabitDetailTopBar onClose={close} />
@@ -78,13 +86,22 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
   const milestones = buildMilestones(stats.totalRepetitions);
 
   return (
-    <BottomSheet onClose={onClose} topOffset="top-4" showHandle={false}>
+    <BottomSheet
+      onClose={onClose}
+      topOffset="top-[max(1rem,env(safe-area-inset-top))]"
+      showHandle={false}
+    >
       {(close) => (
         <>
           <HabitDetailTopBar onClose={close} />
-          <div className="flex flex-col gap-8 px-6 pb-24">
-            <HabitDetailTitle name={habit.name} description={`Tracked since ${stats.sinceDate}`} />
-            <DaySchedulePills activeDays={activeDays} frequencyLabel={frequencyLabel} />
+          <div className="flex flex-col gap-5 px-6 pb-6">
+            <div className="flex flex-col gap-3">
+              <HabitDetailTitle
+                name={habit.name}
+                description={`Tracked since ${stats.sinceDate}`}
+              />
+              <DaySchedulePills activeDays={activeDays} frequencyLabel={frequencyLabel} />
+            </div>
             <StreakCard
               currentStreak={stats.currentStreak}
               calendarMonth={calendarMonth}

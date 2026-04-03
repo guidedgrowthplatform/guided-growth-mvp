@@ -123,7 +123,7 @@ export function AdvancedResultsPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-surface-secondary">
       {/* Top Nav */}
-      <div className="px-[24px] pt-[max(16px,env(safe-area-inset-top))]">
+      <div className="px-6 pt-[max(16px,env(safe-area-inset-top))]">
         <button
           type="button"
           onClick={() => navigate('/onboarding/advanced-input')}
@@ -135,7 +135,7 @@ export function AdvancedResultsPage() {
       </div>
 
       {/* Header */}
-      <div className="flex flex-col gap-[11px] px-[24px]">
+      <div className="flex flex-col gap-[11px] px-6">
         <h1 className="text-[32px] font-bold leading-[40px] tracking-[-0.8px] text-content">
           We organized this for you
         </h1>
@@ -145,7 +145,7 @@ export function AdvancedResultsPage() {
       </div>
 
       {/* Habit Cards */}
-      <div className="flex flex-1 flex-col gap-[16px] overflow-y-auto px-[24px] pt-[24px]">
+      <div className="flex flex-1 flex-col gap-[16px] overflow-y-auto px-6 pt-[24px]">
         {habits.map((habit, i) => (
           <HabitSummaryCard
             key={i}
@@ -168,7 +168,7 @@ export function AdvancedResultsPage() {
       </div>
 
       {/* Footer */}
-      <div className="flex flex-col items-center gap-[16px] px-[24px] pb-[40px] pt-[32px]">
+      <div className="flex flex-col items-center gap-[16px] px-6 pb-[40px] pt-[32px]">
         <button
           type="button"
           onClick={handleConfirm}
