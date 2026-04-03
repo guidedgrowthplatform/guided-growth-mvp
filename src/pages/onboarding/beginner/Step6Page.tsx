@@ -13,6 +13,7 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { Sentry } from '@/lib/sentry';
 
 const SCHEDULE_DAYS: Record<ScheduleOption, Set<number>> = {
   Weekday: WEEKDAYS,
@@ -102,23 +103,38 @@ export function Step6Page() {
   }, []);
 
   const handleOnNext = useCallback(async () => {
-    const serializedConfigs = state?.habitConfigs
-      ? Object.fromEntries(
-          Object.entries(state.habitConfigs).map(([k, v]) => [
-            k,
-            { ...v, days: v.days instanceof Set ? [...v.days] : v.days },
-          ]),
-        )
-      : undefined;
-    await saveStepAsync(6, { reflectionConfig: { time, days: [...days], reminder, schedule } });
-    navigate('/onboarding/step-7', {
-      state: {
-        habitConfigs: serializedConfigs,
-        goals: state?.goals,
-        category: state?.category,
-        reflectionConfig: { time, days: [...days], reminder, schedule },
-      },
-    });
+    try {
+      if (!state?.habitConfigs) {
+        throw new Error(
+          'Step6: habitConfigs missing from navigation state — previous steps did not pass data forward',
+        );
+      }
+      const serializedConfigs = Object.fromEntries(
+        Object.entries(state.habitConfigs).map(([k, v]) => [
+          k,
+          { ...v, days: v.days instanceof Set ? [...v.days] : v.days },
+        ]),
+      );
+      await saveStepAsync(6, { reflectionConfig: { time, days: [...days], reminder, schedule } });
+      navigate('/onboarding/step-7', {
+        state: {
+          habitConfigs: serializedConfigs,
+          goals: state?.goals,
+          category: state?.category,
+          reflectionConfig: { time, days: [...days], reminder, schedule },
+        },
+      });
+    } catch (err) {
+      Sentry.captureException(err, {
+        tags: { flow: 'onboarding', step: '6' },
+        extra: {
+          hasHabitConfigs: !!state?.habitConfigs,
+          hasGoals: !!state?.goals,
+          hasCategory: !!state?.category,
+        },
+      });
+      throw err;
+    }
   }, [state, time, days, reminder, schedule, navigate, saveStepAsync]);
 
   return (

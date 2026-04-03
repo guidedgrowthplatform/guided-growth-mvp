@@ -5,6 +5,7 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { Sentry } from '@/lib/sentry';
 const CATEGORY_ICONS: Record<string, string> = {
   Sleep: 'ic:outline-nightlight-round',
   Move: 'ic:outline-directions-run',
@@ -41,6 +42,15 @@ export function PlanReviewPage() {
   }, [state, complete]);
 
   if (!state?.habitConfigs || !state?.reflectionConfig) {
+    Sentry.captureMessage('PlanReviewPage: missing state — redirecting to /onboarding', {
+      level: 'error',
+      tags: { flow: 'onboarding', step: '7-planreview' },
+      extra: {
+        hasHabitConfigs: !!state?.habitConfigs,
+        hasReflectionConfig: !!state?.reflectionConfig,
+        hasState: !!state,
+      },
+    });
     return <Navigate to="/onboarding" replace />;
   }
 
