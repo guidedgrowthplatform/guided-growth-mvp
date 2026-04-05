@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export interface OnboardingStepContext {
   step: number;
@@ -46,9 +47,22 @@ export function useOnboardingVoice() {
       }
 
       try {
+        // Get auth token for production API calls
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            headers['Authorization'] = `Bearer ${session.access_token}`;
+          }
+        } catch {
+          /* continue without auth */
+        }
+
         const response = await fetch(`${getApiBase()}/api/process-command`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             transcript,
             onboarding_context: {
