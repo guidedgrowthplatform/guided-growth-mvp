@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { queryKeys } from '@/lib/query';
@@ -20,6 +21,14 @@ async function getDispatcher(): Promise<ActionDispatcher> {
 }
 
 const MUTATION_ACTIONS = new Set(['create', 'complete', 'delete', 'update', 'log', 'checkin']);
+
+function getApiBase(): string {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (Capacitor.isNativePlatform()) {
+    console.error('[VoiceCommand] VITE_API_URL not set — API calls will fail on native');
+  }
+  return '';
+}
 
 export function localParse(transcript: string): {
   action: string;
@@ -238,7 +247,7 @@ export function useVoiceCommand() {
           const habits = await ds.getHabits().catch(() => []);
           const existingHabits = habits.map((h: { name: string }) => h.name);
 
-          const response = await fetch('/api/process-command', {
+          const response = await fetch(`${getApiBase()}/api/process-command`, {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },

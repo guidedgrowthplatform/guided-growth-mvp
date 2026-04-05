@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { useCallback } from 'react';
 
 export interface OnboardingStepContext {
@@ -19,6 +20,15 @@ export interface OnboardingVoiceResult {
  * Hook for processing transcripts in onboarding steps.
  * Calls /api/process-command with onboarding-specific context.
  */
+
+function getApiBase(): string {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (Capacitor.isNativePlatform()) {
+    console.error('[OnboardingVoice] VITE_API_URL not set — API calls will fail on native');
+  }
+  return '';
+}
+
 export function useOnboardingVoice() {
   const processTranscript = useCallback(
     async (
@@ -36,7 +46,7 @@ export function useOnboardingVoice() {
       }
 
       try {
-        const response = await fetch('/api/process-command', {
+        const response = await fetch(`${getApiBase()}/api/process-command`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -1,4 +1,13 @@
 // Server-side proxy at /api/elevenlabs-stt keeps API key secure
+import { Capacitor } from '@capacitor/core';
+
+function getApiBase(): string {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (Capacitor.isNativePlatform()) {
+    console.error('[ElevenLabs] VITE_API_URL not set — STT will fail on native');
+  }
+  return '';
+}
 
 export interface ElevenLabsCallbacks {
   onError: (error: string) => void;
@@ -302,7 +311,7 @@ export async function stopAndTranscribe(): Promise<string> {
 
     let res: Response;
     try {
-      res = await fetch('/api/elevenlabs-stt', {
+      res = await fetch(`${getApiBase()}/api/elevenlabs-stt`, {
         method: 'POST',
         credentials: 'include',
         body: form,
