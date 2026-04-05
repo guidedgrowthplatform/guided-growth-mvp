@@ -18,7 +18,8 @@ const PLIST_PATH = resolve('ios/App/App/Info.plist');
 const PATCHES = [
   {
     key: 'NSMicrophoneUsageDescription',
-    value: 'Guided Growth uses your microphone for voice commands to manage habits, log metrics, and record reflections hands-free.',
+    value:
+      'Guided Growth uses your microphone for voice commands to manage habits, log metrics, and record reflections hands-free.',
   },
 ];
 
