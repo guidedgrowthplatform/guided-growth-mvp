@@ -1,4 +1,29 @@
 // Server-side proxy at /api/elevenlabs-stt keeps API key secure
+import { Capacitor } from '@capacitor/core';
+import { supabase } from '@/lib/supabase';
+
+function getApiBase(): string {
+  if (Capacitor.isNativePlatform()) {
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+    console.error('[ElevenLabs] VITE_API_URL not set — STT will fail on native');
+  }
+  return '';
+}
+
+/** Get auth headers for API calls — required in production where AUTH_BYPASS_MODE is disabled */
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      return { Authorization: `Bearer ${session.access_token}` };
+    }
+  } catch {
+    // Continue without auth
+  }
+  return {};
+}
 
 export interface ElevenLabsCallbacks {
   onError: (error: string) => void;
@@ -300,11 +325,13 @@ export async function stopAndTranscribe(): Promise<string> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
+    const authHeaders = await getAuthHeaders();
+
     let res: Response;
     try {
-      res = await fetch('/api/elevenlabs-stt', {
+      res = await fetch(`${getApiBase()}/api/elevenlabs-stt`, {
         method: 'POST',
-        credentials: 'include',
+        headers: authHeaders,
         body: form,
         signal: controller.signal,
       });

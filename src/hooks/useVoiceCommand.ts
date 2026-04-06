@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { queryKeys } from '@/lib/query';
@@ -5,6 +6,7 @@ import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { haptic } from '@/lib/services/haptic-service';
 import { getDataService } from '@/lib/services/service-provider';
 import { speakPreAck, speak } from '@/lib/services/tts-service';
+import { supabase } from '@/lib/supabase';
 import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 
@@ -20,6 +22,14 @@ async function getDispatcher(): Promise<ActionDispatcher> {
 }
 
 const MUTATION_ACTIONS = new Set(['create', 'complete', 'delete', 'update', 'log', 'checkin']);
+
+function getApiBase(): string {
+  if (Capacitor.isNativePlatform()) {
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+    console.error('[VoiceCommand] VITE_API_URL not set — API calls will fail on native');
+  }
+  return '';
+}
 
 export function localParse(transcript: string): {
   action: string;
@@ -238,10 +248,22 @@ export function useVoiceCommand() {
           const habits = await ds.getHabits().catch(() => []);
           const existingHabits = habits.map((h: { name: string }) => h.name);
 
-          const response = await fetch('/api/process-command', {
+          // Get auth token for production API calls
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          try {
+            const {
+              data: { session },
+            } = await supabase.auth.getSession();
+            if (session?.access_token) {
+              headers['Authorization'] = `Bearer ${session.access_token}`;
+            }
+          } catch {
+            /* continue without auth */
+          }
+
+          const response = await fetch(`${getApiBase()}/api/process-command`, {
             method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ transcript, existingHabits }),
           });
 
