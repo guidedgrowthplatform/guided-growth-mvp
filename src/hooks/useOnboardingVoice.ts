@@ -23,8 +23,8 @@ export interface OnboardingVoiceResult {
  */
 
 function getApiBase(): string {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (Capacitor.isNativePlatform()) {
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     console.error('[OnboardingVoice] VITE_API_URL not set — API calls will fail on native');
   }
   return '';

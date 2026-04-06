@@ -24,8 +24,8 @@ async function getDispatcher(): Promise<ActionDispatcher> {
 const MUTATION_ACTIONS = new Set(['create', 'complete', 'delete', 'update', 'log', 'checkin']);
 
 function getApiBase(): string {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (Capacitor.isNativePlatform()) {
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     console.error('[VoiceCommand] VITE_API_URL not set — API calls will fail on native');
   }
   return '';

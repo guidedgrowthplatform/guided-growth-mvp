@@ -3,8 +3,8 @@ import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
 
 function getApiBase(): string {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (Capacitor.isNativePlatform()) {
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     console.error('[ElevenLabs] VITE_API_URL not set — STT will fail on native');
   }
   return '';

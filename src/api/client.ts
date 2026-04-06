@@ -3,8 +3,8 @@ import { Sentry } from '@/lib/sentry';
 import { supabase, sessionReady } from '@/lib/supabase';
 
 const getApiUrl = (): string => {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (Capacitor.isNativePlatform()) {
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     console.error('[API] VITE_API_URL is not set on native platform — API calls will fail');
   }
   return '';
