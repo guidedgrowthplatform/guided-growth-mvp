@@ -25,6 +25,9 @@ export function useVoiceInput() {
   const isStoppingRef = useRef(false);
 
   const start = useCallback(async () => {
+    // Reset stuck state from previous failed session
+    isStoppingRef.current = false;
+
     // Request mic permission first
     let micAllowed = false;
     try {
@@ -55,8 +58,10 @@ export function useVoiceInput() {
     try {
       await startElevenLabs({
         onError: (err) => {
+          console.error('[VoiceInput] ElevenLabs recording error:', err);
           setError(err);
           stopListening();
+          isStoppingRef.current = false;
         },
         onOpen: () => {},
       });
@@ -64,6 +69,7 @@ export function useVoiceInput() {
       console.warn('[VoiceInput] ElevenLabs failed:', err);
       stopListening();
       stopElevenLabs();
+      isStoppingRef.current = false;
       setError(`Microphone failed: ${err instanceof Error ? err.message : err}. Try again.`);
     }
   }, [startListening, stopListening, setError, resetTranscript, setInterim]);
@@ -85,9 +91,18 @@ export function useVoiceInput() {
         }
       })
       .catch((err) => {
+        console.error('[VoiceInput] Transcription error:', err);
         setInterim('');
         resetTranscript();
-        setError(err instanceof Error ? err.message : 'Transcription failed.');
+        const msg = err instanceof Error ? err.message : 'Transcription failed.';
+        // Make API errors user-friendly
+        if (msg.includes('401') || msg.includes('Authentication') || msg.includes('Unauthorized')) {
+          setError('Voice service needs login. Please sign in again.');
+        } else if (msg.includes('too short') || msg.includes('Recording too short')) {
+          setError('Recording too short. Hold the mic button and speak for at least 2 seconds.');
+        } else {
+          setError(msg);
+        }
       })
       .finally(() => {
         isStoppingRef.current = false;

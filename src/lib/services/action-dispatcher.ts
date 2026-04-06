@@ -1,5 +1,24 @@
-import { DAY_NAMES, HABIT_SUGGESTIONS, DEFAULT_SUGGESTION, MSG } from '../config/dispatcher-config';
+import { DAY_NAMES, HABIT_SUGGESTIONS, DEFAULT_SUGGESTION, MSG, COACHING } from '../config/dispatcher-config';
 import type { ActionResult, DataService } from './data-service.interface';
+
+/** Translate raw backend errors into user-friendly messages */
+function friendlyError(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (lower.includes('schema') || lower.includes('column'))
+    return 'Something went wrong with the database. Please try again in a moment.';
+  if (lower.includes('not authenticated') || lower.includes('jwt'))
+    return 'You need to sign in first. Please log in and try again.';
+  if (lower.includes('permission') || lower.includes('policy'))
+    return `You don't have permission to do that. Please sign in again.`;
+  if (lower.includes('duplicate') || lower.includes('unique'))
+    return 'That item already exists. Try a different name.';
+  if (lower.includes('timeout') || lower.includes('network'))
+    return 'Connection issue. Please check your internet and try again.';
+  if (lower.includes('not found'))
+    return `Couldn't find that item. Make sure the name is correct.`;
+  // Keep it short and non-technical for anything else
+  return `Something went wrong. Please try again.`;
+}
 
 interface CommandIntent {
   action: string;
@@ -90,9 +109,12 @@ export class ActionDispatcher {
 
       return result;
     } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      // Translate common backend errors into user-friendly messages
+      const friendly = friendlyError(raw);
       return {
         success: false,
-        message: `Error: ${err instanceof Error ? err.message : String(err)}`,
+        message: friendly,
         uiAction: 'toast',
       };
     }
@@ -103,7 +125,14 @@ export class ActionDispatcher {
     params: Record<string, unknown>,
   ): Promise<ActionResult> {
     const name = String(params.name || '');
-    if (!name) return { success: false, message: 'Missing name for creation', uiAction: 'toast' };
+    if (!name) {
+      // Conversational follow-up per Voice Journey Spreadsheet
+      return {
+        success: false,
+        message: COACHING.askName(entity),
+        uiAction: 'toast',
+      };
+    }
 
     switch (entity) {
       case 'habit': {
@@ -112,7 +141,7 @@ export class ActionDispatcher {
         if (existing) {
           return {
             success: false,
-            message: `${MSG.warning} You already have a habit called "${existing.name}". Try a different name or update the existing one.`,
+            message: COACHING.duplicate(existing.name),
             data: existing,
             uiAction: 'toast',
           };
@@ -122,7 +151,7 @@ export class ActionDispatcher {
         const habit = await this.dataService.createHabit(name, frequency);
         return {
           success: true,
-          message: `${MSG.success} Created habit "${habit.name}" (${frequency})`,
+          message: COACHING.habitCreated(habit.name, frequency),
           data: habit,
           uiAction: 'navigate',
           navigateTo: '/home',
@@ -205,7 +234,7 @@ export class ActionDispatcher {
     await this.dataService.completeHabit(habit.id, date);
     return {
       success: true,
-      message: `${MSG.success} Marked "${habit.name}" done for ${date === todayStr() ? 'today' : date}`,
+      message: COACHING.habitCompleted(habit.name),
       uiAction: 'navigate',
       navigateTo: '/home',
     };
@@ -229,7 +258,7 @@ export class ActionDispatcher {
         await this.dataService.deleteHabit(habit.id);
         return {
           success: true,
-          message: `${MSG.success} Deleted habit "${habit.name}"`,
+          message: COACHING.habitDeleted(habit.name),
           uiAction: 'navigate',
           navigateTo: '/home',
         };
@@ -282,7 +311,7 @@ export class ActionDispatcher {
     );
     return {
       success: true,
-      message: `${MSG.success} Updated habit "${updated.name}"`,
+      message: COACHING.habitUpdated(updated.name),
       data: updated,
       uiAction: 'navigate',
       navigateTo: '/home',
@@ -423,7 +452,7 @@ export class ActionDispatcher {
     const entry = await this.dataService.createJournalEntry(content, mood, themes);
     return {
       success: true,
-      message: `${MSG.journal} Journal entry saved (mood: ${mood})`,
+      message: COACHING.journalSaved(),
       data: entry,
       uiAction: 'toast',
     };
@@ -444,7 +473,7 @@ export class ActionDispatcher {
 
     return {
       success: true,
-      message: `${MSG.suggest} Suggestion: Try "${suggestion}" — say "create a habit called ${suggestion}" to add it!`,
+      message: COACHING.suggestion(suggestion),
       uiAction: 'display',
     };
   }
@@ -471,9 +500,18 @@ export class ActionDispatcher {
     if (energy !== null) parts.push(`energy: ${energy}`);
     if (stress !== null) parts.push(`stress: ${stress}`);
 
+    // Determine time of day for coaching style
+    const hour = new Date().getHours();
+    const partsStr = parts.join(', ');
+    const coachMsg = hour < 12
+      ? COACHING.checkinMorning(partsStr)
+      : hour >= 18
+        ? COACHING.checkinEvening(partsStr)
+        : COACHING.checkinGeneric(partsStr);
+
     return {
       success: true,
-      message: `${MSG.success} Check-in saved (${parts.join(', ')})`,
+      message: coachMsg,
       data: record,
       uiAction: 'toast',
     };
@@ -494,15 +532,13 @@ export class ActionDispatcher {
           uiAction: 'toast',
         };
       }
-      habitId = habit.id;
-      habitLabel = ` on "${habit.name}"`;
-    }
+      habitId = habit.id;    }
 
     await this.dataService.saveFocusSession(habitId, duration, null, new Date().toISOString());
 
     return {
       success: true,
-      message: `${MSG.success} Starting ${duration}-minute focus session${habitLabel}`,
+      message: COACHING.focusStarted(duration, habitName || undefined),
       uiAction: 'navigate',
       navigateTo: '/focus',
     };

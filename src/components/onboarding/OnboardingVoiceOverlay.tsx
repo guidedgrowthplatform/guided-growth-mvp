@@ -36,7 +36,7 @@ export function OnboardingVoiceOverlay({
   onClose,
 }: OnboardingVoiceOverlayProps) {
   const { user } = useAuth();
-  const { isListening, transcript, toggle, error } = useVoiceInput();
+  const { isListening, transcript, toggle, error, resetTranscript } = useVoiceInput();
   const { processTranscript } = useOnboardingVoice();
 
   const [messages, setMessages] = useState<Message[]>(() => [
@@ -44,6 +44,8 @@ export function OnboardingVoiceOverlay({
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
   const lastErrorRef = useRef('');
+  // Track which transcript was already sent for processing to prevent re-fires
+  const processedTranscriptRef = useRef('');
 
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
@@ -67,17 +69,27 @@ export function OnboardingVoiceOverlay({
     if (isListening) {
       toggle();
     }
+    // Clear global transcript so it doesn't leak into parent components
+    resetTranscript();
     onClose();
-  }, [isListening, toggle, onClose]);
+  }, [isListening, toggle, onClose, resetTranscript]);
 
   const handleMicPress = useCallback(() => {
     unlockTTS();
     toggle();
   }, [toggle]);
 
-  // When recording stops and we have a transcript, process it
+  // When recording stops and we have a NEW transcript, process it
   useEffect(() => {
-    if (!isListening && transcript && !isProcessing) {
+    if (
+      !isListening &&
+      transcript &&
+      !isProcessing &&
+      transcript !== processedTranscriptRef.current
+    ) {
+      // Mark this transcript as consumed immediately to prevent re-fires
+      processedTranscriptRef.current = transcript;
+
       // Add user message
       const userMsgId = `user-${Date.now()}`;
       const userMsg: Message = {
@@ -88,6 +100,9 @@ export function OnboardingVoiceOverlay({
 
       setMessages((prev) => [...prev, userMsg]);
       setIsProcessing(true);
+
+      // Clear the global transcript so it doesn't trigger again
+      resetTranscript();
 
       // Process the transcript
       processTranscript(transcript, stepContext)
@@ -132,6 +147,7 @@ export function OnboardingVoiceOverlay({
     processTranscript,
     onAction,
     handleClose,
+    resetTranscript,
   ]);
 
   const handleTouchStart = (e: React.TouchEvent) => {

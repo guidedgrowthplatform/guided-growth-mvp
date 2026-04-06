@@ -1,0 +1,27 @@
+[STARTED] Backing up original state...
+[COMPLETED] Backed up original state in git stash (446ef68)
+[STARTED] Running tasks for staged files...
+[STARTED] package.json ΓÇö 12 files
+[STARTED] *.{ts,tsx} ΓÇö 12 files
+[STARTED] *.{json,md,css,html,yml,yaml} ΓÇö 0 files
+[SKIPPED] *.{json,md,css,html,yml,yaml} ΓÇö no files
+[STARTED] eslint --fix --max-warnings=0
+[FAILED] eslint --fix --max-warnings=0 [FAILED]
+[FAILED] eslint --fix --max-warnings=0 [FAILED]
+[COMPLETED] Running tasks for staged files...
+[STARTED] Applying modifications from tasks...
+[SKIPPED] Skipped because of errors from tasks.
+[STARTED] Reverting to original state because of errors...
+[COMPLETED] Reverting to original state because of errors...
+[STARTED] Cleaning up temporary files...
+[COMPLETED] Cleaning up temporary files...
+
+Γ£û eslint --fix --max-warnings=0:
+
+C:\DATASAID\PAKYAIR\GUIDEDGROWTHMVP\src\lib\services\action-dispatcher.ts
+  536:7  warning  'habitLabel' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+Γ£û 1 problem (0 errors, 1 warning)
+
+ESLint found too many warnings (maximum: 0).
+husky - pre-commit script failed (code 1)

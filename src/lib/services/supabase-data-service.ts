@@ -54,7 +54,6 @@ export class SupabaseDataService implements DataService {
                 : frequency === 'weekdays'
                   ? 'weekdays'
                   : 'daily',
-        daily_goal: 1,
         is_active: true,
         sort_order: 9999, // Put new habits at end; reorder will fix
       })
@@ -453,14 +452,21 @@ export class SupabaseDataService implements DataService {
     const userId = getCurrentUserId();
 
     // Encrypt content before storing (client-side encryption for privacy)
-    const encryptedContent = await encryptJournal(content, userId);
+    // Fallback to plaintext if crypto.subtle is unavailable (e.g., insecure context)
+    let storedContent: string;
+    try {
+      storedContent = await encryptJournal(content, userId);
+    } catch (err) {
+      console.warn('[Journal] Encryption failed, storing plaintext:', err);
+      storedContent = content;
+    }
 
     const { data, error } = await supabase
       .from('journal_entries')
       .insert({
         user_id: userId,
         date: todayStr(),
-        response: encryptedContent,
+        response: storedContent,
         prompt: themes?.join(', ') || null,
         input_mode: 'text',
       })

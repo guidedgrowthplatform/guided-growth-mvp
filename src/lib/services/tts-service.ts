@@ -1,6 +1,125 @@
+import { Capacitor } from '@capacitor/core';
+import { supabase } from '@/lib/supabase';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 const VOICE_PREF_KEY = 'mvp03_tts_voice';
+
+// ─── ElevenLabs Voice IDs ───────────────────────────────────────────────────
+// Per Voice Journey Spreadsheet: user selects Male or Female on splash screen
+export type VoiceGender = 'male' | 'female';
+
+const ELEVENLABS_VOICES: Record<VoiceGender, { id: string; name: string }> = {
+  male: { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam' },     // Adam — calm, natural male
+  female: { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah' },  // Sarah — natural female
+};
+
+const VOICE_GENDER_KEY = 'guided_growth_voice_gender';
+
+/** Get the user's selected voice gender (defaults to male) */
+export function getVoiceGender(): VoiceGender {
+  try {
+    const saved = localStorage.getItem(VOICE_GENDER_KEY);
+    if (saved === 'female') return 'female';
+  } catch { /* ignore */ }
+  return 'male';
+}
+
+/** Set the user's voice gender preference */
+export function setVoiceGender(gender: VoiceGender): void {
+  try {
+    localStorage.setItem(VOICE_GENDER_KEY, gender);
+  } catch { /* ignore */ }
+}
+
+/** Get ElevenLabs voice ID for the user's selected gender */
+function getElevenLabsVoiceId(): string {
+  const gender = getVoiceGender();
+  return ELEVENLABS_VOICES[gender].id;
+}
+
+// ─── ElevenLabs TTS (primary) ───────────────────────────────────────────────
+
+function getApiBase(): string {
+  if (Capacitor.isNativePlatform()) {
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+    console.error('[TTS] VITE_API_URL not set — ElevenLabs TTS will fail on native');
+  }
+  return '';
+}
+
+/** Get auth headers for the TTS proxy */
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      return { Authorization: `Bearer ${session.access_token}` };
+    }
+  } catch {
+    // Continue without auth
+  }
+  return {};
+}
+
+// Track whether ElevenLabs TTS is available (disabled on quota exceeded)
+let elevenLabsTtsAvailable = true;
+
+/**
+ * Speak text using ElevenLabs TTS API (natural voice).
+ * Returns true if audio played successfully, false if should fall back.
+ */
+async function speakElevenLabs(text: string, volume: number): Promise<boolean> {
+  if (!elevenLabsTtsAvailable) return false;
+
+  try {
+    const authHeaders = await getAuthHeaders();
+    const voiceId = getElevenLabsVoiceId();
+    const res = await fetch(`${getApiBase()}/api/elevenlabs-tts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders,
+      },
+      body: JSON.stringify({ text, voice_id: voiceId }),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      // If quota exceeded or unauthorized, disable ElevenLabs TTS for this session
+      if (data.fallback || res.status === 429 || res.status === 401) {
+        console.warn('[TTS] ElevenLabs quota exceeded — falling back to browser TTS');
+        elevenLabsTtsAvailable = false;
+      }
+      return false;
+    }
+
+    const audioBlob = await res.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    audio.volume = volume;
+
+    await new Promise<void>((resolve, reject) => {
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        resolve();
+      };
+      audio.onerror = (e) => {
+        URL.revokeObjectURL(audioUrl);
+        reject(e);
+      };
+      audio.play().catch(reject);
+    });
+
+    return true;
+  } catch (err) {
+    console.warn('[TTS] ElevenLabs TTS failed, falling back:', err);
+    return false;
+  }
+}
+
+// ─── Browser SpeechSynthesis (fallback) ─────────────────────────────────────
 
 // Preferred voices ranked by quality (natural-sounding, pleasant)
 const PREFERRED_VOICES = [
@@ -89,22 +208,17 @@ export function unlockTTS(): void {
   ttsUnlocked = true;
 }
 
-/** Speak text aloud using the selected pleasant voice */
-export function speak(
+/** Speak using browser SpeechSynthesis (fallback) */
+function speakBrowser(
   text: string,
   options?: { rate?: number; pitch?: number; volume?: number },
 ): void {
   if (!('speechSynthesis' in window)) return;
-  // Check if TTS is enabled
-  const { ttsEnabled } = useVoiceSettingsStore.getState();
-  if (!ttsEnabled) return;
-  const clean = cleanText(text);
-  if (!clean) return;
 
   // iOS workaround: cancel any stuck synthesis before speaking
   window.speechSynthesis.cancel();
 
-  const utterance = new SpeechSynthesisUtterance(clean);
+  const utterance = new SpeechSynthesisUtterance(text);
   const voice = getSelectedVoice();
   if (voice) utterance.voice = voice;
 
@@ -137,16 +251,45 @@ export function speak(
   }, 5000);
 }
 
-/** Pre-acknowledgment messages based on action type */
+// ─── Public API ─────────────────────────────────────────────────────────────
+
+/**
+ * Speak text aloud — tries ElevenLabs first for natural voice,
+ * falls back to browser SpeechSynthesis if unavailable.
+ */
+export function speak(
+  text: string,
+  options?: { rate?: number; pitch?: number; volume?: number },
+): void {
+  // Check if TTS is enabled
+  const { ttsEnabled } = useVoiceSettingsStore.getState();
+  if (!ttsEnabled) return;
+  const clean = cleanText(text);
+  if (!clean) return;
+
+  const volume = options?.volume ?? 0.85;
+
+  // Try ElevenLabs first (async, fire-and-forget with fallback)
+  speakElevenLabs(clean, volume).then((success) => {
+    if (!success) {
+      // Fall back to browser TTS
+      speakBrowser(clean, options);
+    }
+  });
+}
+
+/** Pre-acknowledgment messages — warm, concise, coaching-style */
 const PRE_ACK_MESSAGES: Record<string, (params: Record<string, unknown>) => string> = {
-  complete: (p) => `OK, marking ${p.name || 'that'} done`,
-  create: (p) => `OK, creating ${p.name || 'that'}`,
-  delete: (p) => `OK, deleting ${p.name || 'that'}`,
-  log: (p) => `OK, logging ${p.name || 'that'}`,
-  query: (p) => `OK, let me look up ${p.name || 'your data'}`,
-  reflect: () => `OK, saving your reflection`,
-  suggest: () => `OK, let me think of a suggestion`,
-  update: (p) => `OK, updating ${p.name || 'that'}`,
+  complete: () => `Got it.`,
+  create: (p) => `Setting up ${p.name || 'that'}.`,
+  delete: () => `On it.`,
+  log: () => `Got it.`,
+  query: () => `Let me check.`,
+  reflect: () => `I hear you.`,
+  suggest: () => `Let me think.`,
+  update: () => `Updating now.`,
+  checkin: () => `Got it.`,
+  focus: () => `Let's go.`,
 };
 
 /** Speak a short pre-acknowledgment before the actual action runs */

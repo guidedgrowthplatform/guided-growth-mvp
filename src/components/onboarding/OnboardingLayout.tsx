@@ -47,7 +47,7 @@ export function OnboardingLayout({
   onVoiceAction,
   showTooltip = false,
 }: OnboardingLayoutProps) {
-  const { isListening, toggle, transcript, interim, error } = useVoiceInput();
+  const { isListening, toggle, transcript, interim, error, resetTranscript } = useVoiceInput();
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
@@ -65,6 +65,8 @@ export function OnboardingLayout({
   const handleMicClick = () => {
     // If we have onVoiceAction, use the new overlay-based flow
     if (onVoiceAction && voiceOptions.length > 0) {
+      // Clear any stale transcript before opening overlay
+      resetTranscript();
       setOverlayOpen(true);
       setTooltipVisible(false);
       // Mark tooltip as seen
@@ -178,7 +180,7 @@ export function OnboardingLayout({
         </>
       ) : (
         <div className="relative -mx-6 -mb-12 bg-gradient-to-t from-surface-secondary via-surface-secondary to-transparent px-6 pb-[40px] pt-[24px]">
-          {aiListeningPrompt && (
+          {aiListeningPrompt && !overlayOpen && (
             <div className="absolute bottom-full right-[24px] z-10 mb-[-8px]">
               <AiListeningTooltip
                 text={transcript || aiListeningPrompt}
@@ -212,7 +214,7 @@ export function OnboardingLayout({
               </button>
             )}
           </div>
-          {(transcript || interim || error) && showVoiceButton && !onVoiceAction && (
+          {(transcript || interim || error) && showVoiceButton && !onVoiceAction && !overlayOpen && (
             <div className="mt-[8px] flex flex-col items-center gap-1">
               {interim && <p className="text-xs text-content-secondary">{interim}</p>}
               {transcript && (

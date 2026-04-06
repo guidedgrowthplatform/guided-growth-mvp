@@ -616,7 +616,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     : SYSTEM_PROMPT + habitContext;
 
   // Scrub PII from transcript before sending to OpenAI
-  const sanitizedTranscript = scrubPII(transcript);
+  // EXCEPTION: onboarding Step 1 needs the user's real name, so skip scrubbing for onboarding
+  const sanitizedTranscript = isOnboarding ? transcript : scrubPII(transcript);
 
   try {
     const startTime = Date.now();
