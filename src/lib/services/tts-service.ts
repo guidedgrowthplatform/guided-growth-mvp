@@ -21,7 +21,7 @@ export function getVoiceGender(): VoiceGender {
     const saved = localStorage.getItem(VOICE_GENDER_KEY);
     if (saved === 'female') return 'female';
   } catch { /* ignore */ }
-  return 'male';
+  return 'female';
 }
 
 /** Set the user's voice gender preference */
@@ -65,6 +65,30 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 // Track whether ElevenLabs TTS is available (disabled on quota exceeded)
 let elevenLabsTtsAvailable = true;
 
+// Track current playing audio so we can stop it
+let currentAudio: HTMLAudioElement | null = null;
+// Abort controller for in-flight TTS requests
+let currentTtsAbort: AbortController | null = null;
+
+/** Stop any currently playing TTS audio immediately */
+export function stopTTS(): void {
+  // Cancel in-flight TTS fetch request
+  if (currentTtsAbort) {
+    currentTtsAbort.abort();
+    currentTtsAbort = null;
+  }
+  // Stop playing audio
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio = null;
+  }
+  // Stop browser speechSynthesis too (just in case)
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+}
+
 /**
  * Speak text using ElevenLabs TTS API (natural voice).
  * Returns true if audio played successfully, false if should fall back.
@@ -73,8 +97,14 @@ async function speakElevenLabs(text: string, volume: number): Promise<boolean> {
   if (!elevenLabsTtsAvailable) return false;
 
   try {
-    const authHeaders = await getAuthHeaders();
     const voiceId = getElevenLabsVoiceId();
+    const authHeaders = await getAuthHeaders();
+
+    // Create abort controller so stopTTS() can cancel in-flight requests
+    const abortController = new AbortController();
+    currentTtsAbort = abortController;
+
+    // Call proxy — in dev, Vite middleware handles it; in production, Vercel serverless
     const res = await fetch(`${getApiBase()}/api/elevenlabs-tts`, {
       method: 'POST',
       headers: {
@@ -82,14 +112,12 @@ async function speakElevenLabs(text: string, volume: number): Promise<boolean> {
         ...authHeaders,
       },
       body: JSON.stringify({ text, voice_id: voiceId }),
-      signal: AbortSignal.timeout(10000),
+      signal: abortController.signal,
     });
 
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      // If quota exceeded or unauthorized, disable ElevenLabs TTS for this session
-      if (data.fallback || res.status === 429 || res.status === 401) {
-        console.warn('[TTS] ElevenLabs quota exceeded — falling back to browser TTS');
+      console.error('[TTS] ElevenLabs proxy error:', res.status);
+      if (res.status === 429 || res.status === 401) {
         elevenLabsTtsAvailable = false;
       }
       return false;
@@ -99,10 +127,12 @@ async function speakElevenLabs(text: string, volume: number): Promise<boolean> {
     const audioUrl = URL.createObjectURL(audioBlob);
     const audio = new Audio(audioUrl);
     audio.volume = volume;
+    currentAudio = audio;
 
     await new Promise<void>((resolve, reject) => {
       audio.onended = () => {
         URL.revokeObjectURL(audioUrl);
+        currentAudio = null;
         resolve();
       };
       audio.onerror = (e) => {
@@ -114,7 +144,16 @@ async function speakElevenLabs(text: string, volume: number): Promise<boolean> {
 
     return true;
   } catch (err) {
-    console.warn('[TTS] ElevenLabs TTS failed, falling back:', err);
+    // AbortError is expected when user interrupts TTS — don't log as error
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      console.log('[TTS] Stopped (user interrupted)');
+      return true; // Not a failure — intentional stop
+    }
+    if (err instanceof Error && err.name === 'AbortError') {
+      console.log('[TTS] Stopped (user interrupted)');
+      return true;
+    }
+    console.error('[TTS] ElevenLabs TTS failed:', err);
     return false;
   }
 }
@@ -254,8 +293,8 @@ function speakBrowser(
 // ─── Public API ─────────────────────────────────────────────────────────────
 
 /**
- * Speak text aloud — tries ElevenLabs first for natural voice,
- * falls back to browser SpeechSynthesis if unavailable.
+ * Speak text aloud using ElevenLabs TTS (natural voice).
+ * ElevenLabs is the ONLY TTS provider — no browser fallback.
  */
 export function speak(
   text: string,
@@ -269,11 +308,10 @@ export function speak(
 
   const volume = options?.volume ?? 0.85;
 
-  // Try ElevenLabs first (async, fire-and-forget with fallback)
+  // ElevenLabs only — no browser fallback
   speakElevenLabs(clean, volume).then((success) => {
     if (!success) {
-      // Fall back to browser TTS
-      speakBrowser(clean, options);
+      console.error('[TTS] ElevenLabs failed — no audio will play. Check API key and quota.');
     }
   });
 }

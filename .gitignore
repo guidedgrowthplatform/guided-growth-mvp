@@ -108,3 +108,11 @@ vendor/bundle/
 
 playwright-report/
 test-results/
+
+# Test / scratch files (dev only)
+test_phase_1.txt
+api_test.txt
+voices.txt
+tts_curl.mp3
+tts_output.mp3
+*.mp3

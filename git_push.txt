@@ -1,0 +1,6 @@
+remote: 
+remote: To create a merge request for fix/voice-mobile-platform, visit:        
+remote:   https://gitlab.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/new?merge_request%5Bsource_branch%5D=fix%2Fvoice-mobile-platform        
+remote: 
+To https://gitlab.com/guidedgrowth-group/guided-growth-mvp.git
+ * [new branch]      fix/voice-mobile-platform -> fix/voice-mobile-platform

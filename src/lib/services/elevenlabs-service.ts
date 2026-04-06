@@ -339,9 +339,9 @@ export async function stopAndTranscribe(): Promise<string> {
       clearTimeout(timeoutId);
       const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
       if (msg.includes('abort')) {
-        throw new Error('Transcription timed out. Try again.');
+        throw new Error("Hmm, I didn't catch that in time. Try saying it again?");
       }
-      throw new Error('Voice API unavailable. Deploy to Vercel or run vercel dev.');
+      throw new Error("Couldn't connect right now. Try again in a moment.");
     } finally {
       clearTimeout(timeoutId);
     }

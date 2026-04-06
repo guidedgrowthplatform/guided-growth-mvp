@@ -70,9 +70,8 @@ export function Step1Page() {
       onNext={handleNext}
       ctaDisabled={!nickname.trim() || !ageRange || !gender}
       showVoiceButton
-      onTranscript={(text) => setNickname(text)}
       voiceOptions={[...AGE_OPTIONS, ...GENDER_OPTIONS, 'name', 'nickname']}
-      voicePrompt="What's your name, age range, and how do you identify?"
+      voicePrompt="Hey — welcome. Before we build anything, I just want to get to know you a little. What should I call you? And how old are you? You can just say it or type it in."
       onVoiceAction={handleVoiceAction}
       showTooltip
     >
