@@ -19,6 +19,7 @@
     "format:check": "prettier --check .",
     "type-check": "tsc --noEmit",
     "prepare": "husky",
+    "cap:local": "VITE_API_URL=http://$(ipconfig getifaddr en0):3000 npm run build && npx cap sync ios",
     "cap:sync": "npx cap sync ios",
     "cap:sync:android": "npx cap sync android",
     "cap:sync:all": "npx cap sync ios && npx cap sync android",

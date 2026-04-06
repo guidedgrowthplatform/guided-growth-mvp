@@ -139,14 +139,15 @@ export function SettingsPage() {
     try {
       await deleteAccount();
       localStorage.clear();
+      sessionStorage.clear();
       await signOut();
-      navigate('/login');
+      window.location.href = '/login';
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete account';
       addToast('error', msg);
       setIsDeletingAccount(false);
     }
-  }, [signOut, addToast, navigate]);
+  }, [signOut, addToast]);
 
   // Lookup labels
   const coachingLabel =
@@ -162,7 +163,7 @@ export function SettingsPage() {
   const displayName = fullName ?? email.split('@')[0] ?? 'User';
 
   return (
-    <div className="pb-[calc(8rem+env(safe-area-inset-bottom))]">
+    <div>
       <SettingsHeader onBack={() => navigate(-1)} />
 
       <UserInfoSection

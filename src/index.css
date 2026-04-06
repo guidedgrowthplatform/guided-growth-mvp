@@ -46,6 +46,28 @@ input[type='password']::placeholder {
   letter-spacing: normal;
 }
 
+/* Native app feel */
+* {
+  touch-action: pan-x pan-y;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+select {
+  touch-action: manipulation;
+}
+
+button,
+a,
+nav,
+img,
+label {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 html,
 body {
   overscroll-behavior: none;
@@ -70,8 +92,16 @@ body {
 
 #root {
   height: 100dvh;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Contain overscroll on scroll containers */
+.overflow-y-auto,
+.overflow-y-scroll {
+  overscroll-behavior-y: contain;
 }
 
 /* Global rounded scrollbars */

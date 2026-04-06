@@ -87,7 +87,7 @@ export function OnboardingLayout({
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-primary-bg px-[24px] pb-[48px] pt-[max(16px,env(safe-area-inset-top))]">
+    <div className="flex min-h-dvh flex-col bg-surface-secondary px-6 pb-[48px] pt-[max(16px,env(safe-area-inset-top))]">
       {overlayOpen && (
         <OnboardingVoiceOverlay
           stepContext={{
@@ -104,7 +104,7 @@ export function OnboardingLayout({
         <button
           type="button"
           onClick={onBack}
-          className="mb-2 flex size-[40px] items-center justify-center rounded-full"
+          className="mb-2 flex h-10 w-10 items-center justify-center rounded-2xl bg-surface shadow-card"
         >
           <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-content" />
         </button>
@@ -177,7 +177,7 @@ export function OnboardingLayout({
           )}
         </>
       ) : (
-        <div className="relative -mx-[24px] -mb-[48px] bg-gradient-to-t from-surface-secondary via-surface-secondary to-transparent px-[24px] pb-[40px] pt-[24px]">
+        <div className="relative -mx-6 -mb-12 bg-gradient-to-t from-surface-secondary via-surface-secondary to-transparent px-6 pb-[40px] pt-[24px]">
           {aiListeningPrompt && (
             <div className="absolute bottom-full right-[24px] z-10 mb-[-8px]">
               <AiListeningTooltip

@@ -26,9 +26,10 @@ export function useAppGate(): AppGateStatus {
   if (authLoading || (!!user && isLoading)) return { status: 'loading' };
   if (!user) return { status: 'unauthenticated' };
   if (isError) return { status: 'error', retry: refetch };
-  if (data === null || data === undefined) return { status: 'onboarding_needed' };
+  if (!data) return { status: 'onboarding_needed' };
   if (data.status === 'in_progress') {
     return { status: 'onboarding_in_progress', step: data.current_step, path: data.path };
   }
-  return { status: 'ready' };
+  if (data.status === 'completed') return { status: 'ready' };
+  return { status: 'onboarding_needed' };
 }

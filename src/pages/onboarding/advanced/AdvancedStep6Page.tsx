@@ -89,7 +89,7 @@ export function AdvancedStep6Page() {
   return (
     <div className="flex min-h-dvh flex-col bg-surface-secondary">
       {/* Back Arrow */}
-      <div className="px-[24px] pb-[32px] pt-[max(16px,env(safe-area-inset-top))]">
+      <div className="px-6 pb-[32px] pt-[max(16px,env(safe-area-inset-top))]">
         <button
           type="button"
           onClick={() => navigate('/onboarding/advanced-results')}
@@ -101,7 +101,7 @@ export function AdvancedStep6Page() {
       </div>
 
       {/* Heading + Subtitle */}
-      <div className="flex flex-col gap-[11px] px-[24px] py-[16px]">
+      <div className="flex flex-col gap-[11px] px-6 py-[16px]">
         <h1 className="text-[32px] font-bold leading-[40px] tracking-[-0.8px] text-content">
           Meet your AI Voice Journal
         </h1>
@@ -206,7 +206,7 @@ export function AdvancedStep6Page() {
       </div>
 
       {/* CTA Footer with Voice FAB */}
-      <div className="mt-auto px-[24px] pb-[40px] pt-[32px]">
+      <div className="mt-auto px-6 pb-[40px] pt-[32px]">
         <button
           type="button"
           onClick={() => setShowVoiceOverlay(true)}
