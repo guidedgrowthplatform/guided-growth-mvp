@@ -139,14 +139,15 @@ export function SettingsPage() {
     try {
       await deleteAccount();
       localStorage.clear();
+      sessionStorage.clear();
       await signOut();
-      navigate('/login');
+      window.location.href = '/login';
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete account';
       addToast('error', msg);
       setIsDeletingAccount(false);
     }
-  }, [signOut, addToast, navigate]);
+  }, [signOut, addToast]);
 
   // Lookup labels
   const coachingLabel =
