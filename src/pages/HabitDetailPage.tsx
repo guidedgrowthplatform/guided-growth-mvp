@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DaySchedulePills } from '@/components/habit-detail/DaySchedulePills';
 import { HabitDetailTopBar, HabitDetailTitle } from '@/components/habit-detail/HabitDetailHeader';
@@ -8,6 +8,7 @@ import { StatsGrid } from '@/components/habit-detail/StatsGrid';
 import { StreakCard } from '@/components/habit-detail/StreakCard';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useHabitDetail } from '@/hooks/useHabitDetail';
+import { speak } from '@/lib/services/tts-service';
 
 const MILESTONE_TARGETS = [7, 21, 30, 60, 90] as const;
 
@@ -44,6 +45,25 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
       window.dispatchEvent(new CustomEvent('toggle-journal'));
     }, 100);
   }, [onClose, navigate]);
+
+  // TTS milestone celebration per Voice Journey Spreadsheet v3 (line 454-458)
+  const hasSpokenMilestone = useRef(false);
+  useEffect(() => {
+    if (hasSpokenMilestone.current || !stats || isLoading) return;
+    hasSpokenMilestone.current = true;
+    const reps = stats.totalRepetitions;
+    if (reps >= 90) {
+      speak("90 days. This isn't a habit anymore \u2014 this is who you are.");
+    } else if (reps >= 60) {
+      speak("60 days. You've built something real here.");
+    } else if (reps >= 30) {
+      speak("30 days. This started as something you were trying. Now it's something you do. That's a real shift.");
+    } else if (reps >= 21) {
+      speak("21 days in. You're building something lasting.");
+    } else if (reps >= 7) {
+      speak("One week. You showed up seven days in a row. That's not luck \u2014 that's you.");
+    }
+  }, [stats, isLoading]);
 
   if (isLoading) {
     return (

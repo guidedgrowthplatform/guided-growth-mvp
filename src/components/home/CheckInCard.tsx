@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
+import { speak } from '@/lib/services/tts-service';
 import type { CheckInDimension } from '@shared/types';
 import { checkInDimensions } from './checkInConfig';
 import { EmojiOptionButton } from './EmojiOptionButton';
@@ -18,6 +19,18 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   const { checkIn, loading, saving, save } = useCheckIn(selectedDate);
   const { addToast } = useToast();
   const [values, setValues] = useState<CheckInValues>(emptyValues);
+
+  // TTS greeting per Voice Journey Spreadsheet v3 (line 380)
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour < 15) {
+      // Morning check-in
+      speak("Quick check-in \u2014 how'd you sleep? How's your energy?");
+    } else {
+      // Evening check-in
+      speak("Hey \u2014 how was today?");
+    }
+  }, []);
 
   useEffect(() => {
     if (checkIn) {

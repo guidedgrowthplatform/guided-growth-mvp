@@ -1,5 +1,5 @@
-import { format, subDays } from 'date-fns';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { format, subDays, differenceInDays } from 'date-fns';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   HomeHeader,
   DateStrip,
@@ -14,6 +14,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useEntries } from '@/hooks/useEntries';
 import { useJournal } from '@/hooks/useJournal';
+import { speak } from '@/lib/services/tts-service';
 import type { EntriesMap } from '@shared/types';
 
 export function HomePage() {
@@ -63,6 +64,31 @@ export function HomePage() {
 
   const displayName =
     user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'there';
+
+  // Founding User Moment — per Voice Journey Spreadsheet v3 (line 579)
+  // One-time voice after 7+ days of use
+  const foundingMomentFired = useRef(false);
+  useEffect(() => {
+    if (foundingMomentFired.current) return;
+    foundingMomentFired.current = true;
+    const alreadyPlayed = localStorage.getItem('gg_founding_moment_played');
+    if (alreadyPlayed) return;
+
+    // Check account age via Supabase auth metadata
+    import('@/lib/supabase').then(({ supabase }) => {
+      supabase.auth.getUser().then(({ data }) => {
+        const createdAt = data?.user?.created_at;
+        if (!createdAt) return;
+        const daysActive = differenceInDays(new Date(), new Date(createdAt));
+        if (daysActive >= 7) {
+          localStorage.setItem('gg_founding_moment_played', 'true');
+          setTimeout(() => {
+            speak(`Hey ${displayName} \u2014 it's been a week. The fact that you're still here matters. Most people who try new apps stop after three days. You didn't. That's not the app \u2014 that's you.`);
+          }, 2000);
+        }
+      });
+    });
+  }, [displayName]);
 
   return (
     <>
