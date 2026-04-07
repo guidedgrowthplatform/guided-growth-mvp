@@ -52,6 +52,15 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   const handleCheckIn = async () => {
     try {
       await save(values);
+      // TTS coaching response per Voice Journey Spreadsheet v3 (line 386)
+      const hour = new Date().getHours();
+      if (hour < 15) {
+        // Morning coaching
+        speak("Got it \u2014 logged. You've got this today.");
+      } else {
+        // Evening coaching
+        speak("Logged. Thanks for checking in \u2014 rest well tonight.");
+      }
       onClose?.();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to save check-in';

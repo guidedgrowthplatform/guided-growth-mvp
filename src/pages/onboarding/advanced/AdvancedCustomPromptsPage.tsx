@@ -1,7 +1,8 @@
 import { Icon } from '@iconify/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { speak, stopTTS } from '@/lib/services/tts-service';
 
 type JournalMode = 'freeform' | 'custom';
 
@@ -24,6 +25,12 @@ export function AdvancedCustomPromptsPage() {
 
   const filledPrompts = prompts.filter((p) => p.trim().length > 0);
   const canSubmit = journalMode === 'freeform' || filledPrompts.length >= 1;
+
+  // TTS per Voice Journey Spreadsheet v3 (line 306)
+  useEffect(() => {
+    speak("What questions do you want to reflect on each day? Just say them and I'll add them.");
+    return () => { stopTTS(); };
+  }, []);
 
   function updatePrompt(index: number, value: string) {
     setPrompts((prev) => prev.map((p, i) => (i === index ? value : p)));
