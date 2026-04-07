@@ -20,9 +20,9 @@ export function Step2Page() {
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
     if (result.params && typeof result.params.path === 'string') {
       const path = result.params.path.toLowerCase();
-      if (path.includes('simple')) {
+      if (path.includes('simple') || path.includes('new') || path.includes('beginner')) {
         setPlan('simple');
-      } else if (path.includes('brain') || path.includes('advanced')) {
+      } else if (path.includes('brain') || path.includes('advanced') || path.includes('experience') || path.includes('dump')) {
         setPlan('braindump');
       }
     }
