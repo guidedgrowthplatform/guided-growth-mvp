@@ -116,3 +116,8 @@ voices.txt
 tts_curl.mp3
 tts_output.mp3
 *.mp3
+eleven_error.txt
+elevenlabs_test.txt
+git_commit2.txt
+git_push.txt
+remote.txt
