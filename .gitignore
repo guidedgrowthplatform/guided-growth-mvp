@@ -109,15 +109,12 @@ vendor/bundle/
 playwright-report/
 test-results/
 
-# Test / scratch files (dev only)
-test_phase_1.txt
-api_test.txt
-voices.txt
-tts_curl.mp3
-tts_output.mp3
+# Test / scratch files (dev only — never commit)
 *.mp3
-eleven_error.txt
-elevenlabs_test.txt
-git_commit2.txt
-git_push.txt
+git_*.txt
+*_test.txt
+*_error.txt
 remote.txt
+voices.txt
+test_phase_*.txt
+gradle_build_log.txt
