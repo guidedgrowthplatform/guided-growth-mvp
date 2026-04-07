@@ -1,6 +1,9 @@
 import { Icon } from '@iconify/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { OnboardingVoiceOverlay, type VoiceMessage } from '@/components/onboarding/OnboardingVoiceOverlay';
+import {
+  OnboardingVoiceOverlay,
+  type VoiceMessage,
+} from '@/components/onboarding/OnboardingVoiceOverlay';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
@@ -237,15 +240,18 @@ export function OnboardingLayout({
               </button>
             )}
           </div>
-          {(transcript || interim || error) && showVoiceButton && !onVoiceAction && !overlayOpen && (
-            <div className="mt-[8px] flex flex-col items-center gap-1">
-              {interim && <p className="text-xs text-content-secondary">{interim}</p>}
-              {transcript && (
-                <p className="max-w-full text-center text-sm text-content">{transcript}</p>
-              )}
-              {error && <p className="max-w-full text-center text-xs text-red-500">{error}</p>}
-            </div>
-          )}
+          {(transcript || interim || error) &&
+            showVoiceButton &&
+            !onVoiceAction &&
+            !overlayOpen && (
+              <div className="mt-[8px] flex flex-col items-center gap-1">
+                {interim && <p className="text-xs text-content-secondary">{interim}</p>}
+                {transcript && (
+                  <p className="max-w-full text-center text-sm text-content">{transcript}</p>
+                )}
+                {error && <p className="max-w-full text-center text-xs text-red-500">{error}</p>}
+              </div>
+            )}
           {footerText && (
             <p className="mt-[12px] text-center text-[12px] font-medium text-content-tertiary">
               {footerText}

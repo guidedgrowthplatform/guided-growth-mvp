@@ -51,13 +51,15 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
 
   // TTS per Voice Journey Spreadsheet v3 (line 471)
   useEffect(() => {
-    speak("What do you want to change about this habit?");
-    return () => { stopTTS(); };
+    speak('What do you want to change about this habit?');
+    return () => {
+      stopTTS();
+    };
   }, []);
 
   function handleSave() {
     if (!name.trim()) return;
-    speak("Updated. All good?");
+    speak('Updated. All good?');
     navigate('/onboarding/advanced-results', {
       state: {
         updatedHabit: { index: habitIndex, name: name.trim(), time, days: Array.from(days) },

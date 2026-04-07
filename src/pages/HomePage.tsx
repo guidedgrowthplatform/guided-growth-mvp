@@ -83,7 +83,9 @@ export function HomePage() {
         if (daysActive >= 7) {
           localStorage.setItem('gg_founding_moment_played', 'true');
           setTimeout(() => {
-            speak(`Hey ${displayName} \u2014 it's been a week. The fact that you're still here matters. Most people who try new apps stop after three days. You didn't. That's not the app \u2014 that's you.`);
+            speak(
+              `Hey ${displayName} \u2014 it's been a week. The fact that you're still here matters. Most people who try new apps stop after three days. You didn't. That's not the app \u2014 that's you.`,
+            );
           }, 2000);
         }
       });

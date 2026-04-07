@@ -29,7 +29,9 @@ export function AdvancedCustomPromptsPage() {
   // TTS per Voice Journey Spreadsheet v3 (line 306)
   useEffect(() => {
     speak("What questions do you want to reflect on each day? Just say them and I'll add them.");
-    return () => { stopTTS(); };
+    return () => {
+      stopTTS();
+    };
   }, []);
 
   function updatePrompt(index: number, value: string) {

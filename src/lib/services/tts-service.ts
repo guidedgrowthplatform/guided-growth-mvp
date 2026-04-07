@@ -9,8 +9,8 @@ const VOICE_PREF_KEY = 'mvp03_tts_voice';
 export type VoiceGender = 'male' | 'female';
 
 const ELEVENLABS_VOICES: Record<VoiceGender, { id: string; name: string }> = {
-  male: { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam' },     // Adam — calm, natural male
-  female: { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah' },  // Sarah — natural female
+  male: { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam' }, // Adam — calm, natural male
+  female: { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah' }, // Sarah — natural female
 };
 
 const VOICE_GENDER_KEY = 'guided_growth_voice_gender';
@@ -20,7 +20,9 @@ export function getVoiceGender(): VoiceGender {
   try {
     const saved = localStorage.getItem(VOICE_GENDER_KEY);
     if (saved === 'female') return 'female';
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return 'female';
 }
 
@@ -28,7 +30,9 @@ export function getVoiceGender(): VoiceGender {
 export function setVoiceGender(gender: VoiceGender): void {
   try {
     localStorage.setItem(VOICE_GENDER_KEY, gender);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Get ElevenLabs voice ID for the user's selected gender */

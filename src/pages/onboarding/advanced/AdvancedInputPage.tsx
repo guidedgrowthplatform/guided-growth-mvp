@@ -28,8 +28,12 @@ export function AdvancedInputPage() {
 
   // TTS auto-play per Voice Journey Spreadsheet v3
   useEffect(() => {
-    speak("Tell me everything. What habits do you want to build? What are you trying to change? Don't hold back — just talk. I'll organize it all.");
-    return () => { stopTTS(); };
+    speak(
+      "Tell me everything. What habits do you want to build? What are you trying to change? Don't hold back — just talk. I'll organize it all.",
+    );
+    return () => {
+      stopTTS();
+    };
   }, []);
 
   function handleKeyboardPress() {

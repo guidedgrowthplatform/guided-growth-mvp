@@ -28,18 +28,20 @@ function elevenLabsTtsPlugin(apiKey: string): Plugin {
             const { text, voice_id } = JSON.parse(body);
             // Map ElevenLabs voice IDs to OpenAI voices
             const VOICE_MAP: Record<string, string> = {
-              'pNInz6obpgDQGcFmaJgB': 'onyx',
-              'EXAVITQu4vr4xnSDxMaL': 'nova',
+              pNInz6obpgDQGcFmaJgB: 'onyx',
+              EXAVITQu4vr4xnSDxMaL: 'nova',
             };
             const openaiVoice = VOICE_MAP[voice_id] || 'nova';
 
-            console.log(`[vite-tts] OpenAI TTS: "${text.substring(0, 50)}..." → voice ${openaiVoice}`);
+            console.log(
+              `[vite-tts] OpenAI TTS: "${text.substring(0, 50)}..." → voice ${openaiVoice}`,
+            );
 
             const openaiRes = await fetch('https://api.openai.com/v1/audio/speech', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
+                Authorization: `Bearer ${apiKey}`,
               },
               body: JSON.stringify({
                 model: 'tts-1',

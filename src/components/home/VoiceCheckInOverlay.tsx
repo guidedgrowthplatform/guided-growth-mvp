@@ -20,8 +20,10 @@ const stateLabel: Record<string, string> = {
 
 export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
   const { user } = useAuth();
-  const displayName = user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || undefined;
-  const { messages, voiceState, startListening, stopListening, updateHabitDays } = useVoiceChat(displayName);
+  const displayName =
+    user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || undefined;
+  const { messages, voiceState, startListening, stopListening, updateHabitDays } =
+    useVoiceChat(displayName);
 
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);

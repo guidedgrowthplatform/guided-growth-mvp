@@ -1,0 +1,80 @@
+2026-04-07T04:50:33.304900Z 01O > life-growth-tracker@2.1.0 prepare
+2026-04-07T04:50:33.304901Z 01O > husky
+2026-04-07T04:50:33.304902Z 01O 
+2026-04-07T04:50:33.366245Z 01O git command not found
+2026-04-07T04:50:33.393781Z 01O added 947 packages, and audited 949 packages in 25s
+2026-04-07T04:50:33.393783Z 01O 
+2026-04-07T04:50:33.393862Z 01O 229 packages are looking for funding
+2026-04-07T04:50:33.393863Z 01O   run `npm fund` for details
+2026-04-07T04:50:33.437019Z 01O 
+2026-04-07T04:50:33.437025Z 01O 18 vulnerabilities (7 moderate, 11 high)
+2026-04-07T04:50:33.437026Z 01O 
+2026-04-07T04:50:33.437027Z 01O To address issues that do not require attention, run:
+2026-04-07T04:50:33.437028Z 01O   npm audit fix
+2026-04-07T04:50:33.437029Z 01O 
+2026-04-07T04:50:33.437030Z 01O To address all issues (including breaking changes), run:
+2026-04-07T04:50:33.437031Z 01O   npm audit fix --force
+2026-04-07T04:50:33.437031Z 01O 
+2026-04-07T04:50:33.437032Z 01O Run `npm audit` for details.
+2026-04-07T04:50:33.526333Z 01O [32;1m$ npm run lint[0;m
+2026-04-07T04:50:33.666978Z 01O 
+2026-04-07T04:50:33.666984Z 01O > life-growth-tracker@2.1.0 lint
+2026-04-07T04:50:33.666985Z 01O > eslint .
+2026-04-07T04:50:33.666986Z 01O 
+2026-04-07T04:50:51.582861Z 01O 
+2026-04-07T04:50:51.582867Z 01O /builds/guidedgrowth-group/guided-growth-mvp/src/components/onboarding/OnboardingVoiceOverlay.tsx
+2026-04-07T04:50:51.582868Z 01O    65:6  warning  React Hook useEffect has a missing dependency: 'setMessages'. Either include it or remove the dependency array. If 'setMessages' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+2026-04-07T04:50:51.582869Z 01O   150:6  warning  React Hook useEffect has a missing dependency: 'setMessages'. Either include it or remove the dependency array. If 'setMessages' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+2026-04-07T04:50:51.582871Z 01O 
+2026-04-07T04:50:51.582871Z 01O /builds/guidedgrowth-group/guided-growth-mvp/src/hooks/useAppGate.ts
+2026-04-07T04:50:51.582872Z 01O   3:1  warning  `@/api/client` import should occur before import of `@/api/onboarding`  import-x/order
+2026-04-07T04:50:51.582872Z 01O 
+2026-04-07T04:50:51.582873Z 01O /builds/guidedgrowth-group/guided-growth-mvp/src/hooks/useVoiceCommand.ts
+2026-04-07T04:50:51.582874Z 01O   8:10  warning  'speakPreAck' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-04-07T04:50:51.582874Z 01O 
+2026-04-07T04:50:51.582875Z 01O /builds/guidedgrowth-group/guided-growth-mvp/src/lib/services/action-dispatcher.ts
+2026-04-07T04:50:51.582875Z 01O   524:9  warning  'habitLabel' is never reassigned. Use 'const' instead                                  prefer-const
+2026-04-07T04:50:51.582876Z 01O   524:9  warning  'habitLabel' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-04-07T04:50:51.582877Z 01O 
+2026-04-07T04:50:51.582877Z 01O /builds/guidedgrowth-group/guided-growth-mvp/src/stores/authStore.ts
+2026-04-07T04:50:51.582878Z 01O   5:1  warning  `@/lib/sentry` import should occur before import of `@/lib/supabase`  import-x/order
+2026-04-07T04:50:51.582879Z 01O 
+2026-04-07T04:50:51.582879Z 01O ✖ 7 problems (0 errors, 7 warnings)
+2026-04-07T04:50:51.582880Z 01O   0 errors and 3 warnings potentially fixable with the `--fix` option.
+2026-04-07T04:50:51.582881Z 01O 
+2026-04-07T04:50:51.797412Z 01O [32;1m$ npm run format:check[0;m
+2026-04-07T04:50:51.931223Z 01O 
+2026-04-07T04:50:51.931228Z 01O > life-growth-tracker@2.1.0 format:check
+2026-04-07T04:50:51.931230Z 01O > prettier --check .
+2026-04-07T04:50:51.931230Z 01O 
+2026-04-07T04:50:52.054314Z 01O Checking formatting...
+2026-04-07T04:50:53.193521Z 01E [[33mwarn[39m] api/_lib/auth.ts
+2026-04-07T04:50:53.751125Z 01E [[33mwarn[39m] api/elevenlabs-tts.ts
+2026-04-07T04:50:57.311136Z 01E [[33mwarn[39m] src/components/home/CheckInCard.tsx
+2026-04-07T04:50:57.642301Z 01E [[33mwarn[39m] src/components/home/VoiceCheckInOverlay.tsx
+2026-04-07T04:50:58.194259Z 01E [[33mwarn[39m] src/components/onboarding/DeleteHabitModal.tsx
+2026-04-07T04:50:58.398445Z 01E [[33mwarn[39m] src/components/onboarding/OnboardingLayout.tsx
+2026-04-07T04:50:59.664187Z 01E [[33mwarn[39m] src/hooks/useOnboardingVoice.ts
+2026-04-07T04:50:59.737575Z 01E [[33mwarn[39m] src/hooks/useVoiceChat.ts
+2026-04-07T04:50:59.847332Z 01E [[33mwarn[39m] src/hooks/useVoiceCommand.ts
+2026-04-07T04:50:59.977700Z 01E [[33mwarn[39m] src/lib/config/dispatcher-config.ts
+2026-04-07T04:51:00.187735Z 01E [[33mwarn[39m] src/lib/services/action-dispatcher.ts
+2026-04-07T04:51:00.541182Z 01E [[33mwarn[39m] src/lib/services/tts-service.ts
+2026-04-07T04:51:00.901026Z 01E [[33mwarn[39m] src/pages/HabitDetailPage.tsx
+2026-04-07T04:51:00.969078Z 01E [[33mwarn[39m] src/pages/HomePage.tsx
+2026-04-07T04:51:01.055046Z 01E [[33mwarn[39m] src/pages/onboarding/advanced/AdvancedCustomPromptsPage.tsx
+2026-04-07T04:51:01.083561Z 01E [[33mwarn[39m] src/pages/onboarding/advanced/AdvancedInputPage.tsx
+2026-04-07T04:51:01.120722Z 01E [[33mwarn[39m] src/pages/onboarding/advanced/AdvancedResultsPage.tsx
+2026-04-07T04:51:01.189275Z 01E [[33mwarn[39m] src/pages/onboarding/advanced/EditHabitPage.tsx
+2026-04-07T04:51:01.390857Z 01E [[33mwarn[39m] src/pages/onboarding/shared/Step2Page.tsx
+2026-04-07T04:51:01.403173Z 01E [[33mwarn[39m] src/pages/PrivacyPolicyPage.tsx
+2026-04-07T04:51:01.448294Z 01E [[33mwarn[39m] src/pages/SettingsPage.tsx
+2026-04-07T04:51:01.933220Z 01E [[33mwarn[39m] vite.config.ts
+2026-04-07T04:51:01.933228Z 01E [[33mwarn[39m] Code style issues found in 22 files. Run Prettier with --write to fix.
+2026-04-07T04:51:02.315984Z 00O section_end:1775537462:step_script
+2026-04-07T04:51:02.315990Z 00O+[0Ksection_start:1775537462:cleanup_file_variables
+2026-04-07T04:51:02.316821Z 00O+[0K[0K[36;1mCleaning up project directory and file based variables[0;m[0;m
+2026-04-07T04:51:02.893497Z 00O section_end:1775537462:cleanup_file_variables
+2026-04-07T04:51:02.893504Z 00O+[0K
+2026-04-07T04:51:03.215518Z 00O [31;1mERROR: Job failed: exit code 1[0;m
+

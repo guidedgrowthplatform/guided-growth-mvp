@@ -22,7 +22,12 @@ export function Step2Page() {
       const path = result.params.path.toLowerCase();
       if (path.includes('simple') || path.includes('new') || path.includes('beginner')) {
         setPlan('simple');
-      } else if (path.includes('brain') || path.includes('advanced') || path.includes('experience') || path.includes('dump')) {
+      } else if (
+        path.includes('brain') ||
+        path.includes('advanced') ||
+        path.includes('experience') ||
+        path.includes('dump')
+      ) {
         setPlan('braindump');
       }
     }

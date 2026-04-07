@@ -19,12 +19,12 @@ export type VoiceChatState = 'idle' | 'listening' | 'processing';
 function getGreeting(name?: string): string {
   const hour = new Date().getHours();
   const displayName = name || 'there';
-  if (hour < 12) return `Morning, ${displayName}. How are you feeling today? You can ask me to create habits, log metrics, or check your progress.`;
-  if (hour < 17) return `Good afternoon, ${displayName}. What's on your mind? You can ask me to create habits, log metrics, or check your progress.`;
+  if (hour < 12)
+    return `Morning, ${displayName}. How are you feeling today? You can ask me to create habits, log metrics, or check your progress.`;
+  if (hour < 17)
+    return `Good afternoon, ${displayName}. What's on your mind? You can ask me to create habits, log metrics, or check your progress.`;
   return `Evening, ${displayName}. How was today? You can ask me to create habits, log metrics, or check your progress.`;
 }
-
-
 
 function makeId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -55,7 +55,6 @@ export function useVoiceChat(userName?: string) {
     : isListening
       ? 'listening'
       : 'idle';
-
 
   // Speak greeting TTS (useRef prevents React StrictMode double-fire)
   useEffect(() => {

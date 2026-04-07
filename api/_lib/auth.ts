@@ -3,7 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { handleCors } from './cors.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseServiceKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 if (!supabaseUrl) {
   console.error('[auth] SUPABASE_URL is not set — auth verification will fail');
 }

@@ -5,7 +5,7 @@ import { queryKeys } from '@/lib/query';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { haptic } from '@/lib/services/haptic-service';
 import { getDataService } from '@/lib/services/service-provider';
-import { speakPreAck, speak } from '@/lib/services/tts-service';
+import { speak } from '@/lib/services/tts-service';
 import { supabase } from '@/lib/supabase';
 import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceStore } from '@/stores/voiceStore';
@@ -284,7 +284,6 @@ export function useVoiceCommand() {
         }
 
         const apiLatency = intent.latency || Date.now() - startTime;
-
 
         const result = await dispatcher.dispatch(intent);
         setResult(result, intent, apiLatency);

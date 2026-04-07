@@ -5,9 +5,9 @@ export function PrivacyPolicyPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-background text-content">
+    <div className="bg-background min-h-screen text-content">
       {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center gap-3 bg-background/80 px-4 py-4 backdrop-blur-md">
+      <div className="bg-background/80 sticky top-0 z-10 flex items-center gap-3 px-4 py-4 backdrop-blur-md">
         <button
           onClick={() => navigate(-1)}
           className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface"
@@ -25,15 +25,29 @@ export function PrivacyPolicyPage() {
           <p>
             Guided Growth collects the following information to provide and improve our service:
           </p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li><strong>Account information</strong>: email address used for authentication via Supabase Auth.</li>
-            <li><strong>Profile data</strong>: nickname, age range, and selected preferences during onboarding.</li>
-            <li><strong>Usage data</strong>: habits, metrics, journal entries, check-ins, and focus sessions you create.</li>
-            <li><strong>Voice data</strong>: voice transcripts are processed in real-time for voice commands and are not stored on our servers.</li>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>
+              <strong>Account information</strong>: email address used for authentication via
+              Supabase Auth.
+            </li>
+            <li>
+              <strong>Profile data</strong>: nickname, age range, and selected preferences during
+              onboarding.
+            </li>
+            <li>
+              <strong>Usage data</strong>: habits, metrics, journal entries, check-ins, and focus
+              sessions you create.
+            </li>
+            <li>
+              <strong>Voice data</strong>: voice transcripts are processed in real-time for voice
+              commands and are not stored on our servers.
+            </li>
           </ul>
 
-          <h2 className="mt-6 text-base font-semibold text-content">2. How We Use Your Information</h2>
-          <ul className="list-disc pl-5 space-y-1">
+          <h2 className="mt-6 text-base font-semibold text-content">
+            2. How We Use Your Information
+          </h2>
+          <ul className="list-disc space-y-1 pl-5">
             <li>To provide and maintain the Guided Growth service.</li>
             <li>To personalize your AI coaching experience.</li>
             <li>To process voice commands via OpenAI and ElevenLabs APIs.</li>
@@ -42,23 +56,32 @@ export function PrivacyPolicyPage() {
 
           <h2 className="mt-6 text-base font-semibold text-content">3. Data Storage & Security</h2>
           <p>
-            Your data is stored securely in Supabase with row-level security policies.
-            Journal entries are encrypted client-side using AES-GCM 256-bit encryption
-            before being stored in the database.
+            Your data is stored securely in Supabase with row-level security policies. Journal
+            entries are encrypted client-side using AES-GCM 256-bit encryption before being stored
+            in the database.
           </p>
 
           <h2 className="mt-6 text-base font-semibold text-content">4. Third-Party Services</h2>
           <p>We use the following third-party services:</p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li><strong>Supabase</strong>: authentication and data storage.</li>
-            <li><strong>OpenAI</strong>: voice command processing (transcript analysis only, no data stored).</li>
-            <li><strong>ElevenLabs</strong>: text-to-speech and speech-to-text processing.</li>
-            <li><strong>Vercel</strong>: application hosting and serverless API functions.</li>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>
+              <strong>Supabase</strong>: authentication and data storage.
+            </li>
+            <li>
+              <strong>OpenAI</strong>: voice command processing (transcript analysis only, no data
+              stored).
+            </li>
+            <li>
+              <strong>ElevenLabs</strong>: text-to-speech and speech-to-text processing.
+            </li>
+            <li>
+              <strong>Vercel</strong>: application hosting and serverless API functions.
+            </li>
           </ul>
 
           <h2 className="mt-6 text-base font-semibold text-content">5. Your Rights</h2>
           <p>You have the right to:</p>
-          <ul className="list-disc pl-5 space-y-1">
+          <ul className="list-disc space-y-1 pl-5">
             <li>Access your personal data.</li>
             <li>Delete your account and all associated data via Settings.</li>
             <li>Opt out of voice features at any time.</li>

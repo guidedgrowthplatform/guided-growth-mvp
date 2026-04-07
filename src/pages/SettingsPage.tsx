@@ -68,8 +68,6 @@ export function SettingsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
-
-
   // Load voices with polling for Android
   useEffect(() => {
     let retries = 0;

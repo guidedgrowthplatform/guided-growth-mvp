@@ -93,8 +93,12 @@ export function AdvancedResultsPage() {
 
   // TTS auto-play per Voice Journey Spreadsheet v3
   useEffect(() => {
-    speak("Here's what I put together from what you told me. Take a look — you can edit anything, or if it's way off, I'll start fresh.");
-    return () => { stopTTS(); };
+    speak(
+      "Here's what I put together from what you told me. Take a look — you can edit anything, or if it's way off, I'll start fresh.",
+    );
+    return () => {
+      stopTTS();
+    };
   }, []);
 
   const handleConfirm = useCallback(async () => {

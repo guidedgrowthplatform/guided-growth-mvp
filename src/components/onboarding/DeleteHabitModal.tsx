@@ -14,7 +14,7 @@ export function DeleteHabitModal({ onDelete, onKeep }: DeleteHabitModalProps) {
   }, []);
 
   const handleDelete = () => {
-    speak("Done. If you ever want it back, just ask.");
+    speak('Done. If you ever want it back, just ask.');
     onDelete();
   };
 

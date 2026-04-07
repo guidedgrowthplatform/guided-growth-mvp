@@ -1,4 +1,10 @@
-import { DAY_NAMES, HABIT_SUGGESTIONS, DEFAULT_SUGGESTION, MSG, COACHING } from '../config/dispatcher-config';
+import {
+  DAY_NAMES,
+  HABIT_SUGGESTIONS,
+  DEFAULT_SUGGESTION,
+  MSG,
+  COACHING,
+} from '../config/dispatcher-config';
 import type { ActionResult, DataService } from './data-service.interface';
 
 /** Translate raw backend errors into friendly coaching-style messages */
@@ -14,8 +20,7 @@ function friendlyError(raw: string): string {
     return 'That one already exists. Try a different name.';
   if (lower.includes('timeout') || lower.includes('network'))
     return "Couldn't connect. Check your internet and try again.";
-  if (lower.includes('not found'))
-    return "I couldn't find that. Make sure the name is right.";
+  if (lower.includes('not found')) return "I couldn't find that. Make sure the name is right.";
   return "Something went wrong. Let's try that again.";
 }
 
@@ -502,11 +507,12 @@ export class ActionDispatcher {
     // Determine time of day for coaching style
     const hour = new Date().getHours();
     const partsStr = parts.join(', ');
-    const coachMsg = hour < 12
-      ? COACHING.checkinMorning(partsStr)
-      : hour >= 18
-        ? COACHING.checkinEvening(partsStr)
-        : COACHING.checkinGeneric(partsStr);
+    const coachMsg =
+      hour < 12
+        ? COACHING.checkinMorning(partsStr)
+        : hour >= 18
+          ? COACHING.checkinEvening(partsStr)
+          : COACHING.checkinGeneric(partsStr);
 
     return {
       success: true,
@@ -531,7 +537,8 @@ export class ActionDispatcher {
           uiAction: 'toast',
         };
       }
-      habitId = habit.id;    }
+      habitId = habit.id;
+    }
 
     await this.dataService.saveFocusSession(habitId, duration, null, new Date().toISOString());
 

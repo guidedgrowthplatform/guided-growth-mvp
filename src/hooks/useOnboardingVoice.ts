@@ -89,16 +89,18 @@ export function useOnboardingVoice() {
             1: "I didn't catch that clearly. Could you say your name again? Or just type it in — totally fine.",
             2: "No pressure either way — just tap the one that feels right, or say 'new' or 'experienced.'",
             3: "I didn't catch which area. Just say one — like 'sleep' or 'focus' — or tap it.",
-            4: "Could you say that again? Or just tap the one that resonates.",
-            5: "Which one sounds right? Say the name or tap it.",
-            6: "Do you want the daily reflection, or skip for now?",
+            4: 'Could you say that again? Or just tap the one that resonates.',
+            5: 'Which one sounds right? Say the name or tap it.',
+            6: 'Do you want the daily reflection, or skip for now?',
             7: "Say 'let's go' or tap 'Start plan.'",
           };
           return {
             success: false,
             action: 'error',
             params: {},
-            message: lowConfFallback[stepContext.step] || "I didn't catch that — try again or select manually.",
+            message:
+              lowConfFallback[stepContext.step] ||
+              "I didn't catch that — try again or select manually.",
             confidence,
           };
         }
@@ -117,12 +119,59 @@ export function useOnboardingVoice() {
           ) {
             // Number words that should NOT be treated as names
             const numberWords = new Set([
-              'one','two','three','four','five','six','seven','eight','nine','ten',
-              'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen',
-              'eighteen','nineteen','twenty','thirty','forty','fifty','sixty','seventy',
-              'eighty','ninety','hundred','no','sorry','not','yes','yeah',
+              'one',
+              'two',
+              'three',
+              'four',
+              'five',
+              'six',
+              'seven',
+              'eight',
+              'nine',
+              'ten',
+              'eleven',
+              'twelve',
+              'thirteen',
+              'fourteen',
+              'fifteen',
+              'sixteen',
+              'seventeen',
+              'eighteen',
+              'nineteen',
+              'twenty',
+              'thirty',
+              'forty',
+              'fifty',
+              'sixty',
+              'seventy',
+              'eighty',
+              'ninety',
+              'hundred',
+              'no',
+              'sorry',
+              'not',
+              'yes',
+              'yeah',
             ]);
-            const stopWords = ['and', 'i', "i'm", 'im', 'am', 'years', 'old', 'male', 'female', 'other', 'a', 'guy', 'man', 'boy', 'woman', 'girl', 'dude'];
+            const stopWords = [
+              'and',
+              'i',
+              "i'm",
+              'im',
+              'am',
+              'years',
+              'old',
+              'male',
+              'female',
+              'other',
+              'a',
+              'guy',
+              'man',
+              'boy',
+              'woman',
+              'girl',
+              'dude',
+            ];
 
             // Prefer explicit name patterns: "my name is X" / "call me X"
             const explicitName = transcript.match(
@@ -133,14 +182,25 @@ export function useOnboardingVoice() {
             } else {
               // Fallback: "I'm X" but skip number words
               const imMatch = transcript.match(/(?:i'm|i am)\s+([a-zA-Z]+)/i);
-              if (imMatch && !numberWords.has(imMatch[1].toLowerCase()) && !stopWords.includes(imMatch[1].toLowerCase())) {
+              if (
+                imMatch &&
+                !numberWords.has(imMatch[1].toLowerCase()) &&
+                !stopWords.includes(imMatch[1].toLowerCase())
+              ) {
                 params.nickname = imMatch[1];
               } else {
                 // Last resort: first capitalized word not in any skip list
                 const words = transcript.split(/\s+/);
                 const allSkip = new Set([
-                  ...stopWords, ...numberWords,
-                  'hello', 'hi', 'hey', 'my', 'name', 'is', 'the',
+                  ...stopWords,
+                  ...numberWords,
+                  'hello',
+                  'hi',
+                  'hey',
+                  'my',
+                  'name',
+                  'is',
+                  'the',
                 ]);
                 const nameWord = words.find(
                   (w) => w.length > 1 && /^[A-Z]/.test(w) && !allSkip.has(w.toLowerCase()),
@@ -152,7 +212,9 @@ export function useOnboardingVoice() {
           }
 
           // ALWAYS extract gender from transcript for step 1 (API often gets it wrong due to PII scrubbing)
-          const normalizedTranscript = transcript.toLowerCase().replace(/[\u2018\u2019\u2032]/g, "'");
+          const normalizedTranscript = transcript
+            .toLowerCase()
+            .replace(/[\u2018\u2019\u2032]/g, "'");
           if (/\b(male|man|guy|boy|dude)\b/.test(normalizedTranscript)) {
             params.gender = 'Male';
           } else if (/\b(female|woman|girl|lady|gal)\b/.test(normalizedTranscript)) {
@@ -161,7 +223,8 @@ export function useOnboardingVoice() {
             // Fallback: normalize whatever API returned
             const g = params.gender.toLowerCase().trim();
             if (['male', 'm', 'man', 'boy', 'guy', 'dude'].includes(g)) params.gender = 'Male';
-            else if (['female', 'f', 'woman', 'girl', 'lady', 'gal'].includes(g)) params.gender = 'Female';
+            else if (['female', 'f', 'woman', 'girl', 'lady', 'gal'].includes(g))
+              params.gender = 'Female';
             else params.gender = 'Other';
           }
 
@@ -208,9 +271,9 @@ export function useOnboardingVoice() {
           1: "I didn't catch that clearly. Could you say your name again? Or just type it in — totally fine.",
           2: "No pressure either way — just tap the one that feels right, or say 'new' or 'experienced.'",
           3: "I didn't catch which area. Just say one — like 'sleep' or 'focus' — or tap it.",
-          4: "Could you say that again? Or just tap the one that resonates.",
-          5: "Which one sounds right? Say the name or tap it.",
-          6: "Do you want the daily reflection, or skip for now?",
+          4: 'Could you say that again? Or just tap the one that resonates.',
+          5: 'Which one sounds right? Say the name or tap it.',
+          6: 'Do you want the daily reflection, or skip for now?',
           7: "Say 'let's go' or tap 'Start plan.'",
         };
         return {

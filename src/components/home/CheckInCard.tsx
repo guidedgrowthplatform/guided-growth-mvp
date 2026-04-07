@@ -29,9 +29,11 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
     if (hour < 15) {
       speak("Quick check-in \u2014 how'd you sleep? How's your energy?");
     } else {
-      speak("Hey \u2014 how was today?");
+      speak('Hey \u2014 how was today?');
     }
-    return () => { stopTTS(); };
+    return () => {
+      stopTTS();
+    };
   }, []);
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
         speak("Got it \u2014 logged. You've got this today.");
       } else {
         // Evening coaching
-        speak("Logged. Thanks for checking in \u2014 rest well tonight.");
+        speak('Logged. Thanks for checking in \u2014 rest well tonight.');
       }
       onClose?.();
     } catch (err) {

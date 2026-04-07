@@ -9,22 +9,52 @@
 /** Day name → index mapping. Extend with additional languages as needed. */
 export const DAY_NAMES: Record<string, number> = {
   // English
-  sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
-  thursday: 4, friday: 5, saturday: 6,
-  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+  sun: 0,
+  mon: 1,
+  tue: 2,
+  wed: 3,
+  thu: 4,
+  fri: 5,
+  sat: 6,
   // Spanish
-  domingo: 0, lunes: 1, martes: 2, miércoles: 3,
-  jueves: 4, viernes: 5, sábado: 6,
+  domingo: 0,
+  lunes: 1,
+  martes: 2,
+  miércoles: 3,
+  jueves: 4,
+  viernes: 5,
+  sábado: 6,
   // Indonesian
-  minggu: 0, senin: 1, selasa: 2, rabu: 3,
-  kamis: 4, jumat: 5, sabtu: 6,
+  minggu: 0,
+  senin: 1,
+  selasa: 2,
+  rabu: 3,
+  kamis: 4,
+  jumat: 5,
+  sabtu: 6,
 };
 
 /** Habit suggestions pool. The dispatcher picks a random one not already in use. */
 export const HABIT_SUGGESTIONS: string[] = [
-  'journaling', 'stretching', 'hydration tracking', 'gratitude practice',
-  'deep breathing', 'walking', 'meal prep', 'digital detox',
-  'cold shower', 'reading', 'yoga', 'no phone before bed',
+  'journaling',
+  'stretching',
+  'hydration tracking',
+  'gratitude practice',
+  'deep breathing',
+  'walking',
+  'meal prep',
+  'digital detox',
+  'cold shower',
+  'reading',
+  'yoga',
+  'no phone before bed',
 ];
 
 /** Default suggestion when all pool items are already in use. */
@@ -59,8 +89,7 @@ export const COACHING = {
   // Create responses
   habitCreated: (name: string, freq: string) =>
     `Done — "${name}" is set up (${freq}). One habit done consistently beats five that don't stick. You picked well.`,
-  habitCreatedShort: (name: string) =>
-    `"${name}" is live. Let's make it stick.`,
+  habitCreatedShort: (name: string) => `"${name}" is live. Let's make it stick.`,
 
   // Complete responses
   habitCompleted: (name: string) =>
@@ -73,20 +102,17 @@ export const COACHING = {
     `"${name}" removed. No judgment — sometimes it's the right call to refocus.`,
 
   // Update responses
-  habitUpdated: (name: string) =>
-    `Updated "${name}". How's that now?`,
+  habitUpdated: (name: string) => `Updated "${name}". How's that now?`,
 
   // Check-in responses (per spreadsheet: evening references morning)
   checkinMorning: (parts: string) =>
     `Got it — ${parts}. What's one thing you want to make sure happens today?`,
   checkinEvening: (parts: string) =>
     `Noted — ${parts}. You showed up today. That's exactly how this works.`,
-  checkinGeneric: (parts: string) =>
-    `Check-in saved — ${parts}. I see you.`,
+  checkinGeneric: (parts: string) => `Check-in saved — ${parts}. I see you.`,
 
   // Journal/Reflect
-  journalSaved: () =>
-    `Journal saved. These compound over time in a way that surprises people.`,
+  journalSaved: () => `Journal saved. These compound over time in a way that surprises people.`,
 
   // Focus
   focusStarted: (duration: number, habit?: string) =>
@@ -95,8 +121,7 @@ export const COACHING = {
       : `${duration}-minute focus session. Go.`,
 
   // Query/Stats
-  statsIntro: (habitName: string) =>
-    `Here's where you're at with "${habitName}":`,
+  statsIntro: (habitName: string) => `Here's where you're at with "${habitName}":`,
 
   // Suggestions
   suggestion: (name: string) =>
@@ -109,10 +134,8 @@ export const COACHING = {
     entity === 'habit'
       ? `Sure! What would you like to call this habit? Just say the name.`
       : `What would you like to track? Tell me the name.`,
-  duplicate: (name: string) =>
-    `You already have "${name}". Want to update it instead?`,
-  generic: () =>
-    `Something went wrong on my end. Let me try that again.`,
+  duplicate: (name: string) => `You already have "${name}". Want to update it instead?`,
+  generic: () => `Something went wrong on my end. Let me try that again.`,
 
   // Milestone celebrations (from spreadsheet)
   milestone7: (name: string) =>
@@ -120,4 +143,3 @@ export const COACHING = {
   milestone30: (name: string) =>
     `30 days of "${name}". This started as something you were trying. Now it's something you do. That's a real shift.`,
 } as const;
-

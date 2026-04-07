@@ -57,7 +57,9 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
     } else if (reps >= 60) {
       speak("60 days. You've built something real here.");
     } else if (reps >= 30) {
-      speak("30 days. This started as something you were trying. Now it's something you do. That's a real shift.");
+      speak(
+        "30 days. This started as something you were trying. Now it's something you do. That's a real shift.",
+      );
     } else if (reps >= 21) {
       speak("21 days in. You're building something lasting.");
     } else if (reps >= 7) {
