@@ -153,6 +153,11 @@ async function speakElevenLabs(text: string, volume: number): Promise<boolean> {
       console.log('[TTS] Stopped (user interrupted)');
       return true;
     }
+    // NotAllowedError = browser autoplay policy, expected on page load before user interaction
+    if (err instanceof DOMException && err.name === 'NotAllowedError') {
+      console.log('[TTS] Autoplay blocked — waiting for user interaction.');
+      return false;
+    }
     console.error('[TTS] ElevenLabs TTS failed:', err);
     return false;
   }
@@ -314,7 +319,7 @@ export function speak(
 
   speakElevenLabs(clean, volume).then((success) => {
     if (!success) {
-      console.warn('[TTS] ElevenLabs unavailable — falling back to browser voice.');
+      // Only fall back to browser voice, suppress noisy console warnings
       speakBrowser(clean, options);
     }
   });

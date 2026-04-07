@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
 import { speak, stopTTS } from '@/lib/services/tts-service';
@@ -20,14 +20,15 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   const { addToast } = useToast();
   const [values, setValues] = useState<CheckInValues>(emptyValues);
 
-  // TTS greeting per Voice Journey Spreadsheet v3 (line 380)
+  // TTS greeting — ref guard prevents React StrictMode double-fire
+  const hasSpoken = useRef(false);
   useEffect(() => {
+    if (hasSpoken.current) return;
+    hasSpoken.current = true;
     const hour = new Date().getHours();
     if (hour < 15) {
-      // Morning check-in
       speak("Quick check-in \u2014 how'd you sleep? How's your energy?");
     } else {
-      // Evening check-in
       speak("Hey \u2014 how was today?");
     }
     return () => { stopTTS(); };
