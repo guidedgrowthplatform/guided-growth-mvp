@@ -57,10 +57,10 @@ export function useVoiceChat(userName?: string) {
       : 'idle';
 
 
-  // Speak greeting TTS on first mount (only once per browser session)
+  // Speak greeting TTS (useRef prevents React StrictMode double-fire)
   useEffect(() => {
-    if (sessionStorage.getItem('gg_home_greeted')) return;
-    sessionStorage.setItem('gg_home_greeted', '1');
+    if (hasSpokenGreeting.current) return;
+    hasSpokenGreeting.current = true;
     // Short greeting for TTS — don't read the whole help text
     const hour = new Date().getHours();
     const name = userName || 'there';
@@ -163,7 +163,6 @@ export function useVoiceChat(userName?: string) {
     lastHandledVoiceError.current = '';
     lastHandledCommandError.current = null;
     hasSpokenGreeting.current = false;
-    sessionStorage.removeItem('gg_home_greeted');
     resetTranscript();
   }, [resetTranscript, userName]);
 
