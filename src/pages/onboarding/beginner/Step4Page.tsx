@@ -4,54 +4,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { goalsByCategory } from '@/data/onboardingHabits';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
-
-const goalsByCategory: Record<string, string[]> = {
-  'Sleep better': [
-    'Fall asleep earlier',
-    'Wake up earlier',
-    'Sleep more consistently',
-    'Sleep more deeply',
-  ],
-  'Move more': ['Exercise regularly', 'Walk more daily', 'Try a new sport', 'Stretch daily'],
-  'Eat better': [
-    'Eat more vegetables',
-    'Cook at home more',
-    'Reduce sugar intake',
-    'Drink more water',
-  ],
-  'Feel more energized': [
-    'Improve morning routine',
-    'Take fewer naps',
-    'Manage caffeine intake',
-    'Get more sunlight',
-  ],
-  'Reduce stress': [
-    'Meditate regularly',
-    'Practice breathing',
-    'Set boundaries',
-    'Spend time in nature',
-  ],
-  'Improve focus': [
-    'Reduce screen time',
-    'Use time blocks',
-    'Limit multitasking',
-    'Take regular breaks',
-  ],
-  'Break bad habits': [
-    'Stop procrastinating',
-    'Reduce social media',
-    'Quit snacking late',
-    'Stop oversleeping',
-  ],
-  'Get more organized': [
-    'Plan weekly',
-    'Declutter spaces',
-    'Use a to-do list',
-    'Set daily priorities',
-  ],
-};
 
 export function Step4Page() {
   const navigate = useNavigate();

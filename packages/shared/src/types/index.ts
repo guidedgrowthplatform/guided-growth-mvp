@@ -153,6 +153,7 @@ export interface OnboardingStepData {
   nickname?: string | null;
   ageRange?: string | null;
   gender?: string | null;
+  referralSource?: string | null;
   path?: OnboardingPath | null;
   category?: string | null;
   goals?: string[] | null;

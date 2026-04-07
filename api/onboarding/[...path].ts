@@ -111,7 +111,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           onboarding_path = $1,
           nickname = COALESCE($3, profiles.nickname),
           age_group = COALESCE($4, profiles.age_group),
-          gender = COALESCE($5, profiles.gender)
+          gender = COALESCE($5, profiles.gender),
+          referral_source = COALESCE($6, profiles.referral_source)
          WHERE id = $2`,
         [
           onboardingPath,
@@ -119,6 +120,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data?.nickname || null,
           data?.ageRange || null,
           data?.gender || null,
+          data?.referralSource &&
+          typeof data.referralSource === 'string' &&
+          data.referralSource.length <= 50
+            ? data.referralSource
+            : null,
         ],
       );
 

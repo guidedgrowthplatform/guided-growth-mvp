@@ -39,5 +39,6 @@ export function useAppGate(): AppGateStatus {
   if (data.status === 'in_progress') {
     return { status: 'onboarding_in_progress', step: data.current_step, path: data.path };
   }
-  return { status: 'ready' };
+  if (data.status === 'completed') return { status: 'ready' };
+  return { status: 'onboarding_needed' };
 }
