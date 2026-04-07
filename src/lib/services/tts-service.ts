@@ -308,10 +308,14 @@ export function speak(
 
   const volume = options?.volume ?? 0.85;
 
-  // ElevenLabs only — no browser fallback
+  // ElevenLabs first, browser fallback if unavailable
+  // ALWAYS stop current audio first to prevent overlap
+  stopTTS();
+
   speakElevenLabs(clean, volume).then((success) => {
     if (!success) {
-      console.error('[TTS] ElevenLabs failed — no audio will play. Check API key and quota.');
+      console.warn('[TTS] ElevenLabs unavailable — falling back to browser voice.');
+      speakBrowser(clean, options);
     }
   });
 }

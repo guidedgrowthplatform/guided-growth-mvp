@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
-import { speak } from '@/lib/services/tts-service';
+import { speak, stopTTS } from '@/lib/services/tts-service';
 import type { CheckInDimension } from '@shared/types';
 import { checkInDimensions } from './checkInConfig';
 import { EmojiOptionButton } from './EmojiOptionButton';
@@ -30,6 +30,7 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
       // Evening check-in
       speak("Hey \u2014 how was today?");
     }
+    return () => { stopTTS(); };
   }, []);
 
   useEffect(() => {
