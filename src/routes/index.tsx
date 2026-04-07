@@ -22,6 +22,9 @@ const FocusPage = lazy(() => import('@/pages/FocusPage').then((m) => ({ default:
 const SettingsPage = lazy(() =>
   import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
+const PrivacyPolicyPage = lazy(() =>
+  import('@/pages/PrivacyPolicyPage').then((m) => ({ default: m.PrivacyPolicyPage })),
+);
 const SignInPage = lazy(() =>
   import('@/pages/SignInPage').then((m) => ({ default: m.SignInPage })),
 );
@@ -245,6 +248,7 @@ export function AppRoutes() {
           <Route path="report/calendar" element={<CalendarPage />} />
           <Route path="habits" element={<HabitsPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="habit/:habitId" element={<HomePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

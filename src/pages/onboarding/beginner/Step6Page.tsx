@@ -157,7 +157,7 @@ export function Step6Page() {
         })
       }
       voiceOptions={['Weekday', 'Weekend', 'Every day', '9 PM', '10 PM', '8 PM']}
-      voicePrompt="When and how often would you like to reflect?"
+      voicePrompt="One more thing — and this one's powerful. A daily reflection. Three questions. Two minutes. And it compounds over time in a way that surprises people. What you're proud of. What you forgive yourself for. What you're grateful for. These three questions rewire how you process your day. You'll feel the difference within a week. Want to add it?"
       onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader

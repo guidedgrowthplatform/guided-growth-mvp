@@ -6,7 +6,7 @@ import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { useAuth } from '@/hooks/useAuth';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
-import { unlockTTS } from '@/lib/services/tts-service';
+import { unlockTTS, stopTTS } from '@/lib/services/tts-service';
 
 interface VoiceCheckInOverlayProps {
   onClose: () => void;
@@ -20,7 +20,10 @@ const stateLabel: Record<string, string> = {
 
 export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
   const { user } = useAuth();
-  const { messages, voiceState, startListening, stopListening, updateHabitDays } = useVoiceChat();
+  const displayName =
+    user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || undefined;
+  const { messages, voiceState, startListening, stopListening, updateHabitDays } =
+    useVoiceChat(displayName);
 
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
@@ -33,6 +36,7 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
   // Stop any active listening but keep the conversation intact.
   const handleClose = useCallback(() => {
     stopListening();
+    stopTTS();
     onClose();
   }, [stopListening, onClose]);
 

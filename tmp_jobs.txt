@@ -1,0 +1,11 @@
+
+name       status  stage
+----       ------  -----
+build-apk  skipped android
+security   skipped security
+build      skipped build
+test       skipped test
+type-check failed  validate
+lint       success validate
+
+

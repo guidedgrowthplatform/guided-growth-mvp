@@ -196,7 +196,7 @@ export function Step5Page() {
         aiListeningPrompt='"Select up to 2 daily habits to build your foundation."'
         ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
         voiceOptions={allHabits}
-        voicePrompt="Which habits do you want to build?"
+        voicePrompt="Here are a few habits that really help with this. And here's the key — pick what feels doable. Not heroic. Not impressive. Doable. Because one habit done consistently beats five that don't stick. You can also create your own if none of these fit."
         onVoiceAction={handleVoiceAction}
       >
         <OnboardingHeader

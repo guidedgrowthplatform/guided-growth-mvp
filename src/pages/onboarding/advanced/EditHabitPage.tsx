@@ -7,6 +7,7 @@ import { VoiceEditCard } from '@/components/onboarding/VoiceEditCard';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { TimePicker } from '@/components/ui/TimePicker';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { speak, stopTTS } from '@/lib/services/tts-service';
 
 interface EditHabitState {
   habitIndex: number;
@@ -48,8 +49,17 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
     }
   }, [transcript, resetTranscript]);
 
+  // TTS per Voice Journey Spreadsheet v3 (line 471)
+  useEffect(() => {
+    speak('What do you want to change about this habit?');
+    return () => {
+      stopTTS();
+    };
+  }, []);
+
   function handleSave() {
     if (!name.trim()) return;
+    speak('Updated. All good?');
     navigate('/onboarding/advanced-results', {
       state: {
         updatedHabit: { index: habitIndex, name: name.trim(), time, days: Array.from(days) },

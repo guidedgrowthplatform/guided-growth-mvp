@@ -5,6 +5,7 @@ import { WEEKDAYS } from '@/components/onboarding/constants';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { speak, stopTTS } from '@/lib/services/tts-service';
 import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 
 interface HabitItem {
@@ -89,6 +90,16 @@ export function AdvancedResultsPage() {
       window.history.replaceState({}, '');
     }
   }, [locationState]);
+
+  // TTS auto-play per Voice Journey Spreadsheet v3
+  useEffect(() => {
+    speak(
+      "Here's what I put together from what you told me. Take a look — you can edit anything, or if it's way off, I'll start fresh.",
+    );
+    return () => {
+      stopTTS();
+    };
+  }, []);
 
   const handleConfirm = useCallback(async () => {
     const habitConfigsArray = habits.map((h) => ({
