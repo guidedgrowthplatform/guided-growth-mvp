@@ -61,13 +61,8 @@ export function useVoiceChat(userName?: string) {
   useEffect(() => {
     if (hasSpokenGreeting.current) return;
     hasSpokenGreeting.current = true;
-    // Short greeting for TTS — don't read the whole help text
-    const hour = new Date().getHours();
-    const name = userName || 'there';
-    let ttsGreeting: string;
-    if (hour < 12) ttsGreeting = `Morning, ${name}. How are you feeling today?`;
-    else if (hour < 17) ttsGreeting = `Good afternoon, ${name}. What's on your mind?`;
-    else ttsGreeting = `Evening, ${name}. How was today?`;
+    // Full greeting — same as the chat bubble
+    const ttsGreeting = getGreeting(userName);
     speak(ttsGreeting);
   }, [userName]);
 
