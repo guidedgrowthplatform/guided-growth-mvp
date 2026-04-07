@@ -3,7 +3,10 @@ import { useCallback, useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { WEEKDAYS, WEEKEND, ALL_DAYS } from '@/components/onboarding/constants';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
-import { OnboardingVoiceOverlay } from '@/components/onboarding/OnboardingVoiceOverlay';
+import {
+  OnboardingVoiceOverlay,
+  type VoiceMessage,
+} from '@/components/onboarding/OnboardingVoiceOverlay';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import type { OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
@@ -38,6 +41,13 @@ export function AdvancedStep6Page() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [customPrompts] = useState<string[] | null>(state?.customPrompts ?? null);
   const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
+  const [voiceMessages, setVoiceMessages] = useState<VoiceMessage[]>([
+    {
+      id: 'greeting',
+      role: 'ai',
+      text: 'When should you reflect? Say "weekdays", "weekends", or "every day".',
+    },
+  ]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const habitConfigs = state?.habitConfigs;
@@ -233,6 +243,8 @@ export function AdvancedStep6Page() {
           }}
           onAction={handleVoiceAction}
           onClose={() => setShowVoiceOverlay(false)}
+          messages={voiceMessages}
+          setMessages={setVoiceMessages}
         />
       )}
     </div>
