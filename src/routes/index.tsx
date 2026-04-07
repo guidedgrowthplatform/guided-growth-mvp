@@ -37,6 +37,9 @@ const StatusPage = lazy(() =>
 const AuthCallbackPage = lazy(() =>
   import('@/pages/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage })),
 );
+const JournalFlowPage = lazy(() =>
+  import('@/pages/JournalFlowPage').then((m) => ({ default: m.JournalFlowPage })),
+);
 
 const lazyOnboarding = (name: string) =>
   lazy(() =>
@@ -213,6 +216,16 @@ export function AppRoutes() {
           element={
             <AppGate allow="onboarding">
               <AdvancedCustomPromptsPage />
+            </AppGate>
+          }
+        />
+
+        {/* Journal flow (protected, no Layout — full-screen wizard) */}
+        <Route
+          path="/journal"
+          element={
+            <AppGate allow="app">
+              <JournalFlowPage />
             </AppGate>
           }
         />

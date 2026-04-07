@@ -1,5 +1,6 @@
 import { format, subDays } from 'date-fns';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   HomeHeader,
   DateStrip,
@@ -9,35 +10,16 @@ import {
   FeedbackButton,
   ReminderSheet,
 } from '@/components/home';
-import { QuickJournal } from '@/components/journal/QuickJournal';
-import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useEntries } from '@/hooks/useEntries';
-import { useJournal } from '@/hooks/useJournal';
 import type { EntriesMap } from '@shared/types';
 
 export function HomePage() {
   const { user } = useAuth();
-  const { addToast } = useToast();
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showReminders, setShowReminders] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
-  const [showJournal, setShowJournal] = useState(false);
-  const [journalText, setJournalText] = useState('');
-  const { save: saveJournal, saving: journalSaving } = useJournal();
-
-  const handleSaveJournal = useCallback(async () => {
-    if (!journalText.trim()) return;
-    try {
-      await saveJournal(journalText.trim());
-      setJournalText('');
-      setShowJournal(false);
-      addToast('success', 'Journal entry saved');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to save journal';
-      addToast('error', msg);
-    }
-  }, [journalText, saveJournal, addToast]);
 
   const dateRange = useMemo(() => {
     const today = new Date();
@@ -55,12 +37,6 @@ export function HomePage() {
 
   const entriesForStrip: EntriesMap = entries;
 
-  useEffect(() => {
-    const handler = () => setShowJournal((prev) => !prev);
-    window.addEventListener('toggle-journal', handler);
-    return () => window.removeEventListener('toggle-journal', handler);
-  }, []);
-
   const displayName =
     user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'there';
 
@@ -76,7 +52,7 @@ export function HomePage() {
         <div>
           <QuickActionCards
             onCheckInPress={() => setShowCheckIn(!showCheckIn)}
-            onJournalPress={() => setShowJournal(!showJournal)}
+            onJournalPress={() => navigate('/journal')}
           />
           <div
             className={`grid transition-all duration-300 ease-in-out ${
@@ -85,21 +61,6 @@ export function HomePage() {
           >
             <div className="overflow-hidden">
               <CheckInCard selectedDate={selectedDate} onClose={() => setShowCheckIn(false)} />
-            </div>
-          </div>
-          <div
-            className={`grid transition-all duration-300 ease-in-out ${
-              showJournal ? 'mt-4 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-            }`}
-          >
-            <div className="overflow-hidden">
-              <QuickJournal
-                value={journalText}
-                onChange={setJournalText}
-                onSave={handleSaveJournal}
-                isSaving={journalSaving}
-                placeholder="What's on your mind today?"
-              />
             </div>
           </div>
         </div>
