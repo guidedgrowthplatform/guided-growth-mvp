@@ -297,9 +297,12 @@ function speakBrowser(
 
 // ─── Public API ─────────────────────────────────────────────────────────────
 
+// Generation counter — only the LATEST speak() call gets to play audio
+let speakGeneration = 0;
+
 /**
- * Speak text aloud using ElevenLabs TTS (natural voice).
- * ElevenLabs is the ONLY TTS provider — no browser fallback.
+ * Speak text aloud using ElevenLabs TTS with browser fallback.
+ * Uses generation counter to ensure only the latest call plays.
  */
 export function speak(
   text: string,
@@ -313,13 +316,16 @@ export function speak(
 
   const volume = options?.volume ?? 0.85;
 
-  // ElevenLabs first, browser fallback if unavailable
   // ALWAYS stop current audio first to prevent overlap
   stopTTS();
 
+  // Increment generation — any in-flight speak() from earlier calls will be stale
+  const myGeneration = ++speakGeneration;
+
   speakElevenLabs(clean, volume).then((success) => {
+    // If a newer speak() fired while we were fetching, drop this result
+    if (myGeneration !== speakGeneration) return;
     if (!success) {
-      // Only fall back to browser voice, suppress noisy console warnings
       speakBrowser(clean, options);
     }
   });

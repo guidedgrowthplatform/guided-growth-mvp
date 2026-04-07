@@ -110,8 +110,7 @@ export function useVoiceChat(userName?: string) {
       },
     ]);
 
-    // Speak the AI response via TTS
-    speak(lastResult.message);
+    // TTS is handled by useVoiceCommand — don't duplicate here
   }, [lastResult, lastIntent]);
 
   // Voice/mic errors as friendly AI bubbles

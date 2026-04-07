@@ -285,7 +285,6 @@ export function useVoiceCommand() {
 
         const apiLatency = intent.latency || Date.now() - startTime;
 
-        speakPreAck(intent.action, intent.params as Record<string, unknown>);
 
         const result = await dispatcher.dispatch(intent);
         setResult(result, intent, apiLatency);
