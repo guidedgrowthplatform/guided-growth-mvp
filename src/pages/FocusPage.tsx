@@ -8,6 +8,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useFocusSession } from '@/hooks/useFocusSession';
 import { useFocusTimer } from '@/hooks/useFocusTimer';
 import { useHabits } from '@/hooks/useHabits';
+import { speak } from '@/lib/services/tts-service';
 
 export function FocusPage() {
   const timer = useFocusTimer();
@@ -44,6 +45,25 @@ export function FocusPage() {
     }
     prevStatus.current = timer.status;
   }, [timer.status, timer.totalSeconds, selectedHabitId, saveFocusSession]);
+
+  // TTS on status changes per Voice Journey Spreadsheet v3 (line 524-532)
+  const prevTTSStatus = useRef(timer.status);
+  useEffect(() => {
+    if (prevTTSStatus.current !== timer.status) {
+      if (timer.status === 'running' && prevTTSStatus.current !== 'paused') {
+        // On start
+        const mins = Math.round(timer.totalSeconds / 60);
+        const habitLabel = selectedHabit?.name || 'focus';
+        speak(`${mins} minutes of ${habitLabel}. Timer starts now. Go.`);
+      } else if (timer.status === 'completed') {
+        // On complete
+        const mins = Math.round(timer.totalSeconds / 60);
+        const habitLabel = selectedHabit?.name || 'focus';
+        speak(`Time's up. ${mins} minutes of ${habitLabel} \u2014 done. Nice work.`);
+      }
+    }
+    prevTTSStatus.current = timer.status;
+  }, [timer.status, timer.totalSeconds, selectedHabit?.name]);
 
   const handleStart = useCallback(() => {
     sessionStartRef.current = new Date().toISOString();

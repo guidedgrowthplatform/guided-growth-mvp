@@ -1,9 +1,13 @@
 import { Icon } from '@iconify/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { OnboardingVoiceOverlay } from '@/components/onboarding/OnboardingVoiceOverlay';
+import {
+  OnboardingVoiceOverlay,
+  type VoiceMessage,
+} from '@/components/onboarding/OnboardingVoiceOverlay';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { speak, stopTTS, unlockTTS } from '@/lib/services/tts-service';
 import { AiListeningTooltip } from './AiListeningTooltip';
 import { OnboardingProgress } from './OnboardingProgress';
 
@@ -47,11 +51,16 @@ export function OnboardingLayout({
   onVoiceAction,
   showTooltip = false,
 }: OnboardingLayoutProps) {
-  const { isListening, toggle, transcript, interim, error } = useVoiceInput();
+  const { isListening, toggle, transcript, interim, error, resetTranscript } = useVoiceInput();
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
   );
+
+  // Persist voice chat messages across overlay open/close
+  const [voiceMessages, setVoiceMessages] = useState<VoiceMessage[]>(() => [
+    { id: 'prompt', role: 'ai', text: voicePrompt || 'Hey — welcome. What can I help you with?' },
+  ]);
 
   // Track previous transcript to detect new completions
   const prevTranscriptRef = useRef(transcript);
@@ -62,11 +71,21 @@ export function OnboardingLayout({
     prevTranscriptRef.current = transcript;
   }, [transcript, isListening, onTranscript]);
 
+  const hasSpokePrompt = useRef(false);
+
   const handleMicClick = () => {
+    unlockTTS();
     // If we have onVoiceAction, use the new overlay-based flow
     if (onVoiceAction && voiceOptions.length > 0) {
+      // Clear any stale transcript before opening overlay
+      resetTranscript();
       setOverlayOpen(true);
       setTooltipVisible(false);
+      // Speak the prompt first time overlay opens (user gesture = always works)
+      if (!hasSpokePrompt.current && voicePrompt) {
+        hasSpokePrompt.current = true;
+        speak(voicePrompt);
+      }
       // Mark tooltip as seen
       localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
     } else {
@@ -79,6 +98,13 @@ export function OnboardingLayout({
     if (onVoiceAction) {
       onVoiceAction(result);
     }
+  };
+
+  // Wrap onNext to stop current TTS + unlock for next page
+  const handleNext = () => {
+    stopTTS();
+    unlockTTS();
+    onNext();
   };
 
   const handleTooltipDismiss = () => {
@@ -97,6 +123,8 @@ export function OnboardingLayout({
           }}
           onAction={handleVoiceAction}
           onClose={() => setOverlayOpen(false)}
+          messages={voiceMessages}
+          setMessages={setVoiceMessages}
         />
       )}
 
@@ -159,7 +187,7 @@ export function OnboardingLayout({
           )}
           <button
             type="button"
-            onClick={onNext}
+            onClick={handleNext}
             disabled={ctaDisabled}
             className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-[20px] text-[18px] font-medium leading-[28px] text-white shadow-[0px_20px_25px_-5px_rgba(26,47,176,0.2),0px_8px_10px_-6px_rgba(26,47,176,0.2)] disabled:opacity-50"
           >
@@ -178,7 +206,7 @@ export function OnboardingLayout({
         </>
       ) : (
         <div className="relative -mx-6 -mb-12 bg-gradient-to-t from-surface-secondary via-surface-secondary to-transparent px-6 pb-[40px] pt-[24px]">
-          {aiListeningPrompt && (
+          {aiListeningPrompt && !overlayOpen && (
             <div className="absolute bottom-full right-[24px] z-10 mb-[-8px]">
               <AiListeningTooltip
                 text={transcript || aiListeningPrompt}
@@ -189,7 +217,7 @@ export function OnboardingLayout({
           <div className="flex items-center gap-[8px]">
             <button
               type="button"
-              onClick={onNext}
+              onClick={handleNext}
               disabled={ctaDisabled}
               className="flex h-[56px] flex-1 items-center justify-center rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] disabled:opacity-50"
             >
@@ -212,15 +240,18 @@ export function OnboardingLayout({
               </button>
             )}
           </div>
-          {(transcript || interim || error) && showVoiceButton && !onVoiceAction && (
-            <div className="mt-[8px] flex flex-col items-center gap-1">
-              {interim && <p className="text-xs text-content-secondary">{interim}</p>}
-              {transcript && (
-                <p className="max-w-full text-center text-sm text-content">{transcript}</p>
-              )}
-              {error && <p className="max-w-full text-center text-xs text-red-500">{error}</p>}
-            </div>
-          )}
+          {(transcript || interim || error) &&
+            showVoiceButton &&
+            !onVoiceAction &&
+            !overlayOpen && (
+              <div className="mt-[8px] flex flex-col items-center gap-1">
+                {interim && <p className="text-xs text-content-secondary">{interim}</p>}
+                {transcript && (
+                  <p className="max-w-full text-center text-sm text-content">{transcript}</p>
+                )}
+                {error && <p className="max-w-full text-center text-xs text-red-500">{error}</p>}
+              </div>
+            )}
           {footerText && (
             <p className="mt-[12px] text-center text-[12px] font-medium text-content-tertiary">
               {footerText}

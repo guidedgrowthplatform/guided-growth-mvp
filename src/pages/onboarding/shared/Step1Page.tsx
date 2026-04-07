@@ -100,7 +100,7 @@ export function Step1Page() {
       showVoiceButton
       onTranscript={(text) => setNickname(text)}
       voiceOptions={[...AGE_OPTIONS, ...GENDER_OPTIONS, ...REFERRAL_OPTIONS, 'name', 'nickname']}
-      voicePrompt="What's your name, age range, how do you identify, and how did you hear about us?"
+      voicePrompt="Hey — welcome. Before we build anything, I just want to get to know you a little. What should I call you, how old are you, and how did you hear about us? You can just say it or type it in."
       onVoiceAction={handleVoiceAction}
       showTooltip
     >

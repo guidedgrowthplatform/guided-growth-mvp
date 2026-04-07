@@ -108,3 +108,13 @@ vendor/bundle/
 
 playwright-report/
 test-results/
+
+# Test / scratch files (dev only — never commit)
+*.mp3
+git_*.txt
+*_test.txt
+*_error.txt
+remote.txt
+voices.txt
+test_phase_*.txt
+gradle_build_log.txt

@@ -10,19 +10,23 @@ import {
   type OnboardingVoiceResult,
 } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
-import { unlockTTS } from '@/lib/services/tts-service';
+import { unlockTTS, speak, stopTTS } from '@/lib/services/tts-service';
+
+export interface VoiceMessage {
+  id: string;
+  role: 'user' | 'ai';
+  text: string;
+}
 
 interface OnboardingVoiceOverlayProps {
   stepContext: OnboardingStepContext;
   onAction: (result: OnboardingVoiceResult) => void;
   onClose: () => void;
+  messages: VoiceMessage[];
+  setMessages: React.Dispatch<React.SetStateAction<VoiceMessage[]>>;
 }
 
-interface Message {
-  id: string;
-  role: 'user' | 'ai';
-  text: string;
-}
+// Message type is now exported as VoiceMessage above
 
 const stateLabel: Record<string, string> = {
   idle: 'Tap to speak',
@@ -34,16 +38,16 @@ export function OnboardingVoiceOverlay({
   stepContext,
   onAction,
   onClose,
+  messages,
+  setMessages,
 }: OnboardingVoiceOverlayProps) {
   const { user } = useAuth();
-  const { isListening, transcript, toggle, error } = useVoiceInput();
+  const { isListening, transcript, toggle, error, resetTranscript } = useVoiceInput();
   const { processTranscript } = useOnboardingVoice();
-
-  const [messages, setMessages] = useState<Message[]>(() => [
-    { id: 'prompt', role: 'ai', text: stepContext.prompt },
-  ]);
   const [isProcessing, setIsProcessing] = useState(false);
   const lastErrorRef = useRef('');
+  // Track which transcript was already sent for processing to prevent re-fires
+  const processedTranscriptRef = useRef('');
 
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
@@ -67,20 +71,33 @@ export function OnboardingVoiceOverlay({
     if (isListening) {
       toggle();
     }
+    // Don't stop TTS — let it keep playing when overlay closes
+    // TTS only stops when user presses mic to start recording
+    resetTranscript();
     onClose();
-  }, [isListening, toggle, onClose]);
+  }, [isListening, toggle, onClose, resetTranscript]);
 
   const handleMicPress = useCallback(() => {
     unlockTTS();
+    // Stop any playing TTS audio so it doesn't overlap with recording
+    stopTTS();
     toggle();
   }, [toggle]);
 
-  // When recording stops and we have a transcript, process it
+  // When recording stops and we have a NEW transcript, process it
   useEffect(() => {
-    if (!isListening && transcript && !isProcessing) {
+    if (
+      !isListening &&
+      transcript &&
+      !isProcessing &&
+      transcript !== processedTranscriptRef.current
+    ) {
+      // Mark this transcript as consumed immediately to prevent re-fires
+      processedTranscriptRef.current = transcript;
+
       // Add user message
       const userMsgId = `user-${Date.now()}`;
-      const userMsg: Message = {
+      const userMsg: VoiceMessage = {
         id: userMsgId,
         role: 'user',
         text: transcript,
@@ -89,18 +106,24 @@ export function OnboardingVoiceOverlay({
       setMessages((prev) => [...prev, userMsg]);
       setIsProcessing(true);
 
+      // Clear the global transcript so it doesn't trigger again
+      resetTranscript();
+
       // Process the transcript
       processTranscript(transcript, stepContext)
         .then((result) => {
           // Add assistant response message
           const assistantMsgId = `assistant-${Date.now()}`;
-          const assistantMsg: Message = {
+          const assistantMsg: VoiceMessage = {
             id: assistantMsgId,
             role: 'ai',
             text: result.message,
           };
 
           setMessages((prev) => [...prev, assistantMsg]);
+
+          // Speak the AI response aloud
+          speak(result.message);
 
           // If success, wait a bit then close and call onAction
           if (result.success) {
@@ -115,7 +138,7 @@ export function OnboardingVoiceOverlay({
         })
         .catch((err) => {
           console.error('Error processing transcript:', err);
-          const errorMsg: Message = {
+          const errorMsg: VoiceMessage = {
             id: `error-${Date.now()}`,
             role: 'ai',
             text: 'Sorry, something went wrong. Please try again.',
@@ -132,6 +155,7 @@ export function OnboardingVoiceOverlay({
     processTranscript,
     onAction,
     handleClose,
+    resetTranscript,
   ]);
 
   const handleTouchStart = (e: React.TouchEvent) => {

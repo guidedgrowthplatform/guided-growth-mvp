@@ -1,4 +1,6 @@
 import { Icon } from '@iconify/react';
+import { useEffect } from 'react';
+import { speak } from '@/lib/services/tts-service';
 
 interface DeleteHabitModalProps {
   onDelete: () => void;
@@ -6,6 +8,16 @@ interface DeleteHabitModalProps {
 }
 
 export function DeleteHabitModal({ onDelete, onKeep }: DeleteHabitModalProps) {
+  // TTS per Voice Journey Spreadsheet v3 (line 477)
+  useEffect(() => {
+    speak("Are you sure? No judgment either way \u2014 sometimes it's the right call to refocus.");
+  }, []);
+
+  const handleDelete = () => {
+    speak('Done. If you ever want it back, just ask.');
+    onDelete();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onKeep} />
@@ -27,7 +39,7 @@ export function DeleteHabitModal({ onDelete, onKeep }: DeleteHabitModalProps) {
         <div className="flex w-full flex-col gap-[12px]">
           <button
             type="button"
-            onClick={onDelete}
+            onClick={handleDelete}
             className="w-full rounded-full bg-[#e5484d] py-[16px] text-center text-[16px] font-bold text-white"
           >
             Delete Habit

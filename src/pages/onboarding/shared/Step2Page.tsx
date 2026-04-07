@@ -20,9 +20,14 @@ export function Step2Page() {
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
     if (result.params && typeof result.params.path === 'string') {
       const path = result.params.path.toLowerCase();
-      if (path.includes('simple')) {
+      if (path.includes('simple') || path.includes('new') || path.includes('beginner')) {
         setPlan('simple');
-      } else if (path.includes('brain') || path.includes('advanced')) {
+      } else if (
+        path.includes('brain') ||
+        path.includes('advanced') ||
+        path.includes('experience') ||
+        path.includes('dump')
+      ) {
         setPlan('braindump');
       }
     }
@@ -49,7 +54,7 @@ export function Step2Page() {
       showVoiceButton
       aiListeningPrompt="Let me know if you are new to habit tracking or already have experience with habit tracking"
       voiceOptions={['simple', 'brain dump', 'braindump', 'beginner', 'advanced']}
-      voicePrompt="Which plan would you like?"
+      voicePrompt="Quick question — have you tracked habits before, or is this new for you? Either way is great. I just want to know the best way to guide you. If you're new, I'll walk you through it step by step. If you've done this before, just tell me what you want and I'll organize it."
       onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader

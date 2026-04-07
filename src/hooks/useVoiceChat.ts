@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { speak, stopTTS } from '@/lib/services/tts-service';
 import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { useVoiceCommand } from './useVoiceCommand';
@@ -14,42 +15,27 @@ export interface ChatMessage {
 
 export type VoiceChatState = 'idle' | 'listening' | 'processing';
 
-const GREETING =
-  'Hi there! How are you feeling today? You can ask me to create habits, log metrics, or check your progress.';
-
-const SESSION_STORAGE_KEY = 'voice-chat-messages';
+/** Time-aware greeting per Voice Journey Spreadsheet v3 */
+function getGreeting(name?: string): string {
+  const hour = new Date().getHours();
+  const displayName = name || 'there';
+  if (hour < 12)
+    return `Morning, ${displayName}. How are you feeling today? You can ask me to create habits, log metrics, or check your progress.`;
+  if (hour < 17)
+    return `Good afternoon, ${displayName}. What's on your mind? You can ask me to create habits, log metrics, or check your progress.`;
+  return `Evening, ${displayName}. How was today? You can ask me to create habits, log metrics, or check your progress.`;
+}
 
 function makeId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-function defaultMessages(): ChatMessage[] {
-  return [{ id: 'greeting', role: 'ai', text: GREETING, timestamp: Date.now() }];
+function defaultMessages(name?: string): ChatMessage[] {
+  return [{ id: 'greeting', role: 'ai', text: getGreeting(name), timestamp: Date.now() }];
 }
 
-function loadMessages(): ChatMessage[] {
-  try {
-    const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (raw) {
-      const parsed: ChatMessage[] = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {
-    // Corrupted data — fall back to default
-  }
-  return defaultMessages();
-}
-
-function saveMessages(messages: ChatMessage[]): void {
-  try {
-    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(messages));
-  } catch {
-    // Storage full or unavailable
-  }
-}
-
-export function useVoiceChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>(loadMessages);
+export function useVoiceChat(userName?: string) {
+  const [messages, setMessages] = useState<ChatMessage[]>(() => defaultMessages(userName));
 
   const { isListening, start, stop, resetTranscript, error: voiceError } = useVoiceInput();
   const { processTranscript, isProcessing, error: commandError } = useVoiceCommand();
@@ -62,6 +48,7 @@ export function useVoiceChat() {
   const lastHandledResult = useRef<typeof lastResult>(null);
   const lastHandledVoiceError = useRef('');
   const lastHandledCommandError = useRef<string | null>(null);
+  const hasSpokenGreeting = useRef(false);
 
   const voiceState: VoiceChatState = isProcessing
     ? 'processing'
@@ -69,32 +56,34 @@ export function useVoiceChat() {
       ? 'listening'
       : 'idle';
 
-  // Bug 1 fix: persist messages to sessionStorage on every change
+  // Speak greeting TTS (useRef prevents React StrictMode double-fire)
   useEffect(() => {
-    saveMessages(messages);
-  }, [messages]);
+    if (hasSpokenGreeting.current) return;
+    hasSpokenGreeting.current = true;
+    // Full greeting — same as the chat bubble
+    const ttsGreeting = getGreeting(userName);
+    speak(ttsGreeting);
+  }, [userName]);
 
-  // Process transcript when recording stops and transcript is available.
-  // Dedup relies on module-level `_processing` flag in useVoiceCommand
-  // which survives React remounts and StrictMode double-invocation.
+  // Process transcript when recording stops and transcript is available
   useEffect(() => {
     if (!transcript || transcript === lastHandledTranscript.current) return;
     if (isListening) return;
 
     lastHandledTranscript.current = transcript;
 
-    // Add the user's message bubble first
+    // Add the user's message bubble
     setMessages((prev) => [
       ...prev,
       { id: makeId(), role: 'user', text: transcript, timestamp: Date.now() },
     ]);
 
-    // Then process — AI response will arrive via the lastResult effect
+    // Process — AI response arrives via lastResult effect
     processTranscript(transcript);
     resetTranscript();
   }, [transcript, isListening, processTranscript, resetTranscript]);
 
-  // AI response bubble
+  // AI response bubble + TTS
   useEffect(() => {
     if (!lastResult || lastResult === lastHandledResult.current) return;
     lastHandledResult.current = lastResult;
@@ -119,41 +108,37 @@ export function useVoiceChat() {
         timestamp: Date.now(),
       },
     ]);
+
+    // TTS is handled by useVoiceCommand — don't duplicate here
   }, [lastResult, lastIntent]);
 
-  // Bug 3 fix: show voice/mic errors as AI bubbles
+  // Voice/mic errors as friendly AI bubbles
   useEffect(() => {
     if (!voiceError || voiceError === lastHandledVoiceError.current) return;
     lastHandledVoiceError.current = voiceError;
 
+    const friendlyMsg = "Hmm, I didn't catch that. Try tapping the mic and speaking again.";
     setMessages((prev) => [
       ...prev,
-      {
-        id: makeId(),
-        role: 'ai',
-        text: `Sorry, there was a problem with voice input: ${voiceError}`,
-        timestamp: Date.now(),
-      },
+      { id: makeId(), role: 'ai', text: friendlyMsg, timestamp: Date.now() },
     ]);
   }, [voiceError]);
 
-  // Bug 3 fix: show command processing errors as AI bubbles
+  // Command processing errors as friendly AI bubbles
   useEffect(() => {
     if (!commandError || commandError === lastHandledCommandError.current) return;
     lastHandledCommandError.current = commandError;
 
+    const friendlyMsg = "Something didn't work on my end. Try saying that again?";
     setMessages((prev) => [
       ...prev,
-      {
-        id: makeId(),
-        role: 'ai',
-        text: `Something went wrong while processing your request: ${commandError}`,
-        timestamp: Date.now(),
-      },
+      { id: makeId(), role: 'ai', text: friendlyMsg, timestamp: Date.now() },
     ]);
   }, [commandError]);
 
   const startListening = useCallback(() => {
+    // Stop any TTS that's playing before listening
+    stopTTS();
     resetTranscript();
     start();
   }, [start, resetTranscript]);
@@ -162,17 +147,17 @@ export function useVoiceChat() {
     stop();
   }, [stop]);
 
-  // Bug 1 fix: reset now clears sessionStorage and ref trackers
+  // Reset clears ref trackers and starts fresh
   const reset = useCallback(() => {
-    const fresh = defaultMessages();
+    const fresh = defaultMessages(userName);
     setMessages(fresh);
-    saveMessages(fresh);
     lastHandledTranscript.current = '';
     lastHandledResult.current = null;
     lastHandledVoiceError.current = '';
     lastHandledCommandError.current = null;
+    hasSpokenGreeting.current = false;
     resetTranscript();
-  }, [resetTranscript]);
+  }, [resetTranscript, userName]);
 
   const updateHabitDays = useCallback((messageId: string, cardIndex: number, days: boolean[]) => {
     setMessages((prev) =>

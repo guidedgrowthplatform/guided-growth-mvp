@@ -34,26 +34,13 @@ function scrubPII(text: string): string {
     },
   );
 
-  // Replace capitalized names (but avoid common words)
-  const commonWords = new Set([
-    'I',
-    'The',
-    'A',
-    'An',
-    'Is',
-    'Are',
-    'Was',
-    'Were',
-    'Be',
-    'Been',
-    'Being',
-  ]);
-  scrubbed = scrubbed.replace(/\b([A-Z][a-z]+)\b/g, (match) => {
-    if (!commonWords.has(match) && match.length > 1) {
-      return '[NAME]';
-    }
-    return match;
-  });
+  // Replace names ONLY after explicit name patterns (not all capitalized words)
+  // "my name is Sarah" → "my name is [NAME]", "I'm John" → "I'm [NAME]"
+  // "call me Alex" → "call me [NAME]"
+  scrubbed = scrubbed.replace(
+    /\b(?:my name is|i'm|i am|call me|name's|it's)\s+([A-Z][a-z]+)/gi,
+    (match, _name) => match.replace(/[A-Z][a-z]+$/, '[NAME]'),
+  );
 
   return scrubbed;
 }
@@ -616,7 +603,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     : SYSTEM_PROMPT + habitContext;
 
   // Scrub PII from transcript before sending to OpenAI
-  const sanitizedTranscript = scrubPII(transcript);
+  // EXCEPTION: onboarding Step 1 needs the user's real name, so skip scrubbing for onboarding
+  const sanitizedTranscript = isOnboarding ? transcript : scrubPII(transcript);
 
   try {
     const startTime = Date.now();

@@ -7,6 +7,7 @@ import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import { VoiceMicButton } from '@/components/onboarding/VoiceMicButton';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { speak, stopTTS } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 export function AdvancedInputPage() {
@@ -24,6 +25,16 @@ export function AdvancedInputPage() {
       resetTranscript();
     }
   }, [isListening, transcript, resetTranscript]);
+
+  // TTS auto-play per Voice Journey Spreadsheet v3
+  useEffect(() => {
+    speak(
+      "Tell me everything. What habits do you want to build? What are you trying to change? Don't hold back — just talk. I'll organize it all.",
+    );
+    return () => {
+      stopTTS();
+    };
+  }, []);
 
   function handleKeyboardPress() {
     textareaRef.current?.scrollIntoView({ behavior: 'smooth' });

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
+import { speak, stopTTS } from '@/lib/services/tts-service';
 import type { CheckInDimension } from '@shared/types';
 import { checkInDimensions } from './checkInConfig';
 import { EmojiOptionButton } from './EmojiOptionButton';
@@ -18,6 +19,22 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   const { checkIn, loading, saving, save } = useCheckIn(selectedDate);
   const { addToast } = useToast();
   const [values, setValues] = useState<CheckInValues>(emptyValues);
+
+  // TTS greeting — ref guard prevents React StrictMode double-fire
+  const hasSpoken = useRef(false);
+  useEffect(() => {
+    if (hasSpoken.current) return;
+    hasSpoken.current = true;
+    const hour = new Date().getHours();
+    if (hour < 15) {
+      speak("Quick check-in \u2014 how'd you sleep? How's your energy?");
+    } else {
+      speak('Hey \u2014 how was today?');
+    }
+    return () => {
+      stopTTS();
+    };
+  }, []);
 
   useEffect(() => {
     if (checkIn) {
@@ -39,6 +56,15 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   const handleCheckIn = async () => {
     try {
       await save(values);
+      // TTS coaching response per Voice Journey Spreadsheet v3 (line 386)
+      const hour = new Date().getHours();
+      if (hour < 15) {
+        // Morning coaching
+        speak("Got it \u2014 logged. You've got this today.");
+      } else {
+        // Evening coaching
+        speak('Logged. Thanks for checking in \u2014 rest well tonight.');
+      }
       onClose?.();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to save check-in';
