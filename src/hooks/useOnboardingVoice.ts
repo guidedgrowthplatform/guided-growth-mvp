@@ -166,6 +166,15 @@ export function useOnboardingVoice() {
           }
 
           console.log('[OnboardingVoice] Final params:', JSON.stringify(params));
+
+          // Extract referral source from transcript
+          if (/\b(founder|invite|invited)\b/.test(normalizedTranscript)) {
+            params.referralSource = 'Founder Invite';
+          } else if (/\b(webinar)\b/.test(normalizedTranscript)) {
+            params.referralSource = 'Webinar';
+          } else if (/\b(friend|buddy|colleague|someone)\b/.test(normalizedTranscript)) {
+            params.referralSource = 'Friend';
+          }
         }
 
         // Step-specific responses — inspired by Voice Journey Spreadsheet v3
