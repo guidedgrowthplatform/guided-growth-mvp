@@ -24,7 +24,7 @@ function getGreeting(name?: string): string {
   return `Evening, ${displayName}. How was today? You can ask me to create habits, log metrics, or check your progress.`;
 }
 
-const SESSION_STORAGE_KEY = 'voice-chat-messages';
+
 
 function makeId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -34,29 +34,8 @@ function defaultMessages(name?: string): ChatMessage[] {
   return [{ id: 'greeting', role: 'ai', text: getGreeting(name), timestamp: Date.now() }];
 }
 
-function loadMessages(): ChatMessage[] {
-  try {
-    const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (raw) {
-      const parsed: ChatMessage[] = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {
-    // Corrupted data — fall back to default
-  }
-  return defaultMessages();
-}
-
-function saveMessages(messages: ChatMessage[]): void {
-  try {
-    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(messages));
-  } catch {
-    // Storage full or unavailable
-  }
-}
-
 export function useVoiceChat(userName?: string) {
-  const [messages, setMessages] = useState<ChatMessage[]>(loadMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => defaultMessages(userName));
 
   const { isListening, start, stop, resetTranscript, error: voiceError } = useVoiceInput();
   const { processTranscript, isProcessing, error: commandError } = useVoiceCommand();
@@ -77,10 +56,6 @@ export function useVoiceChat(userName?: string) {
       ? 'listening'
       : 'idle';
 
-  // Persist messages to sessionStorage on every change
-  useEffect(() => {
-    saveMessages(messages);
-  }, [messages]);
 
   // Speak greeting TTS on first mount (only once per browser session)
   useEffect(() => {
@@ -179,11 +154,10 @@ export function useVoiceChat(userName?: string) {
     stop();
   }, [stop]);
 
-  // Reset clears sessionStorage and ref trackers
+  // Reset clears ref trackers and starts fresh
   const reset = useCallback(() => {
     const fresh = defaultMessages(userName);
     setMessages(fresh);
-    saveMessages(fresh);
     lastHandledTranscript.current = '';
     lastHandledResult.current = null;
     lastHandledVoiceError.current = '';
