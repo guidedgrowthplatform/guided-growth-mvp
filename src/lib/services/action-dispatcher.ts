@@ -1,23 +1,22 @@
 import { DAY_NAMES, HABIT_SUGGESTIONS, DEFAULT_SUGGESTION, MSG, COACHING } from '../config/dispatcher-config';
 import type { ActionResult, DataService } from './data-service.interface';
 
-/** Translate raw backend errors into user-friendly messages */
+/** Translate raw backend errors into friendly coaching-style messages */
 function friendlyError(raw: string): string {
   const lower = raw.toLowerCase();
   if (lower.includes('schema') || lower.includes('column'))
-    return 'Something went wrong with the database. Please try again in a moment.';
+    return "Something didn't work on my end. Try again in a moment.";
   if (lower.includes('not authenticated') || lower.includes('jwt'))
-    return 'You need to sign in first. Please log in and try again.';
+    return "Looks like you're not signed in. Log in and try again.";
   if (lower.includes('permission') || lower.includes('policy'))
-    return `You don't have permission to do that. Please sign in again.`;
+    return "I can't do that right now. Try signing in again.";
   if (lower.includes('duplicate') || lower.includes('unique'))
-    return 'That item already exists. Try a different name.';
+    return 'That one already exists. Try a different name.';
   if (lower.includes('timeout') || lower.includes('network'))
-    return 'Connection issue. Please check your internet and try again.';
+    return "Couldn't connect. Check your internet and try again.";
   if (lower.includes('not found'))
-    return `Couldn't find that item. Make sure the name is correct.`;
-  // Keep it short and non-technical for anything else
-  return `Something went wrong. Please try again.`;
+    return "I couldn't find that. Make sure the name is right.";
+  return "Something went wrong. Let's try that again.";
 }
 
 interface CommandIntent {
@@ -207,7 +206,7 @@ export class ActionDispatcher {
     if (!habit) {
       return {
         success: false,
-        message: `${MSG.error} Habit "${name}" not found`,
+        message: `Hmm, I don't see a habit called "${name}". Want to create it?`,
         uiAction: 'toast',
       };
     }
@@ -252,7 +251,7 @@ export class ActionDispatcher {
         if (!habit)
           return {
             success: false,
-            message: `${MSG.error} Habit "${name}" not found`,
+            message: `I don't see "${name}" in your habits. Check the name or create it first.`,
             uiAction: 'toast',
           };
         await this.dataService.deleteHabit(habit.id);
@@ -268,7 +267,7 @@ export class ActionDispatcher {
         if (!metric)
           return {
             success: false,
-            message: `${MSG.error} Metric "${name}" not found`,
+            message: `I don't see a metric called "${name}". Check the name?`,
             uiAction: 'toast',
           };
         await this.dataService.deleteMetric(metric.id);
@@ -297,7 +296,7 @@ export class ActionDispatcher {
     if (!habit)
       return {
         success: false,
-        message: `${MSG.error} Habit "${name}" not found`,
+        message: `I don't see "${name}" in your habits. Check the name?`,
         uiAction: 'toast',
       };
 
@@ -331,7 +330,7 @@ export class ActionDispatcher {
           if (!habit)
             return {
               success: false,
-              message: `${MSG.error} Habit "${name}" not found`,
+              message: `I don't see "${name}" in your habits. Check the name?`,
               uiAction: 'toast',
             };
 
@@ -409,7 +408,7 @@ export class ActionDispatcher {
     if (!metric)
       return {
         success: false,
-        message: `${MSG.error} Metric "${name}" not found`,
+        message: `I don't see a metric called "${name}". Want to create it?`,
         uiAction: 'toast',
       };
 
@@ -528,7 +527,7 @@ export class ActionDispatcher {
       if (!habit) {
         return {
           success: false,
-          message: `${MSG.error} Habit "${habitName}" not found. Create it first or start a focus session without a habit.`,
+          message: `I don't see "${habitName}" in your habits. Create it first, or start a focus session without one.`,
           uiAction: 'toast',
         };
       }
