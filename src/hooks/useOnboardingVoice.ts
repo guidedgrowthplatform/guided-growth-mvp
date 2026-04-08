@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, sessionReady } from '@/lib/supabase';
 
 export interface OnboardingStepContext {
   step: number;
@@ -50,6 +50,13 @@ export function useOnboardingVoice() {
         // Get auth token for production API calls
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         try {
+          // Native session is async — see elevenlabs-service.ts. Without
+          // this await, voice fired immediately at app launch races the
+          // Capacitor Preferences loader and the request goes out with
+          // no Authorization header, returning 401.
+          if (Capacitor.isNativePlatform()) {
+            await sessionReady;
+          }
           const {
             data: { session },
           } = await supabase.auth.getSession();

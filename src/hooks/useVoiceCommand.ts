@@ -6,7 +6,7 @@ import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { haptic } from '@/lib/services/haptic-service';
 import { getDataService } from '@/lib/services/service-provider';
 import { speak } from '@/lib/services/tts-service';
-import { supabase } from '@/lib/supabase';
+import { supabase, sessionReady } from '@/lib/supabase';
 import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 
@@ -251,6 +251,12 @@ export function useVoiceCommand() {
           // Get auth token for production API calls
           const headers: Record<string, string> = { 'Content-Type': 'application/json' };
           try {
+            // Native session is async — await sessionReady so a voice
+            // command issued immediately at app launch doesn't race the
+            // Capacitor Preferences loader and 401.
+            if (Capacitor.isNativePlatform()) {
+              await sessionReady;
+            }
             const {
               data: { session },
             } = await supabase.auth.getSession();

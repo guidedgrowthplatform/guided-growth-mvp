@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { supabase } from '@/lib/supabase';
+import { supabase, sessionReady } from '@/lib/supabase';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 const VOICE_PREF_KEY = 'mvp03_tts_voice';
@@ -54,6 +54,12 @@ function getApiBase(): string {
 /** Get auth headers for the TTS proxy */
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
+    // Await native session hydration — see elevenlabs-service.ts for the
+    // race-condition rationale. TL;DR: voice fired right after app launch
+    // races the Capacitor Preferences loader and gets a null session.
+    if (Capacitor.isNativePlatform()) {
+      await sessionReady;
+    }
     const {
       data: { session },
     } = await supabase.auth.getSession();

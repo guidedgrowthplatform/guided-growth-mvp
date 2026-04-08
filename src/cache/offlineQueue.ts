@@ -1,4 +1,5 @@
-import { supabase } from '@/lib/supabase';
+import { Capacitor } from '@capacitor/core';
+import { supabase, sessionReady } from '@/lib/supabase';
 
 const QUEUE_KEY = 'lgt_offline_queue';
 const PROCESSED_IDS_KEY = 'lgt_offline_queue_processed_ids';
@@ -22,6 +23,13 @@ let flushInProgress = false;
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
+    // Native session is async — same race-prevention pattern as
+    // elevenlabs-service.ts. Most offline flushes happen in response to
+    // the 'online' event which can fire right at app launch on cold
+    // boot, so the session may not be hydrated yet.
+    if (Capacitor.isNativePlatform()) {
+      await sessionReady;
+    }
     const {
       data: { session },
     } = await supabase.auth.getSession();

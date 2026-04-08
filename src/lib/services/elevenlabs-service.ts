@@ -1,6 +1,6 @@
 // Server-side proxy at /api/elevenlabs-stt keeps API key secure
 import { Capacitor } from '@capacitor/core';
-import { supabase } from '@/lib/supabase';
+import { supabase, sessionReady } from '@/lib/supabase';
 
 function getApiBase(): string {
   if (Capacitor.isNativePlatform()) {
@@ -13,6 +13,16 @@ function getApiBase(): string {
 /** Get auth headers for API calls — required in production where AUTH_BYPASS_MODE is disabled */
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
+    // On native, the Supabase session is loaded asynchronously from
+    // Capacitor Preferences. Without awaiting sessionReady here, a voice
+    // command issued immediately after app launch can race the session
+    // loader: getSession() returns null, the request goes out without an
+    // Authorization header, and the API returns 401. Awaiting is a no-op
+    // on web (sessionReady resolves synchronously after the first
+    // getSession()).
+    if (Capacitor.isNativePlatform()) {
+      await sessionReady;
+    }
     const {
       data: { session },
     } = await supabase.auth.getSession();
