@@ -18,8 +18,7 @@ const types: {
   iconBg: string;
   title: string;
   description: string;
-  badge?: string;
-  badgeVariant?: 'primary' | 'muted';
+  badge: string;
 }[] = [
   {
     key: 'template',
@@ -28,7 +27,6 @@ const types: {
     title: 'Template Reflection',
     description: 'Structured prompts for specific themes (e.g., Gratitude, Future, Challenges).',
     badge: 'For a quick start',
-    badgeVariant: 'muted',
   },
   {
     key: 'freeform',
@@ -38,7 +36,6 @@ const types: {
     description:
       'Write whatever is on your mind. A blank page for unrestricted expression and flow.',
     badge: 'For unrestricted flow',
-    badgeVariant: 'muted',
   },
 ];
 
@@ -69,27 +66,16 @@ export function ReflectionTypeSelect({
 
       <div className="mt-6 flex flex-col gap-4" role="radiogroup" aria-label="Reflection type">
         {types.map((t) => (
-          <div key={t.key} className="relative">
-            <SelectionCard
-              icon={t.icon}
-              iconBg={t.iconBg}
-              title={t.title}
-              description={t.description}
-              selected={selected === t.key}
-              onSelect={() => onSelect(t.key)}
-            />
-            {t.badge && (
-              <span
-                className={`absolute bottom-4 left-[21px] rounded-full px-3 py-1 text-xs font-bold ${
-                  t.badgeVariant === 'primary'
-                    ? 'bg-primary text-white'
-                    : 'bg-surface-secondary text-content-secondary'
-                }`}
-              >
-                {t.badge}
-              </span>
-            )}
-          </div>
+          <SelectionCard
+            key={t.key}
+            icon={t.icon}
+            iconBg={t.iconBg}
+            title={t.title}
+            description={t.description}
+            badge={t.badge}
+            selected={selected === t.key}
+            onSelect={() => onSelect(t.key)}
+          />
         ))}
       </div>
 
