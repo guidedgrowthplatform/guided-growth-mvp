@@ -29,7 +29,10 @@ export function FeedbackSheet({ onClose }: FeedbackSheetProps) {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
 
-  // Cleanup mic on unmount (e.g. drag-to-close while recording)
+  // Cleanup mic on unmount (e.g. drag-to-close while recording).
+  // NOTE: empty deps so this only fires once on real unmount. Previously
+  // any parent re-render could trip this cleanup and kill in-progress
+  // recordings mid-transcription.
   useEffect(() => {
     return () => {
       stopElevenLabs();
@@ -45,9 +48,21 @@ export function FeedbackSheet({ onClose }: FeedbackSheetProps) {
         const transcript = await stopAndTranscribe();
         if (transcript) {
           setText((prev) => (prev ? `${prev} ${transcript.trim()}` : transcript.trim()));
+        } else {
+          // Empty transcript can happen if the recording was cleaned up
+          // (e.g. component unmounted mid-record, or stopElevenLabs was
+          // called before stopAndTranscribe). Surface a friendly nudge
+          // instead of leaving the user with no feedback.
+          addToast('error', "I didn't catch that — could you try again?");
         }
-      } catch {
-        addToast('error', 'Transcription failed. Please try again.');
+      } catch (err) {
+        // The service throws friendly messages like "I didn't catch that
+        // — could you say it again?" for silence/hallucination/too-short.
+        // Pass those through verbatim; fall back to a generic message
+        // for unexpected errors.
+        const message =
+          err instanceof Error ? err.message : 'Transcription failed. Please try again.';
+        addToast('error', message);
       } finally {
         setTranscribing(false);
       }
@@ -63,14 +78,35 @@ export function FeedbackSheet({ onClose }: FeedbackSheetProps) {
           addToast('error', error || 'Voice recording failed.');
         },
       });
-    } catch {
+    } catch (err) {
       setRecording(false);
-      addToast('error', 'Could not access microphone.');
+      // Surface permission denials with a platform-aware message.
+      // Previously always showed "Could not access microphone" which
+      // doesn't tell the user where to fix it in Settings.
+      const name = err instanceof Error ? err.name : '';
+      const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+      let message = 'Could not access microphone.';
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        if (/iPhone|iPad|iPod/i.test(ua)) {
+          message = 'Microphone access denied. Enable it in iOS Settings → Guided Growth.';
+        } else if (/Android/i.test(ua)) {
+          message =
+            'Microphone access denied. Enable it in Android Settings → Apps → Guided Growth → Permissions.';
+        } else {
+          message =
+            'Microphone permission denied. Click the lock icon in the address bar to enable.';
+        }
+      }
+      addToast('error', message);
     }
   }, [recording, addToast]);
 
   const handleClose = () => {
+    // If the user closes the sheet mid-recording, cancel the mic cleanly.
+    // Do NOT cancel during transcribing — the user is waiting for the
+    // API response and closing mid-fetch would leave them confused.
     if (recording) stopElevenLabs();
+    if (transcribing) return; // block close until transcription settles
     onClose();
   };
 

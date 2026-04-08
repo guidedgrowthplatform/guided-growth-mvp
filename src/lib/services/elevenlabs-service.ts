@@ -75,6 +75,66 @@ async function resampleAudio(
   return rendered.getChannelData(0);
 }
 
+/**
+ * Compute RMS (root-mean-square) energy of a Float32 buffer.
+ * Values:
+ *   < 0.0005  — essentially silent (ambient room noise max)
+ *   0.001     — faint background
+ *   0.005+    — clearly audible speech
+ *   0.02+     — close-talking speech
+ *
+ * Used to reject empty/silent recordings BEFORE sending them to
+ * ElevenLabs. Scribe (and Whisper) hallucinate long, unrelated text
+ * when they receive silence — e.g. the user sees a transcript about
+ * real estate because the model filled in training-data noise.
+ * This is the bug Alejandro screenshotted on 2026-04-09.
+ */
+function computeRms(samples: Float32Array): number {
+  if (samples.length === 0) return 0;
+  let sum = 0;
+  for (let i = 0; i < samples.length; i++) {
+    sum += samples[i] * samples[i];
+  }
+  return Math.sqrt(sum / samples.length);
+}
+
+/**
+ * Heuristic: did the STT service return hallucinated text?
+ *
+ * Scribe/Whisper hallucinations tend to be long runs of fluent but
+ * unrelated text when the audio was too quiet or was silence. If the
+ * audio was short (<2s) and the transcript came back with more than
+ * ~40 words, something is wrong — a short utterance can't have that
+ * many words. We also catch the classic "thank you for watching" /
+ * "subscribe to my channel" / long real-estate-sales-pitch patterns.
+ */
+function looksHallucinated(transcript: string, audioDurationSeconds: number): boolean {
+  const text = transcript.trim();
+  if (!text) return false;
+  const wordCount = text.split(/\s+/).length;
+
+  // Short audio should not produce long text. Normal speaking rate is
+  // ~2.5 words/second; we allow 4 words/second as a generous cap plus
+  // a small constant for very short utterances.
+  const maxReasonableWords = Math.ceil(audioDurationSeconds * 4) + 3;
+  if (wordCount > maxReasonableWords) return true;
+
+  // Known Whisper/Scribe hallucination phrases. These show up when the
+  // model is fed silence or pure noise. Not exhaustive — matched loose
+  // to catch variants.
+  const hallucinationPatterns = [
+    /thank you for watching/i,
+    /thanks for watching/i,
+    /subscribe to my channel/i,
+    /don't forget to (?:like|subscribe)/i,
+    /see you (?:next time|in the next)/i,
+    /\.\s*\.\s*\./, // long pause ellipses
+  ];
+  if (hallucinationPatterns.some((re) => re.test(text))) return true;
+
+  return false;
+}
+
 /** Normalize audio volume: find peak and scale to targetPeak (0.9) */
 function normalizeAudio(samples: Float32Array): Float32Array {
   let peak = 0;
@@ -347,7 +407,9 @@ export async function stopAndTranscribe(): Promise<string> {
     // ~120ms of previously-dropped audio, and 0.25s is enough for short
     // commands like "yes", "no", "next", "weekday".
     if (totalLength < srcRate * 0.25) {
-      throw new Error('Recording too short. Speak for at least half a second.');
+      // Yair flagged on 2026-04-09 that "Recording too short" should never
+      // be surfaced as an error. Using the friendlier clarification prompt.
+      throw new Error("I didn't catch that — could you say it again?");
     }
 
     const merged = new Float32Array(totalLength);
@@ -355,6 +417,17 @@ export async function stopAndTranscribe(): Promise<string> {
     for (const chunk of chunks) {
       merged.set(chunk, offset);
       offset += chunk.length;
+    }
+
+    // Silence gate. ElevenLabs Scribe hallucinates long runs of fluent
+    // unrelated text when it receives silence or pure noise (the
+    // real-estate-sales-pitch screenshot from Alejandro on 2026-04-09
+    // was this bug). Reject obviously-silent audio BEFORE sending to
+    // the API so the user sees a friendly prompt instead of a garbage
+    // hallucinated transcript.
+    const rms = computeRms(merged);
+    if (rms < 0.0008) {
+      throw new Error("I didn't catch that — could you say it again?");
     }
 
     // Pre-process: trim silence, then normalize volume
@@ -406,7 +479,23 @@ export async function stopAndTranscribe(): Promise<string> {
     }
 
     const data = await res.json();
-    return data.text || '';
+    const text = (data.text || '').trim();
+
+    // Hallucination guard. Scribe/Whisper sometimes return long runs
+    // of unrelated text when the audio was quiet or noisy even after
+    // passing the RMS gate. Compare word count against audio duration
+    // and look for known hallucination phrases. If we detect one, tell
+    // the user to try again instead of processing garbage.
+    if (text && looksHallucinated(text, durationSeconds)) {
+      console.warn('[ElevenLabs] Rejected likely hallucination:', {
+        duration: durationSeconds.toFixed(2),
+        wordCount: text.split(/\s+/).length,
+        preview: text.slice(0, 80),
+      });
+      throw new Error("I didn't catch that — could you say it again?");
+    }
+
+    return text;
   } finally {
     isTranscribing = false;
   }

@@ -133,8 +133,15 @@ export function useVoiceInput() {
         // Make API errors user-friendly
         if (msg.includes('401') || msg.includes('Authentication') || msg.includes('Unauthorized')) {
           setError('Voice service needs login. Please sign in again.');
-        } else if (msg.includes('too short') || msg.includes('Recording too short')) {
-          setError("Didn't catch that. Hold the mic and speak clearly.");
+        } else if (
+          msg.includes("didn't catch that") ||
+          msg.includes('too short') ||
+          msg.includes('Recording too short')
+        ) {
+          // Yair feedback 2026-04-09: never surface the raw "too short"
+          // error. The service now throws the friendly prompt directly,
+          // but keep the legacy string checks as a safety net.
+          setError("I didn't catch that — could you say it again?");
         } else {
           setError(msg);
         }
