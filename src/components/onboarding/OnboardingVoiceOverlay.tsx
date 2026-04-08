@@ -62,7 +62,7 @@ export function OnboardingVoiceOverlay({
     if (!error || error === lastErrorRef.current) return;
     lastErrorRef.current = error;
     setMessages((prev) => [...prev, { id: `error-${Date.now()}`, role: 'ai', text: error }]);
-  }, [error]);
+  }, [error, setMessages]);
 
   // Determine the voice state
   const voiceState = isProcessing ? 'processing' : isListening ? 'listening' : 'idle';
@@ -156,6 +156,7 @@ export function OnboardingVoiceOverlay({
     onAction,
     handleClose,
     resetTranscript,
+    setMessages,
   ]);
 
   const handleTouchStart = (e: React.TouchEvent) => {

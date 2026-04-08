@@ -109,6 +109,9 @@ vendor/bundle/
 playwright-report/
 test-results/
 
+# lint-staged temp files
+tmp_*.txt
+
 # Test / scratch files (dev only — never commit)
 *.mp3
 git_*.txt

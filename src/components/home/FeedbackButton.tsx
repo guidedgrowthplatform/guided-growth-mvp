@@ -1,19 +1,23 @@
-import { MessageSquare } from 'lucide-react';
+import { Icon } from '@iconify/react';
 import { speak } from '@/lib/services/tts-service';
 
-export function FeedbackButton() {
+interface FeedbackButtonProps {
+  onPress: () => void;
+}
+
+export function FeedbackButton({ onPress }: FeedbackButtonProps) {
   const handleClick = () => {
-    // TTS per Voice Journey Spreadsheet v3 (line 580)
-    speak("What's working? What's not? Be honest \u2014 that's how this gets better.");
+    speak("What's working? What's not? Be honest — that's how this gets better.");
+    onPress();
   };
 
   return (
     <button
       onClick={handleClick}
-      className="inline-flex items-center gap-1.5 rounded-full border border-border-light bg-surface px-4 py-2 shadow-md transition-shadow hover:shadow-lg active:shadow-lg"
+      className="inline-flex items-center gap-1.5 rounded-full border border-border-light bg-white px-4 py-2.5 shadow-sm transition-shadow hover:shadow-md"
     >
-      <MessageSquare className="h-4 w-4 text-primary" />
-      <span className="text-xs font-bold tracking-wide text-primary">Give Feedback</span>
+      <span className="text-sm font-bold tracking-wide text-primary">Feedback</span>
+      <Icon icon="mdi:thumb-up" width={16} height={16} className="text-primary" />
     </button>
   );
 }

@@ -91,6 +91,27 @@ export interface Affirmation {
   value: string;
 }
 
+// ─── Journal ─────────────────────────────────────────
+export interface JournalEntry {
+  id: string;
+  user_id: string;
+  type: 'freeform' | 'template';
+  template_id: string | null;
+  title: string | null;
+  date: string;
+  fields: Record<string, string>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JournalEntryCreate {
+  type: 'freeform' | 'template';
+  template_id?: string;
+  title?: string;
+  date: string;
+  fields: Record<string, string>;
+}
+
 // ─── Preferences ────────────────────────────────────
 export type ViewMode = 'spreadsheet' | 'form';
 export type SpreadsheetRange = 'week' | 'month';

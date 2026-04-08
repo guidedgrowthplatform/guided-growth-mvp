@@ -20,7 +20,12 @@ cache:
     - node_modules/
 
 before_script:
-  - npm ci
+  # --ignore-scripts: skip the husky `prepare` hook. Some CI images set
+  #   NODE_ENV=production which makes npm ci skip devDependencies, so the
+  #   husky binary is not installed and `sh: husky: not found` crashes the job.
+  #   We don't need git hooks in CI anyway.
+  # Retry loop: survive transient ECONNRESET from the npm registry.
+  - for i in 1 2 3; do npm ci --ignore-scripts && break || (echo "npm ci attempt $i failed, retrying..." && sleep 5); done
 
 lint:
   stage: validate
@@ -51,6 +56,14 @@ test:
 
 build:
   stage: build
+  variables:
+    # Vite inlines import.meta.env.VITE_* at BUILD time, not runtime.
+    # Without this, the Capacitor APK ships with VITE_API_URL=undefined,
+    # getApiUrl() falls back to '', and every API call fails with
+    # "Could not connect to server" on native (reported by @timothyjm Apr 7).
+    # The URL is already public (see capacitor.config.ts allowNavigation),
+    # so it is safe to hardcode here.
+    VITE_API_URL: 'https://guided-growth-mvp.vercel.app'
   script:
     - npm run build
   artifacts:
@@ -72,7 +85,9 @@ security:
 # ───────────────────────────────────────────────
 build-apk:
   stage: android
-  image: thyrlian/android-sdk:latest
+  # mingc/android-build-box bundles JDK 8/11/17/21 + Android SDK.
+  # Capacitor 6+ requires JDK 21 (compileOptions sourceCompatibility 21).
+  image: mingc/android-build-box:latest
   needs:
     - job: build
       artifacts: true
@@ -82,13 +97,30 @@ build-apk:
       when: manual
       allow_failure: true
   before_script:
+    # Auto-detect JDK 21 path inside the image. mingc/android-build-box ships
+    # multiple JDKs under /usr/lib/jvm/. We pick the one that contains "21"
+    # in its directory name. This is more robust than hardcoding the path,
+    # which can change between image versions.
+    - export JAVA_HOME=$(ls -d /usr/lib/jvm/*21* 2>/dev/null | head -1)
+    - 'echo "Resolved JAVA_HOME=$JAVA_HOME"'
+    - test -x "$JAVA_HOME/bin/javac" || (echo "ERROR: JDK 21 not found in image" && ls /usr/lib/jvm/ && exit 1)
+    - export PATH="$JAVA_HOME/bin:$PATH"
+    - java -version
     # Install Node.js 22 inside the Android SDK container
     - apt-get update && apt-get install -y curl
     - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
     - apt-get install -y nodejs
-    - npm ci
+    # --ignore-scripts: skip husky `prepare` hook. mingc/android-build-box
+    #   sets NODE_ENV=production so npm ci normally skips devDependencies,
+    #   leaving the husky binary missing and `sh: husky: not found` crashes
+    #   the job. CI does not need git hooks.
+    # Retry loop: survive transient ECONNRESET from the npm registry.
+    - for i in 1 2 3; do npm ci --ignore-scripts && break || (echo "npm ci attempt $i failed, retrying..." && sleep 5); done
   script:
-    # 1. Sync web assets into the Capacitor Android project
+    # 1. Add android platform (it's gitignored, so always missing in CI).
+    #    dist/ is already provided as artifact from the `build` job (needs).
+    - '[ -d android ] || npx cap add android'
+    # 2. Sync web assets into the Capacitor Android project
     - npx cap copy android
     - npx cap sync android
 

@@ -1,0 +1,46 @@
+.ProseMirror,
+.ProseMirror * {
+  outline: none;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+  touch-action: auto;
+  cursor: text;
+}
+
+.ProseMirror {
+  min-height: 100px;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--color-content-tertiary);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.5em;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+}
+
+.ProseMirror hr {
+  border-color: var(--color-border);
+  margin: 1em 0;
+}
+
+.ProseMirror img {
+  max-width: 100%;
+  border-radius: 0.5rem;
+  margin: 0.5em 0;
+}
+
+.ProseMirror:focus {
+  outline: none;
+}

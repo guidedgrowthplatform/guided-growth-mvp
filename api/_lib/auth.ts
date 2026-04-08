@@ -1,14 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
 import { handleCors } from './cors.js';
-
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-const supabaseServiceKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-if (!supabaseUrl) {
-  console.error('[auth] SUPABASE_URL is not set — auth verification will fail');
-}
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+import { supabaseAdmin } from './supabase-admin.js';
 
 interface AuthenticatedUser {
   id: string;
@@ -31,7 +23,7 @@ export async function getUser(req: VercelRequest): Promise<AuthenticatedUser | n
     const {
       data: { user },
       error,
-    } = await supabase.auth.getUser(token);
+    } = await supabaseAdmin.auth.getUser(token);
     if (error || !user) {
       return null;
     }

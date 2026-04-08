@@ -527,7 +527,6 @@ export class ActionDispatcher {
     const habitName = params.habit ? String(params.habit) : null;
 
     let habitId: string | null = null;
-    let habitLabel = '';
     if (habitName) {
       const habit = await this.dataService.getHabitByName(habitName);
       if (!habit) {

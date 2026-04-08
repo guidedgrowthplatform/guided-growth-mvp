@@ -189,10 +189,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // GET /api/onboarding/profile — fetch current profile fields
   if (route === 'profile' && req.method === 'GET') {
-    const { rows } = await pool.query(
-      'SELECT name, nickname, image FROM profiles WHERE id = $1',
-      [user.id],
-    );
+    const { rows } = await pool.query('SELECT name, nickname, image FROM profiles WHERE id = $1', [
+      user.id,
+    ]);
     return res.json(rows[0] ?? { name: null, nickname: null, image: null });
   }
 
@@ -200,15 +199,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (route === 'profile' && req.method === 'PATCH') {
     const { name, nickname } = req.body ?? {};
 
-    if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0 || name.length > 100)) {
-      return res.status(400).json({ error: 'name must be a non-empty string of at most 100 characters' });
+    if (
+      name !== undefined &&
+      (typeof name !== 'string' || name.trim().length === 0 || name.length > 100)
+    ) {
+      return res
+        .status(400)
+        .json({ error: 'name must be a non-empty string of at most 100 characters' });
     }
     if (nickname !== undefined) {
       if (typeof nickname !== 'string' || nickname.length > 50) {
-        return res.status(400).json({ error: 'nickname must be a string of at most 50 characters' });
+        return res
+          .status(400)
+          .json({ error: 'nickname must be a string of at most 50 characters' });
       }
       if (!/^[a-zA-Z0-9_]*$/.test(nickname)) {
-        return res.status(400).json({ error: 'nickname may only contain letters, numbers, and underscores' });
+        return res
+          .status(400)
+          .json({ error: 'nickname may only contain letters, numbers, and underscores' });
       }
     }
 
@@ -262,7 +270,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
     const ext = extMap[mimeType];
     if (!ext) {
-      return res.status(400).json({ error: 'Unsupported image type. Use JPEG, PNG, WebP, or GIF.' });
+      return res
+        .status(400)
+        .json({ error: 'Unsupported image type. Use JPEG, PNG, WebP, or GIF.' });
     }
 
     // Decode and validate decoded size
@@ -274,10 +284,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Magic-byte check to prevent MIME spoofing
     const isValidMagic = (() => {
-      if (mimeType === 'image/png') return buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
-      if (mimeType === 'image/jpeg') return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
-      if (mimeType === 'image/webp') return buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 && buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50;
-      if (mimeType === 'image/gif') return buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38;
+      if (mimeType === 'image/png')
+        return buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+      if (mimeType === 'image/jpeg')
+        return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+      if (mimeType === 'image/webp')
+        return (
+          buffer[0] === 0x52 &&
+          buffer[1] === 0x49 &&
+          buffer[2] === 0x46 &&
+          buffer[3] === 0x46 &&
+          buffer[8] === 0x57 &&
+          buffer[9] === 0x45 &&
+          buffer[10] === 0x42 &&
+          buffer[11] === 0x50
+        );
+      if (mimeType === 'image/gif')
+        return buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38;
       return false;
     })();
     if (!isValidMagic) {
@@ -299,7 +322,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     await pool.query('UPDATE profiles SET image = $1 WHERE id = $2', [imageUrl, user.id]);
     // Keep user_metadata in sync so mapUser() reads the new avatar after session refresh
-    await supabaseAdmin.auth.admin.updateUserById(user.id, { user_metadata: { avatar_url: imageUrl } });
+    await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      user_metadata: { avatar_url: imageUrl },
+    });
 
     return res.json({ imageUrl });
   }
