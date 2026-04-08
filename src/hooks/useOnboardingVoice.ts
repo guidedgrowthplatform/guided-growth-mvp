@@ -108,8 +108,9 @@ export function useOnboardingVoice() {
         // Post-process: fix PII-scrubbed names by extracting from original transcript
         const params = result.params || {};
         if (stepContext.step === 1) {
-          console.log('[OnboardingVoice] API params:', JSON.stringify(params));
-          console.log('[OnboardingVoice] Original transcript:', transcript);
+          // Note: previously logged params + transcript here, but those
+          // contain PII (user's name, demographic). Removed to keep prod
+          // logs clean and avoid leaking PII into Sentry/Vercel logs.
 
           // Fix nickname if it contains [NAME]
           if (
@@ -208,7 +209,6 @@ export function useOnboardingVoice() {
                 if (nameWord) params.nickname = nameWord;
               }
             }
-            console.log('[OnboardingVoice] Extracted nickname:', params.nickname);
           }
 
           // ALWAYS extract gender from transcript for step 1 (API often gets it wrong due to PII scrubbing)
@@ -227,8 +227,6 @@ export function useOnboardingVoice() {
               params.gender = 'Female';
             else params.gender = 'Other';
           }
-
-          console.log('[OnboardingVoice] Final params:', JSON.stringify(params));
 
           // Extract referral source from transcript
           if (/\b(founder|invite|invited)\b/.test(normalizedTranscript)) {

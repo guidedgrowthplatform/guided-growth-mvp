@@ -80,8 +80,13 @@ export function MoodCorrelationCard() {
     async function load() {
       try {
         const ds = await getDataService();
-        const end = new Date().toISOString().slice(0, 10);
-        const start = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        // Use LOCAL date formatting (toISOString returns UTC and drops
+        // today's check-in from the window for users east of UTC during
+        // morning local hours).
+        const fmt = (d: Date) =>
+          `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const end = fmt(new Date());
+        const start = fmt(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
         const data = await ds.getCheckIns(start, end);
         if (!cancelled) setRecords(data);
       } catch {

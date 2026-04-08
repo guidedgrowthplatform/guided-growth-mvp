@@ -31,8 +31,23 @@ interface CommandIntent {
   confidence: number;
 }
 
+/**
+ * Format a Date as YYYY-MM-DD using LOCAL time components.
+ *
+ * NEVER use `Date.toISOString().slice(0,10)` for "today" — that returns
+ * UTC. For users east of UTC (e.g. Indonesia at +7) it can return
+ * yesterday's date during morning local time, causing voice commands
+ * like "mark pushups done" to save against the wrong day.
+ */
+function formatLocalDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return formatLocalDate(new Date());
 }
 
 function parseDateParam(dateStr: unknown): string {
@@ -40,20 +55,24 @@ function parseDateParam(dateStr: unknown): string {
   if (dateStr === 'yesterday') {
     const d = new Date();
     d.setDate(d.getDate() - 1);
-    return d.toISOString().slice(0, 10);
+    return formatLocalDate(d);
   }
 
-  // Handle day names (multi-language, from config)
+  // Handle day names (multi-language, from config).
+  // Resolves to the most recent occurrence of that day, including today.
+  // Previously used `diff <= 0` which sent same-day back a full week
+  // (saying "wednesday" on a Wednesday saved to LAST Wednesday). Use
+  // `diff < 0` so same-day stays today.
   const lower = String(dateStr).toLowerCase();
   const dayIndex = DAY_NAMES[lower] ?? -1;
   if (dayIndex !== -1) {
     const now = new Date();
     const currentDay = now.getDay();
     let diff = currentDay - dayIndex;
-    if (diff <= 0) diff += 7; // go to previous week
+    if (diff < 0) diff += 7;
     const target = new Date(now);
     target.setDate(target.getDate() - diff);
-    return target.toISOString().slice(0, 10);
+    return formatLocalDate(target);
   }
 
   return String(dateStr);
@@ -114,7 +133,11 @@ export class ActionDispatcher {
       return result;
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err);
-      // Translate common backend errors into user-friendly messages
+      // Log full error for debugging — friendly message for the user, but
+      // we need the original error in console/Sentry to actually fix things
+      // when users report "voice didn't work". Previously this caught error
+      // was completely silent.
+      console.error('[ActionDispatcher] dispatch failed:', { action, entity, err });
       const friendly = friendlyError(raw);
       return {
         success: false,

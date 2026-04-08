@@ -298,8 +298,15 @@ export function useVoiceCommand() {
           qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
           qc.invalidateQueries({ queryKey: queryKeys.entries.all });
           qc.invalidateQueries({ queryKey: queryKeys.habits.all });
+          // Use LOCAL date, not UTC — matches the date the dispatcher
+          // saved against (see formatLocalDate in action-dispatcher.ts).
+          // Previously toISOString().slice(0,10) returned UTC, which on
+          // morning hours in Asia/Jakarta would invalidate yesterday's
+          // cache key while the new check-in was stored under today.
+          const _now = new Date();
+          const _localDate = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
           qc.invalidateQueries({
-            queryKey: queryKeys.checkins.byDate(new Date().toISOString().slice(0, 10)),
+            queryKey: queryKeys.checkins.byDate(_localDate),
           });
           qc.invalidateQueries({ queryKey: queryKeys.journal.all });
           qc.invalidateQueries({ queryKey: queryKeys.focusSessions.all });
