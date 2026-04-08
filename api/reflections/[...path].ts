@@ -1,14 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import crypto from 'crypto';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
+import { supabaseAdmin } from '../_lib/supabase-admin.js';
 import { validateDate, validateUUID, sanitizeContent } from '../_lib/validation.js';
-import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
-
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-);
 
 const DEFAULT_FIELDS = [
   { id: 'wins', label: 'Wins', order: 0 },
