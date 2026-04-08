@@ -52,6 +52,14 @@ test:
 
 build:
   stage: build
+  variables:
+    # Vite inlines import.meta.env.VITE_* at BUILD time, not runtime.
+    # Without this, the Capacitor APK ships with VITE_API_URL=undefined,
+    # getApiUrl() falls back to '', and every API call fails with
+    # "Could not connect to server" on native (reported by @timothyjm Apr 7).
+    # The URL is already public (see capacitor.config.ts allowNavigation),
+    # so it is safe to hardcode here.
+    VITE_API_URL: 'https://guided-growth-mvp.vercel.app'
   script:
     - npm run build
   artifacts:
