@@ -20,8 +20,12 @@ cache:
     - node_modules/
 
 before_script:
-  # Retry npm ci to survive transient network flakes (ECONNRESET from registry)
-  - for i in 1 2 3; do npm ci && break || (echo "npm ci attempt $i failed, retrying..." && sleep 5); done
+  # --ignore-scripts: skip the husky `prepare` hook. Some CI images set
+  #   NODE_ENV=production which makes npm ci skip devDependencies, so the
+  #   husky binary is not installed and `sh: husky: not found` crashes the job.
+  #   We don't need git hooks in CI anyway.
+  # Retry loop: survive transient ECONNRESET from the npm registry.
+  - for i in 1 2 3; do npm ci --ignore-scripts && break || (echo "npm ci attempt $i failed, retrying..." && sleep 5); done
 
 lint:
   stage: validate
@@ -86,10 +90,6 @@ build-apk:
   image: mingc/android-build-box:latest
   variables:
     JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
-    # Skip husky install in CI — the image sets NODE_ENV=production which
-    # makes npm ci skip devDependencies, and the `prepare: husky` script then
-    # fails with "husky: not found". HUSKY=0 is the official husky escape hatch.
-    HUSKY: '0'
   needs:
     - job: build
       artifacts: true
