@@ -349,6 +349,41 @@ const PRE_ACK_MESSAGES: Record<string, (params: Record<string, unknown>) => stri
   focus: () => `Let's go.`,
 };
 
+/**
+ * Speak text, deferring to the next user gesture if the browser hasn't
+ * unlocked autoplay yet. Use this for auto-greetings on page mount —
+ * `speak()` directly will be silently blocked on iOS WKWebView and Safari
+ * until the user has interacted with the page.
+ *
+ * If a gesture has already happened anywhere in the session, plays
+ * immediately. Otherwise registers a one-shot listener that fires on the
+ * first pointerdown/touchstart and is auto-removed.
+ *
+ * Returns a cleanup function — call it on component unmount to remove the
+ * deferred listener if the user navigates away before interacting.
+ */
+export function speakWhenReady(
+  text: string,
+  options?: { rate?: number; pitch?: number; volume?: number },
+): () => void {
+  if (ttsUnlocked) {
+    speak(text, options);
+    return () => {};
+  }
+
+  const handler = () => {
+    unlockTTS();
+    speak(text, options);
+  };
+
+  // pointerdown covers both mouse and touch on modern browsers
+  window.addEventListener('pointerdown', handler, { once: true, capture: true });
+
+  return () => {
+    window.removeEventListener('pointerdown', handler, { capture: true });
+  };
+}
+
 /** Speak a short pre-acknowledgment before the actual action runs */
 export function speakPreAck(action: string, params: Record<string, unknown>): void {
   const generator = PRE_ACK_MESSAGES[action];

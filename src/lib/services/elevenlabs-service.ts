@@ -197,7 +197,10 @@ function setupScriptProcessorFallback(
 ): void {
   const node = ctx.createScriptProcessor(4096, 1, 1);
   node.onaudioprocess = (e: AudioProcessingEvent) => {
-    if (!isActive) return;
+    // Accept chunks until the node is actually disconnected (captureNode === null).
+    // Don't gate on `isActive` — we want in-flight audio to land even after the
+    // user has tapped stop, so the flush window in stopAndTranscribe() works.
+    if (captureNode === null) return;
     if (audioChunks.length >= maxChunks) {
       callbacks.onError('Recording exceeded 60 seconds. Stopped automatically.');
       stopElevenLabs();
@@ -244,7 +247,10 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
 
         const workletNode = new AudioWorkletNode(audioContext, 'capture-processor');
         workletNode.port.onmessage = (e: MessageEvent) => {
-          if (!isActive) return;
+          // Accept chunks until the node is actually disconnected.
+          // Gating on `isActive` would drop the last ~50-150ms of audio
+          // (the worklet thread is async), so we use captureNode instead.
+          if (captureNode === null) return;
           const chunk = new Float32Array(e.data);
           totalSamples += chunk.length;
           if (totalSamples >= maxRecordingSamples) {
@@ -285,6 +291,13 @@ export async function stopAndTranscribe(): Promise<string> {
   isTranscribing = true;
 
   try {
+    // Flush delay: AudioWorklet runs on a separate thread and may have chunks
+    // in flight that haven't reached the main thread via port.postMessage().
+    // Without this delay, the last ~50-150ms of audio is dropped — which on
+    // slower devices (Android, low-end phones) trips the "recording too short"
+    // check even when the user spoke for a clearly audible duration.
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
     const srcRate = nativeSampleRate;
     const chunks = [...audioChunks];
     cleanupAudioResources();
@@ -292,8 +305,11 @@ export async function stopAndTranscribe(): Promise<string> {
     if (!wasActive && chunks.length === 0) return '';
 
     const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    if (totalLength < srcRate * 0.5) {
-      throw new Error('Recording too short. Speak for at least 1 second.');
+    // Threshold lowered from 0.5s → 0.25s. The flush delay above recovers
+    // ~120ms of previously-dropped audio, and 0.25s is enough for short
+    // commands like "yes", "no", "next", "weekday".
+    if (totalLength < srcRate * 0.25) {
+      throw new Error('Recording too short. Speak for at least half a second.');
     }
 
     const merged = new Float32Array(totalLength);

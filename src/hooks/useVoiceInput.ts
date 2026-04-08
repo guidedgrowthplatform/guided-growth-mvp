@@ -99,7 +99,7 @@ export function useVoiceInput() {
         if (msg.includes('401') || msg.includes('Authentication') || msg.includes('Unauthorized')) {
           setError('Voice service needs login. Please sign in again.');
         } else if (msg.includes('too short') || msg.includes('Recording too short')) {
-          setError('Recording too short. Hold the mic button and speak for at least 2 seconds.');
+          setError("Didn't catch that. Hold the mic and speak clearly.");
         } else {
           setError(msg);
         }

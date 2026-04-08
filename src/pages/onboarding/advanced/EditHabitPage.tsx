@@ -7,7 +7,7 @@ import { VoiceEditCard } from '@/components/onboarding/VoiceEditCard';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { TimePicker } from '@/components/ui/TimePicker';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
-import { speak, stopTTS } from '@/lib/services/tts-service';
+import { speak, speakWhenReady, stopTTS } from '@/lib/services/tts-service';
 
 interface EditHabitState {
   habitIndex: number;
@@ -41,18 +41,29 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
 
   const habitIndex = state.habitIndex;
 
-  // When voice transcript arrives, use it as the habit name
+  // When voice transcript arrives, use it as the habit name.
+  // Skip transcripts that are too short to be a meaningful habit name —
+  // filters out filler like "uh", "um", "ok" so an accidental mic tap
+  // doesn't wipe an existing habit name with junk.
   useEffect(() => {
-    if (transcript && transcript.trim()) {
-      setName(transcript.trim());
+    if (!transcript) return;
+    const cleaned = transcript.trim();
+    if (cleaned.length < 3) {
       resetTranscript();
+      return;
     }
+    setName(cleaned);
+    resetTranscript();
   }, [transcript, resetTranscript]);
 
-  // TTS per Voice Journey Spreadsheet v3 (line 471)
+  // TTS per Voice Journey Spreadsheet v3 (line 471).
+  // speakWhenReady() defers to first user gesture if TTS hasn't been
+  // unlocked yet — protects against iOS WKWebView autoplay block when
+  // EditHabit is the first page where TTS would fire.
   useEffect(() => {
-    speak('What do you want to change about this habit?');
+    const cancel = speakWhenReady('What do you want to change about this habit?');
     return () => {
+      cancel();
       stopTTS();
     };
   }, []);
