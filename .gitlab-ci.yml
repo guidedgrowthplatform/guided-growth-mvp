@@ -73,7 +73,11 @@ security:
 # ───────────────────────────────────────────────
 build-apk:
   stage: android
-  image: thyrlian/android-sdk:latest
+  # mingc/android-build-box bundles JDK 8/11/17/21 + Android SDK.
+  # Capacitor 6+ requires JDK 21 (compileOptions sourceCompatibility 21).
+  image: mingc/android-build-box:latest
+  variables:
+    JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
   needs:
     - job: build
       artifacts: true
