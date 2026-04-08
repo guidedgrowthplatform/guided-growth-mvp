@@ -9,11 +9,18 @@
  *   to share a single browser context and preserve the auth session across steps.
  *   Each step is independently screenshotted and reported.
  *
- * Known production issues:
- *   - POST /api/auth/sign-in/email → 404 (Vercel routing broken)
- *   - GET  /api/auth/get-session  → 500 (DB instability)
- *   - Signup triggers email confirmation — session only active in the SAME browser session
- *     immediately after signup (not after page reload)
+ * Known limitations:
+ *   - Signup triggers email confirmation in some Supabase configs — the session
+ *     is only active in the SAME browser session immediately after signup, not
+ *     after a page reload. The signup step therefore degrades to WARN rather
+ *     than failing if the redirect away from /signup does not happen.
+ *
+ * Note: this project uses Supabase Auth directly from the client
+ * (`supabase.auth.signInWithPassword` in src/stores/authStore.ts). It does
+ * NOT have a Better Auth server (no api/auth/* routes exist), so this test
+ * does not — and should not — call any /api/auth/* endpoints. An earlier
+ * version of this header incorrectly listed Better Auth endpoints as known
+ * production bugs; that was a stale carry-over from a previous architecture.
  *
  * Screenshots saved to: e2e/screenshots/journey/
  */
