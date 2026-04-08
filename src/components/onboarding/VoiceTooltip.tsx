@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface VoiceTooltipProps {
   /** Auto-dismiss after this many milliseconds (0 = never auto-dismiss) */
@@ -13,17 +13,26 @@ interface VoiceTooltipProps {
  */
 export function VoiceTooltip({ autoDismissMs = 4000, onDismiss }: VoiceTooltipProps) {
   const [isVisible, setIsVisible] = useState(true);
+  // Keep the latest onDismiss in a ref so the effect below doesn't need
+  // to include it in deps. Previously, callers passing an inline arrow
+  // fn (`onDismiss={() => ...}`) re-triggered the effect on every parent
+  // render, continuously resetting the timer — so the tooltip NEVER
+  // auto-dismissed.
+  const onDismissRef = useRef(onDismiss);
+  useEffect(() => {
+    onDismissRef.current = onDismiss;
+  }, [onDismiss]);
 
   useEffect(() => {
     if (autoDismissMs <= 0) return;
 
     const timer = setTimeout(() => {
       setIsVisible(false);
-      onDismiss?.();
+      onDismissRef.current?.();
     }, autoDismissMs);
 
     return () => clearTimeout(timer);
-  }, [autoDismissMs, onDismiss]);
+  }, [autoDismissMs]);
 
   if (!isVisible) return null;
 

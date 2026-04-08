@@ -78,6 +78,27 @@ function parseDateParam(dateStr: unknown): string {
   return String(dateStr);
 }
 
+/**
+ * Normalize a habit / metric name as spoken from a voice transcript.
+ * Strips leading articles and possessives ("the", "my", "a", "an"),
+ * trailing "habit"/"habits", trailing "please", and collapses whitespace.
+ *
+ * Previously the dispatcher passed the raw params.name straight to
+ * getHabitByName, which is an exact ilike() match in Supabase — so
+ * "mark the pushups done" (name="the pushups") would never find the
+ * stored "pushups" habit. Normalizing here keeps the storage lookup
+ * strict while tolerating natural speech.
+ */
+function normalizeVoiceName(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^(?:the|my|a|an)\s+/i, '')
+    .replace(/\s+(?:please|thanks?|thank you)$/i, '')
+    .replace(/\s+habits?$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export class ActionDispatcher {
   constructor(private dataService: DataService) {}
 
@@ -229,7 +250,7 @@ export class ActionDispatcher {
       return { success: false, message: `Can't complete ${entity}`, uiAction: 'toast' };
     }
 
-    const name = String(params.name || '');
+    const name = normalizeVoiceName(String(params.name || ''));
     const habit = await this.dataService.getHabitByName(name);
     if (!habit) {
       return {
@@ -271,7 +292,7 @@ export class ActionDispatcher {
     entity: string,
     params: Record<string, unknown>,
   ): Promise<ActionResult> {
-    const name = String(params.name || '');
+    const name = normalizeVoiceName(String(params.name || ''));
 
     switch (entity) {
       case 'habit': {
@@ -319,7 +340,7 @@ export class ActionDispatcher {
       return { success: false, message: `Can't update ${entity} yet`, uiAction: 'toast' };
     }
 
-    const name = String(params.name || '');
+    const name = normalizeVoiceName(String(params.name || ''));
     const habit = await this.dataService.getHabitByName(name);
     if (!habit)
       return {
@@ -351,7 +372,8 @@ export class ActionDispatcher {
   ): Promise<ActionResult> {
     switch (entity) {
       case 'habit': {
-        const name = params.name ? String(params.name) : null;
+        const rawName = params.name ? String(params.name) : null;
+        const name = rawName ? normalizeVoiceName(rawName) : null;
         if (name) {
           // Query specific habit
           const habit = await this.dataService.getHabitByName(name);
@@ -431,7 +453,7 @@ export class ActionDispatcher {
       return { success: false, message: `Can't log ${entity}`, uiAction: 'toast' };
     }
 
-    const name = String(params.name || '');
+    const name = normalizeVoiceName(String(params.name || ''));
     const metric = await this.dataService.getMetricByName(name);
     if (!metric)
       return {
@@ -547,7 +569,8 @@ export class ActionDispatcher {
 
   private async handleFocus(params: Record<string, unknown>): Promise<ActionResult> {
     const duration = params.duration != null ? Number(params.duration) : 25;
-    const habitName = params.habit ? String(params.habit) : null;
+    const rawHabitName = params.habit ? String(params.habit) : null;
+    const habitName = rawHabitName ? normalizeVoiceName(rawHabitName) : null;
 
     let habitId: string | null = null;
     if (habitName) {

@@ -133,6 +133,10 @@ export class SupabaseDataService implements DataService {
 
   async getHabitByName(name: string): Promise<Habit | null> {
     const userId = getCurrentUserId();
+    // Exact case-insensitive match. Used by createHabit() for the
+    // duplicate-blocker, which must be strict (substring would block
+    // "Run" because "Running" exists). Voice dispatchers that need
+    // fuzzy matching should call findHabitFuzzy() instead.
     const { data, error } = await supabase
       .from('user_habits')
       .select('*')
