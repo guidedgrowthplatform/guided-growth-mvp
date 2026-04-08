@@ -121,7 +121,7 @@ export function Step1Page() {
           <button
             type="button"
             onClick={() => setShowAgePicker((prev) => !prev)}
-            className="relative w-full rounded-[16px] bg-white px-[22px] py-[14px] pr-[48px] text-left text-[18px] shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)] outline-none"
+            className="relative w-full rounded-[16px] bg-surface px-[22px] py-[14px] pr-[48px] text-left text-[18px] shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)] outline-none"
           >
             <span className={ageRange ? 'text-content' : 'text-content-tertiary'}>
               {ageRange || 'Select your age'}
@@ -134,7 +134,7 @@ export function Step1Page() {
             />
           </button>
           {showAgePicker && (
-            <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-[240px] overflow-y-auto rounded-[16px] bg-white p-2 shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.12)] [scrollbar-color:rgba(0,0,0,0.25)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/25 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-[6px]">
+            <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-[240px] overflow-y-auto rounded-[16px] bg-surface p-2 shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.12)] [scrollbar-color:rgba(0,0,0,0.25)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/25 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-[6px]">
               {AGE_OPTIONS.map((opt) => (
                 <button
                   key={opt}
@@ -146,7 +146,7 @@ export function Step1Page() {
                   className={`w-full rounded-[10px] px-[16px] py-[10px] text-left text-[16px] transition-colors ${
                     ageRange === opt
                       ? 'bg-primary/10 font-bold text-primary'
-                      : 'text-content active:bg-gray-100'
+                      : 'text-content active:bg-surface-secondary'
                   }`}
                 >
                   {opt}

@@ -1,12 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
-);
+import { supabaseAdmin } from '../_lib/supabase.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
@@ -176,7 +171,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       await client.query('DELETE FROM profiles WHERE id = $1', [user.id]);
       await client.query('COMMIT');
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
       if (deleteError) {
         console.error('Failed to delete Supabase Auth user:', deleteError);
         return res.status(500).json({ error: 'Failed to delete auth user' });
@@ -190,6 +185,123 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } finally {
       client.release();
     }
+  }
+
+  // GET /api/onboarding/profile — fetch current profile fields
+  if (route === 'profile' && req.method === 'GET') {
+    const { rows } = await pool.query(
+      'SELECT name, nickname, image FROM profiles WHERE id = $1',
+      [user.id],
+    );
+    return res.json(rows[0] ?? { name: null, nickname: null, image: null });
+  }
+
+  // PATCH /api/onboarding/profile — update name and/or nickname
+  if (route === 'profile' && req.method === 'PATCH') {
+    const { name, nickname } = req.body ?? {};
+
+    if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0 || name.length > 100)) {
+      return res.status(400).json({ error: 'name must be a non-empty string of at most 100 characters' });
+    }
+    if (nickname !== undefined) {
+      if (typeof nickname !== 'string' || nickname.length > 50) {
+        return res.status(400).json({ error: 'nickname must be a string of at most 50 characters' });
+      }
+      if (!/^[a-zA-Z0-9_]*$/.test(nickname)) {
+        return res.status(400).json({ error: 'nickname may only contain letters, numbers, and underscores' });
+      }
+    }
+
+    const updates: string[] = [];
+    const values: unknown[] = [user.id];
+
+    if (name !== undefined) {
+      values.push(name);
+      updates.push(`name = $${values.length}`);
+    }
+    if (nickname !== undefined) {
+      values.push(nickname);
+      updates.push(`nickname = $${values.length}`);
+    }
+
+    if (updates.length > 0) {
+      await pool.query(`UPDATE profiles SET ${updates.join(', ')} WHERE id = $1`, values);
+      // Keep Supabase user_metadata in sync so mapUser() reads fresh data after session refresh
+      const metaPatch: Record<string, string> = {};
+      if (name !== undefined) metaPatch.full_name = name;
+      if (nickname !== undefined) metaPatch.nickname = nickname;
+      await supabaseAdmin.auth.admin.updateUserById(user.id, { user_metadata: metaPatch });
+    }
+
+    return res.json({ ok: true });
+  }
+
+  // POST /api/onboarding/profile/avatar — upload avatar to Supabase Storage
+  if (segments[0] === 'profile' && segments[1] === 'avatar' && req.method === 'POST') {
+    const { dataUrl } = req.body ?? {};
+    if (typeof dataUrl !== 'string') {
+      return res.status(400).json({ error: 'dataUrl is required' });
+    }
+
+    // Guard raw base64 string size before decoding (~33% overhead)
+    if (Buffer.byteLength(dataUrl, 'utf8') > 3 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Image too large' });
+    }
+
+    // Parse and validate MIME type from data URL prefix
+    const mimeMatch = dataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,/);
+    if (!mimeMatch) {
+      return res.status(400).json({ error: 'Invalid image format' });
+    }
+    const mimeType = mimeMatch[1];
+    const extMap: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'image/gif': 'gif',
+    };
+    const ext = extMap[mimeType];
+    if (!ext) {
+      return res.status(400).json({ error: 'Unsupported image type. Use JPEG, PNG, WebP, or GIF.' });
+    }
+
+    // Decode and validate decoded size
+    const base64Data = dataUrl.slice(mimeMatch[0].length);
+    const buffer = Buffer.from(base64Data, 'base64');
+    if (buffer.byteLength > 2 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Image too large (max 2MB)' });
+    }
+
+    // Magic-byte check to prevent MIME spoofing
+    const isValidMagic = (() => {
+      if (mimeType === 'image/png') return buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+      if (mimeType === 'image/jpeg') return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+      if (mimeType === 'image/webp') return buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 && buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50;
+      if (mimeType === 'image/gif') return buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38;
+      return false;
+    })();
+    if (!isValidMagic) {
+      return res.status(400).json({ error: 'Image content does not match declared type' });
+    }
+
+    // Upload to Supabase Storage — userId is a verified UUID so path is safe
+    const storagePath = `${user.id}/avatar.${ext}`;
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('avatars')
+      .upload(storagePath, buffer, { contentType: mimeType, upsert: true });
+
+    if (uploadError) {
+      return res.status(500).json({ error: 'Failed to upload image' });
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+    const imageUrl = `${supabaseUrl}/storage/v1/object/public/avatars/${storagePath}`;
+
+    await pool.query('UPDATE profiles SET image = $1 WHERE id = $2', [imageUrl, user.id]);
+    // Keep user_metadata in sync so mapUser() reads the new avatar after session refresh
+    await supabaseAdmin.auth.admin.updateUserById(user.id, { user_metadata: { avatar_url: imageUrl } });
+
+    return res.json({ imageUrl });
   }
 
   return res.status(404).json({ error: 'Not found' });

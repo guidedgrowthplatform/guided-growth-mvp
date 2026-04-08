@@ -42,11 +42,11 @@ export function SignUpPage() {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-secondary px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
+    <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
       <AuthBackButton />
 
       <div className="mt-6">
-        <h1 className="text-[30px] font-bold tracking-tight text-primary">Create an Account</h1>
+        <h1 className="text-[30px] font-bold tracking-tight text-content">Create an Account</h1>
         <p className="mt-2 text-base text-content-secondary">
           Start building better habits and tracking your mood today.
         </p>

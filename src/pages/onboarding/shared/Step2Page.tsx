@@ -64,8 +64,8 @@ export function Step2Page() {
       <div className="flex flex-col gap-[20px]">
         <SelectionCard
           icon="mdi:file-document-outline"
-          iconBg="rgba(19,91,236,0.1)"
-          iconColor="#135bec"
+          iconBg="rgb(var(--color-primary) / 0.1)"
+          iconColor="rgb(var(--color-primary))"
           title="I'm new to habit tracking"
           description="Start with a few recommended habits"
           selected={plan === 'simple'}
@@ -73,8 +73,8 @@ export function Step2Page() {
         />
         <SelectionCard
           icon="ic:round-mic"
-          iconBg="#f5f3ff"
-          iconColor="#7c3aed"
+          iconBg="rgb(var(--color-primary-bg))"
+          iconColor="rgb(var(--color-primary))"
           title="I already have experience with habit tracking"
           description="Tell me everything you want to achieve, and I'll organize it"
           selected={plan === 'braindump'}

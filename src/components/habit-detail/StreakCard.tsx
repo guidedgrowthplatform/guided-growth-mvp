@@ -17,7 +17,7 @@ export function StreakCard({
   calendarData,
 }: StreakCardProps) {
   return (
-    <div className="rounded-2xl border border-border-light bg-white p-[21px] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]">
+    <div className="rounded-2xl border border-border-light bg-surface-secondary p-[21px] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]">
       <div className="flex items-center gap-1">
         <Flame size={16} className="text-content-secondary" />
         <span className="text-sm font-medium text-content-secondary">Streak</span>

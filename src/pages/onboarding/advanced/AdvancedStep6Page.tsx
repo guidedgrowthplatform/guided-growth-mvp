@@ -121,7 +121,7 @@ export function AdvancedStep6Page() {
       </div>
 
       {/* Daily Reflection Card */}
-      <div className="mx-[24px] mt-[16px] flex flex-col gap-[8px] rounded-[16px] border border-primary/10 bg-white p-[25px] shadow-[0px_0px_30px_0px_rgba(19,91,236,0.15)]">
+      <div className="mx-[24px] mt-[16px] flex flex-col gap-[8px] rounded-[16px] border border-primary/10 bg-surface p-[25px] shadow-[0px_0px_30px_0px_rgba(19,91,236,0.15)]">
         {/* Card Header */}
         <div className="flex items-center gap-[12px] pb-[16px]">
           <div className="relative flex size-[40px] items-center justify-center rounded-full bg-primary/10">
@@ -132,7 +132,7 @@ export function AdvancedStep6Page() {
         </div>
 
         {/* AI Badge */}
-        <div className="flex items-center gap-[8px] rounded-[16px] bg-[#eef2ff] p-[12px]">
+        <div className="flex items-center gap-[8px] rounded-[16px] bg-primary-bg p-[12px]">
           <Icon icon="mingcute:mic-ai-fill" width={24} height={24} className="text-primary" />
           <span className="text-[14px] font-semibold leading-[20px] text-primary">
             Powered by AI Voice-to-Text. Just talk, we'll type.
@@ -163,7 +163,7 @@ export function AdvancedStep6Page() {
               },
             })
           }
-          className="flex h-[50px] items-center justify-center rounded-full border border-primary bg-white text-[16px] font-bold text-primary shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
+          className="flex h-[50px] items-center justify-center rounded-full border border-primary bg-surface text-[16px] font-bold text-primary shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
         >
           Optional: Create My Own Prompts
         </button>
@@ -193,7 +193,7 @@ export function AdvancedStep6Page() {
               />
             </button>
             {showDropdown && (
-              <div className="absolute right-0 top-full z-10 mt-[4px] rounded-[12px] border border-border bg-white py-[4px] shadow-lg">
+              <div className="absolute right-0 top-full z-10 mt-[4px] rounded-[12px] border border-border bg-surface py-[4px] shadow-lg">
                 {SCHEDULE_OPTIONS.map((opt) => (
                   <button
                     key={opt}
@@ -220,7 +220,7 @@ export function AdvancedStep6Page() {
         <button
           type="button"
           onClick={() => setShowVoiceOverlay(true)}
-          className="mb-4 flex h-[48px] w-full items-center justify-center gap-2 rounded-full border border-primary bg-white text-[14px] font-semibold text-primary shadow-[0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
+          className="mb-4 flex h-[48px] w-full items-center justify-center gap-2 rounded-full border border-primary bg-surface text-[14px] font-semibold text-primary shadow-[0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
         >
           <Icon icon="ic:round-mic" width={18} height={18} />
           Set reflection schedule with voice

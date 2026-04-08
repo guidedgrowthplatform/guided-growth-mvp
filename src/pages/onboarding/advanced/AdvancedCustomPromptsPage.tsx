@@ -88,7 +88,7 @@ export function AdvancedCustomPromptsPage() {
           className={`rounded-[20px] p-[21px] text-left shadow-[0px_1px_2px_rgba(0,0,0,0.05)] ${
             journalMode === 'freeform'
               ? 'border-2 border-primary bg-primary/5'
-              : 'border border-border bg-white'
+              : 'border border-border bg-surface'
           }`}
         >
           <div className="flex items-start justify-between">
@@ -123,7 +123,7 @@ export function AdvancedCustomPromptsPage() {
           className={`cursor-pointer rounded-[20px] p-[22px] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] ${
             journalMode === 'custom'
               ? 'border-2 border-primary bg-primary/5'
-              : 'border border-border bg-white'
+              : 'border border-border bg-surface'
           }`}
         >
           {/* Header */}

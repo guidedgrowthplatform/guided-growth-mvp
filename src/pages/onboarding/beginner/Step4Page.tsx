@@ -74,10 +74,10 @@ export function Step4Page() {
         title="Let's narrow it down"
         subtitle={`Choose 1 or 2 specific goals to help you ${category.toLowerCase()}`}
       />
-      <div className="inline-flex items-center gap-1 rounded-[10px] bg-[#0a2540] px-2 py-1">
-        <Icon icon="iconamoon:category" width={24} height={24} className="text-white" />
-        <span className="text-[16px] font-bold leading-[24px] text-white">Category:</span>
-        <span className="text-[16px] font-bold leading-[24px] text-white">{category}</span>
+      <div className="inline-flex items-center gap-1 rounded-[10px] bg-surface px-2 py-1">
+        <Icon icon="iconamoon:category" width={24} height={24} className="text-content" />
+        <span className="text-[16px] font-bold leading-[24px] text-content">Category:</span>
+        <span className="text-[16px] font-bold leading-[24px] text-content">{category}</span>
       </div>
       <div className="flex flex-col gap-[16px]">
         {goals.map((g) => (
