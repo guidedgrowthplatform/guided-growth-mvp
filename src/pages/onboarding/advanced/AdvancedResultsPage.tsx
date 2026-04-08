@@ -5,7 +5,7 @@ import { WEEKDAYS } from '@/components/onboarding/constants';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { speak, stopTTS } from '@/lib/services/tts-service';
+import { speakWhenReady, stopTTS } from '@/lib/services/tts-service';
 import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 
 interface HabitItem {
@@ -27,11 +27,12 @@ interface ResultsLocationState {
   habits?: Array<{ name: string; days?: number[] }>;
 }
 
-const FALLBACK_HABITS: HabitItem[] = [
-  { name: 'Sleep by 11 PM', days: new Set(WEEKDAYS), selected: true },
-  { name: 'Morning stretch', days: new Set(WEEKDAYS), selected: true },
-  { name: 'No coffee after 3 PM', days: new Set(WEEKDAYS), selected: true },
-];
+// NOTE: no fallback habits. Mint reported on 2026-04-09 that the AI
+// was generating habits the user never entered (the old FALLBACK_HABITS
+// constant contained "Sleep by 11 PM", "Morning stretch", "No coffee
+// after 3 PM" which appeared for every vague brain-dump). Per the
+// feedback: if parsing produces nothing, send the user back to the
+// input screen with a clarification prompt. Never invent habits.
 
 function buildInitialHabits(state: ResultsLocationState | null): HabitItem[] {
   // If structured habits were passed directly, use them
@@ -55,7 +56,8 @@ function buildInitialHabits(state: ResultsLocationState | null): HabitItem[] {
     }
   }
 
-  return FALLBACK_HABITS;
+  // Explicit empty state — triggers the "no habits" UI below.
+  return [];
 }
 
 function applyLocationState(base: HabitItem[], state: ResultsLocationState | null): HabitItem[] {
@@ -91,15 +93,21 @@ export function AdvancedResultsPage() {
     }
   }, [locationState]);
 
-  // TTS auto-play per Voice Journey Spreadsheet v3
+  // TTS auto-play per Voice Journey Spreadsheet v3.
+  // Message branches depending on whether we parsed anything — if the
+  // user's brain dump was too vague, ask for clarification instead of
+  // pretending we built something.
+  const hasParsedHabits = habits.length > 0;
   useEffect(() => {
-    speak(
-      "Here's what I put together from what you told me. Take a look — you can edit anything, or if it's way off, I'll start fresh.",
-    );
+    const message = hasParsedHabits
+      ? "Here's what I put together from what you told me. Take a look — you can edit anything, or if it's way off, I'll start fresh."
+      : "I didn't quite catch anything specific to turn into habits. Could you tell me a bit more about what you want to work on?";
+    const cancel = speakWhenReady(message);
     return () => {
+      cancel();
       stopTTS();
     };
-  }, []);
+  }, [hasParsedHabits]);
 
   const handleConfirm = useCallback(async () => {
     const habitConfigsArray = habits.map((h) => ({
@@ -118,14 +126,20 @@ export function AdvancedResultsPage() {
 
   if (habits.length === 0) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center bg-surface-secondary">
-        <p className="text-content-secondary">No habits selected. Go back to add some.</p>
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-surface-secondary px-6 text-center">
+        <Icon icon="ic:round-info-outline" width={40} height={40} className="text-primary" />
+        <h2 className="text-xl font-bold text-content">Tell me a bit more</h2>
+        <p className="max-w-[280px] text-content-secondary">
+          I didn&apos;t quite catch anything specific to turn into habits. Could you share what you
+          want to work on — like &quot;sleep earlier&quot; or &quot;exercise three times a
+          week&quot;?
+        </p>
         <button
           type="button"
           onClick={() => navigate('/onboarding/advanced-input')}
-          className="mt-4 rounded-full bg-primary px-6 py-3 text-white"
+          className="mt-2 rounded-full bg-primary px-6 py-3 font-semibold text-white"
         >
-          Go Back
+          Try Again
         </button>
       </div>
     );
