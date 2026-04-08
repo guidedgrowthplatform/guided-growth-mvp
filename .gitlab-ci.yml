@@ -20,7 +20,8 @@ cache:
     - node_modules/
 
 before_script:
-  - npm ci
+  # Retry npm ci to survive transient network flakes (ECONNRESET from registry)
+  - for i in 1 2 3; do npm ci && break || (echo "npm ci attempt $i failed, retrying..." && sleep 5); done
 
 lint:
   stage: validate
@@ -88,7 +89,10 @@ build-apk:
     - apt-get install -y nodejs
     - npm ci
   script:
-    # 1. Sync web assets into the Capacitor Android project
+    # 1. Add android platform (it's gitignored, so always missing in CI).
+    #    dist/ is already provided as artifact from the `build` job (needs).
+    - '[ -d android ] || npx cap add android'
+    # 2. Sync web assets into the Capacitor Android project
     - npx cap copy android
     - npx cap sync android
 
