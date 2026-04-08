@@ -15,7 +15,7 @@ interface SelectionCardProps {
 export function SelectionCard({
   icon,
   iconBg,
-  iconColor = '#135bec',
+  iconColor = 'rgb(var(--color-primary))',
   title,
   description,
   selected,
@@ -27,7 +27,7 @@ export function SelectionCard({
     <button
       type="button"
       onClick={onSelect}
-      className="flex w-full cursor-pointer items-start gap-[16px] rounded-[16px] border border-border-light bg-white px-[21px] py-[28px] text-left shadow-[0px_4px_20px_-2px_rgba(19,91,236,0.05),0px_2px_10px_-2px_rgba(0,0,0,0.02)]"
+      className="flex w-full cursor-pointer items-center gap-[16px] rounded-[16px] border border-border-light bg-surface p-[21px] text-left shadow-[0px_4px_20px_-2px_rgb(var(--color-primary)/0.05),0px_2px_10px_-2px_rgba(0,0,0,0.02)]"
     >
       <div
         className="relative flex size-[36px] shrink-0 items-center justify-center rounded-full"
@@ -39,7 +39,7 @@ export function SelectionCard({
             icon="ic:round-auto-awesome"
             width={9}
             height={9}
-            className="absolute -right-1 -top-1 text-[#7c3aed]"
+            className="absolute -right-1 -top-1 text-violet-500"
           />
         )}
       </div>

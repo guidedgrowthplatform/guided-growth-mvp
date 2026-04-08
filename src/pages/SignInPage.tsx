@@ -39,11 +39,11 @@ export function SignInPage() {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-secondary px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
+    <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
       <AuthBackButton />
 
       <div className="mt-6">
-        <h1 className="text-4xl font-bold tracking-tight text-primary">Welcome Back!</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-content">Welcome back!</h1>
         <p className="mt-2 text-lg font-medium text-content-secondary">
           Let's check in with your habits today.
         </p>
@@ -87,7 +87,7 @@ export function SignInPage() {
             fullWidth
             type="submit"
             loading={loading}
-            className="shadow-[0_10px_15px_-3px_rgba(19,91,236,0.3)]"
+            className="shadow-[0_10px_15px_-3px_rgb(var(--color-primary)/0.3)]"
           >
             Log In
           </Button>

@@ -1,5 +1,5 @@
 import { format, subDays, differenceInDays } from 'date-fns';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   HomeHeader,
@@ -18,6 +18,7 @@ import { speak } from '@/lib/services/tts-service';
 import type { EntriesMap } from '@shared/types';
 
 export function HomePage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -74,7 +75,7 @@ export function HomePage() {
   return (
     <>
       <div className="space-y-6 pb-8 pt-2">
-        <HomeHeader userName={displayName} />
+        <HomeHeader userName={displayName} onPlusClick={() => navigate('/add-habit')} />
         <DateStrip
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}

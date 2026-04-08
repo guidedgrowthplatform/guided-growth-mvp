@@ -67,6 +67,7 @@ export interface AuthState {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
+  updateProfile: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -145,6 +146,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     track('Sign Out');
     clearUserIdentity();
     set({ user: null });
+  },
+
+  updateProfile: async () => {
+    await supabase.auth.refreshSession();
   },
 
   signInWithGoogle: async () => {

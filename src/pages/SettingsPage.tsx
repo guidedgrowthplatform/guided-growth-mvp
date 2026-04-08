@@ -1,7 +1,6 @@
 import { Icon } from '@iconify/react';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { logout } from '@/api/auth';
 import { deleteAccount } from '@/api/onboarding';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import {
@@ -20,8 +19,10 @@ import { SettingsCard } from '@/components/settings/SettingsCard';
 import { SettingSectionHeader } from '@/components/settings/SettingSectionHeader';
 import { SettingsHeader } from '@/components/settings/SettingsHeader';
 import { TimeBadge } from '@/components/settings/TimeBadge';
+import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
 import { UserInfoSection } from '@/components/settings/UserInfoSection';
 import { VoiceSettingsSheet } from '@/components/settings/VoiceSettingsSheet';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Toggle } from '@/components/ui/Toggle';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -39,6 +40,7 @@ import {
 } from '@/stores/voiceSettingsStore';
 
 type SheetType =
+  | 'editProfile'
   | 'stt'
   | 'recording'
   | 'ttsVoice'
@@ -65,6 +67,8 @@ export function SettingsPage() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>(getVoicePreference() || '');
   const [activeSheet, setActiveSheet] = useState<SheetType | null>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
@@ -112,6 +116,19 @@ export function SettingsPage() {
     speak('Hello! I am your growth tracker assistant. How can I help you today?');
   }, []);
 
+  const handleLogout = useCallback(async () => {
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+      window.location.href = '/login';
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to log out';
+      addToast('error', msg);
+      setIsLoggingOut(false);
+      setShowLogoutConfirm(false);
+    }
+  }, [signOut, addToast]);
+
   const handleDeleteAccount = useCallback(async () => {
     setIsDeletingAccount(true);
     try {
@@ -148,9 +165,18 @@ export function SettingsPage() {
         name={displayName}
         email={email}
         nickname={user?.nickname}
-        onEditProfile={() => addToast('info', 'Edit profile coming soon')}
-        onChangePhoto={() => addToast('info', 'Photo upload coming soon')}
+        avatarUrl={user?.image ?? undefined}
+        onEditProfile={() => setActiveSheet('editProfile')}
+        onChangePhoto={() => setActiveSheet('editProfile')}
       />
+
+      {/* Appearance */}
+      <section className="mt-8">
+        <SettingSectionHeader title="Appearance" />
+        <SettingsCard>
+          <ThemeToggle />
+        </SettingsCard>
+      </section>
 
       {/* AI Assistant */}
       <section className="mt-8">
@@ -273,17 +299,30 @@ export function SettingsPage() {
               <Icon icon="ic:round-chevron-right" width={20} className="text-content-tertiary" />
             }
           />
-          <SettingRow icon="ic:round-logout" label="Log Out" onClick={logout} />
+          <SettingRow icon="ic:round-logout" label="Log Out" onClick={() => setShowLogoutConfirm(true)} />
           <SettingRow
             icon="octicon:trash-24"
             label="Delete Account & Data"
-            iconBg="bg-[#fef2f2]"
+            iconBg="bg-danger/10"
             iconClass="text-danger"
             labelClass="text-danger"
             onClick={() => setShowDeleteConfirm(true)}
           />
         </SettingsCard>
       </section>
+
+      {/* Logout Confirmation Dialog */}
+      {showLogoutConfirm && (
+        <ConfirmDialog
+          title="Log Out"
+          message="Are you sure you want to log out of your account?"
+          confirmLabel="Log Out"
+          cancelLabel="Cancel"
+          isLoading={isLoggingOut}
+          onConfirm={handleLogout}
+          onCancel={() => setShowLogoutConfirm(false)}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       {showDeleteConfirm && (
@@ -300,6 +339,14 @@ export function SettingsPage() {
       )}
 
       {/* Bottom Sheets */}
+      {activeSheet === 'editProfile' && (
+        <EditProfileSheet
+          onClose={() => setActiveSheet(null)}
+          initialName={displayName}
+          initialNickname={user?.nickname ?? null}
+          initialAvatarUrl={user?.image ?? null}
+        />
+      )}
       {activeSheet === 'stt' && (
         <VoiceSettingsSheet
           title="Speech Engine"
