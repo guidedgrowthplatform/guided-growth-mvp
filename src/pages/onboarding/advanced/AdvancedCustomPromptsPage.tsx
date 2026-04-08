@@ -231,25 +231,37 @@ export function AdvancedCustomPromptsPage() {
 }
 
 function CustomPromptsMic() {
-  const { isListening, toggle } = useVoiceInput();
+  const { isListening, isPreparing, toggle } = useVoiceInput();
   return (
     <div className="flex flex-col items-center justify-center py-[20px]">
       <div className="rounded-full shadow-[0px_0px_0px_8px_rgba(19,91,236,0.05),0px_0px_0px_16px_rgba(19,91,236,0.02)]">
         <button
           type="button"
           onClick={toggle}
-          className={`flex size-[72px] items-center justify-center rounded-full shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)] transition-all ${
+          disabled={isPreparing}
+          className={`flex size-[72px] items-center justify-center rounded-full shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)] transition-all disabled:opacity-70 ${
             isListening ? 'scale-110 bg-danger' : 'bg-primary'
           }`}
         >
           <Icon
-            icon={isListening ? 'ic:round-stop' : 'ic:round-mic'}
+            icon={
+              isPreparing
+                ? 'mingcute:loading-2-line'
+                : isListening
+                  ? 'ic:round-stop'
+                  : 'ic:round-mic'
+            }
             width={20}
             height={20}
-            className="text-white"
+            className={`text-white ${isPreparing ? 'animate-spin' : ''}`}
           />
         </button>
       </div>
+      {isPreparing && (
+        <p className="mt-3 animate-pulse text-sm font-medium text-content-secondary">
+          Preparing mic...
+        </p>
+      )}
       {isListening && (
         <p className="mt-3 animate-pulse text-sm font-medium text-primary">Listening...</p>
       )}

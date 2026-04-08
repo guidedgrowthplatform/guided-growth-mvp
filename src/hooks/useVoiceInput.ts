@@ -10,10 +10,12 @@ import { useVoiceStore } from '@/stores/voiceStore';
 export function useVoiceInput() {
   const {
     isListening,
+    isPreparing,
     transcript,
     interim,
     error,
     isSupported,
+    startPreparing,
     startListening,
     stopListening,
     appendTranscript,
@@ -52,8 +54,16 @@ export function useVoiceInput() {
 
     setError('');
     resetTranscript();
-    setInterim('Listening... (tap mic to stop and transcribe)');
-    startListening();
+    // Enter "preparing" state immediately so the UI can show a spinner /
+    // disabled mic button. The actual `isListening` state is set inside
+    // the service `onOpen` callback below — that fires only after
+    // getUserMedia, AudioContext, and the AudioWorklet are all wired up
+    // (200–500ms on Android). Setting `isListening` early (the previous
+    // behavior) caused users to start speaking before the recording was
+    // live, eating the first ~300ms of audio and tripping "Recording too
+    // short" on short utterances like "weekday" or "next".
+    startPreparing();
+    setInterim('Preparing mic...');
 
     try {
       await startElevenLabs({
@@ -63,7 +73,13 @@ export function useVoiceInput() {
           stopListening();
           isStoppingRef.current = false;
         },
-        onOpen: () => {},
+        onOpen: () => {
+          // Recording is now live — getUserMedia returned, AudioContext is
+          // running, and the worklet/script-processor is connected and
+          // pushing chunks into audioChunks. Safe to tell the user "go".
+          setInterim('Listening... (tap mic to stop and transcribe)');
+          startListening();
+        },
       });
     } catch (err) {
       console.warn('[VoiceInput] ElevenLabs failed:', err);
@@ -72,7 +88,7 @@ export function useVoiceInput() {
       isStoppingRef.current = false;
       setError(`Microphone failed: ${err instanceof Error ? err.message : err}. Try again.`);
     }
-  }, [startListening, stopListening, setError, resetTranscript, setInterim]);
+  }, [startPreparing, startListening, stopListening, setError, resetTranscript, setInterim]);
 
   const stop = useCallback(() => {
     if (isStoppingRef.current) return;
@@ -110,12 +126,17 @@ export function useVoiceInput() {
   }, [stopListening, appendTranscript, setInterim, setError, resetTranscript]);
 
   const toggle = useCallback(() => {
+    // Block taps during the preparing window — getUserMedia/AudioContext
+    // setup is in progress and a second start() would be a no-op
+    // (startElevenLabs has an isActive guard) but the UI flicker would
+    // confuse users. Wait until we're either listening or back to idle.
+    if (isPreparing) return;
     if (isListening) {
       stop();
     } else {
       start();
     }
-  }, [isListening, start, stop]);
+  }, [isListening, isPreparing, start, stop]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -131,6 +152,7 @@ export function useVoiceInput() {
 
   return {
     isListening,
+    isPreparing,
     transcript,
     interim,
     error,

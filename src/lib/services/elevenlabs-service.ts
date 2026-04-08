@@ -227,6 +227,13 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
     });
 
     audioContext = new AudioContext();
+    // On Android Chrome and iOS Safari the AudioContext is created in
+    // 'suspended' state due to autoplay policy. Without resume() the
+    // worklet's process() method never fires and audioChunks stays empty,
+    // surfacing as "Recording too short" with zero captured audio.
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
     nativeSampleRate = audioContext.sampleRate;
     sourceNode = audioContext.createMediaStreamSource(mediaStream);
     audioChunks = [];
@@ -261,7 +268,15 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
           audioChunks.push(chunk);
         };
         sourceNode.connect(workletNode);
-        // Don't connect to destination — avoids echo
+        // Connect worklet → silent gain → destination so the audio graph
+        // has a path to destination. Without this, some browsers (Android
+        // Chrome in particular) keep the graph in a suspended state and
+        // process() never runs, even though the context is "running".
+        // Gain is 0 so there's no audible echo.
+        const silentGain = audioContext.createGain();
+        silentGain.gain.value = 0;
+        workletNode.connect(silentGain);
+        silentGain.connect(audioContext.destination);
         captureNode = workletNode;
       } catch {
         // AudioWorklet failed (e.g. insecure context), fall back

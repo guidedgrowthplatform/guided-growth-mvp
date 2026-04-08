@@ -30,6 +30,7 @@ interface OnboardingVoiceOverlayProps {
 
 const stateLabel: Record<string, string> = {
   idle: 'Tap to speak',
+  preparing: 'Preparing mic...',
   listening: 'Listening',
   processing: 'Thinking...',
 };
@@ -42,7 +43,7 @@ export function OnboardingVoiceOverlay({
   setMessages,
 }: OnboardingVoiceOverlayProps) {
   const { user } = useAuth();
-  const { isListening, transcript, toggle, error, resetTranscript } = useVoiceInput();
+  const { isListening, isPreparing, transcript, toggle, error, resetTranscript } = useVoiceInput();
   const { processTranscript } = useOnboardingVoice();
   const [isProcessing, setIsProcessing] = useState(false);
   const lastErrorRef = useRef('');
@@ -64,8 +65,17 @@ export function OnboardingVoiceOverlay({
     setMessages((prev) => [...prev, { id: `error-${Date.now()}`, role: 'ai', text: error }]);
   }, [error, setMessages]);
 
-  // Determine the voice state
-  const voiceState = isProcessing ? 'processing' : isListening ? 'listening' : 'idle';
+  // Determine the voice state — preparing wins over listening so the user
+  // sees a loading spinner during the getUserMedia/AudioContext setup window
+  // (200–500ms on Android) instead of being told "Listening" before the
+  // recording is actually live.
+  const voiceState = isProcessing
+    ? 'processing'
+    : isListening
+      ? 'listening'
+      : isPreparing
+        ? 'preparing'
+        : 'idle';
 
   const handleClose = useCallback(() => {
     if (isListening) {
@@ -235,7 +245,7 @@ export function OnboardingVoiceOverlay({
           />
           <button
             onClick={handleMicPress}
-            disabled={voiceState === 'processing'}
+            disabled={voiceState === 'processing' || voiceState === 'preparing'}
             className="relative flex h-[75px] w-[75px] items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dark shadow-[0px_0px_15px_0px_rgba(19,91,236,0.3)] active:scale-95 disabled:active:scale-100"
           >
             <Mic className="h-5 w-5 text-white" />

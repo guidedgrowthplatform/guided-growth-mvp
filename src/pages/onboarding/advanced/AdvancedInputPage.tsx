@@ -15,7 +15,7 @@ export function AdvancedInputPage() {
   const { saveStepAsync } = useOnboarding();
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null!);
-  const { isListening, toggle, transcript } = useVoiceInput();
+  const { isListening, isPreparing, toggle, transcript } = useVoiceInput();
   const resetTranscript = useVoiceStore((s) => s.resetTranscript);
 
   // Append voice transcript to text
@@ -68,7 +68,12 @@ export function AdvancedInputPage() {
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-[24px] py-[32px]">
-        <VoiceMicButton isListening={isListening} onPress={toggle} />
+        <VoiceMicButton isListening={isListening} isPreparing={isPreparing} onPress={toggle} />
+        {isPreparing && (
+          <p className="animate-pulse text-sm font-medium text-content-secondary">
+            Preparing mic...
+          </p>
+        )}
         {isListening && (
           <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>
         )}
