@@ -1,20 +1,23 @@
-import { useState, useCallback } from 'react';
+import { format } from 'date-fns';
+import { useState, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AiReflectionEntry } from '@/components/journal/AiReflectionEntry';
-import { FreeformEntry } from '@/components/journal/FreeformEntry';
 import { ReflectionTypeSelect } from '@/components/journal/ReflectionTypeSelect';
 import { TemplateEntry } from '@/components/journal/TemplateEntry';
 import { TemplateSelect } from '@/components/journal/TemplateSelect';
-import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
+import { useJournalSave } from '@/hooks/useJournalSave';
 
-type Step = 'select-type' | 'select-template' | 'template-entry' | 'freeform' | 'ai-reflection';
-type ReflectionType = 'ai' | 'template' | 'freeform';
+const FreeformEntry = lazy(() =>
+  import('@/components/journal/FreeformEntry').then((m) => ({ default: m.FreeformEntry })),
+);
+
+type Step = 'select-type' | 'select-template' | 'template-entry' | 'freeform';
+type ReflectionType = 'template' | 'freeform';
 
 export function JournalFlowPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { addToast } = useToast();
+  const { save, saving } = useJournalSave();
   const userName = user?.nickname ?? user?.name ?? 'there';
 
   const [step, setStep] = useState<Step>('select-type');
@@ -22,8 +25,6 @@ export function JournalFlowPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [templateAnswers, setTemplateAnswers] = useState<Record<string, string>>({});
   const [freeformTitle, setFreeformTitle] = useState('');
-  const [freeformBody, setFreeformBody] = useState('');
-  const [aiAnswer, setAiAnswer] = useState('');
 
   const goBack = useCallback(() => {
     switch (step) {
@@ -37,7 +38,6 @@ export function JournalFlowPage() {
         setStep('select-template');
         break;
       case 'freeform':
-      case 'ai-reflection':
         setStep('select-type');
         break;
     }
@@ -46,7 +46,6 @@ export function JournalFlowPage() {
   const handleTypeContinue = useCallback(() => {
     if (selectedType === 'template') setStep('select-template');
     else if (selectedType === 'freeform') setStep('freeform');
-    else if (selectedType === 'ai') setStep('ai-reflection');
   }, [selectedType]);
 
   const handleTemplateContinue = useCallback(() => {
@@ -54,10 +53,28 @@ export function JournalFlowPage() {
     setStep('template-entry');
   }, []);
 
-  const handleSave = useCallback(() => {
-    addToast('success', 'Reflection saved!');
-    navigate('/home');
-  }, [addToast, navigate]);
+  const handleFreeformSave = useCallback(
+    (body: string) => {
+      const date = format(new Date(), 'yyyy-MM-dd');
+      save({
+        type: 'freeform',
+        title: freeformTitle || undefined,
+        date,
+        fields: { body },
+      });
+    },
+    [freeformTitle, save],
+  );
+
+  const handleTemplateSave = useCallback(() => {
+    const date = format(new Date(), 'yyyy-MM-dd');
+    save({
+      type: 'template',
+      template_id: selectedTemplate ?? '5-minute-morning',
+      date,
+      fields: templateAnswers,
+    });
+  }, [selectedTemplate, templateAnswers, save]);
 
   switch (step) {
     case 'select-type':
@@ -85,31 +102,30 @@ export function JournalFlowPage() {
           templateId={selectedTemplate ?? '5-minute-morning'}
           answers={templateAnswers}
           onAnswerChange={(i, v) => setTemplateAnswers((prev) => ({ ...prev, [String(i)]: v }))}
-          onSave={handleSave}
+          onSave={handleTemplateSave}
           onBack={goBack}
+          saving={saving}
         />
       );
     case 'freeform':
       return (
-        <FreeformEntry
-          title={freeformTitle}
-          body={freeformBody}
-          onTitleChange={setFreeformTitle}
-          onBodyChange={setFreeformBody}
-          onSave={handleSave}
-          onBack={goBack}
-          userName={userName}
-        />
-      );
-    case 'ai-reflection':
-      return (
-        <AiReflectionEntry
-          answer={aiAnswer}
-          onAnswerChange={setAiAnswer}
-          onDone={handleSave}
-          onBack={goBack}
-          userName={userName}
-        />
+        <Suspense
+          fallback={
+            <div className="flex h-full items-center justify-center p-8">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-primary" />
+            </div>
+          }
+        >
+          <FreeformEntry
+            initialBody=""
+            title={freeformTitle}
+            onTitleChange={setFreeformTitle}
+            onSave={handleFreeformSave}
+            onBack={goBack}
+            userName={userName}
+            saving={saving}
+          />
+        </Suspense>
       );
   }
 }

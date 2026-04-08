@@ -8,6 +8,8 @@ import {
   QuickActionCards,
   HabitsSection,
   FeedbackButton,
+  MuteToggle,
+  FeedbackSheet,
   ReminderSheet,
 } from '@/components/home';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,6 +23,7 @@ export function HomePage() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showReminders, setShowReminders] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   const dateRange = useMemo(() => {
     const today = new Date();
@@ -95,10 +98,13 @@ export function HomePage() {
         <HabitsSection selectedDate={selectedDate} />
       </div>
 
-      {/* Feedback Button - Above Bottom Nav */}
-      <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-6 z-40">
-        <FeedbackButton />
+      {/* Feedback & Mute — Above Bottom Nav */}
+      <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-6 z-40 flex items-center gap-2">
+        <FeedbackButton onPress={() => setShowFeedback(true)} />
+        <MuteToggle />
       </div>
+
+      {showFeedback && <FeedbackSheet onClose={() => setShowFeedback(false)} />}
 
       {showReminders && <ReminderSheet onClose={() => setShowReminders(false)} />}
     </>

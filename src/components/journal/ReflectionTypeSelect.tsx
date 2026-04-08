@@ -2,7 +2,7 @@ import { Icon } from '@iconify/react';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
 import { Button } from '@/components/ui/Button';
 
-type ReflectionType = 'ai' | 'template' | 'freeform';
+type ReflectionType = 'template' | 'freeform';
 
 interface ReflectionTypeSelectProps {
   selected: ReflectionType | null;
@@ -21,16 +21,6 @@ const types: {
   badge?: string;
   badgeVariant?: 'primary' | 'muted';
 }[] = [
-  {
-    key: 'ai',
-    icon: 'mdi:pencil-outline',
-    iconBg: '#EEF2FF',
-    title: 'AI Guided Reflection',
-    description:
-      "I'll ask you a few personalized questions to guide your thoughts and reflections.",
-    badge: 'Recommended for consistency',
-    badgeVariant: 'primary',
-  },
   {
     key: 'template',
     icon: 'mdi:pencil-outline',
@@ -76,18 +66,6 @@ export function ReflectionTypeSelect({
       <p className="mt-3 text-base text-content-secondary">
         Choose a style that matches your current energy and focus.
       </p>
-
-      <div className="mt-6 flex items-center gap-2 rounded-lg bg-[#EEF2FF] px-3 py-3">
-        <Icon
-          icon="ic:round-auto-awesome"
-          width={20}
-          height={20}
-          className="shrink-0 text-primary"
-        />
-        <span className="text-sm font-semibold text-primary">
-          Let&apos;s make this reflection special. Tell me your preferred style!
-        </span>
-      </div>
 
       <div className="mt-6 flex flex-col gap-4" role="radiogroup" aria-label="Reflection type">
         {types.map((t) => (

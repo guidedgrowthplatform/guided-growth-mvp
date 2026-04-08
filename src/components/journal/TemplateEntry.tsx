@@ -48,6 +48,7 @@ interface TemplateEntryProps {
   onAnswerChange: (index: number, value: string) => void;
   onSave: () => void;
   onBack: () => void;
+  saving?: boolean;
 }
 
 export function TemplateEntry({
@@ -56,6 +57,7 @@ export function TemplateEntry({
   onAnswerChange,
   onSave,
   onBack,
+  saving,
 }: TemplateEntryProps) {
   const config = TEMPLATE_MAP[templateId] ?? TEMPLATE_MAP['5-minute-morning'];
   const now = new Date();
@@ -84,7 +86,7 @@ export function TemplateEntry({
               {i + 1}. {question}
             </p>
             <textarea
-              className="mt-2 w-full resize-none rounded-lg bg-surface-secondary p-4 text-sm font-medium text-content placeholder:text-content-tertiary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="mt-2 w-full resize-none rounded-lg border-none bg-surface-secondary p-4 text-sm font-medium text-content placeholder:text-content-tertiary focus:outline-none focus:ring-0"
               rows={3}
               placeholder="Type here..."
               value={answers[String(i)] ?? ''}
@@ -96,18 +98,24 @@ export function TemplateEntry({
       </div>
 
       {/* Inspirational quote card */}
-      <div className="mt-6 overflow-hidden rounded-2xl bg-gradient-to-t from-[#0B1326] to-[#1e293b] p-6">
-        <p className="text-xs font-bold uppercase tracking-widest text-primary-light">
+      <div className="mt-6 overflow-hidden rounded-2xl bg-gradient-to-br from-[#EEF2FF] to-[#DBEAFE] p-6">
+        <p className="text-xs font-bold uppercase tracking-widest text-primary">
           Daily Inspiration
         </p>
-        <p className="mt-1 text-sm text-content-tertiary">
+        <p className="mt-1 text-sm text-content-secondary">
           &ldquo;The secret of your future is hidden in your daily routine.&rdquo;
         </p>
       </div>
 
       <div className="mt-auto pt-6">
-        <Button variant="primary" size="auth" fullWidth disabled={!hasContent} onClick={onSave}>
-          Save
+        <Button
+          variant="primary"
+          size="auth"
+          fullWidth
+          disabled={!hasContent || saving}
+          onClick={onSave}
+        >
+          {saving ? 'Saving\u2026' : 'Save'}
         </Button>
       </div>
     </div>
