@@ -109,7 +109,9 @@ build-apk:
     # which can change between image versions.
     - export JAVA_HOME=$(ls -d /usr/lib/jvm/*21* 2>/dev/null | head -1)
     - 'echo "Resolved JAVA_HOME=$JAVA_HOME"'
-    - test -x "$JAVA_HOME/bin/javac" || (echo "ERROR: JDK 21 not found in image" && ls /usr/lib/jvm/ && exit 1)
+    # Entire line wrapped in single quotes so the YAML parser does not
+    # interpret the unquoted colon in `"ERROR: ...` as a map key.
+    - 'test -x "$JAVA_HOME/bin/javac" || (echo "ERROR JDK 21 not found in image" && ls /usr/lib/jvm/ && exit 1)'
     - export PATH="$JAVA_HOME/bin:$PATH"
     - java -version
     # Install Node.js 22 inside the Android SDK container
