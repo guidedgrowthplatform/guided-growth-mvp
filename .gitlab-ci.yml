@@ -103,7 +103,12 @@ build-apk:
     - apt-get update && apt-get install -y curl
     - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
     - apt-get install -y nodejs
-    - npm ci
+    # --ignore-scripts: skip husky `prepare` hook. mingc/android-build-box
+    #   sets NODE_ENV=production so npm ci normally skips devDependencies,
+    #   leaving the husky binary missing and `sh: husky: not found` crashes
+    #   the job. CI does not need git hooks.
+    # Retry loop: survive transient ECONNRESET from the npm registry.
+    - for i in 1 2 3; do npm ci --ignore-scripts && break || (echo "npm ci attempt $i failed, retrying..." && sleep 5); done
   script:
     # 1. Add android platform (it's gitignored, so always missing in CI).
     #    dist/ is already provided as artifact from the `build` job (needs).
