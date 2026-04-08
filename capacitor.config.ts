@@ -17,6 +17,11 @@ const config: CapacitorConfig = {
   server: {
     // Required for getUserMedia and inline audio playback on iOS WKWebView
     iosScheme: 'capacitor',
+    // Make Android scheme explicit (matches Capacitor 3+ default). The
+    // resulting WebView origin is `https://localhost`, which MUST be in
+    // api/_lib/cors.ts ALLOWED_ORIGINS or every fetch from Android fails
+    // CORS preflight with "Could not connect to server".
+    androidScheme: 'https',
     allowNavigation: [
       'api.deepgram.com',
       'api.elevenlabs.io',

@@ -289,9 +289,12 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
     callbacks.onOpen();
   } catch (err) {
     isActive = false;
-    const msg = err instanceof Error ? err.message : String(err);
-    callbacks.onError(`Microphone access failed: ${msg}`);
     cleanupAudioResources();
+    // Rethrow so the caller can inspect err.name (NotAllowedError etc.)
+    // and surface a platform-specific message. Previously we only fired
+    // callbacks.onError(string), which lost the original Error object and
+    // forced the caller to string-match for permission detection.
+    throw err;
   }
 }
 

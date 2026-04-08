@@ -4,8 +4,40 @@ import {
   stopAndTranscribe,
   stopElevenLabs,
 } from '@/lib/services/elevenlabs-service';
-import { ensureMicPermission } from '@/lib/services/mic-permissions';
 import { useVoiceStore } from '@/stores/voiceStore';
+
+/**
+ * Build a platform-specific error message for a denied / failed mic
+ * permission. Used on the start() catch path so we don't have to do an
+ * upfront `ensureMicPermission()` check (which would consume the user
+ * gesture and force users to tap mic twice on iOS — see git blame).
+ */
+function micPermissionMessage(err: unknown): string {
+  const name =
+    err instanceof Error || (typeof err === 'object' && err && 'name' in err)
+      ? String((err as { name?: string }).name || '')
+      : '';
+  const msg = err instanceof Error ? err.message : String(err);
+
+  const isPermissionError =
+    name === 'NotAllowedError' ||
+    name === 'PermissionDeniedError' ||
+    name === 'SecurityError' ||
+    /denied|permission/i.test(msg);
+
+  if (!isPermissionError) {
+    return `Microphone failed: ${msg}. Try again.`;
+  }
+
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+  if (/iPhone|iPad|iPod/i.test(ua)) {
+    return 'Microphone access denied. Go to Settings → Safari → Microphone (or the app permissions in iOS Settings) to enable.';
+  }
+  if (/Android/i.test(ua)) {
+    return 'Microphone access denied. Open your device Settings → Apps → Guided Growth → Permissions → Microphone.';
+  }
+  return 'Microphone permission denied. Click the lock icon in the address bar to enable.';
+}
 
 export function useVoiceInput() {
   const {
@@ -30,28 +62,15 @@ export function useVoiceInput() {
     // Reset stuck state from previous failed session
     isStoppingRef.current = false;
 
-    // Request mic permission first
-    let micAllowed = false;
-    try {
-      micAllowed = await ensureMicPermission();
-    } catch (err) {
-      console.error('[VoiceInput] ensureMicPermission threw:', err);
-    }
-
-    if (!micAllowed) {
-      const ua = navigator.userAgent || '';
-      if (/iPhone|iPad|iPod/i.test(ua)) {
-        setError('Microphone access denied. Go to Settings → Safari → Microphone to enable.');
-      } else if (/Android/i.test(ua)) {
-        setError(
-          'Microphone access denied. Go to Settings → Apps → Browser → Permissions → Microphone.',
-        );
-      } else {
-        setError('Microphone permission denied. Click the lock icon in the address bar to enable.');
-      }
-      return;
-    }
-
+    // CRITICAL: do NOT call ensureMicPermission() here. It calls
+    // getUserMedia just to probe permission, then immediately stops the
+    // tracks. On iOS Safari/WKWebView, that consumes the user gesture
+    // context — and then the SECOND getUserMedia call inside
+    // startElevenLabs has no gesture and silently fails, so the user has
+    // to tap the mic AGAIN to actually start recording. This is the
+    // "double press" UX bug Yair flagged in the 2026-04-08 review meeting.
+    // We let startElevenLabs do the single getUserMedia call directly and
+    // surface a platform-specific error from the catch block below.
     setError('');
     resetTranscript();
     // Enter "preparing" state immediately so the UI can show a spinner /
@@ -86,7 +105,7 @@ export function useVoiceInput() {
       stopListening();
       stopElevenLabs();
       isStoppingRef.current = false;
-      setError(`Microphone failed: ${err instanceof Error ? err.message : err}. Try again.`);
+      setError(micPermissionMessage(err));
     }
   }, [startPreparing, startListening, stopListening, setError, resetTranscript, setInterim]);
 
