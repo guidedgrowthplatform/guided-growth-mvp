@@ -157,7 +157,13 @@ export function useVoiceInput() {
     }
   }, [isListening, isPreparing, start, stop]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount ONLY — empty deps so the cleanup fires exactly
+  // once when the component unmounts. Previously had `[stopListening]`
+  // in the deps array, which meant any time that ref changed (React
+  // StrictMode, parent re-render that perturbed store selectors) the
+  // cleanup re-fired and killed the in-flight recording — sometimes
+  // racing stopAndTranscribe's 120ms flush window and wiping
+  // audioChunks before the transcription could read them.
   useEffect(() => {
     return () => {
       try {
@@ -165,9 +171,10 @@ export function useVoiceInput() {
       } catch {
         /* ignore */
       }
-      stopListening();
+      // Read the live function from the store to avoid a stale closure.
+      useVoiceStore.getState().stopListening();
     };
-  }, [stopListening]);
+  }, []);
 
   return {
     isListening,

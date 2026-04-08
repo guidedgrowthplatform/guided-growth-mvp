@@ -91,6 +91,12 @@ export function OnboardingVoiceOverlay({
     unlockTTS();
     // Stop any playing TTS audio so it doesn't overlap with recording
     stopTTS();
+    // Clear the processed-transcript guard so a repeated command with
+    // identical text is not dropped. Without this, saying "yes" twice
+    // in a row would silently skip the second one because the effect
+    // at line ~99 compares transcript against this ref and returns
+    // early on equality.
+    processedTranscriptRef.current = '';
     toggle();
   }, [toggle]);
 

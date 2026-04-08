@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { speak, stopTTS } from '@/lib/services/tts-service';
+import { speakWhenReady, stopTTS } from '@/lib/services/tts-service';
 import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { useVoiceCommand } from './useVoiceCommand';
@@ -56,13 +56,16 @@ export function useVoiceChat(userName?: string) {
       ? 'listening'
       : 'idle';
 
-  // Speak greeting TTS (useRef prevents React StrictMode double-fire)
+  // Speak greeting TTS (useRef prevents React StrictMode double-fire).
+  // Uses speakWhenReady to defer to the first user gesture on iOS
+  // WKWebView, otherwise the greeting is silently blocked by autoplay
+  // policy and the user hears nothing on first visit.
   useEffect(() => {
     if (hasSpokenGreeting.current) return;
     hasSpokenGreeting.current = true;
-    // Full greeting — same as the chat bubble
     const ttsGreeting = getGreeting(userName);
-    speak(ttsGreeting);
+    const cancel = speakWhenReady(ttsGreeting);
+    return cancel;
   }, [userName]);
 
   // Process transcript when recording stops and transcript is available
@@ -139,6 +142,13 @@ export function useVoiceChat(userName?: string) {
   const startListening = useCallback(() => {
     // Stop any TTS that's playing before listening
     stopTTS();
+    // Clear the processed-transcript guard so a repeated command with
+    // identical text (e.g. user confirms with "yes" twice) is not dropped.
+    // Previously the effect at line 69 compared transcript against the
+    // last-handled text and returned early if equal, silently skipping
+    // the second "yes". Clearing on each new start makes repeated text
+    // commands work again.
+    lastHandledTranscript.current = '';
     resetTranscript();
     start();
   }, [start, resetTranscript]);

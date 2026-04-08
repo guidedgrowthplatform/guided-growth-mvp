@@ -232,8 +232,18 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
   isTranscribing = false; // Reset stuck state from previous session
 
   try {
+    // autoGainControl is important on Android — many devices ship with
+    // a very low default mic gain, so without AGC the captured waveform
+    // is below the silence-trim threshold and trimSilence() eats the
+    // entire utterance. echoCancellation stops the mic from re-capturing
+    // TTS playback when the user is mid-conversation with the agent.
     mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
     });
 
     audioContext = new AudioContext();
