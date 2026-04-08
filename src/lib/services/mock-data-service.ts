@@ -25,8 +25,22 @@ function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+/**
+ * Format a Date as YYYY-MM-DD using LOCAL components. Must stay in
+ * lockstep with action-dispatcher.formatLocalDate so entries saved
+ * through this service and entries queried via the dispatcher share
+ * the same date key. UTC-based slicing broke duplicate detection and
+ * "today" queries for users east of UTC during morning local hours.
+ */
+function fmtLocalDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return fmtLocalDate(new Date());
 }
 
 function getStore<T>(key: string): T[] {
@@ -56,7 +70,7 @@ function calcStreaks(completions: HabitCompletion[]): { current: number; longest
   const todayDate = todayStr();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayDate = yesterday.toISOString().slice(0, 10);
+  const yesterdayDate = fmtLocalDate(yesterday);
 
   const sortedAsc = [...dates].sort();
 
@@ -82,7 +96,7 @@ function calcStreaks(completions: HabitCompletion[]): { current: number; longest
   if (dates.includes(todayDate) || dates.includes(yesterdayDate)) {
     const startDate = dates.includes(todayDate) ? todayDate : yesterdayDate;
     const checkDate = new Date(startDate);
-    while (dates.includes(checkDate.toISOString().slice(0, 10))) {
+    while (dates.includes(fmtLocalDate(checkDate))) {
       current++;
       checkDate.setDate(checkDate.getDate() - 1);
     }
@@ -290,11 +304,7 @@ export class MockDataService implements DataService {
     const totalDays = period === 'week' ? 7 : 30;
     startDate.setDate(startDate.getDate() - totalDays);
 
-    const completions = await this.getCompletions(
-      habitId,
-      startDate.toISOString().slice(0, 10),
-      todayStr(),
-    );
+    const completions = await this.getCompletions(habitId, fmtLocalDate(startDate), todayStr());
     const uniqueDays = new Set(completions.map((c) => c.date)).size;
     const { current, longest } = calcStreaks(completions);
 
@@ -312,7 +322,7 @@ export class MockDataService implements DataService {
     const now = new Date();
     const weekStart = new Date(now);
     weekStart.setDate(weekStart.getDate() - 7);
-    const start = weekStart.toISOString().slice(0, 10);
+    const start = fmtLocalDate(weekStart);
     const end = todayStr();
 
     const habits = await this.getHabits();
