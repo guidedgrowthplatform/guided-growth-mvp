@@ -43,3 +43,20 @@ export function getClientIp(headers: Record<string, string | string[] | undefine
   if (typeof forwarded === 'string') return forwarded.split(',')[0]?.trim() || 'unknown';
   return 'unknown';
 }
+
+import sanitizeHtml from 'sanitize-html';
+
+const ALLOWED_HTML_TAGS = ['p', 'strong', 'em', 'ul', 'ol', 'li', 'hr', 'img', 'br'];
+const ALLOWED_HTML_ATTRS: Record<string, string[]> = { img: ['src', 'alt'] };
+
+/**
+ * Sanitize HTML content to prevent XSS.
+ * Only allows tags that Tiptap produces.
+ */
+export function sanitizeContent(value: string): string {
+  return sanitizeHtml(value, {
+    allowedTags: ALLOWED_HTML_TAGS,
+    allowedAttributes: ALLOWED_HTML_ATTRS,
+    allowedSchemes: ['https'],
+  });
+}
