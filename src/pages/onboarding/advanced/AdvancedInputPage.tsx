@@ -75,7 +75,7 @@ export function AdvancedInputPage() {
         <button
           type="button"
           onClick={handleKeyboardPress}
-          className="rounded-full bg-white p-[16px] shadow-[0px_4px_20px_0px_rgba(0,0,0,0.05)]"
+          className="rounded-full bg-surface p-[16px] shadow-[0px_4px_20px_0px_rgba(0,0,0,0.05)]"
         >
           <Icon icon="ic:round-keyboard" className="size-[24px] text-content-tertiary" />
         </button>

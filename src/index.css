@@ -26,6 +26,23 @@
   --shadow-elevated: 0 10px 25px rgba(0, 0, 0, 0.12);
 }
 
+.dark {
+  --color-primary-bg: 17 24 56;
+  --color-surface: 11 19 38;
+  --color-surface-secondary: 45 52 73;
+  --color-text: 255 255 255;
+  --color-text-secondary: 148 163 184;
+  --color-text-tertiary: 100 116 139;
+  --color-text-muted: 148 163 184;
+  --color-text-subtle: 203 213 225;
+  --color-border: 100 116 139;
+  --color-border-light: 51 65 85;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-elevated: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -143,8 +160,8 @@ body {
     right: -4px;
     width: 8px;
     height: 8px;
-    background-color: #1a73e8;
-    border: 1px solid #ffffff;
+    background-color: rgb(var(--color-primary));
+    border: 1px solid rgb(var(--color-surface));
     border-radius: 50%;
     z-index: 15;
     cursor: crosshair;
@@ -152,7 +169,7 @@ body {
   }
 
   .cell-selected-fill-handle:hover {
-    background-color: #1d4ed8;
+    background-color: rgb(var(--color-primary-dark));
     transform: scale(1.1);
   }
 

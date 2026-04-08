@@ -6,6 +6,7 @@ export interface User {
   id: string;
   email: string;
   name: string | null;
+  nickname: string | null;
   image: string | null;
   role: UserRole;
   status: UserStatus;

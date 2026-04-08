@@ -74,7 +74,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
   return (
     <div className="flex min-h-dvh flex-col bg-surface-secondary">
       {/* Header */}
-      <div className="flex items-center justify-between bg-[rgba(249,249,249,0.8)] px-6 py-[16px] backdrop-blur-[6px]">
+      <div className="flex items-center justify-between bg-surface-secondary/80 px-6 py-[16px] backdrop-blur-[6px]">
         <button
           type="button"
           onClick={() => navigate('/onboarding/advanced-results')}
@@ -92,7 +92,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
             icon="material-symbols:delete-outline"
             width={24}
             height={24}
-            className="text-[#e5484d]"
+            className="text-danger"
           />
         </button>
       </div>
@@ -125,7 +125,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
           {/* How Often? */}
           <div className="flex flex-col gap-[12px]">
             <label className={FIELD_LABEL_CLASS}>How Often?</label>
-            <div className="rounded-[12px] border border-border bg-white px-[13px] py-[13px]">
+            <div className="rounded-[12px] border border-border bg-surface px-[13px] py-[13px]">
               <DayPicker
                 selectedDays={days}
                 onToggleDay={(day) => setDays((prev) => toggleSetItem(prev, day))}
@@ -143,7 +143,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
           type="button"
           onClick={handleSave}
           disabled={!name.trim()}
-          className="w-full rounded-full bg-primary py-[16px] text-center text-[16px] font-bold text-white shadow-[0px_10px_15px_-3px_#bfdbfe,0px_4px_6px_-4px_#bfdbfe] disabled:opacity-50"
+          className="w-full rounded-full bg-primary py-[16px] text-center text-[16px] font-bold text-white shadow-[0px_10px_15px_-3px_rgb(var(--color-primary)/0.25),0px_4px_6px_-4px_rgb(var(--color-primary)/0.15)] disabled:opacity-50"
         >
           Save Changes
         </button>

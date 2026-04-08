@@ -32,12 +32,12 @@ export function StreakCalendarGrid({ data }: StreakCalendarGridProps) {
                 cell === 'done'
                   ? 'bg-primary'
                   : cell === 'missed'
-                    ? 'border-2 border-[#e5484d] bg-white'
+                    ? 'border-2 border-danger bg-surface'
                     : 'bg-border-light'
               }`}
             >
               {cell === 'done' && <Check size={14} className="text-white" />}
-              {cell === 'missed' && <X size={14} className="text-[#e5484d]" />}
+              {cell === 'missed' && <X size={14} className="text-danger" />}
             </div>
           ))}
         </Fragment>

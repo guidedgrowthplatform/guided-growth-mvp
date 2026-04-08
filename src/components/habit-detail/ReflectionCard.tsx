@@ -5,7 +5,7 @@ interface ReflectionCardProps {
 
 export function ReflectionCard({ habitName, onLogReflection }: ReflectionCardProps) {
   return (
-    <div className="rounded-2xl border border-border-light bg-white px-[21px] pb-[21px] pt-[13px] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]">
+    <div className="rounded-2xl border border-border-light bg-surface-secondary px-[21px] pb-[21px] pt-[13px] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]">
       <p className="text-sm font-medium leading-[22px] text-content">
         How do you feel about your progress towards forming the &ldquo;{habitName}&rdquo; habit?
       </p>

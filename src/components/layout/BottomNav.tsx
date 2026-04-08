@@ -23,7 +23,7 @@ function NavTab({ icon, label, path, isActive }: NavTabProps) {
 function NavBarBackground() {
   return (
     <svg
-      className="absolute inset-0 h-full w-full"
+      className="absolute inset-0 h-full w-full text-surface"
       viewBox="0 0 400 80"
       preserveAspectRatio="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -41,7 +41,7 @@ function NavBarBackground() {
           C394 0, 400 6, 400 16
           L400 80 L0 80 Z
         "
-        fill="white"
+        fill="currentColor"
       />
     </svg>
   );
@@ -60,7 +60,7 @@ export function BottomNav({ onVoicePress }: BottomNavProps) {
   };
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
       <div>
         <div className="relative" style={{ height: '72px' }}>
           <NavBarBackground />
@@ -68,7 +68,7 @@ export function BottomNav({ onVoicePress }: BottomNavProps) {
           <div className="absolute left-1/2 z-50 -translate-x-1/2" style={{ top: '-24px' }}>
             <button
               onClick={onVoicePress}
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dark shadow-[0px_0px_15px_rgba(19,91,236,0.3)]"
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dark shadow-[0px_0px_15px_rgb(var(--color-primary)/0.3)]"
             >
               <Icon icon="ic:round-mic" width={24} className="text-white" />
             </button>

@@ -34,6 +34,9 @@ const SignUpPage = lazy(() =>
 const ForgotPasswordPage = lazy(() =>
   import('@/pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })),
 );
+const AddHabitPage = lazy(() =>
+  import('@/pages/add-habit').then((m) => ({ default: m.AddHabitPage })),
+);
 const StatusPage = lazy(() =>
   import('@/pages/StatusPage').then((m) => ({ default: m.StatusPage })),
 );
@@ -229,6 +232,15 @@ export function AppRoutes() {
           element={
             <AppGate allow="app">
               <JournalFlowPage />
+            </AppGate>
+          }
+        />
+
+        <Route
+          path="/add-habit"
+          element={
+            <AppGate allow="app">
+              <AddHabitPage />
             </AppGate>
           }
         />

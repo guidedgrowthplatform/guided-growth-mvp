@@ -87,7 +87,7 @@ export function HabitPickerPanel({
             ))}
 
             {showInput ? (
-              <div className="flex items-center gap-2 rounded-[24px] border border-primary bg-white px-[16px] py-[10px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.04)]">
+              <div className="flex items-center gap-2 rounded-[24px] border border-primary bg-surface px-[16px] py-[10px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.04)]">
                 <input
                   ref={inputRef}
                   type="text"
@@ -110,14 +110,14 @@ export function HabitPickerPanel({
               <button
                 type="button"
                 onClick={handleCreateClick}
-                className={`flex w-full items-center justify-between rounded-[24px] border bg-white px-[16px] py-[14px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.04)] transition-all duration-200 ${
+                className={`flex w-full items-center justify-between rounded-[24px] border bg-surface px-[16px] py-[14px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.04)] transition-all duration-200 ${
                   maxReached ? 'border-transparent opacity-40' : 'cursor-pointer border-border'
                 }`}
               >
                 <span className="text-[16px] font-bold leading-[24px] text-content">
                   Create your own habit!
                 </span>
-                <div className="flex size-[28px] shrink-0 items-center justify-center rounded-full bg-[#fbbf24]">
+                <div className="flex size-[28px] shrink-0 items-center justify-center rounded-full bg-warning">
                   <Icon icon="mdi:plus" width={18} height={18} className="text-white" />
                 </div>
               </button>

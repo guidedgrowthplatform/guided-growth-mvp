@@ -29,11 +29,11 @@ export function VoiceTooltip({ autoDismissMs = 4000, onDismiss }: VoiceTooltipPr
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2 absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 duration-300">
-      <div className="whitespace-nowrap rounded-[8px] border border-[#135bec] bg-[rgba(19,91,236,0.1)] px-3 py-2 text-xs font-medium text-[#135bec] shadow-[0_4px_12px_rgba(19,91,236,0.15)]">
+      <div className="whitespace-nowrap rounded-[8px] border border-primary bg-primary/10 px-3 py-2 text-xs font-medium text-primary shadow-[0_4px_12px_rgb(var(--color-primary)/0.15)]">
         Tap to record your answer
       </div>
       <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
-        <div className="h-0 w-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-[rgba(19,91,236,0.1)]" />
+        <div className="h-0 w-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-primary/10" />
       </div>
     </div>
   );

@@ -117,7 +117,7 @@ function ScrollColumn({
           <div
             key={value}
             className={`flex select-none items-center justify-center text-[18px] ${
-              index === selectedIndex ? 'font-bold text-[#0f172a]' : 'font-normal text-[#d1d5db]'
+              index === selectedIndex ? 'font-bold text-content' : 'font-normal text-content-tertiary'
             }`}
             style={{ height: ITEM_HEIGHT }}
           >
@@ -156,9 +156,9 @@ export function TimePicker({
   secondValues,
 }: TimePickerProps) {
   return (
-    <div className="relative rounded-[24px] bg-white px-6 pb-8 pt-3">
+    <div className="relative rounded-[24px] bg-surface px-6 pb-8 pt-3">
       <div
-        className="pointer-events-none absolute inset-x-6 rounded-[12px] bg-[#f9fafb]"
+        className="pointer-events-none absolute inset-x-6 rounded-[12px] bg-surface-secondary"
         style={{
           height: ITEM_HEIGHT,
           top: LABEL_HEIGHT + PICKER_HEIGHT / 2 - ITEM_HEIGHT / 2,
@@ -180,7 +180,7 @@ export function TimePicker({
           className="flex w-8 items-center justify-center"
           style={{ height: PICKER_HEIGHT, paddingTop: 24 }}
         >
-          <span className="text-[24px] font-bold text-[#9ca3af]">:</span>
+          <span className="text-[24px] font-bold text-content-muted">:</span>
         </div>
 
         <ScrollColumn
