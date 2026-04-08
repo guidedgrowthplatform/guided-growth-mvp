@@ -1,12 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
-);
+import { supabaseAdmin } from '../_lib/supabase-admin.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
@@ -176,7 +171,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       await client.query('DELETE FROM profiles WHERE id = $1', [user.id]);
       await client.query('COMMIT');
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
       if (deleteError) {
         console.error('Failed to delete Supabase Auth user:', deleteError);
         return res.status(500).json({ error: 'Failed to delete auth user' });

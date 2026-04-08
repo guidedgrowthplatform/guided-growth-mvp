@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import * as onboardingApi from '@/api/onboarding';
 import { ApiError } from '@/api/client';
+import * as onboardingApi from '@/api/onboarding';
 import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '@/lib/query';
 
