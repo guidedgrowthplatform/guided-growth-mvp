@@ -78,6 +78,10 @@ build-apk:
   image: mingc/android-build-box:latest
   variables:
     JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
+    # Skip husky install in CI — the image sets NODE_ENV=production which
+    # makes npm ci skip devDependencies, and the `prepare: husky` script then
+    # fails with "husky: not found". HUSKY=0 is the official husky escape hatch.
+    HUSKY: '0'
   needs:
     - job: build
       artifacts: true
