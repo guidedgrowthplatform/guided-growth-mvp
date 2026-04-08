@@ -88,8 +88,6 @@ build-apk:
   # mingc/android-build-box bundles JDK 8/11/17/21 + Android SDK.
   # Capacitor 6+ requires JDK 21 (compileOptions sourceCompatibility 21).
   image: mingc/android-build-box:latest
-  variables:
-    JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
   needs:
     - job: build
       artifacts: true
@@ -99,6 +97,15 @@ build-apk:
       when: manual
       allow_failure: true
   before_script:
+    # Auto-detect JDK 21 path inside the image. mingc/android-build-box ships
+    # multiple JDKs under /usr/lib/jvm/. We pick the one that contains "21"
+    # in its directory name. This is more robust than hardcoding the path,
+    # which can change between image versions.
+    - export JAVA_HOME=$(ls -d /usr/lib/jvm/*21* 2>/dev/null | head -1)
+    - 'echo "Resolved JAVA_HOME=$JAVA_HOME"'
+    - test -x "$JAVA_HOME/bin/javac" || (echo "ERROR: JDK 21 not found in image" && ls /usr/lib/jvm/ && exit 1)
+    - export PATH="$JAVA_HOME/bin:$PATH"
+    - java -version
     # Install Node.js 22 inside the Android SDK container
     - apt-get update && apt-get install -y curl
     - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
