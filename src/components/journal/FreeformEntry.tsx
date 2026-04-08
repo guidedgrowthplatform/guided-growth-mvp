@@ -4,9 +4,11 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { format } from 'date-fns';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/contexts/ToastContext';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { useVoiceStore } from '@/stores/voiceStore';
 import { RichTextToolbar } from './RichTextToolbar';
 import '@/styles/tiptap.css';
 
@@ -32,6 +34,9 @@ export function FreeformEntry({
   const now = new Date();
   const { addToast } = useToast();
   const [hasContent, setHasContent] = useState(!!initialBody);
+  const { isListening, isPreparing, toggle: toggleVoice, error: voiceError } = useVoiceInput();
+  const resetTranscript = useVoiceStore((s) => s.resetTranscript);
+  const transcript = useVoiceStore((s) => s.transcript);
 
   const editor = useEditor({
     extensions: [StarterKit, Image, Placeholder.configure({ placeholder: 'Type here...' })],
@@ -67,6 +72,29 @@ export function FreeformEntry({
       },
     },
   });
+
+  // When a new transcript arrives from the voice service, append it to
+  // the editor content at the current caret position. Uses Tiptap's
+  // insertContent so the text lands inside the current block (paragraph
+  // or list item) rather than as a new top-level node.
+  useEffect(() => {
+    if (!transcript || !editor || isListening) return;
+    const trimmed = transcript.trim();
+    if (!trimmed) return;
+    // Insert with a leading space if we're not at the very start.
+    const prefix = editor.isEmpty ? '' : ' ';
+    editor
+      .chain()
+      .focus()
+      .insertContent(prefix + trimmed)
+      .run();
+    resetTranscript();
+  }, [transcript, isListening, editor, resetTranscript]);
+
+  // Surface voice errors as toasts.
+  useEffect(() => {
+    if (voiceError) addToast('error', voiceError);
+  }, [voiceError, addToast]);
 
   const handleSave = () => {
     onSave(editor?.getHTML() ?? '');
@@ -106,6 +134,39 @@ export function FreeformEntry({
 
       <div className="mt-3 rounded-lg bg-surface-secondary px-2 py-1">
         <RichTextToolbar editor={editor} onError={(msg) => addToast('error', msg)} />
+      </div>
+
+      {/* Voice input button — dictates text into the editor at caret. */}
+      <div className="mt-4 flex items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={toggleVoice}
+          disabled={isPreparing}
+          aria-label={isListening ? 'Stop recording' : 'Dictate with voice'}
+          className={`flex size-[56px] items-center justify-center rounded-full text-white shadow-lg transition-all disabled:opacity-70 ${
+            isListening ? 'animate-pulse bg-red-500' : 'bg-primary'
+          }`}
+        >
+          <Icon
+            icon={
+              isPreparing
+                ? 'mingcute:loading-2-line'
+                : isListening
+                  ? 'ic:round-stop'
+                  : 'ic:round-mic'
+            }
+            width={24}
+            height={24}
+            className={isPreparing ? 'animate-spin' : ''}
+          />
+        </button>
+        <span className="text-sm font-medium text-content-secondary">
+          {isPreparing
+            ? 'Preparing mic...'
+            : isListening
+              ? 'Listening — tap to stop'
+              : 'Or dictate with voice'}
+        </span>
       </div>
 
       <div className="mt-auto pt-6">
