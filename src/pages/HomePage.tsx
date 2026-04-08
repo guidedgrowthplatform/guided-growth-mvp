@@ -1,5 +1,5 @@
 import { format, subDays, differenceInDays } from 'date-fns';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   HomeHeader,
@@ -20,7 +20,6 @@ import type { EntriesMap } from '@shared/types';
 export function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showReminders, setShowReminders] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
