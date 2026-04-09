@@ -101,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'xi-api-key': apiKey,
         'Content-Type': contentType,
       },
-      body: new Uint8Array(rawBody),
+      body: rawBody,
       signal: AbortSignal.timeout(30000),
     });
 
