@@ -1,5 +1,6 @@
 import { Icon } from '@iconify/react';
 import { format } from 'date-fns';
+import { useEffect, useState } from 'react';
 
 interface HomeHeaderProps {
   userName: string;
@@ -13,16 +14,31 @@ function getGreeting(): string {
   return 'Good Evening';
 }
 
+const FIRST_VISIT_KEY = 'gg_first_visit_done';
+
 export function HomeHeader({ userName, onPlusClick }: HomeHeaderProps) {
+  const [isFirstVisit, setIsFirstVisit] = useState(false);
+
+  useEffect(() => {
+    const visited = localStorage.getItem(FIRST_VISIT_KEY);
+    if (!visited) {
+      setIsFirstVisit(true);
+      localStorage.setItem(FIRST_VISIT_KEY, 'true');
+    }
+  }, []);
+
+  const headline = isFirstVisit ? 'Welcome to Guided Growth' : `Welcome back, ${userName}`;
+
   return (
     <div className="flex items-start justify-between">
       <div className="flex flex-col gap-1">
         <span className="text-xs font-normal text-content">
           {format(new Date(), 'EEEE, MMMM d, yyyy')}
         </span>
-        <h1 className="text-[28px] font-semibold leading-tight text-content">
-          {getGreeting()}, {userName}
-        </h1>
+        <h1 className="text-[28px] font-semibold leading-tight text-content">{headline}</h1>
+        {!isFirstVisit && (
+          <span className="text-sm font-medium text-content-secondary">{getGreeting()} ☀️</span>
+        )}
       </div>
       <button
         aria-label="Add"

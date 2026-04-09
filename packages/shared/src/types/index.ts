@@ -173,9 +173,11 @@ export type OnboardingStatus = 'in_progress' | 'completed';
 
 export interface OnboardingStepData {
   nickname?: string | null;
+  age?: number | null;
   ageRange?: string | null;
   gender?: string | null;
   referralSource?: string | null;
+  referralOtherText?: string | null;
   path?: OnboardingPath | null;
   category?: string | null;
   goals?: string[] | null;

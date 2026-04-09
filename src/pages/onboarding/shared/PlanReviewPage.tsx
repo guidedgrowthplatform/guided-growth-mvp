@@ -107,6 +107,17 @@ export function PlanReviewPage() {
             title={habit}
             cadence={formatCadence(new Set(config.days))}
             rule={config.time ? `Reminder at ${config.time}` : 'No reminder set'}
+            onEdit={() =>
+              navigate(
+                source === 'advanced' ? '/onboarding/advanced-results' : '/onboarding/step-5',
+                {
+                  state:
+                    source === 'advanced'
+                      ? {}
+                      : { habitConfigs, goals, category, reflectionConfig, phase: 'confirming' },
+                },
+              )
+            }
           />
         ))}
 

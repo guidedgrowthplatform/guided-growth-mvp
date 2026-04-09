@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SECTION_LABEL_CLASS, toggleSetItem } from '@/components/onboarding/constants';
 import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
@@ -60,7 +60,10 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
   // speakWhenReady() defers to first user gesture if TTS hasn't been
   // unlocked yet — protects against iOS WKWebView autoplay block when
   // EditHabit is the first page where TTS would fire.
+  const hasSpoken = useRef(false);
   useEffect(() => {
+    if (hasSpoken.current) return;
+    hasSpoken.current = true;
     const cancel = speakWhenReady('What do you want to change about this habit?');
     return () => {
       cancel();

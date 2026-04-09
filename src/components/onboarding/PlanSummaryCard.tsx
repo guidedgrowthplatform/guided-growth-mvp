@@ -6,9 +6,17 @@ interface PlanSummaryCardProps {
   title: string;
   cadence: string;
   rule: string;
+  onEdit?: () => void;
 }
 
-export function PlanSummaryCard({ icon, typeLabel, title, cadence, rule }: PlanSummaryCardProps) {
+export function PlanSummaryCard({
+  icon,
+  typeLabel,
+  title,
+  cadence,
+  rule,
+  onEdit,
+}: PlanSummaryCardProps) {
   return (
     <div className="flex gap-[16px] rounded-[16px] border border-border-light bg-white p-[21px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
       <div className="flex size-[42px] shrink-0 items-center justify-center rounded-[12px] bg-primary/10">
@@ -27,6 +35,16 @@ export function PlanSummaryCard({ icon, typeLabel, title, cadence, rule }: PlanS
           <span className="text-content-secondary">{rule}</span>
         </p>
       </div>
+      {onEdit && (
+        <button
+          type="button"
+          onClick={onEdit}
+          className="flex size-[36px] shrink-0 items-center justify-center rounded-full bg-surface-secondary text-content-secondary transition-colors hover:bg-primary/10 hover:text-primary"
+          aria-label={`Edit ${title}`}
+        >
+          <Icon icon="mdi:pencil-outline" className="size-[18px]" />
+        </button>
+      )}
     </div>
   );
 }

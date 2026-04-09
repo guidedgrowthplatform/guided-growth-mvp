@@ -6,6 +6,7 @@ interface HabitListItemProps {
   subtitle?: string;
   streak: number;
   isCompleted: boolean;
+  hasNote?: boolean;
   onToggleComplete: () => void;
   onAddNote?: () => void;
   onClick?: () => void;
@@ -16,6 +17,7 @@ export function HabitListItem({
   subtitle,
   streak,
   isCompleted,
+  hasNote = false,
   onToggleComplete,
   onAddNote,
   onClick,
@@ -42,14 +44,16 @@ export function HabitListItem({
       )}
 
       <div className="flex shrink-0 items-center gap-2">
+        {/* Note icon — only green when user has actually written a note */}
         <IconCircleButton
           icon={FileText}
-          active={isCompleted}
+          active={hasNote}
           onClick={(e) => {
             e.stopPropagation();
             onAddNote?.();
           }}
         />
+        {/* Complete button */}
         <IconCircleButton
           icon={isCompleted ? Check : Plus}
           active={isCompleted}

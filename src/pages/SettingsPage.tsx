@@ -7,19 +7,17 @@ import {
   coachingStyles,
   formatTime12h,
   languages,
-  modeLabels,
   recordingOptions,
-  sttLabels,
   sttOptions,
   timeOptions,
   voiceModels,
 } from '@/components/settings/constants';
+import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
 import { SettingRow } from '@/components/settings/SettingRow';
 import { SettingsCard } from '@/components/settings/SettingsCard';
 import { SettingSectionHeader } from '@/components/settings/SettingSectionHeader';
 import { SettingsHeader } from '@/components/settings/SettingsHeader';
 import { TimeBadge } from '@/components/settings/TimeBadge';
-import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
 import { UserInfoSection } from '@/components/settings/UserInfoSection';
 import { VoiceSettingsSheet } from '@/components/settings/VoiceSettingsSheet';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -55,14 +53,7 @@ export function SettingsPage() {
   const { addToast } = useToast();
   const { user, signOut } = useAuth();
   const { preferences: pageSettings, updatePreference } = useUserPreferences();
-  const {
-    recordingMode,
-    setRecordingMode,
-    ttsEnabled,
-    setTtsEnabled,
-    sttProvider,
-    setSttProvider,
-  } = useVoiceSettingsStore();
+  const { recordingMode, setRecordingMode, sttProvider, setSttProvider } = useVoiceSettingsStore();
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>(getVoicePreference() || '');
@@ -145,12 +136,12 @@ export function SettingsPage() {
   }, [signOut, addToast]);
 
   // Lookup labels
-  const coachingLabel =
+  const _coachingLabel =
     coachingStyles.find((s) => s.value === pageSettings.coachingStyle)?.label ??
     'Friendly & Empathetic';
-  const voiceModelLabel =
+  const _voiceModelLabel =
     voiceModels.find((m) => m.value === pageSettings.voiceModel)?.label ?? 'Alex (Male - Calm)';
-  const languageLabel =
+  const _languageLabel =
     languages.find((l) => l.value === pageSettings.language)?.label ?? 'English (US)';
 
   const fullName = user?.name;
@@ -175,38 +166,6 @@ export function SettingsPage() {
         <SettingSectionHeader title="Appearance" />
         <SettingsCard>
           <ThemeToggle />
-        </SettingsCard>
-      </section>
-
-      {/* AI Assistant */}
-      <section className="mt-8">
-        <SettingSectionHeader title="AI Assistant" />
-        <SettingsCard>
-          <SettingRow
-            icon="mdi:robot-outline"
-            label="AI Coaching Style"
-            isFirst
-            onClick={() => setActiveSheet('coaching')}
-            right={
-              <span className="text-sm font-medium text-content-secondary">{coachingLabel}</span>
-            }
-          />
-          <SettingRow
-            icon="tdesign:user-talk"
-            label="Voice Model"
-            onClick={() => setActiveSheet('voiceModel')}
-            right={
-              <span className="text-sm font-medium text-content-secondary">{voiceModelLabel}</span>
-            }
-          />
-          <SettingRow
-            icon="ic:round-translate"
-            label="Voice-to-Text Language"
-            onClick={() => setActiveSheet('language')}
-            right={
-              <span className="text-sm font-medium text-content-secondary">{languageLabel}</span>
-            }
-          />
         </SettingsCard>
       </section>
 
@@ -243,49 +202,6 @@ export function SettingsPage() {
         </SettingsCard>
       </section>
 
-      {/* Voice & Speech */}
-      <section className="mt-8">
-        <SettingSectionHeader title="Voice & Speech" />
-        <SettingsCard>
-          <SettingRow
-            icon="mdi:brain"
-            label="Speech Engine"
-            isFirst
-            onClick={() => setActiveSheet('stt')}
-            right={
-              <span className="text-sm font-medium text-content-secondary">
-                {sttLabels[sttProvider]}
-              </span>
-            }
-          />
-          <SettingRow
-            icon="ic:round-mic"
-            label="Recording Mode"
-            onClick={() => setActiveSheet('recording')}
-            right={
-              <span className="text-sm font-medium text-content-secondary">
-                {modeLabels[recordingMode]}
-              </span>
-            }
-          />
-          <SettingRow
-            icon="ic:round-volume-up"
-            label="Voice Feedback"
-            right={<Toggle checked={ttsEnabled} onChange={setTtsEnabled} />}
-          />
-          <SettingRow
-            icon="ic:round-record-voice-over"
-            label="TTS Voice"
-            onClick={() => setActiveSheet('ttsVoice')}
-            right={
-              <span className="max-w-[120px] truncate text-sm font-medium text-content-secondary">
-                {selectedVoice || 'Default'}
-              </span>
-            }
-          />
-        </SettingsCard>
-      </section>
-
       {/* Privacy & Account */}
       <section className="mt-8">
         <SettingSectionHeader title="Privacy & Account" />
@@ -299,7 +215,11 @@ export function SettingsPage() {
               <Icon icon="ic:round-chevron-right" width={20} className="text-content-tertiary" />
             }
           />
-          <SettingRow icon="ic:round-logout" label="Log Out" onClick={() => setShowLogoutConfirm(true)} />
+          <SettingRow
+            icon="ic:round-logout"
+            label="Log Out"
+            onClick={() => setShowLogoutConfirm(true)}
+          />
           <SettingRow
             icon="octicon:trash-24"
             label="Delete Account & Data"
