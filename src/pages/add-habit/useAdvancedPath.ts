@@ -87,8 +87,11 @@ export function useAdvancedPath(phase: Phase) {
     }
   }, [isListening, transcript, resetTranscript, phase, editingIndex]);
 
-  // TTS on phase entry
+  // TTS on phase entry — ref guard prevents StrictMode double-fire
+  const lastSpokenPhase = useRef('');
   useEffect(() => {
+    if (lastSpokenPhase.current === phase) return;
+    lastSpokenPhase.current = phase;
     if (phase === 'advanced-input') {
       speak(
         "Tell me everything. What habits do you want to build? What are you trying to change? Don't hold back — just talk. I'll organize it all.",
