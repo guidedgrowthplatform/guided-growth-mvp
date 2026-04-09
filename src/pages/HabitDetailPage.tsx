@@ -8,6 +8,7 @@ import { StatsGrid } from '@/components/habit-detail/StatsGrid';
 import { StreakCard } from '@/components/habit-detail/StreakCard';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useHabitDetail } from '@/hooks/useHabitDetail';
+import { getDataService } from '@/lib/services/service-provider';
 import { speak } from '@/lib/services/tts-service';
 
 const MILESTONE_TARGETS = [7, 21, 30, 60, 90] as const;
@@ -45,6 +46,17 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
       window.dispatchEvent(new CustomEvent('toggle-journal'));
     }, 100);
   }, [onClose, navigate]);
+
+  const handleDelete = useCallback(async () => {
+    try {
+      const ds = await getDataService();
+      await ds.deleteHabit(habitId);
+      window.dispatchEvent(new Event('habits-changed'));
+      onClose();
+    } catch {
+      // Silently fail — the habit list will refresh and show the correct state
+    }
+  }, [habitId, onClose]);
 
   // TTS milestone celebration per Voice Journey Spreadsheet v3 (line 454-458)
   const hasSpokenMilestone = useRef(false);
@@ -115,7 +127,7 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
     >
       {(close) => (
         <>
-          <HabitDetailTopBar onClose={close} />
+          <HabitDetailTopBar onClose={close} onDelete={handleDelete} />
           <div className="flex flex-col gap-5 px-6 pb-6">
             <div className="flex flex-col gap-3">
               <HabitDetailTitle

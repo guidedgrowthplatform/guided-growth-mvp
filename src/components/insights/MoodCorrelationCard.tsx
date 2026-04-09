@@ -127,7 +127,7 @@ export function MoodCorrelationCard() {
   return (
     <div className="rounded-2xl bg-surface p-5 shadow-[0px_4px_20px_rgba(0,0,0,0.04)]">
       <div className="mb-4 flex items-start justify-between">
-        <h3 className="text-[16px] font-bold leading-6 text-content">Mood Correlation</h3>
+        <h3 className="text-[16px] font-bold leading-6 text-content">Check-In Correlation</h3>
         <span className="rounded-[6px] bg-primary/10 px-2 py-1 text-[12px] font-bold leading-4 text-primary">
           {correlation.text}
         </span>

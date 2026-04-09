@@ -25,6 +25,7 @@ const config: CapacitorConfig = {
     allowNavigation: [
       'api.deepgram.com',
       'api.elevenlabs.io',
+      'api.cartesia.ai',
       'guided-growth-mvp.vercel.app',
       'pmunbflbjpoawicgimyc.supabase.co',
       'accounts.google.com',

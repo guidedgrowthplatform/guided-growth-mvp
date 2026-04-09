@@ -98,7 +98,10 @@ export function AdvancedResultsPage() {
   // user's brain dump was too vague, ask for clarification instead of
   // pretending we built something.
   const hasParsedHabits = habits.length > 0;
+  const hasSpoken = useRef(false);
   useEffect(() => {
+    if (hasSpoken.current) return;
+    hasSpoken.current = true;
     const message = hasParsedHabits
       ? "Here's what I put together from what you told me. Take a look — you can edit anything, or if it's way off, I'll start fresh."
       : "I didn't quite catch anything specific to turn into habits. Could you tell me a bit more about what you want to work on?";

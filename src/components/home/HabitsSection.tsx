@@ -84,6 +84,11 @@ export function HabitsSection({ selectedDate }: HabitsSectionProps) {
   const handleToggle = async (habitId: string, currentlyCompleted: boolean) => {
     if (togglingIds.has(habitId)) return;
 
+    // Optimistic update — flip the UI instantly
+    setHabits((prev) =>
+      prev.map((h) => (h.habit.id === habitId ? { ...h, completed: !currentlyCompleted } : h)),
+    );
+
     setTogglingIds((prev) => new Set(prev).add(habitId));
     try {
       const ds = await getDataService();
@@ -92,8 +97,13 @@ export function HabitsSection({ selectedDate }: HabitsSectionProps) {
       } else {
         await ds.completeHabit(habitId, selectedDate);
       }
+      // Refresh from server to get accurate streak etc.
       await loadHabits();
     } catch (err) {
+      // Revert optimistic update on failure
+      setHabits((prev) =>
+        prev.map((h) => (h.habit.id === habitId ? { ...h, completed: currentlyCompleted } : h)),
+      );
       const msg = err instanceof Error ? err.message : 'Failed to toggle habit';
       setError(msg);
     } finally {

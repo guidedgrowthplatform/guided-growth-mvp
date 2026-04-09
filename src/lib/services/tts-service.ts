@@ -4,22 +4,29 @@ import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 const VOICE_PREF_KEY = 'mvp03_tts_voice';
 
-// ─── ElevenLabs Voice IDs ───────────────────────────────────────────────────
-// Per Voice Journey Spreadsheet: user selects Male or Female on splash screen
+// ─── Voice Configuration ────────────────────────────────────────────────────
+// User selects Male or Female on splash screen
 export type VoiceGender = 'male' | 'female';
 
+// Cartesia voice IDs (sonic-3 model) — primary TTS provider
+const CARTESIA_VOICES: Record<VoiceGender, { id: string; name: string }> = {
+  male: { id: 'a167e0f3-df7e-4c9d-9e09-98e2e4872788', name: 'Ronald' },
+  female: { id: 'f786b574-daa5-4673-aa0c-cbe3e8534c02', name: 'Katie' },
+};
+
+// ElevenLabs voice IDs — fallback if Cartesia is unavailable
 const ELEVENLABS_VOICES: Record<VoiceGender, { id: string; name: string }> = {
-  male: { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam' }, // Adam — calm, natural male
-  female: { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah' }, // Sarah — natural female
+  male: { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam' },
+  female: { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah' },
 };
 
 const VOICE_GENDER_KEY = 'guided_growth_voice_gender';
 
-/** Get the user's selected voice gender (defaults to male) */
+/** Get the user's selected voice gender (defaults to female) */
 export function getVoiceGender(): VoiceGender {
   try {
     const saved = localStorage.getItem(VOICE_GENDER_KEY);
-    if (saved === 'female') return 'female';
+    if (saved === 'male') return 'male';
   } catch {
     /* ignore */
   }
@@ -35,18 +42,24 @@ export function setVoiceGender(gender: VoiceGender): void {
   }
 }
 
+/** Get Cartesia voice ID for the user's selected gender */
+function getCartesiaVoiceId(): string {
+  const gender = getVoiceGender();
+  return CARTESIA_VOICES[gender].id;
+}
+
 /** Get ElevenLabs voice ID for the user's selected gender */
 function getElevenLabsVoiceId(): string {
   const gender = getVoiceGender();
   return ELEVENLABS_VOICES[gender].id;
 }
 
-// ─── ElevenLabs TTS (primary) ───────────────────────────────────────────────
+// ─── API Base ───────────────────────────────────────────────────────────────
 
 function getApiBase(): string {
   if (Capacitor.isNativePlatform()) {
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    console.error('[TTS] VITE_API_URL not set — ElevenLabs TTS will fail on native');
+    console.error('[TTS] VITE_API_URL not set — TTS will fail on native');
   }
   return '';
 }
@@ -72,7 +85,8 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return {};
 }
 
-// Track whether ElevenLabs TTS is available (disabled on quota exceeded)
+// Track provider availability (disabled on quota exceeded / auth failure)
+let cartesiaTtsAvailable = true;
 let elevenLabsTtsAvailable = true;
 
 // Track current playing audio so we can stop it
@@ -100,7 +114,97 @@ export function stopTTS(): void {
 }
 
 /**
- * Speak text using ElevenLabs TTS API (natural voice).
+ * Play audio from a fetch response blob.
+ * Shared between Cartesia and ElevenLabs.
+ */
+async function playAudioFromResponse(
+  res: Response,
+  volume: number,
+  _label: string,
+): Promise<boolean> {
+  const audioBlob = await res.blob();
+  const audioUrl = URL.createObjectURL(audioBlob);
+  const audio = new Audio(audioUrl);
+  audio.volume = volume;
+  currentAudio = audio;
+
+  await new Promise<void>((resolve, reject) => {
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+      currentAudio = null;
+      resolve();
+    };
+    audio.onerror = (e) => {
+      URL.revokeObjectURL(audioUrl);
+      reject(e);
+    };
+    audio.play().catch(reject);
+  });
+
+  return true;
+}
+
+/** Handle common TTS fetch errors — abort, autoplay, etc. */
+function handleTtsError(err: unknown, label: string): boolean {
+  // AbortError is expected when user interrupts TTS
+  if (err instanceof DOMException && err.name === 'AbortError') {
+    console.log(`[TTS] ${label} stopped (user interrupted)`);
+    return true; // Not a failure — intentional stop
+  }
+  if (err instanceof Error && err.name === 'AbortError') {
+    console.log(`[TTS] ${label} stopped (user interrupted)`);
+    return true;
+  }
+  // NotAllowedError = browser autoplay policy
+  if (err instanceof DOMException && err.name === 'NotAllowedError') {
+    console.log(`[TTS] ${label} autoplay blocked — waiting for user interaction.`);
+    return false;
+  }
+  console.error(`[TTS] ${label} failed:`, err);
+  return false;
+}
+
+/**
+ * Speak text using Cartesia TTS API (sonic-3, primary).
+ * Lower cost and faster latency than ElevenLabs.
+ * Returns true if audio played successfully, false if should fall back.
+ */
+async function speakCartesia(text: string, volume: number): Promise<boolean> {
+  if (!cartesiaTtsAvailable) return false;
+
+  try {
+    const voiceId = getCartesiaVoiceId();
+    const authHeaders = await getAuthHeaders();
+
+    const abortController = new AbortController();
+    currentTtsAbort = abortController;
+
+    const res = await fetch(`${getApiBase()}/api/cartesia-tts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders,
+      },
+      body: JSON.stringify({ text, voice_id: voiceId }),
+      signal: abortController.signal,
+    });
+
+    if (!res.ok) {
+      console.warn('[TTS] Cartesia proxy error:', res.status);
+      if (res.status === 429 || res.status === 401 || res.status === 500) {
+        cartesiaTtsAvailable = false;
+      }
+      return false;
+    }
+
+    return await playAudioFromResponse(res, volume, 'Cartesia');
+  } catch (err) {
+    return handleTtsError(err, 'Cartesia');
+  }
+}
+
+/**
+ * Speak text using ElevenLabs TTS API (fallback).
  * Returns true if audio played successfully, false if should fall back.
  */
 async function speakElevenLabs(text: string, volume: number): Promise<boolean> {
@@ -110,11 +214,9 @@ async function speakElevenLabs(text: string, volume: number): Promise<boolean> {
     const voiceId = getElevenLabsVoiceId();
     const authHeaders = await getAuthHeaders();
 
-    // Create abort controller so stopTTS() can cancel in-flight requests
     const abortController = new AbortController();
     currentTtsAbort = abortController;
 
-    // Call proxy — in dev, Vite middleware handles it; in production, Vercel serverless
     const res = await fetch(`${getApiBase()}/api/elevenlabs-tts`, {
       method: 'POST',
       headers: {
@@ -126,50 +228,16 @@ async function speakElevenLabs(text: string, volume: number): Promise<boolean> {
     });
 
     if (!res.ok) {
-      console.error('[TTS] ElevenLabs proxy error:', res.status);
+      console.warn('[TTS] ElevenLabs proxy error:', res.status);
       if (res.status === 429 || res.status === 401) {
         elevenLabsTtsAvailable = false;
       }
       return false;
     }
 
-    const audioBlob = await res.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
-    const audio = new Audio(audioUrl);
-    audio.volume = volume;
-    currentAudio = audio;
-
-    await new Promise<void>((resolve, reject) => {
-      audio.onended = () => {
-        URL.revokeObjectURL(audioUrl);
-        currentAudio = null;
-        resolve();
-      };
-      audio.onerror = (e) => {
-        URL.revokeObjectURL(audioUrl);
-        reject(e);
-      };
-      audio.play().catch(reject);
-    });
-
-    return true;
+    return await playAudioFromResponse(res, volume, 'ElevenLabs');
   } catch (err) {
-    // AbortError is expected when user interrupts TTS — don't log as error
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      console.log('[TTS] Stopped (user interrupted)');
-      return true; // Not a failure — intentional stop
-    }
-    if (err instanceof Error && err.name === 'AbortError') {
-      console.log('[TTS] Stopped (user interrupted)');
-      return true;
-    }
-    // NotAllowedError = browser autoplay policy, expected on page load before user interaction
-    if (err instanceof DOMException && err.name === 'NotAllowedError') {
-      console.log('[TTS] Autoplay blocked — waiting for user interaction.');
-      return false;
-    }
-    console.error('[TTS] ElevenLabs TTS failed:', err);
-    return false;
+    return handleTtsError(err, 'ElevenLabs');
   }
 }
 
@@ -311,7 +379,8 @@ function speakBrowser(
 let speakGeneration = 0;
 
 /**
- * Speak text aloud using ElevenLabs TTS with browser fallback.
+ * Speak text aloud using Cartesia TTS (primary), ElevenLabs (fallback),
+ * then browser speechSynthesis as last resort.
  * Uses generation counter to ensure only the latest call plays.
  */
 export function speak(
@@ -332,13 +401,21 @@ export function speak(
   // Increment generation — any in-flight speak() from earlier calls will be stale
   const myGeneration = ++speakGeneration;
 
-  speakElevenLabs(clean, volume).then((success) => {
-    // If a newer speak() fired while we were fetching, drop this result
+  // Cascade: Cartesia → ElevenLabs → Browser speechSynthesis
+  (async () => {
+    // Try Cartesia first (fastest, cheapest)
+    const cartesiaOk = await speakCartesia(clean, volume);
     if (myGeneration !== speakGeneration) return;
-    if (!success) {
-      speakBrowser(clean, options);
-    }
-  });
+    if (cartesiaOk) return;
+
+    // Cartesia failed — try ElevenLabs
+    const elevenOk = await speakElevenLabs(clean, volume);
+    if (myGeneration !== speakGeneration) return;
+    if (elevenOk) return;
+
+    // Both cloud providers failed — use browser
+    speakBrowser(clean, options);
+  })();
 }
 
 /** Pre-acknowledgment messages — warm, concise, coaching-style */

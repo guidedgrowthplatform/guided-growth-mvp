@@ -31,7 +31,11 @@ export function AdvancedInputPage() {
   // hasn't interacted with the page yet, it defers the speech until the
   // first pointerdown so the greeting actually plays instead of silently
   // failing with NotAllowedError.
+  // Ref guard prevents React StrictMode double-fire in dev mode.
+  const hasSpoken = useRef(false);
   useEffect(() => {
+    if (hasSpoken.current) return;
+    hasSpoken.current = true;
     const cancel = speakWhenReady(
       "Tell me everything. What habits do you want to build? What are you trying to change? Don't hold back — just talk. I'll organize it all.",
     );
