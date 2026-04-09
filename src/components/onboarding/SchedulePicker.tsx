@@ -38,7 +38,7 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
         />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-20 mt-[4px] overflow-hidden rounded-[16px] border border-border-light bg-white shadow-[0px_10px_30px_-5px_rgba(0,0,0,0.1)]">
+        <div className="absolute right-0 top-full z-[60] mt-[4px] overflow-hidden rounded-[16px] border border-border-light bg-surface-secondary shadow-[0px_10px_30px_-5px_rgba(0,0,0,0.15)]">
           {SCHEDULE_OPTIONS.map((option) => (
             <button
               key={option}
@@ -49,8 +49,8 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
               }}
               className={`flex w-full items-center px-[20px] py-[12px] text-[14px] font-semibold transition-colors ${
                 option === value
-                  ? 'bg-primary/5 text-primary'
-                  : 'text-content-subtle hover:bg-surface-secondary'
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-content-subtle hover:bg-surface'
               }`}
             >
               {option}

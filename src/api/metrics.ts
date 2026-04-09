@@ -62,7 +62,7 @@ export async function fetchMetrics(): Promise<Metric[]> {
 export async function createMetric(data: MetricCreate): Promise<Metric> {
   if (useSupabase) {
     const ds = await getDataService();
-    const habit = await ds.createHabit(data.name, data.frequency || 'daily');
+    const habit = await ds.createHabit(data.name, data.frequency || 'daily', data.schedule_days);
 
     return habitToMetric(habit);
   }
@@ -70,7 +70,7 @@ export async function createMetric(data: MetricCreate): Promise<Metric> {
     return await apiPost<Metric>('/api/metrics', data);
   } catch {
     const ds = await getDataService();
-    const habit = await ds.createHabit(data.name, data.frequency || 'daily');
+    const habit = await ds.createHabit(data.name, data.frequency || 'daily', data.schedule_days);
 
     return habitToMetric(habit);
   }

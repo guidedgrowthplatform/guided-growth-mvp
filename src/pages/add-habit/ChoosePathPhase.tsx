@@ -22,8 +22,8 @@ export function ChoosePathPhase({ path, setPath, onContinue, onBack }: ChoosePat
       </div>
       <div className="flex flex-col gap-5">
         <SelectionCard
-          icon="mdi:file-document-outline"
-          iconBg="rgb(var(--color-primary) / 0.1)"
+          icon="ic:outline-explore"
+          iconBg="#E2E8F0"
           iconColor="rgb(var(--color-primary))"
           title="Pick from a list"
           description="Browse and select from recommended habits"
@@ -32,8 +32,8 @@ export function ChoosePathPhase({ path, setPath, onContinue, onBack }: ChoosePat
         />
         <SelectionCard
           icon="ic:round-mic"
-          iconBg="rgb(var(--color-primary-bg))"
-          iconColor="rgb(var(--color-primary))"
+          iconBg="#E2E8F0"
+          iconColor="#8B5CF6"
           title="Tell me what you want"
           description="Describe your goals and I'll organize habits for you"
           selected={path === 'braindump'}

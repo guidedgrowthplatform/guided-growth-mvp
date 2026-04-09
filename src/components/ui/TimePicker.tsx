@@ -9,7 +9,7 @@ const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
 const PERIODS = ['AM', 'PM'] as const;
 const ITEM_HEIGHT = 44;
 
-function formatTime12(time24: string): string {
+export function formatTime12(time24: string): string {
   const [h, m] = time24.split(':').map(Number);
   const period = h >= 12 ? 'PM' : 'AM';
   const hour12 = h % 12 || 12;
@@ -139,7 +139,7 @@ interface TimePickerSheetProps {
   onClose: () => void;
 }
 
-function TimePickerSheet({ value, onChange, onClose }: TimePickerSheetProps) {
+export function TimePickerSheet({ value, onChange, onClose }: TimePickerSheetProps) {
   const parsed = parse24(value);
   const [hour, setHour] = useState(parsed.hour);
   const [minute, setMinute] = useState(parsed.minute);

@@ -13,7 +13,7 @@ export interface HabitDetailStats {
   sinceDate: string;
 }
 
-export type CalendarCell = 'done' | 'missed' | 'empty';
+export type CalendarCell = { status: 'done' | 'missed' | 'empty' | 'today' | 'today-done'; day: number | null };
 
 export interface HabitDetailData {
   habit: Habit | null;
@@ -37,7 +37,8 @@ const EMPTY_STATS: HabitDetailStats = {
 };
 
 function todayStr(): string {
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function calcStreaks(dates: string[]): { current: number; longest: number } {
@@ -77,7 +78,16 @@ function calcStreaks(dates: string[]): { current: number; longest: number } {
   return { current, longest };
 }
 
-function parseCadence(frequency: string): { activeDays: boolean[]; label: string } {
+function parseCadence(
+  frequency: string,
+  scheduleDays: number[] | null,
+): { activeDays: boolean[]; label: string } {
+  if (scheduleDays && scheduleDays.length > 0) {
+    const activeDays = Array(7).fill(false) as boolean[];
+    for (const d of scheduleDays) activeDays[d] = true;
+    return { activeDays, label: `${scheduleDays.length}x / week` };
+  }
+
   const allDays = [true, true, true, true, true, true, true];
   const weekdays = [false, true, true, true, true, true, false];
 
@@ -106,6 +116,7 @@ function parseCadence(frequency: string): { activeDays: boolean[]; label: string
 function buildCalendarGrid(
   completionDates: Set<string>,
   activeDays: boolean[],
+  startDate: string,
 ): { month: string; grid: CalendarCell[][] } {
   const now = new Date();
   const year = now.getFullYear();
@@ -119,28 +130,32 @@ function buildCalendarGrid(
   const grid: CalendarCell[][] = [];
   const startOffset = firstDay.getDay();
 
-  for (let week = 0; week < 6; week++) {
+  for (let week = 0; week < 5; week++) {
     const row: CalendarCell[] = [];
     for (let dow = 0; dow < 7; dow++) {
       const dayNum = week * 7 + dow - startOffset + 1;
       if (dayNum < 1 || dayNum > lastDay.getDate()) {
-        row.push('empty');
+        row.push({ status: 'empty', day: null });
         continue;
       }
 
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
 
-      if (dateStr > today) {
-        row.push('empty');
+      if (dateStr < startDate || dateStr > today) {
+        row.push({ status: 'empty', day: dayNum });
         continue;
       }
 
       if (!activeDays[dow]) {
-        row.push('empty');
+        row.push({ status: 'empty', day: dayNum });
         continue;
       }
 
-      row.push(completionDates.has(dateStr) ? 'done' : 'missed');
+      if (dateStr === today) {
+        row.push({ status: completionDates.has(dateStr) ? 'today-done' : 'today', day: dayNum });
+      } else {
+        row.push({ status: completionDates.has(dateStr) ? 'done' : 'missed', day: dayNum });
+      }
     }
     grid.push(row);
   }
@@ -189,23 +204,29 @@ export function useHabitDetail(habitId: string | undefined): HabitDetailData {
   const { current: currentStreak, longest: longestStreak } = calcStreaks(dates);
 
   const { activeDays, label: frequencyLabel } = habit
-    ? parseCadence(habit.frequency)
+    ? parseCadence(habit.frequency, habit.scheduleDays)
     : { activeDays: Array(7).fill(true) as boolean[], label: '' };
 
   const completionDates = new Set(dates);
+  const habitStartDate = habit ? habit.createdAt.split('T')[0] : todayStr();
   const { month: calendarMonth, grid: calendarData } = buildCalendarGrid(
     completionDates,
     activeDays,
+    habitStartDate,
   );
 
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
   const today = now.getDate();
+  const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+  const startDay = habitStartDate.startsWith(monthStr)
+    ? parseInt(habitStartDate.split('-')[2], 10)
+    : 1;
   let activeDaysCount = 0;
   let missedCount = 0;
 
-  for (let d = 1; d <= today; d++) {
+  for (let d = startDay; d <= today; d++) {
     const dow = new Date(year, month, d).getDay();
     if (activeDays[dow]) {
       activeDaysCount++;

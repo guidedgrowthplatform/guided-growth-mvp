@@ -2,6 +2,7 @@ export interface Habit {
   id: string;
   name: string;
   frequency: string; // 'daily' | '3x/week' | 'weekly' etc
+  scheduleDays: number[] | null; // 0=Sun … 6=Sat; null means cadence-driven defaults
   createdAt: string;
   active: boolean;
 }
@@ -85,7 +86,7 @@ export interface ActionResult {
 
 export interface DataService {
   // Habits
-  createHabit(name: string, frequency?: string): Promise<Habit>;
+  createHabit(name: string, frequency?: string, scheduleDays?: number[]): Promise<Habit>;
   getHabits(): Promise<Habit[]>;
   getAllHabits(): Promise<Habit[]>;
   getHabitById(id: string): Promise<Habit | null>;

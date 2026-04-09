@@ -24,6 +24,7 @@ interface OnboardingVoiceOverlayProps {
   onClose: () => void;
   messages: VoiceMessage[];
   setMessages: React.Dispatch<React.SetStateAction<VoiceMessage[]>>;
+  ttsEnabled?: boolean;
 }
 
 // Message type is now exported as VoiceMessage above
@@ -41,6 +42,7 @@ export function OnboardingVoiceOverlay({
   onClose,
   messages,
   setMessages,
+  ttsEnabled = true,
 }: OnboardingVoiceOverlayProps) {
   const { user } = useAuth();
   const { isListening, isPreparing, transcript, toggle, error, resetTranscript } = useVoiceInput();
@@ -138,8 +140,7 @@ export function OnboardingVoiceOverlay({
 
           setMessages((prev) => [...prev, assistantMsg]);
 
-          // Speak the AI response aloud
-          speak(result.message);
+          if (ttsEnabled) speak(result.message);
 
           // If success, wait a bit then close and call onAction
           if (result.success) {

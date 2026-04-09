@@ -84,10 +84,12 @@ export function useAddHabitState() {
         ? Object.entries(beginner.habitConfigs).map(([name, config]) => ({
             name,
             frequency: daysToFrequency(config.days),
+            days: [...config.days],
           }))
         : advanced.advancedHabits.map((h) => ({
             name: h.name,
             frequency: daysToFrequency(h.days),
+            days: [...h.days],
           }));
 
     if (habits.length === 0) return;
@@ -96,7 +98,7 @@ export function useAddHabitState() {
     try {
       const results = await Promise.allSettled(
         habits.map((h) =>
-          create({ name: h.name, input_type: 'binary', question: '', frequency: h.frequency }),
+          create({ name: h.name, input_type: 'binary', question: '', frequency: h.frequency, schedule_days: h.days }),
         ),
       );
 

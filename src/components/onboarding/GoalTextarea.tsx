@@ -17,7 +17,7 @@ export function GoalTextarea({
   textareaRef,
 }: GoalTextareaProps) {
   return (
-    <div className="min-h-[140px] w-full rounded-[16px] bg-white pb-[40px] pl-[20px] pr-0 pt-[20px] shadow-[0px_4px_20px_0px_rgba(0,0,0,0.05)]">
+    <div className="min-h-[140px] w-full rounded-[16px] bg-surface-secondary pb-[40px] pl-[20px] pr-0 pt-[20px] shadow-[0px_4px_20px_0px_rgba(0,0,0,0.05)]">
       <textarea
         ref={textareaRef}
         value={value}

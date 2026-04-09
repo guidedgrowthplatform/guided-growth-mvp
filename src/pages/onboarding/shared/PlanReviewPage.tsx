@@ -60,6 +60,14 @@ export function PlanReviewPage() {
     : 'ic:outline-check-circle';
   const reflectionDays = new Set(reflectionConfig.days);
 
+  const handleEdit = () =>
+    navigate(source === 'advanced' ? '/onboarding/advanced-results' : '/onboarding/step-5', {
+      state:
+        source === 'advanced'
+          ? {}
+          : { habitConfigs, goals, category, reflectionConfig, phase: 'confirming' },
+    });
+
   return (
     <OnboardingLayout
       currentStep={source === 'advanced' ? 6 : 7}
@@ -80,16 +88,6 @@ export function PlanReviewPage() {
               : { habitConfigs, goals, category, reflectionConfig },
         })
       }
-      secondaryAction={{
-        label: 'Edit plan',
-        onClick: () =>
-          navigate(source === 'advanced' ? '/onboarding/advanced-results' : '/onboarding/step-5', {
-            state:
-              source === 'advanced'
-                ? {}
-                : { habitConfigs, goals, category, reflectionConfig, phase: 'confirming' },
-          }),
-      }}
       showVoiceButton
       voicePrompt="Here's your starting plan. It's simple — and that's on purpose. This is your foundation. As you show up, we'll grow it together. And from here on — it's easy. Morning check-in, evening check-in. Under a minute each. That's your whole commitment. Everything else happens naturally. Ready?"
     >
@@ -107,17 +105,7 @@ export function PlanReviewPage() {
             title={habit}
             cadence={formatCadence(new Set(config.days))}
             rule={config.time ? `Reminder at ${config.time}` : 'No reminder set'}
-            onEdit={() =>
-              navigate(
-                source === 'advanced' ? '/onboarding/advanced-results' : '/onboarding/step-5',
-                {
-                  state:
-                    source === 'advanced'
-                      ? {}
-                      : { habitConfigs, goals, category, reflectionConfig, phase: 'confirming' },
-                },
-              )
-            }
+            onEdit={handleEdit}
           />
         ))}
 
@@ -127,6 +115,7 @@ export function PlanReviewPage() {
           title="Daily reflection"
           cadence={formatCadence(reflectionDays)}
           rule={reflectionConfig.time ? `Reminder at ${reflectionConfig.time}` : 'No reminder set'}
+          onEdit={handleEdit}
         />
       </div>
     </OnboardingLayout>

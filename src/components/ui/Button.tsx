@@ -7,7 +7,7 @@ const variants = {
   ghost: 'text-content-secondary hover:bg-surface-secondary',
   icon: 'rounded-full bg-primary text-white hover:bg-primary-dark shadow-card',
   'social-dark': 'bg-black text-white hover:bg-gray-900',
-  'social-light': 'bg-white text-content border border-border hover:bg-surface-secondary',
+  'social-light': 'bg-white text-gray-900 border border-border hover:bg-gray-50',
 } as const;
 
 const sizes = {
