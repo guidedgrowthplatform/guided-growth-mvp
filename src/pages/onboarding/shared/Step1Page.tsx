@@ -16,7 +16,7 @@ export function Step1Page() {
   const navigate = useNavigate();
   const { state: onboardingState, saveStep } = useOnboarding();
   const [nickname, setNickname] = useState('');
-  const [age, setAge] = useState<number>(35);
+  const [age, setAge] = useState<number | ''>('');
   const [gender, setGender] = useState<string | null>(null);
   const [referralSource, setReferralSource] = useState<string | null>(null);
   const [referralOtherText, setReferralOtherText] = useState('');
@@ -26,7 +26,7 @@ export function Step1Page() {
       if (onboardingState.data.nickname) setNickname(onboardingState.data.nickname as string);
       if (onboardingState.data.age) setAge(onboardingState.data.age as number);
       // Support legacy ageRange data
-      if (onboardingState.data.ageRange && !onboardingState.data.age) setAge(35);
+      if (onboardingState.data.ageRange && !onboardingState.data.age) setAge('');
       if (onboardingState.data.gender) setGender(onboardingState.data.gender as string);
       if (onboardingState.data.referralSource)
         setReferralSource(onboardingState.data.referralSource as string);
@@ -40,7 +40,13 @@ export function Step1Page() {
       referralSource === 'Other' && referralOtherText.trim()
         ? `Other: ${referralOtherText.trim()}`
         : referralSource;
-    saveStep(1, { nickname, age, gender, referralSource: effectiveReferral, referralOtherText });
+    saveStep(1, {
+      nickname,
+      age: age === '' ? undefined : age,
+      gender,
+      referralSource: effectiveReferral,
+      referralOtherText,
+    });
     navigate('/onboarding/step-2');
   }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep]);
 
@@ -63,8 +69,8 @@ export function Step1Page() {
         const parsed = parseInt(voiceAge, 10);
         if (!isNaN(parsed)) setAge(parsed);
       } else if (typeof voiceAgeRange === 'string') {
-        // Legacy voice support
-        setAge(35);
+        // Legacy voice support — leave age for user to fill
+        setAge('');
       }
       if (typeof voiceGender === 'string') {
         setGender(voiceGender);
@@ -108,7 +114,12 @@ export function Step1Page() {
             min={13}
             max={120}
             value={age}
+            placeholder="Enter your age"
             onChange={(e) => {
+              if (e.target.value === '') {
+                setAge('');
+                return;
+              }
               const val = parseInt(e.target.value, 10);
               if (!isNaN(val)) setAge(val);
             }}
