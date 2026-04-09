@@ -1,5 +1,4 @@
-import { Icon } from '@iconify/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
@@ -9,22 +8,6 @@ import { ChipSelect } from '@/components/ui/ChipSelect';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
-const AGE_OPTIONS = [
-  '14 or under',
-  '15 - 20',
-  '21 - 25',
-  '26 - 30',
-  '31 - 35',
-  '36 - 40',
-  '41 - 45',
-  '46 - 50',
-  '51 - 55',
-  '56 - 60',
-  '61 - 65',
-  '66 - 70',
-  '>70',
-];
-
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
 const REFERRAL_OPTIONS = ['Founder Invite', 'Webinar', 'Friend', 'Other'];
@@ -33,31 +16,40 @@ export function Step1Page() {
   const navigate = useNavigate();
   const { state: onboardingState, saveStep } = useOnboarding();
   const [nickname, setNickname] = useState('');
-  const [ageRange, setAgeRange] = useState<string | null>(null);
+  const [age, setAge] = useState<number>(35);
   const [gender, setGender] = useState<string | null>(null);
   const [referralSource, setReferralSource] = useState<string | null>(null);
-  const [showAgePicker, setShowAgePicker] = useState(false);
+  const [referralOtherText, setReferralOtherText] = useState('');
 
   useEffect(() => {
     if (onboardingState?.data) {
       if (onboardingState.data.nickname) setNickname(onboardingState.data.nickname as string);
-      if (onboardingState.data.ageRange) setAgeRange(onboardingState.data.ageRange as string);
+      if (onboardingState.data.age) setAge(onboardingState.data.age as number);
+      // Support legacy ageRange data
+      if (onboardingState.data.ageRange && !onboardingState.data.age) setAge(35);
       if (onboardingState.data.gender) setGender(onboardingState.data.gender as string);
       if (onboardingState.data.referralSource)
         setReferralSource(onboardingState.data.referralSource as string);
+      if (onboardingState.data.referralOtherText)
+        setReferralOtherText(onboardingState.data.referralOtherText as string);
     }
   }, [onboardingState?.data]);
 
   const handleNext = useCallback(() => {
-    saveStep(1, { nickname, ageRange, gender, referralSource });
+    const effectiveReferral =
+      referralSource === 'Other' && referralOtherText.trim()
+        ? `Other: ${referralOtherText.trim()}`
+        : referralSource;
+    saveStep(1, { nickname, age, gender, referralSource: effectiveReferral, referralOtherText });
     navigate('/onboarding/step-2');
-  }, [nickname, ageRange, gender, referralSource, navigate, saveStep]);
+  }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep]);
 
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
     if (result.params) {
       const {
         nickname: voiceNickname,
-        ageRange: voiceAge,
+        age: voiceAge,
+        ageRange: voiceAgeRange,
         gender: voiceGender,
         referralSource: voiceReferral,
       } = result.params;
@@ -65,8 +57,14 @@ export function Step1Page() {
       if (typeof voiceNickname === 'string') {
         setNickname(voiceNickname);
       }
-      if (typeof voiceAge === 'string') {
-        setAgeRange(voiceAge);
+      if (typeof voiceAge === 'number') {
+        setAge(voiceAge);
+      } else if (typeof voiceAge === 'string') {
+        const parsed = parseInt(voiceAge, 10);
+        if (!isNaN(parsed)) setAge(parsed);
+      } else if (typeof voiceAgeRange === 'string') {
+        // Legacy voice support
+        setAge(35);
       }
       if (typeof voiceGender === 'string') {
         setGender(voiceGender);
@@ -77,29 +75,16 @@ export function Step1Page() {
     }
   }, []);
 
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!showAgePicker) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowAgePicker(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showAgePicker]);
-
   return (
     <OnboardingLayout
       currentStep={1}
       totalSteps={7}
       ctaLabel="Let's Begin"
       onNext={handleNext}
-      ctaDisabled={!nickname.trim() || !ageRange || !gender || !referralSource}
+      ctaDisabled={!nickname.trim() || !age || !gender || !referralSource}
       showVoiceButton
       onTranscript={(text) => setNickname(text)}
-      voiceOptions={[...AGE_OPTIONS, ...GENDER_OPTIONS, ...REFERRAL_OPTIONS, 'name', 'nickname']}
+      voiceOptions={[...GENDER_OPTIONS, ...REFERRAL_OPTIONS, 'name', 'nickname']}
       voicePrompt="Hey — welcome. Before we build anything, I just want to get to know you a little. What should I call you, how old are you, and how did you hear about us? You can just say it or type it in."
       onVoiceAction={handleVoiceAction}
       showTooltip
@@ -117,43 +102,19 @@ export function Step1Page() {
         />
       </OnboardingSection>
       <OnboardingSection label="How old are you?">
-        <div ref={dropdownRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setShowAgePicker((prev) => !prev)}
-            className="relative w-full rounded-[16px] bg-surface px-[22px] py-[14px] pr-[48px] text-left text-[18px] shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)] outline-none"
-          >
-            <span className={ageRange ? 'text-content' : 'text-content-tertiary'}>
-              {ageRange || 'Select your age'}
-            </span>
-            <Icon
-              icon="formkit:down"
-              width={24}
-              height={10}
-              className={`pointer-events-none absolute right-[22px] top-1/2 -translate-y-1/2 text-content-subtle transition-transform ${showAgePicker ? 'rotate-180' : ''}`}
-            />
-          </button>
-          {showAgePicker && (
-            <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-[240px] overflow-y-auto rounded-[16px] bg-surface p-2 shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.12)] [scrollbar-color:rgba(0,0,0,0.25)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/25 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-[6px]">
-              {AGE_OPTIONS.map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => {
-                    setAgeRange(opt);
-                    setShowAgePicker(false);
-                  }}
-                  className={`w-full rounded-[10px] px-[16px] py-[10px] text-left text-[16px] transition-colors ${
-                    ageRange === opt
-                      ? 'bg-primary/10 font-bold text-primary'
-                      : 'text-content active:bg-surface-secondary'
-                  }`}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="relative w-full rounded-[16px] bg-surface px-[22px] py-[14px] shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)]">
+          <input
+            type="number"
+            min={13}
+            max={120}
+            value={age}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              if (!isNaN(val)) setAge(val);
+            }}
+            className="w-full bg-transparent text-[18px] text-content outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            aria-label="Your age"
+          />
         </div>
       </OnboardingSection>
       <OnboardingSection label="How do you identify?">
@@ -166,6 +127,16 @@ export function Step1Page() {
           onChange={setReferralSource}
           columns={3}
         />
+        {referralSource === 'Other' && (
+          <div className="mt-3">
+            <OnboardingInput
+              icon="ic:round-edit"
+              placeholder="Please specify..."
+              value={referralOtherText}
+              onChange={setReferralOtherText}
+            />
+          </div>
+        )}
       </OnboardingSection>
     </OnboardingLayout>
   );
