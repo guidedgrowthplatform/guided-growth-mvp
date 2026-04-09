@@ -42,7 +42,8 @@ export function HabitsSection({ selectedDate }: HabitsSectionProps) {
 
       const streakStart = new Date(selectedDate);
       streakStart.setDate(streakStart.getDate() - 30);
-      const streakStartStr = streakStart.toISOString().slice(0, 10);
+      // Use LOCAL date formatting — see fmtLocal() below for rationale.
+      const streakStartStr = fmtLocal(streakStart);
 
       const allCompletions = await ds.getAllCompletions(streakStartStr, selectedDate);
 
@@ -217,14 +218,27 @@ function HabitSkeleton({ count = 3 }: { count?: number }) {
   );
 }
 
+/** Format Date as YYYY-MM-DD using LOCAL components (NOT UTC). */
+function fmtLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function calcCurrentStreak(completions: HabitCompletion[], fromDate: string): number {
   if (completions.length === 0) return 0;
 
   const dates = [...new Set(completions.map((c) => c.date))].sort().reverse();
   let streak = 0;
+  // Construct from local midnight, then format using LOCAL components.
+  // Previously toISOString().slice(0,10) returned UTC, which is one day
+  // behind LOCAL for users east of UTC (Indonesia, Asia, Australia) —
+  // the comparison against `dates` (which are stored in local YYYY-MM-DD)
+  // never matched, so streak silently returned 0 for those users.
   const checkDate = new Date(fromDate + 'T00:00:00');
 
-  while (dates.includes(checkDate.toISOString().slice(0, 10))) {
+  while (dates.includes(fmtLocal(checkDate))) {
     streak++;
     checkDate.setDate(checkDate.getDate() - 1);
   }

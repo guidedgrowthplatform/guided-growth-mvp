@@ -1,6 +1,6 @@
 // Server-side proxy at /api/elevenlabs-stt keeps API key secure
 import { Capacitor } from '@capacitor/core';
-import { supabase } from '@/lib/supabase';
+import { supabase, sessionReady } from '@/lib/supabase';
 
 function getApiBase(): string {
   if (Capacitor.isNativePlatform()) {
@@ -13,6 +13,16 @@ function getApiBase(): string {
 /** Get auth headers for API calls — required in production where AUTH_BYPASS_MODE is disabled */
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
+    // On native, the Supabase session is loaded asynchronously from
+    // Capacitor Preferences. Without awaiting sessionReady here, a voice
+    // command issued immediately after app launch can race the session
+    // loader: getSession() returns null, the request goes out without an
+    // Authorization header, and the API returns 401. Awaiting is a no-op
+    // on web (sessionReady resolves synchronously after the first
+    // getSession()).
+    if (Capacitor.isNativePlatform()) {
+      await sessionReady;
+    }
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -63,6 +73,66 @@ async function resampleAudio(
 
   const rendered = await offlineCtx.startRendering();
   return rendered.getChannelData(0);
+}
+
+/**
+ * Compute RMS (root-mean-square) energy of a Float32 buffer.
+ * Values:
+ *   < 0.0005  — essentially silent (ambient room noise max)
+ *   0.001     — faint background
+ *   0.005+    — clearly audible speech
+ *   0.02+     — close-talking speech
+ *
+ * Used to reject empty/silent recordings BEFORE sending them to
+ * ElevenLabs. Scribe (and Whisper) hallucinate long, unrelated text
+ * when they receive silence — e.g. the user sees a transcript about
+ * real estate because the model filled in training-data noise.
+ * This is the bug Alejandro screenshotted on 2026-04-09.
+ */
+function computeRms(samples: Float32Array): number {
+  if (samples.length === 0) return 0;
+  let sum = 0;
+  for (let i = 0; i < samples.length; i++) {
+    sum += samples[i] * samples[i];
+  }
+  return Math.sqrt(sum / samples.length);
+}
+
+/**
+ * Heuristic: did the STT service return hallucinated text?
+ *
+ * Scribe/Whisper hallucinations tend to be long runs of fluent but
+ * unrelated text when the audio was too quiet or was silence. If the
+ * audio was short (<2s) and the transcript came back with more than
+ * ~40 words, something is wrong — a short utterance can't have that
+ * many words. We also catch the classic "thank you for watching" /
+ * "subscribe to my channel" / long real-estate-sales-pitch patterns.
+ */
+function looksHallucinated(transcript: string, audioDurationSeconds: number): boolean {
+  const text = transcript.trim();
+  if (!text) return false;
+  const wordCount = text.split(/\s+/).length;
+
+  // Short audio should not produce long text. Normal speaking rate is
+  // ~2.5 words/second; we allow 4 words/second as a generous cap plus
+  // a small constant for very short utterances.
+  const maxReasonableWords = Math.ceil(audioDurationSeconds * 4) + 3;
+  if (wordCount > maxReasonableWords) return true;
+
+  // Known Whisper/Scribe hallucination phrases. These show up when the
+  // model is fed silence or pure noise. Not exhaustive — matched loose
+  // to catch variants.
+  const hallucinationPatterns = [
+    /thank you for watching/i,
+    /thanks for watching/i,
+    /subscribe to my channel/i,
+    /don't forget to (?:like|subscribe)/i,
+    /see you (?:next time|in the next)/i,
+    /\.\s*\.\s*\./, // long pause ellipses
+  ];
+  if (hallucinationPatterns.some((re) => re.test(text))) return true;
+
+  return false;
 }
 
 /** Normalize audio volume: find peak and scale to targetPeak (0.9) */
@@ -197,7 +267,10 @@ function setupScriptProcessorFallback(
 ): void {
   const node = ctx.createScriptProcessor(4096, 1, 1);
   node.onaudioprocess = (e: AudioProcessingEvent) => {
-    if (!isActive) return;
+    // Accept chunks until the node is actually disconnected (captureNode === null).
+    // Don't gate on `isActive` — we want in-flight audio to land even after the
+    // user has tapped stop, so the flush window in stopAndTranscribe() works.
+    if (captureNode === null) return;
     if (audioChunks.length >= maxChunks) {
       callbacks.onError('Recording exceeded 60 seconds. Stopped automatically.');
       stopElevenLabs();
@@ -219,11 +292,28 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
   isTranscribing = false; // Reset stuck state from previous session
 
   try {
+    // autoGainControl is important on Android — many devices ship with
+    // a very low default mic gain, so without AGC the captured waveform
+    // is below the silence-trim threshold and trimSilence() eats the
+    // entire utterance. echoCancellation stops the mic from re-capturing
+    // TTS playback when the user is mid-conversation with the agent.
     mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
     });
 
     audioContext = new AudioContext();
+    // On Android Chrome and iOS Safari the AudioContext is created in
+    // 'suspended' state due to autoplay policy. Without resume() the
+    // worklet's process() method never fires and audioChunks stays empty,
+    // surfacing as "Recording too short" with zero captured audio.
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
     nativeSampleRate = audioContext.sampleRate;
     sourceNode = audioContext.createMediaStreamSource(mediaStream);
     audioChunks = [];
@@ -244,7 +334,10 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
 
         const workletNode = new AudioWorkletNode(audioContext, 'capture-processor');
         workletNode.port.onmessage = (e: MessageEvent) => {
-          if (!isActive) return;
+          // Accept chunks until the node is actually disconnected.
+          // Gating on `isActive` would drop the last ~50-150ms of audio
+          // (the worklet thread is async), so we use captureNode instead.
+          if (captureNode === null) return;
           const chunk = new Float32Array(e.data);
           totalSamples += chunk.length;
           if (totalSamples >= maxRecordingSamples) {
@@ -255,7 +348,15 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
           audioChunks.push(chunk);
         };
         sourceNode.connect(workletNode);
-        // Don't connect to destination — avoids echo
+        // Connect worklet → silent gain → destination so the audio graph
+        // has a path to destination. Without this, some browsers (Android
+        // Chrome in particular) keep the graph in a suspended state and
+        // process() never runs, even though the context is "running".
+        // Gain is 0 so there's no audible echo.
+        const silentGain = audioContext.createGain();
+        silentGain.gain.value = 0;
+        workletNode.connect(silentGain);
+        silentGain.connect(audioContext.destination);
         captureNode = workletNode;
       } catch {
         // AudioWorklet failed (e.g. insecure context), fall back
@@ -268,9 +369,12 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
     callbacks.onOpen();
   } catch (err) {
     isActive = false;
-    const msg = err instanceof Error ? err.message : String(err);
-    callbacks.onError(`Microphone access failed: ${msg}`);
     cleanupAudioResources();
+    // Rethrow so the caller can inspect err.name (NotAllowedError etc.)
+    // and surface a platform-specific message. Previously we only fired
+    // callbacks.onError(string), which lost the original Error object and
+    // forced the caller to string-match for permission detection.
+    throw err;
   }
 }
 
@@ -285,6 +389,13 @@ export async function stopAndTranscribe(): Promise<string> {
   isTranscribing = true;
 
   try {
+    // Flush delay: AudioWorklet runs on a separate thread and may have chunks
+    // in flight that haven't reached the main thread via port.postMessage().
+    // Without this delay, the last ~50-150ms of audio is dropped — which on
+    // slower devices (Android, low-end phones) trips the "recording too short"
+    // check even when the user spoke for a clearly audible duration.
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
     const srcRate = nativeSampleRate;
     const chunks = [...audioChunks];
     cleanupAudioResources();
@@ -292,8 +403,13 @@ export async function stopAndTranscribe(): Promise<string> {
     if (!wasActive && chunks.length === 0) return '';
 
     const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    if (totalLength < srcRate * 0.5) {
-      throw new Error('Recording too short. Speak for at least 1 second.');
+    // Threshold lowered from 0.5s → 0.25s. The flush delay above recovers
+    // ~120ms of previously-dropped audio, and 0.25s is enough for short
+    // commands like "yes", "no", "next", "weekday".
+    if (totalLength < srcRate * 0.25) {
+      // Yair flagged on 2026-04-09 that "Recording too short" should never
+      // be surfaced as an error. Using the friendlier clarification prompt.
+      throw new Error("I didn't catch that — could you say it again?");
     }
 
     const merged = new Float32Array(totalLength);
@@ -301,6 +417,17 @@ export async function stopAndTranscribe(): Promise<string> {
     for (const chunk of chunks) {
       merged.set(chunk, offset);
       offset += chunk.length;
+    }
+
+    // Silence gate. ElevenLabs Scribe hallucinates long runs of fluent
+    // unrelated text when it receives silence or pure noise (the
+    // real-estate-sales-pitch screenshot from Alejandro on 2026-04-09
+    // was this bug). Reject obviously-silent audio BEFORE sending to
+    // the API so the user sees a friendly prompt instead of a garbage
+    // hallucinated transcript.
+    const rms = computeRms(merged);
+    if (rms < 0.0008) {
+      throw new Error("I didn't catch that — could you say it again?");
     }
 
     // Pre-process: trim silence, then normalize volume
@@ -352,7 +479,23 @@ export async function stopAndTranscribe(): Promise<string> {
     }
 
     const data = await res.json();
-    return data.text || '';
+    const text = (data.text || '').trim();
+
+    // Hallucination guard. Scribe/Whisper sometimes return long runs
+    // of unrelated text when the audio was quiet or noisy even after
+    // passing the RMS gate. Compare word count against audio duration
+    // and look for known hallucination phrases. If we detect one, tell
+    // the user to try again instead of processing garbage.
+    if (text && looksHallucinated(text, durationSeconds)) {
+      console.warn('[ElevenLabs] Rejected likely hallucination:', {
+        duration: durationSeconds.toFixed(2),
+        wordCount: text.split(/\s+/).length,
+        preview: text.slice(0, 80),
+      });
+      throw new Error("I didn't catch that — could you say it again?");
+    }
+
+    return text;
   } finally {
     isTranscribing = false;
   }

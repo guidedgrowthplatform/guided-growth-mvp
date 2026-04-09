@@ -2,10 +2,11 @@ import { Icon } from '@iconify/react';
 
 interface VoiceMicButtonProps {
   isListening: boolean;
+  isPreparing?: boolean;
   onPress: () => void;
 }
 
-export function VoiceMicButton({ isListening, onPress }: VoiceMicButtonProps) {
+export function VoiceMicButton({ isListening, isPreparing = false, onPress }: VoiceMicButtonProps) {
   return (
     <div className="relative flex items-center justify-center">
       {isListening && (
@@ -17,9 +18,17 @@ export function VoiceMicButton({ isListening, onPress }: VoiceMicButtonProps) {
       <button
         type="button"
         onClick={onPress}
-        className="relative size-[96px] rounded-full bg-primary shadow-[0px_10px_15px_-3px_rgba(59,130,246,0.3),0px_4px_6px_-4px_rgba(59,130,246,0.3)]"
+        disabled={isPreparing}
+        className="relative size-[96px] rounded-full bg-primary shadow-[0px_10px_15px_-3px_rgba(59,130,246,0.3),0px_4px_6px_-4px_rgba(59,130,246,0.3)] disabled:opacity-70"
       >
-        <Icon icon="ic:round-mic" className="mx-auto size-[36px] text-white" />
+        {isPreparing ? (
+          <Icon
+            icon="mingcute:loading-2-line"
+            className="mx-auto size-[36px] animate-spin text-white"
+          />
+        ) : (
+          <Icon icon="ic:round-mic" className="mx-auto size-[36px] text-white" />
+        )}
       </button>
     </div>
   );

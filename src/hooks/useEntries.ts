@@ -62,8 +62,22 @@ export function useEntries() {
       if (offlineQueue.length > 0) {
         offlineQueue
           .flush()
-          .then(() => {
-            if (offlineQueue.length === 0) addToast('success', 'Offline entries synced');
+          .then((result) => {
+            if (result.succeeded > 0) {
+              addToast(
+                'success',
+                `Synced ${result.succeeded} offline ${result.succeeded === 1 ? 'entry' : 'entries'}`,
+              );
+            }
+            if (result.dropped > 0) {
+              // Previously these were silently dropped on 4xx (auth was
+              // missing entirely → always 401 → silent data loss). Now
+              // surface to the user so they know to re-save.
+              addToast(
+                'error',
+                `${result.dropped} offline ${result.dropped === 1 ? 'entry was' : 'entries were'} rejected — please re-enter them`,
+              );
+            }
           })
           .catch(() => {});
       }

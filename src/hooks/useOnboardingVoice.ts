@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, sessionReady } from '@/lib/supabase';
 
 export interface OnboardingStepContext {
   step: number;
@@ -50,6 +50,13 @@ export function useOnboardingVoice() {
         // Get auth token for production API calls
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         try {
+          // Native session is async — see elevenlabs-service.ts. Without
+          // this await, voice fired immediately at app launch races the
+          // Capacitor Preferences loader and the request goes out with
+          // no Authorization header, returning 401.
+          if (Capacitor.isNativePlatform()) {
+            await sessionReady;
+          }
           const {
             data: { session },
           } = await supabase.auth.getSession();
@@ -108,8 +115,9 @@ export function useOnboardingVoice() {
         // Post-process: fix PII-scrubbed names by extracting from original transcript
         const params = result.params || {};
         if (stepContext.step === 1) {
-          console.log('[OnboardingVoice] API params:', JSON.stringify(params));
-          console.log('[OnboardingVoice] Original transcript:', transcript);
+          // Note: previously logged params + transcript here, but those
+          // contain PII (user's name, demographic). Removed to keep prod
+          // logs clean and avoid leaking PII into Sentry/Vercel logs.
 
           // Fix nickname if it contains [NAME]
           if (
@@ -208,7 +216,6 @@ export function useOnboardingVoice() {
                 if (nameWord) params.nickname = nameWord;
               }
             }
-            console.log('[OnboardingVoice] Extracted nickname:', params.nickname);
           }
 
           // ALWAYS extract gender from transcript for step 1 (API often gets it wrong due to PII scrubbing)
@@ -227,8 +234,6 @@ export function useOnboardingVoice() {
               params.gender = 'Female';
             else params.gender = 'Other';
           }
-
-          console.log('[OnboardingVoice] Final params:', JSON.stringify(params));
 
           // Extract referral source from transcript
           if (/\b(founder|invite|invited)\b/.test(normalizedTranscript)) {

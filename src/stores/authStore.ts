@@ -1,8 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { identify, resetIdentity, track } from '@/lib/analytics';
-import { supabase } from '@/lib/supabase';
 import { Sentry } from '@/lib/sentry';
+import { supabase } from '@/lib/supabase';
 
 export interface AppUser {
   id: string;
@@ -90,10 +90,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!get()._unsubscribe) {
       const {
         data: { subscription },
-      } = supabase.auth.onAuthStateChange((event, session) => {
+      } = supabase.auth.onAuthStateChange((_event, session) => {
         if (session?.user) {
-          set({ user: mapUser(session.user) });
+          const nextUser = mapUser(session.user);
+          const prevUser = get().user;
+          set({ user: nextUser });
+          // Re-identify only when the user actually changed (login,
+          // account switch, token refresh that surfaces a different
+          // user). Token refreshes for the same user don't need to
+          // re-fire analytics events.
+          //
+          // Previously this listener updated user state but never
+          // called identifyUser/clearUserIdentity, so Sentry and
+          // analytics stayed tagged with the previous user across
+          // sign-out, account switches, and sessions restored from
+          // another tab.
+          if (prevUser?.id !== nextUser.id) {
+            identifyUser(nextUser);
+          }
         } else {
+          if (get().user) {
+            clearUserIdentity();
+          }
           set({ user: null });
         }
       });

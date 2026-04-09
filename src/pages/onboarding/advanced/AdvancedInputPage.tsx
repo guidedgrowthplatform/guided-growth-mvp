@@ -7,7 +7,7 @@ import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import { VoiceMicButton } from '@/components/onboarding/VoiceMicButton';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
-import { speak, stopTTS } from '@/lib/services/tts-service';
+import { speakWhenReady, stopTTS } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 export function AdvancedInputPage() {
@@ -15,7 +15,7 @@ export function AdvancedInputPage() {
   const { saveStepAsync } = useOnboarding();
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null!);
-  const { isListening, toggle, transcript } = useVoiceInput();
+  const { isListening, isPreparing, toggle, transcript } = useVoiceInput();
   const resetTranscript = useVoiceStore((s) => s.resetTranscript);
 
   // Append voice transcript to text
@@ -26,12 +26,17 @@ export function AdvancedInputPage() {
     }
   }, [isListening, transcript, resetTranscript]);
 
-  // TTS auto-play per Voice Journey Spreadsheet v3
+  // TTS auto-play per Voice Journey Spreadsheet v3.
+  // speakWhenReady() handles iOS WKWebView's autoplay block: if the user
+  // hasn't interacted with the page yet, it defers the speech until the
+  // first pointerdown so the greeting actually plays instead of silently
+  // failing with NotAllowedError.
   useEffect(() => {
-    speak(
+    const cancel = speakWhenReady(
       "Tell me everything. What habits do you want to build? What are you trying to change? Don't hold back — just talk. I'll organize it all.",
     );
     return () => {
+      cancel();
       stopTTS();
     };
   }, []);
@@ -63,7 +68,12 @@ export function AdvancedInputPage() {
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-[24px] py-[32px]">
-        <VoiceMicButton isListening={isListening} onPress={toggle} />
+        <VoiceMicButton isListening={isListening} isPreparing={isPreparing} onPress={toggle} />
+        {isPreparing && (
+          <p className="animate-pulse text-sm font-medium text-content-secondary">
+            Preparing mic...
+          </p>
+        )}
         {isListening && (
           <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>
         )}

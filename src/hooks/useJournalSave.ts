@@ -17,6 +17,11 @@ export function useJournalSave() {
       navigate('/home');
     } catch {
       addToast('error', 'Failed to save — please try again');
+    } finally {
+      // Always reset saving state — previously only the catch path
+      // reset it, so if navigate('/home') didn't unmount the component
+      // (e.g. router error, back button before unmount), the spinner
+      // would be stuck on forever.
       setSaving(false);
     }
   };

@@ -31,8 +31,23 @@ interface CommandIntent {
   confidence: number;
 }
 
+/**
+ * Format a Date as YYYY-MM-DD using LOCAL time components.
+ *
+ * NEVER use `Date.toISOString().slice(0,10)` for "today" — that returns
+ * UTC. For users east of UTC (e.g. Indonesia at +7) it can return
+ * yesterday's date during morning local time, causing voice commands
+ * like "mark pushups done" to save against the wrong day.
+ */
+function formatLocalDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return formatLocalDate(new Date());
 }
 
 function parseDateParam(dateStr: unknown): string {
@@ -40,23 +55,48 @@ function parseDateParam(dateStr: unknown): string {
   if (dateStr === 'yesterday') {
     const d = new Date();
     d.setDate(d.getDate() - 1);
-    return d.toISOString().slice(0, 10);
+    return formatLocalDate(d);
   }
 
-  // Handle day names (multi-language, from config)
+  // Handle day names (multi-language, from config).
+  // Resolves to the most recent occurrence of that day, including today.
+  // Previously used `diff <= 0` which sent same-day back a full week
+  // (saying "wednesday" on a Wednesday saved to LAST Wednesday). Use
+  // `diff < 0` so same-day stays today.
   const lower = String(dateStr).toLowerCase();
   const dayIndex = DAY_NAMES[lower] ?? -1;
   if (dayIndex !== -1) {
     const now = new Date();
     const currentDay = now.getDay();
     let diff = currentDay - dayIndex;
-    if (diff <= 0) diff += 7; // go to previous week
+    if (diff < 0) diff += 7;
     const target = new Date(now);
     target.setDate(target.getDate() - diff);
-    return target.toISOString().slice(0, 10);
+    return formatLocalDate(target);
   }
 
   return String(dateStr);
+}
+
+/**
+ * Normalize a habit / metric name as spoken from a voice transcript.
+ * Strips leading articles and possessives ("the", "my", "a", "an"),
+ * trailing "habit"/"habits", trailing "please", and collapses whitespace.
+ *
+ * Previously the dispatcher passed the raw params.name straight to
+ * getHabitByName, which is an exact ilike() match in Supabase — so
+ * "mark the pushups done" (name="the pushups") would never find the
+ * stored "pushups" habit. Normalizing here keeps the storage lookup
+ * strict while tolerating natural speech.
+ */
+function normalizeVoiceName(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^(?:the|my|a|an)\s+/i, '')
+    .replace(/\s+(?:please|thanks?|thank you)$/i, '')
+    .replace(/\s+habits?$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export class ActionDispatcher {
@@ -114,7 +154,11 @@ export class ActionDispatcher {
       return result;
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err);
-      // Translate common backend errors into user-friendly messages
+      // Log full error for debugging — friendly message for the user, but
+      // we need the original error in console/Sentry to actually fix things
+      // when users report "voice didn't work". Previously this caught error
+      // was completely silent.
+      console.error('[ActionDispatcher] dispatch failed:', { action, entity, err });
       const friendly = friendlyError(raw);
       return {
         success: false,
@@ -206,7 +250,7 @@ export class ActionDispatcher {
       return { success: false, message: `Can't complete ${entity}`, uiAction: 'toast' };
     }
 
-    const name = String(params.name || '');
+    const name = normalizeVoiceName(String(params.name || ''));
     const habit = await this.dataService.getHabitByName(name);
     if (!habit) {
       return {
@@ -248,7 +292,7 @@ export class ActionDispatcher {
     entity: string,
     params: Record<string, unknown>,
   ): Promise<ActionResult> {
-    const name = String(params.name || '');
+    const name = normalizeVoiceName(String(params.name || ''));
 
     switch (entity) {
       case 'habit': {
@@ -296,7 +340,7 @@ export class ActionDispatcher {
       return { success: false, message: `Can't update ${entity} yet`, uiAction: 'toast' };
     }
 
-    const name = String(params.name || '');
+    const name = normalizeVoiceName(String(params.name || ''));
     const habit = await this.dataService.getHabitByName(name);
     if (!habit)
       return {
@@ -328,7 +372,8 @@ export class ActionDispatcher {
   ): Promise<ActionResult> {
     switch (entity) {
       case 'habit': {
-        const name = params.name ? String(params.name) : null;
+        const rawName = params.name ? String(params.name) : null;
+        const name = rawName ? normalizeVoiceName(rawName) : null;
         if (name) {
           // Query specific habit
           const habit = await this.dataService.getHabitByName(name);
@@ -408,7 +453,7 @@ export class ActionDispatcher {
       return { success: false, message: `Can't log ${entity}`, uiAction: 'toast' };
     }
 
-    const name = String(params.name || '');
+    const name = normalizeVoiceName(String(params.name || ''));
     const metric = await this.dataService.getMetricByName(name);
     if (!metric)
       return {
@@ -524,7 +569,8 @@ export class ActionDispatcher {
 
   private async handleFocus(params: Record<string, unknown>): Promise<ActionResult> {
     const duration = params.duration != null ? Number(params.duration) : 25;
-    const habitName = params.habit ? String(params.habit) : null;
+    const rawHabitName = params.habit ? String(params.habit) : null;
+    const habitName = rawHabitName ? normalizeVoiceName(rawHabitName) : null;
 
     let habitId: string | null = null;
     if (habitName) {

@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { supabase } from '@/lib/supabase';
+import { supabase, sessionReady } from '@/lib/supabase';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 const VOICE_PREF_KEY = 'mvp03_tts_voice';
@@ -54,6 +54,12 @@ function getApiBase(): string {
 /** Get auth headers for the TTS proxy */
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
+    // Await native session hydration — see elevenlabs-service.ts for the
+    // race-condition rationale. TL;DR: voice fired right after app launch
+    // races the Capacitor Preferences loader and gets a null session.
+    if (Capacitor.isNativePlatform()) {
+      await sessionReady;
+    }
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -348,6 +354,41 @@ const PRE_ACK_MESSAGES: Record<string, (params: Record<string, unknown>) => stri
   checkin: () => `Got it.`,
   focus: () => `Let's go.`,
 };
+
+/**
+ * Speak text, deferring to the next user gesture if the browser hasn't
+ * unlocked autoplay yet. Use this for auto-greetings on page mount —
+ * `speak()` directly will be silently blocked on iOS WKWebView and Safari
+ * until the user has interacted with the page.
+ *
+ * If a gesture has already happened anywhere in the session, plays
+ * immediately. Otherwise registers a one-shot listener that fires on the
+ * first pointerdown/touchstart and is auto-removed.
+ *
+ * Returns a cleanup function — call it on component unmount to remove the
+ * deferred listener if the user navigates away before interacting.
+ */
+export function speakWhenReady(
+  text: string,
+  options?: { rate?: number; pitch?: number; volume?: number },
+): () => void {
+  if (ttsUnlocked) {
+    speak(text, options);
+    return () => {};
+  }
+
+  const handler = () => {
+    unlockTTS();
+    speak(text, options);
+  };
+
+  // pointerdown covers both mouse and touch on modern browsers
+  window.addEventListener('pointerdown', handler, { once: true, capture: true });
+
+  return () => {
+    window.removeEventListener('pointerdown', handler, { capture: true });
+  };
+}
 
 /** Speak a short pre-acknowledgment before the actual action runs */
 export function speakPreAck(action: string, params: Record<string, unknown>): void {
