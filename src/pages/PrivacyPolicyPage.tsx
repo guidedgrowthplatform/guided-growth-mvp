@@ -52,7 +52,7 @@ export function PrivacyPolicyPage() {
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>To provide and maintain the Guided Growth service.</li>
           <li>To personalize your AI coaching experience.</li>
-          <li>To process voice commands via OpenAI and ElevenLabs APIs.</li>
+          <li>To process voice commands via OpenAI and Cartesia APIs.</li>
           <li>To generate insights and progress reports.</li>
         </ul>
 
@@ -74,7 +74,7 @@ export function PrivacyPolicyPage() {
             stored).
           </li>
           <li>
-            <strong>ElevenLabs</strong>: text-to-speech and speech-to-text processing.
+            <strong>Cartesia</strong>: text-to-speech (Sonic) and speech-to-text (Ink) processing.
           </li>
           <li>
             <strong>Vercel</strong>: application hosting and serverless API functions.

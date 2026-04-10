@@ -1,9 +1,5 @@
 import { useEffect, useCallback, useRef } from 'react';
-import {
-  startElevenLabs,
-  stopAndTranscribe,
-  stopElevenLabs,
-} from '@/lib/services/elevenlabs-service';
+import { startRecording, stopAndTranscribe, stopRecording } from '@/lib/services/stt-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 /**
@@ -66,10 +62,10 @@ export function useVoiceInput() {
     // getUserMedia just to probe permission, then immediately stops the
     // tracks. On iOS Safari/WKWebView, that consumes the user gesture
     // context — and then the SECOND getUserMedia call inside
-    // startElevenLabs has no gesture and silently fails, so the user has
+    // startRecording has no gesture and silently fails, so the user has
     // to tap the mic AGAIN to actually start recording. This is the
     // "double press" UX bug Yair flagged in the 2026-04-08 review meeting.
-    // We let startElevenLabs do the single getUserMedia call directly and
+    // We let startRecording do the single getUserMedia call directly and
     // surface a platform-specific error from the catch block below.
     setError('');
     resetTranscript();
@@ -85,9 +81,9 @@ export function useVoiceInput() {
     setInterim('Preparing mic...');
 
     try {
-      await startElevenLabs({
+      await startRecording({
         onError: (err) => {
-          console.error('[VoiceInput] ElevenLabs recording error:', err);
+          console.error('[VoiceInput] STT recording error:', err);
           setError(err);
           stopListening();
           isStoppingRef.current = false;
@@ -101,9 +97,9 @@ export function useVoiceInput() {
         },
       });
     } catch (err) {
-      console.warn('[VoiceInput] ElevenLabs failed:', err);
+      console.warn('[VoiceInput] STT recording failed:', err);
       stopListening();
-      stopElevenLabs();
+      stopRecording();
       isStoppingRef.current = false;
       setError(micPermissionMessage(err));
     }
@@ -154,7 +150,7 @@ export function useVoiceInput() {
   const toggle = useCallback(() => {
     // Block taps during the preparing window — getUserMedia/AudioContext
     // setup is in progress and a second start() would be a no-op
-    // (startElevenLabs has an isActive guard) but the UI flicker would
+    // (startRecording has an isActive guard) but the UI flicker would
     // confuse users. Wait until we're either listening or back to idle.
     if (isPreparing) return;
     if (isListening) {
@@ -174,7 +170,7 @@ export function useVoiceInput() {
   useEffect(() => {
     return () => {
       try {
-        stopElevenLabs();
+        stopRecording();
       } catch {
         /* ignore */
       }

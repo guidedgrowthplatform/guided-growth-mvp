@@ -24,7 +24,7 @@ let flushInProgress = false;
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
     // Native session is async — same race-prevention pattern as
-    // elevenlabs-service.ts. Most offline flushes happen in response to
+    // stt-service.ts. Most offline flushes happen in response to
     // the 'online' event which can fire right at app launch on cold
     // boot, so the session may not be hydrated yet.
     if (Capacitor.isNativePlatform()) {

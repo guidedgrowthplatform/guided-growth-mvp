@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 
 export type RecordingMode = 'auto-stop' | 'always-on';
-// ElevenLabs is the only STT provider — type kept for backwards compat with UI
-export type SttProvider = 'elevenlabs';
+// Cartesia Ink is the target STT provider — type kept for backwards compat with UI
+export type SttProvider = 'cartesia';
 
 const SETTINGS_KEY = 'mvp03_voice_settings';
 
@@ -70,7 +70,7 @@ function saveToStorage(settings: VoiceSettings): void {
 export const useVoiceSettingsStore = create<VoiceSettingsState>((set, get) => ({
   ...DEFAULTS,
   loaded: false,
-  sttProvider: 'elevenlabs' as SttProvider,
+  sttProvider: 'cartesia' as SttProvider,
 
   setRecordingMode: (mode) => {
     set({ recordingMode: mode });
@@ -91,7 +91,7 @@ export const useVoiceSettingsStore = create<VoiceSettingsState>((set, get) => ({
   },
 
   setSttProvider: () => {
-    // No-op: ElevenLabs is the only provider
+    // No-op: Cartesia is the only provider
   },
 
   loadSettings: () => {
