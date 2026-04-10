@@ -221,7 +221,7 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
 2. PARSE the corrected transcript into a single structured JSON command
 
 ## Transcript Correction Rules
-- **CRITICAL**: The transcript comes from ElevenLabs Scribe STT which SEVERELY garbles short voice commands (2-5 words). Common failure patterns:
+- **CRITICAL**: The transcript comes from Cartesia Scribe STT which SEVERELY garbles short voice commands (2-5 words). Common failure patterns:
   - Command words get turned into names/sentences: "mark meditation done" → "Mark made a champagne toast" or "Mark, what is on your mind today?"
   - Single-word commands get expanded into full sentences by the STT engine
   - Habit names get replaced with phonetically similar but unrelated phrases
@@ -420,7 +420,7 @@ User: "What can I say?"
 User: "What are the available commands?"
 {"action":"help","entity":"summary","params":{},"confidence":0.95}
 
-### STT-Garbled Transcripts (ElevenLabs / auto-punctuated)
+### STT-Garbled Transcripts (Cartesia / auto-punctuated)
 User: "Reading on me, Mark Done. For 03/05/2026."
 {"action":"complete","entity":"habit","params":{"name":"reading on me","date":"2026-03-05"},"confidence":0.85}
 
@@ -439,7 +439,7 @@ User: "Exercise, Mark Done. For 03/17/2026."
 User: "Painting, Mark Done. For 03/26/2026."
 {"action":"complete","entity":"habit","params":{"name":"painting","date":"2026-03-26"},"confidence":0.85}
 
-### STT-Severely-Garbled (ElevenLabs Scribe hallucinations on short commands)
+### STT-Severely-Garbled (Cartesia Scribe hallucinations on short commands)
 User: "Mark made a champagne toast"
 {"corrected_transcript":"mark meditation done today","action":"complete","entity":"habit","params":{"name":"meditation","date":"today"},"confidence":0.7}
 
@@ -558,10 +558,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       maxRequests: 20,
       keyPrefix: 'process-command',
     });
-    if (rl.limited) {
+
+    const dailyRl = checkRateLimit(user.id, {
+      windowMs: 86_400_000, // 24 hours
+      maxRequests: 5, // 5 voice interactions per day cap
+      keyPrefix: 'process-command-daily',
+    });
+
+    if (rl.limited || dailyRl.limited) {
+      const retryAfter = rl.retryAfter || dailyRl.retryAfter;
       return res
         .status(429)
-        .json({ error: 'Too many requests. Try again later.', retryAfter: rl.retryAfter });
+        .json({ error: 'Too many requests. Try again later.', retryAfter });
     }
   }
 

@@ -8,12 +8,12 @@
  *
  * Layers covered:
  *   1. Audio buffer pre-processing (silence gate, hallucination detector,
- *      trimSilence, normalize, RMS) — elevenlabs-service internals
+ *      trimSilence, normalize, RMS) — stt-service internals
  *   2. Transcript dispatch — ActionDispatcher replays the voice journey
  *      spec and verifies each step produces the expected ActionResult
  *   3. normalizeVoiceName tolerance for natural-speech fillers
  *
- * Strategy: since ElevenLabs internals and Web Audio API are not easily
+ * Strategy: since STT internals and Web Audio API are not easily
  * reachable without jsdom + mocks, the audio tests import only the pure
  * helpers (computeRms, looksHallucinated). The dispatch tests use the
  * MockDataService to exercise the full action pipeline.
@@ -25,7 +25,7 @@ import { ActionDispatcher } from '../action-dispatcher';
 import { MockDataService } from '../mock-data-service';
 
 // ─── Audio buffer helpers ─────────────────────────────────────────────────
-// These are not exported from elevenlabs-service (intentional — internal
+// These are not exported from stt-service (intentional — internal
 // helpers). We replicate them here so we can test the algorithm in
 // isolation. If the algorithm changes, update BOTH the service AND this
 // block so the tests stay meaningful.

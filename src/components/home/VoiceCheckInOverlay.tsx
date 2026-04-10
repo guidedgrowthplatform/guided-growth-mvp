@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { Mic, X } from 'lucide-react';
 import { useRef, useCallback, useEffect } from 'react';
+import { AIResponseText } from '@/components/ui/AIResponseText';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
@@ -85,8 +86,12 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
         onTouchEnd={handleTouchEnd}
       >
         {messages.map((msg) => (
-          <div key={msg.id}>
-            <ChatBubble role={msg.role} text={msg.text} userName={user?.name ?? undefined} />
+          <div key={msg.id} className="flex flex-col">
+            {msg.role === 'user' ? (
+              <ChatBubble role="user" text={msg.text} userName={user?.name ?? undefined} />
+            ) : (
+              <AIResponseText text={msg.text} />
+            )}
             {msg.habitCards?.map((card, i) => (
               <HabitSuggestionCard
                 key={i}

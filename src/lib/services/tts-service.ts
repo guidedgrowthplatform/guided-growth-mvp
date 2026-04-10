@@ -14,12 +14,6 @@ const CARTESIA_VOICES: Record<VoiceGender, { id: string; name: string }> = {
   female: { id: 'f786b574-daa5-4673-aa0c-cbe3e8534c02', name: 'Katie' },
 };
 
-// ElevenLabs voice IDs — fallback if Cartesia is unavailable
-const ELEVENLABS_VOICES: Record<VoiceGender, { id: string; name: string }> = {
-  male: { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam' },
-  female: { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah' },
-};
-
 const VOICE_GENDER_KEY = 'guided_growth_voice_gender';
 
 /** Get the user's selected voice gender (defaults to female) */
@@ -48,12 +42,6 @@ function getCartesiaVoiceId(): string {
   return CARTESIA_VOICES[gender].id;
 }
 
-/** Get ElevenLabs voice ID for the user's selected gender */
-function getElevenLabsVoiceId(): string {
-  const gender = getVoiceGender();
-  return ELEVENLABS_VOICES[gender].id;
-}
-
 // ─── API Base ───────────────────────────────────────────────────────────────
 
 function getApiBase(): string {
@@ -67,7 +55,7 @@ function getApiBase(): string {
 /** Get auth headers for the TTS proxy */
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
-    // Await native session hydration — see elevenlabs-service.ts for the
+    // Await native session hydration — see stt-service.ts for the
     // race-condition rationale. TL;DR: voice fired right after app launch
     // races the Capacitor Preferences loader and gets a null session.
     if (Capacitor.isNativePlatform()) {
@@ -87,7 +75,6 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 
 // Track provider availability (disabled on quota exceeded / auth failure)
 let cartesiaTtsAvailable = true;
-let elevenLabsTtsAvailable = true;
 
 // Track current playing audio so we can stop it
 let currentAudio: HTMLAudioElement | null = null;
@@ -115,7 +102,6 @@ export function stopTTS(): void {
 
 /**
  * Play audio from a fetch response blob.
- * Shared between Cartesia and ElevenLabs.
  */
 async function playAudioFromResponse(
   res: Response,
@@ -166,7 +152,7 @@ function handleTtsError(err: unknown, label: string): boolean {
 
 /**
  * Speak text using Cartesia TTS API (sonic-3, primary).
- * Lower cost and faster latency than ElevenLabs.
+ * Primary cloud TTS provider.
  * Returns true if audio played successfully, false if should fall back.
  */
 async function speakCartesia(text: string, volume: number): Promise<boolean> {
@@ -200,44 +186,6 @@ async function speakCartesia(text: string, volume: number): Promise<boolean> {
     return await playAudioFromResponse(res, volume, 'Cartesia');
   } catch (err) {
     return handleTtsError(err, 'Cartesia');
-  }
-}
-
-/**
- * Speak text using ElevenLabs TTS API (fallback).
- * Returns true if audio played successfully, false if should fall back.
- */
-async function speakElevenLabs(text: string, volume: number): Promise<boolean> {
-  if (!elevenLabsTtsAvailable) return false;
-
-  try {
-    const voiceId = getElevenLabsVoiceId();
-    const authHeaders = await getAuthHeaders();
-
-    const abortController = new AbortController();
-    currentTtsAbort = abortController;
-
-    const res = await fetch(`${getApiBase()}/api/elevenlabs-tts`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeaders,
-      },
-      body: JSON.stringify({ text, voice_id: voiceId }),
-      signal: abortController.signal,
-    });
-
-    if (!res.ok) {
-      console.warn('[TTS] ElevenLabs proxy error:', res.status);
-      if (res.status === 429 || res.status === 401) {
-        elevenLabsTtsAvailable = false;
-      }
-      return false;
-    }
-
-    return await playAudioFromResponse(res, volume, 'ElevenLabs');
-  } catch (err) {
-    return handleTtsError(err, 'ElevenLabs');
   }
 }
 
@@ -379,7 +327,7 @@ function speakBrowser(
 let speakGeneration = 0;
 
 /**
- * Speak text aloud using Cartesia TTS (primary), ElevenLabs (fallback),
+ * Speak text aloud using Cartesia TTS (primary),
  * then browser speechSynthesis as last resort.
  * Uses generation counter to ensure only the latest call plays.
  */
@@ -401,19 +349,14 @@ export function speak(
   // Increment generation — any in-flight speak() from earlier calls will be stale
   const myGeneration = ++speakGeneration;
 
-  // Cascade: Cartesia → ElevenLabs → Browser speechSynthesis
+  // Cascade: Cartesia → Browser speechSynthesis
   (async () => {
-    // Try Cartesia first (fastest, cheapest)
+    // Try Cartesia (primary — sole cloud TTS provider)
     const cartesiaOk = await speakCartesia(clean, volume);
     if (myGeneration !== speakGeneration) return;
     if (cartesiaOk) return;
 
-    // Cartesia failed — try ElevenLabs
-    const elevenOk = await speakElevenLabs(clean, volume);
-    if (myGeneration !== speakGeneration) return;
-    if (elevenOk) return;
-
-    // Both cloud providers failed — use browser
+    // Cartesia failed — use browser speechSynthesis as emergency fallback
     speakBrowser(clean, options);
   })();
 }

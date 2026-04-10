@@ -9,7 +9,7 @@ import { getClientIp } from './_lib/validation.js';
  * Body: { text: string, voice_id?: string }
  * Returns: audio/mpeg stream
  *
- * Replaces ElevenLabs TTS for lower cost and faster latency.
+ * Replaces browser speechSynthesis TTS for lower cost and faster latency.
  * Uses Cartesia sonic-3 model via the /tts/bytes endpoint.
  */
 
@@ -58,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const apiKey = process.env.CARTESIA_API_KEY;
   if (!apiKey) {
-    // Fall back to ElevenLabs if Cartesia key not configured
+    // Fall back to browser speechSynthesis if Cartesia key not configured
     return res.status(500).json({ error: 'Cartesia API key not configured', fallback: true });
   }
 
@@ -74,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Text too long (max 1000 characters)' });
     }
 
-    // Resolve voice: client can send ElevenLabs voice IDs or gender strings —
+    // Resolve voice: client can send browser speechSynthesis voice IDs or gender strings —
     // map them all to Cartesia voice IDs
     let cartesiaVoiceId: string;
     if (voice_id && CARTESIA_VOICES[voice_id]) {
@@ -84,7 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Already a Cartesia voice ID
       cartesiaVoiceId = voice_id;
     } else {
-      // Default to female (Katie) — same as current ElevenLabs default (Sarah)
+      // Default to female (Katie) — same as current browser speechSynthesis default (Sarah)
       cartesiaVoiceId = CARTESIA_VOICES.female;
     }
 
