@@ -6,9 +6,9 @@ interface VoiceAiBannerProps {
 
 export function VoiceAiBanner({ onDismiss }: VoiceAiBannerProps) {
   return (
-    <div className="relative rounded-2xl border border-[#dbeafe] bg-blue-50/80 p-4">
+    <div className="relative rounded-2xl border border-primary/20 bg-primary/5 p-4">
       <button
-        className="absolute right-3 top-3 rounded-full p-1 text-content-secondary hover:bg-blue-100"
+        className="absolute right-3 top-3 rounded-full p-1 text-content-secondary hover:bg-primary/10"
         onClick={onDismiss}
       >
         <Icon icon="mdi:close" className="h-4 w-4" />
@@ -19,7 +19,7 @@ export function VoiceAiBanner({ onDismiss }: VoiceAiBannerProps) {
           <Icon icon="mdi:microphone" className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-[#0f172a]">
+          <p className="text-sm font-semibold text-content">
             Tap the mic below to quickly edit your habits.
           </p>
           <p className="mt-1 text-xs text-content-secondary">

@@ -33,11 +33,21 @@ export function EditProfileSheet({ onClose, initialName, initialNickname, initia
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      addToast('error', 'Image must be under 2 MB');
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;
       setAvatarPreview(dataUrl);
       setPendingDataUrl(dataUrl);
+    };
+    reader.onerror = () => {
+      addToast('error', 'Failed to read image file');
     };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -74,13 +84,16 @@ export function EditProfileSheet({ onClose, initialName, initialNickname, initia
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save profile';
       addToast('error', message);
+      setAvatarPreview(initialAvatarUrl);
+      setPendingDataUrl(null);
+      await updateProfileStore().catch(() => {});
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <BottomSheet onClose={onClose}>
+    <BottomSheet onClose={onClose} preventClose={saving}>
       <div className="px-6 pb-8 pt-2">
         <h2 className="mb-6 text-xl font-bold text-content">Edit Profile</h2>
 

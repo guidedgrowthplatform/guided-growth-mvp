@@ -1,6 +1,6 @@
 import { format, subDays, differenceInDays } from 'date-fns';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   HomeHeader,
   DateStrip,
@@ -14,12 +14,16 @@ import {
 } from '@/components/home';
 import { useAuth } from '@/hooks/useAuth';
 import { useEntries } from '@/hooks/useEntries';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { speak } from '@/lib/services/tts-service';
 import type { EntriesMap } from '@shared/types';
 
 export function HomePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
+  const { preferences, updatePreferences } = useUserPreferences();
+  const fromOnboarding = (location.state as { fromOnboarding?: boolean })?.fromOnboarding === true;
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showReminders, setShowReminders] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
@@ -43,6 +47,14 @@ export function HomePage() {
 
   const displayName =
     user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'there';
+
+  // Post-onboarding: auto-show ReminderSheet once
+  useEffect(() => {
+    if (fromOnboarding && !localStorage.getItem('gg_reminders_shown')) {
+      setShowReminders(true);
+      localStorage.setItem('gg_reminders_shown', 'true');
+    }
+  }, [fromOnboarding]);
 
   // Founding User Moment — per Voice Journey Spreadsheet v3 (line 579)
   // One-time voice after 7+ days of use
@@ -74,7 +86,7 @@ export function HomePage() {
   return (
     <>
       <div className="space-y-6 pb-8 pt-2">
-        <HomeHeader userName={displayName} onPlusClick={() => navigate('/add-habit')} />
+        <HomeHeader userName={displayName} isFirstVisit={fromOnboarding} onPlusClick={() => navigate('/add-habit')} />
         <DateStrip
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
@@ -106,7 +118,15 @@ export function HomePage() {
 
       {showFeedback && <FeedbackSheet onClose={() => setShowFeedback(false)} />}
 
-      {showReminders && <ReminderSheet onClose={() => setShowReminders(false)} />}
+      {showReminders && (
+        <ReminderSheet
+          onClose={() => setShowReminders(false)}
+          initialMorningTime={preferences.morningTime}
+          initialNightTime={preferences.nightTime}
+          initialPushNotifications={preferences.pushNotifications}
+          onSave={(data) => updatePreferences(data)}
+        />
+      )}
     </>
   );
 }

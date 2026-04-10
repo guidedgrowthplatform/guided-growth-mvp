@@ -83,15 +83,3 @@ export function formatTime12h(time24: string): string {
   return `${String(hour12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
 }
 
-export function generateTimeOptions(): { value: string; label: string; description: string }[] {
-  const options: { value: string; label: string; description: string }[] = [];
-  for (let h = 0; h < 24; h++) {
-    for (const m of [0, 30]) {
-      const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-      options.push({ value, label: formatTime12h(value), description: '' });
-    }
-  }
-  return options;
-}
-
-export const timeOptions = generateTimeOptions();

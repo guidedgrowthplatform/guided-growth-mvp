@@ -4,10 +4,14 @@ import { useForm } from 'react-hook-form';
 import { AuthBackButton, AuthFooter, AuthAlert } from '@/components/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { useAuth } from '@/hooks/useAuth';
 import { forgotPasswordSchema, type ForgotPasswordForm } from '@/lib/validation';
 
 export function ForgotPasswordPage() {
+  const { resetPassword } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const {
     register,
@@ -18,8 +22,16 @@ export function ForgotPasswordPage() {
     mode: 'onBlur',
   });
 
-  const onSubmit = async (_data: ForgotPasswordForm) => {
-    setError('Password reset is not available yet. Please contact support.');
+  const onSubmit = async (data: ForgotPasswordForm) => {
+    setError(null);
+    setLoading(true);
+    const { error: resetError } = await resetPassword(data.email);
+    setLoading(false);
+    if (resetError) {
+      setError(resetError);
+    } else {
+      setSuccess(true);
+    }
   };
 
   return (
@@ -38,13 +50,22 @@ export function ForgotPasswordPage() {
           variant="auth"
           type="email"
           placeholder="Email Address"
+          disabled={loading || success}
           {...register('email')}
           error={errors.email?.message}
         />
         {error && <AuthAlert type="error" message={error} />}
-        <Button variant="primary" size="auth-rect" fullWidth type="submit">
-          Send Reset Link
-        </Button>
+        {success && (
+          <AuthAlert
+            type="success"
+            message="If an account exists with that email, you'll receive a reset link shortly."
+          />
+        )}
+        {!success && (
+          <Button variant="primary" size="auth-rect" fullWidth type="submit" loading={loading}>
+            Send Reset Link
+          </Button>
+        )}
       </form>
 
       <div className="flex-1" />

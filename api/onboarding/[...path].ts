@@ -123,6 +123,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ],
       );
 
+      if (data?.nickname) {
+        await supabaseAdmin.auth.admin.updateUserById(user.id, {
+          user_metadata: { nickname: data.nickname },
+        });
+      }
+
       await client.query('COMMIT');
       return res.json({ message: 'Onboarding completed' });
     } catch (err) {
