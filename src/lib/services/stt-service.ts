@@ -457,8 +457,7 @@ export async function stopAndTranscribe(): Promise<string> {
 
     let res: Response;
     try {
-      res = await fetch(`${getApiBase()}/api/elevenlabs-stt`, {
-        // TODO: migrate to /api/cartesia-stt
+      res = await fetch(`${getApiBase()}/api/cartesia-stt`, {
         method: 'POST',
         headers: authHeaders,
         body: form,

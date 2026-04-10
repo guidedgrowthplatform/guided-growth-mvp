@@ -558,10 +558,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       maxRequests: 20,
       keyPrefix: 'process-command',
     });
-    if (rl.limited) {
+
+    const dailyRl = checkRateLimit(user.id, {
+      windowMs: 86_400_000, // 24 hours
+      maxRequests: 5, // 5 voice interactions per day cap
+      keyPrefix: 'process-command-daily',
+    });
+
+    if (rl.limited || dailyRl.limited) {
+      const retryAfter = rl.retryAfter || dailyRl.retryAfter;
       return res
         .status(429)
-        .json({ error: 'Too many requests. Try again later.', retryAfter: rl.retryAfter });
+        .json({ error: 'Too many requests. Try again later.', retryAfter });
     }
   }
 
