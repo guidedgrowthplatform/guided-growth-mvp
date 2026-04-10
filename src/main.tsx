@@ -30,6 +30,23 @@ if (Capacitor.isNativePlatform()) {
   const handleDeepLink = async (url: string) => {
     if (url === lastHandledUrl) return;
 
+    // PKCE flow: code is in query params
+    const urlObj = new URL(url);
+    const code = urlObj.searchParams.get('code');
+    if (code) {
+      lastHandledUrl = url;
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+      const { Browser } = await import('@capacitor/browser');
+      Browser.close().catch(() => {});
+
+      if (error) {
+        deepLinkAuthError = error.message;
+      }
+      return;
+    }
+
+    // Implicit flow fallback: tokens in hash fragment
     const hashIndex = url.indexOf('#');
     if (hashIndex >= 0) {
       const hash = url.substring(hashIndex + 1);
@@ -39,7 +56,6 @@ if (Capacitor.isNativePlatform()) {
 
       if (accessToken && refreshToken) {
         lastHandledUrl = url;
-        const type = params.get('type');
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
