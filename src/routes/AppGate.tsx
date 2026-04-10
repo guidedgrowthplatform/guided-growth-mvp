@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { SplashScreen } from '@/components/ui/SplashScreen';
 import { useAppGate } from '@/hooks/useAppGate';
+import { useAuthStore } from '@/stores/authStore';
 
 function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
@@ -25,6 +26,7 @@ export function AppGate({
   allow: 'public' | 'onboarding' | 'app';
 }) {
   const gate = useAppGate();
+  const isRecoveryMode = useAuthStore((s) => s.isRecoveryMode);
 
   if (gate.status === 'loading') return <SplashScreen />;
 
@@ -32,8 +34,14 @@ export function AppGate({
     return <ErrorScreen message="Could not connect to server" onRetry={gate.retry} />;
   }
 
+  // Recovery session users should only access /reset-password
+  if (isRecoveryMode && allow !== 'public') {
+    return <Navigate to="/reset-password" replace />;
+  }
+
   // Public routes: redirect authenticated users
   if (allow === 'public') {
+    if (isRecoveryMode) return <>{children}</>;
     if (gate.status === 'unauthenticated') return <>{children}</>;
     if (gate.status === 'onboarding_needed' || gate.status === 'onboarding_in_progress') {
       return <Navigate to="/onboarding" replace />;

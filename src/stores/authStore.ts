@@ -61,18 +61,25 @@ function clearUserIdentity() {
 export interface AuthState {
   user: AppUser | null;
   loading: boolean;
+  isRecoveryMode: boolean;
   _unsubscribe: (() => void) | null;
   initialize: () => void;
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null; confirmationPending?: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
+  resetPassword: (email: string) => Promise<{ error: string | null }>;
+  updatePassword: (password: string) => Promise<{ error: string | null }>;
   updateProfile: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
+  isRecoveryMode: false,
   _unsubscribe: null,
 
   initialize: () => {
@@ -90,7 +97,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!get()._unsubscribe) {
       const {
         data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
+      } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          set({ isRecoveryMode: true });
+        }
         if (session?.user) {
           const nextUser = mapUser(session.user);
           const prevUser = get().user;
@@ -133,13 +143,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (error) return { error: friendlyError(error) };
 
-    if (data?.user) {
-      const user = mapUser(data.user);
+    // When email confirmation is enabled, Supabase returns user but no session.
+    // When the email already exists, Supabase returns a fake user with empty identities.
+    // In both cases, show "check your email" to prevent email enumeration.
+    const confirmationPending = !data.session;
+
+    if (data?.session?.user) {
+      const user = mapUser(data.session.user);
       set({ user });
       identifyUser(user);
       track('Sign Up', { method: 'email' });
     }
-    return { error: null };
+    return { error: null, confirmationPending };
   },
 
   signIn: async (email, password) => {
@@ -160,14 +175,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'global' });
     track('Sign Out');
     clearUserIdentity();
     set({ user: null });
   },
 
   updateProfile: async () => {
-    await supabase.auth.refreshSession();
+    const { data } = await supabase.auth.refreshSession();
+    if (data.session?.user) {
+      set({ user: mapUser(data.session.user) });
+    }
   },
 
   signInWithGoogle: async () => {
@@ -191,6 +209,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await Browser.open({ url: data.url });
     }
 
+    return { error: null };
+  },
+
+  resetPassword: async (email) => {
+    const isNative = Capacitor.isNativePlatform();
+    const redirectTo = isNative
+      ? 'guidedgrowth://auth/callback'
+      : window.location.origin + '/auth/callback';
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) return { error: friendlyError(error) };
+    return { error: null };
+  },
+
+  updatePassword: async (password) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return { error: friendlyError(error) };
+
+    // Invalidate the recovery session — user must re-login with new password
+    await supabase.auth.signOut();
+    clearUserIdentity();
+    set({ user: null, isRecoveryMode: false });
     return { error: null };
   },
 }));

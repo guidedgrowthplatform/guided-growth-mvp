@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   AuthBackButton,
   SocialAuthButtons,
@@ -11,14 +11,17 @@ import {
 } from '@/components/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { loginSchema, type LoginForm } from '@/lib/validation';
 
 export function SignUpPage() {
   const { signUp } = useAuth();
-  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [confirmationPending, setConfirmationPending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const emailRef = useRef('');
 
   const {
     register,
@@ -32,14 +35,77 @@ export function SignUpPage() {
   const onSubmit = async (data: LoginForm) => {
     setError(null);
     setLoading(true);
-    const { error: authError } = await signUp(data.email, data.password);
+    emailRef.current = data.email;
+    const result = await signUp(data.email, data.password);
     setLoading(false);
-    if (authError) {
-      setError(authError);
-    } else {
-      navigate('/login', { state: { message: 'Account created! You can now sign in.' } });
+    if (result.error) {
+      setError(result.error);
+    } else if (result.confirmationPending) {
+      setConfirmationPending(true);
     }
   };
+
+  const handleResend = useCallback(async () => {
+    if (resendCooldown > 0 || !emailRef.current) return;
+    const { error: resendError } = await supabase.auth.resend({
+      type: 'signup',
+      email: emailRef.current,
+    });
+    if (resendError) {
+      setError(resendError.message);
+    } else {
+      setResendCooldown(60);
+      const interval = setInterval(() => {
+        setResendCooldown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+  }, [resendCooldown]);
+
+  if (confirmationPending) {
+    return (
+      <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
+        <AuthBackButton />
+
+        <div className="mt-6">
+          <h1 className="text-[30px] font-bold tracking-tight text-content">Check Your Email</h1>
+          <p className="mt-2 text-base text-content-secondary">
+            We sent a verification link to <strong>{emailRef.current}</strong>. Click the link in
+            the email to verify your account.
+          </p>
+        </div>
+
+        <div className="mt-8 space-y-4">
+          <AuthAlert type="info" message="Didn't receive the email? Check your spam folder or resend it below." />
+          {error && <AuthAlert type="error" message={error} />}
+          <Button
+            variant="secondary"
+            size="auth"
+            fullWidth
+            onClick={handleResend}
+            disabled={resendCooldown > 0}
+          >
+            {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Verification Email'}
+          </Button>
+        </div>
+
+        <div className="flex-1" />
+
+        <div className="pb-4">
+          <p className="text-center text-sm text-content-secondary">
+            <Link to="/login" className="font-medium text-primary">
+              Back to Login
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">

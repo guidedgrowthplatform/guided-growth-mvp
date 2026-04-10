@@ -116,10 +116,43 @@ export function useUserPreferences() {
     [preferences, user],
   );
 
+  const updatePreferences = useCallback(
+    async (partial: Partial<UserPreferences>) => {
+      const next = { ...preferences, ...partial };
+      setPreferences(next);
+
+      try {
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+
+      if (!user) return;
+
+      try {
+        const { error: upsertError } = await supabase.from('user_preferences').upsert(
+          {
+            user_id: user.id,
+            preferences_json: next,
+          },
+          { onConflict: 'user_id' },
+        );
+
+        if (upsertError) {
+          setError(upsertError.message);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to save preferences');
+      }
+    },
+    [preferences, user],
+  );
+
   return {
     preferences,
     isLoading,
     error,
     updatePreference,
+    updatePreferences,
   };
 }

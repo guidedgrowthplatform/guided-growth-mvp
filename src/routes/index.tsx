@@ -43,6 +43,9 @@ const StatusPage = lazy(() =>
 const AuthCallbackPage = lazy(() =>
   import('@/pages/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage })),
 );
+const ResetPasswordPage = lazy(() =>
+  import('@/pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })),
+);
 const JournalFlowPage = lazy(() =>
   import('@/pages/JournalFlowPage').then((m) => ({ default: m.JournalFlowPage })),
 );
@@ -126,8 +129,9 @@ export function AppRoutes() {
         {/* Public status dashboard (no auth required) */}
         <Route path="/status" element={<StatusPage />} />
 
-        {/* OAuth callback (public, no auth guard) */}
+        {/* Auth callbacks (no auth guard) */}
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Onboarding (protected, no Layout) */}
         <Route

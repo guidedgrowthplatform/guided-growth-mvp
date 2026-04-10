@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as onboardingApi from '@/api/onboarding';
 import { queryKeys } from '@/lib/query';
+import { useAuthStore } from '@/stores/authStore';
 import type {
   OnboardingPath,
   OnboardingState,
@@ -37,13 +38,14 @@ export function useOnboarding() {
   const completeMutation = useMutation({
     mutationFn: (finalData?: Partial<OnboardingStepData>) =>
       onboardingApi.completeOnboarding(finalData),
-    onSuccess: () => {
+    onSuccess: async () => {
       qc.setQueryData(queryKeys.onboarding.state, (old: OnboardingState | null | undefined) =>
         old
           ? { ...old, status: 'completed' as const, completed_at: new Date().toISOString() }
           : old,
       );
-      navigate('/home', { replace: true });
+      await useAuthStore.getState().updateProfile();
+      navigate('/home', { replace: true, state: { fromOnboarding: true } });
     },
   });
 
