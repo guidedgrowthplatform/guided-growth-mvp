@@ -3,11 +3,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { submitFeedback } from '@/api/feedback';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useToast } from '@/contexts/ToastContext';
-import {
-  startElevenLabs,
-  stopAndTranscribe,
-  stopElevenLabs,
-} from '@/lib/services/elevenlabs-service';
+import { startRecording, stopAndTranscribe, stopRecording } from '@/lib/services/stt-service';
 
 type Sentiment = 'love' | 'ok' | 'needs-work';
 
@@ -35,7 +31,7 @@ export function FeedbackSheet({ onClose }: FeedbackSheetProps) {
   // recordings mid-transcription.
   useEffect(() => {
     return () => {
-      stopElevenLabs();
+      stopRecording();
     };
   }, []);
 
@@ -50,7 +46,7 @@ export function FeedbackSheet({ onClose }: FeedbackSheetProps) {
           setText((prev) => (prev ? `${prev} ${transcript.trim()}` : transcript.trim()));
         } else {
           // Empty transcript can happen if the recording was cleaned up
-          // (e.g. component unmounted mid-record, or stopElevenLabs was
+          // (e.g. component unmounted mid-record, or stopRecording was
           // called before stopAndTranscribe). Surface a friendly nudge
           // instead of leaving the user with no feedback.
           addToast('error', "I didn't catch that — could you try again?");
@@ -71,7 +67,7 @@ export function FeedbackSheet({ onClose }: FeedbackSheetProps) {
 
     // Start recording
     try {
-      await startElevenLabs({
+      await startRecording({
         onOpen: () => setRecording(true),
         onError: (error) => {
           setRecording(false);
@@ -105,7 +101,7 @@ export function FeedbackSheet({ onClose }: FeedbackSheetProps) {
     // If the user closes the sheet mid-recording, cancel the mic cleanly.
     // Do NOT cancel during transcribing — the user is waiting for the
     // API response and closing mid-fetch would leave them confused.
-    if (recording) stopElevenLabs();
+    if (recording) stopRecording();
     if (transcribing) return; // block close until transcription settles
     onClose();
   };

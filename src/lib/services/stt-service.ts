@@ -1,11 +1,12 @@
-// Server-side proxy at /api/elevenlabs-stt keeps API key secure
+// STT recording service — captures mic audio, encodes WAV, sends to STT API
+// Originally built for ElevenLabs Scribe, being migrated to Cartesia Ink
 import { Capacitor } from '@capacitor/core';
 import { supabase, sessionReady } from '@/lib/supabase';
 
 function getApiBase(): string {
   if (Capacitor.isNativePlatform()) {
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    console.error('[ElevenLabs] VITE_API_URL not set — STT will fail on native');
+    console.error('[STT] VITE_API_URL not set — STT will fail on native');
   }
   return '';
 }
@@ -35,7 +36,7 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return {};
 }
 
-export interface ElevenLabsCallbacks {
+export interface SttCallbacks {
   onError: (error: string) => void;
   onOpen: () => void;
 }
@@ -263,7 +264,7 @@ function setupScriptProcessorFallback(
   ctx: AudioContext,
   source: MediaStreamAudioSourceNode,
   maxChunks: number,
-  callbacks: ElevenLabsCallbacks,
+  callbacks: SttCallbacks,
 ): void {
   const node = ctx.createScriptProcessor(4096, 1, 1);
   node.onaudioprocess = (e: AudioProcessingEvent) => {
@@ -273,7 +274,7 @@ function setupScriptProcessorFallback(
     if (captureNode === null) return;
     if (audioChunks.length >= maxChunks) {
       callbacks.onError('Recording exceeded 60 seconds. Stopped automatically.');
-      stopElevenLabs();
+      stopRecording();
       return;
     }
     audioChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
@@ -286,7 +287,7 @@ function setupScriptProcessorFallback(
   captureNode = node;
 }
 
-export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<void> {
+export async function startRecording(callbacks: SttCallbacks): Promise<void> {
   if (isActive) return;
   isActive = true;
   isTranscribing = false; // Reset stuck state from previous session
@@ -342,7 +343,7 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
           totalSamples += chunk.length;
           if (totalSamples >= maxRecordingSamples) {
             callbacks.onError('Recording exceeded 60 seconds. Stopped automatically.');
-            stopElevenLabs();
+            stopRecording();
             return;
           }
           audioChunks.push(chunk);
@@ -381,7 +382,7 @@ export async function startElevenLabs(callbacks: ElevenLabsCallbacks): Promise<v
 export async function stopAndTranscribe(): Promise<string> {
   // If already transcribing, wait briefly then bail — prevents stuck state
   if (isTranscribing) {
-    console.warn('[ElevenLabs] stopAndTranscribe called while already transcribing');
+    console.warn('[STT] stopAndTranscribe called while already transcribing');
     return '';
   }
   const wasActive = isActive;
@@ -457,6 +458,7 @@ export async function stopAndTranscribe(): Promise<string> {
     let res: Response;
     try {
       res = await fetch(`${getApiBase()}/api/elevenlabs-stt`, {
+        // TODO: migrate to /api/cartesia-stt
         method: 'POST',
         headers: authHeaders,
         body: form,
@@ -475,7 +477,7 @@ export async function stopAndTranscribe(): Promise<string> {
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || `ElevenLabs API error: ${res.status}`);
+      throw new Error(errData.error || `STT API error: ${res.status}`);
     }
 
     const data = await res.json();
@@ -487,7 +489,7 @@ export async function stopAndTranscribe(): Promise<string> {
     // and look for known hallucination phrases. If we detect one, tell
     // the user to try again instead of processing garbage.
     if (text && looksHallucinated(text, durationSeconds)) {
-      console.warn('[ElevenLabs] Rejected likely hallucination:', {
+      console.warn('[STT] Rejected likely hallucination:', {
         duration: durationSeconds.toFixed(2),
         wordCount: text.split(/\s+/).length,
         preview: text.slice(0, 80),
@@ -501,7 +503,7 @@ export async function stopAndTranscribe(): Promise<string> {
   }
 }
 
-export function stopElevenLabs(): void {
+export function stopRecording(): void {
   isActive = false;
   isTranscribing = false;
   cleanupAudioResources();

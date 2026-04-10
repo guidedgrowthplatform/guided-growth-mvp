@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AgeScrollPicker } from '@/components/onboarding/AgeScrollPicker';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
@@ -17,7 +16,7 @@ export function Step1Page() {
   const navigate = useNavigate();
   const { state: onboardingState, saveStep } = useOnboarding();
   const [nickname, setNickname] = useState('');
-  const [age, setAge] = useState<number>(35);
+  const [age, setAge] = useState<number | ''>('');
   const [gender, setGender] = useState<string | null>(null);
   const [referralSource, setReferralSource] = useState<string | null>(null);
   const [referralOtherText, setReferralOtherText] = useState('');
@@ -27,7 +26,7 @@ export function Step1Page() {
       if (onboardingState.data.nickname) setNickname(onboardingState.data.nickname as string);
       if (onboardingState.data.age) setAge(onboardingState.data.age as number);
       // Support legacy ageRange data
-      if (onboardingState.data.ageRange && !onboardingState.data.age) setAge(35);
+      if (onboardingState.data.ageRange && !onboardingState.data.age) setAge('');
       if (onboardingState.data.gender) setGender(onboardingState.data.gender as string);
       if (onboardingState.data.referralSource)
         setReferralSource(onboardingState.data.referralSource as string);
@@ -41,7 +40,13 @@ export function Step1Page() {
       referralSource === 'Other' && referralOtherText.trim()
         ? `Other: ${referralOtherText.trim()}`
         : referralSource;
-    saveStep(1, { nickname, age, gender, referralSource: effectiveReferral, referralOtherText });
+    saveStep(1, {
+      nickname,
+      age: age === '' ? undefined : age,
+      gender,
+      referralSource: effectiveReferral,
+      referralOtherText,
+    });
     navigate('/onboarding/step-2');
   }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep]);
 
@@ -64,8 +69,8 @@ export function Step1Page() {
         const parsed = parseInt(voiceAge, 10);
         if (!isNaN(parsed)) setAge(parsed);
       } else if (typeof voiceAgeRange === 'string') {
-        // Legacy voice support
-        setAge(35);
+        // Legacy voice support — leave age for user to fill
+        setAge('');
       }
       if (typeof voiceGender === 'string') {
         setGender(voiceGender);
@@ -86,6 +91,7 @@ export function Step1Page() {
       showVoiceButton
       onTranscript={(text) => setNickname(text)}
       voiceOptions={[...GENDER_OPTIONS, ...REFERRAL_OPTIONS, 'name', 'nickname']}
+      voiceFileId="ONBOARD-01"
       voicePrompt="Hey — welcome. Before we build anything, I just want to get to know you a little. What should I call you, how old are you, and how did you hear about us? You can just say it or type it in."
       onVoiceAction={handleVoiceAction}
       showTooltip
@@ -103,7 +109,25 @@ export function Step1Page() {
         />
       </OnboardingSection>
       <OnboardingSection label="How old are you?">
-        <AgeScrollPicker value={age} onChange={setAge} />
+        <div className="relative w-full rounded-[16px] bg-surface px-[22px] py-[14px] shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)]">
+          <input
+            type="number"
+            min={13}
+            max={120}
+            value={age}
+            placeholder="Enter your age"
+            onChange={(e) => {
+              if (e.target.value === '') {
+                setAge('');
+                return;
+              }
+              const val = parseInt(e.target.value, 10);
+              if (!isNaN(val)) setAge(val);
+            }}
+            className="w-full bg-transparent text-[18px] text-content outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            aria-label="Your age"
+          />
+        </div>
       </OnboardingSection>
       <OnboardingSection label="How do you identify?">
         <ChipSelect options={GENDER_OPTIONS} value={gender} onChange={setGender} columns={3} />

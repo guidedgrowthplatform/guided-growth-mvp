@@ -3,6 +3,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { ToastProvider } from '@/contexts/ToastContext';
+import { VoiceProvider } from '@/contexts/VoiceContext';
 import { queryClient } from '@/lib/query';
 import { AppRoutes } from '@/routes';
 import { useAuthStore } from '@/stores/authStore';
@@ -15,9 +16,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
-        <ToastProvider>
-          <AppRoutes />
-        </ToastProvider>
+        <VoiceProvider>
+          <ToastProvider>
+            <AppRoutes />
+          </ToastProvider>
+        </VoiceProvider>
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </BrowserRouter>

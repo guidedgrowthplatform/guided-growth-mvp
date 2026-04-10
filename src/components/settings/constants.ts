@@ -2,8 +2,8 @@ import type { RecordingMode, SttProvider } from '@/stores/voiceSettingsStore';
 
 export const sttOptions: { value: SttProvider; label: string; description: string }[] = [
   {
-    value: 'elevenlabs',
-    label: 'ElevenLabs Scribe v2',
+    value: 'cartesia',
+    label: 'Cartesia Ink',
     description: 'Cloud-based high-accuracy STT with AI transcript correction.',
   },
 ];
@@ -68,7 +68,7 @@ export const languages = [
 ];
 
 export const sttLabels: Record<string, string> = {
-  elevenlabs: 'ElevenLabs Scribe v2',
+  cartesia: 'Cartesia Ink',
 };
 
 export const modeLabels: Record<string, string> = {
