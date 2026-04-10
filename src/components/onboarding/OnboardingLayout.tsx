@@ -53,6 +53,7 @@ export function OnboardingLayout({
 }: OnboardingLayoutProps) {
   const { isListening, toggle, transcript, interim, error, resetTranscript } = useVoiceInput();
   const [overlayOpen, setOverlayOpen] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(true);
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
   );
@@ -82,7 +83,7 @@ export function OnboardingLayout({
       setOverlayOpen(true);
       setTooltipVisible(false);
       // Speak the prompt first time overlay opens (user gesture = always works)
-      if (!hasSpokePrompt.current && voicePrompt) {
+      if (!hasSpokePrompt.current && voicePrompt && ttsEnabled) {
         hasSpokePrompt.current = true;
         speak(voicePrompt);
       }
@@ -92,6 +93,11 @@ export function OnboardingLayout({
       // Fallback to old inline voice behavior
       toggle();
     }
+  };
+
+  const handleToggleTts = () => {
+    if (ttsEnabled) stopTTS();
+    setTtsEnabled((v) => !v);
   };
 
   const handleVoiceAction = (result: OnboardingVoiceResult) => {
@@ -113,7 +119,7 @@ export function OnboardingLayout({
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-secondary px-6 pb-[48px] pt-[max(16px,env(safe-area-inset-top))]">
+    <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[48px] pt-[max(16px,env(safe-area-inset-top))]">
       {overlayOpen && (
         <OnboardingVoiceOverlay
           stepContext={{
@@ -125,6 +131,7 @@ export function OnboardingLayout({
           onClose={() => setOverlayOpen(false)}
           messages={voiceMessages}
           setMessages={setVoiceMessages}
+          ttsEnabled={ttsEnabled}
         />
       )}
 
@@ -145,55 +152,67 @@ export function OnboardingLayout({
       </div>
       {ctaVariant === 'full' ? (
         <>
-          {showVoiceButton && (
-            <div className="flex flex-col items-center gap-2 py-4">
-              <div className="relative">
-                {tooltipVisible && (
-                  <VoiceTooltip autoDismissMs={4000} onDismiss={handleTooltipDismiss} />
-                )}
+          <div className="flex items-center gap-[10px]">
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={ctaDisabled}
+              className="flex h-[56px] flex-1 items-center justify-center gap-2 rounded-full bg-primary text-[18px] font-medium leading-[28px] text-white shadow-[0px_20px_25px_-5px_rgba(26,47,176,0.2),0px_8px_10px_-6px_rgba(26,47,176,0.2)] transition-opacity disabled:opacity-50"
+            >
+              {ctaLabel}
+            </button>
+
+            {showVoiceButton && (
+              <>
+                {/* TTS speaker toggle */}
                 <button
                   type="button"
-                  onClick={handleMicClick}
-                  className={`flex h-[56px] w-[56px] items-center justify-center rounded-full shadow-[0px_0px_15px_0px_rgba(19,91,236,0.3)] transition-colors ${
-                    isListening && !onVoiceAction ? 'bg-red-500' : ''
+                  onClick={handleToggleTts}
+                  className={`flex size-[52px] shrink-0 items-center justify-center rounded-full transition-colors ${
+                    ttsEnabled ? 'bg-primary' : 'bg-surface-secondary'
                   }`}
-                  style={
-                    isListening && !onVoiceAction
-                      ? undefined
-                      : { background: 'linear-gradient(135deg, #135bec 0%, #2563eb 100%)' }
-                  }
                 >
                   <Icon
-                    icon={isListening && !onVoiceAction ? 'ic:round-stop' : 'ic:round-mic'}
+                    icon={ttsEnabled ? 'ic:round-volume-up' : 'ic:round-volume-off'}
                     width={22}
                     height={22}
-                    className="text-white"
+                    className={ttsEnabled ? 'text-white' : 'text-content-tertiary'}
                   />
                 </button>
-              </div>
-              {isListening && !onVoiceAction && (
-                <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>
-              )}
-              {interim && !isListening && !onVoiceAction && (
-                <p className="text-xs text-content-secondary">{interim}</p>
-              )}
-              {transcript && !onVoiceAction && (
-                <p className="max-w-[280px] text-center text-sm text-content">{transcript}</p>
-              )}
-              {error && !onVoiceAction && (
-                <p className="max-w-[280px] text-center text-xs text-red-500">{error}</p>
-              )}
+
+                {/* Mic toggle */}
+                <div className="relative shrink-0">
+                  {tooltipVisible && (
+                    <VoiceTooltip autoDismissMs={4000} onDismiss={handleTooltipDismiss} />
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleMicClick}
+                    className={`flex size-[52px] items-center justify-center rounded-full transition-colors ${
+                      isListening ? 'bg-primary' : 'bg-surface-secondary'
+                    }`}
+                  >
+                    <Icon
+                      icon={isListening ? 'ic:round-mic' : 'ic:round-mic-off'}
+                      width={22}
+                      height={22}
+                      className={isListening ? 'text-white' : 'text-content-tertiary'}
+                    />
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {showVoiceButton && !onVoiceAction && (isListening || interim || transcript || error) && (
+            <div className="mt-2 flex flex-col items-center gap-1">
+              {isListening && <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>}
+              {interim && !isListening && <p className="text-xs text-content-secondary">{interim}</p>}
+              {transcript && <p className="max-w-[280px] text-center text-sm text-content">{transcript}</p>}
+              {error && <p className="max-w-[280px] text-center text-xs text-danger">{error}</p>}
             </div>
           )}
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={ctaDisabled}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-[20px] text-[18px] font-medium leading-[28px] text-white shadow-[0px_20px_25px_-5px_rgba(26,47,176,0.2),0px_8px_10px_-6px_rgba(26,47,176,0.2)] disabled:opacity-50"
-          >
-            {ctaLabel}
-            <Icon icon="ic:round-arrow-forward" width={18} height={18} />
-          </button>
+
           {secondaryAction && (
             <button
               type="button"
@@ -205,7 +224,7 @@ export function OnboardingLayout({
           )}
         </>
       ) : (
-        <div className="relative -mx-6 -mb-12 bg-gradient-to-t from-surface-secondary via-surface-secondary to-transparent px-6 pb-[40px] pt-[24px]">
+        <div className="relative -mx-6 -mb-12 bg-gradient-to-t from-surface via-surface to-transparent px-6 pb-[40px] pt-[24px]">
           {aiListeningPrompt && !overlayOpen && (
             <div className="absolute bottom-full right-[24px] z-10 mb-[-8px]">
               <AiListeningTooltip
@@ -214,7 +233,7 @@ export function OnboardingLayout({
               />
             </div>
           )}
-          <div className="flex items-center gap-[8px]">
+          <div className="flex items-center gap-[10px]">
             <button
               type="button"
               onClick={handleNext}
@@ -224,20 +243,36 @@ export function OnboardingLayout({
               {ctaLabel}
             </button>
             {showVoiceButton && (
-              <button
-                type="button"
-                onClick={handleMicClick}
-                className={`flex size-[56px] shrink-0 items-center justify-center rounded-full shadow-[0px_25px_50px_-12px_rgba(19,91,236,0.4)] transition-colors ${
-                  isListening && !onVoiceAction ? 'bg-red-500' : 'bg-primary'
-                }`}
-              >
-                <Icon
-                  icon={isListening && !onVoiceAction ? 'ic:round-stop' : 'ic:round-mic'}
-                  width={22}
-                  height={22}
-                  className="text-white"
-                />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleToggleTts}
+                  className={`flex size-[52px] shrink-0 items-center justify-center rounded-full transition-colors ${
+                    ttsEnabled ? 'bg-primary' : 'bg-surface-secondary'
+                  }`}
+                >
+                  <Icon
+                    icon={ttsEnabled ? 'ic:round-volume-up' : 'ic:round-volume-off'}
+                    width={22}
+                    height={22}
+                    className={ttsEnabled ? 'text-white' : 'text-content-tertiary'}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleMicClick}
+                  className={`flex size-[52px] shrink-0 items-center justify-center rounded-full transition-colors ${
+                    isListening ? 'bg-primary' : 'bg-surface-secondary'
+                  }`}
+                >
+                  <Icon
+                    icon={isListening ? 'ic:round-mic' : 'ic:round-mic-off'}
+                    width={22}
+                    height={22}
+                    className={isListening ? 'text-white' : 'text-content-tertiary'}
+                  />
+                </button>
+              </>
             )}
           </div>
           {(transcript || interim || error) &&

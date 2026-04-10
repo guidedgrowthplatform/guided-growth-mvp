@@ -5,7 +5,7 @@ import { SECTION_LABEL_CLASS, toggleSetItem } from '@/components/onboarding/cons
 import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { VoiceEditCard } from '@/components/onboarding/VoiceEditCard';
 import { DayPicker } from '@/components/ui/DayPicker';
-import { TimePicker } from '@/components/ui/TimePicker';
+import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { speak, speakWhenReady, stopTTS } from '@/lib/services/tts-service';
 
@@ -36,6 +36,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
 
   const [name, setName] = useState(state.habitName);
   const [time, setTime] = useState(state.time || '21:45');
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [days, setDays] = useState<Set<number>>(new Set(state.days));
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -123,17 +124,21 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={100}
-              className="w-full rounded-[12px] border border-border bg-white px-[17px] py-[15px] text-[16px] font-medium leading-[24px] text-content outline-none"
+              className="w-full rounded-[12px] border border-border bg-surface-secondary px-[17px] py-[15px] text-[16px] font-medium leading-[24px] text-content outline-none"
             />
           </div>
 
           {/* When? */}
           <div className="flex flex-col gap-[16px]">
             <span className={SECTION_LABEL_CLASS}>When?</span>
-            <div className="flex w-full items-center justify-between rounded-[24px] border border-primary bg-primary/5 px-[21px] py-[15px]">
-              <TimePicker value={time} onChange={setTime} />
+            <button
+              type="button"
+              onClick={() => setTimePickerOpen(true)}
+              className="flex w-full items-center justify-between rounded-[24px] border border-primary bg-surface px-[21px] py-[15px]"
+            >
+              <span className="text-[15px] font-bold text-content">{formatTime12(time)}</span>
               <Icon icon="ic:round-access-time" width={20} height={20} className="text-primary" />
-            </div>
+            </button>
           </div>
 
           {/* How Often? */}
@@ -165,6 +170,14 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
 
       {showDeleteModal && (
         <DeleteHabitModal onDelete={handleDelete} onKeep={() => setShowDeleteModal(false)} />
+      )}
+
+      {timePickerOpen && (
+        <TimePickerSheet
+          value={time}
+          onChange={setTime}
+          onClose={() => setTimePickerOpen(false)}
+        />
       )}
     </div>
   );

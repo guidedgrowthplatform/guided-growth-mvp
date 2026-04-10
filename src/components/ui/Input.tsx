@@ -10,7 +10,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 const variantStyles = {
   default: 'rounded-md border border-border bg-surface px-3 py-2 text-sm',
-  auth: 'rounded-[24px] h-14 px-5 text-base bg-white border-border shadow-[0px_0px_0px_1px_rgb(var(--color-border))]',
+  auth: 'rounded-[24px] h-14 px-5 text-base bg-white text-gray-900 placeholder:text-gray-400 border-border shadow-[0px_0px_0px_1px_rgb(var(--color-border))]',
 } as const;
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(

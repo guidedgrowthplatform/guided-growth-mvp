@@ -22,7 +22,7 @@ export function ChipSelect({ options, value, onChange, columns = 3 }: ChipSelect
               type="button"
               onClick={() => onChange(option)}
               className={`flex-1 whitespace-nowrap rounded-full px-[12px] py-[10px] text-center text-[14px] font-bold leading-[20px] transition-colors ${
-                value === option ? 'bg-primary text-white' : 'bg-white text-content-subtle'
+                value === option ? 'bg-primary text-white' : 'bg-surface-secondary text-content-subtle'
               }`}
             >
               {option}

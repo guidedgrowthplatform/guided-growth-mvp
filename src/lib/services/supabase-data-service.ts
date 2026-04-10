@@ -28,7 +28,7 @@ function getCurrentUserId(): string {
 }
 
 export class SupabaseDataService implements DataService {
-  async createHabit(name: string, frequency = 'daily'): Promise<Habit> {
+  async createHabit(name: string, frequency = 'daily', scheduleDays?: number[]): Promise<Habit> {
     if (name.length > 100) throw new Error('Habit name too long (max 100 characters)');
 
     const existing = await this.getHabitByName(name);
@@ -54,8 +54,9 @@ export class SupabaseDataService implements DataService {
                 : frequency === 'weekdays'
                   ? 'weekdays'
                   : 'daily',
+        schedule_days: scheduleDays ?? null,
         is_active: true,
-        sort_order: 9999, // Put new habits at end; reorder will fix
+        sort_order: 9999,
       })
       .select()
       .single();
@@ -66,6 +67,7 @@ export class SupabaseDataService implements DataService {
       id: data.id,
       name: data.name,
       frequency: data.cadence,
+      scheduleDays: data.schedule_days ?? null,
       createdAt: data.created_at,
       active: data.is_active,
     };
@@ -86,6 +88,7 @@ export class SupabaseDataService implements DataService {
       id: h.id,
       name: h.name,
       frequency: h.cadence,
+      scheduleDays: h.schedule_days ?? null,
       createdAt: h.created_at,
       active: h.is_active,
     }));
@@ -105,6 +108,7 @@ export class SupabaseDataService implements DataService {
       id: h.id,
       name: h.name,
       frequency: h.cadence,
+      scheduleDays: h.schedule_days ?? null,
       createdAt: h.created_at,
       active: h.is_active,
     }));
@@ -126,6 +130,7 @@ export class SupabaseDataService implements DataService {
       id: data.id,
       name: data.name,
       frequency: data.cadence,
+      scheduleDays: data.schedule_days ?? null,
       createdAt: data.created_at,
       active: data.is_active,
     };
@@ -153,6 +158,7 @@ export class SupabaseDataService implements DataService {
       id: row.id,
       name: row.name,
       frequency: row.cadence,
+      scheduleDays: row.schedule_days ?? null,
       createdAt: row.created_at,
       active: row.is_active,
     };
@@ -182,6 +188,7 @@ export class SupabaseDataService implements DataService {
       id: data.id,
       name: data.name,
       frequency: data.cadence,
+      scheduleDays: data.schedule_days ?? null,
       createdAt: data.created_at,
       active: data.is_active,
     };

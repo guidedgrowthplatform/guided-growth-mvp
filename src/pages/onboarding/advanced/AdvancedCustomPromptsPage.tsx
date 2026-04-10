@@ -162,7 +162,7 @@ export function AdvancedCustomPromptsPage() {
                       type="text"
                       value={prompt}
                       onChange={(e) => updatePrompt(i, e.target.value)}
-                      className="flex-1 rounded-[12px] border border-border bg-white px-[17px] py-[13px] text-[16px] leading-[24px] text-content shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
+                      className="flex-1 rounded-[12px] border border-border bg-surface-secondary px-[17px] py-[13px] text-[16px] leading-[24px] text-content shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
                     />
                     <button
                       type="button"
@@ -202,7 +202,7 @@ export function AdvancedCustomPromptsPage() {
                     }
                   }}
                   placeholder="Type your next prompt here..."
-                  className="w-full rounded-[12px] border border-border bg-white px-[17px] py-[11px] text-[14px] text-content shadow-[0px_1px_2px_rgba(0,0,0,0.05)] placeholder:text-content-secondary"
+                  className="w-full rounded-[12px] border border-border bg-surface-secondary px-[17px] py-[11px] text-[14px] text-content shadow-[0px_1px_2px_rgba(0,0,0,0.05)] placeholder:text-content-secondary"
                 />
                 <p className="px-[4px] text-[12px] leading-[16px] text-content-secondary">
                   Or just tap the mic and say your prompts out loud. We'll list them for you.

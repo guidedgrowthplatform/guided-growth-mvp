@@ -107,12 +107,13 @@ function calcStreaks(completions: HabitCompletion[]): { current: number; longest
 
 export class MockDataService implements DataService {
   // ─── Habits ───
-  async createHabit(name: string, frequency = 'daily'): Promise<Habit> {
+  async createHabit(name: string, frequency = 'daily', scheduleDays?: number[]): Promise<Habit> {
     const habits = getStore<Habit>(STORAGE_KEYS.habits);
     const habit: Habit = {
       id: generateId(),
       name,
       frequency,
+      scheduleDays: scheduleDays ?? null,
       createdAt: new Date().toISOString(),
       active: true,
     };

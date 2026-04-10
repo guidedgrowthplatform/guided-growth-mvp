@@ -37,6 +37,7 @@ export type MetricCreate = Pick<Metric, 'name' | 'input_type' | 'question' | 'fr
   active?: boolean;
   target_value?: number | null;
   target_unit?: string | null;
+  schedule_days?: number[];
 };
 
 export type MetricUpdate = Partial<
@@ -183,7 +184,7 @@ export interface OnboardingStepData {
   goals?: string[] | null;
   habitConfigs?: Record<
     string,
-    { days: number[] | Set<number>; time: string; reminder: boolean }
+    { days: number[] | Set<number>; time: string; reminder: boolean; schedule?: string }
   > | null;
   reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string } | null;
 }
