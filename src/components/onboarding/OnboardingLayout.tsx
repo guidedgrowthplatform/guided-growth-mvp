@@ -7,6 +7,7 @@ import {
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 import { speak, stopTTS, unlockTTS } from '@/lib/services/tts-service';
 import { AiListeningTooltip } from './AiListeningTooltip';
 import { OnboardingProgress } from './OnboardingProgress';
@@ -28,6 +29,7 @@ interface OnboardingLayoutProps {
   // New voice overlay props
   voiceOptions?: string[];
   voicePrompt?: string;
+  voiceFileId?: string;
   onVoiceAction?: (result: OnboardingVoiceResult) => void;
   showTooltip?: boolean;
 }
@@ -48,6 +50,7 @@ export function OnboardingLayout({
   secondaryAction,
   voiceOptions = [],
   voicePrompt = '',
+  voiceFileId,
   onVoiceAction,
   showTooltip = false,
 }: OnboardingLayoutProps) {
@@ -56,6 +59,18 @@ export function OnboardingLayout({
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
   );
+
+  const voicePlayer = useVoicePlayer();
+
+  useEffect(() => {
+    if (voiceFileId) {
+      voicePlayer.play(voiceFileId).catch((err) => {
+        console.warn('[OnboardingLayout] Voice autoplay blocked or failed:', err);
+      });
+    }
+    // Only run on mount or when fileId changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceFileId]);
 
   // Persist voice chat messages across overlay open/close
   const [voiceMessages, setVoiceMessages] = useState<VoiceMessage[]>(() => [

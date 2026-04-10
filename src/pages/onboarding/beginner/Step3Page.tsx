@@ -53,6 +53,7 @@ export function Step3Page() {
       aiListeningPrompt='"What is the main category you would like to focus on?"'
       ctaDisabled={!selected}
       voiceOptions={categoryLabels}
+      voiceFileId="ONBOARD-03"
       voicePrompt="So — what feels most worth improving right now? Don't overthink it. There's no wrong answer. Just pick the one that pulls you."
       onVoiceAction={handleVoiceAction}
     >
