@@ -56,7 +56,7 @@ export function HabitsPage() {
             onClick={() => navigate(-1)}
             className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-surface-secondary active:bg-surface-secondary"
           >
-            <Icon icon="mdi:chevron-left" className="h-6 w-6 text-[#1a1a1a]" />
+            <Icon icon="mdi:chevron-left" className="h-6 w-6 text-content" />
           </button>
           <h1 className="text-[28px] font-semibold leading-tight text-content">My Habits</h1>
         </div>

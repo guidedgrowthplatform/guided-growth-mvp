@@ -10,17 +10,17 @@ interface HabitManageCardProps {
 }
 
 const emojiColors: Record<string, string> = {
-  M: 'bg-blue-100',
-  D: 'bg-amber-100',
-  R: 'bg-emerald-100',
-  A: 'bg-purple-100',
-  W: 'bg-rose-100',
-  S: 'bg-cyan-100',
+  M: 'bg-blue-100 dark:bg-blue-900/40',
+  D: 'bg-amber-100 dark:bg-amber-900/40',
+  R: 'bg-emerald-100 dark:bg-emerald-900/40',
+  A: 'bg-purple-100 dark:bg-purple-900/40',
+  W: 'bg-rose-100 dark:bg-rose-900/40',
+  S: 'bg-cyan-100 dark:bg-cyan-900/40',
 };
 
 function getEmojiAndColor(name: string) {
   const firstChar = name.charAt(0).toUpperCase();
-  const bg = emojiColors[firstChar] || 'bg-slate-100';
+  const bg = emojiColors[firstChar] || 'bg-slate-100 dark:bg-slate-800';
   return { letter: firstChar, bg };
 }
 
@@ -59,16 +59,16 @@ export function HabitManageCard({ metric, onToggleActive, onMore, onClick }: Hab
     <div
       className={`flex items-center gap-3 rounded-2xl p-4 transition-all duration-300 ${
         isActive
-          ? 'bg-surface shadow-[0_4px_20px_-2px_rgba(19,91,236,0.08)]'
-          : 'border border-[#f1f5f9] bg-[#f8fafc] opacity-70'
+          ? 'bg-surface shadow-card'
+          : 'border border-border-light bg-surface-secondary opacity-70'
       }`}
       onClick={() => onClick(metric.id)}
       role="button"
       tabIndex={0}
     >
       <div
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl font-bold ${
-          isActive ? bg : 'bg-slate-100'
+        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl font-bold text-content ${
+          isActive ? bg : 'bg-slate-100 dark:bg-slate-800'
         }`}
       >
         {letter}
@@ -77,12 +77,12 @@ export function HabitManageCard({ metric, onToggleActive, onMore, onClick }: Hab
       <div className="min-w-0 flex-1">
         <p
           className={`truncate text-base font-bold ${
-            isActive ? 'text-[#0f172a]' : 'text-[#94a3b8]'
+            isActive ? 'text-content' : 'text-content-muted'
           }`}
         >
           {metric.name}
         </p>
-        <p className="text-xs font-medium text-[#94a3b8]">{formatSubtitle(metric)}</p>
+        <p className="text-xs font-medium text-content-secondary">{formatSubtitle(metric)}</p>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
@@ -90,7 +90,7 @@ export function HabitManageCard({ metric, onToggleActive, onMore, onClick }: Hab
           <Toggle checked={isActive} onChange={() => onToggleActive(metric.id)} />
         </div>
         <button
-          className="rounded-full p-1 text-content-secondary hover:bg-slate-100"
+          className="rounded-full p-1 text-content-secondary hover:bg-surface-secondary"
           onClick={(e) => {
             e.stopPropagation();
             onMore(metric.id);

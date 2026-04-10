@@ -29,7 +29,7 @@ export function HabitDetailTopBar({
   }, [showMenu]);
 
   return (
-    <div className="sticky top-0 z-10 rounded-t-3xl bg-surface px-6 pb-2 pt-4">
+    <div className="sticky top-0 z-10 rounded-t-3xl bg-surface-secondary px-6 pb-2 pt-4">
       <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border" />
       <div className="flex items-center justify-end gap-2">
         {/* Three-dot menu with delete */}

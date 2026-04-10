@@ -15,13 +15,6 @@
  *     after a page reload. The signup step therefore degrades to WARN rather
  *     than failing if the redirect away from /signup does not happen.
  *
- * Note: this project uses Supabase Auth directly from the client
- * (`supabase.auth.signInWithPassword` in src/stores/authStore.ts). It does
- * NOT have a Better Auth server (no api/auth/* routes exist), so this test
- * does not — and should not — call any /api/auth/* endpoints. An earlier
- * version of this header incorrectly listed Better Auth endpoints as known
- * production bugs; that was a stale carry-over from a previous architecture.
- *
  * Screenshots saved to: e2e/screenshots/journey/
  */
 
@@ -101,7 +94,6 @@ function attachErrorCollector(page: Page): { errors: string[] } {
     'service-worker',
     'ServiceWorker',
     'workbox',
-    'better-auth',
     'FUNCTION_INVOCATION_FAILED',
     'ChunkLoadError',
     'Loading chunk',
@@ -941,7 +933,6 @@ test.describe('Full User Journey', () => {
         'supabase',
         'AuthApiError',
         'Failed to fetch',
-        'better-auth',
         'net::ERR',
         'FUNCTION_INVOCATION',
       ];

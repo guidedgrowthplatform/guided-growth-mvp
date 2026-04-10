@@ -1,4 +1,4 @@
-import { Lightbulb } from 'lucide-react';
+import { Bell, Lightbulb } from 'lucide-react';
 import { useState } from 'react';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { InfoBox } from '@/components/ui/InfoBox';
@@ -7,6 +7,10 @@ import { Toggle } from '@/components/ui/Toggle';
 
 interface ReminderSheetProps {
   onClose: () => void;
+  initialMorningTime?: string;
+  initialNightTime?: string;
+  initialPushNotifications?: boolean;
+  onSave?: (data: { morningTime: string; nightTime: string; pushNotifications: boolean }) => void;
 }
 
 interface ReminderCardProps {
@@ -29,7 +33,7 @@ function ReminderCard({
   onToggle,
 }: ReminderCardProps) {
   return (
-    <div className="flex flex-col gap-2 border border-gray-100 p-[17px] shadow-sm">
+    <div className="flex flex-col gap-2 rounded-2xl border border-gray-100 p-[17px] shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={`flex h-10 w-10 items-center justify-center rounded-full ${iconBg}`}>
@@ -49,11 +53,23 @@ function ReminderCard({
   );
 }
 
-export function ReminderSheet({ onClose }: ReminderSheetProps) {
-  const [morningTime, setMorningTime] = useState('07:15');
-  const [nightTime, setNightTime] = useState('21:50');
+export function ReminderSheet({
+  onClose,
+  initialMorningTime = '07:15',
+  initialNightTime = '21:50',
+  initialPushNotifications = true,
+  onSave,
+}: ReminderSheetProps) {
+  const [morningTime, setMorningTime] = useState(initialMorningTime);
+  const [nightTime, setNightTime] = useState(initialNightTime);
   const [morningReminder, setMorningReminder] = useState(true);
   const [nightReminder, setNightReminder] = useState(true);
+  const [pushNotifications, setPushNotifications] = useState(initialPushNotifications);
+
+  const handleSave = (close: () => void) => {
+    onSave?.({ morningTime, nightTime, pushNotifications });
+    close();
+  };
 
   return (
     <BottomSheet onClose={onClose}>
@@ -92,10 +108,21 @@ export function ReminderSheet({ onClose }: ReminderSheetProps) {
               reminderEnabled={nightReminder}
               onToggle={setNightReminder}
             />
+
+            {/* Push Notifications */}
+            <div className="flex items-center justify-between rounded-2xl border border-gray-100 p-[17px] shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f0fdf4]">
+                  <Bell className="h-5 w-5 text-green-600" />
+                </div>
+                <span className="text-base font-bold text-content">Push Notifications</span>
+              </div>
+              <Toggle checked={pushNotifications} onChange={setPushNotifications} />
+            </div>
           </div>
 
           <button
-            onClick={close}
+            onClick={() => handleSave(close)}
             className="w-full rounded-full bg-primary py-4 text-lg font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)] transition-colors hover:bg-primary-dark"
           >
             Save Reminders

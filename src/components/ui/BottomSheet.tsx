@@ -5,11 +5,12 @@ interface BottomSheetProps {
   children: ReactNode | ((close: () => void) => ReactNode);
   topOffset?: string;
   showHandle?: boolean;
+  preventClose?: boolean;
 }
 
 const DRAG_CLOSE_THRESHOLD = 100;
 
-export function BottomSheet({ onClose, children, topOffset, showHandle = true }: BottomSheetProps) {
+export function BottomSheet({ onClose, children, topOffset, showHandle = true, preventClose = false }: BottomSheetProps) {
   const [phase, setPhase] = useState<'entering' | 'open' | 'exiting'>('entering');
   const [dragY, setDragY] = useState(0);
   const dragStartY = useRef(0);
@@ -30,8 +31,9 @@ export function BottomSheet({ onClose, children, topOffset, showHandle = true }:
   }, []);
 
   const handleClose = useCallback(() => {
+    if (preventClose) return;
     setPhase('exiting');
-  }, []);
+  }, [preventClose]);
 
   const handleTransitionEnd = useCallback(
     (e: React.TransitionEvent) => {

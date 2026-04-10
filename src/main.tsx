@@ -7,6 +7,8 @@ import { initAnalytics } from './lib/analytics';
 import { initSentry } from './lib/sentry';
 import './index.css';
 
+export let deepLinkAuthError: string | null = null;
+
 initSentry();
 initAnalytics();
 
@@ -37,6 +39,7 @@ if (Capacitor.isNativePlatform()) {
 
       if (accessToken && refreshToken) {
         lastHandledUrl = url;
+        const type = params.get('type');
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
@@ -45,8 +48,8 @@ if (Capacitor.isNativePlatform()) {
         const { Browser } = await import('@capacitor/browser');
         Browser.close().catch(() => {});
 
-        if (!error) {
-          window.dispatchEvent(new Event('native-auth-success'));
+        if (error) {
+          deepLinkAuthError = error.message;
         }
       }
     }
