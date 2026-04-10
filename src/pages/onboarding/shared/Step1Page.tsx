@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AgeScrollPicker } from '@/components/onboarding/AgeScrollPicker';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
@@ -102,20 +103,7 @@ export function Step1Page() {
         />
       </OnboardingSection>
       <OnboardingSection label="How old are you?">
-        <div className="relative w-full rounded-[16px] bg-surface px-[22px] py-[14px] shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)]">
-          <input
-            type="number"
-            min={13}
-            max={120}
-            value={age}
-            onChange={(e) => {
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val)) setAge(val);
-            }}
-            className="w-full bg-transparent text-[18px] text-content outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            aria-label="Your age"
-          />
-        </div>
+        <AgeScrollPicker value={age} onChange={setAge} />
       </OnboardingSection>
       <OnboardingSection label="How do you identify?">
         <ChipSelect options={GENDER_OPTIONS} value={gender} onChange={setGender} columns={3} />

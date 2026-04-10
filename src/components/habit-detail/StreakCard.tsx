@@ -1,4 +1,5 @@
 import { Flame } from 'lucide-react';
+import type { CalendarCell } from '@/hooks/useHabitDetail';
 import { StreakCalendarGrid } from './StreakCalendarGrid';
 
 interface StreakCardProps {
@@ -6,7 +7,7 @@ interface StreakCardProps {
   calendarMonth: string;
   totalRepetitions: number;
   sinceDate: string;
-  calendarData: ('done' | 'missed' | 'empty')[][];
+  calendarData: CalendarCell[][];
 }
 
 export function StreakCard({

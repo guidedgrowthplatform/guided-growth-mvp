@@ -9,7 +9,7 @@ interface OnboardingInputProps {
 
 export function OnboardingInput({ icon, placeholder, value, onChange }: OnboardingInputProps) {
   return (
-    <div className="relative rounded-[16px] bg-white shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)]">
+    <div className="relative rounded-[16px] bg-surface-secondary shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)]">
       <span className="absolute left-[16px] top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center">
         <Icon icon={icon} width={16} height={16} className="text-content-tertiary" />
       </span>

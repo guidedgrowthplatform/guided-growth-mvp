@@ -13,3 +13,4 @@ export { AdvancedResultsPage } from './advanced/AdvancedResultsPage';
 export { AdvancedStep6Page } from './advanced/AdvancedStep6Page';
 export { AdvancedCustomPromptsPage } from './advanced/AdvancedCustomPromptsPage';
 export { EditHabitPage } from './advanced/EditHabitPage';
+export { EditJournalPage } from './advanced/EditJournalPage';

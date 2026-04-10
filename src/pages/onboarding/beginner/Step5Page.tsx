@@ -20,7 +20,7 @@ export function Step5Page() {
     category?: string;
     habitConfigs?: Record<
       string,
-      { days: number[] | Set<number>; time: string; reminder: boolean }
+      { days: number[] | Set<number>; time: string; reminder: boolean; schedule?: string }
     >;
     phase?: 'confirming';
     reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string };
@@ -31,11 +31,11 @@ export function Step5Page() {
   );
 
   // Reconstitute Sets from arrays after router state serialization
-  const incomingConfigs = state?.habitConfigs
+  const incomingConfigs: Record<string, HabitConfig> | undefined = state?.habitConfigs
     ? Object.fromEntries(
         Object.entries(state.habitConfigs).map(([k, v]) => [
           k,
-          { ...v, days: v.days instanceof Set ? v.days : new Set(v.days) },
+          { ...v, days: v.days instanceof Set ? v.days : new Set(v.days), schedule: (v.schedule ?? 'Weekday') as HabitConfig['schedule'] },
         ]),
       )
     : undefined;
@@ -60,10 +60,10 @@ export function Step5Page() {
         string,
         { days: number[] | Set<number>; time: string; reminder: boolean }
       >;
-      const reconstituted = Object.fromEntries(
+      const reconstituted: Record<string, HabitConfig> = Object.fromEntries(
         Object.entries(savedConfigs).map(([k, v]) => [
           k,
-          { ...v, days: v.days instanceof Set ? v.days : new Set(v.days) },
+          { ...v, days: v.days instanceof Set ? v.days : new Set(v.days), schedule: ((v as { schedule?: string }).schedule ?? 'Weekday') as HabitConfig['schedule'] },
         ]),
       );
       setHabitConfigs(reconstituted);

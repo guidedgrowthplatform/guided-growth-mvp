@@ -63,6 +63,7 @@ const PlanReviewPage = lazyOnboarding('PlanReviewPage');
 const AdvancedInputPage = lazyOnboarding('AdvancedInputPage');
 const AdvancedResultsPage = lazyOnboarding('AdvancedResultsPage');
 const EditHabitPage = lazyOnboarding('EditHabitPage');
+const EditJournalPage = lazyOnboarding('EditJournalPage');
 const AdvancedStep6Page = lazyOnboarding('AdvancedStep6Page');
 const AdvancedCustomPromptsPage = lazyOnboarding('AdvancedCustomPromptsPage');
 
@@ -190,6 +191,14 @@ export function AppRoutes() {
           element={
             <AppGate allow="onboarding">
               <EditHabitPage />
+            </AppGate>
+          }
+        />
+        <Route
+          path="/onboarding/edit-journal"
+          element={
+            <AppGate allow="onboarding">
+              <EditJournalPage />
             </AppGate>
           }
         />

@@ -1,8 +1,9 @@
 import { Check, X } from 'lucide-react';
 import { Fragment } from 'react';
+import type { CalendarCell } from '@/hooks/useHabitDetail';
 
 interface StreakCalendarGridProps {
-  data: ('done' | 'missed' | 'empty')[][];
+  data: CalendarCell[][];
 }
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -29,15 +30,24 @@ export function StreakCalendarGrid({ data }: StreakCalendarGridProps) {
             <div
               key={`${wi}-${ci}`}
               className={`flex aspect-square items-center justify-center rounded-md ${
-                cell === 'done'
+                cell.status === 'done'
                   ? 'bg-primary'
-                  : cell === 'missed'
+                  : cell.status === 'missed'
                     ? 'border-2 border-danger bg-surface'
-                    : 'bg-border-light'
+                    : cell.status === 'today' || cell.status === 'today-done'
+                      ? 'bg-[#fdd017]'
+                      : 'bg-border-light'
               }`}
             >
-              {cell === 'done' && <Check size={14} className="text-white" />}
-              {cell === 'missed' && <X size={14} className="text-danger" />}
+              {(cell.status === 'done' || cell.status === 'today-done') && (
+                <Check size={14} className={cell.status === 'today-done' ? 'text-white/80' : 'text-white'} />
+              )}
+              {cell.status === 'missed' && <X size={14} className="text-danger" />}
+              {(cell.status === 'empty' || cell.status === 'today') && cell.day !== null && (
+                <span className={`text-xs font-semibold ${cell.status === 'today' ? 'text-gray-800' : 'text-content-secondary'}`}>
+                  {cell.day}
+                </span>
+              )}
             </div>
           ))}
         </Fragment>

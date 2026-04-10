@@ -83,7 +83,7 @@ export function BottomSheet({ onClose, children, topOffset, showHandle = true }:
       <div className="pointer-events-none absolute inset-0">
         <div
           ref={sheetRef}
-          className={`pointer-events-auto ${sheetPositionClass} flex flex-col overflow-hidden rounded-t-[32px] bg-surface shadow-[0px_-8px_30px_0px_rgba(0,0,0,0.08)] ${
+          className={`pointer-events-auto ${sheetPositionClass} flex flex-col overflow-hidden rounded-t-[32px] bg-surface-secondary shadow-[0px_-8px_30px_0px_rgba(0,0,0,0.08)] ${
             dragY > 0 ? '' : 'transition-transform duration-300 ease-out'
           } ${isVisible && dragY === 0 ? 'translate-y-0' : !isVisible ? 'translate-y-full' : ''}`}
           style={

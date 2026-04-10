@@ -63,8 +63,8 @@ export function Step2Page() {
       />
       <div className="flex flex-col gap-[20px]">
         <SelectionCard
-          icon="mdi:file-document-outline"
-          iconBg="rgb(var(--color-primary) / 0.1)"
+          icon="ic:outline-explore"
+          iconBg="#E2E8F0"
           iconColor="rgb(var(--color-primary))"
           title="I'm new to habit tracking"
           description="Start with a few recommended habits"
@@ -73,13 +73,12 @@ export function Step2Page() {
         />
         <SelectionCard
           icon="ic:round-mic"
-          iconBg="rgb(var(--color-primary-bg))"
-          iconColor="rgb(var(--color-primary))"
+          iconBg="#E2E8F0"
+          iconColor="#8B5CF6"
           title="I already have experience with habit tracking"
           description="Tell me everything you want to achieve, and I'll organize it"
           selected={plan === 'braindump'}
           onSelect={() => setPlan('braindump')}
-          showSparkle
         />
       </div>
     </OnboardingLayout>
