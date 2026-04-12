@@ -44,9 +44,8 @@ function isCriticalError(msg: string): boolean {
     'SpeechRecognition',
     'webkitSpeechRecognition',
     'recognition',
-    // ElevenLabs / TTS not available in test
-    'eleven',
-    'ElevenLabs',
+    // Cartesia TTS / voice not available in test
+    'cartesia',
     'tts',
     // Resource loading errors that are non-critical
     'Failed to load resource',

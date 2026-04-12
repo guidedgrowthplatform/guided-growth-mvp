@@ -95,90 +95,6 @@ function cartesiaTtsPlugin(apiKey: string): Plugin {
   };
 }
 
-/**
- * Vite plugin: local ElevenLabs TTS proxy (fallback).
- * Intercepts POST /api/elevenlabs-tts and proxies to OpenAI TTS.
- * Used as fallback when Cartesia is unavailable.
- */
-function elevenLabsTtsPlugin(apiKey: string): Plugin {
-  return {
-    name: 'openai-tts-proxy',
-    configureServer(server) {
-      server.middlewares.use(
-        async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
-          if (req.url !== '/api/elevenlabs-tts' || req.method !== 'POST') {
-            next();
-            return;
-          }
-
-          let body = '';
-          for await (const chunk of req) body += chunk;
-
-          try {
-            const { text, voice_id } = JSON.parse(body);
-            // Map ElevenLabs voice IDs to OpenAI voices
-            const VOICE_MAP: Record<string, string> = {
-              pNInz6obpgDQGcFmaJgB: 'onyx',
-              EXAVITQu4vr4xnSDxMaL: 'nova',
-            };
-            const openaiVoice = VOICE_MAP[voice_id] || 'nova';
-
-            console.log(
-              `[vite-tts] OpenAI TTS (fallback): "${text.substring(0, 50)}..." → voice ${openaiVoice}`,
-            );
-
-            const openaiRes = await fetch('https://api.openai.com/v1/audio/speech', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${apiKey}`,
-              },
-              body: JSON.stringify({
-                model: 'tts-1',
-                input: text,
-                voice: openaiVoice,
-                response_format: 'mp3',
-              }),
-            });
-
-            if (!openaiRes.ok) {
-              const errText = await openaiRes.text();
-              console.error('[vite-tts] OpenAI error:', openaiRes.status, errText);
-              res.writeHead(openaiRes.status, { 'Content-Type': 'application/json' });
-              res.end(errText);
-              return;
-            }
-
-            // Stream audio through to client for faster first-byte
-            res.writeHead(200, {
-              'Content-Type': 'audio/mpeg',
-              'Transfer-Encoding': 'chunked',
-            });
-            const reader = openaiRes.body?.getReader();
-            if (!reader) {
-              res.end();
-              return;
-            }
-            let totalBytes = 0;
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              totalBytes += value.length;
-              res.write(Buffer.from(value));
-            }
-            console.log(`[vite-tts] Streamed audio: ${totalBytes} bytes`);
-            res.end();
-          } catch (err) {
-            console.error('[vite-tts] Error:', err);
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'TTS proxy failed' }));
-          }
-        },
-      );
-    },
-  };
-}
-
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   // Ignore VITE_API_URL when playing around locally with vercel dev running
@@ -208,8 +124,6 @@ export default defineConfig(({ mode }) => {
     plugins: [
       // Cartesia TTS proxy (primary)
       cartesiaTtsPlugin(env.CARTESIA_API_KEY || ''),
-      // OpenAI TTS proxy (fallback for ElevenLabs endpoint)
-      elevenLabsTtsPlugin(env.OPENAI_API_KEY || ''),
       react(),
       VitePWA({
         registerType: 'autoUpdate',
@@ -246,7 +160,6 @@ export default defineConfig(({ mode }) => {
           // Skip proxy for TTS endpoints (handled by plugin middleware)
           bypass(req: { url?: string }) {
             if (req.url?.startsWith('/api/cartesia-tts')) return req.url;
-            if (req.url?.startsWith('/api/elevenlabs-tts')) return req.url;
           },
         },
         '/auth': {

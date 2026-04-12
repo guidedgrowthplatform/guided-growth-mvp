@@ -23,8 +23,6 @@ const config: CapacitorConfig = {
     // CORS preflight with "Could not connect to server".
     androidScheme: 'https',
     allowNavigation: [
-      'api.deepgram.com',
-      'api.elevenlabs.io',
       'api.cartesia.ai',
       'guided-growth-mvp.vercel.app',
       'pmunbflbjpoawicgimyc.supabase.co',
