@@ -561,7 +561,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const dailyRl = checkRateLimit(user.id, {
       windowMs: 86_400_000, // 24 hours
-      maxRequests: 50, // Bumped from 5 to 50 for testing purposes
+      maxRequests: 50, // 50 voice interactions per day cap
       keyPrefix: 'process-command-daily',
     });
 
