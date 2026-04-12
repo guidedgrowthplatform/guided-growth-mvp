@@ -1,79 +1,125 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireUser, handlePreflight } from './_lib/auth.js';
+import { handlePreflight } from './_lib/auth.js';
+import { requireUser } from './_lib/auth.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
-import multiparty from 'multiparty';
-import fs from 'fs';
-import FormData from 'form-data';
-import fetch from 'node-fetch';
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
-  
-  const user = await requireUser(req, res);
-  if (!user) return;
 
-  const rl = checkRateLimit(user.id, {
+  const bypassAuth = process.env.AUTH_BYPASS_MODE === 'true';
+  let userId = 'anonymous';
+
+  if (!bypassAuth) {
+    const user = await requireUser(req, res);
+    if (!user) return;
+    userId = user.id;
+  }
+
+  const rl = checkRateLimit(userId, {
     windowMs: 60_000,
     maxRequests: 20,
     keyPrefix: 'cartesia-stt',
   });
   if (rl.limited) {
-    return res.status(429).json({ error: 'Rate limit exceeded', retryAfter: rl.retryAfter });
+    return res.status(429).json({ error: 'Rate limit exceeded' });
   }
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const form = new multiparty.Form();
-  
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      console.error('[Cartesia-STT] File parse error:', err);
-      return res.status(400).json({ error: 'Failed to parse audio payload' });
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'STT API not configured' });
+  }
+
+  try {
+    const chunks: Buffer[] = [];
+    await new Promise<void>((resolve, reject) => {
+      req.on('data', (c: Buffer) => chunks.push(c));
+      req.on('end', resolve);
+      req.on('error', reject);
+    });
+    const body = Buffer.concat(chunks);
+
+    if (body.length === 0) {
+      return res.status(400).json({ error: 'Empty body' });
     }
 
-    const file = files.file?.[0] || files.audio?.[0];
-    if (!file) {
-      return res.status(400).json({ error: 'No audio file provided' });
+    const ct = req.headers['content-type'] || '';
+    const bm = ct.match(/boundary=(?:"([^"]+)"|([^\s;]+))/);
+    if (!bm) {
+      return res.status(400).json({ error: 'Expected multipart/form-data' });
     }
 
-    try {
-      // Temporary workaround: Cartesia Ink requires a complex WebSocket implementation.
-      // We will proxy STT through OpenAI Whisper here to guarantee the UI continues 
-      // functioning, while keeping the client code clean from ElevenLabs dependencies.
-      // This allows the browser STT logic in stt-service.ts to use "/api/cartesia-stt".
-      const audioStream = fs.createReadStream(file.path);
-      const formData = new FormData();
-      formData.append('file', audioStream, 'audio.wav');
-      formData.append('model', 'whisper-1');
-      formData.append('language', 'en');
+    const boundary = bm[1] || bm[2];
+    const sep = Buffer.from('--' + boundary);
+    let fileData: Buffer | null = null;
+    let filename = 'audio.wav';
 
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          ...formData.getHeaders(),
-        },
-        body: formData,
-      });
+    let cursor = 0;
+    while (true) {
+      const idx = body.indexOf(sep, cursor);
+      if (idx === -1) break;
+      const nextBound = body.indexOf(sep, idx + sep.length);
+      if (nextBound !== -1) {
+        const part = body.subarray(idx + sep.length, nextBound);
+        const hdrEnd = part.indexOf('\r\n\r\n');
+        if (hdrEnd !== -1) {
+          const hdr = part.subarray(0, hdrEnd).toString('utf-8');
+          if (hdr.includes('filename=')) {
+            const fnMatch = hdr.match(/filename="([^"]+)"/);
+            if (fnMatch) filename = fnMatch[1];
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[Cartesia-STT] Upstream API failed:', errorText);
-        return res.status(response.status).json({ error: 'Transcription failed' });
+            // Find end of data before the next \r\n boundary padding
+            let dataEnd = part.length;
+            if (part[dataEnd - 2] === 0x0d && part[dataEnd - 1] === 0x0a) {
+              dataEnd -= 2;
+            }
+            fileData = Buffer.from(part.subarray(hdrEnd + 4, dataEnd));
+            break;
+          }
+        }
       }
-
-      const data = await response.json() as any;
-      
-      // Clean up temp file
-      fs.unlink(file.path, () => {});
-
-      return res.status(200).json({ text: data.text });
-      
-    } catch (e: any) {
-      console.error('[Cartesia-STT] Error processing audio:', e);
-      return res.status(500).json({ error: 'Internal server error' });
+      cursor = idx + sep.length;
     }
-  });
+
+    if (!fileData || fileData.length === 0) {
+      return res.status(400).json({ error: 'No audio file found' });
+    }
+
+    // Build FormData for OpenAI Whisper (Node 18+)
+    // Disable TS checking for standard web APIs that conflict with Buffer
+    // @ts-expect-error Node fetch + Blob perfectly accepts Buffer but TS complains
+    const blob = new Blob([fileData], { type: 'audio/wav' });
+    const fd = new FormData();
+    fd.append('file', blob, filename);
+    fd.append('model', 'whisper-1');
+    fd.append('language', 'en');
+
+    const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: fd,
+    });
+
+    if (!whisperRes.ok) {
+      const errText = await whisperRes.text();
+      console.error('[STT] Whisper error:', whisperRes.status, errText);
+      return res.status(whisperRes.status).json({ error: 'Transcription failed' });
+    }
+
+    const { text } = (await whisperRes.json()) as { text?: string };
+    return res.status(200).json({ text: text || '' });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[STT] Error:', err);
+    return res.status(500).json({ error: msg });
+  }
 }

@@ -68,7 +68,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     onError,
     onEnd,
   } = options;
-  const { enterRealtime, release, registerCleanup, preference } = useVoice();
+  const { enterRealtime, release, registerCleanup, preference, transition } = useVoice();
 
   const [state, setState] = useState<RealtimeVoiceState>('idle');
   const [aiTranscript] = useState('');
@@ -106,8 +106,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     }
     if (mountedRef.current) {
       setState('idle');
+      transition('idle');
     }
-  }, []);
+  }, [transition]);
 
   const stop = useCallback(() => {
     cleanup();
@@ -132,6 +133,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     // Register cleanup so VoiceContext can stop us
     registerCleanup(stop);
 
+    // enterRealtime sets global state to 'listening' automatically
     setState('connecting');
 
     try {
@@ -161,14 +163,17 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       //     if (msg.type === 'transcript') {
       //       setAiTranscript(msg.text);
       //       onTranscript?.(msg.text);
+      //       transition('speaking');
       //     }
       //     if (msg.type === 'user_transcript') {
       //       setUserTranscript(msg.text);
       //       onUserSpeech?.(msg.text);
+      //       transition('thinking');
       //     }
       //   },
       //   onError: (err) => {
       //     setState('error');
+      //     transition('idle');
       //     onError?.(err.message);
       //   },
       //   onEnd: () => {
@@ -182,6 +187,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       // PLACEHOLDER: Simulate connected state
       if (mountedRef.current) {
         setState('listening');
+        transition('listening');
         console.log('[RealtimeVoice] Placeholder mode — Line agent not connected yet');
         console.log('[RealtimeVoice] System prompt length:', _systemPrompt.length, 'chars');
       }
@@ -190,11 +196,22 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       release();
       if (mountedRef.current) {
         setState('error');
+        transition('idle');
       }
       const msg = err instanceof Error ? err.message : 'Failed to start voice session';
       onError?.(msg);
     }
-  }, [preference, enterRealtime, registerCleanup, stop, userContext, onError, release, cleanup]);
+  }, [
+    preference,
+    enterRealtime,
+    registerCleanup,
+    stop,
+    userContext,
+    onError,
+    release,
+    cleanup,
+    transition,
+  ]);
 
   return {
     start,
