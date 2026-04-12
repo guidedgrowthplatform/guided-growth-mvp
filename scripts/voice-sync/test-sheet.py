@@ -15,7 +15,7 @@ def test_sheet_connection():
     print(f"Looking for Credentials at: {full_creds_path}")
     
     if not os.path.exists(full_creds_path):
-        print("\n❌ FAILED: Could not find your service-account.json file!")
+        print("\nFAILED: Could not find your service-account.json file!")
         print("Please drag the JSON file you downloaded into the root guided-growth-mvp folder")
         print("and make sure it is named exactly 'service-account.json'")
         return
@@ -31,12 +31,12 @@ def test_sheet_connection():
         # Pull just the title of the spreadsheet to verify
         result = sheet.get(spreadsheetId=sheet_id).execute()
         
-        print("\n✅ SUCCESS: Connected to Google Sheets API!")
+        print("\nSUCCESS: Connected to Google Sheets API!")
         print(f"Spreadsheet Title: {result.get('properties', {}).get('title')}")
         print("Task 6 API Verification Complete. Your credentials are valid.")
         
     except Exception as e:
-        print(f"\n❌ FAILED: Could not authenticate or read sheet.")
+        print(f"\nFAILED: Could not authenticate or read sheet.")
         print(f"Error: {e}")
 
 if __name__ == '__main__':
