@@ -34,9 +34,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.CARTESIA_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'STT API not configured' });
+    return res.status(500).json({ error: 'Cartesia API key not configured' });
   }
 
   try {
@@ -94,28 +94,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'No audio file found' });
     }
 
-    // Build FormData for OpenAI Whisper (Node 18+)
-    // Disable TS checking for standard web APIs that conflict with Buffer
+    // Build FormData for Cartesia Ink STT
     // @ts-expect-error Node fetch + Blob perfectly accepts Buffer but TS complains
     const blob = new Blob([fileData], { type: 'audio/wav' });
     const fd = new FormData();
     fd.append('file', blob, filename);
-    fd.append('model', 'whisper-1');
+    fd.append('model_id', 'ink-whisper');
     fd.append('language', 'en');
 
-    const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    const sttRes = await fetch('https://api.cartesia.ai/stt', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}` },
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Cartesia-Version': '2026-03-01',
+      },
       body: fd,
     });
 
-    if (!whisperRes.ok) {
-      const errText = await whisperRes.text();
-      console.error('[STT] Whisper error:', whisperRes.status, errText);
-      return res.status(whisperRes.status).json({ error: 'Transcription failed' });
+    if (!sttRes.ok) {
+      const errText = await sttRes.text();
+      console.error('[STT] Cartesia Ink error:', sttRes.status, errText);
+      return res.status(sttRes.status).json({ error: 'Transcription failed' });
     }
 
-    const { text } = (await whisperRes.json()) as { text?: string };
+    const { text } = (await sttRes.json()) as { text?: string };
     return res.status(200).json({ text: text || '' });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
