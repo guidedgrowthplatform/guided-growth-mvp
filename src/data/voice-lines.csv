@@ -1,0 +1,1356 @@
+ID,Screen / State,Screen Text (Figma),AI Voice,Expected User Response & Variations,AI Response,System Action,Partial / Ambiguous / Edge Cases,Notes,MP3?,How Audio Works
+1. SPLASH SCREEN,,,,,,,,,,
+SPLASH-01,"First open
+(New user)","Logo: Guided Growth
+
+Continue with Apple
+Continue with Google
+Sign up with email
+
+""Already have an account? Log In""","[Auto-plays, default male voice, ~8 sec]
+
+""Hey there. ...I might have startled you. You probably aren't used to an app just talking to you. I'm your AI coach inside Guided Growth - and I'd love to tell you more. Sign up, and we'll continue right where we left off.""","Tap: Continue with Apple
+Tap: Continue with Google
+Tap: Sign up with email
+Tap: Log In
+
+No voice input expected here.",-,"1. On screen load: play TTS audio (male, pre-cached)
+2. On any button tap: stop audio immediately
+3. Route to OAuth flow or email signup form
+4. On OAuth success: extract name (Google: given_name, Apple: givenName)
+5. Save user_profile {email, name, auth_method}
+6. Set onboarding_state = 'welcome'
+7. Navigate to POST-AUTH-01
+8. Set first_open = true in localStorage","Audio MUST complete or stop before OAuth redirect.
+
+RETURNING VISIT (not logged in, already heard hook): No voice. Skip audio. Normal auth flow. Check localStorage first_open flag.
+
+RETURN FROM 'COME BACK LATER': Short voice: ""Hey - you're back. Ready to set up?"" Then normal auth or skip to POST-AUTH-01 if already authed. Check onboarding_state = 'paused_at_welcome'.
+
+After splash voice: SILENCE until auth completes. No more voice until POST-AUTH-01.",~8 sec. Hook + coach intro + reason to sign up. Slightly longer than before but earns the extra seconds.,yes,pre-recorded
+2. AUTHENTICATION,,,,,,,,,,
+AUTH-01,"Create Account
+(Email signup)","""Create an Account""
+""Start tracking better habits and finding you""
+
+Email / Password fields
+Button: ""Sign Up""
+""Already have an account? Log In""",[No voice],"Type: email + password
+Tap: Sign Up
+Tap: Log In (redirect)",-,"1. Validate email format, password strength (min 8 chars)
+2. Supabase auth.signUp()
+3. No name from email signup
+4. Set onboarding_state = 'welcome'
+5. Navigate to POST-AUTH-01","Weak password: inline error ""Password needs at least 8 characters.""
+Email exists: ""This email already has an account. Try logging in.""
+Invalid email: ""Please enter a valid email address.""
+Network error: ""Connection issue. Check your internet and try again.""","Fast, functional.",no,-
+AUTH-02,"Welcome Back
+(Login)","""Welcome Back!""
+""Let's check in with your habits today.""
+
+Apple / Google / email+password
+""Forgot Password?""
+Button: ""Log In""
+""Don't have an account? Sign Up""",[No voice on login screen - voice greets on Home after login],"Tap: OAuth
+Type: email + password
+Tap: Log In
+Tap: Forgot Password
+Tap: Sign Up",-,"1. Supabase auth.signIn()
+2. On success: fetch user_profile + today's habits + pending goals
+3. Navigate to Home
+4. Home screen plays welcome back voice (see HOME-MORNING)","Wrong password: ""Incorrect password. Try again or tap 'Forgot Password.'""
+Account not found: ""No account with that email. Want to sign up?""
+Forgot Password: Supabase password reset email flow","Voice greeting happens on Home, not here.",no,-
+3. POST-AUTH WELCOME (Full Coach Introduction),,,,,,,,,,
+POST-AUTH-01,"Welcome
+Coach introduction","Button: ""I'm ready - let's go""
+Button: ""I'll come back later""","[Plays automatically after auth]
+
+""Welcome, [Name]. [OR 'Welcome.'] I'm your AI coach inside Guided Growth, and I'm going to be with you from here on.
+
+This isn't an app that gives you a list and hopes for the best. You'll talk to me in the morning. You'll talk to me at night. And between those two moments, the habits you want will start happening - not because you're forcing them, but because we're removing what's in the way.
+
+This setup takes about three to five minutes. This is probably the longest we'll ever talk. After this, your check-ins are between 30 seconds and a couple of minutes, depending on how much you want to share. And those few minutes a day? They're designed to save you time - not add to your schedule. When the right habits click into place, you stop wasting energy on the things that weren't working. That's time back. Real time.
+
+Everything you share with me - your mood, your habits, your reflections - we use all of it to give you better insights and to keep improving this experience. But here's the thing: your data is anonymized from the first second. We never connect it to you personally. So you get deep, real reflections about your life - without anyone knowing it's you. That's the best of both worlds.
+
+When you're ready, let's begin.""","Tap: ""I'm ready - let's go""
+Tap: ""I'll come back later""
+
+No voice input on this screen.","[If 'I'm ready':] [Plays after user taps 'I'm ready']
+
+""One thing before we start. I need you here right now. Present. Not multitasking. Not half-listening. What we're about to do is focus on you - and that deserves your full attention.
+
+I know it sounds like a paradox - an app asking you to be present. But that's actually the goal: to help you spend less time on your phone, not more. That's why you talk to me instead of scrolling. Talking to your phone is better than being on your phone.
+
+Let's go.""
+
+[If 'Come back later':] ""No rush. I'll be here when you're ready.""","1. Check user_profile.name: if exists use it, if not use generic
+2. Play welcome audio (TTS, male)
+3. Wait for button tap
+4. 'I'm ready': play presence ask, then onboarding_state = 'profile_setup', navigate to ONBOARD-01
+5. 'Come back later': onboarding_state = 'paused_at_welcome'
+6. Log PostHog: post_auth_welcome {has_name, action, listen_duration}","User might tap 'I'm ready' before welcome finishes - stop welcome audio, play presence ask.
+
+MVP: Single male voice. Voice/style selection post-MVP.
+
+Welcome is ~60 sec. Presence ask is ~25 sec after tap. Total ~85 sec split across two moments.",THE moment. Split into two parts: welcome (trust + info) then presence ask (focus + paradox). Neither feels like a monologue.,no,real-time
+4. ONBOARDING - BEGINNER PATH,,,,,,,,,,
+Step 1 of 7: Profile Setup,,,,,,,,,,
+ONBOARD-01,"Profile Setup
+Main flow","""Let's get to know you.""
+""Tell us a bit about yourself, to personalize your journey.""
+
+What should I call you? - field
+How old are you? - slider
+How do you identify? - Male/Female/Other
+How did you hear about us? - Social media/Website/Friend/Other
+
+Mic button
+Button: ""Let's Begin""","""OK - let me get to know you a little. What's your name, how old are you, how do you identify, and how did you hear about us? You can just say it all or fill it in on screen.""","FULL ANSWER (all 4 at once):
+""I'm Sarah, 32, female, found you on Instagram.""
+""Mike, 28, male, a friend told me.""
+""I'm Alex, 45, other, I saw an ad.""
+
+PARTIAL ANSWERS:
+Name only: ""I'm Sarah"" / ""Call me Mike"" / ""It's Alex""
+Name + age: ""Sarah, 32"" / ""I'm Mike, I'm 28""
+Name + age + gender: ""Sarah, 32, female"" (missing referral)
+Age only: ""I'm 28"" / ""Twenty-five""
+
+NAME VARIATIONS:
+First name: ""Sarah"" -> nickname: Sarah
+Full name: ""Sarah Johnson"" -> use first name: Sarah
+Nickname: ""Call me Sam"" / ""Everyone calls me J"" -> use what they say
+Unusual name: AI confirms spelling if unclear
+
+AGE VARIATIONS:
+Number: ""32"" / ""Thirty-two"" / ""I'm 32""
+Range: ""Late twenties"" -> AI: ""Late twenties - can you give me a specific number? Just for personalization.""
+""Mid thirties"" -> AI: ""Around 35? I'll put that in - you can change it anytime.""
+Too young (<13): AI: ""This app is designed for users 13 and older. If you're under 13, you'd need a parent's help to set this up.""
+Unreasonable (>100 or <5): AI: ""Did I hear that right? [age]?""
+
+GENDER VARIATIONS:
+Direct: ""Male"" / ""Female"" / ""Other"" / ""Non-binary""
+Synonyms: ""Guy"" / ""Man"" / ""Boy"" / ""Dude"" -> Male
+""Girl"" / ""Woman"" / ""Lady"" -> Female
+""Non-binary"" / ""NB"" / ""Enby"" / ""Genderqueer"" / ""Genderfluid"" -> Other
+""Prefer not to say"" / ""Rather not"" / ""Skip"" -> Other
+""None of your business"" -> AI: ""Totally fair. I'll skip that one."" -> set as Other
+
+REFERRAL SOURCE VARIATIONS:
+Social media: ""Instagram"" / ""IG"" / ""Insta"" / ""TikTok"" / ""Twitter"" / ""X"" / ""Facebook"" / ""LinkedIn"" / ""Reddit"" / ""YouTube"" -> Social media
+Website: ""Google"" / ""Searched for it"" / ""Your website"" / ""App Store"" / ""Play Store"" -> Website
+Friend: ""A friend"" / ""My buddy"" / ""Someone recommended it"" / ""Word of mouth"" -> Friend
+Other: ""Podcast"" / ""An ad"" / ""I don't remember"" / ""Just found it"" -> Other
+Refuses: ""I don't know"" / ""Not sure"" -> set as Other, move on
+
+OR Tap: Fill all fields manually -> Let's Begin","FULL (all 4 captured):
+""Great to meet you, [Name]. Let's build something that actually works for you.""
+
+3 OF 4 (missing referral only):
+""Great to meet you, [Name]. And one more - how did you hear about us? You can just tap it on screen if you prefer.""
+(If they don't answer referral, auto-set to Other and move on.)
+
+NAME + AGE (missing gender + referral):
+""Great to meet you, [Name]. And how do you identify? Also curious how you heard about us - you can just tap those.""
+
+NAME ONLY:
+""Hey [Name]. And how old are you?""
+(After age:) ""Got it. And how do you identify?""
+(After gender:) ""Last one - how did you hear about us?""
+
+AGE ONLY (no name):
+""Got it. And what should I call you?""
+
+NOTHING RECOGNIZED:
+""I didn't catch that clearly. Let's start simple - what's your name?""
+
+CORRECTION:
+""Wait, I said 32, I meant 33"" -> ""Updated to 33.""
+""Actually, call me Sam instead"" -> ""Got it - Sam.""
+
+ALL FIELDS FILLED (via any combination of voice + tap):
+""Perfect. Let's go, [Name].""","1. Parse voice with NLP: extract {name, age, gender, referral_source}
+2. Auto-fill form fields in real-time
+3. On 'Let's Begin': validate all fields filled
+4. Save to Supabase user_profile
+5. Navigate to ONBOARD-02
+6. Log PostHog: complete_profile {input_method, fields_via_voice}","CORE RULE: AI identifies what it got, asks ONLY for what's missing. Never re-asks what it already captured.
+
+PARSING PRIORITY: Name > Age > Gender > Referral. If NLP only catches some fields, fill those and ask for the rest in order.
+
+CONFIRMATION APPROACH: AI does NOT read back every field robotically. It weaves confirmation naturally:
+Good: ""Great to meet you, Sarah. And how old are you?""
+Bad: ""I got name: Sarah. Now I need age. Please provide age.""
+
+NLP CATCHES PARTIAL:
+If voice says ""I'm Sarah, thirty-two, I found you on TikTok"" and NLP gets name + age + referral but misses gender:
+AI: ""Hey Sarah, 32 - got it. And how do you identify? Male, female, or other?""
+
+FULL NAME -> FIRST NAME:
+""Sarah Johnson"" -> nickname = Sarah. Don't ask ""Should I call you Sarah or Sarah Johnson?"" Just use first name.
+
+TAP + VOICE MIX:
+User might type name, say age via voice, tap gender, skip referral. All valid. System checks which fields are filled regardless of input method.
+
+AGE EDGE CASES:
+Under 13: Block account creation. ""This app is for users 13 and older.""
+13-17: Allow but note as minor in user_profile for any content sensitivity.
+""Late twenties"" / ""mid thirties"": Ask for specific number or suggest one (""Around 35?"").
+
+GENDER REFUSES:
+""None of your business"" / aggressive refusal: ""Totally fair. I'll skip that one."" Set as Other. No follow-up.
+
+REFERRAL NOT CRITICAL:
+If user fills name + age + gender and taps 'Let's Begin' without referral, allow it. Set referral as 'Other'. Do not block onboarding for this field.
+
+LET'S BEGIN WITHOUT ALL FIELDS:
+Name is required. Age is required. Gender defaults to Other if skipped. Referral defaults to Other if skipped.
+If name OR age missing: show inline prompt ""Please tell us your name and age before continuing.""","Voice auto-fills form in real-time - magic moment #1.
+Gender synonyms: boy/man/guy/dude -> Male, girl/woman/lady -> Female, non-binary/other -> Other",yes,"prompt: pre-recorded
+responses: real-time"
+Step 2 of 7: Experience Fork,,,,,,,,,,
+ONBOARD-02,"Fork
+Main flow","""Let's build your plan.""
+""How would you like to set up your habits today?""
+
+Card 1: ""I'm new to habit tracking"" - ""I will help you step by step""
+Card 2: ""I already have experience"" - ""Tell me and I'll organize it""
+
+Button: ""Continue""","""Quick question - have you tracked habits before, or is this new for you? Either way is great. I just want to know the best way to guide you.""","NEW:
+""I'm new to this""
+""Never done it""
+""First time""
+""No, not really""
+""I've tried but never stuck with it""
+
+EXPERIENCED:
+""Yeah I've done this before""
+""I use [app name] right now""
+""I already track my habits""
+""I have a list""
+
+AMBIGUOUS:
+""Sort of""
+""A little bit""
+""I've tried apps before but...""
+
+OR Tap: Card -> Continue","IF NEW:
+""That's great. And honestly - the fact that you're here means something. A lot of people think about making changes. You actually did something about it. So here's how this works: I'm going to help you pick a few small things - not a huge list, just what matters. And then every morning and every night, we check in. Between 30 seconds and a couple of minutes, depending on how much you want to share. That's it. We're not fighting the part of you that has resistance. We're strengthening the part of you that showed up today. Let's go.""
+
+IF EXPERIENCED:
+""Nice - you've already been putting in the work. That says a lot. Let's bring your habits over and get you set up.""","1. Parse intent: new vs experienced
+2. If new: onboarding_path = 'beginner', navigate to ONBOARD-03
+3. If experienced: onboarding_path = 'advanced', navigate to ADV-01
+4. Log PostHog: select_onboarding_path {path, input_method}","AMBIGUOUS (""sort of"" / ""a little""):
+AI: ""Sounds like you've dipped your toes in. Would you like me to guide you step by step, or do you already have a list of habits you want to bring over?""
+
+""I've tried but never stuck"":
+AI: ""That's actually really common. Let me guide you step by step - we'll do it differently this time.""
+-> Route to beginner
+
+MENTIONS SPECIFIC APP:
+AI: ""Nice. Want to bring those habits over? Just read them to me and I'll set everything up.""
+-> Route to advanced
+
+""I don't have a list, I just know what I want"":
+AI: ""No problem. Just tell me one at a time from memory. What's the first habit?""
+-> Route to ADV-01 step-by-step mode","NOTE: Figma labels to be updated from 'Keep it simple'/'Advanced input everything' to 'I'm new to habit tracking'/'I already have experience with habit tracking'.
+
+'Advanced input' removed from all terminology.",yes,"prompt: pre-recorded
+responses: real-time"
+Step 3 of 7: Category Selection,,,,,,,,,,
+ONBOARD-03,"Category selection
+Main flow","""What feels most worth improving right now?""
+""Pick one or two areas. You can always add more later.""
+
+Category cards with images:
+Sleep Better / Move More / Eat Better / Feel Energized / Reduce Stress / Improve Focus / Break Bad Habits / Get More Organized
+
+Button: ""Continue""","""So - what feels most worth improving right now? Don't overthink it. There's no wrong answer. Pick the one that pulls you. We recommend starting with one - you can always add more later.""","SINGLE CATEGORY:
+""Sleep"" / ""I need better sleep"" / ""My sleep is terrible""
+""Exercise"" / ""Working out"" / ""I need to move more""
+""Eating"" / ""My diet"" / ""I eat like crap""
+""Energy"" / ""I'm always tired""
+""Stress"" / ""I'm so stressed""
+""Focus"" / ""I can't concentrate"" / ""Procrastination""
+""Bad habits"" / ""I want to quit smoking"" / ""I'm on my phone too much""
+""Organization"" / ""I'm a mess"" / ""I need structure""
+
+MULTIPLE: ""Sleep and stress"" / ""A few things honestly""
+
+OR Tap: Card -> Continue","SLEEP: ""Sleep - yeah. That's the foundation of everything else. When sleep gets better, energy, focus, mood - all of it follows. You picked well.""
+
+MOVE MORE: ""Movement - great call. Even small amounts change how you feel the rest of the day. And it builds momentum for everything else.""
+
+EAT BETTER: ""Eating - that's a smart place to start. What you put in your body affects everything from energy to sleep to mood. Good pick.""
+
+FEEL ENERGIZED: ""Energy - yeah, that's the one that touches everything. Let's figure out what's draining you and fix it at the source.""
+
+REDUCE STRESS: ""Stress - that's a big one. The good news is a few small habits can shift that more than you'd think.""
+
+IMPROVE FOCUS: ""Focus - I hear that a lot. The good news is focus isn't about willpower, it's about environment. Let's set you up.""
+
+BREAK BAD HABITS: ""Breaking a bad habit - recognizing it is the first step to changing it. Whether it's something big or small, let's find the right approach for you.""
+
+GET ORGANIZED: ""Getting organized - that's the one that makes everything else easier. When your systems work, you stop carrying everything in your head.""
+
+MULTIPLE SELECTED: ""I can see a few areas calling you. I'd actually recommend starting with just one - it sets you up for success. Which one feels most urgent right now?""","1. If single category: save to user_onboarding.selected_categories[]
+2. If multiple selected: prompt to narrow to one
+3. Query habits DB: fetch subcategories for selected category
+4. Navigate to ONBOARD-04
+5. Log PostHog: select_category {category, input_method, attempted_multiple: bool}","MULTIPLE CATEGORIES: AI redirects to one. ""We recommend starting with one category to set you up for success. Which feels most urgent right now?""
+
+VAGUE: ""Everything"" / ""All of it"" / ""I don't know""
+AI: ""That's normal - it can feel like a lot. If you had to pick just one thing that would make tomorrow better than today, what would it be?""
+
+MENTIONS SPECIFIC HABIT instead of category: ""I want to stop smoking""
+AI: Map to 'Break Bad Habits' category. ""That falls under breaking bad habits. Let's go there.""
+
+CATEGORY NOT RECOGNIZED:
+AI: ""I'm not sure I caught that. Can you pick from the options on screen?""","One category only. If they try more, gently redirect.
+
+Every category has a unique coaching response - not generic praise.
+
+FIGMA UPDATE NEEDED: Change 'Pick one or two areas' to 'Pick one area' - we decided on one category only.",yes,"prompt: pre-recorded
+responses: real-time"
+Step 4 of 7: Subcategory,,,,,,,,,,
+ONBOARD-04,"Subcategory
+Main flow","""Let's narrow it down""
+""Choose 1 or 2 specific goals to help you [category].""
+
+Category tag shown
+Subcategory options
+Button: ""Continue""","""OK, within [category] - what's the specific thing? For example, [give 2-3 subcategory examples from the database]. Pick the one that hits hardest.""","CLEAR: ""I can't fall asleep"" / ""I want to wake up earlier"" / ""My sleep is inconsistent""
+
+VAGUE: ""All of it"" / ""Just sleep in general""
+
+OR Tap: Select subcategory -> Continue","[See Section 19: SUBCATEGORY VOICE RESPONSES for all 29 subcategory-specific responses]
+
+Each subcategory has a unique coaching response that plays here.","1. Save subcategory to user_onboarding.selected_subcategories[]
+2. Query habits DB: fetch habits WHERE category AND subcategory match
+3. Navigate to ONBOARD-05
+4. Log PostHog: select_subcategory {category, subcategory, input_method}","VAGUE: ""All of it"" / ""everything""
+AI: ""I get it. If you had to pick just one - what bothers you the most? The one that, if it got better, would change your day?""
+
+MULTIPLE: User picks 2 subcategories
+Handle same as category - ""Let's start with the one that feels most urgent.""
+
+SUBCATEGORY NOT IN LIST:
+AI: ""That's a great one. Let me see what habits I can suggest for that."" -> Route to custom habit creation if needed.","AI voice prompt should dynamically include example subcategories from the database for the selected category.
+
+NOTE: '[give 2-3 subcategory examples]' is a dynamic template. LLM populates from habits database based on selected category.",yes,"prompt: pre-recorded
+responses: real-time"
+Step 5 of 7: Habit Selection,,,,,,,,,,
+ONBOARD-05,"Habit selection
+Main flow","""Here's a good place to start""
+""Select 1 to 3 daily habits to build your foundation.""
+
+Dropdown: subcategory
+Habit list from database
+""Create your own habit!"" (star)
+Button: ""Continue""","""Here are a few habits that really help with this. Pick what feels doable. Not heroic. Not impressive. Doable. Because one habit done consistently beats five that don't stick. You can also create your own if none of these fit.""","SELECT FROM LIST:
+""No screens after 10"" / ""The first one"" / ""That one""
+""Let's do the second and third one""
+
+CUSTOM:
+""None of these fit"" / ""I have my own idea"" / ""Can I make my own?""
+""I want to read for 20 minutes before bed""
+
+TOO MANY:
+""All of them"" / ""I want to do all five""
+
+OR Tap: Select 1-3 habits -> Continue","SELECTED: ""Solid. [Specific comment about the habit]. Let's set it up.""
+
+CUSTOM: ""No problem. Tell me the habit you have in mind and I'll set it up for you.""
+
+TOO MANY (more than 3): ""I love the ambition. But I'd actually recommend starting with 2-3. Get those locked in first, then we add more. Which ones feel most important?""
+
+MORE THAN 5: ""That's a lot to take on at once. Let's start with 3 that really matter. Once those become second nature, we'll add the rest. Pick your top 3.""","1. Save selected habit IDs to user_onboarding.selected_habits[]
+2. If custom: capture habit name via voice/text, auto-assign category/subcategory
+3. Validate 1-3 selected (soft limit), warn at 4+, hard recommend max 5
+4. Navigate to ONBOARD-06 with first habit
+5. Log PostHog: select_habit {habit_names[], count, has_custom, input_method}","""The first one"" / ""That one"" without clarity:
+AI: ""Which one specifically? Can you say the name or tap it?""
+
+User says a habit not in the list:
+AI: ""I don't see that in the suggestions, but I can add it as a custom habit. What's the full name?""
+
+User seems overwhelmed:
+AI: ""If you're not sure, just pick one. Seriously - one is a perfect start. You can always add more from the home screen.""
+
+ZERO HABITS SELECTED:
+If user tries to Continue with nothing selected:
+AI: ""We need at least one habit to get started. Even just one - pick the one that feels most important right now.""
+System: Block Continue button until at least 1 habit selected.",1-3 habits recommended. 4+ gently discouraged. 5+ coach intervenes.,yes,"prompt: pre-recorded
+responses: real-time"
+Step 6 of 7: Habit Configuration,,,,,,,,,,
+ONBOARD-06,"Configure habit
+Main flow","""What specifically do you want to improve?""
+""Choose one option""
+
+Habit name
+""Customize your habit""
+WHEN? Time picker
+HOW OFTEN? Day toggles S M T W T F S
+REMINDERS toggle
+Button: ""Next Habit""","""When do you want to do [habit name], and how often? You can say something like 'every night at 9:30' or set it up on screen.""","FULL: ""Every day at 9:30 PM with a reminder""
+""Weekdays at 7 AM, no reminder""
+""Monday Wednesday Friday at 6 PM""
+
+PARTIAL:
+""Every day"" (missing time)
+""At 9 PM"" (missing frequency)
+""Evenings"" (missing specific time)
+""Weekdays"" (missing time)
+
+REMINDER SPECIFIC:
+""Remind me"" / ""Set a reminder"" / ""Yeah, reminders""
+""No reminders"" / ""Don't remind me"" / ""I'll remember""
+
+VARIATIONS:
+""Every day"" = all 7 days
+""Daily"" = all 7 days
+""Weekdays"" = M T W T F
+""Weekends"" = S S
+""Every other day"" = needs clarification
+""Mornings"" = needs specific time
+""Before bed"" = needs specific time","FULL: ""Done - every day at 9:30 PM, with a reminder. We've got you.""
+
+NO REMINDER: ""Got it - no reminder. You can always turn that on later in Settings.""
+
+MISSING TIME: ""Every day works. What time specifically?""
+
+MISSING FREQUENCY: ""9 PM, got it. And how often - every day, weekdays, specific days?""
+
+AMBIGUOUS TIME: ""When you say 'evenings,' what time works? Like 8 PM, 9 PM?""","1. Parse voice: extract {frequency, time, reminder_preference}
+2. Auto-fill UI in real-time
+3. On 'Next Habit': save to Supabase habits {user_id, habit_id, schedule_time, frequency_days[], reminder_enabled}
+4. If more habits: loop ONBOARD-06
+5. If last habit: navigate to ONBOARD-07 (review)
+6. Schedule push notification if reminder_enabled
+7. Log PostHog: configure_habit {habit_name, frequency, has_reminder, input_method}","PARTIAL ANSWER - AI identifies what's missing:
+""Got it - every day. What time should I set that for?""
+""9 PM with a reminder. And which days - every day or specific ones?""
+
+""Every other day"": ""Every other day - got it. Which day do you want to start? I'll alternate from there.""
+
+""Before bed"" / ""In the morning"": ""What time is that for you? Everyone's different.""
+
+""I'm not sure about the time"": ""No problem - I'll set it for [reasonable default based on habit type, e.g. 9 PM for sleep habits, 7 AM for morning habits]. You can always change it later.""
+
+USER CHANGES MIND: ""Actually make that 10 PM"" - ""Updated to 10 PM.""","Voice auto-fills form in real-time.
+
+Reasonable defaults by habit type:
+Sleep habits: 9-10 PM
+Morning habits: 7-8 AM
+Exercise: 6-7 PM
+Mindfulness: 7-8 AM",no,real-time
+Review & Confirm Habits,,,,,,,,,,
+ONBOARD-07,Review habits,"""Here's a good place to start""
+
+Configured habits listed with schedules and day toggles
+
+Button: ""Confirm & Continue""","""Here's what we've set up. Does everything feel right, or should we tweak something?""","CONFIRM: ""Looks good"" / ""Perfect"" / ""Yes"" / ""That's right""
+
+EDIT: ""Change [habit] to [time]"" / ""Actually, make the first one weekdays only"" / ""Remove the last one""
+
+QUESTION: ""Can I add more later?"" / ""Is that enough?""
+
+ADD: ""I want to add another habit"" / ""Another one"" / ""One more"" / ""Can I add another?""","CONFIRM: ""Locked in.""
+
+EDIT: ""Updated. How's that now?""
+
+CAN I ADD MORE: ""Absolutely. You can add habits anytime from the home screen.""
+
+IS THAT ENOUGH: ""Totally. Starting small is the smartest thing you can do. You can always add more once these feel solid.""
+
+ADD: ""Sure - what habit would you like to add?"" -> collect name, time, frequency, reminder -> add to plan","1. Display habits from state
+2. If edit via voice: parse change, update record
+3. On confirm: set onboarding_state = 'journal_setup'
+4. Navigate to ONBOARD-08
+5. Log PostHog: confirm_habits {habit_count, edits_made}","User wants to delete a habit from the list:
+AI: ""Removed. Anything else to change?""
+
+User adds a new habit here:
+AI: ""Sure - what habit do you want to add?"" -> mini habit creation flow
+
+Multiple edits:
+AI handles one at a time, confirms each.",Quick screen. Momentum matters.,yes,"prompt: pre-recorded
+responses: real-time"
+Step 7 of 7: Journal Setup,,,,,,,,,,
+ONBOARD-08,Journal setup,"""One last thing for your mind""
+""We highly recommend adding a quick daily reflection to track your mental progress.""
+
+Daily reflection icon
+YOU'LL ANSWER 3 QUICK QUESTIONS:
+- What am I proud of today?
+- What do I forgive myself for today?
+- What am I grateful for today?
+
+Schedule, time, day toggles, reminders
+Button: ""Review My Plan""","""One more thing - and this one's powerful. A daily reflection. Three questions. Two minutes. And it compounds over time. Most people start noticing a difference within a week or two.
+
+What you're proud of. What you forgive yourself for. What you're grateful for. These three questions change how you process your day.
+
+Want to add it?""","YES: ""Yeah"" / ""Sure"" / ""Let's do it"" / ""Sounds good""
+
+NO: ""No"" / ""Skip"" / ""Not right now"" / ""Maybe later""
+
+QUESTION: ""What does it do?"" / ""How long does it take?"" / ""Can I change the questions?""","YES: ""Good call. We'll do this at the end of each day. You just talk - I'll capture everything. When do you want your reflection reminder?""
+
+NO: ""No problem. It'll be there whenever you want it. You can always turn it on in Settings.""
+
+WHAT DOES IT DO: ""It's a two-minute voice journal at the end of your day. Three questions that help you process what happened. Over time, it builds self-awareness in a way that surprises people. Want to try it?""
+
+HOW LONG: ""About two minutes. Three questions, just talking. That's it.""
+
+CAN I CHANGE: ""You can. During setup or later in Settings, you can create your own prompts.""","1. If configured: save to Supabase journals {user_id, type: 'daily_reflection', prompts[], schedule_time, frequency_days[], reminder_enabled}
+2. If skipped: user_profile.journal_configured = false
+3. If reminder: schedule push notification
+4. Navigate to ONBOARD-09 (final plan)
+5. Log PostHog: journal_setup {configured, type, input_method}","If YES but doesn't set time:
+AI: ""What time works for your reflection? Most people do it right before bed.""
+
+If interested but hesitant:
+AI: ""You can always try it for a week and turn it off if it doesn't click. No commitment.""","'Most people start noticing a difference within a week or two' - honest, not over-promising.",yes,"prompt: pre-recorded
+responses: real-time"
+Final Plan + Founding User Moment,,,,,,,,,,
+ONBOARD-09,"Starting plan
+Final screen","""Your starting plan""
+""Start with these habits. You can always add more later.""
+
+HABIT: [names] with cadences
+JOURNAL: if configured
+
+Button: ""Start plan""
+""Edit plan""","""Here's your starting plan. It's simple - and that's on purpose. This is your foundation. As you show up, we'll grow it together.
+
+And [Name] - as one of the first 50 people to use Guided Growth, I want you to know: we're really proud of what we've built, and it's going to get so much better. Your experience here, your feedback - it shapes where this goes. Our goal is to contribute to your life. So thank you for being here.
+
+Ready?""","READY: ""Let's go"" / ""Yes"" / ""Ready"" / ""Start""
+
+EDIT: ""Actually, change..."" / ""Let me fix something"" / ""Edit""
+
+OR Tap: Start plan / Edit plan","READY: ""You're in, [Name]. Your first check-in is on the home screen. Talk to you soon.""
+
+EDIT: ""No problem. What do you want to change?"" -> navigate to edit flow","1. On 'Start plan': onboarding_state = 'complete', onboarding_completed_at = now()
+2. Activate all habits (status = 'active')
+3. Activate journal if configured
+4. Schedule morning + evening check-in reminders
+5. Navigate to Home (first visit - see HOME-FIRST)
+6. Log PostHog: complete_onboarding {path: 'beginner', habit_count, journal_configured, duration_seconds}","If user says something emotional like ""I'm excited"" or ""I hope this works"":
+AI: ""It will. Show up, and it will.""
+
+If user seems hesitant: ""You're ready. We'll take it one day at a time.""",Founding user message comes HERE - emotional peak before entering app.,no,real-time
+5. ONBOARDING - ADVANCED PATH,,,,,,,,,,
+Step 1: Tell Me Your Habits,,,,,,,,,,
+ADV-01,"Habit input
+(Guided step-by-step)","""Tell me what you want to achieve""
+""You can say or type as much as you want. We'll organize it for you.""
+
+Large mic button
+Example text
+Button: ""Done""
+Skip link","""OK - let's bring your habits over. Here's the easiest way: if you have them somewhere - another app, a note on your phone, a list - just pull it up. Then tell me each habit one at a time. For each one, I need four things: the name, how often, what time, and if you want a reminder.
+
+This setup takes about three to five minutes - probably the longest we'll ever talk. After this, your check-ins are between 30 seconds and a couple of minutes, depending on how much you want to share. So let's take the time now to get it right.
+
+Go ahead - what's the first habit?""","STRUCTURED: ""Sleep by 11 PM, every day, reminder at 10:30""
+UNSTRUCTURED: ""I want to drink more water"" / ""Meditation""
+FULL LIST: ""I want to drink water, meditate, read before bed, and gym three times a week""
+VAGUE: ""I just want to be healthier""","STRUCTURED (all 4): ""Got it - [habit] at [time], [frequency], reminder [on/off]. What's next?""
+MISSING INFO: See edge cases
+AFTER ALL: ""OK - is that everything, or do you have more?""
+WHEN DONE: ""Got it. Give me a second to organize these...""","1. For each habit: parse {name, frequency, time, reminder}
+2. If all 4: save to temp state, ask for next
+3. If missing: ask specifically
+4. On 'Done': send to LLM for structuring
+5. Navigate to ADV-02
+6. Log PostHog: advanced_habit_input {habit_count, input_method}","MISSING NAME: ""What's the habit called?""
+MISSING TIME: ""What time do you do [habit]?""
+MISSING FREQUENCY: ""How often - every day, weekdays, specific days?""
+MISSING REMINDER: ""Want me to remind you?""
+VAGUE: ""Can you be more specific? Like sleep, exercise, eating, stress?""
+VERY VAGUE: route to beginner
+NO LIST: ""No problem. Just tell me one at a time from memory.""
+MORE THAN 5: ""I'd recommend starting with 3-5. Which are most important?""
+SKIP: ""You need at least one habit. Even one is a great start. What's the first?""","AI MUST get all 4 pieces for each habit. Not done until captured.
+At least 1 habit required before proceeding.",yes,"prompt: pre-recorded
+responses: real-time"
+Step 2: AI-Organized Plan,,,,,,,,,,
+ADV-02,Organized habits,"""We organized this for you""
+""Here is the cleanest place to start based on what you shared.""
+
+Habit cards with schedules
+""Add other habit"" (+)
+Button: ""Confirm & Continue""
+""Regenerate from scratch""","""Here's what I put together from what you told me. Take a look - you can edit anything, or if it's way off, I'll start fresh.""","APPROVE: ""Looks perfect"" / ""Good"" / ""Yes""
+
+EDIT: ""Move gym to mornings"" / ""Change [habit] to [detail]""
+
+REJECT: ""That's not right"" / ""Start over"" / ""That's not what I meant""
+
+ADD: ""I forgot one - add [habit]"" / ""Another habit"" / ""I want to add another one"" / ""One more""","APPROVE: ""Great. Locked in. Let's set up your journal.""
+
+EDIT: ""Done - [change made]. Everything else look right?""
+
+REJECT: ""Let me try again. Can you tell me more specifically what you're looking for? What did I get wrong?""
+
+ADD (with name): ""Sure - [habit]. What time, how often, and want a reminder?"" -> collect remaining pieces -> add to list
+
+ADD (no name): ""Sure - what habit would you like to add?"" -> collect all 4 pieces -> add to list","1. Display LLM-generated habits
+2. Edit: parse change, update state
+3. Add: mini habit flow (name, time, freq, reminder)
+4. Regenerate: re-send to LLM with feedback
+5. Confirm: save all to Supabase habits table
+6. Navigate to ADV-03
+7. Log PostHog: confirm_ai_habits {count, edits, regenerated}","AI generated weird/wrong habit:
+User: ""That's not what I meant at all.""
+AI: ""Sorry about that. Let me try again. Can you tell me which ones are wrong and what they should be?""
+
+If regeneration also fails:
+AI: ""Let's do this differently. Tell me one habit at a time and I'll add them exactly as you say."" -> manual one-by-one mode
+
+User wants to remove a generated habit:
+AI: ""Removed. Anything else?""",Regenerate should not start from scratch blindly - include user's feedback about what was wrong.,yes,"prompt: pre-recorded
+responses: real-time"
+Steps 3-4: Journal Setup (same as beginner),,,,,,,,,,
+ADV-03,"Journal setup
+(Same flow as ONBOARD-08)",Same as ONBOARD-08 - Meet your AI Voice Journal / How do you want to journal?,Same AI voice as ONBOARD-08,Same expected responses,Same AI responses,"Same system actions
+Then navigate to ADV-04",Same edge cases,See ONBOARD-08 for full detail.,yes,"prompt: pre-recorded
+responses: real-time"
+Step 5: Final Plan,,,,,,,,,,
+ADV-04,"Starting plan
+(Advanced final)","""Your starting plan""
+""Start with these habits. You can always add more later.""
+
+HABIT list with cadences
+JOURNAL if configured
+
+Button: ""Start plan"" / ""Edit habits""","""Here's everything - your habits, your journal. This is your system now.
+
+And I want you to know - as one of the first 50 people using Guided Growth, what we've built here is already something we're proud of. But it's going to get so much better. You being here, your feedback - that's what makes it better. And our whole purpose is to contribute to your life.
+
+I'll be here every morning and every evening. Ready?""",Same as ONBOARD-09,Same as ONBOARD-09,Same as ONBOARD-09 but path = 'advanced',Same as ONBOARD-09,'This is your system now' - ownership transfer.,no,real-time
+6. HOME SCREEN,,,,,,,,,,
+Home Screen States,,,,,,,,,,
+HOME-FIRST,"Home
+First visit after onboarding","[Day, Date]
+""Good Morning, [Name]"" (+)
+
+Week selector
+How are you feeling? / Check In
+Daily Reflection / Open Journal
+
+Today's Habits
+Give Feedback
+Bottom nav","""Here's your home. This is where you'll check in every day. Would you like me to explain the different parts?""","YES: ""Yeah"" / ""Sure"" / ""Yes please""
+NO: ""No, I got it"" / ""I'll figure it out"" / ""I'm good""","YES: ""OK. At the top you'll see your check-in - that's where you report how you're feeling each morning. Below that are your habits for today. You can tap the checkmark when you complete one, or tell me about it during your evening check-in. The mic button in the center is where you can talk to me anytime. And that's really it. Simple.""
+
+NO: ""Got it. If you ever want a walkthrough, just ask. Your first morning check-in is ready whenever you are.""","1. Detect: onboarding_completed_at within last 5 minutes
+2. Play first-visit voice
+3. Render today's habits from Supabase
+4. Calculate greeting by time
+5. Log PostHog: first_home_visit {explanation_requested}","If user taps mic instead: route to VOICE-01
+If user goes straight to a habit: skip explanation",Special one-time moment. Only plays once.,yes,"prompt: pre-recorded
+responses: real-time"
+HOME-MORNING,"Home
+Morning (before check-in)","[Day, Date]
+""Good Morning, [Name]""
+
+[Standard home layout]","[No auto-play voice. User initiates.]
+
+[If mic tapped and morning check-in not done:] Directly route to MCHECK-01. AI says: ""Morning, [Name]."" then starts check-in.
+
+[If mic tapped and check-in done:] ""You've already checked in today. What's on your mind?"" -> voice conversation",Tap: Check In / Mic / Any habit / Journal / Give Feedback / Nav item,"If mic: route to check-in or voice conversation
+If Check In tapped: open check-in screen","1. Greeting by time: before 12 = Morning, 12-17 = Afternoon, after 17 = Evening
+2. Show today's habits by day of week
+3. Show completion status","Check-in already done: mic -> voice conversation
+Afternoon, check-in not done: no nagging
+
+User says ""add a habit"" / ""another habit"": AI asks ""What habit would you like to add?"" then collect name, time, frequency, reminder.",Home is calm. No auto-play.,no,real-time
+HOME-EVENING,"Home
+Evening (before check-in)","""Good Evening, [Name]""
+
+[Standard home layout with completion status]","[No auto-play.]
+
+[If mic tapped and evening check-in not done:] Directly route to ECHECK-01. AI says: ""Hey [Name]."" then starts evening check-in flow.
+
+[If mic tapped and evening check-in already done:] ""You've already wrapped up today. Anything on your mind?"" -> voice conversation",Same tap options as morning,If mic: route to evening check-in flow,"1. Show habit completion status (some may be checked off already)
+2. Evening greeting
+3. If evening check-in not done: evening reminder may trigger","If all habits already marked complete:
+Mic -> ""Looks like you've already logged everything. Anything else on your mind?""
+
+User says ""add a habit"" / ""another habit"":
+AI: ""Sure - what habit would you like to add?""
+Same collection flow as ONBOARD-06.","Evening tone is warmer, reflective.",no,real-time
+HOME-RETURN,"Home
+Returning after 3+ days",Standard home layout,"[Auto-plays on first open after 3+ days of inactivity]
+
+""Hey [Name]. It's been a few days. No judgment - life happens. Want to pick up where you left off?""","Voice: ""Yeah"" / ""Let's go""
+
+Silence/tap: User just starts using the app","If yes: ""Good to have you back. Your habits are right here. Let's start fresh today.""
+
+If they just start tapping: no follow-up needed","1. Check last_active_date
+2. If gap >= 3 days: play return greeting
+3. Reset any stale daily data
+4. Set returning_user flag for PostHog
+5. Log: user_return {days_inactive}","Don't guilt. Don't ask why they were gone. Just welcome back.
+
+If gap is 7+ days: ""Hey [Name]. Welcome back. Everything's here just like you left it. Whenever you're ready.""",No judgment. Life happens.,no,real-time
+HOME-DAY2,"Home
+Day 2 (special moment)",Standard home layout,"[Auto-plays on second day opening the app]
+
+""Day two. You came back. That's the hardest step after the first one. Let's keep it going.""",No response needed - just a moment,-,"1. Check: if user.created_at was yesterday AND this is first open today
+2. Play Day 2 voice
+3. Set day2_shown = true
+4. Log PostHog: day_2_moment","Only triggers once. If they open 3 times on day 2, only plays first time.
+
+If they skipped a day (signed up Monday, first return Wednesday): different message - see HOME-RETURN",Day 2 is statistically where most people drop off. This moment matters.,yes,pre-recorded
+7. MORNING CHECK-IN,,,,,,,,,,
+Check-in Flow,,,,,,,,,,
+MCHECK-01,"Morning check-in
+Emoji scales","""How are you feeling?"" (expandable)
+
+Sleep Quality: Poor/Fair/Good/Great/Deep!
+Mood: Awful/Bad/Meh/Good/Awesome!
+Energy Level: Drained/Low/Medium/Active/Charged
+Stress Level: Extreme/High/Moderate/Light/Relaxed
+
+Button: ""Check In""","[Triggered by morning reminder]
+
+""Morning, [Name]. Quick check-in - sleep, mood, energy, stress. Just tap or tell me.""","VOICE (all): ""Slept great, mood's good, energy high, no stress.""
+VOICE (partial): ""Slept OK"" / ""I'm tired""
+TAP: Select emojis -> Check In
+
+VARIATIONS:
+""Great""/""Good""/""OK""/""Bad""/""Terrible"" = map to scale
+""Exhausted"" = Energy: Drained
+""Anxious"" = Stress: High
+""Fine"" = ambiguous","ALL CLEAR: [Brief ack - varies by coaching style]
+ALL NEGATIVE: ""Tough start. That's real. Let's see how the day unfolds - sometimes it shifts.""
+MIXED: ""Sleep was rough but energy's up - interesting. Let's work with what you've got.""","1. Parse voice: map to 5-point scales
+2. If tapped: save directly
+3. Save to Supabase checkins {user_id, type: 'morning', date, sleep, mood, energy, stress}
+4. Transition to MCHECK-02
+5. Log PostHog: complete_checkin {type: 'morning', input_method, values}","PARTIAL (1-2 only): ""Got it - [what they said]. And how about [remaining]? You can just tap the rest.""
+AMBIGUOUS (""I'm fine""): ""Fine as in good, or fine as in just getting by?""
+ALL NEGATIVE: AI does NOT try to fix. Acknowledges, moves forward.
+""I don't want to do this today"": ""That's OK. You can skip. I'll be here tomorrow."" -> close
+""I'm tired"": ""Tired as in low energy, or didn't sleep well? Or both?""
+
+TAP + VOICE MIX:
+User fills some scales via tap, then taps 'Check In' before completing all:
+System saves what's filled. Unfilled scales are skipped for today.
+AI acknowledges what it got: ""Got it - [filled scales]. Have a good one, [Name].""
+Don't force them to complete all 4. Any data is better than no check-in.",Between 30 seconds and a couple of minutes total. Keep it moving.,no,real-time
+MCHECK-02,"Morning goal
+(voice only)","[No screen element - voice only, after emojis submitted]","[After check-in submitted]
+
+""Anything specific you want to make happen today? A goal we can check back on tonight?""","GOAL: ""Hit the gym"" / ""Finish my proposal"" / ""Get to bed by 11""
+NO GOAL: ""No"" / ""Nah"" / ""I'm good"" / ""Not today""
+VAGUE: ""Have a good day"" / ""Be productive""","GOAL SET: ""Got it - [goal]. I'll ask you about it tonight.""
+NO GOAL: ""All good. Have a great day, [Name].""
+VAGUE: ""Is there anything specific you could check off by tonight?"" If still vague: ""No problem. Talk tonight.""","1. If goal: save to Supabase daily_goals {user_id, date, goal_text, status: 'pending'}
+2. Store for evening reference
+3. Return to Home
+4. Log PostHog: morning_goal {has_goal, goal_text_length}","Multiple goals: ""Let's focus on one. Which is most important?""
+Goal matches existing habit: ""That's already one of your habits today. Anything else beyond your regular habits?""
+Emotional goal: treat same as any goal.",Voice only. Not a text field.,yes,pre-recorded
+8. EVENING CHECK-IN,,,,,,,,,,
+Evening Flow,,,,,,,,,,
+ECHECK-01,"Evening check-in
+Opening + method choice",[Uses Home screen with habit completion status],"[Triggered by evening reminder]
+
+""Hey [Name] - let's wrap up your day. Would you like to go through your habits yourself, or want me to read them off?""","SELF-REPORT: ""I'll do it"" / ""I'll report"" / ""Let me tell you""
+AI-READ: ""Read them"" / ""You go"" / ""Go through them""
+JUST TAPPING: User taps complete/skip without voice","SELF-REPORT: ""Go ahead - tell me how today went.""
+AI-READ: ""OK. Let's go through them. [First habit] - did you do it?""","1. Fetch today's habits
+2. Fetch morning goal if exists
+3. Determine method
+4. Navigate to ECHECK-02 or ECHECK-03","Just tapping without voice: let them. Voice summarizes at end (ECHECK-06).
+User says something else: ""Want to go through your habits first, or is something on your mind?""
+
+Evening wrap-up (ECHECK-06) plays regardless of method.",User chooses method. Both equally valid.,no,real-time
+ECHECK-02,"Self-report
+User reports habits",[Habit list with complete/skip/miss buttons],"""Go ahead - tell me how today went.""","FULL: ""Did mindfulness, hydration, skipped reading, went for a walk.""
+PARTIAL: ""I did most of them"" / ""Only got two done""
+BY NAME: ""I did gym and meditation but skipped everything else""
+SHORT: ""Good day"" / ""Not great""
+ALL DONE: ""I did everything"" / ""All of them""","CLEAR: ""Got it - [summary]. [Positive comment if warranted].""
+PARTIAL: ""OK - which ones specifically?""
+GOOD DAY: ""Let me mark those. [Confirm list]""
+NOT GREAT: ""That's OK. Which ones did you get to?""
+ALL DONE: ""All [X] habits done? Nice. Let me mark them all complete.""","1. Parse voice: match habit names to status
+2. Update Supabase habit_completions
+3. After all accounted for: transition to ECHECK-04 or ECHECK-05
+4. Log PostHog: evening_habit_report {method: 'self_report', completed, skipped, missed}","Can't match name: ""I'm not sure which habit you mean. Can you say the full name?""
+Habit not on today's list: ""[Habit] isn't scheduled for today. Want to log it anyway?""
+User emotional about missing: ""Tomorrow's a fresh start. Let's keep going.""","NLP must handle synonyms: gym=workout=exercise, reading=read=book, etc.",no,real-time
+ECHECK-03,"AI-read
+Coach goes through list",[Same screen],"""OK. Let's go through them.
+
+[Habit 1 name] - did you do it?""
+[Habit 2:] ""How about [habit name]?""
+[Habit 3:] ""And [habit name]?""
+[Last habit:] ""Last one - [habit name]?""
+
+[Vary phrasing to avoid robotic repetition]","PER HABIT:
+""Yes"" / ""Yeah"" / ""Did it"" / ""Checked""
+""No"" / ""Skipped it"" / ""Didn't get to it""
+""Sort of"" / ""Half"" / ""Started but didn't finish""","COMPLETED: ""Nice."" or ""Got it."" [move to next]
+
+SKIPPED: ""OK."" [move to next - no guilt]
+
+SORT OF: ""I'll mark that as done. Every bit counts.""
+
+[After last habit:] ""That's all of them. [Summary].""
+
+[Beat/pause before goal check or reflection:]
+If goal exists: ""One more thing..."" then transition to ECHECK-04
+If no goal but reflection configured: ""Now let's do your reflection."" -> ECHECK-05
+If neither: go straight to ECHECK-06 wrap-up","1. Iterate through today's habits one by one
+2. Wait for response after each
+3. Save status per response
+4. After all: summarize and transition to ECHECK-04/05","User interrupts: ""Actually I did [habit 3] too"" mid-list
+AI: ""Got it - marking that done. OK, next - [continue list]""
+
+User wants to speed up: ""I did 1, 2, and 4, skipped 3""
+AI: ""Got it all. [Summary]."" Don't force one-by-one if they gave everything.","Pace should be conversational, not robotic.",no,real-time
+ECHECK-04,"Goal check
+(only if morning goal set)",[No screen element - voice only],"[Only if daily_goals exists for today]
+
+""You said this morning you wanted to [goal_text]. How'd that go?""","ACHIEVED: ""I did it"" / ""Yeah!"" / ""Nailed it"" / ""Got it done""
+
+MISSED: ""No"" / ""Didn't happen"" / ""Not today""
+
+PARTIAL: ""Sort of"" / ""I started it"" / ""Got halfway""","ACHIEVED: ""You said you wanted to [goal] and you did. That's you following through.""
+
+MISSED: ""No stress. Tomorrow's a fresh one.""
+
+PARTIAL: ""Progress counts. You moved it forward.""","1. Update daily_goals.status = achieved/missed/partial
+2. Transition to ECHECK-05 if reflection configured
+3. Otherwise: ECHECK-06 (wrap up)","Emotional response (""I'm so proud of myself""):
+AI: ""You should be. That was all you.""
+
+Excuse-heavy response:
+AI does NOT validate excuses or push back. Just acknowledges and moves on.",Evening goal reference = the payoff of the morning goal question.,no,real-time
+ECHECK-05,"Daily reflection
+(if configured)",[Journal prompts displayed one at a time],"""Now let's do your reflection. What are you proud of today?""","Answers to each prompt - open-ended, emotional, personal.
+
+Some people will give short answers: ""Nothing"" / ""I don't know""
+
+Some will give long answers.","[After each answer - brief, meaningful]
+
+Prompt 1 answer: ""[Brief reflection]. Next - what do you forgive yourself for today?""
+
+Prompt 2 answer: ""[Brief reflection]. Last one - what are you grateful for?""
+
+Prompt 3 answer: ""Thank you for sharing that. See you tomorrow morning, [Name].""","1. Save each response to Supabase journal_entries {user_id, date, prompt, response, input_method}
+2. After all prompts: transition to ECHECK-06
+3. Log PostHog: journal_entry {prompt_count, total_length, input_method}","""Nothing"" / ""I don't know"":
+AI: ""That's OK. Sometimes nothing comes to mind. We can move to the next one."" Do NOT push.
+
+User gets emotional:
+AI: Brief acknowledgment. ""That sounds like it matters a lot."" Do NOT therapize.
+
+User wants to skip reflection tonight:
+""No problem. We'll do it next time."" -> skip to wrap up",AI responses to reflections should be brief - 1 sentence. Don't steal the moment.,no,real-time
+ECHECK-06,Evening wrap-up,[Return to home screen],"[Summarize the evening]
+
+""[X] out of [Y] habits today. [Brief comment]. See you tomorrow morning, [Name].""",-,"ALL COMPLETE: ""All habits done today. That's a full day. Rest well.""
+
+ MOST DONE: ""Three out of four - solid day. Rest well, [Name].""
+
+FEW DONE: ""One out of four today. Some days are like that. Tomorrow's fresh.""
+
+NONE DONE: ""Sometimes the day doesn't go as planned. That's OK. Tomorrow we start again. Sleep well, [Name].""","1. Calculate daily completion rate
+2. Update streak data
+3. Return to Home
+4. Log PostHog: evening_complete {habits_completed, habits_total, had_goal, goal_status, reflection_done}","NONE done + bad mood from morning:
+AI does NOT pile on. Keep it gentle. ""Rest well tonight. Tomorrow's a new start.""
+
+Perfect day + good mood:
+""Clean sweep today. You earned a good night's rest.""","Last voice they hear before bed. Warm, brief, forward-looking.",no,real-time
+9. VOICE CONVERSATION (Anytime),,,,,,,,,,
+VOICE-01,"Voice conversation
+Mic tap from any screen","[Listening animation]
+[Transcription]
+[AI response]
+[Optional habit cards]","[On mic tap from any screen]
+""What's on your mind?""","HABIT CREATION: ""I want to start meditating"" / ""Add a new habit"" / ""I want to add another habit"" / ""Another habit"" / ""One more habit"" / ""Can I add a habit?""
+
+HABIT EDIT: ""Change my gym time to mornings""
+
+COACHING: ""I've been stressed"" / ""I'm not motivated""
+
+QUESTION: ""How many habits have I completed this week?""
+
+VENTING: ""Today was awful"" / long emotional share
+
+CHECK-IN: ""Let me do my check-in"" -> route to check-in
+
+GENERAL: ""What can you do?"" / ""Help""","[AI generates response based on intent + coaching style]
+
+HABIT (with name): ""[habit] - great idea. Let me set that up. What time, how often, and want a reminder?""
+
+HABIT (no name, e.g. 'add another habit' / 'another habit' / 'one more'): ""Sure - what habit would you like to add?""
+Then once they give the name: ""Got it - [habit]. What time, how often, and want a reminder?""
+
+EDIT: ""Done - [change made].""
+
+STRESS: ""That sounds heavy. What's the main thing weighing on you?""
+
+VENTING: ""I hear you. [Brief acknowledgment - do NOT try to fix].""
+
+QUESTION: ""[Answer from data].""
+
+HELP / WHAT CAN YOU DO: ""I can help you add or change habits, talk through how your day's going, answer questions about your progress, or just listen. What do you need?""","1. Capture voice via STT
+2. Send to LLM with context (habits, recent check-ins, goals, coaching style)
+3. LLM determines intent
+4. Route by intent: habit CRUD, coaching, data query, general
+5. Increment daily_voice_count
+6. If count >= 5: see VOICE-CAP
+7. Log PostHog: voice_conversation {intent, duration, actions_taken}","CHECK-INS DO NOT COUNT toward voice conversation cap.
+
+CONTEXT-AWARE: If mic tapped from habit detail screen, AI knows which habit: ""Want to talk about [habit name]?""
+
+From focus session: ""Taking a break from your focus session?""
+
+From insights: ""Questions about your data?""
+
+MENTAL HEALTH BOUNDARY:
+If user says something concerning (self-harm, crisis):
+AI: ""I hear you, and I want you to know that what you're feeling matters. I'm an AI coach and I'm not equipped to help with this the way you deserve. Please reach out to [crisis resource] or talk to someone you trust.""
+Do NOT continue coaching. Do NOT minimize.","Context changes based on which screen mic was tapped from.
+
+Cap is silent - no counter shown.
+
+CRITICAL: Mental health boundary response. If user expresses self-harm, suicidal thoughts, or crisis: stop coaching, express care, provide 988 Suicide & Crisis Lifeline (call/text 988). Do NOT continue normal conversation.",no,real-time
+VOICE-CAP,"Usage cap reached
+(5 conversations/day)",[Normal mic animation then message],"""You've used your voice sessions for today. I'll be here tomorrow. In the meantime, you can still do your check-ins and log habits on screen.""","User might try again: same message.
+User might ask why: same message.",-,"1. Check daily_voice_count >= 5 (excluding check-ins)
+2. Show gentle message
+3. Disable mic for conversations (keep for check-ins)
+4. Reset at midnight user's timezone","Check-ins NEVER count.
+Focus start/end don't count.
+Habit edit via voice doesn't count.
+Only open-ended conversations count.",Silent cap. No counter shown.,yes,pre-recorded
+10. HABIT DETAIL / EDIT / DELETE,,,,,,,,,,
+HABIT-01,Habit detail view,"""[Habit Name]"" header
+Streak calendar
+Completion %, current streak, longest streak
+Progress text
+""Log Habit Reflection""
+Milestones","[Voice on milestones only]
+3 days: ""Building momentum.""
+7 days: ""One week, [Name]. Seven days straight. That's not luck - that's you.""
+14 days: ""Two weeks. The resistance is fading.""
+30 days: ""30 days. This started as something you were trying. Now it's something you do. That's a real shift.""
+60 days: ""Two months. This is just what you do now.""
+90 days: ""90 days. Quarter of a year. This habit is part of who you are.""
+100 days: ""Triple digits. One hundred days of showing up.""
+365 days: ""One year. I don't even need to say anything. You know what this means.""
+
+[On mic tap:] ""Want to talk about [habit name]?""","Tap: Log Reflection / Edit / Share
+Mic: Voice about this habit
+
+Voice: ""How am I doing?"" / ""Tell me about my streak""","""How am I doing"": ""You're at [X]% completion with a [Y]-day streak. Your longest was [Z] days. [Brief coaching comment].""
+
+""Tell me about my streak"": Same data, natural language.","1. Fetch habit data from Supabase
+2. Check milestone triggers: if streak IN [3,7,14,30,60,90,100,365] AND not yet shown
+3. Play milestone voice, set shown = true
+4. Log PostHog: view_habit_detail {habit, streak, completion_rate}","BROKEN STREAK:
+[If streak was 7+ and just broke:]
+""Your streak reset. But [X] days of consistency doesn't disappear because of one day. Start again - you already know you can do it.""
+
+[If streak was 30+ and broke:]
+""[X] days. That streak was real. One missed day doesn't erase what you built. Pick it back up whenever you're ready.""",Milestones escalate emotionally. 365 is almost silent - the number speaks.,no,real-time
+HABIT-02,Edit habit,"""Edit Habit"" header (trash icon)
+HABIT NAME / WHEN / HOW OFTEN
+""Edit with Voice"" card
+Button: ""Save Changes""","[If voice edit:] ""What do you want to change about this habit?""","""Change the time to 10 PM""
+""Make it weekdays only""
+""Change the name to [new name]""
+""Turn off reminders""
+""Turn on reminders at [time]""","""Updated [change]. All good?""
+
+""Reminders turned off. You can always turn them back on in Settings or here.""","1. Parse change: {field, new_value}
+2. Update UI + Supabase
+3. Update/cancel push notifications if reminder changed
+4. Log PostHog: edit_habit {fields_changed, input_method}","Multiple changes: handle one at a time.
+""Change time to 10 and make it weekdays"": ""Updated to 10 PM, weekdays only. Anything else?""",'Edit with Voice' card teaches voice-first behavior.,yes,"prompt: pre-recorded
+responses: real-time"
+HABIT-03,Delete habit,"""Delete Habit?""
+""Are you sure you want to delete this habit? This action cannot be undone.""
+
+Button (red): ""Delete Habit""
+Button (outline): ""Keep Habit""","""Are you sure? You had a [X]-day streak. No judgment either way - sometimes it's the right call to refocus.""","DELETE: ""Yes"" / ""Delete it"" / Tap Delete Habit
+KEEP: ""No"" / ""Keep it"" / ""Never mind"" / Tap Keep Habit","DELETE: ""Done. If you ever want it back, just ask.""
+KEEP: ""Keeping it. Good call.""","1. Soft-delete: status = 'deleted', deleted_at = now()
+2. Cancel scheduled reminders
+3. Navigate to Home
+4. Log PostHog: delete_habit {habit_name, lifetime_days, total_completions, completion_rate}","No streak mentioned if streak is 0.
+If streak is very long (30+): ""That's a [X]-day streak you'd be ending. Sure about this?""
+
+User hesitates: ""Take your time. No rush.""",Anti-guilt design. Deletion should feel OK.,no,real-time
+11. CHECK-IN REMINDERS SETUP,,,,,,,,,,
+REMIND-01,Check-in reminders,"""When would you like to do your quick check-ins""
+""We'll use this to optimize your smart plan.""
+
+Tip: ""We recommend doing your check-in 15 minutes after waking up and 15 minutes before bedtime.""
+
+Morning check in - 07:00 AM - REMINDER toggle
+Night check in - 10:30 PM - REMINDER toggle
+
+Button: ""Save Reminders""","""When do you want to check in with me? I recommend about 15 minutes after you wake up and 15 before bed. What times work?""","FULL: ""7 AM and 10:30 PM""
+""Morning at 7, evening at 10""
+
+PARTIAL: ""7 AM"" (missing evening)
+""Before bed"" (vague)
+
+OR Tap: Set times -> Save","FULL: ""Set - [morning] and [evening]. I'll be here.""
+
+MISSING EVENING: ""Got it - [morning]. And what time for the evening?""
+
+""Before bed"": ""What time is bedtime for you?""","1. Parse times from voice
+2. Save to user_profile {morning_checkin_time, evening_checkin_time}
+3. Schedule push notifications (Supabase Edge Function)
+4. Navigate to Home
+5. Log PostHog: save_reminders {morning, evening}","User says times that don't make sense (evening at 6 AM):
+""Just checking - you want your evening check-in at 6 AM? Or did you mean 6 PM?""
+
+User doesn't want reminders:
+""No problem. You can always do check-ins whenever you open the app. No reminders needed.""",'I'll be here' - a promise.,yes,"prompt: pre-recorded
+responses: real-time"
+12. FOCUS SESSION,,,,,,,,,,
+FOCUS-01,"Focus session
+Setup + timer","""Focus Session"" header
+Habit dropdown
+Timer: 25:00
+Play/Stop
+Tip: ""Tap mic to set time""
+
+""Set Your Focus Session""
+SELECT HABIT list
+DURATION: H:M:S picker
+""Remind Me When Finished"" toggle
+Button: ""Start Focusing""","Setup: ""What are you focusing on, and how long?""
+
+Start: ""[X] minutes of [habit]. Go.""
+
+Complete: ""Time's up. [X] minutes of [habit] - done. How'd it go?""","Setup: ""Reading for 25 minutes"" / ""Meditation, 10 minutes""
+
+Complete response: ""Good"" / ""Great, got through two chapters"" / ""I got distracted honestly""","Complete (positive): ""[Reflects what they said]. Logged.""
+
+Complete (distracted): ""Some focus is better than none. Still counts.""","1. Parse: habit + duration from voice
+2. Start timer, create focus_session record
+3. On complete: update session, auto-complete linked habit
+4. If 'Remind Me': local notification at timer end
+5. Log PostHog: focus_session {habit, duration, completed}","User doesn't specify habit: ""Which habit are you focusing on?""
+
+User doesn't specify time: ""How long do you want to go?""
+
+""Just 5 minutes"": ""5 minutes works. Go."" - don't question short durations.
+
+MIC DURING ACTIVE SESSION:
+AI: ""You're in a focus session with [X] minutes left. Want to end it, or keep going?""
+If end: stop timer, log partial session, ""[X] minutes completed. Still counts.""
+If keep going: ""OK. Focus."" -> resume timer",'Go.' - one word. Ritual.,no,real-time
+13. INSIGHTS (Phase 2 - Copy Ready),,,,,,,,,,
+INSIGHT-01,Weekly/Monthly insights,"Insights header
+Week/Month tabs
+Completion chart
+Habit Performance
+Mood Correlations
+
+Monthly: entries by date with tags","[Optional narration - only with 3+ data points]
+
+Weekly: ""This week you completed [X]% of your habits. [If pattern exists: insight].""
+
+Monthly: ""[Month] at a glance. [If pattern: insight].""
+
+[On mic tap:] ""Questions about your data?""","Mic: ""How did I do this week?"" / ""What patterns do you see?"" / ""Am I improving?""",Responds with data-backed analysis. See AI Coaching Framework tab for insight rules (3+ data points required).,"1. Aggregate habit_completions + checkins for period
+2. Run pattern detection (correlation > 0.5 across 3+ data points)
+3. If pattern: generate insight
+4. If no pattern: no narration
+5. On mic: query user data and respond
+6. Log PostHog: view_insights {view, insight_shown}","No data yet (first week): ""We're still collecting data. After a week or two, I'll start showing you patterns.""
+
+Insight exists but user doesn't ask: Show on screen, narration optional (user can tap to hear).","Insights tell a STORY. AI only speaks when valuable.
+
+NOTE: Bottom nav 'Progress' tab leads to this Insights screen. They are the same destination.",no,real-time
+14. SETTINGS,,,,,,,,,,
+SETTINGS-01,Settings / Profile,"""Settings"" header
+Profile photo, name, email, Edit Profile
+
+CHECK-IN ROUTINE:
+- Morning Check In: 07:00 AM
+- Night Check in: 10:30 PM
+- Push Notifications: toggle
+
+PRIVACY & ACCOUNT:
+- Privacy Policy
+- Delete Account & Data (red)
+
+[POST-MVP: Add AI Coaching Style selector and Voice Model selector]","[No voice on settings. Purely configuration.]
+
+[On mic tap:] ""Want to change something in your settings? Just tell me.""","Mic: ""Change my morning check-in to 8 AM"" / ""Turn off notifications""
+
+Tap: Edit profile, change times, toggle notifications","""Updated - [change]. You can always change it again here.""","1. On check-in time change: reschedule push notifications
+2. On push toggle: enable/disable all
+3. Delete Account: double confirm -> Supabase cascade delete -> sign out
+
+[POST-MVP: coaching style reloads LLM prompt, voice model updates TTS voice_id]","Delete Account should have double confirmation: ""Are you sure? This removes all your data permanently. Type DELETE to confirm.""","MVP: Single coaching style (Warm & Thoughtful), single voice (male).
+Voice model selection and coaching style selection are post-MVP features.
+Settings screen in MVP shows check-in times, push notifications, profile, and privacy only.",no,real-time
+15. CALENDAR / PROGRESS,,,,,,,,,,
+CAL-01,Calendar view,"""March 2026"" (nav)
+Toggle: Sleep/Energy/Mood/Stress
+Calendar grid with color-coded dots
+MOOD LEGEND
+Bottom nav","[On open, optional:] ""Here's your month at a glance.""
+
+[On mic tap:] ""Questions about your progress?""","Mic: ""How was last week?"" / ""What was my best day?"" / ""When did I feel the most stressed?""",[Data-driven responses from checkins table],"1. Fetch checkins for month
+2. Map selected metric to color scale
+3. On day tap: show checkin detail
+4. On mic: query data and respond","No data for a month: ""No check-ins recorded for [month]. The calendar fills in as you check in.""",Visual proof of progress.,yes,"prompt: pre-recorded
+responses: real-time"
+16. PUSH NOTIFICATIONS,,,,,,,,,,
+PUSH-01,Morning reminder,"""Good morning, [Name]. Time to check in.""
+Alt: ""[Name], your morning check-in is ready."" / ""Quick check-in, [Name]?""",[Push only],Tap -> deep link /checkin?type=morning,-,"1. Scheduled daily at morning_checkin_time
+2. Rotate variants via PostHog A/B
+3. Deep link to morning check-in",-,Under 50 chars. Rotate.,no,push text only
+PUSH-02,Evening reminder,"""Hey [Name]. Let's wrap up your day.""
+Alt: ""Time to wrap up, [Name]."" / ""Your evening check-in is ready.""",[Push only],Tap -> deep link /checkin?type=evening,-,"1. Scheduled daily at evening_checkin_time
+2. Deep link to evening check-in",-,Warmer tone for evening.,no,push text only
+PUSH-03,Habit reminder,"""[Habit name] - now's the time, [Name].""
+Alt: ""You set this one up. Time to follow through.""",[Push only],Tap -> deep link /habit/[id],-,"1. Per-habit at schedule_time if reminder_enabled
+2. Deep link to habit",-,'You set this one up' - self-accountability.,no,push text only
+PUSH-04,"First check-in
+never done","""Your first check-in is waiting, [Name]. Takes between 10 and 30 seconds.""",[Push only],Tap -> deep link /checkin?type=morning,-,"1. Trigger: onboarding complete + 2 hours elapsed + no checkin record
+2. Send once only
+3. Log PostHog: first_checkin_nudge","Only send once. If they don't respond, don't nag.",Between 10 and 30 seconds - honest.,no,push text only
+17. FOUNDING USER MOMENTS,,,,,,,,,,
+FOUND-01,After first week,[No screen text],"""Hey [Name] - it's been a week. The fact that you're still here matters. Most people who try new apps stop after three days. You didn't. That's not the app - that's you.""",-,-,"1. Trigger: created_at + 7 days AND checkin_count >= 5
+2. Play on next app open
+3. Set milestone_week1_shown = true",Only if genuinely active (5+ check-ins). Don't congratulate someone who signed up and did nothing.,'That's not the app - that's you.',no,real-time
+FOUND-02,Feedback prompt,"""Give Feedback"" (megaphone on Home)","""What's working? What's not? I'd love to hear from you. Be honest - that's how this gets better.""",Voice or type feedback,"""Thank you. That goes straight to the team.""","1. STT capture
+2. Save to Supabase feedback table
+3. Pipe to Slack webhook
+4. Log PostHog: submit_feedback",-,Non-intrusive. Warm invitation.,yes,pre-recorded
+18. ERROR STATES,,,,,,,,,,
+ERR-01,"Voice fails to load
+(TTS provider down)","[Normal screen, no audio plays]","[Fallback: show text version of what AI would have said as a toast/banner]
+
+If persistent: ""Voice is temporarily unavailable. You can still use everything - just tap instead of talking.""",-,-,"1. Try TTS provider with 3-second timeout
+2. If fail: fall back to text display
+3. Set voice_available = false for session
+4. Log error to Sentry
+5. Retry on next interaction","Don't block the user. Everything should work without voice, just less magical.","Voice is enhancement, not requirement. App must work without it.",yes,pre-recorded
+ERR-02,Check-in fails to save,[Check-in screen],"""Hmm, that didn't save. Let me try again."" [Auto-retry]
+
+If retry fails: ""I'm having trouble saving right now. Your data is safe - I'll try again in a moment.""",-,-,"1. Retry save 2x with exponential backoff
+2. If fails: queue in local storage
+3. Retry on next app open
+4. Log error to Sentry",Never lose user data. Queue locally if server is down.,User should never worry about lost data.,yes,pre-recorded
+ERR-03,"Voice not recognized
+(STT returns empty)",[Listening animation -> nothing],"""I didn't hear anything. Could you try again? Make sure your mic is on.""",User retries,"If second attempt works: normal flow
+If fails again: ""Looks like I'm having trouble hearing you. You can type instead.""","1. Check mic permissions
+2. If no permission: prompt browser mic permission
+3. If permission granted but still failing: suggest text fallback
+4. Log STT failure to Sentry","After 2 failed attempts, suggest text input. Don't keep asking them to repeat.",Always have a text fallback path.,yes,pre-recorded
+ERR-04,Network connection lost,[Any screen],"[If voice was playing: audio stops]
+
+Banner: ""You're offline. Some features may not work until you're back online.""",-,-,"1. Detect offline via navigator.onLine
+2. Show persistent banner
+3. Queue any actions (check-ins, habit completions) locally
+4. Sync when back online
+5. Remove banner on reconnection",Habit completions and check-ins should queue and sync. Don't lose data.,Offline-first for critical actions.,yes,pre-recorded
+19. SUBCATEGORY VOICE RESPONSES (plays at ONBOARD-04),,,,,,,,,,
+SLEEP BETTER,,,,,,,,,,
+SUB-SLEEP-01,"Sleep better
+> Fall asleep earlier",[Subcategory: Fall asleep earlier],"""I hear that a lot. And here's the thing - it's usually not about willpower. It's about what happens in the hour before bed. A couple of small shifts there change everything.""","User selected via voice or tap.
+Habits: No caffeine after 2 PM, No screens after 10 PM, Start wind-down by 10 PM, Be in bed by target","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Normalizes. Reframes pre-bed routine.,Category: Sleep better,yes,pre-recorded
+SUB-SLEEP-02,"Sleep better
+> Wake up earlier",[Subcategory: Wake up earlier],"""The secret to waking up earlier actually starts the night before. When your evening is set up right, mornings take care of themselves.""","User selected via voice or tap.
+Habits: Out of bed by target, No snooze, Phone outside bedroom, Lights out by target","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Counterintuitive insight.,Category: Sleep better,yes,pre-recorded
+SUB-SLEEP-03,"Sleep better
+> Sleep more consistently",[Subcategory: Sleep more consistently],"""Consistency is where the real gains are. Your body has a rhythm - and when you work with it instead of against it, everything improves. Sleep, energy, mood.""","User selected via voice or tap.
+Habits: Same bedtime within 30 min, Same wake within 30 min, No screens in bed, No food after 9 PM","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Positions consistency as leverage.,Category: Sleep better,yes,pre-recorded
+SUB-SLEEP-04,"Sleep better
+> Sleep more deeply",[Subcategory: Sleep more deeply],"""Deep sleep is where your body actually recovers. Most people don't realize how much their environment and evening choices affect sleep quality - not just how long you sleep, but how well.""","User selected via voice or tap.
+Habits: Cool dark bedroom, No alcohol on sleep nights, No heavy meal 2hrs before, Read 10 pages","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Quantity vs quality insight.,Category: Sleep better,yes,pre-recorded
+MOVE MORE,,,,,,,,,,
+SUB-MOVE-01,"Move more
+> Walk more",[Subcategory: Walk more],"""Walking is the most underrated form of movement. It clears your head, boosts your energy, and it's something you can do every single day without burning out. Let's build it in.""","User selected via voice or tap.
+Habits: 8,000+ steps, Walk after lunch, Walk after dinner, Stand up each work hour","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Elevates walking.,Category: Move more,yes,pre-recorded
+SUB-MOVE-02,"Move more
+> Exercise consistently",[Subcategory: Exercise consistently],"""The key isn't working out harder - it's working out consistently. Two or three times a week, done reliably, beats five times a week done for two weeks and then nothing.""","User selected via voice or tap.
+Habits: Workout 2 days, Workout 3 days, 20-min home workout, Lay out clothes night before","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Permission to start moderate.,Category: Move more,yes,pre-recorded
+SUB-MOVE-03,"Move more
+> Improve mobility",[Subcategory: Improve mobility],"""A few minutes of stretching a day does more than people expect. It protects your body, clears tension, and makes everything else you do feel easier.""","User selected via voice or tap.
+Habits: Morning stretch, Post-work stretch, Post-workout stretch, Desk stretch at 3 PM","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Leads with benefit.,Category: Move more,yes,pre-recorded
+EAT BETTER,,,,,,,,,,
+SUB-EAT-01,"Eat better
+> Eat more intentionally",[Subcategory: Eat more intentionally],"""Intentional eating isn't about restriction - it's about paying attention. When you actually notice what you're eating, better choices happen naturally.""","User selected via voice or tap.
+Habits: Protein at breakfast, Vegetables at lunch, Vegetables at dinner, No eating while scrolling","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Mindfulness not diet culture.,Category: Eat better,yes,pre-recorded
+SUB-EAT-02,"Eat better
+> Reduce overeating",[Subcategory: Reduce overeating],"""Overeating is usually not about hunger - it's about patterns. Stress, routine, emotions. Once you notice what triggers it, you can start making different choices without fighting yourself.""","User selected via voice or tap.
+Habits: No second helping, One snack max, No food after 9 PM, Water before dinner","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Removes shame.,Category: Eat better,yes,pre-recorded
+SUB-EAT-03,"Eat better
+> Plan food better",[Subcategory: Plan food better],"""The best food decisions happen the night before, not in the moment. When you plan ahead, you take willpower out of the equation.""","User selected via voice or tap.
+Habits: Plan meals tonight, Prep lunch, Groceries on selected day, Pack healthy snack","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Friction-removal.,Category: Eat better,yes,pre-recorded
+FEEL MORE ENERGIZED,,,,,,,,,,
+SUB-ENERGY-01,"Feel more energized
+> Have more morning energy",[Subcategory: Have more morning energy],"""Morning energy isn't random - it's built. What you do in the first 30 minutes after waking sets the tone for the entire day. Let's get those 30 minutes right.""","User selected via voice or tap.
+Habits: Get outside within 30 min, Water before coffee, Breakfast within 90 min, No screens after 10 PM","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Makes energy controllable.,Category: Feel more energized,yes,pre-recorded
+SUB-ENERGY-02,"Feel more energized
+> Avoid afternoon crashes",[Subcategory: Avoid afternoon crashes],"""That 2-3 PM crash isn't inevitable. It's usually about what you ate for lunch and whether you moved at all in the middle of the day. Small changes, big difference.""","User selected via voice or tap.
+Habits: Walk after lunch, No caffeine after 2 PM, Protein with lunch, No sugary drink after lunch","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05","Normalizes, offers way out.",Category: Feel more energized,yes,pre-recorded
+SUB-ENERGY-03,"Feel more energized
+> Keep energy more stable",[Subcategory: Keep energy more stable],"""Stable energy comes from the basics - water, movement, and consistent sleep. Simple things, but they compound. When your energy is steady, everything else gets easier.""","User selected via voice or tap.
+Habits: 2 liters water, Stand up each hour, Bed by target, 15-min walk","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",'They compound' adds value.,Category: Feel more energized,yes,pre-recorded
+REDUCE STRESS,,,,,,,,,,
+SUB-STRESS-01,"Reduce stress
+> Feel calmer during the day",[Subcategory: Feel calmer during the day],"""Stress builds when you don't give yourself any breaks. Even two minutes of intentional pause in a busy day can reset how you feel.""","User selected via voice or tap.
+Habits: 5-min breathing, Walk without phone, No notifications first block, 2-min reset at lunch","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Concise. Tiny breaks reset stress.,Category: Reduce stress,yes,pre-recorded
+SUB-STRESS-02,"Reduce stress
+> Reduce evening stress",[Subcategory: Reduce evening stress],"""Evening stress is usually the day catching up with you. When you create a clear boundary between work and rest, your evenings actually become yours again.""","User selected via voice or tap.
+Habits: End work by target, Top 3 before bed, No work email after target, 10-min wind-down","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Emotionally resonant.,Category: Reduce stress,yes,pre-recorded
+SUB-STRESS-03,"Reduce stress
+> Feel less overwhelmed",[Subcategory: Feel less overwhelmed],"""Overwhelm usually comes from carrying everything in your head. The moment you get it out - onto a list, a plan, anything external - it shrinks. Let's build that system.""","User selected via voice or tap.
+Habits: Capture all tasks, 15-min admin block, Say no to one task, Screen-free break","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",'It shrinks' is hopeful.,Category: Reduce stress,yes,pre-recorded
+IMPROVE FOCUS,,,,,,,,,,
+SUB-FOCUS-01,"Improve focus
+> Start work with less friction",[Subcategory: Start work with less friction],"""The hardest part of focused work is starting. Once you're in it, momentum takes over. These habits remove the friction between you and that first task.""","User selected via voice or tap.
+Habits: Write top 3, Phone in other room, Start block by target, Desk cleared","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Names the real problem.,Category: Improve focus,yes,pre-recorded
+SUB-FOCUS-02,"Improve focus
+> Do deeper work",[Subcategory: Do deeper work],"""Deep work doesn't happen by accident - it happens by design. A block of time, no distractions, and a plan to protect it. Let's set that up.""","User selected via voice or tap.
+Habits: 45-min focus block, Two blocks, Notifications off, No social media before lunch","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Friction-removal philosophy.,Category: Improve focus,yes,pre-recorded
+SUB-FOCUS-03,"Improve focus
+> Procrastinate less",[Subcategory: Procrastinate less],"""Procrastination isn't laziness - it's usually avoidance of something uncomfortable. The trick is to make starting so small that your brain can't say no. Ten minutes on the hardest thing. That's it.""","User selected via voice or tap.
+Habits: Hardest task first, 10 min on avoided task, Block sites, Choose must-do night before","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Removes shame. Concrete action.,Category: Improve focus,yes,pre-recorded
+BREAK BAD HABITS,,,,,,,,,,
+SUB-BREAK-01,"Break bad habits
+> Smoking",[Subcategory: Smoking],"""Quitting smoking - or even cutting back - is one of the hardest things a person can do. And the fact that you're here means you're ready to try. We'll take it one day at a time.""","User selected via voice or tap.
+Habits: No cigarettes today, No smoking before noon, Urge delay, Carry gum","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Validates difficulty.,Category: Break bad habits,yes,pre-recorded
+SUB-BREAK-02,"Break bad habits
+> Weed",[Subcategory: Weed],"""Changing your relationship with weed starts with noticing when and why you use it. Once you see the pattern, you can start making different choices - on your terms.""","User selected via voice or tap.
+Habits: No weed today, No weeknights, No before 8 PM, Replace with walk","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Non-judgmental. Respects autonomy.,Category: Break bad habits,yes,pre-recorded
+SUB-BREAK-03,"Break bad habits
+> Alcohol",[Subcategory: Alcohol],"""Adjusting your drinking isn't all-or-nothing. Whether you're cutting back or taking days off, every boundary you set is a win. Let's find what works for you.""","User selected via voice or tap.
+Habits: No alcohol today, No weekdays, Max 2 drinks, Nonalcoholic first","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Rejects binary thinking.,Category: Break bad habits,yes,pre-recorded
+SUB-BREAK-04,"Break bad habits
+> Porn",[Subcategory: Porn],"""This is a personal one, and I respect you for putting it here. Changing this habit is about replacing the trigger, not just resisting it. Let's set up some boundaries that actually help.""","User selected via voice or tap.
+Habits: No porn today, No after 10 PM, Phone out of bedroom, Blocker on devices","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Acknowledges sensitivity. Shame-free.,Category: Break bad habits,yes,pre-recorded
+SUB-BREAK-05,"Break bad habits
+> Phone use",[Subcategory: Phone use],"""Your phone is designed to keep you on it. That's not a personal failure - it's by design. These habits put you back in control of when and how you use it.""","User selected via voice or tap.
+Habits: No phone first 30 min, No phone meals, Phone outside bedroom, Social apps under target","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Externalizes blame. Empowering.,Category: Break bad habits,yes,pre-recorded
+SUB-BREAK-06,"Break bad habits
+> Late-night snacking",[Subcategory: Late-night snacking],"""Late-night snacking is usually the habit, not actual hunger. Once you change the routine around dinner time, the urge fades on its own.""","User selected via voice or tap.
+Habits: No calories after 9 PM, Kitchen closed, Brush teeth after dinner, Evening tea","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Natural language. Freedom.,Category: Break bad habits,yes,pre-recorded
+SUB-BREAK-07,"Break bad habits
+> Caffeine",[Subcategory: Caffeine],"""Caffeine isn't the enemy - timing is. When you get the timing right, you keep the energy without the crash or the sleep disruption.""","User selected via voice or tap.
+Habits: No caffeine after 2 PM, Max 2 drinks, Water before caffeine, No energy drinks","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Reframes as timing.,Category: Break bad habits,yes,pre-recorded
+GET MORE ORGANIZED,,,,,,,,,,
+SUB-ORG-01,"Get more organized
+> Stay on top of tasks",[Subcategory: Stay on top of tasks],"""The feeling of being behind on tasks usually comes from not having one clear system. When everything lives in one place and you check it daily, the chaos settles.""","User selected via voice or tap.
+Habits: Check task list, One list only, Plan tomorrow, Clear inbox","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",'Chaos settles' is calming.,Category: Get more organized,yes,pre-recorded
+SUB-ORG-02,"Get more organized
+> Keep spaces tidy",[Subcategory: Keep spaces tidy],"""Your physical space affects your mental space more than most people realize. A quick daily reset keeps clutter from piling up and your mind from feeling heavy.""","User selected via voice or tap.
+Habits: Desk reset, Evening tidy, Clothes away, Weekly reset block","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Physical to mental.,Category: Get more organized,yes,pre-recorded
+SUB-ORG-03,"Get more organized
+> Handle life admin better",[Subcategory: Handle life admin better],"""Life admin is the stuff that falls through the cracks - bills, appointments, paperwork. A small daily check and one weekly block keeps it from becoming a mountain.""","User selected via voice or tap.
+Habits: Check calendar, Admin block, Pay bills, Process mail","[AI plays response, transition to ONBOARD-05]","1. Save subcategory
+2. Query habits DB
+3. Play voice
+4. Navigate to ONBOARD-05",Names invisible stressor.,Category: Get more organized,yes,pre-recorded

@@ -9,7 +9,7 @@ from googleapiclient.discovery import build
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env.local'))
+load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
 
 # --- Config ---
 MANIFEST_PATH = os.path.join(os.path.dirname(__file__), '../../src/data/voice-manifest.json')
@@ -19,34 +19,32 @@ RANGE_NAME = 'Voice System!A2:K1000' # Make sure this matches your CSV tab
 CARTESIA_API_KEY = os.environ.get('CARTESIA_API_KEY')
 SUPABASE_URL = os.environ.get('VITE_SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
-CARTESIA_VOICE_ID = os.environ.get('CARTESIA_VOICE_ID', '694f9ed8-eb98-4842-8809-5a587930ed6b')
+CARTESIA_VOICE_ID = os.environ.get('CARTESIA_VOICE_ID', '79a125e8-cd45-4c13-8a67-188112f4dd22')
 
 # For MVP, assume bucket name is 'voice-assets'
 BUCKET_NAME = 'voice-assets'
 
 # --- Initialization ---
-if not all([SHEET_ID, CARTESIA_API_KEY, SUPABASE_URL, SUPABASE_KEY]):
+if not all([CARTESIA_API_KEY, SUPABASE_URL, SUPABASE_KEY]):
     print("ERROR: Missing required environment variables.")
-    print("Please set VOICE_SHEET_ID, CARTESIA_API_KEY, VITE_SUPABASE_URL, and SUPABASE_SERVICE_ROLE_KEY.")
+    print("Please set CARTESIA_API_KEY, VITE_SUPABASE_URL, and SUPABASE_SERVICE_ROLE_KEY.")
     exit(1)
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def get_google_sheets_data():
-    # Attempt to load service account credentials
-    creds_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', 'service-account.json')
-    if not os.path.exists(creds_path):
-        print(f"ERROR: Google Cloud credentials not found at {creds_path}.")
+def get_csv_data():
+    import csv
+    csv_path = os.path.join(os.path.dirname(__file__), '../../src/data/voice-lines.csv')
+    if not os.path.exists(csv_path):
+        print(f"ERROR: CSV file not found at {csv_path}.")
         exit(1)
         
-    creds = Credentials.from_service_account_file(
-        creds_path, 
-        scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
-    )
-    service = build('sheets', 'v4', credentials=creds)
-    sheet = service.spreadsheets()
-    result = sheet.values().get(spreadsheetId=SHEET_ID, range=RANGE_NAME).execute()
-    return result.get('values', [])
+    rows = []
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            rows.append(row)
+    return rows
 
 def compute_hash(text: str) -> str:
     return hashlib.sha256(text.encode('utf-8')).hexdigest()
@@ -95,8 +93,8 @@ def upload_to_supabase(local_path: str, remote_path: str) -> str:
     return public_url
 
 def main():
-    print("Fetching data from Google Sheets...")
-    rows = get_google_sheets_data()
+    print("Fetching data from local CSV...")
+    rows = get_csv_data()
     
     print("Loading local manifest...")
     manifest = {}
@@ -127,12 +125,17 @@ def main():
         if not is_mp3:
             continue
             
-        ai_response = row[5]
-        if not ai_response:
-            continue
+        ai_response = row[5].strip()
+        if ai_response == '-' or not ai_response:
+            # fallback to AI Voice column if response is empty
+            ai_response = row[3].strip()
             
-        # Clean up text
-        text_to_speak = ai_response.replace('"', '').replace('\n', ' ').strip()
+        # Clean up text (remove coaching bracket tags)
+        import re
+        text_to_speak = ai_response.replace('"', '').replace('\n', ' ')
+        text_to_speak = re.sub(r'\[.*?\]', '', text_to_speak).strip()
+        if ':' in text_to_speak and text_to_speak.index(':') < 40 and '.' not in text_to_speak[:text_to_speak.index(':')]:
+             text_to_speak = text_to_speak[text_to_speak.index(':')+1:].strip()
         current_hash = compute_hash(text_to_speak)
         
         manifest_entry = manifest.get(file_id, {})
