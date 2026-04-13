@@ -1,9 +1,10 @@
 import { Bell, Lightbulb } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { InfoBox } from '@/components/ui/InfoBox';
 import { TimePicker } from '@/components/ui/TimePicker';
 import { Toggle } from '@/components/ui/Toggle';
+import { speak } from '@/lib/services/tts-service';
 
 interface ReminderSheetProps {
   onClose: () => void;
@@ -65,6 +66,14 @@ export function ReminderSheet({
   const [morningReminder, setMorningReminder] = useState(true);
   const [nightReminder, setNightReminder] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(initialPushNotifications);
+
+  // Voice prompt (CSV Sec 14)
+  const hasSpoken = useRef(false);
+  useEffect(() => {
+    if (hasSpoken.current) return;
+    hasSpoken.current = true;
+    speak('When do you want your morning and evening reminders? Set the times that work for you.');
+  }, []);
 
   const handleSave = (close: () => void) => {
     onSave?.({ morningTime, nightTime, pushNotifications });

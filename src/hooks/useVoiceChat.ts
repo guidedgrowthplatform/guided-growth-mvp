@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVoice } from '@/hooks/useVoice';
-import { stopTTS } from '@/lib/services/tts-service';
+import { speak, stopTTS } from '@/lib/services/tts-service';
 import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { useVoiceCommand } from './useVoiceCommand';
@@ -33,6 +33,28 @@ function makeId() {
 
 function defaultMessages(name?: string): ChatMessage[] {
   return [{ id: 'greeting', role: 'ai', text: getGreeting(name), timestamp: Date.now() }];
+}
+
+/** Voice conversation cap: 5/day (CSV VOICE-CAP). Check-ins don't count. */
+const VOICE_CAP_KEY = 'gg_voice_count';
+const VOICE_CAP_DATE_KEY = 'gg_voice_count_date';
+const MAX_VOICE_CONVERSATIONS = 5;
+
+function getVoiceCount(): number {
+  const today = new Date().toISOString().slice(0, 10);
+  const storedDate = localStorage.getItem(VOICE_CAP_DATE_KEY);
+  if (storedDate !== today) {
+    localStorage.setItem(VOICE_CAP_DATE_KEY, today);
+    localStorage.setItem(VOICE_CAP_KEY, '0');
+    return 0;
+  }
+  return parseInt(localStorage.getItem(VOICE_CAP_KEY) || '0', 10);
+}
+
+function incrementVoiceCount(): number {
+  const count = getVoiceCount() + 1;
+  localStorage.setItem(VOICE_CAP_KEY, String(count));
+  return count;
 }
 
 export function useVoiceChat(userName?: string) {
@@ -85,6 +107,24 @@ export function useVoiceChat(userName?: string) {
 
     lastHandledTranscript.current = transcript;
 
+    // Voice cap check (CSV VOICE-CAP: 5 conversations/day)
+    if (getVoiceCount() >= MAX_VOICE_CONVERSATIONS) {
+      setMessages((prev) => [
+        ...prev,
+        { id: makeId(), role: 'user', text: transcript, timestamp: Date.now() },
+        {
+          id: makeId(),
+          role: 'ai',
+          text: "You've used your voice sessions for today. I'll be here tomorrow. In the meantime, you can still do your check-ins and log habits on screen.",
+          timestamp: Date.now(),
+        },
+      ]);
+      speak("You've used your voice sessions for today. I'll be here tomorrow.");
+      resetTranscript();
+      return;
+    }
+    incrementVoiceCount();
+
     // Add the user's message bubble
     setMessages((prev) => [
       ...prev,
@@ -125,13 +165,19 @@ export function useVoiceChat(userName?: string) {
       },
     ]);
 
-    // TTS is handled by useVoiceCommand — don't duplicate here
-    // After TTS finishes, release the voice channel back to idle.
-    // We use a timeout approximation since speak() is fire-and-forget.
+    // TTS is handled by useVoiceCommand — don't duplicate here.
+    // After TTS finishes, auto-restart listening for seamless conversation.
+    // Estimate TTS duration: ~65ms per char, minimum 2 sec.
+    const ttsDurationMs = Math.max(2000, lastResult.message.length * 65);
     setTimeout(() => {
-      release();
-    }, 3000);
-  }, [lastResult, lastIntent, transition, release]);
+      // Auto-restart mic for seamless flow (Task 25: no double-tap)
+      // Only restart if we're still in a conversation (not navigated away)
+      stopTTS();
+      lastHandledTranscript.current = '';
+      resetTranscript();
+      start();
+    }, ttsDurationMs);
+  }, [lastResult, lastIntent, transition, release, start, resetTranscript]);
 
   // Voice/mic errors as friendly AI bubbles
   useEffect(() => {
@@ -139,6 +185,7 @@ export function useVoiceChat(userName?: string) {
     lastHandledVoiceError.current = voiceError;
 
     const friendlyMsg = "Hmm, I didn't catch that. Try tapping the mic and speaking again.";
+    speak(friendlyMsg);
     setMessages((prev) => [
       ...prev,
       { id: makeId(), role: 'ai', text: friendlyMsg, timestamp: Date.now() },
@@ -151,6 +198,7 @@ export function useVoiceChat(userName?: string) {
     lastHandledCommandError.current = commandError;
 
     const friendlyMsg = "Something didn't work on my end. Try saying that again?";
+    speak(friendlyMsg);
     setMessages((prev) => [
       ...prev,
       { id: makeId(), role: 'ai', text: friendlyMsg, timestamp: Date.now() },

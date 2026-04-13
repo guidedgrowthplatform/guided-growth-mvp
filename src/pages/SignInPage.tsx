@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
+import { unlockTTS } from '@/lib/services/tts-service';
 import { loginSchema, type LoginForm } from '@/lib/validation';
 
 const SPLASH_HEARD_KEY = 'guided_growth_splash_heard';
@@ -41,6 +42,7 @@ export function SignInPage() {
   });
 
   const onSubmit = async (data: LoginForm) => {
+    unlockTTS(); // Pre-unlock audio so post-auth welcome voice auto-plays
     setError(null);
     setLoading(true);
     const { error: authError } = await signIn(data.email, data.password);

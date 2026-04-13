@@ -294,6 +294,11 @@ const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a
     - Words like "Mark", "Done", "Log", "Delete" are COMMANDS, not names — even when capitalized
     - Dates like "03/05/2026" = March 5th 2026 (MM/DD/YYYY format)
 
+## CRITICAL: Mental Health Safety Boundary
+If the user expresses self-harm, suicidal thoughts, or crisis (e.g., "I want to hurt myself", "I don't want to be here anymore", "what's the point of living", "I want to end it all"), you MUST return:
+{"action":"reflect","entity":"journal","params":{"crisis":true,"text":"[user's words]"},"confidence":1.0,"corrected_transcript":"[user's words]"}
+Do NOT parse crisis messages as commands. This overrides ALL other rules.
+
 ## Response Format
 Return ONLY a JSON object (no markdown, no code fences, no explanation):
 {

@@ -1,3 +1,5 @@
+// Post-auth welcome (plays before onboarding begins)
+export { PostAuthWelcomePage } from './PostAuthWelcomePage';
 // Shared
 export { Step1Page } from './shared/Step1Page';
 export { Step2Page } from './shared/Step2Page';

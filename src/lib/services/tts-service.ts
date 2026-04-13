@@ -271,10 +271,26 @@ function cleanText(text: string): string {
  * inside a user-initiated event. Call this on mic button tap.
  */
 export function unlockTTS(): void {
-  if (ttsUnlocked || !('speechSynthesis' in window)) return;
-  const utterance = new SpeechSynthesisUtterance('');
-  utterance.volume = 0;
-  window.speechSynthesis.speak(utterance);
+  if (ttsUnlocked) return;
+  // Unlock browser speechSynthesis
+  if ('speechSynthesis' in window) {
+    const utterance = new SpeechSynthesisUtterance('');
+    utterance.volume = 0;
+    window.speechSynthesis.speak(utterance);
+  }
+  // Also unlock Audio element (used by Cartesia TTS)
+  try {
+    const silent = new Audio(
+      'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=',
+    );
+    silent.volume = 0;
+    silent
+      .play()
+      .then(() => silent.pause())
+      .catch(() => {});
+  } catch {
+    /* ignore */
+  }
   ttsUnlocked = true;
 }
 

@@ -56,6 +56,7 @@ const lazyOnboarding = (name: string) =>
       default: (m as Record<string, React.ComponentType>)[name],
     })),
   );
+const PostAuthWelcomePage = lazyOnboarding('PostAuthWelcomePage');
 const Step1Page = lazyOnboarding('Step1Page');
 const Step2Page = lazyOnboarding('Step2Page');
 const Step3Page = lazyOnboarding('Step3Page');
@@ -134,6 +135,14 @@ export function AppRoutes() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Onboarding (protected, no Layout) */}
+        <Route
+          path="/onboarding/welcome"
+          element={
+            <AppGate allow="onboarding">
+              <PostAuthWelcomePage />
+            </AppGate>
+          }
+        />
         <Route
           path="/onboarding"
           element={

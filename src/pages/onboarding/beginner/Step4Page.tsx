@@ -5,8 +5,10 @@ import { GoalCard } from '@/components/onboarding/GoalCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { goalsByCategory } from '@/data/onboardingHabits';
+import { SUBCATEGORY_RESPONSES } from '@/data/subcategoryResponses';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { speak } from '@/lib/services/tts-service';
 
 export function Step4Page() {
   const navigate = useNavigate();
@@ -51,8 +53,19 @@ export function Step4Page() {
   );
 
   const handleNext = useCallback(async () => {
+    // Play subcategory-specific coaching response (CSV Section 19)
+    const firstGoal = Array.from(selected)[0];
+    const response = firstGoal ? SUBCATEGORY_RESPONSES[firstGoal] : null;
+    if (response) speak(response);
+
     await saveStepAsync(4, { goals: Array.from(selected) });
-    navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
+    // Small delay so user hears the start of the response before transition
+    setTimeout(
+      () => {
+        navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
+      },
+      response ? 1500 : 0,
+    );
   }, [selected, category, navigate, saveStepAsync]);
 
   return (

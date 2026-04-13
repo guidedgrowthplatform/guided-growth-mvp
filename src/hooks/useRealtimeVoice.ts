@@ -1,7 +1,8 @@
+import { Capacitor } from '@capacitor/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVoice } from '@/hooks/useVoice';
-import { buildSystemPrompt } from '@/lib/coaching/systemPrompt';
 import type { UserContext } from '@/lib/coaching/systemPrompt';
+import { supabase } from '@/lib/supabase';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -41,44 +42,114 @@ interface UseRealtimeVoiceReturn {
   userTranscript: string;
 }
 
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function getApiBase(): string {
+  if (Capacitor.isNativePlatform()) {
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  }
+  return '';
+}
+
+/** Fetch a short-lived Cartesia access token from our backend. */
+async function fetchAgentToken(): Promise<string> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (session?.access_token) {
+    headers['Authorization'] = `Bearer ${session.access_token}`;
+  }
+
+  const res = await fetch(`${getApiBase()}/api/cartesia-token`, {
+    method: 'POST',
+    headers,
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(body.error || `Token request failed (${res.status})`);
+  }
+
+  const data = (await res.json()) as { token: string };
+  return data.token;
+}
+
+// ─── Audio Helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Convert a Float32Array of PCM samples to 16-bit PCM and return as ArrayBuffer.
+ * The agent expects 16-bit PCM at 16 kHz mono.
+ */
+function float32ToPcm16(float32: Float32Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(float32.length * 2);
+  const view = new DataView(buffer);
+  for (let i = 0; i < float32.length; i++) {
+    const s = Math.max(-1, Math.min(1, float32[i]));
+    view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return buffer;
+}
+
+/**
+ * Play raw PCM 16-bit audio received from the agent.
+ * Returns an AudioBufferSourceNode that can be stopped.
+ */
+function playPcm16Audio(
+  audioCtx: AudioContext,
+  pcmData: ArrayBuffer,
+  sampleRate: number,
+): AudioBufferSourceNode {
+  const int16 = new Int16Array(pcmData);
+  const float32 = new Float32Array(int16.length);
+  for (let i = 0; i < int16.length; i++) {
+    float32[i] = int16[i] / (int16[i] < 0 ? 0x8000 : 0x7fff);
+  }
+
+  const audioBuffer = audioCtx.createBuffer(1, float32.length, sampleRate);
+  audioBuffer.getChannelData(0).set(float32);
+
+  const source = audioCtx.createBufferSource();
+  source.buffer = audioBuffer;
+  source.connect(audioCtx.destination);
+  source.start();
+  return source;
+}
+
 // ─── Hook ───────────────────────────────────────────────────────────────────
 
 /**
  * Hook for real-time voice conversations with the Cartesia Line agent.
  *
- * Architecture (from newdocs.txt Section 3):
- * - Browser streams mic audio → WebSocket → Line agent
+ * Architecture (from docs Section 3):
+ * - Browser streams mic audio → WebSocket → Cartesia Line agent
  * - Line agent runs STT (Ink) → LLM (GPT-4o-mini) → TTS (Sonic) → audio back
  * - Browser plays response audio in real-time
  *
- * Current status: PLACEHOLDER — requires Cartesia Startup tier for Line agents.
- * The hook interface is ready; the WebSocket connection will be implemented
- * once the Line agent is deployed with `cartesia deploy`.
- *
- * When the Line agent is live, replace the TODO sections with:
- *   import { CartesiaClient } from "@cartesia/cartesia-js";
- *   const client = new CartesiaClient({ apiKey: "..." });
- *   const conversation = client.voice.conversation({ agentId: "..." });
+ * Security: API key never touches the browser. We fetch a short-lived access
+ * token from /api/cartesia-token (which uses the server-side key).
  */
 export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeVoiceReturn {
   const {
     userContext,
-    onTranscript: _onTranscript,
-    onUserSpeech: _onUserSpeech,
+    onTranscript: onTranscriptCb,
+    onUserSpeech: onUserSpeechCb,
     onError,
     onEnd,
   } = options;
   const { enterRealtime, release, registerCleanup, preference, transition } = useVoice();
 
   const [state, setState] = useState<RealtimeVoiceState>('idle');
-  const [aiTranscript] = useState('');
-  const [userTranscript] = useState('');
+  const [aiTranscript, setAiTranscript] = useState('');
+  const [userTranscript, setUserTranscript] = useState('');
 
   const mountedRef = useRef(true);
   const streamRef = useRef<MediaStream | null>(null);
-  // TODO: Replace with CartesiaClient conversation reference
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const connectionRef = useRef<any>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -95,14 +166,24 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
-    // Close WebSocket / conversation
-    if (connectionRef.current) {
+    // Disconnect audio processor
+    if (processorRef.current) {
+      processorRef.current.disconnect();
+      processorRef.current = null;
+    }
+    // Close AudioContext
+    if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+      audioCtxRef.current.close().catch(() => {});
+      audioCtxRef.current = null;
+    }
+    // Close WebSocket
+    if (wsRef.current) {
       try {
-        connectionRef.current.close?.();
+        wsRef.current.close(1000, 'cleanup');
       } catch {
         /* ignore */
       }
-      connectionRef.current = null;
+      wsRef.current = null;
     }
     if (mountedRef.current) {
       setState('idle');
@@ -133,14 +214,14 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     // Register cleanup so VoiceContext can stop us
     registerCleanup(stop);
 
-    // enterRealtime sets global state to 'listening' automatically
     setState('connecting');
 
     try {
-      // Request mic access
+      // 1. Request mic access
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
+          sampleRate: 16000,
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
@@ -148,48 +229,133 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       });
       streamRef.current = stream;
 
-      // Build the system prompt for this conversation
-      const _systemPrompt = buildSystemPrompt(userContext);
+      // 2. Fetch short-lived access token from backend
+      const token = await fetchAgentToken();
 
-      // ──────────────────────────────────────────────────────────
-      // TODO: Connect to Cartesia Line agent via WebSocket
-      //
-      // When Line agent is deployed:
-      //
-      // const client = new CartesiaClient({ apiKey: CARTESIA_API_KEY });
-      // const conversation = client.voice.conversation({
-      //   agentId: AGENT_ID,
-      //   onMessage: (msg) => {
-      //     if (msg.type === 'transcript') {
-      //       setAiTranscript(msg.text);
-      //       onTranscript?.(msg.text);
-      //       transition('speaking');
-      //     }
-      //     if (msg.type === 'user_transcript') {
-      //       setUserTranscript(msg.text);
-      //       onUserSpeech?.(msg.text);
-      //       transition('thinking');
-      //     }
-      //   },
-      //   onError: (err) => {
-      //     setState('error');
-      //     transition('idle');
-      //     onError?.(err.message);
-      //   },
-      //   onEnd: () => {
-      //     stop();
-      //   },
-      // });
-      // connectionRef.current = conversation;
-      // await conversation.start(stream);
-      // ──────────────────────────────────────────────────────────
+      // 3. Build WebSocket URL
+      const agentId = import.meta.env.VITE_CARTESIA_AGENT_ID;
+      if (!agentId) {
+        throw new Error('VITE_CARTESIA_AGENT_ID not configured. Deploy the Line agent first.');
+      }
 
-      // PLACEHOLDER: Simulate connected state
+      const wsUrl = new URL('wss://api.cartesia.ai/agent/websocket');
+      wsUrl.searchParams.set('api_key', token);
+      wsUrl.searchParams.set('cartesia_version', '2026-03-01');
+      wsUrl.searchParams.set('agent_id', agentId);
+
+      // Pass user context as metadata
+      if (userContext?.name) {
+        wsUrl.searchParams.set('metadata.user_name', userContext.name);
+      }
+      wsUrl.searchParams.set('metadata.coaching_style', 'warm');
+
+      // 4. Open WebSocket
+      const ws = new WebSocket(wsUrl.toString());
+      ws.binaryType = 'arraybuffer';
+      wsRef.current = ws;
+
+      // 5. Set up AudioContext for playback
+      const audioCtx = new AudioContext({ sampleRate: 24000 });
+      audioCtxRef.current = audioCtx;
+
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('WebSocket connection timed out'));
+        }, 10000);
+
+        ws.onopen = () => {
+          clearTimeout(timeout);
+          resolve();
+        };
+
+        ws.onerror = () => {
+          clearTimeout(timeout);
+          reject(new Error('WebSocket connection failed'));
+        };
+      });
+
+      // 6. Handle incoming messages
+      ws.onmessage = (event) => {
+        if (!mountedRef.current) return;
+
+        if (event.data instanceof ArrayBuffer) {
+          // Binary = audio data from agent (PCM 16-bit, 24kHz)
+          if (audioCtxRef.current) {
+            playPcm16Audio(audioCtxRef.current, event.data, 24000);
+          }
+          if (state !== 'speaking') {
+            setState('speaking');
+            transition('speaking');
+          }
+          return;
+        }
+
+        // Text = JSON control messages
+        try {
+          const msg = JSON.parse(event.data as string) as {
+            type: string;
+            text?: string;
+            [key: string]: unknown;
+          };
+
+          if (msg.type === 'agent_turn_started') {
+            setState('processing');
+            transition('thinking');
+          } else if (msg.type === 'agent_text_sent' && msg.text) {
+            setState('speaking');
+            transition('speaking');
+            setAiTranscript(msg.text);
+            onTranscriptCb?.(msg.text);
+          } else if (msg.type === 'user_text_sent' && msg.text) {
+            setState('listening');
+            transition('listening');
+            setUserTranscript(msg.text);
+            onUserSpeechCb?.(msg.text);
+          } else if (msg.type === 'agent_turn_ended') {
+            setState('listening');
+            transition('listening');
+          } else if (msg.type === 'error') {
+            onError?.(msg.text || 'Agent error');
+          }
+        } catch {
+          // Non-JSON text — ignore
+        }
+      };
+
+      ws.onclose = () => {
+        if (mountedRef.current && state !== 'idle') {
+          stop();
+        }
+      };
+
+      ws.onerror = () => {
+        if (mountedRef.current) {
+          setState('error');
+          transition('idle');
+          onError?.('Voice connection lost');
+        }
+      };
+
+      // 7. Stream mic audio to agent
+      const source = audioCtx.createMediaStreamSource(stream);
+      // ScriptProcessorNode is deprecated but widely supported.
+      // For production, migrate to AudioWorklet.
+      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+      processorRef.current = processor;
+
+      processor.onaudioprocess = (e) => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        const inputData = e.inputBuffer.getChannelData(0);
+        const pcm16 = float32ToPcm16(inputData);
+        ws.send(pcm16);
+      };
+
+      source.connect(processor);
+      processor.connect(audioCtx.destination);
+
       if (mountedRef.current) {
         setState('listening');
         transition('listening');
-        console.log('[RealtimeVoice] Placeholder mode — Line agent not connected yet');
-        console.log('[RealtimeVoice] System prompt length:', _systemPrompt.length, 'chars');
       }
     } catch (err) {
       cleanup();
@@ -208,9 +374,12 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     stop,
     userContext,
     onError,
+    onTranscriptCb,
+    onUserSpeechCb,
     release,
     cleanup,
     transition,
+    state,
   ]);
 
   return {

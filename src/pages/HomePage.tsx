@@ -11,6 +11,8 @@ import {
   MuteToggle,
   FeedbackSheet,
   ReminderSheet,
+  EveningCheckInFlow,
+  FirstVisitWelcome,
 } from '@/components/home';
 import { useAuth } from '@/hooks/useAuth';
 import { useEntries } from '@/hooks/useEntries';
@@ -29,6 +31,8 @@ export function HomePage() {
   const [showReminders, setShowReminders] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showEveningFlow, setShowEveningFlow] = useState(false);
+  const [showFirstVisit, setShowFirstVisit] = useState(fromOnboarding);
 
   const dateRange = useMemo(() => {
     const today = new Date();
@@ -70,7 +74,66 @@ export function HomePage() {
     }
   }, [fromOnboarding]);
 
-  // Founding User Moment — per Voice Journey Spreadsheet v3 (line 579)
+  // ── HOME-DAY2: Day 2 special moment (Voice Journey CSV) ───────────────
+  // "Day two. You came back. That's the hardest step after the first one."
+  // Triggers once on the second day the user opens the app.
+  const day2Fired = useRef(false);
+  useEffect(() => {
+    if (day2Fired.current || fromOnboarding) return;
+    day2Fired.current = true;
+    if (localStorage.getItem('gg_day2_shown')) return;
+
+    import('@/lib/supabase').then(({ supabase }) => {
+      supabase.auth.getUser().then(({ data }) => {
+        const createdAt = data?.user?.created_at;
+        if (!createdAt) return;
+        const daysActive = differenceInDays(new Date(), new Date(createdAt));
+        if (daysActive === 1) {
+          localStorage.setItem('gg_day2_shown', 'true');
+          setTimeout(() => {
+            speak(
+              `Day two. You came back. That's the hardest step after the first one. Let's keep it going.`,
+            );
+          }, 1500);
+        }
+      });
+    });
+  }, [fromOnboarding]);
+
+  // ── HOME-RETURN: Return after 3+ days of inactivity ──────────────────
+  // "Hey [Name]. It's been a few days. No judgment - life happens."
+  // Triggers once per return after 3+ days away.
+  const returnFired = useRef(false);
+  useEffect(() => {
+    if (returnFired.current || fromOnboarding) return;
+    returnFired.current = true;
+
+    const lastVisit = localStorage.getItem('gg_last_visit_date');
+    const today = format(new Date(), 'yyyy-MM-dd');
+
+    // Always update last visit
+    localStorage.setItem('gg_last_visit_date', today);
+
+    if (!lastVisit) return; // First visit or no tracking yet
+
+    const daysSinceLastVisit = differenceInDays(new Date(today), new Date(lastVisit));
+
+    if (daysSinceLastVisit >= 7) {
+      setTimeout(() => {
+        speak(
+          `Hey ${displayName}. Welcome back. Everything's here just like you left it. Whenever you're ready.`,
+        );
+      }, 1500);
+    } else if (daysSinceLastVisit >= 3) {
+      setTimeout(() => {
+        speak(
+          `Hey ${displayName}. It's been a few days. No judgment, life happens. Want to pick up where you left off?`,
+        );
+      }, 1500);
+    }
+  }, [displayName, fromOnboarding]);
+
+  // ── Founding User Moment — per Voice Journey CSV (ONBOARD-09) ────────
   // One-time voice after 7+ days of use
   const foundingMomentFired = useRef(false);
   useEffect(() => {
@@ -79,7 +142,6 @@ export function HomePage() {
     const alreadyPlayed = localStorage.getItem('gg_founding_moment_played');
     if (alreadyPlayed) return;
 
-    // Check account age via Supabase auth metadata
     import('@/lib/supabase').then(({ supabase }) => {
       supabase.auth.getUser().then(({ data }) => {
         const createdAt = data?.user?.created_at;
@@ -110,9 +172,19 @@ export function HomePage() {
           onSelectDate={setSelectedDate}
           entries={entriesForStrip}
         />
+        {showFirstVisit && <FirstVisitWelcome onDismiss={() => setShowFirstVisit(false)} />}
         <div>
           <QuickActionCards
-            onCheckInPress={() => setShowCheckIn(!showCheckIn)}
+            onCheckInPress={() => {
+              const hour = new Date().getHours();
+              if (hour >= 17) {
+                // Evening: launch full evening check-in flow (ECHECK-01)
+                setShowEveningFlow(true);
+              } else {
+                // Morning/afternoon: toggle simple check-in card
+                setShowCheckIn(!showCheckIn);
+              }
+            }}
             onJournalPress={() => navigate('/journal')}
           />
           <div
@@ -135,6 +207,7 @@ export function HomePage() {
       </div>
 
       {showFeedback && <FeedbackSheet onClose={() => setShowFeedback(false)} />}
+      {showEveningFlow && <EveningCheckInFlow onClose={() => setShowEveningFlow(false)} />}
 
       {showReminders && (
         <ReminderSheet

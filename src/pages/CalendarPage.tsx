@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   CalendarHeader,
   CalendarGrid,
@@ -9,10 +9,19 @@ import {
 import type { MetricType } from '@/components/calendar';
 import { useToast } from '@/contexts/ToastContext';
 import { useCalendarData } from '@/hooks/useCalendarData';
+import { speak } from '@/lib/services/tts-service';
 
 export function CalendarPage() {
   const { addToast } = useToast();
   const today = new Date();
+
+  // Voice greeting on page load (CSV Sec 15)
+  const hasSpoken = useRef(false);
+  useEffect(() => {
+    if (hasSpoken.current) return;
+    hasSpoken.current = true;
+    speak("Here's your month at a glance.");
+  }, []);
 
   const [currentMonth, setCurrentMonth] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1),

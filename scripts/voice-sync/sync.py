@@ -35,8 +35,8 @@ CARTESIA_API_KEY = os.environ.get("CARTESIA_API_KEY", "")
 GOOGLE_SHEET_ID = os.environ.get("GOOGLE_SHEET_ID", "")
 SERVICE_ACCOUNT_FILE = PROJECT_ROOT / "service-account.json"
 
-# Katie (female) voice — matches tts-service.ts default
-VOICE_ID = "f786b574-daa5-4673-aa0c-cbe3e8534c02"
+# Use founder's cloned voice from env, fallback to Katie (female) default
+VOICE_ID = os.environ.get("CARTESIA_VOICE_MALE", "f786b574-daa5-4673-aa0c-cbe3e8534c02")
 
 
 def _get_sheets_data() -> list[list[str]]:
@@ -62,7 +62,7 @@ def _get_sheets_data() -> list[list[str]]:
 
         result = sheet.values().get(
             spreadsheetId=GOOGLE_SHEET_ID,
-            range="Voice System!A2:K1000",
+            range="Voice Export!A2:K1000",
         ).execute()
 
         rows = result.get("values", [])
@@ -94,7 +94,7 @@ def _get_csv_data() -> list[list[str]]:
 
 
 def _compute_hash(text: str) -> str:
-    return hashlib.md5(text.encode("utf-8")).hexdigest()[:8]
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
 
 
 def _generate_audio(text: str) -> bytes:

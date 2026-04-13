@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import {
@@ -11,8 +11,9 @@ import {
 } from '@/components/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { unlockTTS } from '@/lib/services/tts-service';
+import { supabase } from '@/lib/supabase';
 import { loginSchema, type LoginForm } from '@/lib/validation';
 
 export function SignUpPage() {
@@ -21,7 +22,7 @@ export function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [confirmationPending, setConfirmationPending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const emailRef = useRef('');
+  const [submittedEmail, setSubmittedEmail] = useState('');
 
   const {
     register,
@@ -33,9 +34,10 @@ export function SignUpPage() {
   });
 
   const onSubmit = async (data: LoginForm) => {
+    unlockTTS(); // Pre-unlock audio so post-auth welcome voice auto-plays
     setError(null);
     setLoading(true);
-    emailRef.current = data.email;
+    setSubmittedEmail(data.email);
     const result = await signUp(data.email, data.password);
     setLoading(false);
     if (result.error) {
@@ -46,10 +48,10 @@ export function SignUpPage() {
   };
 
   const handleResend = useCallback(async () => {
-    if (resendCooldown > 0 || !emailRef.current) return;
+    if (resendCooldown > 0 || !submittedEmail) return;
     const { error: resendError } = await supabase.auth.resend({
       type: 'signup',
-      email: emailRef.current,
+      email: submittedEmail,
     });
     if (resendError) {
       setError(resendError.message);
@@ -65,7 +67,7 @@ export function SignUpPage() {
         });
       }, 1000);
     }
-  }, [resendCooldown]);
+  }, [resendCooldown, submittedEmail]);
 
   if (confirmationPending) {
     return (
@@ -75,13 +77,16 @@ export function SignUpPage() {
         <div className="mt-6">
           <h1 className="text-[30px] font-bold tracking-tight text-content">Check Your Email</h1>
           <p className="mt-2 text-base text-content-secondary">
-            We sent a verification link to <strong>{emailRef.current}</strong>. Click the link in
-            the email to verify your account.
+            We sent a verification link to <strong>{submittedEmail}</strong>. Click the link in the
+            email to verify your account.
           </p>
         </div>
 
         <div className="mt-8 space-y-4">
-          <AuthAlert type="info" message="Didn't receive the email? Check your spam folder or resend it below." />
+          <AuthAlert
+            type="info"
+            message="Didn't receive the email? Check your spam folder or resend it below."
+          />
           {error && <AuthAlert type="error" message={error} />}
           <Button
             variant="secondary"

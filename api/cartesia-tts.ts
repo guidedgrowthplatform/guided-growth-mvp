@@ -48,8 +48,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Missing or empty "text" field' });
     }
 
-    if (text.length > 1000) {
-      return res.status(400).json({ error: 'Text too long (max 1000 characters)' });
+    if (text.length > 5000) {
+      return res.status(400).json({ error: 'Text too long (max 5000 characters)' });
     }
 
     // Use client-provided voice_id if it looks like a Cartesia ID, else default
@@ -70,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         output_format: { container: 'mp3', encoding: 'mp3', sample_rate: 24000 },
         language: 'en',
       }),
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(30000),
     });
 
     if (!response.ok) {

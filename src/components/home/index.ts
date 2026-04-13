@@ -12,3 +12,6 @@ export { EmojiOptionButton } from './EmojiOptionButton';
 export { QuickActionCards } from './QuickActionCards';
 export { ReminderSheet } from './ReminderSheet';
 export { VoiceCheckInOverlay } from './VoiceCheckInOverlay';
+export { EveningCheckInFlow } from './EveningCheckInFlow';
+export { MorningGoalPrompt } from './MorningGoalPrompt';
+export { FirstVisitWelcome } from './FirstVisitWelcome';

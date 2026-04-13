@@ -6,8 +6,10 @@ import { speak, stopTTS } from '@/lib/services/tts-service';
 import type { CheckInData, CheckInDimension } from '@shared/types';
 import { checkInDimensions } from './checkInConfig';
 import { EmojiOptionButton } from './EmojiOptionButton';
+import { MorningGoalPrompt } from './MorningGoalPrompt';
 
 type CheckInValues = Record<CheckInDimension, number | null>;
+type CheckInPhase = 'scales' | 'morning_goal';
 
 const emptyValues: CheckInValues = { sleep: null, mood: null, energy: null, stress: null };
 
@@ -78,6 +80,7 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   const { addToast } = useToast();
   const voicePlayer = useVoicePlayer();
   const [values, setValues] = useState<CheckInValues>(emptyValues);
+  const [phase, setPhase] = useState<CheckInPhase>('scales');
 
   // TTS greeting — ref guard prevents React StrictMode double-fire
   const hasSpoken = useRef(false);
@@ -120,19 +123,20 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   const handleCheckIn = async () => {
     try {
       await save(values);
-      // TTS coaching response per Voice Journey Spreadsheet v3 (line 386-392)
       const hour = new Date().getHours();
       if (hour < 15) {
-        // Morning: play pre-recorded completion MP3
+        // Morning: play completion MP3, then show goal prompt (MCHECK-02)
         voicePlayer.play('checkin_complete').catch(() => {
-          speak("Got it \u2014 logged. You've got this today.");
+          speak('Got it \u2014 logged.');
         });
+        // Transition to morning goal prompt after a short delay
+        setTimeout(() => setPhase('morning_goal'), 2000);
       } else {
         // Evening coaching — reference morning data for narrative arc (dynamic TTS)
         const morningRef = buildEveningReference(checkIn);
         speak(morningRef);
+        onClose?.();
       }
-      onClose?.();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to save check-in';
       addToast('error', msg);
@@ -145,6 +149,11 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
         <p className="text-sm text-content-secondary">Loading check-in...</p>
       </div>
     );
+  }
+
+  // MCHECK-02: Morning goal prompt phase
+  if (phase === 'morning_goal') {
+    return <MorningGoalPrompt onClose={() => onClose?.()} />;
   }
 
   return (

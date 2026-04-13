@@ -5,16 +5,12 @@ to access and update user data in Supabase.
 
 Architecture Doc Reference: Section 3.2
 Voice Journey Spreadsheet: AI Coaching Framework tab
-
-Tool calls use the @loopback decorator so the result goes back to the LLM,
-which then formulates a natural-sounding spoken response.
 """
 
 import os
 from datetime import date, datetime
 from typing import Annotated
 
-import line
 from supabase import create_client, Client
 
 # ─── Supabase Client ─────────────────────────────────────────────────────────
@@ -35,7 +31,6 @@ def _get_supabase() -> Client | None:
 
 # ─── Tool: Get User Context ─────────────────────────────────────────────────
 
-@line.tool(loopback=True)
 async def get_user_context(
     user_id: Annotated[str, "The authenticated user's UUID"],
 ) -> str:
@@ -106,11 +101,11 @@ async def get_user_context(
         else:
             checkin_text = "No check-in recorded today."
 
-        return f"""User context:
+        return f'''User context:
 Name: {nickname}
 Coaching style: {style}
 {habits_text}
-{checkin_text}"""
+{checkin_text}'''
 
     except Exception as e:
         return f"Error fetching user context: {e}. Speak generally."
@@ -118,7 +113,6 @@ Coaching style: {style}
 
 # ─── Tool: Log Check-in ─────────────────────────────────────────────────────
 
-@line.tool(loopback=True)
 async def log_checkin(
     user_id: Annotated[str, "The user's UUID"],
     mood: Annotated[int, "Mood rating 1-5"],
@@ -157,7 +151,6 @@ async def log_checkin(
 
 # ─── Tool: Get Habits ────────────────────────────────────────────────────────
 
-@line.tool(loopback=True)
 async def get_habits(
     user_id: Annotated[str, "The user's UUID"],
 ) -> str:
@@ -207,7 +200,6 @@ async def get_habits(
 
 # ─── Tool: Log Goal ─────────────────────────────────────────────────────────
 
-@line.tool(loopback=True)
 async def log_goal(
     user_id: Annotated[str, "The user's UUID"],
     goal_text: Annotated[str, "The goal or intention the user stated"],

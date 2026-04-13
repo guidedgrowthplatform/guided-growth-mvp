@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
+import { unlockTTS } from '@/lib/services/tts-service';
 
 interface SocialAuthButtonsProps {
   disabled?: boolean;
@@ -13,6 +14,7 @@ export function SocialAuthButtons({ disabled }: SocialAuthButtonsProps) {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleGoogle = async () => {
+    unlockTTS(); // Pre-unlock audio so post-auth welcome voice auto-plays
     setGoogleLoading(true);
     await signInWithGoogle();
     setGoogleLoading(false);

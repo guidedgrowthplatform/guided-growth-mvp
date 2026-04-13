@@ -479,6 +479,20 @@ export class ActionDispatcher {
     _entity: string,
     params: Record<string, unknown>,
   ): Promise<ActionResult> {
+    // CRITICAL: Mental health safety boundary (Task 27, non-negotiable)
+    if (params.crisis === true) {
+      return {
+        success: true,
+        message:
+          "I hear you, and I want you to know that what you're feeling matters. " +
+          "I'm not the right support for this — but someone is. " +
+          'Please reach out to the 988 Suicide and Crisis Lifeline. ' +
+          "You can call or text 988, anytime, 24/7. You don't have to go through this alone.",
+        data: null,
+        uiAction: 'toast',
+      };
+    }
+
     const mood = String(params.mood || 'neutral');
     const themes = (params.themes as string[]) || [];
     const rawContent = params.content ? String(params.content) : null;

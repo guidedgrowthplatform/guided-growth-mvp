@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { CATEGORY_RESPONSES } from '@/data/categoryResponses';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { speak } from '@/lib/services/tts-service';
 
 const categories = [
   { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
@@ -37,8 +39,17 @@ export function Step3Page() {
   }, []);
 
   const handleNext = useCallback(async () => {
+    // Play category-specific coaching response (CSV ONBOARD-03)
+    const response = selected ? CATEGORY_RESPONSES[selected] : null;
+    if (response) speak(response);
+
     await saveStepAsync(3, { category: selected });
-    navigate('/onboarding/step-4', { state: { category: selected } });
+    setTimeout(
+      () => {
+        navigate('/onboarding/step-4', { state: { category: selected } });
+      },
+      response ? 1500 : 0,
+    );
   }, [selected, navigate, saveStepAsync]);
 
   return (

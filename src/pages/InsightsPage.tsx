@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   InsightsHeader,
   SegmentedControl,
   OverallAnalyticsTab,
   CheckInHistoryTab,
 } from '@/components/insights';
+import { speak } from '@/lib/services/tts-service';
 
 const tabItems = [
   { label: 'Overall Analytics', value: 'analytics' },
@@ -14,6 +15,14 @@ const tabItems = [
 export function InsightsPage() {
   const [activeTab, setActiveTab] = useState('analytics');
   const [timeRange, setTimeRange] = useState('week');
+
+  // Voice greeting on page load (CSV Sec 12)
+  const hasSpoken = useRef(false);
+  useEffect(() => {
+    if (hasSpoken.current) return;
+    hasSpoken.current = true;
+    speak("Here's how your week is looking.");
+  }, []);
   const [animating, setAnimating] = useState(false);
   const [displayTab, setDisplayTab] = useState(activeTab);
   const [direction, setDirection] = useState<'left' | 'right'>('right');
