@@ -116,6 +116,8 @@ tmp_*.txt
 
 # Test / scratch files (dev only — never commit)
 *.mp3
+# But DO track generated voice assets (needed for Vercel deploy)
+!public/voice/*.mp3
 git_*.txt
 *_test.txt
 *_error.txt
