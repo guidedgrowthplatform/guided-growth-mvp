@@ -1,6 +1,5 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
 import { FocusControls } from '@/components/focus/FocusControls';
 import { FocusSessionSheet } from '@/components/focus/FocusSessionSheet';
 import { FocusTimer } from '@/components/focus/FocusTimer';
@@ -16,7 +15,6 @@ export function FocusPage() {
   const { habits } = useHabits();
   const { saveFocusSession, error: saveError } = useFocusSession();
   const { addToast } = useToast();
-  const location = useLocation();
 
   const [showSheet, setShowSheet] = useState(false);
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
@@ -24,30 +22,8 @@ export function FocusPage() {
 
   // Track session start time
   const sessionStartRef = useRef<string | null>(null);
-  // Prevent voice auto-start from firing more than once
-  const voiceStartedRef = useRef(false);
 
   const selectedHabit = habits.find((h) => h.id === selectedHabitId);
-
-  // Voice command integration: read duration + autoStart from route state
-  // e.g., navigate('/focus', { state: { duration: 5, autoStart: true } })
-  useEffect(() => {
-    const state = location.state as { duration?: number; autoStart?: boolean } | null;
-    if (!state?.duration || voiceStartedRef.current) return;
-    voiceStartedRef.current = true;
-
-    // Set the duration from the voice command
-    timer.setDuration(state.duration);
-
-    // Auto-start the timer after a brief delay (let the UI render first)
-    if (state.autoStart) {
-      setTimeout(() => {
-        sessionStartRef.current = new Date().toISOString();
-        timer.start();
-      }, 300);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.state]);
 
   // Show toast when save fails
   useEffect(() => {
