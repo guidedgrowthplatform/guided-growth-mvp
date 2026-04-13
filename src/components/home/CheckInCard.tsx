@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
+import { track } from '@/lib/analytics';
 import { speak, stopTTS } from '@/lib/services/tts-service';
 import type { CheckInData, CheckInDimension } from '@shared/types';
 import { checkInDimensions } from './checkInConfig';
@@ -123,6 +124,11 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   const handleCheckIn = async () => {
     try {
       await save(values);
+      track('complete_checkin', {
+        type: new Date().getHours() < 15 ? 'morning' : 'evening',
+        input_method: 'tap',
+        values,
+      });
       const hour = new Date().getHours();
       if (hour < 15) {
         // Morning: play completion MP3, then show goal prompt (MCHECK-02)

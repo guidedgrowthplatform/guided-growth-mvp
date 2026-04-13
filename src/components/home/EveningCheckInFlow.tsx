@@ -6,6 +6,7 @@ import { ChatBubble } from '@/components/voice/ChatBubble';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { useAuth } from '@/hooks/useAuth';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { track } from '@/lib/analytics';
 import type { Habit, HabitCompletion } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
 import { speak, stopTTS, unlockTTS } from '@/lib/services/tts-service';
@@ -328,6 +329,12 @@ export function EveningCheckInFlow({ onClose }: EveningCheckInFlowProps) {
     }
 
     addAiMsg(comment, true, false); // Don't auto-listen on wrap-up
+
+    track('evening_complete', {
+      habits_completed: done,
+      habits_total: total,
+      had_goal: !!localStorage.getItem('gg_morning_goal'),
+    });
 
     // Clear morning goal for today
     localStorage.removeItem('gg_morning_goal');

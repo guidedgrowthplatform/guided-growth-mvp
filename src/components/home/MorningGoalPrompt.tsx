@@ -2,6 +2,7 @@ import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { track } from '@/lib/analytics';
 import { speak, stopTTS, unlockTTS } from '@/lib/services/tts-service';
 
 /**
@@ -49,13 +50,14 @@ export function MorningGoalPrompt({ onClose }: MorningGoalPromptProps) {
 
     if (declined) {
       setAnswered(true);
+      track('morning_goal', { has_goal: false });
       speak(`All good. Have a great day, ${displayName}.`);
       setTimeout(() => onClose(), 3000);
     } else {
-      // Save the goal
       setGoalText(transcript);
       setAnswered(true);
       localStorage.setItem('gg_morning_goal', transcript);
+      track('morning_goal', { has_goal: true, goal_text_length: transcript.length });
       speak(`Got it, ${transcript}. I'll ask you about it tonight.`);
       setTimeout(() => onClose(), 4000);
     }

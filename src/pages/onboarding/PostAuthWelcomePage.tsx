@@ -2,6 +2,7 @@ import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { track } from '@/lib/analytics';
 import { speak, stopTTS, unlockTTS } from '@/lib/services/tts-service';
 
 /**
@@ -42,23 +43,22 @@ export function PostAuthWelcomePage() {
   }, []);
 
   const handleReady = useCallback(() => {
+    track('post_auth_welcome', { action: 'ready', has_name: !!displayName });
     stopTTS();
     setPhase('presence_ask');
-    setTimeout(() => {
-      speak(PRESENCE_TEXT);
-    }, 200);
-    // Presence ask ~25 sec, navigate after
+    setTimeout(() => speak(PRESENCE_TEXT), 200);
     setTimeout(() => {
       setPhase('done');
       setTimeout(() => navigate('/onboarding', { replace: true }), 1200);
     }, 25000);
-  }, [navigate]);
+  }, [navigate, displayName]);
 
   const handleComeback = useCallback(() => {
+    track('post_auth_welcome', { action: 'come_back_later', has_name: !!displayName });
     stopTTS();
     setTimeout(() => speak(`No rush. I'll be here when you're ready.`), 200);
     setTimeout(() => navigate('/login', { replace: true }), 3500);
-  }, [navigate]);
+  }, [navigate, displayName]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[48px] pt-[max(24px,env(safe-area-inset-top))]">

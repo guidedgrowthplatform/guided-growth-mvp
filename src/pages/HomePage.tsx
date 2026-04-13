@@ -18,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEntries } from '@/hooks/useEntries';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
+import { track } from '@/lib/analytics';
 import { speak } from '@/lib/services/tts-service';
 import type { EntriesMap } from '@shared/types';
 
@@ -90,6 +91,7 @@ export function HomePage() {
         const daysActive = differenceInDays(new Date(), new Date(createdAt));
         if (daysActive === 1) {
           localStorage.setItem('gg_day2_shown', 'true');
+          track('day_2_moment');
           setTimeout(() => {
             speak(
               `Day two. You came back. That's the hardest step after the first one. Let's keep it going.`,
@@ -119,12 +121,14 @@ export function HomePage() {
     const daysSinceLastVisit = differenceInDays(new Date(today), new Date(lastVisit));
 
     if (daysSinceLastVisit >= 7) {
+      track('user_return', { days_inactive: daysSinceLastVisit });
       setTimeout(() => {
         speak(
           `Hey ${displayName}. Welcome back. Everything's here just like you left it. Whenever you're ready.`,
         );
       }, 1500);
     } else if (daysSinceLastVisit >= 3) {
+      track('user_return', { days_inactive: daysSinceLastVisit });
       setTimeout(() => {
         speak(
           `Hey ${displayName}. It's been a few days. No judgment, life happens. Want to pick up where you left off?`,
@@ -149,6 +153,7 @@ export function HomePage() {
         const daysActive = differenceInDays(new Date(), new Date(createdAt));
         if (daysActive >= 7) {
           localStorage.setItem('gg_founding_moment_played', 'true');
+          track('founding_user_moment', { days_active: daysActive });
           setTimeout(() => {
             speak(
               `Hey ${displayName} \u2014 it's been a week. The fact that you're still here matters. Most people who try new apps stop after three days. You didn't. That's not the app \u2014 that's you.`,
