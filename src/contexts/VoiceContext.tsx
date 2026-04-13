@@ -24,28 +24,33 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
 
   // Sync preference from Supabase on mount (009_voice_profile_columns.sql)
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data?.user) return;
-      supabase
-        .from('user_preferences')
-        .select('voice_mode')
-        .eq('user_id', data.user.id)
-        .single()
-        .then(({ data: pref }) => {
-          const mode = pref?.voice_mode as VoicePreference | undefined;
-          if (
-            mode &&
-            (mode === 'full_voice' || mode === 'text_only' || mode === 'speak_in_text_out')
-          ) {
-            setPreferenceState(mode);
-            try {
-              localStorage.setItem(VOICE_PREF_KEY, mode);
-            } catch {
-              /* */
-            }
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (!data?.user) return;
+        return supabase
+          .from('user_preferences')
+          .select('voice_mode')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
+      })
+      .then((res) => {
+        const mode = res?.data?.voice_mode as VoicePreference | undefined;
+        if (
+          mode &&
+          (mode === 'full_voice' || mode === 'text_only' || mode === 'speak_in_text_out')
+        ) {
+          setPreferenceState(mode);
+          try {
+            localStorage.setItem(VOICE_PREF_KEY, mode);
+          } catch {
+            /* */
           }
-        });
-    });
+        }
+      })
+      .catch(() => {
+        /* user_preferences row may not exist yet — use localStorage default */
+      });
   }, []);
   const cleanupRef = useRef<(() => void) | null>(null);
 
