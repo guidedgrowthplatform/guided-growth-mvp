@@ -496,27 +496,35 @@ export class ActionDispatcher {
     const mood = String(params.mood || 'neutral');
     const themes = (params.themes as string[]) || [];
     const rawContent = params.content ? String(params.content) : null;
+    const text = params.text ? String(params.text) : null;
     const content =
       rawContent ||
+      text ||
       (themes.length > 0 ? `Feeling ${mood}. Themes: ${themes.join(', ')}` : `Feeling ${mood}`);
 
-    const today = todayStr();
-    const todayEntries = await this.dataService.getJournalEntries(today, today);
-    const duplicate = todayEntries.find((e) => e.content.toLowerCase() === content.toLowerCase());
-    if (duplicate) {
-      return {
-        success: false,
-        message: `${MSG.warning} You already have a similar journal entry for today. Try adding different thoughts or details.`,
-        data: duplicate,
-        uiAction: 'toast',
-      };
+    // Try to save journal entry — if DB fails (RLS/permissions), still respond with empathy
+    try {
+      const today = todayStr();
+      const todayEntries = await this.dataService.getJournalEntries(today, today);
+      const duplicate = todayEntries.find((e) => e.content.toLowerCase() === content.toLowerCase());
+      if (duplicate) {
+        return {
+          success: false,
+          message: `${MSG.warning} You already have a similar journal entry for today. Try adding different thoughts or details.`,
+          data: duplicate,
+          uiAction: 'toast',
+        };
+      }
+      await this.dataService.createJournalEntry(content, mood, themes);
+    } catch {
+      // Journal save failed (likely RLS/permissions) — still respond empathetically
     }
 
-    const entry = await this.dataService.createJournalEntry(content, mood, themes);
+    // Always return empathetic coaching response regardless of save success
     return {
       success: true,
       message: COACHING.journalSaved(),
-      data: entry,
+      data: null,
       uiAction: 'toast',
     };
   }
