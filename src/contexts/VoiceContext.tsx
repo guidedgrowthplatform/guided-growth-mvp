@@ -1,15 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { VoiceContext, modeFromState } from '@/contexts/voiceContextDef';
 import type { VoiceState, VoicePreference } from '@/contexts/voiceContextDef';
-import { supabase } from '@/lib/supabase';
-import { useAuthStore } from '@/stores/authStore';
 
 // ─── Provider ───────────────────────────────────────────────────────────────
 
 const VOICE_PREF_KEY = 'guided_growth_voice_preference';
 
-function loadLocalPreference(): VoicePreference {
+function loadPreference(): VoicePreference {
   try {
     const saved = localStorage.getItem(VOICE_PREF_KEY);
     if (saved === 'text_only' || saved === 'speak_in_text_out') return saved;
@@ -19,56 +17,13 @@ function loadLocalPreference(): VoicePreference {
   return 'full_voice';
 }
 
-function saveLocalPreference(pref: VoicePreference): void {
-  try {
-    localStorage.setItem(VOICE_PREF_KEY, pref);
-  } catch {
-    /* ignore */
-  }
-}
+// TODO: Wire to Supabase profiles.voice_mode after migration is applied
+// to production. See supabase/migrations/009_voice_profile_columns.sql
 
 export function VoiceProvider({ children }: { children: ReactNode }) {
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
-  const [preference, setPreferenceState] = useState<VoicePreference>(loadLocalPreference);
+  const [preference, setPreferenceState] = useState<VoicePreference>(loadPreference);
   const cleanupRef = useRef<(() => void) | null>(null);
-  const user = useAuthStore((s) => s.user);
-
-  // ── Sync preference from Supabase on login ──────────────────────────────
-  useEffect(() => {
-    if (!user) return;
-
-    let cancelled = false;
-    const VALID_PREFS: VoicePreference[] = ['full_voice', 'text_only', 'speak_in_text_out'];
-
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('voice_mode')
-          .eq('id', user.id)
-          .single();
-
-        if (cancelled || error || !data) return;
-
-        const raw = (data as Record<string, unknown>).voice_mode;
-        const dbPref = VALID_PREFS.includes(raw as VoicePreference)
-          ? (raw as VoicePreference)
-          : null;
-
-        // DB is authoritative on login — always apply if valid
-        if (dbPref) {
-          setPreferenceState(dbPref);
-          saveLocalPreference(dbPref);
-        }
-      } catch {
-        // DB fetch failed or column doesn't exist — keep localStorage value
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
 
   /** Run any registered cleanup for the current owner */
   const runCleanup = useCallback(() => {
@@ -114,9 +69,6 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       const currentMode = modeFromState(current);
 
       if (currentMode !== 'realtime' && next !== 'idle') {
-        console.warn(
-          `[VoiceContext] Invalid transition attempt to ${next} from non-realtime state ${current}`,
-        );
         return current;
       }
 
@@ -135,24 +87,14 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     cleanupRef.current = fn;
   }, []);
 
-  const setPreference = useCallback(
-    (pref: VoicePreference) => {
-      setPreferenceState(pref);
-      saveLocalPreference(pref);
-
-      // Persist to Supabase profiles.voice_mode (fire-and-forget)
-      if (user) {
-        supabase
-          .from('profiles')
-          .update({ voice_mode: pref })
-          .eq('id', user.id)
-          .then(() => {
-            // voice_mode persisted to DB
-          });
-      }
-    },
-    [user],
-  );
+  const setPreference = useCallback((pref: VoicePreference) => {
+    setPreferenceState(pref);
+    try {
+      localStorage.setItem(VOICE_PREF_KEY, pref);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const value = useMemo(
     () => ({
