@@ -42,15 +42,15 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
 
     (async () => {
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('profiles')
           .select('voice_mode')
           .eq('id', user.id)
           .single();
 
-        if (cancelled) return;
+        if (cancelled || error || !data) return;
 
-        const raw = data?.voice_mode;
+        const raw = (data as Record<string, unknown>).voice_mode;
         const dbPref = VALID_PREFS.includes(raw as VoicePreference)
           ? (raw as VoicePreference)
           : null;
@@ -61,7 +61,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
           saveLocalPreference(dbPref);
         }
       } catch {
-        // DB fetch failed — keep localStorage value
+        // DB fetch failed or column doesn't exist — keep localStorage value
       }
     })();
 
