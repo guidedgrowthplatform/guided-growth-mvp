@@ -25,6 +25,7 @@ const config: CapacitorConfig = {
     allowNavigation: [
       'api.cartesia.ai',
       'guided-growth-mvp.vercel.app',
+      'guided-growth-mvp-green.vercel.app',
       'pmunbflbjpoawicgimyc.supabase.co',
       'accounts.google.com',
     ],
