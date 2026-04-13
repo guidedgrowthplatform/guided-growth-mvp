@@ -35,6 +35,11 @@ CARTESIA_API_KEY = os.environ.get("CARTESIA_API_KEY", "")
 GOOGLE_SHEET_ID = os.environ.get("GOOGLE_SHEET_ID", "")
 SERVICE_ACCOUNT_FILE = PROJECT_ROOT / "service-account.json"
 
+# Supabase Storage (per Architecture Doc Section 6.2)
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_BUCKET = os.environ.get("SUPABASE_STORAGE_BUCKET", "voice-assets")
+
 # Use founder's cloned voice from env, fallback to Katie (female) default
 VOICE_ID = os.environ.get("CARTESIA_VOICE_MALE", "f786b574-daa5-4673-aa0c-cbe3e8534c02")
 
@@ -130,6 +135,32 @@ def _clean_text(raw: str) -> str:
     return text
 
 
+def _upload_to_supabase(filename: str, audio: bytes) -> str | None:
+    """Upload MP3 to Supabase Storage. Returns public URL or None on failure."""
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        return None
+
+    try:
+        url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{filename}"
+        resp = requests.post(
+            url,
+            headers={
+                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                "Content-Type": "audio/mpeg",
+                "x-upsert": "true",
+            },
+            data=audio,
+            timeout=30,
+        )
+        if resp.ok:
+            public_url = f"{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_BUCKET}/{filename}"
+            return public_url
+        print(f" upload failed ({resp.status_code})", end="")
+    except Exception as exc:
+        print(f" upload error ({exc})", end="")
+    return None
+
+
 def main() -> None:
     if not CARTESIA_API_KEY:
         print("ERROR: CARTESIA_API_KEY not set.")
@@ -196,17 +227,26 @@ def main() -> None:
         try:
             print(f"  Generating: {file_id}...", end="", flush=True)
             audio = _generate_audio(text)
+
+            # Write local copy (static fallback for Vercel)
             filepath.write_bytes(audio)
 
+            # Upload to Supabase Storage (per Architecture Doc Section 2.2)
+            supabase_url = _upload_to_supabase(filename, audio)
+
+            # Manifest URL: prefer Supabase Storage, fallback to local
+            manifest_url = supabase_url or f"/voice/{filename}"
+
             files[file_id] = {
-                "url": f"/voice/{filename}",
+                "url": manifest_url,
                 "hash": text_hash,
                 "screen": screen,
                 "trigger": trigger,
                 "size_bytes": len(audio),
                 "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
             }
-            print(f" done ({len(audio) / 1024:.1f} KB)")
+            uploaded = " + uploaded" if supabase_url else ""
+            print(f" done ({len(audio) / 1024:.1f} KB{uploaded})")
             generated += 1
             time.sleep(0.1)  # Rate limit
         except Exception as exc:
