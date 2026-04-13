@@ -1,0 +1,5 @@
+# Cartesia Line Agent dependencies
+# Install: pip install -r requirements.txt
+cartesia-line>=0.1.0
+supabase>=2.0.0
+python-dotenv>=1.0.0

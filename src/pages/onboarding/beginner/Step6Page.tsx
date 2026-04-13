@@ -145,7 +145,7 @@ export function Step6Page() {
       ctaVariant="inline"
       showVoiceButton
       aiListeningPrompt='"When would you like to do your daily reflection?"'
-      voiceFileId="ONBOARD-08"
+      voiceFileId="onboarding_reflection"
       footerText="You can change these settings later in your profile."
       onNext={handleOnNext}
       onBack={() =>

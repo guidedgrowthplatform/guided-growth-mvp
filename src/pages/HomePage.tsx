@@ -15,6 +15,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useEntries } from '@/hooks/useEntries';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 import { speak } from '@/lib/services/tts-service';
 import type { EntriesMap } from '@shared/types';
 
@@ -38,10 +39,23 @@ export function HomePage() {
   }, []);
 
   const { entries, load } = useEntries();
+  const voicePlayer = useVoicePlayer();
 
   useEffect(() => {
     load(dateRange.start, dateRange.end);
   }, [load, dateRange.start, dateRange.end]);
+
+  // Pre-recorded dashboard greeting MP3 — plays morning or evening variant
+  const dashboardGreetingPlayed = useRef(false);
+  useEffect(() => {
+    if (dashboardGreetingPlayed.current || fromOnboarding) return;
+    dashboardGreetingPlayed.current = true;
+    const hour = new Date().getHours();
+    const fileId = hour < 15 ? 'dashboard_morning' : 'dashboard_evening';
+    voicePlayer.play(fileId).catch(() => {
+      // Autoplay blocked — will play on next user interaction
+    });
+  }, [voicePlayer, fromOnboarding]);
 
   const entriesForStrip: EntriesMap = entries;
 
@@ -86,7 +100,11 @@ export function HomePage() {
   return (
     <>
       <div className="space-y-6 pb-8 pt-2">
-        <HomeHeader userName={displayName} isFirstVisit={fromOnboarding} onPlusClick={() => navigate('/add-habit')} />
+        <HomeHeader
+          userName={displayName}
+          isFirstVisit={fromOnboarding}
+          onPlusClick={() => navigate('/add-habit')}
+        />
         <DateStrip
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}

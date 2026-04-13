@@ -35,7 +35,11 @@ export function Step5Page() {
     ? Object.fromEntries(
         Object.entries(state.habitConfigs).map(([k, v]) => [
           k,
-          { ...v, days: v.days instanceof Set ? v.days : new Set(v.days), schedule: (v.schedule ?? 'Weekday') as HabitConfig['schedule'] },
+          {
+            ...v,
+            days: v.days instanceof Set ? v.days : new Set(v.days),
+            schedule: (v.schedule ?? 'Weekday') as HabitConfig['schedule'],
+          },
         ]),
       )
     : undefined;
@@ -63,7 +67,12 @@ export function Step5Page() {
       const reconstituted: Record<string, HabitConfig> = Object.fromEntries(
         Object.entries(savedConfigs).map(([k, v]) => [
           k,
-          { ...v, days: v.days instanceof Set ? v.days : new Set(v.days), schedule: ((v as { schedule?: string }).schedule ?? 'Weekday') as HabitConfig['schedule'] },
+          {
+            ...v,
+            days: v.days instanceof Set ? v.days : new Set(v.days),
+            schedule: ((v as { schedule?: string }).schedule ??
+              'Weekday') as HabitConfig['schedule'],
+          },
         ]),
       );
       setHabitConfigs(reconstituted);
@@ -196,7 +205,7 @@ export function Step5Page() {
         aiListeningPrompt='"Select up to 2 daily habits to build your foundation."'
         ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
         voiceOptions={allHabits}
-        voiceFileId={phase === 'selecting' ? 'ONBOARD-05' : undefined}
+        voiceFileId={phase === 'selecting' ? 'onboarding_habit_pick' : undefined}
         voicePrompt="Here are a few habits that really help with this. And here's the key — pick what feels doable. Not heroic. Not impressive. Doable. Because one habit done consistently beats five that don't stick. You can also create your own if none of these fit."
         onVoiceAction={handleVoiceAction}
       >
