@@ -70,12 +70,13 @@ export function useVoiceChat(userName?: string) {
     }
   }, [voiceState, enterRealtime, transition]);
 
-  // Greeting TTS disabled — Cartesia TTS endpoint needs production
-  // debugging (auth + env var issues). Text greeting still shows.
-  // TODO: Re-enable after /api/cartesia-tts is stable on Vercel.
+  // Re-enabled Cartesia TTS greeting since /api/cartesia-tts is now stable on Vercel.
   useEffect(() => {
-    hasSpokenGreeting.current = true;
-  }, []);
+    if (!hasSpokenGreeting.current && messages.length > 0) {
+      speak(messages[0].text);
+      hasSpokenGreeting.current = true;
+    }
+  }, [messages]);
 
   // Process transcript when recording stops and transcript is available
   useEffect(() => {
