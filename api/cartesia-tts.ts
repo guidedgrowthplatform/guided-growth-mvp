@@ -17,9 +17,9 @@ import { getClientIp } from './_lib/validation.js';
 // Katie = warm female, Ronald = steady male
 const CARTESIA_VOICES: Record<string, string> = {
   // Female voices (stable, agent-style)
-  female: 'f786b574-daa5-4673-aa0c-cbe3e8534c02', // Katie
-  // Male voices (stable, agent-style)
-  male: 'a167e0f3-df7e-4c9d-9e09-98e2e4872788', // Ronald
+  female: '79a125e8-cd45-4c13-8a67-188112f4dd22', // British Lady
+  // Male voices
+  male: '79a125e8-cd45-4c13-8a67-188112f4dd22', // British Lady (Fallback until valid male ID found)
 };
 
 const CARTESIA_API_VERSION = '2026-03-01';

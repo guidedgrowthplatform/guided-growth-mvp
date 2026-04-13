@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { VoiceContext } from '@/contexts/voiceContextDef';
-import type { VoiceMode, VoicePreference } from '@/contexts/voiceContextDef';
+import { VoiceContext, modeFromState } from '@/contexts/voiceContextDef';
+import type { VoiceState, VoicePreference } from '@/contexts/voiceContextDef';
 
 // ─── Provider ───────────────────────────────────────────────────────────────
 
@@ -18,11 +18,11 @@ function loadPreference(): VoicePreference {
 }
 
 export function VoiceProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<VoiceMode>('idle');
+  const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [preference, setPreferenceState] = useState<VoicePreference>(loadPreference);
   const cleanupRef = useRef<(() => void) | null>(null);
 
-  /** Run any registered cleanup for the current mode */
+  /** Run any registered cleanup for the current owner */
   const runCleanup = useCallback(() => {
     if (cleanupRef.current) {
       cleanupRef.current();
@@ -32,31 +32,60 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
 
   const stopAll = useCallback(() => {
     runCleanup();
-    setMode('idle');
+    setVoiceState('idle');
   }, [runCleanup]);
 
+  // Derive mode on the fly
+  const mode = modeFromState(voiceState);
+
   const enterMp3 = useCallback((): boolean => {
-    if (mode === 'mp3') return true;
+    if (voiceState === 'mp3') return true;
     if (mode === 'realtime') {
       runCleanup();
     }
-    setMode('mp3');
+    setVoiceState('mp3');
     return true;
-  }, [mode, runCleanup]);
+  }, [voiceState, mode, runCleanup]);
 
   const enterRealtime = useCallback((): boolean => {
     if (mode === 'realtime') return true;
     if (mode === 'mp3') {
       runCleanup();
     }
-    setMode('realtime');
+    setVoiceState('listening'); // Realtime always starts listening
     return true;
   }, [mode, runCleanup]);
 
   const release = useCallback(() => {
     runCleanup();
-    setMode('idle');
+    setVoiceState('idle');
   }, [runCleanup]);
+
+  const transition = useCallback((next: VoiceState) => {
+    setVoiceState((current: VoiceState) => {
+      const currentMode = modeFromState(current);
+
+      // If we are idle or in mp3 mode, we cannot transition to a realtime substate.
+      // (MP3 has no substates in the global context, it just stays 'mp3').
+      // Only realtime has substate transitions.
+      if (currentMode !== 'realtime' && next !== 'idle') {
+        console.warn(
+          `[VoiceContext] Invalid transition attempt to ${next} from non-realtime state ${current}`,
+        );
+        return current;
+      }
+
+      // Valid transition within realtime
+      if (
+        currentMode === 'realtime' &&
+        (next === 'listening' || next === 'thinking' || next === 'speaking' || next === 'idle')
+      ) {
+        return next;
+      }
+
+      return current; // Fallback
+    });
+  }, []);
 
   const registerCleanup = useCallback((fn: () => void) => {
     cleanupRef.current = fn;
@@ -73,16 +102,29 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
+      voiceState,
       mode,
       preference,
       enterMp3,
       enterRealtime,
       release,
       stopAll,
+      transition,
       setPreference,
       registerCleanup,
     }),
-    [mode, preference, enterMp3, enterRealtime, release, stopAll, setPreference, registerCleanup],
+    [
+      voiceState,
+      mode,
+      preference,
+      enterMp3,
+      enterRealtime,
+      release,
+      stopAll,
+      transition,
+      setPreference,
+      registerCleanup,
+    ],
   );
 
   return <VoiceContext.Provider value={value}>{children}</VoiceContext.Provider>;

@@ -1,5 +1,4 @@
-// STT recording service — captures mic audio, encodes WAV, sends to STT API
-// Originally built for ElevenLabs Scribe, being migrated to Cartesia Ink
+// STT recording service — captures mic audio, encodes WAV, sends to Cartesia Ink / OpenAI Whisper
 import { Capacitor } from '@capacitor/core';
 import { supabase, sessionReady } from '@/lib/supabase';
 
@@ -85,8 +84,8 @@ async function resampleAudio(
  *   0.02+     — close-talking speech
  *
  * Used to reject empty/silent recordings BEFORE sending them to
- * ElevenLabs. Scribe (and Whisper) hallucinate long, unrelated text
- * when they receive silence — e.g. the user sees a transcript about
+ * the STT API. Whisper hallucinates long, unrelated text
+ * when it receives silence — e.g. the user sees a transcript about
  * real estate because the model filled in training-data noise.
  * This is the bug Alejandro screenshotted on 2026-04-09.
  */
@@ -420,7 +419,7 @@ export async function stopAndTranscribe(): Promise<string> {
       offset += chunk.length;
     }
 
-    // Silence gate. ElevenLabs Scribe hallucinates long runs of fluent
+    // Silence gate. Whisper hallucinates long runs of fluent
     // unrelated text when it receives silence or pure noise (the
     // real-estate-sales-pitch screenshot from Alejandro on 2026-04-09
     // was this bug). Reject obviously-silent audio BEFORE sending to

@@ -60,6 +60,8 @@ coverage/
 *.orig
 *.bak
 *.tmp
+service-account.json
+google-credentials.json
 
 # PWA / Service Worker
 dev-dist/

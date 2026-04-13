@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useVoice } from '@/hooks/useVoice';
 import { speakWhenReady, stopTTS } from '@/lib/services/tts-service';
 import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceStore } from '@/stores/voiceStore';
@@ -36,6 +37,7 @@ function defaultMessages(name?: string): ChatMessage[] {
 
 export function useVoiceChat(userName?: string) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => defaultMessages(userName));
+  const { enterRealtime, release, transition } = useVoice();
 
   const { isListening, start, stop, resetTranscript, error: voiceError } = useVoiceInput();
   const { processTranscript, isProcessing, error: commandError } = useVoiceCommand();
@@ -55,6 +57,18 @@ export function useVoiceChat(userName?: string) {
     : isListening
       ? 'listening'
       : 'idle';
+
+  // Sync local voiceState → global VoiceContext transitions
+  useEffect(() => {
+    if (voiceState === 'listening') {
+      enterRealtime(); // acquires the channel + sets global to 'listening'
+    } else if (voiceState === 'processing') {
+      transition('thinking');
+    } else if (voiceState === 'idle') {
+      // Only release if we were previously active
+      // (avoid releasing on initial mount)
+    }
+  }, [voiceState, enterRealtime, transition]);
 
   // Speak greeting TTS (useRef prevents React StrictMode double-fire).
   // Uses speakWhenReady to defer to the first user gesture on iOS
@@ -91,6 +105,9 @@ export function useVoiceChat(userName?: string) {
     if (!lastResult || lastResult === lastHandledResult.current) return;
     lastHandledResult.current = lastResult;
 
+    // Global state → speaking (TTS is about to play)
+    transition('speaking');
+
     const habitCards: ChatMessage['habitCards'] =
       lastIntent?.action === 'create' && lastIntent?.entity === 'habit' && lastResult.success
         ? [
@@ -113,7 +130,12 @@ export function useVoiceChat(userName?: string) {
     ]);
 
     // TTS is handled by useVoiceCommand — don't duplicate here
-  }, [lastResult, lastIntent]);
+    // After TTS finishes, release the voice channel back to idle.
+    // We use a timeout approximation since speak() is fire-and-forget.
+    setTimeout(() => {
+      release();
+    }, 3000);
+  }, [lastResult, lastIntent, transition, release]);
 
   // Voice/mic errors as friendly AI bubbles
   useEffect(() => {
