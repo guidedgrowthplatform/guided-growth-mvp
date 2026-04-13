@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { queryKeys } from '@/lib/query';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { haptic } from '@/lib/services/haptic-service';
@@ -9,6 +10,36 @@ import { speak } from '@/lib/services/tts-service';
 import { supabase, sessionReady } from '@/lib/supabase';
 import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceStore } from '@/stores/voiceStore';
+
+// ─── STT Correction Dictionary ──────────────────────────────────────────────
+// Common speech-to-text misrecognitions for our app's domain vocabulary.
+// Applied before parsing so the intent matcher sees clean input.
+const STT_CORRECTIONS: Record<string, string> = {
+  matrix: 'metric',
+  mattress: 'metric',
+  matrices: 'metrics',
+  metrix: 'metric',
+  matric: 'metric',
+  mediation: 'meditation',
+  meditating: 'meditation',
+  exorcise: 'exercise',
+  exercize: 'exercise',
+  jogging: 'jogging',
+  journaling: 'journal',
+  reflexion: 'reflection',
+  streak: 'streak',
+  habbit: 'habit',
+  habbits: 'habits',
+};
+
+/** Fix common STT misrecognitions before intent parsing */
+function correctTranscript(text: string): string {
+  let corrected = text;
+  for (const [wrong, right] of Object.entries(STT_CORRECTIONS)) {
+    corrected = corrected.replace(new RegExp(`\\b${wrong}\\b`, 'gi'), right);
+  }
+  return corrected;
+}
 
 // Module-level state survives React remounts — prevents double-fire across
 // overlay close/reopen cycles and React StrictMode double-invocation.
@@ -162,6 +193,18 @@ export function localParse(transcript: string): {
     };
   }
 
+  // Timer aliases: "start timer for 5 minutes", "set timer 10 minutes", "timer 5 minutes"
+  if (t.match(/(?:start|begin|set)\s+(?:a\s+)?timer|^timer\s/)) {
+    const durationMatch = t.match(/(?:for\s+)?(\d+)\s*(?:minutes?|mins?|seconds?|secs?)/);
+    const duration = durationMatch ? Number(durationMatch[1]) : 25;
+    return {
+      action: 'focus',
+      entity: 'focus',
+      params: { duration, habit: null },
+      confidence: 0.85,
+    };
+  }
+
   // Focus: "start focus session for 25 minutes" or "start focus on meditation for 25 minutes"
   if (t.match(/(?:start|begin)\s+focus/)) {
     const durationMatch = t.match(/(?:for\s+)?(\d+)\s*(?:minutes?|mins?)/);
@@ -205,6 +248,7 @@ export function localParse(transcript: string): {
 
 export function useVoiceCommand() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const {
     isProcessing,
     lastResult,
@@ -224,8 +268,10 @@ export function useVoiceCommand() {
       // Module-level guard — survives remounts, prevents concurrent dispatches
       if (_processing) return;
 
-      const transcript = rawTranscript.replace(/\s{2,}/g, ' ').trim();
-      if (!transcript) return;
+      const rawClean = rawTranscript.replace(/\s{2,}/g, ' ').trim();
+      if (!rawClean) return;
+      // Apply STT corrections before parsing (e.g. "matrix" → "metric")
+      const transcript = correctTranscript(rawClean);
 
       _processing = true;
       setProcessing(true);
@@ -299,6 +345,14 @@ export function useVoiceCommand() {
 
         speak(result.message);
 
+        // Handle navigation from voice commands (e.g., "start focus" → /focus)
+        if (result.navigateTo) {
+          // Small delay so TTS starts playing before the page transitions
+          setTimeout(() => {
+            navigate(result.navigateTo!);
+          }, 600);
+        }
+
         // Only invalidate/refresh on mutation actions (not query/help/suggest)
         if (MUTATION_ACTIONS.has(intent.action)) {
           qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
@@ -328,7 +382,7 @@ export function useVoiceCommand() {
         setProcessing(false);
       }
     },
-    [setProcessing, setResult, setError, addHistory, qc],
+    [setProcessing, setResult, setError, addHistory, qc, navigate],
   );
 
   return {
