@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVoice } from '@/hooks/useVoice';
-import { speakWhenReady, stopTTS } from '@/lib/services/tts-service';
+import { stopTTS } from '@/lib/services/tts-service';
 import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { useVoiceCommand } from './useVoiceCommand';
@@ -70,17 +70,13 @@ export function useVoiceChat(userName?: string) {
     }
   }, [voiceState, enterRealtime, transition]);
 
-  // Speak greeting TTS (useRef prevents React StrictMode double-fire).
-  // Uses speakWhenReady to defer to the first user gesture on iOS
-  // WKWebView, otherwise the greeting is silently blocked by autoplay
-  // policy and the user hears nothing on first visit.
+  // Re-enabled Cartesia TTS greeting since /api/cartesia-tts is now stable on Vercel.
   useEffect(() => {
-    if (hasSpokenGreeting.current) return;
-    hasSpokenGreeting.current = true;
-    const ttsGreeting = getGreeting(userName);
-    const cancel = speakWhenReady(ttsGreeting);
-    return cancel;
-  }, [userName]);
+    if (!hasSpokenGreeting.current && messages.length > 0) {
+      speak(messages[0].text);
+      hasSpokenGreeting.current = true;
+    }
+  }, [messages]);
 
   // Process transcript when recording stops and transcript is available
   useEffect(() => {

@@ -1,9 +1,9 @@
 import { Icon } from '@iconify/react';
 import { format } from 'date-fns';
-import { useEffect, useState } from 'react';
 
 interface HomeHeaderProps {
   userName: string;
+  isFirstVisit?: boolean;
   onPlusClick?: () => void;
 }
 
@@ -14,18 +14,7 @@ function getGreeting(): string {
   return 'Good Evening';
 }
 
-const FIRST_VISIT_KEY = 'gg_first_visit_done';
-
-export function HomeHeader({ userName, onPlusClick }: HomeHeaderProps) {
-  const [isFirstVisit, setIsFirstVisit] = useState(false);
-
-  useEffect(() => {
-    const visited = localStorage.getItem(FIRST_VISIT_KEY);
-    if (!visited) {
-      setIsFirstVisit(true);
-      localStorage.setItem(FIRST_VISIT_KEY, 'true');
-    }
-  }, []);
+export function HomeHeader({ userName, isFirstVisit = false, onPlusClick }: HomeHeaderProps) {
 
   const headline = isFirstVisit ? 'Welcome to Guided Growth' : `Welcome back, ${userName}`;
 

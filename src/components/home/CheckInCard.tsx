@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
+import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 import { speak, stopTTS } from '@/lib/services/tts-service';
 import type { CheckInData, CheckInDimension } from '@shared/types';
 import { checkInDimensions } from './checkInConfig';
@@ -75,6 +76,7 @@ interface CheckInCardProps {
 export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   const { checkIn, loading, saving, save } = useCheckIn(selectedDate);
   const { addToast } = useToast();
+  const voicePlayer = useVoicePlayer();
   const [values, setValues] = useState<CheckInValues>(emptyValues);
 
   // TTS greeting — ref guard prevents React StrictMode double-fire
@@ -82,16 +84,21 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   useEffect(() => {
     if (hasSpoken.current) return;
     hasSpoken.current = true;
-    const hour = new Date().getHours();
-    if (hour < 15) {
-      speak("Quick check-in \u2014 how'd you sleep? How's your energy?");
-    } else {
-      speak('Hey \u2014 how was today?');
-    }
+    // Play pre-recorded check-in prompt MP3
+    voicePlayer.play('checkin_prompt').catch(() => {
+      // Fallback to dynamic TTS if MP3 fails
+      const hour = new Date().getHours();
+      if (hour < 15) {
+        speak("Quick check-in \u2014 how'd you sleep? How's your energy?");
+      } else {
+        speak('Hey \u2014 how was today?');
+      }
+    });
     return () => {
       stopTTS();
+      voicePlayer.stop();
     };
-  }, []);
+  }, [voicePlayer]);
 
   useEffect(() => {
     if (checkIn) {
@@ -116,11 +123,12 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
       // TTS coaching response per Voice Journey Spreadsheet v3 (line 386-392)
       const hour = new Date().getHours();
       if (hour < 15) {
-        // Morning coaching
-        speak("Got it \u2014 logged. You've got this today.");
+        // Morning: play pre-recorded completion MP3
+        voicePlayer.play('checkin_complete').catch(() => {
+          speak("Got it \u2014 logged. You've got this today.");
+        });
       } else {
-        // Evening coaching — reference morning data for narrative arc
-        // (Voice Journey v3: "You said this morning your energy was low — and you still showed up")
+        // Evening coaching — reference morning data for narrative arc (dynamic TTS)
         const morningRef = buildEveningReference(checkIn);
         speak(morningRef);
       }

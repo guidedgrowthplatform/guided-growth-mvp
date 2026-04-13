@@ -156,8 +156,11 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
             reject(err);
           });
         });
-      } catch (err) {
-        console.warn(`[VoicePlayer] Error playing ${fileId}:`, err);
+      } catch (err: unknown) {
+        const error = err as Error;
+        if (error?.name !== 'AbortError' && error?.name !== 'NotAllowedError') {
+          console.warn(`[VoicePlayer] Error playing ${fileId}:`, err);
+        }
         if (mountedRef.current) {
           setState('error');
           setCurrentFileId(null);

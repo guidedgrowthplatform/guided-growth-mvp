@@ -40,6 +40,7 @@ export const supabase: SupabaseClient = createClient(
   supabaseAnonKey || 'noop',
   {
     auth: {
+      flowType: 'pkce',
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: !isNative,

@@ -1,7 +1,9 @@
 import { Icon } from '@iconify/react';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { deleteAccount } from '@/api/onboarding';
+import { queryKeys } from '@/lib/query';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import {
   coachingStyles,
@@ -9,7 +11,6 @@ import {
   languages,
   recordingOptions,
   sttOptions,
-  timeOptions,
   voiceModels,
 } from '@/components/settings/constants';
 import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
@@ -21,7 +22,7 @@ import { TimeBadge } from '@/components/settings/TimeBadge';
 import { UserInfoSection } from '@/components/settings/UserInfoSection';
 import { VoiceSettingsSheet } from '@/components/settings/VoiceSettingsSheet';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
-import { Toggle } from '@/components/ui/Toggle';
+import { ReminderSheet } from '@/components/home/ReminderSheet';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
@@ -45,14 +46,13 @@ type SheetType =
   | 'coaching'
   | 'voiceModel'
   | 'language'
-  | 'morningTime'
-  | 'nightTime';
+  | 'reminders';
 
 export function SettingsPage() {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const { user, signOut } = useAuth();
-  const { preferences: pageSettings, updatePreference } = useUserPreferences();
+  const { preferences: pageSettings, updatePreference, updatePreferences } = useUserPreferences();
   const { recordingMode, setRecordingMode, sttProvider, setSttProvider } = useVoiceSettingsStore();
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -62,6 +62,10 @@ export function SettingsPage() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  const qc = useQueryClient();
+  const onboardingState = qc.getQueryData<{ data?: { nickname?: string } }>(queryKeys.onboarding.state);
+  const profileNickname = user?.nickname || (onboardingState?.data?.nickname as string) || null;
 
   // Load voices with polling for Android
   useEffect(() => {
@@ -155,7 +159,7 @@ export function SettingsPage() {
       <UserInfoSection
         name={displayName}
         email={email}
-        nickname={user?.nickname}
+        nickname={profileNickname}
         avatarUrl={user?.image ?? undefined}
         onEditProfile={() => setActiveSheet('editProfile')}
         onChangePhoto={() => setActiveSheet('editProfile')}
@@ -177,27 +181,14 @@ export function SettingsPage() {
             icon="mingcute:sun-line"
             label="Morning Check In"
             isFirst
-            onClick={() => setActiveSheet('morningTime')}
+            onClick={() => setActiveSheet('reminders')}
             right={<TimeBadge>{formatTime12h(pageSettings.morningTime)}</TimeBadge>}
           />
           <SettingRow
             icon="boxicons:moon"
             label="Night Check in"
-            onClick={() => setActiveSheet('nightTime')}
+            onClick={() => setActiveSheet('reminders')}
             right={<TimeBadge>{formatTime12h(pageSettings.nightTime)}</TimeBadge>}
-          />
-          <SettingRow
-            icon="iconamoon:notification"
-            label="Push Notifications"
-            right={
-              <Toggle
-                checked={pageSettings.pushNotifications}
-                onChange={(v) => {
-                  updatePreference('pushNotifications', v);
-                  addToast('success', v ? 'Notifications enabled' : 'Notifications disabled');
-                }}
-              />
-            }
           />
         </SettingsCard>
       </section>
@@ -263,7 +254,7 @@ export function SettingsPage() {
         <EditProfileSheet
           onClose={() => setActiveSheet(null)}
           initialName={displayName}
-          initialNickname={user?.nickname ?? null}
+          initialNickname={profileNickname}
           initialAvatarUrl={user?.image ?? null}
         />
       )}
@@ -348,28 +339,13 @@ export function SettingsPage() {
           onClose={() => setActiveSheet(null)}
         />
       )}
-      {activeSheet === 'morningTime' && (
-        <VoiceSettingsSheet
-          title="Morning Check-In Time"
-          options={timeOptions}
-          selected={pageSettings.morningTime}
-          onSelect={(v) => {
-            updatePreference('morningTime', v);
-            setActiveSheet(null);
-          }}
+      {activeSheet === 'reminders' && (
+        <ReminderSheet
           onClose={() => setActiveSheet(null)}
-        />
-      )}
-      {activeSheet === 'nightTime' && (
-        <VoiceSettingsSheet
-          title="Night Check-In Time"
-          options={timeOptions}
-          selected={pageSettings.nightTime}
-          onSelect={(v) => {
-            updatePreference('nightTime', v);
-            setActiveSheet(null);
-          }}
-          onClose={() => setActiveSheet(null)}
+          initialMorningTime={pageSettings.morningTime}
+          initialNightTime={pageSettings.nightTime}
+          initialPushNotifications={pageSettings.pushNotifications}
+          onSave={(data) => updatePreferences(data)}
         />
       )}
     </div>

@@ -4,9 +4,10 @@ from googleapiclient.discovery import build
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
+load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env.local'))
 
 def test_sheet_connection():
-    sheet_id = os.environ.get('VOICE_SHEET_ID')
+    sheet_id = os.environ.get('GOOGLE_SHEET_ID')
     creds_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', 'service-account.json')
     full_creds_path = os.path.join(os.path.dirname(__file__), '../../', creds_path)
     

@@ -86,7 +86,6 @@ function isCriticalError(msg: string): boolean {
     'service-worker',
     'ServiceWorker',
     'workbox',
-    'better-auth',
     'FUNCTION_INVOCATION_FAILED',
   ];
   return !ignoredPatterns.some((p) => msg.toLowerCase().includes(p.toLowerCase()));

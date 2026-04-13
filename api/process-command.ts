@@ -495,9 +495,12 @@ Return ONLY valid JSON in this format:
 ## Step-Specific Instructions:
 
 ### Step 1: Demographics
-Parse: nickname, ageRange (from options), gender (Male/Female/Other)
-Example: "I'm Alex, 25 to 34, male"
-Output: {"nickname": "Alex", "ageRange": "25 - 34", "gender": "Male"}
+Parse: nickname, age (integer number), gender (Male/Female/Other), referralSource
+- Only output fields that the user explicitly states. Leave them out if not mentioned.
+Example: "I'm Alex, 25 years old, male"
+Output: {"nickname": "Alex", "age": 25, "gender": "Male"}
+Example: "My name is Said, I am 22"
+Output: {"nickname": "Said", "age": 22}
 
 ### Step 2: Path Selection
 Parse: "simple" or "braindump" (keep it simple vs brain dump)

@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: ['main']
+    branches: ['main', 'fix/android-apk-server-access']
   pull_request:
     branches: ['main']
   workflow_dispatch:
@@ -78,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     # Can run automatically on push to main or via manual trigger
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

@@ -8,6 +8,7 @@ import { StatsGrid } from '@/components/habit-detail/StatsGrid';
 import { StreakCard } from '@/components/habit-detail/StreakCard';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useHabitDetail } from '@/hooks/useHabitDetail';
+import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 import { getDataService } from '@/lib/services/service-provider';
 import { speak } from '@/lib/services/tts-service';
 
@@ -58,6 +59,8 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
     }
   }, [habitId, onClose]);
 
+  const voicePlayer = useVoicePlayer();
+
   // TTS milestone celebration per Voice Journey Spreadsheet v3 (line 454-458)
   const hasSpokenMilestone = useRef(false);
   useEffect(() => {
@@ -75,9 +78,17 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
     } else if (reps >= 21) {
       speak("21 days in. You're building something lasting.");
     } else if (reps >= 7) {
-      speak("One week. You showed up seven days in a row. That's not luck \u2014 that's you.");
+      // Use pre-recorded streak MP3 for 7-day milestone
+      voicePlayer.play('habit_complete_streak').catch(() => {
+        speak("One week. You showed up seven days in a row. That's not luck \u2014 that's you.");
+      });
+    } else if (reps >= 1) {
+      // Use pre-recorded completion MP3 for regular completions
+      voicePlayer.play('habit_complete_1').catch(() => {
+        // No fallback needed for early completions
+      });
     }
-  }, [stats, isLoading]);
+  }, [stats, isLoading, voicePlayer]);
 
   if (isLoading) {
     return (

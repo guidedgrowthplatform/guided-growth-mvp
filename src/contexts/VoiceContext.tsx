@@ -17,6 +17,9 @@ function loadPreference(): VoicePreference {
   return 'full_voice';
 }
 
+// TODO: Wire to Supabase profiles.voice_mode after migration is applied
+// to production. See supabase/migrations/009_voice_profile_columns.sql
+
 export function VoiceProvider({ children }: { children: ReactNode }) {
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [preference, setPreferenceState] = useState<VoicePreference>(loadPreference);
@@ -65,17 +68,10 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     setVoiceState((current: VoiceState) => {
       const currentMode = modeFromState(current);
 
-      // If we are idle or in mp3 mode, we cannot transition to a realtime substate.
-      // (MP3 has no substates in the global context, it just stays 'mp3').
-      // Only realtime has substate transitions.
       if (currentMode !== 'realtime' && next !== 'idle') {
-        console.warn(
-          `[VoiceContext] Invalid transition attempt to ${next} from non-realtime state ${current}`,
-        );
         return current;
       }
 
-      // Valid transition within realtime
       if (
         currentMode === 'realtime' &&
         (next === 'listening' || next === 'thinking' || next === 'speaking' || next === 'idle')
@@ -83,7 +79,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         return next;
       }
 
-      return current; // Fallback
+      return current;
     });
   }, []);
 
