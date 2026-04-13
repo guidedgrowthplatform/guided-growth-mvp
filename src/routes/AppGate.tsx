@@ -1,17 +1,8 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { SplashScreen } from '@/components/ui/SplashScreen';
 import { useAppGate } from '@/hooks/useAppGate';
 import { useAuthStore } from '@/stores/authStore';
-
-/** Minimum time (ms) to show splash so voice intro can play */
-const MIN_SPLASH_MS = 3000;
-
-/**
- * Global flag — once ANY AppGate finishes its splash, all subsequent
- * AppGate mounts skip the splash entirely (e.g. after redirect to /login).
- */
-let globalSplashDone = false;
 
 function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
@@ -36,22 +27,8 @@ export function AppGate({
 }) {
   const gate = useAppGate();
   const isRecoveryMode = useAuthStore((s) => s.isRecoveryMode);
-  const [splashReady, setSplashReady] = useState(globalSplashDone);
 
-  // Show splash for MIN_SPLASH_MS only on the very first AppGate mount
-  useEffect(() => {
-    if (globalSplashDone) {
-      setSplashReady(true);
-      return;
-    }
-    const timer = setTimeout(() => {
-      globalSplashDone = true;
-      setSplashReady(true);
-    }, MIN_SPLASH_MS);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (gate.status === 'loading' || !splashReady) return <SplashScreen />;
+  if (gate.status === 'loading') return <SplashScreen />;
 
   if (gate.status === 'error') {
     return <ErrorScreen message="Could not connect to server" onRetry={gate.retry} />;
