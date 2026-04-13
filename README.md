@@ -43,11 +43,11 @@ Create a `.env` file:
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 
-# OpenAI (optional — enables GPT-4o-mini voice parsing)
+# OpenAI (voice parsing + TTS fallback)
 OPENAI_API_KEY=sk-...
 
-# DeepGram (optional — enables DeepGram STT provider)
-VITE_DEEPGRAM_ENABLED=true
+# Cartesia (primary TTS + STT)
+CARTESIA_API_KEY=your-cartesia-key
 ```
 
 **Data Layer Toggle:**
@@ -77,7 +77,7 @@ npx vercel --prod
 - Tailwind CSS
 - Supabase (Postgres + Auth)
 - OpenAI GPT-4o-mini (voice command parsing)
-- Web Speech API / Whisper WASM / DeepGram (STT)
+- Cartesia Sonic-3 (TTS) / OpenAI Whisper (STT)
 - Web Vibration API / Capacitor Haptics
 
 ## Architecture

@@ -1,13 +1,14 @@
 /**
  * Voice MP3 Generation Script
- * 
- * Generates pre-recorded MP3 voice lines using Cartesia TTS API
- * and writes them to public/voice/ + updates src/data/voice-manifest.json.
- * 
+ *
+ * Generates pre-recorded MP3 voice lines using Cartesia TTS API (primary)
+ * with OpenAI TTS fallback if Cartesia is unavailable.
+ * Writes to public/voice/ + updates src/data/voice-manifest.json.
+ *
  * Usage:
  *   node scripts/generate-voice-mp3s.mjs
- * 
- * Requires: CARTESIA_API_KEY in .env
+ *
+ * Requires: CARTESIA_API_KEY and/or OPENAI_API_KEY in .env
  */
 
 import fs from 'fs';
@@ -18,8 +19,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY;
-if (!CARTESIA_API_KEY) {
-  console.error('❌ CARTESIA_API_KEY not found in .env');
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+if (!CARTESIA_API_KEY && !OPENAI_API_KEY) {
+  console.error('❌ Neither CARTESIA_API_KEY nor OPENAI_API_KEY found in .env');
   process.exit(1);
 }
 
@@ -34,6 +37,14 @@ const VOICE_ID = 'f786b574-daa5-4673-aa0c-cbe3e8534c02';
 // Format: { file_id, text, screen, trigger }
 
 const VOICE_LINES = [
+  // Splash screen
+  {
+    file_id: 'splash_welcome',
+    text: "Welcome to Guided Growth. I'm your personal coach, here to help you build habits that actually stick. Sign up and let's get started — it only takes a minute.",
+    screen: 'splash',
+    trigger: 'screen_load',
+  },
+
   // Onboarding
   {
     file_id: 'onboarding_welcome',
@@ -123,7 +134,9 @@ const VOICE_LINES = [
 
 // ─── Generate ───────────────────────────────────────────────────────────────
 
-async function generateMp3(text) {
+async function generateWithCartesia(text) {
+  if (!CARTESIA_API_KEY) throw new Error('CARTESIA_API_KEY not set');
+
   const response = await fetch('https://api.cartesia.ai/tts/bytes', {
     method: 'POST',
     headers: {
@@ -134,15 +147,8 @@ async function generateMp3(text) {
     body: JSON.stringify({
       model_id: 'sonic-3',
       transcript: text.trim(),
-      voice: {
-        mode: 'id',
-        id: VOICE_ID,
-      },
-      output_format: {
-        container: 'mp3',
-        encoding: 'mp3',
-        sample_rate: 24000,
-      },
+      voice: { mode: 'id', id: VOICE_ID },
+      output_format: { container: 'mp3', encoding: 'mp3', sample_rate: 24000 },
       language: 'en',
     }),
     signal: AbortSignal.timeout(30000),
@@ -150,10 +156,50 @@ async function generateMp3(text) {
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Cartesia TTS error ${response.status}: ${errText}`);
+    throw new Error(`Cartesia ${response.status}: ${errText}`);
   }
 
   return Buffer.from(await response.arrayBuffer());
+}
+
+async function generateWithOpenAI(text) {
+  if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set');
+
+  const response = await fetch('https://api.openai.com/v1/audio/speech', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'tts-1',
+      input: text.trim(),
+      voice: 'nova',
+      response_format: 'mp3',
+      speed: 1.0,
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`OpenAI TTS ${response.status}: ${errText}`);
+  }
+
+  return Buffer.from(await response.arrayBuffer());
+}
+
+/** Try Cartesia first, fall back to OpenAI TTS */
+async function generateMp3(text) {
+  try {
+    return await generateWithCartesia(text);
+  } catch (cartesiaErr) {
+    if (OPENAI_API_KEY) {
+      console.log(` ⚠️  Cartesia failed, using OpenAI fallback...`);
+      return await generateWithOpenAI(text);
+    }
+    throw cartesiaErr;
+  }
 }
 
 async function main() {
