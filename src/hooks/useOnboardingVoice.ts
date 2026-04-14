@@ -116,14 +116,83 @@ export function useOnboardingVoice() {
         const params = result.params || {};
         if (stepContext.step === 1) {
           // Safety net: extract age from the original transcript when GPT
-          // returns [AGE] or omits it. Common patterns: "I'm 22", "22 years old", "age 22"
-          if (!params.age || params.age === '[AGE]') {
-            const ageMatch = transcript.match(/\b(\d{1,3})\s*(?:years?\s*old|year\s*old|yo\b)?/i);
-            if (ageMatch) {
-              const extracted = parseInt(ageMatch[1], 10);
-              if (extracted >= 13 && extracted <= 120) {
-                params.age = extracted;
+          // returns [AGE] or omits it.
+          console.log(
+            '[OnboardingVoice] Step 1 — raw params.age:',
+            params.age,
+            'type:',
+            typeof params.age,
+          );
+
+          // Convert string age to number if possible (API may return "22" as string)
+          if (typeof params.age === 'string' && params.age !== '[AGE]') {
+            const parsed = parseInt(params.age, 10);
+            if (!isNaN(parsed) && parsed >= 13 && parsed <= 120) {
+              params.age = parsed;
+            }
+          }
+
+          // If still no valid age, extract from the raw transcript
+          if (!params.age || params.age === '[AGE]' || typeof params.age !== 'number') {
+            // Map spoken number words → digits
+            const wordToNum: Record<string, number> = {
+              thirteen: 13,
+              fourteen: 14,
+              fifteen: 15,
+              sixteen: 16,
+              seventeen: 17,
+              eighteen: 18,
+              nineteen: 19,
+              twenty: 20,
+              'twenty one': 21,
+              'twenty two': 22,
+              'twenty three': 23,
+              'twenty four': 24,
+              'twenty five': 25,
+              'twenty six': 26,
+              'twenty seven': 27,
+              'twenty eight': 28,
+              'twenty nine': 29,
+              thirty: 30,
+              'thirty one': 31,
+              'thirty two': 32,
+              'thirty three': 33,
+              'thirty four': 34,
+              'thirty five': 35,
+              forty: 40,
+              fifty: 50,
+              sixty: 60,
+              seventy: 70,
+              eighty: 80,
+            };
+
+            const lower = transcript.toLowerCase();
+
+            // Try word numbers first (longer matches first)
+            let extracted: number | null = null;
+            for (const [word, num] of Object.entries(wordToNum).sort(
+              (a, b) => b[0].length - a[0].length,
+            )) {
+              if (lower.includes(word)) {
+                extracted = num;
+                break;
               }
+            }
+
+            // Try digit patterns: "22", "22 years old", "age 22"
+            if (!extracted) {
+              const ageMatch = transcript.match(/\b(\d{1,3})\b/);
+              if (ageMatch) {
+                const num = parseInt(ageMatch[1], 10);
+                if (num >= 13 && num <= 120) extracted = num;
+              }
+            }
+
+            if (extracted) {
+              params.age = extracted;
+              console.log('[OnboardingVoice] Extracted age from transcript:', extracted);
+            } else {
+              console.log('[OnboardingVoice] Could not extract age from transcript:', transcript);
             }
           }
 
