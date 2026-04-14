@@ -134,7 +134,7 @@ function playPcm16Audio(
  */
 export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeVoiceReturn {
   const {
-    userContext,
+    userContext: _userContext,
     onTranscript: onTranscriptCb,
     onUserSpeech: onUserSpeechCb,
     onError,
@@ -245,24 +245,14 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
         throw new Error('VITE_CARTESIA_AGENT_ID not configured. Deploy the Line agent first.');
       }
 
-      const wsUrl = new URL('wss://api.cartesia.ai/agent/websocket');
-      wsUrl.searchParams.set('api_key', token);
-      wsUrl.searchParams.set('cartesia_version', '2026-03-01');
-      wsUrl.searchParams.set('agent_id', agentId);
-
-      // Pass user context as metadata
-      if (userContext?.name) {
-        wsUrl.searchParams.set('metadata.user_name', userContext.name);
-      }
-      wsUrl.searchParams.set('metadata.coaching_style', 'warm');
-
-      // 4. Open WebSocket
-      const ws = new WebSocket(wsUrl.toString());
+      // 4. Connect to Cartesia agent stream (docs: /agents/stream/{agent_id})
+      const wsUrl = `wss://api.cartesia.ai/agents/stream/${agentId}?api_key=${token}&cartesia_version=2025-04-16`;
+      const ws = new WebSocket(wsUrl);
       ws.binaryType = 'arraybuffer';
       wsRef.current = ws;
 
       // 5. Set up AudioContext for playback
-      const audioCtx = new AudioContext({ sampleRate: 24000 });
+      const audioCtx = new AudioContext({ sampleRate: 44100 });
       audioCtxRef.current = audioCtx;
 
       await new Promise<void>((resolve, reject) => {
@@ -272,6 +262,13 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
 
         ws.onopen = () => {
           clearTimeout(timeout);
+          // Send start event (required first message per docs)
+          ws.send(
+            JSON.stringify({
+              event: 'start',
+              config: { input_format: 'pcm_16000' },
+            }),
+          );
           resolve();
         };
 
@@ -297,35 +294,68 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           return;
         }
 
-        // Text = JSON control messages
+        // Text = JSON messages (control + audio)
         try {
-          const msg = JSON.parse(event.data as string) as {
-            type: string;
-            text?: string;
-            [key: string]: unknown;
-          };
+          const msg = JSON.parse(event.data as string) as Record<string, unknown>;
+          const eventType = (msg.event as string) || (msg.type as string) || '';
 
-          if (msg.type === 'agent_turn_started') {
-            setState('processing');
-            transition('thinking');
-          } else if (msg.type === 'agent_text_sent' && msg.text) {
-            setState('speaking');
-            transition('speaking');
-            setAiTranscript(msg.text);
-            onTranscriptCb?.(msg.text);
-          } else if (msg.type === 'user_text_sent' && msg.text) {
+          // Agent audio output — decode base64 and play
+          if (eventType === 'media_output' && msg.media) {
+            const media = msg.media as { payload?: string };
+            if (media.payload && audioCtxRef.current) {
+              const binary = atob(media.payload);
+              const bytes = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+              // PCM 16-bit LE → Float32 → play via AudioContext
+              const int16 = new Int16Array(bytes.buffer);
+              const float32 = new Float32Array(int16.length);
+              for (let i = 0; i < int16.length; i++) {
+                float32[i] = int16[i] / (int16[i] < 0 ? 0x8000 : 0x7fff);
+              }
+              const buf = audioCtxRef.current.createBuffer(1, float32.length, 44100);
+              buf.getChannelData(0).set(float32);
+              const src = audioCtxRef.current.createBufferSource();
+              src.buffer = buf;
+              src.connect(audioCtxRef.current.destination);
+              src.start();
+              if (state !== 'speaking') {
+                setState('speaking');
+              }
+            }
+            return;
+          }
+
+          // Agent transcript (what AI said as text)
+          if (eventType === 'agent_transcript' || eventType === 'agent_text_sent') {
+            const text = (msg.text || msg.transcript || '') as string;
+            if (text) {
+              setState('speaking');
+              setAiTranscript(text);
+              onTranscriptCb?.(text);
+            }
+          }
+
+          // User transcript (what user said)
+          if (eventType === 'user_transcript' || eventType === 'user_text_sent') {
+            const text = (msg.text || msg.transcript || '') as string;
+            if (text) {
+              setState('listening');
+              setUserTranscript(text);
+              onUserSpeechCb?.(text);
+            }
+          }
+
+          // Ack (connection confirmed)
+          if (eventType === 'ack') {
             setState('listening');
-            transition('listening');
-            setUserTranscript(msg.text);
-            onUserSpeechCb?.(msg.text);
-          } else if (msg.type === 'agent_turn_ended') {
-            setState('listening');
-            transition('listening');
-          } else if (msg.type === 'error') {
-            onError?.(msg.text || 'Agent error');
+          }
+
+          // Error
+          if (eventType === 'error') {
+            onError?.((msg.message || msg.text || 'Agent error') as string);
           }
         } catch {
-          // Non-JSON text — ignore
+          // Non-JSON — ignore
         }
       };
 
@@ -379,7 +409,6 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     enterRealtime,
     registerCleanup,
     stop,
-    userContext,
     onError,
     onTranscriptCb,
     onUserSpeechCb,

@@ -95,10 +95,9 @@ export function Step1Page() {
       try {
         await realtimeVoice.start();
       } catch {
-        // Fallback if agent fails
-        setMicAvailable(false);
+        // Fallback if agent connection fails — use TTS
         speak(
-          "OK, let me get to know you a little. What's your name, how old are you, how do you identify, and how did you hear about us?",
+          "OK, let me get to know you a little. What's your name, how old are you, how do you identify, and how did you hear about us? You can just say it all or fill it in on screen.",
         );
       }
     })();
