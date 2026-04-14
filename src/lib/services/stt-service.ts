@@ -114,9 +114,10 @@ function looksHallucinated(transcript: string, audioDurationSeconds: number): bo
   const wordCount = text.split(/\s+/).length;
 
   // Short audio should not produce long text. Normal speaking rate is
-  // ~2.5 words/second; we allow 4 words/second as a generous cap plus
-  // a small constant for very short utterances.
-  const maxReasonableWords = Math.ceil(audioDurationSeconds * 4) + 3;
+  // ~2.5 words/second; we allow 6 words/second as a generous cap plus
+  // a base of 8 words for short utterances. Onboarding users often pack
+  // multiple answers into one breath ("My name is X, I'm 22, male, from webinar").
+  const maxReasonableWords = Math.ceil(audioDurationSeconds * 6) + 8;
   if (wordCount > maxReasonableWords) return true;
 
   // Known Whisper/Scribe hallucination phrases. These show up when the
