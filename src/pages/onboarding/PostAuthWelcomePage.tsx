@@ -27,9 +27,13 @@ export function PostAuthWelcomePage() {
   // Play welcome_intro MP3 on mount
   useEffect(() => {
     mountedRef.current = true;
-    voicePlayer.play('welcome_intro').catch(() => {});
+    // Small delay to let VoiceContext reset from previous page's audio
+    const timer = setTimeout(() => {
+      if (mountedRef.current) voicePlayer.play('welcome_intro').catch(() => {});
+    }, 500);
     return () => {
       mountedRef.current = false;
+      clearTimeout(timer);
       voicePlayer.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
