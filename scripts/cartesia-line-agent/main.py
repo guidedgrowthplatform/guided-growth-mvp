@@ -148,8 +148,8 @@ async def get_agent(env, call_request):
     system_prompt_with_context = f"{base_prompt}\n\nYour Current User ID is: {user_id}\nUse this ID when calling tools like get_user_context."
 
     return LlmAgent(
-        model=os.getenv("LLM_MODEL", "anthropic/claude-sonnet-4-6"),
-        api_key=os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY"),
+        model=os.getenv("LLM_MODEL", "openai/gpt-4o"),
+        api_key=os.getenv("OPENAI_API_KEY"),
         tools=[get_user_context, log_checkin, get_habits, log_goal, end_call],
         config=LlmConfig(
             system_prompt=system_prompt_with_context,
