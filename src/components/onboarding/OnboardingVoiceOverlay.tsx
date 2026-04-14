@@ -131,6 +131,9 @@ export function OnboardingVoiceOverlay({
       // Process the transcript
       processTranscript(transcript, stepContext)
         .then((result) => {
+          // Debug: log what the API returned so we can troubleshoot
+          console.log('[OnboardingVoice] API result:', JSON.stringify(result, null, 2));
+
           // Add assistant response message
           const assistantMsgId = `assistant-${Date.now()}`;
           const assistantMsg: VoiceMessage = {
@@ -143,12 +146,20 @@ export function OnboardingVoiceOverlay({
 
           if (ttsEnabled) speak(result.message);
 
-          // If success, wait a bit then close and call onAction
-          if (result.success) {
+          // Call onAction when params have useful data (name, age, gender etc.)
+          // even if confidence was slightly low — the user spoke valid data.
+          const hasUsefulParams =
+            result.params && Object.keys(result.params).length > 0 && result.action !== 'error';
+
+          if (result.success || hasUsefulParams) {
             setTimeout(() => {
               onAction(result);
-              // Small delay to let the UI update
-              setTimeout(handleClose, 100);
+              if (result.success) {
+                // Auto-close overlay on full success
+                setTimeout(handleClose, 100);
+              } else {
+                setIsProcessing(false);
+              }
             }, 300);
           } else {
             setIsProcessing(false);

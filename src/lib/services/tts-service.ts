@@ -338,42 +338,72 @@ function speakBrowser(
   text: string,
   options?: { rate?: number; pitch?: number; volume?: number },
 ): void {
-  if (!('speechSynthesis' in window)) return;
+  if (!('speechSynthesis' in window)) {
+    console.warn('[TTS] Browser SpeechSynthesis not available');
+    return;
+  }
 
-  // iOS workaround: cancel any stuck synthesis before speaking
-  window.speechSynthesis.cancel();
+  const doSpeak = () => {
+    // Cancel any stuck synthesis before speaking
+    window.speechSynthesis.cancel();
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  const voice = getSelectedVoice();
-  if (voice) utterance.voice = voice;
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voice = getSelectedVoice();
+    if (voice) utterance.voice = voice;
 
-  utterance.rate = options?.rate ?? 1.05;
-  utterance.pitch = options?.pitch ?? 1.0;
-  utterance.volume = options?.volume ?? 0.85;
+    utterance.rate = options?.rate ?? 1.05;
+    utterance.pitch = options?.pitch ?? 1.0;
+    // Use full volume on Android WebView — lower values are often inaudible
+    utterance.volume = options?.volume ?? 1.0;
 
-  // iOS workaround: Safari pauses synthesis after ~15s.
-  // Resume periodically to prevent hanging. Clear on end/error.
-  let resumeInterval: ReturnType<typeof setInterval> | null = null;
+    // iOS/Safari workaround: pauses synthesis after ~15s.
+    // Resume periodically to prevent hanging. Clear on end/error.
+    let resumeInterval: ReturnType<typeof setInterval> | null = null;
 
-  const cleanup = () => {
-    if (resumeInterval) {
-      clearInterval(resumeInterval);
-      resumeInterval = null;
-    }
+    const cleanup = () => {
+      if (resumeInterval) {
+        clearInterval(resumeInterval);
+        resumeInterval = null;
+      }
+    };
+
+    utterance.onend = cleanup;
+    utterance.onerror = (e) => {
+      console.warn('[TTS] Browser speech error:', e);
+      cleanup();
+    };
+
+    window.speechSynthesis.speak(utterance);
+
+    resumeInterval = setInterval(() => {
+      if (!window.speechSynthesis.speaking) {
+        cleanup();
+      } else {
+        window.speechSynthesis.resume();
+      }
+    }, 5000);
   };
 
-  utterance.onend = cleanup;
-  utterance.onerror = cleanup;
-
-  window.speechSynthesis.speak(utterance);
-
-  resumeInterval = setInterval(() => {
-    if (!window.speechSynthesis.speaking) {
-      cleanup();
-    } else {
-      window.speechSynthesis.resume();
-    }
-  }, 5000);
+  // Android WebView often loads voices asynchronously.
+  // If no voices are available yet, wait for them then speak.
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) {
+    console.log('[TTS] No voices loaded yet, waiting...');
+    const onVoicesReady = () => {
+      window.speechSynthesis.removeEventListener('voiceschanged', onVoicesReady);
+      cachedVoice = findBestVoice();
+      voicesLoaded = true;
+      doSpeak();
+    };
+    window.speechSynthesis.addEventListener('voiceschanged', onVoicesReady);
+    // Safety fallback: try speaking anyway after 500ms even without voices
+    setTimeout(() => {
+      window.speechSynthesis.removeEventListener('voiceschanged', onVoicesReady);
+      doSpeak();
+    }, 500);
+  } else {
+    doSpeak();
+  }
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────

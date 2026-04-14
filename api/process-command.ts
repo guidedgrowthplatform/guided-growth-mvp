@@ -488,7 +488,7 @@ function buildOnboardingPrompt(ctx: Record<string, unknown>): string {
 
 Your job is to extract the user's choices from their spoken input and return a JSON object.
 
-IMPORTANT: Always scrub any PII (names, emails, phone numbers, ages) that appear in the user's speech before processing. Replace names with [NAME], ages with [AGE], emails with [EMAIL], etc.
+IMPORTANT: For Step 1 (Demographics), you MUST return the actual age as an integer number (e.g. 22, not "[AGE]"). The age is required for the app to function. Do NOT scrub or mask the age value. For names, return them as-is too since this is onboarding data collection. For emails and phone numbers, replace with [EMAIL] and [PHONE].
 
 Return ONLY valid JSON in this format:
 {
