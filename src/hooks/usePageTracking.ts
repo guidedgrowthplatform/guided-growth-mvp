@@ -9,9 +9,13 @@ export function usePageTracking() {
   const { stopAll } = useVoice();
 
   useEffect(() => {
-    // Stop ALL audio on page navigation — TTS, MP3, realtime
+    // Stop MP3/TTS on navigation — but NOT realtime (agent manages its own lifecycle)
     stopTTS();
-    stopAll();
+    // Only stopAll (which resets VoiceContext) on non-onboarding pages
+    // ONBOARD-01 uses realtime agent that should persist
+    if (!pathname.includes('/onboarding')) {
+      stopAll();
+    }
     trackPageView(pathname);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);

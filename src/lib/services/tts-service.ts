@@ -10,7 +10,7 @@ export type VoiceGender = 'male' | 'female';
 
 // Cartesia voice IDs (sonic-3 model) — primary TTS provider
 const CARTESIA_VOICES: Record<VoiceGender, { id: string; name: string }> = {
-  male: { id: 'a167e0f3-df7e-4c9d-9e09-98e2e4872788', name: 'Ronald' },
+  male: { id: '5ee9feff-1265-424a-9d7f-8e4d431a12c7', name: 'Ronald - Thinker' },
   female: { id: 'f786b574-daa5-4673-aa0c-cbe3e8534c02', name: 'Katie' },
 };
 

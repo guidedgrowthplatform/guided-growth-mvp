@@ -413,7 +413,13 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       };
 
       source.connect(processor);
-      processor.connect(audioCtx.destination);
+      // ScriptProcessor must be connected somewhere to fire onaudioprocess,
+      // but routing to audioCtx.destination plays mic audio out the speaker
+      // (echo loop). Route through a muted GainNode instead.
+      const muteSink = audioCtx.createGain();
+      muteSink.gain.value = 0;
+      processor.connect(muteSink);
+      muteSink.connect(audioCtx.destination);
 
       if (mountedRef.current) {
         setState('listening');

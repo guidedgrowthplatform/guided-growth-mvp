@@ -8,7 +8,7 @@ const DEFAULT_VOICE_ID = 'f786b574-daa5-4673-aa0c-cbe3e8534c02';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
-  if (req.method !== 'POST') {
+  if (req.method !== 'POST' && req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -20,6 +20,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
   if (ipRl.limited)
     return res.status(429).json({ error: 'Too many requests', retryAfter: ipRl.retryAfter });
+
+  // Support token via query param for GET requests (Android Audio element src)
+  if (req.method === 'GET' && req.query.token && !req.headers['authorization']) {
+    req.headers['authorization'] = `Bearer ${req.query.token}`;
+  }
 
   const bypassAuth =
     process.env.AUTH_BYPASS_MODE === 'true' && process.env.NODE_ENV !== 'production';
@@ -42,7 +47,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { text, voice_id } = req.body as { text?: string; voice_id?: string };
+    // Support both POST body and GET query params (GET needed for Android Audio element src)
+    const text = (req.body?.text || req.query.text) as string | undefined;
+    const voice_id = (req.body?.voice_id || req.query.voice_id) as string | undefined;
 
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return res.status(400).json({ error: 'Missing or empty "text" field' });
