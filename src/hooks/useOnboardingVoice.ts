@@ -115,9 +115,17 @@ export function useOnboardingVoice() {
         // Post-process: fix PII-scrubbed names by extracting from original transcript
         const params = result.params || {};
         if (stepContext.step === 1) {
-          // Note: previously logged params + transcript here, but those
-          // contain PII (user's name, demographic). Removed to keep prod
-          // logs clean and avoid leaking PII into Sentry/Vercel logs.
+          // Safety net: extract age from the original transcript when GPT
+          // returns [AGE] or omits it. Common patterns: "I'm 22", "22 years old", "age 22"
+          if (!params.age || params.age === '[AGE]') {
+            const ageMatch = transcript.match(/\b(\d{1,3})\s*(?:years?\s*old|year\s*old|yo\b)?/i);
+            if (ageMatch) {
+              const extracted = parseInt(ageMatch[1], 10);
+              if (extracted >= 13 && extracted <= 120) {
+                params.age = extracted;
+              }
+            }
+          }
 
           // Fix nickname if it contains [NAME]
           if (
