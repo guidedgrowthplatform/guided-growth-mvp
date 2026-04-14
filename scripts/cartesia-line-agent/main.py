@@ -12,6 +12,14 @@ Architecture Doc Reference: Sections 3.1-3.4, 4.1-4.3
 import os
 from datetime import date
 
+from line.events import (
+    CallEnded,
+    CallStarted,
+    InputEvent,
+    UserTextSent,
+    UserTurnEnded,
+    UserTurnStarted,
+)
 from line.llm_agent import LlmAgent, LlmConfig, end_call
 from line.voice_agent_app import VoiceAgentApp
 from tools import get_user_context, log_checkin, get_habits, log_goal
@@ -138,6 +146,23 @@ def build_system_prompt(coaching_style: str = "warm") -> str:
 
 # ─── Agent Configuration ─────────────────────────────────────────────────────
 
+def _run_filter(event: InputEvent) -> bool:
+    """Trigger the LLM on transcript arrival AND turn-end events.
+
+    Default cartesia-line filter only runs on UserTurnEnded, which requires
+    Cartesia VAD to fire UserStateInput(IDLE). With continuous mic streams
+    (browser ScriptProcessor) VAD often fails to detect silence, so the agent
+    stays silent forever. Adding UserTextSent makes the LLM respond as soon
+    as STT emits a transcript, independent of VAD endpointing.
+    """
+    return isinstance(event, (CallStarted, UserTurnEnded, UserTextSent, CallEnded))
+
+
+def _cancel_filter(event: InputEvent) -> bool:
+    """Cancel the in-flight LLM turn when the user starts speaking again."""
+    return isinstance(event, UserTurnStarted)
+
+
 async def get_agent(env, call_request):
     metadata = getattr(call_request, 'metadata', {})
     user_id = metadata.get("user_id", "")
@@ -147,7 +172,7 @@ async def get_agent(env, call_request):
     # Inject user ID directly into the prompt so the LLM can use it for tools
     system_prompt_with_context = f"{base_prompt}\n\nYour Current User ID is: {user_id}\nUse this ID when calling tools like get_user_context."
 
-    return LlmAgent(
+    agent = LlmAgent(
         model=os.getenv("LLM_MODEL", "openai/gpt-4o"),
         api_key=os.getenv("OPENAI_API_KEY"),
         tools=[get_user_context, log_checkin, get_habits, log_goal, end_call],
@@ -156,6 +181,9 @@ async def get_agent(env, call_request):
             introduction="Morning. How are you feeling today?",
         ),
     )
+    # Return (agent, run_filter, cancel_filter) tuple — VoiceAgentApp uses the
+    # filters to decide when to trigger or cancel the LLM turn.
+    return agent, _run_filter, _cancel_filter
 
 app = VoiceAgentApp(get_agent=get_agent)
 
