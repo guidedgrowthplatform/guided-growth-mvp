@@ -44,7 +44,7 @@ export function AppGate({
     if (isRecoveryMode) return <>{children}</>;
     if (gate.status === 'unauthenticated') return <>{children}</>;
     if (gate.status === 'onboarding_needed') {
-      return <Navigate to="/onboarding/welcome" replace />;
+      return <Navigate to="/onboarding/preference" replace />;
     }
     if (gate.status === 'onboarding_in_progress') {
       return <Navigate to="/onboarding" replace />;
@@ -62,7 +62,7 @@ export function AppGate({
   }
 
   // App routes: redirect to onboarding if not completed
-  if (gate.status === 'onboarding_needed') return <Navigate to="/onboarding/welcome" replace />;
+  if (gate.status === 'onboarding_needed') return <Navigate to="/onboarding/preference" replace />;
   if (gate.status === 'onboarding_in_progress') {
     return <Navigate to={`/onboarding/step-${gate.step}`} replace />;
   }

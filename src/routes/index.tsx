@@ -40,6 +40,9 @@ const AddHabitPage = lazy(() =>
 const StatusPage = lazy(() =>
   import('@/pages/StatusPage').then((m) => ({ default: m.StatusPage })),
 );
+const AudioDebugPage = lazy(() =>
+  import('@/pages/AudioDebugPage').then((m) => ({ default: m.AudioDebugPage })),
+);
 const AuthCallbackPage = lazy(() =>
   import('@/pages/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage })),
 );
@@ -56,6 +59,8 @@ const lazyOnboarding = (name: string) =>
       default: (m as Record<string, React.ComponentType>)[name],
     })),
   );
+const PrefPage = lazyOnboarding('PrefPage');
+const MicPermissionPage = lazyOnboarding('MicPermissionPage');
 const PostAuthWelcomePage = lazyOnboarding('PostAuthWelcomePage');
 const Step1Page = lazyOnboarding('Step1Page');
 const Step2Page = lazyOnboarding('Step2Page');
@@ -129,12 +134,29 @@ export function AppRoutes() {
 
         {/* Public status dashboard (no auth required) */}
         <Route path="/status" element={<StatusPage />} />
+        <Route path="/audio-debug" element={<AudioDebugPage />} />
 
         {/* Auth callbacks (no auth guard) */}
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Onboarding (protected, no Layout) */}
+        <Route
+          path="/onboarding/preference"
+          element={
+            <AppGate allow="onboarding">
+              <PrefPage />
+            </AppGate>
+          }
+        />
+        <Route
+          path="/onboarding/mic-permission"
+          element={
+            <AppGate allow="onboarding">
+              <MicPermissionPage />
+            </AppGate>
+          }
+        />
         <Route
           path="/onboarding/welcome"
           element={

@@ -1,3 +1,6 @@
+// Phase 1 new screens
+export { PrefPage } from './PrefPage';
+export { MicPermissionPage } from './MicPermissionPage';
 // Post-auth welcome (plays before onboarding begins)
 export { PostAuthWelcomePage } from './PostAuthWelcomePage';
 // Shared
