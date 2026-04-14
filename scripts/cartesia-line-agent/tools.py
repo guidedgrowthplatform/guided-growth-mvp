@@ -11,6 +11,7 @@ import os
 from datetime import date, datetime
 from typing import Annotated
 
+from line.llm_agent.tools.utils import ToolEnv
 from supabase import create_client, Client
 
 # ─── Supabase Client ─────────────────────────────────────────────────────────
@@ -32,6 +33,7 @@ def _get_supabase() -> Client | None:
 # ─── Tool: Get User Context ─────────────────────────────────────────────────
 
 async def get_user_context(
+    ctx: ToolEnv,
     user_id: Annotated[str, "The authenticated user's UUID"],
 ) -> str:
     """Fetch user profile, habits, streaks, and today's check-in.
@@ -114,6 +116,7 @@ Coaching style: {style}
 # ─── Tool: Log Check-in ─────────────────────────────────────────────────────
 
 async def log_checkin(
+    ctx: ToolEnv,
     user_id: Annotated[str, "The user's UUID"],
     mood: Annotated[int, "Mood rating 1-5"],
     sleep: Annotated[int, "Sleep quality 1-5"],
@@ -152,6 +155,7 @@ async def log_checkin(
 # ─── Tool: Get Habits ────────────────────────────────────────────────────────
 
 async def get_habits(
+    ctx: ToolEnv,
     user_id: Annotated[str, "The user's UUID"],
 ) -> str:
     """Get the user's active habits with completion status for today.
@@ -201,6 +205,7 @@ async def get_habits(
 # ─── Tool: Log Goal ─────────────────────────────────────────────────────────
 
 async def log_goal(
+    ctx: ToolEnv,
     user_id: Annotated[str, "The user's UUID"],
     goal_text: Annotated[str, "The goal or intention the user stated"],
 ) -> str:
