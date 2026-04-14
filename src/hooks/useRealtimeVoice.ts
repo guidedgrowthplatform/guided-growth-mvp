@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVoice } from '@/hooks/useVoice';
 import type { UserContext } from '@/lib/coaching/systemPrompt';
+import { injectUserContext } from '@/lib/services/agent-context';
 import { supabase } from '@/lib/supabase';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -229,7 +230,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       });
       streamRef.current = stream;
 
-      // 2. Fetch short-lived access token from backend
+      // 2. Inject user context into agent prompt (name, habits, streaks)
+      await injectUserContext();
+
+      // 3. Fetch short-lived access token from backend
       const token = await fetchAgentToken();
 
       // 3. Build WebSocket URL
