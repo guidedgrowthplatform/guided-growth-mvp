@@ -171,8 +171,6 @@ export function Step1Page() {
       ctaLabel="Let's Begin"
       onNext={handleNext}
       ctaDisabled={!nickname.trim() || !age}
-      showVoiceButton
-      onTranscript={parseTranscript}
     >
       <OnboardingHeader
         title="Let's get to know you."
