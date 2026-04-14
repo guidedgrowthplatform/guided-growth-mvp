@@ -223,17 +223,24 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     setState('connecting');
 
     try {
-      // 1. Request mic access
+      // 1. Request mic access. Leave DSP filters OFF — Windows Chrome
+      // aggressively mutes quiet audio with noiseSuppression+AGC on,
+      // which can silently suppress real user speech. Cartesia Ink STT
+      // handles noisy input fine on its own.
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
           sampleRate: 16000,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
         },
       });
       streamRef.current = stream;
+
+      console.log('[Cartesia WS] mic stream acquired', {
+        tracks: stream.getAudioTracks().map((t) => t.getSettings()),
+      });
 
       // 2. Inject user context into agent prompt (name, habits, streaks).
       // Fire-and-forget — doesn't gate WebSocket connection. Worst case the
@@ -412,11 +419,29 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       const processor = audioCtx.createScriptProcessor(4096, 1, 1);
       processorRef.current = processor;
 
+      let frameCount = 0;
+      let lastLogT = performance.now();
+      let maxAmp = 0;
       processor.onaudioprocess = (e) => {
         if (ws.readyState !== WebSocket.OPEN) return;
         const inputData = e.inputBuffer.getChannelData(0);
+        // Track peak amplitude to detect silent mic
+        for (let i = 0; i < inputData.length; i++) {
+          const a = Math.abs(inputData[i]);
+          if (a > maxAmp) maxAmp = a;
+        }
         const pcm16 = float32ToPcm16(inputData);
         ws.send(pcm16);
+        frameCount++;
+        const now = performance.now();
+        if (now - lastLogT > 3000) {
+          console.log(
+            `[Cartesia WS] sent ${frameCount} PCM frames in last ${Math.round((now - lastLogT) / 1000)}s, peak amp=${maxAmp.toFixed(3)} ${maxAmp < 0.01 ? '(MIC SILENT?)' : ''}`,
+          );
+          frameCount = 0;
+          maxAmp = 0;
+          lastLogT = now;
+        }
       };
 
       source.connect(processor);
