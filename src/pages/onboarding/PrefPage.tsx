@@ -2,6 +2,7 @@ import { Icon } from '@iconify/react';
 import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useVoice } from '@/hooks/useVoice';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 import { supabase } from '@/lib/supabase';
 
@@ -15,6 +16,7 @@ export function PrefPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const voicePlayer = useVoicePlayer();
+  const { setPreference } = useVoice();
 
   useEffect(() => {
     voicePlayer.play('pref_can_i_talk').catch(() => {});
@@ -25,6 +27,8 @@ export function PrefPage() {
   const handleChoice = useCallback(
     async (choice: 'voice' | 'screen') => {
       voicePlayer.stop();
+      // Set local voice mode (docs Step 6 Screen 2: setVoiceMode)
+      setPreference(choice === 'screen' ? 'text_only' : 'full_voice');
       if (user?.id) {
         await supabase
           .from('profiles')
@@ -34,7 +38,7 @@ export function PrefPage() {
       }
       navigate('/onboarding/mic-permission', { replace: true });
     },
-    [navigate, voicePlayer, user?.id],
+    [navigate, voicePlayer, user?.id, setPreference],
   );
 
   return (
