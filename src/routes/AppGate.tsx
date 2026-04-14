@@ -47,7 +47,8 @@ export function AppGate({
       return <Navigate to="/onboarding/preference" replace />;
     }
     if (gate.status === 'onboarding_in_progress') {
-      return <Navigate to="/onboarding" replace />;
+      const target = gate.step <= 1 ? '/onboarding' : `/onboarding/step-${gate.step}`;
+      return <Navigate to={target} replace />;
     }
     return <Navigate to="/" replace />;
   }
@@ -64,7 +65,10 @@ export function AppGate({
   // App routes: redirect to onboarding if not completed
   if (gate.status === 'onboarding_needed') return <Navigate to="/onboarding/preference" replace />;
   if (gate.status === 'onboarding_in_progress') {
-    return <Navigate to={`/onboarding/step-${gate.step}`} replace />;
+    // Step 1 lives at /onboarding (not /onboarding/step-1). Steps 2-7 use the
+    // /onboarding/step-{N} path. Mismatch would 404 the redirect for new users.
+    const target = gate.step <= 1 ? '/onboarding' : `/onboarding/step-${gate.step}`;
+    return <Navigate to={target} replace />;
   }
 
   return <>{children}</>;
