@@ -151,6 +151,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const nextPlayTimeRef = useRef<number>(0);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -299,25 +300,37 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           const msg = JSON.parse(event.data as string) as Record<string, unknown>;
           const eventType = (msg.event as string) || (msg.type as string) || '';
 
-          // Agent audio output — decode base64 and play
+          // Agent audio output — decode base64, queue for gapless playback
           if (eventType === 'media_output' && msg.media) {
             const media = msg.media as { payload?: string };
             if (media.payload && audioCtxRef.current) {
+              const ctx = audioCtxRef.current;
               const binary = atob(media.payload);
               const bytes = new Uint8Array(binary.length);
               for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-              // PCM 16-bit LE → Float32 → play via AudioContext
+
+              // PCM 16-bit signed LE → Float32
               const int16 = new Int16Array(bytes.buffer);
               const float32 = new Float32Array(int16.length);
               for (let i = 0; i < int16.length; i++) {
-                float32[i] = int16[i] / (int16[i] < 0 ? 0x8000 : 0x7fff);
+                float32[i] = int16[i] / 32768;
               }
-              const buf = audioCtxRef.current.createBuffer(1, float32.length, 44100);
+
+              // Schedule chunk to play right after previous chunk ends (gapless)
+              const sampleRate = 24000;
+              const buf = ctx.createBuffer(1, float32.length, sampleRate);
               buf.getChannelData(0).set(float32);
-              const src = audioCtxRef.current.createBufferSource();
+              const src = ctx.createBufferSource();
               src.buffer = buf;
-              src.connect(audioCtxRef.current.destination);
-              src.start();
+              src.connect(ctx.destination);
+
+              // nextPlayTime tracks when the next chunk should start
+              if (!nextPlayTimeRef.current || nextPlayTimeRef.current < ctx.currentTime) {
+                nextPlayTimeRef.current = ctx.currentTime;
+              }
+              src.start(nextPlayTimeRef.current);
+              nextPlayTimeRef.current += buf.duration;
+
               if (state !== 'speaking') {
                 setState('speaking');
               }
