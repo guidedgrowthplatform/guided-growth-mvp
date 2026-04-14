@@ -186,36 +186,38 @@ def main() -> None:
     failed = 0
 
     for row in rows:
-        if len(row) < 10:
+        if len(row) < 4:
             continue
 
         file_id = row[0].strip()
-        if not file_id or file_id.startswith("#"):
+        if not file_id or file_id.startswith("#") or file_id in ("LEGEND", "file_id"):
+            continue
+
+        # Skip section headers (e.g. "SPLASH SCREEN", "POST-AUTH")
+        if " " in file_id and file_id == file_id.upper():
             continue
 
         # Sanitize file_id to prevent path traversal
         if not re.match(r"^[a-zA-Z0-9_\-]+$", file_id):
-            print(f"  Skipping invalid file_id: {file_id!r}")
             continue
 
-        # Column 9 = "MP3?" flag
-        is_mp3 = row[9].strip().lower() == "yes" if len(row) > 9 else False
-        if not is_mp3:
+        # Voice Export sheet columns:
+        # 0=file_id, 1=screen, 2=trigger, 3=text, 4=voice, 5=coaching_style,
+        # 6=notes, 7=status, 8=content_hash, 9=updated_at, 10=duration_est
+        status = row[7].strip().lower() if len(row) > 7 else ""
+        if status != "active":
             continue
 
-        # Column 5 = AI Response, fallback to column 3 (AI Voice)
-        ai_text = row[5].strip() if len(row) > 5 else ""
+        # Column 3 = text to speak
+        ai_text = row[3].strip() if len(row) > 3 else ""
         if not ai_text or ai_text == "-":
-            ai_text = row[3].strip() if len(row) > 3 else ""
-        if not ai_text:
             continue
 
         text = _clean_text(ai_text)
         text_hash = _compute_hash(text)
 
-        # Derive screen/trigger from file_id pattern
         screen = row[1].strip() if len(row) > 1 else "unknown"
-        trigger = "screen_load"
+        trigger = row[2].strip() if len(row) > 2 else "screen_load"
 
         # Skip unchanged
         filename = f"{file_id}.mp3"
