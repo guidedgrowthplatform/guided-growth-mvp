@@ -306,6 +306,11 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           const msg = JSON.parse(event.data as string) as Record<string, unknown>;
           const eventType = (msg.event as string) || (msg.type as string) || '';
 
+          // Debug trace (safe: no payload logged for media_output).
+          if (eventType !== 'media_output') {
+            console.log('[Cartesia WS]', eventType, msg);
+          }
+
           // Agent audio output — stream each chunk with gapless scheduling.
           // Cartesia agent output verified at PCM 16-bit 16kHz mono (Ink/Sonic
           // default for agents). Browser resamples to AudioContext rate.
