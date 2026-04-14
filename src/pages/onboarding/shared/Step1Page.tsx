@@ -36,7 +36,7 @@ export function Step1Page() {
   const [gender, setGender] = useState<string | null>(null);
   const [referralSource, setReferralSource] = useState<string | null>(null);
   const [referralOtherText, setReferralOtherText] = useState('');
-  const [micAvailable, setMicAvailable] = useState(true);
+  const [_micAvailable, setMicAvailable] = useState(true);
   const [aiText, setAiText] = useState('');
   const [userText, setUserText] = useState('');
   const agentStarted = useRef(false);
@@ -171,10 +171,7 @@ export function Step1Page() {
       ctaLabel="Let's Begin"
       onNext={handleNext}
       ctaDisabled={!nickname.trim() || !age}
-      showVoiceButton={micAvailable}
-      voiceOptions={[...GENDER_OPTIONS, ...REFERRAL_OPTIONS, 'name', 'nickname']}
-      voicePrompt=""
-      onVoiceAction={() => {}}
+      showVoiceButton={false}
     >
       <OnboardingHeader
         title="Let's get to know you."
