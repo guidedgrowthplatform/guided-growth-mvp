@@ -39,6 +39,9 @@ export function Step1Page() {
   const [_micAvailable, setMicAvailable] = useState(true);
   const [aiText, setAiText] = useState('');
   const [userText, setUserText] = useState('');
+  const [voiceStatus, setVoiceStatus] = useState<
+    'connecting' | 'speaking' | 'listening' | 'processing' | 'error' | 'idle'
+  >('connecting');
   const agentStarted = useRef(false);
 
   // Real-time voice agent
@@ -51,6 +54,16 @@ export function Step1Page() {
     },
     onError: () => setMicAvailable(false),
   });
+
+  // Mirror realtime voice state to our UI indicator
+  useEffect(() => {
+    if (realtimeVoice.state === 'connecting') setVoiceStatus('connecting');
+    else if (realtimeVoice.state === 'speaking') setVoiceStatus('speaking');
+    else if (realtimeVoice.state === 'listening') setVoiceStatus('listening');
+    else if (realtimeVoice.state === 'processing') setVoiceStatus('processing');
+    else if (realtimeVoice.state === 'error') setVoiceStatus('error');
+    else setVoiceStatus('idle');
+  }, [realtimeVoice.state]);
 
   // Restore saved state
   useEffect(() => {
@@ -177,6 +190,43 @@ export function Step1Page() {
         subtitle="Tell us a bit about yourself to personalize your journey."
       />
 
+      {/* Voice status indicator — tells user when to speak */}
+      <div
+        className={`flex items-center gap-2 rounded-2xl p-3 text-sm ${
+          voiceStatus === 'speaking'
+            ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300'
+            : voiceStatus === 'listening'
+              ? 'bg-green-500/10 text-green-700 dark:text-green-300'
+              : voiceStatus === 'processing'
+                ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                : voiceStatus === 'error'
+                  ? 'bg-red-500/10 text-red-700 dark:text-red-300'
+                  : 'bg-content/5 text-content-secondary'
+        }`}
+      >
+        <span
+          className={`inline-block h-2 w-2 rounded-full ${
+            voiceStatus === 'speaking'
+              ? 'bg-blue-500'
+              : voiceStatus === 'listening'
+                ? 'animate-pulse bg-green-500'
+                : voiceStatus === 'processing'
+                  ? 'animate-pulse bg-amber-500'
+                  : voiceStatus === 'error'
+                    ? 'bg-red-500'
+                    : 'bg-gray-400'
+          }`}
+        />
+        <span>
+          {voiceStatus === 'connecting' && 'Connecting to your AI coach...'}
+          {voiceStatus === 'speaking' && 'AI is speaking — please wait.'}
+          {voiceStatus === 'listening' && 'Your turn — speak now!'}
+          {voiceStatus === 'processing' && 'Processing your answer...'}
+          {voiceStatus === 'error' && 'Voice unavailable — fill the form manually.'}
+          {voiceStatus === 'idle' && 'Voice session ended.'}
+        </span>
+      </div>
+
       {/* AI/User transcript display */}
       {aiText && (
         <div className="rounded-2xl bg-primary/5 p-4">
@@ -185,7 +235,7 @@ export function Step1Page() {
       )}
       {userText && (
         <div className="rounded-2xl bg-surface p-4 shadow-sm">
-          <p className="text-sm text-content">{userText}</p>
+          <p className="text-sm text-content">You said: {userText}</p>
         </div>
       )}
 
