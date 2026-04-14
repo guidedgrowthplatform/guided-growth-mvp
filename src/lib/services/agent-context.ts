@@ -4,12 +4,17 @@
  * Since we can't deploy custom tool calls to the template agent,
  * we dynamically update the system prompt with user data before each session.
  * This gives the AI access to the user's name, habits, streaks, and check-in data.
+ *
+ * SECURITY TODO: VITE_CARTESIA_API_KEY is bundled into the client. Anyone
+ * inspecting the JS can read the key and PATCH the agent. Move this PATCH to a
+ * server endpoint (e.g. /api/cartesia-agent-context) that uses CARTESIA_API_KEY
+ * server-side. Tracked separately from the voice playback fix.
  */
 
 import { supabase } from '@/lib/supabase';
 
-const AGENT_ID = import.meta.env.VITE_CARTESIA_AGENT_ID || '';
-const CARTESIA_API_KEY = import.meta.env.VITE_CARTESIA_API_KEY || '';
+const AGENT_ID = (import.meta.env.VITE_CARTESIA_AGENT_ID || '').trim();
+const CARTESIA_API_KEY = (import.meta.env.VITE_CARTESIA_API_KEY || '').trim();
 
 interface UserContextData {
   name: string;
@@ -99,8 +104,8 @@ export async function injectUserContext(): Promise<void> {
     if (!basePrompt) {
       const res = await fetch(`https://api.cartesia.ai/agents/${AGENT_ID}`, {
         headers: {
-          Authorization: `Bearer ${CARTESIA_API_KEY}`,
-          'Cartesia-Version': '2026-03-01',
+          'X-API-Key': CARTESIA_API_KEY,
+          'Cartesia-Version': '2025-04-16',
         },
       });
       if (!res.ok) return;
@@ -120,8 +125,8 @@ export async function injectUserContext(): Promise<void> {
     await fetch(`https://api.cartesia.ai/agents/${AGENT_ID}`, {
       method: 'PATCH',
       headers: {
-        Authorization: `Bearer ${CARTESIA_API_KEY}`,
-        'Cartesia-Version': '2026-03-01',
+        'X-API-Key': CARTESIA_API_KEY,
+        'Cartesia-Version': '2025-04-16',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ llm_system_prompt: fullPrompt }),

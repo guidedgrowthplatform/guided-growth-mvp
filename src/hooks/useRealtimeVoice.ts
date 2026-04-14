@@ -253,8 +253,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       ws.binaryType = 'arraybuffer';
       wsRef.current = ws;
 
-      // 5. Set up AudioContext for playback (24kHz = Cartesia output rate)
-      const audioCtx = new AudioContext({ sampleRate: 24000 });
+      // 5. AudioContext at 16kHz — matches both Cartesia agent input and output.
+      // Avoids resampling drift in mic capture (processor reads at ctx rate,
+      // sends as pcm_16000; if ctx != 16k, agent receives wrong-rate audio).
+      const audioCtx = new AudioContext({ sampleRate: 16000 });
       if (audioCtx.state === 'suspended') await audioCtx.resume();
       audioCtxRef.current = audioCtx;
 
@@ -286,9 +288,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
         if (!mountedRef.current) return;
 
         if (event.data instanceof ArrayBuffer) {
-          // Binary = audio data from agent (PCM 16-bit, 24kHz)
+          // Binary = audio data from agent (PCM 16-bit, 16kHz mono)
           if (audioCtxRef.current) {
-            playPcm16Audio(audioCtxRef.current, event.data, 24000);
+            playPcm16Audio(audioCtxRef.current, event.data, 16000);
           }
           if (state !== 'speaking') {
             setState('speaking');
