@@ -11,6 +11,7 @@ interface ManifestEntry {
   trigger: string;
   size_bytes: number;
   generated_at: string;
+  text?: string; // Screen-mode display text (Phase 1+)
 }
 
 type ManifestFiles = Record<string, ManifestEntry>;

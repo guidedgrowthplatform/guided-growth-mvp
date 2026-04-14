@@ -54,7 +54,7 @@ export function SignInPage() {
     if (voicePlayer.state === 'playing') {
       voicePlayer.stop();
     } else {
-      voicePlayer.play('splash_welcome').catch(() => {
+      voicePlayer.play('splash_hook').catch(() => {
         // Autoplay blocked or failed — dismiss banner
       });
     }
