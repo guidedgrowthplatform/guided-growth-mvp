@@ -6,23 +6,17 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useRealtimeVoice } from '@/hooks/useRealtimeVoice';
 import { speak } from '@/lib/services/tts-service';
-import { supabase } from '@/lib/supabase';
 
 /**
- * ONBOARD-01: Profile Setup — REAL-TIME AGENT.
+ * ONBOARD-01: Profile Setup.
  *
- * Phase 1 docs (Steps A-G):
- * A. Screen loads with empty form.
- * B. Agent speaks AUTOMATICALLY: "OK, let me get to know you..."
- * C. User responds by voice. Transcript appears as subtitle.
- * D. GPT responds with user's name: "Great to meet you, Sarah."
- * E. Form auto-fills from transcript (regex parsing).
- * F. Conversation continues for missing fields.
- * G. User confirms and taps "Let's Begin".
- *
- * If mic denied: introduction shows as text bubble. Manual form fill.
+ * Flow:
+ * A. Screen loads, pre-recorded intro MP3 plays (onb_profile_001).
+ * B. User taps mic button, speaks profile info.
+ * C. Transcript parsed via regex → form auto-fills.
+ * D. Dynamic TTS acknowledgment plays once name captured.
+ * E. User confirms and taps "Let's Begin".
  */
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
@@ -36,21 +30,7 @@ export function Step1Page() {
   const [gender, setGender] = useState<string | null>(null);
   const [referralSource, setReferralSource] = useState<string | null>(null);
   const [referralOtherText, setReferralOtherText] = useState('');
-  const [_micAvailable, setMicAvailable] = useState(true);
-  const [aiText, setAiText] = useState('');
-  const [userText, setUserText] = useState('');
-  const agentStarted = useRef(false);
-
-  // Real-time voice agent
-  const realtimeVoice = useRealtimeVoice({
-    userContext: { name: nickname || undefined, coachingStyle: 'warm' },
-    onTranscript: (text) => setAiText(text),
-    onUserSpeech: (text) => {
-      setUserText(text);
-      parseTranscript(text);
-    },
-    onError: () => setMicAvailable(false),
-  });
+  const ackSpokenRef = useRef(false);
 
   // Restore saved state
   useEffect(() => {
@@ -63,93 +43,55 @@ export function Step1Page() {
     }
   }, [onboardingState?.data]);
 
-  // Step B: Auto-start agent on mount (agent speaks first)
-  useEffect(() => {
-    if (agentStarted.current) return;
-    agentStarted.current = true;
-
-    // Check mic permission
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getUser();
-        if (data?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('mic_permission')
-            .eq('id', data.user.id)
-            .maybeSingle();
-          if (profile?.mic_permission === false) {
-            setMicAvailable(false);
-            // Screen mode fallback: show introduction as text
-            setAiText(
-              "OK, let me get to know you a little. What's your name, how old are you, how do you identify, and how did you hear about us? You can just fill it in on screen.",
-            );
-            return;
-          }
-        }
-      } catch {
-        /* continue with agent */
-      }
-
-      // Start real-time agent — it speaks the introduction automatically
-      try {
-        await realtimeVoice.start();
-      } catch {
-        // Fallback if agent connection fails — use TTS
-        speak(
-          "OK, let me get to know you a little. What's your name, how old are you, how do you identify, and how did you hear about us? You can just say it all or fill it in on screen.",
-        );
-      }
-    })();
-
-    return () => {
-      realtimeVoice.stop();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Step E: Parse transcript to auto-fill form
+  // Parse transcript → auto-fill form + speak acknowledgment once
   const parseTranscript = useCallback(
     (text: string) => {
       const t = text.toLowerCase();
 
-      // Name: "I'm Sarah" / "call me Sarah" / "my name is Sarah"
       const nameMatch = t.match(/(?:i'm|i am|my name is|call me|name's)\s+(\w+)/i);
-      if (nameMatch && !nickname) setNickname(nameMatch[1]);
+      let capturedName: string | null = null;
+      if (nameMatch && !nickname) {
+        capturedName = nameMatch[1];
+        setNickname(capturedName);
+      }
 
-      // Age: any 2-digit number
       const ageMatch = t.match(/\b(\d{1,2})\b/);
       if (ageMatch && !age) {
         const parsed = parseInt(ageMatch[1], 10);
         if (parsed >= 13 && parsed <= 120) setAge(parsed);
       }
 
-      // Gender
       if (!gender) {
         if (/\b(female|woman|girl|lady)\b/i.test(t)) setGender('Female');
         else if (/\b(male|man|guy|boy|dude)\b/i.test(t)) setGender('Male');
         else if (/\bnon.?binary\b/i.test(t)) setGender('Other');
       }
 
-      // Referral
       if (!referralSource) {
         if (
-          /\b(tiktok|instagram|ig|insta|twitter|x|facebook|linkedin|reddit|youtube|social)\b/i.test(
+          /\b(tiktok|instagram|ig|insta|twitter|x|facebook|linkedin|reddit|youtube|social|webinar)\b/i.test(
             t,
           )
         )
-          setReferralSource('Webinar'); // social media
+          setReferralSource('Webinar');
         else if (/\b(friend|buddy|someone|word of mouth|recommended)\b/i.test(t))
           setReferralSource('Friend');
-        else if (/\b(google|website|app store|search)\b/i.test(t)) setReferralSource('Other');
         else if (/\b(founder|invite|yair)\b/i.test(t)) setReferralSource('Founder Invite');
+        else if (/\b(google|website|app store|search)\b/i.test(t)) setReferralSource('Other');
+      }
+
+      // Dynamic TTS acknowledgment — once, after name captured
+      if (!ackSpokenRef.current) {
+        ackSpokenRef.current = true;
+        const displayName = capturedName || nickname || 'there';
+        const cap = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+        speak(`Nice to meet you, ${cap}. Tap Let's Begin when you're ready.`);
       }
     },
     [nickname, age, gender, referralSource],
   );
 
   const handleNext = useCallback(() => {
-    realtimeVoice.stop();
     const effectiveReferral =
       referralSource === 'Other' && referralOtherText.trim()
         ? `Other: ${referralOtherText.trim()}`
@@ -162,7 +104,7 @@ export function Step1Page() {
       referralOtherText,
     });
     navigate('/onboarding/step-2');
-  }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep, realtimeVoice]);
+  }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep]);
 
   return (
     <OnboardingLayout
@@ -179,18 +121,6 @@ export function Step1Page() {
         title="Let's get to know you."
         subtitle="Tell us a bit about yourself to personalize your journey."
       />
-
-      {/* AI/User transcript display */}
-      {aiText && (
-        <div className="rounded-2xl bg-primary/5 p-4">
-          <p className="text-sm italic text-content-secondary">{aiText}</p>
-        </div>
-      )}
-      {userText && (
-        <div className="rounded-2xl bg-surface p-4 shadow-sm">
-          <p className="text-sm text-content">{userText}</p>
-        </div>
-      )}
 
       <OnboardingSection label="What should I call you?">
         <OnboardingInput
