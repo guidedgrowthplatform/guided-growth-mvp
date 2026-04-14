@@ -152,6 +152,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   const audioCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const nextPlayTimeRef = useRef<number>(0);
+  const playTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -252,8 +253,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       ws.binaryType = 'arraybuffer';
       wsRef.current = ws;
 
-      // 5. Set up AudioContext for playback
-      const audioCtx = new AudioContext({ sampleRate: 44100 });
+      // 5. Set up AudioContext for playback (24kHz = Cartesia output rate)
+      const audioCtx = new AudioContext({ sampleRate: 24000 });
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
       audioCtxRef.current = audioCtx;
 
       await new Promise<void>((resolve, reject) => {
@@ -300,7 +302,8 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           const msg = JSON.parse(event.data as string) as Record<string, unknown>;
           const eventType = (msg.event as string) || (msg.type as string) || '';
 
-          // Agent audio output — decode base64, queue for gapless playback
+          // Agent audio output — stream each chunk with gapless scheduling.
+          // Cartesia outputs PCM 16-bit 24kHz (matches our AudioContext rate).
           if (eventType === 'media_output' && msg.media) {
             const media = msg.media as { payload?: string };
             if (media.payload && audioCtxRef.current) {
@@ -309,31 +312,37 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
               const bytes = new Uint8Array(binary.length);
               for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-              // PCM 16-bit signed LE → Float32
-              const int16 = new Int16Array(bytes.buffer);
+              // PCM 16-bit LE → Float32
+              const int16 = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2);
               const float32 = new Float32Array(int16.length);
-              for (let i = 0; i < int16.length; i++) {
-                float32[i] = int16[i] / 32768;
-              }
+              for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
 
-              // Schedule chunk to play right after previous chunk ends (gapless)
-              const sampleRate = 24000;
-              const buf = ctx.createBuffer(1, float32.length, sampleRate);
+              // Build buffer at AudioContext's sample rate (24kHz, matches Cartesia)
+              const buf = ctx.createBuffer(1, float32.length, ctx.sampleRate);
               buf.getChannelData(0).set(float32);
               const src = ctx.createBufferSource();
               src.buffer = buf;
               src.connect(ctx.destination);
 
-              // nextPlayTime tracks when the next chunk should start
-              if (!nextPlayTimeRef.current || nextPlayTimeRef.current < ctx.currentTime) {
-                nextPlayTimeRef.current = ctx.currentTime;
-              }
-              src.start(nextPlayTimeRef.current);
-              nextPlayTimeRef.current += buf.duration;
+              // Gapless scheduling — queue chunks back-to-back
+              const startAt = Math.max(ctx.currentTime, nextPlayTimeRef.current);
+              src.start(startAt);
+              nextPlayTimeRef.current = startAt + buf.duration;
 
               if (state !== 'speaking') {
                 setState('speaking');
+                transition('speaking');
               }
+
+              // When the last queued chunk ends, transition back to listening
+              if (playTimerRef.current) clearTimeout(playTimerRef.current);
+              const msUntilEnd = (nextPlayTimeRef.current - ctx.currentTime) * 1000 + 100;
+              playTimerRef.current = window.setTimeout(() => {
+                if (mountedRef.current) {
+                  setState('listening');
+                  transition('listening');
+                }
+              }, msUntilEnd);
             }
             return;
           }

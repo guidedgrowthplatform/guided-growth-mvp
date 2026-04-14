@@ -173,7 +173,6 @@ export function Step1Page() {
       ctaDisabled={!nickname.trim() || !age}
       showVoiceButton
       onTranscript={parseTranscript}
-      voiceFileId="onb_profile_001"
     >
       <OnboardingHeader
         title="Let's get to know you."
