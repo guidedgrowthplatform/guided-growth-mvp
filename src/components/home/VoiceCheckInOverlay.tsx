@@ -42,6 +42,7 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
   }, [stopListening, onClose]);
 
   const handleMicPress = () => {
+    stopTTS(); // Stop any playing audio first
     unlockTTS();
     if (voiceState === 'listening') {
       stopListening();

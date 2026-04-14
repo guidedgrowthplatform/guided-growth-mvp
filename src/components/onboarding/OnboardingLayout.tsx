@@ -90,6 +90,9 @@ export function OnboardingLayout({
   const hasSpokePrompt = useRef(false);
 
   const handleMicClick = () => {
+    // ALWAYS stop any playing audio first
+    stopTTS();
+    voicePlayer.stop();
     unlockTTS();
     // If we have onVoiceAction, use the new overlay-based flow
     if (onVoiceAction && voiceOptions.length > 0) {
@@ -221,9 +224,15 @@ export function OnboardingLayout({
 
           {showVoiceButton && !onVoiceAction && (isListening || interim || transcript || error) && (
             <div className="mt-2 flex flex-col items-center gap-1">
-              {isListening && <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>}
-              {interim && !isListening && <p className="text-xs text-content-secondary">{interim}</p>}
-              {transcript && <p className="max-w-[280px] text-center text-sm text-content">{transcript}</p>}
+              {isListening && (
+                <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>
+              )}
+              {interim && !isListening && (
+                <p className="text-xs text-content-secondary">{interim}</p>
+              )}
+              {transcript && (
+                <p className="max-w-[280px] text-center text-sm text-content">{transcript}</p>
+              )}
               {error && <p className="max-w-[280px] text-center text-xs text-danger">{error}</p>}
             </div>
           )}

@@ -93,6 +93,9 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
       // Respect voice preference — text_only means no audio
       if (preference === 'text_only') return;
 
+      // Skip if already playing this file (React double-render guard)
+      if (currentFileId === fileId && state === 'playing') return;
+
       const entry = getManifestEntry(fileId);
       if (!entry) {
         console.warn(`[VoicePlayer] No manifest entry for file_id: ${fileId}`);
@@ -167,7 +170,7 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
         }
       }
     },
-    [enterMp3, release, registerCleanup, preference],
+    [enterMp3, release, registerCleanup, preference, currentFileId, state],
   );
 
   const pause = useCallback(() => {

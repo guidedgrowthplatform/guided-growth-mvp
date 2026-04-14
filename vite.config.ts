@@ -128,6 +128,8 @@ export default defineConfig(({ mode }) => {
         workbox: {
           maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+          // Don't intercept voice MP3s, Capacitor HTTP, or external API audio URLs
+          navigateFallbackDenylist: [/^\/voice\//, /^\/_capacitor_/, /cartesia-tts/],
           runtimeCaching: [
             {
               urlPattern: /^\/api\/.*/i,

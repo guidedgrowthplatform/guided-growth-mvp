@@ -7,6 +7,7 @@ import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { speak } from '@/lib/services/tts-service';
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
@@ -50,8 +51,10 @@ export function Step1Page() {
     navigate('/onboarding/step-2');
   }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep]);
 
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (result.params) {
+  const handleVoiceAction = useCallback(
+    (result: OnboardingVoiceResult) => {
+      if (!result.params) return;
+
       const {
         nickname: voiceNickname,
         age: voiceAge,
@@ -60,26 +63,73 @@ export function Step1Page() {
         referralSource: voiceReferral,
       } = result.params;
 
+      // Track what we captured THIS round
+      let gotName = !!nickname; // already had
+      let gotAge = age !== '';
+      let gotGender = !!gender;
+      let gotReferral = !!referralSource;
+
       if (typeof voiceNickname === 'string') {
         setNickname(voiceNickname);
+        gotName = true;
       }
       if (typeof voiceAge === 'number') {
         setAge(voiceAge);
+        gotAge = true;
       } else if (typeof voiceAge === 'string') {
         const parsed = parseInt(voiceAge, 10);
-        if (!isNaN(parsed)) setAge(parsed);
+        if (!isNaN(parsed)) {
+          setAge(parsed);
+          gotAge = true;
+        }
       } else if (typeof voiceAgeRange === 'string') {
-        // Legacy voice support — leave age for user to fill
         setAge('');
       }
       if (typeof voiceGender === 'string') {
         setGender(voiceGender);
+        gotGender = true;
       }
       if (typeof voiceReferral === 'string') {
         setReferralSource(voiceReferral);
+        gotReferral = true;
       }
-    }
-  }, []);
+
+      // CSV ONBOARD-01: Respond based on what's missing
+      const displayName = typeof voiceNickname === 'string' ? voiceNickname : nickname;
+      const missing: string[] = [];
+      if (!gotName) missing.push('name');
+      if (!gotAge) missing.push('age');
+      if (!gotGender) missing.push('gender');
+      if (!gotReferral) missing.push('referral');
+
+      if (missing.length === 0) {
+        speak(
+          `Great to meet you, ${displayName}. Let's build something that actually works for you.`,
+        );
+      } else if (missing.length === 1) {
+        if (!gotGender) {
+          speak(
+            `Great to meet you, ${displayName}. And how do you identify? Male, female, or other?`,
+          );
+        } else if (!gotReferral) {
+          speak(`Great to meet you, ${displayName}. And one more, how did you hear about us?`);
+        } else if (!gotAge) {
+          speak(`Hey ${displayName}. And how old are you?`);
+        } else {
+          speak(`Got it. And what should I call you?`);
+        }
+      } else if (gotName && !gotAge) {
+        speak(`Hey ${displayName}. And how old are you?`);
+      } else if (gotName) {
+        speak(
+          `Great to meet you, ${displayName}. I still need ${missing.filter((m) => m !== 'name').join(' and ')}. You can say it or tap on screen.`,
+        );
+      } else {
+        speak("I didn't catch that clearly. Let's start simple, what's your name?");
+      }
+    },
+    [nickname, age, gender, referralSource],
+  );
 
   return (
     <OnboardingLayout

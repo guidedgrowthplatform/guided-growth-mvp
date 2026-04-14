@@ -108,23 +108,34 @@ async function playAudioFromResponse(
   volume: number,
   _label: string,
 ): Promise<boolean> {
-  const audioBlob = await res.blob();
-  const audioUrl = URL.createObjectURL(audioBlob);
-  const audio = new Audio(audioUrl);
+  // Convert to base64 data URI — works on all platforms including
+  // Android Capacitor where CapacitorHttp corrupts blob URLs.
+  const arrayBuf = await res.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuf);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const base64 = btoa(binary);
+  const dataUri = `data:audio/mpeg;base64,${base64}`;
+
+  const audio = new Audio(dataUri);
   audio.volume = volume;
   currentAudio = audio;
 
   await new Promise<void>((resolve, reject) => {
     audio.onended = () => {
-      URL.revokeObjectURL(audioUrl);
       currentAudio = null;
       resolve();
     };
     audio.onerror = (e) => {
-      URL.revokeObjectURL(audioUrl);
+      console.error('[TTS] Audio playback error:', e);
       reject(e);
     };
-    audio.play().catch(reject);
+    audio.play().catch((err) => {
+      console.error('[TTS] Audio play() rejected:', err);
+      reject(err);
+    });
   });
 
   return true;
@@ -160,23 +171,51 @@ async function speakCartesia(text: string, volume: number): Promise<boolean> {
 
   try {
     const voiceId = getCartesiaVoiceId();
-    const authHeaders = await getAuthHeaders();
+    const apiBase = getApiBase();
 
+    if (Capacitor.isNativePlatform()) {
+      // ANDROID/iOS: CapacitorHttp corrupts binary fetch/XHR responses.
+      // Use Audio element with direct GET URL — browser loads audio natively
+      // without going through CapacitorHttp.
+      const authHeaders = await getAuthHeaders();
+      const token = authHeaders.Authorization?.replace('Bearer ', '') || '';
+      const params = new URLSearchParams({
+        text: text.slice(0, 2000),
+        voice_id: voiceId,
+        token,
+      });
+      const audioUrl = `${apiBase}/api/cartesia-tts?${params.toString()}`;
+
+      const audio = new Audio(audioUrl);
+      audio.volume = volume;
+      currentAudio = audio;
+
+      await new Promise<void>((resolve, reject) => {
+        audio.onended = () => {
+          currentAudio = null;
+          resolve();
+        };
+        audio.onerror = () => reject(new Error('Audio load failed'));
+        audio.oncanplaythrough = () => audio.play().catch(reject);
+        audio.load();
+      });
+
+      return true;
+    }
+
+    // WEB: standard fetch approach (no CapacitorHttp interference)
+    const authHeaders = await getAuthHeaders();
     const abortController = new AbortController();
     currentTtsAbort = abortController;
 
-    const res = await fetch(`${getApiBase()}/api/cartesia-tts`, {
+    const res = await fetch(`${apiBase}/api/cartesia-tts`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeaders,
-      },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({ text, voice_id: voiceId }),
       signal: abortController.signal,
     });
 
     if (!res.ok) {
-      console.warn('[TTS] Cartesia proxy error:', res.status);
       if (res.status === 429 || res.status === 401 || res.status === 500) {
         cartesiaTtsAvailable = false;
       }
@@ -341,11 +380,14 @@ function speakBrowser(
 
 // Generation counter — only the LATEST speak() call gets to play audio
 let speakGeneration = 0;
+let lastSpeakText = '';
+let lastSpeakTime = 0;
 
 /**
  * Speak text aloud using Cartesia TTS (primary),
  * then browser speechSynthesis as last resort.
  * Uses generation counter to ensure only the latest call plays.
+ * Debounced: ignores duplicate calls within 500ms.
  */
 export function speak(
   text: string,
@@ -356,6 +398,12 @@ export function speak(
   if (!ttsEnabled) return;
   const clean = cleanText(text);
   if (!clean) return;
+
+  // Debounce: skip duplicate text within 500ms (React double-render guard)
+  const now = Date.now();
+  if (clean === lastSpeakText && now - lastSpeakTime < 500) return;
+  lastSpeakText = clean;
+  lastSpeakTime = now;
 
   const volume = options?.volume ?? 0.85;
 
@@ -370,7 +418,13 @@ export function speak(
     // Try Cartesia (primary — sole cloud TTS provider)
     const cartesiaOk = await speakCartesia(clean, volume);
     if (myGeneration !== speakGeneration) return;
-    if (cartesiaOk) return;
+    if (cartesiaOk) {
+      console.log('[TTS] Cartesia playing OK');
+      return;
+    }
+
+    console.warn('[TTS] Cartesia failed, trying browser speechSynthesis...');
+    console.warn('[TTS] speechSynthesis available:', 'speechSynthesis' in window);
 
     // Cartesia failed — use browser speechSynthesis as emergency fallback
     speakBrowser(clean, options);
