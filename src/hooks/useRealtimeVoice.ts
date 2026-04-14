@@ -303,7 +303,8 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           const eventType = (msg.event as string) || (msg.type as string) || '';
 
           // Agent audio output — stream each chunk with gapless scheduling.
-          // Cartesia outputs PCM 16-bit 24kHz (matches our AudioContext rate).
+          // Cartesia agent output verified at PCM 16-bit 16kHz mono (Ink/Sonic
+          // default for agents). Browser resamples to AudioContext rate.
           if (eventType === 'media_output' && msg.media) {
             const media = msg.media as { payload?: string };
             if (media.payload && audioCtxRef.current) {
@@ -317,8 +318,8 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
               const float32 = new Float32Array(int16.length);
               for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
 
-              // Build buffer at AudioContext's sample rate (24kHz, matches Cartesia)
-              const buf = ctx.createBuffer(1, float32.length, ctx.sampleRate);
+              // Build buffer at source rate (16kHz); browser resamples to ctx rate.
+              const buf = ctx.createBuffer(1, float32.length, 16000);
               buf.getChannelData(0).set(float32);
               const src = ctx.createBufferSource();
               src.buffer = buf;
