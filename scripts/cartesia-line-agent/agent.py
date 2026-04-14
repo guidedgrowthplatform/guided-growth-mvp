@@ -172,13 +172,26 @@ async def get_agent(env, call_request):
     # Inject user ID directly into the prompt so the LLM can use it for tools
     system_prompt_with_context = f"{base_prompt}\n\nYour Current User ID is: {user_id}\nUse this ID when calling tools like get_user_context."
 
+    # Screen-specific intro line. Defaults to ONBOARD-01 opener per Yair's
+    # Phase 1 spec. Metadata.screen can override (for check-ins etc) later.
+    screen = metadata.get("screen", "onboard_01")
+    intros = {
+        "onboard_01": (
+            "OK, let me get to know you a little. What's your name, how old are "
+            "you, how do you identify, and how did you hear about us?"
+        ),
+        "morning": "Morning. How are you feeling today?",
+        "evening": "How did today go?",
+    }
+    introduction = intros.get(screen, intros["onboard_01"])
+
     agent = LlmAgent(
         model=os.getenv("LLM_MODEL", "openai/gpt-4o"),
         api_key=os.getenv("OPENAI_API_KEY"),
         tools=[get_user_context, log_checkin, get_habits, log_goal, end_call],
         config=LlmConfig(
             system_prompt=system_prompt_with_context,
-            introduction="Morning. How are you feeling today?",
+            introduction=introduction,
         ),
     )
     # Return (agent, run_filter, cancel_filter) tuple — VoiceAgentApp uses the
