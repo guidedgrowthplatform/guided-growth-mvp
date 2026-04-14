@@ -235,8 +235,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       });
       streamRef.current = stream;
 
-      // 2. Inject user context into agent prompt (name, habits, streaks)
-      await injectUserContext();
+      // 2. Inject user context into agent prompt (name, habits, streaks).
+      // Fire-and-forget — doesn't gate WebSocket connection. Worst case the
+      // first turn lacks personalized context; subsequent turns pick it up.
+      void injectUserContext().catch(() => {});
 
       // 3. Fetch short-lived access token from backend
       const token = await fetchAgentToken();
