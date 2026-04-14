@@ -126,6 +126,9 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         manifest: false,
         workbox: {
+          skipWaiting: true,
+          clientsClaim: true,
+          cleanupOutdatedCaches: true,
           maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
           // Don't intercept voice MP3s, Capacitor HTTP, or external API audio URLs
