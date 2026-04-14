@@ -431,16 +431,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           if (a > maxAmp) maxAmp = a;
         }
         const pcm16 = float32ToPcm16(inputData);
-
-        // Cartesia agent stream expects JSON-wrapped base64 under
-        // media_input (symmetric to media_output we receive). Raw-binary
-        // sends were accepted by the socket but never reached Ink STT,
-        // so no user_transcript events ever fired.
-        const bytes = new Uint8Array(pcm16);
-        let binStr = '';
-        for (let i = 0; i < bytes.length; i++) binStr += String.fromCharCode(bytes[i]);
-        const b64 = btoa(binStr);
-        ws.send(JSON.stringify({ event: 'media_input', media: { payload: b64 } }));
+        // Cartesia platform accepts raw PCM_16000 binary on the agent
+        // stream (confirmed via ack.config.input_format echo). JSON-wrap
+        // attempt produced spurious 'clear' events without STT firing.
+        ws.send(pcm16);
 
         frameCount++;
         const now = performance.now();
