@@ -188,13 +188,16 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     }
     if (mountedRef.current) {
       setState('idle');
-      transition('idle');
     }
-  }, [transition]);
+  }, []);
 
   const stop = useCallback(() => {
     cleanup();
-    release();
+    try {
+      release();
+    } catch {
+      /* ignore */
+    }
     onEnd?.();
   }, [cleanup, release, onEnd]);
 
@@ -237,7 +240,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       const token = await fetchAgentToken();
 
       // 3. Build WebSocket URL
-      const agentId = import.meta.env.VITE_CARTESIA_AGENT_ID;
+      const agentId = (import.meta.env.VITE_CARTESIA_AGENT_ID || '').trim();
       if (!agentId) {
         throw new Error('VITE_CARTESIA_AGENT_ID not configured. Deploy the Line agent first.');
       }
