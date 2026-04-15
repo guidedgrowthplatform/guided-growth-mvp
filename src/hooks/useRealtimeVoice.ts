@@ -421,9 +421,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
 
       // 7. Stream mic audio to agent
       const source = audioCtx.createMediaStreamSource(stream);
-      // ScriptProcessorNode is deprecated but widely supported.
-      // For production, migrate to AudioWorklet.
-      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+      // 1024-sample buffer matches Cartesia dashboard's AudioWorklet
+      // (~23ms chunks at 44.1kHz). Larger 4096 buffers were ~93ms and
+      // did not trigger Ink STT finalization.
+      const processor = audioCtx.createScriptProcessor(1024, 1, 1);
       processorRef.current = processor;
 
       let frameCount = 0;
