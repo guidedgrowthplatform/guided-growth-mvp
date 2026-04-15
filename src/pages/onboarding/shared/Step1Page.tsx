@@ -156,6 +156,19 @@ export function Step1Page() {
       parseTranscript(text);
     },
     onError: () => setMicAvailable(false),
+    // Agent-driven navigation: when the Cartesia Line agent calls
+    // `navigate_next` after capturing all profile fields, route forward
+    // without requiring the user to tap Continue (voice-first per spec).
+    onToolCall: (name) => {
+      if (name === 'navigate_next') {
+        pendingStopRef.current = window.setTimeout(() => {
+          realtimeVoice.stop();
+          pendingStopRef.current = null;
+          agentStarted.current = false;
+          navigate('/onboarding/step-2', { replace: true });
+        }, 400);
+      }
+    },
   });
 
   // Mirror realtime voice state to our UI indicator

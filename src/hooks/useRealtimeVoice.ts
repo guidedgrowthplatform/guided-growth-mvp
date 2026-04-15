@@ -29,6 +29,10 @@ interface UseRealtimeVoiceOptions {
   onError?: (error: string) => void;
   /** Called when the conversation ends */
   onEnd?: () => void;
+  /** Called when the agent invokes a tool (e.g. navigate_next, update_profile).
+   * `name` is the tool name as defined in the agent backend; `args` is the
+   * tool input object forwarded through the Cartesia stream. */
+  onToolCall?: (name: string, args: Record<string, unknown>) => void;
 }
 
 interface UseRealtimeVoiceReturn {
@@ -148,6 +152,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     onUserSpeech: onUserSpeechCb,
     onError,
     onEnd,
+    onToolCall,
   } = options;
   // Keep latest metadata in a ref so start() reads the current value even
   // if it was updated (via setState) after the hook last memoized.
@@ -419,6 +424,30 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
             if (eventType === 'error') {
               onError?.((msg.message || msg.text || 'Agent error') as string);
             }
+
+            // Tool call forwarded from the Cartesia Line agent. Event name
+            // varies by SDK version; accept the common variants and normalize
+            // to (name, args). Frontend subscribers use this to react to
+            // agent-driven actions like `navigate_next` or `update_profile`.
+            if (
+              eventType === 'tool_call' ||
+              eventType === 'tool_call_start' ||
+              eventType === 'function_call'
+            ) {
+              const name = (msg.name || msg.tool_name || msg.function_name) as string | undefined;
+              const rawArgs = msg.arguments ?? msg.args ?? msg.input ?? {};
+              let args: Record<string, unknown> = {};
+              if (typeof rawArgs === 'string') {
+                try {
+                  args = JSON.parse(rawArgs);
+                } catch {
+                  args = { raw: rawArgs };
+                }
+              } else if (rawArgs && typeof rawArgs === 'object') {
+                args = rawArgs as Record<string, unknown>;
+              }
+              if (name) onToolCall?.(name, args);
+            }
           } catch {
             // Non-JSON — ignore
           }
@@ -520,6 +549,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       onError,
       onTranscriptCb,
       onUserSpeechCb,
+      onToolCall,
       release,
       cleanup,
       transition,
