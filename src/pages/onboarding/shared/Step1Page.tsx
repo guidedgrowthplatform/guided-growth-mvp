@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
@@ -50,6 +50,9 @@ export function Step1Page() {
     navigate('/onboarding/step-2');
   }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep]);
 
+  // Track whether voice just filled fields — triggers auto-advance check
+  const voiceFilledRef = useRef(false);
+
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
     if (result.params) {
       const {
@@ -78,8 +81,25 @@ export function Step1Page() {
       if (typeof voiceReferral === 'string') {
         setReferralSource(voiceReferral);
       }
+
+      // Mark that voice just filled fields — auto-advance effect will check
+      voiceFilledRef.current = true;
     }
   }, []);
+
+  // Auto-advance when voice fills all required fields
+  useEffect(() => {
+    if (!voiceFilledRef.current) return;
+    voiceFilledRef.current = false;
+
+    if (nickname.trim() && age && gender && referralSource) {
+      // All fields filled by voice — auto-advance after a short delay
+      const timer = setTimeout(() => {
+        handleNext();
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [nickname, age, gender, referralSource, handleNext]);
 
   return (
     <OnboardingLayout

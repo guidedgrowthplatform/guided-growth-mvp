@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -30,9 +30,12 @@ export function Step3Page() {
     }
   }, [onboardingState?.data?.category]);
 
+  const voiceFilledRef = useRef(false);
+
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
     if (result.params && typeof result.params.category === 'string') {
       setSelected(result.params.category);
+      voiceFilledRef.current = true;
     }
   }, []);
 
@@ -40,6 +43,16 @@ export function Step3Page() {
     await saveStepAsync(3, { category: selected });
     navigate('/onboarding/step-4', { state: { category: selected } });
   }, [selected, navigate, saveStepAsync]);
+
+  // Auto-advance when voice selects a category
+  useEffect(() => {
+    if (!voiceFilledRef.current || !selected) return;
+    voiceFilledRef.current = false;
+    const timer = setTimeout(() => {
+      handleNext();
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [selected, handleNext]);
 
   return (
     <OnboardingLayout

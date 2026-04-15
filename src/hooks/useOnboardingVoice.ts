@@ -90,29 +90,10 @@ export function useOnboardingVoice() {
         // Ensure confidence is a number
         const confidence = typeof result.confidence === 'number' ? result.confidence : 0;
 
-        // If confidence is too low, treat as failure with step-specific fallback
-        if (confidence < 0.5) {
-          const lowConfFallback: Record<number, string> = {
-            1: "I didn't catch that clearly. Could you say your name again? Or just type it in — totally fine.",
-            2: "No pressure either way — just tap the one that feels right, or say 'new' or 'experienced.'",
-            3: "I didn't catch which area. Just say one — like 'sleep' or 'focus' — or tap it.",
-            4: 'Could you say that again? Or just tap the one that resonates.',
-            5: 'Which one sounds right? Say the name or tap it.',
-            6: 'Do you want the daily reflection, or skip for now?',
-            7: "Say 'let's go' or tap 'Start plan.'",
-          };
-          return {
-            success: false,
-            action: 'error',
-            params: {},
-            message:
-              lowConfFallback[stepContext.step] ||
-              "I didn't catch that — try again or select manually.",
-            confidence,
-          };
-        }
-
         // Post-process: fix PII-scrubbed names by extracting from original transcript
+        // NOTE: We run param extraction BEFORE the confidence gate so that even
+        // low-confidence results can still yield useful params (name, age, etc.)
+        // extracted directly from the transcript text.
         const params = result.params || {};
         if (stepContext.step === 1) {
           // Safety net: extract age from the original transcript when GPT
@@ -320,6 +301,31 @@ export function useOnboardingVoice() {
           } else if (/\b(friend|buddy|colleague|someone)\b/.test(normalizedTranscript)) {
             params.referralSource = 'Friend';
           }
+        }
+
+        // Check if we extracted useful params (non-empty, non-error)
+        const hasExtractedParams = Object.keys(params).length > 0;
+
+        // If confidence is too low AND we have no useful params, treat as failure
+        if (confidence < 0.3 && !hasExtractedParams) {
+          const lowConfFallback: Record<number, string> = {
+            1: "I didn't catch that clearly. Could you say your name again? Or just type it in — totally fine.",
+            2: "No pressure either way — just tap the one that feels right, or say 'new' or 'experienced.'",
+            3: "I didn't catch which area. Just say one — like 'sleep' or 'focus' — or tap it.",
+            4: 'Could you say that again? Or just tap the one that resonates.',
+            5: 'Which one sounds right? Say the name or tap it.',
+            6: 'Do you want the daily reflection, or skip for now?',
+            7: "Say 'let's go' or tap 'Start plan.'",
+          };
+          return {
+            success: false,
+            action: 'error',
+            params: {},
+            message:
+              lowConfFallback[stepContext.step] ||
+              "I didn't catch that — try again or select manually.",
+            confidence,
+          };
         }
 
         // Step-specific responses — inspired by Voice Journey Spreadsheet v3

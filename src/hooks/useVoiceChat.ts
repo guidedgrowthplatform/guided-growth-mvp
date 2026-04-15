@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVoice } from '@/hooks/useVoice';
-import { stopTTS } from '@/lib/services/tts-service';
+import { speak, stopTTS } from '@/lib/services/tts-service';
 import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { useVoiceCommand } from './useVoiceCommand';

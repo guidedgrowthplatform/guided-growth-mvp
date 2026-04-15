@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -34,6 +34,8 @@ export function Step4Page() {
     });
   }
 
+  const voiceFilledRef = useRef(false);
+
   const handleVoiceAction = useCallback(
     (result: OnboardingVoiceResult) => {
       if (result.params && Array.isArray(result.params.goals)) {
@@ -45,6 +47,7 @@ export function Step4Page() {
           }
         });
         setSelected(newSelected);
+        if (newSelected.size > 0) voiceFilledRef.current = true;
       }
     },
     [goals],
@@ -54,6 +57,16 @@ export function Step4Page() {
     await saveStepAsync(4, { goals: Array.from(selected) });
     navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
   }, [selected, category, navigate, saveStepAsync]);
+
+  // Auto-advance when voice selects goals
+  useEffect(() => {
+    if (!voiceFilledRef.current || selected.size === 0) return;
+    voiceFilledRef.current = false;
+    const timer = setTimeout(() => {
+      handleNext();
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [selected, handleNext]);
 
   return (
     <OnboardingLayout

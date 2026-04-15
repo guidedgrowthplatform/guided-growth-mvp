@@ -154,12 +154,11 @@ export function OnboardingVoiceOverlay({
           if (result.success || hasUsefulParams) {
             setTimeout(() => {
               onAction(result);
-              if (result.success) {
-                // Auto-close overlay on full success
-                setTimeout(handleClose, 100);
-              } else {
-                setIsProcessing(false);
-              }
+              // Auto-close overlay when we have useful data — not just on
+              // full success. Previously only result.success triggered close,
+              // leaving users stuck when params were extracted but confidence
+              // was borderline.
+              setTimeout(handleClose, 800);
             }, 300);
           } else {
             setIsProcessing(false);

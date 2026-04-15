@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
@@ -17,11 +17,14 @@ export function Step2Page() {
     }
   }, [onboardingState?.path]);
 
+  const voiceFilledRef = useRef(false);
+
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
     if (result.params && typeof result.params.path === 'string') {
       const path = result.params.path.toLowerCase();
       if (path.includes('simple') || path.includes('new') || path.includes('beginner')) {
         setPlan('simple');
+        voiceFilledRef.current = true;
       } else if (
         path.includes('brain') ||
         path.includes('advanced') ||
@@ -29,6 +32,7 @@ export function Step2Page() {
         path.includes('dump')
       ) {
         setPlan('braindump');
+        voiceFilledRef.current = true;
       }
     }
   }, []);
@@ -41,6 +45,16 @@ export function Step2Page() {
       navigate('/onboarding/step-3');
     }
   }, [plan, navigate, saveStepAsync]);
+
+  // Auto-advance when voice selects a plan
+  useEffect(() => {
+    if (!voiceFilledRef.current || !plan) return;
+    voiceFilledRef.current = false;
+    const timer = setTimeout(() => {
+      handleNext();
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [plan, handleNext]);
 
   return (
     <OnboardingLayout

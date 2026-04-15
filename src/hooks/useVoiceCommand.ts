@@ -347,15 +347,9 @@ export function useVoiceCommand() {
 
         // Handle navigation from voice commands (e.g., "start focus" → /focus)
         if (result.navigateTo) {
-          // Pass voice command data via route state (e.g., focus duration)
-          const navState: Record<string, unknown> = {};
-          if (intent.action === 'focus' && intent.params.duration) {
-            navState.duration = Number(intent.params.duration);
-            navState.autoStart = true;
-          }
           // Small delay so TTS starts playing before the page transitions
           setTimeout(() => {
-            navigate(result.navigateTo!, { state: navState });
+            navigate(result.navigateTo!);
           }, 600);
         }
 
