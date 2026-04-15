@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { useState } from 'react';
+import { AUDIO_DEBUG_SUPABASE_STORAGE_BASE, AUDIO_DEBUG_WEB_ORIGIN } from '@/lib/config/voice';
 
 /**
  * Debug page to test audio on Android.
@@ -29,7 +30,11 @@ export function AudioDebugPage() {
   // Test 2: Remote MP3 (Vercel static)
   const testRemoteMp3 = () => {
     addLog('Test 2: Remote Vercel MP3...');
-    const audio = new Audio('https://guided-growth-mvp-green.vercel.app/voice/splash_welcome.mp3');
+    if (!AUDIO_DEBUG_WEB_ORIGIN) {
+      addLog('  SKIPPED: VITE_AUDIO_DEBUG_WEB_ORIGIN not set');
+      return;
+    }
+    const audio = new Audio(`${AUDIO_DEBUG_WEB_ORIGIN}/voice/splash_welcome.mp3`);
     audio.oncanplaythrough = () => addLog('  canplaythrough OK');
     audio.onerror = (e) => addLog(`  ERROR: ${e}`);
     audio.onended = () => addLog('  ended OK');
@@ -42,9 +47,11 @@ export function AudioDebugPage() {
   // Test 3: Supabase Storage MP3
   const testSupabaseMp3 = () => {
     addLog('Test 3: Supabase Storage MP3...');
-    const audio = new Audio(
-      'https://pmunbflbjpoawicgimyc.supabase.co/storage/v1/object/public/voice-assets/splash_welcome.mp3',
-    );
+    if (!AUDIO_DEBUG_SUPABASE_STORAGE_BASE) {
+      addLog('  SKIPPED: VITE_SUPABASE_URL not set');
+      return;
+    }
+    const audio = new Audio(`${AUDIO_DEBUG_SUPABASE_STORAGE_BASE}/splash_welcome.mp3`);
     audio.oncanplaythrough = () => addLog('  canplaythrough OK');
     audio.onerror = (e) => addLog(`  ERROR: ${e}`);
     audio.onended = () => addLog('  ended OK');
