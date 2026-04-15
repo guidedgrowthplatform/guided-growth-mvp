@@ -12,6 +12,7 @@ import { useRealtimeVoice } from '@/hooks/useRealtimeVoice';
 import { queryKeys } from '@/lib/query';
 import { speak } from '@/lib/services/tts-service';
 import { supabase } from '@/lib/supabase';
+import { nextRouteFor } from '@/lib/voice/screenFlow';
 
 /**
  * ONBOARD-01: Profile Setup — REAL-TIME AGENT.
@@ -156,18 +157,20 @@ export function Step1Page() {
       parseTranscript(text);
     },
     onError: () => setMicAvailable(false),
-    // Agent-driven navigation: when the Cartesia Line agent calls
-    // `navigate_next` after capturing all profile fields, route forward
-    // without requiring the user to tap Continue (voice-first per spec).
-    onToolCall: (name) => {
-      if (name === 'navigate_next') {
-        pendingStopRef.current = window.setTimeout(() => {
-          realtimeVoice.stop();
-          pendingStopRef.current = null;
-          agentStarted.current = false;
-          navigate('/onboarding/step-2', { replace: true });
-        }, 400);
-      }
+    // Agent-driven navigation per spec Section 2.5: when the Cartesia Line
+    // agent calls `navigate_next` after capturing all profile fields, route
+    // forward without requiring the user to tap Continue.
+    onToolCall: (name, args) => {
+      if (name !== 'navigate_next') return;
+      const fromScreen = (args.from_screen as string | undefined) ?? 'onboard_01';
+      const dest = nextRouteFor(fromScreen);
+      if (!dest) return;
+      pendingStopRef.current = window.setTimeout(() => {
+        realtimeVoice.stop();
+        pendingStopRef.current = null;
+        agentStarted.current = false;
+        navigate(dest, { replace: true });
+      }, 400);
     },
   });
 
