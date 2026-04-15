@@ -42,11 +42,12 @@ export const STT_DOWNSAMPLE_RATE = envNumber(import.meta.env.VITE_STT_DOWNSAMPLE
 // ─── Onboarding voice (useOnboardingVoice) ──────────────────────────────────
 /**
  * Spoken-number → digit map used as a safety net when the API returns
- * `[AGE]` (PII-scrubbed) for step 1. Exposed so the full set is editable
- * in one place; still incomplete (Alejandro: "doesnt cover all the cases").
- * Longer phrases come first so "twenty one" matches before "twenty".
+ * `[AGE]` (PII-scrubbed) for step 1. Covers 13–99 exhaustively — teens,
+ * every tens word, every tens+ones compound (both "twenty one" and
+ * "twenty-one" spellings). Longer phrases are ordered first so compounds
+ * match before standalone tens.
  */
-export const ONBOARDING_AGE_WORD_TO_NUM: Readonly<Record<string, number>> = Object.freeze({
+const TEENS: Record<string, number> = Object.freeze({
   thirteen: 13,
   fourteen: 14,
   fifteen: 15,
@@ -54,28 +55,46 @@ export const ONBOARDING_AGE_WORD_TO_NUM: Readonly<Record<string, number>> = Obje
   seventeen: 17,
   eighteen: 18,
   nineteen: 19,
-  twenty: 20,
-  'twenty one': 21,
-  'twenty two': 22,
-  'twenty three': 23,
-  'twenty four': 24,
-  'twenty five': 25,
-  'twenty six': 26,
-  'twenty seven': 27,
-  'twenty eight': 28,
-  'twenty nine': 29,
-  thirty: 30,
-  'thirty one': 31,
-  'thirty two': 32,
-  'thirty three': 33,
-  'thirty four': 34,
-  'thirty five': 35,
-  forty: 40,
-  fifty: 50,
-  sixty: 60,
-  seventy: 70,
-  eighty: 80,
 });
+
+const TENS: Array<[string, number]> = [
+  ['twenty', 20],
+  ['thirty', 30],
+  ['forty', 40],
+  ['fifty', 50],
+  ['sixty', 60],
+  ['seventy', 70],
+  ['eighty', 80],
+  ['ninety', 90],
+];
+
+const ONES: Array<[string, number]> = [
+  ['one', 1],
+  ['two', 2],
+  ['three', 3],
+  ['four', 4],
+  ['five', 5],
+  ['six', 6],
+  ['seven', 7],
+  ['eight', 8],
+  ['nine', 9],
+];
+
+function buildAgeMap(): Record<string, number> {
+  const map: Record<string, number> = {};
+  for (const [tens, tv] of TENS) {
+    for (const [ones, ov] of ONES) {
+      map[`${tens} ${ones}`] = tv + ov;
+      map[`${tens}-${ones}`] = tv + ov;
+    }
+    map[tens] = tv;
+  }
+  Object.assign(map, TEENS);
+  return map;
+}
+
+export const ONBOARDING_AGE_WORD_TO_NUM: Readonly<Record<string, number>> =
+  Object.freeze(buildAgeMap());
 
 // ─── Voice command domain data (useVoiceCommand) ────────────────────────────
 /**
@@ -104,18 +123,20 @@ export const STT_CORRECTIONS: Readonly<Record<string, string>> = Object.freeze({
 });
 
 // ─── Audio debug page (AudioDebugPage) ──────────────────────────────────────
-/** Web origin hosting the static MP3 assets used for the remote-MP3 smoke test. */
-export const AUDIO_DEBUG_WEB_ORIGIN = envString(
-  import.meta.env.VITE_AUDIO_DEBUG_WEB_ORIGIN,
-  'https://guided-growth-mvp-green.vercel.app',
-);
+/**
+ * Web origin hosting the static MP3 assets used for the remote-MP3 smoke test.
+ * Empty string = the remote test is skipped. Set `VITE_AUDIO_DEBUG_WEB_ORIGIN`
+ * in the environment to enable. Never hardcode a production URL here.
+ */
+export const AUDIO_DEBUG_WEB_ORIGIN = envString(import.meta.env.VITE_AUDIO_DEBUG_WEB_ORIGIN, '');
 
 /**
  * Public Supabase Storage base URL for voice assets. Derived from
- * `VITE_SUPABASE_URL` when available so changing projects doesn't require
- * editing the debug page.
+ * `VITE_SUPABASE_URL` — this is already required for the app to function,
+ * so no separate fallback is defined here. Empty string when unset so
+ * callers can skip the Supabase smoke test gracefully.
  */
 const SUPABASE_URL = envString(import.meta.env.VITE_SUPABASE_URL, '');
 export const AUDIO_DEBUG_SUPABASE_STORAGE_BASE = SUPABASE_URL
   ? `${SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/public/voice-assets`
-  : 'https://pmunbflbjpoawicgimyc.supabase.co/storage/v1/object/public/voice-assets';
+  : '';
