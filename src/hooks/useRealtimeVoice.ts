@@ -18,6 +18,9 @@ export type RealtimeVoiceState =
 interface UseRealtimeVoiceOptions {
   /** User context for the system prompt */
   userContext: UserContext;
+  /** Extra metadata forwarded to the agent via the start event.
+   * Must include `user_id` so tools can persist results server-side. */
+  metadata?: Record<string, unknown>;
   /** Called when the AI produces a text transcript of its response */
   onTranscript?: (text: string) => void;
   /** Called when the user's speech is transcribed */
@@ -29,8 +32,11 @@ interface UseRealtimeVoiceOptions {
 }
 
 interface UseRealtimeVoiceReturn {
-  /** Start a realtime voice conversation */
-  start: () => Promise<void>;
+  /** Start a realtime voice conversation.
+   * Optional `metadataOverride` takes precedence over options.metadata —
+   * useful when the caller just fetched user_id and doesn't want to wait
+   * for a React re-render to propagate it into the hook. */
+  start: (metadataOverride?: Record<string, unknown>) => Promise<void>;
   /** Stop the conversation */
   stop: () => void;
   /** Current state */
@@ -135,11 +141,16 @@ function playPcm16Audio(
 export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeVoiceReturn {
   const {
     userContext: _userContext,
+    metadata,
     onTranscript: onTranscriptCb,
     onUserSpeech: onUserSpeechCb,
     onError,
     onEnd,
   } = options;
+  // Keep latest metadata in a ref so start() reads the current value even
+  // if it was updated (via setState) after the hook last memoized.
+  const metadataRef = useRef<Record<string, unknown> | undefined>(metadata);
+  metadataRef.current = metadata;
   const { enterRealtime, release, registerCleanup, preference, transition } = useVoice();
 
   const [state, setState] = useState<RealtimeVoiceState>('idle');
@@ -204,307 +215,314 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     onEnd?.();
   }, [cleanup, release, onEnd]);
 
-  const start = useCallback(async () => {
-    // Respect voice preference
-    if (preference === 'text_only') {
-      onError?.('Voice is disabled. Change your preference in Settings.');
-      return;
-    }
-
-    // Request realtime mode (stops MP3 if playing)
-    const ok = enterRealtime();
-    if (!ok) {
-      onError?.('Could not start voice session.');
-      return;
-    }
-
-    // Register cleanup so VoiceContext can stop us
-    registerCleanup(stop);
-
-    setState('connecting');
-
-    try {
-      // 1. Request mic access. Leave DSP filters OFF — Windows Chrome
-      // aggressively mutes quiet audio with noiseSuppression+AGC on,
-      // which can silently suppress real user speech. Cartesia Ink STT
-      // handles noisy input fine on its own.
-      // Native DSP on — matches the Cartesia dashboard reference implementation.
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          sampleRate: 44100,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
-      streamRef.current = stream;
-
-      console.log('[Cartesia WS] mic stream acquired', {
-        tracks: stream.getAudioTracks().map((t) => t.getSettings()),
-      });
-
-      // 2. Inject user context into agent prompt (name, habits, streaks).
-      // Fire-and-forget — doesn't gate WebSocket connection. Worst case the
-      // first turn lacks personalized context; subsequent turns pick it up.
-      void injectUserContext().catch(() => {});
-
-      // 3. Fetch short-lived access token from backend
-      const token = await fetchAgentToken();
-
-      // 3. Build WebSocket URL
-      const agentId = (import.meta.env.VITE_CARTESIA_AGENT_ID || '').trim();
-      if (!agentId) {
-        throw new Error('VITE_CARTESIA_AGENT_ID not configured. Deploy the Line agent first.');
+  const start = useCallback(
+    async (metadataOverride?: Record<string, unknown>) => {
+      if (metadataOverride) {
+        metadataRef.current = { ...metadataRef.current, ...metadataOverride };
+      }
+      // Respect voice preference
+      if (preference === 'text_only') {
+        onError?.('Voice is disabled. Change your preference in Settings.');
+        return;
       }
 
-      // 4. Connect to Cartesia agent stream (docs: /agents/stream/{agent_id})
-      const wsUrl = `wss://api.cartesia.ai/agents/stream/${agentId}?api_key=${token}&cartesia_version=2025-04-16`;
-      const ws = new WebSocket(wsUrl);
-      ws.binaryType = 'arraybuffer';
-      wsRef.current = ws;
+      // Request realtime mode (stops MP3 if playing)
+      const ok = enterRealtime();
+      if (!ok) {
+        onError?.('Could not start voice session.');
+        return;
+      }
 
-      // AudioContext at 44.1kHz — matches Cartesia's reference protocol
-      // (decoded from play.cartesia.ai bundle: pcm_44100). Platform ignores
-      // 16kHz input silently. Ink STT resamples internally.
-      const audioCtx = new AudioContext({ sampleRate: 44100 });
-      if (audioCtx.state === 'suspended') await audioCtx.resume();
-      audioCtxRef.current = audioCtx;
+      // Register cleanup so VoiceContext can stop us
+      registerCleanup(stop);
 
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('WebSocket connection timed out'));
-        }, 10000);
+      setState('connecting');
 
-        ws.onopen = () => {
-          clearTimeout(timeout);
-          // Start event per Cartesia dashboard protocol (reverse-engineered
-          // from play.cartesia.ai bundle). stream_id='' requests assignment.
-          ws.send(
-            JSON.stringify({
-              event: 'start',
-              stream_id: '',
-              config: { input_format: 'pcm_44100', voice_id: '' },
-            }),
-          );
-          resolve();
-        };
+      try {
+        // 1. Request mic access. Leave DSP filters OFF — Windows Chrome
+        // aggressively mutes quiet audio with noiseSuppression+AGC on,
+        // which can silently suppress real user speech. Cartesia Ink STT
+        // handles noisy input fine on its own.
+        // Native DSP on — matches the Cartesia dashboard reference implementation.
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            sampleRate: 44100,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+        streamRef.current = stream;
 
-        ws.onerror = () => {
-          clearTimeout(timeout);
-          reject(new Error('WebSocket connection failed'));
-        };
-      });
+        console.log('[Cartesia WS] mic stream acquired', {
+          tracks: stream.getAudioTracks().map((t) => t.getSettings()),
+        });
 
-      // 6. Handle incoming messages
-      ws.onmessage = (event) => {
-        if (!mountedRef.current) return;
+        // 2. Inject user context into agent prompt (name, habits, streaks).
+        // Fire-and-forget — doesn't gate WebSocket connection. Worst case the
+        // first turn lacks personalized context; subsequent turns pick it up.
+        void injectUserContext().catch(() => {});
 
-        if (event.data instanceof ArrayBuffer) {
-          // Binary fallback (rare — agent uses media_output JSON). 44.1kHz.
-          if (audioCtxRef.current) {
-            playPcm16Audio(audioCtxRef.current, event.data, 44100);
-          }
-          if (state !== 'speaking') {
-            setState('speaking');
-            transition('speaking');
-          }
-          return;
+        // 3. Fetch short-lived access token from backend
+        const token = await fetchAgentToken();
+
+        // 3. Build WebSocket URL
+        const agentId = (import.meta.env.VITE_CARTESIA_AGENT_ID || '').trim();
+        if (!agentId) {
+          throw new Error('VITE_CARTESIA_AGENT_ID not configured. Deploy the Line agent first.');
         }
 
-        // Text = JSON messages (control + audio)
-        try {
-          const msg = JSON.parse(event.data as string) as Record<string, unknown>;
-          const eventType = (msg.event as string) || (msg.type as string) || '';
+        // 4. Connect to Cartesia agent stream (docs: /agents/stream/{agent_id})
+        const wsUrl = `wss://api.cartesia.ai/agents/stream/${agentId}?api_key=${token}&cartesia_version=2025-04-16`;
+        const ws = new WebSocket(wsUrl);
+        ws.binaryType = 'arraybuffer';
+        wsRef.current = ws;
 
-          // Debug trace (safe: no payload logged for media_output).
-          if (eventType !== 'media_output') {
-            console.log('[Cartesia WS]', eventType, msg);
-          }
+        // AudioContext at 44.1kHz — matches Cartesia's reference protocol
+        // (decoded from play.cartesia.ai bundle: pcm_44100). Platform ignores
+        // 16kHz input silently. Ink STT resamples internally.
+        const audioCtx = new AudioContext({ sampleRate: 44100 });
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+        audioCtxRef.current = audioCtx;
 
-          // Agent audio output — stream each chunk with gapless scheduling.
-          // Cartesia agent output verified at PCM 16-bit 16kHz mono (Ink/Sonic
-          // default for agents). Browser resamples to AudioContext rate.
-          if (eventType === 'media_output' && msg.media) {
-            const media = msg.media as { payload?: string };
-            if (media.payload && audioCtxRef.current) {
-              const ctx = audioCtxRef.current;
-              const binary = atob(media.payload);
-              const bytes = new Uint8Array(binary.length);
-              for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('WebSocket connection timed out'));
+          }, 10000);
 
-              // PCM 16-bit LE → Float32
-              const int16 = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2);
-              const float32 = new Float32Array(int16.length);
-              for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
+          ws.onopen = () => {
+            clearTimeout(timeout);
+            // Start event per Cartesia dashboard protocol (reverse-engineered
+            // from play.cartesia.ai bundle). stream_id='' requests assignment.
+            ws.send(
+              JSON.stringify({
+                event: 'start',
+                stream_id: '',
+                config: { input_format: 'pcm_44100', voice_id: '' },
+                metadata: metadataRef.current ?? {},
+              }),
+            );
+            resolve();
+          };
 
-              // Cartesia dashboard protocol: output matches input (pcm_44100).
-              const buf = ctx.createBuffer(1, float32.length, 44100);
-              buf.getChannelData(0).set(float32);
-              const src = ctx.createBufferSource();
-              src.buffer = buf;
-              src.connect(ctx.destination);
+          ws.onerror = () => {
+            clearTimeout(timeout);
+            reject(new Error('WebSocket connection failed'));
+          };
+        });
 
-              // Gapless scheduling — queue chunks back-to-back
-              const startAt = Math.max(ctx.currentTime, nextPlayTimeRef.current);
-              src.start(startAt);
-              nextPlayTimeRef.current = startAt + buf.duration;
+        // 6. Handle incoming messages
+        ws.onmessage = (event) => {
+          if (!mountedRef.current) return;
 
-              if (state !== 'speaking') {
-                setState('speaking');
-                transition('speaking');
-              }
-
-              // When the last queued chunk ends, transition back to listening
-              if (playTimerRef.current) clearTimeout(playTimerRef.current);
-              const msUntilEnd = (nextPlayTimeRef.current - ctx.currentTime) * 1000 + 100;
-              playTimerRef.current = window.setTimeout(() => {
-                if (mountedRef.current) {
-                  setState('listening');
-                  transition('listening');
-                }
-              }, msUntilEnd);
+          if (event.data instanceof ArrayBuffer) {
+            // Binary fallback (rare — agent uses media_output JSON). 44.1kHz.
+            if (audioCtxRef.current) {
+              playPcm16Audio(audioCtxRef.current, event.data, 44100);
+            }
+            if (state !== 'speaking') {
+              setState('speaking');
+              transition('speaking');
             }
             return;
           }
 
-          // Agent transcript (what AI said as text)
-          if (eventType === 'agent_transcript' || eventType === 'agent_text_sent') {
-            const text = (msg.text || msg.transcript || '') as string;
-            if (text) {
-              setState('speaking');
-              setAiTranscript(text);
-              onTranscriptCb?.(text);
-            }
-          }
+          // Text = JSON messages (control + audio)
+          try {
+            const msg = JSON.parse(event.data as string) as Record<string, unknown>;
+            const eventType = (msg.event as string) || (msg.type as string) || '';
 
-          // User transcript (what user said)
-          if (eventType === 'user_transcript' || eventType === 'user_text_sent') {
-            const text = (msg.text || msg.transcript || '') as string;
-            if (text) {
+            // Debug trace (safe: no payload logged for media_output).
+            if (eventType !== 'media_output') {
+              console.log('[Cartesia WS]', eventType, msg);
+            }
+
+            // Agent audio output — stream each chunk with gapless scheduling.
+            // Cartesia agent output verified at PCM 16-bit 16kHz mono (Ink/Sonic
+            // default for agents). Browser resamples to AudioContext rate.
+            if (eventType === 'media_output' && msg.media) {
+              const media = msg.media as { payload?: string };
+              if (media.payload && audioCtxRef.current) {
+                const ctx = audioCtxRef.current;
+                const binary = atob(media.payload);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+                // PCM 16-bit LE → Float32
+                const int16 = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2);
+                const float32 = new Float32Array(int16.length);
+                for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
+
+                // Cartesia dashboard protocol: output matches input (pcm_44100).
+                const buf = ctx.createBuffer(1, float32.length, 44100);
+                buf.getChannelData(0).set(float32);
+                const src = ctx.createBufferSource();
+                src.buffer = buf;
+                src.connect(ctx.destination);
+
+                // Gapless scheduling — queue chunks back-to-back
+                const startAt = Math.max(ctx.currentTime, nextPlayTimeRef.current);
+                src.start(startAt);
+                nextPlayTimeRef.current = startAt + buf.duration;
+
+                if (state !== 'speaking') {
+                  setState('speaking');
+                  transition('speaking');
+                }
+
+                // When the last queued chunk ends, transition back to listening
+                if (playTimerRef.current) clearTimeout(playTimerRef.current);
+                const msUntilEnd = (nextPlayTimeRef.current - ctx.currentTime) * 1000 + 100;
+                playTimerRef.current = window.setTimeout(() => {
+                  if (mountedRef.current) {
+                    setState('listening');
+                    transition('listening');
+                  }
+                }, msUntilEnd);
+              }
+              return;
+            }
+
+            // Agent transcript (what AI said as text)
+            if (eventType === 'agent_transcript' || eventType === 'agent_text_sent') {
+              const text = (msg.text || msg.transcript || '') as string;
+              if (text) {
+                setState('speaking');
+                setAiTranscript(text);
+                onTranscriptCb?.(text);
+              }
+            }
+
+            // User transcript (what user said)
+            if (eventType === 'user_transcript' || eventType === 'user_text_sent') {
+              const text = (msg.text || msg.transcript || '') as string;
+              if (text) {
+                setState('listening');
+                setUserTranscript(text);
+                onUserSpeechCb?.(text);
+              }
+            }
+
+            // Ack (connection confirmed) — capture stream_id needed for media_input.
+            if (eventType === 'ack') {
+              if (typeof msg.stream_id === 'string') {
+                streamIdRef.current = msg.stream_id;
+              }
               setState('listening');
-              setUserTranscript(text);
-              onUserSpeechCb?.(text);
             }
-          }
 
-          // Ack (connection confirmed) — capture stream_id needed for media_input.
-          if (eventType === 'ack') {
-            if (typeof msg.stream_id === 'string') {
-              streamIdRef.current = msg.stream_id;
+            // Error
+            if (eventType === 'error') {
+              onError?.((msg.message || msg.text || 'Agent error') as string);
             }
-            setState('listening');
+          } catch {
+            // Non-JSON — ignore
           }
+        };
 
-          // Error
-          if (eventType === 'error') {
-            onError?.((msg.message || msg.text || 'Agent error') as string);
+        ws.onclose = () => {
+          if (mountedRef.current && state !== 'idle') {
+            stop();
           }
-        } catch {
-          // Non-JSON — ignore
-        }
-      };
+        };
 
-      ws.onclose = () => {
-        if (mountedRef.current && state !== 'idle') {
-          stop();
-        }
-      };
+        ws.onerror = () => {
+          if (mountedRef.current) {
+            setState('error');
+            transition('idle');
+            onError?.('Voice connection lost');
+          }
+        };
 
-      ws.onerror = () => {
+        // 7. Stream mic audio to agent
+        const source = audioCtx.createMediaStreamSource(stream);
+        // 1024-sample buffer matches Cartesia dashboard's AudioWorklet
+        // (~23ms chunks at 44.1kHz). Larger 4096 buffers were ~93ms and
+        // did not trigger Ink STT finalization.
+        const processor = audioCtx.createScriptProcessor(1024, 1, 1);
+        processorRef.current = processor;
+
+        let frameCount = 0;
+        let lastLogT = performance.now();
+        let maxAmp = 0;
+        processor.onaudioprocess = (e) => {
+          if (ws.readyState !== WebSocket.OPEN) return;
+          const inputData = e.inputBuffer.getChannelData(0);
+          // Track peak amplitude to detect silent mic
+          for (let i = 0; i < inputData.length; i++) {
+            const a = Math.abs(inputData[i]);
+            if (a > maxAmp) maxAmp = a;
+          }
+          const pcm16 = float32ToPcm16(inputData);
+          // Cartesia agent stream protocol (reverse-engineered from
+          // play.cartesia.ai dashboard bundle): base64-wrap each chunk and
+          // send as JSON media_input event carrying the stream_id from ack.
+          // Raw binary + wrong sample rate + missing stream_id were all
+          // silently dropped before reaching Ink STT.
+          if (!streamIdRef.current) return; // wait for ack
+          const bytes = new Uint8Array(pcm16);
+          let binStr = '';
+          for (let i = 0; i < bytes.length; i++) binStr += String.fromCharCode(bytes[i]);
+          const b64 = btoa(binStr);
+          ws.send(
+            JSON.stringify({
+              event: 'media_input',
+              stream_id: streamIdRef.current,
+              media: { payload: b64 },
+            }),
+          );
+
+          frameCount++;
+          const now = performance.now();
+          if (now - lastLogT > 3000) {
+            console.log(
+              `[Cartesia WS] sent ${frameCount} PCM frames in last ${Math.round((now - lastLogT) / 1000)}s, peak amp=${maxAmp.toFixed(3)} ${maxAmp < 0.01 ? '(MIC SILENT?)' : ''}`,
+            );
+            frameCount = 0;
+            maxAmp = 0;
+            lastLogT = now;
+          }
+        };
+
+        source.connect(processor);
+        // ScriptProcessor must be connected somewhere to fire onaudioprocess,
+        // but routing to audioCtx.destination plays mic audio out the speaker
+        // (echo loop). Route through a muted GainNode instead.
+        const muteSink = audioCtx.createGain();
+        muteSink.gain.value = 0;
+        processor.connect(muteSink);
+        muteSink.connect(audioCtx.destination);
+
+        if (mountedRef.current) {
+          setState('listening');
+          transition('listening');
+        }
+      } catch (err) {
+        cleanup();
+        release();
         if (mountedRef.current) {
           setState('error');
           transition('idle');
-          onError?.('Voice connection lost');
         }
-      };
-
-      // 7. Stream mic audio to agent
-      const source = audioCtx.createMediaStreamSource(stream);
-      // 1024-sample buffer matches Cartesia dashboard's AudioWorklet
-      // (~23ms chunks at 44.1kHz). Larger 4096 buffers were ~93ms and
-      // did not trigger Ink STT finalization.
-      const processor = audioCtx.createScriptProcessor(1024, 1, 1);
-      processorRef.current = processor;
-
-      let frameCount = 0;
-      let lastLogT = performance.now();
-      let maxAmp = 0;
-      processor.onaudioprocess = (e) => {
-        if (ws.readyState !== WebSocket.OPEN) return;
-        const inputData = e.inputBuffer.getChannelData(0);
-        // Track peak amplitude to detect silent mic
-        for (let i = 0; i < inputData.length; i++) {
-          const a = Math.abs(inputData[i]);
-          if (a > maxAmp) maxAmp = a;
-        }
-        const pcm16 = float32ToPcm16(inputData);
-        // Cartesia agent stream protocol (reverse-engineered from
-        // play.cartesia.ai dashboard bundle): base64-wrap each chunk and
-        // send as JSON media_input event carrying the stream_id from ack.
-        // Raw binary + wrong sample rate + missing stream_id were all
-        // silently dropped before reaching Ink STT.
-        if (!streamIdRef.current) return; // wait for ack
-        const bytes = new Uint8Array(pcm16);
-        let binStr = '';
-        for (let i = 0; i < bytes.length; i++) binStr += String.fromCharCode(bytes[i]);
-        const b64 = btoa(binStr);
-        ws.send(
-          JSON.stringify({
-            event: 'media_input',
-            stream_id: streamIdRef.current,
-            media: { payload: b64 },
-          }),
-        );
-
-        frameCount++;
-        const now = performance.now();
-        if (now - lastLogT > 3000) {
-          console.log(
-            `[Cartesia WS] sent ${frameCount} PCM frames in last ${Math.round((now - lastLogT) / 1000)}s, peak amp=${maxAmp.toFixed(3)} ${maxAmp < 0.01 ? '(MIC SILENT?)' : ''}`,
-          );
-          frameCount = 0;
-          maxAmp = 0;
-          lastLogT = now;
-        }
-      };
-
-      source.connect(processor);
-      // ScriptProcessor must be connected somewhere to fire onaudioprocess,
-      // but routing to audioCtx.destination plays mic audio out the speaker
-      // (echo loop). Route through a muted GainNode instead.
-      const muteSink = audioCtx.createGain();
-      muteSink.gain.value = 0;
-      processor.connect(muteSink);
-      muteSink.connect(audioCtx.destination);
-
-      if (mountedRef.current) {
-        setState('listening');
-        transition('listening');
+        const msg = err instanceof Error ? err.message : 'Failed to start voice session';
+        onError?.(msg);
       }
-    } catch (err) {
-      cleanup();
-      release();
-      if (mountedRef.current) {
-        setState('error');
-        transition('idle');
-      }
-      const msg = err instanceof Error ? err.message : 'Failed to start voice session';
-      onError?.(msg);
-    }
-  }, [
-    preference,
-    enterRealtime,
-    registerCleanup,
-    stop,
-    onError,
-    onTranscriptCb,
-    onUserSpeechCb,
-    release,
-    cleanup,
-    transition,
-    state,
-  ]);
+    },
+    [
+      preference,
+      enterRealtime,
+      registerCleanup,
+      stop,
+      onError,
+      onTranscriptCb,
+      onUserSpeechCb,
+      release,
+      cleanup,
+      transition,
+      state,
+    ],
+  );
 
   return {
     start,

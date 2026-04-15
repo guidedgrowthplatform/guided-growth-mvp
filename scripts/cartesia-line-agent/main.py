@@ -176,13 +176,17 @@ async def get_agent(env, call_request):
 
     base_prompt = build_system_prompt(coaching_style)
     onboarding_instruction = (
-        "\n\n## ONBOARD-01 Behavior\n"
-        "During the initial profile setup, the moment the user gives you ANY "
-        "of their profile fields (name/nickname, age, gender, referral source) "
-        "you MUST call `record_onboarding_profile` with the fields you heard. "
-        "Call it again whenever additional fields become known — partial calls "
-        "are encouraged. After the first tool call, greet the user warmly by "
-        "name in one sentence and only ask for whatever fields remain blank."
+        "\n\n## ONBOARD-01 Behavior — CRITICAL\n"
+        "On EVERY user turn during profile setup you MUST do these in order:\n"
+        "1. FIRST call `record_onboarding_profile` with any of "
+        "{nickname, age, gender, referral_source} you heard in the user's "
+        "speech. Always pass `user_id` from the system prompt. Partial calls "
+        "are encouraged — call it even if only one field was mentioned.\n"
+        "2. THEN speak a one-sentence warm greeting using the user's name "
+        "and ONLY ask for fields that remain blank (or close the turn if "
+        "everything is filled).\n"
+        "Do NOT skip the tool call. Do NOT put the tool call later. The web "
+        "UI waits for this tool to save the profile so the form can auto-fill."
     )
     system_prompt_with_context = (
         f"{base_prompt}{onboarding_instruction}"

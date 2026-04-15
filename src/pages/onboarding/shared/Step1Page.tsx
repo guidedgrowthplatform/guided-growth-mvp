@@ -45,6 +45,7 @@ export function Step1Page() {
   const [voiceStatus, setVoiceStatus] = useState<
     'connecting' | 'speaking' | 'listening' | 'processing' | 'error' | 'idle'
   >('connecting');
+  const [userId, setUserId] = useState<string>('');
   const agentStarted = useRef(false);
   const pendingStopRef = useRef<number | null>(null);
 
@@ -57,6 +58,7 @@ export function Step1Page() {
   // the name, age, gender, referral from the agent's confirmation sentence.
   const realtimeVoice = useRealtimeVoice({
     userContext: { name: nickname || undefined, coachingStyle: 'warm' },
+    metadata: { user_id: userId, screen: 'onboard_01' },
     onTranscript: (text) => {
       setAiText(text);
       parseTranscript(text);
@@ -119,9 +121,12 @@ export function Step1Page() {
 
     // Check mic permission
     (async () => {
+      let uid = '';
       try {
         const { data } = await supabase.auth.getUser();
         if (data?.user) {
+          uid = data.user.id;
+          setUserId(uid);
           const { data: profile } = await supabase
             .from('profiles')
             .select('mic_permission')
@@ -140,9 +145,11 @@ export function Step1Page() {
         /* continue with agent */
       }
 
-      // Start real-time agent — it speaks the introduction automatically
+      // Start real-time agent — it speaks the introduction automatically.
+      // Pass user_id inline so the tool record_onboarding_profile can
+      // persist results without waiting for a React re-render.
       try {
-        await realtimeVoice.start();
+        await realtimeVoice.start({ user_id: uid, screen: 'onboard_01' });
       } catch {
         // Fallback if agent connection fails — use TTS
         speak(
