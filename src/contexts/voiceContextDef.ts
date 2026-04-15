@@ -20,8 +20,12 @@ export type VoiceState = 'idle' | 'mp3' | 'listening' | 'thinking' | 'speaking';
  */
 export type VoiceMode = 'idle' | 'mp3' | 'realtime';
 
-/** User preference for how voice works across the app */
-export type VoicePreference = 'full_voice' | 'text_only' | 'speak_in_text_out';
+/** User preference for how voice works across the app.
+ * - voice: AI speaks via TTS, user talks via mic (default).
+ * - screen: AI writes text responses; user MAY still use mic to speak.
+ * - always_ask: prompt the user for mode on each voice-capable screen.
+ */
+export type VoicePreference = 'voice' | 'screen' | 'always_ask';
 
 /** Derive the coarse mode from the fine-grained state */
 export function modeFromState(state: VoiceState): VoiceMode {

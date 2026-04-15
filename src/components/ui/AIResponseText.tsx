@@ -15,8 +15,8 @@ export function AIResponseText({ text, isStreaming }: AIResponseTextProps) {
 
   if (!text) return null;
 
-  // Determine display mode based on user's voice preference
-  const displayMode = preference === 'full_voice' ? 'transcript' : 'bubble';
+  // Voice mode → subtle fading subtitle; screen/always_ask → chat bubble.
+  const displayMode = preference === 'voice' ? 'transcript' : 'bubble';
 
   if (displayMode === 'transcript') {
     return (
@@ -28,7 +28,7 @@ export function AIResponseText({ text, isStreaming }: AIResponseTextProps) {
     );
   }
 
-  // Bubble mode (text_only or speak_in_text_out)
+  // Bubble mode (screen or always_ask)
   return (
     <div className="mt-4 flex w-full justify-start pl-2 pr-12">
       <div

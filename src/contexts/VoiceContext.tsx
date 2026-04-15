@@ -8,14 +8,20 @@ import { supabase } from '@/lib/supabase';
 
 const VOICE_PREF_KEY = 'guided_growth_voice_preference';
 
+function normalizePreference(raw: string | null | undefined): VoicePreference {
+  // Accept new canonical values and migrate legacy ones for backwards compat.
+  if (raw === 'voice' || raw === 'screen' || raw === 'always_ask') return raw;
+  if (raw === 'full_voice') return 'voice';
+  if (raw === 'text_only' || raw === 'speak_in_text_out') return 'screen';
+  return 'voice';
+}
+
 function loadPreference(): VoicePreference {
   try {
-    const saved = localStorage.getItem(VOICE_PREF_KEY);
-    if (saved === 'text_only' || saved === 'speak_in_text_out') return saved;
+    return normalizePreference(localStorage.getItem(VOICE_PREF_KEY));
   } catch {
-    /* ignore */
+    return 'voice';
   }
-  return 'full_voice';
 }
 
 export function VoiceProvider({ children }: { children: ReactNode }) {
@@ -32,17 +38,13 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         .eq('user_id', data.user.id)
         .maybeSingle()
         .then(({ data: pref }) => {
-          const mode = pref?.voice_mode as VoicePreference | undefined;
-          if (
-            mode &&
-            (mode === 'full_voice' || mode === 'text_only' || mode === 'speak_in_text_out')
-          ) {
-            setPreferenceState(mode);
-            try {
-              localStorage.setItem(VOICE_PREF_KEY, mode);
-            } catch {
-              /* */
-            }
+          if (!pref?.voice_mode) return;
+          const normalized = normalizePreference(String(pref.voice_mode));
+          setPreferenceState(normalized);
+          try {
+            localStorage.setItem(VOICE_PREF_KEY, normalized);
+          } catch {
+            /* */
           }
         })
         .then(null, () => {

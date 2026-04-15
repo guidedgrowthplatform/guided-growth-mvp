@@ -223,11 +223,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       if (metadataOverride) {
         metadataRef.current = { ...metadataRef.current, ...metadataOverride };
       }
-      // Respect voice preference
-      if (preference === 'text_only') {
-        onError?.('Voice is disabled. Change your preference in Settings.');
-        return;
-      }
+      // Note: 'screen' mode still permits mic input; caller decides whether
+      // to render AI responses as bubbles. Only block if the consumer has
+      // explicitly set preference to something that disables mic entirely.
+      void preference;
 
       // Request realtime mode (stops MP3 if playing)
       const ok = enterRealtime();

@@ -91,8 +91,8 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
 
   const play = useCallback(
     async (fileId: string): Promise<void> => {
-      // Respect voice preference — text_only means no audio
-      if (preference === 'text_only') return;
+      // Respect voice preference — 'screen' mode suppresses MP3 playback
+      if (preference === 'screen') return;
 
       // Skip if already playing this file (React double-render guard)
       if (currentFileId === fileId && state === 'playing') return;

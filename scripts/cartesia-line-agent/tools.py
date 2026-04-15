@@ -299,3 +299,90 @@ async def log_goal(
 
     except Exception as e:
         return f"Failed to save goal: {e}. Acknowledge the user's goal verbally anyway."
+
+
+# ─── Tool: Navigate Next ────────────────────────────────────────────────────
+# Called by the agent when the current screen's objective is complete and
+# the user should be advanced to the next screen. The tool_call event is
+# forwarded to the browser which performs the client-side navigation.
+
+
+async def navigate_next(
+    ctx: ToolEnv,
+    user_id: Annotated[str, "The authenticated user's UUID"],
+    from_screen: Annotated[
+        str, "The screen the user is leaving, e.g. onboard_01"
+    ],
+    reason: Annotated[
+        str,
+        "Why navigation is triggered (e.g. 'profile complete', 'user confirmed')",
+    ] = "",
+) -> str:
+    """Advance the user to the next screen in the flow.
+    Call ONLY when the current screen's data capture is fully complete
+    (e.g. in ONBOARD-01: nickname + age + gender + referral all recorded).
+    The frontend listens for this tool call and performs the actual
+    navigation. Do not call prematurely — one call per screen transition."""
+    sb = _get_supabase()
+    if sb and user_id:
+        try:
+            sb.table("onboarding_states").update(
+                {
+                    "status": "ready_for_next",
+                    "last_completed_screen": from_screen,
+                    "updated_at": datetime.utcnow().isoformat(),
+                }
+            ).eq("user_id", user_id).execute()
+        except Exception:
+            # Navigation signal is primarily via tool_call event; DB write
+            # is best-effort bookkeeping.
+            pass
+
+    note = f" ({reason})" if reason else ""
+    return f"Advancing from {from_screen}{note}."
+
+
+# ─── Tool: Update Profile ───────────────────────────────────────────────────
+# General-purpose profile field updates after onboarding. Use
+# record_onboarding_profile during ONBOARD-01 itself; use update_profile for
+# changes the user states later ("call me Sam", "I prefer the direct coaching
+# style", etc.).
+
+
+async def update_profile(
+    ctx: ToolEnv,
+    user_id: Annotated[str, "The authenticated user's UUID"],
+    nickname: Annotated[str, "Updated preferred name"] = "",
+    coaching_style: Annotated[
+        str, "warm | direct | reflective"
+    ] = "",
+    voice_mode: Annotated[
+        str, "voice | screen | always_ask"
+    ] = "",
+) -> str:
+    """Update the user's profile fields outside of ONBOARD-01.
+    Only pass fields the user explicitly asked to change. Empty strings
+    are ignored. Persists to user_profiles."""
+    updates: dict[str, str] = {}
+    if nickname:
+        updates["nickname"] = nickname
+    if coaching_style in ("warm", "direct", "reflective"):
+        updates["coaching_style"] = coaching_style
+    if voice_mode in ("voice", "screen", "always_ask"):
+        updates["voice_mode"] = voice_mode
+
+    if not updates or not user_id:
+        return "No profile changes to apply."
+
+    sb = _get_supabase()
+    if not sb:
+        return f"Cannot save profile changes right now: {updates}."
+
+    try:
+        sb.table("user_profiles").update(
+            {**updates, "updated_at": datetime.utcnow().isoformat()}
+        ).eq("id", user_id).execute()
+        summary = ", ".join(f"{k}={v}" for k, v in updates.items())
+        return f"Profile updated: {summary}."
+    except Exception as e:
+        return f"Failed to update profile ({updates}): {e}."

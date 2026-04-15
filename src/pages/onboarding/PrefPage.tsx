@@ -1,20 +1,18 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
 import { useVoice } from '@/hooks/useVoice';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
-import { supabase } from '@/lib/supabase';
 
 /**
  * PREF-01: "Can I talk?" — Voice/Screen preference selection.
  *
- * Phase 1 docs: MP3 plays, user taps voice or screen preference.
- * Saves ai_output_mode to Supabase profiles table.
+ * Phase 1 spec (2026-04-16): MP3 plays; user picks voice or screen.
+ * Preference persists to user_preferences.voice_mode via VoiceContext
+ * (single source of truth; no parallel write to profiles).
  */
 export function PrefPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const voicePlayer = useVoicePlayer();
   const { setPreference } = useVoice();
 
@@ -25,20 +23,12 @@ export function PrefPage() {
   }, []);
 
   const handleChoice = useCallback(
-    async (choice: 'voice' | 'screen') => {
+    (choice: 'voice' | 'screen') => {
       voicePlayer.stop();
-      // Set local voice mode (docs Step 6 Screen 2: setVoiceMode)
-      setPreference(choice === 'screen' ? 'text_only' : 'full_voice');
-      if (user?.id) {
-        await supabase
-          .from('profiles')
-          .update({ ai_output_mode: choice })
-          .eq('id', user.id)
-          .then(null, () => {});
-      }
+      setPreference(choice);
       navigate('/onboarding/mic-permission', { replace: true });
     },
-    [navigate, voicePlayer, user?.id, setPreference],
+    [navigate, voicePlayer, setPreference],
   );
 
   return (

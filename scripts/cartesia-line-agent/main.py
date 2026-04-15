@@ -27,7 +27,9 @@ from tools import (
     get_user_context,
     log_checkin,
     log_goal,
+    navigate_next,
     record_onboarding_profile,
+    update_profile,
 )
 
 # ─── System Prompt (from src/lib/coaching/systemPrompt.ts) ───────────────────
@@ -208,7 +210,7 @@ async def get_agent(env, call_request):
     introduction = intros.get(screen, intros["onboard_01"])
 
     agent = LlmAgent(
-        model=os.getenv("LLM_MODEL", "openai/gpt-4o"),
+        model=os.getenv("LLM_MODEL", "openai/gpt-4o-mini"),
         api_key=os.getenv("OPENAI_API_KEY"),
         tools=[
             record_onboarding_profile,
@@ -216,6 +218,8 @@ async def get_agent(env, call_request):
             log_checkin,
             get_habits,
             log_goal,
+            navigate_next,
+            update_profile,
             end_call,
         ],
         config=LlmConfig(
