@@ -1,6 +1,24 @@
 # Dependencies
 node_modules/
 
+# Python caches (voice-sync + cartesia-line-agent)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Deployment bundles
+scripts/**/*.zip
+scripts/**/*-deploy.zip
+
+# Vercel CLI output dumps (local dev logs)
+vercel_out*.txt
+vercel-*.log
+
 # Build outputs
 dist/
 build/
