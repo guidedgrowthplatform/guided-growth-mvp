@@ -38,6 +38,7 @@ def _get_supabase() -> Client | None:
 
 async def record_onboarding_profile(
     ctx: ToolEnv,
+    user_id: Annotated[str, "The authenticated user's UUID (from system prompt)"],
     nickname: Annotated[str, "The user's preferred name or nickname"] = "",
     age: Annotated[int, "The user's age in years"] = 0,
     gender: Annotated[str, "Male | Female | Other"] = "",
@@ -48,21 +49,52 @@ async def record_onboarding_profile(
     """Record the user's profile fields during ONBOARD-01.
     Call this as soon as the user provides any of: nickname, age, gender,
     referral source. Call again as more fields become known. Don't wait
-    for all four — partial calls are OK."""
-    filled = []
+    for all four — partial calls are OK. ALWAYS pass user_id from the
+    system prompt. The fields are persisted to Supabase so the web UI
+    auto-fills the form as you call this tool."""
+    filled = {}
     if nickname:
-        filled.append(f"name {nickname}")
+        filled["nickname"] = nickname
     if age:
-        filled.append(f"age {age}")
+        filled["age"] = age
     if gender:
-        filled.append(f"gender {gender}")
+        filled["gender"] = gender
     if referral_source:
-        filled.append(f"referral {referral_source}")
-    return (
-        f"Recorded: {', '.join(filled)}."
-        if filled
-        else "No profile fields provided yet."
-    )
+        filled["referralSource"] = referral_source
+
+    if not filled or not user_id:
+        return "No profile fields provided yet."
+
+    sb = _get_supabase()
+    if not sb:
+        return f"Captured locally: {filled} (db unavailable — user must retap to save)."
+
+    try:
+        # Merge with any existing draft data so partial calls accumulate.
+        existing = (
+            sb.table("onboarding_states")
+            .select("data")
+            .eq("user_id", user_id)
+            .maybeSingle()
+            .execute()
+        )
+        prior = (existing.data or {}).get("data") or {}
+        merged = {**prior, **filled}
+        sb.table("onboarding_states").upsert(
+            {
+                "user_id": user_id,
+                "current_step": 1,
+                "path": "shared",
+                "status": "in_progress",
+                "data": merged,
+                "updated_at": datetime.utcnow().isoformat(),
+            },
+            on_conflict="user_id",
+        ).execute()
+        summary = ", ".join(f"{k}: {v}" for k, v in filled.items())
+        return f"Recorded and saved: {summary}."
+    except Exception as e:
+        return f"Captured {filled} but save failed: {e}. User can tap to confirm."
 
 
 # ─── Tool: Get User Context ─────────────────────────────────────────────────

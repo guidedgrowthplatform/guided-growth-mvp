@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -7,6 +8,7 @@ import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useRealtimeVoice } from '@/hooks/useRealtimeVoice';
+import { queryKeys } from '@/lib/query';
 import { speak } from '@/lib/services/tts-service';
 import { supabase } from '@/lib/supabase';
 
@@ -30,6 +32,7 @@ const REFERRAL_OPTIONS = ['Founder Invite', 'Webinar', 'Friend', 'Other'];
 
 export function Step1Page() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { state: onboardingState, saveStep } = useOnboarding();
   const [nickname, setNickname] = useState('');
   const [age, setAge] = useState<number | ''>('');
@@ -73,6 +76,22 @@ export function Step1Page() {
     else if (realtimeVoice.state === 'error') setVoiceStatus('error');
     else setVoiceStatus('idle');
   }, [realtimeVoice.state]);
+
+  // Poll onboarding state every 2s while the realtime session is active.
+  // The agent writes record_onboarding_profile tool results into Supabase
+  // (onboarding_states.data); the existing restore effect below picks up
+  // the new values and sets form fields.
+  useEffect(() => {
+    const active =
+      realtimeVoice.state === 'listening' ||
+      realtimeVoice.state === 'speaking' ||
+      realtimeVoice.state === 'processing';
+    if (!active) return;
+    const id = setInterval(() => {
+      qc.invalidateQueries({ queryKey: queryKeys.onboarding.state });
+    }, 2000);
+    return () => clearInterval(id);
+  }, [realtimeVoice.state, qc]);
 
   // Restore saved state
   useEffect(() => {
