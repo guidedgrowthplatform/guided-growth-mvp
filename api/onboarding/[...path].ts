@@ -193,6 +193,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  if (route === 'transcript' && req.method === 'GET') {
+    const streamId = req.query.streamId;
+    if (!streamId || typeof streamId !== 'string') {
+      return res.status(400).json({ error: 'streamId is required' });
+    }
+
+    const callId = `ac_${streamId}`;
+    const cartesiaKey = process.env.CARTESIA_API_KEY;
+    if (!cartesiaKey) {
+      return res.status(500).json({ error: 'CARTESIA_API_KEY not configured' });
+    }
+
+    try {
+      const resp = await fetch(`https://api.cartesia.ai/agents/calls/${callId}?expand=transcript`, {
+        headers: {
+          'X-API-Key': cartesiaKey,
+          'Cartesia-Version': '2025-04-16',
+        },
+      });
+
+      if (!resp.ok) {
+        return res.status(resp.status).json({ error: 'Failed to fetch from Cartesia' });
+      }
+
+      const data = (await resp.json()) as { transcript?: Array<{ role?: string; text?: string }> };
+      const transcript = data.transcript || [];
+      const userTexts = transcript
+        .filter((t) => t.role === 'user' || t.role === 'assistant')
+        .map((t) => t.text || '')
+        .join(' ');
+
+      return res.json({ text: userTexts });
+    } catch (err) {
+      console.error('Cartesia transcript fetch error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
   // GET /api/onboarding/profile — fetch current profile fields
   if (route === 'profile' && req.method === 'GET') {
     const { rows } = await pool.query('SELECT name, nickname, image FROM profiles WHERE id = $1', [

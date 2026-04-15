@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -42,12 +43,99 @@ export function Step1Page() {
   const [_micAvailable, setMicAvailable] = useState(true);
   const [aiText, setAiText] = useState('');
   const [userText, setUserText] = useState('');
-  const [voiceStatus, setVoiceStatus] = useState<
+  const [_voiceStatus, setVoiceStatus] = useState<
     'connecting' | 'speaking' | 'listening' | 'processing' | 'error' | 'idle'
   >('connecting');
   const [userId, setUserId] = useState<string>('');
   const agentStarted = useRef(false);
   const pendingStopRef = useRef<number | null>(null);
+
+  // Step E: Parse transcript to auto-fill form
+  const parseTranscript = useCallback((text: string) => {
+    const t = text.toLowerCase();
+
+    // Name: "I'm Sarah" / "call me Sarah" / "my name is Sarah"
+    const nameMatch = t.match(/(?:i'm|i am|my name is|call me|name's)\s+(\w+)/i);
+    if (nameMatch) setNickname(nameMatch[1]);
+
+    // Age: any 2-digit number or textual representation ("thirty")
+    let newAge: number | null = null;
+    const ageMatch = t.match(/\b(\d{1,2})\b/);
+    if (ageMatch) {
+      newAge = parseInt(ageMatch[1], 10);
+    } else {
+      const tens: Record<string, number> = {
+        twenty: 20,
+        thirty: 30,
+        forty: 40,
+        fifty: 50,
+        sixty: 60,
+        seventy: 70,
+        eighty: 80,
+        ninety: 90,
+      };
+      const ones: Record<string, number> = {
+        one: 1,
+        two: 2,
+        three: 3,
+        four: 4,
+        five: 5,
+        six: 6,
+        seven: 7,
+        eight: 8,
+        nine: 9,
+      };
+      const teens: Record<string, number> = {
+        thirteen: 13,
+        fourteen: 14,
+        fifteen: 15,
+        sixteen: 16,
+        seventeen: 17,
+        eighteen: 18,
+        nineteen: 19,
+      };
+      for (const [w, val] of Object.entries(teens)) {
+        if (t.match(new RegExp(`\\b${w}\\b`))) {
+          newAge = val;
+          break;
+        }
+      }
+      if (!newAge) {
+        for (const [w, val] of Object.entries(tens)) {
+          if (t.match(new RegExp(`\\b${w}\\b`))) {
+            newAge = val;
+            for (const [ow, oval] of Object.entries(ones)) {
+              if (t.includes(`${w} ${ow}`) || t.includes(`${w}-${ow}`)) {
+                newAge = val + oval;
+                break;
+              }
+            }
+            break;
+          }
+        }
+      }
+    }
+    if (newAge && newAge >= 13 && newAge <= 120) {
+      setAge(newAge);
+    }
+
+    // Gender
+    if (/\b(female|woman|girl|lady)\b/i.test(t)) setGender('Female');
+    else if (/\b(male|man|guy|boy|dude)\b/i.test(t)) setGender('Male');
+    else if (/\bnon.?binary\b/i.test(t)) setGender('Other');
+
+    // Referral
+    if (
+      /\b(webinar|tiktok|instagram|ig|insta|twitter|x|facebook|linkedin|reddit|youtube|social)\b/i.test(
+        t,
+      )
+    )
+      setReferralSource('Webinar'); // social media
+    else if (/\b(friend|buddy|someone|word of mouth|recommended)\b/i.test(t))
+      setReferralSource('Friend');
+    else if (/\b(google|website|app store|search|other)\b/i.test(t)) setReferralSource('Other');
+    else if (/\b(founder|invite|yair)\b/i.test(t)) setReferralSource('Founder Invite');
+  }, []);
 
   // Real-time voice agent.
   // NOTE: Cartesia platform does not forward user_transcript events to the
@@ -95,6 +183,47 @@ export function Step1Page() {
     }, 2000);
     return () => clearInterval(id);
   }, [realtimeVoice.state, qc]);
+
+  // Robust fallback: Poll transcript directly from backend API
+  // In case the agent fails to call record_onboarding_profile tool
+  useEffect(() => {
+    if (!realtimeVoice.streamId) return;
+
+    // Always poll as long as streamId exists, until we unmount.
+    const intervalId = setInterval(async () => {
+      try {
+        const apiBase =
+          Capacitor.isNativePlatform() && import.meta.env.VITE_API_URL
+            ? import.meta.env.VITE_API_URL
+            : '';
+
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const headers: Record<string, string> = {};
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+
+        const res = await fetch(
+          `${apiBase}/api/onboarding/transcript?streamId=${realtimeVoice.streamId}`,
+          {
+            headers,
+          },
+        );
+        if (res.ok) {
+          const { text } = await res.json();
+          if (text) {
+            parseTranscript(text);
+          }
+        }
+      } catch {
+        // quiet fail on background polling
+      }
+    }, 2000);
+
+    return () => clearInterval(intervalId);
+  }, [realtimeVoice.streamId, parseTranscript]);
 
   // Restore saved state
   useEffect(() => {
@@ -171,46 +300,6 @@ export function Step1Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Step E: Parse transcript to auto-fill form
-  const parseTranscript = useCallback(
-    (text: string) => {
-      const t = text.toLowerCase();
-
-      // Name: "I'm Sarah" / "call me Sarah" / "my name is Sarah"
-      const nameMatch = t.match(/(?:i'm|i am|my name is|call me|name's)\s+(\w+)/i);
-      if (nameMatch && !nickname) setNickname(nameMatch[1]);
-
-      // Age: any 2-digit number
-      const ageMatch = t.match(/\b(\d{1,2})\b/);
-      if (ageMatch && !age) {
-        const parsed = parseInt(ageMatch[1], 10);
-        if (parsed >= 13 && parsed <= 120) setAge(parsed);
-      }
-
-      // Gender
-      if (!gender) {
-        if (/\b(female|woman|girl|lady)\b/i.test(t)) setGender('Female');
-        else if (/\b(male|man|guy|boy|dude)\b/i.test(t)) setGender('Male');
-        else if (/\bnon.?binary\b/i.test(t)) setGender('Other');
-      }
-
-      // Referral
-      if (!referralSource) {
-        if (
-          /\b(tiktok|instagram|ig|insta|twitter|x|facebook|linkedin|reddit|youtube|social)\b/i.test(
-            t,
-          )
-        )
-          setReferralSource('Webinar'); // social media
-        else if (/\b(friend|buddy|someone|word of mouth|recommended)\b/i.test(t))
-          setReferralSource('Friend');
-        else if (/\b(google|website|app store|search)\b/i.test(t)) setReferralSource('Other');
-        else if (/\b(founder|invite|yair)\b/i.test(t)) setReferralSource('Founder Invite');
-      }
-    },
-    [nickname, age, gender, referralSource],
-  );
-
   const handleNext = useCallback(() => {
     realtimeVoice.stop();
     const effectiveReferral =
@@ -239,43 +328,6 @@ export function Step1Page() {
         title="Let's get to know you."
         subtitle="Tell us a bit about yourself to personalize your journey."
       />
-
-      {/* Voice status indicator — tells user when to speak */}
-      <div
-        className={`flex items-center gap-2 rounded-2xl p-3 text-sm ${
-          voiceStatus === 'speaking'
-            ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300'
-            : voiceStatus === 'listening'
-              ? 'bg-green-500/10 text-green-700 dark:text-green-300'
-              : voiceStatus === 'processing'
-                ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
-                : voiceStatus === 'error'
-                  ? 'bg-red-500/10 text-red-700 dark:text-red-300'
-                  : 'bg-content/5 text-content-secondary'
-        }`}
-      >
-        <span
-          className={`inline-block h-2 w-2 rounded-full ${
-            voiceStatus === 'speaking'
-              ? 'bg-blue-500'
-              : voiceStatus === 'listening'
-                ? 'animate-pulse bg-green-500'
-                : voiceStatus === 'processing'
-                  ? 'animate-pulse bg-amber-500'
-                  : voiceStatus === 'error'
-                    ? 'bg-red-500'
-                    : 'bg-gray-400'
-          }`}
-        />
-        <span>
-          {voiceStatus === 'connecting' && 'Connecting to your AI coach...'}
-          {voiceStatus === 'speaking' && 'AI is speaking — please wait.'}
-          {voiceStatus === 'listening' && 'Your turn — speak now!'}
-          {voiceStatus === 'processing' && 'Processing your answer...'}
-          {voiceStatus === 'error' && 'Voice unavailable — fill the form manually.'}
-          {voiceStatus === 'idle' && 'Voice session ended.'}
-        </span>
-      </div>
 
       {/* AI/User transcript display */}
       {aiText && (

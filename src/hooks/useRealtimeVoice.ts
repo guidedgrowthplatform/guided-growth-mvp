@@ -47,6 +47,8 @@ interface UseRealtimeVoiceReturn {
   aiTranscript: string;
   /** Last transcript from the user */
   userTranscript: string;
+  /** The current connection stream ID */
+  streamId: string;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -156,6 +158,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   const [state, setState] = useState<RealtimeVoiceState>('idle');
   const [aiTranscript, setAiTranscript] = useState('');
   const [userTranscript, setUserTranscript] = useState('');
+  const [streamId, setStreamId] = useState('');
 
   const mountedRef = useRef(true);
   const streamRef = useRef<MediaStream | null>(null);
@@ -408,6 +411,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
             if (eventType === 'ack') {
               if (typeof msg.stream_id === 'string') {
                 streamIdRef.current = msg.stream_id;
+                setStreamId(msg.stream_id);
               }
               setState('listening');
             }
@@ -531,5 +535,6 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     isActive: state !== 'idle' && state !== 'error',
     aiTranscript,
     userTranscript,
+    streamId,
   };
 }
