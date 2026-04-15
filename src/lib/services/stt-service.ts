@@ -1,5 +1,6 @@
 // STT recording service — captures mic audio, encodes WAV, sends to Cartesia Ink / OpenAI Whisper
 import { Capacitor } from '@capacitor/core';
+import { STT_DOWNSAMPLE_RATE, STT_SHORT_COMMAND_THRESHOLD_SECONDS } from '@/lib/config/voice';
 import { supabase, sessionReady } from '@/lib/supabase';
 
 function getApiBase(): string {
@@ -40,10 +41,9 @@ export interface SttCallbacks {
   onOpen: () => void;
 }
 
-// For short commands (<5s), send at native rate for better accuracy.
-// Only downsample longer recordings to save bandwidth.
-const SHORT_COMMAND_THRESHOLD_SECONDS = 5;
-const DOWNSAMPLE_RATE = 16000;
+// For short commands, send at native rate for better accuracy; only
+// downsample longer recordings to save bandwidth. Thresholds live in
+// src/lib/config/voice.ts (Alejandro MR !60 review).
 
 let mediaStream: MediaStream | null = null;
 let audioContext: AudioContext | null = null;
@@ -438,8 +438,8 @@ export async function stopAndTranscribe(): Promise<string> {
     // For short commands (<5s), keep native sample rate for better accuracy.
     // Longer recordings get downsampled to 16kHz to save bandwidth.
     const durationSeconds = normalized.length / srcRate;
-    const isShortCommand = durationSeconds <= SHORT_COMMAND_THRESHOLD_SECONDS;
-    const outputRate = isShortCommand ? srcRate : DOWNSAMPLE_RATE;
+    const isShortCommand = durationSeconds <= STT_SHORT_COMMAND_THRESHOLD_SECONDS;
+    const outputRate = isShortCommand ? srcRate : STT_DOWNSAMPLE_RATE;
     const processed = await resampleAudio(normalized, srcRate, outputRate);
     const wavBlob = float32ToWavBlob(processed, outputRate);
 

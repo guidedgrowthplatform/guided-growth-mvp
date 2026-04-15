@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVoice } from '@/hooks/useVoice';
+import {
+  VOICE_CHAT_CAP_DATE_KEY,
+  VOICE_CHAT_CAP_KEY,
+  VOICE_CHAT_MAX_CONVERSATIONS,
+  VOICE_CHAT_TTS_MIN_MS,
+  VOICE_CHAT_TTS_MS_PER_CHAR,
+} from '@/lib/config/voice';
 import { speak, stopTTS } from '@/lib/services/tts-service';
 import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceStore } from '@/stores/voiceStore';
@@ -36,24 +43,20 @@ function defaultMessages(name?: string): ChatMessage[] {
 }
 
 /** Voice conversation cap: 5/day (CSV VOICE-CAP). Check-ins don't count. */
-const VOICE_CAP_KEY = 'gg_voice_count';
-const VOICE_CAP_DATE_KEY = 'gg_voice_count_date';
-const MAX_VOICE_CONVERSATIONS = 5;
-
 function getVoiceCount(): number {
   const today = new Date().toISOString().slice(0, 10);
-  const storedDate = localStorage.getItem(VOICE_CAP_DATE_KEY);
+  const storedDate = localStorage.getItem(VOICE_CHAT_CAP_DATE_KEY);
   if (storedDate !== today) {
-    localStorage.setItem(VOICE_CAP_DATE_KEY, today);
-    localStorage.setItem(VOICE_CAP_KEY, '0');
+    localStorage.setItem(VOICE_CHAT_CAP_DATE_KEY, today);
+    localStorage.setItem(VOICE_CHAT_CAP_KEY, '0');
     return 0;
   }
-  return parseInt(localStorage.getItem(VOICE_CAP_KEY) || '0', 10);
+  return parseInt(localStorage.getItem(VOICE_CHAT_CAP_KEY) || '0', 10);
 }
 
 function incrementVoiceCount(): number {
   const count = getVoiceCount() + 1;
-  localStorage.setItem(VOICE_CAP_KEY, String(count));
+  localStorage.setItem(VOICE_CHAT_CAP_KEY, String(count));
   return count;
 }
 
@@ -108,7 +111,7 @@ export function useVoiceChat(userName?: string) {
     lastHandledTranscript.current = transcript;
 
     // Voice cap check (CSV VOICE-CAP: 5 conversations/day)
-    if (getVoiceCount() >= MAX_VOICE_CONVERSATIONS) {
+    if (getVoiceCount() >= VOICE_CHAT_MAX_CONVERSATIONS) {
       setMessages((prev) => [
         ...prev,
         { id: makeId(), role: 'user', text: transcript, timestamp: Date.now() },
@@ -167,8 +170,11 @@ export function useVoiceChat(userName?: string) {
 
     // TTS is handled by useVoiceCommand — don't duplicate here.
     // After TTS finishes, auto-restart listening for seamless conversation.
-    // Estimate TTS duration: ~65ms per char, minimum 2 sec.
-    const ttsDurationMs = Math.max(2000, lastResult.message.length * 65);
+    // Estimate TTS duration: VOICE_CHAT_TTS_MS_PER_CHAR per char, minimum VOICE_CHAT_TTS_MIN_MS.
+    const ttsDurationMs = Math.max(
+      VOICE_CHAT_TTS_MIN_MS,
+      lastResult.message.length * VOICE_CHAT_TTS_MS_PER_CHAR,
+    );
     setTimeout(() => {
       // Auto-restart mic for seamless flow (Task 25: no double-tap)
       // Only restart if we're still in a conversation (not navigated away)

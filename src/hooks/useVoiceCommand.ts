@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { STT_CORRECTIONS } from '@/lib/config/voice';
 import { queryKeys } from '@/lib/query';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { haptic } from '@/lib/services/haptic-service';
@@ -12,25 +13,11 @@ import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 // ─── STT Correction Dictionary ──────────────────────────────────────────────
-// Common speech-to-text misrecognitions for our app's domain vocabulary.
-// Applied before parsing so the intent matcher sees clean input.
-const STT_CORRECTIONS: Record<string, string> = {
-  matrix: 'metric',
-  mattress: 'metric',
-  matrices: 'metrics',
-  metrix: 'metric',
-  matric: 'metric',
-  mediation: 'meditation',
-  meditating: 'meditation',
-  exorcise: 'exercise',
-  exercize: 'exercise',
-  jogging: 'jogging',
-  journaling: 'journal',
-  reflexion: 'reflection',
-  streak: 'streak',
-  habbit: 'habit',
-  habbits: 'habits',
-};
+// Dictionary lives in src/lib/config/voice.ts so domain vocabulary can be
+// edited centrally. Applied before parsing so the intent matcher sees clean
+// input.
+// TODO(voice-layer): Alejandro suggested moving fuzzy intent matching into
+// an LLM-backed module; tracked for Phase 2.
 
 /** Fix common STT misrecognitions before intent parsing */
 function correctTranscript(text: string): string {

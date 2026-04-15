@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { useCallback } from 'react';
+import { ONBOARDING_AGE_WORD_TO_NUM } from '@/lib/config/voice';
 import { supabase, sessionReady } from '@/lib/supabase';
 
 export interface OnboardingStepContext {
@@ -134,43 +135,13 @@ export function useOnboardingVoice() {
 
           // If still no valid age, extract from the raw transcript
           if (!params.age || params.age === '[AGE]' || typeof params.age !== 'number') {
-            // Map spoken number words → digits
-            const wordToNum: Record<string, number> = {
-              thirteen: 13,
-              fourteen: 14,
-              fifteen: 15,
-              sixteen: 16,
-              seventeen: 17,
-              eighteen: 18,
-              nineteen: 19,
-              twenty: 20,
-              'twenty one': 21,
-              'twenty two': 22,
-              'twenty three': 23,
-              'twenty four': 24,
-              'twenty five': 25,
-              'twenty six': 26,
-              'twenty seven': 27,
-              'twenty eight': 28,
-              'twenty nine': 29,
-              thirty: 30,
-              'thirty one': 31,
-              'thirty two': 32,
-              'thirty three': 33,
-              'thirty four': 34,
-              'thirty five': 35,
-              forty: 40,
-              fifty: 50,
-              sixty: 60,
-              seventy: 70,
-              eighty: 80,
-            };
-
+            // Spoken-number → digit map lives in src/lib/config/voice.ts so
+            // the full set is editable in one place (Alejandro MR !60 review).
             const lower = transcript.toLowerCase();
 
             // Try word numbers first (longer matches first)
             let extracted: number | null = null;
-            for (const [word, num] of Object.entries(wordToNum).sort(
+            for (const [word, num] of Object.entries(ONBOARDING_AGE_WORD_TO_NUM).sort(
               (a, b) => b[0].length - a[0].length,
             )) {
               if (lower.includes(word)) {

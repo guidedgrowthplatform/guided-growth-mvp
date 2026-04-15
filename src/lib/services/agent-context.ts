@@ -15,6 +15,24 @@ import { supabase } from '@/lib/supabase';
 
 const AGENT_ID = (import.meta.env.VITE_CARTESIA_AGENT_ID || '').trim();
 const CARTESIA_API_KEY = (import.meta.env.VITE_CARTESIA_API_KEY || '').trim();
+const CARTESIA_API_VERSION = '2025-04-16';
+
+/**
+ * Shared request setup for the Cartesia agents endpoint — the URL and the
+ * auth/version headers are identical for both the GET (fetch base prompt)
+ * and the PATCH (push updated prompt) calls. Extracted so the two callsites
+ * stay in sync (Alejandro MR !60: "this block is repeated, use the exposed
+ * shared one").
+ */
+function cartesiaAgentRequest(): { url: string; headers: Record<string, string> } {
+  return {
+    url: `https://api.cartesia.ai/agents/${AGENT_ID}`,
+    headers: {
+      'X-API-Key': CARTESIA_API_KEY,
+      'Cartesia-Version': CARTESIA_API_VERSION,
+    },
+  };
+}
 
 interface UserContextData {
   name: string;
@@ -102,12 +120,8 @@ export async function injectUserContext(): Promise<void> {
   try {
     // Get base prompt (without context) — cache it
     if (!basePrompt) {
-      const res = await fetch(`https://api.cartesia.ai/agents/${AGENT_ID}`, {
-        headers: {
-          'X-API-Key': CARTESIA_API_KEY,
-          'Cartesia-Version': '2025-04-16',
-        },
-      });
+      const { url, headers } = cartesiaAgentRequest();
+      const res = await fetch(url, { headers });
       if (!res.ok) return;
       const data = await res.json();
       const prompt = data.llm_system_prompt || '';
@@ -122,11 +136,11 @@ export async function injectUserContext(): Promise<void> {
     const contextBlock = buildContextBlock(ctx);
     const fullPrompt = basePrompt + contextBlock;
 
-    await fetch(`https://api.cartesia.ai/agents/${AGENT_ID}`, {
+    const { url, headers } = cartesiaAgentRequest();
+    await fetch(url, {
       method: 'PATCH',
       headers: {
-        'X-API-Key': CARTESIA_API_KEY,
-        'Cartesia-Version': '2025-04-16',
+        ...headers,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ llm_system_prompt: fullPrompt }),
