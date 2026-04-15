@@ -30,6 +30,41 @@ def _get_supabase() -> Client | None:
     return _supabase
 
 
+# ─── Tool: Record Onboarding Profile ───────────────────────────────────────
+# Agent calls this tool as soon as the user provides profile info during
+# ONBOARD-01. The tool's return string is spoken back to the user by the
+# LLM; the tool_call event is also forwarded to the browser so it can
+# auto-fill the form fields.
+
+async def record_onboarding_profile(
+    ctx: ToolEnv,
+    nickname: Annotated[str, "The user's preferred name or nickname"] = "",
+    age: Annotated[int, "The user's age in years"] = 0,
+    gender: Annotated[str, "Male | Female | Other"] = "",
+    referral_source: Annotated[
+        str, "Founder Invite | Webinar | Friend | Other"
+    ] = "",
+) -> str:
+    """Record the user's profile fields during ONBOARD-01.
+    Call this as soon as the user provides any of: nickname, age, gender,
+    referral source. Call again as more fields become known. Don't wait
+    for all four — partial calls are OK."""
+    filled = []
+    if nickname:
+        filled.append(f"name {nickname}")
+    if age:
+        filled.append(f"age {age}")
+    if gender:
+        filled.append(f"gender {gender}")
+    if referral_source:
+        filled.append(f"referral {referral_source}")
+    return (
+        f"Recorded: {', '.join(filled)}."
+        if filled
+        else "No profile fields provided yet."
+    )
+
+
 # ─── Tool: Get User Context ─────────────────────────────────────────────────
 
 async def get_user_context(

@@ -44,10 +44,19 @@ export function Step1Page() {
   >('connecting');
   const agentStarted = useRef(false);
 
-  // Real-time voice agent
+  // Real-time voice agent.
+  // NOTE: Cartesia platform does not forward user_transcript events to the
+  // browser (verified against the play.cartesia.ai reference client which
+  // only handles ack/media_output/clear). So onUserSpeech almost never fires.
+  // Fallback: parse the agent's spoken acknowledgment (onTranscript) — when
+  // user says 'My name is Sam', agent replies 'Hi Sam…' and regex picks up
+  // the name, age, gender, referral from the agent's confirmation sentence.
   const realtimeVoice = useRealtimeVoice({
     userContext: { name: nickname || undefined, coachingStyle: 'warm' },
-    onTranscript: (text) => setAiText(text),
+    onTranscript: (text) => {
+      setAiText(text);
+      parseTranscript(text);
+    },
     onUserSpeech: (text) => {
       setUserText(text);
       parseTranscript(text);

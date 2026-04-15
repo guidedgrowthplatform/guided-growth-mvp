@@ -22,7 +22,13 @@ from line.events import (
 )
 from line.llm_agent import LlmAgent, LlmConfig, end_call
 from line.voice_agent_app import VoiceAgentApp
-from tools import get_user_context, log_checkin, get_habits, log_goal
+from tools import (
+    get_habits,
+    get_user_context,
+    log_checkin,
+    log_goal,
+    record_onboarding_profile,
+)
 
 # ─── System Prompt (from src/lib/coaching/systemPrompt.ts) ───────────────────
 # Parts 1-3 are static. Part 4 (user context) is injected via tool calls.
@@ -169,8 +175,20 @@ async def get_agent(env, call_request):
     coaching_style = metadata.get("coaching_style", "warm")
 
     base_prompt = build_system_prompt(coaching_style)
-    # Inject user ID directly into the prompt so the LLM can use it for tools
-    system_prompt_with_context = f"{base_prompt}\n\nYour Current User ID is: {user_id}\nUse this ID when calling tools like get_user_context."
+    onboarding_instruction = (
+        "\n\n## ONBOARD-01 Behavior\n"
+        "During the initial profile setup, the moment the user gives you ANY "
+        "of their profile fields (name/nickname, age, gender, referral source) "
+        "you MUST call `record_onboarding_profile` with the fields you heard. "
+        "Call it again whenever additional fields become known — partial calls "
+        "are encouraged. After the first tool call, greet the user warmly by "
+        "name in one sentence and only ask for whatever fields remain blank."
+    )
+    system_prompt_with_context = (
+        f"{base_prompt}{onboarding_instruction}"
+        f"\n\nYour Current User ID is: {user_id}\n"
+        "Use this ID when calling tools like get_user_context."
+    )
 
     # Screen-specific intro line. Defaults to ONBOARD-01 opener per Yair's
     # Phase 1 spec. Metadata.screen can override (for check-ins etc) later.
@@ -188,7 +206,14 @@ async def get_agent(env, call_request):
     agent = LlmAgent(
         model=os.getenv("LLM_MODEL", "openai/gpt-4o"),
         api_key=os.getenv("OPENAI_API_KEY"),
-        tools=[get_user_context, log_checkin, get_habits, log_goal, end_call],
+        tools=[
+            record_onboarding_profile,
+            get_user_context,
+            log_checkin,
+            get_habits,
+            log_goal,
+            end_call,
+        ],
         config=LlmConfig(
             system_prompt=system_prompt_with_context,
             introduction=introduction,
