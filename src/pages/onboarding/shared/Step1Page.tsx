@@ -46,6 +46,7 @@ export function Step1Page() {
     'connecting' | 'speaking' | 'listening' | 'processing' | 'error' | 'idle'
   >('connecting');
   const agentStarted = useRef(false);
+  const pendingStopRef = useRef<number | null>(null);
 
   // Real-time voice agent.
   // NOTE: Cartesia platform does not forward user_transcript events to the
@@ -106,6 +107,13 @@ export function Step1Page() {
 
   // Step B: Auto-start agent on mount (agent speaks first)
   useEffect(() => {
+    // Cancel any pending stop from a previous (StrictMode dev) cleanup —
+    // without this, the first cleanup closes the WS mid-handshake and the
+    // re-mount sees agentStarted=true so it never reconnects.
+    if (pendingStopRef.current !== null) {
+      clearTimeout(pendingStopRef.current);
+      pendingStopRef.current = null;
+    }
     if (agentStarted.current) return;
     agentStarted.current = true;
 
@@ -144,7 +152,14 @@ export function Step1Page() {
     })();
 
     return () => {
-      realtimeVoice.stop();
+      // Defer stop so StrictMode's double-invoke doesn't close the WS
+      // mid-handshake. If the effect re-runs within 500ms, the next mount
+      // clears this timer so the connection survives.
+      pendingStopRef.current = window.setTimeout(() => {
+        realtimeVoice.stop();
+        pendingStopRef.current = null;
+        agentStarted.current = false;
+      }, 500);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
