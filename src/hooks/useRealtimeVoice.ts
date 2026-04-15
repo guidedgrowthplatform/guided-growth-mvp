@@ -151,6 +151,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const streamIdRef = useRef<string>('');
   const nextPlayTimeRef = useRef<number>(0);
   const playTimerRef = useRef<number | null>(null);
 
@@ -227,13 +228,14 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       // aggressively mutes quiet audio with noiseSuppression+AGC on,
       // which can silently suppress real user speech. Cartesia Ink STT
       // handles noisy input fine on its own.
+      // Native DSP on — matches the Cartesia dashboard reference implementation.
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
-          sampleRate: 16000,
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
+          sampleRate: 44100,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
         },
       });
       streamRef.current = stream;
@@ -262,10 +264,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       ws.binaryType = 'arraybuffer';
       wsRef.current = ws;
 
-      // 5. AudioContext at 16kHz — matches both Cartesia agent input and output.
-      // Avoids resampling drift in mic capture (processor reads at ctx rate,
-      // sends as pcm_16000; if ctx != 16k, agent receives wrong-rate audio).
-      const audioCtx = new AudioContext({ sampleRate: 16000 });
+      // AudioContext at 44.1kHz — matches Cartesia's reference protocol
+      // (decoded from play.cartesia.ai bundle: pcm_44100). Platform ignores
+      // 16kHz input silently. Ink STT resamples internally.
+      const audioCtx = new AudioContext({ sampleRate: 44100 });
       if (audioCtx.state === 'suspended') await audioCtx.resume();
       audioCtxRef.current = audioCtx;
 
@@ -276,11 +278,13 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
 
         ws.onopen = () => {
           clearTimeout(timeout);
-          // Send start event (required first message per docs)
+          // Start event per Cartesia dashboard protocol (reverse-engineered
+          // from play.cartesia.ai bundle). stream_id='' requests assignment.
           ws.send(
             JSON.stringify({
               event: 'start',
-              config: { input_format: 'pcm_16000' },
+              stream_id: '',
+              config: { input_format: 'pcm_44100', voice_id: '' },
             }),
           );
           resolve();
@@ -297,9 +301,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
         if (!mountedRef.current) return;
 
         if (event.data instanceof ArrayBuffer) {
-          // Binary = audio data from agent (PCM 16-bit, 16kHz mono)
+          // Binary fallback (rare — agent uses media_output JSON). 44.1kHz.
           if (audioCtxRef.current) {
-            playPcm16Audio(audioCtxRef.current, event.data, 16000);
+            playPcm16Audio(audioCtxRef.current, event.data, 44100);
           }
           if (state !== 'speaking') {
             setState('speaking');
@@ -334,8 +338,8 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
               const float32 = new Float32Array(int16.length);
               for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
 
-              // Build buffer at source rate (16kHz); browser resamples to ctx rate.
-              const buf = ctx.createBuffer(1, float32.length, 16000);
+              // Cartesia dashboard protocol: output matches input (pcm_44100).
+              const buf = ctx.createBuffer(1, float32.length, 44100);
               buf.getChannelData(0).set(float32);
               const src = ctx.createBufferSource();
               src.buffer = buf;
@@ -384,8 +388,11 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
             }
           }
 
-          // Ack (connection confirmed)
+          // Ack (connection confirmed) — capture stream_id needed for media_input.
           if (eventType === 'ack') {
+            if (typeof msg.stream_id === 'string') {
+              streamIdRef.current = msg.stream_id;
+            }
             setState('listening');
           }
 
@@ -431,10 +438,23 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           if (a > maxAmp) maxAmp = a;
         }
         const pcm16 = float32ToPcm16(inputData);
-        // Cartesia platform accepts raw PCM_16000 binary on the agent
-        // stream (confirmed via ack.config.input_format echo). JSON-wrap
-        // attempt produced spurious 'clear' events without STT firing.
-        ws.send(pcm16);
+        // Cartesia agent stream protocol (reverse-engineered from
+        // play.cartesia.ai dashboard bundle): base64-wrap each chunk and
+        // send as JSON media_input event carrying the stream_id from ack.
+        // Raw binary + wrong sample rate + missing stream_id were all
+        // silently dropped before reaching Ink STT.
+        if (!streamIdRef.current) return; // wait for ack
+        const bytes = new Uint8Array(pcm16);
+        let binStr = '';
+        for (let i = 0; i < bytes.length; i++) binStr += String.fromCharCode(bytes[i]);
+        const b64 = btoa(binStr);
+        ws.send(
+          JSON.stringify({
+            event: 'media_input',
+            stream_id: streamIdRef.current,
+            media: { payload: b64 },
+          }),
+        );
 
         frameCount++;
         const now = performance.now();
