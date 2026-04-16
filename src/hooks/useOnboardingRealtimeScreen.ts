@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRealtimeVoice } from '@/hooks/useRealtimeVoice';
+import { useVoice } from '@/hooks/useVoice';
 import type { UserContext } from '@/lib/coaching/systemPrompt';
 import { supabase } from '@/lib/supabase';
 import { nextRouteFor } from '@/lib/voice/screenFlow';
@@ -41,8 +42,15 @@ interface UseOnboardingRealtimeScreenOptions {
 export function useOnboardingRealtimeScreen(options: UseOnboardingRealtimeScreenOptions) {
   const { screen, userContext, onFieldCaptured, onNavigate, autoStart = true } = options;
   const navigate = useNavigate();
+  const { preference, micPermission } = useVoice();
   const [userId, setUserId] = useState<string>('');
   const startedRef = useRef(false);
+
+  // Per Yair spec: if mic was denied at MIC-01, skip realtime voice entirely.
+  // User fills forms manually. If ai_output_mode='screen' AND mic denied, also
+  // skip. screen+mic_on is valid (user speaks, AI writes text) but without
+  // mic grant the WebSocket session would fail on getUserMedia anyway.
+  const voiceEnabled = micPermission && preference !== 'screen';
 
   const realtime = useRealtimeVoice({
     userContext: userContext ?? { coachingStyle: 'warm' },
@@ -86,10 +94,11 @@ export function useOnboardingRealtimeScreen(options: UseOnboardingRealtimeScreen
     };
   }, []);
 
-  // Auto-start the session as soon as the user id is known (needed by the
-  // agent's tool calls) and exactly once per mount.
+  // Auto-start the session as soon as the user id is known and voice is
+  // enabled. If mic was denied or preference is 'screen', skip entirely —
+  // user interacts via manual form controls (buttons remain visible).
   useEffect(() => {
-    if (!autoStart) return;
+    if (!autoStart || !voiceEnabled) return;
     if (!userId) return;
     if (startedRef.current) return;
     startedRef.current = true;
@@ -101,15 +110,15 @@ export function useOnboardingRealtimeScreen(options: UseOnboardingRealtimeScreen
       startedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, autoStart, screen]);
+  }, [userId, autoStart, voiceEnabled, screen]);
 
   const manualStart = useCallback(() => {
-    if (!userId || startedRef.current) return;
+    if (!voiceEnabled || !userId || startedRef.current) return;
     startedRef.current = true;
     realtime.start({ user_id: userId, screen }).catch(() => {
       startedRef.current = false;
     });
-  }, [realtime, userId, screen]);
+  }, [realtime, userId, screen, voiceEnabled]);
 
   return {
     state: realtime.state,
