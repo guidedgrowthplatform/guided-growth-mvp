@@ -187,6 +187,8 @@ export interface OnboardingStepData {
     { days: number[] | Set<number>; time: string; reminder: boolean; schedule?: string }
   > | null;
   reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string } | null;
+  reflectionStyle?: 'guided' | 'custom' | 'freeform' | null;
+  journal_configured?: boolean | null;
 }
 
 export interface OnboardingState {

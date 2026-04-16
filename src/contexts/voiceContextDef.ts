@@ -45,8 +45,14 @@ export interface VoiceContextValue {
   /** Coarse mode derived from voiceState (convenience) */
   mode: VoiceMode;
 
-  /** User's voice preference setting */
+  /** How AI communicates — stored in user_profiles.ai_output_mode.
+   * 'voice': AI speaks via TTS. 'screen': AI writes text. */
   preference: VoicePreference;
+
+  /** Whether the user granted mic access — stored in user_profiles.mic_permission.
+   * Independent from preference: screen+mic means user speaks, AI writes text.
+   * voice+no-mic means AI speaks, user taps. */
+  micPermission: boolean;
 
   // ── Acquire / Release ───────────────────────────────────────────────────
 

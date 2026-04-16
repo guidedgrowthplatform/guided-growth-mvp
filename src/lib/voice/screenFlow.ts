@@ -29,8 +29,8 @@ const BEGINNER_NEXT: Record<VoiceScreenId, string> = {
   onboard_04: '/onboarding/step-5',
   onboard_05: '/onboarding/step-6',
   onboard_06: '/onboarding/step-7',
-  onboard_07: '/onboarding/edit-journal',
-  onboard_08: '/onboarding/step-7',
+  onboard_07: '/onboarding/step-8',
+  onboard_08: '/onboarding/step-9',
   onboard_09: '/',
 };
 

@@ -12,6 +12,8 @@ export { Step3Page } from './beginner/Step3Page';
 export { Step4Page } from './beginner/Step4Page';
 export { Step5Page } from './beginner/Step5Page';
 export { Step6Page } from './beginner/Step6Page';
+export { Step8Page } from './beginner/Step8Page';
+export { Step9Page } from './beginner/Step9Page';
 // Advanced
 export { AdvancedInputPage } from './advanced/AdvancedInputPage';
 export { AdvancedResultsPage } from './advanced/AdvancedResultsPage';

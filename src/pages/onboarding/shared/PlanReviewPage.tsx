@@ -31,30 +31,35 @@ export function PlanReviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as PlanReviewState | null;
-  const { complete, isCompleting } = useOnboarding();
+  const { isCompleting } = useOnboarding();
 
-  const handleStartPlan = useCallback(() => {
+  // ONBOARD-07 = review habits. "Looks good" → advance to ONBOARD-08
+  // (reflection setup), NOT complete onboarding yet.
+  const handleNext = useCallback(() => {
     if (!state?.habitConfigs) return;
-    complete({
-      habitConfigs: state.habitConfigs,
-      goals: state.goals,
-      category: state.category,
-      reflectionConfig: state.reflectionConfig,
-    });
-  }, [state, complete]);
-
-  // Voice-driven: agent says "here's your plan" + user says "looks good"
-  // or "let's go" → navigate_next fires → complete onboarding → home.
-  useOnboardingRealtimeScreen({
-    screen: 'onboard_07',
-    onFieldCaptured: () => {},
-    onNavigate: () => {
-      if (!state?.habitConfigs) return;
-      complete({
+    navigate('/onboarding/step-8', {
+      state: {
         habitConfigs: state.habitConfigs,
         goals: state.goals,
         category: state.category,
         reflectionConfig: state.reflectionConfig,
+      },
+    });
+  }, [state, navigate]);
+
+  useOnboardingRealtimeScreen({
+    screen: 'onboard_07',
+    onFieldCaptured: () => {},
+    onNavigate: (dest) => {
+      if (!state?.habitConfigs) return;
+      navigate(dest ?? '/onboarding/step-8', {
+        state: {
+          habitConfigs: state.habitConfigs,
+          goals: state.goals,
+          category: state.category,
+          reflectionConfig: state.reflectionConfig,
+        },
+        replace: true,
       });
     },
   });
@@ -82,8 +87,8 @@ export function PlanReviewPage() {
     <OnboardingLayout
       currentStep={source === 'advanced' ? 6 : 7}
       totalSteps={source === 'advanced' ? 6 : 7}
-      ctaLabel={isCompleting ? 'Completing...' : 'Start plan'}
-      onNext={handleStartPlan}
+      ctaLabel={isCompleting ? 'Loading...' : 'Looks good'}
+      onNext={handleNext}
       ctaDisabled={isCompleting}
       onBack={() =>
         navigate(source === 'advanced' ? '/onboarding/advanced-step-6' : '/onboarding/step-6', {

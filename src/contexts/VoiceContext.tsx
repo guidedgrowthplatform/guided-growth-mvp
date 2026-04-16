@@ -27,11 +27,16 @@ function loadPreference(): VoicePreference {
 export function VoiceProvider({ children }: { children: ReactNode }) {
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [preference, setPreferenceState] = useState<VoicePreference>(loadPreference);
+  const [micPermission, setMicPermission] = useState(true);
 
-  // Sync preference from Supabase on mount (migration 009 applied)
+  // Sync preference + mic_permission from Supabase on mount.
+  // ai_output_mode (voice/screen) lives in user_preferences.voice_mode
+  // mic_permission (true/false) lives in profiles.mic_permission
+  // These are INDEPENDENT per Yair spec — 4 valid combinations.
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data?.user) return;
+      // Sync ai_output_mode
       supabase
         .from('user_preferences')
         .select('voice_mode')
@@ -47,9 +52,19 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
             /* */
           }
         })
-        .then(null, () => {
-          /* table/column might not exist yet */
-        });
+        .then(null, () => {});
+      // Sync mic_permission
+      supabase
+        .from('profiles')
+        .select('mic_permission')
+        .eq('id', data.user.id)
+        .maybeSingle()
+        .then(({ data: profile }) => {
+          if (profile && profile.mic_permission === false) {
+            setMicPermission(false);
+          }
+        })
+        .then(null, () => {});
     });
   }, []);
   const cleanupRef = useRef<(() => void) | null>(null);
@@ -138,6 +153,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       voiceState,
       mode,
       preference,
+      micPermission,
       enterMp3,
       enterRealtime,
       release,
@@ -150,6 +166,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       voiceState,
       mode,
       preference,
+      micPermission,
       enterMp3,
       enterRealtime,
       release,
