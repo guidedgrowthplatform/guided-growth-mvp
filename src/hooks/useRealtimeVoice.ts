@@ -418,6 +418,21 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
                 setStreamId(msg.stream_id);
               }
               setState('listening');
+
+              // Cartesia WS doesn't forward metadata to the agent's
+              // create_agent function. Send screen context as a silent
+              // text event so the agent knows which screen it's on and
+              // can pick the correct per-screen behavior + intro line.
+              const meta = metadataRef.current ?? {};
+              if (meta.screen && meta.screen !== 'onboard_01') {
+                ws.send(
+                  JSON.stringify({
+                    event: 'user_text_sent',
+                    stream_id: streamIdRef.current,
+                    text: `[SCREEN_CONTEXT: ${meta.screen}] User has navigated to this screen. Follow the per-screen behavior for ${meta.screen}. Do NOT repeat the profile questions from onboard_01.`,
+                  }),
+                );
+              }
             }
 
             // Error
