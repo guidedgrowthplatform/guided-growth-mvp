@@ -5,7 +5,7 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { CATEGORY_RESPONSES } from '@/data/categoryResponses';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { useOnboardingRealtimeScreen } from '@/hooks/useOnboardingRealtimeScreen';
 import { speak } from '@/lib/services/tts-service';
 
 const categories = [
@@ -19,7 +19,23 @@ const categories = [
   { label: 'Get more organized', image: '/images/onboarding/get-more-organized.png' },
 ];
 
-const categoryLabels = categories.map((c) => c.label);
+function matchCategory(spoken: string): string | null {
+  const s = spoken.toLowerCase();
+  for (const c of categories) {
+    if (s.includes(c.label.toLowerCase())) return c.label;
+  }
+  if (s.includes('sleep')) return 'Sleep better';
+  if (s.includes('move') || s.includes('exercise') || s.includes('fit')) return 'Move more';
+  if (s.includes('eat') || s.includes('food') || s.includes('nutrition')) return 'Eat better';
+  if (s.includes('energy') || s.includes('energiz')) return 'Feel more energized';
+  if (s.includes('stress') || s.includes('anxious') || s.includes('anxiety'))
+    return 'Reduce stress';
+  if (s.includes('focus') || s.includes('concentrat')) return 'Improve focus';
+  if (s.includes('break') || s.includes('bad habit') || s.includes('quit'))
+    return 'Break bad habits';
+  if (s.includes('organi')) return 'Get more organized';
+  return null;
+}
 
 export function Step3Page() {
   const navigate = useNavigate();
@@ -32,14 +48,26 @@ export function Step3Page() {
     }
   }, [onboardingState?.data?.category]);
 
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (result.params && typeof result.params.category === 'string') {
-      setSelected(result.params.category);
-    }
-  }, []);
+  useOnboardingRealtimeScreen({
+    screen: 'onboard_03',
+    onFieldCaptured: (field, value) => {
+      if (field !== 'category') return;
+      const matched = matchCategory(value);
+      if (matched) setSelected(matched);
+    },
+    onNavigate: async (dest) => {
+      const response = selected ? CATEGORY_RESPONSES[selected] : null;
+      if (response) speak(response);
+      await saveStepAsync(3, { category: selected });
+      window.setTimeout(
+        () =>
+          navigate(dest ?? '/onboarding/step-4', { state: { category: selected }, replace: true }),
+        response ? 1500 : 400,
+      );
+    },
+  });
 
   const handleNext = useCallback(async () => {
-    // Play category-specific coaching response (CSV ONBOARD-03)
     const response = selected ? CATEGORY_RESPONSES[selected] : null;
     if (response) speak(response);
 
@@ -60,13 +88,7 @@ export function Step3Page() {
       ctaVariant="inline"
       onNext={handleNext}
       onBack={() => navigate('/onboarding/step-2')}
-      showVoiceButton
-      aiListeningPrompt='"What is the main category you would like to focus on?"'
       ctaDisabled={!selected}
-      voiceOptions={categoryLabels}
-      voiceFileId="onboarding_focus_area"
-      voicePrompt="So — what feels most worth improving right now? Don't overthink it. There's no wrong answer. Just pick the one that pulls you."
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="What feels most worth improving right now?"

@@ -7,7 +7,7 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { goalsByCategory } from '@/data/onboardingHabits';
 import { SUBCATEGORY_RESPONSES } from '@/data/subcategoryResponses';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { useOnboardingRealtimeScreen } from '@/hooks/useOnboardingRealtimeScreen';
 import { speak } from '@/lib/services/tts-service';
 
 export function Step4Page() {
@@ -36,30 +36,40 @@ export function Step4Page() {
     });
   }
 
-  const handleVoiceAction = useCallback(
-    (result: OnboardingVoiceResult) => {
-      if (result.params && Array.isArray(result.params.goals)) {
-        const voiceGoals = result.params.goals as string[];
-        const newSelected = new Set<string>();
-        voiceGoals.forEach((g) => {
-          if (goals.includes(g)) {
-            newSelected.add(g);
-          }
-        });
-        setSelected(newSelected);
+  useOnboardingRealtimeScreen({
+    screen: 'onboard_04',
+    onFieldCaptured: (field, value) => {
+      if (field !== 'subcategory' && field !== 'goals') return;
+      // Value may be comma-separated if multiple goals
+      const spoken = value.toLowerCase();
+      const matched = new Set<string>();
+      for (const g of goals) {
+        if (spoken.includes(g.toLowerCase())) matched.add(g);
       }
+      if (matched.size > 0) setSelected(matched);
     },
-    [goals],
-  );
+    onNavigate: async (dest) => {
+      const firstGoal = Array.from(selected)[0];
+      const response = firstGoal ? SUBCATEGORY_RESPONSES[firstGoal] : null;
+      if (response) speak(response);
+      await saveStepAsync(4, { goals: Array.from(selected) });
+      window.setTimeout(
+        () =>
+          navigate(dest ?? '/onboarding/step-5', {
+            state: { goals: Array.from(selected), category },
+            replace: true,
+          }),
+        response ? 1500 : 400,
+      );
+    },
+  });
 
   const handleNext = useCallback(async () => {
-    // Play subcategory-specific coaching response (CSV Section 19)
     const firstGoal = Array.from(selected)[0];
     const response = firstGoal ? SUBCATEGORY_RESPONSES[firstGoal] : null;
     if (response) speak(response);
 
     await saveStepAsync(4, { goals: Array.from(selected) });
-    // Small delay so user hears the start of the response before transition
     setTimeout(
       () => {
         navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
@@ -76,13 +86,7 @@ export function Step4Page() {
       ctaVariant="inline"
       onNext={handleNext}
       onBack={() => navigate('/onboarding/step-3')}
-      showVoiceButton
-      aiListeningPrompt='"Within that category, what specific area would you like to improve?"'
       ctaDisabled={selected.size === 0}
-      voiceOptions={goals}
-      voiceFileId="onboarding_challenge"
-      voicePrompt="OK — what's the thing that's really getting you? Pick the one that hits hardest."
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Let's narrow it down"

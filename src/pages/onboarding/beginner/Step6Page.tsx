@@ -12,7 +12,7 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { useOnboardingRealtimeScreen } from '@/hooks/useOnboardingRealtimeScreen';
 import { Sentry } from '@/lib/sentry';
 
 const SCHEDULE_DAYS: Record<ScheduleOption, Set<number>> = {
@@ -84,23 +84,48 @@ export function Step6Page() {
     });
   }
 
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (result.params) {
-      if (typeof result.params.time === 'string') {
-        setTime(result.params.time);
+  useOnboardingRealtimeScreen({
+    screen: 'onboard_06',
+    onFieldCaptured: (field, value) => {
+      const v = value.toLowerCase();
+      if (field === 'time' || field === 'schedule_time') {
+        setTime(value);
       }
-      if (typeof result.params.schedule === 'string') {
-        const scheduleStr = result.params.schedule.toLowerCase();
-        if (scheduleStr.includes('weekday')) {
-          handleScheduleChange('Weekday');
-        } else if (scheduleStr.includes('weekend')) {
-          handleScheduleChange('Weekend');
-        } else if (scheduleStr.includes('every') || scheduleStr.includes('daily')) {
-          handleScheduleChange('Every day');
-        }
+      if (field === 'schedule' || field === 'frequency') {
+        if (v.includes('weekday')) handleScheduleChange('Weekday');
+        else if (v.includes('weekend')) handleScheduleChange('Weekend');
+        else if (v.includes('every') || v.includes('daily')) handleScheduleChange('Every day');
       }
-    }
-  }, []);
+      if (field === 'reminder') {
+        setReminder(v === 'true' || v === 'yes');
+      }
+    },
+    onNavigate: async (dest) => {
+      try {
+        if (!state?.habitConfigs) return;
+        const serializedConfigs = Object.fromEntries(
+          Object.entries(state.habitConfigs).map(([k, v]) => [
+            k,
+            { ...v, days: v.days instanceof Set ? [...v.days] : v.days },
+          ]),
+        );
+        await saveStepAsync(6, { reflectionConfig: { time, days: [...days], reminder, schedule } });
+        navigate(dest ?? '/onboarding/step-7', {
+          state: {
+            habitConfigs: serializedConfigs,
+            goals: state?.goals,
+            category: state?.category,
+            reflectionConfig: { time, days: [...days], reminder, schedule },
+          },
+          replace: true,
+        });
+      } catch (err) {
+        Sentry.captureException(err, {
+          tags: { flow: 'onboarding', step: '6' },
+        });
+      }
+    },
+  });
 
   const handleOnNext = useCallback(async () => {
     try {
@@ -143,9 +168,6 @@ export function Step6Page() {
       totalSteps={7}
       ctaLabel="Review My Plan"
       ctaVariant="inline"
-      showVoiceButton
-      aiListeningPrompt='"When would you like to do your daily reflection?"'
-      voiceFileId="onboarding_reflection"
       footerText="You can change these settings later in your profile."
       onNext={handleOnNext}
       onBack={() =>
@@ -157,9 +179,6 @@ export function Step6Page() {
           },
         })
       }
-      voiceOptions={['Weekday', 'Weekend', 'Every day', '9 PM', '10 PM', '8 PM']}
-      voicePrompt="One more thing — and this one's powerful. A daily reflection. Three questions. Two minutes. And it compounds over time in a way that surprises people. What you're proud of. What you forgive yourself for. What you're grateful for. These three questions rewire how you process your day. You'll feel the difference within a week. Want to add it?"
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="One last thing for your mind"

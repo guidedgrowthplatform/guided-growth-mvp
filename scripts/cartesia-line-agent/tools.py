@@ -342,6 +342,75 @@ async def navigate_next(
     return f"Advancing from {from_screen}{note}."
 
 
+# ─── Tool: Update Onboarding Data ───────────────────────────────────────────
+# Generic writer the agent calls during ONBOARD-02..08 as the user answers
+# questions. Stores a free-form field bag under onboarding_states.data so the
+# React page can read/reflect the choice in the UI without each screen needing
+# its own dedicated tool. For ONBOARD-01 use `record_onboarding_profile`
+# instead — that tool's field schema matches the Step1Page form.
+
+
+async def update_onboarding_data(
+    ctx: ToolEnv,
+    user_id: Annotated[str, "The authenticated user's UUID"],
+    screen: Annotated[
+        str,
+        "Screen identifier (onboard_02 | onboard_03 | ... | onboard_09)",
+    ],
+    field: Annotated[
+        str,
+        "The data field being captured (e.g. 'path', 'category', "
+        "'subcategory', 'habits', 'schedule', 'journal_opt_in')",
+    ],
+    value: Annotated[
+        str,
+        "The captured value as a string (lists as comma-separated)",
+    ],
+) -> str:
+    """Persist a single onboarding field captured from the user's voice.
+    Call every time the user answers the current screen's question. Multiple
+    calls per screen are fine — each call merges into onboarding_states.data.
+    Once the screen is complete, also call `navigate_next`."""
+    if not user_id or not field:
+        return "Missing user_id or field; nothing saved."
+
+    sb = _get_supabase()
+    if not sb:
+        return f"Captured {field}={value} locally (db unavailable)."
+
+    try:
+        existing = (
+            sb.table("onboarding_states")
+            .select("data")
+            .eq("user_id", user_id)
+            .maybeSingle()
+            .execute()
+        )
+        prior = (existing.data or {}).get("data") or {}
+        merged = {**prior, field: value}
+        sb.table("onboarding_states").upsert(
+            {
+                "user_id": user_id,
+                "current_step": _screen_to_step(screen),
+                "path": prior.get("__path", "shared"),
+                "status": "in_progress",
+                "data": merged,
+                "updated_at": datetime.utcnow().isoformat(),
+            },
+            on_conflict="user_id",
+        ).execute()
+        return f"Saved {field}: {value} (from {screen})."
+    except Exception as e:
+        return f"Failed to save {field}={value}: {e}."
+
+
+def _screen_to_step(screen: str) -> int:
+    try:
+        return int(screen.split("_")[-1])
+    except (ValueError, IndexError):
+        return 1
+
+
 # ─── Tool: Update Profile ───────────────────────────────────────────────────
 # General-purpose profile field updates after onboarding. Use
 # record_onboarding_profile during ONBOARD-01 itself; use update_profile for

@@ -9,7 +9,7 @@ import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { habitsByGoal } from '@/data/onboardingHabits';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { useOnboardingRealtimeScreen } from '@/hooks/useOnboardingRealtimeScreen';
 
 export function Step5Page() {
   const navigate = useNavigate();
@@ -153,21 +153,32 @@ export function Step5Page() {
     ...(customHabits[goal] ?? []),
   ]);
 
-  const handleVoiceAction = useCallback(
-    (result: OnboardingVoiceResult) => {
-      if (result.params && Array.isArray(result.params.habits)) {
-        const voiceHabits = result.params.habits as string[];
-        const newSelected = new Set<string>();
-        voiceHabits.forEach((h) => {
-          if (allHabits.includes(h) && newSelected.size < 2) {
-            newSelected.add(h);
-          }
-        });
-        setSelectedHabits(newSelected);
+  useOnboardingRealtimeScreen({
+    screen: 'onboard_05',
+    onFieldCaptured: (field, value) => {
+      if (field !== 'habits') return;
+      const spoken = value.toLowerCase();
+      const matched = new Set<string>();
+      for (const h of allHabits) {
+        if (spoken.includes(h.toLowerCase()) && matched.size < 2) matched.add(h);
       }
+      if (matched.size > 0) setSelectedHabits(matched);
     },
-    [allHabits],
-  );
+    onNavigate: async (dest) => {
+      if (phase === 'selecting' && selectedHabits.size > 0) {
+        handleContinue();
+        return;
+      }
+      const serializedConfigs = Object.fromEntries(
+        Object.entries(habitConfigs).map(([k, v]) => [k, { ...v, days: [...v.days] }]),
+      );
+      await saveStepAsync(5, { habitConfigs: serializedConfigs });
+      navigate(dest ?? '/onboarding/step-6', {
+        state: { habitConfigs: serializedConfigs, goals, category: state?.category },
+        replace: true,
+      });
+    },
+  });
 
   const handleOnNext = useCallback(async () => {
     if (phase === 'confirming') {
@@ -201,13 +212,7 @@ export function Step5Page() {
             ? () => setPhase('selecting')
             : () => navigate('/onboarding/step-4')
         }
-        showVoiceButton
-        aiListeningPrompt='"Select up to 2 daily habits to build your foundation."'
         ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
-        voiceOptions={allHabits}
-        voiceFileId={phase === 'selecting' ? 'onboarding_habit_pick' : undefined}
-        voicePrompt="Here are a few habits that really help with this. And here's the key — pick what feels doable. Not heroic. Not impressive. Doable. Because one habit done consistently beats five that don't stick. You can also create your own if none of these fit."
-        onVoiceAction={handleVoiceAction}
       >
         <OnboardingHeader
           title="Here's a good place to start"

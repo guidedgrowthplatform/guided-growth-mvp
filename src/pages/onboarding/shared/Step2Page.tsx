@@ -4,8 +4,18 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { useOnboardingRealtimeScreen } from '@/hooks/useOnboardingRealtimeScreen';
 
+/**
+ * ONBOARD-02 — Experience Fork.
+ *
+ * Per Yair Phase 1 spec (Section 2.5): agent asks whether the user has
+ * tracked habits before. User says 'new' / 'experienced' / 'brain dump';
+ * agent calls `update_onboarding_data(field='path', value=...)` then
+ * `navigate_next(from_screen='onboard_02', path=...)`. The realtime hook
+ * takes the `path` arg into account and routes to either `/onboarding/step-3`
+ * (beginner) or `/onboarding/advanced-input` (brain-dump).
+ */
 export function Step2Page() {
   const navigate = useNavigate();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
@@ -17,21 +27,30 @@ export function Step2Page() {
     }
   }, [onboardingState?.path]);
 
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (result.params && typeof result.params.path === 'string') {
-      const path = result.params.path.toLowerCase();
-      if (path.includes('simple') || path.includes('new') || path.includes('beginner')) {
+  useOnboardingRealtimeScreen({
+    screen: 'onboard_02',
+    onFieldCaptured: (field, value) => {
+      if (field !== 'path') return;
+      const v = value.toLowerCase();
+      if (v.includes('simple') || v.includes('new') || v.includes('beginner')) {
         setPlan('simple');
       } else if (
-        path.includes('brain') ||
-        path.includes('advanced') ||
-        path.includes('experience') ||
-        path.includes('dump')
+        v.includes('brain') ||
+        v.includes('advanced') ||
+        v.includes('experience') ||
+        v.includes('dump')
       ) {
         setPlan('braindump');
       }
-    }
-  }, []);
+    },
+    onNavigate: async (dest, args) => {
+      const path = (args.path as string | undefined) ?? plan ?? 'simple';
+      await saveStepAsync(2, {}, { path: path as 'simple' | 'braindump' });
+      const target =
+        path === 'braindump' ? '/onboarding/advanced-input' : (dest ?? '/onboarding/step-3');
+      navigate(target, { replace: true });
+    },
+  });
 
   const handleNext = useCallback(async () => {
     await saveStepAsync(2, {}, { path: plan as 'simple' | 'braindump' });
@@ -51,12 +70,6 @@ export function Step2Page() {
       ctaDisabled={!plan}
       onNext={handleNext}
       onBack={() => navigate('/onboarding')}
-      showVoiceButton
-      aiListeningPrompt="Let me know if you are new to habit tracking or already have experience with habit tracking"
-      voiceOptions={['simple', 'brain dump', 'braindump', 'beginner', 'advanced']}
-      voiceFileId="onboarding_experience"
-      voicePrompt="Quick question — have you tracked habits before, or is this new for you? Either way is great. I just want to know the best way to guide you. If you're new, I'll walk you through it step by step. If you've done this before, just tell me what you want and I'll organize it."
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Let's build your plan."

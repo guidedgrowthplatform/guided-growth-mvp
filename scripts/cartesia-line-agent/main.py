@@ -29,6 +29,7 @@ from tools import (
     log_goal,
     navigate_next,
     record_onboarding_profile,
+    update_onboarding_data,
     update_profile,
 )
 
@@ -204,6 +205,41 @@ async def get_agent(env, call_request):
             "OK, let me get to know you a little. What's your name, how old are "
             "you, how do you identify, and how did you hear about us?"
         ),
+        "onboard_02": (
+            "Quick question — have you tracked habits before, or is this new "
+            "for you? Either way is great. If you're new, I'll walk you "
+            "through it. If you've done this before, just tell me what you "
+            "want and I'll organize it."
+        ),
+        "onboard_03": (
+            "What area do you want to work on first? Sleep, fitness, nutrition, "
+            "mindfulness, productivity — or something else entirely? Just say it."
+        ),
+        "onboard_04": (
+            "Got it. What specifically within that area? Feel free to be precise "
+            "or keep it broad — I can help you narrow down."
+        ),
+        "onboard_05": (
+            "Nice. Which habits should we start with? You can pick from what's "
+            "on screen or name your own. A few small ones is better than a huge "
+            "list."
+        ),
+        "onboard_06": (
+            "Let's set a schedule. How often and what time works? For example, "
+            "'every day at 9:30 with a reminder' or 'weekdays only'."
+        ),
+        "onboard_07": (
+            "Here's your plan. Does it look right? Say 'looks good' to continue, "
+            "or tell me what to change."
+        ),
+        "onboard_08": (
+            "Want a quick daily journal prompt too? Takes 30 seconds — reflects "
+            "on what went well. Yeah or skip?"
+        ),
+        "onboard_09": (
+            "You're all set. This is your plan — ready to start? Just say "
+            "'let's go' and we'll begin."
+        ),
         "morning": "Morning. How are you feeling today?",
         "evening": "How did today go?",
     }
@@ -214,6 +250,7 @@ async def get_agent(env, call_request):
         api_key=os.getenv("OPENAI_API_KEY"),
         tools=[
             record_onboarding_profile,
+            update_onboarding_data,
             get_user_context,
             log_checkin,
             get_habits,

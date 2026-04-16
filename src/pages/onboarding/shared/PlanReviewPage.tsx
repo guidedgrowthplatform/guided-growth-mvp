@@ -5,7 +5,9 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingRealtimeScreen } from '@/hooks/useOnboardingRealtimeScreen';
 import { Sentry } from '@/lib/sentry';
+
 const CATEGORY_ICONS: Record<string, string> = {
   Sleep: 'ic:outline-nightlight-round',
   Move: 'ic:outline-directions-run',
@@ -40,6 +42,22 @@ export function PlanReviewPage() {
       reflectionConfig: state.reflectionConfig,
     });
   }, [state, complete]);
+
+  // Voice-driven: agent says "here's your plan" + user says "looks good"
+  // or "let's go" → navigate_next fires → complete onboarding → home.
+  useOnboardingRealtimeScreen({
+    screen: 'onboard_07',
+    onFieldCaptured: () => {},
+    onNavigate: () => {
+      if (!state?.habitConfigs) return;
+      complete({
+        habitConfigs: state.habitConfigs,
+        goals: state.goals,
+        category: state.category,
+        reflectionConfig: state.reflectionConfig,
+      });
+    },
+  });
 
   if (!state?.habitConfigs || !state?.reflectionConfig) {
     Sentry.captureMessage('PlanReviewPage: missing state — redirecting to /onboarding', {
@@ -90,9 +108,6 @@ export function PlanReviewPage() {
                 : { habitConfigs, goals, category, reflectionConfig, phase: 'confirming' },
           }),
       }}
-      showVoiceButton
-      voiceFileId="onboarding_complete"
-      voicePrompt="Here's your starting plan. It's simple — and that's on purpose. This is your foundation. As you show up, we'll grow it together. And from here on — it's easy. Morning check-in, evening check-in. Under a minute each. That's your whole commitment. Everything else happens naturally. Ready?"
     >
       <OnboardingHeader
         title="Your starting plan"
