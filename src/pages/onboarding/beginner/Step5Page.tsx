@@ -203,7 +203,7 @@ export function Step5Page() {
     <>
       <OnboardingLayout
         currentStep={5}
-        totalSteps={7}
+        totalSteps={9}
         ctaLabel={phase === 'confirming' ? 'Confirm & Continue' : 'Continue'}
         ctaVariant="inline"
         onNext={handleOnNext}

@@ -165,7 +165,7 @@ export function Step6Page() {
   return (
     <OnboardingLayout
       currentStep={6}
-      totalSteps={7}
+      totalSteps={9}
       ctaLabel="Review My Plan"
       ctaVariant="inline"
       footerText="You can change these settings later in your profile."

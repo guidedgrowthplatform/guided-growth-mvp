@@ -83,7 +83,7 @@ export function Step3Page() {
   return (
     <OnboardingLayout
       currentStep={3}
-      totalSteps={7}
+      totalSteps={9}
       ctaLabel="Continue"
       ctaVariant="inline"
       onNext={handleNext}

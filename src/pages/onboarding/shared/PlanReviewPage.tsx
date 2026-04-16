@@ -86,7 +86,7 @@ export function PlanReviewPage() {
   return (
     <OnboardingLayout
       currentStep={source === 'advanced' ? 6 : 7}
-      totalSteps={source === 'advanced' ? 6 : 7}
+      totalSteps={source === 'advanced' ? 6 : 9}
       ctaLabel={isCompleting ? 'Loading...' : 'Looks good'}
       onNext={handleNext}
       ctaDisabled={isCompleting}

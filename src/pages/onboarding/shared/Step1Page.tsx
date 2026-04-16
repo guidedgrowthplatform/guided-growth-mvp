@@ -335,7 +335,7 @@ export function Step1Page() {
   return (
     <OnboardingLayout
       currentStep={1}
-      totalSteps={7}
+      totalSteps={9}
       ctaLabel="Let's Begin"
       onNext={handleNext}
       ctaDisabled={!nickname.trim() || !age}
