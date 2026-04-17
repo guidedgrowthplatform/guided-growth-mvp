@@ -35,9 +35,8 @@ export function MicPermissionPage() {
       // Granted
       if (user?.id) {
         await supabase
-          .from('profiles')
-          .update({ mic_permission: true })
-          .eq('id', user.id)
+          .from('user_preferences')
+          .upsert({ user_id: user.id, mic_permission: true }, { onConflict: 'user_id' })
           .then(null, () => {});
       }
       await voicePlayer.play('mic_granted').catch(() => {});
@@ -45,9 +44,8 @@ export function MicPermissionPage() {
       // Denied or dismissed — treat same as deny
       if (user?.id) {
         await supabase
-          .from('profiles')
-          .update({ mic_permission: false })
-          .eq('id', user.id)
+          .from('user_preferences')
+          .upsert({ user_id: user.id, mic_permission: false }, { onConflict: 'user_id' })
           .then(null, () => {});
       }
       await voicePlayer.play('mic_denied').catch(() => {});

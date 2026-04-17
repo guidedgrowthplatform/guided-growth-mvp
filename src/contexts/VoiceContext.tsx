@@ -36,31 +36,26 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data?.user) return;
-      // Sync ai_output_mode
+      // Sync voice settings from user_preferences (single source of truth
+      // per migration 011 + Mint's Apr 18 review: voice settings all live on
+      // user_preferences, not profiles).
       supabase
         .from('user_preferences')
-        .select('voice_mode')
+        .select('voice_mode,mic_permission')
         .eq('user_id', data.user.id)
         .maybeSingle()
         .then(({ data: pref }) => {
-          if (!pref?.voice_mode) return;
-          const normalized = normalizePreference(String(pref.voice_mode));
-          setPreferenceState(normalized);
-          try {
-            localStorage.setItem(VOICE_PREF_KEY, normalized);
-          } catch {
-            /* */
+          if (!pref) return;
+          if (pref.voice_mode) {
+            const normalized = normalizePreference(String(pref.voice_mode));
+            setPreferenceState(normalized);
+            try {
+              localStorage.setItem(VOICE_PREF_KEY, normalized);
+            } catch {
+              /* */
+            }
           }
-        })
-        .then(null, () => {});
-      // Sync mic_permission
-      supabase
-        .from('profiles')
-        .select('mic_permission')
-        .eq('id', data.user.id)
-        .maybeSingle()
-        .then(({ data: profile }) => {
-          if (profile && profile.mic_permission === false) {
+          if (pref.mic_permission === false) {
             setMicPermission(false);
           }
         })
