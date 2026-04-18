@@ -1,0 +1,122 @@
+name: DB Migrations (Alembic)
+
+on:
+  pull_request:
+    branches: ['main']
+    paths:
+      - 'alembic/**'
+      - 'alembic.ini'
+      - 'pyproject.toml'
+      - '.github/workflows/db-migrate.yml'
+  push:
+    branches: ['main']
+    paths:
+      - 'alembic/**'
+      - 'alembic.ini'
+      - 'pyproject.toml'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Revision to upgrade to (default: head)'
+        required: false
+        default: 'head'
+
+jobs:
+  dry-run:
+    name: Render SQL (PR dry-run)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: pyproject.toml
+
+      - name: Install Alembic
+        run: pip install -e .
+
+      - name: Render migration SQL
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+        run: |
+          mkdir -p /tmp/migration-sql
+          alembic upgrade head --sql > /tmp/migration-sql/rendered.sql
+          echo "### Rendered migration SQL" >> $GITHUB_STEP_SUMMARY
+          echo '```sql' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/migration-sql/rendered.sql >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload rendered SQL
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendered-migration-sql
+          path: /tmp/migration-sql/rendered.sql
+          retention-days: 14
+
+  apply:
+    name: Apply migrations to production
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment:
+      name: production-migrations
+      url: https://supabase.com
+    concurrency:
+      group: db-migrate-prod
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: pyproject.toml
+
+      - name: Install Alembic
+        run: pip install -e .
+
+      - name: Install Postgres client (pg_dump 16)
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+
+      - name: Show current revision
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+        run: alembic current
+
+      - name: Snapshot database (pre-migration)
+        id: snapshot
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+        run: ./scripts/pre-migrate-snapshot.sh ./snapshots
+
+      - name: Upload snapshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-snapshot-${{ github.sha }}
+          path: snapshots/*.dump
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upgrade database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+        run: alembic upgrade ${{ github.event.inputs.target || 'head' }}
+
+      - name: Show new revision
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+        run: alembic current
+
+      - name: Summary
+        run: |
+          echo "### Migration applied" >> $GITHUB_STEP_SUMMARY
+          echo "- Snapshot: \`${{ steps.snapshot.outputs.snapshot_path }}\` (${{ steps.snapshot.outputs.snapshot_size_mb }} MB)" >> $GITHUB_STEP_SUMMARY
+          echo "- Artifact: \`db-snapshot-${{ github.sha }}\` (30-day retention)" >> $GITHUB_STEP_SUMMARY
+          echo "- Restore: \`pg_restore --clean --if-exists -d \$DATABASE_URL snapshot-*.dump\`" >> $GITHUB_STEP_SUMMARY

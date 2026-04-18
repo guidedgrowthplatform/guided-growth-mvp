@@ -1,0 +1,14 @@
+[project]
+name = "guided-growth-migrations"
+version = "0.1.0"
+description = "Database migration tooling for guided-growth-mvp (Alembic)."
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.13,<2.0",
+    "psycopg[binary]>=3.2,<4.0",
+    "python-dotenv>=1.0,<2.0",
+    "sqlalchemy>=2.0,<3.0",
+]
+
+[tool.alembic]
+script_location = "alembic"

@@ -24,7 +24,13 @@
     "cap:sync:android": "npx cap sync android",
     "cap:sync:all": "npx cap sync ios && node scripts/patch-ios-plist.mjs && npx cap sync android",
     "cap:open": "npx cap open ios",
-    "cap:open:android": "npx cap open android"
+    "cap:open:android": "npx cap open android",
+    "db:migrate": "alembic upgrade head",
+    "db:downgrade": "alembic downgrade -1",
+    "db:revision": "alembic revision -m",
+    "db:current": "alembic current",
+    "db:history": "alembic history",
+    "db:sql": "alembic upgrade head --sql"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

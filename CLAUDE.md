@@ -208,9 +208,13 @@ Registered in `CaptureView.tsx` via `useEffect` with `keydown` listener:
 
 ## Database Migrations
 
-Run order for fresh DB: **000_schema → 001_onboarding → 002_app_tables → 003_rls**
+**Alembic is the source of truth as of 2026-04-17.** See `alembic/README.md`.
 
-All core tables are now created in the migrations (previously `allowlist`, `entries`, `affirmations` and schemas for `reflection_configs`, `reflections`, `user_preferences` were missing — fixed).
+- New schema changes: `npm run db:revision -- "description"` → edit the generated file in `alembic/versions/` → `npm run db:migrate`.
+- `supabase/migrations/` is **frozen** — historical baseline only. Do not edit or extend it.
+- On any pre-cutover DB, run `alembic stamp 0001_baseline` once before the first `alembic upgrade`.
+- Migrations are **raw SQL inside `op.execute()`**. Do not add SQLAlchemy models — TS types in `packages/shared/src/types/index.ts` remain the schema source of truth.
+- Migrations run in CI (`.github/workflows/db-migrate.yml`), never in Vercel build. Schema must merge and apply **before** code that depends on it.
 
 ### Cleanup
 
@@ -234,5 +238,6 @@ All core tables are now created in the migrations (previously `allowlist`, `entr
 | Offline queue                            | `src/cache/offlineQueue.ts`                                     |
 | PWA manifest                             | `public/manifest.json`                                          |
 | Tailwind config (animations)             | `tailwind.config.js`                                            |
-| DB migrations                            | `supabase/migrations/`                                          |
+| DB migrations (active)                   | `alembic/versions/`                                             |
+| DB migrations (frozen baseline)          | `supabase/migrations/`                                          |
 | Claude skills (naming, frontend design)  | `.claude/skills/*/SKILL.md`                                     |
