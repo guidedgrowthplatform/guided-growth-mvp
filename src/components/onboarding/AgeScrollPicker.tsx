@@ -22,11 +22,18 @@ function ScrollColumn({ selected, onChange, onSelect }: ScrollColumnProps) {
     if (!el) return;
     isUserScroll.current = false;
     el.scrollTo({ top: selectedIndex * ITEM_HEIGHT, behavior: 'smooth' });
-    const t = setTimeout(() => { isUserScroll.current = true; }, 300);
+    const t = setTimeout(() => {
+      isUserScroll.current = true;
+    }, 300);
     return () => clearTimeout(t);
   }, [selectedIndex]);
 
-  useEffect(() => () => { if (scrollTimer.current) clearTimeout(scrollTimer.current); }, []);
+  useEffect(
+    () => () => {
+      if (scrollTimer.current) clearTimeout(scrollTimer.current);
+    },
+    [],
+  );
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
@@ -45,7 +52,9 @@ function ScrollColumn({ selected, onChange, onSelect }: ScrollColumnProps) {
         const index = Math.round(el.scrollTop / ITEM_HEIGHT);
         isUserScroll.current = false;
         el.scrollTo({ top: index * ITEM_HEIGHT, behavior: 'smooth' });
-        setTimeout(() => { isUserScroll.current = true; }, 300);
+        setTimeout(() => {
+          isUserScroll.current = true;
+        }, 300);
       }
     }, 80);
   }, [handleScroll]);
@@ -63,7 +72,8 @@ function ScrollColumn({ selected, onChange, onSelect }: ScrollColumnProps) {
         className="pointer-events-none absolute inset-x-0 top-0 z-10"
         style={{
           height: pickerHeight * 0.35,
-          background: 'linear-gradient(to bottom, rgb(var(--color-surface-secondary)), transparent)',
+          background:
+            'linear-gradient(to bottom, rgb(var(--color-surface-secondary)), transparent)',
         }}
       />
       <div

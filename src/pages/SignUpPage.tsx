@@ -81,7 +81,10 @@ export function SignUpPage() {
         </div>
 
         <div className="mt-8 space-y-4">
-          <AuthAlert type="info" message="Didn't receive the email? Check your spam folder or resend it below." />
+          <AuthAlert
+            type="info"
+            message="Didn't receive the email? Check your spam folder or resend it below."
+          />
           {error && <AuthAlert type="error" message={error} />}
           <Button
             variant="secondary"

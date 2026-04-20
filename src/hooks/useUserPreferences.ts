@@ -9,6 +9,8 @@ export interface UserPreferences {
   morningTime: string;
   nightTime: string;
   pushNotifications: boolean;
+  voiceEnabled?: boolean;
+  micGranted?: boolean;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {

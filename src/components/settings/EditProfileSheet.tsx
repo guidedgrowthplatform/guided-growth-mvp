@@ -12,7 +12,12 @@ interface Props {
   initialAvatarUrl: string | null;
 }
 
-export function EditProfileSheet({ onClose, initialName, initialNickname, initialAvatarUrl }: Props) {
+export function EditProfileSheet({
+  onClose,
+  initialName,
+  initialNickname,
+  initialAvatarUrl,
+}: Props) {
   const { addToast } = useToast();
   const updateProfileStore = useAuthStore((s) => s.updateProfile);
 
@@ -23,12 +28,13 @@ export function EditProfileSheet({ onClose, initialName, initialNickname, initia
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2) || '?';
+  const initials =
+    name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || '?';
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -102,7 +108,11 @@ export function EditProfileSheet({ onClose, initialName, initialNickname, initia
           <div className="relative">
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-surface bg-surface-secondary shadow-card">
               {avatarPreview ? (
-                <img src={avatarPreview} alt="Avatar preview" className="h-full w-full object-cover" />
+                <img
+                  src={avatarPreview}
+                  alt="Avatar preview"
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 <span className="text-3xl font-bold text-primary">{initials}</span>
               )}
@@ -158,7 +168,9 @@ export function EditProfileSheet({ onClose, initialName, initialNickname, initia
               className="flex-1 bg-transparent text-base text-content outline-none"
             />
           </div>
-          <p className="mt-1 text-xs text-content-secondary">Letters, numbers, and underscores only</p>
+          <p className="mt-1 text-xs text-content-secondary">
+            Letters, numbers, and underscores only
+          </p>
         </div>
 
         {/* Save */}

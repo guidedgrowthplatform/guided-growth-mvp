@@ -18,7 +18,11 @@ function ActionCard({ icon, title, buttonLabel, onPress, variant = 'default' }: 
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#dbeafe]">
         <Icon icon={icon} width={24} height={24} className="text-primary" />
       </div>
-      <span className={`text-sm font-semibold ${variant === 'tinted' ? 'text-primary' : 'text-content'}`}>{title}</span>
+      <span
+        className={`text-sm font-semibold ${variant === 'tinted' ? 'text-primary' : 'text-content'}`}
+      >
+        {title}
+      </span>
       <button
         onClick={onPress}
         className="w-full rounded-full bg-primary py-2 text-xs font-semibold text-white shadow-sm"

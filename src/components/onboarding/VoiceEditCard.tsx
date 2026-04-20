@@ -8,7 +8,10 @@ export function VoiceEditCard({ onMicPress }: VoiceEditCardProps) {
   return (
     <div
       className="flex items-center justify-between overflow-clip rounded-[16px] border border-primary/20 p-[21px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
-      style={{ background: 'linear-gradient(162deg, rgb(var(--color-primary-bg)) 0%, rgb(var(--color-primary)/0.15) 100%)' }}
+      style={{
+        background:
+          'linear-gradient(162deg, rgb(var(--color-primary-bg)) 0%, rgb(var(--color-primary)/0.15) 100%)',
+      }}
     >
       <div className="flex-1 pr-[16px]">
         <div className="mb-[4px] flex items-center gap-[8px]">
