@@ -14,6 +14,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useEntries } from '@/hooks/useEntries';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { track } from '@/lib/analytics';
 import { speak } from '@/lib/services/tts-service';
 import type { EntriesMap } from '@shared/types';
 
@@ -43,6 +44,11 @@ export function HomePage() {
   }, [load, dateRange.start, dateRange.end]);
 
   const entriesForStrip: EntriesMap = entries;
+
+  const fromOnboardingAtMount = useRef(fromOnboarding);
+  useEffect(() => {
+    track('view_home', { from_onboarding: fromOnboardingAtMount.current });
+  }, []);
 
   const displayName =
     user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'there';
@@ -88,7 +94,10 @@ export function HomePage() {
         <HomeHeader
           userName={displayName}
           isFirstVisit={fromOnboarding}
-          onPlusClick={() => navigate('/add-habit')}
+          onPlusClick={() => {
+            track('tap_add_habit', { source: 'home_header' });
+            navigate('/add-habit');
+          }}
         />
         <DateStrip
           selectedDate={selectedDate}
@@ -97,8 +106,20 @@ export function HomePage() {
         />
         <div>
           <QuickActionCards
-            onCheckInPress={() => setShowCheckIn(!showCheckIn)}
-            onJournalPress={() => navigate('/journal')}
+            onCheckInPress={() => {
+              const next = !showCheckIn;
+              if (next) {
+                const hour = new Date().getHours();
+                track('start_checkin', {
+                  checkin_type: hour < 15 ? 'morning' : 'evening',
+                  trigger: 'home_card',
+                });
+              }
+              setShowCheckIn(next);
+            }}
+            onJournalPress={() => {
+              navigate('/journal');
+            }}
           />
           <div
             className={`grid transition-all duration-300 ease-in-out ${
