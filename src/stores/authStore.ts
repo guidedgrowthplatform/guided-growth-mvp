@@ -141,7 +141,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
     });
 
-    if (error) return { error: friendlyError(error) };
+    if (error) {
+      track('signup_error', { method: 'email', error_type: error.message });
+      return { error: friendlyError(error) };
+    }
 
     // When email confirmation is enabled, Supabase returns user but no session.
     // When the email already exists, Supabase returns a fake user with empty identities.
@@ -152,7 +155,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = mapUser(data.session.user);
       set({ user });
       identifyUser(user);
-      track('Sign Up', { method: 'email' });
+      track('complete_signup', { method: 'email' });
     }
     return { error: null, confirmationPending };
   },
@@ -163,20 +166,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       password,
     });
 
-    if (error) return { error: friendlyError(error) };
+    if (error) {
+      track('login_error', { method: 'email', error_type: error.message });
+      return { error: friendlyError(error) };
+    }
 
     if (data?.user) {
       const user = mapUser(data.user);
       set({ user });
       identifyUser(user);
-      track('Sign In', { method: 'email' });
+      track('complete_login', { method: 'email' });
     }
     return { error: null };
   },
 
   signOut: async () => {
     await supabase.auth.signOut({ scope: 'global' });
-    track('Sign Out');
     clearUserIdentity();
     set({ user: null });
   },
