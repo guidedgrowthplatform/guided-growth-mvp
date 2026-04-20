@@ -160,7 +160,14 @@ function ActiveRings({ side, dialWidth, dialHeight, step, count }: ActiveRingsPr
   return (
     <>
       {sides.map((s) => (
-        <RingStack key={s} side={s} dialWidth={dialWidth} dialHeight={dialHeight} step={step} count={count} />
+        <RingStack
+          key={s}
+          side={s}
+          dialWidth={dialWidth}
+          dialHeight={dialHeight}
+          step={step}
+          count={count}
+        />
       ))}
     </>
   );
@@ -197,7 +204,7 @@ function RingStack({ side, dialWidth, dialHeight, step, count }: RingStackProps)
             }}
           >
             <div
-              className="h-full w-full rounded-full border border-primary/70 animate-ring-pulse"
+              className="h-full w-full animate-ring-pulse rounded-full border border-primary/70"
               style={
                 {
                   '--ring-opacity': opacity,
