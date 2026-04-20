@@ -1,10 +1,12 @@
 import { Icon } from '@iconify/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import {
   OnboardingVoiceOverlay,
   type VoiceMessage,
 } from '@/components/onboarding/OnboardingVoiceOverlay';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
+import { DualButton } from '@/components/ui/DualButton';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
@@ -133,6 +135,23 @@ export function OnboardingLayout({
     localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
   };
 
+  const voiceControl = showVoiceButton ? (
+    <div className="relative my-6 flex justify-center">
+      {tooltipVisible && <VoiceTooltip autoDismissMs={4000} onDismiss={handleTooltipDismiss} />}
+      <DualButton
+        size={88}
+        leftActive={isListening}
+        rightActive={ttsEnabled}
+        leftIcon={isListening ? <IconChatVoice size={30} /> : <IconChatText size={30} />}
+        rightIcon={ttsEnabled ? <IconMic size={30} /> : <IconMicMuted size={30} />}
+        onLeftClick={handleMicClick}
+        onRightClick={handleToggleTts}
+        leftAriaLabel={isListening ? 'Stop listening' : 'Start listening'}
+        rightAriaLabel={ttsEnabled ? 'Mute AI voice' : 'Enable AI voice'}
+      />
+    </div>
+  ) : null;
+
   return (
     <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[48px] pt-[max(16px,env(safe-area-inset-top))]">
       {overlayOpen && (
@@ -167,63 +186,28 @@ export function OnboardingLayout({
       </div>
       {ctaVariant === 'full' ? (
         <>
-          <div className="flex items-center gap-[10px]">
-            <button
-              type="button"
-              onClick={handleNext}
-              disabled={ctaDisabled}
-              className="flex h-[56px] flex-1 items-center justify-center gap-2 rounded-full bg-primary text-[18px] font-medium leading-[28px] text-white shadow-[0px_20px_25px_-5px_rgba(26,47,176,0.2),0px_8px_10px_-6px_rgba(26,47,176,0.2)] transition-opacity disabled:opacity-50"
-            >
-              {ctaLabel}
-            </button>
+          {voiceControl}
 
-            {showVoiceButton && (
-              <>
-                {/* TTS speaker toggle */}
-                <button
-                  type="button"
-                  onClick={handleToggleTts}
-                  className={`flex size-[52px] shrink-0 items-center justify-center rounded-full transition-colors ${
-                    ttsEnabled ? 'bg-primary' : 'bg-surface-secondary'
-                  }`}
-                >
-                  <Icon
-                    icon={ttsEnabled ? 'ic:round-volume-up' : 'ic:round-volume-off'}
-                    width={22}
-                    height={22}
-                    className={ttsEnabled ? 'text-white' : 'text-content-tertiary'}
-                  />
-                </button>
-
-                {/* Mic toggle */}
-                <div className="relative shrink-0">
-                  {tooltipVisible && (
-                    <VoiceTooltip autoDismissMs={4000} onDismiss={handleTooltipDismiss} />
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleMicClick}
-                    className={`flex size-[52px] items-center justify-center rounded-full transition-colors ${
-                      isListening ? 'bg-primary' : 'bg-surface-secondary'
-                    }`}
-                  >
-                    <Icon
-                      icon={isListening ? 'ic:round-mic' : 'ic:round-mic-off'}
-                      width={22}
-                      height={22}
-                      className={isListening ? 'text-white' : 'text-content-tertiary'}
-                    />
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={ctaDisabled}
+            className="flex h-[56px] w-full items-center justify-center gap-2 rounded-full bg-primary text-[18px] font-medium leading-[28px] text-white shadow-[0px_20px_25px_-5px_rgba(26,47,176,0.2),0px_8px_10px_-6px_rgba(26,47,176,0.2)] transition-opacity disabled:opacity-50"
+          >
+            {ctaLabel}
+          </button>
 
           {showVoiceButton && !onVoiceAction && (isListening || interim || transcript || error) && (
             <div className="mt-2 flex flex-col items-center gap-1">
-              {isListening && <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>}
-              {interim && !isListening && <p className="text-xs text-content-secondary">{interim}</p>}
-              {transcript && <p className="max-w-[280px] text-center text-sm text-content">{transcript}</p>}
+              {isListening && (
+                <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>
+              )}
+              {interim && !isListening && (
+                <p className="text-xs text-content-secondary">{interim}</p>
+              )}
+              {transcript && (
+                <p className="max-w-[280px] text-center text-sm text-content">{transcript}</p>
+              )}
               {error && <p className="max-w-[280px] text-center text-xs text-danger">{error}</p>}
             </div>
           )}
@@ -248,48 +232,15 @@ export function OnboardingLayout({
               />
             </div>
           )}
-          <div className="flex items-center gap-[10px]">
-            <button
-              type="button"
-              onClick={handleNext}
-              disabled={ctaDisabled}
-              className="flex h-[56px] flex-1 items-center justify-center rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] disabled:opacity-50"
-            >
-              {ctaLabel}
-            </button>
-            {showVoiceButton && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleToggleTts}
-                  className={`flex size-[52px] shrink-0 items-center justify-center rounded-full transition-colors ${
-                    ttsEnabled ? 'bg-primary' : 'bg-surface-secondary'
-                  }`}
-                >
-                  <Icon
-                    icon={ttsEnabled ? 'ic:round-volume-up' : 'ic:round-volume-off'}
-                    width={22}
-                    height={22}
-                    className={ttsEnabled ? 'text-white' : 'text-content-tertiary'}
-                  />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleMicClick}
-                  className={`flex size-[52px] shrink-0 items-center justify-center rounded-full transition-colors ${
-                    isListening ? 'bg-primary' : 'bg-surface-secondary'
-                  }`}
-                >
-                  <Icon
-                    icon={isListening ? 'ic:round-mic' : 'ic:round-mic-off'}
-                    width={22}
-                    height={22}
-                    className={isListening ? 'text-white' : 'text-content-tertiary'}
-                  />
-                </button>
-              </>
-            )}
-          </div>
+          {voiceControl}
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={ctaDisabled}
+            className="flex h-[56px] w-full items-center justify-center rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] disabled:opacity-50"
+          >
+            {ctaLabel}
+          </button>
           {(transcript || interim || error) &&
             showVoiceButton &&
             !onVoiceAction &&

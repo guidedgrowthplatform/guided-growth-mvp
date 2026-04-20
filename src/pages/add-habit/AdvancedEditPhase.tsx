@@ -99,14 +99,12 @@ export function AdvancedEditPhase({
         </button>
       </div>
       {isListening && (
-        <p className="mt-2 text-center text-sm font-medium text-primary animate-pulse">
+        <p className="mt-2 animate-pulse text-center text-sm font-medium text-primary">
           Listening...
         </p>
       )}
 
-      {showDeleteModal && (
-        <DeleteHabitModal onDelete={onConfirmDelete} onKeep={onCancelDelete} />
-      )}
+      {showDeleteModal && <DeleteHabitModal onDelete={onConfirmDelete} onKeep={onCancelDelete} />}
     </div>
   );
 }

@@ -2,6 +2,8 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { useAppGate } from '@/hooks/useAppGate';
 import { usePageTracking } from '@/hooks/usePageTracking';
 import { AppGate } from './AppGate';
 
@@ -27,6 +29,12 @@ const PrivacyPolicyPage = lazy(() =>
 );
 const SignInPage = lazy(() =>
   import('@/pages/SignInPage').then((m) => ({ default: m.SignInPage })),
+);
+const WelcomePage = lazy(() =>
+  import('@/pages/WelcomePage').then((m) => ({ default: m.WelcomePage })),
+);
+const SplashScreenPage = lazy(() =>
+  import('@/pages/SplashScreenPage').then((m) => ({ default: m.SplashScreenPage })),
 );
 const SignUpPage = lazy(() =>
   import('@/pages/SignUpPage').then((m) => ({ default: m.SignUpPage })),
@@ -57,6 +65,9 @@ const lazyOnboarding = (name: string) =>
     })),
   );
 const Step1Page = lazyOnboarding('Step1Page');
+const VoicePreferencePage = lazyOnboarding('VoicePreferencePage');
+const MicPermissionPage = lazyOnboarding('MicPermissionPage');
+const AiCoachIntroPage = lazyOnboarding('AiCoachIntroPage');
 const Step2Page = lazyOnboarding('Step2Page');
 const Step3Page = lazyOnboarding('Step3Page');
 const Step4Page = lazyOnboarding('Step4Page');
@@ -76,6 +87,15 @@ function PageLoader() {
       <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-primary" />
     </div>
   );
+}
+
+function OnboardingEntry() {
+  const gate = useAppGate();
+  if (gate.status === 'loading') return <LoadingScreen />;
+  if (gate.status === 'ready') return <Navigate to="/" replace />;
+  if (gate.status === 'onboarding_in_progress')
+    return <Navigate to={`/onboarding/step-${gate.step}`} replace />;
+  return <Navigate to="/onboarding/voice-preference" replace />;
 }
 
 function AppLayout() {
@@ -101,6 +121,14 @@ export function AppRoutes() {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Public routes */}
+        <Route
+          path="/welcome"
+          element={
+            <AppGate allow="public">
+              <WelcomePage />
+            </AppGate>
+          }
+        />
         <Route
           path="/login"
           element={
@@ -129,6 +157,11 @@ export function AppRoutes() {
         {/* Public status dashboard (no auth required) */}
         <Route path="/status" element={<StatusPage />} />
 
+        <Route path="/splash" element={<SplashScreenPage />} />
+
+        {/* Privacy policy — accessible from any state (onboarding, settings, anon) */}
+        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+
         {/* Auth callbacks (no auth guard) */}
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -136,6 +169,38 @@ export function AppRoutes() {
         {/* Onboarding (protected, no Layout) */}
         <Route
           path="/onboarding"
+          element={
+            <AppGate allow="onboarding">
+              <OnboardingEntry />
+            </AppGate>
+          }
+        />
+        <Route
+          path="/onboarding/voice-preference"
+          element={
+            <AppGate allow="onboarding">
+              <VoicePreferencePage />
+            </AppGate>
+          }
+        />
+        <Route
+          path="/onboarding/mic-permission"
+          element={
+            <AppGate allow="onboarding">
+              <MicPermissionPage />
+            </AppGate>
+          }
+        />
+        <Route
+          path="/onboarding/ai-coach-intro"
+          element={
+            <AppGate allow="onboarding">
+              <AiCoachIntroPage />
+            </AppGate>
+          }
+        />
+        <Route
+          path="/onboarding/step-1"
           element={
             <AppGate allow="onboarding">
               <Step1Page />
@@ -273,7 +338,6 @@ export function AppRoutes() {
           <Route path="report/calendar" element={<CalendarPage />} />
           <Route path="habits" element={<HabitsPage />} />
           <Route path="settings" element={<SettingsPage />} />
-          <Route path="privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="habit/:habitId" element={<HomePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

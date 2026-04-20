@@ -10,7 +10,10 @@ export function getProfile(): Promise<ProfileData> {
   return apiGet<ProfileData>('/api/onboarding/profile');
 }
 
-export function updateProfile(data: { name?: string; nickname?: string }): Promise<{ ok: boolean }> {
+export function updateProfile(data: {
+  name?: string;
+  nickname?: string;
+}): Promise<{ ok: boolean }> {
   return apiPatch<{ ok: boolean }>('/api/onboarding/profile', data);
 }
 

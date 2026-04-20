@@ -1,7 +1,13 @@
 import { Icon } from '@iconify/react';
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { WEEKDAYS, WEEKEND, ALL_DAYS, SECTION_LABEL_CLASS, toggleSetItem } from '@/components/onboarding/constants';
+import {
+  WEEKDAYS,
+  WEEKEND,
+  ALL_DAYS,
+  SECTION_LABEL_CLASS,
+  toggleSetItem,
+} from '@/components/onboarding/constants';
 import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { SchedulePicker } from '@/components/onboarding/SchedulePicker';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
@@ -173,7 +179,7 @@ function EditJournalForm({ state }: { state: EditJournalState }) {
                 }}
                 onBlur={handleAddPrompt}
                 placeholder="Or add your new prompt here..."
-                className="w-full rounded-[12px] border border-border bg-surface px-[17px] py-[15px] text-[16px] font-normal leading-[24px] text-content placeholder:text-content-muted shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline-none"
+                className="w-full rounded-[12px] border border-border bg-surface px-[17px] py-[15px] text-[16px] font-normal leading-[24px] text-content shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline-none placeholder:text-content-muted"
               />
 
               <p className="text-[12px] font-normal leading-[16px] text-content-muted">
@@ -233,11 +239,7 @@ function EditJournalForm({ state }: { state: EditJournalState }) {
       )}
 
       {timePickerOpen && (
-        <TimePickerSheet
-          value={time}
-          onChange={setTime}
-          onClose={() => setTimePickerOpen(false)}
-        />
+        <TimePickerSheet value={time} onChange={setTime} onClose={() => setTimePickerOpen(false)} />
       )}
     </div>
   );

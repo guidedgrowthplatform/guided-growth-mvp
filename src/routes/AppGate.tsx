@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
-import { SplashScreen } from '@/components/ui/SplashScreen';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useAppGate } from '@/hooks/useAppGate';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -28,7 +28,7 @@ export function AppGate({
   const gate = useAppGate();
   const isRecoveryMode = useAuthStore((s) => s.isRecoveryMode);
 
-  if (gate.status === 'loading') return <SplashScreen />;
+  if (gate.status === 'loading') return <LoadingScreen />;
 
   if (gate.status === 'error') {
     return <ErrorScreen message="Could not connect to server" onRetry={gate.retry} />;
@@ -58,10 +58,8 @@ export function AppGate({
     return <>{children}</>;
   }
 
-  // App routes: redirect to onboarding if not completed
-  if (gate.status === 'onboarding_needed') return <Navigate to="/onboarding" replace />;
-  if (gate.status === 'onboarding_in_progress') {
-    return <Navigate to={`/onboarding/step-${gate.step}`} replace />;
+  if (gate.status === 'onboarding_needed' || gate.status === 'onboarding_in_progress') {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return <>{children}</>;

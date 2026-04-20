@@ -54,9 +54,7 @@ export function ResetPasswordPage() {
 
       <div className="mt-6">
         <h1 className="text-[30px] font-bold tracking-tight text-primary">Set New Password</h1>
-        <p className="mt-2 text-base text-content-secondary">
-          Enter your new password below
-        </p>
+        <p className="mt-2 text-base text-content-secondary">Enter your new password below</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">

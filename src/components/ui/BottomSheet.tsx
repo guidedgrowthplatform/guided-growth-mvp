@@ -10,7 +10,13 @@ interface BottomSheetProps {
 
 const DRAG_CLOSE_THRESHOLD = 100;
 
-export function BottomSheet({ onClose, children, topOffset, showHandle = true, preventClose = false }: BottomSheetProps) {
+export function BottomSheet({
+  onClose,
+  children,
+  topOffset,
+  showHandle = true,
+  preventClose = false,
+}: BottomSheetProps) {
   const [phase, setPhase] = useState<'entering' | 'open' | 'exiting'>('entering');
   const [dragY, setDragY] = useState(0);
   const dragStartY = useRef(0);

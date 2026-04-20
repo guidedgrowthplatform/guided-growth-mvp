@@ -35,7 +35,11 @@ export function Step5Page() {
     ? Object.fromEntries(
         Object.entries(state.habitConfigs).map(([k, v]) => [
           k,
-          { ...v, days: v.days instanceof Set ? v.days : new Set(v.days), schedule: (v.schedule ?? 'Weekday') as HabitConfig['schedule'] },
+          {
+            ...v,
+            days: v.days instanceof Set ? v.days : new Set(v.days),
+            schedule: (v.schedule ?? 'Weekday') as HabitConfig['schedule'],
+          },
         ]),
       )
     : undefined;
@@ -63,7 +67,12 @@ export function Step5Page() {
       const reconstituted: Record<string, HabitConfig> = Object.fromEntries(
         Object.entries(savedConfigs).map(([k, v]) => [
           k,
-          { ...v, days: v.days instanceof Set ? v.days : new Set(v.days), schedule: ((v as { schedule?: string }).schedule ?? 'Weekday') as HabitConfig['schedule'] },
+          {
+            ...v,
+            days: v.days instanceof Set ? v.days : new Set(v.days),
+            schedule: ((v as { schedule?: string }).schedule ??
+              'Weekday') as HabitConfig['schedule'],
+          },
         ]),
       );
       setHabitConfigs(reconstituted);

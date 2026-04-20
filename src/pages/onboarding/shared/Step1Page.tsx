@@ -85,7 +85,8 @@ export function Step1Page() {
     <OnboardingLayout
       currentStep={1}
       totalSteps={7}
-      ctaLabel="Let's Begin"
+      ctaLabel="Continue"
+      onBack={() => navigate('/onboarding/ai-coach-intro')}
       onNext={handleNext}
       ctaDisabled={!nickname.trim() || !age || !gender || !referralSource}
       showVoiceButton

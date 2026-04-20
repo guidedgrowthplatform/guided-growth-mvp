@@ -54,13 +54,13 @@ const VOICE_LINES = [
   },
   {
     file_id: 'onboarding_experience',
-    text: "Great! Now, have you tried building habits before? Are you new to this, or have you been at it for a while?",
+    text: 'Great! Now, have you tried building habits before? Are you new to this, or have you been at it for a while?',
     screen: 'onboarding/step2',
     trigger: 'screen_load',
   },
   {
     file_id: 'onboarding_focus_area',
-    text: "What area of your life do you want to focus on first? Things like sleep, fitness, mindfulness, or productivity.",
+    text: 'What area of your life do you want to focus on first? Things like sleep, fitness, mindfulness, or productivity.',
     screen: 'onboarding/step3',
     trigger: 'screen_load',
   },
@@ -72,13 +72,13 @@ const VOICE_LINES = [
   },
   {
     file_id: 'onboarding_habit_pick',
-    text: "Based on what you told me, here are a few habits that could work. Pick the one that feels right.",
+    text: 'Based on what you told me, here are a few habits that could work. Pick the one that feels right.',
     screen: 'onboarding/step5',
     trigger: 'screen_load',
   },
   {
     file_id: 'onboarding_reflection',
-    text: "One more thing — do you want to do a quick daily reflection each evening? It takes under a minute and really helps.",
+    text: 'One more thing — do you want to do a quick daily reflection each evening? It takes under a minute and really helps.',
     screen: 'onboarding/step6',
     trigger: 'screen_load',
   },
@@ -98,7 +98,7 @@ const VOICE_LINES = [
   },
   {
     file_id: 'dashboard_evening',
-    text: "How was today? Take a moment to reflect on what went well.",
+    text: 'How was today? Take a moment to reflect on what went well.',
     screen: 'dashboard',
     trigger: 'screen_load',
   },
@@ -106,7 +106,7 @@ const VOICE_LINES = [
   // Habit completion
   {
     file_id: 'habit_complete_1',
-    text: "Nice work! One more down. Keep that momentum going.",
+    text: 'Nice work! One more down. Keep that momentum going.',
     screen: 'habit_detail',
     trigger: 'on_complete',
   },

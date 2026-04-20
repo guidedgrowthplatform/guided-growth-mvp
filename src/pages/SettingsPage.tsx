@@ -64,7 +64,9 @@ export function SettingsPage() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const qc = useQueryClient();
-  const onboardingState = qc.getQueryData<{ data?: { nickname?: string } }>(queryKeys.onboarding.state);
+  const onboardingState = qc.getQueryData<{ data?: { nickname?: string } }>(
+    queryKeys.onboarding.state,
+  );
   const profileNickname = user?.nickname || (onboardingState?.data?.nickname as string) || null;
 
   // Load voices with polling for Android

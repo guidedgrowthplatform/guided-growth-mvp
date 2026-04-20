@@ -86,7 +86,11 @@ export function HomePage() {
   return (
     <>
       <div className="space-y-6 pb-8 pt-2">
-        <HomeHeader userName={displayName} isFirstVisit={fromOnboarding} onPlusClick={() => navigate('/add-habit')} />
+        <HomeHeader
+          userName={displayName}
+          isFirstVisit={fromOnboarding}
+          onPlusClick={() => navigate('/add-habit')}
+        />
         <DateStrip
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
