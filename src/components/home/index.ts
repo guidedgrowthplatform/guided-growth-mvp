@@ -4,7 +4,7 @@ export { CheckInCard } from './CheckInCard';
 export { HabitsSection } from './HabitsSection';
 export { HabitListItem } from './HabitListItem';
 export { FeedbackButton } from './FeedbackButton';
-export { MuteToggle } from './MuteToggle';
+export { OpenChatButton } from './OpenChatButton';
 export { FeedbackSheet } from './FeedbackSheet';
 export { SectionHeader } from './SectionHeader';
 export { IconCircleButton } from './IconCircleButton';

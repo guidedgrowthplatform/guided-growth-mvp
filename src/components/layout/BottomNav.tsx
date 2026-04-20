@@ -1,5 +1,10 @@
 import { Icon } from '@iconify/react';
 import { Link, useLocation } from 'react-router-dom';
+import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
+import { DualButton } from '@/components/ui/DualButton';
+import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+import { useVoiceStore } from '@/stores/voiceStore';
 
 interface NavTabProps {
   icon: string;
@@ -32,11 +37,10 @@ function NavBarBackground() {
       <path
         d="
           M0 16 C0 6, 6 0, 16 0
-          L148 0
-          C154 0, 158 2, 161 8
-          A 38 38 0 0 0 200 42
-          A 38 38 0 0 0 239 8
-          C242 2, 246 0, 252 0
+          L140 0
+          C146 0, 148 2, 150 8
+          A 50 46 0 0 0 250 8
+          C252 2, 254 0, 260 0
           L384 0
           C394 0, 400 6, 400 16
           L400 80 L0 80 Z
@@ -47,17 +51,29 @@ function NavBarBackground() {
   );
 }
 
-interface BottomNavProps {
-  onVoicePress?: () => void;
-}
-
-export function BottomNav({ onVoicePress }: BottomNavProps) {
+export function BottomNav() {
   const location = useLocation();
+  const ttsEnabled = useVoiceSettingsStore((s) => s.ttsEnabled);
+  const setTtsEnabled = useVoiceSettingsStore((s) => s.setTtsEnabled);
+  const micEnabled = useVoiceSettingsStore((s) => s.micEnabled);
+  const setMicEnabled = useVoiceSettingsStore((s) => s.setMicEnabled);
+  const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
+  const isListening = useVoiceStore((s) => s.isListening);
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/' || location.pathname === '/home';
     return location.pathname === path;
   };
+
+  const activeRings = isSpeaking ? 'left' : isListening ? 'right' : null;
+
+  const handleLeftToggle = () => {
+    const next = !ttsEnabled;
+    if (!next) stopTTS();
+    setTtsEnabled(next);
+  };
+
+  const handleRightToggle = () => setMicEnabled(!micEnabled);
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
@@ -65,13 +81,20 @@ export function BottomNav({ onVoicePress }: BottomNavProps) {
         <div className="relative" style={{ height: '72px' }}>
           <NavBarBackground />
 
-          <div className="absolute left-1/2 z-50 -translate-x-1/2" style={{ top: '-24px' }}>
-            <button
-              onClick={onVoicePress}
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dark shadow-[0px_0px_15px_rgb(var(--color-primary)/0.3)]"
-            >
-              <Icon icon="ic:round-mic" width={24} className="text-white" />
-            </button>
+          <div className="absolute left-1/2 top-0 z-50 -translate-x-1/2 -translate-y-1/2">
+            <DualButton
+              size={91}
+              leftIcon={ttsEnabled ? <IconChatVoice size={24} /> : <IconChatText size={24} />}
+              rightIcon={micEnabled ? <IconMic size={24} /> : <IconMicMuted size={24} />}
+              leftActive={ttsEnabled}
+              rightActive={micEnabled}
+              onLeftClick={handleLeftToggle}
+              onRightClick={handleRightToggle}
+              ariaLabel="Voice controls"
+              leftAriaLabel={ttsEnabled ? 'Mute AI voice' : 'Unmute AI voice'}
+              rightAriaLabel={micEnabled ? 'Disable microphone' : 'Enable microphone'}
+              activeRings={activeRings}
+            />
           </div>
 
           <div className="relative grid h-full grid-cols-5 items-end px-6 pb-2">

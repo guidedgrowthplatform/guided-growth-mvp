@@ -4,7 +4,7 @@ export function TypingIndicator() {
       <div className="mb-1.5 flex items-center gap-1.5 pl-1">
         <div className="h-2 w-2 rounded-full bg-[#135bec]" />
         <span className="text-[12px] font-semibold tracking-[1.2px] text-[#135bec]">
-          AI ASSISTANT
+          GUIDED GROWTH COACH
         </span>
       </div>
       <div className="flex items-center gap-1.5 rounded-bl-2xl rounded-br-2xl rounded-tr-2xl border border-[rgba(19,91,236,0.2)] bg-[rgba(19,91,236,0.5)] px-5 py-5 backdrop-blur-[6px]">

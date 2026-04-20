@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVoice } from '@/hooks/useVoice';
 import { stopTTS } from '@/lib/services/tts-service';
 import { useCommandStore } from '@/stores/commandStore';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { useVoiceCommand } from './useVoiceCommand';
 import { useVoiceInput } from './useVoiceInput';
@@ -77,12 +78,25 @@ export function useVoiceChat(userName?: string) {
     hasSpokenGreeting.current = true;
   }, []);
 
+  useEffect(() => {
+    const store = useVoiceSettingsStore.getState();
+    const prevMode = store.recordingMode;
+    if (prevMode !== 'always-on') store.setRecordingMode('always-on');
+    return () => {
+      if (prevMode !== 'always-on') {
+        useVoiceSettingsStore.getState().setRecordingMode(prevMode);
+      }
+    };
+  }, []);
+
   // Process transcript when recording stops and transcript is available
   useEffect(() => {
     if (!transcript || transcript === lastHandledTranscript.current) return;
     if (isListening) return;
 
     lastHandledTranscript.current = transcript;
+
+    stopTTS();
 
     // Add the user's message bubble
     setMessages((prev) => [

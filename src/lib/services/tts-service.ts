@@ -1,6 +1,17 @@
 import { Capacitor } from '@capacitor/core';
+import { create } from 'zustand';
 import { supabase, sessionReady } from '@/lib/supabase';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+
+export const useTtsPlaybackStore = create<{ isSpeaking: boolean }>(() => ({
+  isSpeaking: false,
+}));
+
+function setSpeaking(value: boolean) {
+  if (useTtsPlaybackStore.getState().isSpeaking !== value) {
+    useTtsPlaybackStore.setState({ isSpeaking: value });
+  }
+}
 
 const VOICE_PREF_KEY = 'mvp03_tts_voice';
 
@@ -98,6 +109,7 @@ export function stopTTS(): void {
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }
+  setSpeaking(false);
 }
 
 /**
@@ -118,13 +130,19 @@ async function playAudioFromResponse(
     audio.onended = () => {
       URL.revokeObjectURL(audioUrl);
       currentAudio = null;
+      setSpeaking(false);
       resolve();
     };
     audio.onerror = (e) => {
       URL.revokeObjectURL(audioUrl);
+      setSpeaking(false);
       reject(e);
     };
-    audio.play().catch(reject);
+    setSpeaking(true);
+    audio.play().catch((err) => {
+      setSpeaking(false);
+      reject(err);
+    });
   });
 
   return true;
@@ -305,8 +323,10 @@ function speakBrowser(
       clearInterval(resumeInterval);
       resumeInterval = null;
     }
+    setSpeaking(false);
   };
 
+  utterance.onstart = () => setSpeaking(true);
   utterance.onend = cleanup;
   utterance.onerror = cleanup;
 
