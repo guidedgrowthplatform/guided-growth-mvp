@@ -110,17 +110,23 @@ async def get_user_context(
         return "Cannot access user data. Speak generally without referencing specifics."
 
     try:
-        # Profile
+        # Identity fields live on profiles (keyed by id = auth.user.id)
         profile_res = (
-            sb.table("user_profiles")
-            .select("nickname, coaching_style, voice_mode")
-            .eq("id", user_id)
-            .single()
-            .execute()
+            sb.table("profiles").select("nickname").eq("id", user_id).maybeSingle().execute()
         )
         profile = profile_res.data or {}
-        nickname = profile.get("nickname", "there")
-        style = profile.get("coaching_style", "warm")
+        nickname = profile.get("nickname") or "there"
+
+        # Voice + coaching preferences live on user_preferences (keyed by user_id)
+        prefs_res = (
+            sb.table("user_preferences")
+            .select("coaching_style, voice_mode")
+            .eq("user_id", user_id)
+            .maybeSingle()
+            .execute()
+        )
+        prefs = prefs_res.data or {}
+        style = prefs.get("coaching_style") or "warm"
 
         # Habits with streaks
         habits_res = (
@@ -431,27 +437,39 @@ async def update_profile(
 ) -> str:
     """Update the user's profile fields outside of ONBOARD-01.
     Only pass fields the user explicitly asked to change. Empty strings
-    are ignored. Persists to user_profiles."""
-    updates: dict[str, str] = {}
+    are ignored. Nickname writes to `profiles` (identity); coaching_style
+    and voice_mode write to `user_preferences` (settings)."""
+    profile_updates: dict[str, str] = {}
+    pref_updates: dict[str, str] = {}
     if nickname:
-        updates["nickname"] = nickname
+        profile_updates["nickname"] = nickname
     if coaching_style in ("warm", "direct", "reflective"):
-        updates["coaching_style"] = coaching_style
+        pref_updates["coaching_style"] = coaching_style
     if voice_mode in ("voice", "screen", "always_ask"):
-        updates["voice_mode"] = voice_mode
+        pref_updates["voice_mode"] = voice_mode
 
-    if not updates or not user_id:
+    if (not profile_updates and not pref_updates) or not user_id:
         return "No profile changes to apply."
 
     sb = _get_supabase()
     if not sb:
-        return f"Cannot save profile changes right now: {updates}."
+        return f"Cannot save profile changes right now: {profile_updates} {pref_updates}."
 
     try:
-        sb.table("user_profiles").update(
-            {**updates, "updated_at": datetime.utcnow().isoformat()}
-        ).eq("id", user_id).execute()
-        summary = ", ".join(f"{k}={v}" for k, v in updates.items())
+        if profile_updates:
+            sb.table("profiles").update(profile_updates).eq("id", user_id).execute()
+        if pref_updates:
+            sb.table("user_preferences").upsert(
+                {
+                    "user_id": user_id,
+                    **pref_updates,
+                    "updated_at": datetime.utcnow().isoformat(),
+                },
+                on_conflict="user_id",
+            ).execute()
+        summary = ", ".join(
+            f"{k}={v}" for k, v in {**profile_updates, **pref_updates}.items()
+        )
         return f"Profile updated: {summary}."
     except Exception as e:
-        return f"Failed to update profile ({updates}): {e}."
+        return f"Failed to update profile: {e}."
