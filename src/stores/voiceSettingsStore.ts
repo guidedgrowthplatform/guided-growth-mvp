@@ -10,6 +10,7 @@ interface VoiceSettings {
   recordingMode: RecordingMode;
   selectedVoiceName: string | null;
   ttsEnabled: boolean;
+  micEnabled: boolean;
 }
 
 interface VoiceSettingsState extends VoiceSettings {
@@ -18,6 +19,7 @@ interface VoiceSettingsState extends VoiceSettings {
   setRecordingMode: (mode: RecordingMode) => void;
   setSelectedVoiceName: (name: string | null) => void;
   setTtsEnabled: (enabled: boolean) => void;
+  setMicEnabled: (enabled: boolean) => void;
   setSttProvider: (provider: SttProvider) => void;
   loadSettings: () => void;
 }
@@ -26,6 +28,7 @@ const DEFAULTS: VoiceSettings = {
   recordingMode: 'auto-stop',
   selectedVoiceName: null,
   ttsEnabled: true,
+  micEnabled: true,
 };
 
 const VALID_RECORDING_MODES: readonly RecordingMode[] = ['auto-stop', 'always-on'];
@@ -43,6 +46,7 @@ function parseStoredSettings(raw: string | null): VoiceSettings {
       recordingMode,
       selectedVoiceName: parsed.selectedVoiceName || DEFAULTS.selectedVoiceName,
       ttsEnabled: parsed.ttsEnabled ?? DEFAULTS.ttsEnabled,
+      micEnabled: parsed.micEnabled ?? DEFAULTS.micEnabled,
     };
   } catch {
     return { ...DEFAULTS };
@@ -74,20 +78,26 @@ export const useVoiceSettingsStore = create<VoiceSettingsState>((set, get) => ({
 
   setRecordingMode: (mode) => {
     set({ recordingMode: mode });
-    const { selectedVoiceName, ttsEnabled } = get();
-    saveToStorage({ recordingMode: mode, selectedVoiceName, ttsEnabled });
+    const { selectedVoiceName, ttsEnabled, micEnabled } = get();
+    saveToStorage({ recordingMode: mode, selectedVoiceName, ttsEnabled, micEnabled });
   },
 
   setSelectedVoiceName: (name) => {
     set({ selectedVoiceName: name });
-    const { recordingMode, ttsEnabled } = get();
-    saveToStorage({ recordingMode, selectedVoiceName: name, ttsEnabled });
+    const { recordingMode, ttsEnabled, micEnabled } = get();
+    saveToStorage({ recordingMode, selectedVoiceName: name, ttsEnabled, micEnabled });
   },
 
   setTtsEnabled: (enabled) => {
     set({ ttsEnabled: enabled });
-    const { recordingMode, selectedVoiceName } = get();
-    saveToStorage({ recordingMode, selectedVoiceName, ttsEnabled: enabled });
+    const { recordingMode, selectedVoiceName, micEnabled } = get();
+    saveToStorage({ recordingMode, selectedVoiceName, ttsEnabled: enabled, micEnabled });
+  },
+
+  setMicEnabled: (enabled) => {
+    set({ micEnabled: enabled });
+    const { recordingMode, selectedVoiceName, ttsEnabled } = get();
+    saveToStorage({ recordingMode, selectedVoiceName, ttsEnabled, micEnabled: enabled });
   },
 
   setSttProvider: () => {

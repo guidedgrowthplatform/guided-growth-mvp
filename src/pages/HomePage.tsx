@@ -8,7 +8,6 @@ import {
   QuickActionCards,
   HabitsSection,
   FeedbackButton,
-  MuteToggle,
   FeedbackSheet,
   ReminderSheet,
 } from '@/components/home';
@@ -114,10 +113,8 @@ export function HomePage() {
         <HabitsSection selectedDate={selectedDate} />
       </div>
 
-      {/* Feedback & Mute — Above Bottom Nav */}
-      <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-6 z-40 flex items-center gap-2">
+      <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-6 z-20">
         <FeedbackButton onPress={() => setShowFeedback(true)} />
-        <MuteToggle />
       </div>
 
       {showFeedback && <FeedbackSheet onClose={() => setShowFeedback(false)} />}
