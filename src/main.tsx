@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { InputMethodProvider } from '@/contexts/InputMethodContext';
 import { supabase } from '@/lib/supabase';
 import App from './App';
 import { initAnalytics } from './lib/analytics';
@@ -86,6 +87,8 @@ if (Capacitor.isNativePlatform()) {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <InputMethodProvider>
+      <App />
+    </InputMethodProvider>
   </React.StrictMode>,
 );
