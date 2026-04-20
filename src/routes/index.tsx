@@ -5,7 +5,6 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useAppGate } from '@/hooks/useAppGate';
 import { usePageTracking } from '@/hooks/usePageTracking';
-import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { AppGate } from './AppGate';
 
 const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })));
@@ -92,18 +91,11 @@ function PageLoader() {
 
 function OnboardingEntry() {
   const gate = useAppGate();
-  const { preferences, isLoading } = useUserPreferences();
-  if (gate.status === 'loading' || isLoading) return <LoadingScreen />;
+  if (gate.status === 'loading') return <LoadingScreen />;
   if (gate.status === 'ready') return <Navigate to="/" replace />;
-  if (preferences.voiceEnabled === undefined)
-    return <Navigate to="/onboarding/voice-preference" replace />;
-  if (preferences.micGranted === undefined)
-    return <Navigate to="/onboarding/mic-permission" replace />;
-  if (preferences.aiCoachIntroSeen !== true)
-    return <Navigate to="/onboarding/ai-coach-intro" replace />;
   if (gate.status === 'onboarding_in_progress')
     return <Navigate to={`/onboarding/step-${gate.step}`} replace />;
-  return <Navigate to="/onboarding/step-1" replace />;
+  return <Navigate to="/onboarding/voice-preference" replace />;
 }
 
 function AppLayout() {

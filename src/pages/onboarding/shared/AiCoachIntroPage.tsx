@@ -6,14 +6,9 @@ import { useUserPreferences } from '@/hooks/useUserPreferences';
 
 export function AiCoachIntroPage() {
   const navigate = useNavigate();
-  const { preferences, updatePreference } = useUserPreferences();
+  const { preferences } = useUserPreferences();
   const voiceEnabled = preferences.voiceEnabled === true;
   const micGranted = preferences.micGranted === true;
-
-  const handleReady = async () => {
-    await updatePreference('aiCoachIntroSeen', true);
-    navigate('/onboarding');
-  };
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[max(32px,env(safe-area-inset-bottom))] pt-[max(16px,env(safe-area-inset-top))]">
@@ -57,14 +52,14 @@ export function AiCoachIntroPage() {
       <div className="flex flex-col items-center gap-[12px]">
         <button
           type="button"
-          onClick={handleReady}
+          onClick={() => navigate('/onboarding/step-1')}
           className="flex h-[56px] w-full items-center justify-center rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
         >
           I&apos;m ready
         </button>
         <button
           type="button"
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/onboarding/step-1')}
           className="py-[8px] text-[15px] font-semibold text-content"
         >
           Come back later

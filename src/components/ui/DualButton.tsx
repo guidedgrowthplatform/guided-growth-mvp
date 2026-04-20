@@ -43,7 +43,7 @@ export function DualButton({
   const dial = (
     <div
       className={[
-        'relative inline-block shrink-0 overflow-hidden rounded-full border border-black/20',
+        'relative inline-block shrink-0 overflow-hidden rounded-full',
         !rings && className,
       ]
         .filter(Boolean)

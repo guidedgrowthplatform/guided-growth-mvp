@@ -11,7 +11,6 @@ export interface UserPreferences {
   pushNotifications: boolean;
   voiceEnabled?: boolean;
   micGranted?: boolean;
-  aiCoachIntroSeen?: boolean;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -68,8 +67,6 @@ export function useUserPreferences() {
         if (data?.preferences_json) {
           const merged = { ...DEFAULT_PREFERENCES, ...data.preferences_json };
           setPreferences(merged);
-        } else {
-          setPreferences(DEFAULT_PREFERENCES);
         }
       } catch (err) {
         if (!cancelled) {

@@ -16,15 +16,14 @@ export function MicPermissionPage() {
   const handleAllow = async () => {
     if (requesting) return;
     setRequesting(true);
-    let granted = false;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((t) => t.stop());
-      granted = true;
     } catch {
-      // granted stays false
+      // User tapped Allow — intent is explicit. OS may still prompt or deny
+      // separately; we surface that at the point of actual use.
     }
-    await updatePreference('micGranted', granted);
+    await updatePreference('micGranted', true);
     goNext();
   };
 
