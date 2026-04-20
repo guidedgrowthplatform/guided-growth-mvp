@@ -23,14 +23,13 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
 
   const micEnabled = useVoiceSettingsStore((s) => s.micEnabled);
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
-  const isListening = voiceState === 'listening';
 
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
 
   useEffect(() => {
     scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+  }, [messages.length, voiceState]);
 
   useEffect(() => {
     if (micEnabled && voiceState === 'idle') {
@@ -46,22 +45,24 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
     onClose();
   }, [stopListening, onClose]);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     touchStartY.current = e.touches[0].clientY;
   };
-  const handleTouchEnd = (e: React.TouchEvent) => {
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     if (touchStartY.current === null) return;
     const deltaY = e.changedTouches[0].clientY - touchStartY.current;
-    if (deltaY > 100) handleClose();
+    const scrollTop = e.currentTarget.scrollTop;
+    if (deltaY > 100 && scrollTop <= 0) handleClose();
     touchStartY.current = null;
   };
 
   const gradientStyle: React.CSSProperties = {
     backgroundImage: isSpeaking
       ? 'linear-gradient(to bottom, rgba(97,111,137,0.55), rgba(97,111,137,0.65), rgba(97,111,137,0.75), rgba(19,91,236,0.9))'
-      : isListening
+      : micEnabled
         ? 'linear-gradient(to bottom, rgba(246,246,246,0.45), rgba(81,81,81,0.55), rgba(167,144,52,0.75), rgba(253,208,23,0.9))'
         : 'linear-gradient(to bottom, rgba(148,163,184,0.2), rgba(203,213,225,0.15), rgba(241,245,249,0.1))',
+    transition: 'background-image 300ms ease-out',
   };
 
   return (
