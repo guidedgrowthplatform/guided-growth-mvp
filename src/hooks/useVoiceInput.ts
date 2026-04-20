@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { startRecording, stopAndTranscribe, stopRecording } from '@/lib/services/stt-service';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 /**
@@ -55,6 +56,7 @@ export function useVoiceInput() {
   const isStoppingRef = useRef(false);
 
   const start = useCallback(async () => {
+    if (!useVoiceSettingsStore.getState().micEnabled) return;
     // Reset stuck state from previous failed session
     isStoppingRef.current = false;
 

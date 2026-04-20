@@ -61,8 +61,13 @@ export default {
         'ripple-slow': 'rippleSlow 3s ease-in-out infinite',
         'ripple-med': 'rippleSlow 3s ease-in-out infinite 0.6s',
         'ripple-fast': 'rippleSlow 3s ease-in-out infinite 1.2s',
+        'ring-pulse': 'ringPulse 1.8s ease-in-out infinite',
       },
       keyframes: {
+        ringPulse: {
+          '0%, 100%': { transform: 'scale(1)', opacity: 'var(--ring-opacity, 1)' },
+          '50%': { transform: 'scale(1.05)', opacity: 'calc(var(--ring-opacity, 1) * 0.5)' },
+        },
         rippleSlow: {
           '0%, 100%': { transform: 'scale(1)', opacity: 'var(--ripple-opacity, 0.6)' },
           '50%': { transform: 'scale(1.04)', opacity: 'calc(var(--ripple-opacity, 0.6) * 0.7)' },

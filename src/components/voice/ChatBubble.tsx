@@ -17,7 +17,7 @@ export function ChatBubble({ role, text, userName, animate = true }: ChatBubbleP
             isUser ? 'text-[rgba(255,255,255,0.4)]' : 'pl-[8px] text-[#135bec]'
           }`}
         >
-          {isUser ? userName || 'YOU' : 'AI ASSISTANT'}
+          {isUser ? userName || 'YOU' : 'GUIDED GROWTH COACH'}
         </span>
       </div>
 
@@ -32,8 +32,8 @@ export function ChatBubble({ role, text, userName, animate = true }: ChatBubbleP
           <p
             className={
               isUser
-                ? 'text-[18px] font-medium leading-[29.25px] text-[#282828]'
-                : 'text-[20px] font-semibold leading-[27.5px] text-white'
+                ? 'text-[16px] font-normal leading-[23px] text-[#282828]'
+                : 'text-[16px] font-normal leading-[23px] text-white'
             }
           >
             {text}
