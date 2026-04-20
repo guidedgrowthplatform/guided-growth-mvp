@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 import { supabase } from '@/lib/supabase';
 import App from './App';
 import { initAnalytics } from './lib/analytics';
+import { trackOpenApp } from './lib/openAppTracking';
 import { initSentry } from './lib/sentry';
 import './index.css';
 
@@ -11,6 +12,7 @@ export let deepLinkAuthError: string | null = null;
 
 initSentry();
 initAnalytics();
+trackOpenApp(Capacitor.isNativePlatform() ? Capacitor.getPlatform() : 'web');
 
 // Disable pinch-to-zoom only in native Capacitor shell
 if (Capacitor.isNativePlatform()) {
