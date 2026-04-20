@@ -169,6 +169,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   const streamRef = useRef<MediaStream | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const streamIdRef = useRef<string>('');
   const nextPlayTimeRef = useRef<number>(0);
@@ -373,6 +374,12 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
                 src.start(startAt);
                 nextPlayTimeRef.current = startAt + buf.duration;
 
+                // Track so we can cut it if the user interrupts mid-playback
+                activeSourcesRef.current.push(src);
+                src.onended = () => {
+                  activeSourcesRef.current = activeSourcesRef.current.filter((s) => s !== src);
+                };
+
                 if (state !== 'speaking') {
                   setState('speaking');
                   transition('speaking');
@@ -398,6 +405,32 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
                 setState('speaking');
                 setAiTranscript(text);
                 onTranscriptCb?.(text);
+              }
+            }
+
+            // Interruption: user started talking while the agent was
+            // speaking. Stop any queued/playing TTS chunks immediately so
+            // the two voices don't overlap. Backend cancel_filter already
+            // cancels the LLM turn — this just clears the local audio queue.
+            if (
+              eventType === 'user_transcript' ||
+              eventType === 'user_text_sent' ||
+              eventType === 'user_turn_started'
+            ) {
+              for (const src of activeSourcesRef.current) {
+                try {
+                  src.stop();
+                } catch {
+                  /* source may already be ended */
+                }
+              }
+              activeSourcesRef.current = [];
+              if (audioCtxRef.current) {
+                nextPlayTimeRef.current = audioCtxRef.current.currentTime;
+              }
+              if (playTimerRef.current) {
+                clearTimeout(playTimerRef.current);
+                playTimerRef.current = null;
               }
             }
 
