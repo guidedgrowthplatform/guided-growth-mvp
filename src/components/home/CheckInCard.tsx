@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
+import { track } from '@/lib/analytics';
 import { speak, stopTTS } from '@/lib/services/tts-service';
 import type { CheckInData, CheckInDimension } from '@shared/types';
 import { checkInDimensions } from './checkInConfig';
@@ -77,6 +78,14 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   const { addToast } = useToast();
   const [values, setValues] = useState<CheckInValues>(emptyValues);
 
+  const completedRef = useRef(false);
+  const mountTimeRef = useRef<number>(0);
+  const valuesRef = useRef<CheckInValues>(emptyValues);
+
+  useEffect(() => {
+    valuesRef.current = values;
+  }, [values]);
+
   // TTS greeting — ref guard prevents React StrictMode double-fire
   const hasSpoken = useRef(false);
   useEffect(() => {
@@ -90,6 +99,26 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
     }
     return () => {
       stopTTS();
+    };
+  }, []);
+
+  // Abandon tracking — if unmount without submit, fire abandon_checkin
+  useEffect(() => {
+    mountTimeRef.current = Date.now();
+    const start = mountTimeRef.current;
+    return () => {
+      if (!completedRef.current) {
+        const v = valuesRef.current;
+        const filled = [v.sleep, v.mood, v.energy, v.stress].filter((x) => x !== null).length;
+        if (filled > 0) {
+          const hour = new Date().getHours();
+          track('abandon_checkin', {
+            checkin_type: hour < 15 ? 'morning' : 'evening',
+            fields_completed: filled,
+            time_spent_seconds: Math.round((Date.now() - start) / 1000),
+          });
+        }
+      }
     };
   }, []);
 
@@ -113,8 +142,18 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   const handleCheckIn = async () => {
     try {
       await save(values);
-      // TTS coaching response per Voice Journey Spreadsheet v3 (line 386-392)
+      completedRef.current = true;
       const hour = new Date().getHours();
+      track('complete_checkin', {
+        checkin_type: hour < 15 ? 'morning' : 'evening',
+        sleep_quality: values.sleep,
+        mood: values.mood,
+        energy_level: values.energy,
+        stress_level: values.stress,
+        duration_seconds: Math.round((Date.now() - mountTimeRef.current) / 1000),
+        is_update: Boolean(checkIn),
+      });
+      // TTS coaching response per Voice Journey Spreadsheet v3 (line 386-392)
       if (hour < 15) {
         // Morning coaching
         speak("Got it \u2014 logged. You've got this today.");
