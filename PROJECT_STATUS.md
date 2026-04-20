@@ -60,12 +60,12 @@ User speaks
 - **⚠️ Author restriction**: commits by `imsaidm` blocked — need Alejandro to add to team
 - **Production URL**: `guided-growth-mvp.vercel.app`
 
-## STT Decision
+## STT Decision (MVP)
 
-**Winner: Whisper.cpp** (best speed/accuracy balance)
+**Winner: Cartesia Ink** (single-provider MVP for fastest integration)
 
 - Fallback: Web Speech API (free, browser-native)
-- Alternative: Deepgram (fastest, paid)
+- Phase 3: Reintroduce Deepgram as part of the custom voice stack
 
 ## Next Steps
 

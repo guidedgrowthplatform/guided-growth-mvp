@@ -6,6 +6,8 @@ import { getClientIp } from './_lib/validation.js';
 // Katie (female) — same voice used for MP3 generation
 const DEFAULT_VOICE_ID = 'f786b574-daa5-4673-aa0c-cbe3e8534c02';
 
+type TtsProvider = 'cartesia' | 'elevenlabs';
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   if (req.method !== 'POST') {
@@ -34,6 +36,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     if (rl.limited)
       return res.status(429).json({ error: 'Too many requests', retryAfter: rl.retryAfter });
+  }
+
+  const provider = (process.env.TTS_PROVIDER || 'cartesia') as TtsProvider;
+  if (provider !== 'cartesia' && provider !== 'elevenlabs') {
+    return res.status(500).json({ error: 'Invalid TTS_PROVIDER', fallback: true });
+  }
+  if (provider === 'elevenlabs') {
+    // MVP: Cartesia-only. ElevenLabs returns in Phase 3 (custom voice stack).
+    return res.status(501).json({ error: 'ElevenLabs TTS disabled in MVP', fallback: true });
   }
 
   const apiKey = process.env.CARTESIA_API_KEY;

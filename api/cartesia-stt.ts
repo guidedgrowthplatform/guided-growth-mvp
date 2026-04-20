@@ -9,6 +9,44 @@ export const config = {
   },
 };
 
+type SttProvider = 'cartesia' | 'deepgram';
+
+async function transcribeWithCartesia(params: {
+  apiKey: string;
+  fileData: Buffer;
+  filename: string;
+  language: string;
+  model: string;
+}): Promise<{ text: string }> {
+  const { apiKey, fileData, filename, language, model } = params;
+
+  // @ts-expect-error Node fetch + Blob accepts Buffer but TS complains
+  const blob = new Blob([fileData], { type: 'audio/wav' });
+  const fd = new FormData();
+  fd.append('file', blob, filename);
+  fd.append('model', model);
+  fd.append('language', language);
+
+  const sttRes = await fetch('https://api.cartesia.ai/stt', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Cartesia-Version': '2026-03-01',
+    },
+    body: fd,
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!sttRes.ok) {
+    const errText = await sttRes.text().catch(() => '');
+    console.error('[STT] Cartesia error:', sttRes.status, errText);
+    throw new Error(`Cartesia STT failed (${sttRes.status})`);
+  }
+
+  const json = (await sttRes.json()) as { text?: string };
+  return { text: json.text || '' };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
 
@@ -34,9 +72,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'STT API not configured' });
+  const provider = (process.env.STT_PROVIDER || 'cartesia') as SttProvider;
+  if (provider !== 'cartesia' && provider !== 'deepgram') {
+    return res.status(500).json({ error: 'Invalid STT_PROVIDER' });
+  }
+
+  const cartesiaKey = process.env.CARTESIA_API_KEY;
+  if (!cartesiaKey && provider === 'cartesia') {
+    return res.status(500).json({ error: 'Cartesia STT not configured' });
   }
 
   try {
@@ -94,29 +137,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'No audio file found' });
     }
 
-    // Build FormData for OpenAI Whisper (Node 18+)
-    // Disable TS checking for standard web APIs that conflict with Buffer
-    // @ts-expect-error Node fetch + Blob perfectly accepts Buffer but TS complains
-    const blob = new Blob([fileData], { type: 'audio/wav' });
-    const fd = new FormData();
-    fd.append('file', blob, filename);
-    fd.append('model', 'whisper-1');
-    fd.append('language', 'en');
-
-    const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: fd,
-    });
-
-    if (!whisperRes.ok) {
-      const errText = await whisperRes.text();
-      console.error('[STT] Whisper error:', whisperRes.status, errText);
-      return res.status(whisperRes.status).json({ error: 'Transcription failed' });
+    if (provider === 'deepgram') {
+      // Phase 3: custom voice stack reintroduces Deepgram STT.
+      return res.status(501).json({ error: 'Deepgram STT disabled in MVP (Phase 3)' });
     }
 
-    const { text } = (await whisperRes.json()) as { text?: string };
-    return res.status(200).json({ text: text || '' });
+    const language = process.env.CARTESIA_STT_LANGUAGE || 'en';
+    const model = process.env.CARTESIA_STT_MODEL || 'ink-whisper';
+
+    const { text } = await transcribeWithCartesia({
+      apiKey: cartesiaKey!,
+      fileData,
+      filename,
+      language,
+      model,
+    });
+
+    return res.status(200).json({ text });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[STT] Error:', err);

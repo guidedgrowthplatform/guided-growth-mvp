@@ -1,4 +1,4 @@
-// STT recording service — captures mic audio, encodes WAV, sends to Cartesia Ink / OpenAI Whisper
+// STT recording service — captures mic audio, encodes WAV, sends to Cartesia Ink
 import { Capacitor } from '@capacitor/core';
 import { supabase, sessionReady } from '@/lib/supabase';
 
@@ -84,7 +84,7 @@ async function resampleAudio(
  *   0.02+     — close-talking speech
  *
  * Used to reject empty/silent recordings BEFORE sending them to
- * the STT API. Whisper hallucinates long, unrelated text
+ * the STT API. Some STT models hallucinate long, unrelated text
  * when it receives silence — e.g. the user sees a transcript about
  * real estate because the model filled in training-data noise.
  * This is the bug Alejandro screenshotted on 2026-04-09.
@@ -101,7 +101,7 @@ function computeRms(samples: Float32Array): number {
 /**
  * Heuristic: did the STT service return hallucinated text?
  *
- * Scribe/Whisper hallucinations tend to be long runs of fluent but
+ * Ink/Whisper-style hallucinations tend to be long runs of fluent but
  * unrelated text when the audio was too quiet or was silence. If the
  * audio was short (<2s) and the transcript came back with more than
  * ~40 words, something is wrong — a short utterance can't have that
@@ -119,7 +119,7 @@ function looksHallucinated(transcript: string, audioDurationSeconds: number): bo
   const maxReasonableWords = Math.ceil(audioDurationSeconds * 4) + 3;
   if (wordCount > maxReasonableWords) return true;
 
-  // Known Whisper/Scribe hallucination phrases. These show up when the
+  // Known STT hallucination phrases. These show up when the
   // model is fed silence or pure noise. Not exhaustive — matched loose
   // to catch variants.
   const hallucinationPatterns = [
@@ -419,7 +419,7 @@ export async function stopAndTranscribe(): Promise<string> {
       offset += chunk.length;
     }
 
-    // Silence gate. Whisper hallucinates long runs of fluent
+    // Silence gate. Some STT models hallucinate long runs of fluent
     // unrelated text when it receives silence or pure noise (the
     // real-estate-sales-pitch screenshot from Alejandro on 2026-04-09
     // was this bug). Reject obviously-silent audio BEFORE sending to
@@ -444,10 +444,9 @@ export async function stopAndTranscribe(): Promise<string> {
 
     const form = new FormData();
     form.append('file', wavBlob, 'recording.wav');
-    form.append('model_id', 'scribe_v1');
-    form.append('language_code', 'en');
-    form.append('tag_audio_events', 'false');
-    form.append('diarize', 'false');
+    // Sent to /api/cartesia-stt which proxies to Cartesia Ink batch STT.
+    form.append('model', 'ink-whisper');
+    form.append('language', 'en');
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -481,7 +480,7 @@ export async function stopAndTranscribe(): Promise<string> {
     const data = await res.json();
     const text = (data.text || '').trim();
 
-    // Hallucination guard. Scribe/Whisper sometimes return long runs
+    // Hallucination guard. Some STT models sometimes return long runs
     // of unrelated text when the audio was quiet or noisy even after
     // passing the RMS gate. Compare word count against audio duration
     // and look for known hallucination phrases. If we detect one, tell
