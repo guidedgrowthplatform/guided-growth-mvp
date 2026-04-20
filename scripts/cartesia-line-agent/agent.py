@@ -3,16 +3,23 @@
 # Deploy with `cartesia deploy` when you have upgrading to the Cartesia Startup plan.
 
 import os
-from typing import TypedDict
+from typing import Optional, TypedDict
 import line
-import json
-import requests
 from supabase import create_client
 
 # -- Configuration --
 # (Normally loaded from Cartesia agent environment overrides during cartesia deploy)
-SUPABASE_URL = os.environ.get("VITE_SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+def getenv_any(*names: str) -> Optional[str]:
+    for name in names:
+        v = os.environ.get(name)
+        if v and str(v).strip():
+            return str(v).strip()
+    return None
+
+# Prefer server-style names; keep VITE_SUPABASE_URL as a fallback because older
+# docs/scripts used it even for server runtimes.
+SUPABASE_URL = getenv_any("SUPABASE_URL", "VITE_SUPABASE_URL")
+SUPABASE_KEY = getenv_any("SUPABASE_SERVICE_ROLE_KEY")
 
 if SUPABASE_URL and SUPABASE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -44,7 +51,7 @@ line_agent = line.agent(
     voice=line.voice(
         # '694f9ed8-eb98-4842-8809-5a587930ed6b' is a sonic-english voice (e.g. Male Default or Cloned)
         model="sonic-english",
-        voice_id=os.environ.get("CARTESIA_VOICE_ID", "694f9ed8-eb98-4842-8809-5a587930ed6b")
+        voice_id=getenv_any("CARTESIA_VOICE_ID") or "694f9ed8-eb98-4842-8809-5a587930ed6b"
     )
 )
 
@@ -58,15 +65,32 @@ def get_user_context(state: ContextState) -> str:
         return "Context not available. Speak generally."
         
     try:
-        # Fetch basic profile
-        profile = supabase.table("user_profiles").select("nickname, coaching_style").eq("id", user_id).single().execute()
-        nickname = profile.data.get("nickname", "there")
-        style = profile.data.get("coaching_style", "warm")
-        
-        # Example fetching active habits (mock implementation of a real query)
-        habits_result = supabase.table("habits").select("name, current_streak").eq("user_id", user_id).execute()
-        habits_info = "Active habits: " + ", ".join([h["name"] for h in habits_result.data]) if habits_result.data else "No active habits."
-        
+        # Fetch profile (real table in this repo's migrations is `profiles`)
+        profile = (
+            supabase.table("profiles")
+            .select("nickname, coaching_style")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
+        nickname = (profile.data or {}).get("nickname") or "there"
+        style = (profile.data or {}).get("coaching_style") or "warm"
+
+        # Fetch active habits (real table is `user_habits`)
+        habits_result = (
+            supabase.table("user_habits")
+            .select("name, cadence")
+            .eq("user_id", user_id)
+            .eq("is_active", True)
+            .order("sort_order")
+            .execute()
+        )
+        habits = habits_result.data or []
+        habit_names = [h.get("name") for h in habits if isinstance(h, dict) and h.get("name")]
+        habits_info = (
+            "Active habits: " + ", ".join(habit_names[:10]) if habit_names else "No active habits."
+        )
+
         return f"User prefers to be called {nickname}. Coaching style: {style}. {habits_info}"
     except Exception as e:
         return f"Error fetching context: {e}"

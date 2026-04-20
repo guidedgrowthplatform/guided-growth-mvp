@@ -23,6 +23,10 @@ tsconfig.tsbuildinfo
 # Supabase CLI local cache
 supabase/.temp/
 
+# Python virtualenvs (never commit)
+.venv/
+venv/
+
 # Vite temp files
 vite.config.ts.timestamp-*
 
