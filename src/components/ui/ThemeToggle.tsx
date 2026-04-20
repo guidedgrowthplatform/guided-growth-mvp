@@ -11,16 +11,16 @@ export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="bg-surface-secondary rounded-xl p-1 flex w-full">
+    <div className="flex w-full rounded-xl bg-surface-secondary p-1">
       {OPTIONS.map(({ value, label, icon: Icon }) => (
         <button
           key={value}
           type="button"
           onClick={() => setTheme(value)}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+          className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all ${
             theme === value
               ? 'bg-primary text-white'
-              : 'text-content-secondary hover:text-content transition-colors'
+              : 'text-content-secondary transition-colors hover:text-content'
           }`}
         >
           <Icon size={16} />

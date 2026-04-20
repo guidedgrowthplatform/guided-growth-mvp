@@ -98,7 +98,13 @@ export function useAddHabitState() {
     try {
       const results = await Promise.allSettled(
         habits.map((h) =>
-          create({ name: h.name, input_type: 'binary', question: '', frequency: h.frequency, schedule_days: h.days }),
+          create({
+            name: h.name,
+            input_type: 'binary',
+            question: '',
+            frequency: h.frequency,
+            schedule_days: h.days,
+          }),
         ),
       );
 

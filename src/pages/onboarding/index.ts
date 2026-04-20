@@ -1,5 +1,8 @@
 // Shared
 export { Step1Page } from './shared/Step1Page';
+export { VoicePreferencePage } from './shared/VoicePreferencePage';
+export { MicPermissionPage } from './shared/MicPermissionPage';
+export { AiCoachIntroPage } from './shared/AiCoachIntroPage';
 export { Step2Page } from './shared/Step2Page';
 export { PlanReviewPage } from './shared/PlanReviewPage';
 // Beginner

@@ -16,6 +16,10 @@
   --color-streak: 251 146 60;
   --color-border: 226 232 240;
   --color-border-light: 241 245 249;
+  --color-page-bg: 249 249 249;
+  --color-heading: 40 40 40;
+  --color-link-muted: 68 70 85;
+  --color-ripple: 190 210 254;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;

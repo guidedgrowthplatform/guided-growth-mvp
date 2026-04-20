@@ -15,7 +15,6 @@ function getGreeting(): string {
 }
 
 export function HomeHeader({ userName, isFirstVisit = false, onPlusClick }: HomeHeaderProps) {
-
   const headline = isFirstVisit ? 'Welcome to Guided Growth' : `Welcome back, ${userName}`;
 
   return (

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SplashScreen } from '@/components/ui/SplashScreen';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { supabase } from '@/lib/supabase';
 
 export function AuthCallbackPage() {
@@ -51,5 +51,5 @@ export function AuthCallbackPage() {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  return <SplashScreen />;
+  return <LoadingScreen />;
 }

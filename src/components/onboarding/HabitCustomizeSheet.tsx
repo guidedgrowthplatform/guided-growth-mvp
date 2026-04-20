@@ -103,11 +103,7 @@ export function HabitCustomizeSheet({
       </div>
 
       {timePickerOpen && (
-        <TimePickerSheet
-          value={time}
-          onChange={setTime}
-          onClose={() => setTimePickerOpen(false)}
-        />
+        <TimePickerSheet value={time} onChange={setTime} onClose={() => setTimePickerOpen(false)} />
       )}
     </>
   );

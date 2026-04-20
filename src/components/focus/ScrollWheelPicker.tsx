@@ -117,7 +117,9 @@ function ScrollColumn({
           <div
             key={value}
             className={`flex select-none items-center justify-center text-[18px] ${
-              index === selectedIndex ? 'font-bold text-content' : 'font-normal text-content-tertiary'
+              index === selectedIndex
+                ? 'font-bold text-content'
+                : 'font-normal text-content-tertiary'
             }`}
             style={{ height: ITEM_HEIGHT }}
           >
