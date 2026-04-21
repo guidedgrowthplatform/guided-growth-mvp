@@ -35,6 +35,10 @@ export function initAnalytics(): void {
     // Capacitor's native HTTP plugin mishandles gzip bodies on Android,
     // causing the ingest server to reject with 400 "invalid GZIP data".
     disable_compression: true,
+    // Send custom events for anonymous (pre-login) users too. Without
+    // this, the project's defaultIdentifiedOnly setting drops events
+    // like view_login_screen that fire before identify().
+    person_profiles: 'always',
   });
   initialized = true;
 }
