@@ -59,9 +59,13 @@ export function resetIdentity(): void {
   posthog.reset();
 }
 
-export function track(event: string, properties?: Record<string, unknown>): void {
+export function track(
+  event: string,
+  properties?: Record<string, unknown>,
+  options?: { send_instantly?: boolean },
+): void {
   if (!initialized) return;
-  posthog.capture(event, properties);
+  posthog.capture(event, properties, options);
 }
 
 export function trackPageView(path: string): void {
