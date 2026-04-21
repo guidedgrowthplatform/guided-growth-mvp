@@ -59,7 +59,7 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent('toggle-journal'));
     }, 100);
-  }, [onClose, navigate]);
+  }, [habit?.name, onClose, navigate]);
 
   const habitName = habit?.name;
   const totalReps = stats?.totalRepetitions;

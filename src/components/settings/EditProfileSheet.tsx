@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { updateProfile, uploadAvatar } from '@/api/profile';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useToast } from '@/contexts/ToastContext';
+import { track } from '@/lib/analytics';
 import { useAuthStore } from '@/stores/authStore';
 
 interface Props {
@@ -72,6 +73,7 @@ export function EditProfileSheet({
     try {
       const nameChanged = trimmedName !== initialName;
       const nicknameChanged = trimmedNickname !== (initialNickname ?? '');
+      const avatarChanged = pendingDataUrl !== null;
 
       if (nameChanged || nicknameChanged) {
         await updateProfile({
@@ -85,6 +87,14 @@ export function EditProfileSheet({
       }
 
       await updateProfileStore();
+
+      const fieldsChanged: string[] = [];
+      if (nameChanged) fieldsChanged.push('name');
+      if (nicknameChanged) fieldsChanged.push('nickname');
+      if (avatarChanged) fieldsChanged.push('avatar');
+      if (fieldsChanged.length > 0) {
+        track('update_profile', { fields_changed: fieldsChanged });
+      }
 
       onClose();
     } catch (err) {
