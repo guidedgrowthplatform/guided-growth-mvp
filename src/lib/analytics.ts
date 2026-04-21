@@ -32,6 +32,9 @@ export function initAnalytics(): void {
       maskAllInputs: true,
       maskTextSelector: '.sensitive',
     },
+    // Capacitor's native HTTP plugin mishandles gzip bodies on Android,
+    // causing the ingest server to reject with 400 "invalid GZIP data".
+    disable_compression: true,
   });
   initialized = true;
 }
