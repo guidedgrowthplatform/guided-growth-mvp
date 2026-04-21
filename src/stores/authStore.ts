@@ -155,7 +155,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = mapUser(data.session.user);
       set({ user });
       identifyUser(user);
-      track('complete_signup', { method: 'email' });
+      // send_instantly skips the batched queue — without it the event
+      // races with post-auth navigation and gets dropped from the
+      // localStorage-backed queue before flush.
+      track('complete_signup', { method: 'email' }, { send_instantly: true });
     }
     return { error: null, confirmationPending };
   },
@@ -175,7 +178,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = mapUser(data.user);
       set({ user });
       identifyUser(user);
-      track('complete_login', { method: 'email' });
+      // send_instantly skips the batched queue — without it the event
+      // races with post-auth navigation and gets dropped from the
+      // localStorage-backed queue before flush.
+      track('complete_login', { method: 'email' }, { send_instantly: true });
     }
     return { error: null };
   },
