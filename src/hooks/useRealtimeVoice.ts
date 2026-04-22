@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVoice } from '@/hooks/useVoice';
+import { track } from '@/lib/analytics';
 import {
   CartesiaAgentClient,
   type AgentStartMetadata,
@@ -40,6 +41,18 @@ const INPUT_SAMPLE_RATE = 16000;
 const OUTPUT_SAMPLE_RATE = 44100;
 const CAPTURE_BUFFER_SIZE = 4096;
 const TOKEN_ENDPOINT = '/api/cartesia-agent-token';
+
+// Map `metadata.screen` to the PostHog §4.3 `context` taxonomy so
+// start/complete/cancel_voice_session events carry a consistent value.
+type VoiceContext = 'checkin' | 'conversation' | 'onboarding' | 'habit_create' | 'feedback';
+function deriveContext(screen?: string): VoiceContext {
+  if (!screen) return 'conversation';
+  if (screen.startsWith('onboard_')) return 'onboarding';
+  if (screen === 'morning' || screen === 'evening') return 'checkin';
+  if (screen === 'habit_create') return 'habit_create';
+  if (screen === 'feedback') return 'feedback';
+  return 'conversation';
+}
 
 // ─── Audio helpers ──────────────────────────────────────────────────────────
 
@@ -145,6 +158,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   // Re-entrancy guard: true while cleanup() is tearing resources down. Any
   // async start() in flight must not create new resources while this is set.
   const tearingDownRef = useRef(false);
+  // Analytics refs for PostHog §4.3 voice session lifecycle.
+  const sessionStartRef = useRef<number | null>(null);
+  const turnCountRef = useRef<number>(0);
+  const hadErrorRef = useRef(false);
 
   const setStateSynced = useCallback((next: RealtimeVoiceState) => {
     stateRef.current = next;
@@ -162,6 +179,32 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
 
   const cleanup = useCallback(() => {
     tearingDownRef.current = true;
+
+    // Emit the PostHog §4.3 session-end event before tearing down, but only
+    // if the session actually reached the `ack` stage (sessionStartRef set).
+    // start()-time failures never emit a complete/cancel event because no
+    // session was ever established.
+    if (sessionStartRef.current !== null) {
+      const ctx = deriveContext(metadata.screen);
+      const duration_seconds = (performance.now() - sessionStartRef.current) / 1000;
+      if (hadErrorRef.current) {
+        track('cancel_voice_session', { context: ctx, duration_seconds, reason: 'error' });
+      } else {
+        track('complete_voice_session', {
+          context: ctx,
+          duration_seconds,
+          // Transcripts aren't on the wire for the agent WebSocket (verified
+          // via cartesia-ai/agent-ws-example); we emit 0 so the property is
+          // present for schema consistency. Enrichment via REST post-call
+          // transcript fetch is a separate follow-up.
+          transcript_length_chars: 0,
+          turn_count: turnCountRef.current,
+        });
+      }
+      sessionStartRef.current = null;
+      turnCountRef.current = 0;
+      hadErrorRef.current = false;
+    }
 
     abortRef.current?.abort();
     abortRef.current = null;
@@ -208,7 +251,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     if (mountedRef.current) transition('idle');
 
     tearingDownRef.current = false;
-  }, [transition, setStateSynced]);
+  }, [transition, setStateSynced, metadata.screen]);
 
   const stop = useCallback(() => {
     cleanup();
@@ -218,6 +261,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
 
   const fail = useCallback(
     (message: string) => {
+      // Signal to cleanup() that this termination is an error so it emits
+      // cancel_voice_session with reason='error' rather than complete_voice_session.
+      hadErrorRef.current = true;
       setStateSynced('error');
       cleanup();
       release();
@@ -330,6 +376,16 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       inputFormat: INPUT_FORMAT,
       outputFormat: OUTPUT_FORMAT,
       onReady: () => {
+        // Session is live now (agent ack'd). Start the lifecycle timer +
+        // reset counters, then emit PostHog §4.3 start_voice_session.
+        sessionStartRef.current = performance.now();
+        turnCountRef.current = 0;
+        hadErrorRef.current = false;
+        track('start_voice_session', {
+          context: deriveContext(metadata.screen),
+          screen: metadata.screen ?? null,
+          voice_mode: 'realtime',
+        });
         setStateSynced('listening');
         if (mountedRef.current) transition('listening');
       },
@@ -346,6 +402,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
         // Read live state via ref — the closure would otherwise see the
         // render-time value and the transition would fire on every chunk.
         if (stateRef.current !== 'speaking') {
+          // First audio burst of a new agent turn. Increment before the
+          // state transition so complete_voice_session.turn_count on
+          // cleanup reflects the count of assistant utterances.
+          turnCountRef.current += 1;
           setStateSynced('speaking');
           if (mountedRef.current) transition('speaking');
         }
