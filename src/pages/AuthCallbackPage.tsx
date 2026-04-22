@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/stores/authStore';
 
 export function AuthCallbackPage() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export function AuthCallbackPage() {
     } = supabase.auth.onAuthStateChange((event) => {
       if (!handled && event === 'PASSWORD_RECOVERY') {
         handled = true;
+        useAuthStore.setState({ isRecoveryMode: true });
         navigate('/reset-password', { replace: true });
       }
     });
@@ -21,6 +23,7 @@ export function AuthCallbackPage() {
     async function handleCallback() {
       try {
         const params = new URLSearchParams(window.location.search);
+        const next = params.get('next');
         const type = params.get('type');
 
         await supabase.auth.exchangeCodeForSession(window.location.search);
@@ -28,13 +31,17 @@ export function AuthCallbackPage() {
         if (handled) return;
         handled = true;
 
+        if (next === 'reset-password' || type === 'recovery') {
+          useAuthStore.setState({ isRecoveryMode: true });
+          navigate('/reset-password', { replace: true });
+          return;
+        }
+
         if (type === 'signup' || type === 'email') {
           navigate('/login', {
             state: { message: 'Email verified! You can now sign in.' },
             replace: true,
           });
-        } else if (type === 'recovery') {
-          navigate('/reset-password', { replace: true });
         } else {
           navigate('/', { replace: true });
         }
