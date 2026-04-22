@@ -214,9 +214,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   resetPassword: async (email) => {
     const isNative = Capacitor.isNativePlatform();
-    const redirectTo = isNative
+    const base = isNative
       ? 'guidedgrowth://auth/callback'
       : window.location.origin + '/auth/callback';
+    const redirectTo = `${base}?next=reset-password`;
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
     if (error) return { error: friendlyError(error) };
