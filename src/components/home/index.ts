@@ -10,5 +10,6 @@ export { SectionHeader } from './SectionHeader';
 export { IconCircleButton } from './IconCircleButton';
 export { EmojiOptionButton } from './EmojiOptionButton';
 export { QuickActionCards } from './QuickActionCards';
+export { RecentReflectionsSection } from './RecentReflectionsSection';
 export { ReminderSheet } from './ReminderSheet';
 export { VoiceCheckInOverlay } from './VoiceCheckInOverlay';

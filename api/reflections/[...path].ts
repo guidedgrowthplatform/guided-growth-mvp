@@ -1,15 +1,187 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
+import { waitUntil } from '@vercel/functions';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { supabaseAdmin } from '../_lib/supabase-admin.js';
 import { validateDate, validateUUID, sanitizeContent } from '../_lib/validation.js';
+import { sendEmail, type EmailSendResult } from '../_lib/resend-client.js';
+import { renderFeedbackAlert } from '../_lib/email-templates/feedback-alert.js';
+import {
+  generateReflectionInsight,
+  computeContentHash,
+  type GenerationInput,
+} from '../_lib/ai-gateway.js';
 
 const DEFAULT_FIELDS = [
   { id: 'wins', label: 'Wins', order: 0 },
   { id: 'challenges', label: 'Challenges', order: 1 },
   { id: 'gratitude', label: 'Gratitude', order: 2 },
 ];
+
+const JOURNAL_SELECT = `
+  je.id, je.user_id, je.type, je.template_id, je.title,
+  je.date::text, je.created_at, je.updated_at,
+  je.mood, je.ai_insight, je.ai_insight_generated_at,
+  jf.field_key, jf.content
+`;
+
+function normalizeNullableString(value: unknown, max: number): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, max);
+}
+
+interface JournalRow {
+  id: string;
+  user_id: string;
+  type: string;
+  template_id: string | null;
+  title: string | null;
+  date: string;
+  created_at: string;
+  updated_at: string;
+  mood: string | null;
+  ai_insight: string | null;
+  ai_insight_generated_at: string | null;
+  field_key: string | null;
+  content: string | null;
+}
+
+function rowsToEntry(rows: JournalRow[]) {
+  const r0 = rows[0];
+  const fields: Record<string, string> = {};
+  for (const row of rows) {
+    if (row.field_key) fields[row.field_key] = row.content ?? '';
+  }
+  return {
+    id: r0.id,
+    user_id: r0.user_id,
+    type: r0.type,
+    template_id: r0.template_id,
+    title: r0.title,
+    date: r0.date,
+    created_at: r0.created_at,
+    updated_at: r0.updated_at,
+    mood: r0.mood,
+    ai_insight: r0.ai_insight,
+    ai_insight_generated_at: r0.ai_insight_generated_at,
+    fields,
+  };
+}
+
+function rowsToEntries(rows: JournalRow[]) {
+  const map = new Map<string, JournalRow[]>();
+  const order: string[] = [];
+  for (const row of rows) {
+    if (!map.has(row.id)) {
+      map.set(row.id, []);
+      order.push(row.id);
+    }
+    map.get(row.id)!.push(row);
+  }
+  return order.map((id) => rowsToEntry(map.get(id)!));
+}
+
+function htmlToPlain(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/<\/\s*(p|div|li|h[1-6]|blockquote)\s*>/gi, '\n')
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+}
+
+function extractBodyText(entry: {
+  type: string;
+  title: string | null;
+  fields: Record<string, string>;
+}): string {
+  const fields = entry.fields ?? {};
+  if (fields.body?.trim()) return htmlToPlain(fields.body);
+  if (fields.reflection?.trim()) return htmlToPlain(fields.reflection);
+  const joined = Object.values(fields)
+    .map((v) => htmlToPlain(v ?? ''))
+    .filter((v) => v.length > 0)
+    .slice(0, 2)
+    .join(' · ');
+  if (joined) return joined;
+  return entry.title?.trim() ?? '';
+}
+
+async function fetchRecentContext(userId: string, excludeEntryId: string) {
+  const res = await pool.query<{
+    created_at: string;
+    mood: string | null;
+    type: string;
+    title: string | null;
+    fields: Record<string, string>;
+  }>(
+    `SELECT je.created_at, je.mood, je.type, je.title,
+            COALESCE(jsonb_object_agg(jf.field_key, jf.content)
+                     FILTER (WHERE jf.field_key IS NOT NULL), '{}'::jsonb)
+                     AS fields
+     FROM journal_entries je
+     LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
+     WHERE je.user_id = $1 AND je.id <> $2
+     GROUP BY je.id
+     ORDER BY je.created_at DESC
+     LIMIT 5`,
+    [userId, excludeEntryId],
+  );
+  return res.rows.map((r) => ({
+    createdAt: r.created_at,
+    mood: r.mood,
+    preview: extractBodyText(r).slice(0, 200),
+  }));
+}
+
+async function generateAndStoreInsight(params: {
+  userId: string;
+  entryId: string;
+  fields: Record<string, string>;
+  mood: string | null;
+  type: string;
+  title: string | null;
+}): Promise<string | null> {
+  const { userId, entryId, fields, mood, type, title } = params;
+  const bodyText = extractBodyText({ type, title, fields });
+  if (!bodyText.trim()) return null;
+
+  const contentHash = computeContentHash({ fields, mood });
+  const recentContext = await fetchRecentContext(userId, entryId);
+
+  const input: GenerationInput = {
+    userId,
+    bodyText,
+    mood,
+    recentContext,
+  };
+  const insight = await generateReflectionInsight(input);
+  if (!insight) return null;
+
+  await pool.query(
+    `UPDATE journal_entries
+     SET ai_insight = $1,
+         ai_insight_generated_at = now(),
+         ai_insight_content_hash = $2
+     WHERE id = $3 AND user_id = $4
+       AND (ai_insight_content_hash IS DISTINCT FROM $2)`,
+    [insight, contentHash, entryId, userId],
+  );
+  return insight;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
@@ -38,7 +210,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Only JPEG, PNG, and WebP allowed' });
       }
 
-      // Validate base64 format
       if (!/^[A-Za-z0-9+/]*={0,2}$/.test(data) || data.length === 0) {
         return res.status(400).json({ error: 'Invalid base64 data' });
       }
@@ -69,18 +240,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'POST' && !journalSub) {
       const { type, template_id, title, date, fields } = req.body ?? {};
 
-      // Validate type
       if (type !== 'freeform' && type !== 'template') {
         return res.status(400).json({ error: 'type must be "freeform" or "template"' });
       }
-      // Validate date
       const validDate = validateDate(date);
       if (!validDate) return res.status(400).json({ error: 'Invalid date (YYYY-MM-DD)' });
-      // Validate template_id
       if (type === 'template' && (!template_id || typeof template_id !== 'string')) {
         return res.status(400).json({ error: 'template_id required for template type' });
       }
-      // Validate fields
       if (!fields || typeof fields !== 'object' || Array.isArray(fields)) {
         return res.status(400).json({ error: 'fields must be an object' });
       }
@@ -91,19 +258,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'At least one non-empty field required' });
       }
 
+      const mood = normalizeNullableString(req.body?.mood, 32);
+
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
         const ins = await client.query(
-          `INSERT INTO journal_entries (user_id, type, template_id, title, date)
-           VALUES ($1, $2, $3, $4, $5)
-           RETURNING id, user_id, type, template_id, title, date::text, created_at, updated_at`,
+          `INSERT INTO journal_entries
+             (user_id, type, template_id, title, date, mood)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING id, user_id, type, template_id, title, date::text,
+                     created_at, updated_at,
+                     mood, ai_insight, ai_insight_generated_at`,
           [
             user.id,
             type,
             type === 'template' ? template_id : null,
             title?.trim() || null,
             validDate,
+            mood ?? null,
           ],
         );
         const entry = ins.rows[0];
@@ -117,6 +290,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           fieldsMap[key] = sanitized;
         }
         await client.query('COMMIT');
+
+        waitUntil(
+          generateAndStoreInsight({
+            userId: user.id,
+            entryId: entry.id,
+            fields: fieldsMap,
+            mood: entry.mood,
+            type: entry.type,
+            title: entry.title,
+          }).catch(() => null),
+        );
+
         return res.status(201).json({ ...entry, fields: fieldsMap });
       } catch (err) {
         await client.query('ROLLBACK');
@@ -126,43 +311,86 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // GET /api/reflections/journal?start=&end= — list entries
     if (req.method === 'GET' && !journalSub) {
-      const start = validateDate(req.query.start);
-      const end = validateDate(req.query.end);
-      if (!start || !end) {
-        return res.status(400).json({ error: 'Valid start and end dates required (YYYY-MM-DD)' });
+      const hasDateRange = req.query.start || req.query.end;
+      const rawLimit = parseInt(String(req.query.limit ?? ''), 10);
+      const rawPage = parseInt(String(req.query.page ?? ''), 10);
+      const limit = Number.isFinite(rawLimit)
+        ? Math.max(1, Math.min(50, rawLimit))
+        : hasDateRange
+          ? null
+          : 20;
+      const page = Number.isFinite(rawPage) ? Math.max(0, rawPage) : 0;
+
+      let rows: JournalRow[];
+
+      if (hasDateRange) {
+        const start = validateDate(req.query.start);
+        const end = validateDate(req.query.end);
+        if (!start || !end) {
+          return res.status(400).json({ error: 'Valid start and end dates required (YYYY-MM-DD)' });
+        }
+        const result = await pool.query<JournalRow>(
+          `SELECT ${JOURNAL_SELECT}
+           FROM journal_entries je
+           LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
+           WHERE je.user_id = $1 AND je.date >= $2 AND je.date <= $3
+           ORDER BY je.created_at DESC`,
+          [user.id, start, end],
+        );
+        rows = result.rows;
+      } else {
+        const idsResult = await pool.query<{ id: string }>(
+          `SELECT id FROM journal_entries
+           WHERE user_id = $1
+           ORDER BY created_at DESC
+           LIMIT $2 OFFSET $3`,
+          [user.id, limit!, page * limit!],
+        );
+        if (idsResult.rows.length === 0) return res.json([]);
+        const ids = idsResult.rows.map((r) => r.id);
+        const result = await pool.query<JournalRow>(
+          `SELECT ${JOURNAL_SELECT}
+           FROM journal_entries je
+           LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
+           WHERE je.id = ANY($1::uuid[])
+           ORDER BY je.created_at DESC`,
+          [ids],
+        );
+        rows = result.rows;
       }
-      const result = await pool.query(
-        `SELECT je.id, je.user_id, je.type, je.template_id, je.title,
-                je.date::text, je.created_at, je.updated_at,
-                jf.field_key, jf.content
+
+      return res.json(rowsToEntries(rows));
+    }
+
+    // POST /api/reflections/journal/:id/insight — lazy-backfill AI insight
+    if (journalSub && segments[2] === 'insight' && req.method === 'POST') {
+      const entryId = validateUUID(journalSub);
+      if (!entryId) return res.status(400).json({ error: 'Invalid entry ID' });
+
+      const result = await pool.query<JournalRow>(
+        `SELECT ${JOURNAL_SELECT}
          FROM journal_entries je
          LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
-         WHERE je.user_id = $1 AND je.date >= $2 AND je.date <= $3
-         ORDER BY je.created_at DESC`,
-        [user.id, start, end],
+         WHERE je.id = $1 AND je.user_id = $2`,
+        [entryId, user.id],
       );
-      const entriesMap = new Map<string, Record<string, unknown>>();
-      for (const row of result.rows) {
-        if (!entriesMap.has(row.id)) {
-          entriesMap.set(row.id, {
-            id: row.id,
-            user_id: row.user_id,
-            type: row.type,
-            template_id: row.template_id,
-            title: row.title,
-            date: row.date,
-            created_at: row.created_at,
-            updated_at: row.updated_at,
-            fields: {} as Record<string, string>,
-          });
-        }
-        if (row.field_key) {
-          (entriesMap.get(row.id)!.fields as Record<string, string>)[row.field_key] = row.content;
-        }
+      if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+      const entry = rowsToEntry(result.rows);
+
+      if (entry.ai_insight) {
+        return res.json({ ai_insight: entry.ai_insight });
       }
-      return res.json(Array.from(entriesMap.values()));
+
+      const insight = await generateAndStoreInsight({
+        userId: user.id,
+        entryId,
+        fields: entry.fields,
+        mood: entry.mood,
+        type: entry.type,
+        title: entry.title,
+      });
+      return res.json({ ai_insight: insight });
     }
 
     // GET/PUT/DELETE /api/reflections/journal/:id
@@ -171,32 +399,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!entryId) return res.status(400).json({ error: 'Invalid entry ID' });
 
       if (req.method === 'GET') {
-        const result = await pool.query(
-          `SELECT je.id, je.user_id, je.type, je.template_id, je.title,
-                  je.date::text, je.created_at, je.updated_at,
-                  jf.field_key, jf.content
+        const result = await pool.query<JournalRow>(
+          `SELECT ${JOURNAL_SELECT}
            FROM journal_entries je
            LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
            WHERE je.id = $1 AND je.user_id = $2`,
           [entryId, user.id],
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-        const row0 = result.rows[0];
-        const fields: Record<string, string> = {};
-        for (const row of result.rows) {
-          if (row.field_key) fields[row.field_key] = row.content;
-        }
-        return res.json({
-          id: row0.id,
-          user_id: row0.user_id,
-          type: row0.type,
-          template_id: row0.template_id,
-          title: row0.title,
-          date: row0.date,
-          created_at: row0.created_at,
-          updated_at: row0.updated_at,
-          fields,
-        });
+        return res.json(rowsToEntry(result.rows));
       }
 
       if (req.method === 'PUT') {
@@ -204,6 +415,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (fields && (typeof fields !== 'object' || Array.isArray(fields))) {
           return res.status(400).json({ error: 'fields must be an object' });
         }
+
+        const mood = normalizeNullableString(req.body?.mood, 32);
+
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
@@ -215,16 +429,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await client.query('ROLLBACK');
             return res.status(404).json({ error: 'Not found' });
           }
+
+          const sets: string[] = ['updated_at = now()'];
+          const params: unknown[] = [];
+          let idx = 1;
           if (title !== undefined) {
-            await client.query(
-              `UPDATE journal_entries SET title = $1, updated_at = now() WHERE id = $2`,
-              [title?.trim() || null, entryId],
-            );
-          } else {
-            await client.query(`UPDATE journal_entries SET updated_at = now() WHERE id = $1`, [
-              entryId,
-            ]);
+            sets.push(`title = $${idx++}`);
+            params.push(title?.trim() || null);
           }
+          if (mood !== undefined) {
+            sets.push(`mood = $${idx++}`);
+            params.push(mood);
+          }
+          params.push(entryId);
+          await client.query(
+            `UPDATE journal_entries SET ${sets.join(', ')} WHERE id = $${idx}`,
+            params,
+          );
+
           if (fields) {
             await client.query('DELETE FROM journal_entry_fields WHERE entry_id = $1', [entryId]);
             for (const [key, value] of Object.entries(fields)) {
@@ -237,32 +459,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
           }
           await client.query('COMMIT');
-          // Re-fetch
-          const updated = await pool.query(
-            `SELECT je.id, je.user_id, je.type, je.template_id, je.title,
-                    je.date::text, je.created_at, je.updated_at,
-                    jf.field_key, jf.content
+
+          const updated = await pool.query<JournalRow>(
+            `SELECT ${JOURNAL_SELECT}
              FROM journal_entries je
              LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
              WHERE je.id = $1 AND je.user_id = $2`,
             [entryId, user.id],
           );
-          const r0 = updated.rows[0];
-          const updatedFields: Record<string, string> = {};
-          for (const r of updated.rows) {
-            if (r.field_key) updatedFields[r.field_key] = r.content;
-          }
-          return res.json({
-            id: r0.id,
-            user_id: r0.user_id,
-            type: r0.type,
-            template_id: r0.template_id,
-            title: r0.title,
-            date: r0.date,
-            created_at: r0.created_at,
-            updated_at: r0.updated_at,
-            fields: updatedFields,
+          const updatedEntry = rowsToEntry(updated.rows);
+
+          const newHash = computeContentHash({
+            fields: updatedEntry.fields,
+            mood: updatedEntry.mood,
           });
+          const hashRow = await pool.query<{ ai_insight_content_hash: string | null }>(
+            `SELECT ai_insight_content_hash FROM journal_entries WHERE id = $1`,
+            [entryId],
+          );
+          if (hashRow.rows[0]?.ai_insight_content_hash !== newHash) {
+            waitUntil(
+              generateAndStoreInsight({
+                userId: user.id,
+                entryId,
+                fields: updatedEntry.fields,
+                mood: updatedEntry.mood,
+                type: updatedEntry.type,
+                title: updatedEntry.title,
+              }).catch(() => null),
+            );
+          }
+          return res.json(updatedEntry);
         } catch (err) {
           await client.query('ROLLBACK');
           throw err;
@@ -303,7 +530,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          RETURNING id, sentiment, text, created_at`,
         [user.id, sentiment, feedbackText],
       );
-      return res.status(201).json(result.rows[0]);
+      const inserted = result.rows[0];
+
+      const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+      if (adminEmail) {
+        const {
+          subject,
+          html,
+          text: plain,
+        } = renderFeedbackAlert({
+          sentiment,
+          text: feedbackText,
+          userEmail: user.email,
+          submittedAt: new Date(inserted.created_at).toISOString(),
+        });
+        const emailResult = await Promise.race<EmailSendResult>([
+          sendEmail({
+            to: adminEmail,
+            subject,
+            html,
+            text: plain,
+            tags: [{ name: 'category', value: 'feedback-alert' }],
+            headers: {
+              'List-Unsubscribe': `<mailto:${adminEmail}?subject=unsubscribe>`,
+              'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+            },
+          }),
+          new Promise<EmailSendResult>((resolve) =>
+            setTimeout(() => resolve({ ok: false, status: 504 }), 3100),
+          ),
+        ]);
+        if (!emailResult.ok) {
+          console.error('feedback_email_failed', {
+            status: emailResult.status,
+            sentiment,
+          });
+        }
+      }
+
+      return res.status(201).json(inserted);
     }
     return res.status(405).json({ error: 'Method not allowed' });
   }

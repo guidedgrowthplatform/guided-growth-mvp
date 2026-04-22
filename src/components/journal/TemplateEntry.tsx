@@ -1,46 +1,8 @@
 import { Icon } from '@iconify/react';
 import { format } from 'date-fns';
+import { MoodStrip } from '@/components/reflections';
 import { Button } from '@/components/ui/Button';
-
-interface TemplateConfig {
-  title: string;
-  questions: string[];
-}
-
-const TEMPLATE_MAP: Record<string, TemplateConfig> = {
-  '5-minute-morning': {
-    title: '5-Minute Morning',
-    questions: [
-      'What are three things you are grateful for today?',
-      'What is one main goal that would make today great?',
-      'A daily affirmation for myself:',
-    ],
-  },
-  'evening-wind-down': {
-    title: 'Evening Wind Down',
-    questions: [
-      'What went well today?',
-      'What is one thing I could improve tomorrow?',
-      'What am I looking forward to?',
-    ],
-  },
-  'anxiety-relief': {
-    title: 'Anxiety Relief',
-    questions: [
-      'What am I feeling anxious about right now?',
-      'What is within my control in this situation?',
-      'What is one small step I can take right now?',
-    ],
-  },
-  'daily-reflection': {
-    title: 'Daily Reflection',
-    questions: [
-      'How am I feeling emotionally right now?',
-      'What was the most meaningful moment today?',
-      'What did I learn about myself today?',
-    ],
-  },
-};
+import { getTemplate } from './templates';
 
 interface TemplateEntryProps {
   templateId: string;
@@ -49,6 +11,8 @@ interface TemplateEntryProps {
   onSave: () => void;
   onBack: () => void;
   saving?: boolean;
+  mood?: string | null;
+  onMoodChange?: (mood: string | null) => void;
 }
 
 export function TemplateEntry({
@@ -58,8 +22,10 @@ export function TemplateEntry({
   onSave,
   onBack,
   saving,
+  mood = null,
+  onMoodChange,
 }: TemplateEntryProps) {
-  const config = TEMPLATE_MAP[templateId] ?? TEMPLATE_MAP['5-minute-morning'];
+  const config = getTemplate(templateId);
   const now = new Date();
   const hasContent = Object.values(answers).some((v) => v.trim());
 
@@ -78,6 +44,12 @@ export function TemplateEntry({
       <p className="mt-3 text-base text-content-secondary">
         {format(now, 'EEEE, MMMM d')} &middot; {format(now, 'hh:mm a')}
       </p>
+
+      {onMoodChange && (
+        <div className="mt-4">
+          <MoodStrip value={mood} onChange={onMoodChange} />
+        </div>
+      )}
 
       <div className="mt-6 flex flex-col gap-6">
         {config.questions.map((question, i) => (

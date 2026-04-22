@@ -25,6 +25,7 @@ export function JournalFlowPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [templateAnswers, setTemplateAnswers] = useState<Record<string, string>>({});
   const [freeformTitle, setFreeformTitle] = useState('');
+  const [mood, setMood] = useState<string | null>(null);
 
   const goBack = useCallback(() => {
     switch (step) {
@@ -61,9 +62,10 @@ export function JournalFlowPage() {
         title: freeformTitle || undefined,
         date,
         fields: { body },
+        mood,
       });
     },
-    [freeformTitle, save],
+    [freeformTitle, mood, save],
   );
 
   const handleTemplateSave = useCallback(() => {
@@ -73,8 +75,9 @@ export function JournalFlowPage() {
       template_id: selectedTemplate ?? '5-minute-morning',
       date,
       fields: templateAnswers,
+      mood,
     });
-  }, [selectedTemplate, templateAnswers, save]);
+  }, [selectedTemplate, templateAnswers, mood, save]);
 
   switch (step) {
     case 'select-type':
@@ -105,6 +108,8 @@ export function JournalFlowPage() {
           onSave={handleTemplateSave}
           onBack={goBack}
           saving={saving}
+          mood={mood}
+          onMoodChange={setMood}
         />
       );
     case 'freeform':
@@ -124,6 +129,8 @@ export function JournalFlowPage() {
             onBack={goBack}
             userName={userName}
             saving={saving}
+            mood={mood}
+            onMoodChange={setMood}
           />
         </Suspense>
       );

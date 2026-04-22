@@ -5,6 +5,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
+import { MoodStrip } from '@/components/reflections';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/contexts/ToastContext';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
@@ -20,6 +21,8 @@ interface FreeformEntryProps {
   onBack: () => void;
   userName: string;
   saving?: boolean;
+  mood?: string | null;
+  onMoodChange?: (mood: string | null) => void;
 }
 
 export function FreeformEntry({
@@ -30,6 +33,8 @@ export function FreeformEntry({
   onBack,
   userName,
   saving,
+  mood = null,
+  onMoodChange,
 }: FreeformEntryProps) {
   const now = new Date();
   const { addToast } = useToast();
@@ -124,7 +129,13 @@ export function FreeformEntry({
         aria-label="Reflection title"
       />
 
-      <p className="mt-2 text-base font-bold text-content">
+      {onMoodChange && (
+        <div className="mt-4">
+          <MoodStrip value={mood} onChange={onMoodChange} />
+        </div>
+      )}
+
+      <p className="mt-4 text-base font-bold text-content">
         What&apos;s on your mind today, {userName}?
       </p>
 

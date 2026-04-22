@@ -101,6 +101,9 @@ export interface JournalEntry {
   title: string | null;
   date: string;
   fields: Record<string, string>;
+  mood: string | null;
+  ai_insight: string | null;
+  ai_insight_generated_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -111,6 +114,13 @@ export interface JournalEntryCreate {
   title?: string;
   date: string;
   fields: Record<string, string>;
+  mood?: string | null;
+}
+
+export interface JournalEntryUpdate {
+  title?: string | null;
+  fields?: Record<string, string>;
+  mood?: string | null;
 }
 
 // ─── Preferences ────────────────────────────────────

@@ -7,6 +7,8 @@ import {
   eachDayOfInterval,
   startOfWeek,
   endOfWeek,
+  differenceInCalendarDays,
+  isSameYear,
 } from 'date-fns';
 
 export function formatDate(date: Date | string, fmt = 'yyyy-MM-dd'): string {
@@ -44,3 +46,15 @@ export function getWeekDays(date: Date | string): Date[] {
 }
 
 export const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+export function formatRelativeDateTime(iso: string, now: Date = new Date()): string {
+  const d = parseISO(iso);
+  const diff = differenceInCalendarDays(now, d);
+  const time = format(d, 'hh:mm a');
+
+  if (diff === 0) return `Today, ${time}`;
+  if (diff === 1) return `Yesterday, ${time}`;
+  if (diff > 1 && diff < 7) return format(d, 'EEEE, MMM d');
+  if (isSameYear(d, now)) return format(d, 'MMM d');
+  return format(d, 'MMMM d, yyyy');
+}

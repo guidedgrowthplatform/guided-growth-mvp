@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { formatDate, getMonthDays, getWeekDays, isWeekend, isWeekday, getWeekRange } from './dates';
+import {
+  formatDate,
+  getMonthDays,
+  getWeekDays,
+  isWeekend,
+  isWeekday,
+  getWeekRange,
+  formatRelativeDateTime,
+} from './dates';
 
 describe('formatDate', () => {
   it('formats a Date object', () => {
@@ -62,5 +70,35 @@ describe('getWeekRange', () => {
     expect(end.getDay()).toBe(0); // Sunday
     expect(start.getDate()).toBe(13);
     expect(end.getDate()).toBe(19);
+  });
+});
+
+describe('formatRelativeDateTime', () => {
+  // All "now" anchors use local midnight so diff math doesn't drift with timezone.
+  const now = new Date(2026, 2, 5, 14, 0, 0); // Thu Mar 5 2026, 14:00 local
+
+  it('returns "Today, hh:mm AM/PM" for same calendar day', () => {
+    const iso = new Date(2026, 2, 5, 20, 30).toISOString();
+    expect(formatRelativeDateTime(iso, now)).toBe('Today, 08:30 PM');
+  });
+
+  it('returns "Yesterday, hh:mm AM/PM" for the prior day', () => {
+    const iso = new Date(2026, 2, 4, 22, 15).toISOString();
+    expect(formatRelativeDateTime(iso, now)).toBe('Yesterday, 10:15 PM');
+  });
+
+  it('returns "Weekday, Mon d" for dates within the last week', () => {
+    const iso = new Date(2026, 1, 28, 9, 0).toISOString(); // Sat Feb 28, 5 days ago
+    expect(formatRelativeDateTime(iso, now)).toBe('Saturday, Feb 28');
+  });
+
+  it('returns "Mon d" for older dates within the same year', () => {
+    const iso = new Date(2026, 0, 4, 9, 0).toISOString();
+    expect(formatRelativeDateTime(iso, now)).toBe('Jan 4');
+  });
+
+  it('includes the year for cross-year dates', () => {
+    const iso = new Date(2025, 11, 25, 9, 0).toISOString();
+    expect(formatRelativeDateTime(iso, now)).toBe('December 25, 2025');
   });
 });
