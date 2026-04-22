@@ -1,9 +1,10 @@
 import { Icon } from '@iconify/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IconChatVoice, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { track } from '@/lib/analytics';
 
 export function MicPermissionPage() {
   const navigate = useNavigate();
@@ -11,18 +12,32 @@ export function MicPermissionPage() {
   const [requesting, setRequesting] = useState(false);
   const voiceEnabled = preferences.voiceEnabled === true;
 
+  // Fire once per mount. `ai_output_mode` carries the PREF-01 choice so
+  // downstream funnels can split MIC-01 views by prior voice preference.
+  useEffect(() => {
+    track('view_mic_permission', {
+      ai_output_mode: voiceEnabled ? 'voice' : 'text',
+    });
+    // Intentionally runs once on mount — the preference doesn't change
+    // while this screen is visible.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const goNext = () => navigate('/onboarding/ai-coach-intro');
 
   const handleAllow = async () => {
     if (requesting) return;
     setRequesting(true);
+    let granted = true;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((t) => t.stop());
     } catch {
       // User tapped Allow — intent is explicit. OS may still prompt or deny
       // separately; we surface that at the point of actual use.
+      granted = false;
     }
+    track('grant_mic_permission', { granted, dismissed: false });
     await updatePreference('micGranted', true);
     goNext();
   };
@@ -30,6 +45,7 @@ export function MicPermissionPage() {
   const handleDismiss = async () => {
     if (requesting) return;
     setRequesting(true);
+    track('grant_mic_permission', { granted: false, dismissed: true });
     await updatePreference('micGranted', false);
     goNext();
   };

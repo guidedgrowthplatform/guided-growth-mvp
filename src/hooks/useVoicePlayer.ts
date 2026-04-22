@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import manifestData from '@/data/voice-manifest.json';
 import { useVoice } from '@/hooks/useVoice';
+import { track } from '@/lib/analytics';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -149,12 +150,23 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
             release();
             reject(new Error(`Failed to load audio: ${fileId}`));
           };
-          audio.play().catch((err) => {
-            // Autoplay blocked — common on iOS
-            if (mountedRef.current) setState('error');
-            release();
-            reject(err);
-          });
+          audio
+            .play()
+            .then(() => {
+              // Fires only on successful playback start — autoplay
+              // rejections go to the .catch below and emit no event.
+              track('play_mp3', {
+                file_id: fileId,
+                screen: entry.screen,
+                trigger: entry.trigger,
+              });
+            })
+            .catch((err) => {
+              // Autoplay blocked — common on iOS
+              if (mountedRef.current) setState('error');
+              release();
+              reject(err);
+            });
         });
       } catch (err) {
         console.warn(`[VoicePlayer] Error playing ${fileId}:`, err);

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { IconChatVoice, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { track } from '@/lib/analytics';
 
 export function VoicePreferencePage() {
   const navigate = useNavigate();
@@ -12,6 +13,10 @@ export function VoicePreferencePage() {
   const choose = async (voiceEnabled: boolean) => {
     if (saving) return;
     setSaving(true);
+    track('set_voice_preference', {
+      preference: voiceEnabled ? 'voice' : 'text',
+      screen: 'pref_01',
+    });
     await updatePreference('voiceEnabled', voiceEnabled);
     navigate('/onboarding/mic-permission');
   };
