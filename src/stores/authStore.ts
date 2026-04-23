@@ -48,6 +48,30 @@ function friendlyError(error: any): string {
   return error.message || 'Something went wrong. Please try again.';
 }
 
+// PostHog spec v6.0 §3.1: signup_error/login_error use `error_type` as a
+// short category (not the raw message). Map common Supabase auth error
+// strings to a stable enum so PostHog dashboards can group cleanly.
+const ERROR_TYPE_PATTERNS: Array<[string, string]> = [
+  ['invalid_credentials', 'invalid_credentials'],
+  ['invalid login', 'invalid_credentials'],
+  ['user_already_exists', 'user_exists'],
+  ['already registered', 'user_exists'],
+  ['weak_password', 'weak_password'],
+  ['rate limit', 'rate_limited'],
+  ['network', 'network_error'],
+  ['email_not_confirmed', 'email_not_confirmed'],
+];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function categorizeAuthError(error: any): string {
+  if (!error) return 'unknown';
+  const msg = error.message?.toLowerCase?.() || error.code?.toLowerCase?.() || '';
+  for (const [pattern, category] of ERROR_TYPE_PATTERNS) {
+    if (msg.includes(pattern)) return category;
+  }
+  return 'other';
+}
+
 function identifyUser(user: AppUser) {
   identify(user.id, { email: user.email, name: user.name, role: user.role });
   Sentry.setUser({ id: user.id, email: user.email });
@@ -142,7 +166,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
 
     if (error) {
-      track('signup_error', { method: 'email', error_type: error.message });
+      track('signup_error', {
+        method: 'email',
+        error_type: categorizeAuthError(error),
+        error_message: error?.message ?? '',
+      });
       return { error: friendlyError(error) };
     }
 
@@ -170,7 +198,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
 
     if (error) {
-      track('login_error', { method: 'email', error_type: error.message });
+      track('login_error', { method: 'email', error_type: categorizeAuthError(error) });
       return { error: friendlyError(error) };
     }
 
