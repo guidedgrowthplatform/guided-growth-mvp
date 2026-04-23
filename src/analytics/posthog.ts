@@ -1,4 +1,4 @@
-import posthog from 'posthog-js';
+import posthog, { type CaptureOptions, type EventName, type Properties } from 'posthog-js';
 
 /**
  * Analytics wrapper — PostHog SDK.
@@ -59,11 +59,7 @@ export function resetIdentity(): void {
   posthog.reset();
 }
 
-export function track(
-  event: string,
-  properties?: Record<string, unknown>,
-  options?: { send_instantly?: boolean },
-): void {
+export function track(event: EventName, properties?: Properties, options?: CaptureOptions): void {
   if (!initialized) return;
   posthog.capture(event, properties, options);
 }
