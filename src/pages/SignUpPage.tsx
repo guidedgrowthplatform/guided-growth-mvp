@@ -25,7 +25,15 @@ export function SignUpPage() {
   const emailRef = useRef('');
 
   useEffect(() => {
-    track('view_signup_screen');
+    // Per posthog.txt spec v6.0 §3.1: include referrer + UTM attribution params
+    // so the Signup-to-Activation funnel can be sliced by acquisition source.
+    const params = new URLSearchParams(window.location.search);
+    track('view_signup_screen', {
+      referrer: document.referrer || null,
+      utm_source: params.get('utm_source'),
+      utm_medium: params.get('utm_medium'),
+      utm_campaign: params.get('utm_campaign'),
+    });
   }, []);
 
   const {
