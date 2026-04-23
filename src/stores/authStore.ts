@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
-import { identify, resetIdentity, track } from '@/lib/analytics';
+import { identify, resetIdentity, track } from '@/analytics';
 import { Sentry } from '@/lib/sentry';
 import { supabase } from '@/lib/supabase';
 
