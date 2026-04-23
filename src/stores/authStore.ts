@@ -155,6 +155,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signUp: async (email, password) => {
+    const startedAt = Date.now();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -186,7 +187,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // send_instantly skips the batched queue — without it the event
       // races with post-auth navigation and gets dropped from the
       // localStorage-backed queue before flush.
-      track('complete_signup', { method: 'email' }, { send_instantly: true });
+      // time_to_complete_seconds per spec v6.0 §3.1 — measured from form submit
+      // to successful Supabase user creation.
+      track(
+        'complete_signup',
+        {
+          method: 'email',
+          time_to_complete_seconds: Math.round((Date.now() - startedAt) / 1000),
+        },
+        { send_instantly: true },
+      );
     }
     return { error: null, confirmationPending };
   },
@@ -206,10 +216,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = mapUser(data.user);
       set({ user });
       identifyUser(user);
+      // is_returning_user per spec v6.0 §3.1 — derived from the gap between
+      // account creation and this sign-in. >60s gap = not the immediate post-signup
+      // auto-login (which fires ~instantly after complete_signup), so it's a real
+      // returning user. <60s = same session as signup, treat as first login.
+      const createdAtMs = data.user.created_at ? new Date(data.user.created_at).getTime() : 0;
+      const lastSignInMs = data.user.last_sign_in_at
+        ? new Date(data.user.last_sign_in_at).getTime()
+        : Date.now();
+      const isReturningUser = createdAtMs > 0 && lastSignInMs - createdAtMs > 60_000;
+
       // send_instantly skips the batched queue — without it the event
       // races with post-auth navigation and gets dropped from the
       // localStorage-backed queue before flush.
-      track('complete_login', { method: 'email' }, { send_instantly: true });
+      track(
+        'complete_login',
+        { method: 'email', is_returning_user: isReturningUser },
+        { send_instantly: true },
+      );
     }
     return { error: null };
   },
