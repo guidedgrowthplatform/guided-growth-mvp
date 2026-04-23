@@ -7,8 +7,8 @@ import { ReflectionCard } from '@/components/habit-detail/ReflectionCard';
 import { StatsGrid } from '@/components/habit-detail/StatsGrid';
 import { StreakCard } from '@/components/habit-detail/StreakCard';
 import { BottomSheet } from '@/components/ui/BottomSheet';
-import { useHabitDetail } from '@/hooks/useHabitDetail';
 import { track } from '@/lib/analytics';
+import { useHabitDetail } from '@/hooks/useHabitDetail';
 import { getDataService } from '@/lib/services/service-provider';
 import { speak } from '@/lib/services/tts-service';
 
@@ -59,7 +59,7 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent('toggle-journal'));
     }, 100);
-  }, [habit?.name, onClose, navigate]);
+  }, [onClose, navigate]);
 
   const habitName = habit?.name;
   const totalReps = stats?.totalRepetitions;
