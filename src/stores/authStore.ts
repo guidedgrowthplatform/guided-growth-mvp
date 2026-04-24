@@ -155,6 +155,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signUp: async (email, password) => {
+    track('start_signup', { method: 'email' });
     const startedAt = Date.now();
     const { data, error } = await supabase.auth.signUp({
       email,
