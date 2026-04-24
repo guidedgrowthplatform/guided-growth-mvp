@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { track } from '@/analytics';
 import { useVoice } from '@/hooks/useVoice';
-import { track } from '@/lib/analytics';
 import {
   CartesiaAgentClient,
   type AgentStartMetadata,

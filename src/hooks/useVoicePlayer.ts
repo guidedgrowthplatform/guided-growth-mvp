@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { track } from '@/analytics';
 import manifestData from '@/data/voice-manifest.json';
 import { useVoice } from '@/hooks/useVoice';
-import { track } from '@/lib/analytics';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
