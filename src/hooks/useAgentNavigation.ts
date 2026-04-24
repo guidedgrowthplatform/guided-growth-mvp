@@ -3,6 +3,39 @@ import { useNavigate } from 'react-router-dom';
 import { useOnboarding } from '@/hooks/useOnboarding';
 
 /**
+ * Input to the agent-advance decision. Kept as a pure shape so the
+ * predicate below can be unit-tested without React or the router.
+ */
+export interface AgentAdvanceInput {
+  /** The current_step value Realtime-mirrored into the React Query cache. */
+  persistedStep: number | undefined;
+  /** The step number this screen represents. */
+  currentStep: number;
+  /** The route to navigate to, or null if the target isn't resolvable yet. */
+  nextRoute: string | null;
+  /** Whether the calling hook has already triggered navigation once. */
+  alreadyAdvanced: boolean;
+}
+
+/**
+ * Pure decision: should we navigate right now?
+ *
+ * Returns true only when:
+ * - the screen hasn't already advanced on this mount,
+ * - the persisted onboarding step has climbed past the current screen,
+ * - and a concrete `nextRoute` is known (for forked screens like
+ *   ONBOARD-02 the route resolves only after the agent writes the path
+ *   field — until then we defer).
+ */
+export function shouldAdvanceToNextScreen(input: AgentAdvanceInput): boolean {
+  if (input.alreadyAdvanced) return false;
+  if (input.persistedStep === undefined) return false;
+  if (input.persistedStep <= input.currentStep) return false;
+  if (!input.nextRoute) return false;
+  return true;
+}
+
+/**
  * Advance the user to the next onboarding screen when the real-time
  * agent signals that the current screen's task is complete.
  *
@@ -31,16 +64,18 @@ export function useAgentNavigation(currentStep: number, nextRoute: string | null
   const advancedRef = useRef(false);
 
   useEffect(() => {
-    if (advancedRef.current) return;
-    if (!state) return;
-    if (state.current_step <= currentStep) return;
-    // The agent has advanced the step but the route target isn't
-    // resolvable yet (e.g. ONBOARD-02 fork is waiting for the agent to
-    // write `path` into onboarding_states.data before we know whether
-    // to route to beginner or advanced). Don't fire — we'll re-check
-    // on the next Realtime payload when the field lands.
-    if (!nextRoute) return;
+    if (
+      !shouldAdvanceToNextScreen({
+        persistedStep: state?.current_step,
+        currentStep,
+        nextRoute,
+        alreadyAdvanced: advancedRef.current,
+      })
+    ) {
+      return;
+    }
     advancedRef.current = true;
-    navigate(nextRoute);
+    // Narrowed by shouldAdvanceToNextScreen — nextRoute is a non-empty string here.
+    navigate(nextRoute as string);
   }, [state, currentStep, nextRoute, navigate]);
 }
