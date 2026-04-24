@@ -5,6 +5,7 @@ import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingRealtimeSync } from '@/hooks/useOnboardingRealtimeSync';
 import { useRealtimeVoice } from '@/hooks/useRealtimeVoice';
@@ -36,6 +37,12 @@ export function Step1Page() {
   // sync hook mirrors that into React Query, which the useEffect below
   // maps back into local form state.
   useOnboardingRealtimeSync();
+
+  // Voice-driven navigation per §2.5: when the agent calls `navigate_next`
+  // (after the user confirms their profile), its tool bumps
+  // onboarding_states.current_step from 1 to 2. The hook picks that up
+  // and routes to ONBOARD-02 without requiring a button tap.
+  useAgentNavigation(1, '/onboarding/step-2');
 
   const {
     start,
