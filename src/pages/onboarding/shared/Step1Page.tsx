@@ -7,10 +7,8 @@ import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useOnboardingRealtimeSync } from '@/hooks/useOnboardingRealtimeSync';
-import { useRealtimeVoice } from '@/hooks/useRealtimeVoice';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { track } from '@/analytics';
-import { useAuthStore } from '@/stores/authStore';
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
@@ -19,40 +17,26 @@ const REFERRAL_OPTIONS = ['Founder Invite', 'Webinar', 'Friend', 'Other'];
 export function Step1Page() {
   const navigate = useNavigate();
   const { state: onboardingState, saveStep } = useOnboarding();
-  const userId = useAuthStore((s) => s.user?.id ?? null);
   const [nickname, setNickname] = useState('');
   const [age, setAge] = useState<number | ''>('');
   const [gender, setGender] = useState<string | null>(null);
   const [referralSource, setReferralSource] = useState<string | null>(null);
   const [referralOtherText, setReferralOtherText] = useState('');
-  const [voiceError, setVoiceError] = useState<string | null>(null);
 
   // Tracks which fields were populated by the real-time agent's
   // record_onboarding_profile tool call so we can attribute
   // `complete_profile_setup.input_method` accurately.
   const voiceFilledFieldsRef = useRef<Set<string>>(new Set());
 
-  // Observe agent tool-call side effects. When the agent calls
-  // `record_onboarding_profile`, it writes to onboarding_states.data; the
-  // sync hook mirrors that into React Query, which the useEffect below
-  // maps back into local form state.
-  useOnboardingRealtimeSync();
+  // Starts the real-time agent with metadata.screen='onboard_01' + subscribes
+  // to onboarding_states Realtime so agent tool-calls reflect in local form.
+  const { voiceState, voiceError } = useOnboardingAgent('onboard_01');
 
   // Voice-driven navigation per §2.5: when the agent calls `navigate_next`
   // (after the user confirms their profile), its tool bumps
   // onboarding_states.current_step from 1 to 2. The hook picks that up
   // and routes to ONBOARD-02 without requiring a button tap.
   useAgentNavigation(1, '/onboarding/step-2');
-
-  const {
-    start,
-    stop,
-    state: voiceState,
-  } = useRealtimeVoice({
-    metadata: { user_id: userId ?? '', screen: 'onboard_01', coaching_style: 'warm' },
-    onError: (message) => setVoiceError(message),
-    onEnd: () => setVoiceError(null),
-  });
 
   useEffect(() => {
     if (onboardingState?.data) {
@@ -91,35 +75,7 @@ export function Step1Page() {
     }
   }, [onboardingState?.data]);
 
-  // Auto-start the real-time agent on mount only if microphone permission
-  // has already been granted (by the earlier MicPermissionPage). If the
-  // permission is `prompt` or `denied`, we stay silent and the form is
-  // still fully operable — matches Yair's Phase 1 spec §1.1 denied path.
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const perm = await navigator.permissions?.query?.({
-          name: 'microphone' as PermissionName,
-        });
-        if (cancelled || perm?.state !== 'granted') return;
-        await start();
-      } catch {
-        // Permissions API not supported on this browser — skip auto-start.
-      }
-    })();
-    return () => {
-      cancelled = true;
-      stop();
-    };
-    // `start`/`stop` are stable wrt session; re-running on userId alone is
-    // the right trigger (the hook depends on metadata.user_id).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
-
   const handleNext = useCallback(() => {
-    stop();
     const effectiveReferral =
       referralSource === 'Other' && referralOtherText.trim()
         ? `Other: ${referralOtherText.trim()}`
@@ -138,7 +94,7 @@ export function Step1Page() {
       used_real_time_agent: true,
     });
     navigate('/onboarding/step-2');
-  }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep, stop]);
+  }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep]);
 
   const voiceStatusLabel =
     voiceState === 'listening'
@@ -156,10 +112,7 @@ export function Step1Page() {
       currentStep={1}
       totalSteps={7}
       ctaLabel="Continue"
-      onBack={() => {
-        stop();
-        navigate('/onboarding/ai-coach-intro');
-      }}
+      onBack={() => navigate('/onboarding/ai-coach-intro')}
       onNext={handleNext}
       ctaDisabled={!nickname.trim() || !age || !gender || !referralSource}
     >

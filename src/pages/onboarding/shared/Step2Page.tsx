@@ -5,12 +5,15 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 export function Step2Page() {
   const navigate = useNavigate();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [plan, setPlan] = useState<'simple' | 'braindump' | null>(null);
+
+  useOnboardingAgent('onboard_02');
 
   useEffect(() => {
     if (onboardingState?.path) {

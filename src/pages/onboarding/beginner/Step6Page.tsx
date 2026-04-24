@@ -13,6 +13,7 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { Sentry } from '@/lib/sentry';
 
@@ -33,6 +34,11 @@ export function Step6Page() {
   const navigate = useNavigate();
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
+
+  // Step6Page maps to ONBOARD-08 (journal setup) in the spec numbering;
+  // the agent metadata uses the sheet's canonical id so screen_contexts
+  // lookups land on the right row.
+  useOnboardingAgent('onboard_08');
 
   // ONBOARD-08 (journal setup) → step-7 (plan review) on agent advance.
   useAgentNavigation(6, '/onboarding/step-7');

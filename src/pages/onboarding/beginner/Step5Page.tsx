@@ -10,6 +10,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { habitsByGoal } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 export function Step5Page() {
@@ -30,6 +31,8 @@ export function Step5Page() {
     () => (state?.goals?.length ? state.goals : ['Fall asleep earlier']),
     [state],
   );
+
+  useOnboardingAgent('onboard_05');
 
   // ONBOARD-05/06 → step-6. Step5Page carries two internal phases
   // (habit-pick and configure); the agent is expected to call

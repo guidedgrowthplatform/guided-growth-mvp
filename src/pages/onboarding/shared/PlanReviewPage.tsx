@@ -5,6 +5,7 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { Sentry } from '@/lib/sentry';
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -85,6 +86,11 @@ export function PlanReviewPage() {
   const location = useLocation();
   const routerState = location.state as PlanReviewState | null;
   const { state: onboardingState, complete, isCompleting } = useOnboarding();
+
+  // PlanReviewPage is the final agent-driven step (ONBOARD-07 per sheet; also
+  // acts as ONBOARD-09 "let's go" trigger). Keep the session live so the user
+  // can say 'let's go' and have the agent fire navigate_next.
+  useOnboardingAgent('onboard_07');
 
   // Prefer router state (classic tap-through flow) — it carries the
   // source='advanced' discriminator that the agent-driven derivation
