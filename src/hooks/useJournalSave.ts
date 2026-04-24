@@ -9,14 +9,16 @@ export function useJournalSave() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
 
-  const save = async (data: JournalEntryCreate) => {
+  const save = async (data: JournalEntryCreate): Promise<boolean> => {
     setSaving(true);
     try {
       await createJournalEntry(data);
       addToast('success', 'Reflection saved!');
       navigate('/home');
+      return true;
     } catch {
       addToast('error', 'Failed to save — please try again');
+      return false;
     } finally {
       // Always reset saving state — previously only the catch path
       // reset it, so if navigate('/home') didn't unmount the component

@@ -1,9 +1,11 @@
 import { Capacitor } from '@capacitor/core';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { InputMethodProvider } from '@/contexts/InputMethodContext';
 import { supabase } from '@/lib/supabase';
 import App from './App';
 import { initAnalytics } from './lib/analytics';
+import { trackOpenApp } from './lib/openAppTracking';
 import { initSentry } from './lib/sentry';
 import './index.css';
 
@@ -11,6 +13,7 @@ export let deepLinkAuthError: string | null = null;
 
 initSentry();
 initAnalytics();
+trackOpenApp(Capacitor.isNativePlatform() ? Capacitor.getPlatform() : 'web');
 
 // Disable pinch-to-zoom only in native Capacitor shell
 if (Capacitor.isNativePlatform()) {
@@ -86,6 +89,8 @@ if (Capacitor.isNativePlatform()) {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <InputMethodProvider>
+      <App />
+    </InputMethodProvider>
   </React.StrictMode>,
 );

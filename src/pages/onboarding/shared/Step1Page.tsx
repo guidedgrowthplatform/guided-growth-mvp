@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
@@ -7,6 +7,7 @@ import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { track } from '@/lib/analytics';
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
@@ -20,6 +21,9 @@ export function Step1Page() {
   const [gender, setGender] = useState<string | null>(null);
   const [referralSource, setReferralSource] = useState<string | null>(null);
   const [referralOtherText, setReferralOtherText] = useState('');
+  // Tracks which fields were populated from the voice STT flow so we can
+  // attribute `complete_profile_setup.input_method` accurately.
+  const voiceFilledFieldsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (onboardingState?.data) {
@@ -47,6 +51,15 @@ export function Step1Page() {
       referralSource: effectiveReferral,
       referralOtherText,
     });
+    const fieldsFilledByVoice = voiceFilledFieldsRef.current.size;
+    // `used_real_time_agent` is false on current main — push-to-talk STT,
+    // not the realtime Cartesia agent. Flips to true once !89 lands and
+    // Step1Page is wired to useRealtimeVoice.
+    track('complete_profile_setup', {
+      input_method: fieldsFilledByVoice > 0 ? 'voice' : 'manual',
+      fields_filled_by_voice: fieldsFilledByVoice,
+      used_real_time_agent: false,
+    });
     navigate('/onboarding/step-2');
   }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep]);
 
@@ -62,21 +75,28 @@ export function Step1Page() {
 
       if (typeof voiceNickname === 'string') {
         setNickname(voiceNickname);
+        voiceFilledFieldsRef.current.add('nickname');
       }
       if (typeof voiceAge === 'number') {
         setAge(voiceAge);
+        voiceFilledFieldsRef.current.add('age');
       } else if (typeof voiceAge === 'string') {
         const parsed = parseInt(voiceAge, 10);
-        if (!isNaN(parsed)) setAge(parsed);
+        if (!isNaN(parsed)) {
+          setAge(parsed);
+          voiceFilledFieldsRef.current.add('age');
+        }
       } else if (typeof voiceAgeRange === 'string') {
         // Legacy voice support — leave age for user to fill
         setAge('');
       }
       if (typeof voiceGender === 'string') {
         setGender(voiceGender);
+        voiceFilledFieldsRef.current.add('gender');
       }
       if (typeof voiceReferral === 'string') {
         setReferralSource(voiceReferral);
+        voiceFilledFieldsRef.current.add('referralSource');
       }
     }
   }, []);

@@ -48,6 +48,30 @@ function friendlyError(error: any): string {
   return error.message || 'Something went wrong. Please try again.';
 }
 
+// PostHog spec v6.0 §3.1: signup_error/login_error use `error_type` as a
+// short category (not the raw message). Map common Supabase auth error
+// strings to a stable enum so PostHog dashboards can group cleanly.
+const ERROR_TYPE_PATTERNS: Array<[string, string]> = [
+  ['invalid_credentials', 'invalid_credentials'],
+  ['invalid login', 'invalid_credentials'],
+  ['user_already_exists', 'user_exists'],
+  ['already registered', 'user_exists'],
+  ['weak_password', 'weak_password'],
+  ['rate limit', 'rate_limited'],
+  ['network', 'network_error'],
+  ['email_not_confirmed', 'email_not_confirmed'],
+];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function categorizeAuthError(error: any): string {
+  if (!error) return 'unknown';
+  const msg = error.message?.toLowerCase?.() || error.code?.toLowerCase?.() || '';
+  for (const [pattern, category] of ERROR_TYPE_PATTERNS) {
+    if (msg.includes(pattern)) return category;
+  }
+  return 'other';
+}
+
 function identifyUser(user: AppUser) {
   identify(user.id, { email: user.email, name: user.name, role: user.role });
   Sentry.setUser({ id: user.id, email: user.email });
@@ -131,6 +155,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signUp: async (email, password) => {
+    const startedAt = Date.now();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -141,7 +166,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
     });
 
-    if (error) return { error: friendlyError(error) };
+    if (error) {
+      track('signup_error', {
+        method: 'email',
+        error_type: categorizeAuthError(error),
+        error_message: error?.message ?? '',
+      });
+      return { error: friendlyError(error) };
+    }
 
     // When email confirmation is enabled, Supabase returns user but no session.
     // When the email already exists, Supabase returns a fake user with empty identities.
@@ -152,7 +184,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = mapUser(data.session.user);
       set({ user });
       identifyUser(user);
-      track('Sign Up', { method: 'email' });
+      // send_instantly skips the batched queue — without it the event
+      // races with post-auth navigation and gets dropped from the
+      // localStorage-backed queue before flush.
+      // time_to_complete_seconds per spec v6.0 §3.1 — measured from form submit
+      // to successful Supabase user creation.
+      track(
+        'complete_signup',
+        {
+          method: 'email',
+          time_to_complete_seconds: Math.round((Date.now() - startedAt) / 1000),
+        },
+        { send_instantly: true },
+      );
     }
     return { error: null, confirmationPending };
   },
@@ -163,20 +207,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       password,
     });
 
-    if (error) return { error: friendlyError(error) };
+    if (error) {
+      track('login_error', { method: 'email', error_type: categorizeAuthError(error) });
+      return { error: friendlyError(error) };
+    }
 
     if (data?.user) {
       const user = mapUser(data.user);
       set({ user });
       identifyUser(user);
-      track('Sign In', { method: 'email' });
+      // is_returning_user per spec v6.0 §3.1 — derived from the gap between
+      // account creation and this sign-in. >60s gap = not the immediate post-signup
+      // auto-login (which fires ~instantly after complete_signup), so it's a real
+      // returning user. <60s = same session as signup, treat as first login.
+      const createdAtMs = data.user.created_at ? new Date(data.user.created_at).getTime() : 0;
+      const lastSignInMs = data.user.last_sign_in_at
+        ? new Date(data.user.last_sign_in_at).getTime()
+        : Date.now();
+      const isReturningUser = createdAtMs > 0 && lastSignInMs - createdAtMs > 60_000;
+
+      // send_instantly skips the batched queue — without it the event
+      // races with post-auth navigation and gets dropped from the
+      // localStorage-backed queue before flush.
+      track(
+        'complete_login',
+        { method: 'email', is_returning_user: isReturningUser },
+        { send_instantly: true },
+      );
     }
     return { error: null };
   },
 
   signOut: async () => {
     await supabase.auth.signOut({ scope: 'global' });
-    track('Sign Out');
     clearUserIdentity();
     set({ user: null });
   },
