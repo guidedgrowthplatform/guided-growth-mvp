@@ -96,7 +96,19 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
 
       const entry = getManifestEntry(fileId);
       if (!entry) {
-        console.warn(`[VoicePlayer] No manifest entry for file_id: ${fileId}`);
+        // Onboarding pages (ONBOARD-02..09) still pass `voiceFileId` props
+        // that point at the legacy sync-script manifest keys. The post-!103
+        // manifest only carries the 7 canonical Phase 1 files (splash_hook,
+        // pref_can_i_talk, mic_*, welcome_*); everything else lands here as
+        // a no-op on purpose — those screens are agent-driven, not MP3.
+        //
+        // A production console.warn on every page nav floods the Vercel
+        // runtime logs and scares reviewers (Alejandro flagged this in the
+        // 2026-04-25 review). Gate to dev-only so we still catch genuine
+        // typos while developing locally.
+        if (import.meta.env.DEV) {
+          console.warn(`[VoicePlayer] No manifest entry for file_id: ${fileId}`);
+        }
         return;
       }
 
@@ -169,7 +181,12 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
             });
         });
       } catch (err) {
-        console.warn(`[VoicePlayer] Error playing ${fileId}:`, err);
+        // DOMException on autoplay is the common case (browser autoplay
+        // policy kicks in before first user gesture). Spamming prod
+        // console for each page nav is noise — same rationale as above.
+        if (import.meta.env.DEV) {
+          console.warn(`[VoicePlayer] Error playing ${fileId}:`, err);
+        }
         if (mountedRef.current) {
           setState('error');
           setCurrentFileId(null);
