@@ -137,6 +137,19 @@ export const AUDIO_DEBUG_WEB_ORIGIN = envString(import.meta.env.VITE_AUDIO_DEBUG
  * callers can skip the Supabase smoke test gracefully.
  */
 const SUPABASE_URL = envString(import.meta.env.VITE_SUPABASE_URL, '');
-export const AUDIO_DEBUG_SUPABASE_STORAGE_BASE = SUPABASE_URL
+export const VOICE_ASSETS_BASE_URL = SUPABASE_URL
   ? `${SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/public/voice-assets`
   : '';
+
+/** Alias kept for the AudioDebugPage smoke test; prefer VOICE_ASSETS_BASE_URL. */
+export const AUDIO_DEBUG_SUPABASE_STORAGE_BASE = VOICE_ASSETS_BASE_URL;
+
+/**
+ * Build a public URL for an MP3 asset in the Supabase `voice-assets` bucket.
+ * Falls back to an empty string if the Supabase URL is not configured, which
+ * makes the caller's Audio element silently no-op instead of throwing.
+ */
+export function voiceAssetUrl(filename: string): string {
+  if (!VOICE_ASSETS_BASE_URL) return '';
+  return `${VOICE_ASSETS_BASE_URL}/${filename}`;
+}
