@@ -184,13 +184,18 @@ async function generateAndStoreInsight(params: {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const raw = req.query['...path'];
+  const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  console.info('[reflections.handler] entered', {
+    method: req.method,
+    url: req.url,
+    segments,
+  });
   if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
   if (!user) return;
   await setUserContext(user.id);
 
-  const raw = req.query['...path'];
-  const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] === '__index' ? '' : segments[0] || '';
 
   // ── Journal entries ──────────────────────────────────
@@ -360,7 +365,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         rows = result.rows;
       }
 
-      return res.json(rowsToEntries(rows));
+      const entries = rowsToEntries(rows);
+      console.info('[reflections.list]', {
+        requestUserId: user.id,
+        hasDateRange: !!hasDateRange,
+        count: entries.length,
+        ids: entries.map((e) => e.id),
+      });
+      return res.json(entries);
     }
 
     // POST /api/reflections/journal/:id/insight — lazy-backfill AI insight
@@ -406,7 +418,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
            WHERE je.id = $1 AND je.user_id = $2`,
           [entryId, user.id],
         );
-        if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+        if (result.rows.length === 0) {
+          const owner = await pool.query<{ user_id: string }>(
+            'SELECT user_id FROM journal_entries WHERE id = $1',
+            [entryId],
+          );
+          console.warn('[reflections.get] 404', {
+            entryId,
+            requestUserId: user.id,
+            rowExists: owner.rows.length > 0,
+            rowOwnerUserId: owner.rows[0]?.user_id ?? null,
+          });
+          return res.status(404).json({ error: 'Not found' });
+        }
         return res.json(rowsToEntry(result.rows));
       }
 

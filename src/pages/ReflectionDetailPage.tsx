@@ -49,20 +49,10 @@ export function ReflectionDetailPage() {
         title="Journal Entry"
         rightSlot={
           entry && (
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => navigate(`/reflections/${entry.id}/edit`)}
-                aria-label="Edit"
-                className="flex size-10 items-center justify-center rounded-full text-content hover:bg-surface-secondary"
-              >
-                <Icon icon="mdi:pencil-outline" width={20} height={20} />
-              </button>
-              <ReflectionOverflowMenu
-                onEdit={() => navigate(`/reflections/${entry.id}/edit`)}
-                onDelete={handleDelete}
-              />
-            </div>
+            <ReflectionOverflowMenu
+              onEdit={() => navigate(`/reflections/${entry.id}/edit`)}
+              onDelete={handleDelete}
+            />
           )
         }
       />

@@ -17,7 +17,7 @@ export function ReflectionEditPage() {
   const queryClient = useQueryClient();
   const { addToast } = useToast();
   const { user } = useAuth();
-  const { entry, isLoading } = useReflectionDetail(entryId);
+  const { entry, isLoading, error } = useReflectionDetail(entryId);
   const userName = user?.nickname ?? user?.name?.split(' ')[0] ?? 'there';
 
   const [title, setTitle] = useState('');
@@ -74,10 +74,28 @@ export function ReflectionEditPage() {
     }
   };
 
-  if (isLoading || !entry) {
+  if (isLoading) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-primary" />
+      </div>
+    );
+  }
+
+  if (error || !entry) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
+        <h2 className="text-lg font-semibold text-content">Couldn't load this reflection</h2>
+        <p className="max-w-sm text-sm text-content-secondary">
+          It may have been deleted, or there was a network hiccup.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/reflections')}
+          className="rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-white"
+        >
+          Back to Reflections
+        </button>
       </div>
     );
   }
