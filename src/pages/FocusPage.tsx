@@ -8,6 +8,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useFocusSession } from '@/hooks/useFocusSession';
 import { useFocusTimer } from '@/hooks/useFocusTimer';
 import { useHabits } from '@/hooks/useHabits';
+import { track } from '@/lib/analytics';
 import { speak } from '@/lib/services/tts-service';
 
 export function FocusPage() {
@@ -25,6 +26,10 @@ export function FocusPage() {
 
   const selectedHabit = habits.find((h) => h.id === selectedHabitId);
 
+  useEffect(() => {
+    track('view_focus');
+  }, []);
+
   // Show toast when save fails
   useEffect(() => {
     if (saveError) {
@@ -38,13 +43,23 @@ export function FocusPage() {
     if (prevStatus.current !== 'completed' && timer.status === 'completed') {
       const startedAt = sessionStartRef.current || new Date().toISOString();
       const durationMinutes = Math.round(timer.totalSeconds / 60);
-      const actualMinutes = durationMinutes; // Timer ran to completion
+      const habitLabel = selectedHabit?.name ?? null;
 
-      saveFocusSession(selectedHabitId, durationMinutes, actualMinutes, startedAt);
+      saveFocusSession(selectedHabitId, durationMinutes, durationMinutes, startedAt).then(
+        (session) => {
+          if (session) {
+            track('complete_focus_session', {
+              duration_minutes: durationMinutes,
+              linked_habit: habitLabel,
+              was_interrupted: false,
+            });
+          }
+        },
+      );
       sessionStartRef.current = null;
     }
     prevStatus.current = timer.status;
-  }, [timer.status, timer.totalSeconds, selectedHabitId, saveFocusSession]);
+  }, [timer.status, timer.totalSeconds, selectedHabitId, selectedHabit?.name, saveFocusSession]);
 
   // TTS on status changes per Voice Journey Spreadsheet v3 (line 524-532)
   const prevTTSStatus = useRef(timer.status);
@@ -66,9 +81,24 @@ export function FocusPage() {
   }, [timer.status, timer.totalSeconds, selectedHabit?.name]);
 
   const handleStart = useCallback(() => {
+    const durationMinutes = Math.round(timer.totalSeconds / 60);
+    track('start_focus_session', {
+      duration_set_minutes: durationMinutes,
+      linked_habit: selectedHabit?.name ?? null,
+      notification_enabled: notify,
+    });
     sessionStartRef.current = new Date().toISOString();
     timer.start();
-  }, [timer]);
+  }, [timer, selectedHabit?.name, notify]);
+
+  const handlePause = useCallback(() => {
+    const elapsedSeconds = timer.totalSeconds - timer.remainingSeconds;
+    track('pause_focus_session', {
+      elapsed_minutes: Math.round(elapsedSeconds / 60),
+      linked_habit: selectedHabit?.name ?? null,
+    });
+    timer.pause();
+  }, [timer, selectedHabit?.name]);
 
   const handleStop = useCallback(() => {
     // Save partial session on manual stop (skip 0-minute sessions)
@@ -76,14 +106,38 @@ export function FocusPage() {
       const durationMinutes = Math.round(timer.totalSeconds / 60);
       const elapsedSeconds = timer.totalSeconds - timer.remainingSeconds;
       const actualMinutes = Math.round(elapsedSeconds / 60);
+      const habitLabel = selectedHabit?.name ?? null;
+      const startedAt = sessionStartRef.current;
+      const completionPct =
+        durationMinutes > 0 ? Math.round((actualMinutes / durationMinutes) * 100) : 0;
 
       if (actualMinutes >= 1) {
-        saveFocusSession(selectedHabitId, durationMinutes, actualMinutes, sessionStartRef.current);
+        saveFocusSession(selectedHabitId, durationMinutes, actualMinutes, startedAt).then(
+          (session) => {
+            if (session) {
+              track('abandon_focus_session', {
+                elapsed_minutes: actualMinutes,
+                total_duration_minutes: durationMinutes,
+                completion_percentage: completionPct,
+                linked_habit: habitLabel,
+              });
+            }
+          },
+        );
+      } else {
+        // No save occurs for <1-minute stops — still track the intent.
+        track('abandon_focus_session', {
+          elapsed_minutes: actualMinutes,
+          total_duration_minutes: durationMinutes,
+          completion_percentage: completionPct,
+          linked_habit: habitLabel,
+          skipped_save: true,
+        });
       }
       sessionStartRef.current = null;
     }
     timer.stop();
-  }, [timer, selectedHabitId, saveFocusSession]);
+  }, [timer, selectedHabitId, selectedHabit?.name, saveFocusSession]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface-secondary pb-[calc(5rem+env(safe-area-inset-bottom))]">
@@ -120,7 +174,7 @@ export function FocusPage() {
         <FocusControls
           status={timer.status}
           onStart={handleStart}
-          onPause={timer.pause}
+          onPause={handlePause}
           onResume={timer.resume}
           onStop={handleStop}
         />
