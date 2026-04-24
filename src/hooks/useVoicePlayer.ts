@@ -7,11 +7,14 @@ import { useVoice } from '@/hooks/useVoice';
 
 interface ManifestEntry {
   url: string;
-  hash: string;
   screen: string;
   trigger: string;
-  size_bytes: number;
-  generated_at: string;
+  // Optional bookkeeping fields carried over from the sync-script era.
+  hash?: string;
+  size_bytes?: number;
+  generated_at?: string;
+  duration_seconds?: number;
+  text?: string;
 }
 
 type ManifestFiles = Record<string, ManifestEntry>;

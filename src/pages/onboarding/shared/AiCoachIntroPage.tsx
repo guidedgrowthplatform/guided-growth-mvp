@@ -1,14 +1,49 @@
 import { Icon } from '@iconify/react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 
 export function AiCoachIntroPage() {
   const navigate = useNavigate();
   const { preferences } = useUserPreferences();
+  const { play, stop } = useVoicePlayer();
+  const [advancing, setAdvancing] = useState(false);
   const voiceEnabled = preferences.voiceEnabled === true;
   const micGranted = preferences.micGranted === true;
+
+  // POST-AUTH-01 per Voice System sheet:
+  //   screen_load → welcome_intro.mp3 (~60s)
+  //   after_ready_tap → stop intro, play welcome_presence.mp3 (~25s)
+  //   on welcome_presence end → auto-navigate to ONBOARD-01
+  //     (Voice System Impl Guide §2.5: "after welcome_presence MP3 finishes
+  //      playing, auto-navigate to ONBOARD-01 without waiting for a button
+  //      press.")
+  useEffect(() => {
+    play('welcome_intro').catch(() => {
+      // Autoplay may be blocked until the user interacts — the text is
+      // visible on screen either way.
+    });
+    return () => stop();
+  }, [play, stop]);
+
+  const handleReady = useCallback(async () => {
+    if (advancing) return;
+    setAdvancing(true);
+    stop();
+    // Await the presence MP3 so auto-navigation lands at ONBOARD-01 exactly
+    // when the audio ends. If the play() promise rejects (autoplay blocked
+    // or load error) we still navigate — the flow must not stall.
+    await play('welcome_presence').catch(() => {});
+    navigate('/onboarding/step-1');
+  }, [advancing, navigate, play, stop]);
+
+  const handleSkip = useCallback(() => {
+    stop();
+    navigate('/onboarding/step-1');
+  }, [navigate, stop]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[max(32px,env(safe-area-inset-bottom))] pt-[max(16px,env(safe-area-inset-top))]">
@@ -52,15 +87,17 @@ export function AiCoachIntroPage() {
       <div className="flex flex-col items-center gap-[12px]">
         <button
           type="button"
-          onClick={() => navigate('/onboarding/step-1')}
-          className="flex h-[56px] w-full items-center justify-center rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
+          onClick={handleReady}
+          disabled={advancing}
+          className="flex h-[56px] w-full items-center justify-center rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] transition-opacity disabled:opacity-50"
         >
           I&apos;m ready
         </button>
         <button
           type="button"
-          onClick={() => navigate('/onboarding/step-1')}
-          className="py-[8px] text-[15px] font-semibold text-content"
+          onClick={handleSkip}
+          disabled={advancing}
+          className="py-[8px] text-[15px] font-semibold text-content disabled:opacity-50"
         >
           Come back later
         </button>
