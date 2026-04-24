@@ -24,9 +24,9 @@ export function HabitsPage() {
 
   const handleAddHabit = async (data: MetricCreate) => {
     try {
-      await create(data);
+      const created = await create(data);
       track('create_habit', {
-        habit_name: data.name,
+        habit_id: created?.id ?? '',
         input_type: data.input_type,
         has_target: data.target_value != null,
         frequency: data.frequency,
