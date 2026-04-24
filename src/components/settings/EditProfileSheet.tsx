@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { updateProfile, uploadAvatar } from '@/api/profile';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useToast } from '@/contexts/ToastContext';
-import { track } from '@/lib/analytics';
+import { track } from '@/analytics';
 import { useAuthStore } from '@/stores/authStore';
 
 interface Props {

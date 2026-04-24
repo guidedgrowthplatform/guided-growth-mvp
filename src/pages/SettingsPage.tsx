@@ -2,6 +2,7 @@ import { Icon } from '@iconify/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { deleteAccount } from '@/api/onboarding';
 import { ReminderSheet } from '@/components/home/ReminderSheet';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
@@ -25,7 +26,6 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { track } from '@/lib/analytics';
 import { queryKeys } from '@/lib/query';
 import {
   getAvailableVoices,

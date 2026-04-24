@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
-import { track } from '@/lib/analytics';
+import { track } from '@/analytics';
 
 interface SocialAuthButtonsProps {
   disabled?: boolean;

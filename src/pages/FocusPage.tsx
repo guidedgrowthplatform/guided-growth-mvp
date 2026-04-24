@@ -1,5 +1,6 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { track } from '@/analytics';
 import { FocusControls } from '@/components/focus/FocusControls';
 import { FocusSessionSheet } from '@/components/focus/FocusSessionSheet';
 import { FocusTimer } from '@/components/focus/FocusTimer';
@@ -8,7 +9,6 @@ import { useToast } from '@/contexts/ToastContext';
 import { useFocusSession } from '@/hooks/useFocusSession';
 import { useFocusTimer } from '@/hooks/useFocusTimer';
 import { useHabits } from '@/hooks/useHabits';
-import { track } from '@/lib/analytics';
 import { speak } from '@/lib/services/tts-service';
 
 export function FocusPage() {

@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation } from 'react-router-dom';
+import { track } from '@/analytics';
 import {
   AuthBackButton,
   SocialAuthButtons,
@@ -13,7 +14,6 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
 import { useAutoplayVoice } from '@/hooks/useAutoplayVoice';
-import { track } from '@/lib/analytics';
 import { voiceAssetUrl } from '@/lib/config/voice';
 import { loginSchema, type LoginForm } from '@/lib/validation';
 

@@ -1,12 +1,12 @@
 import { format } from 'date-fns';
 import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { ReflectionTypeSelect } from '@/components/journal/ReflectionTypeSelect';
 import { TemplateEntry } from '@/components/journal/TemplateEntry';
 import { TemplateSelect } from '@/components/journal/TemplateSelect';
 import { useAuth } from '@/hooks/useAuth';
 import { useJournalSave } from '@/hooks/useJournalSave';
-import { track } from '@/lib/analytics';
 
 const FreeformEntry = lazy(() =>
   import('@/components/journal/FreeformEntry').then((m) => ({ default: m.FreeformEntry })),

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
+import { track } from '@/analytics';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
-import { track } from '@/lib/analytics';
 import { speak, stopTTS } from '@/lib/services/tts-service';
 import type { CheckInData, CheckInDimension } from '@shared/types';
 import { checkInDimensions } from './checkInConfig';

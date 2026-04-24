@@ -1,13 +1,13 @@
 import { Icon } from '@iconify/react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { AddHabitModal } from '@/components/capture/AddHabitModal';
 import { HabitManageCard } from '@/components/habits/HabitManageCard';
 import { VoiceAiBanner } from '@/components/habits/VoiceAiBanner';
 import { useToast } from '@/contexts/ToastContext';
 import { useAllMetrics } from '@/hooks/useAllMetrics';
 import { useMetrics } from '@/hooks/useMetrics';
-import { track } from '@/lib/analytics';
 import type { MetricCreate } from '@shared/types';
 
 export function HabitsPage() {

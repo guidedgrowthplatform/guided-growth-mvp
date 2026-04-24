@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { DaySchedulePills } from '@/components/habit-detail/DaySchedulePills';
 import { HabitDetailTopBar, HabitDetailTitle } from '@/components/habit-detail/HabitDetailHeader';
 import { MilestonesSection } from '@/components/habit-detail/MilestonesSection';
@@ -7,7 +8,6 @@ import { ReflectionCard } from '@/components/habit-detail/ReflectionCard';
 import { StatsGrid } from '@/components/habit-detail/StatsGrid';
 import { StreakCard } from '@/components/habit-detail/StreakCard';
 import { BottomSheet } from '@/components/ui/BottomSheet';
-import { track } from '@/lib/analytics';
 import { useHabitDetail } from '@/hooks/useHabitDetail';
 import { getDataService } from '@/lib/services/service-provider';
 import { speak } from '@/lib/services/tts-service';
