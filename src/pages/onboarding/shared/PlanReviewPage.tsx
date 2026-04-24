@@ -7,6 +7,7 @@ import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { Sentry } from '@/lib/sentry';
+import { deriveStateFromOnboarding, type PlanReviewState } from './planReviewDerive';
 
 const CATEGORY_ICONS: Record<string, string> = {
   Sleep: 'ic:outline-nightlight-round',
@@ -18,68 +19,6 @@ const CATEGORY_ICONS: Record<string, string> = {
   Habits: 'ic:outline-check-circle',
   Organization: 'ic:outline-assignment',
 };
-
-interface PlanReviewState {
-  habitConfigs: Record<string, { days: number[]; time: string; reminder: boolean }>;
-  goals?: string[];
-  category?: string;
-  reflectionConfig: { time: string; days: number[]; reminder: boolean; schedule: string };
-  source?: 'advanced';
-}
-
-/**
- * Rehydrate a PlanReviewState from the persisted onboarding_states row
- * when the agent-driven navigation brings the user here without
- * location.state. Fields come from `onboardingState.data` which the
- * agent fills during steps 5/6 (habits + reflection config) via the
- * update_onboarding_data tool.
- */
-function deriveStateFromOnboarding(
-  data: ReturnType<typeof useOnboarding>['state'] extends infer S
-    ? S extends { data: infer D }
-      ? D
-      : undefined
-    : undefined,
-): PlanReviewState | null {
-  if (!data) return null;
-  const rawConfigs = data.habitConfigs;
-  if (!rawConfigs || typeof rawConfigs !== 'object') return null;
-
-  const habitConfigs: PlanReviewState['habitConfigs'] = {};
-  for (const [name, cfg] of Object.entries(rawConfigs)) {
-    if (!cfg || typeof cfg !== 'object') continue;
-    const daysInput = (cfg as { days?: unknown }).days;
-    const days = Array.isArray(daysInput)
-      ? (daysInput.filter((d) => typeof d === 'number') as number[])
-      : daysInput instanceof Set
-        ? Array.from(daysInput as Set<number>)
-        : [];
-    habitConfigs[name] = {
-      days,
-      time: String((cfg as { time?: unknown }).time ?? ''),
-      reminder: Boolean((cfg as { reminder?: unknown }).reminder),
-    };
-  }
-  if (Object.keys(habitConfigs).length === 0) return null;
-
-  const rc = data.reflectionConfig;
-  if (!rc || typeof rc !== 'object') return null;
-  const reflectionConfig: PlanReviewState['reflectionConfig'] = {
-    time: String((rc as { time?: unknown }).time ?? ''),
-    days: Array.isArray((rc as { days?: unknown }).days)
-      ? ((rc as { days: unknown[] }).days.filter((d) => typeof d === 'number') as number[])
-      : [],
-    reminder: Boolean((rc as { reminder?: unknown }).reminder),
-    schedule: String((rc as { schedule?: unknown }).schedule ?? ''),
-  };
-
-  return {
-    habitConfigs,
-    reflectionConfig,
-    goals: Array.isArray(data.goals) ? (data.goals as string[]) : undefined,
-    category: typeof data.category === 'string' ? data.category : undefined,
-  };
-}
 
 export function PlanReviewPage() {
   const navigate = useNavigate();
