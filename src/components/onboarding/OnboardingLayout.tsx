@@ -68,7 +68,12 @@ export function OnboardingLayout({
   useEffect(() => {
     if (voiceFileId) {
       voicePlayer.play(voiceFileId).catch((err) => {
-        console.warn('[OnboardingLayout] Voice autoplay blocked or failed:', err);
+        // Autoplay block / missing manifest entry is expected on most
+        // pages (ONBOARD-02..09 are agent screens without pre-recorded
+        // MP3 in the Phase 1 manifest). Surface only in dev.
+        if (import.meta.env.DEV) {
+          console.warn('[OnboardingLayout] Voice autoplay blocked or failed:', err);
+        }
       });
     }
     // Only run on mount or when fileId changes
