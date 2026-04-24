@@ -8,6 +8,7 @@ import { StatsGrid } from '@/components/habit-detail/StatsGrid';
 import { StreakCard } from '@/components/habit-detail/StreakCard';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useHabitDetail } from '@/hooks/useHabitDetail';
+import { track } from '@/lib/analytics';
 import { getDataService } from '@/lib/services/service-provider';
 import { speak } from '@/lib/services/tts-service';
 
@@ -38,7 +39,20 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
     error,
   } = useHabitDetail(habitId);
 
+  const hasTrackedView = useRef(false);
+  useEffect(() => {
+    if (hasTrackedView.current) return;
+    if (!habit || !stats || isLoading) return;
+    hasTrackedView.current = true;
+    track('view_habit_detail', {
+      habit_name: habit.name,
+      current_streak: stats.currentStreak,
+      completion_rate: stats.completionRate,
+    });
+  }, [habit, stats, isLoading]);
+
   const handleLogReflection = useCallback(() => {
+    track('tap_log_reflection', { source: 'habit_detail' });
     onClose();
     navigate('/home');
     // Open journal panel after navigation settles
@@ -47,16 +61,25 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
     }, 100);
   }, [onClose, navigate]);
 
+  const habitName = habit?.name;
+  const totalReps = stats?.totalRepetitions;
+  const completionRate = stats?.completionRate;
+
   const handleDelete = useCallback(async () => {
     try {
       const ds = await getDataService();
       await ds.deleteHabit(habitId);
+      track('delete_habit', {
+        habit_name: habitName,
+        total_completions: totalReps,
+        completion_rate: completionRate,
+      });
       window.dispatchEvent(new Event('habits-changed'));
       onClose();
     } catch {
       // Silently fail — the habit list will refresh and show the correct state
     }
-  }, [habitId, onClose]);
+  }, [habitId, habitName, totalReps, completionRate, onClose]);
 
   // TTS milestone celebration per Voice Journey Spreadsheet v3 (line 454-458)
   const hasSpokenMilestone = useRef(false);
@@ -64,18 +87,27 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
     if (hasSpokenMilestone.current || !stats || isLoading) return;
     hasSpokenMilestone.current = true;
     const reps = stats.totalRepetitions;
+    let milestoneDays = 0;
     if (reps >= 90) {
+      milestoneDays = 90;
       speak("90 days. This isn't a habit anymore \u2014 this is who you are.");
     } else if (reps >= 60) {
+      milestoneDays = 60;
       speak("60 days. You've built something real here.");
     } else if (reps >= 30) {
+      milestoneDays = 30;
       speak(
         "30 days. This started as something you were trying. Now it's something you do. That's a real shift.",
       );
     } else if (reps >= 21) {
+      milestoneDays = 21;
       speak("21 days in. You're building something lasting.");
     } else if (reps >= 7) {
+      milestoneDays = 7;
       speak("One week. You showed up seven days in a row. That's not luck \u2014 that's you.");
+    }
+    if (milestoneDays > 0) {
+      track('reach_milestone', { milestone_days: milestoneDays });
     }
   }, [stats, isLoading]);
 
