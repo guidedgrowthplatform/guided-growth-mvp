@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVoice } from '@/hooks/useVoice';
 import { track } from '@/lib/analytics';
@@ -6,6 +7,7 @@ import {
   type AgentStartMetadata,
   type AudioFormat,
 } from '@/lib/services/cartesia-agent';
+import { supabase } from '@/lib/supabase';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -40,7 +42,28 @@ const OUTPUT_FORMAT: AudioFormat = 'pcm_44100';
 const INPUT_SAMPLE_RATE = 16000;
 const OUTPUT_SAMPLE_RATE = 44100;
 const CAPTURE_BUFFER_SIZE = 4096;
-const TOKEN_ENDPOINT = '/api/cartesia-agent-token';
+const TOKEN_PATH = '/api/cartesia-agent-token';
+
+/**
+ * Resolve the token endpoint's full URL. On web (Vercel-hosted SPA) a
+ * relative path resolves against the SPA's origin where the serverless
+ * function lives. On native Capacitor the bundle is served from
+ * `https://localhost/`, which has no API routes — we must prepend the
+ * Vercel base URL via VITE_API_URL so the fetch lands on the real
+ * serverless function.
+ *
+ * Observed on emulator QA v7c: without this the native bundle hit
+ * `https://localhost/api/cartesia-agent-token`, Capacitor returned
+ * "no route found", token fetch failed, agent WS never opened, and
+ * ONBOARD-01 sat silent with no "Connecting…" status.
+ */
+function tokenEndpoint(): string {
+  if (Capacitor.isNativePlatform()) {
+    const base = import.meta.env.VITE_API_URL;
+    if (base) return `${String(base).replace(/\/$/, '')}${TOKEN_PATH}`;
+  }
+  return TOKEN_PATH;
+}
 
 // Map `metadata.screen` to the PostHog §4.3 `context` taxonomy so
 // start/complete/cancel_voice_session events carry a consistent value.
@@ -99,10 +122,30 @@ function pcm16LEToAudioBuffer(ctx: AudioContext, pcm: Uint8Array, sampleRate: nu
 // ─── Token fetch ────────────────────────────────────────────────────────────
 
 async function fetchAccessToken(signal: AbortSignal): Promise<string> {
-  const res = await fetch(TOKEN_ENDPOINT, {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  // On Capacitor native the SPA origin is https://localhost but the API
+  // lives on the Vercel deployment — a cross-origin fetch. Cookies don't
+  // propagate across that boundary, and the Supabase session is stored
+  // in Capacitor Preferences rather than a cookie anyway. So we must
+  // attach the Supabase access_token as a Bearer header ourselves,
+  // matching what src/api/client.ts:apiFetch already does.
+  //
+  // Observed on emulator QA v7d: without this the token endpoint
+  // returned 401 "Authentication required" and ONBOARD-01 never got an
+  // agent WS token.
+  try {
+    const { data } = await supabase.auth.getSession();
+    const bearer = data.session?.access_token;
+    if (bearer) headers.Authorization = `Bearer ${bearer}`;
+  } catch {
+    // No session — let the request go anonymously; the server will 401
+    // and the caller surfaces that as a normal error.
+  }
+
+  const res = await fetch(tokenEndpoint(), {
     method: 'POST',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     signal,
   });
   if (!res.ok) {
