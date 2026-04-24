@@ -170,7 +170,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       track('signup_error', {
         method: 'email',
         error_type: categorizeAuthError(error),
-        error_message: error?.message ?? '',
       });
       return { error: friendlyError(error) };
     }
