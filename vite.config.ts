@@ -131,6 +131,11 @@ export default defineConfig(({ mode }) => {
         workbox: {
           maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+          // On version bump (chunk hashes change), wipe stale precache
+          // entries. Without this, a prior install's service worker
+          // happily serves 404s for the new chunk filenames and crashes
+          // dynamic imports (saw this on APK v5 → v6 upgrade).
+          cleanupOutdatedCaches: true,
           runtimeCaching: [
             {
               urlPattern: /^\/api\/.*/i,
@@ -138,6 +143,21 @@ export default defineConfig(({ mode }) => {
               options: {
                 cacheName: 'api-cache',
                 expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 },
+              },
+            },
+            {
+              // Supabase Storage voice-assets bucket — the Phase 1 MP3s
+              // (splash_hook, pref_can_i_talk, mic_*, welcome_*). Without
+              // this rule the SW intercepts the fetch, finds no precache
+              // match, and the Audio element fails with DOMException
+              // (observed on APK v6 signup → PREF-01 flow).
+              urlPattern:
+                /^https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/object\/public\/voice-assets\/.*\.mp3$/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'voice-assets',
+                expiration: { maxEntries: 32, maxAgeSeconds: 60 * 60 * 24 * 30 },
+                cacheableResponse: { statuses: [0, 200] },
               },
             },
           ],
