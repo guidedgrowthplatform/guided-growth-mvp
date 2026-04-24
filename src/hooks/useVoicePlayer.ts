@@ -2,14 +2,22 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
 import manifestData from '@/data/voice-manifest.json';
 import { useVoice } from '@/hooks/useVoice';
+import { voiceAssetUrl } from '@/lib/config/voice';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 interface ManifestEntry {
-  url: string;
+  /**
+   * Canonical filename of the asset in the Supabase voice-assets bucket
+   * (e.g. "splash_hook.mp3"). The full URL is constructed at play time
+   * via voiceAssetUrl() so VITE_SUPABASE_URL stays the single source of
+   * truth for the project + bucket host (Alejandro review, MR !103).
+   */
+  file?: string;
+  /** Legacy full URL. Kept for older manifest rows (sync-script era). */
+  url?: string;
   screen: string;
   trigger: string;
-  // Optional bookkeeping fields carried over from the sync-script era.
   hash?: string;
   size_bytes?: number;
   generated_at?: string;
@@ -103,6 +111,16 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
         return;
       }
 
+      // Resolve the asset URL. New manifest rows carry `file` (bucket
+      // filename) and we prepend the env-derived base; older rows still
+      // carry an absolute `url` for local `/voice/*.mp3` paths, which
+      // stays a passthrough.
+      const src = entry.file ? voiceAssetUrl(entry.file) : (entry.url ?? '');
+      if (!src) {
+        console.warn(`[VoicePlayer] Cannot resolve URL for file_id: ${fileId}`);
+        return;
+      }
+
       // Request mp3 mode (stops realtime if active)
       const ok = enterMp3();
       if (!ok) return;
@@ -117,7 +135,7 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
       setCurrentFileId(fileId);
 
       try {
-        const audio = new Audio(entry.url);
+        const audio = new Audio(src);
         audioRef.current = audio;
 
         // Register cleanup so VoiceContext can stop us

@@ -1,60 +1,51 @@
 {
-  "_comment": "Phase 1 canonical manifest — 7 pre-recorded MP3s per Voice System Implementation Guide Appendix A. URLs point to Supabase Storage voice-assets bucket (already uploaded by Yair). Do NOT edit filenames — the agent + spreadsheet reference these same file IDs.",
+  "_comment": "Phase 1 canonical manifest — 7 pre-recorded MP3s per Voice System Implementation Guide Appendix A. Filenames match what's in the Supabase voice-assets bucket. The base URL is derived at runtime from VITE_SUPABASE_URL via voiceAssetUrl() in src/lib/config/voice.ts — do NOT hardcode project URLs here (addresses Alejandro's review on MR !103).",
   "_spec_revision": "Voice System Implementation Guide v4.0 (April 2026)",
-  "_supabase_project": "pmunbflbjpoawicgimyc",
-  "_bucket": "voice-assets (public)",
   "files": {
     "splash_hook": {
-      "url": "https://pmunbflbjpoawicgimyc.supabase.co/storage/v1/object/public/voice-assets/splash_hook.mp3",
-      "hash": "",
+      "file": "splash_hook.mp3",
       "screen": "WELCOME-01",
       "trigger": "screen_load",
       "duration_seconds": 8,
       "text": "Hey there. ...I might have startled you. I'm your AI coach, and I'm here to help you build habits that actually stick. Tap below to get started."
     },
     "pref_can_i_talk": {
-      "url": "https://pmunbflbjpoawicgimyc.supabase.co/storage/v1/object/public/voice-assets/pref_can_i_talk.mp3",
-      "hash": "",
+      "file": "pref_can_i_talk.mp3",
       "screen": "PREF-01",
       "trigger": "screen_load",
       "duration_seconds": 6,
       "text": "Can I talk? I have something to share with you. I'd love to be able to speak with you throughout this experience."
     },
     "mic_permission": {
-      "url": "https://pmunbflbjpoawicgimyc.supabase.co/storage/v1/object/public/voice-assets/mic_permission.mp3",
-      "hash": "",
+      "file": "mic_permission.mp3",
       "screen": "MIC-01",
       "trigger": "screen_load",
       "duration_seconds": 8,
       "text": "I always want to give you the option to talk to me. If you allow your microphone, you can just speak and I'll listen. You can always change this later."
     },
     "mic_granted": {
-      "url": "https://pmunbflbjpoawicgimyc.supabase.co/storage/v1/object/public/voice-assets/mic_granted.mp3",
-      "hash": "",
+      "file": "mic_granted.mp3",
       "screen": "MIC-01",
       "trigger": "after_grant",
       "duration_seconds": 4,
       "text": "Got it. You can talk to me anytime now."
     },
     "mic_denied": {
-      "url": "https://pmunbflbjpoawicgimyc.supabase.co/storage/v1/object/public/voice-assets/mic_denied.mp3",
-      "hash": "",
+      "file": "mic_denied.mp3",
       "screen": "MIC-01",
       "trigger": "after_deny",
       "duration_seconds": 5,
       "text": "No problem. You can always type instead. And if you change your mind, you can enable the mic in settings anytime."
     },
     "welcome_intro": {
-      "url": "https://pmunbflbjpoawicgimyc.supabase.co/storage/v1/object/public/voice-assets/welcome_intro.mp3",
-      "hash": "",
+      "file": "welcome_intro.mp3",
       "screen": "POST-AUTH-01",
       "trigger": "screen_load",
       "duration_seconds": 60,
       "text": "Welcome. I am your AI coach. (See Voice Journey sheet row WELCOME-01 for full text.)"
     },
     "welcome_presence": {
-      "url": "https://pmunbflbjpoawicgimyc.supabase.co/storage/v1/object/public/voice-assets/welcome_presence.mp3",
-      "hash": "",
+      "file": "welcome_presence.mp3",
       "screen": "POST-AUTH-01",
       "trigger": "after_ready_tap",
       "duration_seconds": 25,
