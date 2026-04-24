@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { formatCadence } from '@/components/onboarding/constants';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -6,6 +6,7 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { Sentry } from '@/lib/sentry';
+
 const CATEGORY_ICONS: Record<string, string> = {
   Sleep: 'ic:outline-nightlight-round',
   Move: 'ic:outline-directions-run',
@@ -25,11 +26,74 @@ interface PlanReviewState {
   source?: 'advanced';
 }
 
+/**
+ * Rehydrate a PlanReviewState from the persisted onboarding_states row
+ * when the agent-driven navigation brings the user here without
+ * location.state. Fields come from `onboardingState.data` which the
+ * agent fills during steps 5/6 (habits + reflection config) via the
+ * update_onboarding_data tool.
+ */
+function deriveStateFromOnboarding(
+  data: ReturnType<typeof useOnboarding>['state'] extends infer S
+    ? S extends { data: infer D }
+      ? D
+      : undefined
+    : undefined,
+): PlanReviewState | null {
+  if (!data) return null;
+  const rawConfigs = data.habitConfigs;
+  if (!rawConfigs || typeof rawConfigs !== 'object') return null;
+
+  const habitConfigs: PlanReviewState['habitConfigs'] = {};
+  for (const [name, cfg] of Object.entries(rawConfigs)) {
+    if (!cfg || typeof cfg !== 'object') continue;
+    const daysInput = (cfg as { days?: unknown }).days;
+    const days = Array.isArray(daysInput)
+      ? (daysInput.filter((d) => typeof d === 'number') as number[])
+      : daysInput instanceof Set
+        ? Array.from(daysInput as Set<number>)
+        : [];
+    habitConfigs[name] = {
+      days,
+      time: String((cfg as { time?: unknown }).time ?? ''),
+      reminder: Boolean((cfg as { reminder?: unknown }).reminder),
+    };
+  }
+  if (Object.keys(habitConfigs).length === 0) return null;
+
+  const rc = data.reflectionConfig;
+  if (!rc || typeof rc !== 'object') return null;
+  const reflectionConfig: PlanReviewState['reflectionConfig'] = {
+    time: String((rc as { time?: unknown }).time ?? ''),
+    days: Array.isArray((rc as { days?: unknown }).days)
+      ? ((rc as { days: unknown[] }).days.filter((d) => typeof d === 'number') as number[])
+      : [],
+    reminder: Boolean((rc as { reminder?: unknown }).reminder),
+    schedule: String((rc as { schedule?: unknown }).schedule ?? ''),
+  };
+
+  return {
+    habitConfigs,
+    reflectionConfig,
+    goals: Array.isArray(data.goals) ? (data.goals as string[]) : undefined,
+    category: typeof data.category === 'string' ? data.category : undefined,
+  };
+}
+
 export function PlanReviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as PlanReviewState | null;
-  const { complete, isCompleting } = useOnboarding();
+  const routerState = location.state as PlanReviewState | null;
+  const { state: onboardingState, complete, isCompleting } = useOnboarding();
+
+  // Prefer router state (classic tap-through flow) — it carries the
+  // source='advanced' discriminator that the agent-driven derivation
+  // can't reconstruct. Fall back to onboarding_states.data for
+  // agent-driven arrivals.
+  const state = useMemo<PlanReviewState | null>(
+    () => routerState ?? deriveStateFromOnboarding(onboardingState?.data),
+    [routerState, onboardingState?.data],
+  );
 
   const handleStartPlan = useCallback(() => {
     if (!state?.habitConfigs) return;
@@ -41,14 +105,29 @@ export function PlanReviewPage() {
     });
   }, [state, complete]);
 
+  // Auto-complete when the agent has signalled that the final step is
+  // done (current_step > 7). This mirrors the tap flow but triggered by
+  // a voice "let's go" instead of a button. Once per mount.
+  const autoCompletedRef = useRef(false);
+  useEffect(() => {
+    if (autoCompletedRef.current) return;
+    if (isCompleting) return;
+    if (!state?.habitConfigs || !state?.reflectionConfig) return;
+    if (!onboardingState) return;
+    if (onboardingState.current_step <= 7) return;
+    autoCompletedRef.current = true;
+    handleStartPlan();
+  }, [onboardingState, state, isCompleting, handleStartPlan]);
+
   if (!state?.habitConfigs || !state?.reflectionConfig) {
     Sentry.captureMessage('PlanReviewPage: missing state — redirecting to /onboarding', {
       level: 'error',
       tags: { flow: 'onboarding', step: '7-planreview' },
       extra: {
+        hasRouterState: !!routerState,
+        hasOnboardingData: !!onboardingState?.data,
         hasHabitConfigs: !!state?.habitConfigs,
         hasReflectionConfig: !!state?.reflectionConfig,
-        hasState: !!state,
       },
     });
     return <Navigate to="/onboarding" replace />;
