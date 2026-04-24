@@ -2,21 +2,26 @@ import { Icon } from '@iconify/react';
 import { Link, useLocation } from 'react-router-dom';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { track } from '@/lib/analytics';
 import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { useVoiceStore } from '@/stores/voiceStore';
+
+type NavDestination = 'home' | 'progress' | 'focus' | 'profile';
 
 interface NavTabProps {
   icon: string;
   label: string;
   path: string;
   isActive: boolean;
+  destination: NavDestination;
 }
 
-function NavTab({ icon, label, path, isActive }: NavTabProps) {
+function NavTab({ icon, label, path, isActive, destination }: NavTabProps) {
   return (
     <Link
       to={path}
+      onClick={() => track('tap_nav_item', { destination })}
       className={`flex flex-col items-center justify-end ${isActive ? 'text-primary' : 'text-content-tertiary'}`}
     >
       <Icon icon={icon} width={24} />
@@ -71,9 +76,17 @@ export function BottomNav() {
     const next = !ttsEnabled;
     if (!next) stopTTS();
     setTtsEnabled(next);
+    track('toggle_ai_voice', { new_state: next ? 'on' : 'off' });
   };
 
-  const handleRightToggle = () => setMicEnabled(!micEnabled);
+  const handleRightToggle = () => {
+    const next = !micEnabled;
+    setMicEnabled(next);
+    track('toggle_mic', {
+      new_state: next ? 'on' : 'off',
+      during_conversation: isListening || isSpeaking,
+    });
+  };
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
@@ -98,12 +111,19 @@ export function BottomNav() {
           </div>
 
           <div className="relative grid h-full grid-cols-5 items-end px-6 pb-2">
-            <NavTab icon="ic:round-home" label="Home" path="/" isActive={isActive('/')} />
+            <NavTab
+              icon="ic:round-home"
+              label="Home"
+              path="/"
+              isActive={isActive('/')}
+              destination="home"
+            />
             <NavTab
               icon="ic:round-leaderboard"
               label="Progress"
               path="/report"
               isActive={isActive('/report')}
+              destination="progress"
             />
             <div />
             <NavTab
@@ -111,12 +131,14 @@ export function BottomNav() {
               label="Focus"
               path="/focus"
               isActive={isActive('/focus')}
+              destination="focus"
             />
             <NavTab
               icon="ic:round-person"
               label="Profile"
               path="/settings"
               isActive={isActive('/settings')}
+              destination="profile"
             />
           </div>
         </div>
