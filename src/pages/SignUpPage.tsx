@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import {
@@ -11,8 +11,9 @@ import {
 } from '@/components/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { track } from '@/lib/analytics';
+import { supabase } from '@/lib/supabase';
 import { loginSchema, type LoginForm } from '@/lib/validation';
 
 export function SignUpPage() {
@@ -22,6 +23,18 @@ export function SignUpPage() {
   const [confirmationPending, setConfirmationPending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const emailRef = useRef('');
+
+  useEffect(() => {
+    // Per posthog.txt spec v6.0 §3.1: include referrer + UTM attribution params
+    // so the Signup-to-Activation funnel can be sliced by acquisition source.
+    const params = new URLSearchParams(window.location.search);
+    track('view_signup_screen', {
+      referrer: document.referrer || null,
+      utm_source: params.get('utm_source'),
+      utm_medium: params.get('utm_medium'),
+      utm_campaign: params.get('utm_campaign'),
+    });
+  }, []);
 
   const {
     register,
@@ -75,13 +88,20 @@ export function SignUpPage() {
         <div className="mt-6">
           <h1 className="text-[30px] font-bold tracking-tight text-content">Check Your Email</h1>
           <p className="mt-2 text-base text-content-secondary">
-            We sent a verification link to <strong>{emailRef.current}</strong>. Click the link in
-            the email to verify your account.
+            We sent a verification link to{' '}
+            <strong>
+              {/* eslint-disable-next-line react-hooks/refs -- email is captured on submit, stable for the confirmation-pending render */}
+              {emailRef.current}
+            </strong>
+            . Click the link in the email to verify your account.
           </p>
         </div>
 
         <div className="mt-8 space-y-4">
-          <AuthAlert type="info" message="Didn't receive the email? Check your spam folder or resend it below." />
+          <AuthAlert
+            type="info"
+            message="Didn't receive the email? Check your spam folder or resend it below."
+          />
           {error && <AuthAlert type="error" message={error} />}
           <Button
             variant="secondary"
@@ -126,6 +146,7 @@ export function SignUpPage() {
         <AuthDivider text="OR CONTINUE WITH EMAIL" uppercase bold />
       </div>
 
+      {/* eslint-disable-next-line react-hooks/refs -- react-hook-form handleSubmit is stable by design */}
       <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">
         <Input
           variant="auth"

@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AddHabitModal } from '@/components/capture/AddHabitModal';
 import { HabitManageCard } from '@/components/habits/HabitManageCard';
@@ -7,6 +7,7 @@ import { VoiceAiBanner } from '@/components/habits/VoiceAiBanner';
 import { useToast } from '@/contexts/ToastContext';
 import { useAllMetrics } from '@/hooks/useAllMetrics';
 import { useMetrics } from '@/hooks/useMetrics';
+import { track } from '@/lib/analytics';
 import type { MetricCreate } from '@shared/types';
 
 export function HabitsPage() {
@@ -17,9 +18,20 @@ export function HabitsPage() {
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
+  useEffect(() => {
+    track('view_habits');
+  }, []);
+
   const handleAddHabit = async (data: MetricCreate) => {
     try {
       await create(data);
+      track('create_habit', {
+        habit_name: data.name,
+        input_type: data.input_type,
+        has_target: data.target_value != null,
+        frequency: data.frequency,
+        source: 'habits_header',
+      });
     } catch {
       addToast('error', 'Failed to create habit. Please try again.');
     }
@@ -34,6 +46,7 @@ export function HabitsPage() {
     const newActive = !metric.active;
     try {
       await update(id, { active: newActive });
+      track('toggle_habit_active', { active: newActive });
       addToast('success', newActive ? `"${metric.name}" activated` : `"${metric.name}" paused`);
     } catch {
       addToast('error', `Failed to update "${metric.name}". Please try again.`);
@@ -61,7 +74,10 @@ export function HabitsPage() {
           <h1 className="text-[28px] font-semibold leading-tight text-content">My Habits</h1>
         </div>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            track('tap_create_habit', { source: 'habits_header' });
+            setShowAddModal(true);
+          }}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white"
         >
           <Icon icon="mdi:plus" className="h-5 w-5" />

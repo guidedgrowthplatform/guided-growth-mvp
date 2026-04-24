@@ -8,13 +8,13 @@ import {
   QuickActionCards,
   HabitsSection,
   FeedbackButton,
-  MuteToggle,
   FeedbackSheet,
   ReminderSheet,
 } from '@/components/home';
 import { useAuth } from '@/hooks/useAuth';
 import { useEntries } from '@/hooks/useEntries';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { track } from '@/lib/analytics';
 import { speak } from '@/lib/services/tts-service';
 import type { EntriesMap } from '@shared/types';
 
@@ -44,6 +44,11 @@ export function HomePage() {
   }, [load, dateRange.start, dateRange.end]);
 
   const entriesForStrip: EntriesMap = entries;
+
+  const fromOnboardingAtMount = useRef(fromOnboarding);
+  useEffect(() => {
+    track('view_home', { from_onboarding: fromOnboardingAtMount.current });
+  }, []);
 
   const displayName =
     user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'there';
@@ -86,7 +91,14 @@ export function HomePage() {
   return (
     <>
       <div className="space-y-6 pb-8 pt-2">
-        <HomeHeader userName={displayName} isFirstVisit={fromOnboarding} onPlusClick={() => navigate('/add-habit')} />
+        <HomeHeader
+          userName={displayName}
+          isFirstVisit={fromOnboarding}
+          onPlusClick={() => {
+            track('tap_add_habit', { source: 'home_header' });
+            navigate('/add-habit');
+          }}
+        />
         <DateStrip
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
@@ -94,8 +106,20 @@ export function HomePage() {
         />
         <div>
           <QuickActionCards
-            onCheckInPress={() => setShowCheckIn(!showCheckIn)}
-            onJournalPress={() => navigate('/journal')}
+            onCheckInPress={() => {
+              const next = !showCheckIn;
+              if (next) {
+                const hour = new Date().getHours();
+                track('start_checkin', {
+                  checkin_type: hour < 15 ? 'morning' : 'evening',
+                  trigger: 'home_card',
+                });
+              }
+              setShowCheckIn(next);
+            }}
+            onJournalPress={() => {
+              navigate('/journal');
+            }}
           />
           <div
             className={`grid transition-all duration-300 ease-in-out ${
@@ -110,10 +134,8 @@ export function HomePage() {
         <HabitsSection selectedDate={selectedDate} />
       </div>
 
-      {/* Feedback & Mute — Above Bottom Nav */}
-      <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-6 z-40 flex items-center gap-2">
+      <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-6 z-20">
         <FeedbackButton onPress={() => setShowFeedback(true)} />
-        <MuteToggle />
       </div>
 
       {showFeedback && <FeedbackSheet onClose={() => setShowFeedback(false)} />}

@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { AuthBackButton, AuthFooter, AuthAlert } from '@/components/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
+import { track } from '@/lib/analytics';
 import { forgotPasswordSchema, type ForgotPasswordForm } from '@/lib/validation';
 
 export function ForgotPasswordPage() {
@@ -12,6 +13,10 @@ export function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    track('tap_forgot_password');
+  }, []);
 
   const {
     register,
@@ -30,6 +35,7 @@ export function ForgotPasswordPage() {
     if (resetError) {
       setError(resetError);
     } else {
+      track('complete_password_reset');
       setSuccess(true);
     }
   };

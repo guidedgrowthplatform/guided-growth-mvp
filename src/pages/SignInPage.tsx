@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation } from 'react-router-dom';
 import {
@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
+import { track } from '@/lib/analytics';
 import { loginSchema, type LoginForm } from '@/lib/validation';
 
 export function SignInPage() {
@@ -20,6 +21,10 @@ export function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const successMessage = (location.state as { message?: string } | null)?.message ?? null;
+
+  useEffect(() => {
+    track('view_login_screen');
+  }, []);
 
   const {
     register,

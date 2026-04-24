@@ -82,4 +82,3 @@ export function formatTime12h(time24: string): string {
   const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return `${String(hour12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
 }
-

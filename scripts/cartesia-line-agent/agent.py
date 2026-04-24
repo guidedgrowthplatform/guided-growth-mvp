@@ -4,7 +4,7 @@
 
 import os
 from typing import Optional, TypedDict
-import line
+import linehe
 from supabase import create_client
 
 # -- Configuration --

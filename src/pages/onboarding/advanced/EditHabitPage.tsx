@@ -173,11 +173,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
       )}
 
       {timePickerOpen && (
-        <TimePickerSheet
-          value={time}
-          onChange={setTime}
-          onClose={() => setTimePickerOpen(false)}
-        />
+        <TimePickerSheet value={time} onChange={setTime} onClose={() => setTimePickerOpen(false)} />
       )}
     </div>
   );

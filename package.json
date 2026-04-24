@@ -24,7 +24,8 @@
     "cap:sync:android": "npx cap sync android",
     "cap:sync:all": "npx cap sync ios && node scripts/patch-ios-plist.mjs && npx cap sync android",
     "cap:open": "npx cap open ios",
-    "cap:open:android": "npx cap open android"
+    "cap:open:android": "npx cap open android",
+    "smoke:agent": "node scripts/cartesia-agent-smoke.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -56,11 +57,10 @@
     "@tiptap/pm": "^3.22.2",
     "@tiptap/react": "^3.22.3",
     "@tiptap/starter-kit": "^3.22.3",
-    "@types/mixpanel-browser": "^2.60.0",
     "date-fns": "^2.30.0",
     "lucide-react": "^0.577.0",
-    "mixpanel-browser": "^2.78.0",
     "pg": "^8.11.3",
+    "posthog-js": "^1.369.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.71.2",

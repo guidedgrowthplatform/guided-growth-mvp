@@ -5,8 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { AuthBackButton, AuthAlert } from '@/components/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase';
 import { resetPasswordSchema, type ResetPasswordForm } from '@/lib/validation';
 
 export function ResetPasswordPage() {
@@ -54,9 +54,7 @@ export function ResetPasswordPage() {
 
       <div className="mt-6">
         <h1 className="text-[30px] font-bold tracking-tight text-primary">Set New Password</h1>
-        <p className="mt-2 text-base text-content-secondary">
-          Enter your new password below
-        </p>
+        <p className="mt-2 text-base text-content-secondary">Enter your new password below</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">

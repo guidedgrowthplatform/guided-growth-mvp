@@ -13,7 +13,18 @@ export interface HabitDetailStats {
   sinceDate: string;
 }
 
-export type CalendarCell = { status: 'done' | 'missed' | 'empty' | 'today' | 'today-done'; day: number | null };
+export type CalendarCell = {
+  status:
+    | 'done'
+    | 'missed'
+    | 'empty'
+    | 'today'
+    | 'today-done'
+    | 'scheduled-future'
+    | 'unscheduled-past'
+    | 'unscheduled-future';
+  day: number | null;
+};
 
 export interface HabitDetailData {
   habit: Habit | null;
@@ -141,20 +152,29 @@ function buildCalendarGrid(
 
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
 
-      if (dateStr < startDate || dateStr > today) {
-        row.push({ status: 'empty', day: dayNum });
-        continue;
-      }
-
-      if (!activeDays[dow]) {
-        row.push({ status: 'empty', day: dayNum });
+      if (dateStr < startDate) {
+        row.push({ status: 'unscheduled-past', day: dayNum });
         continue;
       }
 
       if (dateStr === today) {
         row.push({ status: completionDates.has(dateStr) ? 'today-done' : 'today', day: dayNum });
+        continue;
+      }
+
+      if (dateStr < today) {
+        if (activeDays[dow]) {
+          row.push({ status: completionDates.has(dateStr) ? 'done' : 'missed', day: dayNum });
+        } else {
+          row.push({ status: 'unscheduled-past', day: dayNum });
+        }
+        continue;
+      }
+
+      if (activeDays[dow]) {
+        row.push({ status: 'scheduled-future', day: dayNum });
       } else {
-        row.push({ status: completionDates.has(dateStr) ? 'done' : 'missed', day: dayNum });
+        row.push({ status: 'unscheduled-future', day: dayNum });
       }
     }
     grid.push(row);

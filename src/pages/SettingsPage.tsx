@@ -1,9 +1,9 @@
 import { Icon } from '@iconify/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { deleteAccount } from '@/api/onboarding';
-import { queryKeys } from '@/lib/query';
+import { ReminderSheet } from '@/components/home/ReminderSheet';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import {
   coachingStyles,
@@ -22,10 +22,11 @@ import { TimeBadge } from '@/components/settings/TimeBadge';
 import { UserInfoSection } from '@/components/settings/UserInfoSection';
 import { VoiceSettingsSheet } from '@/components/settings/VoiceSettingsSheet';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
-import { ReminderSheet } from '@/components/home/ReminderSheet';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { track } from '@/lib/analytics';
+import { queryKeys } from '@/lib/query';
 import {
   getAvailableVoices,
   setVoicePreference,
@@ -64,8 +65,14 @@ export function SettingsPage() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const qc = useQueryClient();
-  const onboardingState = qc.getQueryData<{ data?: { nickname?: string } }>(queryKeys.onboarding.state);
+  const onboardingState = qc.getQueryData<{ data?: { nickname?: string } }>(
+    queryKeys.onboarding.state,
+  );
   const profileNickname = user?.nickname || (onboardingState?.data?.nickname as string) || null;
+
+  useEffect(() => {
+    track('view_settings');
+  }, []);
 
   // Load voices with polling for Android
   useEffect(() => {
@@ -115,6 +122,7 @@ export function SettingsPage() {
     setIsLoggingOut(true);
     try {
       await signOut();
+      track('complete_logout');
       window.location.href = '/login';
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to log out';
@@ -128,6 +136,7 @@ export function SettingsPage() {
     setIsDeletingAccount(true);
     try {
       await deleteAccount();
+      track('confirm_delete_account');
       localStorage.clear();
       sessionStorage.clear();
       await signOut();

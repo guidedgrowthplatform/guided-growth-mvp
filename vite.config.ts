@@ -116,7 +116,7 @@ export default defineConfig(({ mode }) => {
             'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
             supabase: ['@supabase/supabase-js'],
             sentry: ['@sentry/react'],
-            mixpanel: ['mixpanel-browser'],
+            posthog: ['posthog-js'],
           },
         },
       },
