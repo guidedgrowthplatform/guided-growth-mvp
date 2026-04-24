@@ -11,6 +11,7 @@ import { DailyReflectionCard } from '@/components/onboarding/DailyReflectionCard
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { Sentry } from '@/lib/sentry';
@@ -32,6 +33,9 @@ export function Step6Page() {
   const navigate = useNavigate();
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
+
+  // ONBOARD-08 (journal setup) → step-7 (plan review) on agent advance.
+  useAgentNavigation(6, '/onboarding/step-7');
   const state = location.state as {
     habitConfigs?: Record<
       string,

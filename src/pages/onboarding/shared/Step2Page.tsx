@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
@@ -16,6 +17,20 @@ export function Step2Page() {
       setPlan(onboardingState.path as 'simple' | 'braindump');
     }
   }, [onboardingState?.path]);
+
+  // ONBOARD-02 fork: the agent (or the user tapping a card) sets `path`
+  // to 'simple' (beginner) or 'braindump' (advanced). Wait until `path`
+  // is actually populated before advancing so we route to the right
+  // branch. Null defers navigation; useAgentNavigation re-checks on the
+  // next Realtime payload.
+  useAgentNavigation(
+    2,
+    plan === 'braindump'
+      ? '/onboarding/advanced-input'
+      : plan === 'simple'
+        ? '/onboarding/step-3'
+        : null,
+  );
 
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
     if (result.params && typeof result.params.path === 'string') {

@@ -25,7 +25,7 @@ import { useOnboarding } from '@/hooks/useOnboarding';
  * Per Voice System Implementation Guide §2.5: "In voice mode the user
  * should NEVER have to press a button to advance to the next screen."
  */
-export function useAgentNavigation(currentStep: number, nextRoute: string): void {
+export function useAgentNavigation(currentStep: number, nextRoute: string | null): void {
   const { state } = useOnboarding();
   const navigate = useNavigate();
   const advancedRef = useRef(false);
@@ -34,6 +34,12 @@ export function useAgentNavigation(currentStep: number, nextRoute: string): void
     if (advancedRef.current) return;
     if (!state) return;
     if (state.current_step <= currentStep) return;
+    // The agent has advanced the step but the route target isn't
+    // resolvable yet (e.g. ONBOARD-02 fork is waiting for the agent to
+    // write `path` into onboarding_states.data before we know whether
+    // to route to beginner or advanced). Don't fire — we'll re-check
+    // on the next Realtime payload when the field lands.
+    if (!nextRoute) return;
     advancedRef.current = true;
     navigate(nextRoute);
   }, [state, currentStep, nextRoute, navigate]);

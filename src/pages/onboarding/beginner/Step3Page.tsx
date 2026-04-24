@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
@@ -23,6 +24,12 @@ export function Step3Page() {
   const navigate = useNavigate();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [selected, setSelected] = useState<string | null>(null);
+
+  // ONBOARD-03 → step-4 when the agent bumps current_step past 3
+  // (per Voice System Impl Guide §2.5). State is pre-set to a category
+  // by the agent's update_onboarding_data tool, so the page mount
+  // already has the data needed — we just ride the Realtime edge.
+  useAgentNavigation(3, '/onboarding/step-4');
 
   useEffect(() => {
     if (onboardingState?.data?.category) {

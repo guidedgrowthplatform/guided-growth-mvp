@@ -8,6 +8,7 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { habitsByGoal } from '@/data/onboardingHabits';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
@@ -29,6 +30,12 @@ export function Step5Page() {
     () => (state?.goals?.length ? state.goals : ['Fall asleep earlier']),
     [state],
   );
+
+  // ONBOARD-05/06 → step-6. Step5Page carries two internal phases
+  // (habit-pick and configure); the agent is expected to call
+  // navigate_next only once both are complete, so a single
+  // useAgentNavigation(5) is sufficient to move forward.
+  useAgentNavigation(5, '/onboarding/step-6');
 
   // Reconstitute Sets from arrays after router state serialization
   const incomingConfigs: Record<string, HabitConfig> | undefined = state?.habitConfigs
