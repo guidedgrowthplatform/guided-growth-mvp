@@ -1,9 +1,7 @@
 import { getDataService } from '@/lib/services/service-provider';
 import type { EntriesMap, DayEntries } from '@shared/types';
+import { withDataServiceFallback } from './_helpers';
 import { apiGet, apiPut } from './client';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const useSupabase = supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
 
 async function buildEntriesFromDataService(start: string, end: string): Promise<EntriesMap> {
   const ds = await getDataService();
@@ -45,39 +43,26 @@ async function saveEntriesToDataService(date: string, dayEntries: DayEntries): P
 }
 
 export async function fetchEntries(start: string, end: string): Promise<EntriesMap> {
-  if (useSupabase) {
-    return buildEntriesFromDataService(start, end);
-  }
-  try {
-    return await apiGet<EntriesMap>(`/api/entries?start=${start}&end=${end}`);
-  } catch {
-    return buildEntriesFromDataService(start, end);
-  }
+  return withDataServiceFallback(
+    () => apiGet<EntriesMap>(`/api/entries?start=${start}&end=${end}`),
+    () => buildEntriesFromDataService(start, end),
+  );
 }
 
 export async function saveEntries(date: string, dayEntries: DayEntries): Promise<void> {
-  if (useSupabase) {
-    return saveEntriesToDataService(date, dayEntries);
-  }
-  try {
-    await apiPut(`/api/entries/${date}`, dayEntries);
-  } catch {
-    await saveEntriesToDataService(date, dayEntries);
-  }
+  return withDataServiceFallback(
+    () => apiPut(`/api/entries/${date}`, dayEntries).then(() => undefined),
+    () => saveEntriesToDataService(date, dayEntries),
+  );
 }
 
 export async function saveBulkEntries(entriesMap: EntriesMap): Promise<void> {
-  if (useSupabase) {
-    for (const [date, dayEntries] of Object.entries(entriesMap)) {
-      await saveEntriesToDataService(date, dayEntries);
-    }
-    return;
-  }
-  try {
-    await apiPut('/api/entries/bulk', entriesMap);
-  } catch {
-    for (const [date, dayEntries] of Object.entries(entriesMap)) {
-      await saveEntriesToDataService(date, dayEntries);
-    }
-  }
+  return withDataServiceFallback(
+    () => apiPut('/api/entries/bulk', entriesMap).then(() => undefined),
+    async () => {
+      for (const [date, dayEntries] of Object.entries(entriesMap)) {
+        await saveEntriesToDataService(date, dayEntries);
+      }
+    },
+  );
 }

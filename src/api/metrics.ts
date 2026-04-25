@@ -1,9 +1,7 @@
 import { getDataService } from '@/lib/services/service-provider';
 import type { Metric, MetricCreate, MetricUpdate } from '@shared/types';
+import { useSupabase, withDataServiceFallback } from './_helpers';
 import { apiGet, apiPost, apiPatch, apiDelete, apiPut } from './client';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const useSupabase = supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
 
 // Convert DataService habit to Metric format
 function habitToMetric(h: {
@@ -29,88 +27,64 @@ function habitToMetric(h: {
   };
 }
 
+async function fetchHabitsAsMetrics(includeInactive: boolean): Promise<Metric[]> {
+  const ds = await getDataService();
+  const habits = includeInactive ? await ds.getAllHabits() : await ds.getHabits();
+  return habits.map(habitToMetric);
+}
+
 export async function fetchAllMetrics(): Promise<Metric[]> {
-  if (useSupabase) {
-    const ds = await getDataService();
-    const habits = await ds.getAllHabits();
-    return habits.map(habitToMetric);
-  }
-  try {
-    return await apiGet<Metric[]>('/api/metrics');
-  } catch {
-    const ds = await getDataService();
-    const habits = await ds.getAllHabits();
-    return habits.map(habitToMetric);
-  }
+  return withDataServiceFallback(
+    () => apiGet<Metric[]>('/api/metrics'),
+    () => fetchHabitsAsMetrics(true),
+  );
 }
 
 export async function fetchMetrics(): Promise<Metric[]> {
-  if (useSupabase) {
-    const ds = await getDataService();
-    const habits = await ds.getHabits();
-    return habits.map(habitToMetric);
-  }
-  try {
-    return await apiGet<Metric[]>('/api/metrics');
-  } catch {
-    const ds = await getDataService();
-    const habits = await ds.getHabits();
-    return habits.map(habitToMetric);
-  }
+  return withDataServiceFallback(
+    () => apiGet<Metric[]>('/api/metrics'),
+    () => fetchHabitsAsMetrics(false),
+  );
 }
 
 export async function createMetric(data: MetricCreate): Promise<Metric> {
-  if (useSupabase) {
-    const ds = await getDataService();
-    const habit = await ds.createHabit(data.name, data.frequency || 'daily', data.schedule_days);
-
-    return habitToMetric(habit);
-  }
-  try {
-    return await apiPost<Metric>('/api/metrics', data);
-  } catch {
-    const ds = await getDataService();
-    const habit = await ds.createHabit(data.name, data.frequency || 'daily', data.schedule_days);
-
-    return habitToMetric(habit);
-  }
+  return withDataServiceFallback(
+    () => apiPost<Metric>('/api/metrics', data),
+    async () => {
+      const ds = await getDataService();
+      const habit = await ds.createHabit(data.name, data.frequency || 'daily', data.schedule_days);
+      return habitToMetric(habit);
+    },
+  );
 }
 
 export async function updateMetric(id: string, data: MetricUpdate): Promise<Metric> {
-  if (useSupabase) {
-    const ds = await getDataService();
-    const habit = await ds.updateHabit(id, data);
-
-    return habitToMetric(habit);
-  }
-  try {
-    return await apiPatch<Metric>(`/api/metrics/${id}`, data);
-  } catch {
-    const ds = await getDataService();
-    const habit = await ds.updateHabit(id, data);
-
-    return habitToMetric(habit);
-  }
+  return withDataServiceFallback(
+    () => apiPatch<Metric>(`/api/metrics/${id}`, data),
+    async () => {
+      const ds = await getDataService();
+      const habit = await ds.updateHabit(id, data);
+      return habitToMetric(habit);
+    },
+  );
 }
 
 export async function deleteMetric(id: string): Promise<void> {
-  if (useSupabase) {
-    const ds = await getDataService();
-    await ds.deleteHabit(id);
-
-    return;
-  }
-  try {
-    await apiDelete(`/api/metrics/${id}`);
-  } catch {
-    const ds = await getDataService();
-    await ds.deleteHabit(id);
-  }
+  return withDataServiceFallback(
+    () => apiDelete(`/api/metrics/${id}`).then(() => undefined),
+    async () => {
+      const ds = await getDataService();
+      await ds.deleteHabit(id);
+    },
+  );
 }
 
+// reorderMetrics intentionally does NOT use withDataServiceFallback. The
+// useSupabase path writes the new sort_order to user_habits before reading
+// back; the API-failure path only re-reads. Forcing both into the same
+// fallback would change behavior, so the two branches stay distinct.
 export async function reorderMetrics(metricIds: string[]): Promise<Metric[]> {
   if (useSupabase) {
-    // Persist the new sort order to Supabase
     const { supabase } = await import('@/lib/supabase');
     for (let i = 0; i < metricIds.length; i++) {
       await supabase
@@ -118,15 +92,11 @@ export async function reorderMetrics(metricIds: string[]): Promise<Metric[]> {
         .update({ sort_order: i + 1 })
         .eq('id', metricIds[i]);
     }
-    const ds = await getDataService();
-    const habits = await ds.getHabits();
-    return habits.map(habitToMetric);
+    return fetchHabitsAsMetrics(false);
   }
   try {
     return await apiPut<Metric[]>('/api/metrics/reorder', { metric_ids: metricIds });
   } catch {
-    const ds = await getDataService();
-    const habits = await ds.getHabits();
-    return habits.map(habitToMetric);
+    return fetchHabitsAsMetrics(false);
   }
 }

@@ -1,4 +1,5 @@
 import type { ViewMode, SpreadsheetRange } from '@shared/types';
+import { withDataServiceFallback } from './_helpers';
 import { apiGet, apiPut } from './client';
 
 export interface PreferencesData {
@@ -7,8 +8,6 @@ export interface PreferencesData {
 }
 
 const LS_KEY = 'gg_preferences';
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const useSupabase = supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
 
 function getLocalPrefs(): PreferencesData {
   try {
@@ -31,24 +30,17 @@ function setLocalPrefs(prefs: Partial<PreferencesData>): PreferencesData {
 }
 
 export async function fetchPreferences(): Promise<PreferencesData> {
-  // When using Supabase, skip /api/* routes entirely (they return 401)
-  if (useSupabase) return getLocalPrefs();
-  try {
+  return withDataServiceFallback(async () => {
     const remote = await apiGet<PreferencesData>('/api/preferences');
     localStorage.setItem(LS_KEY, JSON.stringify(remote));
     return remote;
-  } catch {
-    return getLocalPrefs();
-  }
+  }, getLocalPrefs);
 }
 
 export async function savePreferences(prefs: Partial<PreferencesData>): Promise<PreferencesData> {
   const merged = setLocalPrefs(prefs);
-  // When using Supabase, skip /api/* routes entirely
-  if (useSupabase) return merged;
-  try {
-    return await apiPut<PreferencesData>('/api/preferences', prefs);
-  } catch {
-    return merged;
-  }
+  return withDataServiceFallback(
+    () => apiPut<PreferencesData>('/api/preferences', prefs),
+    () => merged,
+  );
 }
