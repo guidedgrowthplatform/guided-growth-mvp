@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { track } from '@/analytics';
 import { deleteJournalEntry } from '@/api/journal';
 import { getTemplate } from '@/components/journal/templates';
 import {
@@ -13,7 +14,6 @@ import {
 } from '@/components/reflections';
 import { useToast } from '@/contexts/ToastContext';
 import { useReflectionDetail } from '@/hooks/useReflectionDetail';
-import { track } from '@/lib/analytics';
 import type { JournalEntry } from '@shared/types';
 
 export function ReflectionDetailPage() {

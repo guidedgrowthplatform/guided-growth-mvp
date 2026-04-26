@@ -1,13 +1,13 @@
 import { Icon } from '@iconify/react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { AddHabitModal } from '@/components/capture/AddHabitModal';
 import { HabitManageCard } from '@/components/habits/HabitManageCard';
 import { VoiceAiBanner } from '@/components/habits/VoiceAiBanner';
 import { useToast } from '@/contexts/ToastContext';
 import { useAllMetrics } from '@/hooks/useAllMetrics';
 import { useMetrics } from '@/hooks/useMetrics';
-import { track } from '@/lib/analytics';
 import type { MetricCreate } from '@shared/types';
 
 export function HabitsPage() {
@@ -24,9 +24,9 @@ export function HabitsPage() {
 
   const handleAddHabit = async (data: MetricCreate) => {
     try {
-      await create(data);
+      const created = await create(data);
       track('create_habit', {
-        habit_name: data.name,
+        habit_id: created?.id ?? '',
         input_type: data.input_type,
         has_target: data.target_value != null,
         frequency: data.frequency,

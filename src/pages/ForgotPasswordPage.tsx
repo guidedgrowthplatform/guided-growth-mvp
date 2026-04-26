@@ -1,11 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { track } from '@/analytics';
 import { AuthBackButton, AuthFooter, AuthAlert } from '@/components/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
-import { track } from '@/lib/analytics';
 import { forgotPasswordSchema, type ForgotPasswordForm } from '@/lib/validation';
 
 export function ForgotPasswordPage() {

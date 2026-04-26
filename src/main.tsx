@@ -1,10 +1,10 @@
 import { Capacitor } from '@capacitor/core';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { initAnalytics } from '@/analytics';
 import { InputMethodProvider } from '@/contexts/InputMethodContext';
 import { supabase } from '@/lib/supabase';
 import App from './App';
-import { initAnalytics } from './lib/analytics';
 import { trackOpenApp } from './lib/openAppTracking';
 import { initSentry } from './lib/sentry';
 import './index.css';

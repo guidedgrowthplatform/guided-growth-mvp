@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { track } from '@/analytics';
 import { useVoice } from '@/hooks/useVoice';
-import { track } from '@/lib/analytics';
 import {
   CartesiaAgentClient,
   type AgentStartMetadata,
@@ -168,13 +168,14 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     if (mountedRef.current) setState(next);
   }, []);
 
+  const cleanupRef = useRef<() => void>(() => {});
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      cleanup();
+      cleanupRef.current();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cleanup = useCallback(() => {
@@ -252,6 +253,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
 
     tearingDownRef.current = false;
   }, [transition, setStateSynced, metadata.screen]);
+
+  useEffect(() => {
+    cleanupRef.current = cleanup;
+  }, [cleanup]);
 
   const stop = useCallback(() => {
     cleanup();

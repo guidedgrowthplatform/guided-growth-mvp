@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
-import { identify, resetIdentity, track } from '@/lib/analytics';
+import { identify, resetIdentity, track } from '@/analytics';
 import { Sentry } from '@/lib/sentry';
 import { supabase } from '@/lib/supabase';
 
@@ -155,6 +155,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signUp: async (email, password) => {
+    track('start_signup', { method: 'email' });
     const startedAt = Date.now();
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -170,7 +171,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       track('signup_error', {
         method: 'email',
         error_type: categorizeAuthError(error),
-        error_message: error?.message ?? '',
       });
       return { error: friendlyError(error) };
     }

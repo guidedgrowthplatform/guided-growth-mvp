@@ -5,8 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { AuthBackButton, AuthAlert } from '@/components/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase';
 import { resetPasswordSchema, type ResetPasswordForm } from '@/lib/validation';
 
 export function ResetPasswordPage() {

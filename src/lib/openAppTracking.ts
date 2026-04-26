@@ -1,4 +1,4 @@
-import { track } from './analytics';
+import { track } from '@/analytics';
 
 interface OpenAppInput {
   todayIso: string;

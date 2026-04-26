@@ -1,4 +1,4 @@
-import { track } from '@/lib/analytics';
+import { track } from '@/analytics';
 import { MOOD_PRESETS } from './constants';
 
 interface MoodStripProps {

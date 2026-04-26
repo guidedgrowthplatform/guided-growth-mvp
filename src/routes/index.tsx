@@ -1,10 +1,10 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-router-dom';
+import { usePageTracking } from '@/analytics';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useAppGate } from '@/hooks/useAppGate';
-import { usePageTracking } from '@/hooks/usePageTracking';
 import { AppGate } from './AppGate';
 
 const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })));

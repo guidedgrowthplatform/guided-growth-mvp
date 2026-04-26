@@ -1,10 +1,10 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { deleteJournalEntry, fetchRecentJournalEntries } from '@/api/journal';
 import { ReflectionListCard, ReflectionsTopBar } from '@/components/reflections';
 import { useToast } from '@/contexts/ToastContext';
-import { track } from '@/lib/analytics';
 import type { JournalEntry } from '@shared/types';
 
 const PAGE_SIZE = 20;

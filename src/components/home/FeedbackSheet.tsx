@@ -1,5 +1,6 @@
 import { Icon } from '@iconify/react';
 import { useState, useCallback, useEffect } from 'react';
+import { track } from '@/analytics';
 import { submitFeedback } from '@/api/feedback';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useToast } from '@/contexts/ToastContext';
@@ -109,6 +110,7 @@ export function FeedbackSheet({ onClose }: FeedbackSheetProps) {
   const handleSubmit = async () => {
     if (!sentiment) return;
     let finalText = text;
+    let usedVoice = false;
     // Transcribe any active recording before submitting
     if (recording) {
       setRecording(false);
@@ -117,15 +119,22 @@ export function FeedbackSheet({ onClose }: FeedbackSheetProps) {
         const transcript = await stopAndTranscribe();
         if (transcript) {
           finalText = finalText ? `${finalText} ${transcript.trim()}` : transcript.trim();
+          usedVoice = true;
         }
       } catch {
         /* proceed with existing text */
       }
       setTranscribing(false);
     }
+    const trimmed = finalText.trim();
     setSubmitting(true);
     try {
-      await submitFeedback({ sentiment, text: finalText.trim() });
+      await submitFeedback({ sentiment, text: trimmed });
+      track('submit_feedback', {
+        sentiment,
+        feedback_length_chars: trimmed.length,
+        input_method: usedVoice ? 'voice' : 'text',
+      });
       addToast('success', 'Thanks for your feedback!');
       onClose();
     } catch {
