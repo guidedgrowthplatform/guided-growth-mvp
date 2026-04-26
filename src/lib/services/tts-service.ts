@@ -19,9 +19,16 @@ const VOICE_PREF_KEY = 'mvp03_tts_voice';
 // User selects Male or Female on splash screen
 export type VoiceGender = 'male' | 'female';
 
-// Cartesia voice IDs (sonic-3 model) — primary TTS provider
+// Cartesia voice IDs (sonic-3 model) — primary TTS provider.
+// Both verified live on 2026-04-26 against `GET /voices` for the
+// production key. The previous male ID `a167e0f3-...` returned a
+// `voice_not_found` 404 (Cartesia rotated its public catalogue at
+// some point), which surfaced as our `/api/cartesia-tts` 502 → silent
+// fallback to browser speechSynthesis (Alejandro's "default voice"
+// report). `5ee9feff-...` is the current public "Ronald - Thinker"
+// — same name, similar timbre.
 const CARTESIA_VOICES: Record<VoiceGender, { id: string; name: string }> = {
-  male: { id: 'a167e0f3-df7e-4c9d-9e09-98e2e4872788', name: 'Ronald' },
+  male: { id: '5ee9feff-1265-424a-9d7f-8e4d431a12c7', name: 'Ronald' },
   female: { id: 'f786b574-daa5-4673-aa0c-cbe3e8534c02', name: 'Katie' },
 };
 
