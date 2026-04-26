@@ -2,9 +2,9 @@ import { Icon } from '@iconify/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import {
-  OnboardingVoiceOverlay,
+  OnboardingChatOverlay,
   type VoiceMessage,
-} from '@/components/onboarding/OnboardingVoiceOverlay';
+} from '@/components/onboarding/OnboardingChatOverlay';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { DualButton } from '@/components/ui/DualButton';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
@@ -140,6 +140,8 @@ export function OnboardingLayout({
     localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
   };
 
+  const showChatLauncher = !!onVoiceAction && voiceOptions.length > 0;
+
   const voiceControl = showVoiceButton ? (
     <div className="relative my-6 flex justify-center">
       {tooltipVisible && <VoiceTooltip autoDismissMs={4000} onDismiss={handleTooltipDismiss} />}
@@ -154,13 +156,24 @@ export function OnboardingLayout({
         leftAriaLabel={isListening ? 'Stop listening' : 'Start listening'}
         rightAriaLabel={ttsEnabled ? 'Mute AI voice' : 'Enable AI voice'}
       />
+      {showChatLauncher && !overlayOpen && (
+        <button
+          type="button"
+          onClick={handleMicClick}
+          aria-label="Open coach chat"
+          className="absolute right-0 top-1/2 inline-flex -translate-y-1/2 items-center gap-1.5 rounded-full bg-white px-[14px] py-[10px] shadow-card transition-transform active:scale-95"
+        >
+          <span className="text-[12px] font-bold tracking-[0.3px] text-primary">Open Chat</span>
+          <IconChatText size={16} className="text-primary" />
+        </button>
+      )}
     </div>
   ) : null;
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[48px] pt-[max(16px,env(safe-area-inset-top))]">
       {overlayOpen && (
-        <OnboardingVoiceOverlay
+        <OnboardingChatOverlay
           stepContext={{
             step: currentStep,
             options: voiceOptions,
@@ -168,9 +181,16 @@ export function OnboardingLayout({
           }}
           onAction={handleVoiceAction}
           onClose={() => setOverlayOpen(false)}
+          onContinue={() => {
+            setOverlayOpen(false);
+            handleNext();
+          }}
+          continueDisabled={ctaDisabled}
+          continueLabel={ctaLabel}
           messages={voiceMessages}
           setMessages={setVoiceMessages}
           ttsEnabled={ttsEnabled}
+          onToggleTts={handleToggleTts}
         />
       )}
 
