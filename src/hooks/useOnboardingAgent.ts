@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { useEffect, useState } from 'react';
 import { useOnboardingRealtimeSync } from '@/hooks/useOnboardingRealtimeSync';
 import { useRealtimeVoice, type RealtimeVoiceState } from '@/hooks/useRealtimeVoice';
@@ -53,10 +54,21 @@ export function useOnboardingAgent(screen: string): UseOnboardingAgentReturn {
     let cancelled = false;
     (async () => {
       try {
-        const perm = await navigator.permissions?.query?.({
-          name: 'microphone' as PermissionName,
-        });
-        if (cancelled || perm?.state !== 'granted') return;
+        // On Capacitor native, the browser Permissions API returns
+        // 'prompt' even when RECORD_AUDIO has been granted at the OS
+        // level (verified on Pixel 9 + Capacitor 8 / Android Chromium).
+        // Gating on it would mean the agent never auto-starts on
+        // Android, even after MicPermissionPage successfully requested
+        // the permission. On native we trust the OS grant — `start()`
+        // calls getUserMedia() which throws cleanly if the perm is
+        // actually missing, and our onError handler surfaces that.
+        if (!Capacitor.isNativePlatform()) {
+          const perm = await navigator.permissions?.query?.({
+            name: 'microphone' as PermissionName,
+          });
+          if (cancelled || perm?.state !== 'granted') return;
+        }
+        if (cancelled) return;
         await start();
       } catch {
         // Permissions API not supported on this browser — skip auto-start.
