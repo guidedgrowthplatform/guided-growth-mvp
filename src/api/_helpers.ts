@@ -19,7 +19,12 @@ export async function withDataServiceFallback<T>(
   if (useSupabase) return fallback();
   try {
     return await apiCall();
-  } catch {
+  } catch (err) {
+    // Centralising this catch makes it tempting to leave it silent, but the
+    // pre-refactor per-module catches were already silent — at least log so
+    // a network outage or schema drift surfaces in DevTools rather than
+    // disappearing behind locally-correct fallback data.
+    console.warn('[api] falling back to DataService:', err);
     return fallback();
   }
 }
