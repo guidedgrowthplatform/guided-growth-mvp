@@ -11,7 +11,6 @@ import { habitsByGoal } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 export function Step5Page() {
   const navigate = useNavigate();
@@ -34,10 +33,6 @@ export function Step5Page() {
 
   useOnboardingAgent('onboard_05');
 
-  // ONBOARD-05/06 → step-6. Step5Page carries two internal phases
-  // (habit-pick and configure); the agent is expected to call
-  // navigate_next only once both are complete, so a single
-  // useAgentNavigation(5) is sufficient to move forward.
   useAgentNavigation(5, '/onboarding/step-6');
 
   // Reconstitute Sets from arrays after router state serialization
@@ -157,28 +152,6 @@ export function Step5Page() {
     ? habitQueue.indexOf(customizingHabit) === habitQueue.length - 1
     : true;
 
-  // Collect all available habits for this phase
-  const allHabits = goals.flatMap((goal) => [
-    ...(habitsByGoal[goal] ?? []),
-    ...(customHabits[goal] ?? []),
-  ]);
-
-  const handleVoiceAction = useCallback(
-    (result: OnboardingVoiceResult) => {
-      if (result.params && Array.isArray(result.params.habits)) {
-        const voiceHabits = result.params.habits as string[];
-        const newSelected = new Set<string>();
-        voiceHabits.forEach((h) => {
-          if (allHabits.includes(h) && newSelected.size < 2) {
-            newSelected.add(h);
-          }
-        });
-        setSelectedHabits(newSelected);
-      }
-    },
-    [allHabits],
-  );
-
   const handleOnNext = useCallback(async () => {
     if (phase === 'confirming') {
       const serializedConfigs = Object.fromEntries(
@@ -211,13 +184,7 @@ export function Step5Page() {
             ? () => setPhase('selecting')
             : () => navigate('/onboarding/step-4')
         }
-        showVoiceButton
-        aiListeningPrompt='"Select up to 2 daily habits to build your foundation."'
         ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
-        voiceOptions={allHabits}
-        voiceFileId={phase === 'selecting' ? 'ONBOARD-05' : undefined}
-        voicePrompt="Here are a few habits that really help with this. And here's the key — pick what feels doable. Not heroic. Not impressive. Doable. Because one habit done consistently beats five that don't stick. You can also create your own if none of these fit."
-        onVoiceAction={handleVoiceAction}
       >
         <OnboardingHeader
           title="Here's a good place to start"

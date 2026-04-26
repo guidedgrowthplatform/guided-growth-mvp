@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
@@ -8,7 +9,6 @@ import { ChipSelect } from '@/components/ui/ChipSelect';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
-import { track } from '@/analytics';
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
@@ -23,57 +23,63 @@ export function Step1Page() {
   const [referralSource, setReferralSource] = useState<string | null>(null);
   const [referralOtherText, setReferralOtherText] = useState('');
 
-  // Tracks which fields were populated by the real-time agent's
-  // record_onboarding_profile tool call so we can attribute
-  // `complete_profile_setup.input_method` accurately.
   const voiceFilledFieldsRef = useRef<Set<string>>(new Set());
 
-  // Starts the real-time agent with metadata.screen='onboard_01' + subscribes
-  // to onboarding_states Realtime so agent tool-calls reflect in local form.
   const { voiceState, voiceError } = useOnboardingAgent('onboard_01');
 
-  // Voice-driven navigation per §2.5: when the agent calls `navigate_next`
-  // (after the user confirms their profile), its tool bumps
-  // onboarding_states.current_step from 1 to 2. The hook picks that up
-  // and routes to ONBOARD-02 without requiring a button tap.
+  const [agentEverConnected, setAgentEverConnected] = useState(false);
+  useEffect(() => {
+    if (voiceState === 'listening' || voiceState === 'thinking' || voiceState === 'speaking') {
+      setAgentEverConnected(true);
+    }
+  }, [voiceState]);
+
   useAgentNavigation(1, '/onboarding/step-2');
 
+  const hasHydratedRef = useRef(false);
+
   useEffect(() => {
-    if (onboardingState?.data) {
-      if (onboardingState.data.nickname) {
-        setNickname((prev) => {
-          const next = onboardingState.data.nickname as string;
-          if (prev !== next) voiceFilledFieldsRef.current.add('nickname');
-          return next;
-        });
-      }
-      if (onboardingState.data.age) {
-        setAge((prev) => {
-          const next = onboardingState.data.age as number;
-          if (prev !== next) voiceFilledFieldsRef.current.add('age');
-          return next;
-        });
-      }
-      // Support legacy ageRange data
-      if (onboardingState.data.ageRange && !onboardingState.data.age) setAge('');
-      if (onboardingState.data.gender) {
-        setGender((prev) => {
-          const next = onboardingState.data.gender as string;
-          if (prev !== next) voiceFilledFieldsRef.current.add('gender');
-          return next;
-        });
-      }
-      if (onboardingState.data.referralSource) {
-        setReferralSource((prev) => {
-          const next = onboardingState.data.referralSource as string;
-          if (prev !== next) voiceFilledFieldsRef.current.add('referralSource');
-          return next;
-        });
-      }
-      if (onboardingState.data.referralOtherText)
-        setReferralOtherText(onboardingState.data.referralOtherText as string);
+    const isPostHydration = hasHydratedRef.current;
+    hasHydratedRef.current = true;
+
+    if (!onboardingState?.data) return;
+
+    // Initial hydration looks identical to an agent write; only attribute when both flags are true.
+    const trackAsVoice = isPostHydration && agentEverConnected;
+
+    if (onboardingState.data.nickname) {
+      setNickname((prev) => {
+        const next = onboardingState.data.nickname as string;
+        if (prev !== next && trackAsVoice) voiceFilledFieldsRef.current.add('nickname');
+        return next;
+      });
     }
-  }, [onboardingState?.data]);
+    if (onboardingState.data.age) {
+      setAge((prev) => {
+        const next = onboardingState.data.age as number;
+        if (prev !== next && trackAsVoice) voiceFilledFieldsRef.current.add('age');
+        return next;
+      });
+    }
+    // Support legacy ageRange data
+    if (onboardingState.data.ageRange && !onboardingState.data.age) setAge('');
+    if (onboardingState.data.gender) {
+      setGender((prev) => {
+        const next = onboardingState.data.gender as string;
+        if (prev !== next && trackAsVoice) voiceFilledFieldsRef.current.add('gender');
+        return next;
+      });
+    }
+    if (onboardingState.data.referralSource) {
+      setReferralSource((prev) => {
+        const next = onboardingState.data.referralSource as string;
+        if (prev !== next && trackAsVoice) voiceFilledFieldsRef.current.add('referralSource');
+        return next;
+      });
+    }
+    if (onboardingState.data.referralOtherText)
+      setReferralOtherText(onboardingState.data.referralOtherText as string);
+  }, [onboardingState?.data, agentEverConnected]);
 
   const handleNext = useCallback(() => {
     const effectiveReferral =
@@ -91,10 +97,19 @@ export function Step1Page() {
     track('complete_profile_setup', {
       input_method: fieldsFilledByVoice > 0 ? 'voice' : 'manual',
       fields_filled_by_voice: fieldsFilledByVoice,
-      used_real_time_agent: true,
+      used_real_time_agent: agentEverConnected,
     });
     navigate('/onboarding/step-2');
-  }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep]);
+  }, [
+    nickname,
+    age,
+    gender,
+    referralSource,
+    referralOtherText,
+    navigate,
+    saveStep,
+    agentEverConnected,
+  ]);
 
   const voiceStatusLabel =
     voiceState === 'listening'

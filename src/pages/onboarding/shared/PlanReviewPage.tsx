@@ -26,15 +26,9 @@ export function PlanReviewPage() {
   const routerState = location.state as PlanReviewState | null;
   const { state: onboardingState, complete, isCompleting } = useOnboarding();
 
-  // PlanReviewPage is the final agent-driven step (ONBOARD-07 per sheet; also
-  // acts as ONBOARD-09 "let's go" trigger). Keep the session live so the user
-  // can say 'let's go' and have the agent fire navigate_next.
   useOnboardingAgent('onboard_07');
 
-  // Prefer router state (classic tap-through flow) — it carries the
-  // source='advanced' discriminator that the agent-driven derivation
-  // can't reconstruct. Fall back to onboarding_states.data for
-  // agent-driven arrivals.
+  // Router state carries source='advanced' that agent-driven derivation can't reconstruct.
   const state = useMemo<PlanReviewState | null>(
     () => routerState ?? deriveStateFromOnboarding(onboardingState?.data),
     [routerState, onboardingState?.data],
@@ -50,9 +44,7 @@ export function PlanReviewPage() {
     });
   }, [state, complete]);
 
-  // Auto-complete when the agent has signalled that the final step is
-  // done (current_step > 7). This mirrors the tap flow but triggered by
-  // a voice "let's go" instead of a button. Once per mount.
+  // Voice "let's go" mirrors the tap flow once the agent bumps current_step past 7.
   const autoCompletedRef = useRef(false);
   useEffect(() => {
     if (autoCompletedRef.current) return;
@@ -114,9 +106,6 @@ export function PlanReviewPage() {
                 : { habitConfigs, goals, category, reflectionConfig, phase: 'confirming' },
           }),
       }}
-      showVoiceButton
-      voiceFileId="ONBOARD-07"
-      voicePrompt="Here's your starting plan. It's simple — and that's on purpose. This is your foundation. As you show up, we'll grow it together. And from here on — it's easy. Morning check-in, evening check-in. Under a minute each. That's your whole commitment. Everything else happens naturally. Ready?"
     >
       <OnboardingHeader
         title="Your starting plan"

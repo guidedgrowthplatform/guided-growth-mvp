@@ -6,7 +6,6 @@ import { SelectionCard } from '@/components/onboarding/SelectionCard';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 export function Step2Page() {
   const navigate = useNavigate();
@@ -21,11 +20,7 @@ export function Step2Page() {
     }
   }, [onboardingState?.path]);
 
-  // ONBOARD-02 fork: the agent (or the user tapping a card) sets `path`
-  // to 'simple' (beginner) or 'braindump' (advanced). Wait until `path`
-  // is actually populated before advancing so we route to the right
-  // branch. Null defers navigation; useAgentNavigation re-checks on the
-  // next Realtime payload.
+  // null defers navigation until path is set so we route to the right fork.
   useAgentNavigation(
     2,
     plan === 'braindump'
@@ -34,22 +29,6 @@ export function Step2Page() {
         ? '/onboarding/step-3'
         : null,
   );
-
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (result.params && typeof result.params.path === 'string') {
-      const path = result.params.path.toLowerCase();
-      if (path.includes('simple') || path.includes('new') || path.includes('beginner')) {
-        setPlan('simple');
-      } else if (
-        path.includes('brain') ||
-        path.includes('advanced') ||
-        path.includes('experience') ||
-        path.includes('dump')
-      ) {
-        setPlan('braindump');
-      }
-    }
-  }, []);
 
   const handleNext = useCallback(async () => {
     await saveStepAsync(2, {}, { path: plan as 'simple' | 'braindump' });
@@ -69,12 +48,6 @@ export function Step2Page() {
       ctaDisabled={!plan}
       onNext={handleNext}
       onBack={() => navigate('/onboarding')}
-      showVoiceButton
-      aiListeningPrompt="Let me know if you are new to habit tracking or already have experience with habit tracking"
-      voiceOptions={['simple', 'brain dump', 'braindump', 'beginner', 'advanced']}
-      voiceFileId="ONBOARD-02"
-      voicePrompt="Quick question — have you tracked habits before, or is this new for you? Either way is great. I just want to know the best way to guide you. If you're new, I'll walk you through it step by step. If you've done this before, just tell me what you want and I'll organize it."
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Let's build your plan."
