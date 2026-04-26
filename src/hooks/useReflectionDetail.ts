@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+import { ApiError } from '@/api/client';
 import { fetchJournalEntry, generateJournalInsight } from '@/api/journal';
 import type { JournalEntry } from '@shared/types';
 
@@ -49,7 +50,7 @@ export function useReflectionDetail(id: string | undefined) {
   return {
     entry: query.data ?? null,
     isLoading: query.isLoading,
-    error: query.error ? (query.error as Error).message : null,
+    error: query.error instanceof ApiError ? query.error : null,
     insightLoading: insightMutation.isPending,
     refetch: query.refetch,
   };

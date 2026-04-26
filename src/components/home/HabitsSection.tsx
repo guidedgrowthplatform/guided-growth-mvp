@@ -27,11 +27,10 @@ export function HabitsSection({ selectedDate }: HabitsSectionProps) {
 
   const handleAddNote = useCallback(
     (habitName: string) => {
-      // Open the journal panel on HomePage via custom event
-      window.dispatchEvent(new CustomEvent('toggle-journal'));
+      navigate('/reflections/new');
       addToast('info', `Add a note for "${habitName}"`);
     },
-    [addToast],
+    [navigate, addToast],
   );
 
   const loadHabits = useCallback(async () => {

@@ -23,7 +23,7 @@ export async function uploadJournalImage(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 
-  const result = await apiPost<{ url: string }>('/api/reflections/journal/upload', {
+  const result = await apiPost<{ url: string }>('/api/reflections/entries/upload', {
     data: base64,
     contentType: file.type,
   });

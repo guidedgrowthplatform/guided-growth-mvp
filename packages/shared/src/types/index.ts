@@ -62,29 +62,6 @@ export type DayEntries = Record<string, string>;
 /** Map of date → DayEntries */
 export type EntriesMap = Record<string, DayEntries>;
 
-// ─── Reflection ─────────────────────────────────────
-export interface ReflectionField {
-  id: string;
-  label: string;
-  order: number;
-}
-
-export interface ReflectionConfig {
-  fields: ReflectionField[];
-  show_affirmation: boolean;
-}
-
-export interface Reflection {
-  id: string;
-  user_id: string;
-  date: string;
-  field_id: string;
-  value: string;
-}
-
-/** Map of field_id → value for a single day */
-export type DayReflections = Record<string, string>;
-
 // ─── Affirmation ────────────────────────────────────
 export interface Affirmation {
   id: string;

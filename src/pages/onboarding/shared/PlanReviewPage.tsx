@@ -124,7 +124,7 @@ export function PlanReviewPage() {
 
         <PlanSummaryCard
           icon="ic:outline-menu-book"
-          typeLabel="Journal"
+          typeLabel="Reflection"
           title="Daily reflection"
           cadence={formatCadence(reflectionDays)}
           rule={reflectionConfig.time ? `Reminder at ${reflectionConfig.time}` : 'No reminder set'}

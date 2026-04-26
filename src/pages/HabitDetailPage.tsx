@@ -54,11 +54,7 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
   const handleLogReflection = useCallback(() => {
     track('tap_log_reflection', { source: 'habit_detail' });
     onClose();
-    navigate('/home');
-    // Open journal panel after navigation settles
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('toggle-journal'));
-    }, 100);
+    navigate('/reflections/new');
   }, [onClose, navigate]);
 
   const totalReps = stats?.totalRepetitions;

@@ -10,6 +10,7 @@ import {
   AiInsightCard,
   ReflectionsTopBar,
   ReflectionOverflowMenu,
+  ReflectionLoadError,
   getMoodPreset,
 } from '@/components/reflections';
 import { useToast } from '@/contexts/ToastContext';
@@ -21,7 +22,7 @@ export function ReflectionDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { addToast } = useToast();
-  const { entry, isLoading, error, insightLoading } = useReflectionDetail(entryId);
+  const { entry, isLoading, error, insightLoading, refetch } = useReflectionDetail(entryId);
 
   useEffect(() => {
     if (entry) track('reflection_detail_opened', { entry_id: entry.id });
@@ -46,7 +47,7 @@ export function ReflectionDetailPage() {
   return (
     <div className="min-h-dvh px-6 pb-8 pt-[max(1rem,env(safe-area-inset-top))]">
       <ReflectionsTopBar
-        title="Journal Entry"
+        title="Reflection"
         rightSlot={
           entry && (
             <ReflectionOverflowMenu
@@ -60,7 +61,12 @@ export function ReflectionDetailPage() {
       {isLoading ? (
         <DetailSkeleton />
       ) : error || !entry ? (
-        <ErrorState onBack={() => navigate('/reflections')} />
+        <ReflectionLoadError
+          error={error}
+          onBack={() => navigate('/reflections')}
+          onRetry={() => refetch()}
+          onSignIn={() => navigate('/login')}
+        />
       ) : (
         <DetailContent entry={entry} insightLoading={insightLoading} />
       )}
@@ -150,24 +156,6 @@ function DetailSkeleton() {
       <div className="relative h-40 w-full overflow-hidden rounded-[24px] bg-surface-secondary">
         <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent bg-[length:200%_100%]" />
       </div>
-    </div>
-  );
-}
-
-function ErrorState({ onBack }: { onBack: () => void }) {
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl bg-surface-secondary px-6 py-10 text-center">
-      <p className="text-base font-semibold text-content">Couldn't load this reflection</p>
-      <p className="text-sm text-content-secondary">
-        It may have been deleted, or there was a network hiccup.
-      </p>
-      <button
-        type="button"
-        onClick={onBack}
-        className="mt-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-white"
-      >
-        Back to Reflections
-      </button>
     </div>
   );
 }

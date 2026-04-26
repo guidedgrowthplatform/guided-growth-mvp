@@ -75,7 +75,7 @@ export function ReflectionsPage() {
         {query.isLoading ? (
           <ListSkeleton count={5} />
         ) : entries.length === 0 ? (
-          <EmptyState onStart={() => navigate('/journal')} />
+          <EmptyState onStart={() => navigate('/reflections/new')} />
         ) : (
           <>
             {entries.map((entry) => (
@@ -114,7 +114,7 @@ function EmptyState({ onStart }: { onStart: () => void }) {
     <div className="flex flex-col items-center gap-3 rounded-2xl bg-surface-secondary px-6 py-10 text-center">
       <p className="text-base font-semibold text-content">No reflections yet</p>
       <p className="text-sm text-content-secondary">
-        Capture a quick journal entry and it'll show up here.
+        Capture a quick reflection and it'll show up here.
       </p>
       <button
         type="button"

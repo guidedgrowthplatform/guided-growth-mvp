@@ -5,3 +5,4 @@ export { ReflectionListCard } from './ReflectionListCard';
 export { ReflectionOverflowMenu } from './ReflectionOverflowMenu';
 export { MoodStrip } from './MoodStrip';
 export { AiInsightCard } from './AiInsightCard';
+export { ReflectionLoadError } from './ReflectionLoadError';

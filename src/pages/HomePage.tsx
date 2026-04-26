@@ -119,7 +119,7 @@ export function HomePage() {
               setShowCheckIn(next);
             }}
             onJournalPress={() => {
-              navigate('/journal');
+              navigate('/reflections/new');
             }}
           />
           <div

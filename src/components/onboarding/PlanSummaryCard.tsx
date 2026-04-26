@@ -2,7 +2,7 @@ import { Icon } from '@iconify/react';
 
 interface PlanSummaryCardProps {
   icon: string;
-  typeLabel: 'Habit' | 'Journal';
+  typeLabel: 'Habit' | 'Reflection';
   title: string;
   cadence: string;
   rule: string;

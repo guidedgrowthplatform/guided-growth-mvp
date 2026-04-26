@@ -313,9 +313,9 @@ export function AppRoutes() {
           }
         />
 
-        {/* Journal flow (protected, no Layout — full-screen wizard) */}
+        {/* Reflection create flow (protected, no Layout — full-screen wizard) */}
         <Route
-          path="/journal"
+          path="/reflections/new"
           element={
             <AppGate allow="app">
               <JournalFlowPage />
