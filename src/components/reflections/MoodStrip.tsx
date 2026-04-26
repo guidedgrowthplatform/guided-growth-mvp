@@ -24,13 +24,12 @@ export function MoodStrip({ value, onChange, label = 'How are you feeling?' }: M
                 onChange(next);
               }}
               aria-pressed={selected}
-              className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
+              className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
                 selected
                   ? 'border-primary bg-primary/10 text-primary-light'
                   : 'border-border-light bg-surface-secondary text-content-secondary'
               }`}
             >
-              <span className="text-base leading-none">{mood.emoji}</span>
               {mood.label}
             </button>
           );
