@@ -2,11 +2,11 @@ import { Icon } from '@iconify/react';
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { WEEKDAYS, WEEKEND, ALL_DAYS } from '@/components/onboarding/constants';
-import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import {
-  OnboardingVoiceOverlay,
+  OnboardingChatOverlay,
   type VoiceMessage,
-} from '@/components/onboarding/OnboardingVoiceOverlay';
+} from '@/components/onboarding/OnboardingChatOverlay';
+import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import type { OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
@@ -69,7 +69,6 @@ export function AdvancedStep6Page() {
       else if (s.includes('weekend')) setSchedule('Weekend');
       else if (s.includes('every') || s.includes('daily')) setSchedule('Every day');
     }
-    setShowVoiceOverlay(false);
   }, []);
 
   const questions = customPrompts ?? DEFAULT_QUESTIONS;
@@ -235,7 +234,7 @@ export function AdvancedStep6Page() {
       </div>
 
       {showVoiceOverlay && (
-        <OnboardingVoiceOverlay
+        <OnboardingChatOverlay
           stepContext={{
             step: 5,
             prompt: 'When should you reflect? Say "weekdays", "weekends", or "every day".',
@@ -243,6 +242,11 @@ export function AdvancedStep6Page() {
           }}
           onAction={handleVoiceAction}
           onClose={() => setShowVoiceOverlay(false)}
+          onContinue={() => {
+            setShowVoiceOverlay(false);
+            handleReviewPlan();
+          }}
+          continueLabel="Review My Plan"
           messages={voiceMessages}
           setMessages={setVoiceMessages}
         />
