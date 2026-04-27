@@ -1,9 +1,9 @@
 import { Icon } from '@iconify/react';
 import { useState, useCallback, useEffect } from 'react';
+import { track } from '@/analytics';
 import { submitFeedback } from '@/api/feedback';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useToast } from '@/contexts/ToastContext';
-import { track } from '@/analytics';
 import { startRecording, stopAndTranscribe, stopRecording } from '@/lib/services/stt-service';
 
 type Sentiment = 'love' | 'ok' | 'needs-work';

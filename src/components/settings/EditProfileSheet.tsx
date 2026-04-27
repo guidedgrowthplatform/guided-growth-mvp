@@ -1,9 +1,9 @@
 import { Icon } from '@iconify/react';
 import { useRef, useState } from 'react';
+import { track } from '@/analytics';
 import { updateProfile, uploadAvatar } from '@/api/profile';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useToast } from '@/contexts/ToastContext';
-import { track } from '@/analytics';
 import { useAuthStore } from '@/stores/authStore';
 
 interface Props {

@@ -1,6 +1,6 @@
 import { Icon } from '@iconify/react';
-import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { SECTION_LABEL_CLASS, toggleSetItem } from '@/components/onboarding/constants';
+import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { TimePicker } from '@/components/ui/TimePicker';
 import { AddHabitHeader } from './AddHabitHeader';

@@ -1,10 +1,10 @@
 import { Bell, Lightbulb } from 'lucide-react';
 import { useState } from 'react';
+import { track } from '@/analytics';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { InfoBox } from '@/components/ui/InfoBox';
 import { TimePicker } from '@/components/ui/TimePicker';
 import { Toggle } from '@/components/ui/Toggle';
-import { track } from '@/analytics';
 
 interface ReminderSheetProps {
   onClose: () => void;
