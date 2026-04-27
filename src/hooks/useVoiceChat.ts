@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVoice } from '@/hooks/useVoice';
-import { stopTTS } from '@/lib/services/tts-service';
+import { speak, stopTTS } from '@/lib/services/tts-service';
 import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { useVoiceStore } from '@/stores/voiceStore';
@@ -71,11 +71,19 @@ export function useVoiceChat(userName?: string) {
     }
   }, [voiceState, enterRealtime, transition]);
 
-  // Greeting TTS disabled — Cartesia TTS endpoint needs production
-  // debugging (auth + env var issues). Text greeting still shows.
-  // TODO: Re-enable after /api/cartesia-tts is stable on Vercel.
+  // Greeting TTS re-enabled 2026-04-27 after !114 (Cartesia Ronald
+  // 404 fix) + !113 (PostHog reverse proxy) landed and prod
+  // /api/cartesia-tts verified live for both Katie + new Ronald
+  // voice IDs against the -green deploy. Text greeting still renders
+  // first, audio follows asynchronously via the speak() cascade.
   useEffect(() => {
+    if (hasSpokenGreeting.current) return;
     hasSpokenGreeting.current = true;
+    speak(getGreeting(userName));
+    // userName is captured by closure; re-running on its change would
+    // mean an extra greeting per user identity flip, which the
+    // greeting-once invariant is meant to prevent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

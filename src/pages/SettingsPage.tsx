@@ -2,6 +2,7 @@ import { Icon } from '@iconify/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { deleteAccount } from '@/api/onboarding';
 import { ReminderSheet } from '@/components/home/ReminderSheet';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
@@ -25,7 +26,6 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { track } from '@/lib/analytics';
 import { queryKeys } from '@/lib/query';
 import {
   getAvailableVoices,
@@ -108,11 +108,19 @@ export function SettingsPage() {
     };
   }, []);
 
-  const handleVoiceChange = useCallback((voiceName: string) => {
-    setSelectedVoice(voiceName);
-    setVoicePreference(voiceName);
-    useVoiceSettingsStore.getState().setSelectedVoiceName(voiceName);
-  }, []);
+  const handleVoiceChange = useCallback(
+    (voiceName: string) => {
+      track('update_ai_settings', {
+        setting_changed: 'tts_voice',
+        old_value: selectedVoice,
+        new_value: voiceName,
+      });
+      setSelectedVoice(voiceName);
+      setVoicePreference(voiceName);
+      useVoiceSettingsStore.getState().setSelectedVoiceName(voiceName);
+    },
+    [selectedVoice],
+  );
 
   const handlePreview = useCallback(() => {
     speak('Hello! I am your growth tracker assistant. How can I help you today?');
@@ -210,7 +218,10 @@ export function SettingsPage() {
             icon="hugeicons:google-doc"
             label="Privacy Policy"
             isFirst
-            onClick={() => navigate('/privacy-policy')}
+            onClick={() => {
+              track('view_privacy_policy');
+              navigate('/privacy-policy');
+            }}
             right={
               <Icon icon="ic:round-chevron-right" width={20} className="text-content-tertiary" />
             }
@@ -226,7 +237,10 @@ export function SettingsPage() {
             iconBg="bg-danger/10"
             iconClass="text-danger"
             labelClass="text-danger"
-            onClick={() => setShowDeleteConfirm(true)}
+            onClick={() => {
+              track('tap_delete_account');
+              setShowDeleteConfirm(true);
+            }}
           />
         </SettingsCard>
       </section>
@@ -318,6 +332,13 @@ export function SettingsPage() {
           options={coachingStyles}
           selected={pageSettings.coachingStyle}
           onSelect={(v) => {
+            if (v !== pageSettings.coachingStyle) {
+              track('update_ai_settings', {
+                setting_changed: 'coaching_style',
+                old_value: pageSettings.coachingStyle,
+                new_value: v,
+              });
+            }
             updatePreference('coachingStyle', v);
             setActiveSheet(null);
           }}
@@ -330,6 +351,13 @@ export function SettingsPage() {
           options={voiceModels}
           selected={pageSettings.voiceModel}
           onSelect={(v) => {
+            if (v !== pageSettings.voiceModel) {
+              track('update_ai_settings', {
+                setting_changed: 'voice_model',
+                old_value: pageSettings.voiceModel,
+                new_value: v,
+              });
+            }
             updatePreference('voiceModel', v);
             setActiveSheet(null);
           }}
@@ -342,6 +370,13 @@ export function SettingsPage() {
           options={languages}
           selected={pageSettings.language}
           onSelect={(v) => {
+            if (v !== pageSettings.language) {
+              track('update_ai_settings', {
+                setting_changed: 'language',
+                old_value: pageSettings.language,
+                new_value: v,
+              });
+            }
             updatePreference('language', v);
             setActiveSheet(null);
           }}

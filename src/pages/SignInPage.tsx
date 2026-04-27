@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation } from 'react-router-dom';
+import { track } from '@/analytics';
 import {
   AuthBackButton,
   SocialAuthButtons,
@@ -12,7 +13,8 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
-import { track } from '@/lib/analytics';
+import { useAutoplayVoice } from '@/hooks/useAutoplayVoice';
+import { voiceAssetUrl } from '@/lib/config/voice';
 import { loginSchema, type LoginForm } from '@/lib/validation';
 
 export function SignInPage() {
@@ -21,6 +23,11 @@ export function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const successMessage = (location.state as { message?: string } | null)?.message ?? null;
+
+  // Phase 1 spec §1.1 step 1: cloned voice greets the user when the app opens.
+  // After Jamy's new-onboarding merge (!69) the "Meet your coach" audio cue
+  // went missing from SignIn. Restore via the Supabase-hosted splash_hook asset.
+  useAutoplayVoice(voiceAssetUrl('splash_hook.mp3'));
 
   useEffect(() => {
     track('view_login_screen');

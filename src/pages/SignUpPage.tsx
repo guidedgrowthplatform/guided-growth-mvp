@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
+import { track } from '@/analytics';
 import {
   AuthBackButton,
   SocialAuthButtons,
@@ -12,7 +13,6 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
-import { track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
 import { loginSchema, type LoginForm } from '@/lib/validation';
 

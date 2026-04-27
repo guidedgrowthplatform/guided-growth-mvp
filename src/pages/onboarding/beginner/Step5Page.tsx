@@ -8,7 +8,9 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { habitsByGoal } from '@/data/onboardingHabits';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 export function Step5Page() {
@@ -29,6 +31,10 @@ export function Step5Page() {
     () => (state?.goals?.length ? state.goals : ['Fall asleep earlier']),
     [state],
   );
+
+  useOnboardingAgent('onboard_05');
+
+  useAgentNavigation(5, '/onboarding/step-6');
 
   // Reconstitute Sets from arrays after router state serialization
   const incomingConfigs: Record<string, HabitConfig> | undefined = state?.habitConfigs
@@ -116,6 +122,27 @@ export function Step5Page() {
     setCustomizingHabit(queue[0]);
   }, [selectedHabits]);
 
+  const allHabits = useMemo(
+    () => goals.flatMap((goal) => [...(habitsByGoal[goal] ?? []), ...(customHabits[goal] ?? [])]),
+    [goals, customHabits],
+  );
+
+  const handleVoiceAction = useCallback(
+    (result: OnboardingVoiceResult) => {
+      if (result.params && Array.isArray(result.params.habits)) {
+        const voiceHabits = result.params.habits as string[];
+        const newSelected = new Set<string>();
+        voiceHabits.forEach((h) => {
+          if (allHabits.includes(h) && newSelected.size < 2) {
+            newSelected.add(h);
+          }
+        });
+        setSelectedHabits(newSelected);
+      }
+    },
+    [allHabits],
+  );
+
   function handleSheetClose() {
     setCustomizingHabit(null);
     setHabitQueue([]);
@@ -146,28 +173,6 @@ export function Step5Page() {
   const isLastHabit = customizingHabit
     ? habitQueue.indexOf(customizingHabit) === habitQueue.length - 1
     : true;
-
-  // Collect all available habits for this phase
-  const allHabits = goals.flatMap((goal) => [
-    ...(habitsByGoal[goal] ?? []),
-    ...(customHabits[goal] ?? []),
-  ]);
-
-  const handleVoiceAction = useCallback(
-    (result: OnboardingVoiceResult) => {
-      if (result.params && Array.isArray(result.params.habits)) {
-        const voiceHabits = result.params.habits as string[];
-        const newSelected = new Set<string>();
-        voiceHabits.forEach((h) => {
-          if (allHabits.includes(h) && newSelected.size < 2) {
-            newSelected.add(h);
-          }
-        });
-        setSelectedHabits(newSelected);
-      }
-    },
-    [allHabits],
-  );
 
   const handleOnNext = useCallback(async () => {
     if (phase === 'confirming') {
@@ -201,9 +206,9 @@ export function Step5Page() {
             ? () => setPhase('selecting')
             : () => navigate('/onboarding/step-4')
         }
+        ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
         showVoiceButton
         aiListeningPrompt='"Select up to 2 daily habits to build your foundation."'
-        ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
         voiceOptions={allHabits}
         voiceFileId={phase === 'selecting' ? 'ONBOARD-05' : undefined}
         voicePrompt="Here are a few habits that really help with this. And here's the key — pick what feels doable. Not heroic. Not impressive. Doable. Because one habit done consistently beats five that don't stick. You can also create your own if none of these fit."

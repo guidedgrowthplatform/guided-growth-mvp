@@ -5,7 +5,9 @@ import { GoalCard } from '@/components/onboarding/GoalCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { goalsByCategory } from '@/data/onboardingHabits';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 export function Step4Page() {
@@ -15,6 +17,11 @@ export function Step4Page() {
   const category = (location.state as { category?: string })?.category ?? 'Sleep better';
   const goals = goalsByCategory[category] ?? goalsByCategory['Sleep better'];
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  useOnboardingAgent('onboard_04');
+
+  // ONBOARD-04 → step-5 on agent advance.
+  useAgentNavigation(4, '/onboarding/step-5');
 
   useEffect(() => {
     if (onboardingState?.data?.goals && Array.isArray(onboardingState.data.goals)) {
@@ -34,6 +41,11 @@ export function Step4Page() {
     });
   }
 
+  const handleNext = useCallback(async () => {
+    await saveStepAsync(4, { goals: Array.from(selected) });
+    navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
+  }, [selected, category, navigate, saveStepAsync]);
+
   const handleVoiceAction = useCallback(
     (result: OnboardingVoiceResult) => {
       if (result.params && Array.isArray(result.params.goals)) {
@@ -50,11 +62,6 @@ export function Step4Page() {
     [goals],
   );
 
-  const handleNext = useCallback(async () => {
-    await saveStepAsync(4, { goals: Array.from(selected) });
-    navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
-  }, [selected, category, navigate, saveStepAsync]);
-
   return (
     <OnboardingLayout
       currentStep={4}
@@ -63,9 +70,9 @@ export function Step4Page() {
       ctaVariant="inline"
       onNext={handleNext}
       onBack={() => navigate('/onboarding/step-3')}
+      ctaDisabled={selected.size === 0}
       showVoiceButton
       aiListeningPrompt='"Within that category, what specific area would you like to improve?"'
-      ctaDisabled={selected.size === 0}
       voiceOptions={goals}
       voiceFileId="ONBOARD-04"
       voicePrompt="OK — what's the thing that's really getting you? Pick the one that hits hardest."

@@ -1,8 +1,8 @@
 import { Icon } from '@iconify/react';
 import { Link, useLocation } from 'react-router-dom';
+import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
-import { track } from '@/lib/analytics';
 import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { useVoiceStore } from '@/stores/voiceStore';

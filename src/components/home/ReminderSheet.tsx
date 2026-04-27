@@ -1,5 +1,6 @@
 import { Bell, Lightbulb } from 'lucide-react';
 import { useState } from 'react';
+import { track } from '@/analytics';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { InfoBox } from '@/components/ui/InfoBox';
 import { TimePicker } from '@/components/ui/TimePicker';
@@ -67,6 +68,25 @@ export function ReminderSheet({
   const [pushNotifications, setPushNotifications] = useState(initialPushNotifications);
 
   const handleSave = (close: () => void) => {
+    // Emit per-time change events so analytics can distinguish morning vs
+    // night schedule tweaks (spec §5.1 `update_checkin_schedule`).
+    if (morningTime !== initialMorningTime) {
+      track('update_checkin_schedule', {
+        checkin_type: 'morning',
+        old_time: initialMorningTime,
+        new_time: morningTime,
+      });
+    }
+    if (nightTime !== initialNightTime) {
+      track('update_checkin_schedule', {
+        checkin_type: 'night',
+        old_time: initialNightTime,
+        new_time: nightTime,
+      });
+    }
+    if (pushNotifications !== initialPushNotifications) {
+      track('toggle_push_notifications', { enabled: pushNotifications });
+    }
     onSave?.({ morningTime, nightTime, pushNotifications });
     close();
   };

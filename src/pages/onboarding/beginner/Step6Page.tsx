@@ -11,7 +11,9 @@ import { DailyReflectionCard } from '@/components/onboarding/DailyReflectionCard
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { Sentry } from '@/lib/sentry';
 
@@ -32,6 +34,10 @@ export function Step6Page() {
   const navigate = useNavigate();
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
+
+  // ONBOARD-08 in the spec; metadata uses the canonical id for screen_contexts lookup.
+  useOnboardingAgent('onboard_08');
+  useAgentNavigation(6, '/onboarding/step-7');
   const state = location.state as {
     habitConfigs?: Record<
       string,
@@ -84,24 +90,6 @@ export function Step6Page() {
     });
   }
 
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (result.params) {
-      if (typeof result.params.time === 'string') {
-        setTime(result.params.time);
-      }
-      if (typeof result.params.schedule === 'string') {
-        const scheduleStr = result.params.schedule.toLowerCase();
-        if (scheduleStr.includes('weekday')) {
-          handleScheduleChange('Weekday');
-        } else if (scheduleStr.includes('weekend')) {
-          handleScheduleChange('Weekend');
-        } else if (scheduleStr.includes('every') || scheduleStr.includes('daily')) {
-          handleScheduleChange('Every day');
-        }
-      }
-    }
-  }, []);
-
   const handleOnNext = useCallback(async () => {
     try {
       if (!state?.habitConfigs) {
@@ -136,6 +124,25 @@ export function Step6Page() {
       throw err;
     }
   }, [state, time, days, reminder, schedule, navigate, saveStepAsync]);
+
+  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
+    if (result.params) {
+      if (typeof result.params.time === 'string') {
+        setTime(result.params.time);
+      }
+      if (typeof result.params.schedule === 'string') {
+        const scheduleStr = result.params.schedule.toLowerCase();
+        let next: ScheduleOption | null = null;
+        if (scheduleStr.includes('weekday')) next = 'Weekday';
+        else if (scheduleStr.includes('weekend')) next = 'Weekend';
+        else if (scheduleStr.includes('every') || scheduleStr.includes('daily')) next = 'Every day';
+        if (next) {
+          setSchedule(next);
+          setDays(new Set(SCHEDULE_DAYS[next]));
+        }
+      }
+    }
+  }, []);
 
   return (
     <OnboardingLayout

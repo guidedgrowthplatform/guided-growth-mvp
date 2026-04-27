@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { useToast } from '@/contexts/ToastContext';
 import type { Habit, HabitCompletion } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
@@ -96,6 +97,19 @@ export function HabitsSection({ selectedDate }: HabitsSectionProps) {
         await ds.uncompleteHabit(habitId, selectedDate);
       } else {
         await ds.completeHabit(habitId, selectedDate);
+        const target = habits.find((h) => h.habit.id === habitId);
+        if (target) {
+          const now = new Date();
+          const hour = now.getHours();
+          const timeOfDay =
+            hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 21 ? 'evening' : 'night';
+          track('complete_habit', {
+            habit_name: target.habit.name,
+            current_streak: target.streak + 1,
+            day_of_week: now.toLocaleDateString('en-US', { weekday: 'long' }),
+            time_of_day: timeOfDay,
+          });
+        }
       }
       // Refresh from server to get accurate streak etc.
       await loadHabits();

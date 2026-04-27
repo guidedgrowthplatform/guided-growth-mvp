@@ -1,18 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { IconChatVoice, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { track } from '@/lib/analytics';
+import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 
 export function VoicePreferencePage() {
   const navigate = useNavigate();
   const { updatePreference } = useUserPreferences();
+  const { play, stop } = useVoicePlayer();
   const [saving, setSaving] = useState(false);
+
+  // PREF-01 per Voice System sheet: play pref_can_i_talk.mp3 on screen load
+  // (~6s). Any subsequent button tap stops the audio mid-playback.
+  useEffect(() => {
+    play('pref_can_i_talk').catch(() => {
+      // Autoplay may be blocked until the user interacts with the page —
+      // that's fine, the screen text is self-explanatory.
+    });
+    return () => stop();
+  }, [play, stop]);
 
   const choose = async (voiceEnabled: boolean) => {
     if (saving) return;
     setSaving(true);
+    stop();
     track('set_voice_preference', {
       preference: voiceEnabled ? 'voice' : 'text',
       screen: 'pref_01',

@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const categories = [
@@ -24,22 +26,26 @@ export function Step3Page() {
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [selected, setSelected] = useState<string | null>(null);
 
+  useOnboardingAgent('onboard_03');
+
+  useAgentNavigation(3, '/onboarding/step-4');
+
   useEffect(() => {
     if (onboardingState?.data?.category) {
       setSelected(onboardingState.data.category as string);
     }
   }, [onboardingState?.data?.category]);
 
+  const handleNext = useCallback(async () => {
+    await saveStepAsync(3, { category: selected });
+    navigate('/onboarding/step-4', { state: { category: selected } });
+  }, [selected, navigate, saveStepAsync]);
+
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
     if (result.params && typeof result.params.category === 'string') {
       setSelected(result.params.category);
     }
   }, []);
-
-  const handleNext = useCallback(async () => {
-    await saveStepAsync(3, { category: selected });
-    navigate('/onboarding/step-4', { state: { category: selected } });
-  }, [selected, navigate, saveStepAsync]);
 
   return (
     <OnboardingLayout
@@ -49,9 +55,9 @@ export function Step3Page() {
       ctaVariant="inline"
       onNext={handleNext}
       onBack={() => navigate('/onboarding/step-2')}
+      ctaDisabled={!selected}
       showVoiceButton
       aiListeningPrompt='"What is the main category you would like to focus on?"'
-      ctaDisabled={!selected}
       voiceOptions={categoryLabels}
       voiceFileId="ONBOARD-03"
       voicePrompt="So — what feels most worth improving right now? Don't overthink it. There's no wrong answer. Just pick the one that pulls you."

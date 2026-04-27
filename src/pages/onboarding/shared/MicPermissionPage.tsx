@@ -1,25 +1,32 @@
 import { Icon } from '@iconify/react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { IconChatVoice, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { track } from '@/lib/analytics';
+import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 
 export function MicPermissionPage() {
   const navigate = useNavigate();
   const { preferences, updatePreference } = useUserPreferences();
+  const { play, stop } = useVoicePlayer();
   const [requesting, setRequesting] = useState(false);
   const voiceEnabled = preferences.voiceEnabled === true;
 
-  // Fire once per mount. `ai_output_mode` carries the PREF-01 choice so
-  // downstream funnels can split MIC-01 views by prior voice preference.
+  // MIC-01 state machine per Voice System sheet:
+  //   screen_load → mic_permission.mp3 (~8s explanation)
+  //   after_grant → mic_granted.mp3 (~4s)
+  //   after_deny → mic_denied.mp3 (~5s, same MP3 on dismiss per spec: "No problem...")
   useEffect(() => {
+    play('mic_permission').catch(() => {
+      // Autoplay may be blocked; the screen's button copy carries the same info.
+    });
     track('view_mic_permission', {
       ai_output_mode: voiceEnabled ? 'voice' : 'text',
     });
-    // Intentionally runs once on mount — the preference doesn't change
-    // while this screen is visible.
+    return () => stop();
+    // Intentionally runs once on mount — voiceEnabled doesn't flip here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -28,6 +35,7 @@ export function MicPermissionPage() {
   const handleAllow = async () => {
     if (requesting) return;
     setRequesting(true);
+    stop();
     let granted = true;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -38,15 +46,21 @@ export function MicPermissionPage() {
       granted = false;
     }
     track('grant_mic_permission', { granted, dismissed: false });
-    await updatePreference('micGranted', true);
+    await updatePreference('micGranted', granted);
+    // Play the post-permission MP3 to completion before advancing so the
+    // user hears "Got it" (~4s) or "No problem" (~5s) before the next screen.
+    // If autoplay fails, navigate immediately — the flow shouldn't stall.
+    await play(granted ? 'mic_granted' : 'mic_denied').catch(() => {});
     goNext();
   };
 
   const handleDismiss = async () => {
     if (requesting) return;
     setRequesting(true);
+    stop();
     track('grant_mic_permission', { granted: false, dismissed: true });
     await updatePreference('micGranted', false);
+    await play('mic_denied').catch(() => {});
     goNext();
   };
 

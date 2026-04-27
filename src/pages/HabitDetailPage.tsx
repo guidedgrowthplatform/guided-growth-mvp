@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { DaySchedulePills } from '@/components/habit-detail/DaySchedulePills';
 import { HabitDetailTopBar, HabitDetailTitle } from '@/components/habit-detail/HabitDetailHeader';
 import { MilestonesSection } from '@/components/habit-detail/MilestonesSection';
@@ -8,7 +9,6 @@ import { StatsGrid } from '@/components/habit-detail/StatsGrid';
 import { StreakCard } from '@/components/habit-detail/StreakCard';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useHabitDetail } from '@/hooks/useHabitDetail';
-import { track } from '@/lib/analytics';
 import { getDataService } from '@/lib/services/service-provider';
 import { speak } from '@/lib/services/tts-service';
 
@@ -45,7 +45,7 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
     if (!habit || !stats || isLoading) return;
     hasTrackedView.current = true;
     track('view_habit_detail', {
-      habit_name: habit.name,
+      habit_id: habit.id,
       current_streak: stats.currentStreak,
       completion_rate: stats.completionRate,
     });
@@ -61,7 +61,6 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
     }, 100);
   }, [onClose, navigate]);
 
-  const habitName = habit?.name;
   const totalReps = stats?.totalRepetitions;
   const completionRate = stats?.completionRate;
 
@@ -70,7 +69,7 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
       const ds = await getDataService();
       await ds.deleteHabit(habitId);
       track('delete_habit', {
-        habit_name: habitName,
+        habit_id: habitId,
         total_completions: totalReps,
         completion_rate: completionRate,
       });
@@ -79,7 +78,7 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
     } catch {
       // Silently fail — the habit list will refresh and show the correct state
     }
-  }, [habitId, habitName, totalReps, completionRate, onClose]);
+  }, [habitId, totalReps, completionRate, onClose]);
 
   // TTS milestone celebration per Voice Journey Spreadsheet v3 (line 454-458)
   const hasSpokenMilestone = useRef(false);

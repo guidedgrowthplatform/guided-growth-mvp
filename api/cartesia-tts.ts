@@ -75,12 +75,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!response.ok) {
       const errStatus = response.status;
+      // Read the error body so we can see *why* Cartesia rejected us —
+      // previously we swallowed this and every failure surfaced as an
+      // opaque 502, making it impossible to distinguish "bad voice_id"
+      // from "expired API key" from "model deprecated" (Alejandro's
+      // 2026-04-25 demo — kept hearing the browser fallback voice).
+      const errBody = await response.text().catch(() => '');
+      console.error('[cartesia-tts] upstream error', {
+        status: errStatus,
+        body: errBody.slice(0, 500),
+        voice_id: resolvedVoiceId,
+      });
       if (errStatus === 401 || errStatus === 429) {
         return res
           .status(errStatus)
           .json({ error: 'Cartesia quota exceeded or unauthorized', fallback: true });
       }
-      return res.status(502).json({ error: 'Text-to-speech service error', fallback: true });
+      return res.status(502).json({
+        error: 'Text-to-speech service error',
+        upstream_status: errStatus,
+        upstream_detail: errBody.slice(0, 200),
+        fallback: true,
+      });
     }
 
     const audioBuffer = await response.arrayBuffer();

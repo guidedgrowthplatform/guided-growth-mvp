@@ -40,6 +40,12 @@
     { "source": "/api/entries", "destination": "/api/entries/__index" },
     { "source": "/api/reflections", "destination": "/api/reflections/__index" },
     { "source": "/api/admin", "destination": "/api/admin/__index" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    {
+      "source": "/ingest/static/:path*",
+      "destination": "https://us-assets.i.posthog.com/static/:path*"
+    },
+    { "source": "/ingest/decide", "destination": "https://us.i.posthog.com/decide" },
+    { "source": "/ingest/:path*", "destination": "https://us.i.posthog.com/:path*" },
+    { "source": "/((?!api/|ingest/).*)", "destination": "/index.html" }
   ]
 }

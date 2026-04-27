@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { track } from '@/analytics';
 import { useVoice } from '@/hooks/useVoice';
-import { track } from '@/lib/analytics';
 import {
   CartesiaAgentClient,
   type AgentStartMetadata,
@@ -235,8 +235,17 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       streamRef.current = null;
     }
 
-    clientRef.current?.close();
+    // Detach the ref BEFORE closing the client. Cartesia's client
+    // synchronously fires its `onClose` callback from inside `.close()`,
+    // and our `onClose` handler calls `stop()` → `cleanup()` re-entrantly.
+    // If clientRef still points at the same object on re-entry,
+    // `clientRef.current?.close()` runs again on the same client, triggers
+    // onClose again, and the chain blows the stack with the
+    // `RangeError: Maximum call stack size exceeded` Said hit during emulator
+    // QA v7e.
+    const client = clientRef.current;
     clientRef.current = null;
+    client?.close();
 
     const ctx = audioCtxRef.current;
     if (ctx && ctx.state !== 'closed') {
@@ -254,6 +263,12 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   }, [transition, setStateSynced, metadata.screen]);
 
   const stop = useCallback(() => {
+    // Belt-and-suspenders: any code path that re-entered cleanup while it
+    // was already running (the agent's onClose firing inside our own
+    // close, the unmount effect racing a parent-driven stop, …) bails
+    // here so we don't recurse through cleanup → client.close → onClose
+    // → stop a second time.
+    if (tearingDownRef.current) return;
     cleanup();
     release();
     onEnd?.();

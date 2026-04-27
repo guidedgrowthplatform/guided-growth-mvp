@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 export function Step2Page() {
@@ -11,11 +13,32 @@ export function Step2Page() {
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [plan, setPlan] = useState<'simple' | 'braindump' | null>(null);
 
+  useOnboardingAgent('onboard_02');
+
   useEffect(() => {
     if (onboardingState?.path) {
       setPlan(onboardingState.path as 'simple' | 'braindump');
     }
   }, [onboardingState?.path]);
+
+  // null defers navigation until path is set so we route to the right fork.
+  useAgentNavigation(
+    2,
+    plan === 'braindump'
+      ? '/onboarding/advanced-input'
+      : plan === 'simple'
+        ? '/onboarding/step-3'
+        : null,
+  );
+
+  const handleNext = useCallback(async () => {
+    await saveStepAsync(2, {}, { path: plan as 'simple' | 'braindump' });
+    if (plan === 'braindump') {
+      navigate('/onboarding/advanced-input');
+    } else {
+      navigate('/onboarding/step-3');
+    }
+  }, [plan, navigate, saveStepAsync]);
 
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
     if (result.params && typeof result.params.path === 'string') {
@@ -32,15 +55,6 @@ export function Step2Page() {
       }
     }
   }, []);
-
-  const handleNext = useCallback(async () => {
-    await saveStepAsync(2, {}, { path: plan as 'simple' | 'braindump' });
-    if (plan === 'braindump') {
-      navigate('/onboarding/advanced-input');
-    } else {
-      navigate('/onboarding/step-3');
-    }
-  }, [plan, navigate, saveStepAsync]);
 
   return (
     <OnboardingLayout
