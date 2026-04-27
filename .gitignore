@@ -27,6 +27,10 @@ supabase/.temp/
 .venv/
 venv/
 
+# Python bytecode / caches
+__pycache__/
+*.pyc
+
 # Vite temp files
 vite.config.ts.timestamp-*
 

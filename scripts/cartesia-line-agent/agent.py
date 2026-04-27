@@ -4,8 +4,9 @@
 
 import os
 from typing import Optional, TypedDict
-import linehe
+import line
 from supabase import create_client
+from config import LLM_MAX_TOKENS, LLM_MODEL, LLM_TEMPERATURE, SYSTEM_PROMPT
 
 # -- Configuration --
 # (Normally loaded from Cartesia agent environment overrides during cartesia deploy)
@@ -30,23 +31,12 @@ class ContextState(TypedDict):
     user_id: str
     coaching_style: str
 
-# Example system prompt referencing our coaching style structure.
-# In a full deployment, you'd compose this from your `src/lib/coaching/systemPrompt.ts` concepts.
-SYSTEM_PROMPT = """
-You are the Guided Growth AI Coach. You are speaking verbally, so keep responses brief, conversational, and natural.
-Never output markdown, bullet points, or emojis since the user is listening to audio.
-Use the supplied context to personalize your responses. 
-
-SAFETY RULE: If the user expresses self-harm, suicidal thoughts, or crisis, you must immediately stop coaching, express care, and provide the 988 Suicide & Crisis Lifeline (Say: "Please call or text 988").
-"""
-
 line_agent = line.agent(
     llm=line.llm(
-        # We wrap GPT-4o-mini via litellm structure
-        model="openai/gpt-4o-mini",
+        model=LLM_MODEL,
         system_prompt=SYSTEM_PROMPT,
-        temperature=0.7,
-        max_tokens=250
+        temperature=LLM_TEMPERATURE,
+        max_tokens=LLM_MAX_TOKENS,
     ),
     voice=line.voice(
         # '694f9ed8-eb98-4842-8809-5a587930ed6b' is a sonic-english voice (e.g. Male Default or Cloned)

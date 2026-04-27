@@ -4,6 +4,7 @@ from typing import Annotated, Optional
 from line.llm_agent import LlmAgent, LlmConfig, end_call, loopback_tool
 from line.voice_agent_app import VoiceAgentApp
 from supabase import create_client
+from config import INTRODUCTION, LLM_MAX_TOKENS, LLM_MODEL, LLM_TEMPERATURE, SYSTEM_PROMPT
 
 
 def getenv_any(*names: str) -> Optional[str]:
@@ -22,16 +23,6 @@ supabase = (
     if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
     else None
 )
-
-
-SYSTEM_PROMPT = """You are the Guided Growth AI Coach.
-
-You are speaking verbally, so keep responses brief, conversational, and natural.
-Never output markdown, bullet points, or emojis since the user is listening to audio.
-
-Safety: If the user expresses self-harm, suicidal thoughts, or crisis, stop coaching and say:
-"Please call or text 988."
-"""
 
 
 @loopback_tool
@@ -78,14 +69,14 @@ async def get_agent(_env, _call_request):
     # NOTE: Line uses LiteLLM under the hood; provider-prefixed models work well.
     # You can swap model/provider without changing the rest of the app.
     return LlmAgent(
-        model="openai/gpt-4o-mini",
+        model=LLM_MODEL,
         api_key=os.getenv("OPENAI_API_KEY"),
         tools=[get_user_context, end_call],
         config=LlmConfig(
             system_prompt=SYSTEM_PROMPT,
-            introduction="Hey — what's on your mind today?",
-            temperature=0.7,
-            max_tokens=250,
+            introduction=INTRODUCTION,
+            temperature=LLM_TEMPERATURE,
+            max_tokens=LLM_MAX_TOKENS,
         ),
     )
 

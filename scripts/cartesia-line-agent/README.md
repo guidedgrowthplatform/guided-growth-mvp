@@ -9,7 +9,7 @@ It is **not** a Vercel `/api/*` function. It runs on Cartesia’s hosted agent p
 - Entry point (Line SDK / recommended): `scripts/cartesia-line-agent/main.py`
 - Legacy prototype (older API): `scripts/cartesia-line-agent/agent.py`
 - The agent defines:
-  - LLM: `openai/gpt-4o-mini`
+  - LLM (configurable): `CARTESIA_LINE_LLM_MODEL` (default `openai/gpt-4o-mini`)
   - Voice: Cartesia Sonic voice (configurable via `CARTESIA_VOICE_ID`)
   - Tool: `get_user_context()` which pulls profile + habits from Supabase (optional)
 
@@ -18,6 +18,15 @@ It is **not** a Vercel `/api/*` function. It runs on Cartesia’s hosted agent p
 Minimum (agent can respond):
 
 - `OPENAI_API_KEY`
+
+Optional (LLM tuning / experimentation):
+
+- `CARTESIA_LINE_LLM_MODEL` (e.g. `openai/gpt-4o-mini`)
+- `CARTESIA_LINE_LLM_TEMPERATURE` (default `0.7`)
+- `CARTESIA_LINE_LLM_MAX_TOKENS` (default `250`)
+- `CARTESIA_LINE_INTRODUCTION` (default `Hey — what's on your mind today?`)
+- `CARTESIA_LINE_SYSTEM_PROMPT` (string override)
+- `CARTESIA_LINE_SYSTEM_PROMPT_FILE` (path to a prompt file on disk)
 
 Optional (enables Supabase-powered personalization in `get_user_context()`):
 
