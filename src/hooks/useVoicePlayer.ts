@@ -227,7 +227,7 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
   const resume = useCallback(() => {
     if (audioRef.current && state === 'paused') {
       audioRef.current.play().catch(() => {
-        setState('error');
+        if (mountedRef.current) setState('error');
       });
       setState('playing');
     }
