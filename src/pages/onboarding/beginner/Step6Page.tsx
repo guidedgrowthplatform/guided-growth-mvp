@@ -11,8 +11,9 @@ import { DailyReflectionCard } from '@/components/onboarding/DailyReflectionCard
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { Sentry } from '@/lib/sentry';
 
 const SCHEDULE_DAYS: Record<ScheduleOption, Set<number>> = {
@@ -32,6 +33,10 @@ export function Step6Page() {
   const navigate = useNavigate();
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
+
+  // ONBOARD-08 in the spec; metadata uses the canonical id for screen_contexts lookup.
+  useOnboardingAgent('onboard_08');
+  useAgentNavigation(6, '/onboarding/step-7');
   const state = location.state as {
     habitConfigs?: Record<
       string,
@@ -84,24 +89,6 @@ export function Step6Page() {
     });
   }
 
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (result.params) {
-      if (typeof result.params.time === 'string') {
-        setTime(result.params.time);
-      }
-      if (typeof result.params.schedule === 'string') {
-        const scheduleStr = result.params.schedule.toLowerCase();
-        if (scheduleStr.includes('weekday')) {
-          handleScheduleChange('Weekday');
-        } else if (scheduleStr.includes('weekend')) {
-          handleScheduleChange('Weekend');
-        } else if (scheduleStr.includes('every') || scheduleStr.includes('daily')) {
-          handleScheduleChange('Every day');
-        }
-      }
-    }
-  }, []);
-
   const handleOnNext = useCallback(async () => {
     try {
       if (!state?.habitConfigs) {
@@ -143,9 +130,6 @@ export function Step6Page() {
       totalSteps={7}
       ctaLabel="Review My Plan"
       ctaVariant="inline"
-      showVoiceButton
-      aiListeningPrompt='"When would you like to do your daily reflection?"'
-      voiceFileId="ONBOARD-08"
       footerText="You can change these settings later in your profile."
       onNext={handleOnNext}
       onBack={() =>
@@ -157,9 +141,6 @@ export function Step6Page() {
           },
         })
       }
-      voiceOptions={['Weekday', 'Weekend', 'Every day', '9 PM', '10 PM', '8 PM']}
-      voicePrompt="One more thing — and this one's powerful. A daily reflection. Three questions. Two minutes. And it compounds over time in a way that surprises people. What you're proud of. What you forgive yourself for. What you're grateful for. These three questions rewire how you process your day. You'll feel the difference within a week. Want to add it?"
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="One last thing for your mind"

@@ -1,11 +1,14 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { formatCadence } from '@/components/onboarding/constants';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { Sentry } from '@/lib/sentry';
+import { deriveStateFromOnboarding, type PlanReviewState } from './planReviewDerive';
+
 const CATEGORY_ICONS: Record<string, string> = {
   Sleep: 'ic:outline-nightlight-round',
   Move: 'ic:outline-directions-run',
@@ -17,19 +20,19 @@ const CATEGORY_ICONS: Record<string, string> = {
   Organization: 'ic:outline-assignment',
 };
 
-interface PlanReviewState {
-  habitConfigs: Record<string, { days: number[]; time: string; reminder: boolean }>;
-  goals?: string[];
-  category?: string;
-  reflectionConfig: { time: string; days: number[]; reminder: boolean; schedule: string };
-  source?: 'advanced';
-}
-
 export function PlanReviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as PlanReviewState | null;
-  const { complete, isCompleting } = useOnboarding();
+  const routerState = location.state as PlanReviewState | null;
+  const { state: onboardingState, complete, isCompleting } = useOnboarding();
+
+  useOnboardingAgent('onboard_07');
+
+  // Router state carries source='advanced' that agent-driven derivation can't reconstruct.
+  const state = useMemo<PlanReviewState | null>(
+    () => routerState ?? deriveStateFromOnboarding(onboardingState?.data),
+    [routerState, onboardingState?.data],
+  );
 
   const handleStartPlan = useCallback(() => {
     if (!state?.habitConfigs) return;
@@ -41,14 +44,27 @@ export function PlanReviewPage() {
     });
   }, [state, complete]);
 
+  // Voice "let's go" mirrors the tap flow once the agent bumps current_step past 7.
+  const autoCompletedRef = useRef(false);
+  useEffect(() => {
+    if (autoCompletedRef.current) return;
+    if (isCompleting) return;
+    if (!state?.habitConfigs || !state?.reflectionConfig) return;
+    if (!onboardingState) return;
+    if (onboardingState.current_step <= 7) return;
+    autoCompletedRef.current = true;
+    handleStartPlan();
+  }, [onboardingState, state, isCompleting, handleStartPlan]);
+
   if (!state?.habitConfigs || !state?.reflectionConfig) {
     Sentry.captureMessage('PlanReviewPage: missing state — redirecting to /onboarding', {
       level: 'error',
       tags: { flow: 'onboarding', step: '7-planreview' },
       extra: {
+        hasRouterState: !!routerState,
+        hasOnboardingData: !!onboardingState?.data,
         hasHabitConfigs: !!state?.habitConfigs,
         hasReflectionConfig: !!state?.reflectionConfig,
-        hasState: !!state,
       },
     });
     return <Navigate to="/onboarding" replace />;
@@ -90,9 +106,6 @@ export function PlanReviewPage() {
                 : { habitConfigs, goals, category, reflectionConfig, phase: 'confirming' },
           }),
       }}
-      showVoiceButton
-      voiceFileId="ONBOARD-07"
-      voicePrompt="Here's your starting plan. It's simple — and that's on purpose. This is your foundation. As you show up, we'll grow it together. And from here on — it's easy. Morning check-in, evening check-in. Under a minute each. That's your whole commitment. Everything else happens naturally. Ready?"
     >
       <OnboardingHeader
         title="Your starting plan"

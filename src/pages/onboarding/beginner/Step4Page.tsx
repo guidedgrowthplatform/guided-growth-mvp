@@ -5,8 +5,9 @@ import { GoalCard } from '@/components/onboarding/GoalCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { goalsByCategory } from '@/data/onboardingHabits';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 
 export function Step4Page() {
   const navigate = useNavigate();
@@ -15,6 +16,11 @@ export function Step4Page() {
   const category = (location.state as { category?: string })?.category ?? 'Sleep better';
   const goals = goalsByCategory[category] ?? goalsByCategory['Sleep better'];
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  useOnboardingAgent('onboard_04');
+
+  // ONBOARD-04 → step-5 on agent advance.
+  useAgentNavigation(4, '/onboarding/step-5');
 
   useEffect(() => {
     if (onboardingState?.data?.goals && Array.isArray(onboardingState.data.goals)) {
@@ -34,22 +40,6 @@ export function Step4Page() {
     });
   }
 
-  const handleVoiceAction = useCallback(
-    (result: OnboardingVoiceResult) => {
-      if (result.params && Array.isArray(result.params.goals)) {
-        const voiceGoals = result.params.goals as string[];
-        const newSelected = new Set<string>();
-        voiceGoals.forEach((g) => {
-          if (goals.includes(g)) {
-            newSelected.add(g);
-          }
-        });
-        setSelected(newSelected);
-      }
-    },
-    [goals],
-  );
-
   const handleNext = useCallback(async () => {
     await saveStepAsync(4, { goals: Array.from(selected) });
     navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
@@ -63,13 +53,7 @@ export function Step4Page() {
       ctaVariant="inline"
       onNext={handleNext}
       onBack={() => navigate('/onboarding/step-3')}
-      showVoiceButton
-      aiListeningPrompt='"Within that category, what specific area would you like to improve?"'
       ctaDisabled={selected.size === 0}
-      voiceOptions={goals}
-      voiceFileId="ONBOARD-04"
-      voicePrompt="OK — what's the thing that's really getting you? Pick the one that hits hardest."
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Let's narrow it down"

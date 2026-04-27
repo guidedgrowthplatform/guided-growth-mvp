@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 
 const categories = [
   { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
@@ -17,24 +18,20 @@ const categories = [
   { label: 'Get more organized', image: '/images/onboarding/get-more-organized.png' },
 ];
 
-const categoryLabels = categories.map((c) => c.label);
-
 export function Step3Page() {
   const navigate = useNavigate();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [selected, setSelected] = useState<string | null>(null);
+
+  useOnboardingAgent('onboard_03');
+
+  useAgentNavigation(3, '/onboarding/step-4');
 
   useEffect(() => {
     if (onboardingState?.data?.category) {
       setSelected(onboardingState.data.category as string);
     }
   }, [onboardingState?.data?.category]);
-
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (result.params && typeof result.params.category === 'string') {
-      setSelected(result.params.category);
-    }
-  }, []);
 
   const handleNext = useCallback(async () => {
     await saveStepAsync(3, { category: selected });
@@ -49,13 +46,7 @@ export function Step3Page() {
       ctaVariant="inline"
       onNext={handleNext}
       onBack={() => navigate('/onboarding/step-2')}
-      showVoiceButton
-      aiListeningPrompt='"What is the main category you would like to focus on?"'
       ctaDisabled={!selected}
-      voiceOptions={categoryLabels}
-      voiceFileId="ONBOARD-03"
-      voicePrompt="So — what feels most worth improving right now? Don't overthink it. There's no wrong answer. Just pick the one that pulls you."
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="What feels most worth improving right now?"
