@@ -9,6 +9,7 @@ import { ChipSelect } from '@/components/ui/ChipSelect';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
@@ -111,6 +112,43 @@ export function Step1Page() {
     agentEverConnected,
   ]);
 
+  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
+    if (result.params) {
+      const {
+        nickname: voiceNickname,
+        age: voiceAge,
+        ageRange: voiceAgeRange,
+        gender: voiceGender,
+        referralSource: voiceReferral,
+      } = result.params;
+
+      if (typeof voiceNickname === 'string') {
+        setNickname(voiceNickname);
+        voiceFilledFieldsRef.current.add('nickname');
+      }
+      if (typeof voiceAge === 'number') {
+        setAge(voiceAge);
+        voiceFilledFieldsRef.current.add('age');
+      } else if (typeof voiceAge === 'string') {
+        const parsed = parseInt(voiceAge, 10);
+        if (!isNaN(parsed)) {
+          setAge(parsed);
+          voiceFilledFieldsRef.current.add('age');
+        }
+      } else if (typeof voiceAgeRange === 'string') {
+        setAge('');
+      }
+      if (typeof voiceGender === 'string') {
+        setGender(voiceGender);
+        voiceFilledFieldsRef.current.add('gender');
+      }
+      if (typeof voiceReferral === 'string') {
+        setReferralSource(voiceReferral);
+        voiceFilledFieldsRef.current.add('referralSource');
+      }
+    }
+  }, []);
+
   const voiceStatusLabel =
     voiceState === 'listening'
       ? 'Listening…'
@@ -130,6 +168,13 @@ export function Step1Page() {
       onBack={() => navigate('/onboarding/ai-coach-intro')}
       onNext={handleNext}
       ctaDisabled={!nickname.trim() || !age || !gender || !referralSource}
+      showVoiceButton
+      onTranscript={(text) => setNickname(text)}
+      voiceOptions={[...GENDER_OPTIONS, ...REFERRAL_OPTIONS, 'name', 'nickname']}
+      voiceFileId="ONBOARD-01"
+      voicePrompt="Hey — welcome. Before we build anything, I just want to get to know you a little. What should I call you, how old are you, and how did you hear about us? You can just say it or type it in."
+      onVoiceAction={handleVoiceAction}
+      showTooltip
     >
       <OnboardingHeader
         title="Let's get to know you."
