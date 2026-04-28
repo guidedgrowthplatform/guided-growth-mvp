@@ -1,8 +1,12 @@
 import { Icon } from '@iconify/react';
-import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useVoiceInput } from '@/hooks/useVoiceInput';
-import { speak, stopTTS } from '@/lib/services/tts-service';
+import { useCallback, useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
+import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 type JournalMode = 'freeform' | 'custom';
 
@@ -12,10 +16,25 @@ interface LocationState {
   journalMode?: JournalMode;
 }
 
+function deserializePrompts(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string');
+  if (typeof value === 'string') {
+    return value
+      .split('|')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
 export function AdvancedCustomPromptsPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { state: onboardingState } = useOnboarding();
   const state = location.state as LocationState | null;
+
+  useOnboardingAgent('onboard_advanced_custom_prompts');
+  useAgentNavigation(5, '/onboarding/advanced-step-6');
 
   const [journalMode, setJournalMode] = useState<JournalMode>(state?.journalMode ?? 'custom');
   const [prompts, setPrompts] = useState<string[]>(
@@ -23,16 +42,26 @@ export function AdvancedCustomPromptsPage() {
   );
   const [newPrompt, setNewPrompt] = useState('');
 
+  useEffect(() => {
+    const incoming = onboardingState?.data?.customPrompts;
+    const list = deserializePrompts(incoming);
+    if (list.length > 0) {
+      setPrompts((prev) => (prev.length === 0 ? list : prev));
+      if (list.length > 0) setJournalMode('custom');
+    }
+  }, [onboardingState?.data?.customPrompts]);
+
+  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
+    if (!result.params) return;
+    const list = deserializePrompts(result.params.customPrompts ?? result.params.prompts);
+    if (list.length > 0) {
+      setPrompts(list);
+      setJournalMode('custom');
+    }
+  }, []);
+
   const filledPrompts = prompts.filter((p) => p.trim().length > 0);
   const canSubmit = journalMode === 'freeform' || filledPrompts.length >= 1;
-
-  // TTS per Voice Journey Spreadsheet v3 (line 306)
-  useEffect(() => {
-    speak("What questions do you want to reflect on each day? Just say them and I'll add them.");
-    return () => {
-      stopTTS();
-    };
-  }, []);
 
   function updatePrompt(index: number, value: string) {
     setPrompts((prev) => prev.map((p, i) => (i === index ? value : p)));
@@ -42,7 +71,7 @@ export function AdvancedCustomPromptsPage() {
     setPrompts((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function handleDone() {
+  const handleDone = useCallback(() => {
     navigate('/onboarding/advanced-step-6', {
       state: {
         habitConfigs: state?.habitConfigs,
@@ -50,38 +79,30 @@ export function AdvancedCustomPromptsPage() {
         journalMode,
       },
     });
-  }
+  }, [navigate, state?.habitConfigs, journalMode, filledPrompts]);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-secondary px-6 py-6">
-      {/* Back Arrow */}
-      <div className="pb-[32px]">
-        <button
-          type="button"
-          onClick={() =>
-            navigate('/onboarding/advanced-step-6', {
-              state: { habitConfigs: state?.habitConfigs },
-            })
-          }
-          className="flex size-[40px] items-center justify-center"
-        >
-          <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-content" />
-        </button>
-      </div>
+    <OnboardingLayout
+      currentStep={5}
+      totalSteps={6}
+      ctaLabel="Continue"
+      onBack={() =>
+        navigate('/onboarding/advanced-step-6', { state: { habitConfigs: state?.habitConfigs } })
+      }
+      onNext={handleDone}
+      ctaDisabled={!canSubmit}
+      showVoiceButton
+      voiceFileId="ONBOARD-ADV-PROMPTS"
+      voicePrompt="What questions do you want to reflect on each day? Just say them and I'll add them."
+      voiceOptions={[]}
+      onVoiceAction={handleVoiceAction}
+    >
+      <OnboardingHeader
+        title="How do you want to journal?"
+        subtitle="Choose a blank canvas or design your own specific questions."
+      />
 
-      {/* Heading + Subtitle */}
-      <div className="flex flex-col gap-[12px] pb-[32px]">
-        <h1 className="text-[30px] font-bold leading-[36px] text-content">
-          How do you want to journal?
-        </h1>
-        <p className="text-[16px] leading-[26px] text-content-secondary">
-          Choose a blank canvas or design your own specific questions.
-        </p>
-      </div>
-
-      {/* Radio Cards */}
       <div className="flex flex-col gap-[16px]">
-        {/* Freeform Option */}
         <button
           type="button"
           onClick={() => setJournalMode('freeform')}
@@ -117,7 +138,6 @@ export function AdvancedCustomPromptsPage() {
           </div>
         </button>
 
-        {/* Custom Prompts Option */}
         <div
           onClick={() => setJournalMode('custom')}
           className={`cursor-pointer rounded-[20px] p-[22px] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] ${
@@ -126,7 +146,6 @@ export function AdvancedCustomPromptsPage() {
               : 'border border-border bg-surface'
           }`}
         >
-          {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <Icon
@@ -146,7 +165,6 @@ export function AdvancedCustomPromptsPage() {
             </div>
           </div>
 
-          {/* Expanded content when custom is selected */}
           {journalMode === 'custom' && (
             <div className="mt-[16px] flex flex-col gap-[16px]">
               <div className="border-t border-border" />
@@ -154,7 +172,6 @@ export function AdvancedCustomPromptsPage() {
                 Add at least 1 prompt:
               </span>
 
-              {/* Filled prompts */}
               {prompts.map((prompt, i) =>
                 prompt.trim() ? (
                   <div key={i} className="flex items-center">
@@ -183,7 +200,6 @@ export function AdvancedCustomPromptsPage() {
                 ) : null,
               )}
 
-              {/* Empty input + helper text */}
               <div className="flex flex-col gap-[8px]">
                 <input
                   type="text"
@@ -205,66 +221,13 @@ export function AdvancedCustomPromptsPage() {
                   className="w-full rounded-[12px] border border-border bg-surface-secondary px-[17px] py-[11px] text-[14px] text-content shadow-[0px_1px_2px_rgba(0,0,0,0.05)] placeholder:text-content-secondary"
                 />
                 <p className="px-[4px] text-[12px] leading-[16px] text-content-secondary">
-                  Or just tap the mic and say your prompts out loud. We'll list them for you.
+                  Or tap the mic above and say your prompts out loud. We'll list them for you.
                 </p>
               </div>
             </div>
           )}
         </div>
       </div>
-
-      <CustomPromptsMic />
-
-      {/* CTA Footer */}
-      <div className="mt-auto pb-[8px] pt-[16px]">
-        <button
-          type="button"
-          onClick={handleDone}
-          disabled={!canSubmit}
-          className="w-full rounded-full bg-primary py-[16px] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] disabled:opacity-50"
-        >
-          I'm Done
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function CustomPromptsMic() {
-  const { isListening, isPreparing, toggle } = useVoiceInput();
-  return (
-    <div className="flex flex-col items-center justify-center py-[20px]">
-      <div className="rounded-full shadow-[0px_0px_0px_8px_rgba(19,91,236,0.05),0px_0px_0px_16px_rgba(19,91,236,0.02)]">
-        <button
-          type="button"
-          onClick={toggle}
-          disabled={isPreparing}
-          className={`flex size-[72px] items-center justify-center rounded-full shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)] transition-all disabled:opacity-70 ${
-            isListening ? 'scale-110 bg-danger' : 'bg-primary'
-          }`}
-        >
-          <Icon
-            icon={
-              isPreparing
-                ? 'mingcute:loading-2-line'
-                : isListening
-                  ? 'ic:round-stop'
-                  : 'ic:round-mic'
-            }
-            width={20}
-            height={20}
-            className={`text-white ${isPreparing ? 'animate-spin' : ''}`}
-          />
-        </button>
-      </div>
-      {isPreparing && (
-        <p className="mt-3 animate-pulse text-sm font-medium text-content-secondary">
-          Preparing mic...
-        </p>
-      )}
-      {isListening && (
-        <p className="mt-3 animate-pulse text-sm font-medium text-primary">Listening...</p>
-      )}
-    </div>
+    </OnboardingLayout>
   );
 }

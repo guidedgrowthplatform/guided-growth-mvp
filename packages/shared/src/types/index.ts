@@ -187,6 +187,13 @@ export interface OnboardingStepData {
     { days: number[] | Set<number>; time: string; reminder: boolean; schedule?: string }
   > | null;
   reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string } | null;
+  brainDumpText?: string | null;
+  customPrompts?: string[] | null;
+  advancedHabitConfigs?: Record<
+    string,
+    { days: number[] | Set<number>; time: string; reminder: boolean; schedule?: string }
+  > | null;
+  reflectionSchedule?: string | null;
 }
 
 export interface OnboardingState {

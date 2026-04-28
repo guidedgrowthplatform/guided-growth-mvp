@@ -1,110 +1,66 @@
-import { Icon } from '@iconify/react';
-import { useRef, useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoalTextarea } from '@/components/onboarding/GoalTextarea';
 import { GuidanceBadge } from '@/components/onboarding/GuidanceBadge';
-import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
-import { VoiceMicButton } from '@/components/onboarding/VoiceMicButton';
+import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
+import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useVoiceInput } from '@/hooks/useVoiceInput';
-import { speakWhenReady, stopTTS } from '@/lib/services/tts-service';
-import { useVoiceStore } from '@/stores/voiceStore';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 export function AdvancedInputPage() {
   const navigate = useNavigate();
-  const { saveStepAsync } = useOnboarding();
+  const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null!);
-  const { isListening, isPreparing, toggle, transcript } = useVoiceInput();
-  const resetTranscript = useVoiceStore((s) => s.resetTranscript);
 
-  // Append voice transcript to text
+  useOnboardingAgent('onboard_advanced_input');
+  useAgentNavigation(3, '/onboarding/advanced-results');
+
   useEffect(() => {
-    if (!isListening && transcript) {
-      setText((prev) => (prev ? prev + '\n' + transcript : transcript));
-      resetTranscript();
+    const incoming = onboardingState?.data?.brainDumpText;
+    if (typeof incoming === 'string' && incoming !== text) {
+      setText(incoming);
     }
-  }, [isListening, transcript, resetTranscript]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onboardingState?.data?.brainDumpText]);
 
-  // TTS auto-play per Voice Journey Spreadsheet v3.
-  // speakWhenReady() handles iOS WKWebView's autoplay block: if the user
-  // hasn't interacted with the page yet, it defers the speech until the
-  // first pointerdown so the greeting actually plays instead of silently
-  // failing with NotAllowedError.
-  // Ref guard prevents React StrictMode double-fire in dev mode.
-  const hasSpoken = useRef(false);
-  useEffect(() => {
-    if (hasSpoken.current) return;
-    hasSpoken.current = true;
-    const cancel = speakWhenReady(
-      "Tell me everything. What habits do you want to build? What are you trying to change? Don't hold back — just talk. I'll organize it all.",
-    );
-    return () => {
-      cancel();
-      stopTTS();
-    };
+  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
+    if (!result.params) return;
+    const incoming = result.params.brainDumpText ?? result.params.text;
+    if (typeof incoming === 'string') {
+      setText(incoming);
+    }
   }, []);
 
-  function handleKeyboardPress() {
-    textareaRef.current?.scrollIntoView({ behavior: 'smooth' });
-    textareaRef.current?.focus();
-  }
+  const handleNext = useCallback(async () => {
+    await saveStepAsync(3, { brainDumpText: text });
+    navigate('/onboarding/advanced-results', { state: { text } });
+  }, [text, navigate, saveStepAsync]);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-secondary px-6 pb-[32px] pt-[max(16px,env(safe-area-inset-top))]">
-      <button
-        type="button"
-        onClick={() => navigate('/onboarding/step-2')}
-        className="mb-[12px] flex size-[40px] items-center justify-center rounded-full"
-      >
-        <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-content" />
-      </button>
-
-      <OnboardingProgress currentStep={3} totalSteps={6} />
-
-      <div className="flex flex-col gap-[11px]">
-        <h1 className="text-[32px] font-bold leading-[40px] tracking-[-0.8px] text-content">
-          Tell me what you want to achieve
-        </h1>
-        <p className="text-[18px] font-medium leading-[29.25px] text-content-secondary">
-          You can say or type as much as you want. We'll organize it for you.
-        </p>
-      </div>
-
-      <div className="flex flex-1 flex-col items-center justify-center gap-[24px] py-[32px]">
-        <VoiceMicButton isListening={isListening} isPreparing={isPreparing} onPress={toggle} />
-        {isPreparing && (
-          <p className="animate-pulse text-sm font-medium text-content-secondary">
-            Preparing mic...
-          </p>
-        )}
-        {isListening && (
-          <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>
-        )}
+    <OnboardingLayout
+      currentStep={3}
+      totalSteps={6}
+      ctaLabel="Continue"
+      onBack={() => navigate('/onboarding/step-2')}
+      onNext={handleNext}
+      ctaDisabled={!text.trim()}
+      showVoiceButton
+      voiceFileId="ONBOARD-ADV-INPUT"
+      voicePrompt="Tell me everything. What habits do you want to build? What are you trying to change? Don't hold back — just talk. I'll organize it all."
+      voiceOptions={['done', 'continue', 'next']}
+      onVoiceAction={handleVoiceAction}
+    >
+      <OnboardingHeader
+        title="Tell me what you want to achieve"
+        subtitle="You can say or type as much as you want. We'll organize it for you."
+      />
+      <div className="flex flex-col items-center gap-[24px] py-[16px]">
         <GuidanceBadge text='TRY: "I WOULD LIKE TO READ FOR 15 MINS EVERY NIGHT AT 8 PM"' />
         <GoalTextarea value={text} onChange={setText} textareaRef={textareaRef} />
       </div>
-
-      <div className="flex items-center gap-[16px]">
-        <button
-          type="button"
-          onClick={handleKeyboardPress}
-          className="rounded-full bg-surface p-[16px] shadow-[0px_4px_20px_0px_rgba(0,0,0,0.05)]"
-        >
-          <Icon icon="ic:round-keyboard" className="size-[24px] text-content-tertiary" />
-        </button>
-        <button
-          type="button"
-          disabled={text.trim() === ''}
-          onClick={async () => {
-            await saveStepAsync(3, {}, { brainDump: { raw: text } });
-            navigate('/onboarding/advanced-results', { state: { text } });
-          }}
-          className="flex-1 rounded-full bg-primary py-[16px] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] disabled:opacity-50"
-        >
-          Done
-        </button>
-      </div>
-    </div>
+    </OnboardingLayout>
   );
 }

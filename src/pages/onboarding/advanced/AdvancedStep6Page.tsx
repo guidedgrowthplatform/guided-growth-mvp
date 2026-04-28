@@ -1,14 +1,13 @@
 import { Icon } from '@iconify/react';
-import { useCallback, useState, useRef, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { WEEKDAYS, WEEKEND, ALL_DAYS } from '@/components/onboarding/constants';
-import {
-  OnboardingChatOverlay,
-  type VoiceMessage,
-} from '@/components/onboarding/OnboardingChatOverlay';
-import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ALL_DAYS, WEEKDAYS, WEEKEND } from '@/components/onboarding/constants';
+import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
+import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import type { OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const DEFAULT_QUESTIONS = [
@@ -34,20 +33,15 @@ interface LocationState {
 export function AdvancedStep6Page() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { saveStepAsync } = useOnboarding();
+  const { state: onboardingState, saveStepAsync } = useOnboarding();
   const state = location.state as LocationState | null;
+
+  useOnboardingAgent('onboard_advanced_step_6');
+  useAgentNavigation(5, '/onboarding/step-7');
 
   const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');
   const [showDropdown, setShowDropdown] = useState(false);
-  const [customPrompts] = useState<string[] | null>(state?.customPrompts ?? null);
-  const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
-  const [voiceMessages, setVoiceMessages] = useState<VoiceMessage[]>([
-    {
-      id: 'greeting',
-      role: 'ai',
-      text: 'When should you reflect? Say "weekdays", "weekends", or "every day".',
-    },
-  ]);
+  const customPrompts = state?.customPrompts ?? onboardingState?.data?.customPrompts ?? null;
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const habitConfigs = state?.habitConfigs;
@@ -61,6 +55,15 @@ export function AdvancedStep6Page() {
     if (showDropdown) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showDropdown]);
+
+  useEffect(() => {
+    const incoming = onboardingState?.data?.reflectionSchedule;
+    if (typeof incoming !== 'string') return;
+    const lower = incoming.toLowerCase();
+    if (lower.includes('weekday')) setSchedule('Weekday');
+    else if (lower.includes('weekend')) setSchedule('Weekend');
+    else if (lower.includes('every') || lower.includes('daily')) setSchedule('Every day');
+  }, [onboardingState?.data?.reflectionSchedule]);
 
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
     if (result.params && typeof result.params.schedule === 'string') {
@@ -80,12 +83,9 @@ export function AdvancedStep6Page() {
         configRecord[h.name] = { days: h.days, time: '21:45', reminder: true };
       }
     }
-
     const days = [...(SCHEDULE_DAYS[schedule] ?? WEEKDAYS)];
     const reflectionConfig = { time: '21:45', days, reminder: true, schedule };
-
     await saveStepAsync(5, { habitConfigs: configRecord, reflectionConfig });
-
     navigate('/onboarding/step-7', {
       state: {
         habitConfigs: configRecord,
@@ -96,32 +96,35 @@ export function AdvancedStep6Page() {
   }, [habitConfigs, schedule, navigate, saveStepAsync]);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-secondary">
-      {/* Back Arrow */}
-      <div className="px-6 pb-[32px] pt-[max(16px,env(safe-area-inset-top))]">
-        <button
-          type="button"
-          onClick={() => navigate('/onboarding/advanced-results')}
-          className="flex size-[40px] items-center justify-center"
-        >
-          <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-content" />
-        </button>
-        <OnboardingProgress currentStep={5} totalSteps={6} />
-      </div>
+    <OnboardingLayout
+      currentStep={5}
+      totalSteps={6}
+      ctaLabel="Continue"
+      onBack={() => navigate('/onboarding/advanced-results')}
+      onNext={handleReviewPlan}
+      secondaryAction={{
+        label: 'Optional: Create My Own Prompts',
+        onClick: () =>
+          navigate('/onboarding/advanced-custom-prompts', {
+            state: {
+              habitConfigs,
+              customPrompts,
+              journalMode: customPrompts ? 'custom' : undefined,
+            },
+          }),
+      }}
+      showVoiceButton
+      voiceFileId="ONBOARD-ADV-6"
+      voicePrompt='When should you reflect? Say "weekdays", "weekends", or "every day".'
+      voiceOptions={['Weekday', 'Weekend', 'Every day']}
+      onVoiceAction={handleVoiceAction}
+    >
+      <OnboardingHeader
+        title="Meet your AI Voice Journal"
+        subtitle="We will turn your voice into text and learn from it to personalize your coaching."
+      />
 
-      {/* Heading + Subtitle */}
-      <div className="flex flex-col gap-[11px] px-6 py-[16px]">
-        <h1 className="text-[32px] font-bold leading-[40px] tracking-[-0.8px] text-content">
-          Meet your AI Voice Journal
-        </h1>
-        <p className="text-[18px] font-medium leading-[29.25px] text-content-secondary">
-          We will turn your voice into text and learn from it to personalize your coaching.
-        </p>
-      </div>
-
-      {/* Daily Reflection Card */}
-      <div className="mx-[24px] mt-[16px] flex flex-col gap-[8px] rounded-[16px] border border-primary/10 bg-surface p-[25px] shadow-[0px_0px_30px_0px_rgba(19,91,236,0.15)]">
-        {/* Card Header */}
+      <div className="flex flex-col gap-[8px] rounded-[16px] border border-primary/10 bg-surface p-[25px] shadow-[0px_0px_30px_0px_rgba(19,91,236,0.15)]">
         <div className="flex items-center gap-[12px] pb-[16px]">
           <div className="relative flex size-[40px] items-center justify-center rounded-full bg-primary/10">
             <Icon icon="mingcute:mic-fill" width={19} height={14} className="text-primary" />
@@ -130,7 +133,6 @@ export function AdvancedStep6Page() {
           <span className="text-[20px] font-bold text-content">Daily Reflection</span>
         </div>
 
-        {/* AI Badge */}
         <div className="flex items-center gap-[8px] rounded-[16px] bg-primary-bg p-[12px]">
           <Icon icon="mingcute:mic-ai-fill" width={24} height={24} className="text-primary" />
           <span className="text-[14px] font-semibold leading-[20px] text-primary">
@@ -138,7 +140,6 @@ export function AdvancedStep6Page() {
           </span>
         </div>
 
-        {/* Questions Section */}
         <div className="flex flex-col gap-[12px] pb-[24px] pt-[24px]">
           <span className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-content-secondary">
             You'll answer {questions.length} quick questions:
@@ -150,27 +151,8 @@ export function AdvancedStep6Page() {
           ))}
         </div>
 
-        {/* Create Prompts Button */}
-        <button
-          type="button"
-          onClick={() =>
-            navigate('/onboarding/advanced-custom-prompts', {
-              state: {
-                habitConfigs,
-                customPrompts,
-                journalMode: customPrompts ? 'custom' : undefined,
-              },
-            })
-          }
-          className="flex h-[50px] items-center justify-center rounded-full border border-primary bg-surface text-[16px] font-bold text-primary shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
-        >
-          Optional: Create My Own Prompts
-        </button>
-
-        {/* Separator */}
         <div className="my-[16px] border-t border-border" />
 
-        {/* Schedule Row */}
         <div className="flex items-center justify-between">
           <span className="text-[14px] font-semibold uppercase tracking-[0.7px] text-content-secondary">
             Schedule:
@@ -213,44 +195,6 @@ export function AdvancedStep6Page() {
           </div>
         </div>
       </div>
-
-      {/* CTA Footer with Voice FAB */}
-      <div className="mt-auto px-6 pb-[40px] pt-[32px]">
-        <button
-          type="button"
-          onClick={() => setShowVoiceOverlay(true)}
-          className="mb-4 flex h-[48px] w-full items-center justify-center gap-2 rounded-full border border-primary bg-surface text-[14px] font-semibold text-primary shadow-[0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
-        >
-          <Icon icon="ic:round-mic" width={18} height={18} />
-          Set reflection schedule with voice
-        </button>
-        <button
-          type="button"
-          onClick={handleReviewPlan}
-          className="h-[56px] w-full rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(10,37,64,0.25),0px_4px_6px_-4px_rgba(10,37,64,0.25)]"
-        >
-          Review My Plan
-        </button>
-      </div>
-
-      {showVoiceOverlay && (
-        <OnboardingChatOverlay
-          stepContext={{
-            step: 5,
-            prompt: 'When should you reflect? Say "weekdays", "weekends", or "every day".',
-            options: ['Weekday', 'Weekend', 'Every day'],
-          }}
-          onAction={handleVoiceAction}
-          onClose={() => setShowVoiceOverlay(false)}
-          onContinue={() => {
-            setShowVoiceOverlay(false);
-            handleReviewPlan();
-          }}
-          continueLabel="Review My Plan"
-          messages={voiceMessages}
-          setMessages={setVoiceMessages}
-        />
-      )}
-    </div>
+    </OnboardingLayout>
   );
 }
