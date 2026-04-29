@@ -141,6 +141,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           // another tab.
           if (prevUser?.id !== nextUser.id) {
             identifyUser(nextUser);
+            // PostHog spec v6.0 §3.1: complete_signup / complete_login.
+            // Email signup/signin already fire these from the dedicated
+            // store actions; OAuth (Google/Apple) lands here via redirect
+            // callback and was previously silent. Skip 'email' to avoid
+            // double-counting; treat any non-email provider as OAuth.
+            const provider =
+              (session.user.app_metadata as { provider?: string } | null)?.provider ?? 'email';
+            if (provider !== 'email') {
+              const createdAtMs = session.user.created_at
+                ? new Date(session.user.created_at).getTime()
+                : 0;
+              const lastSignInMs = session.user.last_sign_in_at
+                ? new Date(session.user.last_sign_in_at).getTime()
+                : Date.now();
+              // <60s gap between account creation and this sign-in means
+              // we're inside the first OAuth round-trip — count as signup.
+              // Same threshold as the email-flow heuristic in signIn().
+              const isFirstSignIn = createdAtMs > 0 && lastSignInMs - createdAtMs < 60_000;
+              if (isFirstSignIn) {
+                track('complete_signup', { method: provider }, { send_instantly: true });
+              } else {
+                track(
+                  'complete_login',
+                  { method: provider, is_returning_user: true },
+                  { send_instantly: true },
+                );
+              }
+            }
           }
         } else {
           if (get().user) {
