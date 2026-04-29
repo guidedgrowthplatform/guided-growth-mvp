@@ -1,11 +1,14 @@
 import { Icon } from '@iconify/react';
-import { useEffect, useMemo, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { WEEKDAYS } from '@/components/onboarding/constants';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
-import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
+import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
+import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { speakWhenReady, stopTTS } from '@/lib/services/tts-service';
+import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 
 interface HabitItem {
@@ -34,8 +37,7 @@ interface ResultsLocationState {
 // feedback: if parsing produces nothing, send the user back to the
 // input screen with a clarification prompt. Never invent habits.
 
-function buildInitialHabits(state: ResultsLocationState | null): HabitItem[] {
-  // If structured habits were passed directly, use them
+function buildInitialHabits(state: ResultsLocationState | null, fallbackText: string): HabitItem[] {
   if (state?.habits && state.habits.length > 0) {
     return state.habits.map((h) => ({
       name: h.name,
@@ -44,9 +46,9 @@ function buildInitialHabits(state: ResultsLocationState | null): HabitItem[] {
     }));
   }
 
-  // Parse free-form "brain dump" text into structured habits
-  if (state?.text) {
-    const parsed = parseHabitsFromText(state.text);
+  const sourceText = state?.text ?? fallbackText;
+  if (sourceText) {
+    const parsed = parseHabitsFromText(sourceText);
     if (parsed.length > 0) {
       return parsed.map((h) => ({
         name: h.name,
@@ -56,7 +58,6 @@ function buildInitialHabits(state: ResultsLocationState | null): HabitItem[] {
     }
   }
 
-  // Explicit empty state — triggers the "no habits" UI below.
   return [];
 }
 
@@ -76,11 +77,19 @@ function applyLocationState(base: HabitItem[], state: ResultsLocationState | nul
 export function AdvancedResultsPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { saveStepAsync } = useOnboarding();
+  const { state: onboardingState, saveStepAsync } = useOnboarding();
   const locationState = location.state as ResultsLocationState | null;
   const clearedRef = useRef(false);
 
-  const baseHabits = useMemo(() => buildInitialHabits(locationState), [locationState]);
+  useOnboardingAgent('onboard_advanced_results');
+  useAgentNavigation(4, '/onboarding/advanced-step-6');
+
+  const fallbackBrainDump = onboardingState?.data?.brainDumpText ?? '';
+
+  const baseHabits = useMemo(
+    () => buildInitialHabits(locationState, fallbackBrainDump),
+    [locationState, fallbackBrainDump],
+  );
   const habits = useMemo(
     () => applyLocationState(baseHabits, locationState),
     [baseHabits, locationState],
@@ -92,25 +101,6 @@ export function AdvancedResultsPage() {
       window.history.replaceState({}, '');
     }
   }, [locationState]);
-
-  // TTS auto-play per Voice Journey Spreadsheet v3.
-  // Message branches depending on whether we parsed anything — if the
-  // user's brain dump was too vague, ask for clarification instead of
-  // pretending we built something.
-  const hasParsedHabits = habits.length > 0;
-  const hasSpoken = useRef(false);
-  useEffect(() => {
-    if (hasSpoken.current) return;
-    hasSpoken.current = true;
-    const message = hasParsedHabits
-      ? "Here's what I put together from what you told me. Take a look — you can edit anything, or if it's way off, I'll start fresh."
-      : "I didn't quite catch anything specific to turn into habits. Could you tell me a bit more about what you want to work on?";
-    const cancel = speakWhenReady(message);
-    return () => {
-      cancel();
-      stopTTS();
-    };
-  }, [hasParsedHabits]);
 
   const handleConfirm = useCallback(async () => {
     const habitConfigsArray = habits.map((h) => ({
@@ -127,53 +117,73 @@ export function AdvancedResultsPage() {
     navigate('/onboarding/advanced-step-6', { state: { habitConfigs: habitConfigsArray } });
   }, [habits, navigate, saveStepAsync]);
 
+  const handleVoiceAction = useCallback(
+    (result: OnboardingVoiceResult) => {
+      const action = result.params?.action;
+      if (typeof action !== 'string') return;
+      const lower = action.toLowerCase();
+      if (lower.includes('regen') || lower.includes('redo') || lower.includes('try')) {
+        navigate('/onboarding/advanced-input');
+      } else if (
+        lower.includes('confirm') ||
+        lower.includes('continue') ||
+        lower.includes('next')
+      ) {
+        void handleConfirm();
+      }
+    },
+    [navigate, handleConfirm],
+  );
+
   if (habits.length === 0) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-surface-secondary px-6 text-center">
-        <Icon icon="ic:round-info-outline" width={40} height={40} className="text-primary" />
-        <h2 className="text-xl font-bold text-content">Tell me a bit more</h2>
-        <p className="max-w-[280px] text-content-secondary">
-          I didn&apos;t quite catch anything specific to turn into habits. Could you share what you
-          want to work on — like &quot;sleep earlier&quot; or &quot;exercise three times a
-          week&quot;?
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate('/onboarding/advanced-input')}
-          className="mt-2 rounded-full bg-primary px-6 py-3 font-semibold text-white"
-        >
-          Try Again
-        </button>
-      </div>
+      <OnboardingLayout
+        currentStep={4}
+        totalSteps={6}
+        ctaLabel="Try Again"
+        onBack={() => navigate('/onboarding/advanced-input')}
+        onNext={() => navigate('/onboarding/advanced-input')}
+        showVoiceButton
+        voiceFileId="ONBOARD-ADV-RESULTS"
+        voicePrompt="I didn't quite catch anything specific to turn into habits. Could you tell me a bit more about what you want to work on?"
+        voiceOptions={['try again', 'redo']}
+        onVoiceAction={handleVoiceAction}
+      >
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+          <Icon icon="ic:round-info-outline" width={40} height={40} className="text-primary" />
+          <h2 className="text-xl font-bold text-content">Tell me a bit more</h2>
+          <p className="max-w-[280px] text-content-secondary">
+            I didn&apos;t quite catch anything specific to turn into habits. Could you share what
+            you want to work on — like &quot;sleep earlier&quot; or &quot;exercise three times a
+            week&quot;?
+          </p>
+        </div>
+      </OnboardingLayout>
     );
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-secondary">
-      {/* Top Nav */}
-      <div className="px-6 pt-[max(16px,env(safe-area-inset-top))]">
-        <button
-          type="button"
-          onClick={() => navigate('/onboarding/advanced-input')}
-          className="mb-[12px] flex size-[40px] items-center justify-center rounded-full"
-        >
-          <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-content" />
-        </button>
-        <OnboardingProgress currentStep={4} totalSteps={6} />
-      </div>
-
-      {/* Header */}
-      <div className="flex flex-col gap-[11px] px-6">
-        <h1 className="text-[32px] font-bold leading-[40px] tracking-[-0.8px] text-content">
-          We organized this for you
-        </h1>
-        <p className="text-[18px] font-medium leading-[29.25px] text-content-secondary">
-          Here is the cleanest place to start based on what you shared.
-        </p>
-      </div>
-
-      {/* Habit Cards */}
-      <div className="flex flex-1 flex-col gap-[16px] overflow-y-auto px-6 pt-[24px]">
+    <OnboardingLayout
+      currentStep={4}
+      totalSteps={6}
+      ctaLabel="Continue"
+      onBack={() => navigate('/onboarding/advanced-input')}
+      onNext={handleConfirm}
+      secondaryAction={{
+        label: 'Regenerate',
+        onClick: () => navigate('/onboarding/advanced-input'),
+      }}
+      showVoiceButton
+      voiceFileId="ONBOARD-ADV-RESULTS"
+      voicePrompt="Here's what I put together from what you told me. Take a look — you can edit anything, or if it's way off, I'll start fresh."
+      voiceOptions={['confirm', 'continue', 'regenerate', 'edit']}
+      onVoiceAction={handleVoiceAction}
+    >
+      <OnboardingHeader
+        title="We organized this for you"
+        subtitle="Here is the cleanest place to start based on what you shared."
+      />
+      <div className="flex flex-col gap-[16px]">
         {habits.map((habit, i) => (
           <HabitSummaryCard
             key={i}
@@ -194,20 +204,6 @@ export function AdvancedResultsPage() {
           />
         ))}
       </div>
-
-      {/* Footer */}
-      <div className="flex flex-col items-center gap-[16px] px-6 pb-[40px] pt-[32px]">
-        <button
-          type="button"
-          onClick={handleConfirm}
-          className="w-full rounded-full bg-primary py-[16px] text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)]"
-        >
-          Confirm & Continue
-        </button>
-        <button type="button" className="text-[16px] font-semibold text-content-secondary">
-          Regenerate
-        </button>
-      </div>
-    </div>
+    </OnboardingLayout>
   );
 }

@@ -34,6 +34,7 @@ interface OnboardingLayoutProps {
   voiceFileId?: string;
   onVoiceAction?: (result: OnboardingVoiceResult) => void;
   showTooltip?: boolean;
+  bgVariant?: 'default' | 'secondary';
 }
 
 export function OnboardingLayout({
@@ -55,6 +56,7 @@ export function OnboardingLayout({
   voiceFileId,
   onVoiceAction,
   showTooltip = false,
+  bgVariant = 'default',
 }: OnboardingLayoutProps) {
   const { isListening, toggle, transcript, interim, error, resetTranscript } = useVoiceInput();
   const [overlayOpen, setOverlayOpen] = useState(false);
@@ -140,7 +142,7 @@ export function OnboardingLayout({
     localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
   };
 
-  const showChatLauncher = !!onVoiceAction && voiceOptions.length > 0;
+  const showChatLauncher = !!onVoiceAction;
 
   const voiceControl = showVoiceButton ? (
     <div className="relative my-6 flex justify-center">
@@ -171,7 +173,9 @@ export function OnboardingLayout({
   ) : null;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[48px] pt-[max(16px,env(safe-area-inset-top))]">
+    <div
+      className={`flex min-h-dvh flex-col ${bgVariant === 'secondary' ? 'bg-surface-secondary' : 'bg-surface'} px-6 pb-[48px] pt-[max(16px,env(safe-area-inset-top))]`}
+    >
       {overlayOpen && (
         <OnboardingChatOverlay
           stepContext={{
