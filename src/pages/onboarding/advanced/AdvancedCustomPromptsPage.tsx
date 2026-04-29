@@ -6,7 +6,6 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 type JournalMode = 'freeform' | 'custom';
 
@@ -51,15 +50,6 @@ export function AdvancedCustomPromptsPage() {
     }
   }, [onboardingState?.data?.customPrompts]);
 
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (!result.params) return;
-    const list = deserializePrompts(result.params.customPrompts ?? result.params.prompts);
-    if (list.length > 0) {
-      setPrompts(list);
-      setJournalMode('custom');
-    }
-  }, []);
-
   const filledPrompts = prompts.filter((p) => p.trim().length > 0);
   const canSubmit = journalMode === 'freeform' || filledPrompts.length >= 1;
 
@@ -92,10 +82,6 @@ export function AdvancedCustomPromptsPage() {
       onNext={handleDone}
       ctaDisabled={!canSubmit}
       showVoiceButton
-      voiceFileId="ONBOARD-ADV-PROMPTS"
-      voicePrompt="What questions do you want to reflect on each day? Just say them and I'll add them."
-      voiceOptions={[]}
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="How do you want to journal?"

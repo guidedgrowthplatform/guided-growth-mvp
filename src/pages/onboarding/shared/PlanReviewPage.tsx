@@ -83,6 +83,7 @@ export function PlanReviewPage() {
       ctaLabel={isCompleting ? 'Completing...' : 'Start plan'}
       onNext={handleStartPlan}
       ctaDisabled={isCompleting}
+      showVoiceButton
       onBack={() =>
         navigate(source === 'advanced' ? '/onboarding/advanced-step-6' : '/onboarding/step-6', {
           state:
@@ -106,9 +107,6 @@ export function PlanReviewPage() {
                 : { habitConfigs, goals, category, reflectionConfig, phase: 'confirming' },
           }),
       }}
-      showVoiceButton
-      voiceFileId="ONBOARD-07"
-      voicePrompt="Here's your starting plan. It's simple — and that's on purpose. This is your foundation. As you show up, we'll grow it together. And from here on — it's easy. Morning check-in, evening check-in. Under a minute each. That's your whole commitment. Everything else happens naturally. Ready?"
     >
       <OnboardingHeader
         title="Your starting plan"

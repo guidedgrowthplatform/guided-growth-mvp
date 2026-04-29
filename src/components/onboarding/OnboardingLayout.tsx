@@ -12,7 +12,6 @@ import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 import { speak, stopTTS, unlockTTS } from '@/lib/services/tts-service';
 import { AiListeningTooltip } from './AiListeningTooltip';
-import { OnboardingProgress } from './OnboardingProgress';
 
 interface OnboardingLayoutProps {
   currentStep: number;
@@ -58,7 +57,7 @@ export function OnboardingLayout({
   showTooltip = false,
   bgVariant = 'default',
 }: OnboardingLayoutProps) {
-  const { isListening, toggle, transcript, interim, error, resetTranscript } = useVoiceInput();
+  const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const [tooltipVisible, setTooltipVisible] = useState(
@@ -100,23 +99,14 @@ export function OnboardingLayout({
 
   const handleMicClick = () => {
     unlockTTS();
-    // If we have onVoiceAction, use the new overlay-based flow
-    if (onVoiceAction && voiceOptions.length > 0) {
-      // Clear any stale transcript before opening overlay
-      resetTranscript();
-      setOverlayOpen(true);
-      setTooltipVisible(false);
-      // Speak the prompt first time overlay opens (user gesture = always works)
-      if (!hasSpokePrompt.current && voicePrompt && ttsEnabled) {
-        hasSpokePrompt.current = true;
-        speak(voicePrompt);
-      }
-      // Mark tooltip as seen
-      localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
-    } else {
-      // Fallback to old inline voice behavior
-      toggle();
+    resetTranscript();
+    setOverlayOpen(true);
+    setTooltipVisible(false);
+    if (!hasSpokePrompt.current && voicePrompt && ttsEnabled) {
+      hasSpokePrompt.current = true;
+      speak(voicePrompt);
     }
+    localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
   };
 
   const handleToggleTts = () => {
@@ -142,7 +132,7 @@ export function OnboardingLayout({
     localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
   };
 
-  const showChatLauncher = !!onVoiceAction;
+  const showChatLauncher = !!showVoiceButton;
 
   const voiceControl = showVoiceButton ? (
     <div className="relative my-6 flex justify-center">
@@ -207,7 +197,6 @@ export function OnboardingLayout({
           <Icon icon="ic:round-arrow-back" width={16} height={16} className="text-content" />
         </button>
       )}
-      <OnboardingProgress currentStep={currentStep} totalSteps={totalSteps} />
       <div
         className={`-mx-[2px] flex flex-1 flex-col gap-[16px] overflow-y-auto px-[2px] pt-4 ${ctaVariant === 'inline' ? 'pb-[80px]' : 'pb-4'}`}
       >

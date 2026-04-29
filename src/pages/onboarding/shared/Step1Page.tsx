@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { track } from '@/analytics';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
@@ -9,7 +8,6 @@ import { ChipSelect } from '@/components/ui/ChipSelect';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
@@ -24,63 +22,27 @@ export function Step1Page() {
   const [referralSource, setReferralSource] = useState<string | null>(null);
   const [referralOtherText, setReferralOtherText] = useState('');
 
-  const voiceFilledFieldsRef = useRef<Set<string>>(new Set());
-
-  const { voiceState, voiceError } = useOnboardingAgent('onboard_01');
-
-  const [agentEverConnected, setAgentEverConnected] = useState(false);
-  useEffect(() => {
-    if (voiceState === 'listening' || voiceState === 'thinking' || voiceState === 'speaking') {
-      setAgentEverConnected(true);
-    }
-  }, [voiceState]);
+  useOnboardingAgent('onboard_01');
 
   useAgentNavigation(1, '/onboarding/step-2');
 
   const hasHydratedRef = useRef(false);
 
   useEffect(() => {
-    const isPostHydration = hasHydratedRef.current;
     hasHydratedRef.current = true;
 
     if (!onboardingState?.data) return;
 
-    // Initial hydration looks identical to an agent write; only attribute when both flags are true.
-    const trackAsVoice = isPostHydration && agentEverConnected;
-
-    if (onboardingState.data.nickname) {
-      setNickname((prev) => {
-        const next = onboardingState.data.nickname as string;
-        if (prev !== next && trackAsVoice) voiceFilledFieldsRef.current.add('nickname');
-        return next;
-      });
-    }
-    if (onboardingState.data.age) {
-      setAge((prev) => {
-        const next = onboardingState.data.age as number;
-        if (prev !== next && trackAsVoice) voiceFilledFieldsRef.current.add('age');
-        return next;
-      });
-    }
+    if (onboardingState.data.nickname) setNickname(onboardingState.data.nickname as string);
+    if (onboardingState.data.age) setAge(onboardingState.data.age as number);
     // Support legacy ageRange data
     if (onboardingState.data.ageRange && !onboardingState.data.age) setAge('');
-    if (onboardingState.data.gender) {
-      setGender((prev) => {
-        const next = onboardingState.data.gender as string;
-        if (prev !== next && trackAsVoice) voiceFilledFieldsRef.current.add('gender');
-        return next;
-      });
-    }
-    if (onboardingState.data.referralSource) {
-      setReferralSource((prev) => {
-        const next = onboardingState.data.referralSource as string;
-        if (prev !== next && trackAsVoice) voiceFilledFieldsRef.current.add('referralSource');
-        return next;
-      });
-    }
+    if (onboardingState.data.gender) setGender(onboardingState.data.gender as string);
+    if (onboardingState.data.referralSource)
+      setReferralSource(onboardingState.data.referralSource as string);
     if (onboardingState.data.referralOtherText)
       setReferralOtherText(onboardingState.data.referralOtherText as string);
-  }, [onboardingState?.data, agentEverConnected]);
+  }, [onboardingState?.data]);
 
   const handleNext = useCallback(() => {
     const effectiveReferral =
@@ -94,101 +56,24 @@ export function Step1Page() {
       referralSource: effectiveReferral,
       referralOtherText,
     });
-    const fieldsFilledByVoice = voiceFilledFieldsRef.current.size;
-    track('complete_profile_setup', {
-      input_method: fieldsFilledByVoice > 0 ? 'voice' : 'manual',
-      fields_filled_by_voice: fieldsFilledByVoice,
-      used_real_time_agent: agentEverConnected,
-    });
     navigate('/onboarding/step-2');
-  }, [
-    nickname,
-    age,
-    gender,
-    referralSource,
-    referralOtherText,
-    navigate,
-    saveStep,
-    agentEverConnected,
-  ]);
-
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (result.params) {
-      const {
-        nickname: voiceNickname,
-        age: voiceAge,
-        ageRange: voiceAgeRange,
-        gender: voiceGender,
-        referralSource: voiceReferral,
-      } = result.params;
-
-      if (typeof voiceNickname === 'string') {
-        setNickname(voiceNickname);
-        voiceFilledFieldsRef.current.add('nickname');
-      }
-      if (typeof voiceAge === 'number') {
-        setAge(voiceAge);
-        voiceFilledFieldsRef.current.add('age');
-      } else if (typeof voiceAge === 'string') {
-        const parsed = parseInt(voiceAge, 10);
-        if (!isNaN(parsed)) {
-          setAge(parsed);
-          voiceFilledFieldsRef.current.add('age');
-        }
-      } else if (typeof voiceAgeRange === 'string') {
-        setAge('');
-      }
-      if (typeof voiceGender === 'string') {
-        setGender(voiceGender);
-        voiceFilledFieldsRef.current.add('gender');
-      }
-      if (typeof voiceReferral === 'string') {
-        setReferralSource(voiceReferral);
-        voiceFilledFieldsRef.current.add('referralSource');
-      }
-    }
-  }, []);
-
-  const voiceStatusLabel =
-    voiceState === 'listening'
-      ? 'Listening…'
-      : voiceState === 'thinking'
-        ? 'Thinking…'
-        : voiceState === 'speaking'
-          ? 'Speaking…'
-          : voiceState === 'connecting'
-            ? 'Connecting…'
-            : null;
+  }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep]);
 
   return (
     <OnboardingLayout
       currentStep={1}
       totalSteps={7}
       ctaLabel="Continue"
-      onBack={() => navigate('/onboarding/ai-coach-intro')}
+      onBack={() => navigate('/onboarding/mic-permission')}
       onNext={handleNext}
       ctaDisabled={!nickname.trim() || !age || !gender || !referralSource}
       showVoiceButton
-      onTranscript={(text) => setNickname(text)}
-      voiceOptions={[...GENDER_OPTIONS, ...REFERRAL_OPTIONS, 'name', 'nickname']}
-      voiceFileId="ONBOARD-01"
-      voicePrompt="Hey — welcome. Before we build anything, I just want to get to know you a little. What should I call you, how old are you, and how did you hear about us? You can just say it or type it in."
-      onVoiceAction={handleVoiceAction}
       showTooltip
     >
       <OnboardingHeader
         title="Let's get to know you."
         subtitle="Tell us a bit about yourself to personalize your journey."
       />
-      {(voiceStatusLabel || voiceError) && (
-        <div
-          className="text-center text-sm text-content-secondary"
-          role="status"
-          aria-live="polite"
-        >
-          {voiceError ? voiceError : voiceStatusLabel}
-        </div>
-      )}
       <OnboardingSection label="What should I call you?">
         <OnboardingInput
           icon="ic:round-person-outline"

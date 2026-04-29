@@ -6,7 +6,6 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const categories = [
   { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
@@ -41,12 +40,6 @@ export function Step3Page() {
     navigate('/onboarding/step-4', { state: { category: selected } });
   }, [selected, navigate, saveStepAsync]);
 
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (result.params && typeof result.params.category === 'string') {
-      setSelected(result.params.category);
-    }
-  }, []);
-
   return (
     <OnboardingLayout
       currentStep={3}
@@ -58,10 +51,6 @@ export function Step3Page() {
       ctaDisabled={!selected}
       showVoiceButton
       aiListeningPrompt='"What is the main category you would like to focus on?"'
-      voiceOptions={categoryLabels}
-      voiceFileId="ONBOARD-03"
-      voicePrompt="So — what feels most worth improving right now? Don't overthink it. There's no wrong answer. Just pick the one that pulls you."
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="What feels most worth improving right now?"

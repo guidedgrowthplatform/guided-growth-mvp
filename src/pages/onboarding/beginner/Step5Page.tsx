@@ -11,7 +11,6 @@ import { habitsByGoal } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 export function Step5Page() {
   const navigate = useNavigate();
@@ -127,22 +126,6 @@ export function Step5Page() {
     [goals, customHabits],
   );
 
-  const handleVoiceAction = useCallback(
-    (result: OnboardingVoiceResult) => {
-      if (result.params && Array.isArray(result.params.habits)) {
-        const voiceHabits = result.params.habits as string[];
-        const newSelected = new Set<string>();
-        voiceHabits.forEach((h) => {
-          if (allHabits.includes(h) && newSelected.size < 2) {
-            newSelected.add(h);
-          }
-        });
-        setSelectedHabits(newSelected);
-      }
-    },
-    [allHabits],
-  );
-
   function handleSheetClose() {
     setCustomizingHabit(null);
     setHabitQueue([]);
@@ -209,10 +192,6 @@ export function Step5Page() {
         ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
         showVoiceButton
         aiListeningPrompt='"Select up to 2 daily habits to build your foundation."'
-        voiceOptions={allHabits}
-        voiceFileId={phase === 'selecting' ? 'ONBOARD-05' : undefined}
-        voicePrompt="Here are a few habits that really help with this. And here's the key — pick what feels doable. Not heroic. Not impressive. Doable. Because one habit done consistently beats five that don't stick. You can also create your own if none of these fit."
-        onVoiceAction={handleVoiceAction}
       >
         <OnboardingHeader
           title="Here's a good place to start"
