@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
@@ -7,6 +8,14 @@ import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+
+// PostHog spec v6.0 §3.3 names the two paths beginner/advanced. Internal
+// store uses simple/braindump for historical reasons — translate at the
+// analytics boundary, not in the store, so the store stays decoupled
+// from spec wording.
+function pathToSpec(plan: 'simple' | 'braindump'): 'beginner' | 'advanced' {
+  return plan === 'simple' ? 'beginner' : 'advanced';
+}
 
 export function Step2Page() {
   const navigate = useNavigate();
@@ -32,7 +41,9 @@ export function Step2Page() {
   );
 
   const handleNext = useCallback(async () => {
-    await saveStepAsync(2, {}, { path: plan as 'simple' | 'braindump' });
+    if (!plan) return;
+    await saveStepAsync(2, {}, { path: plan });
+    track('select_onboarding_path', { path: pathToSpec(plan) });
     if (plan === 'braindump') {
       navigate('/onboarding/advanced-input');
     } else {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { track } from '@/analytics';
 import { formatCadence } from '@/components/onboarding/constants';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
@@ -36,6 +37,14 @@ export function PlanReviewPage() {
 
   const handleStartPlan = useCallback(() => {
     if (!state?.habitConfigs) return;
+    // PostHog spec v6.0 §3.3: complete_onboarding fires when the user
+    // commits to the plan. Source maps simple→beginner / advanced→advanced
+    // to match the spec's path enum (Step2 selects beginner|advanced).
+    track('complete_onboarding', {
+      onboarding_path: state.source === 'advanced' ? 'advanced' : 'beginner',
+      total_habits: Object.keys(state.habitConfigs).length,
+      has_journal: !!state.reflectionConfig,
+    });
     complete({
       habitConfigs: state.habitConfigs,
       goals: state.goals,
@@ -43,6 +52,21 @@ export function PlanReviewPage() {
       reflectionConfig: state.reflectionConfig,
     });
   }, [state, complete]);
+
+  // PostHog spec v6.0 §3.3: view_starting_plan fires once when the plan
+  // summary actually renders with valid state (not on error redirect).
+  // Guarded by a ref so re-renders / agent state churn don't re-emit.
+  const viewedPlanRef = useRef(false);
+  useEffect(() => {
+    if (viewedPlanRef.current) return;
+    if (!state?.habitConfigs || !state?.reflectionConfig) return;
+    viewedPlanRef.current = true;
+    track('view_starting_plan', {
+      onboarding_path: state.source === 'advanced' ? 'advanced' : 'beginner',
+      total_habits: Object.keys(state.habitConfigs).length,
+      has_journal: true,
+    });
+  }, [state]);
 
   // Voice "let's go" mirrors the tap flow once the agent bumps current_step past 7.
   const autoCompletedRef = useRef(false);

@@ -37,6 +37,17 @@ export function Step1Page() {
 
   useAgentNavigation(1, '/onboarding/step-2');
 
+  // PostHog spec v6.0 §3.3: start_onboarding fires once when the user
+  // lands on the first onboarding screen (post-auth, post-voice-pref,
+  // post-mic). Step1 is that screen — guarded by a ref so StrictMode
+  // double-invocation in dev and any re-render don't re-emit.
+  const startTrackedRef = useRef(false);
+  useEffect(() => {
+    if (startTrackedRef.current) return;
+    startTrackedRef.current = true;
+    track('start_onboarding');
+  }, []);
+
   const hasHydratedRef = useRef(false);
 
   useEffect(() => {
