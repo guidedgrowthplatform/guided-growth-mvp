@@ -9,6 +9,7 @@ import { useOnboarding } from '@/hooks/useOnboarding';
 export interface AgentAdvanceInput {
   /** The current_step value Realtime-mirrored into the React Query cache. */
   persistedStep: number | undefined;
+  initialPersistedStep: number | undefined;
   /** The step number this screen represents. */
   currentStep: number;
   /** The route to navigate to, or null if the target isn't resolvable yet. */
@@ -31,6 +32,9 @@ export function shouldAdvanceToNextScreen(input: AgentAdvanceInput): boolean {
   if (input.alreadyAdvanced) return false;
   if (input.persistedStep === undefined) return false;
   if (input.persistedStep <= input.currentStep) return false;
+  if (input.initialPersistedStep !== undefined && input.initialPersistedStep > input.currentStep) {
+    return false;
+  }
   if (!input.nextRoute) return false;
   return true;
 }
@@ -62,11 +66,17 @@ export function useAgentNavigation(currentStep: number, nextRoute: string | null
   const { state } = useOnboarding();
   const navigate = useNavigate();
   const advancedRef = useRef(false);
+  const initialPersistedStepRef = useRef<number | undefined>(undefined);
+
+  if (initialPersistedStepRef.current === undefined && state?.current_step !== undefined) {
+    initialPersistedStepRef.current = state.current_step;
+  }
 
   useEffect(() => {
     if (
       !shouldAdvanceToNextScreen({
         persistedStep: state?.current_step,
+        initialPersistedStep: initialPersistedStepRef.current,
         currentStep,
         nextRoute,
         alreadyAdvanced: advancedRef.current,
@@ -75,7 +85,6 @@ export function useAgentNavigation(currentStep: number, nextRoute: string | null
       return;
     }
     advancedRef.current = true;
-    // Narrowed by shouldAdvanceToNextScreen — nextRoute is a non-empty string here.
     navigate(nextRoute as string);
   }, [state, currentStep, nextRoute, navigate]);
 }
