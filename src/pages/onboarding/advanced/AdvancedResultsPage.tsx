@@ -8,7 +8,6 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 
 interface HabitItem {
@@ -117,24 +116,6 @@ export function AdvancedResultsPage() {
     navigate('/onboarding/advanced-step-6', { state: { habitConfigs: habitConfigsArray } });
   }, [habits, navigate, saveStepAsync]);
 
-  const handleVoiceAction = useCallback(
-    (result: OnboardingVoiceResult) => {
-      const action = result.params?.action;
-      if (typeof action !== 'string') return;
-      const lower = action.toLowerCase();
-      if (lower.includes('regen') || lower.includes('redo') || lower.includes('try')) {
-        navigate('/onboarding/advanced-input');
-      } else if (
-        lower.includes('confirm') ||
-        lower.includes('continue') ||
-        lower.includes('next')
-      ) {
-        void handleConfirm();
-      }
-    },
-    [navigate, handleConfirm],
-  );
-
   if (habits.length === 0) {
     return (
       <OnboardingLayout
@@ -144,10 +125,6 @@ export function AdvancedResultsPage() {
         onBack={() => navigate('/onboarding/advanced-input')}
         onNext={() => navigate('/onboarding/advanced-input')}
         showVoiceButton
-        voiceFileId="ONBOARD-ADV-RESULTS"
-        voicePrompt="I didn't quite catch anything specific to turn into habits. Could you tell me a bit more about what you want to work on?"
-        voiceOptions={['try again', 'redo']}
-        onVoiceAction={handleVoiceAction}
       >
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
           <Icon icon="ic:round-info-outline" width={40} height={40} className="text-primary" />
@@ -174,10 +151,6 @@ export function AdvancedResultsPage() {
         onClick: () => navigate('/onboarding/advanced-input'),
       }}
       showVoiceButton
-      voiceFileId="ONBOARD-ADV-RESULTS"
-      voicePrompt="Here's what I put together from what you told me. Take a look — you can edit anything, or if it's way off, I'll start fresh."
-      voiceOptions={['confirm', 'continue', 'regenerate', 'edit']}
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="We organized this for you"

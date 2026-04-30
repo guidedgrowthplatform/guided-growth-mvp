@@ -8,7 +8,6 @@ import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
-import type { OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const DEFAULT_QUESTIONS = [
   'What am I proud of today?',
@@ -65,15 +64,6 @@ export function AdvancedStep6Page() {
     else if (lower.includes('every') || lower.includes('daily')) setSchedule('Every day');
   }, [onboardingState?.data?.reflectionSchedule]);
 
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (result.params && typeof result.params.schedule === 'string') {
-      const s = result.params.schedule.toLowerCase();
-      if (s.includes('weekday')) setSchedule('Weekday');
-      else if (s.includes('weekend')) setSchedule('Weekend');
-      else if (s.includes('every') || s.includes('daily')) setSchedule('Every day');
-    }
-  }, []);
-
   const questions = customPrompts ?? DEFAULT_QUESTIONS;
 
   const handleReviewPlan = useCallback(async () => {
@@ -102,6 +92,7 @@ export function AdvancedStep6Page() {
       ctaLabel="Continue"
       onBack={() => navigate('/onboarding/advanced-results')}
       onNext={handleReviewPlan}
+      showVoiceButton
       secondaryAction={{
         label: 'Optional: Create My Own Prompts',
         onClick: () =>
@@ -113,11 +104,6 @@ export function AdvancedStep6Page() {
             },
           }),
       }}
-      showVoiceButton
-      voiceFileId="ONBOARD-ADV-6"
-      voicePrompt='When should you reflect? Say "weekdays", "weekends", or "every day".'
-      voiceOptions={['Weekday', 'Weekend', 'Every day']}
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Meet your AI Voice Journal"

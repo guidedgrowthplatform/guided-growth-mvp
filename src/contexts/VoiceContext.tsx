@@ -27,10 +27,9 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
 
   /** Run any registered cleanup for the current owner */
   const runCleanup = useCallback(() => {
-    if (cleanupRef.current) {
-      cleanupRef.current();
-      cleanupRef.current = null;
-    }
+    const fn = cleanupRef.current;
+    cleanupRef.current = null;
+    fn?.();
   }, []);
 
   const stopAll = useCallback(() => {

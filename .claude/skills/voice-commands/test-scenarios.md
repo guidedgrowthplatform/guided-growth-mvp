@@ -5,10 +5,11 @@ Last validated: 2026-03-04 | Branch: `feat/voice-mock-testing`
 ## Architecture
 
 ```
-Mic (Web Speech API) → STT transcript
-  → localParse fallback / GPT-4o-mini → { action, entity, params }
-    → ActionDispatcher → MockDataService (localStorage)
-      → UI updates (Capture / Configure / Report)
+Mic (getUserMedia) → /api/cartesia-stt → transcript
+  → localParse fallback / GPT-4o-mini (/api/process-command)
+    → { action, entity, params }
+      → ActionDispatcher → DataService (Supabase or Mock)
+        → UI updates (Capture / Configure / Report)
 ```
 
 ## Tier 1 — Simple CRUD ✅

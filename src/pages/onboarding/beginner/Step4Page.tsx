@@ -8,7 +8,6 @@ import { goalsByCategory } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 export function Step4Page() {
   const navigate = useNavigate();
@@ -46,22 +45,6 @@ export function Step4Page() {
     navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
   }, [selected, category, navigate, saveStepAsync]);
 
-  const handleVoiceAction = useCallback(
-    (result: OnboardingVoiceResult) => {
-      if (result.params && Array.isArray(result.params.goals)) {
-        const voiceGoals = result.params.goals as string[];
-        const newSelected = new Set<string>();
-        voiceGoals.forEach((g) => {
-          if (goals.includes(g)) {
-            newSelected.add(g);
-          }
-        });
-        setSelected(newSelected);
-      }
-    },
-    [goals],
-  );
-
   return (
     <OnboardingLayout
       currentStep={4}
@@ -73,10 +56,6 @@ export function Step4Page() {
       ctaDisabled={selected.size === 0}
       showVoiceButton
       aiListeningPrompt='"Within that category, what specific area would you like to improve?"'
-      voiceOptions={goals}
-      voiceFileId="ONBOARD-04"
-      voicePrompt="OK — what's the thing that's really getting you? Pick the one that hits hardest."
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Let's narrow it down"

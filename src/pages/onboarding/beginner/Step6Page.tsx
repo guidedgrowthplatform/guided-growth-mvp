@@ -14,7 +14,6 @@ import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { Sentry } from '@/lib/sentry';
 
 const SCHEDULE_DAYS: Record<ScheduleOption, Set<number>> = {
@@ -125,25 +124,6 @@ export function Step6Page() {
     }
   }, [state, time, days, reminder, schedule, navigate, saveStepAsync]);
 
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (result.params) {
-      if (typeof result.params.time === 'string') {
-        setTime(result.params.time);
-      }
-      if (typeof result.params.schedule === 'string') {
-        const scheduleStr = result.params.schedule.toLowerCase();
-        let next: ScheduleOption | null = null;
-        if (scheduleStr.includes('weekday')) next = 'Weekday';
-        else if (scheduleStr.includes('weekend')) next = 'Weekend';
-        else if (scheduleStr.includes('every') || scheduleStr.includes('daily')) next = 'Every day';
-        if (next) {
-          setSchedule(next);
-          setDays(new Set(SCHEDULE_DAYS[next]));
-        }
-      }
-    }
-  }, []);
-
   return (
     <OnboardingLayout
       currentStep={6}
@@ -152,7 +132,6 @@ export function Step6Page() {
       ctaVariant="inline"
       showVoiceButton
       aiListeningPrompt='"When would you like to do your daily reflection?"'
-      voiceFileId="ONBOARD-08"
       footerText="You can change these settings later in your profile."
       onNext={handleOnNext}
       onBack={() =>
@@ -164,9 +143,6 @@ export function Step6Page() {
           },
         })
       }
-      voiceOptions={['Weekday', 'Weekend', 'Every day', '9 PM', '10 PM', '8 PM']}
-      voicePrompt="One more thing — and this one's powerful. A daily reflection. Three questions. Two minutes. And it compounds over time in a way that surprises people. What you're proud of. What you forgive yourself for. What you're grateful for. These three questions rewire how you process your day. You'll feel the difference within a week. Want to add it?"
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="One last thing for your mind"
