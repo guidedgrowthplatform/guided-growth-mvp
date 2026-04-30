@@ -28,12 +28,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { queryKeys } from '@/lib/query';
 import {
-  getAvailableVoices,
-  setVoicePreference,
-  speak,
-  getVoicePreference,
-} from '@/lib/services/tts-service';
-import {
   useVoiceSettingsStore,
   type RecordingMode,
   type SttProvider,
@@ -43,7 +37,6 @@ type SheetType =
   | 'editProfile'
   | 'stt'
   | 'recording'
-  | 'ttsVoice'
   | 'coaching'
   | 'voiceModel'
   | 'language'
@@ -56,8 +49,6 @@ export function SettingsPage() {
   const { preferences: pageSettings, updatePreference, updatePreferences } = useUserPreferences();
   const { recordingMode, setRecordingMode, sttProvider, setSttProvider } = useVoiceSettingsStore();
 
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<string>(getVoicePreference() || '');
   const [activeSheet, setActiveSheet] = useState<SheetType | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -72,58 +63,6 @@ export function SettingsPage() {
 
   useEffect(() => {
     track('view_settings');
-  }, []);
-
-  // Load voices with polling for Android
-  useEffect(() => {
-    let retries = 0;
-    const maxRetries = 12;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const loadVoices = () => {
-      const available = getAvailableVoices();
-      if (available.length > 0) {
-        setVoices(available);
-        if (timer) clearTimeout(timer);
-        return true;
-      }
-      return false;
-    };
-
-    if (!loadVoices()) {
-      const poll = () => {
-        retries++;
-        if (loadVoices() || retries >= maxRetries) return;
-        timer = setTimeout(poll, 250);
-      };
-      timer = setTimeout(poll, 250);
-    }
-
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, []);
-
-  const handleVoiceChange = useCallback(
-    (voiceName: string) => {
-      track('update_ai_settings', {
-        setting_changed: 'tts_voice',
-        old_value: selectedVoice,
-        new_value: voiceName,
-      });
-      setSelectedVoice(voiceName);
-      setVoicePreference(voiceName);
-      useVoiceSettingsStore.getState().setSelectedVoiceName(voiceName);
-    },
-    [selectedVoice],
-  );
-
-  const handlePreview = useCallback(() => {
-    speak('Hello! I am your growth tracker assistant. How can I help you today?');
   }, []);
 
   const handleLogout = useCallback(async () => {
@@ -303,27 +242,6 @@ export function SettingsPage() {
             setActiveSheet(null);
           }}
           onClose={() => setActiveSheet(null)}
-        />
-      )}
-      {activeSheet === 'ttsVoice' && (
-        <VoiceSettingsSheet
-          title="TTS Voice"
-          options={voices.map((v) => ({ value: v.name, label: v.name, description: v.lang }))}
-          selected={selectedVoice}
-          onSelect={(v) => {
-            handleVoiceChange(v);
-            setActiveSheet(null);
-          }}
-          onClose={() => setActiveSheet(null)}
-          extraContent={
-            <button
-              type="button"
-              onClick={handlePreview}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-md"
-            >
-              <Icon icon="ic:round-volume-up" width={16} /> Preview Voice
-            </button>
-          }
         />
       )}
       {activeSheet === 'coaching' && (

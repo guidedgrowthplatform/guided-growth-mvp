@@ -13,8 +13,6 @@ function setSpeaking(value: boolean) {
   }
 }
 
-const VOICE_PREF_KEY = 'mvp03_tts_voice';
-
 // ─── Voice Configuration ────────────────────────────────────────────────────
 // User selects Male or Female on splash screen
 export type VoiceGender = 'male' | 'female';
@@ -22,11 +20,10 @@ export type VoiceGender = 'male' | 'female';
 // Cartesia voice IDs (sonic-3 model) — primary TTS provider.
 // Both verified live on 2026-04-26 against `GET /voices` for the
 // production key. The previous male ID `a167e0f3-...` returned a
-// `voice_not_found` 404 (Cartesia rotated its public catalogue at
-// some point), which surfaced as our `/api/cartesia-tts` 502 → silent
-// fallback to browser speechSynthesis (Alejandro's "default voice"
-// report). `5ee9feff-...` is the current public "Ronald - Thinker"
-// — same name, similar timbre.
+// `voice_not_found` 404 after Cartesia rotated its public catalogue;
+// this surfaced as silent failure once the browser-fallback path was
+// in place to mask the upstream issue. `5ee9feff-...` is the current
+// public "Ronald - Thinker" — same name, similar timbre.
 const CARTESIA_VOICES: Record<VoiceGender, { id: string; name: string }> = {
   male: { id: '5ee9feff-1265-424a-9d7f-8e4d431a12c7', name: 'Ronald' },
   female: { id: 'f786b574-daa5-4673-aa0c-cbe3e8534c02', name: 'Katie' },
@@ -99,6 +96,11 @@ let currentAudio: HTMLAudioElement | null = null;
 // Abort controller for in-flight TTS requests
 let currentTtsAbort: AbortController | null = null;
 
+// iOS first-play gesture rule: flag set by unlockTTS once we've kicked off
+// a silent play inside a user gesture. speakWhenReady reads this to decide
+// whether to play immediately or defer to next pointerdown.
+let ttsUnlocked = false;
+
 /** Stop any currently playing TTS audio immediately */
 export function stopTTS(): void {
   // Cancel in-flight TTS fetch request
@@ -111,10 +113,6 @@ export function stopTTS(): void {
     currentAudio.pause();
     currentAudio.currentTime = 0;
     currentAudio = null;
-  }
-  // Stop browser speechSynthesis too (just in case)
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
   }
   setSpeaking(false);
 }
@@ -176,9 +174,9 @@ function handleTtsError(err: unknown, label: string): boolean {
 }
 
 /**
- * Speak text using Cartesia TTS API (sonic-3, primary).
- * Primary cloud TTS provider.
- * Returns true if audio played successfully, false if should fall back.
+ * Speak text using Cartesia TTS API (sonic-3, primary and only provider).
+ * Returns true if audio played successfully, false on failure.
+ * No fallback: callers accept silent failure (visible chat message remains).
  */
 async function speakCartesia(text: string, volume: number): Promise<boolean> {
   if (!cartesiaTtsAvailable) return false;
@@ -214,138 +212,33 @@ async function speakCartesia(text: string, volume: number): Promise<boolean> {
   }
 }
 
-// ─── Browser SpeechSynthesis (fallback) ─────────────────────────────────────
-
-// Preferred voices ranked by quality (natural-sounding, pleasant)
-const PREFERRED_VOICES = [
-  'Google UK English Female',
-  'Google US English',
-  'Microsoft Zira',
-  'Samantha', // macOS
-  'Karen', // macOS Australian
-  'Daniel', // macOS British
-  'Google UK English Male',
-  'Microsoft David',
-];
-
-let cachedVoice: SpeechSynthesisVoice | null = null;
-let voicesLoaded = false;
-let ttsUnlocked = false;
-
-function getVoices(): SpeechSynthesisVoice[] {
-  if (!('speechSynthesis' in window)) return [];
-  return window.speechSynthesis.getVoices();
-}
-
-/** Find the best available voice, preferring natural-sounding English voices */
-function findBestVoice(): SpeechSynthesisVoice | null {
-  const voices = getVoices();
-  if (voices.length === 0) return null;
-
-  // Check saved preference first
-  const savedName = localStorage.getItem(VOICE_PREF_KEY);
-  if (savedName) {
-    const saved = voices.find((v) => v.name === savedName);
-    if (saved) return saved;
-  }
-
-  // Try preferred voices in order
-  for (const name of PREFERRED_VOICES) {
-    const match = voices.find((v) => v.name === name);
-    if (match) return match;
-  }
-
-  // Fallback: any English voice
-  const english = voices.find((v) => v.lang.startsWith('en'));
-  return english || voices[0] || null;
-}
-
-/** Get the currently selected voice (with lazy initialization) */
-export function getSelectedVoice(): SpeechSynthesisVoice | null {
-  if (cachedVoice && voicesLoaded) return cachedVoice;
-  cachedVoice = findBestVoice();
-  voicesLoaded = getVoices().length > 0;
-  return cachedVoice;
-}
-
-/** Save a specific voice preference */
-export function setVoicePreference(voiceName: string): void {
-  localStorage.setItem(VOICE_PREF_KEY, voiceName);
-  const voices = getVoices();
-  cachedVoice = voices.find((v) => v.name === voiceName) || cachedVoice;
-}
-
-/** Get the saved voice name */
-export function getVoicePreference(): string | null {
-  return localStorage.getItem(VOICE_PREF_KEY);
-}
-
-/** Get all available voices for the settings UI */
-export function getAvailableVoices(): SpeechSynthesisVoice[] {
-  return getVoices().filter((v) => v.lang.startsWith('en'));
-}
-
 /** Strip emoji for cleaner TTS */
 function cleanText(text: string): string {
   return text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
 }
 
+// 0.1s silent WAV. Played from inside a user-gesture handler so subsequent
+// async <Audio> playbacks pass iOS Safari's first-play-must-be-gesture rule.
+const SILENT_WAV =
+  'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+
 /**
  * Unlock TTS on iOS — must be called from a user gesture (click/tap handler).
- * iOS Safari blocks speechSynthesis.speak() unless the first call happens
- * inside a user-initiated event. Call this on mic button tap.
+ * iOS Safari blocks audio.play() unless the first call originates from a
+ * user-initiated event. Call this on mic button tap / page entry.
  */
 export function unlockTTS(): void {
-  if (ttsUnlocked || !('speechSynthesis' in window)) return;
-  const utterance = new SpeechSynthesisUtterance('');
-  utterance.volume = 0;
-  window.speechSynthesis.speak(utterance);
+  if (ttsUnlocked) return;
+  try {
+    const a = new Audio(SILENT_WAV);
+    a.volume = 0;
+    void a.play().catch(() => {
+      /* iOS may still reject; non-fatal — flag flips below either way */
+    });
+  } catch {
+    /* ignore */
+  }
   ttsUnlocked = true;
-}
-
-/** Speak using browser SpeechSynthesis (fallback) */
-function speakBrowser(
-  text: string,
-  options?: { rate?: number; pitch?: number; volume?: number },
-): void {
-  if (!('speechSynthesis' in window)) return;
-
-  // iOS workaround: cancel any stuck synthesis before speaking
-  window.speechSynthesis.cancel();
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  const voice = getSelectedVoice();
-  if (voice) utterance.voice = voice;
-
-  utterance.rate = options?.rate ?? 1.05;
-  utterance.pitch = options?.pitch ?? 1.0;
-  utterance.volume = options?.volume ?? 0.85;
-
-  // iOS workaround: Safari pauses synthesis after ~15s.
-  // Resume periodically to prevent hanging. Clear on end/error.
-  let resumeInterval: ReturnType<typeof setInterval> | null = null;
-
-  const cleanup = () => {
-    if (resumeInterval) {
-      clearInterval(resumeInterval);
-      resumeInterval = null;
-    }
-    setSpeaking(false);
-  };
-
-  utterance.onstart = () => setSpeaking(true);
-  utterance.onend = cleanup;
-  utterance.onerror = cleanup;
-
-  window.speechSynthesis.speak(utterance);
-
-  resumeInterval = setInterval(() => {
-    if (!window.speechSynthesis.speaking) {
-      cleanup();
-    } else {
-      window.speechSynthesis.resume();
-    }
-  }, 5000);
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────
@@ -354,9 +247,9 @@ function speakBrowser(
 let speakGeneration = 0;
 
 /**
- * Speak text aloud using Cartesia TTS (primary),
- * then browser speechSynthesis as last resort.
- * Uses generation counter to ensure only the latest call plays.
+ * Speak text aloud using Cartesia TTS.
+ * On failure: log a warning and skip — the message has already rendered
+ * visually, so we don't substitute a different voice as if it were the coach.
  */
 export function speak(
   text: string,
@@ -376,15 +269,12 @@ export function speak(
   // Increment generation — any in-flight speak() from earlier calls will be stale
   const myGeneration = ++speakGeneration;
 
-  // Cascade: Cartesia → Browser speechSynthesis
   (async () => {
-    // Try Cartesia (primary — sole cloud TTS provider)
     const cartesiaOk = await speakCartesia(clean, volume);
     if (myGeneration !== speakGeneration) return;
-    if (cartesiaOk) return;
-
-    // Cartesia failed — use browser speechSynthesis as emergency fallback
-    speakBrowser(clean, options);
+    if (!cartesiaOk) {
+      console.warn('[tts] Cartesia failed; audio skipped');
+    }
   })();
 }
 
@@ -443,14 +333,4 @@ export function speakPreAck(action: string, params: Record<string, unknown>): vo
   if (generator) {
     speak(generator(params), { rate: 1.15, volume: 0.75 });
   }
-}
-
-// Load voices when they become available (Chrome loads async)
-if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  window.speechSynthesis.onvoiceschanged = () => {
-    voicesLoaded = true;
-    cachedVoice = findBestVoice();
-  };
-  // Trigger initial load
-  getVoices();
 }
