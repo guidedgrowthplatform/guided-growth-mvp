@@ -67,7 +67,6 @@ const lazyOnboarding = (name: string) =>
 const Step1Page = lazyOnboarding('Step1Page');
 const VoicePreferencePage = lazyOnboarding('VoicePreferencePage');
 const MicPermissionPage = lazyOnboarding('MicPermissionPage');
-const AiCoachIntroPage = lazyOnboarding('AiCoachIntroPage');
 const Step2Page = lazyOnboarding('Step2Page');
 const Step3Page = lazyOnboarding('Step3Page');
 const Step4Page = lazyOnboarding('Step4Page');
@@ -188,14 +187,6 @@ export function AppRoutes() {
           element={
             <AppGate allow="onboarding">
               <MicPermissionPage />
-            </AppGate>
-          }
-        />
-        <Route
-          path="/onboarding/ai-coach-intro"
-          element={
-            <AppGate allow="onboarding">
-              <AiCoachIntroPage />
             </AppGate>
           }
         />

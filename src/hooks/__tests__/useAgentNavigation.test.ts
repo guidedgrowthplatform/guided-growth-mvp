@@ -23,6 +23,7 @@ describe('shouldAdvanceToNextScreen', () => {
     expect(
       shouldAdvanceToNextScreen({
         persistedStep: 2,
+        initialPersistedStep: 1,
         currentStep: 1,
         nextRoute: '/onboarding/step-2',
         alreadyAdvanced: false,
@@ -34,6 +35,7 @@ describe('shouldAdvanceToNextScreen', () => {
     expect(
       shouldAdvanceToNextScreen({
         persistedStep: 1,
+        initialPersistedStep: 1,
         currentStep: 1,
         nextRoute: '/onboarding/step-2',
         alreadyAdvanced: false,
@@ -45,6 +47,7 @@ describe('shouldAdvanceToNextScreen', () => {
     expect(
       shouldAdvanceToNextScreen({
         persistedStep: 0,
+        initialPersistedStep: 0,
         currentStep: 1,
         nextRoute: '/onboarding/step-2',
         alreadyAdvanced: false,
@@ -53,12 +56,10 @@ describe('shouldAdvanceToNextScreen', () => {
   });
 
   it('returns false when the target route is not yet resolvable (fork screen waiting on path)', () => {
-    // ONBOARD-02 fork scenario: agent bumped step but hasn't written
-    // `path` yet, so the branch route is unknown. The hook must NOT
-    // navigate; it will re-check on the next Realtime payload.
     expect(
       shouldAdvanceToNextScreen({
         persistedStep: 3,
+        initialPersistedStep: 2,
         currentStep: 2,
         nextRoute: null,
         alreadyAdvanced: false,
@@ -67,11 +68,10 @@ describe('shouldAdvanceToNextScreen', () => {
   });
 
   it('returns false when already advanced this mount (no double-navigate)', () => {
-    // Lagging Realtime payload after we already navigated once. The
-    // advancedRef guard prevents the second navigate from firing.
     expect(
       shouldAdvanceToNextScreen({
         persistedStep: 3,
+        initialPersistedStep: 1,
         currentStep: 1,
         nextRoute: '/onboarding/step-2',
         alreadyAdvanced: true,
@@ -80,11 +80,10 @@ describe('shouldAdvanceToNextScreen', () => {
   });
 
   it('returns false on initial cache miss (persistedStep is undefined)', () => {
-    // First render before Realtime sync has fetched the row. We can't
-    // make a decision yet.
     expect(
       shouldAdvanceToNextScreen({
         persistedStep: undefined,
+        initialPersistedStep: undefined,
         currentStep: 1,
         nextRoute: '/onboarding/step-2',
         alreadyAdvanced: false,
@@ -93,11 +92,10 @@ describe('shouldAdvanceToNextScreen', () => {
   });
 
   it('handles a multi-step jump (e.g. agent skipped ahead to step 4 while we were on 1)', () => {
-    // Shouldn't actually happen in normal flow, but if it does we
-    // still navigate — agent drives, frontend follows.
     expect(
       shouldAdvanceToNextScreen({
         persistedStep: 4,
+        initialPersistedStep: 1,
         currentStep: 1,
         nextRoute: '/onboarding/step-2',
         alreadyAdvanced: false,
@@ -109,6 +107,7 @@ describe('shouldAdvanceToNextScreen', () => {
     expect(
       shouldAdvanceToNextScreen({
         persistedStep: 2,
+        initialPersistedStep: 1,
         currentStep: 1,
         nextRoute: '',
         alreadyAdvanced: false,
@@ -117,15 +116,26 @@ describe('shouldAdvanceToNextScreen', () => {
   });
 
   it('works for the final plan-review step (currentStep=7 → complete)', () => {
-    // PlanReviewPage waits for persistedStep > 7 before firing complete().
-    // Proving the predicate returns true at that edge.
     expect(
       shouldAdvanceToNextScreen({
         persistedStep: 8,
+        initialPersistedStep: 7,
         currentStep: 7,
         nextRoute: '/home',
         alreadyAdvanced: false,
       }),
     ).toBe(true);
+  });
+
+  it('does not auto-advance when user navigated back to a previously-completed screen', () => {
+    expect(
+      shouldAdvanceToNextScreen({
+        persistedStep: 2,
+        initialPersistedStep: 2,
+        currentStep: 1,
+        nextRoute: '/onboarding/step-2',
+        alreadyAdvanced: false,
+      }),
+    ).toBe(false);
   });
 });

@@ -30,7 +30,7 @@ export function MicPermissionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const goNext = () => navigate('/onboarding/ai-coach-intro');
+  const goNext = () => navigate('/onboarding/step-1');
 
   const handleAllow = async () => {
     if (requesting) return;

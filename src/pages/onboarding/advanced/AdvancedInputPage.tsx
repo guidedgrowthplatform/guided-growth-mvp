@@ -7,7 +7,6 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 export function AdvancedInputPage() {
   const navigate = useNavigate();
@@ -26,14 +25,6 @@ export function AdvancedInputPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onboardingState?.data?.brainDumpText]);
 
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (!result.params) return;
-    const incoming = result.params.brainDumpText ?? result.params.text;
-    if (typeof incoming === 'string') {
-      setText(incoming);
-    }
-  }, []);
-
   const handleNext = useCallback(async () => {
     await saveStepAsync(3, { brainDumpText: text });
     navigate('/onboarding/advanced-results', { state: { text } });
@@ -48,10 +39,6 @@ export function AdvancedInputPage() {
       onNext={handleNext}
       ctaDisabled={!text.trim()}
       showVoiceButton
-      voiceFileId="ONBOARD-ADV-INPUT"
-      voicePrompt="Tell me everything. What habits do you want to build? What are you trying to change? Don't hold back — just talk. I'll organize it all."
-      voiceOptions={['done', 'continue', 'next']}
-      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Tell me what you want to achieve"

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
+import { apiFetch } from '@/api/client';
 import { useVoice } from '@/hooks/useVoice';
 import {
   CartesiaAgentClient,
@@ -99,17 +100,8 @@ function pcm16LEToAudioBuffer(ctx: AudioContext, pcm: Uint8Array, sampleRate: nu
 // ─── Token fetch ────────────────────────────────────────────────────────────
 
 async function fetchAccessToken(signal: AbortSignal): Promise<string> {
-  const res = await fetch(TOKEN_ENDPOINT, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    signal,
-  });
-  if (!res.ok) {
-    throw new Error(`token endpoint returned ${res.status}`);
-  }
-  const data: unknown = await res.json();
-  const token = (data as { token?: unknown } | null)?.token;
+  const data = await apiFetch<{ token?: unknown }>(TOKEN_ENDPOINT, { method: 'POST', signal });
+  const token = data?.token;
   if (typeof token !== 'string' || token.length === 0) {
     throw new Error('token endpoint returned unexpected shape');
   }
