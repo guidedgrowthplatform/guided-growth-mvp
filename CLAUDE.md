@@ -237,3 +237,4 @@ All core tables are now created in the migrations (previously `allowlist`, `entr
 | Tailwind config (animations)             | `tailwind.config.js`                                            |
 | DB migrations                            | `supabase/migrations/`                                          |
 | Claude skills (naming, frontend design)  | `.claude/skills/*/SKILL.md`                                     |
+| Product specs & roadmap                  | `.claude/skills/product/` (auto-loaded for scope/feature talk)  |
