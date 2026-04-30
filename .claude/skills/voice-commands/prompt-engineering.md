@@ -58,5 +58,5 @@ Pricing: gpt-4o-mini input $0.15/1M tokens, output $0.60/1M tokens
 
 ## Test Scenarios
 
-Full test cases with 30 scenarios available in `/scripts/validate-prompt.ts`.
-Results reference in `/docs/voice-poc/test-scenarios.md`.
+Full test cases with 30 scenarios available in `scripts/validate-prompt.ts`.
+Results documented in [test-scenarios.md](test-scenarios.md).

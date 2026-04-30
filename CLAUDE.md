@@ -25,7 +25,8 @@ life-growth-tracker/
 │   ├── skills/             # Auto-loaded skill definitions
 │   │   ├── naming-conventions/SKILL.md  # File & folder naming rules
 │   │   ├── frontend-design/SKILL.md     # UI component guidelines
-│   │   └── voice-poc/                   # Voice command system reference
+│   │   ├── voice-commands/              # Home/journal voice-command pipeline (Cartesia REST STT + GPT-4o-mini NLU)
+│   │   └── voice-assistant/             # Onboarding Cartesia Line agent (realtime WS coach)
 │   ├── settings.json       # Shared settings + hooks (committed)
 │   └── settings.local.json # Local permissions (not committed)
 ├── supabase/migrations/    # SQL migrations (run manually on Supabase)
