@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { ALL_DAYS, WEEKDAYS, WEEKEND } from '@/components/onboarding/constants';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
@@ -35,7 +36,7 @@ export function AdvancedStep6Page() {
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const state = location.state as LocationState | null;
 
-  useOnboardingAgent('onboard_advanced_step_6');
+  const { startVoice } = useOnboardingAgent('onboard_advanced_step_6');
   useAgentNavigation(5, '/onboarding/step-7');
 
   const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');
@@ -66,27 +67,37 @@ export function AdvancedStep6Page() {
 
   const questions = customPrompts ?? DEFAULT_QUESTIONS;
 
+  const submittingRef = useRef(false);
   const handleReviewPlan = useCallback(async () => {
-    const configRecord: Record<string, { days: number[]; time: string; reminder: boolean }> = {};
-    if (habitConfigs) {
-      for (const h of habitConfigs) {
-        configRecord[h.name] = { days: h.days, time: '21:45', reminder: true };
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      const configRecord: Record<string, { days: number[]; time: string; reminder: boolean }> = {};
+      if (habitConfigs) {
+        for (const h of habitConfigs) {
+          configRecord[h.name] = { days: h.days, time: '21:45', reminder: true };
+        }
       }
+      const days = [...(SCHEDULE_DAYS[schedule] ?? WEEKDAYS)];
+      const reflectionConfig = { time: '21:45', days, reminder: true, schedule };
+      await saveStepAsync(5, { habitConfigs: configRecord, reflectionConfig });
+      track('configure_journal_onboarding');
+      track('complete_onboarding_step', { step_number: 5, step_name: 'advanced_journal_setup', input_method: 'manual' });
+      navigate('/onboarding/step-7', {
+        state: {
+          habitConfigs: configRecord,
+          reflectionConfig,
+          source: 'advanced',
+        },
+      });
+    } catch (e) {
+      submittingRef.current = false;
+      throw e;
     }
-    const days = [...(SCHEDULE_DAYS[schedule] ?? WEEKDAYS)];
-    const reflectionConfig = { time: '21:45', days, reminder: true, schedule };
-    await saveStepAsync(5, { habitConfigs: configRecord, reflectionConfig });
-    navigate('/onboarding/step-7', {
-      state: {
-        habitConfigs: configRecord,
-        reflectionConfig,
-        source: 'advanced',
-      },
-    });
   }, [habitConfigs, schedule, navigate, saveStepAsync]);
 
   return (
-    <OnboardingLayout
+    <OnboardingLayout onStartVoice={startVoice}
       currentStep={5}
       totalSteps={6}
       ctaLabel="Continue"

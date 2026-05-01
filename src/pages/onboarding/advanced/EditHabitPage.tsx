@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useState, useEffect, useRef } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { SECTION_LABEL_CLASS, toggleSetItem } from '@/components/onboarding/constants';
 import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { VoiceEditCard } from '@/components/onboarding/VoiceEditCard';
@@ -75,6 +76,8 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
   function handleSave() {
     if (!name.trim()) return;
     speak('Updated. All good?');
+    track('configure_habit_onboarding');
+    track('complete_onboarding_step', { step_number: 4, step_name: 'edit_habit', input_method: 'manual' });
     navigate('/onboarding/advanced-results', {
       state: {
         updatedHabit: { index: habitIndex, name: name.trim(), time, days: Array.from(days) },

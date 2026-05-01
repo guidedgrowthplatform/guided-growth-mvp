@@ -27,7 +27,7 @@ export function PlanReviewPage() {
   const routerState = location.state as PlanReviewState | null;
   const { state: onboardingState, complete, isCompleting } = useOnboarding();
 
-  useOnboardingAgent('onboard_07');
+  const { startVoice } = useOnboardingAgent('onboard_07');
 
   // Router state carries source='advanced' that agent-driven derivation can't reconstruct.
   const state = useMemo<PlanReviewState | null>(
@@ -101,7 +101,7 @@ export function PlanReviewPage() {
   const reflectionDays = new Set(reflectionConfig.days);
 
   return (
-    <OnboardingLayout
+    <OnboardingLayout onStartVoice={startVoice}
       currentStep={source === 'advanced' ? 6 : 7}
       totalSteps={source === 'advanced' ? 6 : 7}
       ctaLabel={isCompleting ? 'Completing...' : 'Start plan'}

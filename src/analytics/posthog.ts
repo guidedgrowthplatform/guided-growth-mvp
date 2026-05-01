@@ -49,6 +49,7 @@ export function initAnalytics(): void {
     disable_compression: true,
     person_profiles: 'always',
   });
+  posthog.debug(true);
   initialized = true;
 }
 

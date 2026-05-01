@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import {
   WEEKDAYS,
   WEEKEND,
@@ -78,6 +79,8 @@ function EditJournalForm({ state }: { state: EditJournalState }) {
 
   function handleSave() {
     if (!journalName.trim()) return;
+    track('configure_journal_onboarding');
+    track('complete_onboarding_step', { step_number: 5, step_name: 'edit_journal', input_method: 'manual' });
     navigate(returnTo, {
       state: {
         updatedJournal: {

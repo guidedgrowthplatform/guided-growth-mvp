@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { WEEKDAYS } from '@/components/onboarding/constants';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -80,7 +81,7 @@ export function AdvancedResultsPage() {
   const locationState = location.state as ResultsLocationState | null;
   const clearedRef = useRef(false);
 
-  useOnboardingAgent('onboard_advanced_results');
+  const { startVoice } = useOnboardingAgent('onboard_advanced_results');
   useAgentNavigation(4, '/onboarding/advanced-step-6');
 
   const fallbackBrainDump = onboardingState?.data?.brainDumpText ?? '';
@@ -101,24 +102,40 @@ export function AdvancedResultsPage() {
     }
   }, [locationState]);
 
+  const submittingRef = useRef(false);
   const handleConfirm = useCallback(async () => {
-    const habitConfigsArray = habits.map((h) => ({
-      name: h.name,
-      days: [...h.days],
-    }));
-    const goals = habits.map((h) => h.name);
-    const habitConfigsRecord: Record<string, { days: number[]; time: string; reminder: boolean }> =
-      {};
-    habitConfigsArray.forEach((h) => {
-      habitConfigsRecord[h.name] = { days: h.days, time: '21:45', reminder: true };
-    });
-    await saveStepAsync(4, { goals, habitConfigs: habitConfigsRecord });
-    navigate('/onboarding/advanced-step-6', { state: { habitConfigs: habitConfigsArray } });
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      const habitConfigsArray = habits.map((h) => ({
+        name: h.name,
+        days: [...h.days],
+      }));
+      const goals = habits.map((h) => h.name);
+      
+      const habitConfigsRecord = Object.fromEntries(
+        habitConfigsArray.map((c) => [c.name, { days: c.days, time: '21:45', reminder: true }]),
+      );
+      await saveStepAsync(4, { goals, habitConfigs: habitConfigsRecord });
+      track('complete_onboarding_step', { step_number: 4, step_name: 'ai_organized_plan_review', input_method: 'manual' });
+      navigate('/onboarding/advanced-step-6', { state: { habitConfigs: habitConfigsArray } });
+    } catch (e) {
+      submittingRef.current = false;
+      throw e;
+    }
   }, [habits, navigate, saveStepAsync]);
+
+  const viewedPlanRef = useRef(false);
+  useEffect(() => {
+    if (habits.length > 0 && !viewedPlanRef.current) {
+      viewedPlanRef.current = true;
+      track('view_ai_organized_plan');
+    }
+  }, [habits.length]);
 
   if (habits.length === 0) {
     return (
-      <OnboardingLayout
+      <OnboardingLayout onStartVoice={startVoice}
         currentStep={4}
         totalSteps={6}
         ctaLabel="Try Again"
@@ -148,7 +165,10 @@ export function AdvancedResultsPage() {
       onNext={handleConfirm}
       secondaryAction={{
         label: 'Regenerate',
-        onClick: () => navigate('/onboarding/advanced-input'),
+        onClick: () => {
+          track('tap_regenerate_plan');
+          navigate('/onboarding/advanced-input');
+        },
       }}
       showVoiceButton
     >

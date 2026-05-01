@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import * as onboardingApi from '@/api/onboarding';
 import { queryKeys } from '@/lib/query';
 import { useAuthStore } from '@/stores/authStore';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import type {
   OnboardingPath,
   OnboardingState,
@@ -14,6 +15,7 @@ import type {
 export function useOnboarding() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { logAction } = useSessionLog();
 
   const state = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null;
   const isCompleted = state?.status === 'completed';
@@ -30,20 +32,22 @@ export function useOnboarding() {
       data: Partial<OnboardingStepData>;
       brainDump?: { raw?: string; parsed?: ParsedHabit[] };
     }) => onboardingApi.saveOnboardingStep(step, path, data, brainDump),
-    onSuccess: (updated) => {
+    onSuccess: (updated, variables) => {
       qc.setQueryData(queryKeys.onboarding.state, updated);
+      logAction('save_onboarding_step', { step: variables.step, data: variables.data });
     },
   });
 
   const completeMutation = useMutation({
     mutationFn: (finalData?: Partial<OnboardingStepData>) =>
       onboardingApi.completeOnboarding(finalData),
-    onSuccess: async () => {
+    onSuccess: async (_, variables) => {
       qc.setQueryData(queryKeys.onboarding.state, (old: OnboardingState | null | undefined) =>
         old
           ? { ...old, status: 'completed' as const, completed_at: new Date().toISOString() }
           : old,
       );
+      logAction('complete_onboarding', { finalData: variables });
       await useAuthStore.getState().updateProfile();
       navigate('/home', { replace: true, state: { fromOnboarding: true } });
     },

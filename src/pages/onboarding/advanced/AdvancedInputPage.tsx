@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { GoalTextarea } from '@/components/onboarding/GoalTextarea';
 import { GuidanceBadge } from '@/components/onboarding/GuidanceBadge';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -14,7 +15,7 @@ export function AdvancedInputPage() {
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null!);
 
-  useOnboardingAgent('onboard_advanced_input');
+  const { startVoice } = useOnboardingAgent('onboard_advanced_input');
   useAgentNavigation(3, '/onboarding/advanced-results');
 
   useEffect(() => {
@@ -25,13 +26,23 @@ export function AdvancedInputPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onboardingState?.data?.brainDumpText]);
 
+  const submittingRef = useRef(false);
   const handleNext = useCallback(async () => {
-    await saveStepAsync(3, { brainDumpText: text });
-    navigate('/onboarding/advanced-results', { state: { text } });
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      await saveStepAsync(3, { brainDumpText: text });
+      track('submit_voice_goals');
+      track('complete_onboarding_step', { step_number: 3, step_name: 'advanced_input', input_method: 'manual' });
+      navigate('/onboarding/advanced-results', { state: { text } });
+    } catch (e) {
+      submittingRef.current = false;
+      throw e;
+    }
   }, [text, navigate, saveStepAsync]);
 
   return (
-    <OnboardingLayout
+    <OnboardingLayout onStartVoice={startVoice}
       currentStep={3}
       totalSteps={6}
       ctaLabel="Continue"

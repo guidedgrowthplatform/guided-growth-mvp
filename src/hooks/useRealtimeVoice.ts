@@ -37,9 +37,9 @@ interface UseRealtimeVoiceReturn {
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const INPUT_FORMAT: AudioFormat = 'pcm_16000';
-const OUTPUT_FORMAT: AudioFormat = 'pcm_44100';
+const OUTPUT_FORMAT: AudioFormat = 'pcm_16000';
 const INPUT_SAMPLE_RATE = 16000;
-const OUTPUT_SAMPLE_RATE = 44100;
+const OUTPUT_SAMPLE_RATE = 16000;
 const CAPTURE_BUFFER_SIZE = 4096;
 const TOKEN_ENDPOINT = '/api/cartesia-agent-token';
 

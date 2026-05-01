@@ -35,6 +35,10 @@ export interface AgentStartMetadata {
   user_id: string;
   coaching_style?: CoachingStyle;
   screen?: string;
+  /** Current static-ish screen context for LLM grounding */
+  ai_context_block?: string;
+  /** Recent actions since LLM last spoke for dynamic context */
+  state_delta?: string;
 }
 
 export interface AgentAckPayload {

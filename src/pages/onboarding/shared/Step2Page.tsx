@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -21,7 +21,7 @@ export function Step2Page() {
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [plan, setPlan] = useState<'simple' | 'braindump' | null>(null);
 
-  useOnboardingAgent('onboard_02');
+  const { startVoice } = useOnboardingAgent('onboard_02');
 
   useEffect(() => {
     if (onboardingState?.path) {
@@ -39,19 +39,27 @@ export function Step2Page() {
         : null,
   );
 
+  const submittingRef = useRef(false);
   const handleNext = useCallback(async () => {
-    if (!plan) return;
-    await saveStepAsync(2, {}, { path: plan });
-    track('select_onboarding_path', { path: pathToSpec(plan) });
-    if (plan === 'braindump') {
-      navigate('/onboarding/advanced-input');
-    } else {
-      navigate('/onboarding/step-3');
+    if (!plan || submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      await saveStepAsync(2, {}, { path: plan });
+      track('select_onboarding_path', { path: pathToSpec(plan) });
+      track('complete_onboarding_step', { step_number: 2, step_name: 'onboarding_path', input_method: 'manual' });
+      if (plan === 'braindump') {
+        navigate('/onboarding/advanced-input');
+      } else {
+        navigate('/onboarding/step-3');
+      }
+    } catch (e) {
+      submittingRef.current = false;
+      throw e;
     }
   }, [plan, navigate, saveStepAsync]);
 
   return (
-    <OnboardingLayout
+    <OnboardingLayout onStartVoice={startVoice}
       currentStep={2}
       totalSteps={7}
       ctaLabel="Continue"

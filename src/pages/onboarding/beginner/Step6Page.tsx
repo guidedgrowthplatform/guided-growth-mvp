@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { track } from '@/analytics';
 import {
   WEEKDAYS,
   WEEKEND,
@@ -33,9 +34,10 @@ export function Step6Page() {
   const navigate = useNavigate();
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
+  const submittingRef = useRef(false);
 
   // ONBOARD-08 in the spec; metadata uses the canonical id for screen_contexts lookup.
-  useOnboardingAgent('onboard_08');
+  const { startVoice } = useOnboardingAgent('onboard_08');
   useAgentNavigation(6, '/onboarding/step-7');
   const state = location.state as {
     habitConfigs?: Record<
@@ -103,6 +105,8 @@ export function Step6Page() {
         ]),
       );
       await saveStepAsync(6, { reflectionConfig: { time, days: [...days], reminder, schedule } });
+      track('configure_journal_onboarding');
+      track('complete_onboarding_step', { step_number: 6, step_name: 'configure_journal', input_method: 'manual' });
       navigate('/onboarding/step-7', {
         state: {
           habitConfigs: serializedConfigs,
@@ -112,6 +116,7 @@ export function Step6Page() {
         },
       });
     } catch (err) {
+      submittingRef.current = false;
       Sentry.captureException(err, {
         tags: { flow: 'onboarding', step: '6' },
         extra: {
@@ -125,7 +130,7 @@ export function Step6Page() {
   }, [state, time, days, reminder, schedule, navigate, saveStepAsync]);
 
   return (
-    <OnboardingLayout
+    <OnboardingLayout onStartVoice={startVoice}
       currentStep={6}
       totalSteps={7}
       ctaLabel="Review My Plan"

@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
@@ -32,7 +33,7 @@ export function AdvancedCustomPromptsPage() {
   const { state: onboardingState } = useOnboarding();
   const state = location.state as LocationState | null;
 
-  useOnboardingAgent('onboard_advanced_custom_prompts');
+  const { startVoice } = useOnboardingAgent('onboard_advanced_custom_prompts');
   useAgentNavigation(5, '/onboarding/advanced-step-6');
 
   const [journalMode, setJournalMode] = useState<JournalMode>(state?.journalMode ?? 'custom');
@@ -62,6 +63,7 @@ export function AdvancedCustomPromptsPage() {
   }
 
   const handleDone = useCallback(() => {
+    track('complete_onboarding_step', { step_number: 5, step_name: 'custom_prompts', input_method: 'manual' });
     navigate('/onboarding/advanced-step-6', {
       state: {
         habitConfigs: state?.habitConfigs,
@@ -72,7 +74,7 @@ export function AdvancedCustomPromptsPage() {
   }, [navigate, state?.habitConfigs, journalMode, filledPrompts]);
 
   return (
-    <OnboardingLayout
+    <OnboardingLayout onStartVoice={startVoice}
       currentStep={5}
       totalSteps={6}
       ctaLabel="Continue"

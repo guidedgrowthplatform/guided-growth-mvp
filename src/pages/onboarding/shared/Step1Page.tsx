@@ -8,6 +8,7 @@ import { ChipSelect } from '@/components/ui/ChipSelect';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import { track } from '@/analytics';
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
@@ -22,7 +23,7 @@ export function Step1Page() {
   const [referralSource, setReferralSource] = useState<string | null>(null);
   const [referralOtherText, setReferralOtherText] = useState('');
 
-  useOnboardingAgent('onboard_01');
+  const { startVoice } = useOnboardingAgent('onboard_01');
 
   useAgentNavigation(1, '/onboarding/step-2');
 
@@ -67,11 +68,23 @@ export function Step1Page() {
       referralSource: effectiveReferral,
       referralOtherText,
     });
+
+    track('complete_profile_setup', {
+      input_method: 'manual', // Fallback manual entry
+      used_real_time_agent: false,
+    });
+
+    track('complete_onboarding_step', {
+      step_number: 1,
+      step_name: 'profile_setup',
+      input_method: 'manual',
+    });
+
     navigate('/onboarding/step-2');
   }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep]);
 
   return (
-    <OnboardingLayout
+    <OnboardingLayout onStartVoice={startVoice}
       currentStep={1}
       totalSteps={7}
       ctaLabel="Continue"

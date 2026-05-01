@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
@@ -18,14 +19,12 @@ const categories = [
   { label: 'Get more organized', image: '/images/onboarding/get-more-organized.png' },
 ];
 
-const categoryLabels = categories.map((c) => c.label);
-
 export function Step3Page() {
   const navigate = useNavigate();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [selected, setSelected] = useState<string | null>(null);
 
-  useOnboardingAgent('onboard_03');
+  const { startVoice } = useOnboardingAgent('onboard_03');
 
   useAgentNavigation(3, '/onboarding/step-4');
 
@@ -35,13 +34,28 @@ export function Step3Page() {
     }
   }, [onboardingState?.data?.category]);
 
+  const submittingRef = useRef(false);
   const handleNext = useCallback(async () => {
-    await saveStepAsync(3, { category: selected });
-    navigate('/onboarding/step-4', { state: { category: selected } });
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      await saveStepAsync(3, { category: selected });
+      track('select_improvement_areas', { category: selected });
+      track('complete_onboarding_step', {
+        step_number: 3,
+        step_name: 'improvement_areas',
+        input_method: 'manual',
+      });
+      navigate('/onboarding/step-4', { state: { category: selected } });
+    } catch (e) {
+      submittingRef.current = false;
+      throw e;
+    }
   }, [selected, navigate, saveStepAsync]);
 
   return (
     <OnboardingLayout
+      onStartVoice={startVoice}
       currentStep={3}
       totalSteps={7}
       ctaLabel="Continue"

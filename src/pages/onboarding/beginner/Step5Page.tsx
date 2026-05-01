@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { track } from '@/analytics';
 import { HabitCustomizeSheet, type HabitConfig } from '@/components/onboarding/HabitCustomizeSheet';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
@@ -31,7 +32,7 @@ export function Step5Page() {
     [state],
   );
 
-  useOnboardingAgent('onboard_05');
+  const { startVoice } = useOnboardingAgent('onboard_05');
 
   useAgentNavigation(5, '/onboarding/step-6');
 
@@ -121,11 +122,6 @@ export function Step5Page() {
     setCustomizingHabit(queue[0]);
   }, [selectedHabits]);
 
-  const allHabits = useMemo(
-    () => goals.flatMap((goal) => [...(habitsByGoal[goal] ?? []), ...(customHabits[goal] ?? [])]),
-    [goals, customHabits],
-  );
-
   function handleSheetClose() {
     setCustomizingHabit(null);
     setHabitQueue([]);
@@ -157,20 +153,34 @@ export function Step5Page() {
     ? habitQueue.indexOf(customizingHabit) === habitQueue.length - 1
     : true;
 
+  const submittingRef = useRef(false);
   const handleOnNext = useCallback(async () => {
+    if (submittingRef.current) return;
     if (phase === 'confirming') {
-      const serializedConfigs = Object.fromEntries(
-        Object.entries(habitConfigs).map(([k, v]) => [k, { ...v, days: [...v.days] }]),
-      );
-      await saveStepAsync(5, { habitConfigs: serializedConfigs });
-      navigate('/onboarding/step-6', {
-        state: {
-          habitConfigs: serializedConfigs,
-          goals,
-          category: state?.category,
-          reflectionConfig: state?.reflectionConfig,
-        },
-      });
+      submittingRef.current = true;
+      try {
+        const serializedConfigs = Object.fromEntries(
+          Object.entries(habitConfigs).map(([k, v]) => [k, { ...v, days: [...v.days] }]),
+        );
+        await saveStepAsync(5, { habitConfigs: serializedConfigs });
+        track('configure_habit_onboarding');
+        track('complete_onboarding_step', {
+          step_number: 5,
+          step_name: 'configure_habit',
+          input_method: 'manual',
+        });
+        navigate('/onboarding/step-6', {
+          state: {
+            habitConfigs: serializedConfigs,
+            goals,
+            category: state?.category,
+            reflectionConfig: state?.reflectionConfig,
+          },
+        });
+      } catch (e) {
+        submittingRef.current = false;
+        throw e;
+      }
     } else {
       handleContinue();
     }
@@ -179,6 +189,7 @@ export function Step5Page() {
   return (
     <>
       <OnboardingLayout
+        onStartVoice={startVoice}
         currentStep={5}
         totalSteps={7}
         ctaLabel={phase === 'confirming' ? 'Confirm & Continue' : 'Continue'}

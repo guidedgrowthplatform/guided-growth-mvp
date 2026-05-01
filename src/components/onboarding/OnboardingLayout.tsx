@@ -34,6 +34,7 @@ interface OnboardingLayoutProps {
   onVoiceAction?: (result: OnboardingVoiceResult) => void;
   showTooltip?: boolean;
   bgVariant?: 'default' | 'secondary';
+  onStartVoice?: () => Promise<void>;
 }
 
 export function OnboardingLayout({
@@ -56,6 +57,7 @@ export function OnboardingLayout({
   onVoiceAction,
   showTooltip = false,
   bgVariant = 'default',
+  onStartVoice,
 }: OnboardingLayoutProps) {
   const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
   const [overlayOpen, setOverlayOpen] = useState(false);
@@ -99,6 +101,14 @@ export function OnboardingLayout({
 
   const handleMicClick = () => {
     unlockTTS();
+    
+    // In dual-path v6.0 architecture, we prefer invoking the live Cartesia Line agent
+    if (onStartVoice) {
+      onStartVoice().catch(err => console.error('Failed to start Cartesia:', err));
+      return;
+    }
+
+    // Fallback: Legacy Chat Overlay (Web Speech STT + Text-to-Speech)
     resetTranscript();
     setOverlayOpen(true);
     setTooltipVisible(false);

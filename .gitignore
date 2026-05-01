@@ -133,3 +133,10 @@ remote.txt
 voices.txt
 test_phase_*.txt
 gradle_build_log.txt
+
+# Private notes & AI scripts
+meeting/
+tugas/
+verify_tracking.mjs
+test-tracking.mjs
+scr.png

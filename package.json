@@ -96,6 +96,7 @@
     "lint-staged": "^16.4.0",
     "multiparty": "^4.2.3",
     "node-fetch": "^3.3.2",
+    "playwright": "^1.59.1",
     "postcss": "^8.4.32",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
