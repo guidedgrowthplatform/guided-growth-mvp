@@ -24,7 +24,7 @@ export function Step1Page() {
   const [referralSource, setReferralSource] = useState<string | null>(null);
   const [referralOtherText, setReferralOtherText] = useState('');
 
-  const { startVoice, voiceState } = useOnboardingAgent('onboard_01');
+  const { startVoice, voiceState, voiceError } = useOnboardingAgent('onboard_01');
 
   useAgentNavigation(1, '/onboarding/step-2');
 
@@ -95,6 +95,7 @@ export function Step1Page() {
     <OnboardingLayout
       onStartVoice={startVoice}
       voiceState={voiceState}
+      voiceError={voiceError}
       currentStep={1}
       totalSteps={7}
       ctaLabel="Continue"

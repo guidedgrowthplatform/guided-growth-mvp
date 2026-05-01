@@ -37,6 +37,7 @@ interface OnboardingLayoutProps {
   bgVariant?: 'default' | 'secondary';
   onStartVoice?: () => Promise<void>;
   voiceState?: 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking' | 'error';
+  voiceError?: string | null;
 }
 
 export function OnboardingLayout({
@@ -61,6 +62,7 @@ export function OnboardingLayout({
   bgVariant = 'default',
   onStartVoice,
   voiceState,
+  voiceError,
 }: OnboardingLayoutProps) {
   const {
     isListening: webSpeechListening,
@@ -250,9 +252,14 @@ export function OnboardingLayout({
 
           {showVoiceButton &&
             !onVoiceAction &&
-            (voiceState || webSpeechListening || interim || transcript || webSpeechError) && (
+            (voiceState ||
+              webSpeechListening ||
+              interim ||
+              transcript ||
+              webSpeechError ||
+              voiceError) && (
               <div className="mt-2 flex flex-col items-center gap-1">
-                {voiceState && voiceState !== 'idle' && (
+                {voiceState && voiceState !== 'idle' && voiceState !== 'error' && (
                   <p className="animate-pulse text-sm font-medium capitalize text-primary">
                     {voiceState}...
                   </p>
@@ -266,8 +273,10 @@ export function OnboardingLayout({
                 {transcript && (
                   <p className="max-w-[280px] text-center text-sm text-content">{transcript}</p>
                 )}
-                {webSpeechError && (
-                  <p className="max-w-[280px] text-center text-xs text-danger">{webSpeechError}</p>
+                {(voiceError || webSpeechError) && (
+                  <p className="max-w-[280px] text-center text-xs text-danger">
+                    {voiceError || webSpeechError}
+                  </p>
                 )}
               </div>
             )}
