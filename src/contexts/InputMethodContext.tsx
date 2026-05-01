@@ -1,6 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { InputMethodContext } from '@/contexts/inputMethodContextDef';
+import {
+  InputMethodContext,
+  _setCurrentInputMethodForProvider,
+} from '@/contexts/inputMethodContextDef';
 import type { InputMethod } from '@/contexts/inputMethodContextDef';
 
 /**
@@ -32,6 +35,7 @@ export function InputMethodProvider({ children, idleResetMs = 3000 }: InputMetho
   const setInputMethod = useCallback(
     (next: InputMethod) => {
       setInputMethodState(next);
+      _setCurrentInputMethodForProvider(next);
       if (decayTimerRef.current !== null) {
         window.clearTimeout(decayTimerRef.current);
         decayTimerRef.current = null;
@@ -39,6 +43,7 @@ export function InputMethodProvider({ children, idleResetMs = 3000 }: InputMetho
       if (next === 'voice') {
         decayTimerRef.current = window.setTimeout(() => {
           setInputMethodState('manual');
+          _setCurrentInputMethodForProvider('manual');
           decayTimerRef.current = null;
         }, idleResetMs);
       }
