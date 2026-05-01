@@ -61,7 +61,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const boundary = bm[1] || bm[2];
     const sep = Buffer.from('--' + boundary);
     let fileData: Buffer | null = null;
-    let filename = 'audio.wav';
 
     let cursor = 0;
     while (true) {
@@ -74,9 +73,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (hdrEnd !== -1) {
           const hdr = part.subarray(0, hdrEnd).toString('utf-8');
           if (hdr.includes('filename=')) {
-            const fnMatch = hdr.match(/filename="([^"]+)"/);
-            if (fnMatch) filename = fnMatch[1];
-
             // Find end of data before the next \r\n boundary padding
             let dataEnd = part.length;
             if (part[dataEnd - 2] === 0x0d && part[dataEnd - 1] === 0x0a) {

@@ -11,8 +11,9 @@ import {
   type OnboardingVoiceResult,
 } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
-import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 import { speak, stopTTS, unlockTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
+import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 export interface VoiceMessage {
   id: string;
@@ -57,6 +58,7 @@ export function OnboardingChatOverlay({
   const { isListening, transcript, interim, toggle, error, resetTranscript } = useVoiceInput();
   const { processTranscript } = useOnboardingVoice();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
+  const micEnabled = useVoiceSettingsStore((s) => s.micEnabled);
   const [wantToListen, setWantToListen] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const lastErrorRef = useRef('');
@@ -91,9 +93,15 @@ export function OnboardingChatOverlay({
   }, []);
 
   useEffect(() => {
-    if (wantToListen && !isListening && !isProcessing && !isSpeaking) {
+    if (wantToListen && micEnabled && !isListening && !isProcessing && !isSpeaking) {
       const timer = setTimeout(() => {
-        if (wantToListen && !isListening && !isProcessing && !isSpeaking) {
+        if (
+          wantToListen &&
+          useVoiceSettingsStore.getState().micEnabled &&
+          !isListening &&
+          !isProcessing &&
+          !isSpeaking
+        ) {
           unlockTTS();
           toggle();
         }
@@ -103,7 +111,7 @@ export function OnboardingChatOverlay({
     if (!wantToListen && isListening) {
       toggle();
     }
-  }, [wantToListen, isListening, isProcessing, isSpeaking, toggle]);
+  }, [wantToListen, micEnabled, isListening, isProcessing, isSpeaking, toggle]);
 
   useEffect(() => {
     if (

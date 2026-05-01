@@ -1,29 +1,14 @@
-import { type ReactNode, useState, useCallback, useEffect } from 'react';
+import { type ReactNode, useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { OpenChatButton, VoiceCheckInOverlay } from '@/components/home';
 import { ToastContainer } from '@/components/ui/Toast';
 import { unlockTTS } from '@/lib/services/tts-service';
-import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { BottomNav } from './BottomNav';
 
 export function Layout({ children }: { children: ReactNode }) {
   const [showVoiceCheckIn, setShowVoiceCheckIn] = useState(false);
   const location = useLocation();
   const isFullWidth = location.pathname === '/report' || location.pathname === '/focus';
-
-  // GLOB-03: any user interaction reactivates a system-grayed mic.
-  // No-op for active or user-off states.
-  useEffect(() => {
-    const onInteraction = () => {
-      useVoiceSettingsStore.getState().reactivateIfSystemPaused();
-    };
-    document.addEventListener('pointerdown', onInteraction, { passive: true });
-    document.addEventListener('keydown', onInteraction);
-    return () => {
-      document.removeEventListener('pointerdown', onInteraction);
-      document.removeEventListener('keydown', onInteraction);
-    };
-  }, []);
 
   const handleVoicePress = useCallback(() => {
     unlockTTS();

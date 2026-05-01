@@ -7,6 +7,9 @@ import { useVoiceStore } from '@/stores/voiceStore';
 const SILENCE_GRAY_MS = 8000;
 const SILENCE_POLL_MS = 500;
 
+// Single owner for silence interval — multiple useVoiceInput instances co-mount.
+let silenceTimerLocked = false;
+
 /**
  * Build a platform-specific error message for a denied / failed mic
  * permission. Used on the start() catch path so we don't have to do an
@@ -175,6 +178,8 @@ export function useVoiceInput() {
       sessionStartRef.current = null;
       return;
     }
+    if (silenceTimerLocked) return;
+    silenceTimerLocked = true;
     if (sessionStartRef.current === null) sessionStartRef.current = Date.now();
     const interval = setInterval(() => {
       const { lastSpeechTimestamp } = useAudioMetricsStore.getState();
@@ -188,7 +193,10 @@ export function useVoiceInput() {
         useVoiceStore.getState().stopListening();
       }
     }, SILENCE_POLL_MS);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      silenceTimerLocked = false;
+    };
   }, [isListening, stop]);
 
   // Cleanup on unmount ONLY — empty deps so the cleanup fires exactly
