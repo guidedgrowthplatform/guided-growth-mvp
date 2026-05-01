@@ -67,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // POST /api/reflections/journal — create entry
     if (req.method === 'POST' && !journalSub) {
-      const { type, template_id, title, date, fields } = req.body ?? {};
+      const { type, template_id, title, date, fields, habit_id } = req.body ?? {};
 
       // Validate type
       if (type !== 'freeform' && type !== 'template') {
@@ -79,6 +79,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Validate template_id
       if (type === 'template' && (!template_id || typeof template_id !== 'string')) {
         return res.status(400).json({ error: 'template_id required for template type' });
+      }
+      // Validate optional habit_id
+      let validHabitId: string | null = null;
+      if (habit_id != null && habit_id !== '') {
+        const v = validateUUID(habit_id);
+        if (!v) return res.status(400).json({ error: 'Invalid habit_id' });
+        validHabitId = v;
       }
       // Validate fields
       if (!fields || typeof fields !== 'object' || Array.isArray(fields)) {
@@ -95,15 +102,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       try {
         await client.query('BEGIN');
         const ins = await client.query(
-          `INSERT INTO journal_entries (user_id, type, template_id, title, date)
-           VALUES ($1, $2, $3, $4, $5)
-           RETURNING id, user_id, type, template_id, title, date::text, created_at, updated_at`,
+          `INSERT INTO journal_entries (user_id, type, template_id, title, date, habit_id)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING id, user_id, type, template_id, title, date::text, habit_id, created_at, updated_at`,
           [
             user.id,
             type,
             type === 'template' ? template_id : null,
             title?.trim() || null,
             validDate,
+            validHabitId,
           ],
         );
         const entry = ins.rows[0];
@@ -126,23 +134,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // GET /api/reflections/journal?start=&end= — list entries
+    // GET /api/reflections/journal?start=&end=&habitId= — list entries
     if (req.method === 'GET' && !journalSub) {
       const start = validateDate(req.query.start);
       const end = validateDate(req.query.end);
       if (!start || !end) {
         return res.status(400).json({ error: 'Valid start and end dates required (YYYY-MM-DD)' });
       }
-      const result = await pool.query(
-        `SELECT je.id, je.user_id, je.type, je.template_id, je.title,
-                je.date::text, je.created_at, je.updated_at,
-                jf.field_key, jf.content
-         FROM journal_entries je
-         LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
-         WHERE je.user_id = $1 AND je.date >= $2 AND je.date <= $3
-         ORDER BY je.created_at DESC`,
-        [user.id, start, end],
-      );
+      const habitIdRaw = req.query.habitId;
+      let habitFilter: string | null = null;
+      if (typeof habitIdRaw === 'string' && habitIdRaw.length > 0) {
+        const v = validateUUID(habitIdRaw);
+        if (!v) return res.status(400).json({ error: 'Invalid habitId' });
+        habitFilter = v;
+      }
+      const sql = habitFilter
+        ? `SELECT je.id, je.user_id, je.type, je.template_id, je.title,
+                  je.date::text, je.habit_id, je.created_at, je.updated_at,
+                  jf.field_key, jf.content
+           FROM journal_entries je
+           LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
+           WHERE je.user_id = $1 AND je.date >= $2 AND je.date <= $3 AND je.habit_id = $4
+           ORDER BY je.created_at DESC`
+        : `SELECT je.id, je.user_id, je.type, je.template_id, je.title,
+                  je.date::text, je.habit_id, je.created_at, je.updated_at,
+                  jf.field_key, jf.content
+           FROM journal_entries je
+           LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
+           WHERE je.user_id = $1 AND je.date >= $2 AND je.date <= $3
+           ORDER BY je.created_at DESC`;
+      const params = habitFilter ? [user.id, start, end, habitFilter] : [user.id, start, end];
+      const result = await pool.query(sql, params);
       const entriesMap = new Map<string, Record<string, unknown>>();
       for (const row of result.rows) {
         if (!entriesMap.has(row.id)) {
@@ -153,6 +175,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             template_id: row.template_id,
             title: row.title,
             date: row.date,
+            habit_id: row.habit_id,
             created_at: row.created_at,
             updated_at: row.updated_at,
             fields: {} as Record<string, string>,
@@ -173,7 +196,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (req.method === 'GET') {
         const result = await pool.query(
           `SELECT je.id, je.user_id, je.type, je.template_id, je.title,
-                  je.date::text, je.created_at, je.updated_at,
+                  je.date::text, je.habit_id, je.created_at, je.updated_at,
                   jf.field_key, jf.content
            FROM journal_entries je
            LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
@@ -193,6 +216,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           template_id: row0.template_id,
           title: row0.title,
           date: row0.date,
+          habit_id: row0.habit_id,
           created_at: row0.created_at,
           updated_at: row0.updated_at,
           fields,
@@ -240,7 +264,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // Re-fetch
           const updated = await pool.query(
             `SELECT je.id, je.user_id, je.type, je.template_id, je.title,
-                    je.date::text, je.created_at, je.updated_at,
+                    je.date::text, je.habit_id, je.created_at, je.updated_at,
                     jf.field_key, jf.content
              FROM journal_entries je
              LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
@@ -259,6 +283,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             template_id: r0.template_id,
             title: r0.title,
             date: r0.date,
+            habit_id: r0.habit_id,
             created_at: r0.created_at,
             updated_at: r0.updated_at,
             fields: updatedFields,

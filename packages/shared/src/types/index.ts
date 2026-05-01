@@ -100,6 +100,7 @@ export interface JournalEntry {
   template_id: string | null;
   title: string | null;
   date: string;
+  habit_id?: string | null;
   fields: Record<string, string>;
   created_at: string;
   updated_at: string;
@@ -110,6 +111,7 @@ export interface JournalEntryCreate {
   template_id?: string;
   title?: string;
   date: string;
+  habit_id?: string | null;
   fields: Record<string, string>;
 }
 
