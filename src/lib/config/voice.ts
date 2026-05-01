@@ -150,6 +150,6 @@ export const AUDIO_DEBUG_SUPABASE_STORAGE_BASE = VOICE_ASSETS_BASE_URL;
  * makes the caller's Audio element silently no-op instead of throwing.
  */
 export function voiceAssetUrl(filename: string): string {
-  if (!VOICE_ASSETS_BASE_URL) return '';
+  if (!VOICE_ASSETS_BASE_URL || VOICE_ASSETS_BASE_URL.includes('placeholder')) return '';
   return `${VOICE_ASSETS_BASE_URL}/${filename}`;
 }
