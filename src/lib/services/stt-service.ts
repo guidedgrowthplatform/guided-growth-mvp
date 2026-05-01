@@ -1,6 +1,8 @@
 // STT recording service — captures mic audio, encodes WAV, sends to Cartesia Ink / OpenAI Whisper
 import { Capacitor } from '@capacitor/core';
 import { supabase, sessionReady } from '@/lib/supabase';
+import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 function getApiBase(): string {
   if (Capacitor.isNativePlatform()) {
@@ -248,6 +250,7 @@ function cleanupAudioResources(): void {
     mediaStream = null;
   }
   audioChunks = [];
+  useAudioMetricsStore.getState().reset();
 }
 
 const WORKLET_CODE = `
@@ -275,10 +278,13 @@ function setupScriptProcessorFallback(
     if (captureNode === null) return;
     if (audioChunks.length >= maxChunks) {
       callbacks.onError('Recording exceeded 60 seconds. Stopped automatically.');
+      useVoiceSettingsStore.getState().systemPauseMic();
       stopRecording();
       return;
     }
-    audioChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+    const chunk = new Float32Array(e.inputBuffer.getChannelData(0));
+    useAudioMetricsStore.getState().pushChunkRms(computeRms(chunk));
+    audioChunks.push(chunk);
   };
   source.connect(node);
   const silentGain = ctx.createGain();
@@ -348,9 +354,11 @@ export async function startRecording(callbacks: SttCallbacks): Promise<void> {
           totalSamples += chunk.length;
           if (totalSamples >= maxRecordingSamples) {
             callbacks.onError('Recording exceeded 60 seconds. Stopped automatically.');
+            useVoiceSettingsStore.getState().systemPauseMic();
             stopRecording();
             return;
           }
+          useAudioMetricsStore.getState().pushChunkRms(computeRms(chunk));
           audioChunks.push(chunk);
         };
         sourceNode.connect(workletNode);

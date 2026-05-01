@@ -11,6 +11,7 @@ import {
   type OnboardingVoiceResult,
 } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 import { speak, stopTTS, unlockTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 
 export interface VoiceMessage {
@@ -177,6 +178,8 @@ export function OnboardingChatOverlay({
 
   const gradient = voiceState === 'listening' ? LISTENING_GRADIENT : IDLE_GRADIENT;
   const activeRings = voiceState === 'listening' ? 'right' : isSpeaking ? 'left' : null;
+  const currentRms = useAudioMetricsStore((s) => s.currentRms);
+  const micIntensity = isListening ? Math.min(currentRms / 0.05, 1) : undefined;
 
   return (
     <div className="fixed inset-0 z-50 flex animate-slide-up flex-col">
@@ -238,6 +241,7 @@ export function OnboardingChatOverlay({
             leftActive={ttsEnabled}
             rightActive={wantToListen}
             activeRings={activeRings}
+            intensity={micIntensity}
             ringCount={3}
             ringStep={4}
             leftIcon={ttsEnabled ? <IconChatVoice size={28} /> : <IconChatText size={28} />}

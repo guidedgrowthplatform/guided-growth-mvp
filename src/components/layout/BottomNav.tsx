@@ -4,6 +4,7 @@ import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
+import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 
@@ -62,6 +63,7 @@ export function BottomNav() {
   const setMicEnabled = useVoiceSettingsStore((s) => s.setMicEnabled);
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
   const isListening = useVoiceStore((s) => s.isListening);
+  const currentRms = useAudioMetricsStore((s) => s.currentRms);
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/' || location.pathname === '/home';
@@ -69,6 +71,7 @@ export function BottomNav() {
   };
 
   const activeRings = isSpeaking ? 'left' : isListening ? 'right' : null;
+  const intensity = isListening ? Math.min(currentRms / 0.05, 1) : undefined;
 
   const handleLeftToggle = () => {
     const next = !ttsEnabled;
@@ -105,6 +108,7 @@ export function BottomNav() {
               leftAriaLabel={ttsEnabled ? 'Mute AI voice' : 'Unmute AI voice'}
               rightAriaLabel={micEnabled ? 'Disable microphone' : 'Enable microphone'}
               activeRings={activeRings}
+              intensity={intensity}
             />
           </div>
 

@@ -66,7 +66,10 @@ export default {
       keyframes: {
         ringPulse: {
           '0%, 100%': { transform: 'scale(1)', opacity: 'var(--ring-opacity, 1)' },
-          '50%': { transform: 'scale(1.05)', opacity: 'calc(var(--ring-opacity, 1) * 0.5)' },
+          '50%': {
+            transform: 'scale(calc(1 + var(--pulse-scale, 0.05)))',
+            opacity: 'calc(var(--ring-opacity, 1) * 0.5)',
+          },
         },
         rippleSlow: {
           '0%, 100%': { transform: 'scale(1)', opacity: 'var(--ripple-opacity, 0.6)' },
