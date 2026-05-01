@@ -7,6 +7,7 @@ import {
 } from '@/components/onboarding/OnboardingChatOverlay';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { DualButton } from '@/components/ui/DualButton';
+import { useFocusedFieldContext } from '@/hooks/useFocusedFieldContext';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
@@ -39,7 +40,7 @@ interface OnboardingLayoutProps {
 
 export function OnboardingLayout({
   currentStep,
-  totalSteps,
+  totalSteps: _totalSteps,
   ctaLabel,
   onNext,
   ctaDisabled,
@@ -62,6 +63,7 @@ export function OnboardingLayout({
   const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
+  const focusedField = useFocusedFieldContext();
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
   );
@@ -101,10 +103,10 @@ export function OnboardingLayout({
 
   const handleMicClick = () => {
     unlockTTS();
-    
+
     // In dual-path v6.0 architecture, we prefer invoking the live Cartesia Line agent
     if (onStartVoice) {
-      onStartVoice().catch(err => console.error('Failed to start Cartesia:', err));
+      onStartVoice().catch((err) => console.error('Failed to start Cartesia:', err));
       return;
     }
 
@@ -182,6 +184,7 @@ export function OnboardingLayout({
             step: currentStep,
             options: voiceOptions,
             prompt: voicePrompt,
+            extraData: focusedField ? { focusedField } : undefined,
           }}
           onAction={handleVoiceAction}
           onClose={() => setOverlayOpen(false)}

@@ -3,9 +3,11 @@ import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { ToastProvider, useToast } from '@/contexts/ToastContext';
 import { VoiceProvider } from '@/contexts/VoiceContext';
+import { useVoicePreferenceSync } from '@/hooks/useVoicePreferenceSync';
 import { queryClient } from '@/lib/query';
 import { AppRoutes } from '@/routes';
 import { useAuthStore } from '@/stores/authStore';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { deepLinkAuthError } from './main';
 
 // Tanstack Query devtools ship as a tiny badge in the bottom-right corner.
@@ -32,9 +34,28 @@ function DeepLinkErrorReporter() {
   return null;
 }
 
+function VoicePreferenceSync() {
+  useVoicePreferenceSync();
+  return null;
+}
+
 export default function App() {
   useEffect(() => {
     useAuthStore.getState().initialize();
+  }, []);
+
+  // GLOB-03: any pointerdown/keydown reactivates a system-grayed mic.
+  // No-op for active or user-off states.
+  useEffect(() => {
+    const onInteraction = () => {
+      useVoiceSettingsStore.getState().reactivateIfSystemPaused();
+    };
+    document.addEventListener('pointerdown', onInteraction, { passive: true });
+    document.addEventListener('keydown', onInteraction);
+    return () => {
+      document.removeEventListener('pointerdown', onInteraction);
+      document.removeEventListener('keydown', onInteraction);
+    };
   }, []);
 
   return (
@@ -43,6 +64,7 @@ export default function App() {
         <VoiceProvider>
           <ToastProvider>
             <DeepLinkErrorReporter />
+            <VoicePreferenceSync />
             <AppRoutes />
           </ToastProvider>
         </VoiceProvider>

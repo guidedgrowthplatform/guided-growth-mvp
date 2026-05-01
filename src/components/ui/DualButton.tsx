@@ -21,6 +21,8 @@ interface DualButtonProps {
   activeRings?: ActiveSide | null;
   ringCount?: number;
   ringStep?: number;
+  /** 0..1 — drives ring pulse amplitude (`--pulse-scale`). Defaults to 0.05 base. */
+  intensity?: number;
 }
 
 const DEFAULT_RING_STEP = 28;
@@ -44,6 +46,7 @@ export function DualButton({
   activeRings,
   ringCount = DEFAULT_RING_COUNT,
   ringStep,
+  intensity,
 }: DualButtonProps) {
   const dialWidth = width ?? size;
   const dialHeight = size;
@@ -107,6 +110,7 @@ export function DualButton({
             dialHeight={dialHeight}
             step={step}
             count={ringCount}
+            intensity={intensity}
           />
         )}
         {dial}
@@ -153,9 +157,10 @@ interface ActiveRingsProps {
   dialHeight: number;
   step: number;
   count: number;
+  intensity?: number;
 }
 
-function ActiveRings({ side, dialWidth, dialHeight, step, count }: ActiveRingsProps) {
+function ActiveRings({ side, dialWidth, dialHeight, step, count, intensity }: ActiveRingsProps) {
   const sides: Array<'left' | 'right'> = side === 'both' ? ['left', 'right'] : [side];
   return (
     <>
@@ -167,6 +172,7 @@ function ActiveRings({ side, dialWidth, dialHeight, step, count }: ActiveRingsPr
           dialHeight={dialHeight}
           step={step}
           count={count}
+          intensity={intensity}
         />
       ))}
     </>
@@ -179,9 +185,10 @@ interface RingStackProps {
   dialHeight: number;
   step: number;
   count: number;
+  intensity?: number;
 }
 
-function RingStack({ side, dialWidth, dialHeight, step, count }: RingStackProps) {
+function RingStack({ side, dialWidth, dialHeight, step, count, intensity }: RingStackProps) {
   const clipPath = side === 'left' ? 'inset(0 50% 0 0)' : 'inset(0 0 0 50%)';
 
   return (
@@ -208,6 +215,8 @@ function RingStack({ side, dialWidth, dialHeight, step, count }: RingStackProps)
               style={
                 {
                   '--ring-opacity': opacity,
+                  '--pulse-scale':
+                    intensity != null ? Math.min(0.05 + intensity * 0.1, 0.15) : 0.05,
                   animationDelay: `${i * 0.25}s`,
                 } as CSSProperties
               }

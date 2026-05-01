@@ -257,19 +257,42 @@ User: "Lock my mood at seven."
 User: "Marc done yoga."
 {"corrected_transcript":"mark done yoga","action":"complete","entity":"habit","params":{"name":"yoga","date":"today"},"confidence":0.8}`;
 
+interface FocusedFieldShape {
+  name: string;
+  value: string;
+  type: string;
+}
+
+function isFocusedFieldContext(value: unknown): value is FocusedFieldShape {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  return typeof v.name === 'string' && typeof v.value === 'string' && typeof v.type === 'string';
+}
+
 /** Build a system prompt for onboarding steps. Returns JSON with step-specific parsing rules. */
 function buildOnboardingPrompt(ctx: Record<string, unknown>): string {
   const step = typeof ctx.step === 'number' ? ctx.step : 0;
   const options = Array.isArray(ctx.options) ? ctx.options : [];
   const prompt = typeof ctx.prompt === 'string' ? ctx.prompt : '';
+  const focusedField = isFocusedFieldContext(ctx.focusedField) ? ctx.focusedField : null;
 
   const optionsStr = options.join(', ');
+
+  const focusedSection = focusedField
+    ? `
+
+## Focused Field
+A text input is focused: name="${focusedField.name}" current value="${focusedField.value}".
+If the user's utterance plausibly fills that field (e.g. they speak a name while a name field is focused), return:
+{"action":"fill_field","params":{"fieldName":"${focusedField.name}","value":"<extracted value>"},"confidence":0.0-1.0,"message":"<acknowledgement>"}
+Otherwise route as normal onboarding_select per the step-specific instructions below.`
+    : '';
 
   return `You are an onboarding assistant helping users configure their life-tracking settings.
 
 ## Current Step: ${step}
 ## User Prompt: "${prompt}"
-## Available Options: ${optionsStr}
+## Available Options: ${optionsStr}${focusedSection}
 
 Your job is to extract the user's choices from their spoken input and return a JSON object.
 
@@ -455,8 +478,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Different validation for onboarding vs home voice commands
     if (isOnboarding) {
-      // Onboarding only allows "onboarding_select" action
-      if (String(parsed.action) !== 'onboarding_select') {
+      const action = String(parsed.action);
+      if (action !== 'onboarding_select' && action !== 'fill_field') {
         console.error('Invalid onboarding action:', parsed.action);
         return res.status(502).json({ error: 'Invalid onboarding action' });
       }

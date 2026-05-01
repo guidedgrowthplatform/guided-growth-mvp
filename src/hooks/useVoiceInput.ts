@@ -1,7 +1,14 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { startRecording, stopAndTranscribe, stopRecording } from '@/lib/services/stt-service';
+import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { useVoiceStore } from '@/stores/voiceStore';
+
+const SILENCE_GRAY_MS = 8000;
+const SILENCE_POLL_MS = 500;
+
+// Single owner for silence interval — multiple useVoiceInput instances co-mount.
+let silenceTimerLocked = false;
 
 /**
  * Build a platform-specific error message for a denied / failed mic
@@ -161,6 +168,36 @@ export function useVoiceInput() {
       start();
     }
   }, [isListening, isPreparing, start, stop]);
+
+  // GLOB-02: 8s of silence → system-gray the mic, transcribe what was captured
+  // (if anything). Polls audioMetricsStore.lastSpeechTimestamp; falls back to
+  // session-start time if user hasn't spoken at all.
+  const sessionStartRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!isListening) {
+      sessionStartRef.current = null;
+      return;
+    }
+    if (silenceTimerLocked) return;
+    silenceTimerLocked = true;
+    if (sessionStartRef.current === null) sessionStartRef.current = Date.now();
+    const interval = setInterval(() => {
+      const { lastSpeechTimestamp } = useAudioMetricsStore.getState();
+      const reference = lastSpeechTimestamp ?? sessionStartRef.current ?? Date.now();
+      if (Date.now() - reference < SILENCE_GRAY_MS) return;
+      useVoiceSettingsStore.getState().systemPauseMic();
+      if (lastSpeechTimestamp) {
+        stop();
+      } else {
+        stopRecording();
+        useVoiceStore.getState().stopListening();
+      }
+    }, SILENCE_POLL_MS);
+    return () => {
+      clearInterval(interval);
+      silenceTimerLocked = false;
+    };
+  }, [isListening, stop]);
 
   // Cleanup on unmount ONLY — empty deps so the cleanup fires exactly
   // once when the component unmounts. Previously had `[stopListening]`
