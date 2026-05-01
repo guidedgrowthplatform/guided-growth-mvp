@@ -36,6 +36,7 @@ interface OnboardingLayoutProps {
   showTooltip?: boolean;
   bgVariant?: 'default' | 'secondary';
   onStartVoice?: () => Promise<void>;
+  voiceState?: 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking' | 'error';
 }
 
 export function OnboardingLayout({
@@ -59,8 +60,15 @@ export function OnboardingLayout({
   showTooltip = false,
   bgVariant = 'default',
   onStartVoice,
+  voiceState,
 }: OnboardingLayoutProps) {
-  const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
+  const {
+    isListening: webSpeechListening,
+    transcript,
+    interim,
+    error: webSpeechError,
+    resetTranscript,
+  } = useVoiceInput();
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const focusedField = useFocusedFieldContext();
@@ -93,11 +101,16 @@ export function OnboardingLayout({
   // Track previous transcript to detect new completions
   const prevTranscriptRef = useRef(transcript);
   useEffect(() => {
-    if (onTranscript && transcript && transcript !== prevTranscriptRef.current && !isListening) {
+    if (
+      onTranscript &&
+      transcript &&
+      transcript !== prevTranscriptRef.current &&
+      !webSpeechListening
+    ) {
       onTranscript(transcript);
     }
     prevTranscriptRef.current = transcript;
-  }, [transcript, isListening, onTranscript]);
+  }, [transcript, webSpeechListening, onTranscript]);
 
   const hasSpokePrompt = useRef(false);
 
@@ -146,18 +159,25 @@ export function OnboardingLayout({
 
   const showChatLauncher = !!showVoiceButton;
 
+  const isMicActive = voiceState
+    ? voiceState === 'connecting' ||
+      voiceState === 'listening' ||
+      voiceState === 'thinking' ||
+      voiceState === 'speaking'
+    : webSpeechListening;
+
   const voiceControl = showVoiceButton ? (
     <div className="relative my-6 flex justify-center">
       {tooltipVisible && <VoiceTooltip autoDismissMs={4000} onDismiss={handleTooltipDismiss} />}
       <DualButton
         size={88}
-        leftActive={isListening}
+        leftActive={isMicActive}
         rightActive={ttsEnabled}
-        leftIcon={isListening ? <IconChatVoice size={30} /> : <IconChatText size={30} />}
+        leftIcon={isMicActive ? <IconChatVoice size={30} /> : <IconChatText size={30} />}
         rightIcon={ttsEnabled ? <IconMic size={30} /> : <IconMicMuted size={30} />}
         onLeftClick={handleMicClick}
         onRightClick={handleToggleTts}
-        leftAriaLabel={isListening ? 'Stop listening' : 'Start listening'}
+        leftAriaLabel={isMicActive ? 'Stop listening' : 'Start listening'}
         rightAriaLabel={ttsEnabled ? 'Mute AI voice' : 'Enable AI voice'}
       />
       {showChatLauncher && !overlayOpen && (
@@ -228,20 +248,29 @@ export function OnboardingLayout({
             {ctaLabel}
           </button>
 
-          {showVoiceButton && !onVoiceAction && (isListening || interim || transcript || error) && (
-            <div className="mt-2 flex flex-col items-center gap-1">
-              {isListening && (
-                <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>
-              )}
-              {interim && !isListening && (
-                <p className="text-xs text-content-secondary">{interim}</p>
-              )}
-              {transcript && (
-                <p className="max-w-[280px] text-center text-sm text-content">{transcript}</p>
-              )}
-              {error && <p className="max-w-[280px] text-center text-xs text-danger">{error}</p>}
-            </div>
-          )}
+          {showVoiceButton &&
+            !onVoiceAction &&
+            (voiceState || webSpeechListening || interim || transcript || webSpeechError) && (
+              <div className="mt-2 flex flex-col items-center gap-1">
+                {voiceState && voiceState !== 'idle' && (
+                  <p className="animate-pulse text-sm font-medium capitalize text-primary">
+                    {voiceState}...
+                  </p>
+                )}
+                {!voiceState && webSpeechListening && (
+                  <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>
+                )}
+                {interim && !webSpeechListening && !voiceState && (
+                  <p className="text-xs text-content-secondary">{interim}</p>
+                )}
+                {transcript && (
+                  <p className="max-w-[280px] text-center text-sm text-content">{transcript}</p>
+                )}
+                {webSpeechError && (
+                  <p className="max-w-[280px] text-center text-xs text-danger">{webSpeechError}</p>
+                )}
+              </div>
+            )}
 
           {secondaryAction && (
             <button
@@ -272,16 +301,23 @@ export function OnboardingLayout({
           >
             {ctaLabel}
           </button>
-          {(transcript || interim || error) &&
+          {(transcript || interim || webSpeechError || (voiceState && voiceState !== 'idle')) &&
             showVoiceButton &&
             !onVoiceAction &&
             !overlayOpen && (
               <div className="mt-[8px] flex flex-col items-center gap-1">
+                {voiceState && voiceState !== 'idle' && (
+                  <p className="animate-pulse text-sm font-medium capitalize text-primary">
+                    {voiceState}...
+                  </p>
+                )}
                 {interim && <p className="text-xs text-content-secondary">{interim}</p>}
                 {transcript && (
                   <p className="max-w-full text-center text-sm text-content">{transcript}</p>
                 )}
-                {error && <p className="max-w-full text-center text-xs text-red-500">{error}</p>}
+                {webSpeechError && (
+                  <p className="max-w-full text-center text-xs text-red-500">{webSpeechError}</p>
+                )}
               </div>
             )}
           {footerText && (
