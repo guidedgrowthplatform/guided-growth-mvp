@@ -258,11 +258,16 @@ export function useOnboardingVoice() {
         };
 
         const step = stepContext.step;
-        // ALWAYS use our curated messages — never trust GPT's random message field
-        const successMessage = stepSuccessMessages[step] || 'Got it!';
+        const isFillField = result.action === 'fill_field';
+        const successMessage = isFillField
+          ? `Got it.`
+          : stepSuccessMessages[step] || 'Got it!';
 
         return {
-          success: result.success === true || result.action === 'onboarding_select',
+          success:
+            result.success === true ||
+            result.action === 'onboarding_select' ||
+            result.action === 'fill_field',
           action: result.action || 'error',
           params,
           message: successMessage,
