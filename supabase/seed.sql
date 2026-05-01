@@ -92,11 +92,11 @@ BEGIN
   -- Sample Daily Check-ins
   -- ─────────────────────────────────────────
 
-  INSERT INTO daily_checkins (user_id, date, mood, energy_level, stress_level, sleep_quality, sleep_hours)
+  INSERT INTO daily_checkins (user_id, date, mood, energy, stress, sleep)
   VALUES
-    (test_user_id, CURRENT_DATE - INTERVAL '2 days', 'calm', 4, 'low', 4, 7.5),
-    (test_user_id, CURRENT_DATE - INTERVAL '1 day', 'joyful', 5, 'low', 5, 8.0),
-    (test_user_id, CURRENT_DATE, 'okay', 3, 'moderate', 3, 6.5)
+    (test_user_id, CURRENT_DATE - INTERVAL '2 days', 4, 4, 4, 4),
+    (test_user_id, CURRENT_DATE - INTERVAL '1 day', 5, 5, 5, 5),
+    (test_user_id, CURRENT_DATE, 3, 3, 3, 3)
   ON CONFLICT (user_id, date) DO NOTHING;
 
   -- ─────────────────────────────────────────

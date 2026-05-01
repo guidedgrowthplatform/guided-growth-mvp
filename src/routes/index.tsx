@@ -14,6 +14,9 @@ const HabitsPage = lazy(() =>
 const HabitDetailPage = lazy(() =>
   import('@/pages/HabitDetailPage').then((m) => ({ default: m.HabitDetailPage })),
 );
+const HabitReflectionPage = lazy(() =>
+  import('@/pages/HabitReflectionPage').then((m) => ({ default: m.HabitReflectionPage })),
+);
 const CalendarPage = lazy(() =>
   import('@/pages/CalendarPage').then((m) => ({ default: m.CalendarPage })),
 );
@@ -329,6 +332,7 @@ export function AppRoutes() {
           <Route path="report/calendar" element={<CalendarPage />} />
           <Route path="habits" element={<HabitsPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="habit/:habitId/reflection" element={<HabitReflectionPage />} />
           <Route path="habit/:habitId" element={<HomePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

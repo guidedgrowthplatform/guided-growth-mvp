@@ -5,8 +5,13 @@ export function createJournalEntry(data: JournalEntryCreate): Promise<JournalEnt
   return apiPost<JournalEntry>('/api/reflections/journal', data);
 }
 
-export function fetchJournalEntries(start: string, end: string): Promise<JournalEntry[]> {
-  return apiGet<JournalEntry[]>(`/api/reflections/journal?start=${start}&end=${end}`);
+export function fetchJournalEntries(
+  start: string,
+  end: string,
+  habitId?: string,
+): Promise<JournalEntry[]> {
+  const habitParam = habitId ? `&habitId=${encodeURIComponent(habitId)}` : '';
+  return apiGet<JournalEntry[]>(`/api/reflections/journal?start=${start}&end=${end}${habitParam}`);
 }
 
 export function fetchJournalEntry(id: string): Promise<JournalEntry> {

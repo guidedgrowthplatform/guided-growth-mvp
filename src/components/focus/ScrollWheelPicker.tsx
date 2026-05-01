@@ -167,8 +167,8 @@ export function TimePicker({
         }}
       />
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-12 rounded-t-[24px] bg-gradient-to-b from-white to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-12 rounded-b-[24px] bg-gradient-to-t from-white to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-12 rounded-t-[24px] bg-gradient-to-b from-surface to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-12 rounded-b-[24px] bg-gradient-to-t from-surface to-transparent" />
 
       <div className="relative z-10 flex items-start justify-center">
         <ScrollColumn

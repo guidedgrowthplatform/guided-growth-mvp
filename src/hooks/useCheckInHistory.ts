@@ -132,7 +132,7 @@ function recordToGroup(record: CheckInRecord): CheckInDateGroup {
       {
         title: 'Daily Check-in',
         time: formatTime(record.createdAt),
-        iconBg: 'bg-[#fefce8]',
+        iconBg: 'bg-warning/15 text-warning',
         variant: 'detailed',
         metrics,
         notes: null,

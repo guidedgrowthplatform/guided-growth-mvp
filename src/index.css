@@ -187,4 +187,12 @@ body {
     pointer-events: none;
     z-index: 1;
   }
+
+  .reflection-editor p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: rgb(var(--color-content-secondary));
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
 }

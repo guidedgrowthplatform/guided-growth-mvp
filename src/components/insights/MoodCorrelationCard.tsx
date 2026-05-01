@@ -5,10 +5,10 @@ import { getDataService } from '@/lib/services/service-provider';
 const MIN_CHECKINS_FOR_CHART = 3;
 
 const metrics = [
-  { key: 'sleep' as const, label: 'Sleep', color: '#135bec', width: 2, dash: '' },
+  { key: 'sleep' as const, label: 'Sleep', color: 'rgb(var(--color-primary))', width: 2, dash: '' },
   { key: 'energy' as const, label: 'Energy', color: '#f38601', width: 2, dash: '6 4' },
   { key: 'stress' as const, label: 'Stress', color: '#8a38f5', width: 1.5, dash: '2 3' },
-  { key: 'mood' as const, label: 'Mood', color: '#94a3b8', width: 1.5, dash: '2 3' },
+  { key: 'mood' as const, label: 'Mood', color: 'rgb(var(--color-content-tertiary))', width: 1.5, dash: '2 3' },
 ] as const;
 
 type MetricKey = (typeof metrics)[number]['key'];

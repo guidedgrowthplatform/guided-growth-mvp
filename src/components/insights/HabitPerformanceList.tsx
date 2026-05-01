@@ -26,7 +26,7 @@ function MiniSparkline({ data }: { data: number[] }) {
       <path
         d={`M${points.join(' L')}`}
         fill="none"
-        stroke="#135bec"
+        stroke="rgb(var(--color-primary))"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -34,7 +34,7 @@ function MiniSparkline({ data }: { data: number[] }) {
       {data.map((v, i) => {
         const x = (i / (data.length - 1)) * w;
         const y = h - ((v - min) / range) * (h - 4) - 2;
-        return <circle key={i} cx={x} cy={y} r="2" fill="#135bec" />;
+        return <circle key={i} cx={x} cy={y} r="2" fill="rgb(var(--color-primary))" />;
       })}
     </svg>
   );

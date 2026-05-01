@@ -20,6 +20,10 @@ export function useFocusTimer(initialMinutes = 25): UseFocusTimerReturn {
   const [totalSeconds, setTotalSeconds] = useState(initialMinutes * 60);
   const [remainingSeconds, setRemainingSeconds] = useState(initialMinutes * 60);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Mirror of totalSeconds. Read by computeRemaining and start() so a
+  // setDurationSeconds → start() pair fired in the same tick uses the new
+  // value, not the stale closure capture.
+  const totalSecondsRef = useRef(initialMinutes * 60);
   // Wall-clock anchor: when the timer was last started/resumed, and how many
   // seconds were already elapsed at that moment. We compute remaining from
   // (Date.now() - startTimestamp) instead of decrementing in setInterval —
@@ -41,22 +45,19 @@ export function useFocusTimer(initialMinutes = 25): UseFocusTimerReturn {
     const now = Date.now();
     const elapsedSinceAnchor = (now - anchorRef.current.startedAt) / 1000;
     const totalElapsed = anchorRef.current.elapsedAtStart + elapsedSinceAnchor;
-    const newRemaining = Math.max(0, totalSeconds - Math.floor(totalElapsed));
+    const newRemaining = Math.max(0, totalSecondsRef.current - Math.floor(totalElapsed));
     setRemainingSeconds(newRemaining);
     if (newRemaining === 0 && !completedRef.current) {
       completedRef.current = true;
       clearTimer();
       setStatus('completed');
-      // Side effect outside the state updater — running it inside
-      // setRemainingSeconds(prev => ...) caused double-fires under React
-      // StrictMode in dev.
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('Focus Session Complete!', {
           body: 'Great job staying focused!',
         });
       }
     }
-  }, [totalSeconds, clearTimer]);
+  }, [clearTimer]);
 
   const startInterval = useCallback(() => {
     clearTimer();
@@ -117,14 +118,15 @@ export function useFocusTimer(initialMinutes = 25): UseFocusTimerReturn {
     clearTimer();
     anchorRef.current = null;
     completedRef.current = false;
-    setRemainingSeconds(totalSeconds);
+    setRemainingSeconds(totalSecondsRef.current);
     setStatus('idle');
-  }, [clearTimer, totalSeconds]);
+  }, [clearTimer]);
 
   const setDuration = useCallback(
     (minutes: number) => {
       if (status !== 'idle') return;
       const secs = minutes * 60;
+      totalSecondsRef.current = secs;
       setTotalSeconds(secs);
       setRemainingSeconds(secs);
     },
@@ -134,6 +136,7 @@ export function useFocusTimer(initialMinutes = 25): UseFocusTimerReturn {
   const setDurationSeconds = useCallback(
     (secs: number) => {
       if (status !== 'idle') return;
+      totalSecondsRef.current = secs;
       setTotalSeconds(secs);
       setRemainingSeconds(secs);
     },

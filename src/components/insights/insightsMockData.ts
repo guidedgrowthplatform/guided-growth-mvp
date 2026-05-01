@@ -99,7 +99,7 @@ export const checkInHistoryData = [
       {
         title: 'Morning Check-in',
         time: '8:30 AM',
-        iconBg: 'bg-[#fefce8]',
+        iconBg: 'bg-warning/15 text-warning',
         variant: 'detailed' as const,
         metrics: [
           { icon: 'mdi:weather-sunny', label: 'Mood: Great' },
@@ -121,7 +121,7 @@ export const checkInHistoryData = [
       {
         title: 'Morning Check-in',
         time: '9:15 AM',
-        iconBg: 'bg-[#fefce8]',
+        iconBg: 'bg-warning/15 text-warning',
         variant: 'detailed' as const,
         metrics: [
           { icon: 'mdi:weather-sunny', label: 'Mood: Good' },
@@ -134,7 +134,7 @@ export const checkInHistoryData = [
       {
         title: 'Check-in',
         time: '6:00 PM',
-        iconBg: 'bg-[#eef2ff]',
+        iconBg: 'bg-primary/10 text-primary',
         variant: 'compact' as const,
         metrics: [
           { icon: 'mdi:water', label: 'Water: 8 glasses' },
@@ -154,7 +154,7 @@ export const checkInHistoryData = [
       {
         title: 'Morning Check-in',
         time: '7:45 AM',
-        iconBg: 'bg-[#fefce8]',
+        iconBg: 'bg-warning/15 text-warning',
         variant: 'detailed' as const,
         metrics: [
           { icon: 'mdi:weather-sunny', label: 'Mood: Great' },
