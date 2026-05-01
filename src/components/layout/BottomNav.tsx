@@ -32,27 +32,25 @@ function NavTab({ icon, label, path, isActive, destination }: NavTabProps) {
 
 function NavBarBackground() {
   return (
-    <svg
-      className="absolute inset-0 h-full w-full text-surface"
-      viewBox="0 0 400 80"
-      preserveAspectRatio="none"
-      xmlns="http://www.w3.org/2000/svg"
+    <div
+      className="absolute inset-0 flex"
       style={{ filter: 'drop-shadow(0px -4px 12px rgba(0,0,0,0.06))' }}
     >
-      <path
-        d="
-          M0 16 C0 6, 6 0, 16 0
-          L140 0
-          C146 0, 148 2, 150 8
-          A 50 46 0 0 0 250 8
-          C252 2, 254 0, 260 0
-          L384 0
-          C394 0, 400 6, 400 16
-          L400 80 L0 80 Z
-        "
-        fill="currentColor"
-      />
-    </svg>
+      <div className="h-full flex-1 bg-surface" />
+      <svg
+        className="block h-full shrink-0 text-surface"
+        width="140"
+        height="72"
+        viewBox="0 0 140 72"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M0 0 L14 0 C17 0, 19 1, 20 4 C20 28, 42 50, 70 50 C98 50, 120 28, 120 4 C121 1, 123 0, 126 0 L140 0 L140 72 L0 72 Z"
+          fill="currentColor"
+        />
+      </svg>
+      <div className="h-full flex-1 bg-surface" />
+    </div>
   );
 }
 
@@ -89,7 +87,7 @@ export function BottomNav() {
   };
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 lg:hidden">
       <div>
         <div className="relative" style={{ height: '72px' }}>
           <NavBarBackground />
@@ -142,6 +140,7 @@ export function BottomNav() {
             />
           </div>
         </div>
+        <div className="bg-surface" style={{ height: 'env(safe-area-inset-bottom)' }} />
       </div>
     </nav>
   );

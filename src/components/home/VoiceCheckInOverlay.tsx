@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+import { useVoiceStore } from '@/stores/voiceStore';
 
 interface VoiceCheckInOverlayProps {
   onClose: () => void;
@@ -23,6 +24,7 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
 
   const micEnabled = useVoiceSettingsStore((s) => s.micEnabled);
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
+  const interim = useVoiceStore((s) => s.interim);
 
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
@@ -103,6 +105,11 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
           </div>
         ))}
         {voiceState === 'processing' && <TypingIndicator />}
+        {interim && (
+          <p className="mt-2 text-[12px] font-medium uppercase tracking-wide text-white/70">
+            {interim}
+          </p>
+        )}
         <div ref={scrollAnchorRef} />
       </div>
     </div>

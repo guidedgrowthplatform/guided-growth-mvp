@@ -53,6 +53,8 @@ let isTranscribing = false;
 let captureNode: ScriptProcessorNode | AudioWorkletNode | null = null;
 let sourceNode: MediaStreamAudioSourceNode | null = null;
 let nativeSampleRate = 44100;
+// Aborted by startRecording so stale fetch errors don't surface in new session.
+let currentSttAbort: AbortController | null = null;
 
 async function resampleAudio(
   samples: Float32Array,
@@ -288,6 +290,10 @@ function setupScriptProcessorFallback(
 
 export async function startRecording(callbacks: SttCallbacks): Promise<void> {
   if (isActive) return;
+  if (currentSttAbort) {
+    currentSttAbort.abort();
+    currentSttAbort = null;
+  }
   isActive = true;
   isTranscribing = false; // Reset stuck state from previous session
 
@@ -450,7 +456,8 @@ export async function stopAndTranscribe(): Promise<string> {
     form.append('diarize', 'false');
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    currentSttAbort = controller;
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     const authHeaders = await getAuthHeaders();
 
@@ -471,6 +478,9 @@ export async function stopAndTranscribe(): Promise<string> {
       throw new Error("Couldn't connect right now. Try again in a moment.");
     } finally {
       clearTimeout(timeoutId);
+      if (currentSttAbort === controller) {
+        currentSttAbort = null;
+      }
     }
 
     if (!res.ok) {

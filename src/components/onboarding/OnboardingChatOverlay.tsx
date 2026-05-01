@@ -53,7 +53,7 @@ export function OnboardingChatOverlay({
   const { user } = useAuth();
   const displayName =
     user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || undefined;
-  const { isListening, transcript, toggle, error, resetTranscript } = useVoiceInput();
+  const { isListening, transcript, interim, toggle, error, resetTranscript } = useVoiceInput();
   const { processTranscript } = useOnboardingVoice();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
   const [wantToListen, setWantToListen] = useState(true);
@@ -220,6 +220,11 @@ export function OnboardingChatOverlay({
           </div>
         ))}
         {voiceState === 'processing' && <TypingIndicator />}
+        {interim && (
+          <p className="mt-2 text-[12px] font-medium uppercase tracking-wide text-content-secondary">
+            {interim}
+          </p>
+        )}
         <div ref={scrollAnchorRef} />
       </div>
 
