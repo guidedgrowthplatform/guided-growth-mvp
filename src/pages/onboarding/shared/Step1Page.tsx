@@ -8,6 +8,7 @@ import { ChipSelect } from '@/components/ui/ChipSelect';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
@@ -44,6 +45,13 @@ export function Step1Page() {
       setReferralOtherText(onboardingState.data.referralOtherText as string);
   }, [onboardingState?.data]);
 
+  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
+    if (result.action !== 'fill_field') return;
+    const params = result.params as { fieldName?: string; value?: string };
+    if (typeof params.value !== 'string') return;
+    if (params.fieldName === 'nickname') setNickname(params.value);
+  }, []);
+
   const handleNext = useCallback(() => {
     const effectiveReferral =
       referralSource === 'Other' && referralOtherText.trim()
@@ -69,6 +77,7 @@ export function Step1Page() {
       ctaDisabled={!nickname.trim() || !age || !gender || !referralSource}
       showVoiceButton
       showTooltip
+      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Let's get to know you."
@@ -80,6 +89,7 @@ export function Step1Page() {
           placeholder="Enter your nickname"
           value={nickname}
           onChange={setNickname}
+          voiceField="nickname"
         />
       </OnboardingSection>
       <OnboardingSection label="How old are you?">

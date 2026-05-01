@@ -1,6 +1,8 @@
 // STT recording service — captures mic audio, encodes WAV, sends to Cartesia Ink / OpenAI Whisper
 import { Capacitor } from '@capacitor/core';
 import { supabase, sessionReady } from '@/lib/supabase';
+import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 function getApiBase(): string {
   if (Capacitor.isNativePlatform()) {
@@ -53,6 +55,8 @@ let isTranscribing = false;
 let captureNode: ScriptProcessorNode | AudioWorkletNode | null = null;
 let sourceNode: MediaStreamAudioSourceNode | null = null;
 let nativeSampleRate = 44100;
+// Aborted by startRecording so stale fetch errors don't surface in new session.
+let currentSttAbort: AbortController | null = null;
 
 async function resampleAudio(
   samples: Float32Array,
@@ -246,6 +250,7 @@ function cleanupAudioResources(): void {
     mediaStream = null;
   }
   audioChunks = [];
+  useAudioMetricsStore.getState().reset();
 }
 
 const WORKLET_CODE = `
@@ -273,10 +278,13 @@ function setupScriptProcessorFallback(
     if (captureNode === null) return;
     if (audioChunks.length >= maxChunks) {
       callbacks.onError('Recording exceeded 60 seconds. Stopped automatically.');
+      useVoiceSettingsStore.getState().systemPauseMic();
       stopRecording();
       return;
     }
-    audioChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+    const chunk = new Float32Array(e.inputBuffer.getChannelData(0));
+    useAudioMetricsStore.getState().pushChunkRms(computeRms(chunk));
+    audioChunks.push(chunk);
   };
   source.connect(node);
   const silentGain = ctx.createGain();
@@ -288,6 +296,10 @@ function setupScriptProcessorFallback(
 
 export async function startRecording(callbacks: SttCallbacks): Promise<void> {
   if (isActive) return;
+  if (currentSttAbort) {
+    currentSttAbort.abort();
+    currentSttAbort = null;
+  }
   isActive = true;
   isTranscribing = false; // Reset stuck state from previous session
 
@@ -342,9 +354,11 @@ export async function startRecording(callbacks: SttCallbacks): Promise<void> {
           totalSamples += chunk.length;
           if (totalSamples >= maxRecordingSamples) {
             callbacks.onError('Recording exceeded 60 seconds. Stopped automatically.');
+            useVoiceSettingsStore.getState().systemPauseMic();
             stopRecording();
             return;
           }
+          useAudioMetricsStore.getState().pushChunkRms(computeRms(chunk));
           audioChunks.push(chunk);
         };
         sourceNode.connect(workletNode);
@@ -450,7 +464,8 @@ export async function stopAndTranscribe(): Promise<string> {
     form.append('diarize', 'false');
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    currentSttAbort = controller;
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     const authHeaders = await getAuthHeaders();
 
@@ -471,6 +486,9 @@ export async function stopAndTranscribe(): Promise<string> {
       throw new Error("Couldn't connect right now. Try again in a moment.");
     } finally {
       clearTimeout(timeoutId);
+      if (currentSttAbort === controller) {
+        currentSttAbort = null;
+      }
     }
 
     if (!res.ok) {

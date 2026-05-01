@@ -7,6 +7,7 @@ import {
 } from '@/components/onboarding/OnboardingChatOverlay';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { DualButton } from '@/components/ui/DualButton';
+import { useFocusedFieldContext } from '@/hooks/useFocusedFieldContext';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
@@ -60,6 +61,7 @@ export function OnboardingLayout({
   const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
+  const focusedField = useFocusedFieldContext();
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
   );
@@ -172,6 +174,7 @@ export function OnboardingLayout({
             step: currentStep,
             options: voiceOptions,
             prompt: voicePrompt,
+            extraData: focusedField ? { focusedField } : undefined,
           }}
           onAction={handleVoiceAction}
           onClose={() => setOverlayOpen(false)}

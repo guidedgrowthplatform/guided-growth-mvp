@@ -12,6 +12,8 @@ import {
 } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { speak, stopTTS, unlockTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
+import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 export interface VoiceMessage {
   id: string;
@@ -53,9 +55,10 @@ export function OnboardingChatOverlay({
   const { user } = useAuth();
   const displayName =
     user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || undefined;
-  const { isListening, transcript, toggle, error, resetTranscript } = useVoiceInput();
+  const { isListening, transcript, interim, toggle, error, resetTranscript } = useVoiceInput();
   const { processTranscript } = useOnboardingVoice();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
+  const micEnabled = useVoiceSettingsStore((s) => s.micEnabled);
   const [wantToListen, setWantToListen] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const lastErrorRef = useRef('');
@@ -90,9 +93,15 @@ export function OnboardingChatOverlay({
   }, []);
 
   useEffect(() => {
-    if (wantToListen && !isListening && !isProcessing && !isSpeaking) {
+    if (wantToListen && micEnabled && !isListening && !isProcessing && !isSpeaking) {
       const timer = setTimeout(() => {
-        if (wantToListen && !isListening && !isProcessing && !isSpeaking) {
+        if (
+          wantToListen &&
+          useVoiceSettingsStore.getState().micEnabled &&
+          !isListening &&
+          !isProcessing &&
+          !isSpeaking
+        ) {
           unlockTTS();
           toggle();
         }
@@ -102,7 +111,7 @@ export function OnboardingChatOverlay({
     if (!wantToListen && isListening) {
       toggle();
     }
-  }, [wantToListen, isListening, isProcessing, isSpeaking, toggle]);
+  }, [wantToListen, micEnabled, isListening, isProcessing, isSpeaking, toggle]);
 
   useEffect(() => {
     if (
@@ -177,6 +186,8 @@ export function OnboardingChatOverlay({
 
   const gradient = voiceState === 'listening' ? LISTENING_GRADIENT : IDLE_GRADIENT;
   const activeRings = voiceState === 'listening' ? 'right' : isSpeaking ? 'left' : null;
+  const currentRms = useAudioMetricsStore((s) => s.currentRms);
+  const micIntensity = isListening ? Math.min(currentRms / 0.05, 1) : undefined;
 
   return (
     <div className="fixed inset-0 z-50 flex animate-slide-up flex-col">
@@ -220,6 +231,11 @@ export function OnboardingChatOverlay({
           </div>
         ))}
         {voiceState === 'processing' && <TypingIndicator />}
+        {interim && (
+          <p className="mt-2 text-[12px] font-medium uppercase tracking-wide text-content-secondary">
+            {interim}
+          </p>
+        )}
         <div ref={scrollAnchorRef} />
       </div>
 
@@ -233,6 +249,7 @@ export function OnboardingChatOverlay({
             leftActive={ttsEnabled}
             rightActive={wantToListen}
             activeRings={activeRings}
+            intensity={micIntensity}
             ringCount={3}
             ringStep={4}
             leftIcon={ttsEnabled ? <IconChatVoice size={28} /> : <IconChatText size={28} />}
