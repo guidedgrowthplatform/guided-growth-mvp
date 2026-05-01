@@ -97,11 +97,7 @@ function cartesiaTtsPlugin(apiKey: string): Plugin {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  // Ignore VITE_API_URL when playing around locally with vercel dev running
-  const apiTarget =
-    env.VERCEL_ENV === 'production'
-      ? env.VITE_API_URL || 'http://localhost:3000'
-      : 'http://localhost:3000';
+  const apiTarget = env.VITE_API_URL || 'http://localhost:3000';
   console.log('[vite] API proxy target:', apiTarget);
 
   return {

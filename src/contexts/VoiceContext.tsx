@@ -41,22 +41,26 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const mode = modeFromState(voiceState);
 
   const enterMp3 = useCallback((): boolean => {
-    if (voiceState === 'mp3') return true;
-    if (mode === 'realtime') {
-      runCleanup();
-    }
-    setVoiceState('mp3');
+    setVoiceState((prev) => {
+      if (prev === 'mp3') return prev;
+      if (modeFromState(prev) === 'realtime') {
+        runCleanup();
+      }
+      return 'mp3';
+    });
     return true;
-  }, [voiceState, mode, runCleanup]);
+  }, [runCleanup]);
 
   const enterRealtime = useCallback((): boolean => {
-    if (mode === 'realtime') return true;
-    if (mode === 'mp3') {
-      runCleanup();
-    }
-    setVoiceState('listening'); // Realtime always starts listening
+    setVoiceState((prev) => {
+      if (modeFromState(prev) === 'realtime') return prev;
+      if (prev === 'mp3') {
+        runCleanup();
+      }
+      return 'listening';
+    });
     return true;
-  }, [mode, runCleanup]);
+  }, [runCleanup]);
 
   const release = useCallback(() => {
     runCleanup();
