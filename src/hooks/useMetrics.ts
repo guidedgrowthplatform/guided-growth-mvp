@@ -36,14 +36,6 @@ export function useMetrics() {
     },
   });
 
-  const removeMutation = useMutation({
-    mutationFn: (id: string) => metricsApi.deleteMetric(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
-      addToast('info', 'Habit removed');
-    },
-  });
-
   const reorderMutation = useMutation({
     mutationFn: (metricIds: string[]) => metricsApi.reorderMetrics(metricIds),
     onSuccess: () => {
@@ -65,13 +57,6 @@ export function useMetrics() {
     [updateMutation],
   );
 
-  const remove = useCallback(
-    async (id: string) => {
-      return removeMutation.mutateAsync(id);
-    },
-    [removeMutation],
-  );
-
   const reorder = useCallback(
     async (metricIds: string[]) => {
       return reorderMutation.mutateAsync(metricIds);
@@ -85,5 +70,5 @@ export function useMetrics() {
 
   const activeMetrics = metrics.filter((m) => m.active);
 
-  return { metrics, activeMetrics, loading, error, load, create, update, remove, reorder };
+  return { metrics, activeMetrics, loading, error, load, create, update, reorder };
 }

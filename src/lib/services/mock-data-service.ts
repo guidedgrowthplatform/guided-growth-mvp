@@ -157,7 +157,7 @@ export class MockDataService implements DataService {
     const habits = getStore<Habit>(STORAGE_KEYS.habits);
     const idx = habits.findIndex((h) => h.id === id);
     if (idx === -1) throw new Error(`Habit not found: ${id}`);
-    habits[idx].active = false; // soft delete
+    habits.splice(idx, 1);
     setStore(STORAGE_KEYS.habits, habits);
   }
 

@@ -1,3 +1,3 @@
+export { AddNewHabitButton } from './AddNewHabitButton';
+export { DailyProgressCard } from './DailyProgressCard';
 export { HabitCard } from './HabitCard';
-export { HabitManageCard } from './HabitManageCard';
-export { VoiceAiBanner } from './VoiceAiBanner';
