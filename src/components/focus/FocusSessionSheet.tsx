@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Toggle } from '@/components/ui/Toggle';
+import { useToast } from '@/contexts/ToastContext';
 import type { Habit } from '@/lib/services/data-service.interface';
 import { TimePicker } from './ScrollWheelPicker';
 
@@ -30,10 +31,18 @@ export function FocusSessionSheet({
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(25);
   const [seconds, setSeconds] = useState(0);
+  const { addToast } = useToast();
 
   function handleStart() {
+    if (!selectedHabitId) {
+      addToast('error', 'Pick a habit to start your focus session');
+      return;
+    }
     const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-    if (totalSeconds === 0) return;
+    if (totalSeconds === 0) {
+      addToast('error', 'Set a duration before starting');
+      return;
+    }
     onSetDurationSeconds(totalSeconds);
     onStart();
   }
@@ -55,7 +64,7 @@ export function FocusSessionSheet({
               key={h.id}
               onClick={() => onSelectHabit(h.id)}
               className={`w-full rounded-[16px] p-3 text-left text-[15px] font-medium text-content transition-colors ${
-                selectedHabitId === h.id ? 'bg-primary-bg ring-2 ring-primary' : 'bg-[#f9fafb]'
+                selectedHabitId === h.id ? 'bg-primary-bg ring-2 ring-primary' : 'bg-surface'
               }`}
             >
               {h.name}

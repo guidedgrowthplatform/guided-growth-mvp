@@ -133,10 +133,10 @@ export function CheckInEntryCard({
           {metrics.map((m) => (
             <div
               key={m.label}
-              className="flex items-center gap-1 rounded-md border border-[#929292] bg-border-light px-[7px] py-[3px]"
+              className="flex items-center gap-1 rounded-md border border-content-tertiary bg-border-light px-[7px] py-[3px]"
             >
               <Icon icon={m.icon} width={16} height={16} />
-              <span className="text-[10px] font-bold leading-3 text-[#929292]">{m.label}</span>
+              <span className="text-[10px] font-bold leading-3 text-content-tertiary">{m.label}</span>
             </div>
           ))}
         </div>

@@ -31,7 +31,7 @@ export function HabitCompletionCard({ timeRange, completionByRange }: HabitCompl
           </div>
           <span
             className={`rounded-full px-2 py-1 text-[12px] font-bold leading-4 transition-all duration-300 ${
-              stats.trendPositive ? 'bg-[#f0fdf4] text-success' : 'bg-[#fef2f2] text-danger'
+              stats.trendPositive ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
             }`}
           >
             {stats.trend} {stats.trendPositive ? '↑' : '↓'}

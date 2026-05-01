@@ -42,7 +42,8 @@ export function FocusPage() {
   useEffect(() => {
     if (prevStatus.current !== 'completed' && timer.status === 'completed') {
       const startedAt = sessionStartRef.current || new Date().toISOString();
-      const durationMinutes = Math.round(timer.totalSeconds / 60);
+      // INT column — floor sub-minute sessions to 1 so they persist
+      const durationMinutes = Math.max(1, Math.round(timer.totalSeconds / 60));
       const habitLabel = selectedHabit?.name ?? null;
 
       saveFocusSession(selectedHabitId, durationMinutes, durationMinutes, startedAt).then(
@@ -81,6 +82,11 @@ export function FocusPage() {
   }, [timer.status, timer.totalSeconds, selectedHabit?.name]);
 
   const handleStart = useCallback(() => {
+    if (!selectedHabitId) {
+      addToast('error', 'Pick a habit to start your focus session');
+      setShowSheet(true);
+      return;
+    }
     const durationMinutes = Math.round(timer.totalSeconds / 60);
     track('start_focus_session', {
       duration_set_minutes: durationMinutes,
@@ -89,7 +95,7 @@ export function FocusPage() {
     });
     sessionStartRef.current = new Date().toISOString();
     timer.start();
-  }, [timer, selectedHabit?.name, notify]);
+  }, [timer, selectedHabitId, selectedHabit?.name, notify, addToast]);
 
   const handlePause = useCallback(() => {
     const elapsedSeconds = timer.totalSeconds - timer.remainingSeconds;
@@ -101,17 +107,18 @@ export function FocusPage() {
   }, [timer, selectedHabit?.name]);
 
   const handleStop = useCallback(() => {
-    // Save partial session on manual stop (skip 0-minute sessions)
     if (sessionStartRef.current && timer.status === 'running') {
-      const durationMinutes = Math.round(timer.totalSeconds / 60);
+      const durationMinutes = Math.max(1, Math.round(timer.totalSeconds / 60));
       const elapsedSeconds = timer.totalSeconds - timer.remainingSeconds;
-      const actualMinutes = Math.round(elapsedSeconds / 60);
       const habitLabel = selectedHabit?.name ?? null;
       const startedAt = sessionStartRef.current;
+      // Skip save if the user stops in the first second — likely a misclick
+      const skipSave = elapsedSeconds < 1;
+      const actualMinutes = skipSave ? 0 : Math.max(1, Math.round(elapsedSeconds / 60));
       const completionPct =
         durationMinutes > 0 ? Math.round((actualMinutes / durationMinutes) * 100) : 0;
 
-      if (actualMinutes >= 1) {
+      if (!skipSave) {
         saveFocusSession(selectedHabitId, durationMinutes, actualMinutes, startedAt).then(
           (session) => {
             if (session) {
@@ -125,7 +132,6 @@ export function FocusPage() {
           },
         );
       } else {
-        // No save occurs for <1-minute stops — still track the intent.
         track('abandon_focus_session', {
           elapsed_minutes: actualMinutes,
           total_duration_minutes: durationMinutes,
@@ -140,9 +146,9 @@ export function FocusPage() {
   }, [timer, selectedHabitId, selectedHabit?.name, saveFocusSession]);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-secondary pb-[calc(5rem+env(safe-area-inset-bottom))]">
+    <div className="flex min-h-dvh flex-col bg-primary-bg pb-[calc(5rem+env(safe-area-inset-bottom))]">
       <div className="px-6 pt-[max(2rem,env(safe-area-inset-top))]">
-        <h1 className="text-2xl font-bold text-content">Focus Session</h1>
+        <h1 className="text-[28px] font-semibold leading-tight text-content">Focus Session</h1>
         <div className="mt-4 flex justify-center">
           <button
             onClick={() => setShowSheet(true)}
