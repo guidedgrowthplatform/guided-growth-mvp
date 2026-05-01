@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireAdmin, handlePreflight } from '../_lib/auth.js';
+import { validateUUID } from '../_lib/validation.js';
 
 async function logAuditAction(
   adminUserId: string,
@@ -22,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
-  const route = segments[0] || '';
+  const route = segments[0] === '__index' ? '' : segments[0] || '';
 
   // /api/admin/users and /api/admin/users/:id/...
   if (route === 'users') {
@@ -117,6 +118,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'DELETE') {
       const id = segments[1];
       if (!id) return res.status(400).json({ error: 'ID required' });
+      if (!validateUUID(id)) return res.status(400).json({ error: 'Invalid ID format' });
       const result = await pool.query('DELETE FROM allowlist WHERE id = $1 RETURNING *', [id]);
       if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
       await logAuditAction(user.id, 'remove_allowlist', 'allowlist', result.rows[0].email, null);
