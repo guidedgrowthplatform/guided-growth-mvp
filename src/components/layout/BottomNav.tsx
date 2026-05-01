@@ -90,7 +90,7 @@ export function BottomNav() {
   };
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 lg:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-[60] lg:hidden">
       <div>
         <div className="relative" style={{ height: '72px' }}>
           <NavBarBackground />

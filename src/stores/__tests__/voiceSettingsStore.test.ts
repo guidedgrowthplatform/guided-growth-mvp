@@ -81,21 +81,82 @@ describe('voiceSettingsStore mic transitions', () => {
     expect(s.micPausedReason).toBeNull();
   });
 
-  it('persists micPausedReason across loadSettings', () => {
+  it('does not persist micPausedReason across loadSettings (session-only)', () => {
     useVoiceSettingsStore.getState().systemPauseMic();
     useVoiceSettingsStore.getState().loadSettings();
     const s = useVoiceSettingsStore.getState();
-    expect(s.micEnabled).toBe(false);
-    expect(s.micPausedReason).toBe('system');
+    expect(s.micPausedReason).toBeNull();
   });
 
-  it('parseStoredSettings tolerates missing micPausedReason (back-compat)', () => {
+  it('parseStoredSettings tolerates legacy micPausedReason key in storage', () => {
     localStorage.setItem(
       'mvp03_voice_settings',
-      JSON.stringify({ recordingMode: 'auto-stop', micEnabled: true, ttsEnabled: true }),
+      JSON.stringify({
+        recordingMode: 'auto-stop',
+        micEnabled: true,
+        ttsEnabled: true,
+        micPausedReason: 'system',
+      }),
     );
     useVoiceSettingsStore.getState().loadSettings();
     const s = useVoiceSettingsStore.getState();
     expect(s.micPausedReason).toBeNull();
+  });
+});
+
+describe('voiceSettingsStore hydrate (DB sync)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useVoiceSettingsStore.setState({
+      ttsEnabled: true,
+      micEnabled: true,
+      recordingMode: 'auto-stop',
+      hydrated: false,
+    });
+  });
+
+  it('hydrate sets the hydrated flag', () => {
+    useVoiceSettingsStore.getState().hydrate({ ttsEnabled: false });
+    expect(useVoiceSettingsStore.getState().hydrated).toBe(true);
+  });
+
+  it('hydrate overwrites store fields with DB values', () => {
+    useVoiceSettingsStore
+      .getState()
+      .hydrate({ ttsEnabled: false, micEnabled: false, recordingMode: 'always-on' });
+    const s = useVoiceSettingsStore.getState();
+    expect(s.ttsEnabled).toBe(false);
+    expect(s.micEnabled).toBe(false);
+    expect(s.recordingMode).toBe('always-on');
+  });
+
+  it('hydrate ignores undefined fields', () => {
+    useVoiceSettingsStore.getState().hydrate({ ttsEnabled: false });
+    const s = useVoiceSettingsStore.getState();
+    expect(s.ttsEnabled).toBe(false);
+    expect(s.micEnabled).toBe(true); // untouched
+  });
+});
+
+describe('setRecordingMode transient flag', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useVoiceSettingsStore.setState({ recordingMode: 'auto-stop', recordingModeTransient: false });
+  });
+
+  it('non-transient setRecordingMode keeps flag false', () => {
+    useVoiceSettingsStore.getState().setRecordingMode('always-on');
+    expect(useVoiceSettingsStore.getState().recordingModeTransient).toBe(false);
+  });
+
+  it('transient setRecordingMode sets flag true', () => {
+    useVoiceSettingsStore.getState().setRecordingMode('always-on', { transient: true });
+    expect(useVoiceSettingsStore.getState().recordingModeTransient).toBe(true);
+  });
+
+  it('subsequent non-transient call clears flag', () => {
+    useVoiceSettingsStore.getState().setRecordingMode('always-on', { transient: true });
+    useVoiceSettingsStore.getState().setRecordingMode('auto-stop');
+    expect(useVoiceSettingsStore.getState().recordingModeTransient).toBe(false);
   });
 });

@@ -9,10 +9,10 @@ import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 
 export function MicPermissionPage() {
   const navigate = useNavigate();
-  const { preferences, updatePreference } = useUserPreferences();
+  const { preferences, updatePreferences } = useUserPreferences();
   const { play, stop } = useVoicePlayer();
   const [requesting, setRequesting] = useState(false);
-  const voiceEnabled = preferences.voiceEnabled === true;
+  const voiceEnabled = preferences.voiceMode === 'voice';
 
   // MIC-01 state machine per Voice System sheet:
   //   screen_load → mic_permission.mp3 (~8s explanation)
@@ -23,7 +23,7 @@ export function MicPermissionPage() {
       // Autoplay may be blocked; the screen's button copy carries the same info.
     });
     track('view_mic_permission', {
-      ai_output_mode: voiceEnabled ? 'voice' : 'text',
+      ai_output_mode: voiceEnabled ? 'voice' : 'screen',
     });
     return () => stop();
     // Intentionally runs once on mount — voiceEnabled doesn't flip here.
@@ -46,7 +46,7 @@ export function MicPermissionPage() {
       granted = false;
     }
     track('grant_mic_permission', { granted, dismissed: false });
-    await updatePreference('micGranted', granted);
+    await updatePreferences({ micPermission: granted, micEnabled: granted });
     // Play the post-permission MP3 to completion before advancing so the
     // user hears "Got it" (~4s) or "No problem" (~5s) before the next screen.
     // If autoplay fails, navigate immediately — the flow shouldn't stall.
@@ -59,7 +59,7 @@ export function MicPermissionPage() {
     setRequesting(true);
     stop();
     track('grant_mic_permission', { granted: false, dismissed: true });
-    await updatePreference('micGranted', false);
+    await updatePreferences({ micPermission: false, micEnabled: false });
     await play('mic_denied').catch(() => {});
     goNext();
   };

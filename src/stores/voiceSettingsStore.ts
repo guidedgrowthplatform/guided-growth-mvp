@@ -11,37 +11,35 @@ export type MicState = 'active' | 'system-gray' | 'user-off';
 
 const SETTINGS_KEY = 'mvp03_voice_settings';
 
-interface VoiceSettings {
+interface PersistedSettings {
   recordingMode: RecordingMode;
-  selectedVoiceName: string | null;
   ttsEnabled: boolean;
   micEnabled: boolean;
-  micPausedReason: MicPausedReason;
 }
 
-interface VoiceSettingsState extends VoiceSettings {
+interface VoiceSettingsState extends PersistedSettings {
+  micPausedReason: MicPausedReason;
+  recordingModeTransient: boolean;
   loaded: boolean;
+  hydrated: boolean;
   sttProvider: SttProvider;
-  setRecordingMode: (mode: RecordingMode) => void;
-  setSelectedVoiceName: (name: string | null) => void;
+  setRecordingMode: (mode: RecordingMode, options?: { transient?: boolean }) => void;
   setTtsEnabled: (enabled: boolean) => void;
   setMicEnabled: (enabled: boolean) => void;
   systemPauseMic: () => void;
   reactivateIfSystemPaused: () => void;
   setSttProvider: (provider: SttProvider) => void;
   loadSettings: () => void;
+  hydrate: (prefs: Partial<PersistedSettings>) => void;
 }
 
-const DEFAULTS: VoiceSettings = {
+const DEFAULTS: PersistedSettings = {
   recordingMode: 'auto-stop',
-  selectedVoiceName: null,
   ttsEnabled: true,
   micEnabled: true,
-  micPausedReason: null,
 };
 
 const VALID_RECORDING_MODES: readonly RecordingMode[] = ['auto-stop', 'always-on'];
-const VALID_PAUSE_REASONS: readonly (string | null)[] = ['system', 'user', null];
 
 export function deriveMicState(s: {
   micEnabled: boolean;
@@ -52,70 +50,56 @@ export function deriveMicState(s: {
   return 'user-off';
 }
 
-function parseStoredSettings(raw: string | null): VoiceSettings {
+function parseStoredSettings(raw: string | null): PersistedSettings {
   if (!raw) return { ...DEFAULTS };
   try {
     const parsed = JSON.parse(raw);
-    const recordingMode = (VALID_RECORDING_MODES as readonly string[]).includes(
-      parsed.recordingMode,
-    )
+    const recordingMode = (VALID_RECORDING_MODES as readonly string[]).includes(parsed.recordingMode)
       ? (parsed.recordingMode as RecordingMode)
       : DEFAULTS.recordingMode;
-    const micPausedReason = VALID_PAUSE_REASONS.includes(parsed.micPausedReason)
-      ? (parsed.micPausedReason as MicPausedReason)
-      : DEFAULTS.micPausedReason;
     return {
       recordingMode,
-      selectedVoiceName: parsed.selectedVoiceName || DEFAULTS.selectedVoiceName,
       ttsEnabled: parsed.ttsEnabled ?? DEFAULTS.ttsEnabled,
       micEnabled: parsed.micEnabled ?? DEFAULTS.micEnabled,
-      micPausedReason,
     };
   } catch {
     return { ...DEFAULTS };
   }
 }
 
-function loadFromStorage(): VoiceSettings {
+function loadFromStorage(): PersistedSettings {
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    return parseStoredSettings(raw);
+    return parseStoredSettings(localStorage.getItem(SETTINGS_KEY));
   } catch {
-    /* ignore */
-  }
-  return { ...DEFAULTS };
-}
-
-function saveToStorage(settings: VoiceSettings): void {
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  } catch {
-    /* ignore */
+    return { ...DEFAULTS };
   }
 }
 
-function persistFrom(state: VoiceSettings): void {
-  saveToStorage({
-    recordingMode: state.recordingMode,
-    selectedVoiceName: state.selectedVoiceName,
-    ttsEnabled: state.ttsEnabled,
-    micEnabled: state.micEnabled,
-    micPausedReason: state.micPausedReason,
-  });
+function persistFrom(state: PersistedSettings): void {
+  try {
+    localStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({
+        recordingMode: state.recordingMode,
+        ttsEnabled: state.ttsEnabled,
+        micEnabled: state.micEnabled,
+      }),
+    );
+  } catch {
+    // ignore
+  }
 }
 
 export const useVoiceSettingsStore = create<VoiceSettingsState>((set, get) => ({
   ...DEFAULTS,
+  micPausedReason: null,
+  recordingModeTransient: false,
   loaded: false,
+  hydrated: false,
   sttProvider: 'cartesia' as SttProvider,
 
-  setRecordingMode: (mode) => {
-    set({ recordingMode: mode });
-    persistFrom(get());
-  },
-
-  setSelectedVoiceName: (name) => {
-    set({ selectedVoiceName: name });
+  setRecordingMode: (mode, options) => {
+    set({ recordingMode: mode, recordingModeTransient: options?.transient === true });
     persistFrom(get());
   },
 
@@ -151,7 +135,16 @@ export const useVoiceSettingsStore = create<VoiceSettingsState>((set, get) => ({
 
   loadSettings: () => {
     const settings = loadFromStorage();
-    set({ ...settings, loaded: true });
+    set({ ...settings, micPausedReason: null, loaded: true });
+  },
+
+  hydrate: (prefs) => {
+    const next: Partial<PersistedSettings> = {};
+    if (prefs.recordingMode !== undefined) next.recordingMode = prefs.recordingMode;
+    if (prefs.ttsEnabled !== undefined) next.ttsEnabled = prefs.ttsEnabled;
+    if (prefs.micEnabled !== undefined) next.micEnabled = prefs.micEnabled;
+    set({ ...next, hydrated: true });
+    persistFrom(get());
   },
 }));
 

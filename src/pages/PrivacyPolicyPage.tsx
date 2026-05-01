@@ -5,7 +5,7 @@ export function PrivacyPolicyPage() {
   const navigate = useNavigate();
 
   return (
-    <div>
+    <div className="min-h-dvh px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
       {/* Header — matches SettingsHeader styling */}
       <div className="flex items-center justify-between">
         <button

@@ -118,12 +118,24 @@ export interface JournalEntryCreate {
 // ─── Preferences ────────────────────────────────────
 export type ViewMode = 'spreadsheet' | 'form';
 export type SpreadsheetRange = 'week' | 'month';
+export type VoiceMode = 'voice' | 'screen' | 'always_ask';
+export type RecordingMode = 'auto-stop' | 'always-on';
 
 export interface UserPreferences {
   id: string;
   user_id: string;
   default_view: ViewMode;
   spreadsheet_range: SpreadsheetRange;
+  voice_mode: VoiceMode;
+  mic_enabled: boolean;
+  mic_permission: boolean;
+  recording_mode: RecordingMode;
+  voice_model: string;
+  coaching_style: string;
+  language: string;
+  morning_time: string;
+  night_time: string;
+  push_notifications: boolean;
 }
 
 // ─── API Types ──────────────────────────────────────

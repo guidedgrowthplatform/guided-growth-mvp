@@ -89,10 +89,10 @@ export function useVoiceChat(userName?: string) {
   useEffect(() => {
     const store = useVoiceSettingsStore.getState();
     const prevMode = store.recordingMode;
-    if (prevMode !== 'always-on') store.setRecordingMode('always-on');
+    if (prevMode !== 'always-on') store.setRecordingMode('always-on', { transient: true });
     return () => {
       if (prevMode !== 'always-on') {
-        useVoiceSettingsStore.getState().setRecordingMode(prevMode);
+        useVoiceSettingsStore.getState().setRecordingMode(prevMode, { transient: true });
       }
     };
   }, []);
