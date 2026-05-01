@@ -12,6 +12,7 @@ import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 import { speak, stopTTS, unlockTTS } from '@/lib/services/tts-service';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { AiListeningTooltip } from './AiListeningTooltip';
 
 interface OnboardingLayoutProps {
@@ -60,7 +61,8 @@ export function OnboardingLayout({
 }: OnboardingLayoutProps) {
   const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
   const [overlayOpen, setOverlayOpen] = useState(false);
-  const [ttsEnabled, setTtsEnabled] = useState(true);
+  const ttsEnabled = useVoiceSettingsStore((s) => s.ttsEnabled);
+  const setTtsEnabled = useVoiceSettingsStore((s) => s.setTtsEnabled);
   const focusedField = useFocusedFieldContext();
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
@@ -113,7 +115,7 @@ export function OnboardingLayout({
 
   const handleToggleTts = () => {
     if (ttsEnabled) stopTTS();
-    setTtsEnabled((v) => !v);
+    setTtsEnabled(!ttsEnabled);
   };
 
   const handleVoiceAction = (result: OnboardingVoiceResult) => {

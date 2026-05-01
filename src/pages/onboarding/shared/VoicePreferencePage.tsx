@@ -5,10 +5,11 @@ import { IconChatVoice, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 export function VoicePreferencePage() {
   const navigate = useNavigate();
-  const { updatePreference } = useUserPreferences();
+  const { updatePreferences } = useUserPreferences();
   const { play, stop } = useVoicePlayer();
   const [saving, setSaving] = useState(false);
 
@@ -30,7 +31,8 @@ export function VoicePreferencePage() {
       preference: voiceEnabled ? 'voice' : 'text',
       screen: 'pref_01',
     });
-    await updatePreference('voiceEnabled', voiceEnabled);
+    await updatePreferences({ voiceMode: voiceEnabled ? 'voice' : 'screen' });
+    useVoiceSettingsStore.getState().hydrate({ ttsEnabled: voiceEnabled });
     navigate('/onboarding/mic-permission');
   };
 
