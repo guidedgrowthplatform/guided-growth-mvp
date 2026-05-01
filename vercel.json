@@ -41,11 +41,11 @@
     { "source": "/api/reflections", "destination": "/api/reflections/__index" },
     { "source": "/api/admin", "destination": "/api/admin/__index" },
     {
-      "source": "/ingest/static/:path*",
-      "destination": "https://us-assets.i.posthog.com/static/:path*"
+      "source": "/ingest/static/(.*)",
+      "destination": "https://us-assets.i.posthog.com/static/$1"
     },
     { "source": "/ingest/decide", "destination": "https://us.i.posthog.com/decide" },
-    { "source": "/ingest/:path*", "destination": "https://us.i.posthog.com/:path*" },
+    { "source": "/ingest/(.*)", "destination": "https://us.i.posthog.com/$1" },
     { "source": "/((?!api/|ingest/).*)", "destination": "/index.html" }
   ]
 }
