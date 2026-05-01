@@ -127,8 +127,49 @@ jobs:
           echo "APK_PATH=$APK_DIR/$APK_NAME" >> $GITHUB_ENV
 
       - name: Upload APK artifact
+        id: upload_apk
         uses: actions/upload-artifact@v4
         with:
           name: guided-growth-apk
           path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 30
+
+      # Notify the MVPtesting Mattermost channel that a fresh APK is ready.
+      # The webhook URL is optional — when the secret is unset the step
+      # silently skips so forks and external contributors never see a red
+      # build because of a missing webhook. Triggered only on push to main
+      # so PR / draft builds don't spam the channel.
+      - name: Notify Mattermost (APK ready)
+        if: >-
+          github.event_name == 'push'
+          && github.ref == 'refs/heads/main'
+          && env.MATTERMOST_WEBHOOK_URL != ''
+        env:
+          MATTERMOST_WEBHOOK_URL: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
+          ARTIFACT_URL: ${{ steps.upload_apk.outputs.artifact-url }}
+        run: |
+          short_sha="${GITHUB_SHA::8}"
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          commit_msg=$(git log -1 --pretty=%s)
+          text=$(printf '**Android APK ready** — `%s`\n> %s\n[Download APK](%s) · [Workflow run](%s)' \
+            "$short_sha" "$commit_msg" "$ARTIFACT_URL" "$run_url")
+
+          payload=$(jq -n \
+            --arg channel "MVPtesting" \
+            --arg username "guided-growth-ci" \
+            --arg icon ":robot_face:" \
+            --arg text "$text" \
+            '{channel: $channel, username: $username, icon_emoji: $icon, text: $text}')
+
+          http_code=$(curl -sS -o /tmp/mm_resp -w '%{http_code}' \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            --data "$payload" \
+            "$MATTERMOST_WEBHOOK_URL")
+
+          if [ "$http_code" != "200" ]; then
+            echo "Mattermost notification failed (HTTP $http_code):" >&2
+            cat /tmp/mm_resp >&2
+            exit 1
+          fi
+          echo "Mattermost notified (HTTP 200)."
