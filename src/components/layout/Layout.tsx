@@ -8,7 +8,11 @@ import { BottomNav } from './BottomNav';
 export function Layout({ children }: { children: ReactNode }) {
   const [showVoiceCheckIn, setShowVoiceCheckIn] = useState(false);
   const location = useLocation();
-  const isFullWidth = location.pathname === '/report' || location.pathname === '/focus';
+  const isFullWidth =
+    location.pathname === '/report' ||
+    location.pathname === '/focus' ||
+    location.pathname === '/journal' ||
+    location.pathname.startsWith('/reflections');
 
   const handleVoicePress = useCallback(() => {
     unlockTTS();
