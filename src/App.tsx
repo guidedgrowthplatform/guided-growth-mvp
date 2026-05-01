@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { ToastProvider, useToast } from '@/contexts/ToastContext';
 import { VoiceProvider } from '@/contexts/VoiceContext';
+import { useVoicePreferenceSync } from '@/hooks/useVoicePreferenceSync';
 import { queryClient } from '@/lib/query';
 import { AppRoutes } from '@/routes';
 import { useAuthStore } from '@/stores/authStore';
@@ -32,6 +33,11 @@ function DeepLinkErrorReporter() {
   return null;
 }
 
+function VoicePreferenceSync() {
+  useVoicePreferenceSync();
+  return null;
+}
+
 export default function App() {
   useEffect(() => {
     useAuthStore.getState().initialize();
@@ -43,6 +49,7 @@ export default function App() {
         <VoiceProvider>
           <ToastProvider>
             <DeepLinkErrorReporter />
+            <VoicePreferenceSync />
             <AppRoutes />
           </ToastProvider>
         </VoiceProvider>
