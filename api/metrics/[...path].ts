@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
+import { validateDate, validateUUID } from '../_lib/validation.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
@@ -9,7 +10,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   await setUserContext(user.id);
 
   const raw = req.query['...path'];
-  const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  let segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  if (segments[0] === '__index') segments = [];
 
   try {
     // GET /api/metrics — list all metrics
@@ -48,9 +50,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(201).json(result.rows[0]);
     }
 
+    if (segments.length === 0) {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    const metricId = validateUUID(segments[0]);
+    if (!metricId) {
+      return res.status(400).json({ error: 'Invalid metric ID' });
+    }
+
     // GET /api/metrics/{id} — get single metric
     if (segments.length === 1 && req.method === 'GET') {
-      const metricId = segments[0];
       const result = await pool.query(
         `SELECT id, name, input_type, scale_min, scale_max, unit, target_value, sort_order, active, created_at
          FROM metrics WHERE id = $1 AND user_id = $2`,
@@ -66,7 +76,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // PUT /api/metrics/{id} — update metric
     if (segments.length === 1 && req.method === 'PUT') {
-      const metricId = segments[0];
       const { name, input_type, scale_min, scale_max, unit, target_value, active, sort_order } =
         req.body;
 
@@ -105,8 +114,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // DELETE /api/metrics/{id} — soft delete via active flag
     if (segments.length === 1 && req.method === 'DELETE') {
-      const metricId = segments[0];
-
       const result = await pool.query(
         `UPDATE metrics SET active = false WHERE id = $1 AND user_id = $2 RETURNING id`,
         [metricId, user.id],
@@ -121,22 +128,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // GET /api/metrics/{id}/entries — list entries for metric (with optional date range)
     if (segments.length === 2 && segments[1] === 'entries' && req.method === 'GET') {
-      const metricId = segments[0];
-      const { start_date, end_date } = req.query as Record<string, string>;
+      const rawStart = req.query.start_date;
+      const rawEnd = req.query.end_date;
+      const startDate = rawStart != null ? validateDate(rawStart) : null;
+      const endDate = rawEnd != null ? validateDate(rawEnd) : null;
+      if (rawStart != null && !startDate) {
+        return res.status(400).json({ error: 'Invalid start_date (YYYY-MM-DD)' });
+      }
+      if (rawEnd != null && !endDate) {
+        return res.status(400).json({ error: 'Invalid end_date (YYYY-MM-DD)' });
+      }
 
       let query = `SELECT id, metric_id, date, value, logged_at
                    FROM metric_entries
                    WHERE metric_id = $1 AND user_id = $2`;
       const params: unknown[] = [metricId, user.id];
 
-      if (start_date) {
+      if (startDate) {
         query += ` AND date >= $${params.length + 1}`;
-        params.push(start_date);
+        params.push(startDate);
       }
 
-      if (end_date) {
+      if (endDate) {
         query += ` AND date <= $${params.length + 1}`;
-        params.push(end_date);
+        params.push(endDate);
       }
 
       query += ` ORDER BY date DESC`;
@@ -147,11 +162,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // POST /api/metrics/{id}/entries — create or upsert entry
     if (segments.length === 2 && segments[1] === 'entries' && req.method === 'POST') {
-      const metricId = segments[0];
       const { date, value } = req.body;
-
-      if (!date || !value) {
-        return res.status(400).json({ error: 'date and value are required' });
+      const validDate = validateDate(date);
+      if (!validDate) {
+        return res.status(400).json({ error: 'Valid date (YYYY-MM-DD) is required' });
+      }
+      if (value == null || value === '') {
+        return res.status(400).json({ error: 'value is required' });
       }
 
       const result = await pool.query(
@@ -159,7 +176,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (metric_id, date) DO UPDATE SET value = $4, logged_at = now()
          RETURNING id, metric_id, date, value, logged_at`,
-        [user.id, metricId, date, String(value)],
+        [user.id, metricId, validDate, String(value)],
       );
 
       return res.json(result.rows[0]);
@@ -167,11 +184,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // PUT /api/metrics/{id}/entries/{date} — update entry
     if (segments.length === 3 && segments[1] === 'entries' && req.method === 'PUT') {
-      const metricId = segments[0];
-      const entryDate = segments[2];
+      const entryDate = validateDate(segments[2]);
+      if (!entryDate) {
+        return res.status(400).json({ error: 'Invalid entry date (YYYY-MM-DD)' });
+      }
       const { value } = req.body;
-
-      if (!value) {
+      if (value == null || value === '') {
         return res.status(400).json({ error: 'value is required' });
       }
 
@@ -191,8 +209,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // DELETE /api/metrics/{id}/entries/{date} — delete entry
     if (segments.length === 3 && segments[1] === 'entries' && req.method === 'DELETE') {
-      const metricId = segments[0];
-      const entryDate = segments[2];
+      const entryDate = validateDate(segments[2]);
+      if (!entryDate) {
+        return res.status(400).json({ error: 'Invalid entry date (YYYY-MM-DD)' });
+      }
 
       const result = await pool.query(
         `DELETE FROM metric_entries

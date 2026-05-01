@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import posthog, { type CaptureOptions, type EventName, type Properties } from 'posthog-js';
+import { getCurrentInputMethod } from '@/contexts/inputMethodContextDef';
 
 const KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
 
@@ -68,9 +69,27 @@ export function resetIdentity(): void {
   posthog.reset();
 }
 
+// Pageview is the only event that should never carry input_method — it's
+// fired by routing, not user intent. Keep this list narrow so any future
+// system event we add has to be added here explicitly.
+const EVENTS_WITHOUT_INPUT_METHOD: ReadonlySet<EventName> = new Set(['$pageview']);
+
 export function track(event: EventName, properties?: Properties, options?: CaptureOptions): void {
   if (!initialized) return;
-  posthog.capture(event, properties, options);
+
+  if (EVENTS_WITHOUT_INPUT_METHOD.has(event)) {
+    posthog.capture(event, properties, options);
+    return;
+  }
+
+  // Auto-attach input_method per PostHog Plan §1.3. Caller-provided
+  // values always win — components that already know the input method
+  // (e.g. FeedbackSheet's usedVoice flag) keep their explicit choice.
+  const enriched: Properties = {
+    input_method: getCurrentInputMethod(),
+    ...(properties ?? {}),
+  };
+  posthog.capture(event, enriched, options);
 }
 
 export function trackPageView(path: string): void {
