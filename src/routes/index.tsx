@@ -60,6 +60,15 @@ const ResetPasswordPage = lazy(() =>
 const JournalFlowPage = lazy(() =>
   import('@/pages/JournalFlowPage').then((m) => ({ default: m.JournalFlowPage })),
 );
+const ReflectionsListPage = lazy(() =>
+  import('@/pages/ReflectionsListPage').then((m) => ({ default: m.ReflectionsListPage })),
+);
+const ReflectionDetailPage = lazy(() =>
+  import('@/pages/ReflectionDetailPage').then((m) => ({ default: m.ReflectionDetailPage })),
+);
+const EditReflectionPage = lazy(() =>
+  import('@/pages/EditReflectionPage').then((m) => ({ default: m.EditReflectionPage })),
+);
 
 const lazyOnboarding = (name: string) =>
   lazy(() =>
@@ -298,16 +307,6 @@ export function AppRoutes() {
           }
         />
 
-        {/* Journal flow (protected, no Layout — full-screen wizard) */}
-        <Route
-          path="/journal"
-          element={
-            <AppGate allow="app">
-              <JournalFlowPage />
-            </AppGate>
-          }
-        />
-
         <Route
           path="/add-habit"
           element={
@@ -332,6 +331,10 @@ export function AppRoutes() {
           <Route path="report/calendar" element={<CalendarPage />} />
           <Route path="habits" element={<HabitsPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="journal" element={<JournalFlowPage />} />
+          <Route path="reflections" element={<ReflectionsListPage />} />
+          <Route path="reflections/:id" element={<ReflectionDetailPage />} />
+          <Route path="reflections/:id/edit" element={<EditReflectionPage />} />
           <Route path="habit/:habitId/reflection" element={<HabitReflectionPage />} />
           <Route path="habit/:habitId" element={<HomePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
