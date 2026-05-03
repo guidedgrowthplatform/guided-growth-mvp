@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { setUserProperty, track } from '@/analytics';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import { markOnboardingStepStart, trackOnboardingStepComplete } from '@/lib/onboardingAnalytics';
 
 export function Step2Page() {
   const navigate = useNavigate();
@@ -13,6 +15,10 @@ export function Step2Page() {
   const [plan, setPlan] = useState<'simple' | 'braindump' | null>(null);
 
   useOnboardingAgent('onboard_02');
+
+  useEffect(() => {
+    markOnboardingStepStart('onboarding_path');
+  }, []);
 
   useEffect(() => {
     if (onboardingState?.path) {
@@ -31,6 +37,16 @@ export function Step2Page() {
   );
 
   const handleNext = useCallback(async () => {
+    const onboardingPath = plan === 'braindump' ? 'advanced' : 'beginner';
+    track('select_onboarding_path', { path: onboardingPath });
+    trackOnboardingStepComplete({
+      stepKey: 'onboarding_path',
+      stepNumber: 2,
+      stepName: 'onboarding_path',
+      onboardingPath,
+    });
+    window.sessionStorage.setItem('gg_onboarding_path', onboardingPath);
+    setUserProperty({ onboarding_path: onboardingPath });
     await saveStepAsync(2, {}, { path: plan as 'simple' | 'braindump' });
     if (plan === 'braindump') {
       navigate('/onboarding/advanced-input');

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { track } from '@/analytics';
 import {
   WEEKDAYS,
   WEEKEND,
@@ -14,6 +15,7 @@ import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import { markOnboardingStepStart, trackOnboardingStepComplete } from '@/lib/onboardingAnalytics';
 import { Sentry } from '@/lib/sentry';
 
 const SCHEDULE_DAYS: Record<ScheduleOption, Set<number>> = {
@@ -37,6 +39,9 @@ export function Step6Page() {
   // ONBOARD-08 in the spec; metadata uses the canonical id for screen_contexts lookup.
   useOnboardingAgent('onboard_08');
   useAgentNavigation(6, '/onboarding/step-7');
+  useEffect(() => {
+    markOnboardingStepStart('journal_configuration_beginner');
+  }, []);
   const state = location.state as {
     habitConfigs?: Record<
       string,
@@ -102,6 +107,16 @@ export function Step6Page() {
           { ...v, days: v.days instanceof Set ? [...v.days] : v.days },
         ]),
       );
+      track('configure_journal_onboarding', {
+        journal_type: 'guided',
+        prompt_count: 3,
+      });
+      trackOnboardingStepComplete({
+        stepKey: 'journal_configuration_beginner',
+        stepNumber: 6,
+        stepName: 'journal_configuration',
+        onboardingPath: 'beginner',
+      });
       await saveStepAsync(6, { reflectionConfig: { time, days: [...days], reminder, schedule } });
       navigate('/onboarding/step-7', {
         state: {

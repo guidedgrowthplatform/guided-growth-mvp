@@ -2,8 +2,9 @@ import { Icon } from '@iconify/react';
 import { useState } from 'react';
 import { SchedulePicker, type ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { DayPicker } from '@/components/ui/DayPicker';
-import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
+import { TimePickerSheet } from '@/components/ui/TimePicker';
 import { Toggle } from '@/components/ui/Toggle';
+import { formatTime12 } from '@/lib/utils/time';
 import { ALL_DAYS, SECTION_LABEL_CLASS, toggleSetItem } from './constants';
 
 export interface HabitConfig {

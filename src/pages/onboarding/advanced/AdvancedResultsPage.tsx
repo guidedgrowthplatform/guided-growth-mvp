@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { WEEKDAYS } from '@/components/onboarding/constants';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -8,6 +9,11 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import {
+  bumpOnboardingCounter,
+  markOnboardingStepStart,
+  trackOnboardingStepComplete,
+} from '@/lib/onboardingAnalytics';
 import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 
 interface HabitItem {
@@ -82,6 +88,9 @@ export function AdvancedResultsPage() {
 
   useOnboardingAgent('onboard_advanced_results');
   useAgentNavigation(4, '/onboarding/advanced-step-6');
+  useEffect(() => {
+    markOnboardingStepStart('ai_organized_plan');
+  }, []);
 
   const fallbackBrainDump = onboardingState?.data?.brainDumpText ?? '';
 
@@ -101,6 +110,13 @@ export function AdvancedResultsPage() {
     }
   }, [locationState]);
 
+  useEffect(() => {
+    if (habits.length === 0) return;
+    track('view_ai_organized_plan', {
+      habits_generated_count: habits.length,
+    });
+  }, [habits.length]);
+
   const handleConfirm = useCallback(async () => {
     const habitConfigsArray = habits.map((h) => ({
       name: h.name,
@@ -111,6 +127,18 @@ export function AdvancedResultsPage() {
       {};
     habitConfigsArray.forEach((h) => {
       habitConfigsRecord[h.name] = { days: h.days, time: '21:45', reminder: true };
+      track('configure_habit_onboarding', {
+        habit_name: h.name,
+        category: 'advanced_plan',
+        has_reminder: true,
+        frequency_days: h.days,
+      });
+    });
+    trackOnboardingStepComplete({
+      stepKey: 'ai_organized_plan',
+      stepNumber: 4,
+      stepName: 'ai_organized_plan',
+      onboardingPath: 'advanced',
     });
     await saveStepAsync(4, { goals, habitConfigs: habitConfigsRecord });
     navigate('/onboarding/advanced-step-6', { state: { habitConfigs: habitConfigsArray } });
@@ -148,7 +176,12 @@ export function AdvancedResultsPage() {
       onNext={handleConfirm}
       secondaryAction={{
         label: 'Regenerate',
-        onClick: () => navigate('/onboarding/advanced-input'),
+        onClick: () => {
+          track('tap_regenerate_plan', {
+            regeneration_count: bumpOnboardingCounter('gg_onboarding_regeneration_count'),
+          });
+          navigate('/onboarding/advanced-input');
+        },
       }}
       showVoiceButton
     >

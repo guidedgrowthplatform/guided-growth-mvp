@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { setUserProperty, track } from '@/analytics';
 import { formatCadence } from '@/components/onboarding/constants';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import { markOnboardingStepStart, trackOnboardingStepComplete } from '@/lib/onboardingAnalytics';
 import { Sentry } from '@/lib/sentry';
 import { deriveStateFromOnboarding, type PlanReviewState } from './planReviewDerive';
 
@@ -34,15 +36,62 @@ export function PlanReviewPage() {
     [routerState, onboardingState?.data],
   );
 
+  const onboardingPath =
+    state?.source === 'advanced'
+      ? 'advanced'
+      : onboardingState?.path === 'braindump'
+        ? 'advanced'
+        : 'beginner';
+
+  useEffect(() => {
+    if (!state?.habitConfigs || !state?.reflectionConfig) return;
+    markOnboardingStepStart('starting_plan');
+    track('view_starting_plan', {
+      total_habits: Object.keys(state.habitConfigs).length,
+      has_journal: true,
+      onboarding_path: onboardingPath,
+    });
+  }, [state, onboardingPath]);
+
   const handleStartPlan = useCallback(() => {
     if (!state?.habitConfigs) return;
+    window.sessionStorage.setItem('gg_onboarding_completion_in_flight', '1');
+    const onboardingStartedAt = Number.parseInt(
+      window.sessionStorage.getItem('gg_onboarding_started_at') ?? '',
+      10,
+    );
+    const totalTimeSeconds =
+      Number.isFinite(onboardingStartedAt) && onboardingStartedAt > 0
+        ? Math.round((Date.now() - onboardingStartedAt) / 1000)
+        : undefined;
+    trackOnboardingStepComplete({
+      stepKey: 'starting_plan',
+      stepNumber: state.source === 'advanced' ? 6 : 7,
+      stepName: 'starting_plan',
+      onboardingPath,
+    });
+    track('complete_onboarding', {
+      onboarding_path: onboardingPath,
+      total_habits: Object.keys(state.habitConfigs).length,
+      has_journal: Boolean(state.reflectionConfig),
+      total_time_seconds: totalTimeSeconds,
+      steps_completed: state.source === 'advanced' ? 6 : 7,
+    });
+    setUserProperty({
+      onboarding_path: onboardingPath,
+      active_habits_count: Object.keys(state.habitConfigs).length,
+      journaling_enabled: Boolean(state.reflectionConfig),
+    });
+    window.sessionStorage.removeItem('gg_onboarding_started_at');
+    window.sessionStorage.removeItem('gg_onboarding_started_tracked');
+    window.sessionStorage.removeItem('gg_onboarding_path');
     complete({
       habitConfigs: state.habitConfigs,
       goals: state.goals,
       category: state.category,
       reflectionConfig: state.reflectionConfig,
     });
-  }, [state, complete]);
+  }, [state, complete, onboardingPath]);
 
   // Voice "let's go" mirrors the tap flow once the agent bumps current_step past 7.
   const autoCompletedRef = useRef(false);

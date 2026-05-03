@@ -1,5 +1,6 @@
 import { Icon } from '@iconify/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import {
   OnboardingChatOverlay,
@@ -12,6 +13,7 @@ import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 import { speak, stopTTS, unlockTTS } from '@/lib/services/tts-service';
+import { supabase } from '@/lib/supabase';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { AiListeningTooltip } from './AiListeningTooltip';
 
@@ -40,7 +42,7 @@ interface OnboardingLayoutProps {
 
 export function OnboardingLayout({
   currentStep,
-  totalSteps,
+  totalSteps: _totalSteps,
   ctaLabel,
   onNext,
   ctaDisabled,
@@ -59,6 +61,7 @@ export function OnboardingLayout({
   showTooltip = false,
   bgVariant = 'default',
 }: OnboardingLayoutProps) {
+  const location = useLocation();
   const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
   const [overlayOpen, setOverlayOpen] = useState(false);
   const ttsEnabled = useVoiceSettingsStore((s) => s.ttsEnabled);
@@ -89,6 +92,48 @@ export function OnboardingLayout({
   const [voiceMessages, setVoiceMessages] = useState<VoiceMessage[]>(() => [
     { id: 'prompt', role: 'ai', text: voicePrompt || 'Hey — welcome. What can I help you with?' },
   ]);
+
+  const accessTokenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        accessTokenRef.current = session?.access_token ?? null;
+      })
+      .catch(() => {
+        accessTokenRef.current = null;
+      });
+  }, []);
+
+  useEffect(() => {
+    const handlePageHide = () => {
+      if (window.sessionStorage.getItem('gg_onboarding_completion_in_flight') === '1') return;
+      if (!location.pathname.startsWith('/onboarding')) return;
+      if (!accessTokenRef.current) return;
+
+      const onboardingPath = window.sessionStorage.getItem('gg_onboarding_path');
+      const lastStepName =
+        location.pathname.split('/').filter(Boolean).pop() ?? `step-${currentStep}`;
+
+      fetch('/api/onboarding/dropoff', {
+        method: 'POST',
+        keepalive: true,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessTokenRef.current}`,
+        },
+        body: JSON.stringify({
+          lastStepNumber: currentStep,
+          lastStepName,
+          onboardingPath,
+        }),
+      }).catch(() => {});
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
+    return () => window.removeEventListener('pagehide', handlePageHide);
+  }, [currentStep, location.pathname]);
 
   // Track previous transcript to detect new completions
   const prevTranscriptRef = useRef(transcript);

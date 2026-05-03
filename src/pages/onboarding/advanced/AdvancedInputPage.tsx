@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { GoalTextarea } from '@/components/onboarding/GoalTextarea';
 import { GuidanceBadge } from '@/components/onboarding/GuidanceBadge';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -7,6 +8,7 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import { markOnboardingStepStart, trackOnboardingStepComplete } from '@/lib/onboardingAnalytics';
 
 export function AdvancedInputPage() {
   const navigate = useNavigate();
@@ -16,6 +18,9 @@ export function AdvancedInputPage() {
 
   useOnboardingAgent('onboard_advanced_input');
   useAgentNavigation(3, '/onboarding/advanced-results');
+  useEffect(() => {
+    markOnboardingStepStart('voice_goals');
+  }, []);
 
   useEffect(() => {
     const incoming = onboardingState?.data?.brainDumpText;
@@ -26,6 +31,25 @@ export function AdvancedInputPage() {
   }, [onboardingState?.data?.brainDumpText]);
 
   const handleNext = useCallback(async () => {
+    track('submit_voice_goals', {
+      transcript_length_chars: text.trim().length,
+      duration_seconds: textareaRef.current
+        ? Math.round(
+            (Date.now() -
+              Number.parseInt(
+                window.sessionStorage.getItem('gg_onboarding_step_started_at:voice_goals') ?? '',
+                10,
+              )) /
+              1000,
+          ) || undefined
+        : undefined,
+    });
+    trackOnboardingStepComplete({
+      stepKey: 'voice_goals',
+      stepNumber: 3,
+      stepName: 'voice_goals',
+      onboardingPath: 'advanced',
+    });
     await saveStepAsync(3, { brainDumpText: text });
     navigate('/onboarding/advanced-results', { state: { text } });
   }, [text, navigate, saveStepAsync]);

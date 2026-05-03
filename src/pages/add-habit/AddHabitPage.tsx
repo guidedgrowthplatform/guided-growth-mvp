@@ -1,11 +1,11 @@
-import { useAddHabitState } from './useAddHabitState';
-import { categories } from './useBeginnerPath';
-import { ChoosePathPhase } from './ChoosePathPhase';
-import { BeginnerSelectPhase } from './BeginnerSelectPhase';
-import { BeginnerConfirmPhase } from './BeginnerConfirmPhase';
+import { AdvancedEditPhase } from './AdvancedEditPhase';
 import { AdvancedInputPhase } from './AdvancedInputPhase';
 import { AdvancedResultsPhase } from './AdvancedResultsPhase';
-import { AdvancedEditPhase } from './AdvancedEditPhase';
+import { BeginnerConfirmPhase } from './BeginnerConfirmPhase';
+import { BeginnerSelectPhase } from './BeginnerSelectPhase';
+import { ChoosePathPhase } from './ChoosePathPhase';
+import { useAddHabitState } from './useAddHabitState';
+import { categories } from './useBeginnerPath';
 
 export function AddHabitPage() {
   const s = useAddHabitState();
