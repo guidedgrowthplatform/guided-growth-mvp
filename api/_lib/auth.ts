@@ -11,15 +11,12 @@ interface AuthenticatedUser {
 
 export async function getUser(req: VercelRequest): Promise<AuthenticatedUser | null> {
   try {
-    // Extract Bearer token from Authorization header
     const authHeader = req.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return null;
     }
 
-    const token = authHeader.slice(7); // Remove 'Bearer '
-
-    // Verify token with Supabase
+    const token = authHeader.slice(7);
     const {
       data: { user },
       error,
@@ -28,9 +25,7 @@ export async function getUser(req: VercelRequest): Promise<AuthenticatedUser | n
       return null;
     }
 
-    // Extract role and status from JWT app_metadata (set by custom_access_token_hook)
     const claims = user.app_metadata as { role?: string; status?: string };
-
     return {
       id: user.id,
       email: user.email!,
