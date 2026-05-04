@@ -3,7 +3,9 @@ import { WEEKDAYS, WEEKEND, setsEqual } from '@/components/onboarding/constants'
 
 export type Phase =
   | 'choose-path'
-  | 'beginner-select'
+  | 'beginner-category'
+  | 'beginner-goals'
+  | 'beginner-habits'
   | 'beginner-confirm'
   | 'advanced-input'
   | 'advanced-results'

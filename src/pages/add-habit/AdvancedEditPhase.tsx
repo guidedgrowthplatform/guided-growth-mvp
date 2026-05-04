@@ -39,7 +39,7 @@ export function AdvancedEditPhase({
   onBack,
 }: AdvancedEditPhaseProps) {
   return (
-    <div className="flex min-h-dvh flex-col bg-primary-bg px-5 pb-8 pt-[max(16px,env(safe-area-inset-top))]">
+    <div className="flex min-h-dvh flex-col bg-primary-bg px-5 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-[max(16px,env(safe-area-inset-top))]">
       <AddHabitHeader onBack={onBack} />
 
       <div className="flex flex-1 flex-col gap-8">

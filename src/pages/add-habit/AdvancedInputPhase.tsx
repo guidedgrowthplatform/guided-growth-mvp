@@ -27,7 +27,7 @@ export function AdvancedInputPhase({
   onBack,
 }: AdvancedInputPhaseProps) {
   return (
-    <div className="flex min-h-dvh flex-col bg-primary-bg px-5 pb-8 pt-[max(16px,env(safe-area-inset-top))]">
+    <div className="flex min-h-dvh flex-col bg-primary-bg px-5 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-[max(16px,env(safe-area-inset-top))]">
       <AddHabitHeader onBack={onBack} />
       <div className="flex flex-col gap-[11px]">
         <h2 className="text-[28px] font-bold leading-[36px] tracking-[-0.5px] text-content">
