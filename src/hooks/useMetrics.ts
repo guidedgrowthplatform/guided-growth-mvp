@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
+import { track } from '@/analytics';
 import * as metricsApi from '@/api/metrics';
 import { useToast } from '@/contexts/ToastContext';
 import { queryKeys } from '@/lib/query';
@@ -25,14 +26,23 @@ export function useMetrics() {
     onSuccess: (_result, data) => {
       qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
       addToast('success', `Habit "${data.name}" created`);
+      track('create_habit', {
+        habit_name: data.name,
+        frequency_days: data.schedule_days?.length || 0,
+        category: 'custom',
+      });
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: MetricUpdate }) =>
       metricsApi.updateMetric(id, data),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
+      track('edit_habit', {
+        habit_name: result.name,
+        fields_changed: Object.keys(result),
+      });
     },
   });
 

@@ -86,57 +86,57 @@ Status yang disarankan:
 
 ### Voice Interaction
 
-| Event                     | Trigger                              | Required Props                                                                               | Source | Status        | Notes |
-| ------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------- | ------ | ------------- | ----- |
-| `toggle_mic`              | User mute/unmute mic                 | `new_state`, `screen`, `during_conversation`                                                 | client | `not_checked` |       |
-| `play_mp3`                | MP3 pre-recorded mulai diputar       | `file_id`, `screen`, `trigger`                                                               | client | `not_checked` |       |
-| `start_voice_session`     | Voice realtime mulai                 | `context`, `screen`, `voice_mode`                                                            | client | `not_checked` |       |
-| `complete_voice_session`  | Voice session selesai                | `context`, `duration_seconds`, `transcript_length_chars`, `resulted_in_action`, `turn_count` | client | `not_checked` |       |
-| `cancel_voice_session`    | Voice dibatalkan/error               | `context`, `duration_seconds`, `reason`                                                      | client | `not_checked` |       |
-| `voice_ai_response`       | AI merespons voice input             | `context`, `response_type`, `habits_suggested_count`                                         | client | `not_checked` |       |
-| `accept_voice_suggestion` | User menerima saran AI               | `context`, `suggestion_type`, `suggestion_count_accepted`, `suggestion_count_total`          | client | `not_checked` |       |
-| `reject_voice_suggestion` | User reject/edit/regenerate saran AI | `context`, `suggestion_type`, `action`                                                       | client | `not_checked` |       |
+| Event                     | Trigger                              | Required Props                                                                               | Source | Status        | Notes                      |
+| ------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------- | ------ | ------------- | -------------------------- |
+| `toggle_mic`              | User mute/unmute mic                 | `new_state`, `screen`, `during_conversation`                                                 | client | `implemented` |                            |
+| `play_mp3`                | MP3 pre-recorded mulai diputar       | `file_id`, `screen`, `trigger`                                                               | client | `implemented` |                            |
+| `start_voice_session`     | Voice realtime mulai                 | `context`, `screen`, `voice_mode`                                                            | client | `implemented` |                            |
+| `complete_voice_session`  | Voice session selesai                | `context`, `duration_seconds`, `transcript_length_chars`, `resulted_in_action`, `turn_count` | client | `partial`     | Missing resulted_in_action |
+| `cancel_voice_session`    | Voice dibatalkan/error               | `context`, `duration_seconds`, `reason`                                                      | client | `implemented` |                            |
+| `voice_ai_response`       | AI merespons voice input             | `context`, `response_type`, `habits_suggested_count`                                         | client | `not_checked` |                            |
+| `accept_voice_suggestion` | User menerima saran AI               | `context`, `suggestion_type`, `suggestion_count_accepted`, `suggestion_count_total`          | client | `not_checked` |                            |
+| `reject_voice_suggestion` | User reject/edit/regenerate saran AI | `context`, `suggestion_type`, `action`                                                       | client | `not_checked` |                            |
 
 ### Habit
 
-| Event                  | Trigger                      | Required Props                                                                                                                       | Source | Status        | Notes                        |
-| ---------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------ | ------------- | ---------------------------- |
-| `create_habit`         | User membuat habit baru      | `habit_name`, `category`, `subcategory`, `frequency_days`, `has_reminder`, `reminder_time`, `input_method`, `source`, `is_suggested` | both   | `not_checked` | Server-side direkomendasikan |
-| `complete_habit`       | User menandai habit selesai  | `habit_name`, `category`, `current_streak`, `is_on_time`, `day_of_week`, `time_of_day`                                               | both   | `not_checked` | Server-side direkomendasikan |
-| `skip_habit`           | User skip habit              | `habit_name`, `category`, `current_streak`                                                                                           | client | `not_checked` |                              |
-| `snooze_habit`         | User snooze habit            | `habit_name`, `snooze_duration`                                                                                                      | client | `not_checked` |                              |
-| `edit_habit`           | User edit habit              | `habit_name`, `fields_changed`, `input_method`                                                                                       | client | `not_checked` |                              |
-| `delete_habit`         | User delete habit            | `habit_name`, `category`, `lifetime_days`, `total_completions`, `completion_rate`                                                    | both   | `not_checked` | Server-side direkomendasikan |
-| `view_habit_detail`    | User buka detail habit       | `habit_name`, `category`, `current_streak`, `completion_rate`                                                                        | client | `not_checked` |                              |
-| `log_habit_reflection` | User submit reflection habit | `habit_name`, `input_method`, `reflection_length_chars`                                                                              | client | `not_checked` |                              |
+| Event                  | Trigger                      | Required Props                                                                                                                       | Source | Status        | Notes                                     |
+| ---------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------ | ------------- | ----------------------------------------- |
+| `create_habit`         | User membuat habit baru      | `habit_name`, `category`, `subcategory`, `frequency_days`, `has_reminder`, `reminder_time`, `input_method`, `source`, `is_suggested` | both   | `partial`     | Client-side tracked. Some missing props.  |
+| `complete_habit`       | User menandai habit selesai  | `habit_name`, `category`, `current_streak`, `is_on_time`, `day_of_week`, `time_of_day`                                               | both   | `partial`     | Client-side tracked. Missing server-side. |
+| `skip_habit`           | User skip habit              | `habit_name`, `category`, `current_streak`                                                                                           | client | `not_checked` |                                           |
+| `snooze_habit`         | User snooze habit            | `habit_name`, `snooze_duration`                                                                                                      | client | `not_checked` |                                           |
+| `edit_habit`           | User edit habit              | `habit_name`, `fields_changed`, `input_method`                                                                                       | client | `implemented` |                                           |
+| `delete_habit`         | User delete habit            | `habit_name`, `category`, `lifetime_days`, `total_completions`, `completion_rate`                                                    | both   | `implemented` | Server-side direkomendasikan              |
+| `view_habit_detail`    | User buka detail habit       | `habit_name`, `category`, `current_streak`, `completion_rate`                                                                        | client | `implemented` |                                           |
+| `log_habit_reflection` | User submit reflection habit | `habit_name`, `input_method`, `reflection_length_chars`                                                                              | client | `implemented` |                                           |
 
 ### Journal
 
 | Event                    | Trigger                   | Required Props                                                                                     | Source | Status        | Notes                        |
 | ------------------------ | ------------------------- | -------------------------------------------------------------------------------------------------- | ------ | ------------- | ---------------------------- |
-| `open_journal`           | User membuka journal      | `journal_type`, `input_method`, `trigger`                                                          | client | `not_checked` |                              |
-| `complete_journal_entry` | User submit journal entry | `journal_type`, `input_method`, `entry_length_chars`, `prompts_answered_count`, `duration_seconds` | both   | `not_checked` | Server-side direkomendasikan |
-| `abandon_journal`        | User meninggalkan journal | `journal_type`, `input_method`, `time_spent_seconds`                                               | client | `not_checked` |                              |
+| `open_journal`           | User membuka journal      | `journal_type`, `input_method`, `trigger`                                                          | client | `implemented` |                              |
+| `complete_journal_entry` | User submit journal entry | `journal_type`, `input_method`, `entry_length_chars`, `prompts_answered_count`, `duration_seconds` | both   | `implemented` | Server-side direkomendasikan |
+| `abandon_journal`        | User meninggalkan journal | `journal_type`, `input_method`, `time_spent_seconds`                                               | client | `implemented` |                              |
 
 ---
 
 ## P2 Audit Checklist
 
-| Event                       | Trigger                        | Required Props                                                                       | Source | Status        | Notes                        |
-| --------------------------- | ------------------------------ | ------------------------------------------------------------------------------------ | ------ | ------------- | ---------------------------- |
-| `start_focus_session`       | User mulai focus timer         | `linked_habit`, `duration_set_minutes`, `notification_enabled`                       | client | `not_checked` |                              |
-| `complete_focus_session`    | Timer selesai natural          | `linked_habit`, `duration_minutes`, `was_interrupted`                                | client | `not_checked` |                              |
-| `abandon_focus_session`     | User stop timer lebih awal     | `linked_habit`, `elapsed_minutes`, `total_duration_minutes`, `completion_percentage` | client | `not_checked` |                              |
-| `pause_focus_session`       | User pause timer               | `linked_habit`, `elapsed_minutes`                                                    | client | `not_checked` |                              |
-| `view_settings`             | User buka settings             | -                                                                                    | client | `not_checked` |                              |
-| `update_profile`            | User update profile            | `fields_changed`                                                                     | client | `not_checked` |                              |
-| `update_ai_settings`        | User ubah AI settings          | `setting_changed`, `old_value`, `new_value`                                          | client | `not_checked` |                              |
-| `update_checkin_schedule`   | User ubah jadwal check-in      | `checkin_type`, `old_time`, `new_time`                                               | client | `not_checked` |                              |
-| `toggle_push_notifications` | User toggle push notifications | `enabled`                                                                            | client | `not_checked` |                              |
-| `submit_feedback`           | User submit feedback           | `input_method`, `sentiment`, `feedback_length_chars`                                 | client | `not_checked` |                              |
-| `tap_delete_account`        | User klik delete account       | -                                                                                    | client | `not_checked` |                              |
-| `confirm_delete_account`    | User konfirmasi delete account | `days_since_signup`, `total_habits_created`, `total_checkins`                        | both   | `not_checked` | Server-side direkomendasikan |
-| `view_privacy_policy`       | User buka privacy policy       | -                                                                                    | client | `not_checked` |                              |
+| Event                       | Trigger                        | Required Props                                                                       | Source | Status        | Notes             |
+| --------------------------- | ------------------------------ | ------------------------------------------------------------------------------------ | ------ | ------------- | ----------------- |
+| `start_focus_session`       | User mulai focus timer         | `linked_habit`, `duration_set_minutes`, `notification_enabled`                       | client | `implemented` |                   |
+| `complete_focus_session`    | Timer selesai natural          | `linked_habit`, `duration_minutes`, `was_interrupted`                                | client | `implemented` |                   |
+| `abandon_focus_session`     | User stop timer lebih awal     | `linked_habit`, `elapsed_minutes`, `total_duration_minutes`, `completion_percentage` | client | `implemented` |                   |
+| `pause_focus_session`       | User pause timer               | `linked_habit`, `elapsed_minutes`                                                    | client | `implemented` |                   |
+| `view_settings`             | User buka settings             | -                                                                                    | client | `implemented` |                   |
+| `update_profile`            | User update profile            | `fields_changed`                                                                     | client | `implemented` |                   |
+| `update_ai_settings`        | User ubah AI settings          | `setting_changed`, `old_value`, `new_value`                                          | client | `implemented` |                   |
+| `update_checkin_schedule`   | User ubah jadwal check-in      | `checkin_type`, `old_time`, `new_time`                                               | client | `implemented` |                   |
+| `toggle_push_notifications` | User toggle push notifications | `enabled`                                                                            | client | `implemented` |                   |
+| `submit_feedback`           | User submit feedback           | `input_method`, `sentiment`, `feedback_length_chars`                                 | client | `implemented` |                   |
+| `tap_delete_account`        | User klik delete account       | -                                                                                    | client | `implemented` |                   |
+| `confirm_delete_account`    | User konfirmasi delete account | `days_since_signup`, `total_habits_created`, `total_checkins`                        | both   | `partial`     | Handled on client |
+| `view_privacy_policy`       | User buka privacy policy       | -                                                                                    | client | `implemented` |                   |
 
 ---
 

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
+import { track } from '@/analytics';
 import type { Habit, HabitCompletion } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
 
@@ -96,6 +97,22 @@ export function useHabitsForDate(date: string) {
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) qc.setQueryData(queryKey, ctx.prev);
+    },
+    onSuccess: (_data, variables) => {
+      if (!variables.currentlyCompleted) {
+        const prev = qc.getQueryData<HabitWithStatus[]>(queryKey);
+        const habitStats = prev?.find((h) => h.habit.id === variables.habitId);
+        if (habitStats) {
+          track('complete_habit', {
+            habit_name: habitStats.habit.name,
+            category: 'custom',
+            current_streak: habitStats.streak + 1,
+            is_on_time: true,
+            day_of_week: new Date(date).getDay(),
+            time_of_day: new Date().getHours() < 12 ? 'morning' : 'evening',
+          });
+        }
+      }
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey });
