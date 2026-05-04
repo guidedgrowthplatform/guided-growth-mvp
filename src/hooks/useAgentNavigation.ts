@@ -68,9 +68,11 @@ export function useAgentNavigation(currentStep: number, nextRoute: string | null
   const advancedRef = useRef(false);
   const initialPersistedStepRef = useRef<number | undefined>(undefined);
 
-  if (initialPersistedStepRef.current === undefined && state?.current_step !== undefined) {
-    initialPersistedStepRef.current = state.current_step;
-  }
+  useEffect(() => {
+    if (initialPersistedStepRef.current === undefined && state?.current_step !== undefined) {
+      initialPersistedStepRef.current = state.current_step;
+    }
+  }, [state?.current_step]);
 
   useEffect(() => {
     if (

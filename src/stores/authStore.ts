@@ -72,8 +72,17 @@ function categorizeAuthError(error: any): string {
   return 'other';
 }
 
-function identifyUser(user: AppUser) {
-  identify(user.id, { email: user.email, name: user.name, role: user.role });
+function identifyUser(user: AppUser, traits?: Record<string, unknown>) {
+  identify(user.id, {
+    $email: user.email,
+    $name: user.name ?? user.nickname ?? undefined,
+    email: user.email,
+    name: user.name ?? undefined,
+    nickname: user.nickname ?? undefined,
+    role: user.role,
+    plan_tier: 'free',
+    ...(traits ?? {}),
+  });
   Sentry.setUser({ id: user.id, email: user.email });
 }
 
@@ -171,6 +180,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       track('signup_error', {
         method: 'email',
         error_type: categorizeAuthError(error),
+        error_message: error.message || friendlyError(error),
       });
       return { error: friendlyError(error) };
     }
@@ -183,7 +193,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (data?.session?.user) {
       const user = mapUser(data.session.user);
       set({ user });
-      identifyUser(user);
+      identifyUser(user, { auth_method: 'email' });
       // send_instantly skips the batched queue — without it the event
       // races with post-auth navigation and gets dropped from the
       // localStorage-backed queue before flush.
@@ -215,7 +225,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (data?.user) {
       const user = mapUser(data.user);
       set({ user });
-      identifyUser(user);
+      identifyUser(user, { auth_method: 'email' });
       // is_returning_user per spec v6.0 §3.1 — derived from the gap between
       // account creation and this sign-in. >60s gap = not the immediate post-signup
       // auto-login (which fires ~instantly after complete_signup), so it's a real
@@ -265,7 +275,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
     });
 
-    if (error) return { error: friendlyError(error) };
+    if (error) {
+      const oauthIntent =
+        typeof window !== 'undefined' ? window.sessionStorage.getItem('gg_oauth_intent') : null;
+      if (oauthIntent === 'signup_google') {
+        track('signup_error', {
+          method: 'google',
+          error_type: categorizeAuthError(error),
+          error_message: error.message || friendlyError(error),
+        });
+      } else {
+        track('login_error', {
+          method: 'google',
+          error_type: categorizeAuthError(error),
+        });
+      }
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem('gg_oauth_intent');
+        window.sessionStorage.removeItem('gg_oauth_started_at');
+      }
+      return { error: friendlyError(error) };
+    }
 
     if (isNative && data?.url) {
       const { Browser } = await import('@capacitor/browser');

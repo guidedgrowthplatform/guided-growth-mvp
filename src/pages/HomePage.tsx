@@ -14,7 +14,9 @@ import {
   ReminderSheet,
 } from '@/components/home';
 import { useAuth } from '@/hooks/useAuth';
+import { useCheckIn } from '@/hooks/useCheckIn';
 import { useEntries } from '@/hooks/useEntries';
+import { useHabitsForDate } from '@/hooks/useHabitsForDate';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { speak } from '@/lib/services/tts-service';
 import type { EntriesMap } from '@shared/types';
@@ -29,6 +31,7 @@ export function HomePage() {
   const [showReminders, setShowReminders] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const trackedHomeViewRef = useRef(false);
 
   const dateRange = useMemo(() => {
     const today = new Date();
@@ -39,6 +42,8 @@ export function HomePage() {
   }, []);
 
   const { entries, load } = useEntries();
+  const { habits, loading: habitsLoading } = useHabitsForDate(selectedDate);
+  const { checkIn, loading: checkInLoading } = useCheckIn(selectedDate);
 
   useEffect(() => {
     load(dateRange.start, dateRange.end);
@@ -48,8 +53,16 @@ export function HomePage() {
 
   const fromOnboardingAtMount = useRef(fromOnboarding);
   useEffect(() => {
-    track('view_home', { from_onboarding: fromOnboardingAtMount.current });
-  }, []);
+    if (trackedHomeViewRef.current) return;
+    if (habitsLoading || checkInLoading) return;
+    trackedHomeViewRef.current = true;
+    track('view_home', {
+      habits_due_today: habits.length,
+      habits_completed_today: habits.filter((habit) => habit.completed).length,
+      has_pending_checkin: !checkIn,
+      from_onboarding: fromOnboardingAtMount.current,
+    });
+  }, [habits, habitsLoading, checkIn, checkInLoading]);
 
   const displayName =
     user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'there';

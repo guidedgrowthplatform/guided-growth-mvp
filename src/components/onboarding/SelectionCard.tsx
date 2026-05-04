@@ -20,7 +20,7 @@ export function SelectionCard({
   description,
   selected,
   onSelect,
-  showSparkle,
+  showSparkle: _showSparkle,
   badge,
 }: SelectionCardProps) {
   return (

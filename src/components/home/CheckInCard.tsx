@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { track } from '@/analytics';
+import { setUserProperty, track } from '@/analytics';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
 import { speak, stopTTS } from '@/lib/services/tts-service';
@@ -33,6 +33,7 @@ const moodLabels: Record<number, string> = {
   4: 'good',
   5: 'awesome',
 };
+const TOTAL_CHECKINS_STORAGE_KEY = 'gg_total_checkins';
 
 /**
  * Build evening TTS that references morning check-in data.
@@ -109,12 +110,13 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
     return () => {
       if (!completedRef.current) {
         const v = valuesRef.current;
-        const filled = [v.sleep, v.mood, v.energy, v.stress].filter((x) => x !== null).length;
-        if (filled > 0) {
+        const orderedFields: CheckInDimension[] = ['sleep', 'mood', 'energy', 'stress'];
+        const lastFieldCompleted = [...orderedFields].reverse().find((field) => v[field] !== null);
+        if (lastFieldCompleted) {
           const hour = new Date().getHours();
           track('abandon_checkin', {
             checkin_type: hour < 15 ? 'morning' : 'evening',
-            fields_completed: filled,
+            last_field_completed: lastFieldCompleted,
             time_spent_seconds: Math.round((Date.now() - start) / 1000),
           });
         }
@@ -151,8 +153,16 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
         energy_level: values.energy,
         stress_level: values.stress,
         duration_seconds: Math.round((Date.now() - mountTimeRef.current) / 1000),
+        has_journal_entry: false,
+        has_goal: false,
         is_update: Boolean(checkIn),
       });
+      if (!checkIn) {
+        const totalCheckins =
+          (Number.parseInt(localStorage.getItem(TOTAL_CHECKINS_STORAGE_KEY) ?? '0', 10) || 0) + 1;
+        localStorage.setItem(TOTAL_CHECKINS_STORAGE_KEY, String(totalCheckins));
+        setUserProperty({ total_checkins: totalCheckins });
+      }
       // TTS coaching response per Voice Journey Spreadsheet v3 (line 386-392)
       if (hour < 15) {
         // Morning coaching

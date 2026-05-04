@@ -171,8 +171,23 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      port: parseInt(env.PORT || '5173'),
+      port: parseInt(env.PORT || '5174'),
       proxy: {
+        // Local dev replacement for Vercel rewrites in `vercel.json`.
+        // In production, `/ingest/*` is reverse-proxied to PostHog.
+        // Vite dev doesn't read `vercel.json`, so we proxy here too.
+        '/ingest/static': {
+          target: 'https://us-assets.i.posthog.com',
+          changeOrigin: true,
+          secure: true,
+          rewrite: (p) => p.replace(/^\/ingest\/static/, '/static'),
+        },
+        '/ingest': {
+          target: 'https://us.i.posthog.com',
+          changeOrigin: true,
+          secure: true,
+          rewrite: (p) => p.replace(/^\/ingest/, ''),
+        },
         '/api': {
           target: apiTarget,
           changeOrigin: true,

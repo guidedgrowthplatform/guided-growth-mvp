@@ -1,8 +1,9 @@
 import { Icon } from '@iconify/react';
 import { useState } from 'react';
 import { DayPicker } from '@/components/ui/DayPicker';
-import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
+import { TimePickerSheet } from '@/components/ui/TimePicker';
 import { Toggle } from '@/components/ui/Toggle';
+import { formatTime12 } from '@/lib/utils/time';
 import { SECTION_LABEL_CLASS } from './constants';
 import { SchedulePicker, type ScheduleOption } from './SchedulePicker';
 

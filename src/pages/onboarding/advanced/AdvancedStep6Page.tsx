@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { ALL_DAYS, WEEKDAYS, WEEKEND } from '@/components/onboarding/constants';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
@@ -8,6 +9,7 @@ import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import { markOnboardingStepStart, trackOnboardingStepComplete } from '@/lib/onboardingAnalytics';
 
 const DEFAULT_QUESTIONS = [
   'What am I proud of today?',
@@ -37,6 +39,9 @@ export function AdvancedStep6Page() {
 
   useOnboardingAgent('onboard_advanced_step_6');
   useAgentNavigation(5, '/onboarding/step-7');
+  useEffect(() => {
+    markOnboardingStepStart('journal_configuration_advanced');
+  }, []);
 
   const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -75,6 +80,17 @@ export function AdvancedStep6Page() {
     }
     const days = [...(SCHEDULE_DAYS[schedule] ?? WEEKDAYS)];
     const reflectionConfig = { time: '21:45', days, reminder: true, schedule };
+    track('configure_journal_onboarding', {
+      journal_type:
+        state?.journalMode === 'freeform' ? 'freeform' : customPrompts ? 'custom' : 'guided',
+      prompt_count: customPrompts?.length ?? questions.length,
+    });
+    trackOnboardingStepComplete({
+      stepKey: 'journal_configuration_advanced',
+      stepNumber: 5,
+      stepName: 'journal_configuration',
+      onboardingPath: 'advanced',
+    });
     await saveStepAsync(5, { habitConfigs: configRecord, reflectionConfig });
     navigate('/onboarding/step-7', {
       state: {
@@ -83,7 +99,15 @@ export function AdvancedStep6Page() {
         source: 'advanced',
       },
     });
-  }, [habitConfigs, schedule, navigate, saveStepAsync]);
+  }, [
+    habitConfigs,
+    schedule,
+    navigate,
+    saveStepAsync,
+    state?.journalMode,
+    customPrompts,
+    questions.length,
+  ]);
 
   return (
     <OnboardingLayout

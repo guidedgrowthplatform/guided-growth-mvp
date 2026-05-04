@@ -1,6 +1,6 @@
 import { Bell, Lightbulb } from 'lucide-react';
 import { useState } from 'react';
-import { track } from '@/analytics';
+import { setUserProperty, track } from '@/analytics';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { InfoBox } from '@/components/ui/InfoBox';
 import { TimePicker } from '@/components/ui/TimePicker';
@@ -67,7 +67,18 @@ export function ReminderSheet({
   const [nightReminder, setNightReminder] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(initialPushNotifications);
 
-  const handleSave = (close: () => void) => {
+  const handleSave = async (close: () => void) => {
+    let effectivePushNotifications = pushNotifications;
+
+    if (pushNotifications && 'Notification' in window) {
+      let permission = Notification.permission;
+      if (permission === 'default') {
+        permission = await Notification.requestPermission();
+      }
+      const granted = permission === 'granted';
+      track('grant_notification_permission', { granted });
+      effectivePushNotifications = granted;
+    }
     // Emit per-time change events so analytics can distinguish morning vs
     // night schedule tweaks (spec §5.1 `update_checkin_schedule`).
     if (morningTime !== initialMorningTime) {
@@ -84,10 +95,15 @@ export function ReminderSheet({
         new_time: nightTime,
       });
     }
-    if (pushNotifications !== initialPushNotifications) {
-      track('toggle_push_notifications', { enabled: pushNotifications });
+    if (effectivePushNotifications !== initialPushNotifications) {
+      track('toggle_push_notifications', { enabled: effectivePushNotifications });
     }
-    onSave?.({ morningTime, nightTime, pushNotifications });
+    setUserProperty({ push_notifications_enabled: effectivePushNotifications });
+    onSave?.({
+      morningTime,
+      nightTime,
+      pushNotifications: effectivePushNotifications,
+    });
     close();
   };
 
@@ -142,7 +158,7 @@ export function ReminderSheet({
           </div>
 
           <button
-            onClick={() => handleSave(close)}
+            onClick={() => void handleSave(close)}
             className="w-full rounded-full bg-primary py-4 text-lg font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.3),0px_4px_6px_-4px_rgba(19,91,236,0.3)] transition-colors hover:bg-primary-dark"
           >
             Save Reminders

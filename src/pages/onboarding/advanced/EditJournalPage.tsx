@@ -12,7 +12,8 @@ import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { SchedulePicker } from '@/components/onboarding/SchedulePicker';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { DayPicker } from '@/components/ui/DayPicker';
-import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
+import { TimePickerSheet } from '@/components/ui/TimePicker';
+import { formatTime12 } from '@/lib/utils/time';
 
 interface EditJournalState {
   journalName: string;

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { setUserProperty, track } from '@/analytics';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import { markOnboardingStepStart, trackOnboardingStepComplete } from '@/lib/onboardingAnalytics';
 
 const categories = [
   { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
@@ -18,7 +20,7 @@ const categories = [
   { label: 'Get more organized', image: '/images/onboarding/get-more-organized.png' },
 ];
 
-const categoryLabels = categories.map((c) => c.label);
+const _categoryLabels = categories.map((c) => c.label);
 
 export function Step3Page() {
   const navigate = useNavigate();
@@ -26,6 +28,9 @@ export function Step3Page() {
   const [selected, setSelected] = useState<string | null>(null);
 
   useOnboardingAgent('onboard_03');
+  useEffect(() => {
+    markOnboardingStepStart('improvement_areas');
+  }, []);
 
   useAgentNavigation(3, '/onboarding/step-4');
 
@@ -36,6 +41,17 @@ export function Step3Page() {
   }, [onboardingState?.data?.category]);
 
   const handleNext = useCallback(async () => {
+    track('select_improvement_areas', {
+      areas: selected ? [selected] : [],
+      area_count: selected ? 1 : 0,
+    });
+    trackOnboardingStepComplete({
+      stepKey: 'improvement_areas',
+      stepNumber: 3,
+      stepName: 'improvement_areas',
+      onboardingPath: 'beginner',
+    });
+    setUserProperty({ selected_areas: selected ? [selected] : [] });
     await saveStepAsync(3, { category: selected });
     navigate('/onboarding/step-4', { state: { category: selected } });
   }, [selected, navigate, saveStepAsync]);

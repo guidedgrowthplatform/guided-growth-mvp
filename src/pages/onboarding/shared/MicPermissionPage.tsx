@@ -1,7 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { track } from '@/analytics';
+import { setUserProperty, track } from '@/analytics';
 import { IconChatVoice, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
@@ -46,6 +46,7 @@ export function MicPermissionPage() {
       granted = false;
     }
     track('grant_mic_permission', { granted, dismissed: false });
+    setUserProperty({ mic_permission_granted: granted });
     await updatePreferences({ micPermission: granted, micEnabled: granted });
     // Play the post-permission MP3 to completion before advancing so the
     // user hears "Got it" (~4s) or "No problem" (~5s) before the next screen.
@@ -59,6 +60,7 @@ export function MicPermissionPage() {
     setRequesting(true);
     stop();
     track('grant_mic_permission', { granted: false, dismissed: true });
+    setUserProperty({ mic_permission_granted: false });
     await updatePreferences({ micPermission: false, micEnabled: false });
     await play('mic_denied').catch(() => {});
     goNext();

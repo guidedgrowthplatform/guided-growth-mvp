@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { setUserProperty, track } from '@/analytics';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
+import { getCurrentInputMethod } from '@/contexts/inputMethodContextDef';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import {
+  markOnboardingStepStart,
+  resolveOnboardingPath,
+  trackOnboardingStepComplete,
+} from '@/lib/onboardingAnalytics';
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
@@ -28,6 +35,18 @@ export function Step1Page() {
   useAgentNavigation(1, '/onboarding/step-2');
 
   const hasHydratedRef = useRef(false);
+
+  useEffect(() => {
+    window.sessionStorage.removeItem('gg_onboarding_completion_in_flight');
+    if (!window.sessionStorage.getItem('gg_onboarding_started_at')) {
+      window.sessionStorage.setItem('gg_onboarding_started_at', String(Date.now()));
+    }
+    if (!window.sessionStorage.getItem('gg_onboarding_started_tracked')) {
+      track('start_onboarding');
+      window.sessionStorage.setItem('gg_onboarding_started_tracked', '1');
+    }
+    markOnboardingStepStart('profile_setup');
+  }, []);
 
   useEffect(() => {
     hasHydratedRef.current = true;
@@ -57,6 +76,23 @@ export function Step1Page() {
       referralSource === 'Other' && referralOtherText.trim()
         ? `Other: ${referralOtherText.trim()}`
         : referralSource;
+    const filledFieldCount = [nickname, age, gender, effectiveReferral].filter(Boolean).length;
+    track('complete_profile_setup', {
+      fields_filled_by_voice: getCurrentInputMethod() === 'voice' ? filledFieldCount : 0,
+      used_real_time_agent: true,
+    });
+    trackOnboardingStepComplete({
+      stepKey: 'profile_setup',
+      stepNumber: 1,
+      stepName: 'profile_setup',
+      onboardingPath: resolveOnboardingPath(onboardingState?.path),
+    });
+    setUserProperty({
+      $name: nickname,
+      age: age === '' ? undefined : age,
+      gender: gender ?? undefined,
+      acquisition_source: effectiveReferral ?? undefined,
+    });
     saveStep(1, {
       nickname,
       age: age === '' ? undefined : age,
@@ -65,7 +101,16 @@ export function Step1Page() {
       referralOtherText,
     });
     navigate('/onboarding/step-2');
-  }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep]);
+  }, [
+    nickname,
+    age,
+    gender,
+    referralSource,
+    referralOtherText,
+    onboardingState?.path,
+    navigate,
+    saveStep,
+  ]);
 
   return (
     <OnboardingLayout

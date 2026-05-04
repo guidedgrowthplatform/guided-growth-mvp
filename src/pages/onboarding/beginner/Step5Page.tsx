@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { track } from '@/analytics';
 import { HabitCustomizeSheet, type HabitConfig } from '@/components/onboarding/HabitCustomizeSheet';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
@@ -11,6 +12,7 @@ import { habitsByGoal } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import { markOnboardingStepStart, trackOnboardingStepComplete } from '@/lib/onboardingAnalytics';
 
 export function Step5Page() {
   const navigate = useNavigate();
@@ -32,6 +34,9 @@ export function Step5Page() {
   );
 
   useOnboardingAgent('onboard_05');
+  useEffect(() => {
+    markOnboardingStepStart('habit_configuration');
+  }, []);
 
   useAgentNavigation(5, '/onboarding/step-6');
 
@@ -121,7 +126,7 @@ export function Step5Page() {
     setCustomizingHabit(queue[0]);
   }, [selectedHabits]);
 
-  const allHabits = useMemo(
+  const _allHabits = useMemo(
     () => goals.flatMap((goal) => [...(habitsByGoal[goal] ?? []), ...(customHabits[goal] ?? [])]),
     [goals, customHabits],
   );
@@ -162,6 +167,20 @@ export function Step5Page() {
       const serializedConfigs = Object.fromEntries(
         Object.entries(habitConfigs).map(([k, v]) => [k, { ...v, days: [...v.days] }]),
       );
+      Object.entries(serializedConfigs).forEach(([habitName, config]) => {
+        track('configure_habit_onboarding', {
+          habit_name: habitName,
+          category: state?.category ?? null,
+          has_reminder: config.reminder,
+          frequency_days: config.days,
+        });
+      });
+      trackOnboardingStepComplete({
+        stepKey: 'habit_configuration',
+        stepNumber: 5,
+        stepName: 'habit_configuration',
+        onboardingPath: 'beginner',
+      });
       await saveStepAsync(5, { habitConfigs: serializedConfigs });
       navigate('/onboarding/step-6', {
         state: {

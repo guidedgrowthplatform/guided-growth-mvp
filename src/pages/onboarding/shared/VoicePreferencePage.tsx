@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { track } from '@/analytics';
+import { setUserProperty, track } from '@/analytics';
 import { IconChatVoice, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
@@ -31,6 +31,7 @@ export function VoicePreferencePage() {
       preference: voiceEnabled ? 'voice' : 'text',
       screen: 'pref_01',
     });
+    setUserProperty({ ai_output_mode: voiceEnabled ? 'voice' : 'text' });
     await updatePreferences({ voiceMode: voiceEnabled ? 'voice' : 'screen' });
     useVoiceSettingsStore.getState().hydrate({ ttsEnabled: voiceEnabled });
     navigate('/onboarding/mic-permission');

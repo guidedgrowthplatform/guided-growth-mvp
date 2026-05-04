@@ -1,6 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { formatTime12 } from '@/lib/utils/time';
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -8,13 +9,6 @@ const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
 const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
 const PERIODS = ['AM', 'PM'] as const;
 const ITEM_HEIGHT = 44;
-
-export function formatTime12(time24: string): string {
-  const [h, m] = time24.split(':').map(Number);
-  const period = h >= 12 ? 'PM' : 'AM';
-  const hour12 = h % 12 || 12;
-  return `${hour12.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')} ${period}`;
-}
 
 function parse24(time24: string): { hour: number; minute: number; period: 'AM' | 'PM' } {
   const [h24, m] = time24.split(':').map(Number);

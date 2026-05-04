@@ -25,9 +25,19 @@ export function SocialAuthButtons({ disabled }: SocialAuthButtonsProps) {
 
   const handleGoogle = async () => {
     if (isSignupFlow) track('start_signup', { method: 'google' });
+    window.sessionStorage.setItem(
+      'gg_oauth_intent',
+      isSignupFlow ? 'signup_google' : 'login_google',
+    );
+    window.sessionStorage.setItem('gg_oauth_started_at', String(Date.now()));
     setGoogleLoading(true);
-    await signInWithGoogle();
+    const result = await signInWithGoogle();
     setGoogleLoading(false);
+    if (result.error) {
+      window.sessionStorage.removeItem('gg_oauth_intent');
+      window.sessionStorage.removeItem('gg_oauth_started_at');
+      toast.addToast('error', result.error);
+    }
   };
 
   return (

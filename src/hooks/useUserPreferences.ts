@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import type {
-  UserPreferences as DbUserPreferences,
-  VoiceMode,
-  RecordingMode,
-} from '@shared/types';
 import { apiGet, apiPut } from '@/api/client';
 import { useAuth } from '@/hooks/useAuth';
+import type { UserPreferences as DbUserPreferences, VoiceMode, RecordingMode } from '@shared/types';
 
 export interface UserPreferences {
   coachingStyle: string;
@@ -142,7 +138,10 @@ export function useUserPreferences() {
 
       if (!user) return;
       try {
-        await apiPut<WirePreferences>('/api/preferences', toWire({ [key]: value } as Partial<UserPreferences>));
+        await apiPut<WirePreferences>(
+          '/api/preferences',
+          toWire({ [key]: value } as Partial<UserPreferences>),
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to save preference');
       }

@@ -5,9 +5,10 @@ import { SECTION_LABEL_CLASS, toggleSetItem } from '@/components/onboarding/cons
 import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { VoiceEditCard } from '@/components/onboarding/VoiceEditCard';
 import { DayPicker } from '@/components/ui/DayPicker';
-import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
+import { TimePickerSheet } from '@/components/ui/TimePicker';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { speak, speakWhenReady, stopTTS } from '@/lib/services/tts-service';
+import { formatTime12 } from '@/lib/utils/time';
 
 interface EditHabitState {
   habitIndex: number;

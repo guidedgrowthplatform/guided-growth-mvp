@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { track } from '@/analytics';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
@@ -8,6 +9,7 @@ import { goalsByCategory } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
+import { markOnboardingStepStart, trackOnboardingStepComplete } from '@/lib/onboardingAnalytics';
 
 export function Step4Page() {
   const navigate = useNavigate();
@@ -18,6 +20,9 @@ export function Step4Page() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useOnboardingAgent('onboard_04');
+  useEffect(() => {
+    markOnboardingStepStart('specific_goals');
+  }, []);
 
   // ONBOARD-04 → step-5 on agent advance.
   useAgentNavigation(4, '/onboarding/step-5');
@@ -41,6 +46,16 @@ export function Step4Page() {
   }
 
   const handleNext = useCallback(async () => {
+    track('select_specific_goals', {
+      category,
+      goals: Array.from(selected),
+    });
+    trackOnboardingStepComplete({
+      stepKey: 'specific_goals',
+      stepNumber: 4,
+      stepName: 'specific_goals',
+      onboardingPath: 'beginner',
+    });
     await saveStepAsync(4, { goals: Array.from(selected) });
     navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
   }, [selected, category, navigate, saveStepAsync]);
