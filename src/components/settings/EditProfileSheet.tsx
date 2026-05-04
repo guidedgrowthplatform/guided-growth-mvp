@@ -110,7 +110,7 @@ export function EditProfileSheet({
 
   return (
     <BottomSheet onClose={onClose} preventClose={saving}>
-      <div className="px-6 pb-8 pt-2">
+      <div className="px-6 pt-2" style={{ paddingBottom: '150px' }}>
         <h2 className="mb-6 text-xl font-bold text-content">Edit Profile</h2>
 
         {/* Avatar */}
@@ -188,7 +188,7 @@ export function EditProfileSheet({
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="w-full rounded-full bg-primary py-3 text-base font-bold text-white disabled:opacity-60"
+          className="mt-10 w-full rounded-full bg-primary py-3 text-base font-bold text-white disabled:opacity-60"
         >
           {saving ? 'Saving…' : 'Save Changes'}
         </button>

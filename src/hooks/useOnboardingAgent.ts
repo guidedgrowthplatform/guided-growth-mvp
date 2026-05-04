@@ -44,6 +44,7 @@ export function useOnboardingAgent(screen: string): UseOnboardingAgentReturn {
     stop,
     state: voiceState,
   } = useRealtimeVoice({
+    // TODO: Style switching is OFF per Yair (April 9 call). Wire to useUserPreferences when re-enabled.
     metadata: { user_id: userId ?? '', screen, coaching_style: 'warm' },
     onError: (message) => setVoiceError(message),
     onEnd: () => setVoiceError(null),
