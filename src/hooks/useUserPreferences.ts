@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import type {
   UserPreferences as DbUserPreferences,
   VoiceMode,
@@ -6,6 +7,7 @@ import type {
 } from '@shared/types';
 import { apiGet, apiPut } from '@/api/client';
 import { useAuth } from '@/hooks/useAuth';
+import { queryKeys } from '@/lib/query';
 
 export interface UserPreferences {
   coachingStyle: string;
@@ -102,74 +104,86 @@ function saveLocalPreferences(prefs: UserPreferences) {
 
 export function useUserPreferences() {
   const { user } = useAuth();
-  const [preferences, setPreferences] = useState<UserPreferences>(loadLocalPreferences);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const qc = useQueryClient();
 
-  useEffect(() => {
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const row = await apiGet<WirePreferences>('/api/preferences');
-        if (cancelled) return;
-        const next = fromWire(row);
-        setPreferences(next);
-        saveLocalPreferences(next);
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load preferences');
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
-
-  const updatePreference = useCallback(
-    async <K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) => {
-      const next = { ...preferences, [key]: value };
-      setPreferences(next);
+  const query = useQuery<UserPreferences>({
+    queryKey: queryKeys.preferences.all,
+    queryFn: async () => {
+      const row = await apiGet<WirePreferences>('/api/preferences');
+      const next = fromWire(row);
       saveLocalPreferences(next);
+      return next;
+    },
+    enabled: !!user,
+    staleTime: 60 * 60_000,
+    initialData: loadLocalPreferences,
+    initialDataUpdatedAt: 0,
+  });
 
-      if (!user) return;
-      try {
-        await apiPut<WirePreferences>('/api/preferences', toWire({ [key]: value } as Partial<UserPreferences>));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to save preference');
+  const updateMutation = useMutation<
+    WirePreferences,
+    Error,
+    Partial<UserPreferences>,
+    { previous: UserPreferences | undefined }
+  >({
+    mutationFn: (partial) => apiPut<WirePreferences>('/api/preferences', toWire(partial)),
+    onMutate: async (partial) => {
+      await qc.cancelQueries({ queryKey: queryKeys.preferences.all });
+      const previous = qc.getQueryData<UserPreferences>(queryKeys.preferences.all);
+      const next = { ...(previous ?? DEFAULT_PREFERENCES), ...partial };
+      qc.setQueryData<UserPreferences>(queryKeys.preferences.all, next);
+      saveLocalPreferences(next);
+      return { previous };
+    },
+    onError: (_err, _partial, ctx) => {
+      if (ctx?.previous) {
+        qc.setQueryData(queryKeys.preferences.all, ctx.previous);
+        saveLocalPreferences(ctx.previous);
       }
     },
-    [preferences, user],
+    onSuccess: (wire) => {
+      const next = fromWire(wire);
+      qc.setQueryData(queryKeys.preferences.all, next);
+      saveLocalPreferences(next);
+    },
+  });
+
+  const updatePreference = useCallback(
+    <K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) => {
+      if (!user) {
+        const previous = qc.getQueryData<UserPreferences>(queryKeys.preferences.all);
+        const next = { ...(previous ?? DEFAULT_PREFERENCES), [key]: value };
+        qc.setQueryData<UserPreferences>(queryKeys.preferences.all, next);
+        saveLocalPreferences(next);
+        return Promise.resolve();
+      }
+      return updateMutation.mutateAsync({ [key]: value } as Partial<UserPreferences>);
+    },
+    [qc, updateMutation, user],
   );
 
   const updatePreferences = useCallback(
-    async (partial: Partial<UserPreferences>) => {
-      const next = { ...preferences, ...partial };
-      setPreferences(next);
-      saveLocalPreferences(next);
-
-      if (!user) return;
-      try {
-        await apiPut<WirePreferences>('/api/preferences', toWire(partial));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to save preferences');
+    (partial: Partial<UserPreferences>) => {
+      if (!user) {
+        const previous = qc.getQueryData<UserPreferences>(queryKeys.preferences.all);
+        const next = { ...(previous ?? DEFAULT_PREFERENCES), ...partial };
+        qc.setQueryData<UserPreferences>(queryKeys.preferences.all, next);
+        saveLocalPreferences(next);
+        return Promise.resolve();
       }
+      return updateMutation.mutateAsync(partial);
     },
-    [preferences, user],
+    [qc, updateMutation, user],
   );
 
   return {
-    preferences,
-    isLoading,
-    error,
+    preferences: query.data ?? DEFAULT_PREFERENCES,
+    isLoading: query.isLoading,
+    error: query.error
+      ? query.error.message
+      : updateMutation.error
+        ? updateMutation.error.message
+        : null,
     updatePreference,
     updatePreferences,
   };

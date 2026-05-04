@@ -29,9 +29,9 @@ export function BeginnerConfirmPhase({
 }: BeginnerConfirmPhaseProps) {
   return (
     <>
-      <div className="flex min-h-dvh flex-col bg-primary-bg px-5 pb-[120px] pt-[max(16px,env(safe-area-inset-top))]">
+      <div className="flex min-h-dvh flex-col bg-primary-bg px-5 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-[max(16px,env(safe-area-inset-top))]">
         <AddHabitHeader onBack={onBack} />
-        <div className="flex flex-col gap-4">
+        <div className="mb-8 flex flex-col gap-4">
           {Object.entries(habitConfigs).map(([habit, config]) => (
             <HabitSummaryCard
               key={habit}
@@ -41,13 +41,11 @@ export function BeginnerConfirmPhase({
             />
           ))}
         </div>
-      </div>
-      <div className="fixed inset-x-0 bottom-0 z-30 bg-primary-bg px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3">
         <button
           type="button"
           disabled={saving}
           onClick={onConfirm}
-          className="h-[56px] w-full rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25)] disabled:opacity-50"
+          className="mt-auto h-[56px] w-full rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25)] disabled:opacity-50"
         >
           {saving ? 'Saving...' : 'Confirm & Add'}
         </button>

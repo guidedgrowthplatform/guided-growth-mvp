@@ -2,6 +2,7 @@ import { Icon } from '@iconify/react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchJournalEntry } from '@/api/journal';
+import { EditReflectionSheet } from '@/components/reflections/EditReflectionSheet';
 import { entryHeading, formatDetailHeader } from '@/components/reflections/reflectionFormatters';
 import { useToast } from '@/contexts/ToastContext';
 import type { JournalEntry } from '@shared/types';
@@ -69,6 +70,7 @@ export function ReflectionDetailPage() {
   const [entry, setEntry] = useState<JournalEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -111,15 +113,15 @@ export function ReflectionDetailPage() {
         >
           <Icon icon="mdi:arrow-left" width={24} height={24} />
         </button>
-        <h1 className="flex-1 text-center text-base font-semibold text-content">Journal Entry</h1>
+        <h1 className="flex-1 text-center text-lg font-semibold text-content">Journal Entry</h1>
         <button
           type="button"
-          onClick={() => entry && navigate(`/reflections/${entry.id}/edit`)}
+          onClick={() => entry && setEditOpen(true)}
           aria-label="Edit reflection"
           disabled={!entry}
           className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-content hover:bg-surface-secondary active:bg-surface-secondary disabled:opacity-40"
         >
-          <Icon icon="mdi:pencil-outline" width={22} height={22} />
+          <Icon icon="mdi:pencil-outline" width={18} height={18} />
         </button>
       </div>
 
@@ -157,16 +159,15 @@ export function ReflectionDetailPage() {
               const header = formatDetailHeader(entry.created_at);
               return (
                 <>
-                  <p className="text-sm font-medium text-content-secondary">{header.monthYear}</p>
-                  <h2 className="mt-1 text-[26px] font-bold leading-tight text-content">
+                  <h2 className="text-lg font-bold leading-tight text-content">
                     {header.fullDate}
                   </h2>
-                  <div className="mt-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-base text-content-secondary">
-                      <Icon icon="mdi:clock-outline" width={18} height={18} className="text-primary" />
+                  <div className="mt-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-content-secondary">
+                      <Icon icon="mdi:clock-outline" width={16} height={16} className="text-primary" />
                       {header.time}
                     </div>
-                    <span className="rounded-full border border-border-light bg-surface px-4 py-1 text-sm font-semibold text-primary">
+                    <span className="rounded-full border border-border-light bg-surface px-3 py-1 text-xs font-semibold text-primary">
                       {entryHeading(entry)}
                     </span>
                   </div>
@@ -188,6 +189,17 @@ export function ReflectionDetailPage() {
           </>
         )}
       </div>
+
+      {editOpen && entry && (
+        <EditReflectionSheet
+          entry={entry}
+          onClose={() => setEditOpen(false)}
+          onSaved={(updated) => {
+            setEntry(updated);
+            setEditOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
