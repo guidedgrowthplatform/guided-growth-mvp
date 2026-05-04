@@ -1,66 +1,103 @@
 import { Icon } from '@iconify/react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO, subMonths } from 'date-fns';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { deleteJournalEntry, fetchJournalEntries } from '@/api/journal';
+import { EditReflectionSheet } from '@/components/reflections/EditReflectionSheet';
 import { ReflectionListCard } from '@/components/reflections/ReflectionListCard';
-import { BottomSheet } from '@/components/ui/BottomSheet';
+import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import { useToast } from '@/contexts/ToastContext';
+import { queryKeys } from '@/lib/query';
 import type { JournalEntry } from '@shared/types';
 
 const FETCH_MONTHS = 6;
 
+function sortEntries(rows: JournalEntry[]): JournalEntry[] {
+  return [...rows].sort(
+    (a, b) => parseISO(b.created_at).getTime() - parseISO(a.created_at).getTime(),
+  );
+}
+
 export function ReflectionsListPage() {
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const [entries, setEntries] = useState<JournalEntry[] | null>(null);
-  const [error, setError] = useState(false);
-  const [menuEntry, setMenuEntry] = useState<JournalEntry | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const qc = useQueryClient();
 
-  useEffect(() => {
-    let cancelled = false;
+  const { start, end } = useMemo(() => {
     const today = new Date();
-    const start = format(subMonths(today, FETCH_MONTHS), 'yyyy-MM-dd');
-    const end = format(today, 'yyyy-MM-dd');
-    fetchJournalEntries(start, end)
-      .then((rows) => {
-        if (cancelled) return;
-        const sorted = [...rows].sort(
-          (a, b) => parseISO(b.created_at).getTime() - parseISO(a.created_at).getTime(),
-        );
-        setEntries(sorted);
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
-      });
-    return () => {
-      cancelled = true;
+    return {
+      start: format(subMonths(today, FETCH_MONTHS), 'yyyy-MM-dd'),
+      end: format(today, 'yyyy-MM-dd'),
     };
   }, []);
 
-  const handleDelete = useCallback(async () => {
-    if (!menuEntry) return;
-    if (!window.confirm('Delete this reflection? This cannot be undone.')) return;
-    setDeleting(true);
-    try {
-      await deleteJournalEntry(menuEntry.id);
-      setEntries((prev) => prev?.filter((e) => e.id !== menuEntry.id) ?? null);
-      addToast('success', 'Reflection deleted');
-      setMenuEntry(null);
-    } catch {
-      addToast('error', 'Failed to delete — please try again');
-    } finally {
-      setDeleting(false);
-    }
-  }, [menuEntry, addToast]);
+  const queryKey = useMemo(() => queryKeys.journal.range(start, end), [start, end]);
 
-  const handleEdit = useCallback(() => {
-    if (!menuEntry) return;
-    const id = menuEntry.id;
+  const {
+    data: entries,
+    isPending,
+    isError,
+  } = useQuery({
+    queryKey,
+    queryFn: () => fetchJournalEntries(start, end),
+    select: sortEntries,
+  });
+
+  const [menuEntry, setMenuEntry] = useState<JournalEntry | null>(null);
+  const [editEntry, setEditEntry] = useState<JournalEntry | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteJournalEntry(id),
+    onSuccess: (_, id) => {
+      qc.setQueryData<JournalEntry[]>(queryKey, (prev) =>
+        prev ? prev.filter((e) => e.id !== id) : prev,
+      );
+      qc.invalidateQueries({ queryKey: queryKeys.journal.all });
+      addToast('success', 'Reflection deleted');
+      setConfirmDelete(false);
+      setMenuEntry(null);
+    },
+    onError: () => addToast('error', 'Failed to delete — please try again'),
+  });
+
+  const handleMenuToggle = useCallback((entry: JournalEntry) => {
+    setMenuEntry((prev) => (prev?.id === entry.id ? null : entry));
+  }, []);
+
+  const handleMenuClose = useCallback(() => setMenuEntry(null), []);
+
+  const handleEdit = useCallback((entry: JournalEntry) => {
+    setEditEntry(entry);
     setMenuEntry(null);
-    navigate(`/reflections/${id}/edit`);
-  }, [menuEntry, navigate]);
+  }, []);
+
+  const handleDeleteRequest = useCallback((entry: JournalEntry) => {
+    setMenuEntry(entry);
+    setConfirmDelete(true);
+  }, []);
+
+  const cancelDelete = useCallback(() => {
+    setConfirmDelete(false);
+    setMenuEntry(null);
+  }, []);
+
+  const confirmDeletion = useCallback(() => {
+    if (!menuEntry) return;
+    deleteMutation.mutate(menuEntry.id);
+  }, [menuEntry, deleteMutation]);
+
+  const handleSaved = useCallback(
+    (updated: JournalEntry) => {
+      qc.setQueryData<JournalEntry[]>(queryKey, (prev) =>
+        prev ? prev.map((e) => (e.id === updated.id ? updated : e)) : prev,
+      );
+      qc.invalidateQueries({ queryKey: queryKeys.journal.all });
+      setEditEntry(null);
+    },
+    [qc, queryKey],
+  );
 
   return (
     <div className="min-h-dvh bg-primary-bg">
@@ -87,19 +124,19 @@ export function ReflectionsListPage() {
         </p>
 
         <div className="mt-6 flex flex-col gap-4">
-          {error && (
+          {isError && (
             <div className="rounded-2xl bg-surface px-4 py-6 text-center text-sm text-content-secondary">
               Couldn&apos;t load reflections. Pull down to retry.
             </div>
           )}
-          {!error && entries === null && (
+          {!isError && isPending && (
             <>
               <div className="h-28 animate-pulse rounded-2xl bg-surface" />
               <div className="h-28 animate-pulse rounded-2xl bg-surface" />
               <div className="h-28 animate-pulse rounded-2xl bg-surface" />
             </>
           )}
-          {!error && entries && entries.length === 0 && (
+          {!isError && entries && entries.length === 0 && (
             <div className="flex flex-col items-center gap-3 rounded-2xl bg-surface px-6 py-10 text-center">
               <Icon
                 icon="mdi:notebook-outline"
@@ -120,36 +157,41 @@ export function ReflectionsListPage() {
               </button>
             </div>
           )}
-          {!error &&
+          {!isError &&
             entries &&
             entries.map((entry) => (
-              <ReflectionListCard key={entry.id} entry={entry} onMenuOpen={setMenuEntry} />
+              <ReflectionListCard
+                key={entry.id}
+                entry={entry}
+                isMenuOpen={menuEntry?.id === entry.id && !confirmDelete && !editEntry}
+                onMenuToggle={handleMenuToggle}
+                onMenuClose={handleMenuClose}
+                onEdit={handleEdit}
+                onDelete={handleDeleteRequest}
+              />
             ))}
         </div>
       </div>
 
-      {menuEntry && (
-        <BottomSheet onClose={() => setMenuEntry(null)}>
-          <div className="px-6 pb-8 pt-2">
-            <button
-              type="button"
-              onClick={handleEdit}
-              className="flex w-full items-center gap-4 rounded-xl px-4 py-4 text-left text-base font-medium text-content hover:bg-surface-secondary"
-            >
-              <Icon icon="mdi:pencil-outline" width={22} height={22} className="text-content" />
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="flex w-full items-center gap-4 rounded-xl px-4 py-4 text-left text-base font-medium text-danger hover:bg-danger/5 disabled:opacity-50"
-            >
-              <Icon icon="mdi:trash-can-outline" width={22} height={22} />
-              {deleting ? 'Deleting…' : 'Delete'}
-            </button>
-          </div>
-        </BottomSheet>
+      {menuEntry && confirmDelete && (
+        <ConfirmDialog
+          title="Delete reflection?"
+          message="This cannot be undone."
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          variant="danger"
+          isLoading={deleteMutation.isPending}
+          onConfirm={confirmDeletion}
+          onCancel={cancelDelete}
+        />
+      )}
+
+      {editEntry && (
+        <EditReflectionSheet
+          entry={editEntry}
+          onClose={() => setEditEntry(null)}
+          onSaved={handleSaved}
+        />
       )}
     </div>
   );
