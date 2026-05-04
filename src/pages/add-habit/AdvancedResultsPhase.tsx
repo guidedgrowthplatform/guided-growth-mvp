@@ -59,7 +59,7 @@ export function AdvancedResultsPhase({
           />
         ))}
       </div>
-      <div className="flex flex-col items-center gap-4 px-5 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-8">
+      <div className="flex flex-col items-center gap-4 px-5 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-8">
         <button
           type="button"
           disabled={saving}

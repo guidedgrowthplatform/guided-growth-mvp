@@ -24,12 +24,18 @@ export function useAddHabitState() {
       case 'choose-path':
         navigate(-1);
         break;
-      case 'beginner-select':
+      case 'beginner-category':
       case 'advanced-input':
         setPhase('choose-path');
         break;
+      case 'beginner-goals':
+        setPhase('beginner-category');
+        break;
+      case 'beginner-habits':
+        setPhase('beginner-goals');
+        break;
       case 'beginner-confirm':
-        setPhase('beginner-select');
+        setPhase('beginner-habits');
         break;
       case 'advanced-results':
         setPhase('advanced-input');
@@ -41,8 +47,20 @@ export function useAddHabitState() {
   }
 
   function handlePathContinue() {
-    if (path === 'simple') setPhase('beginner-select');
+    if (path === 'simple') setPhase('beginner-category');
     else if (path === 'braindump') setPhase('advanced-input');
+  }
+
+  function handleCategoryContinue() {
+    setPhase('beginner-goals');
+  }
+
+  function handleGoalsContinue() {
+    setPhase('beginner-habits');
+  }
+
+  function handleHabitsContinue() {
+    beginner.startCustomizationQueue();
   }
 
   // Beginner: when customization queue finishes, transition to confirm
@@ -135,6 +153,9 @@ export function useAddHabitState() {
 
     // Beginner
     ...beginner,
+    handleCategoryContinue,
+    handleGoalsContinue,
+    handleHabitsContinue,
     handleBeginnerSheetNext,
 
     // Advanced

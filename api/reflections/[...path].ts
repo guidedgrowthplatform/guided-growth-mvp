@@ -4,6 +4,7 @@ import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { supabaseAdmin } from '../_lib/supabase-admin.js';
 import { validateDate, validateUUID, sanitizeContent } from '../_lib/validation.js';
+import { dispatchFeedbackAlert } from '../_lib/feedback-emailer.js';
 
 const DEFAULT_FIELDS = [
   { id: 'wins', label: 'Wins', order: 0 },
@@ -23,7 +24,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── Journal entries ──────────────────────────────────
   if (route === 'journal') {
-    const journalSub = segments[1] || '';
+    const queryId = typeof req.query.id === 'string' ? req.query.id : '';
+    const queryAction = typeof req.query.action === 'string' ? req.query.action : '';
+    const journalSub = segments[1] || queryId || (queryAction === 'upload' ? 'upload' : '');
 
     // POST /api/reflections/journal/upload — upload image
     if (journalSub === 'upload' && req.method === 'POST') {
@@ -328,7 +331,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          RETURNING id, sentiment, text, created_at`,
         [user.id, sentiment, feedbackText],
       );
-      return res.status(201).json(result.rows[0]);
+      const inserted = result.rows[0];
+      const submittedAt =
+        inserted.created_at instanceof Date
+          ? inserted.created_at.toISOString()
+          : String(inserted.created_at);
+      await dispatchFeedbackAlert({
+        feedbackId: inserted.id,
+        sentiment,
+        text: feedbackText,
+        userEmail: user.email,
+        submittedAt,
+      });
+      return res.status(201).json(inserted);
     }
     return res.status(405).json({ error: 'Method not allowed' });
   }

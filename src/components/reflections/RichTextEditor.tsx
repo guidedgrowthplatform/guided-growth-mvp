@@ -31,7 +31,7 @@ async function fileToBase64(file: File): Promise<string> {
 
 async function uploadImage(file: File): Promise<string> {
   const data = await fileToBase64(file);
-  const res = await apiPost<{ url: string }>('/api/reflections/journal/upload', {
+  const res = await apiPost<{ url: string }>('/api/reflections/journal?action=upload', {
     data,
     contentType: file.type,
   });
@@ -180,4 +180,3 @@ export function RichTextEditor({
     </div>
   );
 }
-

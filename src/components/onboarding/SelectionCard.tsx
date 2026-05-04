@@ -1,8 +1,8 @@
 import { Icon } from '@iconify/react';
 
 interface SelectionCardProps {
-  icon: string;
-  iconBg: string;
+  icon?: string;
+  iconBg?: string;
   iconColor?: string;
   title: string;
   description: string;
@@ -29,12 +29,14 @@ export function SelectionCard({
       onClick={onSelect}
       className="flex w-full cursor-pointer items-center gap-[16px] rounded-[16px] border border-border bg-surface-secondary p-[21px] text-left"
     >
-      <div
-        className="relative flex size-[44px] shrink-0 items-center justify-center rounded-[22px]"
-        style={{ backgroundColor: iconBg }}
-      >
-        <Icon icon={icon} width={24} height={24} style={{ color: iconColor }} />
-      </div>
+      {icon && (
+        <div
+          className="relative flex size-[44px] shrink-0 items-center justify-center rounded-[22px]"
+          style={{ backgroundColor: iconBg }}
+        >
+          <Icon icon={icon} width={24} height={24} style={{ color: iconColor }} />
+        </div>
+      )}
       <div className="flex-1">
         <div className="text-[16px] font-bold leading-[22.5px] text-content">{title}</div>
         <div className="pt-[4px] text-[14px] font-medium leading-[19.25px] text-content-secondary">

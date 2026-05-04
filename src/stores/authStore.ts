@@ -166,10 +166,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signUp: async (email, password) => {
     track('start_signup', { method: 'email' });
     const startedAt = Date.now();
+    const isNative = Capacitor.isNativePlatform();
+    const emailRedirectTo = isNative
+      ? 'guidedgrowth://auth/callback'
+      : `${window.location.origin}/auth/callback`;
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo,
         data: {
           full_name: email.split('@')[0],
         },
@@ -185,30 +191,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { error: friendlyError(error) };
     }
 
-    // When email confirmation is enabled, Supabase returns user but no session.
-    // When the email already exists, Supabase returns a fake user with empty identities.
-    // In both cases, show "check your email" to prevent email enumeration.
-    const confirmationPending = !data.session;
-
-    if (data?.session?.user) {
-      const user = mapUser(data.session.user);
-      set({ user });
-      identifyUser(user, { auth_method: 'email' });
-      // send_instantly skips the batched queue — without it the event
-      // races with post-auth navigation and gets dropped from the
-      // localStorage-backed queue before flush.
-      // time_to_complete_seconds per spec v6.0 §3.1 — measured from form submit
-      // to successful Supabase user creation.
-      track(
-        'complete_signup',
-        {
-          method: 'email',
-          time_to_complete_seconds: Math.round((Date.now() - startedAt) / 1000),
-        },
-        { send_instantly: true },
-      );
+    // Reject auto-confirmed sessions — product flow requires email verification.
+    // Revert synchronously before awaiting signOut so AppGate can't redirect mid-flow.
+    if (data.session) {
+      set({ user: null });
+      await supabase.auth.signOut({ scope: 'global' });
+      track('signup_error', {
+        method: 'email',
+        error_type: 'auto_confirm_misconfigured',
+      });
+      return {
+        error: 'Email verification is not configured for this environment. Please contact support.',
+      };
     }
-    return { error: null, confirmationPending };
+
+    // send_instantly skips the batched queue — otherwise the event races
+    // with post-auth navigation and is dropped before flush.
+    track(
+      'complete_signup',
+      {
+        method: 'email',
+        time_to_complete_seconds: Math.round((Date.now() - startedAt) / 1000),
+      },
+      { send_instantly: true },
+    );
+
+    return { error: null, confirmationPending: true };
   },
 
   signIn: async (email, password) => {

@@ -18,5 +18,5 @@ export function updateProfile(data: {
 }
 
 export function uploadAvatar(dataUrl: string): Promise<{ imageUrl: string }> {
-  return apiPost<{ imageUrl: string }>('/api/onboarding/profile/avatar', { dataUrl });
+  return apiPost<{ imageUrl: string }>('/api/onboarding/profile', { dataUrl });
 }

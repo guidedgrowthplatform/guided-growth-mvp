@@ -66,9 +66,6 @@ const ReflectionsListPage = lazy(() =>
 const ReflectionDetailPage = lazy(() =>
   import('@/pages/ReflectionDetailPage').then((m) => ({ default: m.ReflectionDetailPage })),
 );
-const EditReflectionPage = lazy(() =>
-  import('@/pages/EditReflectionPage').then((m) => ({ default: m.EditReflectionPage })),
-);
 
 const lazyOnboarding = (name: string) =>
   lazy(() =>
@@ -334,7 +331,6 @@ export function AppRoutes() {
           <Route path="journal" element={<JournalFlowPage />} />
           <Route path="reflections" element={<ReflectionsListPage />} />
           <Route path="reflections/:id" element={<ReflectionDetailPage />} />
-          <Route path="reflections/:id/edit" element={<EditReflectionPage />} />
           <Route path="habit/:habitId/reflection" element={<HabitReflectionPage />} />
           <Route path="habit/:habitId" element={<HomePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

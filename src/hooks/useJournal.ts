@@ -1,12 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
+import { queryKeys } from '@/lib/query';
 import type { JournalEntry } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
-
-const JOURNAL_KEYS = {
-  all: ['journal'] as const,
-  range: (start: string, end: string) => ['journal', start, end] as const,
-};
 
 async function fetchJournalEntries(startDate?: string, endDate?: string): Promise<JournalEntry[]> {
   const ds = await getDataService();
@@ -30,7 +26,8 @@ export function useJournal(startDate?: string, endDate?: string) {
     isLoading,
     error: queryError,
   } = useQuery({
-    queryKey: startDate && endDate ? JOURNAL_KEYS.range(startDate, endDate) : JOURNAL_KEYS.all,
+    queryKey:
+      startDate && endDate ? queryKeys.journal.range(startDate, endDate) : queryKeys.journal.all,
     queryFn: () => fetchJournalEntries(startDate, endDate),
   });
 
@@ -40,7 +37,7 @@ export function useJournal(startDate?: string, endDate?: string) {
     mutationFn: (params: { content: string; mood?: string; themes?: string[] }) =>
       createEntry(params.content, params.mood, params.themes),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: JOURNAL_KEYS.all });
+      qc.invalidateQueries({ queryKey: queryKeys.journal.all });
     },
   });
 

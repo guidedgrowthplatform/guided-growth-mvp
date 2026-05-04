@@ -1,19 +1,62 @@
 import { useCallback, useState } from 'react';
 import type { HabitConfig } from '@/components/onboarding/HabitCustomizeSheet';
-import { goalsByCategory, habitsByGoal } from '@/data/onboardingHabits';
-
-export const categories = Object.entries(goalsByCategory).map(([category, goals]) => ({
-  category,
-  habits: goals.flatMap((goal) => habitsByGoal[goal] ?? []),
-}));
+import { habitsByGoal } from '@/data/onboardingHabits';
 
 export function useBeginnerPath() {
-  const [expandedCategory, setExpandedCategory] = useState(categories[0].category);
+  const [selectedCategory, setSelectedCategoryState] = useState<string | null>(null);
+  const [selectedGoals, setSelectedGoals] = useState<Set<string>>(new Set());
   const [selectedHabits, setSelectedHabits] = useState<Set<string>>(new Set());
   const [customHabits, setCustomHabits] = useState<Record<string, string[]>>({});
   const [habitConfigs, setHabitConfigs] = useState<Record<string, HabitConfig>>({});
   const [customizingHabit, setCustomizingHabit] = useState<string | null>(null);
   const [habitQueue, setHabitQueue] = useState<string[]>([]);
+
+  function setSelectedCategory(c: string) {
+    if (c === selectedCategory) return;
+    setSelectedCategoryState(c);
+    setSelectedGoals(new Set());
+    setSelectedHabits(new Set());
+    setCustomHabits({});
+    setHabitConfigs({});
+  }
+
+  function toggleGoal(goal: string) {
+    const next = new Set(selectedGoals);
+    if (next.has(goal)) {
+      next.delete(goal);
+    } else if (next.size < 2) {
+      next.add(goal);
+    } else {
+      return;
+    }
+    setSelectedGoals(next);
+
+    // Drop habits whose goal is no longer selected.
+    const allowedHabits = new Set<string>();
+    for (const g of next) {
+      for (const h of habitsByGoal[g] ?? []) allowedHabits.add(h);
+      for (const h of customHabits[g] ?? []) allowedHabits.add(h);
+    }
+    setSelectedHabits((prev) => {
+      const filtered = new Set<string>();
+      for (const h of prev) if (allowedHabits.has(h)) filtered.add(h);
+      return filtered;
+    });
+    setHabitConfigs((prev) => {
+      const filtered: Record<string, HabitConfig> = {};
+      for (const [name, cfg] of Object.entries(prev)) {
+        if (allowedHabits.has(name)) filtered[name] = cfg;
+      }
+      return filtered;
+    });
+    if (!next.has(goal)) {
+      setCustomHabits((prev) => {
+        if (!(goal in prev)) return prev;
+        const { [goal]: _removed, ...rest } = prev;
+        return rest;
+      });
+    }
+  }
 
   function toggleHabit(habit: string) {
     if (selectedHabits.has(habit)) {
@@ -31,11 +74,11 @@ export function useBeginnerPath() {
     setSelectedHabits(new Set(selectedHabits).add(habit));
   }
 
-  function addCustomHabit(category: string, habit: string) {
+  function addCustomHabit(goal: string, habit: string) {
     if (selectedHabits.size >= 2) return;
     setCustomHabits((prev) => ({
       ...prev,
-      [category]: [...(prev[category] ?? []), habit],
+      [goal]: [...(prev[goal] ?? []), habit],
     }));
     setSelectedHabits(new Set(selectedHabits).add(habit));
   }
@@ -75,8 +118,10 @@ export function useBeginnerPath() {
     : true;
 
   return {
-    expandedCategory,
-    setExpandedCategory,
+    selectedCategory,
+    setSelectedCategory,
+    selectedGoals,
+    toggleGoal,
     selectedHabits,
     customHabits,
     habitConfigs,

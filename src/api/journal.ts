@@ -15,16 +15,16 @@ export function fetchJournalEntries(
 }
 
 export function fetchJournalEntry(id: string): Promise<JournalEntry> {
-  return apiGet<JournalEntry>(`/api/reflections/journal/${id}`);
+  return apiGet<JournalEntry>(`/api/reflections/journal?id=${encodeURIComponent(id)}`);
 }
 
 export function updateJournalEntry(
   id: string,
   data: Partial<JournalEntryCreate>,
 ): Promise<JournalEntry> {
-  return apiPut<JournalEntry>(`/api/reflections/journal/${id}`, data);
+  return apiPut<JournalEntry>(`/api/reflections/journal?id=${encodeURIComponent(id)}`, data);
 }
 
 export function deleteJournalEntry(id: string): Promise<void> {
-  return apiDelete<void>(`/api/reflections/journal/${id}`);
+  return apiDelete<void>(`/api/reflections/journal?id=${encodeURIComponent(id)}`);
 }

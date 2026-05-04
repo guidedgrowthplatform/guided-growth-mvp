@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import * as entriesApi from '@/api/entries';
 import { offlineQueue } from '@/cache/offlineQueue';
@@ -8,6 +8,7 @@ import type { EntriesMap, DayEntries } from '@shared/types';
 
 export function useEntries() {
   const { addToast } = useToast();
+  const qc = useQueryClient();
   const [entries, setEntries] = useState<EntriesMap>({});
   const [range, setRange] = useState<{ start: string; end: string } | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -49,12 +50,13 @@ export function useEntries() {
     async (date: string, dayEntries: DayEntries) => {
       try {
         await entriesApi.saveEntries(date, dayEntries);
+        qc.invalidateQueries({ queryKey: queryKeys.entries.all });
       } catch {
         offlineQueue.enqueue(`/api/entries/${date}`, 'PUT', dayEntries);
         addToast('error', 'Saved offline — will sync when back online');
       }
     },
-    [addToast],
+    [addToast, qc],
   );
 
   useEffect(() => {
@@ -64,6 +66,7 @@ export function useEntries() {
           .flush()
           .then((result) => {
             if (result.succeeded > 0) {
+              qc.invalidateQueries({ queryKey: queryKeys.entries.all });
               addToast(
                 'success',
                 `Synced ${result.succeeded} offline ${result.succeeded === 1 ? 'entry' : 'entries'}`,
@@ -85,7 +88,7 @@ export function useEntries() {
     window.addEventListener('online', handleOnline);
     handleOnline();
     return () => window.removeEventListener('online', handleOnline);
-  }, [addToast]);
+  }, [addToast, qc]);
 
   const saveDayDebounced = useCallback(
     (date: string, dayEntries: DayEntries) => {
@@ -106,15 +109,15 @@ export function useEntries() {
     async (entriesMap: EntriesMap) => {
       try {
         await entriesApi.saveBulkEntries(entriesMap);
+        qc.invalidateQueries({ queryKey: queryKeys.entries.all });
       } catch {
-        // Enqueue each day to offline queue for retry
         for (const [date, dayEntries] of Object.entries(entriesMap)) {
           offlineQueue.enqueue(`/api/entries/${date}`, 'PUT', dayEntries);
         }
         addToast('error', 'Saved offline — will sync when back online');
       }
     },
-    [addToast],
+    [addToast, qc],
   );
 
   return {

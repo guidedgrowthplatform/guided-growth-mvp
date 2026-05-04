@@ -48,7 +48,7 @@ export function FocusSessionSheet({
   }
 
   return (
-    <div className="px-6 pb-8 pt-4">
+    <div className="px-6 pt-4" style={{ paddingBottom: '150px' }}>
       <h2 className="text-[24px] font-bold leading-[32px] text-content">Set Your Focus Session</h2>
 
       <div className="mt-6">
