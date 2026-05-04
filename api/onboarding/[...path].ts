@@ -250,8 +250,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.json({ ok: true });
   }
 
-  // POST /api/onboarding/profile/avatar — upload avatar to Supabase Storage
-  if (segments[0] === 'profile' && segments[1] === 'avatar' && req.method === 'POST') {
+  // POST /api/onboarding/profile — upload avatar to Supabase Storage
+  if (route === 'profile' && req.method === 'POST') {
     const { dataUrl } = req.body ?? {};
     if (typeof dataUrl !== 'string') {
       return res.status(400).json({ error: 'dataUrl is required' });
