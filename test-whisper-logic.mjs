@@ -1,3 +1,4 @@
+/* eslint-disable */
 import fs from 'fs';
 import FormData from 'form-data';
 import fetch from 'node-fetch';

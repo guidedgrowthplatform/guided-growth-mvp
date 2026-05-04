@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { track } from '@/analytics';
 import {
   CalendarHeader,
   CalendarGrid,
@@ -24,6 +25,10 @@ export function CalendarPage() {
       ? today.getDate()
       : null,
   );
+
+  useEffect(() => {
+    track('view_calendar');
+  }, []);
 
   const { calendarData, isLoading, error } = useCalendarData(
     currentMonth.getFullYear(),
