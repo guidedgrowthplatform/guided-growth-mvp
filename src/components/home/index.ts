@@ -12,3 +12,4 @@ export { EmojiOptionButton } from './EmojiOptionButton';
 export { QuickActionCards } from './QuickActionCards';
 export { ReminderSheet } from './ReminderSheet';
 export { VoiceCheckInOverlay } from './VoiceCheckInOverlay';
+export { RecentReflectionsSection } from './RecentReflectionsSection';

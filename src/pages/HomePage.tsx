@@ -8,6 +8,7 @@ import {
   CheckInCard,
   QuickActionCards,
   HabitsSection,
+  RecentReflectionsSection,
   FeedbackButton,
   FeedbackSheet,
   ReminderSheet,
@@ -132,6 +133,7 @@ export function HomePage() {
           </div>
         </div>
         <HabitsSection selectedDate={selectedDate} />
+        <RecentReflectionsSection />
       </div>
 
       <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-6 z-20">
