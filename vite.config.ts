@@ -192,6 +192,7 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'node',
       include: ['src/**/*.test.{ts,tsx}', 'api/**/*.test.{ts,tsx}'],
+      setupFiles: ['./src/test/setup-storage.ts'],
       coverage: {
         provider: 'v8',
         reporter: ['text', 'cobertura'],

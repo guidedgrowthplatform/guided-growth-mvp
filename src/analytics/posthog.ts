@@ -2,8 +2,6 @@ import { Capacitor } from '@capacitor/core';
 import posthog, { type CaptureOptions, type EventName, type Properties } from 'posthog-js';
 import { getCurrentInputMethod } from '@/contexts/inputMethodContextDef';
 
-const KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
-
 // `ui_host` drives the "View session in PostHog" dashboard links. The
 // previous `VITE_POSTHOG_HOST` env var held the *ingest* host
 // (`us.i.posthog.com`), which is wrong for dashboard links — default to
@@ -34,9 +32,12 @@ function resolveApiHost(): string {
 let initialized = false;
 
 export function initAnalytics(): void {
-  if (!KEY || initialized) return;
+  // Read inside the function so vitest's vi.stubEnv() takes effect; reading
+  // at module top level would freeze the value at first import.
+  const key = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
+  if (!key || initialized) return;
 
-  posthog.init(KEY, {
+  posthog.init(key, {
     api_host: resolveApiHost(),
     ui_host: UI_HOST,
     capture_pageview: false, // handled manually via usePageTracking
