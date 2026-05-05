@@ -38,8 +38,11 @@ platform :ios do
     )
 
     # --- Build --------------------------------------------------------------
+    # Capacitor 8 uses Swift Package Manager, which generates only an
+    # .xcodeproj (no top-level .xcworkspace). Earlier CocoaPods-based
+    # Capacitor versions produced a workspace — kept here for posterity.
     build_app(
-      workspace: "ios/App/App.xcworkspace",
+      project: "ios/App/App.xcodeproj",
       scheme: "App",
       export_method: "app-store",
       output_directory: "./build/ios",
