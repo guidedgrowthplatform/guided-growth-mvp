@@ -80,6 +80,11 @@ jobs:
       - name: Build web
         env:
           VITE_API_URL: 'https://guided-growth-mvp.vercel.app'
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_CARTESIA_AGENT_ID: ${{ secrets.VITE_CARTESIA_AGENT_ID }}
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
         run: npm run build
 
       - name: Upload build artifacts
@@ -193,7 +198,7 @@ jobs:
   ios-testflight:
     name: iOS TestFlight
     runs-on: macos-14
-    needs: validate-and-test
+    needs: build
     # Only fire on tag pushes matching v* (e.g. v1.2.3) or manual dispatch.
     # This keeps regular commits out of the TestFlight pipeline.
     if: >-
@@ -217,20 +222,17 @@ jobs:
       - name: Setup Ruby + Bundler cache
         uses: ruby/setup-ruby@v1
         with:
+          ruby-version: '3.3'
           bundler-cache: true
 
       - name: Install npm dependencies
         run: npm ci --ignore-scripts
 
-      - name: Build web bundle (production)
-        env:
-          VITE_API_URL: 'https://guided-growth-mvp.vercel.app'
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_CARTESIA_AGENT_ID: ${{ secrets.VITE_CARTESIA_AGENT_ID }}
-          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
-          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-        run: npm run build
+      - name: Download web build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
 
       - name: Add iOS platform & sync Capacitor
         run: |
