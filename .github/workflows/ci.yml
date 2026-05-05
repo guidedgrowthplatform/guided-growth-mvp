@@ -197,12 +197,12 @@ jobs:
 
   ios-testflight:
     name: iOS TestFlight
-    # macos-15 default Xcode is 16+ (Swift 6.0). Capacitor's
-    # JSStringContainer API guards the 1-arg getString overload behind
-    # `#if compiler(>=5.3) && $NonescapableTypes`; without Swift 6 the
-    # plugin source fails to compile with "missing argument for
-    # parameter #2 in call".
-    runs-on: macos-15
+    # Apple requires apps uploaded to TestFlight / App Store Connect to
+    # be built with the iOS 26 SDK or later (Xcode 26+). macos-26 is
+    # the GitHub-hosted runner whose default Xcode satisfies that —
+    # macos-15 ships Xcode 16.x (iOS 18 SDK) and altool rejects the
+    # upload with "SDK version issue (409)".
+    runs-on: macos-26
     needs: build
     # Only fire on tag pushes matching v* (e.g. v1.2.3) or manual dispatch.
     # This keeps regular commits out of the TestFlight pipeline.
