@@ -1,0 +1,33 @@
+# CODEOWNERS — release pipeline & native build files
+#
+# GitLab and GitHub both honor a top-level CODEOWNERS file. Listed
+# owners are auto-requested as reviewers on any MR/PR that touches the
+# matching paths. On GitLab Premium these can be marked as
+# "Protected" code owners, which blocks merge until the owner approves
+# — recommended for everything below.
+#
+# Why this file exists: CI/release files have been silently rolled
+# back in feature-branch merge conflict resolutions. Adding owners
+# makes any changes to these paths visible during review and prevents
+# the iOS pipeline / signing logic / Capacitor pins from being
+# accidentally reverted.
+#
+# CI / release pipelines
+/.github/workflows/                    @guidedgrowthplatform
+/.gitlab-ci.yml                        @guidedgrowthplatform
+
+# iOS native build, signing, fastlane
+/fastlane/                             @guidedgrowthplatform
+/capacitor.config.ts                   @guidedgrowthplatform
+/scripts/patch-ios-plist.mjs           @guidedgrowthplatform
+/scripts/cartesia-line-agent/          @guidedgrowthplatform
+
+# Capacitor / native dependency pins
+# (the SPM pin and pre-8.1.x plugin compatibility is load-bearing —
+# changes here usually require revisiting the native build flow)
+/package.json                          @guidedgrowthplatform
+/package-lock.json                     @guidedgrowthplatform
+
+# Release docs (so handoff to the team stays accurate)
+/docs/RELEASE.md                       @guidedgrowthplatform
+/CODEOWNERS                            @guidedgrowthplatform

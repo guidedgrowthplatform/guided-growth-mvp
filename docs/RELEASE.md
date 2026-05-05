@@ -1,27 +1,139 @@
-# Releasing iOS to TestFlight
+# Releasing iOS + Android
 
-The iOS pipeline is fully automated. From a clean `main`, a single tag
-push lands a signed build in TestFlight in ~10 minutes.
+The release pipeline is fully automated. A single tag push to `main`
+produces a signed iOS build in TestFlight and a debug Android APK in
+GitHub Actions artifacts, with a Mattermost notification when the APK
+is ready. End-to-end takes ~10–15 minutes.
 
-## Ship a build
+## Quick reference
 
 ```bash
-git tag v2.1.1
-git push origin v2.1.1
+git checkout main && git pull --ff-only           # latest
+git tag -a v2.1.2 -m "your release notes"          # tag the commit
+git push origin v2.1.2                             # fire the pipeline
 ```
 
+That's it. Watch under **GitHub → Actions → CI/CD Pipeline**. When
+green, the iOS build is in **App Store Connect → TestFlight →
+Builds**, and the Android APK link is posted to the **MVPtesting**
+Mattermost channel.
+
+## Step-by-step (first-time releaser)
+
+### 1. Pre-flight
+
+- Make sure `main` is clean and you've pulled the latest:
+  `git status` should show "nothing to commit, working tree clean".
+- All MRs that need to be in this release are merged.
+- The previous CI run on `main` (the per-commit one — validate, build)
+  is green. If it's red, fix that first; don't tag on top of broken
+  main.
+- Test suite is green locally if you've changed anything risky:
+  `npm run test:coverage && npm run type-check`.
+
+### 2. Pick a version number
+
+Tags follow [semver](https://semver.org/) prefixed with `v`:
+
+| Bump                            | When                                           | Example       |
+| ------------------------------- | ---------------------------------------------- | ------------- |
+| **Patch** (`v2.1.1` → `v2.1.2`) | Bug fixes, copy tweaks, no API changes         | most releases |
+| **Minor** (`v2.1.x` → `v2.2.0`) | New user-facing feature, additive changes      | feature drops |
+| **Major** (`v2.x.x` → `v3.0.0`) | Breaking changes, redesigns, schema migrations | rare          |
+
+Look at the latest tag for context:
+
+```bash
+git tag --sort=-v:refname | head -5
+```
+
+The number on the tag is independent from the App Store **marketing
+version** (`CFBundleShortVersionString`). The CI build number comes
+from `GITHUB_RUN_NUMBER` automatically; you don't bump anything by
+hand.
+
+### 3. Tag and push
+
+```bash
+git tag -a v2.1.2 -m "Release v2.1.2: short description of what changed"
+git push origin v2.1.2
+```
+
+Use **annotated** tags (`-a … -m …`) — they carry release notes that
+GitLab and GitHub display in the tags UI. Lightweight tags (`git tag
+v2.1.2` without `-a`) work but lose the message.
+
+### 4. Watch the pipeline
+
 The `v*` tag triggers
-[`CI/CD Pipeline`](../.github/workflows/ci.yml) which runs:
-`validate-and-test` → `build` (web bundle) → `ios-testflight` (archive
+[`CI/CD Pipeline`](../.github/workflows/ci.yml). Job order:
 
-- upload). Watch progress under **GitHub → Actions**.
+1. `validate-and-test` — lint, type-check, vitest, npm audit
+2. `build` — Vite production bundle (with all `VITE_*` env baked in)
+3. **`build-apk`** (parallel) — Android debug APK + Mattermost ping
+4. **`ios-testflight`** (parallel) — `cap sync ios` → fastlane match →
+   archive → upload to TestFlight
 
-When it goes green, the build appears in **App Store Connect →
-TestFlight → Builds**. Add testers / external groups in the App Store
-Connect UI as you would normally.
+Open the run from **GitHub → Actions** and follow along. If anything
+goes red, see the [troubleshooting section](#when-something-fails)
+below.
 
-For ad-hoc runs without a tag (e.g. testing a CI change): **Actions →
-"CI/CD Pipeline" → Run workflow → main → Run**.
+### 5. Verify the release
+
+- **iOS:** App Store Connect → TestFlight → Builds. The new build
+  number (matches `GITHUB_RUN_NUMBER` from the run) shows up within
+  ~5 min after the workflow turns green; processing takes another
+  5–10 min before testers can install. Add to a tester group via the
+  build's "Test Information" → "Add to Group".
+- **Android:** Mattermost #MVPtesting channel posts a link to the APK
+  artifact. Anyone in the channel can download and sideload.
+- **Release notes:** add a brief changelog under the tag in
+  GitLab → Tags → click the tag → Edit, or write directly in the
+  `git tag -m` message above.
+
+### 6. (Optional) Cancel a release in flight
+
+If you spot a bug in the build before testers grab it:
+
+- **GitHub → Actions →** click the running workflow → **Cancel
+  workflow** in the top right. Cancels all jobs.
+- If it already uploaded to TestFlight, you can mark the build as
+  "Expired" in App Store Connect — testers will no longer be able to
+  install it.
+
+### 7. (Optional) Yank a tag
+
+Don't reuse a tag — pick the next patch number instead. But if the
+tag was wrong (typo, pointed at the wrong commit, etc.):
+
+```bash
+git tag -d v2.1.2                              # delete locally
+git push origin :refs/tags/v2.1.2              # delete remotely
+```
+
+Then create the correct tag. Note: this **doesn't undo the CI run**
+— for that, follow step 6.
+
+## Manual dispatch (for CI changes)
+
+When iterating on the pipeline itself (workflow file, fastlane
+config, etc.), you don't want to burn a release tag every iteration.
+Instead:
+
+**GitHub → Actions → "CI/CD Pipeline" → Run workflow → pick branch
+→ Run.**
+
+This runs the full pipeline including iOS TestFlight upload — useful
+to validate end-to-end. Can also be done from CLI:
+
+```bash
+gh workflow run "CI/CD Pipeline" --ref <branch-or-main>
+```
+
+Note: each manual dispatch that succeeds **also uploads to
+TestFlight**. If you're iterating fast, expect a parade of nearly
+identical builds in App Store Connect; nothing to worry about, but
+add release notes to the meaningful ones.
 
 ## What's automated
 
