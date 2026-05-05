@@ -106,10 +106,12 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
       speak("One week. You showed up seven days in a row. That's not luck \u2014 that's you.");
     }
     if (milestoneDays > 0) {
-      track('reach_milestone', { milestone_days: milestoneDays });
+      track('streak_milestone_reached', {
+        habit_name: habit?.name,
+        streak_count: milestoneDays,
+      });
     }
-  }, [stats, isLoading]);
-
+  }, [stats, isLoading, habit?.name]);
   if (isLoading) {
     return (
       <BottomSheet

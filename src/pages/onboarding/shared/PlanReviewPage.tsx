@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { track } from '@/analytics';
 import { formatCadence } from '@/components/onboarding/constants';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
@@ -34,8 +35,33 @@ export function PlanReviewPage() {
     [routerState, onboardingState?.data],
   );
 
+  // Track view_starting_plan on mount
+  const hasTrackedView = useRef(false);
+  useEffect(() => {
+    if (hasTrackedView.current || !state?.habitConfigs) return;
+    hasTrackedView.current = true;
+    track('view_starting_plan', {
+      total_habits: Object.keys(state.habitConfigs).length,
+      has_journal: Boolean(state.reflectionConfig),
+      onboarding_path: state.source === 'advanced' ? 'advanced' : 'beginner',
+    });
+  }, [state]);
+
+  const onboardingStartRef = useRef<number>(0);
+  useEffect(() => {
+    if (onboardingStartRef.current === 0) {
+      onboardingStartRef.current = Date.now();
+    }
+  }, []);
+
   const handleStartPlan = useCallback(() => {
     if (!state?.habitConfigs) return;
+    track('complete_onboarding', {
+      onboarding_path: state.source === 'advanced' ? 'advanced' : 'beginner',
+      total_habits: Object.keys(state.habitConfigs).length,
+      has_journal: Boolean(state.reflectionConfig),
+      total_time_seconds: Math.round((Date.now() - onboardingStartRef.current) / 1000),
+    });
     complete({
       habitConfigs: state.habitConfigs,
       goals: state.goals,
@@ -79,7 +105,6 @@ export function PlanReviewPage() {
   return (
     <OnboardingLayout
       currentStep={source === 'advanced' ? 6 : 7}
-      totalSteps={source === 'advanced' ? 6 : 7}
       ctaLabel={isCompleting ? 'Completing...' : 'Start plan'}
       onNext={handleStartPlan}
       ctaDisabled={isCompleting}

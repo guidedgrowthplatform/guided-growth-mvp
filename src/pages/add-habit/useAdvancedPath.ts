@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { track } from '@/analytics';
 import { WEEKDAYS } from '@/components/onboarding/constants';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { speak, stopTTS } from '@/lib/services/tts-service';
@@ -137,6 +138,11 @@ export function useAdvancedPath(phase: Phase) {
 
   function saveEditHabit() {
     if (editingIndex === null || !editName.trim()) return;
+    track('edit_habit', {
+      habit_name: editName.trim(),
+      frequency_days: editDays.size,
+      source: 'add_habit_advanced',
+    });
     setAdvancedHabits((prev) =>
       prev.map((h, i) =>
         i === editingIndex ? { name: editName.trim(), days: new Set(editDays), time: editTime } : h,

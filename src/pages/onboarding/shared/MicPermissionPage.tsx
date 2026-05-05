@@ -22,6 +22,7 @@ export function MicPermissionPage() {
     play('mic_permission').catch(() => {
       // Autoplay may be blocked; the screen's button copy carries the same info.
     });
+    track('start_onboarding');
     track('view_mic_permission', {
       ai_output_mode: voiceEnabled ? 'voice' : 'screen',
     });

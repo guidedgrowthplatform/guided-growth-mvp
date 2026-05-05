@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { track } from '@/analytics';
 import { useVoice } from '@/hooks/useVoice';
 import { speak, stopTTS } from '@/lib/services/tts-service';
 import { useCommandStore } from '@/stores/commandStore';
@@ -145,6 +146,12 @@ export function useVoiceChat(userName?: string) {
         timestamp: Date.now(),
       },
     ]);
+
+    track('voice_ai_response', {
+      intent: lastIntent?.action ?? 'unknown',
+      has_habit_suggestion: Boolean(habitCards),
+      response_length_chars: lastResult.message.length,
+    });
 
     // TTS is handled by useVoiceCommand — don't duplicate here
     // After TTS finishes, release the voice channel back to idle.

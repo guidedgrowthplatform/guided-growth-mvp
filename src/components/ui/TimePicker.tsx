@@ -9,6 +9,7 @@ const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
 const PERIODS = ['AM', 'PM'] as const;
 const ITEM_HEIGHT = 44;
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function formatTime12(time24: string): string {
   const [h, m] = time24.split(':').map(Number);
   const period = h >= 12 ? 'PM' : 'AM';

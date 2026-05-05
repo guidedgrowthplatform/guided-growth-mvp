@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { useToast } from '@/contexts/ToastContext';
 import { useMetrics } from '@/hooks/useMetrics';
 import type { Phase } from './types';
@@ -126,13 +127,25 @@ export function useAddHabitState() {
         ),
       );
 
+      const source = phase === 'beginner-confirm' ? 'beginner_guided' : 'advanced_voice';
       const failed = results.filter((r) => r.status === 'rejected').length;
+      const succeeded = results
+        .map((r, i) => ({ r, habit: habits[i] }))
+        .filter(({ r }) => r.status === 'fulfilled');
+
       if (failed > 0) {
         addToast('error', `${failed} habit(s) failed to save. Please try again.`);
       }
 
-      const succeeded = results.filter((r) => r.status === 'fulfilled').length;
-      if (succeeded > 0) {
+      succeeded.forEach(({ habit }) => {
+        track('create_habit', {
+          habit_name: habit.name,
+          frequency_days: habit.days.length,
+          source,
+        });
+      });
+
+      if (succeeded.length > 0) {
         navigate('/', { replace: true });
       }
     } catch {

@@ -8,7 +8,6 @@ interface SelectionCardProps {
   description: string;
   selected: boolean;
   onSelect: () => void;
-  showSparkle?: boolean;
   badge?: string;
 }
 
@@ -20,7 +19,6 @@ export function SelectionCard({
   description,
   selected,
   onSelect,
-  showSparkle,
   badge,
 }: SelectionCardProps) {
   return (

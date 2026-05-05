@@ -83,7 +83,18 @@ export function SettingsPage() {
     setIsDeletingAccount(true);
     try {
       await deleteAccount();
-      track('confirm_delete_account');
+      let daysSince: number | null = null;
+      try {
+        const { supabase: sb } = await import('@/lib/supabase');
+        const { data } = await sb.auth.getUser();
+        const createdAt = data.user?.created_at;
+        if (createdAt) {
+          daysSince = Math.round((Date.now() - new Date(createdAt).getTime()) / 86400000);
+        }
+      } catch {
+        /* best-effort — don't block account deletion */
+      }
+      track('confirm_delete_account', { days_since_signup: daysSince });
       localStorage.clear();
       sessionStorage.clear();
       await signOut();

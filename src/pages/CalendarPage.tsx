@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { track } from '@/analytics';
 import {
   CalendarHeader,
   CalendarGrid,
@@ -29,6 +30,14 @@ export function CalendarPage() {
     currentMonth.getFullYear(),
     currentMonth.getMonth(),
   );
+
+  useEffect(() => {
+    track('view_calendar', {
+      view_type: activeMetric,
+      month: currentMonth.toISOString().slice(0, 7),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePrevMonth = () => {
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));

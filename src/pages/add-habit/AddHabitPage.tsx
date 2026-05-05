@@ -1,13 +1,13 @@
 import { BottomNav } from '@/components/layout/BottomNav';
-import { useAddHabitState } from './useAddHabitState';
-import { ChoosePathPhase } from './ChoosePathPhase';
-import { BeginnerCategoryPhase } from './BeginnerCategoryPhase';
-import { BeginnerGoalsPhase } from './BeginnerGoalsPhase';
-import { BeginnerHabitsPhase } from './BeginnerHabitsPhase';
-import { BeginnerConfirmPhase } from './BeginnerConfirmPhase';
+import { AdvancedEditPhase } from './AdvancedEditPhase';
 import { AdvancedInputPhase } from './AdvancedInputPhase';
 import { AdvancedResultsPhase } from './AdvancedResultsPhase';
-import { AdvancedEditPhase } from './AdvancedEditPhase';
+import { BeginnerCategoryPhase } from './BeginnerCategoryPhase';
+import { BeginnerConfirmPhase } from './BeginnerConfirmPhase';
+import { BeginnerGoalsPhase } from './BeginnerGoalsPhase';
+import { BeginnerHabitsPhase } from './BeginnerHabitsPhase';
+import { ChoosePathPhase } from './ChoosePathPhase';
+import { useAddHabitState } from './useAddHabitState';
 
 export function AddHabitPage() {
   const s = useAddHabitState();

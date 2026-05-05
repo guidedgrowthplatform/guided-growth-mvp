@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { track } from '@/analytics';
 import {
   InsightsHeader,
   SegmentedControl,
@@ -19,11 +20,19 @@ export function InsightsPage() {
   const [direction, setDirection] = useState<'left' | 'right'>('right');
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    track('view_insights', { view_mode: timeRange });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function handleTabChange(newTab: string) {
     if (newTab === activeTab || animating) return;
     setDirection(newTab === 'history' ? 'right' : 'left');
     setAnimating(true);
     setActiveTab(newTab);
+    if (newTab === 'history') {
+      track('view_checkin_history', { date_range: 'default' });
+    }
 
     setTimeout(() => {
       setDisplayTab(newTab);

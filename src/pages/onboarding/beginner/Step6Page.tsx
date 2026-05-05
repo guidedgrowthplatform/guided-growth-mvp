@@ -127,7 +127,6 @@ export function Step6Page() {
   return (
     <OnboardingLayout
       currentStep={6}
-      totalSteps={7}
       ctaLabel="Review My Plan"
       ctaVariant="inline"
       showVoiceButton

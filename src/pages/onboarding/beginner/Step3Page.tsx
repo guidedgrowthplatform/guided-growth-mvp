@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
@@ -18,8 +19,6 @@ const categories = [
   { label: 'Get more organized', image: '/images/onboarding/get-more-organized.png' },
 ];
 
-const categoryLabels = categories.map((c) => c.label);
-
 export function Step3Page() {
   const navigate = useNavigate();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
@@ -37,13 +36,16 @@ export function Step3Page() {
 
   const handleNext = useCallback(async () => {
     await saveStepAsync(3, { category: selected });
+    track('select_improvement_areas', {
+      areas: [selected],
+      area_count: 1,
+    });
     navigate('/onboarding/step-4', { state: { category: selected } });
   }, [selected, navigate, saveStepAsync]);
 
   return (
     <OnboardingLayout
       currentStep={3}
-      totalSteps={7}
       ctaLabel="Continue"
       ctaVariant="inline"
       onNext={handleNext}

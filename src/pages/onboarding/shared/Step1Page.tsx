@@ -70,7 +70,6 @@ export function Step1Page() {
   return (
     <OnboardingLayout
       currentStep={1}
-      totalSteps={7}
       ctaLabel="Continue"
       onBack={() => navigate('/onboarding/mic-permission')}
       onNext={handleNext}

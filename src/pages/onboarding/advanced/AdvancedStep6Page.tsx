@@ -87,9 +87,8 @@ export function AdvancedStep6Page() {
 
   return (
     <OnboardingLayout
-      currentStep={5}
-      totalSteps={6}
-      ctaLabel="Continue"
+      currentStep={6}
+      ctaLabel="Final Step"
       onBack={() => navigate('/onboarding/advanced-results')}
       onNext={handleReviewPlan}
       showVoiceButton
