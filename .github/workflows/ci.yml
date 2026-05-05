@@ -1,8 +1,24 @@
 name: CI/CD Pipeline
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Required secrets for the ios-testflight job (Settings → Secrets → Actions):
+#   ASC_KEY_ID                       — App Store Connect API key ID
+#   ASC_ISSUER_ID                    — App Store Connect issuer ID (UUID)
+#   ASC_KEY_CONTENT                  — base64-encoded .p8 contents
+#   MATCH_GIT_URL                    — SSH URL of private match repo (git@…)
+#   MATCH_PASSWORD                   — encryption password for match repo
+#   MATCH_DEPLOY_KEY                 — SSH private key authorized on match repo
+#   VITE_SUPABASE_URL                — baked into the iOS bundle at build time
+#   VITE_SUPABASE_ANON_KEY           — baked into the iOS bundle at build time
+#   VITE_CARTESIA_AGENT_ID           — voice agent (optional but recommended)
+#   VITE_POSTHOG_KEY                 — analytics (optional)
+#   VITE_SENTRY_DSN                  — error tracking (optional)
+# ─────────────────────────────────────────────────────────────────────────────
+
 on:
   push:
     branches: ['main', 'fix/android-apk-server-access']
+    tags: ['v*']
   pull_request:
     branches: ['main']
   workflow_dispatch:
@@ -173,3 +189,69 @@ jobs:
             exit 1
           fi
           echo "Mattermost notified (HTTP 200)."
+
+  ios-testflight:
+    name: iOS TestFlight
+    runs-on: macos-14
+    needs: validate-and-test
+    # Only fire on tag pushes matching v* (e.g. v1.2.3) or manual dispatch.
+    # This keeps regular commits out of the TestFlight pipeline.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Load match SSH deploy key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.MATCH_DEPLOY_KEY }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Ruby + Bundler cache
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Install npm dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build web bundle (production)
+        env:
+          VITE_API_URL: 'https://guided-growth-mvp.vercel.app'
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_CARTESIA_AGENT_ID: ${{ secrets.VITE_CARTESIA_AGENT_ID }}
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+        run: npm run build
+
+      - name: Add iOS platform & sync Capacitor
+        run: |
+          [ -d ios ] || npx cap add ios
+          npx cap sync ios
+          node scripts/patch-ios-plist.mjs
+
+      - name: Build IPA & upload to TestFlight (fastlane)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        run: bundle exec fastlane ios beta
+
+      - name: Upload IPA artifact (debug)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: build/ios/*.ipa
+          retention-days: 14
+          if-no-files-found: warn
