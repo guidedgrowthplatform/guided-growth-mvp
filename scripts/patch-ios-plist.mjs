@@ -15,11 +15,21 @@ import { resolve } from 'path';
 
 const PLIST_PATH = resolve('ios/App/App/Info.plist');
 
+// Value type is inferred from the JS value: string → <string>, boolean → <true/>/<false/>.
 const PATCHES = [
   {
     key: 'NSMicrophoneUsageDescription',
     value:
       'Guided Growth uses your microphone for voice commands to manage habits, log metrics, and record reflections hands-free.',
+  },
+  // Declares the app uses no non-exempt encryption (only Apple's standard
+  // HTTPS / TLS stack), which bypasses the App Store Connect export
+  // compliance prompt on every TestFlight upload. Flip to `true` (and
+  // add ITSEncryptionExportComplianceCode) only if we ever ship custom
+  // crypto beyond what Apple's frameworks provide.
+  {
+    key: 'ITSAppUsesNonExemptEncryption',
+    value: false,
   },
 ];
 
@@ -37,8 +47,11 @@ for (const { key, value } of PATCHES) {
     continue;
   }
 
+  const valueXml =
+    typeof value === 'boolean' ? (value ? '<true/>' : '<false/>') : `<string>${value}</string>`;
+
   // Insert before the closing </dict>
-  const insertion = `\t<key>${key}</key>\n\t<string>${value}</string>\n`;
+  const insertion = `\t<key>${key}</key>\n\t${valueXml}\n`;
   plist = plist.replace('</dict>', `${insertion}</dict>`);
   patched = true;
   console.log(`[patch-ios-plist] ✚ Added ${key}`);
