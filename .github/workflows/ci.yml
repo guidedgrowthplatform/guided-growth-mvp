@@ -197,7 +197,12 @@ jobs:
 
   ios-testflight:
     name: iOS TestFlight
-    runs-on: macos-14
+    # macos-15 default Xcode is 16+ (Swift 6.0). Capacitor's
+    # JSStringContainer API guards the 1-arg getString overload behind
+    # `#if compiler(>=5.3) && $NonescapableTypes`; without Swift 6 the
+    # plugin source fails to compile with "missing argument for
+    # parameter #2 in call".
+    runs-on: macos-15
     needs: build
     # Only fire on tag pushes matching v* (e.g. v1.2.3) or manual dispatch.
     # This keeps regular commits out of the TestFlight pipeline.
