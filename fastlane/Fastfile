@@ -20,10 +20,13 @@ platform :ios do
 
     # Fastlane match pulls certs + profiles from a private git repo.
     # Set MATCH_GIT_URL, MATCH_PASSWORD in CI variables.
+    # `clone_branch_directly` skips full git clone (avoids minutes-long hangs
+    # on CI when the match repo is large or slow to fetch).
     match(
       type: "appstore",
       app_identifier: "app.guidedgrowth.mvp",
       readonly: true,
+      clone_branch_directly: true,
       api_key: api_key
     )
 

@@ -213,6 +213,12 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.MATCH_DEPLOY_KEY }}
 
+      - name: Trust git hosts (avoid host-key prompt hanging the clone)
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H github.com gitlab.com >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
