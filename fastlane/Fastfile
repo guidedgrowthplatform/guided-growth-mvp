@@ -37,13 +37,22 @@ platform :ios do
       xcodeproj: "ios/App/App.xcodeproj"
     )
 
-    # --- Set development team -----------------------------------------------
-    # `cap add ios` leaves DEVELOPMENT_TEAM unset, so xcodebuild fails with
-    # "Signing for App requires a development team." Since ios/ is
-    # gitignored and regenerated each CI run, write the team in here.
-    update_project_team(
+    # --- Pin manual code signing -------------------------------------------
+    # `cap add ios` generates a project with automatic signing enabled,
+    # which makes xcodebuild look for an Apple ID account + a development
+    # profile in CI — neither exists. Switch to manual signing and point
+    # at the exact AppStore profile match just installed. The profile
+    # name comes back from match in lane_context.
+    profile_name = lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING]["app.guidedgrowth.mvp"]
+
+    update_code_signing_settings(
       path: "ios/App/App.xcodeproj",
-      teamid: ENV.fetch("APPLE_TEAM_ID")
+      use_automatic_signing: false,
+      team_id: ENV.fetch("APPLE_TEAM_ID"),
+      bundle_identifier: "app.guidedgrowth.mvp",
+      code_sign_identity: "Apple Distribution",
+      profile_name: profile_name,
+      targets: ["App"]
     )
 
     # --- Build --------------------------------------------------------------
