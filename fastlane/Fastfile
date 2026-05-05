@@ -37,6 +37,15 @@ platform :ios do
       xcodeproj: "ios/App/App.xcodeproj"
     )
 
+    # --- Set development team -----------------------------------------------
+    # `cap add ios` leaves DEVELOPMENT_TEAM unset, so xcodebuild fails with
+    # "Signing for App requires a development team." Since ios/ is
+    # gitignored and regenerated each CI run, write the team in here.
+    update_project_team(
+      path: "ios/App/App.xcodeproj",
+      teamid: ENV.fetch("APPLE_TEAM_ID")
+    )
+
     # --- Build --------------------------------------------------------------
     # Capacitor 8 uses Swift Package Manager, which generates only an
     # .xcodeproj (no top-level .xcworkspace). Earlier CocoaPods-based
