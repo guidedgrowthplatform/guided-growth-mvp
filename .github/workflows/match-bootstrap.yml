@@ -1,0 +1,52 @@
+name: Bootstrap match repo (one-shot)
+
+# Manual-only workflow that populates the match-certificates repo with a
+# fresh distribution certificate + appstore provisioning profile via
+# fastlane match. Designed to be run exactly once for initial setup, or
+# whenever the match repo is empty/nuked.
+#
+# Prerequisites:
+#   1. Grant WRITE permission to MATCH_DEPLOY_KEY on the match repo
+#      (gitlab.com/guidedgrowth-group/match-certificates → Settings →
+#      Repository → Deploy Keys → tick "Grant write permissions").
+#   2. Trigger this workflow manually from the Actions tab.
+#   3. After it completes successfully, REVOKE the write permission.
+#
+# This workflow never fires on push — only via workflow_dispatch.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap-match:
+    name: Generate cert + profile, push to match repo
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Load match SSH deploy key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.MATCH_DEPLOY_KEY }}
+
+      - name: Trust git hosts (avoid host-key prompt hanging the clone)
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H github.com gitlab.com >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Setup Ruby + Bundler cache
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Run match in write mode
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        run: bundle exec fastlane ios bootstrap_match
