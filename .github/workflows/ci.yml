@@ -135,10 +135,6 @@ jobs:
           retention-days: 30
 
       # Notify the MVPtesting Mattermost channel that a fresh APK is ready.
-      # The webhook URL is optional — when the secret is unset the step
-      # silently skips so forks and external contributors never see a red
-      # build because of a missing webhook. Triggered only on push to main
-      # so PR / draft builds don't spam the channel.
       - name: Notify Mattermost (APK ready)
         if: >-
           github.event_name == 'push'
@@ -173,3 +169,53 @@ jobs:
             exit 1
           fi
           echo "Mattermost notified (HTTP 200)."
+
+  ios-testflight:
+    name: iOS TestFlight
+    runs-on: macos-latest
+    needs: build
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Ruby + Bundler cache
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Install npm dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Download web build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Add iOS platform & sync Capacitor
+        run: |
+          [ -d ios ] || npx cap add ios
+          npx cap copy ios
+          npx cap sync ios
+
+      # --- INI DIA SOLUSI OPSI 1 (INSTALL COCOAPODS) ---
+      - name: Install CocoaPods dependencies
+        working-directory: ios/App
+        run: pod install --repo-update
+
+      - name: Build IPA & upload to TestFlight (fastlane)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        run: bundle exec fastlane ios beta
