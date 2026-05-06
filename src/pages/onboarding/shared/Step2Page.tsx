@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
@@ -32,6 +33,9 @@ export function Step2Page() {
 
   const handleNext = useCallback(async () => {
     await saveStepAsync(2, {}, { path: plan as 'simple' | 'braindump' });
+    track('select_onboarding_path', {
+      path: plan === 'braindump' ? 'advanced' : 'beginner',
+    });
     if (plan === 'braindump') {
       navigate('/onboarding/advanced-input');
     } else {
@@ -42,7 +46,6 @@ export function Step2Page() {
   return (
     <OnboardingLayout
       currentStep={2}
-      totalSteps={7}
       ctaLabel="Continue"
       ctaVariant="inline"
       ctaDisabled={!plan}

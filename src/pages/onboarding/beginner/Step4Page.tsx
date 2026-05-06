@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { track } from '@/analytics';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
@@ -42,13 +43,16 @@ export function Step4Page() {
 
   const handleNext = useCallback(async () => {
     await saveStepAsync(4, { goals: Array.from(selected) });
+    track('select_specific_goals', {
+      category,
+      goals: Array.from(selected),
+    });
     navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
   }, [selected, category, navigate, saveStepAsync]);
 
   return (
     <OnboardingLayout
       currentStep={4}
-      totalSteps={7}
       ctaLabel="Continue"
       ctaVariant="inline"
       onNext={handleNext}

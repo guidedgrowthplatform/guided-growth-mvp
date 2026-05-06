@@ -32,7 +32,6 @@ export function ChoosePathPhase({ path, setPath, onContinue, onBack }: ChoosePat
           description="Describe your goals and I'll organize habits for you"
           selected={path === 'braindump'}
           onSelect={() => setPath('braindump')}
-          showSparkle
         />
       </div>
       <button

@@ -73,8 +73,7 @@ export function AdvancedCustomPromptsPage() {
 
   return (
     <OnboardingLayout
-      currentStep={5}
-      totalSteps={6}
+      currentStep={1}
       ctaLabel="Continue"
       onBack={() =>
         navigate('/onboarding/advanced-step-6', { state: { habitConfigs: state?.habitConfigs } })

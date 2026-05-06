@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { GoalTextarea } from '@/components/onboarding/GoalTextarea';
 import { GuidanceBadge } from '@/components/onboarding/GuidanceBadge';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -27,14 +28,16 @@ export function AdvancedInputPage() {
 
   const handleNext = useCallback(async () => {
     await saveStepAsync(3, { brainDumpText: text });
+    track('submit_voice_goals', {
+      transcript_length_chars: text.length,
+    });
     navigate('/onboarding/advanced-results', { state: { text } });
   }, [text, navigate, saveStepAsync]);
 
   return (
     <OnboardingLayout
       currentStep={3}
-      totalSteps={6}
-      ctaLabel="Continue"
+      ctaLabel="Create My Plan"
       onBack={() => navigate('/onboarding/step-2')}
       onNext={handleNext}
       ctaDisabled={!text.trim()}

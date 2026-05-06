@@ -1,13 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import type {
-  UserPreferences as DbUserPreferences,
-  VoiceMode,
-  RecordingMode,
-} from '@shared/types';
 import { apiGet, apiPut } from '@/api/client';
 import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '@/lib/query';
+import type { UserPreferences as DbUserPreferences, VoiceMode, RecordingMode } from '@shared/types';
 
 export interface UserPreferences {
   coachingStyle: string;
