@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
+import { track } from '@/analytics';
 import { queryKeys } from '@/lib/query';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { haptic } from '@/lib/services/haptic-service';
@@ -296,6 +297,21 @@ export function useVoiceCommand() {
         addHistory(transcript, intent, result);
 
         haptic(result.success ? 'success' : 'error');
+
+        // Track voice suggestion accept/reject for habit creation funnel
+        if (intent.action === 'create' && intent.entity === 'habit') {
+          if (result.success) {
+            track('accept_voice_suggestion', {
+              suggestion_type: 'habit',
+              habit_name: intent.params?.name as string | undefined,
+            });
+          } else {
+            track('reject_voice_suggestion', {
+              suggestion_type: 'habit',
+              reason: result.message,
+            });
+          }
+        }
 
         speak(result.message);
 

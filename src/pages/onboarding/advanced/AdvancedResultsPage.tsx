@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { WEEKDAYS } from '@/components/onboarding/constants';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -101,6 +102,16 @@ export function AdvancedResultsPage() {
     }
   }, [locationState]);
 
+  // Fire view_ai_organized_plan once habits are loaded
+  const hasTrackedView = useRef(false);
+  useEffect(() => {
+    if (hasTrackedView.current || habits.length === 0) return;
+    hasTrackedView.current = true;
+    track('view_ai_organized_plan', { habits_generated_count: habits.length });
+  }, [habits.length]);
+
+  const regenerateCountRef = useRef(0);
+
   const handleConfirm = useCallback(async () => {
     const habitConfigsArray = habits.map((h) => ({
       name: h.name,
@@ -120,8 +131,7 @@ export function AdvancedResultsPage() {
     return (
       <OnboardingLayout
         currentStep={4}
-        totalSteps={6}
-        ctaLabel="Try Again"
+        ctaLabel="Looks Good!"
         onBack={() => navigate('/onboarding/advanced-input')}
         onNext={() => navigate('/onboarding/advanced-input')}
         showVoiceButton
@@ -142,13 +152,16 @@ export function AdvancedResultsPage() {
   return (
     <OnboardingLayout
       currentStep={4}
-      totalSteps={6}
-      ctaLabel="Continue"
+      ctaLabel="Looks Good!"
       onBack={() => navigate('/onboarding/advanced-input')}
       onNext={handleConfirm}
       secondaryAction={{
         label: 'Regenerate',
-        onClick: () => navigate('/onboarding/advanced-input'),
+        onClick: () => {
+          regenerateCountRef.current += 1;
+          track('tap_regenerate_plan', { regeneration_count: regenerateCountRef.current });
+          navigate('/onboarding/advanced-input');
+        },
       }}
       showVoiceButton
     >

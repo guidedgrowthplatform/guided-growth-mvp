@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { track } from '@/analytics';
 import { formatCadence } from '@/components/onboarding/constants';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
@@ -34,8 +35,38 @@ export function PlanReviewPage() {
     [routerState, onboardingState?.data],
   );
 
+  // Track view_starting_plan on mount
+  const hasTrackedView = useRef(false);
+  useEffect(() => {
+    if (hasTrackedView.current || !state?.habitConfigs) return;
+    hasTrackedView.current = true;
+    track('view_starting_plan', {
+      total_habits: Object.keys(state.habitConfigs).length,
+      has_journal: Boolean(state.reflectionConfig),
+      onboarding_path: state.source === 'advanced' ? 'advanced' : 'beginner',
+    });
+  }, [state]);
+
+  // Read the start timestamp written by MicPermissionPage to localStorage.
+  // The previous onboardingStartRef was initialized here (last screen), so
+  // total_time_seconds only captured time on the review page, not the full flow.
+  const onboardingStartedAt = useRef<number>(
+    Number(localStorage.getItem('gg_onboarding_started_at') || 0),
+  );
+
   const handleStartPlan = useCallback(() => {
     if (!state?.habitConfigs) return;
+    track('complete_onboarding', {
+      onboarding_path: state.source === 'advanced' ? 'advanced' : 'beginner',
+      total_habits: Object.keys(state.habitConfigs).length,
+      has_journal: Boolean(state.reflectionConfig),
+      total_time_seconds:
+        onboardingStartedAt.current > 0
+          ? Math.round((Date.now() - onboardingStartedAt.current) / 1000)
+          : null,
+    });
+    // Clean up the persisted timestamp now that the flow is complete.
+    localStorage.removeItem('gg_onboarding_started_at');
     complete({
       habitConfigs: state.habitConfigs,
       goals: state.goals,
@@ -79,7 +110,6 @@ export function PlanReviewPage() {
   return (
     <OnboardingLayout
       currentStep={source === 'advanced' ? 6 : 7}
-      totalSteps={source === 'advanced' ? 6 : 7}
       ctaLabel={isCompleting ? 'Completing...' : 'Start plan'}
       onNext={handleStartPlan}
       ctaDisabled={isCompleting}

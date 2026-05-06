@@ -17,7 +17,6 @@ import { AiListeningTooltip } from './AiListeningTooltip';
 
 interface OnboardingLayoutProps {
   currentStep: number;
-  totalSteps: number;
   ctaLabel: string;
   onNext: () => void;
   ctaDisabled?: boolean;
@@ -40,7 +39,6 @@ interface OnboardingLayoutProps {
 
 export function OnboardingLayout({
   currentStep,
-  totalSteps,
   ctaLabel,
   onNext,
   ctaDisabled,

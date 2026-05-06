@@ -1,10 +1,11 @@
-import { useCheckInHistory } from '@/hooks/useCheckInHistory';
+import type { useCheckInHistory } from '@/hooks/useCheckInHistory';
 import { CheckInDateGroup } from './CheckInDateGroup';
 import { DateFilterBar } from './DateFilterBar';
 
-export function CheckInHistoryTab() {
-  const { groups, availableMonths, selectedMonth, setSelectedMonth, isLoading, error } =
-    useCheckInHistory();
+type CheckInHistoryHookResult = ReturnType<typeof useCheckInHistory>;
+
+export function CheckInHistoryTab({ history }: { history: CheckInHistoryHookResult }) {
+  const { groups, availableMonths, selectedMonth, setSelectedMonth, isLoading, error } = history;
 
   return (
     <div className="flex flex-col gap-4">

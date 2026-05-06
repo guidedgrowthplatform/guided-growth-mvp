@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { track } from '@/analytics';
 import { fetchJournalEntry } from '@/api/journal';
 import { EditReflectionSheet } from '@/components/reflections/EditReflectionSheet';
 import { entryHeading, formatDetailHeader } from '@/components/reflections/reflectionFormatters';
@@ -18,9 +19,7 @@ function FreeformBody({ entry }: { entry: JournalEntry }) {
   const html = entry.fields?.body ?? '';
   return (
     <div className="rounded-2xl bg-surface p-5 shadow-card">
-      {entry.title && (
-        <h3 className="mb-3 text-lg font-bold text-content">{entry.title}</h3>
-      )}
+      {entry.title && <h3 className="mb-3 text-lg font-bold text-content">{entry.title}</h3>}
       <div
         className="reflection-editor prose prose-sm max-w-none text-content"
         // entry HTML is sanitized at write-time on the API; rendering as-is.
@@ -79,12 +78,20 @@ export function ReflectionDetailPage() {
     setLoadError(null);
     fetchJournalEntry(id)
       .then((row) => {
-        if (!cancelled) setEntry(row);
+        if (!cancelled) {
+          setEntry(row);
+          track('view_reflection_detail', {
+            entry_id: id,
+            journal_type: row.type ?? 'freeform',
+          });
+        }
       })
       .catch((err: unknown) => {
         if (cancelled) return;
         const status =
-          typeof err === 'object' && err && 'status' in err ? (err as { status: number }).status : 0;
+          typeof err === 'object' && err && 'status' in err
+            ? (err as { status: number }).status
+            : 0;
         const message =
           status === 404
             ? "We couldn't find this reflection. It may have been deleted."
@@ -164,7 +171,12 @@ export function ReflectionDetailPage() {
                   </h2>
                   <div className="mt-2 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-content-secondary">
-                      <Icon icon="mdi:clock-outline" width={16} height={16} className="text-primary" />
+                      <Icon
+                        icon="mdi:clock-outline"
+                        width={16}
+                        height={16}
+                        className="text-primary"
+                      />
                       {header.time}
                     </div>
                     <span className="rounded-full border border-border-light bg-surface px-3 py-1 text-xs font-semibold text-primary">

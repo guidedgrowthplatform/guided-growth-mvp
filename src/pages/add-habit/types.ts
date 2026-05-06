@@ -1,5 +1,5 @@
-import type { Frequency } from '@shared/types';
 import { WEEKDAYS, WEEKEND, setsEqual } from '@/components/onboarding/constants';
+import type { Frequency } from '@shared/types';
 
 export type Phase =
   | 'choose-path'

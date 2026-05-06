@@ -22,6 +22,10 @@ export function MicPermissionPage() {
     play('mic_permission').catch(() => {
       // Autoplay may be blocked; the screen's button copy carries the same info.
     });
+    // Persist the real onboarding start time so PlanReviewPage can compute
+    // total_time_seconds across the full flow, not just the review screen.
+    localStorage.setItem('gg_onboarding_started_at', String(Date.now()));
+    track('start_onboarding');
     track('view_mic_permission', {
       ai_output_mode: voiceEnabled ? 'voice' : 'screen',
     });

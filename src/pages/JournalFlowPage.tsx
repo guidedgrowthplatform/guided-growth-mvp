@@ -3,8 +3,8 @@ import { format } from 'date-fns';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
-import { GuidedTab } from '@/components/journal/GuidedTab';
 import { SegmentedControl } from '@/components/insights';
+import { GuidedTab } from '@/components/journal/GuidedTab';
 import { useAuth } from '@/hooks/useAuth';
 import { useJournalSave } from '@/hooks/useJournalSave';
 
@@ -134,12 +134,7 @@ export function JournalFlowPage() {
         >
           <Icon icon="mdi:arrow-left" width={24} height={24} />
         </button>
-        <SegmentedControl
-          items={tabItems}
-          value={activeTab}
-          onChange={handleTabChange}
-          size="lg"
-        />
+        <SegmentedControl items={tabItems} value={activeTab} onChange={handleTabChange} size="lg" />
       </div>
       <div
         ref={scrollRef}

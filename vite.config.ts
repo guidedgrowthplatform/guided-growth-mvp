@@ -187,6 +187,18 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
+        '/ingest/static': {
+          target: 'https://us-assets.i.posthog.com',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/ingest\/static/, '/static'),
+        },
+        '/ingest': {
+          target: env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/ingest/, ''),
+        },
       },
     },
     test: {

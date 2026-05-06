@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
-import type { UserPreferences as DbUserPreferences } from '@shared/types';
 import { apiGet, apiPut } from '@/api/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+import type { UserPreferences as DbUserPreferences } from '@shared/types';
 
 const WRITE_DEBOUNCE_MS = 500;
 const HYDRATE_GUARD_MS = 100;

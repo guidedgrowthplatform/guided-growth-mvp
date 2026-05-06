@@ -1,8 +1,9 @@
 import { Icon } from '@iconify/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO, subMonths } from 'date-fns';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import { deleteJournalEntry, fetchJournalEntries } from '@/api/journal';
 import { EditReflectionSheet } from '@/components/reflections/EditReflectionSheet';
 import { ReflectionListCard } from '@/components/reflections/ReflectionListCard';
@@ -44,6 +45,10 @@ export function ReflectionsListPage() {
     select: sortEntries,
   });
 
+  useEffect(() => {
+    track('view_reflections_list', { date_range: `${FETCH_MONTHS}m` });
+  }, []);
+
   const [menuEntry, setMenuEntry] = useState<JournalEntry | null>(null);
   const [editEntry, setEditEntry] = useState<JournalEntry | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -55,6 +60,13 @@ export function ReflectionsListPage() {
         prev ? prev.filter((e) => e.id !== id) : prev,
       );
       qc.invalidateQueries({ queryKey: queryKeys.journal.all });
+      const entry = menuEntry;
+      if (entry) {
+        track('delete_reflection', {
+          entry_id: entry.id,
+          journal_type: entry.type ?? 'freeform',
+        });
+      }
       addToast('success', 'Reflection deleted');
       setConfirmDelete(false);
       setMenuEntry(null);

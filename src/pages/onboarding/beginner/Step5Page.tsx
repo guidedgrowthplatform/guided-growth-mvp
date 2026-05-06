@@ -121,11 +121,6 @@ export function Step5Page() {
     setCustomizingHabit(queue[0]);
   }, [selectedHabits]);
 
-  const allHabits = useMemo(
-    () => goals.flatMap((goal) => [...(habitsByGoal[goal] ?? []), ...(customHabits[goal] ?? [])]),
-    [goals, customHabits],
-  );
-
   function handleSheetClose() {
     setCustomizingHabit(null);
     setHabitQueue([]);
@@ -180,7 +175,6 @@ export function Step5Page() {
     <>
       <OnboardingLayout
         currentStep={5}
-        totalSteps={7}
         ctaLabel={phase === 'confirming' ? 'Confirm & Continue' : 'Continue'}
         ctaVariant="inline"
         onNext={handleOnNext}

@@ -57,7 +57,12 @@ export function HabitReflectionPage() {
         habit_id: habit.id,
         fields: { body },
       });
-      track('save_habit_reflection', { habit_id: habit.id });
+      track('log_habit_reflection', {
+        habit_name: habit.name,
+        habit_id: habit.id,
+        reflection_length_chars: body.length,
+        input_method: 'text',
+      });
       addToast('success', 'Reflection saved');
       navigate('/habits');
     } catch (err) {
