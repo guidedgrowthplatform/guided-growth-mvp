@@ -6,6 +6,7 @@ import {
   OverallAnalyticsTab,
   CheckInHistoryTab,
 } from '@/components/insights';
+import { useCheckInHistory } from '@/hooks/useCheckInHistory';
 
 const tabItems = [
   { label: 'Overall Analytics', value: 'analytics' },
@@ -20,10 +21,16 @@ export function InsightsPage() {
   const [direction, setDirection] = useState<'left' | 'right'>('right');
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Lift hook to page level so we can read selectedMonth + entry_count
+  // for the view_checkin_history event without prop-drilling.
+  const checkInHistory = useCheckInHistory();
+
+  // Re-fire view_insights when timeRange changes — the previous
+  // useEffect(..., []) + eslint-disable meant only the initial 'week' value
+  // was ever captured, so metric/time-range pivots were invisible in PostHog.
   useEffect(() => {
     track('view_insights', { view_mode: timeRange });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [timeRange]);
 
   function handleTabChange(newTab: string) {
     if (newTab === activeTab || animating) return;
@@ -31,7 +38,12 @@ export function InsightsPage() {
     setAnimating(true);
     setActiveTab(newTab);
     if (newTab === 'history') {
-      track('view_checkin_history', { date_range: 'default' });
+      // Pass the actual selected month (not a hardcoded placeholder) and the
+      // real number of entries visible to the user.
+      track('view_checkin_history', {
+        date_range: checkInHistory.selectedMonth,
+        entry_count: checkInHistory.groups.reduce((sum, g) => sum + g.entries.length, 0),
+      });
     }
 
     setTimeout(() => {
@@ -58,7 +70,7 @@ export function InsightsPage() {
           {displayTab === 'analytics' ? (
             <OverallAnalyticsTab timeRange={timeRange} onTimeRangeChange={setTimeRange} />
           ) : (
-            <CheckInHistoryTab />
+            <CheckInHistoryTab history={checkInHistory} />
           )}
         </div>
       </div>

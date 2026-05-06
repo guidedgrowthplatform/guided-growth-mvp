@@ -82,19 +82,40 @@ export function SettingsPage() {
   const handleDeleteAccount = useCallback(async () => {
     setIsDeletingAccount(true);
     try {
-      await deleteAccount();
+      // Capture user metadata BEFORE deleteAccount() invalidates the session.
+      // Previously sb.auth.getUser() ran after deletion, always returning null.
       let daysSince: number | null = null;
+      let totalHabits: number | null = null;
+      let totalCheckins: number | null = null;
       try {
         const { supabase: sb } = await import('@/lib/supabase');
-        const { data } = await sb.auth.getUser();
-        const createdAt = data.user?.created_at;
+        const { data: sessionData } = await sb.auth.getSession();
+        const createdAt = sessionData.session?.user?.created_at;
         if (createdAt) {
           daysSince = Math.round((Date.now() - new Date(createdAt).getTime()) / 86400000);
         }
       } catch {
-        /* best-effort — don't block account deletion */
+        /* best-effort */
       }
-      track('confirm_delete_account', { days_since_signup: daysSince });
+      try {
+        const { getDataService } = await import('@/lib/services/service-provider');
+        const svc = await getDataService();
+        const [habits, checkIns] = await Promise.all([
+          svc.getAllHabits(),
+          svc.getCheckIns('2000-01-01', new Date().toISOString().slice(0, 10)),
+        ]);
+        totalHabits = habits.length;
+        totalCheckins = checkIns.length;
+      } catch {
+        /* best-effort */
+      }
+
+      await deleteAccount();
+      track('confirm_delete_account', {
+        days_since_signup: daysSince,
+        total_habits: totalHabits,
+        total_checkins: totalCheckins,
+      });
       localStorage.clear();
       sessionStorage.clear();
       await signOut();

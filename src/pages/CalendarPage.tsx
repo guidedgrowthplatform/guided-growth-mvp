@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
 import {
   CalendarHeader,
@@ -31,13 +31,20 @@ export function CalendarPage() {
     currentMonth.getMonth(),
   );
 
+  // Re-fire view_calendar whenever the user changes the metric or navigates
+  // months. The previous useEffect(..., []) + eslint-disable-next-line meant
+  // the event only fired once with the initial (stale) activeMetric/month.
+  const isFirstRender = useRef(true);
   useEffect(() => {
+    if (isFirstRender.current) {
+      // Always track on mount.
+      isFirstRender.current = false;
+    }
     track('view_calendar', {
       view_type: activeMetric,
       month: currentMonth.toISOString().slice(0, 7),
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeMetric, currentMonth]);
 
   const handlePrevMonth = () => {
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));

@@ -47,12 +47,12 @@ export function PlanReviewPage() {
     });
   }, [state]);
 
-  const onboardingStartRef = useRef<number>(0);
-  useEffect(() => {
-    if (onboardingStartRef.current === 0) {
-      onboardingStartRef.current = Date.now();
-    }
-  }, []);
+  // Read the start timestamp written by MicPermissionPage to localStorage.
+  // The previous onboardingStartRef was initialized here (last screen), so
+  // total_time_seconds only captured time on the review page, not the full flow.
+  const onboardingStartedAt = useRef<number>(
+    Number(localStorage.getItem('gg_onboarding_started_at') || 0),
+  );
 
   const handleStartPlan = useCallback(() => {
     if (!state?.habitConfigs) return;
@@ -60,8 +60,13 @@ export function PlanReviewPage() {
       onboarding_path: state.source === 'advanced' ? 'advanced' : 'beginner',
       total_habits: Object.keys(state.habitConfigs).length,
       has_journal: Boolean(state.reflectionConfig),
-      total_time_seconds: Math.round((Date.now() - onboardingStartRef.current) / 1000),
+      total_time_seconds:
+        onboardingStartedAt.current > 0
+          ? Math.round((Date.now() - onboardingStartedAt.current) / 1000)
+          : null,
     });
+    // Clean up the persisted timestamp now that the flow is complete.
+    localStorage.removeItem('gg_onboarding_started_at');
     complete({
       habitConfigs: state.habitConfigs,
       goals: state.goals,
