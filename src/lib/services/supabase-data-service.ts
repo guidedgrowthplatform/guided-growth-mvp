@@ -15,7 +15,11 @@ import type {
 } from './data-service.interface';
 
 function todayStr(): string {
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function getCurrentUserId(): string {
@@ -206,7 +210,7 @@ export class SupabaseDataService implements DataService {
   }
 
   async completeHabit(habitId: string, date: string): Promise<HabitCompletion> {
-    if (new Date(date) > new Date()) throw new Error('Cannot complete habit for future dates');
+    if (date > todayStr()) throw new Error('Cannot complete habit for future dates');
 
     const userId = getCurrentUserId();
     const { data: ownerCheck, error: ownerError } = await supabase
@@ -583,7 +587,7 @@ export class SupabaseDataService implements DataService {
       stress: number | null;
     },
   ): Promise<CheckInRecord> {
-    if (new Date(date) > new Date()) throw new Error('Cannot save check-in for future dates');
+    if (date > todayStr()) throw new Error('Cannot save check-in for future dates');
     const userId = getCurrentUserId();
 
     const { data: row, error } = await supabase
