@@ -30,3 +30,6 @@ CREATE INDEX IF NOT EXISTS session_log_user_time_idx
 
 ALTER TABLE screen_contexts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE session_log     ENABLE ROW LEVEL SECURITY;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON screen_contexts TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON session_log     TO service_role;
