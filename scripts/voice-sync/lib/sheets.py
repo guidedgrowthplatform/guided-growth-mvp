@@ -1,8 +1,9 @@
 """Google Sheets client with service-account auth + retry-with-backoff.
 
-Auth resolution order:
-1. GOOGLE_SERVICE_ACCOUNT_JSON env var (CI: full JSON as one string).
-2. GOOGLE_APPLICATION_CREDENTIALS env var (local: file path, defaults to project-root service-account.json).
+Auth resolution order (JSON-string takes priority at runtime if both are set):
+1. GOOGLE_SERVICE_ACCOUNT_JSON env var (full JSON as one string).
+2. GOOGLE_APPLICATION_CREDENTIALS env var (file path; what CI uses — workflow stages SA JSON
+   to $RUNNER_TEMP/sa.json. Falls back to project-root service-account.json locally).
 """
 
 from __future__ import annotations
