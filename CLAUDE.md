@@ -25,8 +25,11 @@ life-growth-tracker/
 │   ├── skills/             # Auto-loaded skill definitions
 │   │   ├── naming-conventions/SKILL.md  # File & folder naming rules
 │   │   ├── frontend-design/SKILL.md     # UI component guidelines
-│   │   ├── voice-commands/              # Home/journal voice-command pipeline (Cartesia REST STT + GPT-4o-mini NLU)
-│   │   └── voice-assistant/             # Onboarding Cartesia Line agent (realtime WS coach)
+│   │   ├── product/                     # Product specs & roadmap
+│   │   ├── voice-architecture/          # Umbrella: 3-path voice/chat model (start here)
+│   │   ├── path-1-vapi/                 # Path 1: Vapi (onboarding) — STT+LLM+TTS bundled
+│   │   ├── path-2-async/                # Path 2: Async (check-ins) — MP3 + Ink + callLLM + Sonic
+│   │   └── path-3-direct-llm/           # Path 3: Text chat — callLLM only
 │   ├── settings.json       # Shared settings + hooks (committed)
 │   └── settings.local.json # Local permissions (not committed)
 ├── supabase/migrations/    # SQL migrations (run manually on Supabase)
@@ -238,3 +241,5 @@ All core tables are now created in the migrations (previously `allowlist`, `entr
 | DB migrations                            | `supabase/migrations/`                                          |
 | Claude skills (naming, frontend design)  | `.claude/skills/*/SKILL.md`                                     |
 | Product specs & roadmap                  | `.claude/skills/product/` (auto-loaded for scope/feature talk)  |
+| Voice/chat architecture (umbrella)       | `.claude/skills/voice-architecture/` — start here for any voice question |
+| Voice paths (per-path detail)            | `.claude/skills/path-1-vapi/` (onboarding), `.claude/skills/path-2-async/` (check-ins), `.claude/skills/path-3-direct-llm/` (text chat) |
