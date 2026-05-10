@@ -80,7 +80,7 @@ workbox-*.js
 next-env.d.ts
 
 # Android (Capacitor - fully auto-generated, rebuild with npx cap sync)
-android/
+# android/
 
 # iOS (Capacitor - fully auto-generated)
 ios/
