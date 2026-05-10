@@ -13,7 +13,6 @@ SOURCE_COLUMNS = (
     "Screen ID",
     "Screen Name",
     "Route",
-    "MP3?",
     "AI Context Block",
     "Voice Instructions",
     "Expected User Response",
@@ -72,7 +71,6 @@ def format_screen_context(row: dict) -> str:
         f"SCREEN_ID: {src['Screen ID']}",
         f"SCREEN_NAME: {src['Screen Name']}" if src["Screen Name"] else None,
         f"ROUTE: {src['Route']}"             if src["Route"] else None,
-        f"HAS_MP3: {src['MP3?']}"            if src["MP3?"] else None,
         "",
         src["AI Context Block"],
     ]

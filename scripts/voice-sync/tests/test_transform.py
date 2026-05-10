@@ -85,11 +85,9 @@ def test_format_includes_supplementary_when_filled():
     assert "EDGE CASES:" not in out
 
 def test_format_skips_empty_metadata_lines():
-    out = format_screen_context(make_row(**{"Route": "", "Screen Name": "", "MP3?": ""}))
+    out = format_screen_context(make_row(**{"Route": "", "Screen Name": ""}))
     assert "ROUTE:" not in out
     assert "SCREEN_NAME:" not in out
-    assert "HAS_MP3:" not in out
-    # Screen ID always present
     assert "SCREEN_ID: ONBOARD-01" in out
 
 
