@@ -40,6 +40,7 @@
     { "source": "/api/entries", "destination": "/api/entries/__index" },
     { "source": "/api/reflections", "destination": "/api/reflections/__index" },
     { "source": "/api/admin", "destination": "/api/admin/__index" },
+    { "source": "/api/session_log", "destination": "/api/session_log/__index" },
     {
       "source": "/ingest/static/(.*)",
       "destination": "https://us-assets.i.posthog.com/static/$1"

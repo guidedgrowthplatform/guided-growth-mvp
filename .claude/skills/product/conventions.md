@@ -10,7 +10,7 @@ Every text input supports three modes:
 - **Copy/paste** — works seamlessly in all text fields
 - **Basic speech-to-text** — voice-to-text conversion treated identically to typed input. Visual recording indicator while active.
 
-Note: "basic STT" means voice → text only. Conversational AI, voice coaching, and intelligent voice interactions are out of scope here and live in the AI Voice section (roadmap §3). See the `voice-commands` and `voice-assistant` skills for implementation.
+Note: "basic STT" means voice → text only. Conversational AI, voice coaching, and intelligent voice interactions are out of scope here and live in the AI Voice section (roadmap §3). See the `voice-architecture` umbrella skill (and `path-1-vapi` / `path-2-async` / `path-3-direct-llm`) for implementation.
 
 ## Responsive Design
 

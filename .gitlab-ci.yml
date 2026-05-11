@@ -1,0 +1,22 @@
+stages:
+  - sync
+
+voice-sync:
+  stage: sync
+  image: python:3.11
+  rules:
+    - when: never
+  resource_group: voice-sync
+  timeout: 5 minutes
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+    GOOGLE_APPLICATION_CREDENTIALS: "$GCP_SA_KEY"
+  cache:
+    key: voice-sync-pip
+    paths:
+      - .pip-cache/
+  before_script:
+    - python --version
+    - pip install --cache-dir "$PIP_CACHE_DIR" -r scripts/voice-sync/requirements.txt
+  script:
+    - python scripts/voice-sync/seed_contexts.py
