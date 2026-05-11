@@ -133,3 +133,4 @@ remote.txt
 voices.txt
 test_phase_*.txt
 gradle_build_log.txt
+.env*.local
