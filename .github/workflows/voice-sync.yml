@@ -7,14 +7,16 @@ on:
         type: boolean
         default: false
         description: "Read sheet + compute diff, skip all DB writes"
+  repository_dispatch:
+    types: [voice-sync]
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 6 * * *'
 
 permissions: {}
 
 concurrency:
   group: voice-sync
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'repository_dispatch' }}
 
 jobs:
   sync:
@@ -46,6 +48,7 @@ jobs:
       - name: Run seed_contexts
         env:
           DRY_RUN: ${{ inputs.dry_run }}
+          TRIGGER_SOURCE: ${{ github.event.client_payload.source || (github.event_name == 'schedule' && 'cron') || (github.event_name == 'workflow_dispatch' && 'manual') || github.event_name }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
