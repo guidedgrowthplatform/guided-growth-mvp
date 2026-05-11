@@ -51,10 +51,11 @@ python seed_contexts.py --prune
 Output ends with:
 
 ```
-screens_scanned=N seedable=N inserted=N updated=N noop=N pruned=N skipped=N
+**voice-sync** OK · trigger=`<source>` · scanned=N seedable=N inserted=N updated=N noops=N pruned=N skipped=N
 ```
 
-`noop` = row's hash matches what's in DB → no write.
+`noops` = row's hash matches what's in DB → no write. `trigger` is read from
+`$TRIGGER_SOURCE` (set by the workflow) and falls back to `manual-local`.
 
 ## Running unit tests
 
@@ -65,26 +66,33 @@ pytest tests/
 
 Pure-function tests for `lib.transform` and `lib.hashing` — no network, no DB.
 
-## CI (GitLab)
+## Triggers
 
-`.gitlab-ci.yml` defines the `voice-sync` job. It runs on:
+`.github/workflows/voice-sync.yml` is the listener. Three ways it fires:
 
-- **Schedule** — set up via GitLab UI (Settings → CI/CD → Schedules → New schedule). Recommend `*/15 * * * *`.
-- **Manual via UI** — Pipelines → Run pipeline → branch + variables.
-- **Trigger token / API** — used by Phase 2 Apps Script `onEdit` to POST a pipeline trigger.
+| Trigger | Cadence | Source |
+|---|---|---|
+| `repository_dispatch` (`event_type: voice-sync`) | On sheet edit, ~30 s after the burst settles | Apps Script on the Voice Journey sheet — see [`apps-script/README.md`](apps-script/README.md) |
+| `schedule` | Daily 06:00 UTC (09:00 EAT) | GitHub cron — 24 h safety net if the Apps Script trigger goes dark |
+| `workflow_dispatch` | On demand | Actions tab → "Run workflow" (supports the `dry_run` knob for diagnostics) |
 
-GitLab CI variables (Settings → CI/CD → Variables):
+Concurrency: `cancel-in-progress` is on for `repository_dispatch` (burst → latest
+wins) and off for cron and manual runs.
 
-| Name | Type | Masked | Protected | Notes |
-|---|---|---|---|---|
-| `GCP_SA_KEY` | **File** | n/a | yes | Paste full service-account JSON as the value. GitLab writes it to disk at runtime and sets `$GCP_SA_KEY` to the file path. The job exports it as `GOOGLE_APPLICATION_CREDENTIALS`. |
-| `GOOGLE_SHEET_ID` | Variable | no | no | Sheet ID from the URL. |
-| `SUPABASE_URL` | Variable | no | yes | Same value as in Vercel. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Variable | yes | yes | Service-role key. Mask it. |
+### How to verify it's working
 
-Why `File` type for the service-account JSON: multi-line JSON can't be masked as a regular variable in GitLab. File type is the safe pattern.
+1. `Actions → voice-sync` shows the most recent run with `event_name` indicating
+   the trigger source.
+2. The step summary ends with the `**voice-sync** OK · trigger=…` heartbeat.
+3. Telemetry: `select * from voice_sync_health order by ran_at desc limit 5;`
+   — recent rows + their trigger source. Gaps > 24 h mean the workflow itself
+   isn't running; gaps in `repository_dispatch` specifically mean the Apps
+   Script trigger has stopped (PAT, quota, project disabled — check the Apps
+   Script Executions log).
 
-> ⚠️ **GitLab CI minutes**: per task P1-01 the team's GitLab runner quota was exhausted; jobs may queue without running until quota is restored or P1-01 ships (move to GitHub Actions). Until then, run the script locally — see "Running it" above.
+GitHub Actions secrets used: `GOOGLE_SERVICE_ACCOUNT_JSON`, `GOOGLE_SHEET_ID`,
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. No secret is needed for the
+dispatch path — the Apps Script's PAT authenticates the caller.
 
 ## How it stays idempotent
 
