@@ -5,8 +5,10 @@ on:
     inputs:
       dry_run:
         type: boolean
-        default: true
+        default: false
         description: "Read sheet + compute diff, skip all DB writes"
+  schedule:
+    - cron: '0 * * * *'
 
 permissions: {}
 
