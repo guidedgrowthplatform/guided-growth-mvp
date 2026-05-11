@@ -51,11 +51,10 @@ python seed_contexts.py --prune
 Output ends with:
 
 ```
-**voice-sync** OK · trigger=`<source>` · scanned=N seedable=N inserted=N updated=N noops=N pruned=N skipped=N
+screens_scanned=N seedable=N inserted=N updated=N noop=N pruned=N skipped=N
 ```
 
-`noops` = row's hash matches what's in DB → no write. `trigger` is read from
-`$TRIGGER_SOURCE` (set by the workflow) and falls back to `manual-local`.
+`noop` = row's hash matches what's in DB → no write.
 
 ## Running unit tests
 
@@ -68,31 +67,24 @@ Pure-function tests for `lib.transform` and `lib.hashing` — no network, no DB.
 
 ## Triggers
 
-`.github/workflows/voice-sync.yml` is the listener. Three ways it fires:
+`.github/workflows/voice-sync.yml` is the listener. Two ways it fires today:
 
 | Trigger | Cadence | Source |
 |---|---|---|
-| `repository_dispatch` (`event_type: voice-sync`) | On sheet edit, ~30 s after the burst settles | Apps Script on the Voice Journey sheet — see [`apps-script/README.md`](apps-script/README.md) |
-| `schedule` | Daily 06:00 UTC (09:00 EAT) | GitHub cron — 24 h safety net if the Apps Script trigger goes dark |
+| `schedule` | Hourly (at :00) | GitHub cron — the primary freshness mechanism |
 | `workflow_dispatch` | On demand | Actions tab → "Run workflow" (supports the `dry_run` knob for diagnostics) |
 
-Concurrency: `cancel-in-progress` is on for `repository_dispatch` (burst → latest
-wins) and off for cron and manual runs.
+Per-run cost is tiny because the script's per-row SHA256 hash short-circuits
+when nothing has changed in the sheet — most hourly runs are pure no-ops
+(~30 s of CI time each).
 
 ### How to verify it's working
 
-1. `Actions → voice-sync` shows the most recent run with `event_name` indicating
-   the trigger source.
-2. The step summary ends with the `**voice-sync** OK · trigger=…` heartbeat.
-3. Telemetry: `select * from voice_sync_health order by ran_at desc limit 5;`
-   — recent rows + their trigger source. Gaps > 24 h mean the workflow itself
-   isn't running; gaps in `repository_dispatch` specifically mean the Apps
-   Script trigger has stopped (PAT, quota, project disabled — check the Apps
-   Script Executions log).
+1. `Actions → voice-sync` shows the most recent run; should appear hourly.
+2. The step summary ends with the `screens_scanned=… inserted=… …` line.
 
 GitHub Actions secrets used: `GOOGLE_SERVICE_ACCOUNT_JSON`, `GOOGLE_SHEET_ID`,
-`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. No secret is needed for the
-dispatch path — the Apps Script's PAT authenticates the caller.
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
 
 ## How it stays idempotent
 
