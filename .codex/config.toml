@@ -1,7 +1,0 @@
-[mcp_servers.figma]
-args = [
-    "-y",
-    "figma-developer-mcp",
-    "--stdio",
-]
-command = "npx"
