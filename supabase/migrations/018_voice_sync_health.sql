@@ -1,7 +1,9 @@
--- voice_sync_health: per-run telemetry from scripts/voice-sync/seed_contexts.py.
--- One row per successful (non-dry-run) execution. Gaps > 24 h mean the workflow
--- itself isn't running; gaps in repository_dispatch-source rows mean the Apps
--- Script trigger is broken.
+-- voice_sync_health: per-run telemetry table.
+-- Currently UNUSED — scripts/voice-sync/seed_contexts.py does not write to it.
+-- Kept in source because the migration is already recorded as applied in
+-- production's migration history; deleting this file would cause
+-- `supabase db push` to detect drift. If the table should be removed, add a
+-- migration 019 that drops it.
 -- RLS on, no policies — service role bypasses, anon/authenticated get zero access.
 
 CREATE TABLE IF NOT EXISTS voice_sync_health (
