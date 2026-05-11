@@ -164,12 +164,36 @@ def main() -> int:
             sb.table(TABLE).delete().eq("screen_id", orphan).execute()
             pruned += 1
 
+    trigger = os.environ.get("TRIGGER_SOURCE", "manual-local")
+    skipped_total = len(skipped_warnings) + len(duplicates)
     print(
-        f"\nscreens_scanned={len(raw_rows)} "
-        f"seedable={len(seedable)} "
-        f"inserted={inserted} updated={updated} noop={noop} "
-        f"pruned={pruned} skipped={len(skipped_warnings) + len(duplicates)}"
+        f"\n**voice-sync** OK · trigger=`{trigger}` · "
+        f"scanned={len(raw_rows)} seedable={len(seedable)} "
+        f"inserted={inserted} updated={updated} noops={noop} "
+        f"pruned={pruned} skipped={skipped_total}"
     )
+
+    if sb is not None:
+        try:
+            sb.table("voice_sync_health").insert({
+                "trigger_source": trigger,
+                "inserts": inserted,
+                "updates": updated,
+                "noops": noop,
+                "skipped": skipped_total,
+                "pruned": pruned,
+            }).execute()
+        except Exception as exc:
+            msg = str(exc)
+            if "voice_sync_health" in msg and ("does not exist" in msg or "42P01" in msg):
+                print(
+                    "  voice_sync_health table not present yet — migration 018 unapplied; "
+                    "skipping telemetry insert.",
+                    file=sys.stderr,
+                )
+            else:
+                print(f"  WARN voice_sync_health insert failed: {exc}", file=sys.stderr)
+
     return 0
 
 

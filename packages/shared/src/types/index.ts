@@ -181,6 +181,17 @@ export interface AuditLogEntry {
   created_at: string;
 }
 
+// ─── Session Log ────────────────────────────────────
+export interface SessionLogEntry {
+  id: string;
+  user_id: string;
+  session_id: string;
+  timestamp: string;
+  event_type: string;
+  screen_id: string | null;
+  payload: Record<string, unknown> | null;
+}
+
 // ─── Onboarding ─────────────────────────────────────
 export type OnboardingPath = 'simple' | 'braindump' | 'advanced';
 
