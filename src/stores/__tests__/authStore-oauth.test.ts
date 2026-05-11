@@ -163,4 +163,50 @@ describe('OAuth complete events via onAuthStateChange', () => {
       expect.anything(),
     );
   });
+
+  it('does NOT fire on INITIAL_SESSION (page-reload session restore)', () => {
+    // INITIAL_SESSION fires when supabase-js replays a stored session on
+    // page load. Without the event gate this would re-fire complete_login
+    // on every reload for OAuth users.
+    const created = new Date('2026-04-01T10:00:00Z').toISOString();
+    const signedIn = new Date('2026-04-29T10:00:00Z').toISOString();
+    capturedHandler!(
+      'INITIAL_SESSION',
+      googleSession({ createdAt: created, lastSignInAt: signedIn }),
+    );
+
+    expect(trackMock).not.toHaveBeenCalled();
+  });
+
+  it('does NOT fire on USER_UPDATED for OAuth user', () => {
+    const created = new Date('2026-04-01T10:00:00Z').toISOString();
+    const signedIn = new Date('2026-04-29T10:00:00Z').toISOString();
+    capturedHandler!(
+      'USER_UPDATED',
+      googleSession({ createdAt: created, lastSignInAt: signedIn }),
+    );
+
+    expect(trackMock).not.toHaveBeenCalled();
+  });
+
+  it('reports is_returning_user=false when created_at is missing (parity with email signIn)', () => {
+    // Email signIn computes isReturningUser = createdAtMs > 0 && gap > 60s,
+    // so missing created_at yields false. OAuth must match — otherwise an
+    // OAuth user with missing created_at would silently report `true`.
+    capturedHandler!('SIGNED_IN', {
+      user: {
+        id: 'user-no-created-at',
+        email: 'x@example.com',
+        app_metadata: { provider: 'google' },
+        user_metadata: {},
+        last_sign_in_at: new Date('2026-04-29T10:00:00Z').toISOString(),
+      },
+    });
+
+    expect(trackMock).toHaveBeenCalledWith(
+      'complete_login',
+      { method: 'google', is_returning_user: false },
+      { send_instantly: true },
+    );
+  });
 });
