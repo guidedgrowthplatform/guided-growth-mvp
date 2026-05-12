@@ -91,24 +91,26 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 // Track provider availability (disabled on quota exceeded / auth failure)
 let cartesiaTtsAvailable = true;
 
-// Track current playing audio so we can stop it
 let currentAudio: HTMLAudioElement | null = null;
-// Abort controller for in-flight TTS requests
 let currentTtsAbort: AbortController | null = null;
-
-// iOS first-play gesture rule: flag set by unlockTTS once we've kicked off
-// a silent play inside a user gesture. speakWhenReady reads this to decide
-// whether to play immediately or defer to next pointerdown.
+// stopTTS() invokes this so awaited speak() resolves on external interrupt.
+let currentAudioResolver: (() => void) | null = null;
+// iOS Safari first-play rule — set by unlockTTS inside a gesture.
 let ttsUnlocked = false;
+// Bumped per speak(); stale callers bail at each await boundary.
+let speakGeneration = 0;
 
-/** Stop any currently playing TTS audio immediately */
 export function stopTTS(): void {
-  // Cancel in-flight TTS fetch request
   if (currentTtsAbort) {
     currentTtsAbort.abort();
     currentTtsAbort = null;
   }
-  // Stop playing audio
+  if (currentAudioResolver) {
+    const resolver = currentAudioResolver;
+    currentAudioResolver = null;
+    resolver();
+    return;
+  }
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.currentTime = 0;
@@ -117,34 +119,50 @@ export function stopTTS(): void {
   setSpeaking(false);
 }
 
-/**
- * Play audio from a fetch response blob.
- */
 async function playAudioFromResponse(
   res: Response,
   volume: number,
   _label: string,
+  generation: number,
 ): Promise<boolean> {
   const audioBlob = await res.blob();
+  if (generation !== speakGeneration) return false;
+
+  // Hard-stop any peer playAudioFromResponse that resolved its blob in
+  // the same tick before we overwrite currentAudio.
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.src = '';
+    currentAudio = null;
+  }
+
   const audioUrl = URL.createObjectURL(audioBlob);
   const audio = new Audio(audioUrl);
   audio.volume = volume;
   currentAudio = audio;
 
   await new Promise<void>((resolve, reject) => {
-    audio.onended = () => {
+    const onFinish = () => {
+      audio.pause();
       URL.revokeObjectURL(audioUrl);
-      currentAudio = null;
+      if (currentAudio === audio) currentAudio = null;
+      if (currentAudioResolver === onFinish) currentAudioResolver = null;
       setSpeaking(false);
       resolve();
     };
+    currentAudioResolver = onFinish;
+    audio.onended = onFinish;
     audio.onerror = (e) => {
       URL.revokeObjectURL(audioUrl);
+      if (currentAudio === audio) currentAudio = null;
+      if (currentAudioResolver === onFinish) currentAudioResolver = null;
       setSpeaking(false);
       reject(e);
     };
     setSpeaking(true);
     audio.play().catch((err) => {
+      if (currentAudio === audio) currentAudio = null;
+      if (currentAudioResolver === onFinish) currentAudioResolver = null;
       setSpeaking(false);
       reject(err);
     });
@@ -178,12 +196,13 @@ function handleTtsError(err: unknown, label: string): boolean {
  * Returns true if audio played successfully, false on failure.
  * No fallback: callers accept silent failure (visible chat message remains).
  */
-async function speakCartesia(text: string, volume: number): Promise<boolean> {
+async function speakCartesia(text: string, volume: number, generation: number): Promise<boolean> {
   if (!cartesiaTtsAvailable) return false;
 
   try {
     const voiceId = getCartesiaVoiceId();
     const authHeaders = await getAuthHeaders();
+    if (generation !== speakGeneration) return false;
 
     const abortController = new AbortController();
     currentTtsAbort = abortController;
@@ -197,6 +216,7 @@ async function speakCartesia(text: string, volume: number): Promise<boolean> {
       body: JSON.stringify({ text, voice_id: voiceId }),
       signal: abortController.signal,
     });
+    if (generation !== speakGeneration) return false;
 
     if (!res.ok) {
       console.warn('[TTS] Cartesia proxy error:', res.status);
@@ -206,7 +226,7 @@ async function speakCartesia(text: string, volume: number): Promise<boolean> {
       return false;
     }
 
-    return await playAudioFromResponse(res, volume, 'Cartesia');
+    return await playAudioFromResponse(res, volume, 'Cartesia', generation);
   } catch (err) {
     return handleTtsError(err, 'Cartesia');
   }
@@ -243,34 +263,27 @@ export function unlockTTS(): void {
 
 // ─── Public API ─────────────────────────────────────────────────────────────
 
-// Generation counter — only the LATEST speak() call gets to play audio
-let speakGeneration = 0;
-
 /**
- * Speak text aloud using Cartesia TTS.
- * On failure: log a warning and skip — the message has already rendered
- * visually, so we don't substitute a different voice as if it were the coach.
+ * Returns a promise resolving when audio actually ends (onended, error,
+ * external stopTTS, or a newer speak() superseding this one). Resolves
+ * immediately when TTS is disabled or the text is empty.
  */
 export function speak(
   text: string,
   options?: { rate?: number; pitch?: number; volume?: number },
-): void {
-  // Check if TTS is enabled
+): Promise<void> {
   const { ttsEnabled } = useVoiceSettingsStore.getState();
-  if (!ttsEnabled) return;
+  if (!ttsEnabled) return Promise.resolve();
   const clean = cleanText(text);
-  if (!clean) return;
+  if (!clean) return Promise.resolve();
 
   const volume = options?.volume ?? 0.85;
 
-  // ALWAYS stop current audio first to prevent overlap
   stopTTS();
-
-  // Increment generation — any in-flight speak() from earlier calls will be stale
   const myGeneration = ++speakGeneration;
 
-  (async () => {
-    const cartesiaOk = await speakCartesia(clean, volume);
+  return (async () => {
+    const cartesiaOk = await speakCartesia(clean, volume, myGeneration);
     if (myGeneration !== speakGeneration) return;
     if (!cartesiaOk) {
       console.warn('[tts] Cartesia failed; audio skipped');
