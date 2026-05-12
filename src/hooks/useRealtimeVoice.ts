@@ -129,7 +129,7 @@ async function fetchAccessToken(signal: AbortSignal): Promise<string> {
  */
 export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeVoiceReturn {
   const { metadata, onEnd, onError } = options;
-  const { enterRealtime, release, registerCleanup, preference, transition } = useVoice();
+  const { enterRealtime, release, registerCleanup, transition } = useVoice();
 
   const [state, setState] = useState<RealtimeVoiceState>('idle');
 
@@ -280,14 +280,6 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   );
 
   const start = useCallback(async () => {
-    // Respect the existing text-only preference semantic on main. The enum
-    // rename per Yair's Apr 16 spec lives in closed MR !60 and has not
-    // been re-landed; until it is, `text_only` means "no voice".
-    if (preference === 'text_only') {
-      onError?.('Voice is disabled. Change your preference in Settings.');
-      return;
-    }
-
     // Reject re-entry while a previous session is tearing down (onClose →
     // stop() → onEnd → start() would otherwise race with cleanup()).
     if (tearingDownRef.current) return;
@@ -432,17 +424,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     } catch (err) {
       fail(err instanceof Error ? err.message : 'Failed to open agent session.');
     }
-  }, [
-    preference,
-    enterRealtime,
-    registerCleanup,
-    stop,
-    metadata,
-    transition,
-    fail,
-    onError,
-    setStateSynced,
-  ]);
+  }, [enterRealtime, registerCleanup, stop, metadata, transition, fail, onError, setStateSynced]);
 
   return {
     start,
