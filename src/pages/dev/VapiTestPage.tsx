@@ -10,13 +10,14 @@ export function VapiTestPage() {
     useVapiCall();
   const { addToast } = useToast();
   const lastErrorRef = useRef<string | null>(null);
+  const isEnvMissing = errorMessage?.startsWith('Vapi env vars missing') ?? false;
 
   useEffect(() => {
-    if (errorMessage && errorMessage !== lastErrorRef.current) {
+    if (errorMessage && errorMessage !== lastErrorRef.current && !isEnvMissing) {
       lastErrorRef.current = errorMessage;
       addToast('error', errorMessage);
     }
-  }, [errorMessage, addToast]);
+  }, [errorMessage, addToast, isEnvMissing]);
 
   const isActive = status === 'active';
   const isConnecting = status === 'connecting';
@@ -48,6 +49,17 @@ export function VapiTestPage() {
             Vapi web SDK round-trip — tap the right button to start a call.
           </p>
         </header>
+
+        {isEnvMissing && (
+          <div
+            role="alert"
+            className="mb-6 rounded-md border border-danger bg-danger/10 p-3 text-sm text-content"
+          >
+            Vapi is not configured. Set <code>VITE_VAPI_PUBLIC_KEY</code> and{' '}
+            <code>VITE_VAPI_ASSISTANT_ID</code> in your <code>.env.local</code>, then restart the
+            dev server.
+          </div>
+        )}
 
         <div className="flex flex-1 flex-col items-center justify-center gap-10">
           <DualButton
