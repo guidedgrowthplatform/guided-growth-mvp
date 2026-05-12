@@ -6,7 +6,6 @@ import { queryKeys } from '@/lib/query';
 import { ActionDispatcher } from '@/lib/services/action-dispatcher';
 import { haptic } from '@/lib/services/haptic-service';
 import { getDataService } from '@/lib/services/service-provider';
-import { speak } from '@/lib/services/tts-service';
 import { supabase, sessionReady } from '@/lib/supabase';
 import { useCommandStore } from '@/stores/commandStore';
 import { useVoiceStore } from '@/stores/voiceStore';
@@ -312,8 +311,6 @@ export function useVoiceCommand() {
             });
           }
         }
-
-        speak(result.message);
 
         // Only invalidate/refresh on mutation actions (not query/help/suggest)
         if (MUTATION_ACTIONS.has(intent.action)) {

@@ -153,12 +153,13 @@ export function useVoiceChat(userName?: string) {
       response_length_chars: lastResult.message.length,
     });
 
-    // TTS is handled by useVoiceCommand — don't duplicate here
-    // After TTS finishes, release the voice channel back to idle.
-    // We use a timeout approximation since speak() is fire-and-forget.
-    setTimeout(() => {
-      release();
-    }, 3000);
+    let cancelled = false;
+    void speak(lastResult.message).finally(() => {
+      if (!cancelled) release();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [lastResult, lastIntent, transition, release]);
 
   // Voice/mic errors as friendly AI bubbles

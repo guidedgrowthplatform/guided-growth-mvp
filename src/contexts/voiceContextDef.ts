@@ -20,9 +20,6 @@ export type VoiceState = 'idle' | 'mp3' | 'listening' | 'thinking' | 'speaking';
  */
 export type VoiceMode = 'idle' | 'mp3' | 'realtime';
 
-/** User preference for how voice works across the app */
-export type VoicePreference = 'full_voice' | 'text_only' | 'speak_in_text_out';
-
 /** Derive the coarse mode from the fine-grained state */
 export function modeFromState(state: VoiceState): VoiceMode {
   if (state === 'mp3') return 'mp3';
@@ -40,9 +37,6 @@ export interface VoiceContextValue {
 
   /** Coarse mode derived from voiceState (convenience) */
   mode: VoiceMode;
-
-  /** User's voice preference setting */
-  preference: VoicePreference;
 
   // ── Acquire / Release ───────────────────────────────────────────────────
 
@@ -78,11 +72,6 @@ export interface VoiceContextValue {
    * - If current mode is 'idle', this is a no-op.
    */
   transition: (next: VoiceState) => void;
-
-  // ── Preference ──────────────────────────────────────────────────────────
-
-  /** Set user's voice preference (persisted to localStorage) */
-  setPreference: (pref: VoicePreference) => void;
 
   // ── Cleanup registry ────────────────────────────────────────────────────
 
