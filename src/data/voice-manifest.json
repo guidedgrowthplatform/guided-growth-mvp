@@ -9,6 +9,13 @@
       "duration_seconds": 8,
       "text": "Hey there. ...I might have startled you. I'm your AI coach, and I'm here to help you build habits that actually stick. Tap below to get started."
     },
+    "splash_welcome": {
+      "url": "/voice/splash_welcome.mp3",
+      "screen": "WELCOME-01",
+      "trigger": "screen_load",
+      "duration_seconds": 8,
+      "text": "Hi, I'm your AI Coach. I'm here to help you grow, one habit at a time."
+    },
     "pref_can_i_talk": {
       "file": "pref_can_i_talk.mp3",
       "screen": "PREF-01",

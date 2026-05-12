@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
 import manifestData from '@/data/voice-manifest.json';
 import { useVoice } from '@/hooks/useVoice';
+import { attemptPlayWithGestureFallback } from '@/lib/audio/attempt-play-with-gesture-fallback';
 import { voiceAssetUrl } from '@/lib/config/voice';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -29,9 +31,14 @@ type ManifestFiles = Record<string, ManifestEntry>;
 
 export type VoicePlayerState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
+interface PlayOptions {
+  /** Retry play() on next gesture when blocked by iOS autoplay policy. */
+  deferOnAutoplayBlock?: boolean;
+}
+
 interface UseVoicePlayerReturn {
   /** Play a pre-recorded MP3 by file_id from the manifest */
-  play: (fileId: string) => Promise<void>;
+  play: (fileId: string, opts?: PlayOptions) => Promise<void>;
   /** Stop playback */
   stop: () => void;
   /** Pause playback */
@@ -68,7 +75,7 @@ function getManifestEntry(fileId: string): ManifestEntry | null {
  * - on_complete: in completion callback → play(fileId)
  */
 export function useVoicePlayer(): UseVoicePlayerReturn {
-  const { enterMp3, release, registerCleanup, preference } = useVoice();
+  const { enterMp3, release, registerCleanup } = useVoice();
   const [state, setState] = useState<VoicePlayerState>('idle');
   const [currentFileId, setCurrentFileId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -101,9 +108,8 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
   }, [release]);
 
   const play = useCallback(
-    async (fileId: string): Promise<void> => {
-      // Respect voice preference — text_only means no audio
-      if (preference === 'text_only') return;
+    async (fileId: string, opts?: PlayOptions): Promise<void> => {
+      if (!useVoiceSettingsStore.getState().ttsEnabled) return;
 
       const entry = getManifestEntry(fileId);
       if (!entry) {
@@ -183,11 +189,8 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
             release();
             reject(new Error(`Failed to load audio: ${fileId}`));
           };
-          audio
-            .play()
+          attemptPlayWithGestureFallback(audio, { defer: opts?.deferOnAutoplayBlock })
             .then(() => {
-              // Fires only on successful playback start — autoplay
-              // rejections go to the .catch below and emit no event.
               track('play_mp3', {
                 file_id: fileId,
                 screen: entry.screen,
@@ -195,7 +198,6 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
               });
             })
             .catch((err) => {
-              // Autoplay blocked — common on iOS
               if (mountedRef.current) setState('error');
               release();
               reject(err);
@@ -214,7 +216,7 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
         }
       }
     },
-    [enterMp3, release, registerCleanup, preference],
+    [enterMp3, release, registerCleanup],
   );
 
   const pause = useCallback(() => {

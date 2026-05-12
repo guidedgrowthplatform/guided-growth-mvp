@@ -54,7 +54,9 @@ function parseStoredSettings(raw: string | null): PersistedSettings {
   if (!raw) return { ...DEFAULTS };
   try {
     const parsed = JSON.parse(raw);
-    const recordingMode = (VALID_RECORDING_MODES as readonly string[]).includes(parsed.recordingMode)
+    const recordingMode = (VALID_RECORDING_MODES as readonly string[]).includes(
+      parsed.recordingMode,
+    )
       ? (parsed.recordingMode as RecordingMode)
       : DEFAULTS.recordingMode;
     return {
@@ -67,9 +69,37 @@ function parseStoredSettings(raw: string | null): PersistedSettings {
   }
 }
 
+// Legacy key — ported to ttsEnabled when new key absent, then deleted.
+const LEGACY_PREFERENCE_KEY = 'guided_growth_voice_preference';
+
+function readLegacyPreference(): 'on' | 'off' | null {
+  try {
+    const v = localStorage.getItem(LEGACY_PREFERENCE_KEY);
+    if (v === null) return null;
+    return v === 'text_only' ? 'off' : 'on';
+  } catch {
+    return null;
+  }
+}
+
+function deleteLegacyPreference(): void {
+  try {
+    localStorage.removeItem(LEGACY_PREFERENCE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 function loadFromStorage(): PersistedSettings {
   try {
-    return parseStoredSettings(localStorage.getItem(SETTINGS_KEY));
+    const stored = localStorage.getItem(SETTINGS_KEY);
+    const parsed = parseStoredSettings(stored);
+    const legacy = readLegacyPreference();
+    deleteLegacyPreference();
+    if (stored === null && legacy !== null) {
+      return { ...parsed, ttsEnabled: legacy === 'on' };
+    }
+    return parsed;
   } catch {
     return { ...DEFAULTS };
   }

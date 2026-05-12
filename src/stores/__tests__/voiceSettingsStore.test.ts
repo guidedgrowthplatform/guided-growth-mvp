@@ -138,6 +138,42 @@ describe('voiceSettingsStore hydrate (DB sync)', () => {
   });
 });
 
+describe('legacy guided_growth_voice_preference migration (PR-0d)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('ports text_only → ttsEnabled=false when the new key is absent', () => {
+    localStorage.setItem('guided_growth_voice_preference', 'text_only');
+    useVoiceSettingsStore.getState().loadSettings();
+    expect(useVoiceSettingsStore.getState().ttsEnabled).toBe(false);
+    expect(localStorage.getItem('guided_growth_voice_preference')).toBeNull();
+  });
+
+  it('ports full_voice → ttsEnabled=true when the new key is absent', () => {
+    localStorage.setItem('guided_growth_voice_preference', 'full_voice');
+    useVoiceSettingsStore.getState().loadSettings();
+    expect(useVoiceSettingsStore.getState().ttsEnabled).toBe(true);
+    expect(localStorage.getItem('guided_growth_voice_preference')).toBeNull();
+  });
+
+  it('does NOT override an explicit new-key setting; still deletes the legacy', () => {
+    localStorage.setItem(
+      'mvp03_voice_settings',
+      JSON.stringify({ recordingMode: 'auto-stop', ttsEnabled: true, micEnabled: true }),
+    );
+    localStorage.setItem('guided_growth_voice_preference', 'text_only');
+    useVoiceSettingsStore.getState().loadSettings();
+    expect(useVoiceSettingsStore.getState().ttsEnabled).toBe(true);
+    expect(localStorage.getItem('guided_growth_voice_preference')).toBeNull();
+  });
+
+  it('is a no-op when the legacy key is absent', () => {
+    useVoiceSettingsStore.getState().loadSettings();
+    expect(useVoiceSettingsStore.getState().ttsEnabled).toBe(true); // default
+  });
+});
+
 describe('setRecordingMode transient flag', () => {
   beforeEach(() => {
     localStorage.clear();

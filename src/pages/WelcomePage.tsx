@@ -1,11 +1,16 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthFooter } from '@/components/auth';
 import { AIPulseVisual } from '@/components/welcome/AIPulseVisual';
-import { useAutoplayVoice } from '@/hooks/useAutoplayVoice';
+import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 
 export function WelcomePage() {
   const navigate = useNavigate();
-  useAutoplayVoice('/voice/splash_welcome.mp3');
+  const { play, stop } = useVoicePlayer();
+  useEffect(() => {
+    void play('splash_welcome', { deferOnAutoplayBlock: true });
+    return () => stop();
+  }, [play, stop]);
 
   return (
     <main className="flex min-h-[100dvh] w-full flex-col items-center bg-page px-6 py-[50.5px]">
