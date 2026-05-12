@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { useVoiceChannelBusy } from '@/hooks/useVoiceChannelBusy';
 import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
@@ -64,6 +65,7 @@ export function BottomNav() {
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
   const isListening = useVoiceStore((s) => s.isListening);
   const currentRms = useAudioMetricsStore((s) => s.currentRms);
+  const channelBusy = useVoiceChannelBusy();
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/' || location.pathname === '/home';
@@ -85,7 +87,7 @@ export function BottomNav() {
     setMicEnabled(next);
     track('toggle_mic', {
       new_state: next ? 'on' : 'off',
-      during_conversation: isListening || isSpeaking,
+      during_conversation: channelBusy,
     });
   };
 
