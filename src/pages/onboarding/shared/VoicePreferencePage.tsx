@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconChatVoice, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
@@ -11,6 +12,7 @@ export function VoicePreferencePage() {
   const navigate = useNavigate();
   const { updatePreferences } = useUserPreferences();
   const { play, stop } = useVoicePlayer();
+  const { logEvent } = useSessionLog();
   const [saving, setSaving] = useState(false);
 
   // PREF-01 per Voice System sheet: play pref_can_i_talk.mp3 on screen load
@@ -31,6 +33,11 @@ export function VoicePreferencePage() {
       preference: voiceEnabled ? 'voice' : 'text',
       screen: 'pref_01',
     });
+    logEvent(
+      'voice_preference_set',
+      { preference: voiceEnabled ? 'voice' : 'screen' },
+      'VOICE-PREFERENCE',
+    );
     await updatePreferences({ voiceMode: voiceEnabled ? 'voice' : 'screen' });
     useVoiceSettingsStore.getState().hydrate({ ttsEnabled: voiceEnabled });
     navigate('/onboarding/mic-permission');

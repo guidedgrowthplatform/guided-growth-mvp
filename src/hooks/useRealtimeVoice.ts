@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
 import { apiFetch } from '@/api/client';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import { useVoice } from '@/hooks/useVoice';
 import {
   CartesiaAgentClient,
@@ -53,6 +54,39 @@ function deriveContext(screen?: string): VoiceContext {
   if (screen === 'habit_create') return 'habit_create';
   if (screen === 'feedback') return 'feedback';
   return 'conversation';
+}
+
+// Map metadata.screen (lowercase callsite values) → canonical screen_id
+// (uppercase format used in screen_contexts). deriveContext above keeps
+// reading the raw lowercase value for PostHog; only session_log uses the
+// canonical form so its rows join cleanly to screen_contexts.
+const SCREEN_ID_CANONICAL: Record<string, string | null> = {
+  onboard_01: 'ONBOARD-01',
+  onboard_02: 'ONBOARD-FORK',
+  onboard_03: 'ONBOARD-BEGINNER-01',
+  onboard_04: 'ONBOARD-BEGINNER-02',
+  onboard_05: 'ONBOARD-BEGINNER-03',
+  onboard_06: 'ONBOARD-BEGINNER-04',
+  onboard_07: 'STARTING-PLAN',
+  onboard_08: 'ONBOARD-BEGINNER-07',
+  onboard_advanced_input: 'ONBOARD-ADVANCED',
+  onboard_advanced_results: 'ONBOARD-ADVANCED-02',
+  onboard_advanced_step_6: 'ONBOARD-ADVANCED-04',
+  onboard_advanced_custom_prompts: 'ONBOARD-ADVANCED-05',
+  morning: 'MCHECK-01',
+  evening: 'ECHECK-01',
+  habit_create: 'HABIT-CREATE-FORK',
+  feedback: null,
+};
+
+function toCanonicalScreenId(screen?: string): string | undefined {
+  if (!screen) return undefined;
+  if (screen in SCREEN_ID_CANONICAL) {
+    const mapped = SCREEN_ID_CANONICAL[screen];
+    return mapped ?? undefined;
+  }
+  // Default: uppercase + underscore→hyphen for unmapped values.
+  return screen.toUpperCase().replace(/_/g, '-');
 }
 
 // ─── Audio helpers ──────────────────────────────────────────────────────────
@@ -130,6 +164,7 @@ async function fetchAccessToken(signal: AbortSignal): Promise<string> {
 export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeVoiceReturn {
   const { metadata, onEnd, onError } = options;
   const { enterRealtime, release, registerCleanup, transition } = useVoice();
+  const { logEvent } = useSessionLog();
 
   const [state, setState] = useState<RealtimeVoiceState>('idle');
 
@@ -181,6 +216,14 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       const duration_seconds = (performance.now() - sessionStartRef.current) / 1000;
       if (hadErrorRef.current) {
         track('cancel_voice_session', { context: ctx, duration_seconds, reason: 'error' });
+        logEvent(
+          'voice_ended',
+          {
+            duration_sec: Math.round(duration_seconds),
+            reason: 'error',
+          },
+          toCanonicalScreenId(metadata.screen),
+        );
       } else {
         track('complete_voice_session', {
           context: ctx,
@@ -192,6 +235,14 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           transcript_length_chars: 0,
           turn_count: turnCountRef.current,
         });
+        logEvent(
+          'voice_ended',
+          {
+            duration_sec: Math.round(duration_seconds),
+            reason: 'user_exit',
+          },
+          toCanonicalScreenId(metadata.screen),
+        );
       }
       sessionStartRef.current = null;
       turnCountRef.current = 0;
@@ -252,7 +303,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     if (mountedRef.current) transition('idle');
 
     tearingDownRef.current = false;
-  }, [transition, setStateSynced, metadata.screen]);
+  }, [transition, setStateSynced, metadata.screen, logEvent]);
 
   const stop = useCallback(() => {
     // Belt-and-suspenders: any code path that re-entered cleanup while it
@@ -385,6 +436,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           screen: metadata.screen ?? null,
           voice_mode: 'realtime',
         });
+        logEvent('voice_started', {}, toCanonicalScreenId(metadata.screen));
         setStateSynced('listening');
         if (mountedRef.current) transition('listening');
       },
@@ -424,7 +476,17 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     } catch (err) {
       fail(err instanceof Error ? err.message : 'Failed to open agent session.');
     }
-  }, [enterRealtime, registerCleanup, stop, metadata, transition, fail, onError, setStateSynced]);
+  }, [
+    enterRealtime,
+    registerCleanup,
+    stop,
+    metadata,
+    transition,
+    fail,
+    onError,
+    setStateSynced,
+    logEvent,
+  ]);
 
   return {
     start,

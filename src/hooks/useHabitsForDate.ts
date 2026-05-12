@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import type { Habit, HabitCompletion } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
 
@@ -56,8 +57,9 @@ async function loadHabitsForDate(date: string): Promise<HabitWithStatus[]> {
   });
 }
 
-export function useHabitsForDate(date: string) {
+export function useHabitsForDate(date: string, screenId?: string) {
   const qc = useQueryClient();
+  const { logEvent } = useSessionLog();
   const queryKey = useMemo(() => [HABITS_FOR_DATE_KEY, date] as const, [date]);
 
   const query = useQuery({
@@ -96,6 +98,19 @@ export function useHabitsForDate(date: string) {
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) qc.setQueryData(queryKey, ctx.prev);
+    },
+    onSuccess: ({ habitId, currentlyCompleted }) => {
+      if (!currentlyCompleted) {
+        logEvent(
+          'habit_completed',
+          {
+            habit_id: habitId,
+            completed_at: new Date().toISOString(),
+            via: 'tap',
+          },
+          screenId,
+        );
+      }
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey });

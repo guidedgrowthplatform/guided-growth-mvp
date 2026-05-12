@@ -13,7 +13,7 @@ export function HabitsPage() {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const today = format(new Date(), 'yyyy-MM-dd');
-  const { habits, loading, error, toggleComplete, reload } = useHabitsForDate(today);
+  const { habits, loading, error, toggleComplete, reload } = useHabitsForDate(today, 'HABIT-LIST');
 
   useEffect(() => {
     track('view_habits');

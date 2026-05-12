@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { apiGet, apiPut } from '@/api/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import { queryKeys } from '@/lib/query';
 import type { UserPreferences as DbUserPreferences, VoiceMode, RecordingMode } from '@shared/types';
 
@@ -101,6 +102,7 @@ function saveLocalPreferences(prefs: UserPreferences) {
 export function useUserPreferences() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { logEvent } = useSessionLog();
 
   const query = useQuery<UserPreferences>({
     queryKey: queryKeys.preferences.all,
@@ -137,10 +139,23 @@ export function useUserPreferences() {
         saveLocalPreferences(ctx.previous);
       }
     },
-    onSuccess: (wire) => {
+    onSuccess: (wire, partial, ctx) => {
       const next = fromWire(wire);
       qc.setQueryData(queryKeys.preferences.all, next);
       saveLocalPreferences(next);
+      for (const key of Object.keys(partial) as (keyof UserPreferences)[]) {
+        const oldValue = ctx?.previous?.[key] ?? null;
+        const newValue = partial[key] ?? null;
+        // Skip no-op writes — the Settings page can call updatePreferences
+        // with an unchanged object on init / form re-submits, which used to
+        // spam session_log with rows where old_value === new_value.
+        if (JSON.stringify(oldValue) === JSON.stringify(newValue)) continue;
+        logEvent(
+          'settings_changed',
+          { field: key, old_value: oldValue, new_value: newValue },
+          'SETTINGS',
+        );
+      }
     },
   });
 

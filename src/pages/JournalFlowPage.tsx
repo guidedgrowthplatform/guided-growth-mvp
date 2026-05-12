@@ -7,6 +7,12 @@ import { SegmentedControl } from '@/components/insights';
 import { GuidedTab } from '@/components/journal/GuidedTab';
 import { useAuth } from '@/hooks/useAuth';
 import { useJournalSave } from '@/hooks/useJournalSave';
+import { useSessionLog } from '@/hooks/useSessionLog';
+
+const TAB_TO_SCREEN_ID: Record<'guided' | 'freeform', string> = {
+  guided: 'EVENING-REFLECTION-GUIDED',
+  freeform: 'EVENING-REFLECTION-FREEFORM',
+};
 
 const FreeformTab = lazy(() =>
   import('@/components/journal/FreeformTab').then((m) => ({ default: m.FreeformTab })),
@@ -25,6 +31,7 @@ export function JournalFlowPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { save, saving } = useJournalSave();
+  const { logEvent } = useSessionLog();
   const userName = user?.nickname ?? user?.name ?? 'there';
 
   const [activeTab, setActiveTab] = useState<Tab>('guided');
@@ -51,6 +58,17 @@ export function JournalFlowPage() {
     mountTimeRef.current = Date.now();
     const start = mountTimeRef.current;
     track('open_journal', { trigger: 'home' });
+    // Initial tab on mount — emit the corresponding state-screen so the
+    // auto-emitter's /reflections → RECENT-REFLECTIONS gets refined.
+    logEvent(
+      'navigate',
+      {
+        from_screen: 'RECENT-REFLECTIONS',
+        to_screen: TAB_TO_SCREEN_ID[activeTabRef.current],
+        trigger: 'auto',
+      },
+      TAB_TO_SCREEN_ID[activeTabRef.current],
+    );
     return () => {
       if (!completedRef.current) {
         track('abandon_journal', {
@@ -59,6 +77,7 @@ export function JournalFlowPage() {
         });
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleTabChange = useCallback(
@@ -69,6 +88,15 @@ export function JournalFlowPage() {
       setAnimating(true);
       setActiveTab(nextTab);
       track('select_journal_type', { type: nextTab === 'guided' ? 'template' : 'freeform' });
+      logEvent(
+        'navigate',
+        {
+          from_screen: TAB_TO_SCREEN_ID[activeTab],
+          to_screen: TAB_TO_SCREEN_ID[nextTab],
+          trigger: 'tap',
+        },
+        TAB_TO_SCREEN_ID[nextTab],
+      );
 
       setTimeout(() => {
         setDisplayTab(nextTab);
@@ -76,7 +104,7 @@ export function JournalFlowPage() {
         requestAnimationFrame(() => setAnimating(false));
       }, 200);
     },
-    [activeTab, animating],
+    [activeTab, animating, logEvent],
   );
 
   const handleFreeformSave = useCallback(async () => {

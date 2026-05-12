@@ -1,14 +1,13 @@
+import type { SessionLogEvent } from '@shared/types/session-events';
 import { apiPost } from './client';
 
-interface LogEventPayload {
+export interface LogEventBody {
   session_id: string;
-  event_type: string;
+  event_type: SessionLogEvent;
   screen_id?: string;
   payload?: Record<string, unknown>;
 }
 
-export function logSessionEvent(
-  data: LogEventPayload,
-): Promise<{ id: string; timestamp: string }> {
-  return apiPost<{ id: string; timestamp: string }>('/api/session_log', data);
+export function logSessionEvent(body: LogEventBody): Promise<{ id: string; timestamp: string }> {
+  return apiPost<{ id: string; timestamp: string }>('/api/session_log', body);
 }
