@@ -1,74 +1,259 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { VoiceContext, modeFromState } from '@/contexts/voiceContextDef';
-import type { VoiceState } from '@/contexts/voiceContextDef';
+import type {
+  RealtimePhase,
+  ReflectPhase,
+  ReleaseToken,
+  Surface,
+  VoiceOwner,
+  VoiceState,
+} from '@/contexts/voiceContextDef';
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+const noop = () => {};
+
+function mintToken(): ReleaseToken {
+  return crypto.randomUUID() as ReleaseToken;
+}
+
+function voiceStateFromOwner(owner: VoiceOwner): VoiceState {
+  switch (owner.kind) {
+    case 'idle':
+      return 'idle';
+    case 'broadcast':
+      return 'mp3';
+    case 'realtime':
+      return owner.phase;
+    case 'reflect-loop':
+      if (owner.phase === 'listening' || owner.phase === 'thinking' || owner.phase === 'speaking') {
+        return owner.phase;
+      }
+      // 'playing-prompt' and 'transcribing' have no legacy peer; map to nearest.
+      return owner.phase === 'transcribing' ? 'thinking' : 'listening';
+    case 'capture-only':
+      return 'listening';
+  }
+}
 
 // ─── Provider ───────────────────────────────────────────────────────────────
 
 export function VoiceProvider({ children }: { children: ReactNode }) {
-  const [voiceState, setVoiceState] = useState<VoiceState>('idle');
-  const cleanupRef = useRef<(() => void) | null>(null);
+  const [owner, setOwnerState] = useState<VoiceOwner>({ kind: 'idle' });
 
-  /** Run any registered cleanup for the current owner */
-  const runCleanup = useCallback(() => {
-    const fn = cleanupRef.current;
-    cleanupRef.current = null;
-    fn?.();
+  // ownerRef mirrors state for synchronous reads inside the same render cycle.
+  const ownerRef = useRef<VoiceOwner>(owner);
+  const cleanupsRef = useRef<Map<ReleaseToken, () => void>>(new Map());
+  // Single token used by the entire legacy public API (enterMp3/enterRealtime/etc).
+  const legacyTokenRef = useRef<ReleaseToken | null>(null);
+  // Reentrancy guard — a cleanup that calls release() again unwinds without recursing.
+  const releasingRef = useRef(false);
+
+  const setOwner = useCallback((next: VoiceOwner) => {
+    ownerRef.current = next;
+    setOwnerState(next);
   }, []);
 
-  const stopAll = useCallback(() => {
-    runCleanup();
-    setVoiceState('idle');
-  }, [runCleanup]);
+  const runAllCleanups = useCallback(() => {
+    const fns = Array.from(cleanupsRef.current.values());
+    cleanupsRef.current.clear();
+    for (const fn of fns) {
+      try {
+        fn();
+      } catch {
+        /* one bad cleanup must not block the rest */
+      }
+    }
+  }, []);
 
-  // Derive mode on the fly
-  const mode = modeFromState(voiceState);
+  // ── New internal API ────────────────────────────────────────────────────
+
+  const acquireRealtime = useCallback(
+    (opts: { surface: Surface; onCleanup: () => void }): ReleaseToken | null => {
+      if (ownerRef.current.kind === 'realtime') return ownerRef.current.token;
+      if (ownerRef.current.kind !== 'idle') runAllCleanups();
+      const token = mintToken();
+      cleanupsRef.current.set(token, opts.onCleanup);
+      setOwner({ kind: 'realtime', surface: opts.surface, phase: 'listening', token });
+      return token;
+    },
+    [runAllCleanups, setOwner],
+  );
+
+  const acquireBroadcast = useCallback(
+    (opts: { surface: Surface; assetId: string; onCleanup: () => void }): ReleaseToken | null => {
+      if (ownerRef.current.kind === 'broadcast') return ownerRef.current.token;
+      if (ownerRef.current.kind !== 'idle') runAllCleanups();
+      const token = mintToken();
+      cleanupsRef.current.set(token, opts.onCleanup);
+      setOwner({ kind: 'broadcast', surface: opts.surface, assetId: opts.assetId, token });
+      return token;
+    },
+    [runAllCleanups, setOwner],
+  );
+
+  const acquireReflectLoop = useCallback(
+    (opts: { surface: Surface; onCleanup: () => void }): ReleaseToken | null => {
+      if (ownerRef.current.kind === 'reflect-loop') return ownerRef.current.token;
+      if (ownerRef.current.kind !== 'idle') runAllCleanups();
+      const token = mintToken();
+      cleanupsRef.current.set(token, opts.onCleanup);
+      setOwner({ kind: 'reflect-loop', surface: opts.surface, phase: 'listening', token });
+      return token;
+    },
+    [runAllCleanups, setOwner],
+  );
+
+  const acquireCaptureOnly = useCallback(
+    (opts: { surface: Surface; onCleanup: () => void }): ReleaseToken | null => {
+      if (ownerRef.current.kind === 'capture-only') return ownerRef.current.token;
+      if (ownerRef.current.kind !== 'idle') runAllCleanups();
+      const token = mintToken();
+      cleanupsRef.current.set(token, opts.onCleanup);
+      setOwner({ kind: 'capture-only', surface: opts.surface, token });
+      return token;
+    },
+    [runAllCleanups, setOwner],
+  );
+
+  const setStatus = useCallback(
+    (token: ReleaseToken, phase: RealtimePhase) => {
+      const cur = ownerRef.current;
+      if (cur.kind === 'realtime' && cur.token === token) {
+        setOwner({ ...cur, phase });
+      }
+    },
+    [setOwner],
+  );
+
+  const setPhase = useCallback(
+    (token: ReleaseToken, phase: ReflectPhase) => {
+      const cur = ownerRef.current;
+      if (cur.kind === 'reflect-loop' && cur.token === token) {
+        setOwner({ ...cur, phase });
+      }
+    },
+    [setOwner],
+  );
+
+  // No-op stubs — broadcast and capture-only sub-states have no legacy peer.
+  const setBroadcastState = useCallback((_t: ReleaseToken, _s: 'loading' | 'playing') => {}, []);
+  const setCaptureState = useCallback(
+    (_t: ReleaseToken, _s: 'listening' | 'transcribing') => {},
+    [],
+  );
+
+  const releaseToken = useCallback(
+    (token: ReleaseToken) => {
+      if (releasingRef.current) return;
+      releasingRef.current = true;
+      try {
+        const fn = cleanupsRef.current.get(token);
+        cleanupsRef.current.delete(token);
+        if (fn) {
+          try {
+            fn();
+          } catch {
+            /* swallow — cleanup must not throw upward */
+          }
+        }
+        const cur = ownerRef.current;
+        if (cur.kind !== 'idle' && cur.token === token) {
+          setOwner({ kind: 'idle' });
+        }
+        if (legacyTokenRef.current === token) {
+          legacyTokenRef.current = null;
+        }
+      } finally {
+        releasingRef.current = false;
+      }
+    },
+    [setOwner],
+  );
+
+  // ── Legacy translation layer ────────────────────────────────────────────
 
   const enterMp3 = useCallback((): boolean => {
-    if (voiceState === 'mp3') return true;
-    if (mode === 'realtime') {
-      runCleanup();
+    if (ownerRef.current.kind === 'broadcast') return true;
+    if (ownerRef.current.kind !== 'idle') {
+      // Active owner being displaced — fire its cleanup (matches legacy runCleanup()).
+      runAllCleanups();
+    } else if (legacyTokenRef.current) {
+      // Idle owner with orphan legacy cleanup (left by transition('idle')) — drop without running.
+      cleanupsRef.current.delete(legacyTokenRef.current);
     }
-    setVoiceState('mp3');
+    legacyTokenRef.current = null;
+    const token = mintToken();
+    cleanupsRef.current.set(token, noop);
+    legacyTokenRef.current = token;
+    setOwner({ kind: 'broadcast', surface: '_legacy', assetId: '_legacy', token });
     return true;
-  }, [voiceState, mode, runCleanup]);
+  }, [runAllCleanups, setOwner]);
 
   const enterRealtime = useCallback((): boolean => {
-    if (mode === 'realtime') return true;
-    if (mode === 'mp3') {
-      runCleanup();
+    if (ownerRef.current.kind === 'realtime') return true;
+    if (ownerRef.current.kind !== 'idle') {
+      runAllCleanups();
+    } else if (legacyTokenRef.current) {
+      cleanupsRef.current.delete(legacyTokenRef.current);
     }
-    setVoiceState('listening'); // Realtime always starts listening
+    legacyTokenRef.current = null;
+    const token = mintToken();
+    cleanupsRef.current.set(token, noop);
+    legacyTokenRef.current = token;
+    setOwner({ kind: 'realtime', surface: '_legacy', phase: 'listening', token });
     return true;
-  }, [mode, runCleanup]);
+  }, [runAllCleanups, setOwner]);
 
   const release = useCallback(() => {
-    runCleanup();
-    setVoiceState('idle');
-  }, [runCleanup]);
+    if (legacyTokenRef.current) {
+      releaseToken(legacyTokenRef.current);
+      return;
+    }
+    if (ownerRef.current.kind !== 'idle') {
+      runAllCleanups();
+      setOwner({ kind: 'idle' });
+    }
+  }, [releaseToken, runAllCleanups, setOwner]);
 
-  const transition = useCallback((next: VoiceState) => {
-    setVoiceState((current: VoiceState) => {
-      const currentMode = modeFromState(current);
+  const stopAll = useCallback(() => {
+    runAllCleanups();
+    legacyTokenRef.current = null;
+    if (ownerRef.current.kind !== 'idle') setOwner({ kind: 'idle' });
+  }, [runAllCleanups, setOwner]);
 
-      if (currentMode !== 'realtime' && next !== 'idle') {
-        return current;
+  const transition = useCallback(
+    (next: VoiceState) => {
+      const cur = ownerRef.current;
+      if (cur.kind === 'broadcast' || cur.kind === 'idle') return; // no-op outside realtime
+      if (cur.kind === 'realtime') {
+        if (next === 'idle') {
+          // Match legacy: voiceState goes idle, but cleanup is NOT run here.
+          // (Today's transition('idle') from realtime sets state without running cleanup.)
+          setOwner({ kind: 'idle' });
+          return;
+        }
+        if (next === 'listening' || next === 'thinking' || next === 'speaking') {
+          setOwner({ ...cur, phase: next });
+        }
+        return;
       }
-
-      if (
-        currentMode === 'realtime' &&
-        (next === 'listening' || next === 'thinking' || next === 'speaking' || next === 'idle')
-      ) {
-        return next;
-      }
-
-      return current;
-    });
-  }, []);
+      // reflect-loop / capture-only — not reachable via legacy API today
+    },
+    [setOwner],
+  );
 
   const registerCleanup = useCallback((fn: () => void) => {
-    cleanupRef.current = fn;
+    const t = legacyTokenRef.current;
+    if (!t) return;
+    cleanupsRef.current.set(t, fn);
   }, []);
+
+  // ── Derived legacy values ───────────────────────────────────────────────
+
+  const voiceState = voiceStateFromOwner(owner);
+  const mode = modeFromState(voiceState);
 
   const value = useMemo(
     () => ({
@@ -80,8 +265,37 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       stopAll,
       transition,
       registerCleanup,
+      owner,
+      acquireRealtime,
+      acquireBroadcast,
+      acquireReflectLoop,
+      acquireCaptureOnly,
+      setStatus,
+      setPhase,
+      setBroadcastState,
+      setCaptureState,
+      releaseToken,
     }),
-    [voiceState, mode, enterMp3, enterRealtime, release, stopAll, transition, registerCleanup],
+    [
+      voiceState,
+      mode,
+      enterMp3,
+      enterRealtime,
+      release,
+      stopAll,
+      transition,
+      registerCleanup,
+      owner,
+      acquireRealtime,
+      acquireBroadcast,
+      acquireReflectLoop,
+      acquireCaptureOnly,
+      setStatus,
+      setPhase,
+      setBroadcastState,
+      setCaptureState,
+      releaseToken,
+    ],
   );
 
   return <VoiceContext.Provider value={value}>{children}</VoiceContext.Provider>;
