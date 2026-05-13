@@ -3,10 +3,16 @@ import { ApiError } from '@/api/client';
 import { logSessionEvent } from '@/api/sessionLog';
 import { offlineQueue } from '@/cache/offlineQueue';
 import { supabase } from '@/lib/supabase';
-import { isSessionLogEvent } from '@shared/types/session-events';
+import { isSessionLogEvent, type SessionLogEvent } from '@shared/types/session-events';
 import { SessionLogContext, type SessionLogContextValue } from './SessionLogContext';
 
 const SESSION_ID_KEY = 'gg_session_id';
+const VOICE_ANCHORS_KEY = 'gg_voice_anchors';
+
+interface VoiceAnchor {
+  start_ts: number;
+  screen_id?: string;
+}
 
 function readOrCreateSessionId(): string {
   try {
@@ -16,71 +22,170 @@ function readOrCreateSessionId(): string {
     sessionStorage.setItem(SESSION_ID_KEY, fresh);
     return fresh;
   } catch {
-    // sessionStorage can throw in private-browsing / SSR / sandboxed contexts.
-    // Fall back to an in-memory id so the rest of the app still works.
+    // private-browsing / SSR — in-memory fallback
     return crypto.randomUUID();
+  }
+}
+
+function persistVoiceAnchors(anchors: Map<string, VoiceAnchor>): void {
+  try {
+    const snapshot: Record<string, VoiceAnchor> = {};
+    for (const [k, v] of anchors) snapshot[k] = v;
+    sessionStorage.setItem(VOICE_ANCHORS_KEY, JSON.stringify(snapshot));
+  } catch {
+    // best-effort
+  }
+}
+
+function readVoiceAnchors(): Record<string, VoiceAnchor> {
+  try {
+    const raw = sessionStorage.getItem(VOICE_ANCHORS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, VoiceAnchor>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function clearVoiceAnchors(): void {
+  try {
+    sessionStorage.removeItem(VOICE_ANCHORS_KEY);
+  } catch {
+    // best-effort
   }
 }
 
 export function SessionLogProvider({ children }: { children: ReactNode }) {
   const sessionIdRef = useRef<string>(readOrCreateSessionId());
+  const voiceAnchorsRef = useRef<Map<string, VoiceAnchor>>(new Map());
 
-  // Regenerate session_id only on real user transitions. Previously this fired
-  // on every onAuthStateChange — including TOKEN_REFRESHED and INITIAL_SESSION
-  // — which produced spurious new session_ids whenever Supabase refreshed a
-  // token mid-flow. We now gate on the event type AND a user_id delta.
+  // Rotate on SIGNED_OUT or any user_id delta after init. Anon→login rotates
+  // (prevents A→B session_id leak via shared sessionStorage).
   useEffect(() => {
     let lastUserId: string | null = null;
+    let initialized = false;
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       const next = session?.user?.id ?? null;
-      const isUserTransition =
-        event === 'SIGNED_OUT' ||
-        (event === 'SIGNED_IN' && lastUserId !== null && next !== lastUserId);
+      const idChanged = initialized && next !== lastUserId;
+      const isUserTransition = event === 'SIGNED_OUT' || idChanged;
       if (isUserTransition) {
         const fresh = crypto.randomUUID();
         try {
           sessionStorage.setItem(SESSION_ID_KEY, fresh);
         } catch {
-          // ignore — handled in readOrCreateSessionId
+          // best-effort
         }
         sessionIdRef.current = fresh;
       }
       lastUserId = next;
+      initialized = true;
     });
     return () => sub.subscription.unsubscribe();
   }, []);
 
   const value: SessionLogContextValue = useMemo(
-    () => ({
-      get sessionId() {
-        return sessionIdRef.current;
-      },
-      logEvent: (event_type, payload, screen_id) => {
+    () => {
+      const buildBody = (
+        event_type: SessionLogEvent,
+        payload?: Record<string, unknown>,
+        screen_id?: string,
+      ) => ({
+        session_id: sessionIdRef.current,
+        event_type,
+        ...(screen_id ? { screen_id } : {}),
+        ...(payload ? { payload } : {}),
+      });
+
+      const dispatch = (body: ReturnType<typeof buildBody>) => {
+        logSessionEvent(body).catch((err: unknown) => {
+          if (err instanceof ApiError && err.status >= 400 && err.status < 500) {
+            // 4xx is unrecoverable — drop
+            return;
+          }
+          try {
+            offlineQueue.enqueue('/api/session_log', 'POST', body, 'session_log');
+          } catch (enqueueErr) {
+            if (import.meta.env.DEV) {
+              console.warn('[session-log] enqueue failed', enqueueErr);
+            }
+          }
+        });
+      };
+
+      const logEvent: SessionLogContextValue['logEvent'] = (event_type, payload, screen_id) => {
         if (!isSessionLogEvent(event_type)) {
           if (import.meta.env.DEV) {
             console.warn(`[session-log] unknown event_type: ${event_type}`);
           }
           return;
         }
-        const body = {
-          session_id: sessionIdRef.current,
-          event_type,
-          ...(screen_id ? { screen_id } : {}),
-          ...(payload ? { payload } : {}),
-        };
-        // Fire-and-forget. On network failure, queue for the next online tick.
-        // 401 / 4xx means the event is unrecoverable (pre-auth or rejected
-        // event_type) — drop it, don't keep retrying.
-        logSessionEvent(body).catch((err: unknown) => {
-          if (err instanceof ApiError && err.status >= 400 && err.status < 500) {
-            return;
-          }
-          offlineQueue.enqueue('/api/session_log', 'POST', body);
-        });
-      },
-    }),
+        dispatch(buildBody(event_type, payload, screen_id));
+      };
+
+      const startVoice: SessionLogContextValue['startVoice'] = (screen_id, extra) => {
+        const anchor_id = crypto.randomUUID();
+        const start_ts = performance.now();
+        voiceAnchorsRef.current.set(anchor_id, { start_ts, screen_id });
+        persistVoiceAnchors(voiceAnchorsRef.current);
+        logEvent(
+          'voice_started',
+          { ...(extra ?? {}), voice_anchor_id: anchor_id },
+          screen_id,
+        );
+        return anchor_id;
+      };
+
+      const endVoice: SessionLogContextValue['endVoice'] = (anchor_id, reason, extra) => {
+        const anchor = voiceAnchorsRef.current.get(anchor_id);
+        if (!anchor) return;
+        const duration_sec = Math.round((performance.now() - anchor.start_ts) / 1000);
+        voiceAnchorsRef.current.delete(anchor_id);
+        persistVoiceAnchors(voiceAnchorsRef.current);
+        logEvent(
+          'voice_ended',
+          { ...(extra ?? {}), duration_sec, reason, voice_anchor_id: anchor_id },
+          anchor.screen_id,
+        );
+      };
+
+      return {
+        get sessionId() {
+          return sessionIdRef.current;
+        },
+        logEvent,
+        startVoice,
+        endVoice,
+      };
+    },
     [],
   );
+
+  // Orphan recovery for tab-close mid-session
+  useEffect(() => {
+    const orphans = readVoiceAnchors();
+    const entries = Object.entries(orphans);
+    if (entries.length === 0) return;
+    clearVoiceAnchors();
+    for (const [anchor_id, anchor] of entries) {
+      value.logEvent(
+        'voice_ended',
+        {
+          duration_sec: 0,
+          reason: 'tab_close_recovery',
+          voice_anchor_id: anchor_id,
+        },
+        anchor.screen_id,
+      );
+    }
+  }, [value]);
+
+  // pagehide (not beforeunload) — iOS Safari. sendBeacon can't carry auth headers
+  useEffect(() => {
+    const onHide = () => persistVoiceAnchors(voiceAnchorsRef.current);
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
+  }, []);
 
   return <SessionLogContext.Provider value={value}>{children}</SessionLogContext.Provider>;
 }

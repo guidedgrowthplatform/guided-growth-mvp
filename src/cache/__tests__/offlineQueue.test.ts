@@ -144,9 +144,78 @@ describe('offlineQueue', () => {
     expect(offlineQueue.getQueue()[0].endpoint).toBe('/api/entries/2026-03-16');
   });
 
-  it('getQueue returns [] when localStorage holds corrupt JSON', () => {
+  it('getQueue returns [] and clears the key when localStorage holds corrupt JSON', () => {
     store['lgt_offline_queue'] = '{not valid json';
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     expect(offlineQueue.getQueue()).toEqual([]);
     expect(offlineQueue.length).toBe(0);
+    expect(store['lgt_offline_queue']).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('caps queue length at MAX_QUEUE (500), dropping oldest on overflow', () => {
+    for (let i = 0; i < 510; i++) {
+      offlineQueue.enqueue(`/api/entries/${i}`, 'PUT', { i });
+    }
+    expect(offlineQueue.length).toBe(500);
+    const queue = offlineQueue.getQueue();
+    // Oldest (i=0..9) should have been dropped; newest (i=509) at tail.
+    expect((queue[0].body as { i: number }).i).toBe(10);
+    expect((queue[queue.length - 1].body as { i: number }).i).toBe(509);
+  });
+
+  it('enqueue returns false and does not throw when setItem throws (Safari private mode)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    localStorageMock.setItem.mockImplementationOnce(() => {
+      throw new Error('QuotaExceededError');
+    });
+    // Second setItem call (the retry with trimmed queue) also throws.
+    localStorageMock.setItem.mockImplementationOnce(() => {
+      throw new Error('QuotaExceededError');
+    });
+
+    const ok = offlineQueue.enqueue('/api/session_log', 'POST', { x: 1 }, 'session_log');
+    expect(ok).toBe(false);
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('enqueue retries with trimmed queue when first setItem throws QuotaExceededError', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    // Pre-fill queue.
+    for (let i = 0; i < 10; i++) {
+      offlineQueue.enqueue(`/api/entries/${i}`, 'PUT', { i });
+    }
+    // Next setItem throws, retry succeeds.
+    let calls = 0;
+    const realSet = localStorageMock.setItem.getMockImplementation();
+    localStorageMock.setItem.mockImplementation((key: string, value: string) => {
+      calls++;
+      if (calls === 1) throw new Error('QuotaExceededError');
+      // retry — store normally
+      store[key] = value;
+    });
+
+    const ok = offlineQueue.enqueue('/api/entries/over', 'PUT', { last: true }, 'entry');
+    expect(ok).toBe(true);
+    expect(calls).toBe(2);
+    expect(warnSpy).toHaveBeenCalled();
+
+    // Cleanup
+    localStorageMock.setItem.mockImplementation(realSet ?? (() => undefined));
+    warnSpy.mockRestore();
+  });
+
+  it('persists the kind tag on enqueued items', () => {
+    offlineQueue.enqueue('/api/session_log', 'POST', { e: 'navigate' }, 'session_log');
+    const queue = offlineQueue.getQueue();
+    expect(queue[0].kind).toBe('session_log');
+  });
+
+  it('defaults kind to "unknown" when omitted', () => {
+    offlineQueue.enqueue('/api/entries/2026-03-15', 'PUT', { m1: 'yes' });
+    const queue = offlineQueue.getQueue();
+    expect(queue[0].kind).toBe('unknown');
   });
 });

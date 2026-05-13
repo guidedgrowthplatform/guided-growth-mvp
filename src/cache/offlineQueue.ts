@@ -3,6 +3,9 @@ import { supabase, sessionReady } from '@/lib/supabase';
 
 const QUEUE_KEY = 'lgt_offline_queue';
 const PROCESSED_IDS_KEY = 'lgt_offline_queue_processed_ids';
+const MAX_QUEUE = 500;
+
+export type QueuedItemKind = 'session_log' | 'entry' | 'unknown';
 
 interface QueuedMutation {
   id: string;
@@ -10,6 +13,7 @@ interface QueuedMutation {
   method: string;
   body: unknown;
   timestamp: number;
+  kind?: QueuedItemKind;
 }
 
 interface FlushResult {
@@ -23,10 +27,7 @@ let flushInProgress = false;
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
-    // Native session is async — same race-prevention pattern as
-    // stt-service.ts. Most offline flushes happen in response to
-    // the 'online' event which can fire right at app launch on cold
-    // boot, so the session may not be hydrated yet.
+    // native session is async; 'online' may fire pre-hydration
     if (Capacitor.isNativePlatform()) {
       await sessionReady;
     }
@@ -37,50 +38,63 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
       return { Authorization: `Bearer ${session.access_token}` };
     }
   } catch {
-    // No session — request will fail with 401, surfaced to caller via FlushResult.
+    // no session — caller sees 401
   }
   return {};
 }
 
+// quota → drop oldest 50% + retry once; Safari private mode → returns false
+function safeSetQueue(queue: QueuedMutation[]): boolean {
+  try {
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    return true;
+  } catch (err) {
+    try {
+      const trimmed = queue.slice(Math.floor(queue.length / 2));
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(trimmed));
+      console.warn('[offlineQueue] quota exceeded; dropped oldest 50%', err);
+      return true;
+    } catch (err2) {
+      console.warn('[offlineQueue] localStorage unavailable; dropping write', err2);
+      return false;
+    }
+  }
+}
+
 export const offlineQueue = {
-  enqueue(endpoint: string, method: string, body: unknown): void {
+  enqueue(endpoint: string, method: string, body: unknown, kind: QueuedItemKind = 'unknown'): boolean {
     const queue = this.getQueue();
-    queue.push({
+    const trimmed = queue.length >= MAX_QUEUE ? queue.slice(queue.length - (MAX_QUEUE - 1)) : queue;
+    trimmed.push({
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       endpoint,
       method,
       body,
       timestamp: Date.now(),
+      kind,
     });
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    return safeSetQueue(trimmed);
   },
 
   getQueue(): QueuedMutation[] {
+    const raw = localStorage.getItem(QUEUE_KEY);
+    if (!raw) return [];
     try {
-      const raw = localStorage.getItem(QUEUE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      // corrupt JSON — clear instead of silently returning []
+      console.warn('[offlineQueue] corrupt queue JSON; clearing', err);
+      try {
+        localStorage.removeItem(QUEUE_KEY);
+      } catch {
+        // ignore
+      }
       return [];
     }
   },
 
-  /**
-   * Flush queued mutations to the server.
-   *
-   * Bug history:
-   *  - Previously fetched without auth headers, so every flush returned 401
-   *    and the mutation was silently dropped (4xx → drop branch). User data
-   *    saved offline was never synced. Now adds Authorization: Bearer.
-   *  - Previously read the full queue, then on completion overwrote storage
-   *    with only the failures — losing any mutations enqueued WHILE the
-   *    flush was running. Now we read by id and re-merge with the live
-   *    queue, removing only the ids we successfully processed.
-   *  - Previously dropped 4xx silently. Now returns counts so the caller
-   *    can surface a toast if anything was rejected.
-   *
-   * Concurrency-safe: a re-entrant call exits early so two flushes can't
-   * race over the same ids.
-   */
+  // Re-entrant calls early-exit so two flushes can't race over the same ids.
   async flush(): Promise<FlushResult> {
     if (flushInProgress) {
       return { succeeded: 0, retried: 0, dropped: 0, droppedDetails: [] };
@@ -108,25 +122,20 @@ export const offlineQueue = {
           if (response.ok) {
             succeededIds.add(mutation.id);
           } else if (response.status >= 400 && response.status < 500) {
-            // Client error — won't get better on retry. Drop to avoid an
-            // infinite retry loop, but record so the caller can warn the
-            // user. 401 specifically often means the session expired
-            // mid-offline-window; the user will need to re-auth and the
-            // mutation is unrecoverable.
+            // 4xx is unrecoverable — drop + report
             droppedIds.add(mutation.id);
             droppedDetails.push({ endpoint: mutation.endpoint, status: response.status });
           }
-          // 5xx and network errors fall through — id stays in the queue.
+          // 5xx / network → leave in queue
         } catch {
-          // Network failure — leave in queue for next online event.
+          // network failure → leave in queue
         }
       }
 
-      // Re-read the queue and remove only the ids we processed. Anything
-      // enqueued while we were awaiting fetch survives.
+      // Re-read so mutations enqueued during fetch survive
       const live = this.getQueue();
       const remaining = live.filter((m) => !succeededIds.has(m.id) && !droppedIds.has(m.id));
-      localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+      safeSetQueue(remaining);
 
       return {
         succeeded: succeededIds.size,
