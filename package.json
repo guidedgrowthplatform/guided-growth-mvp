@@ -25,7 +25,6 @@
     "cap:sync:all": "npx cap sync ios && node scripts/patch-ios-plist.mjs && npx cap sync android",
     "cap:open": "npx cap open ios",
     "cap:open:android": "npx cap open android",
-    "smoke:agent": "node scripts/cartesia-agent-smoke.mjs",
     "db:push": "npx supabase db push"
   },
   "lint-staged": {

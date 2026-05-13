@@ -1,16 +1,9 @@
+import Vapi from '@vapi-ai/web';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
-import { apiFetch } from '@/api/client';
 import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useVoice } from '@/hooks/useVoice';
-import {
-  CartesiaAgentClient,
-  type AgentStartMetadata,
-  type AudioFormat,
-} from '@/lib/services/cartesia-agent';
-
-// ─── Types ──────────────────────────────────────────────────────────────────
 
 export type RealtimeVoiceState =
   | 'idle'
@@ -20,33 +13,33 @@ export type RealtimeVoiceState =
   | 'speaking'
   | 'error';
 
-interface UseRealtimeVoiceOptions {
-  /** Metadata forwarded to the agent in the start event. */
-  metadata: AgentStartMetadata;
-  /** Called when the session closes, by user stop or server close. */
+export type CoachingStyle = 'warm' | 'direct' | 'reflective';
+
+export interface UseRealtimeVoiceMetadata {
+  user_id: string;
+  screen?: string;
+  coaching_style?: CoachingStyle;
+}
+
+export interface UseRealtimeVoiceOptions {
+  metadata: UseRealtimeVoiceMetadata;
   onEnd?: () => void;
-  /** Called on any protocol / mic / token error. */
   onError?: (message: string) => void;
 }
 
-interface UseRealtimeVoiceReturn {
+export interface UseRealtimeVoiceReturn {
   start: () => Promise<void>;
   stop: () => void;
   state: RealtimeVoiceState;
   isActive: boolean;
+  isListening: boolean;
+  isSpeaking: boolean;
+  error: string | null;
 }
 
-// ─── Constants ──────────────────────────────────────────────────────────────
+const PUBLIC_KEY = import.meta.env.VITE_VAPI_PUBLIC_KEY as string | undefined;
+const ASSISTANT_ID = import.meta.env.VITE_VAPI_ASSISTANT_ID as string | undefined;
 
-const INPUT_FORMAT: AudioFormat = 'pcm_16000';
-const OUTPUT_FORMAT: AudioFormat = 'pcm_44100';
-const INPUT_SAMPLE_RATE = 16000;
-const OUTPUT_SAMPLE_RATE = 44100;
-const CAPTURE_BUFFER_SIZE = 4096;
-const TOKEN_ENDPOINT = '/api/cartesia-agent-token';
-
-// Map `metadata.screen` to the PostHog §4.3 `context` taxonomy so
-// start/complete/cancel_voice_session events carry a consistent value.
 type VoiceContext = 'checkin' | 'conversation' | 'onboarding' | 'habit_create' | 'feedback';
 function deriveContext(screen?: string): VoiceContext {
   if (!screen) return 'conversation';
@@ -67,10 +60,6 @@ function deriveSurface(screen?: string): Surface {
   return 'chat';
 }
 
-// Map metadata.screen (lowercase callsite values) → canonical screen_id
-// (uppercase format used in screen_contexts). deriveContext above keeps
-// reading the raw lowercase value for PostHog; only session_log uses the
-// canonical form so its rows join cleanly to screen_contexts.
 const SCREEN_ID_CANONICAL: Record<string, string | null> = {
   onboard_01: 'ONBOARD-01',
   onboard_02: 'ONBOARD-FORK',
@@ -96,81 +85,13 @@ function toCanonicalScreenId(screen?: string): string | undefined {
     const mapped = SCREEN_ID_CANONICAL[screen];
     return mapped ?? undefined;
   }
-  // Default: uppercase + underscore→hyphen for unmapped values.
   return screen.toUpperCase().replace(/_/g, '-');
 }
 
-// ─── Audio helpers ──────────────────────────────────────────────────────────
-
-/** Convert Float32 samples [-1, 1] → 16-bit little-endian PCM bytes. */
-function float32ToPcm16LE(samples: Float32Array): Uint8Array {
-  const buf = new ArrayBuffer(samples.length * 2);
-  const view = new DataView(buf);
-  for (let i = 0; i < samples.length; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-  }
-  return new Uint8Array(buf);
-}
-
 /**
- * Naive linear downsample. Acceptable for 16-bit speech given a browser-side
- * antialiasing implicit in the native AudioContext resampler. If quality
- * issues surface, swap for a proper polyphase filter.
- */
-function downsample(samples: Float32Array, fromRate: number, toRate: number): Float32Array {
-  if (fromRate === toRate) return samples;
-  const ratio = fromRate / toRate;
-  const outLen = Math.floor(samples.length / ratio);
-  const out = new Float32Array(outLen);
-  for (let i = 0; i < outLen; i++) {
-    out[i] = samples[Math.floor(i * ratio)];
-  }
-  return out;
-}
-
-/** Decode a 16-bit little-endian PCM chunk into a Float32 AudioBuffer. */
-function pcm16LEToAudioBuffer(ctx: AudioContext, pcm: Uint8Array, sampleRate: number): AudioBuffer {
-  const view = new DataView(pcm.buffer, pcm.byteOffset, pcm.byteLength);
-  const frameCount = Math.floor(pcm.byteLength / 2);
-  const buffer = ctx.createBuffer(1, frameCount, sampleRate);
-  const channel = buffer.getChannelData(0);
-  for (let i = 0; i < frameCount; i++) {
-    const int16 = view.getInt16(i * 2, true);
-    channel[i] = int16 < 0 ? int16 / 0x8000 : int16 / 0x7fff;
-  }
-  return buffer;
-}
-
-// ─── Token fetch ────────────────────────────────────────────────────────────
-
-async function fetchAccessToken(signal: AbortSignal): Promise<string> {
-  const data = await apiFetch<{ token?: unknown }>(TOKEN_ENDPOINT, { method: 'POST', signal });
-  const token = data?.token;
-  if (typeof token !== 'string' || token.length === 0) {
-    throw new Error('token endpoint returned unexpected shape');
-  }
-  return token;
-}
-
-// ─── Hook ───────────────────────────────────────────────────────────────────
-
-/**
- * Connect the browser to a deployed Cartesia Line agent for a real-time
- * voice coaching session.
- *
- * Caller contract:
- *   - Button tap → `start()` → hook acquires mic, mints a token, opens the
- *     WebSocket, and streams mic audio while playing agent audio back.
- *   - Any Supabase-visible side effects (form auto-fill, navigation) must
- *     be observed via Supabase Realtime elsewhere — the WebSocket carries
- *     audio only. See `src/lib/services/cartesia-agent.ts` for the wire
- *     protocol details.
- *   - `stop()` or unmount tears everything down in ~100ms.
- *
- * This hook is currently un-consumed (wiring to ONBOARD-01 is the next
- * MR). It is shipped orphaned so the transport layer and the mic pipeline
- * can be reviewed independently of the UI integration.
+ * Vapi-backed realtime voice for Path 1 onboarding. Owns the @vapi-ai/web
+ * client lifecycle, telemetry (PostHog + session_log), VoiceContext token
+ * plumbing, and the spec-named state fields.
  */
 export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeVoiceReturn {
   const { metadata, onEnd, onError } = options;
@@ -178,26 +99,18 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   const { startVoice, endVoice } = useSessionLog();
 
   const [state, setState] = useState<RealtimeVoiceState>('idle');
+  const [error, setError] = useState<string | null>(null);
 
-  // Lifecycle-spanning refs
   const mountedRef = useRef(true);
-  const clientRef = useRef<CartesiaAgentClient | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const mutedRef = useRef<GainNode | null>(null);
-  const playbackCursorRef = useRef<number>(0);
-  const abortRef = useRef<AbortController | null>(null);
-  // Mirror of `state` for reads inside long-lived callbacks (onAudio) that
-  // would otherwise capture a stale closure from the render where the
-  // callback was created.
+  const vapiRef = useRef<Vapi | null>(null);
   const stateRef = useRef<RealtimeVoiceState>('idle');
-  // Re-entrancy guard: true while cleanup() is tearing resources down. Any
-  // async start() in flight must not create new resources while this is set.
   const tearingDownRef = useRef(false);
+  const startInvokedAtRef = useRef<number | null>(null);
   const sessionStartRef = useRef<number | null>(null);
+  const firstAudioMsRef = useRef<number | null>(null);
   const turnCountRef = useRef<number>(0);
+  const transcriptCharsRef = useRef<number>(0);
+  const transcriptWarnedRef = useRef(false);
   const hadErrorRef = useRef(false);
   const voiceAnchorIdRef = useRef<string | null>(null);
   const tokenRef = useRef<ReleaseToken | null>(null);
@@ -214,6 +127,86 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     if (mountedRef.current) setState(next);
   }, []);
 
+  const cleanup = useCallback(() => {
+    if (tearingDownRef.current) return;
+    tearingDownRef.current = true;
+
+    if (sessionStartRef.current !== null) {
+      const ctx = deriveContext(metadata.screen);
+      const duration_seconds = (performance.now() - sessionStartRef.current) / 1000;
+      if (hadErrorRef.current) {
+        track('cancel_voice_session', {
+          context: ctx,
+          duration_seconds,
+          reason: 'error',
+          voice_vendor: 'vapi',
+        });
+        if (voiceAnchorIdRef.current) {
+          endVoice(voiceAnchorIdRef.current, 'error');
+          voiceAnchorIdRef.current = null;
+        }
+      } else {
+        track('complete_voice_session', {
+          context: ctx,
+          duration_seconds,
+          transcript_length_chars: transcriptCharsRef.current,
+          turn_count: turnCountRef.current,
+          voice_vendor: 'vapi',
+          vapi_first_audio_ms: firstAudioMsRef.current,
+        });
+        if (voiceAnchorIdRef.current) {
+          endVoice(voiceAnchorIdRef.current, 'user_exit', { turn_count: turnCountRef.current });
+          voiceAnchorIdRef.current = null;
+        }
+      }
+      sessionStartRef.current = null;
+      turnCountRef.current = 0;
+      transcriptCharsRef.current = 0;
+      firstAudioMsRef.current = null;
+      hadErrorRef.current = false;
+    }
+
+    startInvokedAtRef.current = null;
+    transcriptWarnedRef.current = false;
+
+    // Null the ref BEFORE SDK teardown so call-end firing synchronously
+    // from inside client.stop() doesn't re-enter handlers we already wired.
+    const client = vapiRef.current;
+    vapiRef.current = null;
+    if (client) {
+      try {
+        client.removeAllListeners();
+      } catch {
+        /* noop */
+      }
+      void client.stop().catch(() => {
+        /* noop */
+      });
+    }
+
+    setStateSynced('idle');
+    tearingDownRef.current = false;
+  }, [setStateSynced, metadata.screen, endVoice]);
+
+  const stop = useCallback(() => {
+    if (tearingDownRef.current) return;
+    cleanup();
+    dropToken();
+    onEnd?.();
+  }, [cleanup, dropToken, onEnd]);
+
+  const fail = useCallback(
+    (message: string) => {
+      hadErrorRef.current = true;
+      setError(message);
+      setStateSynced('error');
+      cleanup();
+      dropToken();
+      onError?.(message);
+    },
+    [cleanup, dropToken, onError, setStateSynced],
+  );
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -224,128 +217,17 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const cleanup = useCallback(() => {
-    tearingDownRef.current = true;
-
-    // Emit the PostHog §4.3 session-end event before tearing down, but only
-    // if the session actually reached the `ack` stage (sessionStartRef set).
-    // start()-time failures never emit a complete/cancel event because no
-    // session was ever established.
-    if (sessionStartRef.current !== null) {
-      const ctx = deriveContext(metadata.screen);
-      const duration_seconds = (performance.now() - sessionStartRef.current) / 1000;
-      if (hadErrorRef.current) {
-        track('cancel_voice_session', { context: ctx, duration_seconds, reason: 'error' });
-        if (voiceAnchorIdRef.current) {
-          endVoice(voiceAnchorIdRef.current, 'error');
-          voiceAnchorIdRef.current = null;
-        }
-      } else {
-        track('complete_voice_session', {
-          context: ctx,
-          duration_seconds,
-          // Transcripts aren't on the wire for the agent WebSocket (verified
-          // via cartesia-ai/agent-ws-example); we emit 0 so the property is
-          // present for schema consistency. Enrichment via REST post-call
-          // transcript fetch is a separate follow-up.
-          transcript_length_chars: 0,
-          turn_count: turnCountRef.current,
-        });
-        if (voiceAnchorIdRef.current) {
-          endVoice(voiceAnchorIdRef.current, 'user_exit', { turn_count: turnCountRef.current });
-          voiceAnchorIdRef.current = null;
-        }
-      }
-      sessionStartRef.current = null;
-      turnCountRef.current = 0;
-      hadErrorRef.current = false;
-    }
-
-    abortRef.current?.abort();
-    abortRef.current = null;
-
-    try {
-      processorRef.current?.disconnect();
-    } catch {
-      /* noop */
-    }
-    processorRef.current = null;
-
-    try {
-      sourceRef.current?.disconnect();
-    } catch {
-      /* noop */
-    }
-    sourceRef.current = null;
-
-    try {
-      mutedRef.current?.disconnect();
-    } catch {
-      /* noop */
-    }
-    mutedRef.current = null;
-
-    if (streamRef.current) {
-      for (const track of streamRef.current.getTracks()) track.stop();
-      streamRef.current = null;
-    }
-
-    // Detach the ref BEFORE closing the client. Cartesia's client
-    // synchronously fires its `onClose` callback from inside `.close()`,
-    // and our `onClose` handler calls `stop()` → `cleanup()` re-entrantly.
-    // If clientRef still points at the same object on re-entry,
-    // `clientRef.current?.close()` runs again on the same client, triggers
-    // onClose again, and the chain blows the stack with the
-    // `RangeError: Maximum call stack size exceeded` Said hit during emulator
-    // QA v7e.
-    const client = clientRef.current;
-    clientRef.current = null;
-    client?.close();
-
-    const ctx = audioCtxRef.current;
-    if (ctx && ctx.state !== 'closed') {
-      void ctx.close().catch(() => {
-        /* noop */
-      });
-    }
-    audioCtxRef.current = null;
-    playbackCursorRef.current = 0;
-
-    setStateSynced('idle');
-
-    tearingDownRef.current = false;
-  }, [setStateSynced, metadata.screen, endVoice]);
-
-  const stop = useCallback(() => {
-    // Belt-and-suspenders: any code path that re-entered cleanup while it
-    // was already running (the agent's onClose firing inside our own
-    // close, the unmount effect racing a parent-driven stop, …) bails
-    // here so we don't recurse through cleanup → client.close → onClose
-    // → stop a second time.
-    if (tearingDownRef.current) return;
-    cleanup();
-    dropToken();
-    onEnd?.();
-  }, [cleanup, dropToken, onEnd]);
-
-  const fail = useCallback(
-    (message: string) => {
-      // Signal to cleanup() that this termination is an error so it emits
-      // cancel_voice_session with reason='error' rather than complete_voice_session.
-      hadErrorRef.current = true;
-      setStateSynced('error');
-      cleanup();
-      dropToken();
-      onError?.(message);
-    },
-    [cleanup, dropToken, onError, setStateSynced],
-  );
-
   const start = useCallback(async () => {
-    // Reject re-entry while a previous session is tearing down (onClose →
-    // stop() → onEnd → start() would otherwise race with cleanup()).
     if (tearingDownRef.current) return;
-    if (clientRef.current) return; // already running
+    if (vapiRef.current) return;
+
+    if (!PUBLIC_KEY || !ASSISTANT_ID) {
+      const msg = 'Vapi env vars missing. Set VITE_VAPI_PUBLIC_KEY and VITE_VAPI_ASSISTANT_ID.';
+      setError(msg);
+      onError?.(msg);
+      setStateSynced('error');
+      return;
+    }
 
     const ownerToken = acquireRealtime({
       surface: deriveSurface(metadata.screen),
@@ -357,158 +239,121 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       },
     });
     if (!ownerToken) {
-      onError?.('Could not acquire the voice channel.');
+      const msg = 'Could not acquire the voice channel.';
+      setError(msg);
+      onError?.(msg);
       return;
     }
     tokenRef.current = ownerToken;
-
+    setError(null);
     setStateSynced('connecting');
+    startInvokedAtRef.current = performance.now();
 
-    const agentId = import.meta.env.VITE_CARTESIA_AGENT_ID as string | undefined;
-    if (!agentId) {
-      fail('VITE_CARTESIA_AGENT_ID is not configured.');
-      return;
-    }
+    const client = new Vapi(PUBLIC_KEY);
+    vapiRef.current = client;
 
-    const abort = new AbortController();
-    abortRef.current = abort;
-    const isSuperseded = () => abort.signal.aborted || !mountedRef.current;
+    client.on('call-start', () => {
+      if (!mountedRef.current || tearingDownRef.current) return;
+      sessionStartRef.current = performance.now();
+      turnCountRef.current = 0;
+      transcriptCharsRef.current = 0;
+      hadErrorRef.current = false;
+      track('start_voice_session', {
+        context: deriveContext(metadata.screen),
+        screen: metadata.screen ?? null,
+        voice_mode: 'realtime',
+        voice_vendor: 'vapi',
+      });
+      voiceAnchorIdRef.current = startVoice(toCanonicalScreenId(metadata.screen));
+      setStateSynced('listening');
+      const t = tokenRef.current;
+      if (t) setOwnerPhase(t, 'listening');
+    });
 
-    let accessToken: string;
+    client.on('speech-start', () => {
+      if (!mountedRef.current || tearingDownRef.current) return;
+      if (stateRef.current !== 'speaking') {
+        turnCountRef.current += 1;
+        if (firstAudioMsRef.current === null && startInvokedAtRef.current !== null) {
+          firstAudioMsRef.current = performance.now() - startInvokedAtRef.current;
+        }
+        setStateSynced('speaking');
+        const t = tokenRef.current;
+        if (t) setOwnerPhase(t, 'speaking');
+      }
+    });
+
+    client.on('speech-end', () => {
+      if (!mountedRef.current || tearingDownRef.current) return;
+      setStateSynced('listening');
+      const t = tokenRef.current;
+      if (t) setOwnerPhase(t, 'listening');
+    });
+
+    client.on('message', (message: unknown) => {
+      try {
+        const m = message as { type?: string; transcriptType?: string; transcript?: unknown };
+        if (m?.type !== 'transcript' || m.transcriptType !== 'final') return;
+        const text = m.transcript;
+        if (typeof text === 'string') {
+          transcriptCharsRef.current += text.length;
+        }
+      } catch {
+        if (!transcriptWarnedRef.current) {
+          transcriptWarnedRef.current = true;
+          console.warn('[vapi] transcript message parse failed; transcript_length_chars=0');
+        }
+      }
+    });
+
+    client.on('error', (err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err ?? 'Unknown Vapi error');
+      fail(msg);
+    });
+
+    client.on('call-start-failed', (evt) => {
+      fail(evt?.error ?? 'Vapi call-start failed.');
+    });
+
+    client.on('call-end', () => {
+      if (tearingDownRef.current) return;
+      stop();
+    });
+
     try {
-      accessToken = await fetchAccessToken(abort.signal);
-    } catch (err) {
-      if (isSuperseded()) return;
-      fail(err instanceof Error ? err.message : 'Failed to mint access token.');
-      return;
-    }
-    if (isSuperseded()) return;
-
-    let stream: MediaStream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          sampleRate: INPUT_SAMPLE_RATE,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
+      await client.start(ASSISTANT_ID, {
+        variableValues: {
+          user_id: metadata.user_id,
+          screen: metadata.screen ?? '',
+          canonical_screen_id: toCanonicalScreenId(metadata.screen) ?? '',
+          coaching_style: metadata.coaching_style ?? 'warm',
         },
       });
-    } catch (err) {
-      if (isSuperseded()) return;
-      fail(err instanceof Error ? err.message : 'Microphone access was denied.');
-      return;
-    }
-    // Mic permission dialog can resolve after the caller aborted. Tear the
-    // just-granted stream down instead of leaking it into a stale session.
-    if (isSuperseded()) {
-      for (const track of stream.getTracks()) track.stop();
-      return;
-    }
-    streamRef.current = stream;
-
-    // AudioContext drives both capture (ScriptProcessor) and playback
-    // (scheduled AudioBufferSourceNodes). We use the default context
-    // sample rate for output so playback matches the device.
-    const AudioCtx: typeof AudioContext =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const audioCtx = new AudioCtx();
-    audioCtxRef.current = audioCtx;
-    playbackCursorRef.current = audioCtx.currentTime;
-
-    const source = audioCtx.createMediaStreamSource(stream);
-    sourceRef.current = source;
-    const processor = audioCtx.createScriptProcessor(CAPTURE_BUFFER_SIZE, 1, 1);
-    processorRef.current = processor;
-
-    processor.onaudioprocess = (evt) => {
-      const client = clientRef.current;
-      if (!client || client.getState() !== 'open') return;
-      const input = evt.inputBuffer.getChannelData(0);
-      const resampled = downsample(input, evt.inputBuffer.sampleRate, INPUT_SAMPLE_RATE);
-      client.sendAudio(float32ToPcm16LE(resampled));
-    };
-    source.connect(processor);
-    // ScriptProcessor needs a destination to fire events. Route through a
-    // zero-gain node so the user's own mic doesn't echo back to them.
-    const muted = audioCtx.createGain();
-    muted.gain.value = 0;
-    processor.connect(muted);
-    muted.connect(audioCtx.destination);
-    mutedRef.current = muted;
-
-    const client = new CartesiaAgentClient({
-      agentId,
-      accessToken,
-      metadata,
-      inputFormat: INPUT_FORMAT,
-      outputFormat: OUTPUT_FORMAT,
-      onReady: () => {
-        // Drop if unmounted between start() and onReady — anchor would leak
-        if (!mountedRef.current || tearingDownRef.current) return;
-        sessionStartRef.current = performance.now();
-        turnCountRef.current = 0;
-        hadErrorRef.current = false;
-        track('start_voice_session', {
-          context: deriveContext(metadata.screen),
-          screen: metadata.screen ?? null,
-          voice_mode: 'realtime',
+      // Teardown raced ahead of start()'s resolution. cleanup() already
+      // issued stop() on the old client, but the Daily call may still be
+      // settling — stop the stale instance again to avoid a leaked call.
+      if (vapiRef.current !== client) {
+        void client.stop().catch(() => {
+          /* noop */
         });
-        voiceAnchorIdRef.current = startVoice(toCanonicalScreenId(metadata.screen));
-        setStateSynced('listening');
-        const t = tokenRef.current;
-        if (t) setOwnerPhase(t, 'listening');
-      },
-      onAudio: (pcm) => {
-        const ctx = audioCtxRef.current;
-        if (!ctx || ctx.state === 'closed') return;
-        const buffer = pcm16LEToAudioBuffer(ctx, pcm, OUTPUT_SAMPLE_RATE);
-        const node = ctx.createBufferSource();
-        node.buffer = buffer;
-        node.connect(ctx.destination);
-        const startAt = Math.max(playbackCursorRef.current, ctx.currentTime);
-        node.start(startAt);
-        playbackCursorRef.current = startAt + buffer.duration;
-        // Read live state via ref — the closure would otherwise see the
-        // render-time value and the transition would fire on every chunk.
-        if (stateRef.current !== 'speaking') {
-          // First audio burst of a new agent turn. Increment before the
-          // state transition so complete_voice_session.turn_count on
-          // cleanup reflects the count of assistant utterances.
-          turnCountRef.current += 1;
-          setStateSynced('speaking');
-          const t = tokenRef.current;
-          if (mountedRef.current && t) setOwnerPhase(t, 'speaking');
-        }
-      },
-      onClear: () => {
-        playbackCursorRef.current = audioCtxRef.current?.currentTime ?? 0;
-        setStateSynced('listening');
-        const t = tokenRef.current;
-        if (mountedRef.current && t) setOwnerPhase(t, 'listening');
-      },
-      onError: (err) => fail(err.message),
-      onClose: () => stop(),
-    });
-    clientRef.current = client;
-
-    try {
-      client.connect();
+      }
     } catch (err) {
-      fail(err instanceof Error ? err.message : 'Failed to open agent session.');
+      // If cleanup nulled vapiRef during await (user stop or unmount),
+      // the throw is expected — don't surface a spurious error.
+      if (!mountedRef.current || vapiRef.current !== client) return;
+      fail(err instanceof Error ? err.message : 'Failed to start Vapi call.');
     }
   }, [
     acquireRealtime,
     cleanup,
-    metadata,
-    setOwnerPhase,
     fail,
-    onError,
+    metadata,
     onEnd,
+    onError,
+    setOwnerPhase,
     setStateSynced,
     startVoice,
+    stop,
   ]);
 
   return {
@@ -516,5 +361,8 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     stop,
     state,
     isActive: state === 'listening' || state === 'thinking' || state === 'speaking',
+    isListening: state === 'listening',
+    isSpeaking: state === 'speaking',
+    error,
   };
 }
