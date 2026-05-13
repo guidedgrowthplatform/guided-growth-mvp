@@ -164,7 +164,7 @@ async function fetchAccessToken(signal: AbortSignal): Promise<string> {
 export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeVoiceReturn {
   const { metadata, onEnd, onError } = options;
   const { enterRealtime, release, registerCleanup, transition } = useVoice();
-  const { logEvent } = useSessionLog();
+  const { startVoice, endVoice } = useSessionLog();
 
   const [state, setState] = useState<RealtimeVoiceState>('idle');
 
@@ -189,6 +189,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   const sessionStartRef = useRef<number | null>(null);
   const turnCountRef = useRef<number>(0);
   const hadErrorRef = useRef(false);
+  // session_log voice anchor — paired with voice_started / voice_ended via
+  // voice_anchor_id so cleanup-paths and tab-close recovery can match them.
+  const voiceAnchorIdRef = useRef<string | null>(null);
 
   const setStateSynced = useCallback((next: RealtimeVoiceState) => {
     stateRef.current = next;
@@ -216,14 +219,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       const duration_seconds = (performance.now() - sessionStartRef.current) / 1000;
       if (hadErrorRef.current) {
         track('cancel_voice_session', { context: ctx, duration_seconds, reason: 'error' });
-        logEvent(
-          'voice_ended',
-          {
-            duration_sec: Math.round(duration_seconds),
-            reason: 'error',
-          },
-          toCanonicalScreenId(metadata.screen),
-        );
+        if (voiceAnchorIdRef.current) {
+          endVoice(voiceAnchorIdRef.current, 'error');
+          voiceAnchorIdRef.current = null;
+        }
       } else {
         track('complete_voice_session', {
           context: ctx,
@@ -235,14 +234,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           transcript_length_chars: 0,
           turn_count: turnCountRef.current,
         });
-        logEvent(
-          'voice_ended',
-          {
-            duration_sec: Math.round(duration_seconds),
-            reason: 'user_exit',
-          },
-          toCanonicalScreenId(metadata.screen),
-        );
+        if (voiceAnchorIdRef.current) {
+          endVoice(voiceAnchorIdRef.current, 'user_exit', { turn_count: turnCountRef.current });
+          voiceAnchorIdRef.current = null;
+        }
       }
       sessionStartRef.current = null;
       turnCountRef.current = 0;
@@ -303,7 +298,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     if (mountedRef.current) transition('idle');
 
     tearingDownRef.current = false;
-  }, [transition, setStateSynced, metadata.screen, logEvent]);
+  }, [transition, setStateSynced, metadata.screen, endVoice]);
 
   const stop = useCallback(() => {
     // Belt-and-suspenders: any code path that re-entered cleanup while it
@@ -436,7 +431,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           screen: metadata.screen ?? null,
           voice_mode: 'realtime',
         });
-        logEvent('voice_started', {}, toCanonicalScreenId(metadata.screen));
+        voiceAnchorIdRef.current = startVoice(toCanonicalScreenId(metadata.screen));
         setStateSynced('listening');
         if (mountedRef.current) transition('listening');
       },
@@ -485,7 +480,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     fail,
     onError,
     setStateSynced,
-    logEvent,
+    startVoice,
   ]);
 
   return {
