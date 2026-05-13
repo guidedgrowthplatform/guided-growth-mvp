@@ -11,24 +11,10 @@ interface UseOnboardingAgentReturn {
   voiceError: string | null;
 }
 
-/**
- * Wire the real-time Cartesia agent + onboarding realtime sync for a
- * specific onboarding screen.
- *
- * Each screen from ONBOARD-01 onward uses this hook so the agent is live
- * while the user is on that screen. We auto-start only when the browser
- * has already granted mic permission (the earlier MicPermissionPage
- * handles that flow); a missing or denied permission leaves the screen
- * silent and fully form-operable, which matches Phase 1 spec §1.1's
- * denied path.
- *
- * Current limitation — each screen mounts a fresh WebSocket session,
- * which means ~1-2 seconds of silence during screen transitions while
- * the next session connects. A persistent provider that survives route
- * changes is the proper fix; for the MVP demo, per-screen sessions are
- * simple, reliable, and let every step carry the right
- * `metadata.screen` to the agent.
- */
+// Wire Vapi + onboarding realtime sync per screen. Auto-starts when mic
+// permission is 'granted'; on Capacitor native we trust the OS grant
+// because the browser Permissions API returns 'prompt' even post-grant.
+// Per-screen sessions mean ~1–2s of silence on transitions.
 export function useOnboardingAgent(screen: string): UseOnboardingAgentReturn {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const [voiceError, setVoiceError] = useState<string | null>(null);

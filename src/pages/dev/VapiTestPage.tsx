@@ -1,26 +1,30 @@
 import { useEffect, useRef } from 'react';
 import { IconMic } from '@/components/icons/IconMic';
-import { IconMicMuted } from '@/components/icons/IconMicMuted';
 import { DualButton } from '@/components/ui/DualButton';
 import { useToast } from '@/contexts/ToastContext';
-import { useVapiCall, VAPI_ENV_MISSING_ERROR } from '@/hooks/useVapiCall';
+import { useRealtimeVoice } from '@/hooks/useRealtimeVoice';
+
+const DEV_USER_ID =
+  (import.meta.env.VITE_DEV_USER_ID as string | undefined) ?? '00000000-0000-0000-0000-000000000000';
 
 export function VapiTestPage() {
-  const { status, isMuted, isAssistantSpeaking, errorMessage, start, stop, toggleMute } =
-    useVapiCall();
+  const { state, isSpeaking, error, start, stop } = useRealtimeVoice({
+    metadata: { user_id: DEV_USER_ID, screen: 'onboard_01', coaching_style: 'warm' },
+  });
   const { addToast } = useToast();
   const lastErrorRef = useRef<string | null>(null);
-  const isEnvMissing = errorMessage === VAPI_ENV_MISSING_ERROR;
+
+  const isEnvMissing = !!error && /Vapi env vars missing/.test(error);
 
   useEffect(() => {
-    if (errorMessage && errorMessage !== lastErrorRef.current && !isEnvMissing) {
-      lastErrorRef.current = errorMessage;
-      addToast('error', errorMessage);
+    if (error && error !== lastErrorRef.current && !isEnvMissing) {
+      lastErrorRef.current = error;
+      addToast('error', error);
     }
-  }, [errorMessage, addToast, isEnvMissing]);
+  }, [error, addToast, isEnvMissing]);
 
-  const isActive = status === 'active';
-  const isConnecting = status === 'connecting';
+  const isActive = state === 'listening' || state === 'speaking';
+  const isConnecting = state === 'connecting';
   const handleRightClick = () => {
     if (isActive || isConnecting) {
       stop();
@@ -29,11 +33,12 @@ export function VapiTestPage() {
     }
   };
 
-  const statusLabel: Record<typeof status, string> = {
+  const statusLabel: Record<typeof state, string> = {
     idle: 'Idle',
     connecting: 'Connecting…',
-    active: 'In call',
-    ended: 'Call ended',
+    listening: 'Listening',
+    thinking: 'Thinking',
+    speaking: 'Speaking',
     error: 'Error',
   };
 
@@ -64,31 +69,25 @@ export function VapiTestPage() {
         <div className="flex flex-1 flex-col items-center justify-center gap-10">
           <DualButton
             size={140}
-            leftActive={!isMuted}
+            leftActive={false}
             rightActive={isActive}
-            activeRings={isAssistantSpeaking ? 'right' : null}
+            activeRings={isSpeaking ? 'right' : null}
             ringCount={3}
             ringStep={6}
-            leftIcon={isMuted ? <IconMicMuted size={28} /> : <IconMic size={28} />}
+            leftIcon={<IconMic size={28} />}
             rightIcon={<IconMic size={28} />}
-            onLeftClick={isActive ? toggleMute : undefined}
             onRightClick={handleRightClick}
-            leftAriaLabel={isMuted ? 'Unmute mic' : 'Mute mic'}
             rightAriaLabel={isActive ? 'End call' : 'Start call'}
           />
 
           <dl className="w-full max-w-xs space-y-2 text-sm">
             <div className="flex justify-between border-b border-border pb-2">
               <dt className="text-muted-foreground">Status</dt>
-              <dd className="font-medium">{statusLabel[status]}</dd>
-            </div>
-            <div className="flex justify-between border-b border-border pb-2">
-              <dt className="text-muted-foreground">Mic</dt>
-              <dd className="font-medium">{isMuted ? 'Muted' : 'Live'}</dd>
+              <dd className="font-medium">{statusLabel[state]}</dd>
             </div>
             <div className="flex justify-between border-b border-border pb-2">
               <dt className="text-muted-foreground">Coach speaking</dt>
-              <dd className="font-medium">{isAssistantSpeaking ? 'Yes' : 'No'}</dd>
+              <dd className="font-medium">{isSpeaking ? 'Yes' : 'No'}</dd>
             </div>
           </dl>
         </div>
