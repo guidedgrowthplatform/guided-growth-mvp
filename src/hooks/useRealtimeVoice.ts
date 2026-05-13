@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
 import { apiFetch } from '@/api/client';
+import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useVoice } from '@/hooks/useVoice';
 import {
@@ -54,6 +55,16 @@ function deriveContext(screen?: string): VoiceContext {
   if (screen === 'habit_create') return 'habit_create';
   if (screen === 'feedback') return 'feedback';
   return 'conversation';
+}
+
+function deriveSurface(screen?: string): Surface {
+  if (!screen) return 'chat';
+  if (screen.startsWith('onboard_')) return 'onboarding';
+  if (screen === 'morning') return 'morning';
+  if (screen === 'evening') return 'evening';
+  if (screen === 'habit_create') return 'habit_create';
+  if (screen === 'feedback') return 'feedback';
+  return 'chat';
 }
 
 // Map metadata.screen (lowercase callsite values) → canonical screen_id
@@ -163,7 +174,7 @@ async function fetchAccessToken(signal: AbortSignal): Promise<string> {
  */
 export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeVoiceReturn {
   const { metadata, onEnd, onError } = options;
-  const { enterRealtime, release, registerCleanup, transition } = useVoice();
+  const { acquireRealtime, releaseToken, setStatus: setOwnerPhase } = useVoice();
   const { startVoice, endVoice } = useSessionLog();
 
   const [state, setState] = useState<RealtimeVoiceState>('idle');
@@ -189,6 +200,14 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   const turnCountRef = useRef<number>(0);
   const hadErrorRef = useRef(false);
   const voiceAnchorIdRef = useRef<string | null>(null);
+  const tokenRef = useRef<ReleaseToken | null>(null);
+
+  const dropToken = useCallback(() => {
+    const t = tokenRef.current;
+    if (!t) return;
+    tokenRef.current = null;
+    releaseToken(t);
+  }, [releaseToken]);
 
   const setStateSynced = useCallback((next: RealtimeVoiceState) => {
     stateRef.current = next;
@@ -200,6 +219,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     return () => {
       mountedRef.current = false;
       cleanup();
+      dropToken();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -292,10 +312,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     playbackCursorRef.current = 0;
 
     setStateSynced('idle');
-    if (mountedRef.current) transition('idle');
 
     tearingDownRef.current = false;
-  }, [transition, setStateSynced, metadata.screen, endVoice]);
+  }, [setStateSynced, metadata.screen, endVoice]);
 
   const stop = useCallback(() => {
     // Belt-and-suspenders: any code path that re-entered cleanup while it
@@ -305,9 +324,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     // → stop a second time.
     if (tearingDownRef.current) return;
     cleanup();
-    release();
+    dropToken();
     onEnd?.();
-  }, [cleanup, release, onEnd]);
+  }, [cleanup, dropToken, onEnd]);
 
   const fail = useCallback(
     (message: string) => {
@@ -316,10 +335,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       hadErrorRef.current = true;
       setStateSynced('error');
       cleanup();
-      release();
+      dropToken();
       onError?.(message);
     },
-    [cleanup, release, onError, setStateSynced],
+    [cleanup, dropToken, onError, setStateSynced],
   );
 
   const start = useCallback(async () => {
@@ -328,11 +347,20 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     if (tearingDownRef.current) return;
     if (clientRef.current) return; // already running
 
-    if (!enterRealtime()) {
+    const ownerToken = acquireRealtime({
+      surface: deriveSurface(metadata.screen),
+      onCleanup: () => {
+        tokenRef.current = null;
+        if (!mountedRef.current || tearingDownRef.current) return;
+        cleanup();
+        onEnd?.();
+      },
+    });
+    if (!ownerToken) {
       onError?.('Could not acquire the voice channel.');
       return;
     }
-    registerCleanup(stop);
+    tokenRef.current = ownerToken;
 
     setStateSynced('connecting');
 
@@ -346,9 +374,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     abortRef.current = abort;
     const isSuperseded = () => abort.signal.aborted || !mountedRef.current;
 
-    let token: string;
+    let accessToken: string;
     try {
-      token = await fetchAccessToken(abort.signal);
+      accessToken = await fetchAccessToken(abort.signal);
     } catch (err) {
       if (isSuperseded()) return;
       fail(err instanceof Error ? err.message : 'Failed to mint access token.');
@@ -413,7 +441,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
 
     const client = new CartesiaAgentClient({
       agentId,
-      accessToken: token,
+      accessToken,
       metadata,
       inputFormat: INPUT_FORMAT,
       outputFormat: OUTPUT_FORMAT,
@@ -430,7 +458,8 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
         });
         voiceAnchorIdRef.current = startVoice(toCanonicalScreenId(metadata.screen));
         setStateSynced('listening');
-        transition('listening');
+        const t = tokenRef.current;
+        if (t) setOwnerPhase(t, 'listening');
       },
       onAudio: (pcm) => {
         const ctx = audioCtxRef.current;
@@ -450,13 +479,15 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           // cleanup reflects the count of assistant utterances.
           turnCountRef.current += 1;
           setStateSynced('speaking');
-          if (mountedRef.current) transition('speaking');
+          const t = tokenRef.current;
+          if (mountedRef.current && t) setOwnerPhase(t, 'speaking');
         }
       },
       onClear: () => {
         playbackCursorRef.current = audioCtxRef.current?.currentTime ?? 0;
         setStateSynced('listening');
-        if (mountedRef.current) transition('listening');
+        const t = tokenRef.current;
+        if (mountedRef.current && t) setOwnerPhase(t, 'listening');
       },
       onError: (err) => fail(err.message),
       onClose: () => stop(),
@@ -469,13 +500,13 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       fail(err instanceof Error ? err.message : 'Failed to open agent session.');
     }
   }, [
-    enterRealtime,
-    registerCleanup,
-    stop,
+    acquireRealtime,
+    cleanup,
     metadata,
-    transition,
+    setOwnerPhase,
     fail,
     onError,
+    onEnd,
     setStateSynced,
     startVoice,
   ]);
