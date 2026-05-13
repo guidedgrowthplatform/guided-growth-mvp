@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconChatVoice, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 
@@ -11,6 +12,7 @@ export function MicPermissionPage() {
   const navigate = useNavigate();
   const { preferences, updatePreferences } = useUserPreferences();
   const { play, stop } = useVoicePlayer();
+  const { logEvent } = useSessionLog();
   const [requesting, setRequesting] = useState(false);
   const voiceEnabled = preferences.voiceMode === 'voice';
 
@@ -50,6 +52,7 @@ export function MicPermissionPage() {
       granted = false;
     }
     track('grant_mic_permission', { granted, dismissed: false });
+    logEvent(granted ? 'mic_permission_granted' : 'mic_permission_denied', {}, 'MIC-PERMISSION');
     await updatePreferences({ micPermission: granted, micEnabled: granted });
     // Play the post-permission MP3 to completion before advancing so the
     // user hears "Got it" (~4s) or "No problem" (~5s) before the next screen.
@@ -63,6 +66,7 @@ export function MicPermissionPage() {
     setRequesting(true);
     stop();
     track('grant_mic_permission', { granted: false, dismissed: true });
+    logEvent('mic_permission_denied', {}, 'MIC-PERMISSION');
     await updatePreferences({ micPermission: false, micEnabled: false });
     await play('mic_denied').catch(() => {});
     goNext();

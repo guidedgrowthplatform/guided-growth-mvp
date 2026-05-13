@@ -74,7 +74,13 @@ interface CheckInCardProps {
 }
 
 export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
-  const { checkIn, loading, saving, save } = useCheckIn(selectedDate);
+  // hour < 15 mirrors the morning/evening logic used for the TTS greeting and
+  // analytics events below — keep them in sync.
+  const isMorning = new Date().getHours() < 15;
+  const { checkIn, loading, saving, save } = useCheckIn(selectedDate, {
+    type: isMorning ? 'morning' : 'evening',
+    screenId: isMorning ? 'MCHECK-01' : 'ECHECK-06',
+  });
   const { addToast } = useToast();
   const [values, setValues] = useState<CheckInValues>(emptyValues);
 

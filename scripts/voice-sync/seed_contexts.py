@@ -40,6 +40,7 @@ from lib.transform import (
     extract_source,
     format_screen_context,
     is_screen_row,
+    normalize_route,
     validate_headers,
     validate_row,
 )
@@ -146,6 +147,7 @@ def main() -> int:
                 "content_hash":  content_hash,
                 "source_row":    source,
                 "version":       new_version,
+                "route":         normalize_route(source.get("Route")),
             }, on_conflict="screen_id").execute()
 
         if existing_hash is not None:

@@ -7,12 +7,16 @@ import { SectionHeader } from './SectionHeader';
 
 interface HabitsSectionProps {
   selectedDate: string;
+  screenId?: string;
 }
 
-export function HabitsSection({ selectedDate }: HabitsSectionProps) {
+export function HabitsSection({ selectedDate, screenId }: HabitsSectionProps) {
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const { habits, loading, error, toggleComplete, reload } = useHabitsForDate(selectedDate);
+  const { habits, loading, error, toggleComplete, reload } = useHabitsForDate(
+    selectedDate,
+    screenId,
+  );
 
   const handleAddNote = (habitName: string) => {
     window.dispatchEvent(new CustomEvent('toggle-journal'));

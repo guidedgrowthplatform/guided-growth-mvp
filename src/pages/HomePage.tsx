@@ -15,20 +15,31 @@ import {
 } from '@/components/home';
 import { useAuth } from '@/hooks/useAuth';
 import { useEntries } from '@/hooks/useEntries';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { speak } from '@/lib/services/tts-service';
 import type { EntriesMap } from '@shared/types';
+
+// Pick the HOME-* variant the user is currently looking at. The auto-emitter
+// can only resolve "/" to one alphabetically-first match (HOME-EVENING), so
+// HomePage emits the correct sub-screen explicitly via useSessionLog.
+function deriveHomeScreenId(fromOnboarding: boolean): string {
+  if (fromOnboarding) return 'HOME-FIRST';
+  return new Date().getHours() < 15 ? 'HOME-MORNING' : 'HOME-EVENING';
+}
 
 export function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const { preferences, updatePreferences } = useUserPreferences();
+  const { logEvent } = useSessionLog();
   const fromOnboarding = (location.state as { fromOnboarding?: boolean })?.fromOnboarding === true;
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showReminders, setShowReminders] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const homeScreenId = useMemo(() => deriveHomeScreenId(fromOnboarding), [fromOnboarding]);
 
   const dateRange = useMemo(() => {
     const today = new Date();
@@ -49,7 +60,32 @@ export function HomePage() {
   const fromOnboardingAtMount = useRef(fromOnboarding);
   useEffect(() => {
     track('view_home', { from_onboarding: fromOnboardingAtMount.current });
-  }, []);
+    // Override the auto-emitter's alphabetic guess (HOME-EVENING) with the
+    // actual HOME-* sub-screen the user is on.
+    logEvent(
+      'navigate',
+      { from_screen: null, to_screen: homeScreenId, trigger: 'auto' },
+      homeScreenId,
+    );
+  }, [homeScreenId, logEvent]);
+
+  // CHECKIN-EXPANDED is a state of HomePage, not a route — fire an explicit
+  // navigate + checkin_started when the overlay opens.
+  useEffect(() => {
+    if (showCheckIn) {
+      logEvent(
+        'navigate',
+        { from_screen: homeScreenId, to_screen: 'HOME-MORNING-CHECKIN-EXPANDED', trigger: 'tap' },
+        'HOME-MORNING-CHECKIN-EXPANDED',
+      );
+      const isMorning = new Date().getHours() < 15;
+      logEvent(
+        'checkin_started',
+        { type: isMorning ? 'morning' : 'evening' },
+        isMorning ? 'MCHECK-01' : 'ECHECK-01',
+      );
+    }
+  }, [showCheckIn, homeScreenId, logEvent]);
 
   const displayName =
     user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'there';
@@ -132,7 +168,7 @@ export function HomePage() {
             </div>
           </div>
         </div>
-        <HabitsSection selectedDate={selectedDate} />
+        <HabitsSection selectedDate={selectedDate} screenId={homeScreenId} />
         <RecentReflectionsSection />
       </div>
 

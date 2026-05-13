@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import { queryKeys } from '@/lib/query';
 import { getDataService } from '@/lib/services/service-provider';
 import type { CheckInData } from '@shared/types';
@@ -14,8 +15,12 @@ async function saveCheckInToService(date: string, data: CheckInData) {
   return ds.saveCheckIn(date, data);
 }
 
-export function useCheckIn(date: string) {
+export function useCheckIn(
+  date: string,
+  opts?: { type?: 'morning' | 'evening'; screenId?: string },
+) {
   const qc = useQueryClient();
+  const { logEvent } = useSessionLog();
 
   const {
     data: checkIn = null,
@@ -31,8 +36,20 @@ export function useCheckIn(date: string) {
 
   const mutation = useMutation({
     mutationFn: (data: CheckInData) => saveCheckInToService(date, data),
-    onSuccess: () => {
+    onSuccess: (_result, data) => {
       qc.invalidateQueries({ queryKey: queryKeys.checkins.byDate(date) });
+      logEvent(
+        'checkin_completed',
+        {
+          type: opts?.type ?? 'morning',
+          sleep: data.sleep ?? undefined,
+          mood: data.mood ?? undefined,
+          energy: data.energy ?? undefined,
+          stress: data.stress ?? undefined,
+          via: 'tap',
+        },
+        opts?.screenId,
+      );
     },
   });
 

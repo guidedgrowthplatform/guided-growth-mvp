@@ -9,6 +9,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useFocusSession } from '@/hooks/useFocusSession';
 import { useFocusTimer } from '@/hooks/useFocusTimer';
 import { useHabits } from '@/hooks/useHabits';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import { speak } from '@/lib/services/tts-service';
 
 export function FocusPage() {
@@ -16,6 +17,7 @@ export function FocusPage() {
   const { habits } = useHabits();
   const { saveFocusSession, error: saveError } = useFocusSession();
   const { addToast } = useToast();
+  const { logEvent } = useSessionLog();
 
   const [showSheet, setShowSheet] = useState(false);
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
@@ -57,10 +59,22 @@ export function FocusPage() {
           }
         },
       );
+      logEvent(
+        'focus_ended',
+        { habit_id: selectedHabitId, duration_min: durationMinutes, status: 'completed' },
+        'FOCUS-TIMER',
+      );
       sessionStartRef.current = null;
     }
     prevStatus.current = timer.status;
-  }, [timer.status, timer.totalSeconds, selectedHabitId, selectedHabit?.name, saveFocusSession]);
+  }, [
+    timer.status,
+    timer.totalSeconds,
+    selectedHabitId,
+    selectedHabit?.name,
+    saveFocusSession,
+    logEvent,
+  ]);
 
   // TTS on status changes per Voice Journey Spreadsheet v3 (line 524-532)
   const prevTTSStatus = useRef(timer.status);
@@ -93,9 +107,14 @@ export function FocusPage() {
       linked_habit: selectedHabit?.name ?? null,
       notification_enabled: notify,
     });
+    logEvent(
+      'focus_started',
+      { habit_id: selectedHabitId, duration_min: durationMinutes },
+      'FOCUS-TIMER',
+    );
     sessionStartRef.current = new Date().toISOString();
     timer.start();
-  }, [timer, selectedHabitId, selectedHabit?.name, notify, addToast]);
+  }, [timer, selectedHabitId, selectedHabit?.name, notify, addToast, logEvent]);
 
   const handlePause = useCallback(() => {
     const elapsedSeconds = timer.totalSeconds - timer.remainingSeconds;
@@ -140,10 +159,15 @@ export function FocusPage() {
           skipped_save: true,
         });
       }
+      logEvent(
+        'focus_ended',
+        { habit_id: selectedHabitId, duration_min: actualMinutes, status: 'cancelled' },
+        'FOCUS-TIMER',
+      );
       sessionStartRef.current = null;
     }
     timer.stop();
-  }, [timer, selectedHabitId, selectedHabit?.name, saveFocusSession]);
+  }, [timer, selectedHabitId, selectedHabit?.name, saveFocusSession, logEvent]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-primary-bg pb-[calc(5rem+env(safe-area-inset-bottom))]">
@@ -202,8 +226,9 @@ export function FocusPage() {
             onSetDurationSeconds={timer.setDurationSeconds}
             onToggleNotify={setNotify}
             onStart={() => {
-              sessionStartRef.current = new Date().toISOString();
-              timer.start();
+              // Route through handleStart so focus_started fires here too
+              // (previously this path bypassed the logEvent in handleStart).
+              handleStart();
               setShowSheet(false);
             }}
           />

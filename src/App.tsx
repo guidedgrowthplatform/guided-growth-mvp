@@ -1,8 +1,10 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
+import { SessionLogProvider } from '@/contexts/SessionLogProvider';
 import { ToastProvider, useToast } from '@/contexts/ToastContext';
 import { VoiceProvider } from '@/contexts/VoiceContext';
+import { useNavigateLogger } from '@/hooks/useNavigateLogger';
 import { useVoicePreferenceSync } from '@/hooks/useVoicePreferenceSync';
 import { queryClient } from '@/lib/query';
 import { AppRoutes } from '@/routes';
@@ -39,6 +41,11 @@ function VoicePreferenceSync() {
   return null;
 }
 
+function NavigateLogger() {
+  useNavigateLogger();
+  return null;
+}
+
 export default function App() {
   useEffect(() => {
     useAuthStore.getState().initialize();
@@ -61,13 +68,16 @@ export default function App() {
   return (
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
-        <VoiceProvider>
-          <ToastProvider>
-            <DeepLinkErrorReporter />
-            <VoicePreferenceSync />
-            <AppRoutes />
-          </ToastProvider>
-        </VoiceProvider>
+        <SessionLogProvider>
+          <VoiceProvider>
+            <ToastProvider>
+              <DeepLinkErrorReporter />
+              <VoicePreferenceSync />
+              <NavigateLogger />
+              <AppRoutes />
+            </ToastProvider>
+          </VoiceProvider>
+        </SessionLogProvider>
         {ReactQueryDevtools ? (
           <Suspense fallback={null}>
             <ReactQueryDevtools initialIsOpen={false} />

@@ -2,12 +2,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import * as metricsApi from '@/api/metrics';
 import { useToast } from '@/contexts/ToastContext';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import { queryKeys } from '@/lib/query';
 import type { MetricCreate, MetricUpdate } from '@shared/types';
 
 export function useMetrics() {
   const { addToast } = useToast();
   const qc = useQueryClient();
+  const { logEvent } = useSessionLog();
 
   const {
     data: metrics = [],
@@ -22,17 +24,27 @@ export function useMetrics() {
 
   const createMutation = useMutation({
     mutationFn: (data: MetricCreate) => metricsApi.createMetric(data),
-    onSuccess: (_result, data) => {
+    onSuccess: (result, data) => {
       qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
       addToast('success', `Habit "${data.name}" created`);
+      logEvent('habit_added', {
+        habit_id: result.id,
+        name: data.name,
+        frequency: data.frequency,
+        has_reminder: false,
+      });
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: MetricUpdate }) =>
       metricsApi.updateMetric(id, data),
-    onSuccess: () => {
+    onSuccess: (_result, { id, data }) => {
       qc.invalidateQueries({ queryKey: queryKeys.metrics.all });
+      logEvent('habit_edited', {
+        habit_id: id,
+        fields_changed: Object.keys(data),
+      });
     },
   });
 

@@ -1,8 +1,11 @@
 import { Icon } from '@iconify/react';
+import { useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { useScreenMap } from '@/hooks/useScreenMap';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import { useVoiceChannelBusy } from '@/hooks/useVoiceChannelBusy';
 import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
@@ -66,6 +69,13 @@ export function BottomNav() {
   const isListening = useVoiceStore((s) => s.isListening);
   const currentRms = useAudioMetricsStore((s) => s.currentRms);
   const channelBusy = useVoiceChannelBusy();
+  const { logEvent } = useSessionLog();
+  const { routeToScreenId } = useScreenMap();
+  // Wall-clock anchor for voice_ended.duration_sec. Captures the moment the
+  // LLM's voice was last enabled so we can stamp the session length on
+  // disable. Stale across remounts (acceptable — duration_sec for a session
+  // crossing a remount is approximate by design).
+  const voiceStartRef = useRef<number | null>(null);
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/' || location.pathname === '/home';
@@ -80,6 +90,17 @@ export function BottomNav() {
     if (!next) stopTTS();
     setTtsEnabled(next);
     track('toggle_ai_voice', { new_state: next ? 'on' : 'off' });
+    const screenId = routeToScreenId(location.pathname) ?? undefined;
+    if (next) {
+      voiceStartRef.current = performance.now();
+      logEvent('voice_started', {}, screenId);
+    } else {
+      const durationSec = voiceStartRef.current
+        ? Math.round((performance.now() - voiceStartRef.current) / 1000)
+        : 0;
+      voiceStartRef.current = null;
+      logEvent('voice_ended', { duration_sec: durationSec, reason: 'user_exit' }, screenId);
+    }
   };
 
   const handleRightToggle = () => {
@@ -89,6 +110,8 @@ export function BottomNav() {
       new_state: next ? 'on' : 'off',
       during_conversation: channelBusy,
     });
+    const screenId = routeToScreenId(location.pathname) ?? undefined;
+    logEvent('mic_tapped', { from_screen: screenId ?? 'UNKNOWN' }, screenId);
   };
 
   return (

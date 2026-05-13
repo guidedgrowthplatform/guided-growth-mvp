@@ -1,4 +1,7 @@
 import { Icon } from '@iconify/react';
+import { useLocation } from 'react-router-dom';
+import { useScreenMap } from '@/hooks/useScreenMap';
+import { useSessionLog } from '@/hooks/useSessionLog';
 
 interface VoiceMicButtonProps {
   isListening: boolean;
@@ -7,6 +10,16 @@ interface VoiceMicButtonProps {
 }
 
 export function VoiceMicButton({ isListening, isPreparing = false, onPress }: VoiceMicButtonProps) {
+  const { logEvent } = useSessionLog();
+  const { routeToScreenId } = useScreenMap();
+  const { pathname } = useLocation();
+
+  const handleClick = () => {
+    const screenId = routeToScreenId(pathname) ?? undefined;
+    logEvent('mic_tapped', { from_screen: screenId ?? 'UNKNOWN' }, screenId);
+    onPress();
+  };
+
   return (
     <div className="relative flex items-center justify-center">
       {isListening && (
@@ -17,7 +30,7 @@ export function VoiceMicButton({ isListening, isPreparing = false, onPress }: Vo
       )}
       <button
         type="button"
-        onClick={onPress}
+        onClick={handleClick}
         disabled={isPreparing}
         className="relative size-[96px] rounded-full bg-primary shadow-[0px_10px_15px_-3px_rgba(59,130,246,0.3),0px_4px_6px_-4px_rgba(59,130,246,0.3)] disabled:opacity-70"
       >
