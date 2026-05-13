@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { format, subDays, differenceInDays } from 'date-fns';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -17,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEntries } from '@/hooks/useEntries';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { getScreenContext } from '@/lib/context/getScreenContext';
 import { speak } from '@/lib/services/tts-service';
 import type { EntriesMap } from '@shared/types';
 
@@ -31,6 +33,7 @@ function deriveHomeScreenId(fromOnboarding: boolean): string {
 export function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { preferences, updatePreferences } = useUserPreferences();
   const { logEvent } = useSessionLog();
@@ -68,6 +71,15 @@ export function HomePage() {
       homeScreenId,
     );
   }, [homeScreenId, logEvent]);
+
+  // P1-05 smoke test: fetch screen context on home mount and log it. Remove
+  // once Vapi / Cartesia / callLLM call sites are wired.
+  useEffect(() => {
+    const sinceTs = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    getScreenContext(queryClient, homeScreenId, sinceTs)
+      .then((ctx) => console.log('[P1-05] screen context', homeScreenId, ctx))
+      .catch((err) => console.error('[P1-05] fetch failed', homeScreenId, err));
+  }, [homeScreenId, queryClient]);
 
   // CHECKIN-EXPANDED is a state of HomePage, not a route — fire an explicit
   // navigate + checkin_started when the overlay opens.
