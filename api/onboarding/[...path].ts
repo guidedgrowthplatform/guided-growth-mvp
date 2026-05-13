@@ -201,9 +201,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.json(rows[0] ?? { name: null, nickname: null, image: null });
   }
 
-  // PATCH /api/onboarding/profile — update name and/or nickname
+  // PATCH /api/onboarding/profile — update profile fields the LLM may also
+  // set via the update_profile tool (P1-07). Auth-metadata sync only applies
+  // to name + nickname (which mapUser() reads from user_metadata).
   if (route === 'profile' && req.method === 'PATCH') {
-    const { name, nickname } = req.body ?? {};
+    const { name, nickname, age_group, gender, referral_source } = req.body ?? {};
 
     if (
       name !== undefined &&
@@ -225,26 +227,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .json({ error: 'nickname may only contain letters, numbers, and underscores' });
       }
     }
+    for (const [key, val] of [
+      ['age_group', age_group],
+      ['gender', gender],
+      ['referral_source', referral_source],
+    ] as const) {
+      if (val === undefined) continue;
+      if (typeof val !== 'string' || val.length > 50) {
+        return res.status(400).json({ error: `${key} must be a string of at most 50 characters` });
+      }
+    }
 
     const updates: string[] = [];
     const values: unknown[] = [user.id];
+    const push = (col: string, val: unknown) => {
+      values.push(val);
+      updates.push(`${col} = $${values.length}`);
+    };
 
-    if (name !== undefined) {
-      values.push(name);
-      updates.push(`name = $${values.length}`);
-    }
-    if (nickname !== undefined) {
-      values.push(nickname);
-      updates.push(`nickname = $${values.length}`);
-    }
+    if (name !== undefined) push('name', name);
+    if (nickname !== undefined) push('nickname', nickname);
+    if (age_group !== undefined) push('age_group', age_group);
+    if (gender !== undefined) push('gender', gender);
+    if (referral_source !== undefined) push('referral_source', referral_source);
 
     if (updates.length > 0) {
       await pool.query(`UPDATE profiles SET ${updates.join(', ')} WHERE id = $1`, values);
       // Keep Supabase user_metadata in sync so mapUser() reads fresh data after session refresh
-      const metaPatch: Record<string, string> = {};
-      if (name !== undefined) metaPatch.full_name = name;
-      if (nickname !== undefined) metaPatch.nickname = nickname;
-      await supabaseAdmin.auth.admin.updateUserById(user.id, { user_metadata: metaPatch });
+      if (name !== undefined || nickname !== undefined) {
+        const metaPatch: Record<string, string> = {};
+        if (name !== undefined) metaPatch.full_name = name;
+        if (nickname !== undefined) metaPatch.nickname = nickname;
+        await supabaseAdmin.auth.admin.updateUserById(user.id, { user_metadata: metaPatch });
+      }
     }
 
     return res.json({ ok: true });
