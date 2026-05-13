@@ -52,7 +52,7 @@ function buildResolver(entries: ScreenRouteEntry[]): Resolver {
 }
 
 export function useScreenMap(): ScreenMap {
-  const { data } = useQuery({
+  const query = useQuery({
     queryKey: ['screen-routes'],
     queryFn: fetchScreenRoutes,
     staleTime: Infinity,
@@ -64,7 +64,7 @@ export function useScreenMap(): ScreenMap {
   });
 
   // Stable empty-array identity prevents resolver/useMemo churn when data is undefined.
-  const entries = useMemo(() => data?.routes ?? [], [data?.routes]);
+  const entries = useMemo(() => query.data?.routes ?? [], [query.data?.routes]);
 
   const resolver = useMemo(() => buildResolver(entries), [entries]);
 
@@ -83,5 +83,7 @@ export function useScreenMap(): ScreenMap {
     };
   }, [resolver]);
 
-  return { routeToScreenId, entries, isLoaded: entries.length > 0 };
+  // isFetched flips true once the request resolves (success OR retry-exhausted
+  // failure). Empty routes no longer permanently gate useNavigateLogger.
+  return { routeToScreenId, entries, isLoaded: query.isFetched };
 }
