@@ -2,6 +2,8 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { VoiceContext, modeFromState } from '@/contexts/voiceContextDef';
 import type {
+  BroadcastState,
+  CaptureState,
   RealtimePhase,
   ReflectPhase,
   ReleaseToken,
@@ -61,8 +63,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     for (const fn of fns) {
       try {
         fn();
-      } catch {
-        /* one bad cleanup must not block the rest */
+      } catch (err) {
+        console.error('[VoiceContext] cleanup threw', err);
       }
     }
   }, []);
@@ -87,7 +89,13 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       if (ownerRef.current.kind !== 'idle') runAllCleanups();
       const token = mintToken();
       cleanupsRef.current.set(token, opts.onCleanup);
-      setOwner({ kind: 'broadcast', surface: opts.surface, assetId: opts.assetId, token });
+      setOwner({
+        kind: 'broadcast',
+        surface: opts.surface,
+        assetId: opts.assetId,
+        state: 'loading',
+        token,
+      });
       return token;
     },
     [runAllCleanups, setOwner],
@@ -99,7 +107,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       if (ownerRef.current.kind !== 'idle') runAllCleanups();
       const token = mintToken();
       cleanupsRef.current.set(token, opts.onCleanup);
-      setOwner({ kind: 'reflect-loop', surface: opts.surface, phase: 'listening', token });
+      setOwner({ kind: 'reflect-loop', surface: opts.surface, phase: 'playing-prompt', token });
       return token;
     },
     [runAllCleanups, setOwner],
@@ -111,7 +119,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       if (ownerRef.current.kind !== 'idle') runAllCleanups();
       const token = mintToken();
       cleanupsRef.current.set(token, opts.onCleanup);
-      setOwner({ kind: 'capture-only', surface: opts.surface, token });
+      setOwner({ kind: 'capture-only', surface: opts.surface, state: 'listening', token });
       return token;
     },
     [runAllCleanups, setOwner],
@@ -137,11 +145,24 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     [setOwner],
   );
 
-  // No-op stubs — broadcast and capture-only sub-states have no legacy peer.
-  const setBroadcastState = useCallback((_t: ReleaseToken, _s: 'loading' | 'playing') => {}, []);
+  const setBroadcastState = useCallback(
+    (token: ReleaseToken, state: BroadcastState) => {
+      const cur = ownerRef.current;
+      if (cur.kind === 'broadcast' && cur.token === token) {
+        setOwner({ ...cur, state });
+      }
+    },
+    [setOwner],
+  );
+
   const setCaptureState = useCallback(
-    (_t: ReleaseToken, _s: 'listening' | 'transcribing') => {},
-    [],
+    (token: ReleaseToken, state: CaptureState) => {
+      const cur = ownerRef.current;
+      if (cur.kind === 'capture-only' && cur.token === token) {
+        setOwner({ ...cur, state });
+      }
+    },
+    [setOwner],
   );
 
   const releaseToken = useCallback(
@@ -154,8 +175,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         if (fn) {
           try {
             fn();
-          } catch {
-            /* swallow — cleanup must not throw upward */
+          } catch (err) {
+            console.error('[VoiceContext] cleanup threw', err);
           }
         }
         const cur = ownerRef.current;
@@ -187,7 +208,13 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     const token = mintToken();
     cleanupsRef.current.set(token, noop);
     legacyTokenRef.current = token;
-    setOwner({ kind: 'broadcast', surface: '_legacy', assetId: '_legacy', token });
+    setOwner({
+      kind: 'broadcast',
+      surface: '_legacy',
+      assetId: '_legacy',
+      state: 'playing',
+      token,
+    });
     return true;
   }, [runAllCleanups, setOwner]);
 

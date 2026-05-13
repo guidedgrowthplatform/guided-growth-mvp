@@ -58,12 +58,21 @@ export type ReflectPhase =
 declare const __releaseTokenBrand: unique symbol;
 export type ReleaseToken = string & { readonly [__releaseTokenBrand]: 'ReleaseToken' };
 
+export type BroadcastState = 'loading' | 'playing';
+export type CaptureState = 'listening' | 'transcribing';
+
 export type VoiceOwner =
   | { kind: 'idle' }
   | { kind: 'realtime'; surface: Surface; phase: RealtimePhase; token: ReleaseToken }
-  | { kind: 'broadcast'; surface: Surface; assetId: string; token: ReleaseToken }
+  | {
+      kind: 'broadcast';
+      surface: Surface;
+      assetId: string;
+      state: BroadcastState;
+      token: ReleaseToken;
+    }
   | { kind: 'reflect-loop'; surface: Surface; phase: ReflectPhase; token: ReleaseToken }
-  | { kind: 'capture-only'; surface: Surface; token: ReleaseToken };
+  | { kind: 'capture-only'; surface: Surface; state: CaptureState; token: ReleaseToken };
 
 // ─── Context Shape ──────────────────────────────────────────────────────────
 
@@ -135,8 +144,8 @@ export interface VoiceContextValue {
 
   setStatus: (token: ReleaseToken, phase: RealtimePhase) => void;
   setPhase: (token: ReleaseToken, phase: ReflectPhase) => void;
-  setBroadcastState: (token: ReleaseToken, state: 'loading' | 'playing') => void;
-  setCaptureState: (token: ReleaseToken, state: 'listening' | 'transcribing') => void;
+  setBroadcastState: (token: ReleaseToken, state: BroadcastState) => void;
+  setCaptureState: (token: ReleaseToken, state: CaptureState) => void;
 
   // named distinctly from legacy release(); future migration renames
   releaseToken: (token: ReleaseToken) => void;
