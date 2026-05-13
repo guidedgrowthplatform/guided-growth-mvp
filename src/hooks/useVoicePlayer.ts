@@ -1,10 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
+import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
 import manifestData from '@/data/voice-manifest.json';
 import { useVoice } from '@/hooks/useVoice';
 import { attemptPlayWithGestureFallback } from '@/lib/audio/attempt-play-with-gesture-fallback';
 import { voiceAssetUrl } from '@/lib/config/voice';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+
+function deriveSurface(screen: string): Surface {
+  if (screen.startsWith('WELCOME')) return 'splash';
+  if (screen.startsWith('PREF')) return 'pref';
+  if (screen.startsWith('MIC')) return 'mic_permission';
+  if (screen.startsWith('POST-AUTH')) return 'post_auth';
+  if (screen.startsWith('ONBOARD')) return 'onboarding';
+  if (screen.startsWith('MCHECK')) return 'morning';
+  if (screen.startsWith('ECHECK')) return 'evening';
+  if (screen.startsWith('HABIT')) return 'habit_create';
+  return 'chat';
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -75,24 +88,31 @@ function getManifestEntry(fileId: string): ManifestEntry | null {
  * - on_complete: in completion callback → play(fileId)
  */
 export function useVoicePlayer(): UseVoicePlayerReturn {
-  const { enterMp3, release, registerCleanup } = useVoice();
+  const { acquireBroadcast, releaseToken, setBroadcastState } = useVoice();
   const [state, setState] = useState<VoicePlayerState>('idle');
   const [currentFileId, setCurrentFileId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const tokenRef = useRef<ReleaseToken | null>(null);
   const mountedRef = useRef(true);
 
-  // Track mount state
+  const dropToken = useCallback(() => {
+    const t = tokenRef.current;
+    if (!t) return;
+    tokenRef.current = null;
+    releaseToken(t);
+  }, [releaseToken]);
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      // Cleanup audio on unmount
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
+      dropToken();
     };
-  }, []);
+  }, [dropToken]);
 
   const stop = useCallback(() => {
     if (audioRef.current) {
@@ -104,8 +124,8 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
       setState('idle');
       setCurrentFileId(null);
     }
-    release();
-  }, [release]);
+    dropToken();
+  }, [dropToken]);
 
   const play = useCallback(
     async (fileId: string, opts?: PlayOptions): Promise<void> => {
@@ -139,15 +159,32 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
         return;
       }
 
-      // Request mp3 mode (stops realtime if active)
-      const ok = enterMp3();
-      if (!ok) return;
-
-      // Stop any existing playback
+      // Stop any existing playback (and release the prior token).
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
+      dropToken();
+
+      const token = acquireBroadcast({
+        surface: deriveSurface(entry.screen),
+        assetId: fileId,
+        onCleanup: () => {
+          tokenRef.current = null;
+          const a = audioRef.current;
+          if (a) {
+            a.pause();
+            a.currentTime = 0;
+            audioRef.current = null;
+          }
+          if (mountedRef.current) {
+            setState('idle');
+            setCurrentFileId(null);
+          }
+        },
+      });
+      if (!token) return;
+      tokenRef.current = token;
 
       setState('loading');
       setCurrentFileId(fileId);
@@ -156,20 +193,11 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
         const audio = new Audio(src);
         audioRef.current = audio;
 
-        // Register cleanup so VoiceContext can stop us
-        registerCleanup(() => {
-          audio.pause();
-          audio.currentTime = 0;
-          audioRef.current = null;
-          if (mountedRef.current) {
-            setState('idle');
-            setCurrentFileId(null);
-          }
-        });
-
         await new Promise<void>((resolve, reject) => {
           audio.oncanplaythrough = () => {
             if (mountedRef.current) setState('playing');
+            const t = tokenRef.current;
+            if (t) setBroadcastState(t, 'playing');
           };
           audio.onended = () => {
             audioRef.current = null;
@@ -177,7 +205,7 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
               setState('idle');
               setCurrentFileId(null);
             }
-            release();
+            dropToken();
             resolve();
           };
           audio.onerror = () => {
@@ -186,7 +214,7 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
               setState('error');
               setCurrentFileId(null);
             }
-            release();
+            dropToken();
             reject(new Error(`Failed to load audio: ${fileId}`));
           };
           attemptPlayWithGestureFallback(audio, { defer: opts?.deferOnAutoplayBlock })
@@ -199,7 +227,7 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
             })
             .catch((err) => {
               if (mountedRef.current) setState('error');
-              release();
+              dropToken();
               reject(err);
             });
         });
@@ -216,7 +244,7 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
         }
       }
     },
-    [enterMp3, release, registerCleanup],
+    [acquireBroadcast, dropToken, setBroadcastState],
   );
 
   const pause = useCallback(() => {

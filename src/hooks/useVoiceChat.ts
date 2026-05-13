@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
+import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
 import { useVoice } from '@/hooks/useVoice';
 import { speak, stopTTS } from '@/lib/services/tts-service';
 import { useCommandStore } from '@/stores/commandStore';
@@ -37,9 +38,10 @@ function defaultMessages(name?: string): ChatMessage[] {
   return [{ id: 'greeting', role: 'ai', text: getGreeting(name), timestamp: Date.now() }];
 }
 
-export function useVoiceChat(userName?: string) {
+export function useVoiceChat(userName?: string, surface: Surface = 'chat') {
   const [messages, setMessages] = useState<ChatMessage[]>(() => defaultMessages(userName));
-  const { enterRealtime, release, transition } = useVoice();
+  const { acquireRealtime, releaseToken, setStatus } = useVoice();
+  const tokenRef = useRef<ReleaseToken | null>(null);
 
   const { isListening, start, stop, resetTranscript, error: voiceError } = useVoiceInput();
   const { processTranscript, isProcessing, error: commandError } = useVoiceCommand();
@@ -60,17 +62,34 @@ export function useVoiceChat(userName?: string) {
       ? 'listening'
       : 'idle';
 
-  // Sync local voiceState → global VoiceContext transitions
   useEffect(() => {
     if (voiceState === 'listening') {
-      enterRealtime(); // acquires the channel + sets global to 'listening'
+      if (!tokenRef.current) {
+        const token = acquireRealtime({
+          surface,
+          onCleanup: () => {
+            tokenRef.current = null;
+          },
+        });
+        if (token) tokenRef.current = token;
+      } else {
+        setStatus(tokenRef.current, 'listening');
+      }
     } else if (voiceState === 'processing') {
-      transition('thinking');
-    } else if (voiceState === 'idle') {
-      // Only release if we were previously active
-      // (avoid releasing on initial mount)
+      const t = tokenRef.current;
+      if (t) setStatus(t, 'thinking');
     }
-  }, [voiceState, enterRealtime, transition]);
+  }, [voiceState, acquireRealtime, setStatus, surface]);
+
+  useEffect(() => {
+    return () => {
+      const t = tokenRef.current;
+      if (t) {
+        tokenRef.current = null;
+        releaseToken(t);
+      }
+    };
+  }, [releaseToken]);
 
   // Greeting TTS re-enabled 2026-04-27 after !114 (Cartesia Ronald
   // 404 fix) + !113 (PostHog reverse proxy) landed and prod
@@ -123,8 +142,8 @@ export function useVoiceChat(userName?: string) {
     if (!lastResult || lastResult === lastHandledResult.current) return;
     lastHandledResult.current = lastResult;
 
-    // Global state → speaking (TTS is about to play)
-    transition('speaking');
+    const t = tokenRef.current;
+    if (t) setStatus(t, 'speaking');
 
     const habitCards: ChatMessage['habitCards'] =
       lastIntent?.action === 'create' && lastIntent?.entity === 'habit' && lastResult.success
@@ -155,12 +174,17 @@ export function useVoiceChat(userName?: string) {
 
     let cancelled = false;
     void speak(lastResult.message).finally(() => {
-      if (!cancelled) release();
+      if (cancelled) return;
+      const tok = tokenRef.current;
+      if (tok) {
+        tokenRef.current = null;
+        releaseToken(tok);
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [lastResult, lastIntent, transition, release]);
+  }, [lastResult, lastIntent, setStatus, releaseToken]);
 
   // Voice/mic errors as friendly AI bubbles
   useEffect(() => {
