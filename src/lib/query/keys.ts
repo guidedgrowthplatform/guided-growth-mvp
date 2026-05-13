@@ -41,4 +41,7 @@ export const queryKeys = {
     allowlist: ['admin', 'allowlist'] as const,
     auditLog: ['admin', 'audit-log'] as const,
   },
+  context: {
+    block: (screenId: string) => ['context', 'block', screenId] as const,
+  },
 };
