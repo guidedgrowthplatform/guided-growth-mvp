@@ -25,27 +25,29 @@ function readOrCreateSessionId(): string {
 export function SessionLogProvider({ children }: { children: ReactNode }) {
   const sessionIdRef = useRef<string>(readOrCreateSessionId());
 
-  // Regenerate session_id only on real user transitions. Previously this fired
-  // on every onAuthStateChange — including TOKEN_REFRESHED and INITIAL_SESSION
-  // — which produced spurious new session_ids whenever Supabase refreshed a
-  // token mid-flow. We now gate on the event type AND a user_id delta.
+  // Rotate session_id on real user transitions: SIGNED_OUT, OR any event with
+  // a user_id delta vs lastUserId. Same-id events (TOKEN_REFRESHED,
+  // USER_UPDATED with unchanged id) do NOT rotate. The null→id transition
+  // (anon → first login, including cold-boot INITIAL_SESSION) DOES rotate so
+  // A→B handoff via signOut+signIn can't leak A's session_id to B.
   useEffect(() => {
     let lastUserId: string | null = null;
+    let initialized = false;
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       const next = session?.user?.id ?? null;
-      const isUserTransition =
-        event === 'SIGNED_OUT' ||
-        (event === 'SIGNED_IN' && lastUserId !== null && next !== lastUserId);
+      const idChanged = initialized && next !== lastUserId;
+      const isUserTransition = event === 'SIGNED_OUT' || idChanged;
       if (isUserTransition) {
         const fresh = crypto.randomUUID();
         try {
           sessionStorage.setItem(SESSION_ID_KEY, fresh);
         } catch {
-          // ignore — handled in readOrCreateSessionId
+          // handled in readOrCreateSessionId
         }
         sessionIdRef.current = fresh;
       }
       lastUserId = next;
+      initialized = true;
     });
     return () => sub.subscription.unsubscribe();
   }, []);
