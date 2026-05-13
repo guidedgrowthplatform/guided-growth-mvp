@@ -1,15 +1,6 @@
--- P1-04 retention: nightly cron to prune session_log.
--- Rule: keep the 20 most recent events per user. Delete everything else.
--- No age-based TTL — the per-user floor is the only retention policy. This
--- guarantees a coachable memory for returning users while bounding the hot
--- table for active users (each user contributes at most 20 rows at rest).
--- Read-time noise filtering (high-signal events only) belongs in the prompt
--- builder, not here — retention stays inclusive.
---
--- pg_cron prerequisite: requires the extension to be enabled on the target
--- Supabase project (Dashboard → Database → Extensions → pg_cron). Pro/Team
--- tiers auto-enable it; Free tier requires manual enablement before this
--- migration can run.
+-- P1-04 retention: nightly cron, keep last 20 events per user. No TTL.
+-- pg_cron prerequisite: Pro/Team auto-enable; Free tier requires manual
+-- Dashboard → Database → Extensions → pg_cron before this migration runs.
 
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 

@@ -132,3 +132,73 @@ describe('SessionLogProvider — session_id rotation', () => {
     expect(ctxRef!.sessionId).not.toBe(anon);
   });
 });
+
+describe('SessionLogProvider — voice anchors', () => {
+  it('startVoice emits voice_started with voice_anchor_id + persists anchor', () => {
+    mount();
+    logSessionEventMock.mockClear();
+    const anchorId = ctxRef!.startVoice('HOME-DASHBOARD');
+
+    expect(anchorId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(logSessionEventMock).toHaveBeenCalledTimes(1);
+    const body = logSessionEventMock.mock.calls[0][0];
+    expect(body.event_type).toBe('voice_started');
+    expect(body.screen_id).toBe('HOME-DASHBOARD');
+    expect(body.payload.voice_anchor_id).toBe(anchorId);
+
+    const persisted = JSON.parse(sessionStorage.getItem('gg_voice_anchors')!);
+    expect(persisted[anchorId]).toMatchObject({ screen_id: 'HOME-DASHBOARD' });
+  });
+
+  it('endVoice emits voice_ended with matching anchor_id + clears persistence', () => {
+    mount();
+    const anchorId = ctxRef!.startVoice('HOME-DASHBOARD');
+    logSessionEventMock.mockClear();
+
+    ctxRef!.endVoice(anchorId, 'user_exit');
+
+    expect(logSessionEventMock).toHaveBeenCalledTimes(1);
+    const body = logSessionEventMock.mock.calls[0][0];
+    expect(body.event_type).toBe('voice_ended');
+    expect(body.payload.voice_anchor_id).toBe(anchorId);
+    expect(body.payload.reason).toBe('user_exit');
+    expect(typeof body.payload.duration_sec).toBe('number');
+
+    const persisted = JSON.parse(sessionStorage.getItem('gg_voice_anchors')!);
+    expect(persisted[anchorId]).toBeUndefined();
+  });
+
+  it('endVoice on unknown anchor is a no-op', () => {
+    mount();
+    logSessionEventMock.mockClear();
+
+    ctxRef!.endVoice('00000000-0000-0000-0000-000000000000', 'user_exit');
+
+    expect(logSessionEventMock).not.toHaveBeenCalled();
+  });
+
+  it('orphan recovery fires voice_ended with tab_close_recovery on mount', async () => {
+    sessionStorage.setItem(
+      'gg_voice_anchors',
+      JSON.stringify({
+        'orphan-1': { start_ts: 1000, screen_id: 'HOME-DASHBOARD' },
+        'orphan-2': { start_ts: 2000, screen_id: 'ONBOARD-01' },
+      }),
+    );
+    logSessionEventMock.mockClear();
+
+    mount();
+    await act(async () => {});
+
+    expect(logSessionEventMock).toHaveBeenCalledTimes(2);
+    const recovered = logSessionEventMock.mock.calls.map((c) => c[0]);
+    const ids = recovered.map((b) => b.payload.voice_anchor_id).sort();
+    expect(ids).toEqual(['orphan-1', 'orphan-2']);
+    for (const body of recovered) {
+      expect(body.event_type).toBe('voice_ended');
+      expect(body.payload.reason).toBe('tab_close_recovery');
+      expect(body.payload.duration_sec).toBe(0);
+    }
+    expect(sessionStorage.getItem('gg_voice_anchors')).toBeNull();
+  });
+});

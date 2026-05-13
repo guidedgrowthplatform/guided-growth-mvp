@@ -71,8 +71,6 @@ export function BottomNav() {
   const channelBusy = useVoiceChannelBusy();
   const { logEvent, startVoice, endVoice } = useSessionLog();
   const { routeToScreenId } = useScreenMap();
-  // session_log voice anchor — paired voice_started / voice_ended via the
-  // provider so tab-close mid-toggle still fires voice_ended on next mount.
   const voiceAnchorIdRef = useRef<string | null>(null);
 
   const isActive = (path: string) => {

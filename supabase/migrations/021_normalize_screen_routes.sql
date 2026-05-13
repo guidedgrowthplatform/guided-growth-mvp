@@ -1,18 +1,9 @@
--- Backfill screen_contexts.route with router-canonical paths. The original
--- 019 migration backfilled `route` from source_row->>'Route' (the raw sheet
--- value), which doesn't match the React Router paths (e.g. sheet says
--- /onboard/01 but router serves /onboarding/step-1). This migration mirrors
--- ROUTE_OVERRIDES from scripts/voice-sync/lib/transform.py — keep both in
--- sync when changing routes.
---
--- Known multi-screen collisions (intentional — the resolver picks first by
--- ORDER BY screen_id ASC and pages override via explicit screen_id at
--- logEvent call sites):
+-- Backfill screen_contexts.route with router-canonical paths.
+-- Mirrors ROUTE_OVERRIDES in scripts/voice-sync/lib/transform.py — keep in sync.
+-- Known collisions (tie-break: ORDER BY screen_id ASC):
 --   /onboarding/step-7  ← /onboard/07 + /onboard/08 + /onboard/09
---   /                   ← SPLASH + HOME-* (resolved further in 022)
---
--- source_row JSONB is intentionally NOT updated; content_hash stays stable so
--- the seeder doesn't bump version numbers on its next run.
+--   /                   ← SPLASH + HOME-* (resolved in 022)
+-- source_row JSONB intentionally NOT updated — content_hash stays stable.
 
 UPDATE screen_contexts SET route = CASE source_row->>'Route'
   WHEN '/auth/login'                    THEN '/login'

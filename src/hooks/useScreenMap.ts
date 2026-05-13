@@ -83,7 +83,5 @@ export function useScreenMap(): ScreenMap {
     };
   }, [resolver]);
 
-  // isFetched flips true once the request resolves (success OR retry-exhausted
-  // failure). Empty routes no longer permanently gate useNavigateLogger.
   return { routeToScreenId, entries, isLoaded: query.isFetched };
 }

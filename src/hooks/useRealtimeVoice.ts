@@ -185,12 +185,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   // Re-entrancy guard: true while cleanup() is tearing resources down. Any
   // async start() in flight must not create new resources while this is set.
   const tearingDownRef = useRef(false);
-  // Analytics refs for PostHog §4.3 voice session lifecycle.
   const sessionStartRef = useRef<number | null>(null);
   const turnCountRef = useRef<number>(0);
   const hadErrorRef = useRef(false);
-  // session_log voice anchor — paired with voice_started / voice_ended via
-  // voice_anchor_id so cleanup-paths and tab-close recovery can match them.
   const voiceAnchorIdRef = useRef<string | null>(null);
 
   const setStateSynced = useCallback((next: RealtimeVoiceState) => {
@@ -421,8 +418,8 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       inputFormat: INPUT_FORMAT,
       outputFormat: OUTPUT_FORMAT,
       onReady: () => {
-        // Session is live now (agent ack'd). Start the lifecycle timer +
-        // reset counters, then emit PostHog §4.3 start_voice_session.
+        // Drop if unmounted between start() and onReady — anchor would leak
+        if (!mountedRef.current || tearingDownRef.current) return;
         sessionStartRef.current = performance.now();
         turnCountRef.current = 0;
         hadErrorRef.current = false;
@@ -433,7 +430,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
         });
         voiceAnchorIdRef.current = startVoice(toCanonicalScreenId(metadata.screen));
         setStateSynced('listening');
-        if (mountedRef.current) transition('listening');
+        transition('listening');
       },
       onAudio: (pcm) => {
         const ctx = audioCtxRef.current;

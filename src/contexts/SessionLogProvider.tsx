@@ -22,8 +22,7 @@ function readOrCreateSessionId(): string {
     sessionStorage.setItem(SESSION_ID_KEY, fresh);
     return fresh;
   } catch {
-    // sessionStorage can throw in private-browsing / SSR / sandboxed contexts.
-    // Fall back to an in-memory id so the rest of the app still works.
+    // private-browsing / SSR — in-memory fallback
     return crypto.randomUUID();
   }
 }
@@ -34,7 +33,7 @@ function persistVoiceAnchors(anchors: Map<string, VoiceAnchor>): void {
     for (const [k, v] of anchors) snapshot[k] = v;
     sessionStorage.setItem(VOICE_ANCHORS_KEY, JSON.stringify(snapshot));
   } catch {
-    // Quota / private mode — orphan recovery best-effort only.
+    // best-effort
   }
 }
 
@@ -53,7 +52,7 @@ function clearVoiceAnchors(): void {
   try {
     sessionStorage.removeItem(VOICE_ANCHORS_KEY);
   } catch {
-    // ignore
+    // best-effort
   }
 }
 
@@ -61,11 +60,8 @@ export function SessionLogProvider({ children }: { children: ReactNode }) {
   const sessionIdRef = useRef<string>(readOrCreateSessionId());
   const voiceAnchorsRef = useRef<Map<string, VoiceAnchor>>(new Map());
 
-  // Rotate session_id on real user transitions: SIGNED_OUT, OR any event with
-  // a user_id delta vs lastUserId. Same-id events (TOKEN_REFRESHED,
-  // USER_UPDATED with unchanged id) do NOT rotate. The null→id transition
-  // (anon → first login, including cold-boot INITIAL_SESSION) DOES rotate so
-  // A→B handoff via signOut+signIn can't leak A's session_id to B.
+  // Rotate on SIGNED_OUT or any user_id delta after init. Anon→login rotates
+  // (prevents A→B session_id leak via shared sessionStorage).
   useEffect(() => {
     let lastUserId: string | null = null;
     let initialized = false;
@@ -78,7 +74,7 @@ export function SessionLogProvider({ children }: { children: ReactNode }) {
         try {
           sessionStorage.setItem(SESSION_ID_KEY, fresh);
         } catch {
-          // handled in readOrCreateSessionId
+          // best-effort
         }
         sessionIdRef.current = fresh;
       }
@@ -104,10 +100,9 @@ export function SessionLogProvider({ children }: { children: ReactNode }) {
       const dispatch = (body: ReturnType<typeof buildBody>) => {
         logSessionEvent(body).catch((err: unknown) => {
           if (err instanceof ApiError && err.status >= 400 && err.status < 500) {
+            // 4xx is unrecoverable — drop
             return;
           }
-          // Defensive — enqueue should swallow internally, but Safari private
-          // mode etc. can still throw. Don't let it become an unhandled rejection.
           try {
             offlineQueue.enqueue('/api/session_log', 'POST', body, 'session_log');
           } catch (enqueueErr) {
@@ -166,8 +161,7 @@ export function SessionLogProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  // Orphan recovery — anchors persisted by a prior page-session that closed
-  // without endVoice get a tab_close_recovery voice_ended row.
+  // Orphan recovery for tab-close mid-session
   useEffect(() => {
     const orphans = readVoiceAnchors();
     const entries = Object.entries(orphans);
@@ -186,10 +180,7 @@ export function SessionLogProvider({ children }: { children: ReactNode }) {
     }
   }, [value]);
 
-  // pagehide is more reliable than beforeunload on iOS Safari. We snapshot
-  // in-flight anchors so the next mount can fire voice_ended for them.
-  // sendBeacon would be more immediate but can't carry the Authorization
-  // header that /api/session_log requires.
+  // pagehide (not beforeunload) — iOS Safari. sendBeacon can't carry auth headers
   useEffect(() => {
     const onHide = () => persistVoiceAnchors(voiceAnchorsRef.current);
     window.addEventListener('pagehide', onHide);
