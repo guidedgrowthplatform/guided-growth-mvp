@@ -3,6 +3,9 @@ import { supabase, sessionReady } from '@/lib/supabase';
 
 const QUEUE_KEY = 'lgt_offline_queue';
 const PROCESSED_IDS_KEY = 'lgt_offline_queue_processed_ids';
+const MAX_QUEUE = 500;
+
+export type QueuedItemKind = 'session_log' | 'entry' | 'unknown';
 
 interface QueuedMutation {
   id: string;
@@ -10,6 +13,7 @@ interface QueuedMutation {
   method: string;
   body: unknown;
   timestamp: number;
+  kind?: QueuedItemKind;
 }
 
 interface FlushResult {
@@ -42,24 +46,55 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return {};
 }
 
+// Returns true if persisted, false on quota / unavailable storage (Safari
+// private mode). On QuotaExceededError, drops oldest 50% and retries once.
+function safeSetQueue(queue: QueuedMutation[]): boolean {
+  try {
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    return true;
+  } catch (err) {
+    try {
+      const trimmed = queue.slice(Math.floor(queue.length / 2));
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(trimmed));
+      console.warn('[offlineQueue] quota exceeded; dropped oldest 50%', err);
+      return true;
+    } catch (err2) {
+      console.warn('[offlineQueue] localStorage unavailable; dropping write', err2);
+      return false;
+    }
+  }
+}
+
 export const offlineQueue = {
-  enqueue(endpoint: string, method: string, body: unknown): void {
+  enqueue(endpoint: string, method: string, body: unknown, kind: QueuedItemKind = 'unknown'): boolean {
     const queue = this.getQueue();
-    queue.push({
+    // Cap before push: drop oldest so the new event always lands.
+    const trimmed = queue.length >= MAX_QUEUE ? queue.slice(queue.length - (MAX_QUEUE - 1)) : queue;
+    trimmed.push({
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       endpoint,
       method,
       body,
       timestamp: Date.now(),
+      kind,
     });
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    return safeSetQueue(trimmed);
   },
 
   getQueue(): QueuedMutation[] {
+    const raw = localStorage.getItem(QUEUE_KEY);
+    if (!raw) return [];
     try {
-      const raw = localStorage.getItem(QUEUE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      // Corrupt JSON — clear so we don't silently mask data loss on every read.
+      console.warn('[offlineQueue] corrupt queue JSON; clearing', err);
+      try {
+        localStorage.removeItem(QUEUE_KEY);
+      } catch {
+        // ignore
+      }
       return [];
     }
   },
@@ -126,7 +161,7 @@ export const offlineQueue = {
       // enqueued while we were awaiting fetch survives.
       const live = this.getQueue();
       const remaining = live.filter((m) => !succeededIds.has(m.id) && !droppedIds.has(m.id));
-      localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+      safeSetQueue(remaining);
 
       return {
         succeeded: succeededIds.size,

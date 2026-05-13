@@ -77,7 +77,15 @@ export function SessionLogProvider({ children }: { children: ReactNode }) {
           if (err instanceof ApiError && err.status >= 400 && err.status < 500) {
             return;
           }
-          offlineQueue.enqueue('/api/session_log', 'POST', body);
+          // Defensive — enqueue should swallow internally, but Safari private
+          // mode etc. can still throw. Don't let it become an unhandled rejection.
+          try {
+            offlineQueue.enqueue('/api/session_log', 'POST', body, 'session_log');
+          } catch (enqueueErr) {
+            if (import.meta.env.DEV) {
+              console.warn('[session-log] enqueue failed', enqueueErr);
+            }
+          }
         });
       },
     }),
