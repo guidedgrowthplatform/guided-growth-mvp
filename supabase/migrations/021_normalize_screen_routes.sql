@@ -5,6 +5,12 @@
 -- ROUTE_OVERRIDES from scripts/voice-sync/lib/transform.py — keep both in
 -- sync when changing routes.
 --
+-- Known multi-screen collisions (intentional — the resolver picks first by
+-- ORDER BY screen_id ASC and pages override via explicit screen_id at
+-- logEvent call sites):
+--   /onboarding/step-7  ← /onboard/07 + /onboard/08 + /onboard/09
+--   /                   ← SPLASH + HOME-* (resolved further in 022)
+--
 -- source_row JSONB is intentionally NOT updated; content_hash stays stable so
 -- the seeder doesn't bump version numbers on its next run.
 

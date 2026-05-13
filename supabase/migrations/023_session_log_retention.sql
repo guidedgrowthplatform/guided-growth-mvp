@@ -5,6 +5,11 @@
 -- table for active users (each user contributes at most 20 rows at rest).
 -- Read-time noise filtering (high-signal events only) belongs in the prompt
 -- builder, not here — retention stays inclusive.
+--
+-- pg_cron prerequisite: requires the extension to be enabled on the target
+-- Supabase project (Dashboard → Database → Extensions → pg_cron). Pro/Team
+-- tiers auto-enable it; Free tier requires manual enablement before this
+-- migration can run.
 
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
