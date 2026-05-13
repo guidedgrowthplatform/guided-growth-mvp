@@ -69,13 +69,9 @@ export function BottomNav() {
   const isListening = useVoiceStore((s) => s.isListening);
   const currentRms = useAudioMetricsStore((s) => s.currentRms);
   const channelBusy = useVoiceChannelBusy();
-  const { logEvent } = useSessionLog();
+  const { logEvent, startVoice, endVoice } = useSessionLog();
   const { routeToScreenId } = useScreenMap();
-  // Wall-clock anchor for voice_ended.duration_sec. Captures the moment the
-  // LLM's voice was last enabled so we can stamp the session length on
-  // disable. Stale across remounts (acceptable — duration_sec for a session
-  // crossing a remount is approximate by design).
-  const voiceStartRef = useRef<number | null>(null);
+  const voiceAnchorIdRef = useRef<string | null>(null);
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/' || location.pathname === '/home';
@@ -92,14 +88,10 @@ export function BottomNav() {
     track('toggle_ai_voice', { new_state: next ? 'on' : 'off' });
     const screenId = routeToScreenId(location.pathname) ?? undefined;
     if (next) {
-      voiceStartRef.current = performance.now();
-      logEvent('voice_started', {}, screenId);
-    } else {
-      const durationSec = voiceStartRef.current
-        ? Math.round((performance.now() - voiceStartRef.current) / 1000)
-        : 0;
-      voiceStartRef.current = null;
-      logEvent('voice_ended', { duration_sec: durationSec, reason: 'user_exit' }, screenId);
+      voiceAnchorIdRef.current = startVoice(screenId);
+    } else if (voiceAnchorIdRef.current) {
+      endVoice(voiceAnchorIdRef.current, 'user_exit');
+      voiceAnchorIdRef.current = null;
     }
   };
 
