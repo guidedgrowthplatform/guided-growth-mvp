@@ -7,7 +7,6 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 
 const DEFAULT_QUESTIONS = [
   'What am I proud of today?',
@@ -35,7 +34,6 @@ export function AdvancedStep6Page() {
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const state = location.state as LocationState | null;
 
-  useOnboardingAgent('onboard_advanced_step_6');
   useAgentNavigation(5, '/onboarding/step-7');
 
   const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');

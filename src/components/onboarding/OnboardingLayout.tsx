@@ -7,6 +7,7 @@ import {
 } from '@/components/onboarding/OnboardingChatOverlay';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { DualButton } from '@/components/ui/DualButton';
+import { useOnboardingVoice } from '@/contexts/useOnboardingVoice';
 import { useFocusedFieldContext } from '@/hooks/useFocusedFieldContext';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
@@ -66,6 +67,17 @@ export function OnboardingLayout({
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
   );
 
+  // P1-09 — Vapi is the active voice path for onboarding. The DualButton
+  // below drives mute and end-call on the live session instead of the legacy
+  // Web Speech overlay + TTS toggle (which were tied to the pre-Vapi
+  // architecture and are no longer wired during onboarding).
+  const onboardingVoice = useOnboardingVoice();
+  const vapiStatus = onboardingVoice?.status ?? 'idle';
+  const vapiActive = vapiStatus === 'active';
+  const vapiConnecting = vapiStatus === 'connecting';
+  const vapiIsMuted = onboardingVoice?.isMuted ?? false;
+  const vapiSpeaking = onboardingVoice?.isAssistantSpeaking ?? false;
+
   const voicePlayer = useVoicePlayer();
 
   useEffect(() => {
@@ -99,7 +111,10 @@ export function OnboardingLayout({
 
   const hasSpokePrompt = useRef(false);
 
-  const handleMicClick = () => {
+  // Legacy Web Speech overlay opener — unreachable since the DualButton was
+  // rewired to Vapi controls (P1-09). Kept for reference until the overlay
+  // path is cleaned up in a follow-up.
+  const _handleMicClick = () => {
     unlockTTS();
     resetTranscript();
     setOverlayOpen(true);
@@ -134,33 +149,37 @@ export function OnboardingLayout({
     localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
   };
 
-  const showChatLauncher = !!showVoiceButton;
+  const handleVapiMuteClick = () => {
+    setTooltipVisible(false);
+    localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
+    if (vapiActive) onboardingVoice?.toggleMute();
+  };
+
+  const handleVapiCallClick = () => {
+    setTooltipVisible(false);
+    localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
+    if (vapiActive || vapiConnecting) {
+      onboardingVoice?.endCall();
+    } else {
+      void onboardingVoice?.restartCall();
+    }
+  };
 
   const voiceControl = showVoiceButton ? (
     <div className="relative my-6 flex justify-center">
       {tooltipVisible && <VoiceTooltip autoDismissMs={4000} onDismiss={handleTooltipDismiss} />}
       <DualButton
         size={88}
-        leftActive={isListening}
-        rightActive={ttsEnabled}
-        leftIcon={isListening ? <IconChatVoice size={30} /> : <IconChatText size={30} />}
-        rightIcon={ttsEnabled ? <IconMic size={30} /> : <IconMicMuted size={30} />}
-        onLeftClick={handleMicClick}
-        onRightClick={handleToggleTts}
-        leftAriaLabel={isListening ? 'Stop listening' : 'Start listening'}
-        rightAriaLabel={ttsEnabled ? 'Mute AI voice' : 'Enable AI voice'}
+        leftActive={vapiActive && !vapiIsMuted}
+        rightActive={vapiActive}
+        activeRings={vapiActive && vapiSpeaking ? 'right' : null}
+        leftIcon={vapiIsMuted ? <IconMicMuted size={30} /> : <IconMic size={30} />}
+        rightIcon={vapiActive ? <IconChatVoice size={30} /> : <IconChatText size={30} />}
+        onLeftClick={handleVapiMuteClick}
+        onRightClick={handleVapiCallClick}
+        leftAriaLabel={vapiIsMuted ? 'Unmute mic' : 'Mute mic'}
+        rightAriaLabel={vapiActive ? 'End call with Yair' : 'Start call with Yair'}
       />
-      {showChatLauncher && !overlayOpen && (
-        <button
-          type="button"
-          onClick={handleMicClick}
-          aria-label="Open coach chat"
-          className="absolute right-0 top-1/2 inline-flex -translate-y-1/2 items-center gap-1.5 rounded-full bg-white px-[14px] py-[10px] shadow-card transition-transform active:scale-95"
-        >
-          <span className="text-[12px] font-bold tracking-[0.3px] text-primary">Open Chat</span>
-          <IconChatText size={16} className="text-primary" />
-        </button>
-      )}
     </div>
   ) : null;
 

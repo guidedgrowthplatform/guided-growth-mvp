@@ -8,7 +8,6 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 
 interface HabitItem {
@@ -81,7 +80,6 @@ export function AdvancedResultsPage() {
   const locationState = location.state as ResultsLocationState | null;
   const clearedRef = useRef(false);
 
-  useOnboardingAgent('onboard_advanced_results');
   useAgentNavigation(4, '/onboarding/advanced-step-6');
 
   const fallbackBrainDump = onboardingState?.data?.brainDumpText ?? '';

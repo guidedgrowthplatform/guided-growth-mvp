@@ -1,16 +1,38 @@
-import { useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { fetchScreenRoutes } from '@/api/context';
 import { IconMic } from '@/components/icons/IconMic';
 import { IconMicMuted } from '@/components/icons/IconMicMuted';
 import { DualButton } from '@/components/ui/DualButton';
 import { useToast } from '@/contexts/ToastContext';
 import { useVapiCall, VAPI_ENV_MISSING_ERROR } from '@/hooks/useVapiCall';
+import { queryKeys } from '@/lib/query/keys';
+
+const DEFAULT_SCREEN = 'ONBOARD-FORK';
 
 export function VapiTestPage() {
-  const { status, isMuted, isAssistantSpeaking, errorMessage, start, stop, toggleMute } =
-    useVapiCall();
+  const {
+    status,
+    isMuted,
+    isAssistantSpeaking,
+    errorMessage,
+    start,
+    stop,
+    toggleMute,
+    refreshContext,
+  } = useVapiCall();
   const { addToast } = useToast();
   const lastErrorRef = useRef<string | null>(null);
   const isEnvMissing = errorMessage === VAPI_ENV_MISSING_ERROR;
+
+  const routesQuery = useQuery({
+    queryKey: queryKeys.context.routes(),
+    queryFn: fetchScreenRoutes,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const [selectedScreen, setSelectedScreen] = useState(DEFAULT_SCREEN);
+  const [lastPushedScreen, setLastPushedScreen] = useState<string | null>(null);
 
   useEffect(() => {
     if (errorMessage && errorMessage !== lastErrorRef.current && !isEnvMissing) {
@@ -21,12 +43,20 @@ export function VapiTestPage() {
 
   const isActive = status === 'active';
   const isConnecting = status === 'connecting';
+
   const handleRightClick = () => {
     if (isActive || isConnecting) {
       stop();
     } else {
-      void start();
+      setLastPushedScreen(selectedScreen);
+      void start(selectedScreen);
     }
+  };
+
+  const handlePushContext = async () => {
+    setLastPushedScreen(selectedScreen);
+    await refreshContext(selectedScreen);
+    addToast('success', `Pushed context for ${selectedScreen}`);
   };
 
   const statusLabel: Record<typeof status, string> = {
@@ -37,6 +67,8 @@ export function VapiTestPage() {
     error: 'Error',
   };
 
+  const screens = routesQuery.data?.routes ?? [];
+
   return (
     <div className="bg-background text-foreground flex min-h-dvh flex-col">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-6 pb-10 pt-12">
@@ -46,7 +78,8 @@ export function VapiTestPage() {
           </p>
           <h1 className="mt-2 text-2xl font-bold">Coach Yair</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Vapi web SDK round-trip — tap the right button to start a call.
+            Vapi web SDK round-trip — pick a screen, start a call, then switch screens to verify the
+            context push.
           </p>
         </header>
 
@@ -60,6 +93,34 @@ export function VapiTestPage() {
             dev server.
           </div>
         )}
+
+        <div className="mb-8 space-y-3">
+          <label className="block">
+            <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+              Screen
+            </span>
+            <select
+              value={selectedScreen}
+              onChange={(e) => setSelectedScreen(e.target.value)}
+              className="bg-background mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
+            >
+              {screens.length === 0 && <option value={DEFAULT_SCREEN}>{DEFAULT_SCREEN}</option>}
+              {screens.map((s) => (
+                <option key={s.screen_id} value={s.screen_id}>
+                  {s.screen_id}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={handlePushContext}
+            disabled={!isActive}
+            className="bg-background hover:bg-muted w-full rounded-md border border-border px-3 py-2 text-sm font-medium disabled:opacity-50"
+          >
+            Switch screen (push context now)
+          </button>
+        </div>
 
         <div className="flex flex-1 flex-col items-center justify-center gap-10">
           <DualButton
@@ -89,6 +150,10 @@ export function VapiTestPage() {
             <div className="flex justify-between border-b border-border pb-2">
               <dt className="text-muted-foreground">Coach speaking</dt>
               <dd className="font-medium">{isAssistantSpeaking ? 'Yes' : 'No'}</dd>
+            </div>
+            <div className="flex justify-between border-b border-border pb-2">
+              <dt className="text-muted-foreground">Last context push</dt>
+              <dd className="font-medium">{lastPushedScreen ?? '—'}</dd>
             </div>
           </dl>
         </div>

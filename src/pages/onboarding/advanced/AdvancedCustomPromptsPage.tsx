@@ -5,7 +5,6 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 
 type JournalMode = 'freeform' | 'custom';
 
@@ -32,7 +31,6 @@ export function AdvancedCustomPromptsPage() {
   const { state: onboardingState } = useOnboarding();
   const state = location.state as LocationState | null;
 
-  useOnboardingAgent('onboard_advanced_custom_prompts');
   useAgentNavigation(5, '/onboarding/advanced-step-6');
 
   const [journalMode, setJournalMode] = useState<JournalMode>(state?.journalMode ?? 'custom');
