@@ -3,14 +3,14 @@ import { IconMic } from '@/components/icons/IconMic';
 import { IconMicMuted } from '@/components/icons/IconMicMuted';
 import { DualButton } from '@/components/ui/DualButton';
 import { useToast } from '@/contexts/ToastContext';
-import { useVapiCall } from '@/hooks/useVapiCall';
+import { useVapiCall, VAPI_ENV_MISSING_ERROR } from '@/hooks/useVapiCall';
 
 export function VapiTestPage() {
   const { status, isMuted, isAssistantSpeaking, errorMessage, start, stop, toggleMute } =
     useVapiCall();
   const { addToast } = useToast();
   const lastErrorRef = useRef<string | null>(null);
-  const isEnvMissing = errorMessage?.startsWith('Vapi env vars missing') ?? false;
+  const isEnvMissing = errorMessage === VAPI_ENV_MISSING_ERROR;
 
   useEffect(() => {
     if (errorMessage && errorMessage !== lastErrorRef.current && !isEnvMissing) {

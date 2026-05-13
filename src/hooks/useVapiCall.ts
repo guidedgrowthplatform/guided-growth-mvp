@@ -2,7 +2,8 @@ import Vapi from '@vapi-ai/web';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVoice } from '@/hooks/useVoice';
 
-// VoiceContext contract mirror — see useRealtimeVoice.ts:132, 282-292, 388-415.
+export const VAPI_ENV_MISSING_ERROR =
+  'Vapi env vars missing. Set VITE_VAPI_PUBLIC_KEY and VITE_VAPI_ASSISTANT_ID in .env.local.';
 
 export type VapiCallStatus = 'idle' | 'connecting' | 'active' | 'ended' | 'error';
 
@@ -29,9 +30,7 @@ export function useVapiCall(): UseVapiCallReturn {
 
   const ensureClient = useCallback(() => {
     if (!PUBLIC_KEY || !ASSISTANT_ID) {
-      throw new Error(
-        'Vapi env vars missing. Set VITE_VAPI_PUBLIC_KEY and VITE_VAPI_ASSISTANT_ID in .env.local.',
-      );
+      throw new Error(VAPI_ENV_MISSING_ERROR);
     }
     if (vapiRef.current) return vapiRef.current;
 
@@ -40,7 +39,6 @@ export function useVapiCall(): UseVapiCallReturn {
     client.on('call-start', () => {
       setStatus('active');
       setErrorMessage(null);
-      transition('listening');
     });
     client.on('call-end', () => {
       setStatus('ended');
@@ -56,10 +54,11 @@ export function useVapiCall(): UseVapiCallReturn {
       transition('listening');
     });
     client.on('error', (err: unknown) => {
-      setStatus('error');
       setIsAssistantSpeaking(false);
       const msg = err instanceof Error ? err.message : String(err ?? 'Unknown Vapi error');
       setErrorMessage(msg);
+      setStatus('error');
+      release();
     });
 
     vapiRef.current = client;
@@ -111,8 +110,9 @@ export function useVapiCall(): UseVapiCallReturn {
       client.removeAllListeners();
       void client.stop();
       vapiRef.current = null;
+      release();
     };
-  }, []);
+  }, [release]);
 
   return {
     status,
