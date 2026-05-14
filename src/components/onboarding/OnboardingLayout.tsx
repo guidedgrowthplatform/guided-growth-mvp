@@ -7,7 +7,7 @@ import {
 } from '@/components/onboarding/OnboardingChatOverlay';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { DualButton } from '@/components/ui/DualButton';
-import { useOnboardingVoice } from '@/contexts/useOnboardingVoice';
+import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useFocusedFieldContext } from '@/hooks/useFocusedFieldContext';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useUserPreferences } from '@/hooks/useUserPreferences';

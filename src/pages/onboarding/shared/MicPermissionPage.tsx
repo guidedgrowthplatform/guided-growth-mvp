@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
-import { useOnboardingVoice } from '@/contexts/useOnboardingVoice';
+import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 

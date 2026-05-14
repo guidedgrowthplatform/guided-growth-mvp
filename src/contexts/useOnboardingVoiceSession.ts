@@ -5,10 +5,11 @@
  * a component (keeps react-refresh HMR working in dev).
  */
 import { createContext, useContext } from 'react';
-import type { VapiCallStatus } from '@/hooks/useVapiCall';
+
+export type OnboardingVoiceStatus = 'idle' | 'connecting' | 'active' | 'ended' | 'error';
 
 export interface OnboardingVoiceContextValue {
-  status: VapiCallStatus;
+  status: OnboardingVoiceStatus;
   isMuted: boolean;
   isTtsMuted: boolean;
   isAssistantSpeaking: boolean;
