@@ -29,12 +29,15 @@ export function buildContextMessage(input: BuildContextMessageInput): string {
     input.state_delta.length === 0 ? '(none)' : input.state_delta.map(renderEvent).join('\n');
 
   return [
-    `User just opened screen: ${input.screen_id}`,
+    '*** ACTIVE SCREEN UPDATE ***',
+    'This message supersedes any earlier screen-context messages in this conversation. Treat only the screen described below as the current screen, and ignore prior screen anchors when deciding what to say or do next.',
     '',
-    'Context for this screen:',
+    `CURRENT SCREEN: ${input.screen_id}`,
+    '',
+    'What this screen is for:',
     input.context_block,
     '',
-    'Recent session events:',
+    'Recent events on this screen (most recent last):',
     events,
   ].join('\n');
 }

@@ -10,10 +10,13 @@ import type { VapiCallStatus } from '@/hooks/useVapiCall';
 export interface OnboardingVoiceContextValue {
   status: VapiCallStatus;
   isMuted: boolean;
+  isTtsMuted: boolean;
   isAssistantSpeaking: boolean;
   errorMessage: string | null;
   currentScreenId: string | null;
   toggleMute: () => void;
+  setMicEnabled: (enabled: boolean) => void;
+  setTtsEnabled: (enabled: boolean) => void;
   endCall: () => void;
   restartCall: () => Promise<void>;
 }

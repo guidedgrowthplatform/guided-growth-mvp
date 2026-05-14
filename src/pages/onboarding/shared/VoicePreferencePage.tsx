@@ -1,34 +1,51 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
-import { IconChatVoice, IconMicMuted } from '@/components/icons';
+import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { useOnboardingVoice } from '@/contexts/useOnboardingVoice';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 export function VoicePreferencePage() {
   const navigate = useNavigate();
   const { updatePreferences } = useUserPreferences();
-  const { play, stop } = useVoicePlayer();
   const { logEvent } = useSessionLog();
+  const onboardingVoice = useOnboardingVoice();
   const [saving, setSaving] = useState(false);
 
-  // PREF-01 per Voice System sheet: play pref_can_i_talk.mp3 on screen load
-  // (~6s). Any subsequent button tap stops the audio mid-playback.
-  useEffect(() => {
-    play('pref_can_i_talk').catch(() => {
-      // Autoplay may be blocked until the user interacts with the page —
-      // that's fine, the screen text is self-explanatory.
-    });
-    return () => stop();
-  }, [play, stop]);
+  // Vapi runs throughout the pre-onboarding screens via OnboardingVoiceProvider.
+  // It auto-starts on this route with the mic muted (`startAudioOff: true`) so
+  // the assistant can speak the VOICE-PREFERENCE context block while the user
+  // chooses voice or screen mode — no MP3 broadcast on this screen.
+
+  const vapiStatus = onboardingVoice?.status ?? 'idle';
+  const vapiActive = vapiStatus === 'active';
+  const vapiConnecting = vapiStatus === 'connecting';
+  const vapiIsMuted = onboardingVoice?.isMuted ?? true;
+  const vapiTtsMuted = onboardingVoice?.isTtsMuted ?? false;
+  const vapiSpeaking = onboardingVoice?.isAssistantSpeaking ?? false;
+  const ttsOn = vapiActive && !vapiTtsMuted;
+  const micOn = vapiActive && !vapiIsMuted;
+
+  const handleTtsToggleClick = () => {
+    if (!vapiActive) return;
+    const next = vapiTtsMuted;
+    onboardingVoice?.setTtsEnabled(next);
+    void updatePreferences({ voiceMode: next ? 'voice' : 'screen' });
+  };
+
+  const handleMicToggleClick = () => {
+    if (!vapiActive) return;
+    const next = vapiIsMuted;
+    onboardingVoice?.setMicEnabled(next);
+    void updatePreferences({ micEnabled: next });
+  };
 
   const choose = async (voiceEnabled: boolean) => {
     if (saving) return;
     setSaving(true);
-    stop();
     track('set_voice_preference', {
       preference: voiceEnabled ? 'voice' : 'text',
       screen: 'pref_01',
@@ -40,6 +57,9 @@ export function VoicePreferencePage() {
     );
     await updatePreferences({ voiceMode: voiceEnabled ? 'voice' : 'screen' });
     useVoiceSettingsStore.getState().hydrate({ ttsEnabled: voiceEnabled });
+    // If the user opted out of voice, tear down Vapi before leaving the
+    // screen so it doesn't keep running on mic-permission.
+    if (!voiceEnabled) onboardingVoice?.endCall();
     navigate('/onboarding/mic-permission');
   };
 
@@ -49,9 +69,15 @@ export function VoicePreferencePage() {
         <DualButton
           size={170}
           width={180}
-          leftIcon={<IconChatVoice size={58} />}
-          rightIcon={<IconMicMuted size={48} />}
-          ariaLabel="Voice preference illustration"
+          leftActive={ttsOn || vapiConnecting}
+          rightActive={micOn}
+          activeRings={ttsOn && vapiSpeaking ? 'left' : null}
+          leftIcon={ttsOn ? <IconChatVoice size={58} /> : <IconChatText size={58} />}
+          rightIcon={micOn ? <IconMic size={48} /> : <IconMicMuted size={48} />}
+          onLeftClick={handleTtsToggleClick}
+          onRightClick={handleMicToggleClick}
+          leftAriaLabel={ttsOn ? 'Mute coach voice' : 'Unmute coach voice'}
+          rightAriaLabel={micOn ? 'Mute mic' : 'Unmute mic'}
         />
       </div>
 

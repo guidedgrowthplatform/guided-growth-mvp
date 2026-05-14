@@ -13,11 +13,14 @@ export type VapiCallStatus = 'idle' | 'connecting' | 'active' | 'ended' | 'error
 export interface UseVapiCallReturn {
   status: VapiCallStatus;
   isMuted: boolean;
+  isTtsMuted: boolean;
   isAssistantSpeaking: boolean;
   errorMessage: string | null;
   start: (screenId: string) => Promise<void>;
   stop: () => void;
   toggleMute: () => void;
+  setMicEnabled: (enabled: boolean) => void;
+  setTtsEnabled: (enabled: boolean) => void;
   refreshContext: (screenId: string) => Promise<void>;
 }
 
@@ -30,8 +33,16 @@ export function useVapiCall(): UseVapiCallReturn {
   const vapiRef = useRef<Vapi | null>(null);
   const pendingScreenIdRef = useRef<string | null>(null);
   const callStartTsRef = useRef<string | null>(null);
+  // Anchors the next state_delta to events since this screen change, instead
+  // of since call-start. Without it, the LLM keeps seeing prior screens'
+  // navigate / voice events for the rest of the call and re-anchors to them.
+  const lastScreenChangeTsRef = useRef<string | null>(null);
   const [status, setStatus] = useState<VapiCallStatus>('idle');
-  const [isMuted, setIsMuted] = useState(false);
+  // Mic starts muted (Vapi constructed with startAudioOff: true) so the
+  // assistant can speak before the user has explicitly granted/enabled mic
+  // input on the mic-permission screen.
+  const [isMuted, setIsMuted] = useState(true);
+  const [isTtsMuted, setIsTtsMuted] = useState(false);
   const [isAssistantSpeaking, setIsAssistantSpeaking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -46,9 +57,15 @@ export function useVapiCall(): UseVapiCallReturn {
           context_block: ctx.context_block,
           state_delta: ctx.state_delta,
         });
+        // triggerResponseEnabled: true makes the LLM speak based on the new
+        // screen context. Without it, Vapi silently appends the system message
+        // and waits for a user turn — which never arrives because the mic is
+        // muted until MIC-PERMISSION, so the call appears frozen on every
+        // screen.
         client.send({
           type: 'add-message',
           message: { role: 'system', content: body },
+          triggerResponseEnabled: true,
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to fetch screen context';
@@ -64,12 +81,17 @@ export function useVapiCall(): UseVapiCallReturn {
     }
     if (vapiRef.current) return vapiRef.current;
 
-    const client = new Vapi(PUBLIC_KEY);
+    // `startAudioOff: true` mutes the local mic at call-start so the assistant
+    // can talk on screens like VOICE-PREFERENCE before the user reaches
+    // MIC-PERMISSION and explicitly enables input.
+    const client = new Vapi(PUBLIC_KEY, undefined, undefined, { startAudioOff: true });
 
     client.on('call-start', () => {
       setStatus('active');
       setErrorMessage(null);
-      callStartTsRef.current = new Date().toISOString();
+      const nowIso = new Date().toISOString();
+      callStartTsRef.current = nowIso;
+      lastScreenChangeTsRef.current = nowIso;
       const screenId = pendingScreenIdRef.current;
       pendingScreenIdRef.current = null;
       if (screenId) void sendContext(screenId, null);
@@ -77,7 +99,12 @@ export function useVapiCall(): UseVapiCallReturn {
     client.on('call-end', () => {
       setStatus('ended');
       setIsAssistantSpeaking(false);
+      // Reset to constructor-time defaults so a subsequent restart() begins
+      // in the same "mic off, TTS on" posture as a fresh call.
+      setIsMuted(true);
+      setIsTtsMuted(false);
       callStartTsRef.current = null;
+      lastScreenChangeTsRef.current = null;
       pendingScreenIdRef.current = null;
       release();
     });
@@ -108,6 +135,7 @@ export function useVapiCall(): UseVapiCallReturn {
     setStatus('ended');
     setIsAssistantSpeaking(false);
     callStartTsRef.current = null;
+    lastScreenChangeTsRef.current = null;
     pendingScreenIdRef.current = null;
     release();
   }, [release]);
@@ -140,18 +168,36 @@ export function useVapiCall(): UseVapiCallReturn {
   const refreshContext = useCallback(
     async (screenId: string) => {
       if (!vapiRef.current || !callStartTsRef.current) return;
-      await sendContext(screenId, callStartTsRef.current);
+      // Snapshot the prior screen-change ts, advance the cursor immediately so
+      // a rapid second navigation doesn't re-replay the same delta window.
+      const sinceTs = lastScreenChangeTsRef.current ?? callStartTsRef.current;
+      lastScreenChangeTsRef.current = new Date().toISOString();
+      await sendContext(screenId, sinceTs);
     },
     [sendContext],
   );
 
-  const toggleMute = useCallback(() => {
+  const setMicEnabled = useCallback((enabled: boolean) => {
     const client = vapiRef.current;
     if (!client) return;
-    const next = !isMuted;
-    client.setMuted(next);
-    setIsMuted(next);
-  }, [isMuted]);
+    const nextMuted = !enabled;
+    client.setMuted(nextMuted);
+    setIsMuted(nextMuted);
+  }, []);
+
+  const setTtsEnabled = useCallback((enabled: boolean) => {
+    const client = vapiRef.current;
+    if (!client) return;
+    client.send({
+      type: 'control',
+      control: enabled ? 'unmute-assistant' : 'mute-assistant',
+    });
+    setIsTtsMuted(!enabled);
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    setMicEnabled(isMuted);
+  }, [isMuted, setMicEnabled]);
 
   useEffect(() => {
     return () => {
@@ -167,11 +213,14 @@ export function useVapiCall(): UseVapiCallReturn {
   return {
     status,
     isMuted,
+    isTtsMuted,
     isAssistantSpeaking,
     errorMessage,
     start,
     stop,
     toggleMute,
+    setMicEnabled,
+    setTtsEnabled,
     refreshContext,
   };
 }

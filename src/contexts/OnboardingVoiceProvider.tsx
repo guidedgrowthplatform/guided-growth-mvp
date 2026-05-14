@@ -33,6 +33,22 @@ function isOnboardingPath(pathname: string): boolean {
 export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const vapi = useVapiCall();
+  // Destructure the stable callbacks + primitives. `vapi` itself is a fresh
+  // object each render, so depending on it directly causes effects to fire
+  // every commit; the underlying useCallbacks in useVapiCall are stable.
+  const {
+    status,
+    isMuted,
+    isTtsMuted,
+    isAssistantSpeaking,
+    errorMessage,
+    start,
+    stop,
+    toggleMute,
+    setMicEnabled,
+    setTtsEnabled,
+    refreshContext,
+  } = vapi;
 
   const routesQuery = useQuery({
     queryKey: queryKeys.context.routes(),
@@ -47,35 +63,38 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    if (inOnboarding && vapi.status === 'idle' && currentScreenId) {
-      void vapi.start(currentScreenId);
+    if (inOnboarding && status === 'idle' && currentScreenId) {
+      void start(currentScreenId);
     }
-  }, [inOnboarding, vapi.status, currentScreenId, vapi.start, vapi]);
+  }, [inOnboarding, status, currentScreenId, start]);
 
   useEffect(() => {
-    if (vapi.status === 'active' && currentScreenId) {
-      void vapi.refreshContext(currentScreenId);
+    if (status === 'active' && currentScreenId) {
+      void refreshContext(currentScreenId);
     }
-  }, [vapi.status, currentScreenId, vapi.refreshContext, vapi]);
+  }, [status, currentScreenId, refreshContext]);
 
   useEffect(() => {
-    if (!inOnboarding && (vapi.status === 'active' || vapi.status === 'connecting')) {
-      vapi.stop();
+    if (!inOnboarding && (status === 'active' || status === 'connecting')) {
+      stop();
     }
-  }, [inOnboarding, vapi.status, vapi.stop, vapi]);
+  }, [inOnboarding, status, stop]);
 
   const restartCall = useCallback(async () => {
-    if (currentScreenId) await vapi.start(currentScreenId);
-  }, [currentScreenId, vapi]);
+    if (currentScreenId) await start(currentScreenId);
+  }, [currentScreenId, start]);
 
   const value: OnboardingVoiceContextValue = {
-    status: vapi.status,
-    isMuted: vapi.isMuted,
-    isAssistantSpeaking: vapi.isAssistantSpeaking,
-    errorMessage: vapi.errorMessage,
+    status,
+    isMuted,
+    isTtsMuted,
+    isAssistantSpeaking,
+    errorMessage,
     currentScreenId,
-    toggleMute: vapi.toggleMute,
-    endCall: vapi.stop,
+    toggleMute,
+    setMicEnabled,
+    setTtsEnabled,
+    endCall: stop,
     restartCall,
   };
 

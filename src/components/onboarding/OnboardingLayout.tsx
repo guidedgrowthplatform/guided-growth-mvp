@@ -10,6 +10,7 @@ import { DualButton } from '@/components/ui/DualButton';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoice';
 import { useFocusedFieldContext } from '@/hooks/useFocusedFieldContext';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 import { speak, stopTTS, unlockTTS } from '@/lib/services/tts-service';
@@ -61,22 +62,26 @@ export function OnboardingLayout({
   const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
   const [overlayOpen, setOverlayOpen] = useState(false);
   const ttsEnabled = useVoiceSettingsStore((s) => s.ttsEnabled);
-  const setTtsEnabled = useVoiceSettingsStore((s) => s.setTtsEnabled);
+  const setStoreTtsEnabled = useVoiceSettingsStore((s) => s.setTtsEnabled);
   const focusedField = useFocusedFieldContext();
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
   );
 
   // P1-09 — Vapi is the active voice path for onboarding. The DualButton
-  // below drives mute and end-call on the live session instead of the legacy
-  // Web Speech overlay + TTS toggle (which were tied to the pre-Vapi
-  // architecture and are no longer wired during onboarding).
+  // splits into two independent toggles: LEFT = assistant TTS, RIGHT = mic
+  // (STT). Both flip the corresponding user preference on every click so the
+  // server-side record reflects what the user has set during the flow.
   const onboardingVoice = useOnboardingVoice();
+  const { updatePreferences } = useUserPreferences();
   const vapiStatus = onboardingVoice?.status ?? 'idle';
   const vapiActive = vapiStatus === 'active';
   const vapiConnecting = vapiStatus === 'connecting';
-  const vapiIsMuted = onboardingVoice?.isMuted ?? false;
+  const vapiIsMuted = onboardingVoice?.isMuted ?? true;
+  const vapiTtsMuted = onboardingVoice?.isTtsMuted ?? false;
   const vapiSpeaking = onboardingVoice?.isAssistantSpeaking ?? false;
+  const ttsOn = vapiActive && !vapiTtsMuted;
+  const micOn = vapiActive && !vapiIsMuted;
 
   const voicePlayer = useVoicePlayer();
 
@@ -128,7 +133,7 @@ export function OnboardingLayout({
 
   const handleToggleTts = () => {
     if (ttsEnabled) stopTTS();
-    setTtsEnabled(!ttsEnabled);
+    setStoreTtsEnabled(!ttsEnabled);
   };
 
   const handleVoiceAction = (result: OnboardingVoiceResult) => {
@@ -149,20 +154,22 @@ export function OnboardingLayout({
     localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
   };
 
-  const handleVapiMuteClick = () => {
+  const handleTtsToggleClick = () => {
     setTooltipVisible(false);
     localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
-    if (vapiActive) onboardingVoice?.toggleMute();
+    if (!vapiActive) return;
+    const next = vapiTtsMuted; // currently muted → enabling
+    onboardingVoice?.setTtsEnabled(next);
+    void updatePreferences({ voiceMode: next ? 'voice' : 'screen' });
   };
 
-  const handleVapiCallClick = () => {
+  const handleMicToggleClick = () => {
     setTooltipVisible(false);
     localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
-    if (vapiActive || vapiConnecting) {
-      onboardingVoice?.endCall();
-    } else {
-      void onboardingVoice?.restartCall();
-    }
+    if (!vapiActive) return;
+    const next = vapiIsMuted; // currently muted → enabling
+    onboardingVoice?.setMicEnabled(next);
+    void updatePreferences({ micEnabled: next });
   };
 
   const voiceControl = showVoiceButton ? (
@@ -170,15 +177,15 @@ export function OnboardingLayout({
       {tooltipVisible && <VoiceTooltip autoDismissMs={4000} onDismiss={handleTooltipDismiss} />}
       <DualButton
         size={88}
-        leftActive={vapiActive && !vapiIsMuted}
-        rightActive={vapiActive}
-        activeRings={vapiActive && vapiSpeaking ? 'right' : null}
-        leftIcon={vapiIsMuted ? <IconMicMuted size={30} /> : <IconMic size={30} />}
-        rightIcon={vapiActive ? <IconChatVoice size={30} /> : <IconChatText size={30} />}
-        onLeftClick={handleVapiMuteClick}
-        onRightClick={handleVapiCallClick}
-        leftAriaLabel={vapiIsMuted ? 'Unmute mic' : 'Mute mic'}
-        rightAriaLabel={vapiActive ? 'End call with Yair' : 'Start call with Yair'}
+        leftActive={ttsOn || vapiConnecting}
+        rightActive={micOn}
+        activeRings={ttsOn && vapiSpeaking ? 'left' : null}
+        leftIcon={ttsOn ? <IconChatVoice size={30} /> : <IconChatText size={30} />}
+        rightIcon={micOn ? <IconMic size={30} /> : <IconMicMuted size={30} />}
+        onLeftClick={handleTtsToggleClick}
+        onRightClick={handleMicToggleClick}
+        leftAriaLabel={ttsOn ? 'Mute coach voice' : 'Unmute coach voice'}
+        rightAriaLabel={micOn ? 'Mute mic' : 'Unmute mic'}
       />
     </div>
   ) : null;
