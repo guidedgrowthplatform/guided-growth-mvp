@@ -8,7 +8,6 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { goalsByCategory } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 
 export function Step4Page() {
   const navigate = useNavigate();
@@ -17,8 +16,6 @@ export function Step4Page() {
   const category = (location.state as { category?: string })?.category ?? 'Sleep better';
   const goals = goalsByCategory[category] ?? goalsByCategory['Sleep better'];
   const [selected, setSelected] = useState<Set<string>>(new Set());
-
-  useOnboardingAgent('onboard_04');
 
   // ONBOARD-04 → step-5 on agent advance.
   useAgentNavigation(4, '/onboarding/step-5');

@@ -2,46 +2,62 @@ import { Icon } from '@iconify/react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
-import { IconChatVoice, IconMicMuted } from '@/components/icons';
+import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { useOnboardingVoice } from '@/contexts/useOnboardingVoice';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 
 export function MicPermissionPage() {
   const navigate = useNavigate();
   const { preferences, updatePreferences } = useUserPreferences();
-  const { play, stop } = useVoicePlayer();
   const { logEvent } = useSessionLog();
+  const onboardingVoice = useOnboardingVoice();
   const [requesting, setRequesting] = useState(false);
   const voiceEnabled = preferences.voiceMode === 'voice';
 
-  // MIC-01 state machine per Voice System sheet:
-  //   screen_load → mic_permission.mp3 (~8s explanation)
-  //   after_grant → mic_granted.mp3 (~4s)
-  //   after_deny → mic_denied.mp3 (~5s, same MP3 on dismiss per spec: "No problem...")
+  // Vapi keeps speaking through this screen (started on VOICE-PREFERENCE).
+  // The MIC-PERMISSION screen_context asks "Do you want to talk?" — the user
+  // answers by tapping Allow (which unmutes Vapi's mic input) or Dismiss
+  // (which keeps the mic muted).
   useEffect(() => {
-    play('mic_permission').catch(() => {
-      // Autoplay may be blocked; the screen's button copy carries the same info.
-    });
-    // Persist the real onboarding start time so PlanReviewPage can compute
-    // total_time_seconds across the full flow, not just the review screen.
     localStorage.setItem('gg_onboarding_started_at', String(Date.now()));
     track('start_onboarding');
     track('view_mic_permission', {
       ai_output_mode: voiceEnabled ? 'voice' : 'screen',
     });
-    return () => stop();
     // Intentionally runs once on mount — voiceEnabled doesn't flip here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const goNext = () => navigate('/onboarding/step-1');
 
+  const vapiStatus = onboardingVoice?.status ?? 'idle';
+  const vapiActive = vapiStatus === 'active';
+  const vapiConnecting = vapiStatus === 'connecting';
+  const vapiIsMuted = onboardingVoice?.isMuted ?? true;
+  const vapiTtsMuted = onboardingVoice?.isTtsMuted ?? false;
+  const vapiSpeaking = onboardingVoice?.isAssistantSpeaking ?? false;
+  const ttsOn = vapiActive && !vapiTtsMuted;
+  const micOn = vapiActive && !vapiIsMuted;
+
+  const handleTtsToggleClick = () => {
+    if (!vapiActive) return;
+    const next = vapiTtsMuted;
+    onboardingVoice?.setTtsEnabled(next);
+    void updatePreferences({ voiceMode: next ? 'voice' : 'screen' });
+  };
+
+  const handleMicToggleClick = () => {
+    if (!vapiActive) return;
+    const next = vapiIsMuted;
+    onboardingVoice?.setMicEnabled(next);
+    void updatePreferences({ micEnabled: next });
+  };
+
   const handleAllow = async () => {
     if (requesting) return;
     setRequesting(true);
-    stop();
     let granted = true;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -54,21 +70,19 @@ export function MicPermissionPage() {
     track('grant_mic_permission', { granted, dismissed: false });
     logEvent(granted ? 'mic_permission_granted' : 'mic_permission_denied', {}, 'MIC-PERMISSION');
     await updatePreferences({ micPermission: granted, micEnabled: granted });
-    // Play the post-permission MP3 to completion before advancing so the
-    // user hears "Got it" (~4s) or "No problem" (~5s) before the next screen.
-    // If autoplay fails, navigate immediately — the flow shouldn't stall.
-    await play(granted ? 'mic_granted' : 'mic_denied').catch(() => {});
+    // Unmute the live Vapi mic so the conversation can begin on step-1 with
+    // bidirectional audio. If the call is no longer active (user chose
+    // "Screen is fine" on the previous screen), this is a no-op.
+    if (granted) onboardingVoice?.setMicEnabled(true);
     goNext();
   };
 
   const handleDismiss = async () => {
     if (requesting) return;
     setRequesting(true);
-    stop();
     track('grant_mic_permission', { granted: false, dismissed: true });
     logEvent('mic_permission_denied', {}, 'MIC-PERMISSION');
     await updatePreferences({ micPermission: false, micEnabled: false });
-    await play('mic_denied').catch(() => {});
     goNext();
   };
 
@@ -87,10 +101,15 @@ export function MicPermissionPage() {
         <DualButton
           size={170}
           width={180}
-          leftActive={voiceEnabled}
-          leftIcon={<IconChatVoice size={58} />}
-          rightIcon={<IconMicMuted size={48} />}
-          ariaLabel="Microphone permission illustration"
+          leftActive={ttsOn || vapiConnecting}
+          rightActive={micOn}
+          activeRings={ttsOn && vapiSpeaking ? 'left' : null}
+          leftIcon={ttsOn ? <IconChatVoice size={58} /> : <IconChatText size={58} />}
+          rightIcon={micOn ? <IconMic size={48} /> : <IconMicMuted size={48} />}
+          onLeftClick={handleTtsToggleClick}
+          onRightClick={handleMicToggleClick}
+          leftAriaLabel={ttsOn ? 'Mute coach voice' : 'Unmute coach voice'}
+          rightAriaLabel={micOn ? 'Mute mic' : 'Unmute mic'}
         />
       </div>
 

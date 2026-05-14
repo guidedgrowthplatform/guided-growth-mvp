@@ -13,7 +13,6 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { Sentry } from '@/lib/sentry';
 
 const SCHEDULE_DAYS: Record<ScheduleOption, Set<number>> = {
@@ -34,8 +33,6 @@ export function Step6Page() {
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
 
-  // ONBOARD-08 in the spec; metadata uses the canonical id for screen_contexts lookup.
-  useOnboardingAgent('onboard_08');
   useAgentNavigation(6, '/onboarding/step-7');
   const state = location.state as {
     habitConfigs?: Record<

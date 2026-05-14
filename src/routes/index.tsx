@@ -66,10 +66,6 @@ const ReflectionsListPage = lazy(() =>
 const ReflectionDetailPage = lazy(() =>
   import('@/pages/ReflectionDetailPage').then((m) => ({ default: m.ReflectionDetailPage })),
 );
-const VapiTestPage = lazy(() =>
-  import('@/pages/dev/VapiTestPage').then((m) => ({ default: m.VapiTestPage })),
-);
-
 const lazyOnboarding = (name: string) =>
   lazy(() =>
     import('@/pages/onboarding').then((m) => ({
@@ -312,16 +308,6 @@ export function AppRoutes() {
           element={
             <AppGate allow="app">
               <AddHabitPage />
-            </AppGate>
-          }
-        />
-
-        {/* Dev-only smoke test for Vapi (Coach Yair). Auth-gated, no nav link. */}
-        <Route
-          path="/dev/vapi-test"
-          element={
-            <AppGate allow="app">
-              <VapiTestPage />
             </AppGate>
           }
         />

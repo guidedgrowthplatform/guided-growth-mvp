@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
+import { OnboardingVoiceProvider } from '@/contexts/OnboardingVoiceProvider';
 import { SessionLogProvider } from '@/contexts/SessionLogProvider';
 import { ToastProvider, useToast } from '@/contexts/ToastContext';
 import { VoiceProvider } from '@/contexts/VoiceContext';
@@ -74,7 +75,9 @@ export default function App() {
               <DeepLinkErrorReporter />
               <VoicePreferenceSync />
               <NavigateLogger />
-              <AppRoutes />
+              <OnboardingVoiceProvider>
+                <AppRoutes />
+              </OnboardingVoiceProvider>
             </ToastProvider>
           </VoiceProvider>
         </SessionLogProvider>
