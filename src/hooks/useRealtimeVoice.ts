@@ -187,16 +187,16 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       });
     }
 
-    setStateSynced('idle');
     tearingDownRef.current = false;
-  }, [setStateSynced, metadata.screen, endVoice]);
+  }, [metadata.screen, endVoice]);
 
   const stop = useCallback(() => {
     if (tearingDownRef.current) return;
     cleanup();
+    setStateSynced('idle');
     dropToken();
     onEnd?.();
-  }, [cleanup, dropToken, onEnd]);
+  }, [cleanup, dropToken, onEnd, setStateSynced]);
 
   const fail = useCallback(
     (message: string) => {
@@ -238,6 +238,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
         tokenRef.current = null;
         if (!mountedRef.current || tearingDownRef.current) return;
         cleanup();
+        setStateSynced('idle');
         onEnd?.();
       },
     });

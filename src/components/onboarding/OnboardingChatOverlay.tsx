@@ -1,6 +1,6 @@
-import { X } from 'lucide-react';
+import { Send, X } from 'lucide-react';
 import { useRef, useCallback, useEffect, useState } from 'react';
-import { IconChatText, IconChatVoice, IconMic } from '@/components/icons';
+import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
@@ -10,6 +10,7 @@ import {
   type OnboardingStepContext,
   type OnboardingVoiceResult,
 } from '@/hooks/useOnboardingVoice';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { speak, stopTTS, unlockTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
@@ -25,13 +26,8 @@ interface OnboardingChatOverlayProps {
   stepContext: OnboardingStepContext;
   onAction: (result: OnboardingVoiceResult) => void;
   onClose: () => void;
-  onContinue: () => void;
-  continueDisabled?: boolean;
-  continueLabel?: string;
   messages: VoiceMessage[];
   setMessages: React.Dispatch<React.SetStateAction<VoiceMessage[]>>;
-  ttsEnabled?: boolean;
-  onToggleTts?: () => void;
 }
 
 const IDLE_GRADIENT =
@@ -44,23 +40,22 @@ export function OnboardingChatOverlay({
   stepContext,
   onAction,
   onClose,
-  onContinue,
-  continueDisabled,
-  continueLabel = 'Continue',
   messages,
   setMessages,
-  ttsEnabled = true,
-  onToggleTts,
 }: OnboardingChatOverlayProps) {
   const { user } = useAuth();
   const displayName =
     user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || undefined;
+  const { preferences, updatePreferences } = useUserPreferences();
+  const voiceChosen = preferences.voiceMode === 'voice';
+  const micAllowed = preferences.micPermission === true;
+  const micRuntimeOn = micAllowed && preferences.micEnabled === true;
+  const [requestingMic, setRequestingMic] = useState(false);
   const { isListening, transcript, interim, toggle, error, resetTranscript } = useVoiceInput();
   const { processTranscript } = useOnboardingVoice();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
-  const micEnabled = useVoiceSettingsStore((s) => s.micEnabled);
-  const [wantToListen, setWantToListen] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [draft, setDraft] = useState('');
   const lastErrorRef = useRef('');
   const processedTranscriptRef = useRef('');
 
@@ -85,60 +80,66 @@ export function OnboardingChatOverlay({
     onClose();
   }, [isListening, toggle, onClose, resetTranscript]);
 
-  const handleMicPress = useCallback(() => {
-    unlockTTS();
-    stopTTS();
-    processedTranscriptRef.current = '';
-    setWantToListen((v) => !v);
-  }, []);
+  const handleToggleVoice = useCallback(() => {
+    const next = !voiceChosen;
+    if (!next) stopTTS();
+    void updatePreferences({ voiceMode: next ? 'voice' : 'screen' });
+    useVoiceSettingsStore.getState().hydrate({ ttsEnabled: next });
+  }, [voiceChosen, updatePreferences]);
+
+  const handleToggleMic = useCallback(() => {
+    if (!micAllowed) return;
+    const turningOn = !micRuntimeOn;
+    if (turningOn) {
+      unlockTTS();
+      stopTTS();
+      processedTranscriptRef.current = '';
+    }
+    void updatePreferences({ micEnabled: turningOn });
+  }, [micAllowed, micRuntimeOn, updatePreferences]);
+
+  const handleRequestMic = useCallback(async () => {
+    if (requestingMic) return;
+    setRequestingMic(true);
+    let granted = true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch {
+      granted = false;
+    }
+    await updatePreferences({ micPermission: granted, micEnabled: granted });
+    if (granted) unlockTTS();
+    setRequestingMic(false);
+  }, [requestingMic, updatePreferences]);
 
   useEffect(() => {
-    if (wantToListen && micEnabled && !isListening && !isProcessing && !isSpeaking) {
+    if (!micRuntimeOn) {
+      if (isListening) toggle();
+      return;
+    }
+    if (!isListening && !isProcessing && !isSpeaking) {
       const timer = setTimeout(() => {
-        if (
-          wantToListen &&
-          useVoiceSettingsStore.getState().micEnabled &&
-          !isListening &&
-          !isProcessing &&
-          !isSpeaking
-        ) {
+        if (!useTtsPlaybackStore.getState().isSpeaking && !isProcessing) {
           unlockTTS();
           toggle();
         }
       }, 300);
       return () => clearTimeout(timer);
     }
-    if (!wantToListen && isListening) {
-      toggle();
-    }
-  }, [wantToListen, micEnabled, isListening, isProcessing, isSpeaking, toggle]);
+  }, [micRuntimeOn, isListening, isProcessing, isSpeaking, toggle]);
 
-  useEffect(() => {
-    if (
-      !isListening &&
-      transcript &&
-      !isProcessing &&
-      transcript !== processedTranscriptRef.current
-    ) {
-      processedTranscriptRef.current = transcript;
-
-      const userMsgId = `user-${Date.now()}`;
-      setMessages((prev) => [...prev, { id: userMsgId, role: 'user', text: transcript }]);
+  const runAssistant = useCallback(
+    (userText: string) => {
       setIsProcessing(true);
-
-      resetTranscript();
-
-      processTranscript(transcript, stepContext)
+      processTranscript(userText, stepContext)
         .then((result) => {
           setMessages((prev) => [
             ...prev,
             { id: `assistant-${Date.now()}`, role: 'ai', text: result.message },
           ]);
-
-          if (ttsEnabled) speak(result.message);
-
+          if (voiceChosen) speak(result.message);
           if (result.success) onAction(result);
-          setIsProcessing(false);
         })
         .catch(() => {
           setMessages((prev) => [
@@ -149,20 +150,45 @@ export function OnboardingChatOverlay({
               text: 'Sorry, something went wrong. Please try again.',
             },
           ]);
-          setIsProcessing(false);
-        });
+        })
+        .finally(() => setIsProcessing(false));
+    },
+    [processTranscript, stepContext, onAction, setMessages, voiceChosen],
+  );
+
+  useEffect(() => {
+    if (
+      micRuntimeOn &&
+      !isListening &&
+      transcript &&
+      !isProcessing &&
+      transcript !== processedTranscriptRef.current
+    ) {
+      processedTranscriptRef.current = transcript;
+      setMessages((prev) => [
+        ...prev,
+        { id: `user-${Date.now()}`, role: 'user', text: transcript },
+      ]);
+      resetTranscript();
+      runAssistant(transcript);
     }
   }, [
+    micRuntimeOn,
     isListening,
     transcript,
     isProcessing,
-    stepContext,
-    processTranscript,
-    onAction,
     resetTranscript,
     setMessages,
-    ttsEnabled,
+    runAssistant,
   ]);
+
+  const handleSendText = useCallback(() => {
+    const trimmed = draft.trim();
+    if (!trimmed || isProcessing) return;
+    setDraft('');
+    setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', text: trimmed }]);
+    runAssistant(trimmed);
+  }, [draft, isProcessing, setMessages, runAssistant]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -188,6 +214,8 @@ export function OnboardingChatOverlay({
   const activeRings = voiceState === 'listening' ? 'right' : isSpeaking ? 'left' : null;
   const currentRms = useAudioMetricsStore((s) => s.currentRms);
   const micIntensity = isListening ? Math.min(currentRms / 0.05, 1) : undefined;
+  const sendDisabled = !draft.trim() || isProcessing;
+  const showInputPill = !micRuntimeOn;
 
   return (
     <div className="fixed inset-0 z-50 flex animate-slide-up flex-col">
@@ -201,21 +229,21 @@ export function OnboardingChatOverlay({
         type="button"
         onClick={handleClose}
         aria-label="Close chat"
-        className="absolute right-6 z-30 flex items-center gap-1.5 text-[10px] font-bold leading-[12px] text-white"
+        className="absolute right-6 z-30 flex items-center gap-1.5 text-[12px] font-semibold leading-[16px] text-content"
         style={{ top: 'max(16px, env(safe-area-inset-top))' }}
       >
         <span>Close chat</span>
-        <X className="h-6 w-6" />
+        <X className="h-5 w-5" />
       </button>
 
       <div
         className="relative z-10 flex-1 overflow-y-auto px-6 pt-[64px]"
         style={{
-          paddingBottom: 'calc(400px + max(48px, env(safe-area-inset-bottom)))',
+          paddingBottom: 'calc(240px + max(48px, env(safe-area-inset-bottom)))',
           maskImage:
-            'linear-gradient(to top, transparent 0px, transparent 220px, black 440px, black 100%)',
+            'linear-gradient(to top, transparent 0px, transparent 120px, black 240px, black 100%)',
           WebkitMaskImage:
-            'linear-gradient(to top, transparent 0px, transparent 220px, black 440px, black 100%)',
+            'linear-gradient(to top, transparent 0px, transparent 120px, black 240px, black 100%)',
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -227,6 +255,7 @@ export function OnboardingChatOverlay({
               text={msg.text}
               userName={displayName}
               eyebrowVariant="dark"
+              compact
             />
           </div>
         ))}
@@ -246,29 +275,53 @@ export function OnboardingChatOverlay({
         <div className="pointer-events-auto">
           <DualButton
             size={91}
-            leftActive={ttsEnabled}
-            rightActive={wantToListen}
-            activeRings={activeRings}
-            intensity={micIntensity}
+            leftActive={voiceChosen}
+            rightActive={micRuntimeOn}
+            activeRings={micRuntimeOn ? activeRings : null}
+            intensity={micRuntimeOn ? micIntensity : undefined}
             ringCount={3}
             ringStep={4}
-            leftIcon={ttsEnabled ? <IconChatVoice size={28} /> : <IconChatText size={28} />}
-            rightIcon={<IconMic size={26} />}
-            onLeftClick={onToggleTts}
-            onRightClick={handleMicPress}
-            leftAriaLabel={ttsEnabled ? 'Mute coach voice' : 'Unmute coach voice'}
-            rightAriaLabel={wantToListen ? 'Turn mic off' : 'Turn mic on'}
+            leftIcon={voiceChosen ? <IconChatVoice size={28} /> : <IconChatText size={28} />}
+            rightIcon={micRuntimeOn ? <IconMic size={26} /> : <IconMicMuted size={26} />}
+            onLeftClick={handleToggleVoice}
+            onRightClick={micAllowed ? handleToggleMic : handleRequestMic}
+            leftAriaLabel={voiceChosen ? 'Switch to screen mode' : 'Switch to voice mode'}
+            rightAriaLabel={
+              !micAllowed ? 'Allow microphone' : micRuntimeOn ? 'Turn mic off' : 'Turn mic on'
+            }
           />
         </div>
 
-        <button
-          type="button"
-          onClick={onContinue}
-          disabled={continueDisabled}
-          className="pointer-events-auto flex h-[56px] w-full items-center justify-center rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] transition-opacity disabled:opacity-50"
+        <form
+          aria-hidden={!showInputPill}
+          className={`flex h-[44px] w-full items-center gap-2 rounded-full bg-white pl-5 pr-3 shadow-[0px_10px_24px_-8px_rgba(15,23,42,0.18)] transition-all duration-300 ease-out ${
+            showInputPill
+              ? 'pointer-events-auto translate-y-0 opacity-100'
+              : 'pointer-events-none translate-y-3 opacity-0'
+          }`}
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSendText();
+          }}
         >
-          {continueLabel}
-        </button>
+          <input
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Type a message…"
+            aria-label="Type a message"
+            tabIndex={showInputPill ? 0 : -1}
+            className="flex-1 bg-transparent text-[15px] text-content placeholder:text-content-tertiary focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={sendDisabled || !showInputPill}
+            aria-label="Send message"
+            className="flex h-8 w-8 items-center justify-center text-primary transition-opacity disabled:opacity-40"
+          >
+            <Send className="h-5 w-5" />
+          </button>
+        </form>
       </div>
     </div>
   );

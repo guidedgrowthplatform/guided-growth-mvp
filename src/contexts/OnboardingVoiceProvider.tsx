@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type Vapi from '@vapi-ai/web';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import type Vapi from '@vapi-ai/web';
 import { track } from '@/analytics';
 import { fetchScreenRoutes } from '@/api/context';
 import {
@@ -83,6 +83,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   }, [currentScreenId]);
 
   const getClientRef = useRef<() => Vapi | null>(() => null);
+  const startAttemptedRef = useRef(false);
+
+  useEffect(() => {
+    startAttemptedRef.current = false;
+  }, [currentScreenId]);
 
   const pushScreenContext = useCallback(
     async (screenId: string, sinceTs: string | null) => {
@@ -165,7 +170,13 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const errorMessage = providerError ?? realtimeError;
 
   useEffect(() => {
-    if (inOnboarding && status === 'idle' && currentScreenId) {
+    if (
+      inOnboarding &&
+      status === 'idle' &&
+      currentScreenId &&
+      !startAttemptedRef.current
+    ) {
+      startAttemptedRef.current = true;
       void start();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
