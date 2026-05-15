@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { usePageTracking } from '@/analytics';
 import { Layout } from '@/components/layout/Layout';
@@ -66,6 +66,9 @@ const ReflectionsListPage = lazy(() =>
 const ReflectionDetailPage = lazy(() =>
   import('@/pages/ReflectionDetailPage').then((m) => ({ default: m.ReflectionDetailPage })),
 );
+const ChatDebugPage = import.meta.env.DEV
+  ? lazy(() => import('@/pages/ChatDebugPage').then((m) => ({ default: m.ChatDebugPage })))
+  : null;
 const lazyOnboarding = (name: string) =>
   lazy(() =>
     import('@/pages/onboarding').then((m) => ({
@@ -94,6 +97,15 @@ function PageLoader() {
       <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-primary" />
     </div>
   );
+}
+
+// Bypasses the onboarding gate. Auth still required because /api/llm calls
+// requireUser, but mid-onboarding users can hit /chat-debug to smoke Path 3.
+function ChatDebugGate({ children }: { children: ReactNode }) {
+  const gate = useAppGate();
+  if (gate.status === 'loading') return <LoadingScreen />;
+  if (gate.status === 'unauthenticated') return <Navigate to="/login" replace />;
+  return <>{children}</>;
 }
 
 function OnboardingEntry() {
@@ -334,6 +346,21 @@ export function AppRoutes() {
           <Route path="habit/:habitId" element={<HomePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
+
+        {/* Dev-only smoke surface for Path 3 (P1-15). Bypasses the onboarding
+            gate so it's reachable mid-onboarding, but still requires auth. */}
+        {ChatDebugPage && (
+          <Route
+            path="/chat-debug"
+            element={
+              <ChatDebugGate>
+                <ErrorBoundary>
+                  <ChatDebugPage />
+                </ErrorBoundary>
+              </ChatDebugGate>
+            }
+          />
+        )}
       </Routes>
     </Suspense>
   );

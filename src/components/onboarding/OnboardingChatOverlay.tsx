@@ -1,5 +1,6 @@
-import { Send, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useRef, useCallback, useEffect, useState } from 'react';
+import { ChatComposer } from '@/components/chat/ChatComposer';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { ChatBubble } from '@/components/voice/ChatBubble';
@@ -182,13 +183,14 @@ export function OnboardingChatOverlay({
     runAssistant,
   ]);
 
-  const handleSendText = useCallback(() => {
-    const trimmed = draft.trim();
-    if (!trimmed || isProcessing) return;
-    setDraft('');
-    setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', text: trimmed }]);
-    runAssistant(trimmed);
-  }, [draft, isProcessing, setMessages, runAssistant]);
+  const handleSendText = useCallback(
+    (text: string) => {
+      if (isProcessing) return;
+      setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', text }]);
+      runAssistant(text);
+    },
+    [isProcessing, setMessages, runAssistant],
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -214,7 +216,6 @@ export function OnboardingChatOverlay({
   const activeRings = voiceState === 'listening' ? 'right' : isSpeaking ? 'left' : null;
   const currentRms = useAudioMetricsStore((s) => s.currentRms);
   const micIntensity = isListening ? Math.min(currentRms / 0.05, 1) : undefined;
-  const sendDisabled = !draft.trim() || isProcessing;
   const showInputPill = !micRuntimeOn;
 
   return (
@@ -292,36 +293,19 @@ export function OnboardingChatOverlay({
           />
         </div>
 
-        <form
-          aria-hidden={!showInputPill}
+        <ChatComposer
+          value={draft}
+          onValueChange={setDraft}
+          onSubmit={handleSendText}
+          disabled={isProcessing || !showInputPill}
+          ariaHidden={!showInputPill}
+          tabbable={showInputPill}
           className={`flex h-[44px] w-full items-center gap-2 rounded-full bg-white pl-5 pr-3 shadow-[0px_10px_24px_-8px_rgba(15,23,42,0.18)] transition-all duration-300 ease-out ${
             showInputPill
               ? 'pointer-events-auto translate-y-0 opacity-100'
               : 'pointer-events-none translate-y-3 opacity-0'
           }`}
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSendText();
-          }}
-        >
-          <input
-            type="text"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Type a message…"
-            aria-label="Type a message"
-            tabIndex={showInputPill ? 0 : -1}
-            className="flex-1 bg-transparent text-[15px] text-content placeholder:text-content-tertiary focus:outline-none"
-          />
-          <button
-            type="submit"
-            disabled={sendDisabled || !showInputPill}
-            aria-label="Send message"
-            className="flex h-8 w-8 items-center justify-center text-primary transition-opacity disabled:opacity-40"
-          >
-            <Send className="h-5 w-5" />
-          </button>
-        </form>
+        />
       </div>
     </div>
   );
