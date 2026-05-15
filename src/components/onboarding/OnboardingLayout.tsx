@@ -76,13 +76,14 @@ export function OnboardingLayout({
   const vapiStatus = onboardingVoice?.status ?? 'idle';
   const vapiActive = vapiStatus === 'active';
   const vapiConnecting = vapiStatus === 'connecting';
+  const vapiErrored = vapiStatus === 'error';
   const vapiIsMuted = onboardingVoice?.isMuted ?? true;
   const vapiTtsMuted = onboardingVoice?.isTtsMuted ?? false;
   const vapiSpeaking = onboardingVoice?.isAssistantSpeaking ?? false;
   const voiceChosen = preferences.voiceMode === 'voice';
   const micGranted = preferences.micPermission === true;
   const micRuntimeOn = micGranted && preferences.micEnabled === true;
-  const ttsOn = vapiActive ? !vapiTtsMuted : voiceChosen;
+  const ttsOn = voiceChosen && vapiActive && !vapiTtsMuted;
   const micOn = vapiActive ? !vapiIsMuted : micRuntimeOn;
 
   const voicePlayer = useVoicePlayer();
@@ -145,6 +146,11 @@ export function OnboardingLayout({
   const handleTtsToggleClick = () => {
     setTooltipVisible(false);
     localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
+    // When Vapi is in error state, the left orb doubles as the retry control.
+    if (vapiErrored) {
+      void onboardingVoice?.restartCall();
+      return;
+    }
     if (vapiActive) {
       const next = vapiTtsMuted;
       onboardingVoice?.setTtsEnabled(next);
@@ -182,7 +188,7 @@ export function OnboardingLayout({
   };
 
   const voiceControl = showVoiceButton ? (
-    <div className="relative my-6 flex justify-center">
+    <div className="relative my-6 flex flex-col items-center gap-2">
       {tooltipVisible && <VoiceTooltip autoDismissMs={4000} onDismiss={handleTooltipDismiss} />}
       <DualButton
         size={88}
@@ -196,6 +202,11 @@ export function OnboardingLayout({
         leftAriaLabel={ttsOn ? 'Mute coach voice' : 'Unmute coach voice'}
         rightAriaLabel={micOn ? 'Mute mic' : 'Unmute mic'}
       />
+      {vapiErrored && (
+        <p className="max-w-[280px] text-center text-xs text-danger">
+          Couldn't connect to coach voice.
+        </p>
+      )}
     </div>
   ) : null;
 
