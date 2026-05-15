@@ -7,6 +7,7 @@ import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+import { useStepTiming } from './useStepTiming';
 
 export function VoicePreferencePage() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export function VoicePreferencePage() {
   const { logEvent } = useSessionLog();
   const onboardingVoice = useOnboardingVoice();
   const [saving, setSaving] = useState(false);
+  const trackStepComplete = useStepTiming(2, 'voice_preference', null);
 
   // Vapi runs throughout the pre-onboarding screens via OnboardingVoiceProvider.
   // It auto-starts on this route with the mic muted (`startAudioOff: true`) so
@@ -60,6 +62,7 @@ export function VoicePreferencePage() {
     // If the user opted out of voice, tear down Vapi before leaving the
     // screen so it doesn't keep running on mic-permission.
     if (!voiceEnabled) onboardingVoice?.endCall();
+    trackStepComplete();
     navigate('/onboarding/mic-permission');
   };
 

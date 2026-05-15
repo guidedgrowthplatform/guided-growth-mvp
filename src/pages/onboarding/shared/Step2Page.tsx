@@ -6,11 +6,14 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { pathToSpec } from './pathToSpec';
+import { useStepTiming } from './useStepTiming';
 
 export function Step2Page() {
   const navigate = useNavigate();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [plan, setPlan] = useState<'simple' | 'braindump' | null>(null);
+  const trackStepComplete = useStepTiming(4, 'onboarding_path', pathToSpec(plan));
 
   useEffect(() => {
     if (onboardingState?.path) {
@@ -31,14 +34,15 @@ export function Step2Page() {
   const handleNext = useCallback(async () => {
     await saveStepAsync(2, {}, { path: plan as 'simple' | 'braindump' });
     track('select_onboarding_path', {
-      path: plan === 'braindump' ? 'advanced' : 'beginner',
+      path: pathToSpec(plan),
     });
+    trackStepComplete();
     if (plan === 'braindump') {
       navigate('/onboarding/advanced-input');
     } else {
       navigate('/onboarding/step-3');
     }
-  }, [plan, navigate, saveStepAsync]);
+  }, [plan, navigate, saveStepAsync, trackStepComplete]);
 
   return (
     <OnboardingLayout

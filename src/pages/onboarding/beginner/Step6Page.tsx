@@ -14,6 +14,7 @@ import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { Sentry } from '@/lib/sentry';
+import { useStepTiming } from '../shared/useStepTiming';
 
 const SCHEDULE_DAYS: Record<ScheduleOption, Set<number>> = {
   Weekday: WEEKDAYS,
@@ -34,6 +35,7 @@ export function Step6Page() {
   const { state: onboardingState, saveStepAsync } = useOnboarding();
 
   useAgentNavigation(6, '/onboarding/step-7');
+  const trackStepComplete = useStepTiming(8, 'configure_journal', 'beginner');
   const state = location.state as {
     habitConfigs?: Record<
       string,
@@ -100,6 +102,7 @@ export function Step6Page() {
         ]),
       );
       await saveStepAsync(6, { reflectionConfig: { time, days: [...days], reminder, schedule } });
+      trackStepComplete();
       navigate('/onboarding/step-7', {
         state: {
           habitConfigs: serializedConfigs,
@@ -119,7 +122,7 @@ export function Step6Page() {
       });
       throw err;
     }
-  }, [state, time, days, reminder, schedule, navigate, saveStepAsync]);
+  }, [state, time, days, reminder, schedule, navigate, saveStepAsync, trackStepComplete]);
 
   return (
     <OnboardingLayout

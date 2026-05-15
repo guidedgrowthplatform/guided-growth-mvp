@@ -8,6 +8,7 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { goalsByCategory } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useStepTiming } from '../shared/useStepTiming';
 
 export function Step4Page() {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export function Step4Page() {
 
   // ONBOARD-04 → step-5 on agent advance.
   useAgentNavigation(4, '/onboarding/step-5');
+  const trackStepComplete = useStepTiming(6, 'specific_goals', 'beginner');
 
   useEffect(() => {
     if (onboardingState?.data?.goals && Array.isArray(onboardingState.data.goals)) {
@@ -44,8 +46,9 @@ export function Step4Page() {
       category,
       goals: Array.from(selected),
     });
+    trackStepComplete();
     navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
-  }, [selected, category, navigate, saveStepAsync]);
+  }, [selected, category, navigate, saveStepAsync, trackStepComplete]);
 
   return (
     <OnboardingLayout

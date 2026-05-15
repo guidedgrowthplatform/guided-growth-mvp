@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
@@ -7,6 +7,7 @@ import { DualButton } from '@/components/ui/DualButton';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { useStepTiming } from './useStepTiming';
 
 export function MicPermissionPage() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export function MicPermissionPage() {
   const onboardingVoice = useOnboardingVoice();
   const [requesting, setRequesting] = useState(false);
   const voiceEnabled = preferences.voiceMode === 'voice';
+  const trackStepComplete = useStepTiming(1, 'mic_permission', null);
 
   // Vapi keeps speaking through this screen (started on VOICE-PREFERENCE).
   // The MIC-PERMISSION screen_context asks "Do you want to talk?" — the user
@@ -30,7 +32,10 @@ export function MicPermissionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const goNext = () => navigate('/onboarding/step-1');
+  const goNext = useCallback(() => {
+    trackStepComplete();
+    navigate('/onboarding/step-1');
+  }, [trackStepComplete, navigate]);
 
   const vapiStatus = onboardingVoice?.status ?? 'idle';
   const vapiActive = vapiStatus === 'active';
