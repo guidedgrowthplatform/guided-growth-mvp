@@ -9,6 +9,7 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
+import { useStepTiming } from '../shared/useStepTiming';
 
 interface HabitItem {
   name: string;
@@ -81,6 +82,7 @@ export function AdvancedResultsPage() {
   const clearedRef = useRef(false);
 
   useAgentNavigation(4, '/onboarding/advanced-step-6');
+  const trackStepComplete = useStepTiming(6, 'ai_organized_plan_review', 'advanced');
 
   const fallbackBrainDump = onboardingState?.data?.brainDumpText ?? '';
 
@@ -122,8 +124,9 @@ export function AdvancedResultsPage() {
       habitConfigsRecord[h.name] = { days: h.days, time: '21:45', reminder: true };
     });
     await saveStepAsync(4, { goals, habitConfigs: habitConfigsRecord });
+    trackStepComplete();
     navigate('/onboarding/advanced-step-6', { state: { habitConfigs: habitConfigsArray } });
-  }, [habits, navigate, saveStepAsync]);
+  }, [habits, navigate, saveStepAsync, trackStepComplete]);
 
   if (habits.length === 0) {
     return (

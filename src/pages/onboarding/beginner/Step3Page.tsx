@@ -6,6 +6,7 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useStepTiming } from '../shared/useStepTiming';
 
 const categories = [
   { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
@@ -24,6 +25,7 @@ export function Step3Page() {
   const [selected, setSelected] = useState<string | null>(null);
 
   useAgentNavigation(3, '/onboarding/step-4');
+  const trackStepComplete = useStepTiming(5, 'improvement_areas', 'beginner');
 
   useEffect(() => {
     if (onboardingState?.data?.category) {
@@ -37,8 +39,9 @@ export function Step3Page() {
       areas: [selected],
       area_count: 1,
     });
+    trackStepComplete();
     navigate('/onboarding/step-4', { state: { category: selected } });
-  }, [selected, navigate, saveStepAsync]);
+  }, [selected, navigate, saveStepAsync, trackStepComplete]);
 
   return (
     <OnboardingLayout

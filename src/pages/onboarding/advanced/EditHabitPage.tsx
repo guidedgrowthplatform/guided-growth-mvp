@@ -9,6 +9,7 @@ import { DayPicker } from '@/components/ui/DayPicker';
 import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { speak, speakWhenReady, stopTTS } from '@/lib/services/tts-service';
+import { useStepTiming } from '../shared/useStepTiming';
 
 interface EditHabitState {
   habitIndex: number;
@@ -34,6 +35,7 @@ export function EditHabitPage() {
 function EditHabitForm({ state }: { state: EditHabitState }) {
   const navigate = useNavigate();
   const { toggle: toggleVoice, transcript, resetTranscript } = useVoiceInput();
+  const trackStepComplete = useStepTiming(6, 'edit_habit', 'advanced');
 
   const [name, setName] = useState(state.habitName);
   const [time, setTime] = useState(state.time || '21:45');
@@ -80,6 +82,7 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
       frequency_days: days.size,
       source: 'onboarding',
     });
+    trackStepComplete();
     speak('Updated. All good?');
     navigate('/onboarding/advanced-results', {
       state: {

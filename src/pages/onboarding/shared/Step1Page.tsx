@@ -8,6 +8,7 @@ import { ChipSelect } from '@/components/ui/ChipSelect';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { useStepTiming } from './useStepTiming';
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
@@ -23,6 +24,7 @@ export function Step1Page() {
   const [referralOtherText, setReferralOtherText] = useState('');
 
   useAgentNavigation(1, '/onboarding/step-2');
+  const trackStepComplete = useStepTiming(3, 'profile_setup', null);
 
   const hasHydratedRef = useRef(false);
 
@@ -61,8 +63,9 @@ export function Step1Page() {
       referralSource: effectiveReferral,
       referralOtherText,
     });
+    trackStepComplete();
     navigate('/onboarding/step-2');
-  }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep]);
+  }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep, trackStepComplete]);
 
   return (
     <OnboardingLayout

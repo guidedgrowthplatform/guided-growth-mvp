@@ -7,6 +7,7 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useStepTiming } from '../shared/useStepTiming';
 
 export function AdvancedInputPage() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export function AdvancedInputPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null!);
 
   useAgentNavigation(3, '/onboarding/advanced-results');
+  const trackStepComplete = useStepTiming(5, 'advanced_input', 'advanced');
 
   useEffect(() => {
     const incoming = onboardingState?.data?.brainDumpText;
@@ -29,8 +31,9 @@ export function AdvancedInputPage() {
     track('submit_voice_goals', {
       transcript_length_chars: text.length,
     });
+    trackStepComplete();
     navigate('/onboarding/advanced-results', { state: { text } });
-  }, [text, navigate, saveStepAsync]);
+  }, [text, navigate, saveStepAsync, trackStepComplete]);
 
   return (
     <OnboardingLayout
