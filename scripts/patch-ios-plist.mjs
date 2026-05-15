@@ -15,7 +15,8 @@ import { resolve } from 'path';
 
 const PLIST_PATH = resolve('ios/App/App/Info.plist');
 
-// Value type is inferred from the JS value: string → <string>, boolean → <true/>/<false/>.
+// Value type is inferred from the JS value:
+//   string → <string>, boolean → <true/>/<false/>, { __xml } → raw XML literal.
 const PATCHES = [
   {
     key: 'NSMicrophoneUsageDescription',
@@ -30,6 +31,26 @@ const PATCHES = [
   {
     key: 'ITSAppUsesNonExemptEncryption',
     value: false,
+  },
+  // Registers the `guidedgrowth://` custom URL scheme so iOS can route the
+  // Supabase Google-OAuth callback back into the app. Without this, Safari
+  // shows "address is invalid" after the user finishes signing in.
+  {
+    key: 'CFBundleURLTypes',
+    value: {
+      __xml: `<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>app.guidedgrowth.mvp</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>guidedgrowth</string>
+			</array>
+		</dict>
+	</array>`,
+    },
   },
 ];
 
@@ -47,8 +68,14 @@ for (const { key, value } of PATCHES) {
     continue;
   }
 
-  const valueXml =
-    typeof value === 'boolean' ? (value ? '<true/>' : '<false/>') : `<string>${value}</string>`;
+  let valueXml;
+  if (typeof value === 'boolean') {
+    valueXml = value ? '<true/>' : '<false/>';
+  } else if (typeof value === 'object' && value !== null && '__xml' in value) {
+    valueXml = value.__xml;
+  } else {
+    valueXml = `<string>${value}</string>`;
+  }
 
   // Insert before the closing </dict>
   const insertion = `\t<key>${key}</key>\n\t${valueXml}\n`;
