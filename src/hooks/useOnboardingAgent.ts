@@ -2,6 +2,8 @@ import { Capacitor } from '@capacitor/core';
 import { useEffect, useState } from 'react';
 import { useOnboardingRealtimeSync } from '@/hooks/useOnboardingRealtimeSync';
 import { useRealtimeVoice, type RealtimeVoiceState } from '@/hooks/useRealtimeVoice';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { normalizeCoachingStyle } from '@/lib/coaching/styles';
 import { useAuthStore } from '@/stores/authStore';
 
 interface UseOnboardingAgentReturn {
@@ -17,6 +19,8 @@ interface UseOnboardingAgentReturn {
 // Per-screen sessions mean ~1–2s of silence on transitions.
 export function useOnboardingAgent(screen: string): UseOnboardingAgentReturn {
   const userId = useAuthStore((s) => s.user?.id ?? null);
+  const { preferences } = useUserPreferences();
+  const { style: coachingStyle } = normalizeCoachingStyle(preferences.coachingStyle);
   const [voiceError, setVoiceError] = useState<string | null>(null);
 
   // Side-effect stream from the agent's tool calls. Each screen subscribes
@@ -30,8 +34,7 @@ export function useOnboardingAgent(screen: string): UseOnboardingAgentReturn {
     stop,
     state: voiceState,
   } = useRealtimeVoice({
-    // TODO: Style switching is OFF per Yair (April 9 call). Wire to useUserPreferences when re-enabled.
-    metadata: { user_id: userId ?? '', screen, coaching_style: 'warm' },
+    metadata: { user_id: userId ?? '', screen, coaching_style: coachingStyle },
     onError: (message) => setVoiceError(message),
     onEnd: () => setVoiceError(null),
   });

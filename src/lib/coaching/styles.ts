@@ -101,3 +101,14 @@ export function getCoachingStylePrompt(style: CoachingStyle): string {
 export function isValidCoachingStyle(value: unknown): value is CoachingStyle {
   return typeof value === 'string' && ['warm', 'direct', 'reflective'].includes(value);
 }
+
+// Settings stores 'friendly'|'direct'|'analytical'; LLM needs 'warm'|'direct'|'reflective'.
+export function normalizeCoachingStyle(value: unknown): {
+  style: CoachingStyle;
+  fallbackUsed: boolean;
+} {
+  if (isValidCoachingStyle(value)) return { style: value, fallbackUsed: false };
+  if (value === 'friendly') return { style: 'warm', fallbackUsed: false };
+  if (value === 'analytical') return { style: 'reflective', fallbackUsed: false };
+  return { style: DEFAULT_COACHING_STYLE, fallbackUsed: true };
+}

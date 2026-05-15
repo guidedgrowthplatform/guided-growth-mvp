@@ -6,7 +6,6 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { Sentry } from '@/lib/sentry';
 import { deriveStateFromOnboarding, type PlanReviewState } from './planReviewDerive';
 
@@ -26,8 +25,6 @@ export function PlanReviewPage() {
   const location = useLocation();
   const routerState = location.state as PlanReviewState | null;
   const { state: onboardingState, complete, isCompleting } = useOnboarding();
-
-  useOnboardingAgent('onboard_07');
 
   // Router state carries source='advanced' that agent-driven derivation can't reconstruct.
   const state = useMemo<PlanReviewState | null>(

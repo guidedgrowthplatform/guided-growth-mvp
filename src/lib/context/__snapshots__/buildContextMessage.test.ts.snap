@@ -1,0 +1,15 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildContextMessage > canonical-format snapshot — any change must be intentional 1`] = `
+"*** ACTIVE SCREEN UPDATE ***
+This message supersedes any earlier screen-context messages in this conversation. Treat only the screen described below as the current screen, and ignore prior screen anchors when deciding what to say or do next.
+
+CURRENT SCREEN: MCHECK-01
+
+What this screen is for:
+You are on the morning check-in. Ask about sleep first.
+
+Recent events on this screen (most recent last):
+- navigate at 2026-05-13T12:00:00.000Z — {"target_screen":"MCHECK-01"}
+- voice_started at 2026-05-13T12:00:05.000Z"
+`;

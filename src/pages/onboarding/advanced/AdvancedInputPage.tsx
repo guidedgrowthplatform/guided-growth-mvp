@@ -7,7 +7,6 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 
 export function AdvancedInputPage() {
   const navigate = useNavigate();
@@ -15,7 +14,6 @@ export function AdvancedInputPage() {
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null!);
 
-  useOnboardingAgent('onboard_advanced_input');
   useAgentNavigation(3, '/onboarding/advanced-results');
 
   useEffect(() => {
