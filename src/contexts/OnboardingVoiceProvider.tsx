@@ -256,9 +256,15 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const status = mapStatus(state, endedFlag);
   const errorMessage = providerError ?? realtimeError;
 
+  // Both orbs off = Path 3 text-only mode; Vapi must stay silent.
+  const bothOrbsOff =
+    preferences.voiceMode !== 'voice' &&
+    !(preferences.micPermission === true && preferences.micEnabled === true);
+
   useEffect(() => {
     if (
       inOnboarding &&
+      !bothOrbsOff &&
       status === 'idle' &&
       currentScreenId &&
       !fatalErrorRef.current &&
@@ -268,7 +274,20 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       void start();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inOnboarding, status, currentScreenId]);
+  }, [inOnboarding, bothOrbsOff, status, currentScreenId]);
+
+  // Clear retry timer too — its callback bypasses the auto-start gate.
+  useEffect(() => {
+    if (!inOnboarding) return;
+    if (!bothOrbsOff) return;
+    clearRetryTimer();
+    retryCountRef.current = 0;
+    startAttemptedRef.current = false;
+    if (status === 'active' || status === 'connecting') {
+      stop();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inOnboarding, bothOrbsOff, status]);
 
   useEffect(() => {
     if (!inOnboarding) {

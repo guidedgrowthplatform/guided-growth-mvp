@@ -66,7 +66,7 @@ export function OnboardingChatOverlay({
   const lastErrorRef = useRef('');
   const processedTranscriptRef = useRef('');
 
-  // Path 3 (text-only LLM): active when both orbs are disabled.
+  // Path 3 active when both orbs off.
   const textOnlyMode = !voiceChosen && !micRuntimeOn;
   const screenId =
     STEP_TO_SCREEN_ID[stepContext.step] ?? `ONBOARD-${String(stepContext.step).padStart(2, '0')}`;
@@ -221,7 +221,7 @@ export function OnboardingChatOverlay({
     [textOnlyMode, llm, isProcessing, setMessages, runAssistant],
   );
 
-  // Mirror finalized Path-3 assistant turns into the parent's message list.
+  // Mirror finalized llm assistant turns into parent messages.
   useEffect(() => {
     if (!textOnlyMode) return;
     for (const m of llm.messages) {
@@ -233,7 +233,6 @@ export function OnboardingChatOverlay({
     }
   }, [textOnlyMode, llm.messages, setMessages]);
 
-  // Surface llm errors as a coach bubble — matches the voice-input error pattern.
   useEffect(() => {
     if (!textOnlyMode || !llm.error) return;
     const msg = llm.error.message;
@@ -242,8 +241,7 @@ export function OnboardingChatOverlay({
     setMessages((prev) => [...prev, { id: `llm-error-${Date.now()}`, role: 'ai', text: msg }]);
   }, [textOnlyMode, llm.error, setMessages]);
 
-  // React to LLM tool calls: navigate_next pushes a route, update_profile
-  // invalidates onboarding-state. get_user_context / log_event are server-only.
+  // Tool-call side effects; get_user_context / log_event are server-only.
   useEffect(() => {
     if (!textOnlyMode) return;
     for (const evt of llm.toolEvents) {
@@ -269,7 +267,7 @@ export function OnboardingChatOverlay({
     }
   }, [textOnlyMode, llm.toolEvents, navigate, queryClient, routesData]);
 
-  // Cancel any in-flight Path-3 stream when the user switches to voice / mic on.
+  // Abort in-flight llm stream on switch to voice/mic-on.
   useEffect(() => {
     if (textOnlyMode) return;
     if (llm.isStreaming) llm.cancel();

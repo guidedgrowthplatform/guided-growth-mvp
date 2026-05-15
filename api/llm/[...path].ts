@@ -49,7 +49,7 @@ function sleep(ms: number) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
 
-  // Catch-all routing: only the bare /api/llm (rewritten to __index) is valid.
+  // Only the bare /api/llm route is valid here.
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] === '__index' ? '' : segments[0] || '';
@@ -61,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Fail fast before opening SSE if the key is missing.
+  // Surface missing key as JSON 500 before SSE opens.
   try {
     getOpenAIKey();
   } catch (err) {
@@ -122,8 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const scrubbedMessage = scrubPII(userMessage);
 
-  // Build system prompt first — if screen_id is unknown we return JSON 404
-  // before any SSE headers, and we avoid an orphan phase:start row.
+  // Build before logging start so unknown_screen_id returns JSON 404, not SSE.
   let systemPrompt: string;
   try {
     const built = await buildSystemPromptForRequest({
@@ -176,7 +175,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders?.();
 
-  // Cancel upstream OpenAI fetch when the client disconnects.
+  // Abort OpenAI fetch on client disconnect.
   const abortController = new AbortController();
   let clientClosed = false;
   req.on('close', () => {

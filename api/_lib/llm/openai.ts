@@ -63,9 +63,7 @@ export function getOpenAIKey(): string {
   return apiKey;
 }
 
-// Eagerly performs auth+fetch, then returns an async iterable that parses the
-// SSE body lazily. Splitting fetch from iteration keeps 429/5xx + missing-key
-// errors out of mid-stream where the caller can no longer fall back cleanly.
+// Fetch eagerly so 429/5xx surface before SSE opens (caller can retry).
 export async function openChatCompletionStream(
   opts: StreamChatCompletionOpts,
 ): Promise<AsyncIterable<OpenAIStreamChunk>> {
@@ -83,7 +81,7 @@ export async function openChatCompletionStream(
   const body: Record<string, unknown> = {
     model: 'gpt-4o-mini',
     stream: true,
-    // Opt in to a final usage chunk; without this, usage is omitted on streamed responses.
+    // Required for usage on streamed responses.
     stream_options: { include_usage: true },
     messages: opts.messages,
     temperature: opts.temperature ?? 0.6,

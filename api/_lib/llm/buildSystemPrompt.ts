@@ -56,9 +56,7 @@ export async function buildSystemPromptForRequest(
   }
   const screen = screenRes.rows[0];
 
-  // Exclude llm_call events: they are bookkeeping about prior calls, not user
-  // activity. Including them in state_delta drowns out real events (navigate,
-  // habit_completed, mic_tapped) once chat-debug is used a few times.
+  // Skip llm_call rows — they crowd out real user events from state_delta.
   const logRes = await pool.query<SessionLogRow>(
     `SELECT id, session_id, timestamp, event_type, screen_id, payload
        FROM session_log

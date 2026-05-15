@@ -96,8 +96,7 @@ export async function streamLLM(
   const decoder = new TextDecoder('utf-8', { fatal: false });
   let buffer = '';
 
-  // SSE spec allows CRLF, LF, or CR pairs as the event terminator. Normalize
-  // to LF first so a single split handles every variant.
+  // Normalize CR/CRLF to LF so a single split handles all three SSE terminators.
   const splitOff = (): string | null => {
     const normalized = buffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     const idx = normalized.indexOf('\n\n');
@@ -122,7 +121,6 @@ export async function streamLLM(
       }
     }
     buffer += decoder.decode();
-    // Flush any trailing un-terminated frame.
     if (buffer.trim().length > 0) {
       const evt = parseEventBlock(buffer);
       if (evt) onEvent(evt);
