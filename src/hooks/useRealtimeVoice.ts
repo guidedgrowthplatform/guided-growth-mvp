@@ -25,6 +25,8 @@ export interface UseRealtimeVoiceOptions {
   metadata: UseRealtimeVoiceMetadata;
   onEnd?: () => void;
   onError?: (message: string) => void;
+  startAudioOff?: boolean;
+  onCallStart?: () => void;
 }
 
 export interface UseRealtimeVoiceReturn {
@@ -35,6 +37,7 @@ export interface UseRealtimeVoiceReturn {
   isListening: boolean;
   isSpeaking: boolean;
   error: string | null;
+  getClient: () => Vapi | null;
 }
 
 const PUBLIC_KEY = import.meta.env.VITE_VAPI_PUBLIC_KEY as string | undefined;
@@ -94,7 +97,7 @@ function toCanonicalScreenId(screen?: string): string | undefined {
  * plumbing, and the spec-named state fields.
  */
 export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeVoiceReturn {
-  const { metadata, onEnd, onError } = options;
+  const { metadata, onEnd, onError, startAudioOff, onCallStart } = options;
   const { acquireRealtime, releaseToken, setStatus: setOwnerPhase } = useVoice();
   const { startVoice, endVoice } = useSessionLog();
 
@@ -249,7 +252,12 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     setStateSynced('connecting');
     startInvokedAtRef.current = performance.now();
 
-    const client = new Vapi(PUBLIC_KEY);
+    const client = new Vapi(
+      PUBLIC_KEY,
+      undefined,
+      undefined,
+      startAudioOff ? { startAudioOff: true } : undefined,
+    );
     vapiRef.current = client;
 
     client.on('call-start', () => {
@@ -268,6 +276,11 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       setStateSynced('listening');
       const t = tokenRef.current;
       if (t) setOwnerPhase(t, 'listening');
+      try {
+        onCallStart?.();
+      } catch (err) {
+        console.warn('[vapi] onCallStart threw:', err);
+      }
     });
 
     client.on('speech-start', () => {
@@ -348,13 +361,17 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     cleanup,
     fail,
     metadata,
+    onCallStart,
     onEnd,
     onError,
     setOwnerPhase,
     setStateSynced,
+    startAudioOff,
     startVoice,
     stop,
   ]);
+
+  const getClient = useCallback<() => Vapi | null>(() => vapiRef.current, []);
 
   return {
     start,
@@ -364,5 +381,6 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     isListening: state === 'listening',
     isSpeaking: state === 'speaking',
     error,
+    getClient,
   };
 }

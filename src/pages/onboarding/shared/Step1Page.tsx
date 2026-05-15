@@ -7,7 +7,6 @@ import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
@@ -22,8 +21,6 @@ export function Step1Page() {
   const [gender, setGender] = useState<string | null>(null);
   const [referralSource, setReferralSource] = useState<string | null>(null);
   const [referralOtherText, setReferralOtherText] = useState('');
-
-  useOnboardingAgent('onboard_01');
 
   useAgentNavigation(1, '/onboarding/step-2');
 

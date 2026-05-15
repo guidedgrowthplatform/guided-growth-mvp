@@ -10,7 +10,6 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { habitsByGoal } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 
 export function Step5Page() {
   const navigate = useNavigate();
@@ -30,8 +29,6 @@ export function Step5Page() {
     () => (state?.goals?.length ? state.goals : ['Fall asleep earlier']),
     [state],
   );
-
-  useOnboardingAgent('onboard_05');
 
   useAgentNavigation(5, '/onboarding/step-6');
 

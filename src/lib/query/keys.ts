@@ -43,5 +43,6 @@ export const queryKeys = {
   },
   context: {
     block: (screenId: string) => ['context', 'block', screenId] as const,
+    routes: () => ['context', 'routes'] as const,
   },
 };

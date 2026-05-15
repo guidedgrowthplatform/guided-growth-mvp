@@ -6,7 +6,6 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useOnboardingAgent } from '@/hooks/useOnboardingAgent';
 
 const categories = [
   { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
@@ -23,8 +22,6 @@ export function Step3Page() {
   const navigate = useNavigate();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [selected, setSelected] = useState<string | null>(null);
-
-  useOnboardingAgent('onboard_03');
 
   useAgentNavigation(3, '/onboarding/step-4');
 
