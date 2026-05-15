@@ -8,6 +8,7 @@ import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { Sentry } from '@/lib/sentry';
 import { deriveStateFromOnboarding, type PlanReviewState } from './planReviewDerive';
+import { pathToSpec } from './pathToSpec';
 
 const CATEGORY_ICONS: Record<string, string> = {
   Sleep: 'ic:outline-nightlight-round',
@@ -40,7 +41,7 @@ export function PlanReviewPage() {
     track('view_starting_plan', {
       total_habits: Object.keys(state.habitConfigs).length,
       has_journal: Boolean(state.reflectionConfig),
-      onboarding_path: state.source === 'advanced' ? 'advanced' : 'beginner',
+      onboarding_path: pathToSpec(state.source === 'advanced' ? 'braindump' : 'simple'),
     });
   }, [state]);
 
@@ -54,7 +55,7 @@ export function PlanReviewPage() {
   const handleStartPlan = useCallback(() => {
     if (!state?.habitConfigs) return;
     track('complete_onboarding', {
-      onboarding_path: state.source === 'advanced' ? 'advanced' : 'beginner',
+      onboarding_path: pathToSpec(state.source === 'advanced' ? 'braindump' : 'simple'),
       total_habits: Object.keys(state.habitConfigs).length,
       has_journal: Boolean(state.reflectionConfig),
       total_time_seconds:

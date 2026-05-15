@@ -5,6 +5,7 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useStepTiming } from '../shared/useStepTiming';
 
 type JournalMode = 'freeform' | 'custom';
 
@@ -32,6 +33,7 @@ export function AdvancedCustomPromptsPage() {
   const state = location.state as LocationState | null;
 
   useAgentNavigation(5, '/onboarding/advanced-step-6');
+  const trackStepComplete = useStepTiming(7, 'custom_prompts', 'advanced');
 
   const [journalMode, setJournalMode] = useState<JournalMode>(state?.journalMode ?? 'custom');
   const [prompts, setPrompts] = useState<string[]>(
@@ -60,6 +62,7 @@ export function AdvancedCustomPromptsPage() {
   }
 
   const handleDone = useCallback(() => {
+    trackStepComplete();
     navigate('/onboarding/advanced-step-6', {
       state: {
         habitConfigs: state?.habitConfigs,
@@ -67,7 +70,7 @@ export function AdvancedCustomPromptsPage() {
         journalMode,
       },
     });
-  }, [navigate, state?.habitConfigs, journalMode, filledPrompts]);
+  }, [navigate, state?.habitConfigs, journalMode, filledPrompts, trackStepComplete]);
 
   return (
     <OnboardingLayout

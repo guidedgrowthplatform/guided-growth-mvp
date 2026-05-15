@@ -13,6 +13,7 @@ import { SchedulePicker } from '@/components/onboarding/SchedulePicker';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
+import { useStepTiming } from '../shared/useStepTiming';
 
 interface EditJournalState {
   journalName: string;
@@ -46,6 +47,7 @@ export function EditJournalPage() {
 function EditJournalForm({ state }: { state: EditJournalState }) {
   const navigate = useNavigate();
   const returnTo = state.returnTo ?? '/onboarding/advanced-step-6';
+  const trackStepComplete = useStepTiming(7, 'edit_journal', 'advanced');
 
   const [journalName, setJournalName] = useState(state.journalName);
   const [prompts, setPrompts] = useState<string[]>(state.prompts);
@@ -78,6 +80,7 @@ function EditJournalForm({ state }: { state: EditJournalState }) {
 
   function handleSave() {
     if (!journalName.trim()) return;
+    trackStepComplete();
     navigate(returnTo, {
       state: {
         updatedJournal: {

@@ -10,6 +10,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { habitsByGoal } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useStepTiming } from '../shared/useStepTiming';
 
 export function Step5Page() {
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ export function Step5Page() {
   );
 
   useAgentNavigation(5, '/onboarding/step-6');
+  const trackStepComplete = useStepTiming(7, 'configure_habit', 'beginner');
 
   // Reconstitute Sets from arrays after router state serialization
   const incomingConfigs: Record<string, HabitConfig> | undefined = state?.habitConfigs
@@ -155,6 +157,7 @@ export function Step5Page() {
         Object.entries(habitConfigs).map(([k, v]) => [k, { ...v, days: [...v.days] }]),
       );
       await saveStepAsync(5, { habitConfigs: serializedConfigs });
+      trackStepComplete();
       navigate('/onboarding/step-6', {
         state: {
           habitConfigs: serializedConfigs,
@@ -166,7 +169,7 @@ export function Step5Page() {
     } else {
       handleContinue();
     }
-  }, [phase, habitConfigs, goals, state, navigate, handleContinue, saveStepAsync]);
+  }, [phase, habitConfigs, goals, state, navigate, handleContinue, saveStepAsync, trackStepComplete]);
 
   return (
     <>

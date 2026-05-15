@@ -7,6 +7,7 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useStepTiming } from '../shared/useStepTiming';
 
 const DEFAULT_QUESTIONS = [
   'What am I proud of today?',
@@ -35,6 +36,7 @@ export function AdvancedStep6Page() {
   const state = location.state as LocationState | null;
 
   useAgentNavigation(5, '/onboarding/step-7');
+  const trackStepComplete = useStepTiming(7, 'advanced_journal_setup', 'advanced');
 
   const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -74,6 +76,7 @@ export function AdvancedStep6Page() {
     const days = [...(SCHEDULE_DAYS[schedule] ?? WEEKDAYS)];
     const reflectionConfig = { time: '21:45', days, reminder: true, schedule };
     await saveStepAsync(5, { habitConfigs: configRecord, reflectionConfig });
+    trackStepComplete();
     navigate('/onboarding/step-7', {
       state: {
         habitConfigs: configRecord,
@@ -81,7 +84,7 @@ export function AdvancedStep6Page() {
         source: 'advanced',
       },
     });
-  }, [habitConfigs, schedule, navigate, saveStepAsync]);
+  }, [habitConfigs, schedule, navigate, saveStepAsync, trackStepComplete]);
 
   return (
     <OnboardingLayout
