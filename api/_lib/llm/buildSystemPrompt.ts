@@ -86,9 +86,33 @@ export async function buildSystemPromptForRequest(
     state_delta,
   });
 
+  const isOnboardingScreen = args.screen_id.startsWith('ONBOARD-');
+  const onboardingNudge = isOnboardingScreen ? `\n\n${ONBOARDING_TOOL_INSTRUCTIONS}` : '';
+
   return {
-    systemPrompt: `${coachingPreamble}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${onboardingNudge}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
 }
+
+const ONBOARDING_TOOL_INSTRUCTIONS = `## Onboarding Screen Rules
+
+When CURRENT SCREEN starts with \`ONBOARD-\`, the screen's BEHAVIOR block is your script. Drive the user through the step — do not just respond conversationally.
+
+Use tools aggressively. The "What this screen is for" block tells you which fields to capture and where to go next.
+
+Capture profile fields with \`update_profile\`:
+- Recognize names from: "Call me X", "You can call me X", "I'm X", "My name is X", "Name's X", or a single capitalized word reply on a name-asking screen. Save as field=\`name\` (or \`nickname\` if user prefers a short handle).
+- Recognize age expressions ("twenty-five", "25", "I'm 30") → field=\`age_group\` (store the string value, server validates).
+- Recognize gender: "guy/man/boy" → "Male"; "girl/woman/lady" → "Female"; "non-binary/they" → "Other". Save as field=\`gender\`.
+- Recognize referral: "TikTok/Instagram/IG" → "Social media"; "friend" → "Friend"; "Google/search" → "Website". Save as field=\`referral_source\`.
+- Call \`update_profile\` once per field you extract, in the SAME turn as your text response. Tools first, then text.
+
+Never re-ask a field you just captured. If the user gave a name, acknowledge it ("Hey Mint.") and ask only for the next missing field per the screen's BEHAVIOR.
+
+Advance with \`navigate_next\`:
+- When the screen's NEXT condition in BEHAVIOR is satisfied (e.g. all required fields collected, or a single choice made), call \`navigate_next({target_screen: "..."})\` with the screen ID from the BEHAVIOR block's NEXT line.
+- Do this in the same turn — after your acknowledgement text and any \`update_profile\` calls.
+
+If the user is vague or off-topic, follow the EDGE CASES guidance in the BEHAVIOR block instead of falling back to a generic greeting.`;

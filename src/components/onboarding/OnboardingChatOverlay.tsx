@@ -1,11 +1,16 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 import { useRef, useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { fetchScreenRoutes } from '@/api/context';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { useAuth } from '@/hooks/useAuth';
+import { useLLM } from '@/hooks/useLLM';
+import { STEP_TO_SCREEN_ID } from '@/hooks/useOnboarding';
 import {
   useOnboardingVoice,
   type OnboardingStepContext,
@@ -14,6 +19,7 @@ import {
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { speak, stopTTS, unlockTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
+import { queryKeys } from '@/lib/query';
 import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
@@ -60,12 +66,29 @@ export function OnboardingChatOverlay({
   const lastErrorRef = useRef('');
   const processedTranscriptRef = useRef('');
 
+  // Path 3 (text-only LLM): active when both orbs are disabled.
+  const textOnlyMode = !voiceChosen && !micRuntimeOn;
+  const screenId =
+    STEP_TO_SCREEN_ID[stepContext.step] ?? `ONBOARD-${String(stepContext.step).padStart(2, '0')}`;
+  const llm = useLLM(screenId, { coachingStyle: 'warm' });
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: routesData } = useQuery({
+    queryKey: ['screenRoutes'],
+    queryFn: fetchScreenRoutes,
+    staleTime: 5 * 60 * 1000,
+    enabled: textOnlyMode,
+  });
+  const firedToolEventIdsRef = useRef<Set<string>>(new Set());
+  const mirroredAssistantIdsRef = useRef<Set<string>>(new Set());
+  const lastLlmErrorRef = useRef<string>('');
+
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
 
   useEffect(() => {
     scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages.length]);
+  }, [messages.length, llm.response, llm.isStreaming]);
 
   useEffect(() => {
     if (!error || error === lastErrorRef.current) return;
@@ -185,12 +208,72 @@ export function OnboardingChatOverlay({
 
   const handleSendText = useCallback(
     (text: string) => {
+      if (textOnlyMode) {
+        if (llm.isStreaming) return;
+        setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', text }]);
+        void llm.sendMessage(text);
+        return;
+      }
       if (isProcessing) return;
       setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', text }]);
       runAssistant(text);
     },
-    [isProcessing, setMessages, runAssistant],
+    [textOnlyMode, llm, isProcessing, setMessages, runAssistant],
   );
+
+  // Mirror finalized Path-3 assistant turns into the parent's message list.
+  useEffect(() => {
+    if (!textOnlyMode) return;
+    for (const m of llm.messages) {
+      if (m.role !== 'assistant') continue;
+      if (mirroredAssistantIdsRef.current.has(m.id)) continue;
+      if (!m.content) continue;
+      mirroredAssistantIdsRef.current.add(m.id);
+      setMessages((prev) => [...prev, { id: `llm-${m.id}`, role: 'ai', text: m.content }]);
+    }
+  }, [textOnlyMode, llm.messages, setMessages]);
+
+  // Surface llm errors as a coach bubble — matches the voice-input error pattern.
+  useEffect(() => {
+    if (!textOnlyMode || !llm.error) return;
+    const msg = llm.error.message;
+    if (msg === lastLlmErrorRef.current) return;
+    lastLlmErrorRef.current = msg;
+    setMessages((prev) => [...prev, { id: `llm-error-${Date.now()}`, role: 'ai', text: msg }]);
+  }, [textOnlyMode, llm.error, setMessages]);
+
+  // React to LLM tool calls: navigate_next pushes a route, update_profile
+  // invalidates onboarding-state. get_user_context / log_event are server-only.
+  useEffect(() => {
+    if (!textOnlyMode) return;
+    for (const evt of llm.toolEvents) {
+      if (!evt.result?.ok) continue;
+      if (firedToolEventIdsRef.current.has(evt.id)) continue;
+      firedToolEventIdsRef.current.add(evt.id);
+      switch (evt.name) {
+        case 'navigate_next': {
+          const target = (evt.args as { target_screen?: unknown }).target_screen;
+          if (typeof target !== 'string') break;
+          const route = routesData?.routes.find((r) => r.screen_id === target)?.route;
+          if (route) navigate(route);
+          else console.warn('[onboarding] navigate_next: unknown target_screen', target);
+          break;
+        }
+        case 'update_profile': {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.state });
+          break;
+        }
+        default:
+          break;
+      }
+    }
+  }, [textOnlyMode, llm.toolEvents, navigate, queryClient, routesData]);
+
+  // Cancel any in-flight Path-3 stream when the user switches to voice / mic on.
+  useEffect(() => {
+    if (textOnlyMode) return;
+    if (llm.isStreaming) llm.cancel();
+  }, [textOnlyMode, llm]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -260,7 +343,18 @@ export function OnboardingChatOverlay({
             />
           </div>
         ))}
-        {voiceState === 'processing' && <TypingIndicator />}
+        {textOnlyMode && llm.isStreaming && llm.response.length > 0 && (
+          <ChatBubble
+            role="ai"
+            text={llm.response}
+            userName={displayName}
+            eyebrowVariant="dark"
+            compact
+            animate={false}
+          />
+        )}
+        {(voiceState === 'processing' ||
+          (textOnlyMode && llm.isStreaming && llm.response.length === 0)) && <TypingIndicator />}
         {interim && (
           <p className="mt-2 text-[12px] font-medium uppercase tracking-wide text-content-secondary">
             {interim}
@@ -297,7 +391,7 @@ export function OnboardingChatOverlay({
           value={draft}
           onValueChange={setDraft}
           onSubmit={handleSendText}
-          disabled={isProcessing || !showInputPill}
+          disabled={(textOnlyMode ? llm.isStreaming : isProcessing) || !showInputPill}
           ariaHidden={!showInputPill}
           tabbable={showInputPill}
           className={`flex h-[44px] w-full items-center gap-2 rounded-full bg-white pl-5 pr-3 shadow-[0px_10px_24px_-8px_rgba(15,23,42,0.18)] transition-all duration-300 ease-out ${
