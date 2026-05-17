@@ -4,7 +4,7 @@ Per-screen MD packets bundling everything needed to implement a screen (frontend
 
 ## Status
 
-v1, `ONBOARD-01--FORM` only. The other 19 MVP screens land after Monday standup, when the build pipeline (`build_spec_packets.py` + `sync_nav.py`) moves into this repo.
+v1, `ONBOARD-01--FORM` only. The other 19 MVP screens land next week, when the build pipeline (`build_spec_packets.py` + `sync_nav.py`) moves into this repo. Timing will be confirmed at standup.
 
 ## How to read a packet
 
