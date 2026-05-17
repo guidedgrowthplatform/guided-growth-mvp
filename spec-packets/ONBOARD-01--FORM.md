@@ -1,6 +1,6 @@
 # ONBOARD-01--FORM - Profile Setup
 
-v1 hand-curated for review (2026-05-17). Source of truth: [Master Sheet, Screens tab](https://docs.google.com/spreadsheets/d/1iNEdUm5vqmjk3YGEF1uMwfurcvgVRHykWUeBGHDBqcw/edit#gid=1034476295). Auto-regen pipeline (`build_spec_packets.py` + `sync_nav.py`) moves into this repo post-Monday-standup; until then, spec edits go to the Master Sheet, not this file.
+v1 hand-curated for review (2026-05-17). Source of truth: [Master Sheet, Screens tab](https://docs.google.com/spreadsheets/d/1iNEdUm5vqmjk3YGEF1uMwfurcvgVRHykWUeBGHDBqcw/edit#gid=1034476295). Auto-regen pipeline (`build_spec_packets.py` + `sync_nav.py`) moves into this repo next week; until then, spec edits go to the Master Sheet, not this file.
 
 ---
 
