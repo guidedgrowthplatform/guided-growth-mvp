@@ -7,15 +7,23 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { habitsByGoal } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useStepTiming } from '../shared/useStepTiming';
 
+// Bottom-sheet overlay screen_ids per master sheet. -04 fires when the user
+// is configuring their 1st picked habit, -05 when they advance to the 2nd.
+// Both share the same UI (HabitCustomizeSheet); the LLM gets a different
+// context block per-iteration.
+const SHEET_SCREEN_IDS = ['ONBOARD-BEGINNER-04', 'ONBOARD-BEGINNER-05'] as const;
+
 export function Step5Page() {
   const navigate = useNavigate();
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
+  const onboardingVoice = useOnboardingVoice();
   const state = location.state as {
     goals?: string[];
     category?: string;
@@ -84,6 +92,27 @@ export function Step5Page() {
       setPhase('confirming');
     }
   }, [onboardingState?.data?.habitConfigs]);
+
+  // /step-5 hosts three distinct LLM surfaces under one route:
+  //   - selecting phase, no sheet  -> BEGINNER-03 (handled by route-driven push)
+  //   - sheet open (1st habit)     -> BEGINNER-04
+  //   - sheet open (2nd habit)     -> BEGINNER-05
+  //   - confirming phase, no sheet -> BEGINNER-06 (Review Habits)
+  // Pass `null` to revert to the route-derived screen.
+  useEffect(() => {
+    if (!onboardingVoice) return;
+    if (customizingHabit !== null) {
+      const idx = habitQueue.indexOf(customizingHabit);
+      const screenId = SHEET_SCREEN_IDS[idx] ?? SHEET_SCREEN_IDS[0];
+      onboardingVoice.pushSubScreen(screenId);
+      return;
+    }
+    if (phase === 'confirming') {
+      onboardingVoice.pushSubScreen('ONBOARD-BEGINNER-06');
+      return;
+    }
+    onboardingVoice.pushSubScreen(null);
+  }, [customizingHabit, habitQueue, phase, onboardingVoice]);
 
   function toggleHabit(habit: string) {
     if (selectedHabits.has(habit)) {
@@ -169,7 +198,16 @@ export function Step5Page() {
     } else {
       handleContinue();
     }
-  }, [phase, habitConfigs, goals, state, navigate, handleContinue, saveStepAsync, trackStepComplete]);
+  }, [
+    phase,
+    habitConfigs,
+    goals,
+    state,
+    navigate,
+    handleContinue,
+    saveStepAsync,
+    trackStepComplete,
+  ]);
 
   return (
     <>

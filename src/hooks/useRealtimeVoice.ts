@@ -13,6 +13,26 @@ export type RealtimeVoiceState =
   | 'speaking'
   | 'error';
 
+// Vapi events sometimes hand back an object instead of an Error or string;
+// String() on a plain object yields "[object Object]", which then leaks into
+// the UI. Walk the common shapes before falling back to a stable label.
+function errorToMessage(err: unknown, fallback: string): string {
+  if (!err) return fallback;
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  if (typeof err === 'object') {
+    const obj = err as { message?: unknown; error?: unknown; statusText?: unknown };
+    if (typeof obj.message === 'string') return obj.message;
+    if (typeof obj.statusText === 'string') return obj.statusText;
+    if (typeof obj.error === 'string') return obj.error;
+    if (obj.error && typeof obj.error === 'object') {
+      const inner = (obj.error as { message?: unknown }).message;
+      if (typeof inner === 'string') return inner;
+    }
+  }
+  return fallback;
+}
+
 export type CoachingStyle = 'warm' | 'direct' | 'reflective';
 
 export interface UseRealtimeVoiceMetadata {
@@ -187,24 +207,24 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       });
     }
 
-    setStateSynced('idle');
     tearingDownRef.current = false;
-  }, [setStateSynced, metadata.screen, endVoice]);
+  }, [metadata.screen, endVoice]);
 
   const stop = useCallback(() => {
     if (tearingDownRef.current) return;
     cleanup();
+    setStateSynced('idle');
     dropToken();
     onEnd?.();
-  }, [cleanup, dropToken, onEnd]);
+  }, [cleanup, dropToken, onEnd, setStateSynced]);
 
   const fail = useCallback(
     (message: string) => {
       hadErrorRef.current = true;
       setError(message);
-      setStateSynced('error');
       cleanup();
       dropToken();
+      setStateSynced('error');
       onError?.(message);
     },
     [cleanup, dropToken, onError, setStateSynced],
@@ -238,6 +258,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
         tokenRef.current = null;
         if (!mountedRef.current || tearingDownRef.current) return;
         cleanup();
+        setStateSynced('idle');
         onEnd?.();
       },
     });
@@ -320,12 +341,11 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     });
 
     client.on('error', (err: unknown) => {
-      const msg = err instanceof Error ? err.message : String(err ?? 'Unknown Vapi error');
-      fail(msg);
+      fail(errorToMessage(err, 'Unknown Vapi error'));
     });
 
     client.on('call-start-failed', (evt) => {
-      fail(evt?.error ?? 'Vapi call-start failed.');
+      fail(errorToMessage(evt?.error, 'Vapi call-start failed.'));
     });
 
     client.on('call-end', () => {

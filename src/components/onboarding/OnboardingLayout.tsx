@@ -1,5 +1,6 @@
 import { Icon } from '@iconify/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { OpenChatButton } from '@/components/home/OpenChatButton';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import {
   OnboardingChatOverlay,
@@ -13,7 +14,7 @@ import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
-import { speak, stopTTS, unlockTTS } from '@/lib/services/tts-service';
+import { stopTTS, unlockTTS } from '@/lib/services/tts-service';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { AiListeningTooltip } from './AiListeningTooltip';
 
@@ -61,8 +62,6 @@ export function OnboardingLayout({
 }: OnboardingLayoutProps) {
   const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
   const [overlayOpen, setOverlayOpen] = useState(false);
-  const ttsEnabled = useVoiceSettingsStore((s) => s.ttsEnabled);
-  const setStoreTtsEnabled = useVoiceSettingsStore((s) => s.setTtsEnabled);
   const focusedField = useFocusedFieldContext();
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
@@ -73,15 +72,19 @@ export function OnboardingLayout({
   // (STT). Both flip the corresponding user preference on every click so the
   // server-side record reflects what the user has set during the flow.
   const onboardingVoice = useOnboardingVoice();
-  const { updatePreferences } = useUserPreferences();
+  const { preferences, updatePreferences } = useUserPreferences();
   const vapiStatus = onboardingVoice?.status ?? 'idle';
   const vapiActive = vapiStatus === 'active';
   const vapiConnecting = vapiStatus === 'connecting';
+  const vapiErrored = vapiStatus === 'error';
   const vapiIsMuted = onboardingVoice?.isMuted ?? true;
   const vapiTtsMuted = onboardingVoice?.isTtsMuted ?? false;
   const vapiSpeaking = onboardingVoice?.isAssistantSpeaking ?? false;
-  const ttsOn = vapiActive && !vapiTtsMuted;
-  const micOn = vapiActive && !vapiIsMuted;
+  const voiceChosen = preferences.voiceMode === 'voice';
+  const micGranted = preferences.micPermission === true;
+  const micRuntimeOn = micGranted && preferences.micEnabled === true;
+  const ttsOn = voiceChosen && vapiActive && !vapiTtsMuted;
+  const micOn = vapiActive ? !vapiIsMuted : micRuntimeOn;
 
   const voicePlayer = useVoicePlayer();
 
@@ -114,26 +117,12 @@ export function OnboardingLayout({
     prevTranscriptRef.current = transcript;
   }, [transcript, isListening, onTranscript]);
 
-  const hasSpokePrompt = useRef(false);
-
-  // Legacy Web Speech overlay opener — unreachable since the DualButton was
-  // rewired to Vapi controls (P1-09). Kept for reference until the overlay
-  // path is cleaned up in a follow-up.
-  const _handleMicClick = () => {
+  const handleOpenChat = () => {
     unlockTTS();
     resetTranscript();
     setOverlayOpen(true);
     setTooltipVisible(false);
-    if (!hasSpokePrompt.current && voicePrompt && ttsEnabled) {
-      hasSpokePrompt.current = true;
-      speak(voicePrompt);
-    }
     localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
-  };
-
-  const handleToggleTts = () => {
-    if (ttsEnabled) stopTTS();
-    setStoreTtsEnabled(!ttsEnabled);
   };
 
   const handleVoiceAction = (result: OnboardingVoiceResult) => {
@@ -157,23 +146,49 @@ export function OnboardingLayout({
   const handleTtsToggleClick = () => {
     setTooltipVisible(false);
     localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
-    if (!vapiActive) return;
-    const next = vapiTtsMuted; // currently muted → enabling
-    onboardingVoice?.setTtsEnabled(next);
-    void updatePreferences({ voiceMode: next ? 'voice' : 'screen' });
+    // When Vapi is in error state, the left orb doubles as the retry control.
+    if (vapiErrored) {
+      void onboardingVoice?.restartCall();
+      return;
+    }
+    if (vapiActive) {
+      const next = vapiTtsMuted;
+      onboardingVoice?.setTtsEnabled(next);
+      void updatePreferences({ voiceMode: next ? 'voice' : 'screen' });
+      return;
+    }
+    const nextChosen = !voiceChosen;
+    void updatePreferences({ voiceMode: nextChosen ? 'voice' : 'screen' });
+    useVoiceSettingsStore.getState().hydrate({ ttsEnabled: nextChosen });
   };
 
   const handleMicToggleClick = () => {
     setTooltipVisible(false);
     localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
-    if (!vapiActive) return;
-    const next = vapiIsMuted; // currently muted → enabling
-    onboardingVoice?.setMicEnabled(next);
-    void updatePreferences({ micEnabled: next });
+    if (vapiActive) {
+      const next = vapiIsMuted;
+      onboardingVoice?.setMicEnabled(next);
+      void updatePreferences({ micEnabled: next });
+      return;
+    }
+    if (!micGranted) {
+      void (async () => {
+        let granted = true;
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((t) => t.stop());
+        } catch {
+          granted = false;
+        }
+        await updatePreferences({ micPermission: granted, micEnabled: granted });
+      })();
+      return;
+    }
+    void updatePreferences({ micEnabled: !preferences.micEnabled });
   };
 
   const voiceControl = showVoiceButton ? (
-    <div className="relative my-6 flex justify-center">
+    <div className="relative my-6 flex flex-col items-center gap-2">
       {tooltipVisible && <VoiceTooltip autoDismissMs={4000} onDismiss={handleTooltipDismiss} />}
       <DualButton
         size={88}
@@ -187,12 +202,17 @@ export function OnboardingLayout({
         leftAriaLabel={ttsOn ? 'Mute coach voice' : 'Unmute coach voice'}
         rightAriaLabel={micOn ? 'Mute mic' : 'Unmute mic'}
       />
+      {vapiErrored && (
+        <p className="max-w-[280px] text-center text-xs text-danger">
+          Couldn't connect to coach voice.
+        </p>
+      )}
     </div>
   ) : null;
 
   return (
     <div
-      className={`flex min-h-dvh flex-col ${bgVariant === 'secondary' ? 'bg-surface-secondary' : 'bg-surface'} px-6 pb-[48px] pt-[max(16px,env(safe-area-inset-top))]`}
+      className={`relative flex min-h-dvh flex-col ${bgVariant === 'secondary' ? 'bg-surface-secondary' : 'bg-surface'} px-6 pb-[48px] pt-[max(16px,env(safe-area-inset-top))]`}
     >
       {overlayOpen && (
         <OnboardingChatOverlay
@@ -204,18 +224,12 @@ export function OnboardingLayout({
           }}
           onAction={handleVoiceAction}
           onClose={() => setOverlayOpen(false)}
-          onContinue={() => {
-            setOverlayOpen(false);
-            handleNext();
-          }}
-          continueDisabled={ctaDisabled}
-          continueLabel={ctaLabel}
           messages={voiceMessages}
           setMessages={setVoiceMessages}
-          ttsEnabled={ttsEnabled}
-          onToggleTts={handleToggleTts}
         />
       )}
+
+      {!overlayOpen && <OpenChatButton floating onPress={handleOpenChat} />}
 
       {onBack && (
         <button
