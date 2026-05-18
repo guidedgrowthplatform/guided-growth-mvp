@@ -372,10 +372,6 @@ export function OnboardingChatOverlay({
             rightActive={micRuntimeOn}
             activeRings={micRuntimeOn ? activeRings : null}
             intensity={micRuntimeOn ? micIntensity : undefined}
-            leftActive={voiceChosen}
-            rightActive={micRuntimeOn}
-            activeRings={micRuntimeOn ? activeRings : null}
-            intensity={micRuntimeOn ? micIntensity : undefined}
             ringCount={3}
             ringStep={4}
             leftIcon={voiceChosen ? <IconChatVoice size={28} /> : <IconChatText size={28} />}
