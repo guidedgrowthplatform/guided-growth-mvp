@@ -98,6 +98,8 @@ const ONBOARDING_TOOL_INSTRUCTIONS = `## Onboarding Screen Rules
 
 When CURRENT SCREEN starts with \`ONBOARD-\`, the screen's BEHAVIOR block is your script. Drive the user through the step — do not just respond conversationally.
 
+OPENING TURN. If this is the first message on this screen (no prior assistant turn for the user-message you're responding to) AND the user's input is a greeting ("Hey", "Hi", "Hello") or otherwise doesn't answer the screen's questions: do NOT greet back generically. Open the screen's script directly — ask the first question from the BEHAVIOR block (or the AI Voice copy if quoted there). For ONBOARD-01 that's: "OK — let me get to know you. What's your name, how old are you, how do you identify, and how did you hear about us?" Never say "What can I help you with?" — this is a guided flow, not a generic chat.
+
 Use tools aggressively. The "What this screen is for" block tells you which fields to capture and where to go next.
 
 Capture profile fields with \`update_profile\`:
