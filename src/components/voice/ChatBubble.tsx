@@ -4,6 +4,7 @@ interface ChatBubbleProps {
   userName?: string;
   animate?: boolean;
   eyebrowVariant?: 'light' | 'dark';
+  compact?: boolean;
 }
 
 export function ChatBubble({
@@ -12,6 +13,7 @@ export function ChatBubble({
   userName,
   animate = true,
   eyebrowVariant = 'light',
+  compact = false,
 }: ChatBubbleProps) {
   const isUser = role === 'user';
   const isLightBackdrop = eyebrowVariant === 'dark';
@@ -20,10 +22,28 @@ export function ChatBubble({
     ? 'bg-white shadow-[0px_4px_16px_-4px_rgba(15,23,42,0.08)]'
     : 'bg-white';
 
+  const wrapperMargins = compact
+    ? isUser
+      ? 'mb-2 mt-[12px] items-end'
+      : 'mt-[20px] items-start'
+    : isUser
+      ? 'mb-3 mt-[24px] items-end'
+      : 'mt-[48px] items-start';
+
+  const eyebrowPadTop = compact ? 'pt-[6px]' : 'pt-[8px]';
+
+  const bubblePad = compact
+    ? isUser
+      ? 'py-[10px] pl-[18px] pr-[20px]'
+      : 'py-[10px] pl-[18px] pr-[24px]'
+    : isUser
+      ? 'py-[14px] pl-[21px] pr-[23px]'
+      : 'py-[14px] pl-[21px] pr-[30px]';
+
+  const textLeading = compact ? 'leading-[20px]' : isUser ? 'leading-[29.25px]' : 'leading-[27.5px]';
+
   return (
-    <div
-      className={`flex flex-col ${isUser ? 'mb-3 mt-[24px] items-end' : 'mt-[48px] items-start'}`}
-    >
+    <div className={`flex flex-col ${wrapperMargins}`}>
       <div className={`flex items-center px-[16px] ${isUser ? 'justify-end' : ''}`}>
         {!isUser && <div className="size-[8px] rounded-full bg-[#135bec]" />}
         <span
@@ -35,19 +55,19 @@ export function ChatBubble({
         </span>
       </div>
 
-      <div className="pt-[8px]">
+      <div className={eyebrowPadTop}>
         <div
           className={`max-w-[290px] backdrop-blur-[6px] ${
             isUser
-              ? `rounded-bl-[16px] rounded-br-[16px] rounded-tl-[16px] py-[14px] pl-[21px] pr-[23px] ${userBubbleSurface}`
-              : 'rounded-bl-[16px] rounded-br-[16px] rounded-tr-[16px] bg-[rgba(19,91,236,0.8)] py-[14px] pl-[21px] pr-[30px]'
+              ? `rounded-bl-[16px] rounded-br-[16px] rounded-tl-[16px] ${bubblePad} ${userBubbleSurface}`
+              : `rounded-bl-[16px] rounded-br-[16px] rounded-tr-[16px] bg-[rgba(19,91,236,0.8)] ${bubblePad}`
           } ${animate ? 'animate-bubble-in' : ''}`}
         >
           <p
             className={
               isUser
-                ? 'text-[14px] font-medium leading-[29.25px] text-[#0f172a]'
-                : 'text-[14px] font-semibold leading-[27.5px] text-white'
+                ? `text-[14px] font-medium ${textLeading} text-[#0f172a]`
+                : `text-[14px] font-semibold ${textLeading} text-white`
             }
           >
             {text}

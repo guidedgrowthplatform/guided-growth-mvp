@@ -20,6 +20,10 @@ export interface OnboardingVoiceContextValue {
   setTtsEnabled: (enabled: boolean) => void;
   endCall: () => void;
   restartCall: () => Promise<void>;
+  // Push a screen_context for a sub-screen surface that has no route of its
+  // own (e.g. a bottom-sheet overlay). Pass null to revert to the route-derived
+  // screen. Used by ONBOARD-BEGINNER-04/-05 inside the habit-customize sheet.
+  pushSubScreen: (screenId: string | null) => void;
 }
 
 export const OnboardingVoiceContext = createContext<OnboardingVoiceContextValue | null>(null);

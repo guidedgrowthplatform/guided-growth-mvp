@@ -1,3 +1,4 @@
+import { Icon } from '@iconify/react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
@@ -11,39 +12,14 @@ import { useStepTiming } from './useStepTiming';
 
 export function VoicePreferencePage() {
   const navigate = useNavigate();
-  const { updatePreferences } = useUserPreferences();
+  const { preferences, updatePreferences } = useUserPreferences();
   const { logEvent } = useSessionLog();
   const onboardingVoice = useOnboardingVoice();
   const [saving, setSaving] = useState(false);
   const trackStepComplete = useStepTiming(2, 'voice_preference', null);
 
-  // Vapi runs throughout the pre-onboarding screens via OnboardingVoiceProvider.
-  // It auto-starts on this route with the mic muted (`startAudioOff: true`) so
-  // the assistant can speak the VOICE-PREFERENCE context block while the user
-  // chooses voice or screen mode — no MP3 broadcast on this screen.
-
-  const vapiStatus = onboardingVoice?.status ?? 'idle';
-  const vapiActive = vapiStatus === 'active';
-  const vapiConnecting = vapiStatus === 'connecting';
-  const vapiIsMuted = onboardingVoice?.isMuted ?? true;
-  const vapiTtsMuted = onboardingVoice?.isTtsMuted ?? false;
-  const vapiSpeaking = onboardingVoice?.isAssistantSpeaking ?? false;
-  const ttsOn = vapiActive && !vapiTtsMuted;
-  const micOn = vapiActive && !vapiIsMuted;
-
-  const handleTtsToggleClick = () => {
-    if (!vapiActive) return;
-    const next = vapiTtsMuted;
-    onboardingVoice?.setTtsEnabled(next);
-    void updatePreferences({ voiceMode: next ? 'voice' : 'screen' });
-  };
-
-  const handleMicToggleClick = () => {
-    if (!vapiActive) return;
-    const next = vapiIsMuted;
-    onboardingVoice?.setMicEnabled(next);
-    void updatePreferences({ micEnabled: next });
-  };
+  const voiceChosen = preferences.voiceMode === 'voice';
+  const micGranted = preferences.micPermission === true;
 
   const choose = async (voiceEnabled: boolean) => {
     if (saving) return;
@@ -59,8 +35,6 @@ export function VoicePreferencePage() {
     );
     await updatePreferences({ voiceMode: voiceEnabled ? 'voice' : 'screen' });
     useVoiceSettingsStore.getState().hydrate({ ttsEnabled: voiceEnabled });
-    // If the user opted out of voice, tear down Vapi before leaving the
-    // screen so it doesn't keep running on mic-permission.
     if (!voiceEnabled) onboardingVoice?.endCall();
     trackStepComplete();
     navigate('/onboarding/mic-permission');
@@ -68,21 +42,14 @@ export function VoicePreferencePage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[max(32px,env(safe-area-inset-bottom))] pt-[max(16px,env(safe-area-inset-top))]">
-      <div className="flex flex-1 items-center justify-center">
-        <DualButton
-          size={170}
-          width={180}
-          leftActive={ttsOn || vapiConnecting}
-          rightActive={micOn}
-          activeRings={ttsOn && vapiSpeaking ? 'left' : null}
-          leftIcon={ttsOn ? <IconChatVoice size={58} /> : <IconChatText size={58} />}
-          rightIcon={micOn ? <IconMic size={48} /> : <IconMicMuted size={48} />}
-          onLeftClick={handleTtsToggleClick}
-          onRightClick={handleMicToggleClick}
-          leftAriaLabel={ttsOn ? 'Mute coach voice' : 'Unmute coach voice'}
-          rightAriaLabel={micOn ? 'Mute mic' : 'Unmute mic'}
-        />
-      </div>
+      <button
+        type="button"
+        onClick={() => navigate(-1)}
+        aria-label="Go back"
+        className="mb-2 flex h-10 w-10 items-center justify-center rounded-2xl bg-surface shadow-card"
+      >
+        <Icon icon="ic:round-arrow-back" width={18} height={18} className="text-content" />
+      </button>
 
       <div>
         <h1 className="text-[28px] font-bold leading-tight text-primary">Can I talk?</h1>
@@ -90,8 +57,23 @@ export function VoicePreferencePage() {
           Do you prefer that I talk, or write on the screen to you? If you&apos;d like me to talk,
           just say yes. If not, say screen.
         </p>
+      </div>
 
-        <div className="mt-8 flex flex-col gap-[12px]">
+      <div className="flex flex-1 items-center justify-center">
+        <DualButton
+          size={170}
+          width={180}
+          leftActive={voiceChosen}
+          rightActive={micGranted}
+          leftIcon={voiceChosen ? <IconChatVoice size={58} /> : <IconChatText size={58} />}
+          rightIcon={micGranted ? <IconMic size={48} /> : <IconMicMuted size={48} />}
+          leftAriaLabel="Coach voice indicator"
+          rightAriaLabel="Microphone indicator"
+        />
+      </div>
+
+      <div>
+        <div className="flex flex-col gap-[12px]">
           <button
             type="button"
             onClick={() => choose(true)}
