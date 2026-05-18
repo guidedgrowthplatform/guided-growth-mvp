@@ -1,5 +1,17 @@
 import { apiGet } from './client';
 
+export type {
+  ScreenContextBlock,
+  SessionStateDeltaEntry,
+  SessionStateDeltaResponse,
+  ScreenContext,
+} from '@shared/types/context.js';
+
+import type {
+  ScreenContextBlock,
+  SessionStateDeltaResponse,
+} from '@shared/types/context.js';
+
 export interface ScreenRouteEntry {
   screen_id: string;
   route: string;
@@ -7,29 +19,6 @@ export interface ScreenRouteEntry {
 
 export function fetchScreenRoutes(): Promise<{ routes: ScreenRouteEntry[] }> {
   return apiGet<{ routes: ScreenRouteEntry[] }>('/api/context/routes');
-}
-
-export interface ScreenContextBlock {
-  screen_id: string;
-  context_block: string;
-  version: number;
-}
-
-export interface SessionStateDeltaEntry {
-  id: string;
-  session_id: string;
-  timestamp: string;
-  event_type: string;
-  screen_id: string | null;
-  payload: Record<string, unknown> | null;
-}
-
-export interface SessionStateDeltaResponse {
-  state_delta: SessionStateDeltaEntry[];
-}
-
-export interface ScreenContext extends ScreenContextBlock {
-  state_delta: SessionStateDeltaEntry[];
 }
 
 export function fetchScreenContextBlock(screenId: string): Promise<ScreenContextBlock> {
