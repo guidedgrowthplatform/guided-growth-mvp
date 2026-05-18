@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { X } from 'lucide-react';
+import { Send, X } from 'lucide-react';
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchScreenRoutes } from '@/api/context';
@@ -368,6 +368,10 @@ export function OnboardingChatOverlay({
         <div className="pointer-events-auto">
           <DualButton
             size={91}
+            leftActive={voiceChosen}
+            rightActive={micRuntimeOn}
+            activeRings={micRuntimeOn ? activeRings : null}
+            intensity={micRuntimeOn ? micIntensity : undefined}
             leftActive={voiceChosen}
             rightActive={micRuntimeOn}
             activeRings={micRuntimeOn ? activeRings : null}
