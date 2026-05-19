@@ -30,15 +30,27 @@ function mapUser(u: any): AppUser {
 
 async function fetchAnonId(): Promise<string | null> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session?.access_token) return null;
     const res = await fetch('/api/me', {
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      Sentry.captureMessage('analytics_identify_failed', {
+        level: 'warning',
+        extra: { status: res.status },
+      });
+      return null;
+    }
     const data = (await res.json()) as { anonId?: string };
     return data.anonId ?? null;
-  } catch {
+  } catch (err) {
+    Sentry.captureMessage('analytics_identify_failed', {
+      level: 'warning',
+      extra: { error: err instanceof Error ? err.message : String(err) },
+    });
     return null;
   }
 }
@@ -86,24 +98,43 @@ function categorizeAuthError(error: any): string {
   return 'other';
 }
 
-function identifyUser(_user: AppUser) {
-  // anonId resolved via /api/me — not in JWT/session.user. Fire-and-forget;
-  // session stays unidentified for analytics if the fetch fails.
+function identifyUser(
+  user: AppUser,
+  cachedAnonId: string | null,
+  setAnonId: (id: string | null) => void,
+) {
+  const callIdentify = (anonId: string) => {
+    const traits = {
+      role: user.role,
+      status: user.status,
+      platform: Capacitor.getPlatform(),
+      app_version: (import.meta.env.VITE_APP_VERSION as string | undefined) ?? 'unknown',
+    };
+    identify(anonId, traits);
+    Sentry.setUser({ id: anonId });
+  };
+
+  if (cachedAnonId) {
+    callIdentify(cachedAnonId);
+    return;
+  }
+
   void fetchAnonId().then((anonId) => {
-    if (anonId) {
-      identify(anonId);
-      Sentry.setUser({ id: anonId });
-    }
+    if (!anonId) return;
+    setAnonId(anonId);
+    callIdentify(anonId);
   });
 }
 
-function clearUserIdentity() {
+function clearUserIdentity(setAnonId: (id: string | null) => void) {
   resetIdentity();
   Sentry.setUser(null);
+  setAnonId(null);
 }
 
 export interface AuthState {
   user: AppUser | null;
+  anonId: string | null;
   loading: boolean;
   isRecoveryMode: boolean;
   _unsubscribe: (() => void) | null;
@@ -120,246 +151,251 @@ export interface AuthState {
   updateProfile: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-  user: null,
-  loading: true,
-  isRecoveryMode: false,
-  _unsubscribe: null,
+export const useAuthStore = create<AuthState>((set, get) => {
+  const setAnonId = (anonId: string | null) => set({ anonId });
+  return {
+    user: null,
+    anonId: null,
+    loading: true,
+    isRecoveryMode: false,
+    _unsubscribe: null,
 
-  initialize: () => {
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
-        if (session?.user) {
-          const user = mapUser(session.user);
-          set({ user });
-          identifyUser(user);
-        }
-        set({ loading: false });
-      })
-      .catch(() => set({ loading: false }));
-    if (!get()._unsubscribe) {
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'PASSWORD_RECOVERY') {
-          set({ isRecoveryMode: true });
-        }
-        if (session?.user) {
-          const nextUser = mapUser(session.user);
-          const prevUser = get().user;
-          set({ user: nextUser });
-          // Re-identify only when the user actually changed (login,
-          // account switch, token refresh that surfaces a different
-          // user). Token refreshes for the same user don't need to
-          // re-fire analytics events.
-          //
-          // Previously this listener updated user state but never
-          // called identifyUser/clearUserIdentity, so Sentry and
-          // analytics stayed tagged with the previous user across
-          // sign-out, account switches, and sessions restored from
-          // another tab.
-          if (prevUser?.id !== nextUser.id) {
-            identifyUser(nextUser);
-            // PostHog spec v6.0 §3.1: complete_signup / complete_login.
-            // Email signup/signin already fire these from the dedicated
-            // store actions; OAuth (Google/Apple) lands here via redirect
-            // callback and was previously silent. Skip 'email' to avoid
-            // double-counting; treat any non-email provider as OAuth.
+    initialize: () => {
+      supabase.auth
+        .getSession()
+        .then(({ data: { session } }) => {
+          if (session?.user) {
+            const user = mapUser(session.user);
+            set({ user });
+            identifyUser(user, get().anonId, setAnonId);
+          }
+          set({ loading: false });
+        })
+        .catch(() => set({ loading: false }));
+      if (!get()._unsubscribe) {
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((event, session) => {
+          if (event === 'PASSWORD_RECOVERY') {
+            set({ isRecoveryMode: true });
+          }
+          if (session?.user) {
+            const nextUser = mapUser(session.user);
+            const prevUser = get().user;
+            set({ user: nextUser });
+            // Re-identify only when the user actually changed (login,
+            // account switch, token refresh that surfaces a different
+            // user). Token refreshes for the same user don't need to
+            // re-fire analytics events.
             //
-            // Gate on event === 'SIGNED_IN' so INITIAL_SESSION (restored
-            // session on page reload), USER_UPDATED, and TOKEN_REFRESHED
-            // can't double-fire the funnel events.
-            const provider =
-              (session.user.app_metadata as { provider?: string } | null)?.provider ?? 'email';
-            if (event === 'SIGNED_IN' && provider !== 'email') {
-              const createdAtMs = session.user.created_at
-                ? new Date(session.user.created_at).getTime()
-                : 0;
-              const lastSignInMs = session.user.last_sign_in_at
-                ? new Date(session.user.last_sign_in_at).getTime()
-                : Date.now();
-              // <60s gap between account creation and this sign-in means
-              // we're inside the first OAuth round-trip — count as signup.
-              // Same threshold as the email-flow heuristic in signIn(),
-              // with is_returning_user computed via the same expression
-              // (>60s gap) so missing created_at behaves identically.
-              const gapMs = lastSignInMs - createdAtMs;
-              const isFirstSignIn = createdAtMs > 0 && gapMs < 60_000;
-              const isReturningUser = createdAtMs > 0 && gapMs > 60_000;
-              if (isFirstSignIn) {
-                track('complete_signup', { method: provider }, { send_instantly: true });
-              } else {
-                track(
-                  'complete_login',
-                  { method: provider, is_returning_user: isReturningUser },
-                  { send_instantly: true },
-                );
+            // Previously this listener updated user state but never
+            // called identifyUser/clearUserIdentity, so Sentry and
+            // analytics stayed tagged with the previous user across
+            // sign-out, account switches, and sessions restored from
+            // another tab.
+            if (prevUser?.id !== nextUser.id) {
+              const prevAnonId = prevUser ? null : get().anonId;
+              identifyUser(nextUser, prevAnonId, setAnonId);
+              // PostHog spec v6.0 §3.1: complete_signup / complete_login.
+              // Email signup/signin already fire these from the dedicated
+              // store actions; OAuth (Google/Apple) lands here via redirect
+              // callback and was previously silent. Skip 'email' to avoid
+              // double-counting; treat any non-email provider as OAuth.
+              //
+              // Gate on event === 'SIGNED_IN' so INITIAL_SESSION (restored
+              // session on page reload), USER_UPDATED, and TOKEN_REFRESHED
+              // can't double-fire the funnel events.
+              const provider =
+                (session.user.app_metadata as { provider?: string } | null)?.provider ?? 'email';
+              if (event === 'SIGNED_IN' && provider !== 'email') {
+                const createdAtMs = session.user.created_at
+                  ? new Date(session.user.created_at).getTime()
+                  : 0;
+                const lastSignInMs = session.user.last_sign_in_at
+                  ? new Date(session.user.last_sign_in_at).getTime()
+                  : Date.now();
+                // <60s gap between account creation and this sign-in means
+                // we're inside the first OAuth round-trip — count as signup.
+                // Same threshold as the email-flow heuristic in signIn(),
+                // with is_returning_user computed via the same expression
+                // (>60s gap) so missing created_at behaves identically.
+                const gapMs = lastSignInMs - createdAtMs;
+                const isFirstSignIn = createdAtMs > 0 && gapMs < 60_000;
+                const isReturningUser = createdAtMs > 0 && gapMs > 60_000;
+                if (isFirstSignIn) {
+                  track('complete_signup', { method: provider }, { send_instantly: true });
+                } else {
+                  track(
+                    'complete_login',
+                    { method: provider, is_returning_user: isReturningUser },
+                    { send_instantly: true },
+                  );
+                }
               }
             }
+          } else {
+            if (get().user) {
+              clearUserIdentity(setAnonId);
+            }
+            set({ user: null });
           }
-        } else {
-          if (get().user) {
-            clearUserIdentity();
-          }
-          set({ user: null });
-        }
-      });
+        });
 
-      set({ _unsubscribe: () => subscription.unsubscribe() });
-    }
-  },
+        set({ _unsubscribe: () => subscription.unsubscribe() });
+      }
+    },
 
-  signUp: async (email, password) => {
-    track('start_signup', { method: 'email' });
-    const startedAt = Date.now();
-    const isNative = Capacitor.isNativePlatform();
-    const emailRedirectTo = isNative
-      ? 'guidedgrowth://auth/callback'
-      : `${window.location.origin}/auth/callback`;
+    signUp: async (email, password) => {
+      track('start_signup', { method: 'email' });
+      const startedAt = Date.now();
+      const isNative = Capacitor.isNativePlatform();
+      const emailRedirectTo = isNative
+        ? 'guidedgrowth://auth/callback'
+        : `${window.location.origin}/auth/callback`;
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo,
-        data: {
-          full_name: email.split('@')[0],
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo,
+          data: {
+            full_name: email.split('@')[0],
+          },
         },
-      },
-    });
-
-    if (error) {
-      track('signup_error', {
-        method: 'email',
-        error_type: categorizeAuthError(error),
       });
-      return { error: friendlyError(error) };
-    }
 
-    // Reject auto-confirmed sessions — product flow requires email verification.
-    // Revert synchronously before awaiting signOut so AppGate can't redirect mid-flow.
-    if (data.session) {
-      set({ user: null });
-      await supabase.auth.signOut({ scope: 'global' });
-      track('signup_error', {
-        method: 'email',
-        error_type: 'auto_confirm_misconfigured',
-      });
-      return {
-        error:
-          'Email verification is not configured for this environment. Please contact support.',
-      };
-    }
+      if (error) {
+        track('signup_error', {
+          method: 'email',
+          error_type: categorizeAuthError(error),
+        });
+        return { error: friendlyError(error) };
+      }
 
-    // send_instantly skips the batched queue — otherwise the event races
-    // with post-auth navigation and is dropped before flush.
-    track(
-      'complete_signup',
-      {
-        method: 'email',
-        time_to_complete_seconds: Math.round((Date.now() - startedAt) / 1000),
-      },
-      { send_instantly: true },
-    );
+      // Reject auto-confirmed sessions — product flow requires email verification.
+      // Revert synchronously before awaiting signOut so AppGate can't redirect mid-flow.
+      if (data.session) {
+        set({ user: null });
+        await supabase.auth.signOut({ scope: 'global' });
+        track('signup_error', {
+          method: 'email',
+          error_type: 'auto_confirm_misconfigured',
+        });
+        return {
+          error:
+            'Email verification is not configured for this environment. Please contact support.',
+        };
+      }
 
-    return { error: null, confirmationPending: true };
-  },
-
-  signIn: async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      track('login_error', { method: 'email', error_type: categorizeAuthError(error) });
-      return { error: friendlyError(error) };
-    }
-
-    if (data?.user) {
-      const user = mapUser(data.user);
-      set({ user });
-      identifyUser(user);
-      // is_returning_user per spec v6.0 §3.1 — derived from the gap between
-      // account creation and this sign-in. >60s gap = not the immediate post-signup
-      // auto-login (which fires ~instantly after complete_signup), so it's a real
-      // returning user. <60s = same session as signup, treat as first login.
-      const createdAtMs = data.user.created_at ? new Date(data.user.created_at).getTime() : 0;
-      const lastSignInMs = data.user.last_sign_in_at
-        ? new Date(data.user.last_sign_in_at).getTime()
-        : Date.now();
-      const isReturningUser = createdAtMs > 0 && lastSignInMs - createdAtMs > 60_000;
-
-      // send_instantly skips the batched queue — without it the event
-      // races with post-auth navigation and gets dropped from the
-      // localStorage-backed queue before flush.
+      // send_instantly skips the batched queue — otherwise the event races
+      // with post-auth navigation and is dropped before flush.
       track(
-        'complete_login',
-        { method: 'email', is_returning_user: isReturningUser },
+        'complete_signup',
+        {
+          method: 'email',
+          time_to_complete_seconds: Math.round((Date.now() - startedAt) / 1000),
+        },
         { send_instantly: true },
       );
-    }
-    return { error: null };
-  },
 
-  signOut: async () => {
-    await supabase.auth.signOut({ scope: 'global' });
-    clearUserIdentity();
-    set({ user: null });
-  },
+      return { error: null, confirmationPending: true };
+    },
 
-  updateProfile: async () => {
-    const { data } = await supabase.auth.refreshSession();
-    if (data.session?.user) {
-      set({ user: mapUser(data.session.user) });
-    }
-  },
+    signIn: async (email, password) => {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-  signInWithGoogle: async () => {
-    const isNative = Capacitor.isNativePlatform();
-    const redirectTo = isNative
-      ? 'guidedgrowth://auth/callback'
-      : window.location.origin + '/auth/callback';
+      if (error) {
+        track('login_error', { method: 'email', error_type: categorizeAuthError(error) });
+        return { error: friendlyError(error) };
+      }
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo,
-        skipBrowserRedirect: isNative,
-      },
-    });
+      if (data?.user) {
+        const user = mapUser(data.user);
+        set({ user });
+        identifyUser(user, get().anonId, setAnonId);
+        // is_returning_user per spec v6.0 §3.1 — derived from the gap between
+        // account creation and this sign-in. >60s gap = not the immediate post-signup
+        // auto-login (which fires ~instantly after complete_signup), so it's a real
+        // returning user. <60s = same session as signup, treat as first login.
+        const createdAtMs = data.user.created_at ? new Date(data.user.created_at).getTime() : 0;
+        const lastSignInMs = data.user.last_sign_in_at
+          ? new Date(data.user.last_sign_in_at).getTime()
+          : Date.now();
+        const isReturningUser = createdAtMs > 0 && lastSignInMs - createdAtMs > 60_000;
 
-    if (error) return { error: friendlyError(error) };
+        // send_instantly skips the batched queue — without it the event
+        // races with post-auth navigation and gets dropped from the
+        // localStorage-backed queue before flush.
+        track(
+          'complete_login',
+          { method: 'email', is_returning_user: isReturningUser },
+          { send_instantly: true },
+        );
+      }
+      return { error: null };
+    },
 
-    if (isNative && data?.url) {
-      const { Browser } = await import('@capacitor/browser');
-      await Browser.open({ url: data.url });
-    }
+    signOut: async () => {
+      await supabase.auth.signOut({ scope: 'global' });
+      clearUserIdentity(setAnonId);
+      set({ user: null });
+    },
 
-    return { error: null };
-  },
+    updateProfile: async () => {
+      const { data } = await supabase.auth.refreshSession();
+      if (data.session?.user) {
+        set({ user: mapUser(data.session.user) });
+      }
+    },
 
-  resetPassword: async (email) => {
-    const isNative = Capacitor.isNativePlatform();
-    const base = isNative
-      ? 'guidedgrowth://auth/callback'
-      : window.location.origin + '/auth/callback';
-    const redirectTo = `${base}?next=reset-password`;
+    signInWithGoogle: async () => {
+      const isNative = Capacitor.isNativePlatform();
+      const redirectTo = isNative
+        ? 'guidedgrowth://auth/callback'
+        : window.location.origin + '/auth/callback';
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-    if (error) return { error: friendlyError(error) };
-    return { error: null };
-  },
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: isNative,
+        },
+      });
 
-  updatePassword: async (password) => {
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) return { error: friendlyError(error) };
+      if (error) return { error: friendlyError(error) };
 
-    // Invalidate the recovery session — user must re-login with new password
-    await supabase.auth.signOut();
-    clearUserIdentity();
-    set({ user: null, isRecoveryMode: false });
-    return { error: null };
-  },
-}));
+      if (isNative && data?.url) {
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.open({ url: data.url });
+      }
+
+      return { error: null };
+    },
+
+    resetPassword: async (email) => {
+      const isNative = Capacitor.isNativePlatform();
+      const base = isNative
+        ? 'guidedgrowth://auth/callback'
+        : window.location.origin + '/auth/callback';
+      const redirectTo = `${base}?next=reset-password`;
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+      if (error) return { error: friendlyError(error) };
+      return { error: null };
+    },
+
+    updatePassword: async (password) => {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) return { error: friendlyError(error) };
+
+      // Invalidate the recovery session — user must re-login with new password
+      await supabase.auth.signOut();
+      clearUserIdentity(setAnonId);
+      set({ user: null, isRecoveryMode: false });
+      return { error: null };
+    },
+  };
+});
