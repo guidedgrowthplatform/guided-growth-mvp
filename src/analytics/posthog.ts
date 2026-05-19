@@ -42,10 +42,7 @@ export function initAnalytics(): void {
     ui_host: UI_HOST,
     capture_pageview: false, // handled manually via usePageTracking
     persistence: 'localStorage',
-    session_recording: {
-      maskAllInputs: true,
-      maskTextSelector: '.sensitive',
-    },
+    disable_session_recording: true,
     // CapacitorHttp mishandles gzip bodies on Android (400 "invalid GZIP
     // data"). Harmless on web — ingest accepts uncompressed POSTs too.
     disable_compression: true,
