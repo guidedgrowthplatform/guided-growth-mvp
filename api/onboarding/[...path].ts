@@ -145,38 +145,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       await client.query('BEGIN');
 
-      const userTables = [
-        'onboarding_states',
-        'user_habits',
-        'user_milestones',
-        'user_points',
-        'user_preferences',
-        'user_settings',
-        'user_tracked_metrics',
-        'affirmations',
-        'ai_conversations',
-        'daily_checkins',
-        'entries',
-        'focus_sessions',
-        'journal_entries',
-        'metrics',
-        'reflection_configs',
-        'reflections',
-        'habit_completions',
-        'metric_entries',
-      ];
+      const countsRes = await client.query<{ counts: Record<string, number> | null }>(
+        `SELECT jsonb_object_agg(t, c) AS counts FROM (
+           SELECT 'onboarding_states' AS t, count(*)::int AS c FROM onboarding_states  WHERE anon_id = $1
+           UNION ALL SELECT 'user_habits',        count(*)::int FROM user_habits        WHERE anon_id = $1
+           UNION ALL SELECT 'user_preferences',   count(*)::int FROM user_preferences   WHERE anon_id = $1
+           UNION ALL SELECT 'affirmations',       count(*)::int FROM affirmations       WHERE anon_id = $1
+           UNION ALL SELECT 'daily_checkins',     count(*)::int FROM daily_checkins     WHERE anon_id = $1
+           UNION ALL SELECT 'entries',            count(*)::int FROM entries            WHERE anon_id = $1
+           UNION ALL SELECT 'focus_sessions',     count(*)::int FROM focus_sessions     WHERE anon_id = $1
+           UNION ALL SELECT 'journal_entries',    count(*)::int FROM journal_entries    WHERE anon_id = $1
+           UNION ALL SELECT 'metrics',            count(*)::int FROM metrics            WHERE anon_id = $1
+           UNION ALL SELECT 'metric_entries',     count(*)::int FROM metric_entries     WHERE anon_id = $1
+           UNION ALL SELECT 'reflection_configs', count(*)::int FROM reflection_configs WHERE anon_id = $1
+           UNION ALL SELECT 'reflections',        count(*)::int FROM reflections        WHERE anon_id = $1
+           UNION ALL SELECT 'habit_completions',  count(*)::int FROM habit_completions  WHERE anon_id = $1
+         ) s`,
+        [user.anonId],
+      );
+      const counts = countsRes.rows[0]?.counts ?? {};
 
-      for (const table of userTables) {
-        await client.query(`SAVEPOINT del_${table}`);
-        try {
-          await client.query(`DELETE FROM ${table} WHERE anon_id = $1`, [user.anonId]);
-        } catch {
-          await client.query(`ROLLBACK TO SAVEPOINT del_${table}`);
-        }
-      }
+      await client.query(
+        `INSERT INTO admin_audit_log (admin_user_id, action, target_type, target_identifier, payload_json)
+         VALUES ($1, 'delete_account', 'user', $2, $3)`,
+        [user.authUserId, user.authUserId, JSON.stringify({ counts })],
+      );
 
       await client.query('DELETE FROM profiles WHERE id = $1', [user.authUserId]);
       await client.query('COMMIT');
+
       const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.authUserId);
       if (deleteError) {
         console.error('Failed to delete Supabase Auth user:', deleteError);
@@ -258,7 +255,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const metaPatch: Record<string, string> = {};
         if (name !== undefined) metaPatch.full_name = name;
         if (nickname !== undefined) metaPatch.nickname = nickname;
-        await supabaseAdmin.auth.admin.updateUserById(user.authUserId, { user_metadata: metaPatch });
+        await supabaseAdmin.auth.admin.updateUserById(user.authUserId, {
+          user_metadata: metaPatch,
+        });
       }
     }
 
