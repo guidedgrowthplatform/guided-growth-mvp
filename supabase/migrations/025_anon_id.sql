@@ -62,6 +62,9 @@ GRANT SELECT (anon_id) ON profiles TO service_role;
 -- ─────────────────────────────────────────────────────────────────────────
 
 -- ── onboarding_states ───────────────────────────────────────────────────
+-- Child policies join onto user_id; drop first so the column drop succeeds.
+DROP POLICY IF EXISTS "user_isolation" ON onboarding_selected_categories;
+DROP POLICY IF EXISTS "user_isolation" ON onboarding_selected_subcategories;
 DROP POLICY IF EXISTS "user_isolation" ON onboarding_states;
 ALTER TABLE onboarding_states ADD COLUMN anon_id UUID;
 UPDATE onboarding_states t SET anon_id = p.anon_id FROM profiles p WHERE p.id = t.user_id;
@@ -92,6 +95,8 @@ CREATE POLICY "user_isolation" ON user_habits
   FOR ALL USING (anon_id = current_anon_id()) WITH CHECK (anon_id = current_anon_id());
 
 -- ── user_preferences ────────────────────────────────────────────────────
+-- Drift: legacy dashboard-created policy also references user_id.
+DROP POLICY IF EXISTS "Users can update own preferences" ON user_preferences;
 DROP POLICY IF EXISTS "user_isolation" ON user_preferences;
 ALTER TABLE user_preferences ADD COLUMN anon_id UUID;
 UPDATE user_preferences t SET anon_id = p.anon_id FROM profiles p WHERE p.id = t.user_id;
