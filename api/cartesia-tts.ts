@@ -26,8 +26,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!bypassAuth) {
     const user = await requireUser(req, res);
     if (!user) return;
-    await setUserContext(user.id);
-    const rl = checkRateLimit(user.id, {
+    await setUserContext(user.authUserId);
+    const rl = checkRateLimit(user.authUserId, {
       windowMs: 60_000,
       maxRequests: 20,
       keyPrefix: 'cartesia-tts',

@@ -18,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!bypassAuth) {
     const user = await requireUser(req, res);
     if (!user) return;
-    userId = user.id;
+    userId = user.authUserId;
   }
 
   const rl = checkRateLimit(userId, {

@@ -20,7 +20,7 @@ vi.mock('../../db.js', () => ({
 const pool = (await import('../../db.js')).default as { query: ReturnType<typeof vi.fn> };
 const { TOOL_DEFINITIONS, dispatchToolCall } = await import('../tools');
 
-const CTX = { user_id: 'user-A', session_id: 'sess-1' };
+const CTX = { auth_user_id: 'user-A', anon_id: 'anon-A', session_id: 'sess-1' };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -181,7 +181,7 @@ describe('dispatchToolCall — navigate_next', () => {
     });
     const [sql, params] = pool.query.mock.calls[0];
     expect(sql).toMatch(/INSERT INTO session_log/);
-    expect(params[0]).toBe('user-A');
+    expect(params[0]).toBe('anon-A');
     expect(params).toContain('sess-1');
     expect(params).toContain('navigate');
     const payload = params.find(
@@ -254,19 +254,17 @@ describe('dispatchToolCall — error envelope', () => {
     expect(pool.query).not.toHaveBeenCalled();
   });
 
-  it('propagates ctx.user_id to handlers — never trusts a body-supplied id', async () => {
+  it('propagates ctx.anon_id to handlers — never trusts a body-supplied id', async () => {
     pool.query.mockResolvedValueOnce({
       rows: [{ id: 'x', timestamp: new Date() }],
     });
-    const trusted = { user_id: 'user-trusted', session_id: 'sess-1' };
-    // Forged user_id in args — must be ignored. Cast through unknown so the
-    // extra field is allowed without touching the public type.
+    const trusted = { auth_user_id: 'user-trusted', anon_id: 'anon-trusted', session_id: 'sess-1' };
     await dispatchToolCall(trusted, 'navigate_next', {
       target_screen: 'HOME',
-      user_id: 'user-forged',
+      anon_id: 'anon-forged',
     } as unknown as { target_screen: string });
     const navParams = pool.query.mock.calls[0][1];
-    expect(navParams[0]).toBe('user-trusted');
-    expect(navParams).not.toContain('user-forged');
+    expect(navParams[0]).toBe('anon-trusted');
+    expect(navParams).not.toContain('anon-forged');
   });
 });

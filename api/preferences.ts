@@ -65,12 +65,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
   if (!user) return;
-  await setUserContext(user.id);
+  await setUserContext(user.anonId);
 
   if (req.method === 'GET') {
     const result = await pool.query(
-      `SELECT ${SELECT_COLUMNS} FROM user_preferences WHERE user_id = $1`,
-      [user.id],
+      `SELECT ${SELECT_COLUMNS} FROM user_preferences WHERE anon_id = $1`,
+      [user.anonId],
     );
     return res.json(shapeRow(result.rows[0]));
   }
@@ -92,21 +92,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const keys = Object.keys(updates);
     if (keys.length === 0) {
       const result = await pool.query(
-        `SELECT ${SELECT_COLUMNS} FROM user_preferences WHERE user_id = $1`,
-        [user.id],
+        `SELECT ${SELECT_COLUMNS} FROM user_preferences WHERE anon_id = $1`,
+        [user.anonId],
       );
       return res.json(shapeRow(result.rows[0]));
     }
 
     // column names interpolated from ALLOWED_COLUMNS whitelist — safe
-    const insertCols = ['user_id', ...keys];
+    const insertCols = ['anon_id', ...keys];
     const insertPlaceholders = insertCols.map((_, i) => `$${i + 1}`);
-    const insertValues = [user.id, ...keys.map((k) => updates[k])];
+    const insertValues = [user.anonId, ...keys.map((k) => updates[k])];
     const updateAssignments = keys.map((k, i) => `${k} = $${i + 2}`).join(', ');
 
     const sql = `INSERT INTO user_preferences (${insertCols.join(', ')})
                  VALUES (${insertPlaceholders.join(', ')})
-                 ON CONFLICT (user_id) DO UPDATE SET ${updateAssignments}, updated_at = now()
+                 ON CONFLICT (anon_id) DO UPDATE SET ${updateAssignments}, updated_at = now()
                  RETURNING ${SELECT_COLUMNS}`;
 
     const result = await pool.query(sql, insertValues);

@@ -14,6 +14,18 @@ export interface User {
   updatedAt: string;
 }
 
+// Server-side authenticated user — produced by requireUser() in api/_lib/auth.ts.
+// authUserId = auth.users.id (for admin actions, rate-limit keys, audit logs)
+// anonId     = profiles.anon_id (for ALL behavioral DB queries)
+export interface AuthenticatedUser {
+  authUserId: string;
+  anonId: string;
+  firstName: string | null;
+  email: string;
+  role: UserRole;
+  status: UserStatus;
+}
+
 // ─── Metric ─────────────────────────────────────────
 export type InputType = 'binary' | 'numeric' | 'short_text' | 'text';
 export type Frequency = 'daily' | 'weekdays' | 'weekends' | 'weekly';

@@ -7,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
   if (!user) return;
-  await setUserContext(user.id);
+  await setUserContext(user.anonId);
 
   const raw = req.query['...path'];
   let segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
@@ -18,8 +18,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (segments.length === 0 && req.method === 'GET') {
       const result = await pool.query(
         `SELECT id, name, input_type, scale_min, scale_max, unit, target_value, sort_order, active, created_at
-         FROM metrics WHERE user_id = $1 ORDER BY sort_order, created_at`,
-        [user.id],
+         FROM metrics WHERE anon_id = $1 ORDER BY sort_order, created_at`,
+        [user.anonId],
       );
       return res.json(result.rows);
     }
@@ -33,11 +33,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const result = await pool.query(
-        `INSERT INTO metrics (user_id, name, input_type, scale_min, scale_max, unit, target_value, active)
+        `INSERT INTO metrics (anon_id, name, input_type, scale_min, scale_max, unit, target_value, active)
          VALUES ($1, $2, $3, $4, $5, $6, $7, true)
          RETURNING id, name, input_type, scale_min, scale_max, unit, target_value, sort_order, active, created_at`,
         [
-          user.id,
+          user.anonId,
           name,
           input_type || 'numeric',
           scale_min || null,
@@ -63,8 +63,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (segments.length === 1 && req.method === 'GET') {
       const result = await pool.query(
         `SELECT id, name, input_type, scale_min, scale_max, unit, target_value, sort_order, active, created_at
-         FROM metrics WHERE id = $1 AND user_id = $2`,
-        [metricId, user.id],
+         FROM metrics WHERE id = $1 AND anon_id = $2`,
+        [metricId, user.anonId],
       );
 
       if (result.rows.length === 0) {
@@ -89,11 +89,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              target_value = COALESCE($8, target_value),
              active = COALESCE($9, active),
              sort_order = COALESCE($10, sort_order)
-         WHERE id = $1 AND user_id = $2
+         WHERE id = $1 AND anon_id = $2
          RETURNING id, name, input_type, scale_min, scale_max, unit, target_value, sort_order, active, created_at`,
         [
           metricId,
-          user.id,
+          user.anonId,
           name,
           input_type,
           scale_min,
@@ -115,8 +115,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // DELETE /api/metrics/{id} — soft delete via active flag
     if (segments.length === 1 && req.method === 'DELETE') {
       const result = await pool.query(
-        `UPDATE metrics SET active = false WHERE id = $1 AND user_id = $2 RETURNING id`,
-        [metricId, user.id],
+        `UPDATE metrics SET active = false WHERE id = $1 AND anon_id = $2 RETURNING id`,
+        [metricId, user.anonId],
       );
 
       if (result.rows.length === 0) {
@@ -141,8 +141,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       let query = `SELECT id, metric_id, date, value, logged_at
                    FROM metric_entries
-                   WHERE metric_id = $1 AND user_id = $2`;
-      const params: unknown[] = [metricId, user.id];
+                   WHERE metric_id = $1 AND anon_id = $2`;
+      const params: unknown[] = [metricId, user.anonId];
 
       if (startDate) {
         query += ` AND date >= $${params.length + 1}`;
@@ -172,11 +172,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const result = await pool.query(
-        `INSERT INTO metric_entries (user_id, metric_id, date, value)
+        `INSERT INTO metric_entries (anon_id, metric_id, date, value)
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (metric_id, date) DO UPDATE SET value = $4, logged_at = now()
          RETURNING id, metric_id, date, value, logged_at`,
-        [user.id, metricId, validDate, String(value)],
+        [user.anonId, metricId, validDate, String(value)],
       );
 
       return res.json(result.rows[0]);
@@ -195,9 +195,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const result = await pool.query(
         `UPDATE metric_entries SET value = $4, logged_at = now()
-         WHERE metric_id = $1 AND user_id = $2 AND date = $3
+         WHERE metric_id = $1 AND anon_id = $2 AND date = $3
          RETURNING id, metric_id, date, value, logged_at`,
-        [metricId, user.id, entryDate, String(value)],
+        [metricId, user.anonId, entryDate, String(value)],
       );
 
       if (result.rows.length === 0) {
@@ -216,9 +216,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const result = await pool.query(
         `DELETE FROM metric_entries
-         WHERE metric_id = $1 AND user_id = $2 AND date = $3
+         WHERE metric_id = $1 AND anon_id = $2 AND date = $3
          RETURNING id`,
-        [metricId, user.id, entryDate],
+        [metricId, user.anonId, entryDate],
       );
 
       if (result.rows.length === 0) {

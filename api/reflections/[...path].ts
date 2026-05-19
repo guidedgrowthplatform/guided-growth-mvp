@@ -16,7 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
   if (!user) return;
-  await setUserContext(user.id);
+  await setUserContext(user.anonId);
 
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
@@ -53,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const ext = contentType.split('/')[1] === 'jpeg' ? 'jpg' : contentType.split('/')[1];
-      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const path = `${user.authUserId}/${crypto.randomUUID()}.${ext}`;
 
       const { error: uploadError } = await supabaseAdmin.storage
         .from('journal-images')
@@ -105,11 +105,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       try {
         await client.query('BEGIN');
         const ins = await client.query(
-          `INSERT INTO journal_entries (user_id, type, template_id, title, date, habit_id)
+          `INSERT INTO journal_entries (anon_id, type, template_id, title, date, habit_id)
            VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING id, user_id, type, template_id, title, date::text, habit_id, created_at, updated_at`,
+           RETURNING id, anon_id AS user_id, type, template_id, title, date::text, habit_id, created_at, updated_at`,
           [
-            user.id,
+            user.anonId,
             type,
             type === 'template' ? template_id : null,
             title?.trim() || null,
@@ -152,21 +152,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         habitFilter = v;
       }
       const sql = habitFilter
-        ? `SELECT je.id, je.user_id, je.type, je.template_id, je.title,
+        ? `SELECT je.id, je.anon_id AS user_id, je.type, je.template_id, je.title,
                   je.date::text, je.habit_id, je.created_at, je.updated_at,
                   jf.field_key, jf.content
            FROM journal_entries je
            LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
-           WHERE je.user_id = $1 AND je.date >= $2 AND je.date <= $3 AND je.habit_id = $4
+           WHERE je.anon_id = $1 AND je.date >= $2 AND je.date <= $3 AND je.habit_id = $4
            ORDER BY je.created_at DESC`
-        : `SELECT je.id, je.user_id, je.type, je.template_id, je.title,
+        : `SELECT je.id, je.anon_id AS user_id, je.type, je.template_id, je.title,
                   je.date::text, je.habit_id, je.created_at, je.updated_at,
                   jf.field_key, jf.content
            FROM journal_entries je
            LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
-           WHERE je.user_id = $1 AND je.date >= $2 AND je.date <= $3
+           WHERE je.anon_id = $1 AND je.date >= $2 AND je.date <= $3
            ORDER BY je.created_at DESC`;
-      const params = habitFilter ? [user.id, start, end, habitFilter] : [user.id, start, end];
+      const params = habitFilter ? [user.anonId, start, end, habitFilter] : [user.anonId, start, end];
       const result = await pool.query(sql, params);
       const entriesMap = new Map<string, Record<string, unknown>>();
       for (const row of result.rows) {
@@ -198,13 +198,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (req.method === 'GET') {
         const result = await pool.query(
-          `SELECT je.id, je.user_id, je.type, je.template_id, je.title,
+          `SELECT je.id, je.anon_id AS user_id, je.type, je.template_id, je.title,
                   je.date::text, je.habit_id, je.created_at, je.updated_at,
                   jf.field_key, jf.content
            FROM journal_entries je
            LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
-           WHERE je.id = $1 AND je.user_id = $2`,
-          [entryId, user.id],
+           WHERE je.id = $1 AND je.anon_id = $2`,
+          [entryId, user.anonId],
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
         const row0 = result.rows[0];
@@ -235,8 +235,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
           await client.query('BEGIN');
           const check = await client.query(
-            'SELECT id FROM journal_entries WHERE id = $1 AND user_id = $2',
-            [entryId, user.id],
+            'SELECT id FROM journal_entries WHERE id = $1 AND anon_id = $2',
+            [entryId, user.anonId],
           );
           if (check.rows.length === 0) {
             await client.query('ROLLBACK');
@@ -266,13 +266,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           await client.query('COMMIT');
           // Re-fetch
           const updated = await pool.query(
-            `SELECT je.id, je.user_id, je.type, je.template_id, je.title,
+            `SELECT je.id, je.anon_id AS user_id, je.type, je.template_id, je.title,
                     je.date::text, je.habit_id, je.created_at, je.updated_at,
                     jf.field_key, jf.content
              FROM journal_entries je
              LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
-             WHERE je.id = $1 AND je.user_id = $2`,
-            [entryId, user.id],
+             WHERE je.id = $1 AND je.anon_id = $2`,
+            [entryId, user.anonId],
           );
           const r0 = updated.rows[0];
           const updatedFields: Record<string, string> = {};
@@ -301,8 +301,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (req.method === 'DELETE') {
         const result = await pool.query(
-          'DELETE FROM journal_entries WHERE id = $1 AND user_id = $2 RETURNING id',
-          [entryId, user.id],
+          'DELETE FROM journal_entries WHERE id = $1 AND anon_id = $2 RETURNING id',
+          [entryId, user.anonId],
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
         return res.json({ message: 'Deleted' });
@@ -326,10 +326,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Feedback text too long (max 5000 characters)' });
       }
       const result = await pool.query(
-        `INSERT INTO feedback (user_id, sentiment, text)
+        `INSERT INTO feedback (anon_id, sentiment, text)
          VALUES ($1, $2, $3)
          RETURNING id, sentiment, text, created_at`,
-        [user.id, sentiment, feedbackText],
+        [user.anonId, sentiment, feedbackText],
       );
       const inserted = result.rows[0];
       const submittedAt =
@@ -352,8 +352,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (route === 'config') {
     if (req.method === 'GET') {
       const result = await pool.query(
-        'SELECT fields, show_affirmation FROM reflection_configs WHERE user_id = $1',
-        [user.id],
+        'SELECT fields, show_affirmation FROM reflection_configs WHERE anon_id = $1',
+        [user.anonId],
       );
       if (result.rows.length === 0)
         return res.json({ fields: DEFAULT_FIELDS, show_affirmation: true });
@@ -362,9 +362,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const { fields, show_affirmation } = req.body;
       await pool.query(
-        `INSERT INTO reflection_configs (user_id, fields, show_affirmation) VALUES ($1, $2, $3)
-         ON CONFLICT (user_id) DO UPDATE SET fields = $2, show_affirmation = $3`,
-        [user.id, JSON.stringify(fields), show_affirmation],
+        `INSERT INTO reflection_configs (anon_id, fields, show_affirmation) VALUES ($1, $2, $3)
+         ON CONFLICT (anon_id) DO UPDATE SET fields = $2, show_affirmation = $3`,
+        [user.anonId, JSON.stringify(fields), show_affirmation],
       );
       return res.json({ fields, show_affirmation });
     }
@@ -382,14 +382,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const [fieldId, value] of Object.entries(req.body)) {
         if (value === '' || value === null || value === undefined) {
           await client.query(
-            'DELETE FROM reflections WHERE user_id = $1 AND date = $2 AND field_id = $3',
-            [user.id, date, fieldId],
+            'DELETE FROM reflections WHERE anon_id = $1 AND date = $2 AND field_id = $3',
+            [user.anonId, date, fieldId],
           );
         } else {
           await client.query(
-            `INSERT INTO reflections (user_id, date, field_id, value) VALUES ($1, $2, $3, $4)
-             ON CONFLICT (user_id, date, field_id) DO UPDATE SET value = $4`,
-            [user.id, date, fieldId, value],
+            `INSERT INTO reflections (anon_id, date, field_id, value) VALUES ($1, $2, $3, $4)
+             ON CONFLICT (anon_id, date, field_id) DO UPDATE SET value = $4`,
+            [user.anonId, date, fieldId, value],
           );
         }
       }
@@ -411,8 +411,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Valid start and end dates required (YYYY-MM-DD)' });
 
   const result = await pool.query(
-    'SELECT date::text, field_id, value FROM reflections WHERE user_id = $1 AND date >= $2 AND date <= $3',
-    [user.id, start, end],
+    'SELECT date::text, field_id, value FROM reflections WHERE anon_id = $1 AND date >= $2 AND date <= $3',
+    [user.anonId, start, end],
   );
 
   const map: Record<string, Record<string, string>> = {};

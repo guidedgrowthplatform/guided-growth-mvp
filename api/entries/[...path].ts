@@ -7,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
   if (!user) return;
-  await setUserContext(user.id);
+  await setUserContext(user.anonId);
 
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
@@ -21,10 +21,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Valid start and end dates required (YYYY-MM-DD)' });
 
     const [metricsResult, entriesResult] = await Promise.all([
-      pool.query('SELECT id, name FROM metrics WHERE user_id = $1 ORDER BY sort_order', [user.id]),
+      pool.query('SELECT id, name FROM metrics WHERE anon_id = $1 ORDER BY sort_order', [user.anonId]),
       pool.query(
-        'SELECT metric_id, date::text, value FROM entries WHERE user_id = $1 AND date >= $2 AND date <= $3 ORDER BY date',
-        [user.id, start, end],
+        'SELECT metric_id, date::text, value FROM entries WHERE anon_id = $1 AND date >= $2 AND date <= $3 ORDER BY date',
+        [user.anonId, start, end],
       ),
     ]);
 
@@ -68,14 +68,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         for (const [metricId, value] of Object.entries(dayEntries as Record<string, string>)) {
           if (value === '' || value === null || value === undefined) {
             await client.query(
-              'DELETE FROM entries WHERE user_id = $1 AND metric_id = $2 AND date = $3',
-              [user.id, metricId, date],
+              'DELETE FROM entries WHERE anon_id = $1 AND metric_id = $2 AND date = $3',
+              [user.anonId, metricId, date],
             );
           } else {
             await client.query(
-              `INSERT INTO entries (user_id, metric_id, date, value) VALUES ($1, $2, $3, $4)
-               ON CONFLICT (user_id, metric_id, date) DO UPDATE SET value = $4`,
-              [user.id, metricId, date, String(value)],
+              `INSERT INTO entries (anon_id, metric_id, date, value) VALUES ($1, $2, $3, $4)
+               ON CONFLICT (anon_id, metric_id, date) DO UPDATE SET value = $4`,
+              [user.anonId, metricId, date, String(value)],
             );
           }
         }
@@ -101,14 +101,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const [metricId, value] of Object.entries(req.body)) {
         if (value === '' || value === null || value === undefined) {
           await client.query(
-            'DELETE FROM entries WHERE user_id = $1 AND metric_id = $2 AND date = $3',
-            [user.id, metricId, date],
+            'DELETE FROM entries WHERE anon_id = $1 AND metric_id = $2 AND date = $3',
+            [user.anonId, metricId, date],
           );
         } else {
           await client.query(
-            `INSERT INTO entries (user_id, metric_id, date, value) VALUES ($1, $2, $3, $4)
-             ON CONFLICT (user_id, metric_id, date) DO UPDATE SET value = $4`,
-            [user.id, metricId, date, String(value)],
+            `INSERT INTO entries (anon_id, metric_id, date, value) VALUES ($1, $2, $3, $4)
+             ON CONFLICT (anon_id, metric_id, date) DO UPDATE SET value = $4`,
+            [user.anonId, metricId, date, String(value)],
           );
         }
       }
@@ -130,8 +130,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Valid start and end dates required (YYYY-MM-DD)' });
 
   const result = await pool.query(
-    'SELECT metric_id, date::text, value FROM entries WHERE user_id = $1 AND date >= $2 AND date <= $3',
-    [user.id, start, end],
+    'SELECT metric_id, date::text, value FROM entries WHERE anon_id = $1 AND date >= $2 AND date <= $3',
+    [user.anonId, start, end],
   );
 
   const map: Record<string, Record<string, string>> = {};

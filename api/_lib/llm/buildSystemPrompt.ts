@@ -5,7 +5,7 @@ import { buildContextMessage } from '@shared/context/buildContextMessage.js';
 import type { SessionStateDeltaEntry } from '@shared/types/context.js';
 
 export interface BuildSystemPromptArgs {
-  user_id: string;
+  anon_id: string;
   screen_id: string;
   coaching_style: CoachingStyle;
 }
@@ -60,10 +60,10 @@ export async function buildSystemPromptForRequest(
   const logRes = await pool.query<SessionLogRow>(
     `SELECT id, session_id, timestamp, event_type, screen_id, payload
        FROM session_log
-      WHERE user_id = $1 AND event_type <> 'llm_call'
+      WHERE anon_id = $1 AND event_type <> 'llm_call'
       ORDER BY timestamp DESC
       LIMIT 15`,
-    [args.user_id],
+    [args.anon_id],
   );
 
   const state_delta: SessionStateDeltaEntry[] = logRes.rows

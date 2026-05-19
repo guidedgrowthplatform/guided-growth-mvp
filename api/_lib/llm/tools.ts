@@ -120,7 +120,8 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
 ] as const;
 
 export interface ToolContext {
-  user_id: string;
+  auth_user_id: string;
+  anon_id: string;
   session_id: string;
 }
 
@@ -195,7 +196,7 @@ async function updateProfile(ctx: ToolContext, args: Record<string, unknown>): P
   }
 
   // Column name comes from a hard-coded whitelist — safe to interpolate.
-  await pool.query(`UPDATE profiles SET ${field} = $2 WHERE id = $1`, [ctx.user_id, value]);
+  await pool.query(`UPDATE profiles SET ${field} = $2 WHERE id = $1`, [ctx.auth_user_id, value]);
 
   return { ok: true, result: { field, value } };
 }
@@ -206,11 +207,11 @@ async function navigateNext(ctx: ToolContext, args: Record<string, unknown>): Pr
   if (targetScreen.length > SCREEN_ID_MAX_LEN) return invalid('target_screen is too long');
 
   const result = await pool.query<{ id: string; timestamp: Date }>(
-    `INSERT INTO session_log (user_id, session_id, event_type, screen_id, payload)
+    `INSERT INTO session_log (anon_id, session_id, event_type, screen_id, payload)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING id, timestamp`,
     [
-      ctx.user_id,
+      ctx.anon_id,
       ctx.session_id,
       'navigate',
       null,
@@ -245,10 +246,10 @@ async function logEvent(ctx: ToolContext, args: Record<string, unknown>): Promis
   }
 
   const result = await pool.query<{ id: string; timestamp: Date }>(
-    `INSERT INTO session_log (user_id, session_id, event_type, screen_id, payload)
+    `INSERT INTO session_log (anon_id, session_id, event_type, screen_id, payload)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING id, timestamp`,
-    [ctx.user_id, ctx.session_id, eventName, null, payload],
+    [ctx.anon_id, ctx.session_id, eventName, null, payload],
   );
   return {
     ok: true,
