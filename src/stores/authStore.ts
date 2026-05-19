@@ -16,7 +16,6 @@ export interface AppUser {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapUser(u: any): AppUser {
-  // Extract role and status from JWT app_metadata claims
   const claims = u.app_metadata as { role?: string; status?: string };
   return {
     id: u.id,
@@ -27,6 +26,21 @@ function mapUser(u: any): AppUser {
     role: claims.role ?? 'user',
     status: claims.status ?? 'active',
   };
+}
+
+async function fetchAnonId(): Promise<string | null> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return null;
+    const res = await fetch('/api/me', {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { anonId?: string };
+    return data.anonId ?? null;
+  } catch {
+    return null;
+  }
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -72,9 +86,15 @@ function categorizeAuthError(error: any): string {
   return 'other';
 }
 
-function identifyUser(user: AppUser) {
-  identify(user.id, { email: user.email, name: user.name, role: user.role });
-  Sentry.setUser({ id: user.id, email: user.email });
+function identifyUser(_user: AppUser) {
+  // anonId resolved via /api/me — not in JWT/session.user. Fire-and-forget;
+  // session stays unidentified for analytics if the fetch fails.
+  void fetchAnonId().then((anonId) => {
+    if (anonId) {
+      identify(anonId);
+      Sentry.setUser({ id: anonId });
+    }
+  });
 }
 
 function clearUserIdentity() {

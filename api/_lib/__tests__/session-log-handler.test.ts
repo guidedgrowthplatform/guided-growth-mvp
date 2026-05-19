@@ -57,7 +57,9 @@ function mockReq(overrides: Partial<VercelRequest>): VercelRequest {
 beforeEach(() => {
   vi.clearAllMocks();
   (auth.requireUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-    id: 'user-A',
+    authUserId: 'user-A',
+    anonId: 'anon-A',
+    firstName: null,
     email: 'a@example.com',
     role: 'user',
     status: 'active',
@@ -68,13 +70,13 @@ beforeEach(() => {
 });
 
 describe('POST /api/session_log', () => {
-  it('writes user.id from the bearer token, never from the body', async () => {
+  it('writes anon_id from the bearer token, never from the body', async () => {
     const req = mockReq({
       body: {
         session_id: 's1',
         event_type: 'navigate',
-        // Attempt to forge a different user_id — handler must ignore it.
-        user_id: 'user-B',
+        // Attempt to forge a different anon_id — handler must ignore it.
+        anon_id: 'anon-B',
       },
     });
     const res = mockRes();
@@ -83,7 +85,7 @@ describe('POST /api/session_log', () => {
     expect(res._status).toBe(201);
     expect(pool.query).toHaveBeenCalledTimes(1);
     const [, params] = pool.query.mock.calls[0];
-    expect(params[0]).toBe('user-A'); // server-side user id, not 'user-B'
+    expect(params[0]).toBe('anon-A'); // server-side anon id, not 'anon-B'
   });
 
   it('returns 400 when session_id missing', async () => {

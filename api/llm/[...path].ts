@@ -81,14 +81,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const user = await requireUser(req, res);
   if (!user) return;
-  await setUserContext(user.id);
+  await setUserContext(user.authUserId);
 
-  const userRl = checkRateLimit(user.id, {
+  const userRl = checkRateLimit(user.authUserId, {
     windowMs: 60_000,
     maxRequests: 20,
     keyPrefix: 'llm-user',
   });
-  const userDailyRl = checkRateLimit(user.id, {
+  const userDailyRl = checkRateLimit(user.authUserId, {
     windowMs: 86_400_000,
     maxRequests: 200,
     keyPrefix: 'llm-user-daily',
@@ -126,7 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let systemPrompt: string;
   try {
     const built = await buildSystemPromptForRequest({
-      user_id: user.id,
+      anon_id: user.anonId,
       screen_id: screenId,
       coaching_style: coachingStyle,
     });
@@ -154,10 +154,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     await pool.query(
-      `INSERT INTO session_log (user_id, session_id, event_type, screen_id, payload)
+      `INSERT INTO session_log (anon_id, session_id, event_type, screen_id, payload)
        VALUES ($1, $2, $3, $4, $5)`,
       [
-        user.id,
+        user.anonId,
         sessionId,
         'llm_call',
         screenId,
@@ -198,10 +198,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const writeEndRow = async () => {
     try {
       await pool.query(
-        `INSERT INTO session_log (user_id, session_id, event_type, screen_id, payload)
+        `INSERT INTO session_log (anon_id, session_id, event_type, screen_id, payload)
          VALUES ($1, $2, $3, $4, $5)`,
         [
-          user.id,
+          user.anonId,
           sessionId,
           'llm_call',
           screenId,
@@ -339,7 +339,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           } else {
             try {
               result = await dispatchToolCall(
-                { user_id: user.id, session_id: sessionId },
+                { auth_user_id: user.authUserId, anon_id: user.anonId, session_id: sessionId },
                 tc.name as ToolName,
                 args,
               );

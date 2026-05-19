@@ -7,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
   if (!user) return;
-  await setUserContext(user.id);
+  await setUserContext(user.authUserId);
 
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
@@ -15,8 +15,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (route === '' && req.method === 'GET') {
     const result = await pool.query(
-      'SELECT id, user_id, path, current_step, status, data, brain_dump_raw, brain_dump_parsed, completed_at FROM onboarding_states WHERE user_id = $1',
-      [user.id],
+      'SELECT id, anon_id AS user_id, path, current_step, status, data, brain_dump_raw, brain_dump_parsed, completed_at FROM onboarding_states WHERE anon_id = $1',
+      [user.anonId],
     );
     return res.json(result.rows[0] || null);
   }
@@ -29,9 +29,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const result = await pool.query(
-      `INSERT INTO onboarding_states (user_id, current_step, path, status, data, brain_dump_raw, brain_dump_parsed, updated_at)
+      `INSERT INTO onboarding_states (anon_id, current_step, path, status, data, brain_dump_raw, brain_dump_parsed, updated_at)
        VALUES ($1, $2, $3, 'in_progress', $4::jsonb, $5, $6::jsonb, now())
-       ON CONFLICT (user_id) DO UPDATE SET
+       ON CONFLICT (anon_id) DO UPDATE SET
          current_step = GREATEST(onboarding_states.current_step, $2),
          path = COALESCE($3, onboarding_states.path),
          status = 'in_progress',
@@ -39,9 +39,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          brain_dump_raw = COALESCE($5, onboarding_states.brain_dump_raw),
          brain_dump_parsed = COALESCE($6::jsonb, onboarding_states.brain_dump_parsed),
          updated_at = now()
-       RETURNING id, user_id, path, current_step, status, data, brain_dump_raw, brain_dump_parsed, completed_at`,
+       RETURNING id, anon_id AS user_id, path, current_step, status, data, brain_dump_raw, brain_dump_parsed, completed_at`,
       [
-        user.id,
+        user.anonId,
         step,
         path || null,
         JSON.stringify(data || {}),
@@ -63,9 +63,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `UPDATE onboarding_states
          SET data = onboarding_states.data || $2::jsonb,
              status = 'completed', completed_at = now(), updated_at = now()
-         WHERE user_id = $1
+         WHERE anon_id = $1
          RETURNING id, path, data`,
-        [user.id, JSON.stringify(finalData || {})],
+        [user.anonId, JSON.stringify(finalData || {})],
       );
 
       if (stateResult.rows.length === 0) {
@@ -82,15 +82,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let sortOrder = 0;
         for (const [name, config] of Object.entries(habitConfigs)) {
           await client.query(
-            `INSERT INTO user_habits (user_id, name, habit_type, cadence, schedule_days, reminder_time, reminder_enabled, sort_order)
+            `INSERT INTO user_habits (anon_id, name, habit_type, cadence, schedule_days, reminder_time, reminder_enabled, sort_order)
              VALUES ($1, $2, 'binary_do', 'daily', $3, $4, $5, $6)
-             ON CONFLICT (user_id, name) DO UPDATE SET
+             ON CONFLICT (anon_id, name) DO UPDATE SET
                schedule_days = EXCLUDED.schedule_days,
                reminder_time = EXCLUDED.reminder_time,
                reminder_enabled = EXCLUDED.reminder_enabled,
                sort_order = EXCLUDED.sort_order`,
             [
-              user.id,
+              user.anonId,
               name,
               config.days || null,
               config.time || null,
@@ -111,7 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          WHERE id = $2`,
         [
           onboardingPath,
-          user.id,
+          user.authUserId,
           data?.nickname || null,
           data?.ageRange || null,
           data?.gender || null,
@@ -124,7 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
 
       if (data?.nickname) {
-        await supabaseAdmin.auth.admin.updateUserById(user.id, {
+        await supabaseAdmin.auth.admin.updateUserById(user.authUserId, {
           user_metadata: { nickname: data.nickname },
         });
       }
@@ -169,15 +169,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const table of userTables) {
         await client.query(`SAVEPOINT del_${table}`);
         try {
-          await client.query(`DELETE FROM ${table} WHERE user_id = $1`, [user.id]);
+          await client.query(`DELETE FROM ${table} WHERE anon_id = $1`, [user.anonId]);
         } catch {
           await client.query(`ROLLBACK TO SAVEPOINT del_${table}`);
         }
       }
 
-      await client.query('DELETE FROM profiles WHERE id = $1', [user.id]);
+      await client.query('DELETE FROM profiles WHERE id = $1', [user.authUserId]);
       await client.query('COMMIT');
-      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.authUserId);
       if (deleteError) {
         console.error('Failed to delete Supabase Auth user:', deleteError);
         return res.status(500).json({ error: 'Failed to delete auth user' });
@@ -196,7 +196,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // GET /api/onboarding/profile — fetch current profile fields
   if (route === 'profile' && req.method === 'GET') {
     const { rows } = await pool.query('SELECT name, nickname, image FROM profiles WHERE id = $1', [
-      user.id,
+      user.authUserId,
     ]);
     return res.json(rows[0] ?? { name: null, nickname: null, image: null });
   }
@@ -239,7 +239,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const updates: string[] = [];
-    const values: unknown[] = [user.id];
+    const values: unknown[] = [user.authUserId];
     const push = (col: string, val: unknown) => {
       values.push(val);
       updates.push(`${col} = $${values.length}`);
@@ -258,7 +258,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const metaPatch: Record<string, string> = {};
         if (name !== undefined) metaPatch.full_name = name;
         if (nickname !== undefined) metaPatch.nickname = nickname;
-        await supabaseAdmin.auth.admin.updateUserById(user.id, { user_metadata: metaPatch });
+        await supabaseAdmin.auth.admin.updateUserById(user.authUserId, { user_metadata: metaPatch });
       }
     }
 
@@ -329,7 +329,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Upload to Supabase Storage — userId is a verified UUID so path is safe
-    const storagePath = `${user.id}/avatar.${ext}`;
+    const storagePath = `${user.authUserId}/avatar.${ext}`;
     const { error: uploadError } = await supabaseAdmin.storage
       .from('avatars')
       .upload(storagePath, buffer, { contentType: mimeType, upsert: true });
@@ -341,9 +341,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
     const imageUrl = `${supabaseUrl}/storage/v1/object/public/avatars/${storagePath}`;
 
-    await pool.query('UPDATE profiles SET image = $1 WHERE id = $2', [imageUrl, user.id]);
+    await pool.query('UPDATE profiles SET image = $1 WHERE id = $2', [imageUrl, user.authUserId]);
     // Keep user_metadata in sync so mapUser() reads the new avatar after session refresh
-    await supabaseAdmin.auth.admin.updateUserById(user.id, {
+    await supabaseAdmin.auth.admin.updateUserById(user.authUserId, {
       user_metadata: { avatar_url: imageUrl },
     });
 

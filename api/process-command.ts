@@ -368,14 +368,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!bypassAuth) {
     const user = await requireUser(req, res);
     if (!user) return;
-    await setUserContext(user.id);
-    const rl = checkRateLimit(user.id, {
+    await setUserContext(user.authUserId);
+    const rl = checkRateLimit(user.authUserId, {
       windowMs: 60_000,
       maxRequests: 20,
       keyPrefix: 'process-command',
     });
 
-    const dailyRl = checkRateLimit(user.id, {
+    const dailyRl = checkRateLimit(user.authUserId, {
       windowMs: 86_400_000, // 24 hours
       maxRequests: 50, // 50 voice interactions per day cap
       keyPrefix: 'process-command-daily',

@@ -62,7 +62,9 @@ function patchProfile(body: Record<string, unknown>): VercelRequest {
 beforeEach(() => {
   vi.clearAllMocks();
   (auth.requireUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-    id: 'user-A',
+    authUserId: 'user-A',
+    anonId: 'anon-A',
+    firstName: null,
     email: 'a@example.com',
     role: 'user',
     status: 'active',

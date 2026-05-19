@@ -7,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
   if (!user) return;
-  await setUserContext(user.id);
+  await setUserContext(user.anonId);
 
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
@@ -45,10 +45,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const result = await pool.query<{ id: string; timestamp: Date }>(
-    `INSERT INTO session_log (user_id, session_id, event_type, screen_id, payload)
+    `INSERT INTO session_log (anon_id, session_id, event_type, screen_id, payload)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING id, timestamp`,
-    [user.id, sessionId, eventType, screenId, payload],
+    [user.anonId, sessionId, eventType, screenId, payload],
   );
 
   const row = result.rows[0];

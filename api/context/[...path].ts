@@ -71,7 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (route === '' && req.method === 'GET') {
     const user = await requireUser(req, res);
     if (!user) return;
-    await setUserContext(user.id);
+    await setUserContext(user.anonId);
 
     const rawScreenId = req.query.screen_id;
     const screenId =
@@ -110,7 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (route === 'state' && req.method === 'GET') {
     const user = await requireUser(req, res);
     if (!user) return;
-    await setUserContext(user.id);
+    await setUserContext(user.anonId);
 
     const sinceTs = parseIsoTimestamp(req.query.since_ts);
     if (!sinceTs) {
@@ -120,10 +120,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const result = await pool.query<StateDeltaRow>(
       `SELECT id, session_id, timestamp, event_type, screen_id, payload
          FROM session_log
-        WHERE user_id = $1 AND timestamp > $2
+        WHERE anon_id = $1 AND timestamp > $2
         ORDER BY timestamp ASC
         LIMIT $3`,
-      [user.id, sinceTs, STATE_DELTA_LIMIT],
+      [user.anonId, sinceTs, STATE_DELTA_LIMIT],
     );
 
     return res.status(200).json({ state_delta: result.rows });
