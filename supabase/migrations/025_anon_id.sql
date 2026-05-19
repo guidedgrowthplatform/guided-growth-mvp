@@ -42,6 +42,7 @@ $$;
 
 REVOKE ALL ON FUNCTION public.current_anon_id() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.current_anon_id() TO authenticated, service_role;
+ALTER FUNCTION public.current_anon_id() OWNER TO postgres;
 
 -- Lock the anon_id column: authenticated users cannot SELECT it directly,
 -- only via current_anon_id(). service_role keeps full access.
@@ -124,6 +125,7 @@ ALTER TABLE metrics ALTER COLUMN anon_id SET NOT NULL;
 ALTER TABLE metrics ADD CONSTRAINT metrics_anon_fk
   FOREIGN KEY (anon_id) REFERENCES profiles(anon_id) ON DELETE CASCADE;
 ALTER TABLE metrics DROP COLUMN user_id;
+CREATE INDEX idx_metrics_anon_id ON metrics(anon_id);
 CREATE POLICY "user_isolation" ON metrics
   FOR ALL USING (anon_id = current_anon_id()) WITH CHECK (anon_id = current_anon_id());
 
@@ -345,5 +347,6 @@ $$;
 
 REVOKE ALL ON FUNCTION public.prune_session_log() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.prune_session_log() TO postgres, service_role;
+ALTER FUNCTION public.prune_session_log() OWNER TO postgres;
 
 COMMIT;
