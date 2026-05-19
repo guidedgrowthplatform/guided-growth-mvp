@@ -28,10 +28,39 @@ Adds `profiles.anon_id` to split user identity from behavioral data across 15 ta
 - **Apply succeeded, code is broken:** rollback Vercel to the previous deployment. Note that previous deploys read `user_id` columns which no longer exist, so they will 5xx until either (a) the new code is re-deployed or (b) `025_anon_id_down.sql` is applied.
 - `025_anon_id_down.sql` exists for emergency revert. Test on staging before considering for prod — it is a destructive reversal.
 
+## T2.2 — Migration 026 rollout (JWT claim injection)
+
+### Pre-flight
+
+1. Confirm migration 025 is applied (`profiles.anon_id` must exist).
+2. Visit Supabase Studio → Authentication → Hooks. Confirm `custom_access_token_hook` is enabled and points to `public.custom_access_token_hook`. The migration replaces the function body in place; the dashboard wiring is unaffected. Verify before apply in case it was toggled off.
+
+### Apply
+
+1. Apply `supabase/migrations/026_inject_anon_id_to_jwt.sql` in a single psql session. Single `BEGIN`/`COMMIT`.
+2. Sign out + sign back in once on staging. Decode the resulting JWT on jwt.io → confirm `anon_id` and (if the profile has a name) `first_name` claims are present.
+
+### Code cutover
+
+1. Promote the Vercel build from `feat/p1-21-mr-b-jwt-tests`.
+2. Watch Sentry / logs for `[auth] legacy token, fell back to profiles SELECT` info entries. Volume tapers as users rotate tokens (~1h default lifetime).
+3. Sanity-check hot-path latency (`/api/session_log`, `/api/llm`, `/api/entries`) — p50/p95 should drop one DB round-trip's worth.
+
+### Fallback removal (follow-up MR, after 24h)
+
+Once the fallback info line has been silent for a full token-lifetime window, open a small MR that deletes `fetchClaimsFromDb` and the info log, making the JWT path mandatory.
+
+### Rollback
+
+Apply `supabase/migrations/026_inject_anon_id_to_jwt_down.sql`. The previous code still works against the down-migrated hook because `readClaimsFromJwt` returns null → falls back to DB.
+
+## RLS isolation test (operator-run)
+
+`psql "$DATABASE_URL" -f scripts/test-anon-id-rls.sql` against a local Supabase test DB. The script seeds two users, exercises `current_anon_id()` and the join-via-parent policies, and rolls back at the end. Every assertion must report PASS. Requires at least one row in `categories` (run after the standard category seed).
+
 ## Out of scope (follow-up MRs)
 
-- PostHog `identifyUser` regression (`src/stores/authStore.ts`).
-- `requireUser()` N+1 round-trip (`api/_lib/auth.ts`).
-- `/api/me` trim (`api/me.ts`).
-- Delete-account loop cleanup (`api/onboarding/[...path].ts`).
-- API response `anon_id AS user_id` alias rename.
+- API response `anon_id AS user_id` alias rename (`api/reflections/[...path].ts`, `api/onboarding/[...path].ts`).
+- Delete `/api/me` once frontend reads anon_id from `session.user.app_metadata` directly (after migration 026 is applied and stable).
+- CI integration for `scripts/test-anon-id-rls.sql`.
+- Moving `custom_access_token_hook` wiring into `supabase/config.toml`.
