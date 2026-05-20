@@ -297,7 +297,6 @@ export function OnboardingChatOverlay({
   const activeRings = voiceState === 'listening' ? 'right' : isSpeaking ? 'left' : null;
   const currentRms = useAudioMetricsStore((s) => s.currentRms);
   const micIntensity = isListening ? Math.min(currentRms / 0.05, 1) : undefined;
-  const showInputPill = !micRuntimeOn;
 
   return (
     <div className="fixed inset-0 z-50 flex animate-slide-up flex-col">
@@ -389,14 +388,8 @@ export function OnboardingChatOverlay({
           value={draft}
           onValueChange={setDraft}
           onSubmit={handleSendText}
-          disabled={(textOnlyMode ? llm.isStreaming : isProcessing) || !showInputPill}
-          ariaHidden={!showInputPill}
-          tabbable={showInputPill}
-          className={`flex h-[44px] w-full items-center gap-2 rounded-full bg-white pl-5 pr-3 shadow-[0px_10px_24px_-8px_rgba(15,23,42,0.18)] transition-all duration-300 ease-out ${
-            showInputPill
-              ? 'pointer-events-auto translate-y-0 opacity-100'
-              : 'pointer-events-none translate-y-3 opacity-0'
-          }`}
+          disabled={textOnlyMode ? llm.isStreaming : isProcessing}
+          className="pointer-events-auto flex h-[44px] w-full items-center gap-2 rounded-full bg-white pl-5 pr-3 shadow-[0px_10px_24px_-8px_rgba(15,23,42,0.18)]"
         />
       </div>
     </div>
