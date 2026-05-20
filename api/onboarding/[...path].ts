@@ -165,16 +165,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
       const counts = countsRes.rows[0]?.counts ?? {};
 
+      const authUserId = user.authUserId;
+
+      // Storage purge — both buckets keyed by authUserId
+      const purgeCounts = { avatars: 0, journalImages: 0 };
+      for (const bucket of ['avatars', 'journal-images'] as const) {
+        const { data: files, error: listErr } = await supabaseAdmin.storage
+          .from(bucket)
+          .list(authUserId, { limit: 1000 });
+        if (listErr) {
+          console.error(`Storage list error (${bucket}):`, listErr);
+        }
+        if (files && files.length > 0) {
+          const paths = files.map((f) => `${authUserId}/${f.name}`);
+          const { error: rmErr } = await supabaseAdmin.storage.from(bucket).remove(paths);
+          if (rmErr) {
+            console.error(`Storage remove error (${bucket}):`, rmErr);
+          } else {
+            if (bucket === 'avatars') purgeCounts.avatars = paths.length;
+            else purgeCounts.journalImages = paths.length;
+          }
+        }
+      }
+
       await client.query(
         `INSERT INTO admin_audit_log (admin_user_id, action, target_type, target_identifier, payload_json)
          VALUES ($1, 'delete_account', 'user', $2, $3)`,
-        [user.authUserId, user.authUserId, JSON.stringify({ counts })],
+        [authUserId, authUserId, JSON.stringify({ counts, storage_purge: purgeCounts })],
       );
 
-      await client.query('DELETE FROM profiles WHERE id = $1', [user.authUserId]);
+      await client.query('DELETE FROM profiles WHERE id = $1', [authUserId]);
       await client.query('COMMIT');
 
-      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.authUserId);
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(authUserId);
       if (deleteError) {
         console.error('Failed to delete Supabase Auth user:', deleteError);
         return res.status(500).json({ error: 'Failed to delete auth user' });
