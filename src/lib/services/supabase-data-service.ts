@@ -13,6 +13,13 @@ import type {
   CheckInRecord,
   FocusSession,
 } from './data-service.interface';
+import type {
+  UserPreferences,
+  Affirmation,
+  Reflection,
+  ReflectionConfig,
+  OnboardingState,
+} from '@shared/types';
 
 function todayStr(): string {
   const d = new Date();
@@ -756,6 +763,190 @@ export class SupabaseDataService implements DataService {
       status: s.status,
       startedAt: s.started_at,
     }));
+  }
+
+  async getPreferences(): Promise<UserPreferences | null> {
+    const anonId = getCurrentAnonId();
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('anon_id', anonId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+
+    return { ...data, user_id: data.anon_id } as UserPreferences;
+  }
+
+  async upsertPreferences(prefs: Partial<UserPreferences>): Promise<UserPreferences> {
+    const anonId = getCurrentAnonId();
+    const { user_id: _ignored, id: _ignoredId, ...rest } = prefs as Record<string, unknown>;
+    void _ignored;
+    void _ignoredId;
+
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .upsert({ anon_id: anonId, ...rest }, { onConflict: 'anon_id' })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return { ...data, user_id: data.anon_id } as UserPreferences;
+  }
+
+  async getCurrentAffirmation(): Promise<Affirmation | null> {
+    const anonId = getCurrentAnonId();
+    const { data, error } = await supabase
+      .from('affirmations')
+      .select('*')
+      .eq('anon_id', anonId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+
+    return { id: data.id, user_id: data.anon_id, value: data.value };
+  }
+
+  async upsertAffirmation(value: string): Promise<Affirmation> {
+    const anonId = getCurrentAnonId();
+    const { data, error } = await supabase
+      .from('affirmations')
+      .upsert({ anon_id: anonId, value }, { onConflict: 'anon_id' })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return { id: data.id, user_id: data.anon_id, value: data.value };
+  }
+
+  async listReflections(startDate: string, endDate: string): Promise<Reflection[]> {
+    const anonId = getCurrentAnonId();
+    const { data, error } = await supabase
+      .from('reflections')
+      .select('*')
+      .eq('anon_id', anonId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    return (data || []).map((r) => ({
+      id: r.id,
+      user_id: r.anon_id,
+      date: r.date,
+      field_id: r.field_id,
+      value: r.value,
+    }));
+  }
+
+  async upsertReflectionsForDate(
+    date: string,
+    fields: { field_id: string; value: string }[],
+  ): Promise<void> {
+    if (date > todayStr()) throw new Error('Cannot save reflection for future dates');
+    const anonId = getCurrentAnonId();
+
+    for (const f of fields) {
+      if (f.value === '' || f.value == null) {
+        const { error } = await supabase
+          .from('reflections')
+          .delete()
+          .eq('anon_id', anonId)
+          .eq('date', date)
+          .eq('field_id', f.field_id);
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await supabase
+          .from('reflections')
+          .upsert(
+            { anon_id: anonId, date, field_id: f.field_id, value: f.value },
+            { onConflict: 'anon_id,date,field_id' },
+          );
+        if (error) throw new Error(error.message);
+      }
+    }
+  }
+
+  async getReflectionConfig(): Promise<ReflectionConfig | null> {
+    const anonId = getCurrentAnonId();
+    const { data, error } = await supabase
+      .from('reflection_configs')
+      .select('fields, show_affirmation')
+      .eq('anon_id', anonId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+
+    return { fields: data.fields ?? [], show_affirmation: !!data.show_affirmation };
+  }
+
+  async upsertReflectionConfig(config: ReflectionConfig): Promise<ReflectionConfig> {
+    const anonId = getCurrentAnonId();
+    const { data, error } = await supabase
+      .from('reflection_configs')
+      .upsert(
+        {
+          anon_id: anonId,
+          fields: config.fields,
+          show_affirmation: config.show_affirmation,
+        },
+        { onConflict: 'anon_id' },
+      )
+      .select('fields, show_affirmation')
+      .single();
+
+    if (error) throw new Error(error.message);
+    return { fields: data.fields ?? [], show_affirmation: !!data.show_affirmation };
+  }
+
+  async getOnboardingState(): Promise<OnboardingState | null> {
+    const anonId = getCurrentAnonId();
+    const { data, error } = await supabase
+      .from('onboarding_states')
+      .select('*')
+      .eq('anon_id', anonId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      user_id: data.anon_id,
+      path: data.path,
+      status: data.status,
+      current_step: data.current_step,
+      data: data.data,
+      completed_at: data.completed_at,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
+  }
+
+  async getOnboardingProfile(): Promise<{
+    name: string | null;
+    nickname: string | null;
+    image: string | null;
+  } | null> {
+    const authUserId = getCurrentAuthUserId();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('name, nickname, image')
+      .eq('id', authUserId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+
+    return {
+      name: data.name ?? null,
+      nickname: data.nickname ?? null,
+      image: data.image ?? null,
+    };
   }
 
   async clearData(): Promise<void> {
