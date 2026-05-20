@@ -6,6 +6,7 @@ import {
   OnboardingChatOverlay,
   type VoiceMessage,
 } from '@/components/onboarding/OnboardingChatOverlay';
+import { OnboardingSubtitleBar } from '@/components/onboarding/OnboardingSubtitleBar';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { DualButton } from '@/components/ui/DualButton';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
@@ -230,6 +231,8 @@ export function OnboardingLayout({
       )}
 
       {!overlayOpen && <OpenChatButton floating onPress={handleOpenChat} />}
+
+      {!overlayOpen && <OnboardingSubtitleBar messages={voiceMessages} />}
 
       {onBack && (
         <button
