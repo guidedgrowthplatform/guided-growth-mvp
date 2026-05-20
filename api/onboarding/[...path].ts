@@ -13,14 +13,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] === '__index' ? '' : segments[0] || '';
 
-  if (route === '' && req.method === 'GET') {
-    const result = await pool.query(
-      'SELECT id, anon_id AS user_id, path, current_step, status, data, brain_dump_raw, brain_dump_parsed, completed_at FROM onboarding_states WHERE anon_id = $1',
-      [user.anonId],
-    );
-    return res.json(result.rows[0] || null);
-  }
-
   if (route === '' && req.method === 'PUT') {
     const { step, path, data, brainDumpRaw, brainDumpParsed } = req.body;
 
@@ -39,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          brain_dump_raw = COALESCE($5, onboarding_states.brain_dump_raw),
          brain_dump_parsed = COALESCE($6::jsonb, onboarding_states.brain_dump_parsed),
          updated_at = now()
-       RETURNING id, anon_id AS user_id, path, current_step, status, data, brain_dump_raw, brain_dump_parsed, completed_at`,
+       RETURNING id, anon_id, path, current_step, status, data, brain_dump_raw, brain_dump_parsed, completed_at`,
       [
         user.anonId,
         step,
@@ -216,14 +208,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } finally {
       client.release();
     }
-  }
-
-  // GET /api/onboarding/profile — fetch current profile fields
-  if (route === 'profile' && req.method === 'GET') {
-    const { rows } = await pool.query('SELECT name, nickname, image FROM profiles WHERE id = $1', [
-      user.authUserId,
-    ]);
-    return res.json(rows[0] ?? { name: null, nickname: null, image: null });
   }
 
   // PATCH /api/onboarding/profile — update profile fields the LLM may also

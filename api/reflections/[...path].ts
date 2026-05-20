@@ -6,12 +6,6 @@ import { supabaseAdmin } from '../_lib/supabase-admin.js';
 import { validateDate, validateUUID, sanitizeContent } from '../_lib/validation.js';
 import { dispatchFeedbackAlert } from '../_lib/feedback-emailer.js';
 
-const DEFAULT_FIELDS = [
-  { id: 'wins', label: 'Wins', order: 0 },
-  { id: 'challenges', label: 'Challenges', order: 1 },
-  { id: 'gratitude', label: 'Gratitude', order: 2 },
-];
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
@@ -107,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ins = await client.query(
           `INSERT INTO journal_entries (anon_id, type, template_id, title, date, habit_id)
            VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING id, anon_id AS user_id, type, template_id, title, date::text, habit_id, created_at, updated_at`,
+           RETURNING id, anon_id, type, template_id, title, date::text, habit_id, created_at, updated_at`,
           [
             user.anonId,
             type,
@@ -152,14 +146,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         habitFilter = v;
       }
       const sql = habitFilter
-        ? `SELECT je.id, je.anon_id AS user_id, je.type, je.template_id, je.title,
+        ? `SELECT je.id, je.anon_id, je.type, je.template_id, je.title,
                   je.date::text, je.habit_id, je.created_at, je.updated_at,
                   jf.field_key, jf.content
            FROM journal_entries je
            LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
            WHERE je.anon_id = $1 AND je.date >= $2 AND je.date <= $3 AND je.habit_id = $4
            ORDER BY je.created_at DESC`
-        : `SELECT je.id, je.anon_id AS user_id, je.type, je.template_id, je.title,
+        : `SELECT je.id, je.anon_id, je.type, je.template_id, je.title,
                   je.date::text, je.habit_id, je.created_at, je.updated_at,
                   jf.field_key, jf.content
            FROM journal_entries je
@@ -173,7 +167,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!entriesMap.has(row.id)) {
           entriesMap.set(row.id, {
             id: row.id,
-            user_id: row.user_id,
+            anon_id: row.anon_id,
             type: row.type,
             template_id: row.template_id,
             title: row.title,
@@ -198,7 +192,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (req.method === 'GET') {
         const result = await pool.query(
-          `SELECT je.id, je.anon_id AS user_id, je.type, je.template_id, je.title,
+          `SELECT je.id, je.anon_id, je.type, je.template_id, je.title,
                   je.date::text, je.habit_id, je.created_at, je.updated_at,
                   jf.field_key, jf.content
            FROM journal_entries je
@@ -214,7 +208,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         return res.json({
           id: row0.id,
-          user_id: row0.user_id,
+          anon_id: row0.anon_id,
           type: row0.type,
           template_id: row0.template_id,
           title: row0.title,
@@ -266,7 +260,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           await client.query('COMMIT');
           // Re-fetch
           const updated = await pool.query(
-            `SELECT je.id, je.anon_id AS user_id, je.type, je.template_id, je.title,
+            `SELECT je.id, je.anon_id, je.type, je.template_id, je.title,
                     je.date::text, je.habit_id, je.created_at, je.updated_at,
                     jf.field_key, jf.content
              FROM journal_entries je
@@ -281,7 +275,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
           return res.json({
             id: r0.id,
-            user_id: r0.user_id,
+            anon_id: r0.anon_id,
             type: r0.type,
             template_id: r0.template_id,
             title: r0.title,
@@ -348,77 +342,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // GET/PUT /api/reflections/config
-  if (route === 'config') {
-    if (req.method === 'GET') {
-      const result = await pool.query(
-        'SELECT fields, show_affirmation FROM reflection_configs WHERE anon_id = $1',
-        [user.anonId],
-      );
-      if (result.rows.length === 0)
-        return res.json({ fields: DEFAULT_FIELDS, show_affirmation: true });
-      return res.json(result.rows[0]);
-    }
-    if (req.method === 'PUT') {
-      const { fields, show_affirmation } = req.body;
-      await pool.query(
-        `INSERT INTO reflection_configs (anon_id, fields, show_affirmation) VALUES ($1, $2, $3)
-         ON CONFLICT (anon_id) DO UPDATE SET fields = $2, show_affirmation = $3`,
-        [user.anonId, JSON.stringify(fields), show_affirmation],
-      );
-      return res.json({ fields, show_affirmation });
-    }
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  // PUT /api/reflections/:date
-  if (route) {
-    if (req.method !== 'PUT') return res.status(405).json({ error: 'Method not allowed' });
-    const date = validateDate(route);
-    if (!date) return res.status(400).json({ error: 'Invalid date format (YYYY-MM-DD)' });
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      for (const [fieldId, value] of Object.entries(req.body)) {
-        if (value === '' || value === null || value === undefined) {
-          await client.query(
-            'DELETE FROM reflections WHERE anon_id = $1 AND date = $2 AND field_id = $3',
-            [user.anonId, date, fieldId],
-          );
-        } else {
-          await client.query(
-            `INSERT INTO reflections (anon_id, date, field_id, value) VALUES ($1, $2, $3, $4)
-             ON CONFLICT (anon_id, date, field_id) DO UPDATE SET value = $4`,
-            [user.anonId, date, fieldId, value],
-          );
-        }
-      }
-      await client.query('COMMIT');
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
-    return res.json({ message: 'Saved' });
-  }
-
-  // GET /api/reflections?start=&end=
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  const start = validateDate(req.query.start);
-  const end = validateDate(req.query.end);
-  if (!start || !end)
-    return res.status(400).json({ error: 'Valid start and end dates required (YYYY-MM-DD)' });
-
-  const result = await pool.query(
-    'SELECT date::text, field_id, value FROM reflections WHERE anon_id = $1 AND date >= $2 AND date <= $3',
-    [user.anonId, start, end],
-  );
-
-  const map: Record<string, Record<string, string>> = {};
-  for (const row of result.rows) {
-    if (!map[row.date]) map[row.date] = {};
-    map[row.date][row.field_id] = row.value;
-  }
-  res.json(map);
+  return res.status(404).json({ error: 'Not found' });
 }
