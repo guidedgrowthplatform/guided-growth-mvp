@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { ApiError } from '@/api/client';
-import * as onboardingApi from '@/api/onboarding';
 import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '@/lib/query';
+import { supabaseDataService } from '@/lib/services/supabase-data-service';
 
 export type AppGateStatus =
   | { status: 'loading' }
@@ -17,7 +17,7 @@ export function useAppGate(): AppGateStatus {
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: queryKeys.onboarding.state,
-    queryFn: onboardingApi.fetchOnboardingState,
+    queryFn: () => supabaseDataService.getOnboardingState(),
     enabled: !!user,
     staleTime: Infinity,
     gcTime: Infinity,
