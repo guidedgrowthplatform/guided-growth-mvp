@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { apiGet, apiPut } from '@/api/client';
 import { useAuth } from '@/hooks/useAuth';
+import { supabaseDataService } from '@/lib/services/supabase-data-service';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import type { UserPreferences as DbUserPreferences } from '@shared/types';
 
@@ -39,12 +39,12 @@ export function useVoicePreferenceSync(): void {
 
     (async () => {
       try {
-        const row = await apiGet<Partial<DbUserPreferences>>('/api/preferences');
+        const row = await supabaseDataService.getPreferences();
         if (cancelled) return;
         useVoiceSettingsStore.getState().hydrate({
-          ttsEnabled: row.voice_mode === 'voice',
-          micEnabled: row.mic_enabled ?? true,
-          recordingMode: row.recording_mode ?? 'auto-stop',
+          ttsEnabled: row?.voice_mode === 'voice',
+          micEnabled: row?.mic_enabled ?? true,
+          recordingMode: row?.recording_mode ?? 'auto-stop',
         });
         lastSyncedRef.current = selectSlice();
       } catch {
@@ -95,7 +95,7 @@ export function useVoicePreferenceSync(): void {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = setTimeout(async () => {
         try {
-          await apiPut('/api/preferences', diff);
+          await supabaseDataService.upsertPreferences(diff as Partial<DbUserPreferences>);
           lastSyncedRef.current = nextSynced;
         } catch {
           // swallow — surfaces on next interaction
