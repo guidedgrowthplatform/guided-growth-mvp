@@ -776,7 +776,7 @@ export class SupabaseDataService implements DataService {
     if (error) throw new Error(error.message);
     if (!data) return null;
 
-    return { ...data, user_id: data.anon_id } as UserPreferences;
+    return { ...data, anon_id: data.anon_id } as UserPreferences;
   }
 
   async upsertPreferences(prefs: Partial<UserPreferences>): Promise<UserPreferences> {
@@ -792,7 +792,7 @@ export class SupabaseDataService implements DataService {
       .single();
 
     if (error) throw new Error(error.message);
-    return { ...data, user_id: data.anon_id } as UserPreferences;
+    return { ...data, anon_id: data.anon_id } as UserPreferences;
   }
 
   async getCurrentAffirmation(): Promise<Affirmation | null> {
@@ -806,7 +806,7 @@ export class SupabaseDataService implements DataService {
     if (error) throw new Error(error.message);
     if (!data) return null;
 
-    return { id: data.id, user_id: data.anon_id, value: data.value };
+    return { id: data.id, anon_id: data.anon_id, value: data.value };
   }
 
   async upsertAffirmation(value: string): Promise<Affirmation> {
@@ -818,7 +818,7 @@ export class SupabaseDataService implements DataService {
       .single();
 
     if (error) throw new Error(error.message);
-    return { id: data.id, user_id: data.anon_id, value: data.value };
+    return { id: data.id, anon_id: data.anon_id, value: data.value };
   }
 
   async listReflections(startDate: string, endDate: string): Promise<Reflection[]> {
@@ -835,7 +835,7 @@ export class SupabaseDataService implements DataService {
 
     return (data || []).map((r) => ({
       id: r.id,
-      user_id: r.anon_id,
+      anon_id: r.anon_id,
       date: r.date,
       field_id: r.field_id,
       value: r.value,
@@ -916,7 +916,7 @@ export class SupabaseDataService implements DataService {
 
     return {
       id: data.id,
-      user_id: data.anon_id,
+      anon_id: data.anon_id,
       path: data.path,
       status: data.status,
       current_step: data.current_step,

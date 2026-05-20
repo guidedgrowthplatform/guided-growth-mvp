@@ -4,7 +4,7 @@ import { getCellColor, getCellDisplayValue } from './cellColors';
 
 const makeMetric = (overrides: Partial<Metric> = {}): Metric => ({
   id: '1',
-  user_id: 'u1',
+  anon_id: 'u1',
   name: 'Test',
   input_type: 'binary',
   question: '',

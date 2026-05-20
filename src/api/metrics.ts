@@ -25,7 +25,7 @@ function habitToMetric(h: {
     target_unit: null,
     created_at: h.createdAt,
     updated_at: h.createdAt,
-    user_id: 'local',
+    anon_id: 'local',
   };
 }
 
