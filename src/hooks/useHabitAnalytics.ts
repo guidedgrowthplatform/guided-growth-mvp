@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { queryKeys } from '@/lib/query';
 import type { Habit, HabitCompletion, HabitSummary } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
+import { useAuthStore } from '@/stores/authStore';
 import type { BarDataPoint, CompletionStats, HabitPerformance } from './useHabitAnalytics.types';
 
 export type { BarDataPoint, CompletionStats, HabitPerformance };
@@ -152,12 +153,15 @@ function computeHabitPerformance(
 }
 
 export function useHabitAnalytics() {
+  const anonId = useAuthStore((s) => s.anonId);
+
   const habitsQuery = useQuery({
     queryKey: queryKeys.habits.all,
     queryFn: async () => {
       const svc = await getDataService();
       return svc.getHabits();
     },
+    enabled: !!anonId,
   });
 
   const startDate = dateNDaysAgo(364);

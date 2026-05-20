@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { queryKeys } from '@/lib/query';
 import type { Habit } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
+import { useAuthStore } from '@/stores/authStore';
 
 export interface UseHabitsReturn {
   habits: Habit[];
@@ -13,6 +14,7 @@ export interface UseHabitsReturn {
 
 export function useHabits(): UseHabitsReturn {
   const qc = useQueryClient();
+  const anonId = useAuthStore((s) => s.anonId);
 
   const {
     data: habits = [],
@@ -24,6 +26,7 @@ export function useHabits(): UseHabitsReturn {
       const ds = await getDataService();
       return ds.getHabits();
     },
+    enabled: !!anonId,
   });
 
   const reload = useCallback(() => {

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { queryKeys } from '@/lib/query';
 import type { CheckInRecord } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
+import { useAuthStore } from '@/stores/authStore';
 
 export interface CheckInMetric {
   icon: string;
@@ -192,6 +193,7 @@ function monthStringToRange(monthStr: string): { start: string; end: string } {
 export function useCheckInHistory() {
   const availableMonths = useMemo(() => buildAvailableMonths(), []);
   const [selectedMonth, setSelectedMonth] = useState(availableMonths[0]);
+  const anonId = useAuthStore((s) => s.anonId);
 
   const { start, end } = useMemo(() => monthStringToRange(selectedMonth), [selectedMonth]);
 
@@ -205,6 +207,7 @@ export function useCheckInHistory() {
       const svc = await getDataService();
       return svc.getCheckIns(start, end);
     },
+    enabled: !!anonId,
   });
 
   const groups = useMemo(

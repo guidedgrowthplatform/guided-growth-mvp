@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { queryKeys } from '@/lib/query';
 import type { Habit, HabitCompletion } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
+import { useAuthStore } from '@/stores/authStore';
 
 export interface HabitDetailStats {
   completionRate: number;
@@ -184,13 +185,14 @@ function buildCalendarGrid(
 }
 
 export function useHabitDetail(habitId: string | undefined): HabitDetailData {
+  const anonId = useAuthStore((s) => s.anonId);
   const habitQuery = useQuery({
     queryKey: queryKeys.habits.detail(habitId ?? ''),
     queryFn: async () => {
       const ds = await getDataService();
       return ds.getHabitById(habitId!);
     },
-    enabled: !!habitId,
+    enabled: !!habitId && !!anonId,
   });
 
   const startStr = useMemo(() => {
