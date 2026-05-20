@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { queryKeys } from '@/lib/query';
 import { getDataService } from '@/lib/services/service-provider';
+import { useAuthStore } from '@/stores/authStore';
 import type { CheckInData } from '@shared/types';
 
 async function fetchCheckIn(date: string) {
@@ -21,6 +22,7 @@ export function useCheckIn(
 ) {
   const qc = useQueryClient();
   const { logEvent } = useSessionLog();
+  const anonId = useAuthStore((s) => s.anonId);
 
   const {
     data: checkIn = null,
@@ -29,7 +31,7 @@ export function useCheckIn(
   } = useQuery({
     queryKey: queryKeys.checkins.byDate(date),
     queryFn: () => fetchCheckIn(date),
-    enabled: !!date,
+    enabled: !!date && !!anonId,
   });
 
   const error = queryError ? (queryError as Error).message : null;

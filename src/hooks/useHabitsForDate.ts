@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import type { Habit, HabitCompletion } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
+import { useAuthStore } from '@/stores/authStore';
 
 export interface HabitWithStatus {
   habit: Habit;
@@ -60,11 +61,13 @@ async function loadHabitsForDate(date: string): Promise<HabitWithStatus[]> {
 export function useHabitsForDate(date: string, screenId?: string) {
   const qc = useQueryClient();
   const { logEvent } = useSessionLog();
+  const anonId = useAuthStore((s) => s.anonId);
   const queryKey = useMemo(() => [HABITS_FOR_DATE_KEY, date] as const, [date]);
 
   const query = useQuery({
     queryKey,
     queryFn: () => loadHabitsForDate(date),
+    enabled: !!anonId,
   });
 
   useEffect(() => {
