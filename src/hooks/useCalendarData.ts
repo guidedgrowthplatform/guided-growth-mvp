@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import type { DayMetrics } from '@/components/calendar/calendarTypes';
 import { queryKeys } from '@/lib/query';
 import { getDataService } from '@/lib/services/service-provider';
+import { useAuthStore } from '@/stores/authStore';
 
 function monthRange(year: number, month: number): { start: string; end: string } {
   const start = `${year}-${String(month + 1).padStart(2, '0')}-01`;
@@ -13,6 +14,7 @@ function monthRange(year: number, month: number): { start: string; end: string }
 
 export function useCalendarData(year: number, month: number) {
   const { start, end } = useMemo(() => monthRange(year, month), [year, month]);
+  const anonId = useAuthStore((s) => s.anonId);
 
   const {
     data: checkIns = [],
@@ -24,6 +26,7 @@ export function useCalendarData(year: number, month: number) {
       const svc = await getDataService();
       return svc.getCheckIns(start, end);
     },
+    enabled: !!anonId,
   });
 
   const calendarData = useMemo(() => {

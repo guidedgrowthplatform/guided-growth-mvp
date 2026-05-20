@@ -77,6 +77,10 @@ export async function buildSystemPromptForRequest(
     }))
     .reverse();
 
+  // Anonymization policy: only coaching_style flows into the preamble.
+  // Do NOT hydrate UserContext.name / email / last_name from profiles —
+  // the LLM gets first_name only via the AI Context Block on screens
+  // where it's already part of the prompt.
   const coachingPreamble = buildSystemPrompt({ coachingStyle: args.coaching_style });
   const contextMessage = buildContextMessage({
     screen_id: args.screen_id,

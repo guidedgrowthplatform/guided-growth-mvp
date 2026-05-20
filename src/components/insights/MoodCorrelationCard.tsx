@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CheckInRecord } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
+import { useAuthStore } from '@/stores/authStore';
 
 const MIN_CHECKINS_FOR_CHART = 3;
 
@@ -74,8 +75,10 @@ function getCorrelationLabel(records: CheckInRecord[]): { text: string; hasData:
 
 export function MoodCorrelationCard() {
   const [records, setRecords] = useState<CheckInRecord[] | null>(null);
+  const anonId = useAuthStore((s) => s.anonId);
 
   useEffect(() => {
+    if (!anonId) return;
     let cancelled = false;
     async function load() {
       try {
@@ -97,7 +100,7 @@ export function MoodCorrelationCard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [anonId]);
 
   if (records === null) return null;
 
