@@ -13,6 +13,13 @@ name: CI/CD Pipeline
 #   VITE_CARTESIA_AGENT_ID           — voice agent (optional but recommended)
 #   VITE_POSTHOG_KEY                 — analytics (optional)
 #   VITE_SENTRY_DSN                  — error tracking (optional)
+#
+# Required secrets for the build-apk job (Android Play Store release):
+#   ANDROID_KEYSTORE_BASE64          — base64-encoded upload keystore
+#   ANDROID_KEYSTORE_PASSWORD        — keystore password
+#   ANDROID_KEY_ALIAS                — signing key alias
+#   ANDROID_KEY_PASSWORD             — signing key password
+#   SERVICE_ACCOUNT_JSON             — Play Console service account JSON
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -95,27 +102,24 @@ jobs:
           retention-days: 7
 
   build-apk:
-    name: Build Android APK
+    name: Build Android App Bundle (Release)
     runs-on: ubuntu-latest
     needs: build
-    # Mirrors the iOS gating: only run on v* tag pushes or manual dispatch.
-    # Keeps APKs out of the per-commit pipeline so Mattermost doesn't get
-    # pinged for every merge to main.
     if: >-
       github.event_name == 'workflow_dispatch'
       || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    concurrency:
+      group: android-release-${{ github.ref }}
+      cancel-in-progress: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -138,46 +142,59 @@ jobs:
           npx cap copy android
           npx cap sync android
 
-      - name: Build debug APK
+      - name: Decode Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > android/app/guidedgrowth.keystore
+
+      - name: Build Release AAB
         working-directory: android
+        env:
+          KEYSTORE_FILE: 'guidedgrowth.keystore'
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew bundleRelease --no-daemon \
+            -PversionCode=${{ github.run_number }} \
+            -PversionName=${{ github.ref_name }}
 
-      - name: Rename APK
-        run: |
-          APK_DIR="android/app/build/outputs/apk/debug"
-          APK_NAME="guided-growth-${GITHUB_SHA::8}.apk"
-          mv "$APK_DIR/app-debug.apk" "$APK_DIR/$APK_NAME"
-          echo "APK_PATH=$APK_DIR/$APK_NAME" >> $GITHUB_ENV
-
-      - name: Upload APK artifact
-        id: upload_apk
+      - name: Upload AAB artifact
+        id: upload_aab
         uses: actions/upload-artifact@v4
         with:
-          name: guided-growth-apk
-          path: android/app/build/outputs/apk/debug/*.apk
-          retention-days: 30
+          name: guided-growth-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          retention-days: 14
 
-      # Notify the MVPtesting Mattermost channel that a fresh APK is ready.
-      # The webhook URL is optional — when the secret is unset the step
-      # silently skips so forks and external contributors never see a red
-      # build because of a missing webhook. Fires on v* tag pushes (the
-      # release path) so the channel only gets pinged for actual builds
-      # the team should test, not for every merge into main.
-      - name: Notify Mattermost (APK ready)
+      - name: Deploy to Google Play (internal track)
         if: >-
           github.event_name == 'push'
           && startsWith(github.ref, 'refs/tags/v')
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          packageName: app.guidedgrowth.mvp
+          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
+
+      - name: Notify Mattermost (AAB ready)
+        if: >-
+          success()
+          && github.event_name == 'push'
+          && startsWith(github.ref, 'refs/tags/v')
           && env.MATTERMOST_WEBHOOK_URL != ''
+        continue-on-error: true
         env:
           MATTERMOST_WEBHOOK_URL: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
-          ARTIFACT_URL: ${{ steps.upload_apk.outputs.artifact-url }}
+          ARTIFACT_URL: ${{ steps.upload_aab.outputs.artifact-url }}
         run: |
           short_sha="${GITHUB_SHA::8}"
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           commit_msg=$(git log -1 --pretty=%s)
-          text=$(printf '**Android APK ready** — `%s`\n> %s\n[Download APK](%s) · [Workflow run](%s)' \
+          text=$(printf '**Android Release AAB ready** — `%s`\n> %s\n[Download AAB](%s) · [Workflow run](%s)' \
             "$short_sha" "$commit_msg" "$ARTIFACT_URL" "$run_url")
 
           payload=$(jq -n \
