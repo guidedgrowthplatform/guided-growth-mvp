@@ -1,14 +1,4 @@
-import { apiGet, apiPatch, apiPost } from './client';
-
-export interface ProfileData {
-  name: string | null;
-  nickname: string | null;
-  image: string | null;
-}
-
-export function getProfile(): Promise<ProfileData> {
-  return apiGet<ProfileData>('/api/onboarding/profile');
-}
+import { apiPatch, apiPost } from './client';
 
 export function updateProfile(data: {
   name?: string;

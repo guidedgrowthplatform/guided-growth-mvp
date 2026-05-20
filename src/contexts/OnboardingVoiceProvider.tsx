@@ -57,7 +57,7 @@ const PROVIDER_SCREEN_TAG = 'onboard_session';
 export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const qc = useQueryClient();
-  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const anonId = useAuthStore((s) => s.anonId);
   const { logEvent } = useSessionLog();
   const { preferences } = useUserPreferences();
 
@@ -206,11 +206,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
 
   const metadata = useMemo(
     () => ({
-      user_id: userId ?? '',
+      anon_id: anonId ?? '',
       screen: PROVIDER_SCREEN_TAG,
       coaching_style: coachingStyle,
     }),
-    [userId, coachingStyle],
+    [anonId, coachingStyle],
   );
 
   const {

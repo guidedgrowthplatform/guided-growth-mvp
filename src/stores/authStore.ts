@@ -28,24 +28,33 @@ function mapUser(u: any): AppUser {
   };
 }
 
+function decodeJwtClaims(token: string): Record<string, unknown> | null {
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = payload + '='.repeat((4 - (payload.length % 4)) % 4);
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+}
+
 async function fetchAnonId(): Promise<string | null> {
   try {
     const {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session?.access_token) return null;
-    const res = await fetch('/api/me', {
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    });
-    if (!res.ok) {
+    const claims = decodeJwtClaims(session.access_token);
+    const anonId = typeof claims?.anon_id === 'string' ? claims.anon_id : null;
+    if (!anonId) {
       Sentry.captureMessage('analytics_identify_failed', {
         level: 'warning',
-        extra: { status: res.status },
+        extra: { reason: 'missing_anon_id_claim' },
       });
-      return null;
     }
-    const data = (await res.json()) as { anonId?: string };
-    return data.anonId ?? null;
+    return anonId;
   } catch (err) {
     Sentry.captureMessage('analytics_identify_failed', {
       level: 'warning',
