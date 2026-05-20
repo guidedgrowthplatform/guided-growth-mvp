@@ -5,6 +5,8 @@ import { useContext, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SessionLogContext, type SessionLogContextValue } from '../SessionLogContext';
+import { SessionLogProvider } from '../SessionLogProvider';
 
 const { onAuthStateChangeMock, logSessionEventMock } = vi.hoisted(() => ({
   onAuthStateChangeMock: vi.fn(),
@@ -20,12 +22,15 @@ vi.mock('@/api/sessionLog', () => ({
   logSessionEvent: logSessionEventMock,
 }));
 
+// Hydration fetch — keep tests deterministic. Real wiring is exercised by
+// sessionLogStore.hydrate() unit tests.
+vi.mock('@/api/context', () => ({
+  fetchSessionStateDelta: vi.fn().mockResolvedValue({ state_delta: [] }),
+}));
+
 vi.mock('@/cache/offlineQueue', () => ({
   offlineQueue: { enqueue: vi.fn() },
 }));
-
-import { SessionLogContext, type SessionLogContextValue } from '../SessionLogContext';
-import { SessionLogProvider } from '../SessionLogProvider';
 
 interface AuthChangeHandler {
   (event: string, session: { user: { id: string } } | null): void;
@@ -38,6 +43,7 @@ let ctxRef: SessionLogContextValue | null = null;
 
 function Bridge() {
   const ctx = useContext(SessionLogContext);
+  // eslint-disable-next-line react-hooks/globals -- test bridge: capture context for assertions outside the React tree
   ctxRef = ctx;
   return null;
 }

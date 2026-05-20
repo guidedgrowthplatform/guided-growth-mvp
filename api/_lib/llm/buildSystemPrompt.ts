@@ -8,6 +8,10 @@ export interface BuildSystemPromptArgs {
   anon_id: string;
   screen_id: string;
   coaching_style: CoachingStyle;
+  // Optimistic state_delta from the client. When provided, used instead of
+  // querying session_log — avoids the race where a logEvent POST hasn't
+  // landed before the LLM call.
+  recent_events?: SessionStateDeltaEntry[];
 }
 
 export interface BuildSystemPromptResult {
@@ -56,26 +60,33 @@ export async function buildSystemPromptForRequest(
   }
   const screen = screenRes.rows[0];
 
-  // Skip llm_call rows — they crowd out real user events from state_delta.
-  const logRes = await pool.query<SessionLogRow>(
-    `SELECT id, session_id, timestamp, event_type, screen_id, payload
-       FROM session_log
-      WHERE anon_id = $1 AND event_type <> 'llm_call'
-      ORDER BY timestamp DESC
-      LIMIT 15`,
-    [args.anon_id],
-  );
-
-  const state_delta: SessionStateDeltaEntry[] = logRes.rows
-    .map((r) => ({
-      id: r.id,
-      session_id: r.session_id,
-      timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
-      event_type: r.event_type,
-      screen_id: r.screen_id,
-      payload: r.payload,
-    }))
-    .reverse();
+  let state_delta: SessionStateDeltaEntry[];
+  if (args.recent_events && args.recent_events.length > 0) {
+    // Client supplied optimistic delta — use directly. Strip llm_call rows
+    // to match the server-query behavior below.
+    state_delta = args.recent_events.filter((e) => e.event_type !== 'llm_call').slice(-15);
+  } else {
+    // No client delta — fall back to live session_log query, scoped by anon_id
+    // per P1-21 anonymization architecture.
+    const logRes = await pool.query<SessionLogRow>(
+      `SELECT id, session_id, timestamp, event_type, screen_id, payload
+         FROM session_log
+        WHERE anon_id = $1 AND event_type <> 'llm_call'
+        ORDER BY timestamp DESC
+        LIMIT 15`,
+      [args.anon_id],
+    );
+    state_delta = logRes.rows
+      .map((r) => ({
+        id: r.id,
+        session_id: r.session_id,
+        timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
+        event_type: r.event_type,
+        screen_id: r.screen_id,
+        payload: r.payload,
+      }))
+      .reverse();
+  }
 
   // Anonymization policy: only coaching_style flows into the preamble.
   // Do NOT hydrate UserContext.name / email / last_name from profiles —

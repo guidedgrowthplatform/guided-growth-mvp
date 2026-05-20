@@ -44,12 +44,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     payload = body.payload as Record<string, unknown>;
   }
 
-  const result = await pool.query<{ id: string; timestamp: Date }>(
-    `INSERT INTO session_log (anon_id, session_id, event_type, screen_id, payload)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING id, timestamp`,
-    [user.anonId, sessionId, eventType, screenId, payload],
-  );
+  // Optional client-generated UUID enables idempotent retries from the
+  // optimistic local sessionLogStore. ON CONFLICT relies on the PK's UNIQUE
+  // constraint on `id`. If omitted, the column DEFAULT generates one server-side.
+  let clientId: string | null = null;
+  if (body.id !== undefined && body.id !== null) {
+    if (
+      typeof body.id !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.id)
+    ) {
+      return res.status(400).json({ error: 'id must be a valid UUID' });
+    }
+    clientId = body.id;
+  }
+
+  const sql = clientId
+    ? `INSERT INTO session_log (id, anon_id, session_id, event_type, screen_id, payload)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (id) DO NOTHING
+       RETURNING id, timestamp`
+    : `INSERT INTO session_log (anon_id, session_id, event_type, screen_id, payload)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, timestamp`;
+  const params = clientId
+    ? [clientId, user.anonId, sessionId, eventType, screenId, payload]
+    : [user.anonId, sessionId, eventType, screenId, payload];
+
+  const result = await pool.query<{ id: string; timestamp: Date }>(sql, params);
+
+  // ON CONFLICT DO NOTHING returns zero rows when the id was already inserted.
+  // Treat as idempotent success — the row exists with the requested id.
+  if (result.rows.length === 0 && clientId) {
+    return res.status(200).json({ id: clientId, timestamp: null, deduped: true });
+  }
 
   const row = result.rows[0];
   return res.status(201).json({ id: row.id, timestamp: row.timestamp });

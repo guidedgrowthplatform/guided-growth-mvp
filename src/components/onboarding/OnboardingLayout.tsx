@@ -79,12 +79,14 @@ export function OnboardingLayout({
   const vapiConnecting = vapiStatus === 'connecting';
   const vapiErrored = vapiStatus === 'error';
   const vapiIsMuted = onboardingVoice?.isMuted ?? true;
-  const vapiTtsMuted = onboardingVoice?.isTtsMuted ?? false;
   const vapiSpeaking = onboardingVoice?.isAssistantSpeaking ?? false;
   const voiceChosen = preferences.voiceMode === 'voice';
   const micGranted = preferences.micPermission === true;
   const micRuntimeOn = micGranted && preferences.micEnabled === true;
-  const ttsOn = voiceChosen && vapiActive && !vapiTtsMuted;
+  // Intent-driven: orb reflects the user's preference, not Vapi's connect
+  // state. Without this the orb stays dark for ~1–2s while the call is
+  // negotiating, so users click again and spawn parallel Vapi instances.
+  const ttsOn = voiceChosen && !vapiErrored;
   const micOn = vapiActive ? !vapiIsMuted : micRuntimeOn;
 
   const voicePlayer = useVoicePlayer();
@@ -152,15 +154,21 @@ export function OnboardingLayout({
       void onboardingVoice?.restartCall();
       return;
     }
-    if (vapiActive) {
-      const next = vapiTtsMuted;
-      onboardingVoice?.setTtsEnabled(next);
-      void updatePreferences({ voiceMode: next ? 'voice' : 'screen' });
+    // Off-click while the session is live (or coming up): tear it down to
+    // cap cost — same intent as the 8s idle-timeout in OnboardingVoiceProvider.
+    // Don't just mute the assistant track; the WebRTC session keeps billing.
+    if (vapiActive || vapiConnecting) {
+      onboardingVoice?.endCall();
+      void updatePreferences({ voiceMode: 'screen' });
+      useVoiceSettingsStore.getState().hydrate({ ttsEnabled: false });
       return;
     }
     const nextChosen = !voiceChosen;
     void updatePreferences({ voiceMode: nextChosen ? 'voice' : 'screen' });
     useVoiceSettingsStore.getState().hydrate({ ttsEnabled: nextChosen });
+    // On-click after a prior end/idle stop: the auto-start gate is armed for
+    // this screen, so the pref flip alone won't reopen the session. Kick it.
+    if (nextChosen) void onboardingVoice?.restartCall();
   };
 
   const handleMicToggleClick = () => {
@@ -193,19 +201,24 @@ export function OnboardingLayout({
       {tooltipVisible && <VoiceTooltip autoDismissMs={4000} onDismiss={handleTooltipDismiss} />}
       <DualButton
         size={88}
-        leftActive={ttsOn || vapiConnecting}
+        leftActive={ttsOn}
         rightActive={micOn}
         activeRings={ttsOn && vapiSpeaking ? 'left' : null}
         leftIcon={ttsOn ? <IconChatVoice size={30} /> : <IconChatText size={30} />}
         rightIcon={micOn ? <IconMic size={30} /> : <IconMicMuted size={30} />}
         onLeftClick={handleTtsToggleClick}
         onRightClick={handleMicToggleClick}
-        leftAriaLabel={ttsOn ? 'Mute coach voice' : 'Unmute coach voice'}
+        leftAriaLabel={ttsOn ? 'Turn coach voice off' : 'Turn coach voice on'}
         rightAriaLabel={micOn ? 'Mute mic' : 'Unmute mic'}
       />
       {vapiErrored && (
         <p className="max-w-[280px] text-center text-xs text-danger">
           Couldn't connect to coach voice.
+          {import.meta.env.DEV && onboardingVoice?.errorMessage && (
+            <span className="mt-1 block break-all font-mono text-[10px] opacity-70">
+              {onboardingVoice.errorMessage}
+            </span>
+          )}
         </p>
       )}
     </div>

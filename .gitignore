@@ -131,3 +131,6 @@ voices.txt
 test_phase_*.txt
 gradle_build_log.txt
 .env*.local
+
+# Claude scratch dir (one-off intermediate files; never commit)
+.claude/scratch/
