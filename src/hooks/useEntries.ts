@@ -1,10 +1,16 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import * as entriesApi from '@/api/entries';
-import { offlineQueue } from '@/cache/offlineQueue';
+import { offlineQueue, registerReplayHandler } from '@/cache/offlineQueue';
 import { useToast } from '@/contexts/ToastContext';
 import { queryKeys } from '@/lib/query';
 import type { EntriesMap, DayEntries } from '@shared/types';
+
+// queued entries replay via DataService instead of the (now-removed) /api/entries
+registerReplayHandler('entry', async (body, endpoint) => {
+  const date = endpoint.split('/').pop() as string;
+  await entriesApi.saveEntries(date, body as DayEntries);
+});
 
 export function useEntries() {
   const { addToast } = useToast();
@@ -52,7 +58,7 @@ export function useEntries() {
         await entriesApi.saveEntries(date, dayEntries);
         qc.invalidateQueries({ queryKey: queryKeys.entries.all });
       } catch {
-        offlineQueue.enqueue(`/api/entries/${date}`, 'PUT', dayEntries);
+        offlineQueue.enqueue(`/api/entries/${date}`, 'PUT', dayEntries, 'entry');
         addToast('error', 'Saved offline — will sync when back online');
       }
     },
@@ -112,7 +118,7 @@ export function useEntries() {
         qc.invalidateQueries({ queryKey: queryKeys.entries.all });
       } catch {
         for (const [date, dayEntries] of Object.entries(entriesMap)) {
-          offlineQueue.enqueue(`/api/entries/${date}`, 'PUT', dayEntries);
+          offlineQueue.enqueue(`/api/entries/${date}`, 'PUT', dayEntries, 'entry');
         }
         addToast('error', 'Saved offline — will sync when back online');
       }

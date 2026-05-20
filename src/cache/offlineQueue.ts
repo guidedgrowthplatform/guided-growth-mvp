@@ -25,6 +25,14 @@ interface FlushResult {
 
 let flushInProgress = false;
 
+// kind → replay handler. Set by feature modules to replay queued mutations
+// through their domain layer instead of the now-removed REST endpoints.
+type ReplayHandler = (body: unknown, endpoint: string) => Promise<void>;
+const replayHandlers: Partial<Record<QueuedItemKind, ReplayHandler>> = {};
+export function registerReplayHandler(kind: QueuedItemKind, fn: ReplayHandler): void {
+  replayHandlers[kind] = fn;
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
     // native session is async; 'online' may fire pre-hydration
@@ -112,6 +120,16 @@ export const offlineQueue = {
       const droppedDetails: Array<{ endpoint: string; status: number }> = [];
 
       for (const mutation of snapshot) {
+        const handler = mutation.kind ? replayHandlers[mutation.kind] : undefined;
+        if (handler) {
+          try {
+            await handler(mutation.body, mutation.endpoint);
+            succeededIds.add(mutation.id);
+          } catch {
+            // leave in queue for next retry
+          }
+          continue;
+        }
         try {
           const response = await fetch(mutation.endpoint, {
             method: mutation.method,

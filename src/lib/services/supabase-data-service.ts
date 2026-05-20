@@ -505,7 +505,11 @@ export class SupabaseDataService implements DataService {
     }
 
     const { error: fieldsErr } = await supabase.from('journal_entry_fields').insert(fields);
-    if (fieldsErr) throw new Error(fieldsErr.message);
+    if (fieldsErr) {
+      // compensating delete — no RPC available, best-effort orphan cleanup
+      await supabase.from('journal_entries').delete().eq('id', entry.id);
+      throw new Error(fieldsErr.message);
+    }
 
     return {
       id: entry.id,
