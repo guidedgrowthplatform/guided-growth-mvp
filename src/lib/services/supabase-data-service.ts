@@ -35,10 +35,7 @@ function getCurrentAnonId(): string {
   throw new Error('Not authenticated');
 }
 
-// Auth user id is reserved for crypto key derivation only (journal entries
-// encrypted before migration 025 were keyed off auth.users.id; switching
-// would orphan the ciphertext). All DB queries use anon_id via
-// getCurrentAnonId().
+// crypto key — pre-025 ciphertext keyed off auth.users.id
 function getCurrentAuthUserId(): string {
   const user = useAuthStore.getState().user;
   if (user?.id) return user.id;
@@ -481,8 +478,7 @@ export class SupabaseDataService implements DataService {
     themes?: string[],
   ): Promise<JournalEntry> {
     const anonId = getCurrentAnonId();
-    // Crypto key derivation uses auth.user.id — switching would orphan
-    // pre-025 ciphertext. See getCurrentAuthUserId() comment.
+    // crypto key — pre-025 ciphertext keyed off auth.users.id
     const cryptoKeyId = getCurrentAuthUserId();
 
     let storedContent: string;
@@ -493,27 +489,31 @@ export class SupabaseDataService implements DataService {
       storedContent = content;
     }
 
-    const { data, error } = await supabase
+    const { data: entry, error: entryErr } = await supabase
       .from('journal_entries')
-      .insert({
-        anon_id: anonId,
-        date: todayStr(),
-        response: storedContent,
-        prompt: themes?.join(', ') || null,
-        input_mode: 'text',
-      })
+      .insert({ anon_id: anonId, type: 'freeform', date: todayStr() })
       .select()
       .single();
+    if (entryErr) throw new Error(entryErr.message);
 
-    if (error) throw new Error(error.message);
+    const fields: { entry_id: string; field_key: string; content: string }[] = [
+      { entry_id: entry.id, field_key: 'content', content: storedContent },
+    ];
+    if (mood) fields.push({ entry_id: entry.id, field_key: 'mood', content: mood });
+    if (themes && themes.length > 0) {
+      fields.push({ entry_id: entry.id, field_key: 'themes', content: themes.join(',') });
+    }
+
+    const { error: fieldsErr } = await supabase.from('journal_entry_fields').insert(fields);
+    if (fieldsErr) throw new Error(fieldsErr.message);
 
     return {
-      id: data.id,
-      content, // Return original plaintext to caller
+      id: entry.id,
+      content,
       mood,
       themes,
-      date: data.date,
-      createdAt: data.created_at,
+      date: entry.date,
+      createdAt: entry.created_at,
     };
   }
 
@@ -522,7 +522,7 @@ export class SupabaseDataService implements DataService {
     const cryptoKeyId = getCurrentAuthUserId();
     let query = supabase
       .from('journal_entries')
-      .select('*')
+      .select('id, date, created_at, journal_entry_fields(field_key, content)')
       .eq('anon_id', anonId)
       .order('created_at', { ascending: false });
 
@@ -534,17 +534,24 @@ export class SupabaseDataService implements DataService {
 
     return Promise.all(
       (data || []).map(async (j) => {
-        let content: string;
+        const fieldsRows = (j.journal_entry_fields ?? []) as Array<{
+          field_key: string;
+          content: string;
+        }>;
+        const fields: Record<string, string> = {};
+        for (const f of fieldsRows) fields[f.field_key] = f.content;
+
+        let content = fields.content ?? '';
         try {
-          content = await decryptJournal(j.response, cryptoKeyId);
+          if (content) content = await decryptJournal(content, cryptoKeyId);
         } catch {
-          content = j.response;
+          // ciphertext that fails decrypt — return as-is
         }
         return {
           id: j.id,
           content,
-          mood: undefined,
-          themes: j.prompt ? j.prompt.split(', ') : undefined,
+          mood: fields.mood,
+          themes: fields.themes ? fields.themes.split(',').filter(Boolean) : undefined,
           date: j.date,
           createdAt: j.created_at,
         };
@@ -774,16 +781,14 @@ export class SupabaseDataService implements DataService {
       .maybeSingle();
 
     if (error) throw new Error(error.message);
-    if (!data) return null;
-
-    return { ...data, anon_id: data.anon_id } as UserPreferences;
+    return (data ?? null) as UserPreferences | null;
   }
 
   async upsertPreferences(prefs: Partial<UserPreferences>): Promise<UserPreferences> {
     const anonId = getCurrentAnonId();
-    const { user_id: _ignored, id: _ignoredId, ...rest } = prefs as Record<string, unknown>;
-    void _ignored;
-    void _ignoredId;
+    const { id: _id, anon_id: _anonId, ...rest } = prefs as Record<string, unknown>;
+    void _id;
+    void _anonId;
 
     const { data, error } = await supabase
       .from('user_preferences')
@@ -792,7 +797,7 @@ export class SupabaseDataService implements DataService {
       .single();
 
     if (error) throw new Error(error.message);
-    return { ...data, anon_id: data.anon_id } as UserPreferences;
+    return data as UserPreferences;
   }
 
   async getCurrentAffirmation(): Promise<Affirmation | null> {

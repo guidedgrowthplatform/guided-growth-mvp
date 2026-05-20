@@ -77,7 +77,7 @@ async function fetchStateDelta(userId, sinceTs) {
   await pool.query(
     `SELECT id, session_id, timestamp, event_type, screen_id, payload
        FROM session_log
-      WHERE user_id = $1 AND timestamp > $2
+      WHERE anon_id = $1 AND timestamp > $2
       ORDER BY timestamp ASC
       LIMIT $3`,
     [userId, sinceTs, STATE_DELTA_LIMIT],

@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { ApiError } from '@/api/client';
 import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '@/lib/query';
 import { supabaseDataService } from '@/lib/services/supabase-data-service';
@@ -15,7 +14,7 @@ export type AppGateStatus =
 export function useAppGate(): AppGateStatus {
   const { user, loading: authLoading } = useAuth();
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.onboarding.state,
     queryFn: () => supabaseDataService.getOnboardingState(),
     enabled: !!user,
@@ -26,14 +25,7 @@ export function useAppGate(): AppGateStatus {
 
   if (authLoading || (!!user && isLoading)) return { status: 'loading' };
   if (!user) return { status: 'unauthenticated' };
-
-  // 401/403 from API = session expired or invalid → treat as unauthenticated
-  if (isError) {
-    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-      return { status: 'unauthenticated' };
-    }
-    return { status: 'error', retry: refetch };
-  }
+  if (isError) return { status: 'error', retry: refetch };
 
   if (data === null || data === undefined) return { status: 'onboarding_needed' };
   if (data.status === 'in_progress') {

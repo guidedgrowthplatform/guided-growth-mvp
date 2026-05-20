@@ -7,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
   if (!user) return;
-  await setUserContext(user.authUserId);
+  await setUserContext(user.anonId);
 
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
@@ -167,8 +167,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       await client.query('DELETE FROM profiles WHERE id = $1', [authUserId]);
 
-      // auth-delete inside the txn — failure here rolls back the profile delete
-      // so the account stays intact instead of half-deleted
+      // auth-delete inside the txn — failure here rolls back the profile delete.
+      // Post-deleteUser COMMIT failure is unrecoverable (auth gone, profile remains);
+      // accepted because subsequent RLS lookups deny with current_anon_id() = NULL.
       const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(authUserId);
       if (deleteError) {
         await client.query('ROLLBACK');
@@ -210,9 +211,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // PATCH /api/onboarding/profile — update profile fields the LLM may also
-  // set via the update_profile tool (P1-07). Auth-metadata sync only applies
-  // to name + nickname (which mapUser() reads from user_metadata).
+  // PATCH /api/onboarding/profile — also fired by LLM update_profile tool.
+  // name + nickname mirrored to auth.users.user_metadata for mapUser().
   if (route === 'profile' && req.method === 'PATCH') {
     const { name, nickname, age_group, gender, referral_source } = req.body ?? {};
 

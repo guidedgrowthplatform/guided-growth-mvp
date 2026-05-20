@@ -89,16 +89,6 @@ WITH a AS (SELECT auth_user_id, anon_id FROM rls_users WHERE email = 'rls_test_a
        INSERT INTO daily_checkins (anon_id, date, mood)
        SELECT anon_id, CURRENT_DATE, 3 FROM b
        RETURNING id
-     ),
-     sl_a AS (
-       INSERT INTO session_log (anon_id, session_id, event_type, payload)
-       SELECT anon_id, 'rls-test-session-a', 'navigate', '{}'::jsonb FROM a
-       RETURNING id
-     ),
-     sl_b AS (
-       INSERT INTO session_log (anon_id, session_id, event_type, payload)
-       SELECT anon_id, 'rls-test-session-b', 'navigate', '{}'::jsonb FROM b
-       RETURNING id
      )
 SELECT 1;
 

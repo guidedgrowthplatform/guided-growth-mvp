@@ -14,7 +14,7 @@
  *
  * Targets:
  *   - 1000 inserts in <2s
- *   - "last 50 events for user_id X" in <50ms
+ *   - "last 50 events for anon_id X" in <50ms
  */
 import { performance } from 'node:perf_hooks';
 import pg from 'pg';
@@ -50,7 +50,7 @@ async function insertBatch(count) {
   for (let i = 0; i < count; i++) {
     promises.push(
       pool.query(
-        `INSERT INTO session_log (user_id, session_id, event_type, screen_id, payload)
+        `INSERT INTO session_log (anon_id, session_id, event_type, screen_id, payload)
          VALUES ($1, $2, 'navigate', $3, $4::jsonb)`,
         [USER_ID, SESSION_ID, `PERF-${i}`, JSON.stringify({ i })],
       ),
@@ -66,7 +66,7 @@ async function querySelect() {
   await pool.query(
     `SELECT id, event_type, screen_id, timestamp, payload
      FROM session_log
-     WHERE user_id = $1
+     WHERE anon_id = $1
      ORDER BY timestamp DESC
      LIMIT 50`,
     [USER_ID],
