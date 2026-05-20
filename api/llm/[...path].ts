@@ -21,6 +21,7 @@ import {
   buildSystemPromptForRequest,
   BuildSystemPromptError,
 } from '../_lib/llm/buildSystemPrompt.js';
+import type { SessionStateDeltaEntry } from '@shared/types/context.js';
 
 type CoachingStyle = 'warm' | 'direct' | 'reflective';
 const COACHING_STYLES = new Set<CoachingStyle>(['warm', 'direct', 'reflective']);
@@ -114,10 +115,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   let coachingStyle: CoachingStyle = 'warm';
   if (body.coaching_style !== undefined) {
-    if (typeof body.coaching_style !== 'string' || !COACHING_STYLES.has(body.coaching_style as CoachingStyle)) {
+    if (
+      typeof body.coaching_style !== 'string' ||
+      !COACHING_STYLES.has(body.coaching_style as CoachingStyle)
+    ) {
       return res.status(400).json({ error: 'invalid coaching_style' });
     }
     coachingStyle = body.coaching_style as CoachingStyle;
+  }
+
+  // Optional client-supplied optimistic state_delta. When present, backend
+  // uses it instead of querying session_log — closes the race where a
+  // logEvent POST hasn't landed before the LLM call fires.
+  let recentEvents: SessionStateDeltaEntry[] | undefined;
+  if (body.recent_events !== undefined) {
+    if (!Array.isArray(body.recent_events)) {
+      return res.status(400).json({ error: 'recent_events must be an array' });
+    }
+    // Shallow validation only — buildSystemPromptForRequest is the consumer.
+    recentEvents = body.recent_events as SessionStateDeltaEntry[];
   }
 
   const scrubbedMessage = scrubPII(userMessage);
@@ -129,6 +145,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       anon_id: user.anonId,
       screen_id: screenId,
       coaching_style: coachingStyle,
+      recent_events: recentEvents,
     });
     systemPrompt = built.systemPrompt;
     if (process.env.NODE_ENV !== 'production') {
@@ -149,7 +166,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (err instanceof BuildSystemPromptError) {
       return res.status(err.status).json({ error: err.code, message: err.message });
     }
-    return res.status(500).json({ error: 'build_system_prompt_failed', message: (err as Error).message });
+    return res
+      .status(500)
+      .json({ error: 'build_system_prompt_failed', message: (err as Error).message });
   }
 
   try {
@@ -161,11 +180,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         sessionId,
         'llm_call',
         screenId,
-        { phase: 'start', screen_id: screenId, coaching_style: coachingStyle, model: 'gpt-4o-mini' },
+        {
+          phase: 'start',
+          screen_id: screenId,
+          coaching_style: coachingStyle,
+          model: 'gpt-4o-mini',
+        },
       ],
     );
   } catch (err) {
-    return res.status(500).json({ error: `Failed to log llm_call start: ${(err as Error).message}` });
+    return res
+      .status(500)
+      .json({ error: `Failed to log llm_call start: ${(err as Error).message}` });
   }
 
   // Open SSE
@@ -371,7 +397,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const latencyMs = Math.round(performance.now() - startedAt);
     endStatus = 'ok';
-    send({ type: 'done', latency_ms: latencyMs, total_tokens: totalTokens, tool_rounds: toolRounds });
+    send({
+      type: 'done',
+      latency_ms: latencyMs,
+      total_tokens: totalTokens,
+      tool_rounds: toolRounds,
+    });
     res.end();
   } catch (err) {
     const status = (err as { status?: number }).status;

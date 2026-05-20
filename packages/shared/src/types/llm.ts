@@ -1,4 +1,5 @@
 import type { CoachingStyle } from '../coaching/styles.js';
+import type { SessionStateDeltaEntry } from './context.js';
 export type { CoachingStyle };
 
 export interface LLMRequest {
@@ -6,6 +7,10 @@ export interface LLMRequest {
   screen_id: string;
   user_message: string;
   coaching_style?: CoachingStyle;
+  // Client-supplied optimistic state_delta from the local sessionLogStore.
+  // When present, the backend uses these instead of querying session_log,
+  // closing the race where a fire-and-forget logEvent hasn't landed yet.
+  recent_events?: SessionStateDeltaEntry[];
 }
 
 export type LLMStreamEvent =

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { streamLLM } from '@/api/llm';
-import { useSessionLog } from './useSessionLog';
+import { useSessionLogStore } from '@/stores/sessionLogStore';
 import type {
   CoachingStyle,
   LLMChatMessage,
   LLMStreamEvent,
   LLMToolEvent,
 } from '@shared/types/llm';
+import { useSessionLog } from './useSessionLog';
 
 export type LLMStatus = 'idle' | 'streaming' | 'done' | 'error';
 
@@ -30,10 +31,7 @@ function makeId(counter: { n: number }): string {
   return `msg-${counter.n}`;
 }
 
-export function useLLM(
-  screenId: string,
-  opts?: { coachingStyle?: CoachingStyle },
-): UseLLMReturn {
+export function useLLM(screenId: string, opts?: { coachingStyle?: CoachingStyle }): UseLLMReturn {
   const { sessionId, logEvent } = useSessionLog();
   const coachingStyle = opts?.coachingStyle ?? 'warm';
 
@@ -159,12 +157,18 @@ export function useLLM(
       };
 
       try {
+        // Pass the optimistic local delta so the backend doesn't race a
+        // pending /api/session_log POST. Filter out llm_call rows server-side
+        // anyway, but trimming here keeps the body small.
+        const recent_events = useSessionLogStore.getState().getDeltaSince(null);
+
         await streamLLM(
           {
             session_id: sessionId,
             screen_id: screenId,
             user_message: text,
             coaching_style: coachingStyle,
+            recent_events,
           },
           onEvent,
           controller.signal,
@@ -173,8 +177,7 @@ export function useLLM(
         // Trust the controller's own signal for abort detection; per-call,
         // can't be poisoned by a sibling sendMessage.
         const wasAborted =
-          controller.signal.aborted ||
-          (err instanceof DOMException && err.name === 'AbortError');
+          controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError');
         if (wasAborted) {
           // If we already surfaced an error via SSE 'error' frame, keep that.
           // Otherwise this is a user/unmount cancel — fall back to idle.

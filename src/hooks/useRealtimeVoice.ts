@@ -35,6 +35,15 @@ function errorToMessage(err: unknown, fallback: string): string {
 
 export type CoachingStyle = 'warm' | 'direct' | 'reflective';
 
+export type RealtimeTranscriptRole = 'user' | 'assistant';
+export type RealtimeTranscriptKind = 'partial' | 'final';
+
+export interface RealtimeTranscriptEvent {
+  role: RealtimeTranscriptRole;
+  kind: RealtimeTranscriptKind;
+  text: string;
+}
+
 export interface UseRealtimeVoiceMetadata {
   anon_id: string;
   screen?: string;
@@ -47,6 +56,14 @@ export interface UseRealtimeVoiceOptions {
   onError?: (message: string) => void;
   startAudioOff?: boolean;
   onCallStart?: () => void;
+  // Fires on any user-side transcript event (partial or final). Used by the
+  // provider to reset its idle timer — Vapi's speech-start/-end are assistant-
+  // side only, so without this signal the timer treats user talking as idle.
+  onUserActivity?: () => void;
+  // Fires for every transcript event from Vapi (both user STT and assistant
+  // TTS, partial and final). The provider fans this out to the chat overlay
+  // so the conversation can be rendered as bubbles.
+  onTranscript?: (event: RealtimeTranscriptEvent) => void;
 }
 
 export interface UseRealtimeVoiceReturn {
@@ -117,7 +134,8 @@ function toCanonicalScreenId(screen?: string): string | undefined {
  * plumbing, and the spec-named state fields.
  */
 export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeVoiceReturn {
-  const { metadata, onEnd, onError, startAudioOff, onCallStart } = options;
+  const { metadata, onEnd, onError, startAudioOff, onCallStart, onUserActivity, onTranscript } =
+    options;
   const { acquireRealtime, releaseToken, setStatus: setOwnerPhase } = useVoice();
   const { startVoice, endVoice } = useSessionLog();
 
@@ -128,6 +146,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   const vapiRef = useRef<Vapi | null>(null);
   const stateRef = useRef<RealtimeVoiceState>('idle');
   const tearingDownRef = useRef(false);
+  // In-flight stop promise. Daily SDK fires "multiple call instances" if a
+  // new start() races a still-tearing-down call — start() awaits this first.
+  const teardownPromiseRef = useRef<Promise<void> | null>(null);
   const startInvokedAtRef = useRef<number | null>(null);
   const sessionStartRef = useRef<number | null>(null);
   const firstAudioMsRef = useRef<number | null>(null);
@@ -137,6 +158,25 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   const hadErrorRef = useRef(false);
   const voiceAnchorIdRef = useRef<string | null>(null);
   const tokenRef = useRef<ReleaseToken | null>(null);
+
+  // Listeners are attached to the Vapi instance ONCE (we reuse one instance
+  // for the hook's lifetime — see the comment in start()). They must call the
+  // latest option callbacks, not the ones captured at attach time, so we
+  // route through refs that get re-synced every render.
+  const onCallStartRef = useRef(onCallStart);
+  const onEndRef = useRef(onEnd);
+  const onErrorRef = useRef(onError);
+  const onUserActivityRef = useRef(onUserActivity);
+  const onTranscriptRef = useRef(onTranscript);
+  const metadataRef = useRef(metadata);
+  useEffect(() => {
+    onCallStartRef.current = onCallStart;
+    onEndRef.current = onEnd;
+    onErrorRef.current = onError;
+    onUserActivityRef.current = onUserActivity;
+    onTranscriptRef.current = onTranscript;
+    metadataRef.current = metadata;
+  });
 
   const dropToken = useCallback(() => {
     const t = tokenRef.current;
@@ -192,18 +232,25 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     startInvokedAtRef.current = null;
     transcriptWarnedRef.current = false;
 
-    // Null the ref BEFORE SDK teardown so call-end firing synchronously
-    // from inside client.stop() doesn't re-enter handlers we already wired.
+    // Stop the active call but KEEP the Vapi instance + its listeners.
+    // Daily refuses more than one DailyIframe call object on a page; if we
+    // destroy the Vapi instance and construct a new one for the next start,
+    // it fails with "Duplicate DailyIframe instances are not allowed" because
+    // Daily's strict-mode guard fires before the previous instance's slot
+    // is fully released. Vapi.start() internally calls cleanup() to destroy
+    // the old Daily call before creating a new one — exactly what we need —
+    // so the canonical pattern is one Vapi instance, repeated start/stop.
+    // The instance is only fully torn down on hook unmount.
     const client = vapiRef.current;
-    vapiRef.current = null;
     if (client) {
-      try {
-        client.removeAllListeners();
-      } catch {
+      const stopP = client.stop().catch(() => {
         /* noop */
-      }
-      void client.stop().catch(() => {
-        /* noop */
+      });
+      teardownPromiseRef.current = stopP;
+      void stopP.finally(() => {
+        if (teardownPromiseRef.current === stopP) {
+          teardownPromiseRef.current = null;
+        }
       });
     }
 
@@ -220,6 +267,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
 
   const fail = useCallback(
     (message: string) => {
+      if (import.meta.env.DEV) {
+        console.error('[vapi] fail:', message);
+      }
       hadErrorRef.current = true;
       setError(message);
       cleanup();
@@ -236,18 +286,44 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       mountedRef.current = false;
       cleanup();
       dropToken();
+      // Full teardown on unmount only — disconnects listeners and clears the
+      // Vapi instance so the next mount can lazy-create a fresh one. Inside
+      // the hook's lifetime, cleanup() keeps the instance alive on purpose.
+      const client = vapiRef.current;
+      vapiRef.current = null;
+      if (client) {
+        try {
+          client.removeAllListeners();
+        } catch {
+          /* noop */
+        }
+        void client.stop().catch(() => {
+          /* noop */
+        });
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const start = useCallback(async () => {
     if (tearingDownRef.current) return;
-    if (vapiRef.current) return;
+    // Don't double-start an active or in-progress call. We previously gated
+    // on `vapiRef.current` being non-null, but the instance now persists
+    // across stop/start cycles — gate on state instead.
+    if (stateRef.current !== 'idle' && stateRef.current !== 'error') return;
+
+    // Wait out any in-flight stop. Vapi.stop() awaits Daily's destroy, so once
+    // this resolves the same Vapi instance is ready to start() again with a
+    // fresh Daily call object — no settle delay or duplicate-instance race.
+    if (teardownPromiseRef.current) {
+      await teardownPromiseRef.current;
+      if (!mountedRef.current || tearingDownRef.current) return;
+    }
 
     if (!PUBLIC_KEY || !ASSISTANT_ID) {
       const msg = 'Vapi env vars missing. Set VITE_VAPI_PUBLIC_KEY and VITE_VAPI_ASSISTANT_ID.';
       setError(msg);
-      onError?.(msg);
+      onErrorRef.current?.(msg);
       setStateSynced('error');
       return;
     }
@@ -259,13 +335,13 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
         if (!mountedRef.current || tearingDownRef.current) return;
         cleanup();
         setStateSynced('idle');
-        onEnd?.();
+        onEndRef.current?.();
       },
     });
     if (!ownerToken) {
       const msg = 'Could not acquire the voice channel.';
       setError(msg);
-      onError?.(msg);
+      onErrorRef.current?.(msg);
       return;
     }
     tokenRef.current = ownerToken;
@@ -273,85 +349,115 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     setStateSynced('connecting');
     startInvokedAtRef.current = performance.now();
 
-    const client = new Vapi(
-      PUBLIC_KEY,
-      undefined,
-      undefined,
-      startAudioOff ? { startAudioOff: true } : undefined,
-    );
-    vapiRef.current = client;
+    // Lazy-create the Vapi instance once per hook lifetime, attaching all
+    // listeners only on this first creation. Listeners read the latest option
+    // callbacks via `*Ref.current` so reuse doesn't trap them with stale
+    // closures over old props.
+    if (!vapiRef.current) {
+      const client = new Vapi(
+        PUBLIC_KEY,
+        undefined,
+        undefined,
+        startAudioOff ? { startAudioOff: true } : undefined,
+      );
+      vapiRef.current = client;
 
-    client.on('call-start', () => {
-      if (!mountedRef.current || tearingDownRef.current) return;
-      sessionStartRef.current = performance.now();
-      turnCountRef.current = 0;
-      transcriptCharsRef.current = 0;
-      hadErrorRef.current = false;
-      track('start_voice_session', {
-        context: deriveContext(metadata.screen),
-        screen: metadata.screen ?? null,
-        voice_mode: 'realtime',
-        voice_vendor: 'vapi',
-      });
-      voiceAnchorIdRef.current = startVoice(toCanonicalScreenId(metadata.screen));
-      setStateSynced('listening');
-      const t = tokenRef.current;
-      if (t) setOwnerPhase(t, 'listening');
-      try {
-        onCallStart?.();
-      } catch (err) {
-        console.warn('[vapi] onCallStart threw:', err);
-      }
-    });
-
-    client.on('speech-start', () => {
-      if (!mountedRef.current || tearingDownRef.current) return;
-      if (stateRef.current !== 'speaking') {
-        turnCountRef.current += 1;
-        if (firstAudioMsRef.current === null && startInvokedAtRef.current !== null) {
-          firstAudioMsRef.current = performance.now() - startInvokedAtRef.current;
-        }
-        setStateSynced('speaking');
+      client.on('call-start', () => {
+        if (!mountedRef.current || tearingDownRef.current) return;
+        sessionStartRef.current = performance.now();
+        turnCountRef.current = 0;
+        transcriptCharsRef.current = 0;
+        hadErrorRef.current = false;
+        const screen = metadataRef.current.screen;
+        track('start_voice_session', {
+          context: deriveContext(screen),
+          screen: screen ?? null,
+          voice_mode: 'realtime',
+          voice_vendor: 'vapi',
+        });
+        voiceAnchorIdRef.current = startVoice(toCanonicalScreenId(screen));
+        setStateSynced('listening');
         const t = tokenRef.current;
-        if (t) setOwnerPhase(t, 'speaking');
-      }
-    });
+        if (t) setOwnerPhase(t, 'listening');
+        try {
+          onCallStartRef.current?.();
+        } catch (err) {
+          console.warn('[vapi] onCallStart threw:', err);
+        }
+      });
 
-    client.on('speech-end', () => {
-      if (!mountedRef.current || tearingDownRef.current) return;
-      setStateSynced('listening');
-      const t = tokenRef.current;
-      if (t) setOwnerPhase(t, 'listening');
-    });
+      client.on('speech-start', () => {
+        if (!mountedRef.current || tearingDownRef.current) return;
+        if (stateRef.current !== 'speaking') {
+          turnCountRef.current += 1;
+          if (firstAudioMsRef.current === null && startInvokedAtRef.current !== null) {
+            firstAudioMsRef.current = performance.now() - startInvokedAtRef.current;
+          }
+          setStateSynced('speaking');
+          const t = tokenRef.current;
+          if (t) setOwnerPhase(t, 'speaking');
+        }
+      });
 
-    client.on('message', (message: unknown) => {
-      try {
-        const m = message as { type?: string; transcriptType?: string; transcript?: unknown };
-        if (m?.type !== 'transcript' || m.transcriptType !== 'final') return;
-        const text = m.transcript;
-        if (typeof text === 'string') {
+      client.on('speech-end', () => {
+        if (!mountedRef.current || tearingDownRef.current) return;
+        setStateSynced('listening');
+        const t = tokenRef.current;
+        if (t) setOwnerPhase(t, 'listening');
+      });
+
+      client.on('message', (message: unknown) => {
+        try {
+          const m = message as {
+            type?: string;
+            transcriptType?: string;
+            transcript?: unknown;
+            role?: string;
+          };
+          if (m?.type !== 'transcript') return;
+          // Any user transcript (partial or final) counts as activity —
+          // keeps the provider's idle timer from killing a call mid-thought.
+          if (m.role === 'user') onUserActivityRef.current?.();
+          const text = m.transcript;
+          if (typeof text !== 'string' || text.length === 0) return;
+          const kind: RealtimeTranscriptKind = m.transcriptType === 'final' ? 'final' : 'partial';
+          const role: RealtimeTranscriptRole = m.role === 'assistant' ? 'assistant' : 'user';
+          // Fan out before the final-only gate so chat overlay can render
+          // partial bubbles too.
+          try {
+            onTranscriptRef.current?.({ role, kind, text });
+          } catch (err) {
+            console.warn('[vapi] onTranscript threw:', err);
+          }
+          if (kind !== 'final') return;
           transcriptCharsRef.current += text.length;
+        } catch {
+          if (!transcriptWarnedRef.current) {
+            transcriptWarnedRef.current = true;
+            console.warn('[vapi] transcript message parse failed; transcript_length_chars=0');
+          }
         }
-      } catch {
-        if (!transcriptWarnedRef.current) {
-          transcriptWarnedRef.current = true;
-          console.warn('[vapi] transcript message parse failed; transcript_length_chars=0');
-        }
-      }
-    });
+      });
 
-    client.on('error', (err: unknown) => {
-      fail(errorToMessage(err, 'Unknown Vapi error'));
-    });
+      client.on('error', (err: unknown) => {
+        fail(errorToMessage(err, 'Unknown Vapi error'));
+      });
 
-    client.on('call-start-failed', (evt) => {
-      fail(errorToMessage(evt?.error, 'Vapi call-start failed.'));
-    });
+      client.on('call-start-failed', (evt) => {
+        fail(errorToMessage(evt?.error, 'Vapi call-start failed.'));
+      });
 
-    client.on('call-end', () => {
-      if (tearingDownRef.current) return;
-      stop();
-    });
+      client.on('call-end', () => {
+        if (tearingDownRef.current) return;
+        // Skip call-end fired by our own stop() — state is already 'idle' or
+        // 'error' in that case, and a redundant stop() would flip endedFlag
+        // back to false via onEnd, fooling the provider's status mapping.
+        if (stateRef.current === 'idle' || stateRef.current === 'error') return;
+        stop();
+      });
+    }
+
+    const client = vapiRef.current;
 
     try {
       await client.start(ASSISTANT_ID, {
@@ -364,18 +470,8 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           coaching_style: metadata.coaching_style ?? 'warm',
         },
       });
-      // Teardown raced ahead of start()'s resolution. cleanup() already
-      // issued stop() on the old client, but the Daily call may still be
-      // settling — stop the stale instance again to avoid a leaked call.
-      if (vapiRef.current !== client) {
-        void client.stop().catch(() => {
-          /* noop */
-        });
-      }
     } catch (err) {
-      // If cleanup nulled vapiRef during await (user stop or unmount),
-      // the throw is expected — don't surface a spurious error.
-      if (!mountedRef.current || vapiRef.current !== client) return;
+      if (!mountedRef.current) return;
       fail(err instanceof Error ? err.message : 'Failed to start Vapi call.');
     }
   }, [
@@ -383,9 +479,6 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     cleanup,
     fail,
     metadata,
-    onCallStart,
-    onEnd,
-    onError,
     setOwnerPhase,
     setStateSynced,
     startAudioOff,

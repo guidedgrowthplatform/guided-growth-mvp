@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Send, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchScreenRoutes } from '@/api/context';
@@ -8,6 +8,7 @@ import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components
 import { DualButton } from '@/components/ui/DualButton';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
+import { useOnboardingVoice as useOnboardingVoiceSession } from '@/contexts/useOnboardingVoiceSession';
 import { useAuth } from '@/hooks/useAuth';
 import { useLLM } from '@/hooks/useLLM';
 import { STEP_TO_SCREEN_ID } from '@/hooks/useOnboarding';
@@ -18,8 +19,8 @@ import {
 } from '@/hooks/useOnboardingVoice';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
-import { speak, stopTTS, unlockTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { queryKeys } from '@/lib/query';
+import { speak, stopTTS, unlockTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
@@ -60,9 +61,20 @@ export function OnboardingChatOverlay({
   const [requestingMic, setRequestingMic] = useState(false);
   const { isListening, transcript, interim, toggle, error, resetTranscript } = useVoiceInput();
   const { processTranscript } = useOnboardingVoice();
+  const onboardingVoiceSession = useOnboardingVoiceSession();
+  // Vapi is the source of truth for transcript bubbles whenever it's the
+  // driver of the turn. We mirror status into a ref so guards inside long-
+  // lived callbacks (runAssistant, line-183 effect) see the current value
+  // without re-creating those callbacks on every status flip.
+  const vapiActive = onboardingVoiceSession?.status === 'active';
+  const vapiActiveRef = useRef(vapiActive);
+  useEffect(() => {
+    vapiActiveRef.current = vapiActive;
+  }, [vapiActive]);
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
   const [isProcessing, setIsProcessing] = useState(false);
   const [draft, setDraft] = useState('');
+  const [partialAssistant, setPartialAssistant] = useState('');
   const lastErrorRef = useRef('');
   const processedTranscriptRef = useRef('');
 
@@ -88,13 +100,42 @@ export function OnboardingChatOverlay({
 
   useEffect(() => {
     scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages.length, llm.response, llm.isStreaming]);
+  }, [messages.length, llm.response, llm.isStreaming, partialAssistant]);
 
   useEffect(() => {
     if (!error || error === lastErrorRef.current) return;
     lastErrorRef.current = error;
     setMessages((prev) => [...prev, { id: `error-${Date.now()}`, role: 'ai', text: error }]);
   }, [error, setMessages]);
+
+  // Vapi transcript fan-in: Path 1 only. In text-only mode the Vapi session
+  // is intentionally down, so subscribing is a no-op anyway — but we guard
+  // explicitly to keep Path 3 sealed off from any future Vapi behavior.
+  useEffect(() => {
+    if (textOnlyMode) return;
+    if (!onboardingVoiceSession) return;
+    return onboardingVoiceSession.subscribeTranscripts((evt) => {
+      if (evt.kind === 'partial') {
+        if (evt.role === 'assistant') setPartialAssistant(evt.text);
+        return;
+      }
+      // final
+      if (evt.role === 'assistant') setPartialAssistant('');
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `vapi-${evt.role}-${Date.now()}`,
+          role: evt.role === 'assistant' ? 'ai' : 'user',
+          text: evt.text,
+        },
+      ]);
+    });
+  }, [textOnlyMode, onboardingVoiceSession, setMessages]);
+
+  // Drop any lingering partial when Vapi disconnects.
+  useEffect(() => {
+    if (!vapiActive) setPartialAssistant('');
+  }, [vapiActive]);
 
   const voiceState = isProcessing ? 'processing' : isListening ? 'listening' : 'idle';
 
@@ -189,6 +230,15 @@ export function OnboardingChatOverlay({
       transcript !== processedTranscriptRef.current
     ) {
       processedTranscriptRef.current = transcript;
+      // When Vapi owns the turn, Vapi paints the user bubble + drives the
+      // assistant reply (server-side tools handle form fills). Skip the
+      // local mic-driven REST round-trip to avoid double bubbles and a
+      // duplicate LLM call. Reset the transcript so useVoiceInput's store
+      // doesn't replay this same text on the next render.
+      if (vapiActive) {
+        resetTranscript();
+        return;
+      }
       setMessages((prev) => [
         ...prev,
         { id: `user-${Date.now()}`, role: 'user', text: transcript },
@@ -201,6 +251,7 @@ export function OnboardingChatOverlay({
     isListening,
     transcript,
     isProcessing,
+    vapiActive,
     resetTranscript,
     setMessages,
     runAssistant,
@@ -344,6 +395,16 @@ export function OnboardingChatOverlay({
           <ChatBubble
             role="ai"
             text={llm.response}
+            userName={displayName}
+            eyebrowVariant="dark"
+            compact
+            animate={false}
+          />
+        )}
+        {!textOnlyMode && partialAssistant.length > 0 && (
+          <ChatBubble
+            role="ai"
+            text={partialAssistant}
             userName={displayName}
             eyebrowVariant="dark"
             compact

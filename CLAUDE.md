@@ -40,6 +40,32 @@ life-growth-tracker/
 
 ---
 
+## Related repo — `gg-spec` (sibling, not nested)
+
+Per-screen spec packets live in a separate repo cloned as a sibling directory:
+
+```
+/Users/jonah/Documents/
+├── guided-growth-mvp/      # this repo (code)
+└── gg-spec/                # spec repo (cloned from https://gitlab.com/guidedgrowth-group/gg-spec.git)
+```
+
+**Why sibling, not inside this repo:** avoids nested `.git` directories, accidental commits of spec files into the code repo, and tools crawling spec content during builds/searches.
+
+**What's in `gg-spec/`:**
+
+- `screens/` — one MD packet per screen (20 MVP packets), bundling spec + UX rules + acceptance criteria + nav
+- `docs/global-ux-rules.md` — canonical UX-01..UX-26 rules
+- `docs/nav-graph.md` — Mermaid render of the navigation graph
+- `data/nav.json` — canonical navigation graph (generated from FLOWS + seeds)
+- `data/nav-seeds.yaml` — hand-curated voice/variant/fallback nav inputs
+
+**Runtime vs reading surface:** packets are NOT in the runtime path. The Master Sheet is the runtime source of truth (synced to Supabase `screen_contexts` via `scripts/voice-sync/seed_contexts.py`). Packets are a derived reading surface for devs and Claude Code agents — read them when implementing a screen.
+
+**Editing:** spec is product-owned (Yair pushes to main directly). Do NOT hand-edit `## Navigation` sections in packets — they're auto-generated. To suggest a spec change, open an issue on the gg-spec repo or ping Yair.
+
+---
+
 ## Critical Gotchas
 
 ### 1. Vercel Catch-All Routing
@@ -174,6 +200,24 @@ To add a new endpoint (e.g., `/api/entries/stats`):
 
 Binary cells cycle: `'' → 'yes' → 'no' → ''`. This is handled in `SpreadsheetCell.tsx` via `onQuickToggle`. The cycle works on ALL devices (not just touch).
 
+### Screen context — bundled, not fetched
+
+`src/lib/context/getScreenContext.ts` reads context blocks from a **build-time bundle** at `src/generated/screen_contexts.json`, not from `/api/context`. Vapi navigation between bundled screens has zero network round-trip.
+
+- **Source of truth**: the Master Sheet's "Screens" tab. Bundle was authored byte-identical to what `scripts/voice-sync/seed_contexts.py` writes to Supabase.
+- **Coverage today**: 22 onboarding-priority screens. Non-bundled screens fall back to `/api/context` fetch automatically (dev warns in console). Add more screens by editing the JSON when the Sheet updates.
+- **Exception**: `ONBOARD-01--FORM` was sourced from the gg-spec packet rather than the Sheet because the packet had richer content (pronunciation flow, current referral option taxonomy). See `screens["ONBOARD-01--FORM"].source` in the JSON.
+- **Backend still reads Supabase**: `api/_lib/llm/buildSystemPrompt.ts` and the Vapi `get_user_context` tool still read `screen_contexts` from the DB. Acceptable — they're off the latency-critical path. Phase 2 may unify.
+
+### Optimistic session_log (write-ahead local store)
+
+`src/stores/sessionLogStore.ts` holds the last ~200 session_log events. `logEvent()` writes to this store FIRST (sync), then fires `/api/session_log` (fire-and-forget). Server idempotency handled via `INSERT ... ON CONFLICT (id) DO NOTHING` on the client-provided UUID.
+
+- **State delta is reconstructed locally** — `getScreenContext()` reads from the store, no `/api/context/state` round-trip.
+- **`/api/llm` requests carry `recent_events: SessionStateDeltaEntry[]`** from the local store, so backend `buildSystemPromptForRequest` uses optimistic delta instead of querying `session_log` (closes the race where a POST hasn't landed yet).
+- **Cold-start hydration**: on `SIGNED_IN` / `INITIAL_SESSION`, the provider fetches the last 24h from server to seed the store (returning user on new device).
+- **Persistence**: localStorage (`mvp03_session_log`). Pending events never trimmed; only synced events trim when over the 200 cap.
+
 ### Offline Queue
 
 Failed entry saves are queued in `localStorage` via `offlineQueue.enqueue()` in `useEntries.ts`. They auto-flush on the browser's `online` event. The queue is at `src/cache/offlineQueue.ts`.
@@ -225,21 +269,21 @@ All core tables are now created in the migrations (previously `allowlist`, `entr
 
 ## File Quick Reference
 
-| What                                     | Where                                                           |
-| ---------------------------------------- | --------------------------------------------------------------- |
-| All shared types                         | `packages/shared/src/types/index.ts`                            |
-| Vite config (aliases, PWA, proxy, tests) | `vite.config.ts`                                                |
-| Vercel routing & rewrites                | `vercel.json`                                                   |
-| DB connection                            | `api/_lib/db.ts`                                                |
-| Auth middleware                          | `api/_lib/auth.ts`                                              |
-| Main app entry                           | `src/main.tsx` → `src/App.tsx`                                  |
-| Spreadsheet orchestrator                 | `src/components/capture/CaptureView.tsx`                        |
-| Toast system                             | `src/contexts/ToastContext.tsx` + `src/components/ui/Toast.tsx` |
-| Offline queue                            | `src/cache/offlineQueue.ts`                                     |
-| PWA manifest                             | `public/manifest.json`                                          |
-| Tailwind config (animations)             | `tailwind.config.js`                                            |
-| DB migrations                            | `supabase/migrations/`                                          |
-| Claude skills (naming, frontend design)  | `.claude/skills/*/SKILL.md`                                     |
-| Product specs & roadmap                  | `.claude/skills/product/` (auto-loaded for scope/feature talk)  |
-| Voice/chat architecture (umbrella)       | `.claude/skills/voice-architecture/` — start here for any voice question |
+| What                                     | Where                                                                                                                                   |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| All shared types                         | `packages/shared/src/types/index.ts`                                                                                                    |
+| Vite config (aliases, PWA, proxy, tests) | `vite.config.ts`                                                                                                                        |
+| Vercel routing & rewrites                | `vercel.json`                                                                                                                           |
+| DB connection                            | `api/_lib/db.ts`                                                                                                                        |
+| Auth middleware                          | `api/_lib/auth.ts`                                                                                                                      |
+| Main app entry                           | `src/main.tsx` → `src/App.tsx`                                                                                                          |
+| Spreadsheet orchestrator                 | `src/components/capture/CaptureView.tsx`                                                                                                |
+| Toast system                             | `src/contexts/ToastContext.tsx` + `src/components/ui/Toast.tsx`                                                                         |
+| Offline queue                            | `src/cache/offlineQueue.ts`                                                                                                             |
+| PWA manifest                             | `public/manifest.json`                                                                                                                  |
+| Tailwind config (animations)             | `tailwind.config.js`                                                                                                                    |
+| DB migrations                            | `supabase/migrations/`                                                                                                                  |
+| Claude skills (naming, frontend design)  | `.claude/skills/*/SKILL.md`                                                                                                             |
+| Product specs & roadmap                  | `.claude/skills/product/` (auto-loaded for scope/feature talk)                                                                          |
+| Voice/chat architecture (umbrella)       | `.claude/skills/voice-architecture/` — start here for any voice question                                                                |
 | Voice paths (per-path detail)            | `.claude/skills/path-1-vapi/` (onboarding), `.claude/skills/path-2-async/` (check-ins), `.claude/skills/path-3-direct-llm/` (text chat) |

@@ -1,22 +1,26 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import type Vapi from '@vapi-ai/web';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
-import { fetchScreenRoutes } from '@/api/context';
 import {
   OnboardingVoiceContext,
+  type OnboardingTranscriptListener,
   type OnboardingVoiceContextValue,
   type OnboardingVoiceStatus,
 } from '@/contexts/useOnboardingVoiceSession';
-import { useRealtimeVoice, type RealtimeVoiceState } from '@/hooks/useRealtimeVoice';
+import {
+  useRealtimeVoice,
+  type RealtimeTranscriptEvent,
+  type RealtimeVoiceState,
+} from '@/hooks/useRealtimeVoice';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { normalizeCoachingStyle } from '@/lib/coaching/styles';
 import { buildContextMessage } from '@/lib/context/buildContextMessage';
 import { getScreenContext } from '@/lib/context/getScreenContext';
+import { getBundledRoutes } from '@/lib/context/screenContextsBundle';
 import { screenIdForRoute } from '@/lib/context/screenIdForRoute';
-import { queryKeys } from '@/lib/query/keys';
 import { useAuthStore } from '@/stores/authStore';
 
 function isOnboardingPath(pathname: string): boolean {
@@ -25,6 +29,7 @@ function isOnboardingPath(pathname: string): boolean {
 
 const MAX_AUTO_RETRIES = 2;
 const RETRY_BACKOFFS_MS = [2000, 5000];
+const IDLE_TIMEOUT_MS = 8000;
 
 // Errors that won't be fixed by retrying. 429 = rate/quota; 401/403 = bad
 // credentials; 400 = bad request (assistant config). Hammering only makes
@@ -59,7 +64,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
   const anonId = useAuthStore((s) => s.anonId);
   const { logEvent } = useSessionLog();
-  const { preferences } = useUserPreferences();
+  const { preferences, updatePreferences } = useUserPreferences();
 
   const fallbackLoggedRef = useRef(false);
   const { coachingStyle, fallbackUsed } = useMemo(() => {
@@ -76,16 +81,15 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     }
   }, [fallbackUsed, preferences.coachingStyle, logEvent]);
 
-  const routesQuery = useQuery({
-    queryKey: queryKeys.context.routes(),
-    queryFn: fetchScreenRoutes,
-    staleTime: 5 * 60 * 1000,
-  });
+  // Routes come from the bundled JSON — no network round-trip needed. The
+  // sessionLogStore + bundled context blocks make screen_id resolution and
+  // context lookup fully synchronous during Vapi onboarding navigation.
+  const bundledRoutes = useMemo(() => getBundledRoutes(), []);
 
   const inOnboarding = isOnboardingPath(location.pathname);
   const currentScreenId = useMemo(
-    () => screenIdForRoute(routesQuery.data?.routes ?? [], location.pathname),
-    [routesQuery.data, location.pathname],
+    () => screenIdForRoute(bundledRoutes, location.pathname),
+    [bundledRoutes, location.pathname],
   );
 
   const [isMuted, setIsMutedState] = useState(true);
@@ -106,6 +110,21 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const retryCountRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fatalErrorRef = useRef(false);
+  // Auto-stop the call after IDLE_TIMEOUT_MS of pure 'listening' — caps Vapi
+  // session minutes when the user wanders off. Speaking/thinking turns rearm
+  // the timer via the dep array of the effect below. User-side talking re-
+  // arms it via onUserActivity, since Vapi's speech events are assistant-only.
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Warm-up gate: the very first 'listening' window is the assistant booting
+  // up + LLM cold-start, NOT user idleness. Skip the idle timer until the
+  // assistant has spoken at least once so we don't kill the call before it
+  // can greet the user. Reset when the call ends.
+  const hasAssistantSpokenRef = useRef(false);
+  // Transcript fan-out — listeners come and go with the chat overlay. Set is
+  // mutated directly so subscribe/unsubscribe don't trigger re-renders here;
+  // re-renders happen only inside the listener (the overlay), which is the
+  // right blast radius.
+  const transcriptListenersRef = useRef<Set<OnboardingTranscriptListener>>(new Set());
   const startRef = useRef<(() => Promise<void>) | null>(null);
   const currentScreenIdRef = useRef<string | null>(currentScreenId);
   useEffect(() => {
@@ -156,6 +175,13 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     if (retryTimerRef.current !== null) {
       clearTimeout(retryTimerRef.current);
       retryTimerRef.current = null;
+    }
+  }, []);
+
+  const clearIdleTimer = useCallback(() => {
+    if (idleTimerRef.current !== null) {
+      clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
     }
   }, []);
 
@@ -213,6 +239,44 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     [anonId, coachingStyle],
   );
 
+  // Forward reference for armIdleTimer — it's defined after useRealtimeVoice
+  // (which it needs `stop` from), but the user-activity callback below must
+  // be wired in *before* useRealtimeVoice. A ref breaks the temporal cycle.
+  const armIdleTimerRef = useRef<() => void>(() => {});
+
+  // User-side transcript = real activity. Re-arm only when the timer is
+  // currently armed; the effect below owns initial arming/disarming based on
+  // call state, so we don't want to spuriously arm from a stray event during
+  // the warm-up or assistant-speaking windows.
+  //
+  // INVARIANT: keep this callback's dep array empty. The Vapi message handler
+  // in useRealtimeVoice captures this reference at start() time; if it churned,
+  // the live call would keep firing the stale closure. The armIdleTimerRef
+  // indirection is what lets us stay stable while still calling the latest
+  // armIdleTimer (whose deps DO change).
+  const handleUserActivity = useCallback(() => {
+    if (idleTimerRef.current !== null) armIdleTimerRef.current();
+  }, []);
+
+  // Stable: never recreated. Iterates the listener Set live, so subscribers
+  // registered just before a transcript fires still get it.
+  const handleTranscript = useCallback((evt: RealtimeTranscriptEvent) => {
+    for (const listener of transcriptListenersRef.current) {
+      try {
+        listener(evt);
+      } catch (err) {
+        console.warn('[onboarding-voice] transcript listener threw:', err);
+      }
+    }
+  }, []);
+
+  const subscribeTranscripts = useCallback((listener: OnboardingTranscriptListener) => {
+    transcriptListenersRef.current.add(listener);
+    return () => {
+      transcriptListenersRef.current.delete(listener);
+    };
+  }, []);
+
   const {
     state,
     error: realtimeError,
@@ -226,6 +290,8 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     onCallStart,
     onEnd,
     onError,
+    onUserActivity: handleUserActivity,
+    onTranscript: handleTranscript,
   });
 
   useEffect(() => {
@@ -256,15 +322,16 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const status = mapStatus(state, endedFlag);
   const errorMessage = providerError ?? realtimeError;
 
-  // Both orbs off = Path 3 text-only mode; Vapi must stay silent.
-  const bothOrbsOff =
-    preferences.voiceMode !== 'voice' &&
-    !(preferences.micPermission === true && preferences.micEnabled === true);
+  // Vapi session lifecycle is owned by the LEFT orb (voiceMode) only. The mic
+  // orb is mute-only — it controls a runtime track on an already-live session
+  // and never starts or tears down the connection. So "voice off" alone is
+  // the gate, not "both orbs off".
+  const voiceOff = preferences.voiceMode !== 'voice';
 
   useEffect(() => {
     if (
       inOnboarding &&
-      !bothOrbsOff &&
+      !voiceOff &&
       status === 'idle' &&
       currentScreenId &&
       !fatalErrorRef.current &&
@@ -274,12 +341,58 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       void start();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inOnboarding, bothOrbsOff, status, currentScreenId]);
+  }, [inOnboarding, voiceOff, status, currentScreenId]);
+
+  // Mark assistant-has-spoken on the first speech-start. Read by the idle
+  // effect below to gate the warm-up window.
+  useEffect(() => {
+    if (isSpeaking) hasAssistantSpokenRef.current = true;
+  }, [isSpeaking]);
+
+  // Reset the warm-up gate whenever the call leaves 'active' so the next
+  // session gets a fresh grace window.
+  useEffect(() => {
+    if (status !== 'active' && status !== 'connecting') {
+      hasAssistantSpokenRef.current = false;
+    }
+  }, [status]);
+
+  // Arm the idle timer with a fresh 8s budget. Stop fires `stop()` and flips
+  // ONLY voiceMode — mic preference is the user's call and stays untouched.
+  const armIdleTimer = useCallback(() => {
+    clearIdleTimer();
+    idleTimerRef.current = setTimeout(() => {
+      idleTimerRef.current = null;
+      void updatePreferences({ voiceMode: 'screen' });
+      stop();
+    }, IDLE_TIMEOUT_MS);
+  }, [clearIdleTimer, stop, updatePreferences]);
+
+  // Keep the forward reference in sync so handleUserActivity always calls the
+  // latest armIdleTimer (which closes over the current stop / updatePreferences).
+  useEffect(() => {
+    armIdleTimerRef.current = armIdleTimer;
+  }, [armIdleTimer]);
+
+  // Idle-stop. Arms only when the call is in true user-silence: active call,
+  // currently 'listening', AND the assistant has already greeted at least
+  // once. Skipping the pre-greeting window prevents the timer from killing
+  // the call during LLM cold-start. didCallStopRef stays false → onEnd lands
+  // in 'idle'. State transitions (speaking → listening) re-fire the effect
+  // and re-arm. Mid-utterance user pauses re-arm via handleUserActivity below.
+  useEffect(() => {
+    if (status !== 'active' || state !== 'listening' || !hasAssistantSpokenRef.current) {
+      clearIdleTimer();
+      return;
+    }
+    armIdleTimer();
+    return clearIdleTimer;
+  }, [status, state, clearIdleTimer, armIdleTimer]);
 
   // Clear retry timer too — its callback bypasses the auto-start gate.
   useEffect(() => {
     if (!inOnboarding) return;
-    if (!bothOrbsOff) return;
+    if (!voiceOff) return;
     clearRetryTimer();
     retryCountRef.current = 0;
     startAttemptedRef.current = false;
@@ -287,7 +400,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       stop();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inOnboarding, bothOrbsOff, status]);
+  }, [inOnboarding, voiceOff, status]);
 
   useEffect(() => {
     if (!inOnboarding) {
@@ -398,6 +511,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       endCall,
       restartCall,
       pushSubScreen,
+      subscribeTranscripts,
     }),
     [
       status,
@@ -413,6 +527,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       endCall,
       restartCall,
       pushSubScreen,
+      subscribeTranscripts,
     ],
   );
 
