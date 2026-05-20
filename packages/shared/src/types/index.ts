@@ -32,7 +32,7 @@ export type Frequency = 'daily' | 'weekdays' | 'weekends' | 'weekly';
 
 export interface Metric {
   id: string;
-  user_id: string;
+  anon_id: string;
   name: string;
   input_type: InputType;
   question: string;
@@ -62,7 +62,7 @@ export type MetricUpdate = Partial<
 // ─── Entry ──────────────────────────────────────────
 export interface Entry {
   id: string;
-  user_id: string;
+  anon_id: string;
   metric_id: string;
   date: string; // yyyy-MM-dd
   value: string;
@@ -88,7 +88,7 @@ export interface ReflectionConfig {
 
 export interface Reflection {
   id: string;
-  user_id: string;
+  anon_id: string;
   date: string;
   field_id: string;
   value: string;
@@ -100,14 +100,14 @@ export type DayReflections = Record<string, string>;
 // ─── Affirmation ────────────────────────────────────
 export interface Affirmation {
   id: string;
-  user_id: string;
+  anon_id: string;
   value: string;
 }
 
 // ─── Journal ─────────────────────────────────────────
 export interface JournalEntry {
   id: string;
-  user_id: string;
+  anon_id: string;
   type: 'freeform' | 'template';
   template_id: string | null;
   title: string | null;
@@ -135,7 +135,7 @@ export type RecordingMode = 'auto-stop' | 'always-on';
 
 export interface UserPreferences {
   id: string;
-  user_id: string;
+  anon_id: string;
   default_view: ViewMode;
   spreadsheet_range: SpreadsheetRange;
   voice_mode: VoiceMode;
@@ -196,7 +196,7 @@ export interface AuditLogEntry {
 // ─── Session Log ────────────────────────────────────
 export interface SessionLogEntry {
   id: string;
-  user_id: string;
+  anon_id: string;
   session_id: string;
   timestamp: string;
   event_type: string;
@@ -235,7 +235,7 @@ export interface OnboardingStepData {
 
 export interface OnboardingState {
   id: string;
-  user_id: string;
+  anon_id: string;
   path: OnboardingPath | null;
   status: OnboardingStatus;
   current_step: number;

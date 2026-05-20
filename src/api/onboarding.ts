@@ -4,11 +4,7 @@ import type {
   OnboardingStepData,
   ParsedHabit,
 } from '@shared/types';
-import { apiDelete, apiGet, apiPost, apiPut } from './client';
-
-export async function fetchOnboardingState(): Promise<OnboardingState | null> {
-  return apiGet<OnboardingState | null>('/api/onboarding');
-}
+import { apiDelete, apiPost, apiPut } from './client';
 
 export async function saveOnboardingStep(
   step: number,

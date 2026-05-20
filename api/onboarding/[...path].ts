@@ -7,19 +7,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   const user = await requireUser(req, res);
   if (!user) return;
-  await setUserContext(user.authUserId);
+  await setUserContext(user.anonId);
 
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] === '__index' ? '' : segments[0] || '';
-
-  if (route === '' && req.method === 'GET') {
-    const result = await pool.query(
-      'SELECT id, anon_id AS user_id, path, current_step, status, data, brain_dump_raw, brain_dump_parsed, completed_at FROM onboarding_states WHERE anon_id = $1',
-      [user.anonId],
-    );
-    return res.json(result.rows[0] || null);
-  }
 
   if (route === '' && req.method === 'PUT') {
     const { step, path, data, brainDumpRaw, brainDumpParsed } = req.body;
@@ -39,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          brain_dump_raw = COALESCE($5, onboarding_states.brain_dump_raw),
          brain_dump_parsed = COALESCE($6::jsonb, onboarding_states.brain_dump_parsed),
          updated_at = now()
-       RETURNING id, anon_id AS user_id, path, current_step, status, data, brain_dump_raw, brain_dump_parsed, completed_at`,
+       RETURNING id, anon_id, path, current_step, status, data, brain_dump_raw, brain_dump_parsed, completed_at`,
       [
         user.anonId,
         step,
@@ -165,22 +157,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
       const counts = countsRes.rows[0]?.counts ?? {};
 
+      const authUserId = user.authUserId;
+
       await client.query(
         `INSERT INTO admin_audit_log (admin_user_id, action, target_type, target_identifier, payload_json)
          VALUES ($1, 'delete_account', 'user', $2, $3)`,
-        [user.authUserId, user.authUserId, JSON.stringify({ counts })],
+        [authUserId, authUserId, JSON.stringify({ counts })],
       );
 
-      await client.query('DELETE FROM profiles WHERE id = $1', [user.authUserId]);
-      await client.query('COMMIT');
+      await client.query('DELETE FROM profiles WHERE id = $1', [authUserId]);
 
-      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.authUserId);
+      // auth-delete inside the txn — failure here rolls back the profile delete.
+      // Post-deleteUser COMMIT failure is unrecoverable (auth gone, profile remains);
+      // accepted because subsequent RLS lookups deny with current_anon_id() = NULL.
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(authUserId);
       if (deleteError) {
+        await client.query('ROLLBACK');
         console.error('Failed to delete Supabase Auth user:', deleteError);
         return res.status(500).json({ error: 'Failed to delete auth user' });
       }
 
-      return res.json({ message: 'Account deleted' });
+      await client.query('COMMIT');
+
+      // best-effort storage purge after the account is gone; orphans are recoverable
+      const purgeCounts = { avatars: 0, journalImages: 0 };
+      for (const bucket of ['avatars', 'journal-images'] as const) {
+        const { data: files, error: listErr } = await supabaseAdmin.storage
+          .from(bucket)
+          .list(authUserId, { limit: 1000 });
+        if (listErr) {
+          console.error(`Storage list error (${bucket}):`, listErr);
+          continue;
+        }
+        if (files && files.length > 0) {
+          const paths = files.map((f) => `${authUserId}/${f.name}`);
+          const { error: rmErr } = await supabaseAdmin.storage.from(bucket).remove(paths);
+          if (rmErr) {
+            console.error(`Storage remove error (${bucket}):`, rmErr);
+          } else {
+            if (bucket === 'avatars') purgeCounts.avatars = paths.length;
+            else purgeCounts.journalImages = paths.length;
+          }
+        }
+      }
+
+      return res.json({ message: 'Account deleted', storage_purge: purgeCounts });
     } catch (err) {
       await client.query('ROLLBACK');
       console.error('Delete account error:', err);
@@ -190,17 +211,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // GET /api/onboarding/profile — fetch current profile fields
-  if (route === 'profile' && req.method === 'GET') {
-    const { rows } = await pool.query('SELECT name, nickname, image FROM profiles WHERE id = $1', [
-      user.authUserId,
-    ]);
-    return res.json(rows[0] ?? { name: null, nickname: null, image: null });
-  }
-
-  // PATCH /api/onboarding/profile — update profile fields the LLM may also
-  // set via the update_profile tool (P1-07). Auth-metadata sync only applies
-  // to name + nickname (which mapUser() reads from user_metadata).
+  // PATCH /api/onboarding/profile — also fired by LLM update_profile tool.
+  // name + nickname mirrored to auth.users.user_metadata for mapUser().
   if (route === 'profile' && req.method === 'PATCH') {
     const { name, nickname, age_group, gender, referral_source } = req.body ?? {};
 

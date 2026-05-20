@@ -5,7 +5,7 @@ import { computeStreak } from './streaks';
 
 const makeMetric = (overrides: Partial<Metric> = {}): Metric => ({
   id: 'm1',
-  user_id: 'u1',
+  anon_id: 'u1',
   name: 'Test',
   input_type: 'binary',
   question: '',

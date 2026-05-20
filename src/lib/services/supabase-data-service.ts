@@ -13,6 +13,13 @@ import type {
   CheckInRecord,
   FocusSession,
 } from './data-service.interface';
+import type {
+  UserPreferences,
+  Affirmation,
+  Reflection,
+  ReflectionConfig,
+  OnboardingState,
+} from '@shared/types';
 
 function todayStr(): string {
   const d = new Date();
@@ -28,10 +35,7 @@ function getCurrentAnonId(): string {
   throw new Error('Not authenticated');
 }
 
-// Auth user id is reserved for crypto key derivation only (journal entries
-// encrypted before migration 025 were keyed off auth.users.id; switching
-// would orphan the ciphertext). All DB queries use anon_id via
-// getCurrentAnonId().
+// crypto key — pre-025 ciphertext keyed off auth.users.id
 function getCurrentAuthUserId(): string {
   const user = useAuthStore.getState().user;
   if (user?.id) return user.id;
@@ -474,8 +478,7 @@ export class SupabaseDataService implements DataService {
     themes?: string[],
   ): Promise<JournalEntry> {
     const anonId = getCurrentAnonId();
-    // Crypto key derivation uses auth.user.id — switching would orphan
-    // pre-025 ciphertext. See getCurrentAuthUserId() comment.
+    // crypto key — pre-025 ciphertext keyed off auth.users.id
     const cryptoKeyId = getCurrentAuthUserId();
 
     let storedContent: string;
@@ -486,27 +489,35 @@ export class SupabaseDataService implements DataService {
       storedContent = content;
     }
 
-    const { data, error } = await supabase
+    const { data: entry, error: entryErr } = await supabase
       .from('journal_entries')
-      .insert({
-        anon_id: anonId,
-        date: todayStr(),
-        response: storedContent,
-        prompt: themes?.join(', ') || null,
-        input_mode: 'text',
-      })
+      .insert({ anon_id: anonId, type: 'freeform', date: todayStr() })
       .select()
       .single();
+    if (entryErr) throw new Error(entryErr.message);
 
-    if (error) throw new Error(error.message);
+    const fields: { entry_id: string; field_key: string; content: string }[] = [
+      { entry_id: entry.id, field_key: 'content', content: storedContent },
+    ];
+    if (mood) fields.push({ entry_id: entry.id, field_key: 'mood', content: mood });
+    if (themes && themes.length > 0) {
+      fields.push({ entry_id: entry.id, field_key: 'themes', content: themes.join(',') });
+    }
+
+    const { error: fieldsErr } = await supabase.from('journal_entry_fields').insert(fields);
+    if (fieldsErr) {
+      // compensating delete — no RPC available, best-effort orphan cleanup
+      await supabase.from('journal_entries').delete().eq('id', entry.id);
+      throw new Error(fieldsErr.message);
+    }
 
     return {
-      id: data.id,
-      content, // Return original plaintext to caller
+      id: entry.id,
+      content,
       mood,
       themes,
-      date: data.date,
-      createdAt: data.created_at,
+      date: entry.date,
+      createdAt: entry.created_at,
     };
   }
 
@@ -515,7 +526,7 @@ export class SupabaseDataService implements DataService {
     const cryptoKeyId = getCurrentAuthUserId();
     let query = supabase
       .from('journal_entries')
-      .select('*')
+      .select('id, date, created_at, journal_entry_fields(field_key, content)')
       .eq('anon_id', anonId)
       .order('created_at', { ascending: false });
 
@@ -527,17 +538,24 @@ export class SupabaseDataService implements DataService {
 
     return Promise.all(
       (data || []).map(async (j) => {
-        let content: string;
+        const fieldsRows = (j.journal_entry_fields ?? []) as Array<{
+          field_key: string;
+          content: string;
+        }>;
+        const fields: Record<string, string> = {};
+        for (const f of fieldsRows) fields[f.field_key] = f.content;
+
+        let content = fields.content ?? '';
         try {
-          content = await decryptJournal(j.response, cryptoKeyId);
+          if (content) content = await decryptJournal(content, cryptoKeyId);
         } catch {
-          content = j.response;
+          // ciphertext that fails decrypt — return as-is
         }
         return {
           id: j.id,
           content,
-          mood: undefined,
-          themes: j.prompt ? j.prompt.split(', ') : undefined,
+          mood: fields.mood,
+          themes: fields.themes ? fields.themes.split(',').filter(Boolean) : undefined,
           date: j.date,
           createdAt: j.created_at,
         };
@@ -756,6 +774,188 @@ export class SupabaseDataService implements DataService {
       status: s.status,
       startedAt: s.started_at,
     }));
+  }
+
+  async getPreferences(): Promise<UserPreferences | null> {
+    const anonId = getCurrentAnonId();
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('anon_id', anonId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    return (data ?? null) as UserPreferences | null;
+  }
+
+  async upsertPreferences(prefs: Partial<UserPreferences>): Promise<UserPreferences> {
+    const anonId = getCurrentAnonId();
+    const { id: _id, anon_id: _anonId, ...rest } = prefs as Record<string, unknown>;
+    void _id;
+    void _anonId;
+
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .upsert({ anon_id: anonId, ...rest }, { onConflict: 'anon_id' })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data as UserPreferences;
+  }
+
+  async getCurrentAffirmation(): Promise<Affirmation | null> {
+    const anonId = getCurrentAnonId();
+    const { data, error } = await supabase
+      .from('affirmations')
+      .select('*')
+      .eq('anon_id', anonId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+
+    return { id: data.id, anon_id: data.anon_id, value: data.value };
+  }
+
+  async upsertAffirmation(value: string): Promise<Affirmation> {
+    const anonId = getCurrentAnonId();
+    const { data, error } = await supabase
+      .from('affirmations')
+      .upsert({ anon_id: anonId, value }, { onConflict: 'anon_id' })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return { id: data.id, anon_id: data.anon_id, value: data.value };
+  }
+
+  async listReflections(startDate: string, endDate: string): Promise<Reflection[]> {
+    const anonId = getCurrentAnonId();
+    const { data, error } = await supabase
+      .from('reflections')
+      .select('*')
+      .eq('anon_id', anonId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    return (data || []).map((r) => ({
+      id: r.id,
+      anon_id: r.anon_id,
+      date: r.date,
+      field_id: r.field_id,
+      value: r.value,
+    }));
+  }
+
+  async upsertReflectionsForDate(
+    date: string,
+    fields: { field_id: string; value: string }[],
+  ): Promise<void> {
+    if (date > todayStr()) throw new Error('Cannot save reflection for future dates');
+    const anonId = getCurrentAnonId();
+
+    for (const f of fields) {
+      if (f.value === '' || f.value == null) {
+        const { error } = await supabase
+          .from('reflections')
+          .delete()
+          .eq('anon_id', anonId)
+          .eq('date', date)
+          .eq('field_id', f.field_id);
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await supabase
+          .from('reflections')
+          .upsert(
+            { anon_id: anonId, date, field_id: f.field_id, value: f.value },
+            { onConflict: 'anon_id,date,field_id' },
+          );
+        if (error) throw new Error(error.message);
+      }
+    }
+  }
+
+  async getReflectionConfig(): Promise<ReflectionConfig | null> {
+    const anonId = getCurrentAnonId();
+    const { data, error } = await supabase
+      .from('reflection_configs')
+      .select('fields, show_affirmation')
+      .eq('anon_id', anonId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+
+    return { fields: data.fields ?? [], show_affirmation: !!data.show_affirmation };
+  }
+
+  async upsertReflectionConfig(config: ReflectionConfig): Promise<ReflectionConfig> {
+    const anonId = getCurrentAnonId();
+    const { data, error } = await supabase
+      .from('reflection_configs')
+      .upsert(
+        {
+          anon_id: anonId,
+          fields: config.fields,
+          show_affirmation: config.show_affirmation,
+        },
+        { onConflict: 'anon_id' },
+      )
+      .select('fields, show_affirmation')
+      .single();
+
+    if (error) throw new Error(error.message);
+    return { fields: data.fields ?? [], show_affirmation: !!data.show_affirmation };
+  }
+
+  async getOnboardingState(): Promise<OnboardingState | null> {
+    const anonId = getCurrentAnonId();
+    const { data, error } = await supabase
+      .from('onboarding_states')
+      .select('*')
+      .eq('anon_id', anonId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      anon_id: data.anon_id,
+      path: data.path,
+      status: data.status,
+      current_step: data.current_step,
+      data: data.data,
+      completed_at: data.completed_at,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
+  }
+
+  async getOnboardingProfile(): Promise<{
+    name: string | null;
+    nickname: string | null;
+    image: string | null;
+  } | null> {
+    const authUserId = getCurrentAuthUserId();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('name, nickname, image')
+      .eq('id', authUserId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+
+    return {
+      name: data.name ?? null,
+      nickname: data.nickname ?? null,
+      image: data.image ?? null,
+    };
   }
 
   async clearData(): Promise<void> {

@@ -36,7 +36,7 @@ function errorToMessage(err: unknown, fallback: string): string {
 export type CoachingStyle = 'warm' | 'direct' | 'reflective';
 
 export interface UseRealtimeVoiceMetadata {
-  user_id: string;
+  anon_id: string;
   screen?: string;
   coaching_style?: CoachingStyle;
 }
@@ -356,7 +356,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     try {
       await client.start(ASSISTANT_ID, {
         variableValues: {
-          user_id: metadata.user_id,
+          anon_id: metadata.anon_id,
+          // dual-field for one deploy cycle; drop user_id in follow-up MR
+          user_id: metadata.anon_id,
           screen: metadata.screen ?? '',
           canonical_screen_id: toCanonicalScreenId(metadata.screen) ?? '',
           coaching_style: metadata.coaching_style ?? 'warm',

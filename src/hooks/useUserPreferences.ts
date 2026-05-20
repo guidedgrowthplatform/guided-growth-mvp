@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { apiGet, apiPut } from '@/api/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { queryKeys } from '@/lib/query';
+import { supabaseDataService } from '@/lib/services/supabase-data-service';
 import type { UserPreferences as DbUserPreferences, VoiceMode, RecordingMode } from '@shared/types';
 
 export interface UserPreferences {
@@ -107,8 +107,8 @@ export function useUserPreferences() {
   const query = useQuery<UserPreferences>({
     queryKey: queryKeys.preferences.all,
     queryFn: async () => {
-      const row = await apiGet<WirePreferences>('/api/preferences');
-      const next = fromWire(row);
+      const row = await supabaseDataService.getPreferences();
+      const next = fromWire((row ?? {}) as WirePreferences);
       saveLocalPreferences(next);
       return next;
     },
@@ -124,7 +124,8 @@ export function useUserPreferences() {
     Partial<UserPreferences>,
     { previous: UserPreferences | undefined }
   >({
-    mutationFn: (partial) => apiPut<WirePreferences>('/api/preferences', toWire(partial)),
+    mutationFn: async (partial) =>
+      (await supabaseDataService.upsertPreferences(toWire(partial) as Partial<DbUserPreferences>)) as WirePreferences,
     onMutate: async (partial) => {
       await qc.cancelQueries({ queryKey: queryKeys.preferences.all });
       const previous = qc.getQueryData<UserPreferences>(queryKeys.preferences.all);
