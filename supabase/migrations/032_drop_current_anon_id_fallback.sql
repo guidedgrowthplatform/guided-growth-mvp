@@ -14,8 +14,17 @@ BEGIN;
 CREATE OR REPLACE FUNCTION public.current_anon_id()
 RETURNS UUID
 LANGUAGE sql STABLE
+SECURITY DEFINER
+SET search_path = public, pg_catalog
 AS $$
   SELECT (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'anon_id')::UUID
 $$;
+
+REVOKE ALL ON FUNCTION public.current_anon_id() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.current_anon_id() TO authenticated, service_role;
+ALTER FUNCTION public.current_anon_id() OWNER TO postgres;
+
+COMMENT ON FUNCTION public.current_anon_id() IS
+  'JWT-only, fail-closed. Profiles fallback removed in migration 032.';
 
 COMMIT;

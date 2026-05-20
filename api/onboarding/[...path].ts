@@ -167,7 +167,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const authUserId = user.authUserId;
 
-      // Storage purge — both buckets keyed by authUserId
+      await client.query(
+        `INSERT INTO admin_audit_log (admin_user_id, action, target_type, target_identifier, payload_json)
+         VALUES ($1, 'delete_account', 'user', $2, $3)`,
+        [authUserId, authUserId, JSON.stringify({ counts })],
+      );
+
+      await client.query('DELETE FROM profiles WHERE id = $1', [authUserId]);
+
+      // auth-delete inside the txn — failure here rolls back the profile delete
+      // so the account stays intact instead of half-deleted
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(authUserId);
+      if (deleteError) {
+        await client.query('ROLLBACK');
+        console.error('Failed to delete Supabase Auth user:', deleteError);
+        return res.status(500).json({ error: 'Failed to delete auth user' });
+      }
+
+      await client.query('COMMIT');
+
+      // best-effort storage purge after the account is gone; orphans are recoverable
       const purgeCounts = { avatars: 0, journalImages: 0 };
       for (const bucket of ['avatars', 'journal-images'] as const) {
         const { data: files, error: listErr } = await supabaseAdmin.storage
@@ -175,6 +194,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .list(authUserId, { limit: 1000 });
         if (listErr) {
           console.error(`Storage list error (${bucket}):`, listErr);
+          continue;
         }
         if (files && files.length > 0) {
           const paths = files.map((f) => `${authUserId}/${f.name}`);
@@ -188,22 +208,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      await client.query(
-        `INSERT INTO admin_audit_log (admin_user_id, action, target_type, target_identifier, payload_json)
-         VALUES ($1, 'delete_account', 'user', $2, $3)`,
-        [authUserId, authUserId, JSON.stringify({ counts, storage_purge: purgeCounts })],
-      );
-
-      await client.query('DELETE FROM profiles WHERE id = $1', [authUserId]);
-      await client.query('COMMIT');
-
-      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(authUserId);
-      if (deleteError) {
-        console.error('Failed to delete Supabase Auth user:', deleteError);
-        return res.status(500).json({ error: 'Failed to delete auth user' });
-      }
-
-      return res.json({ message: 'Account deleted' });
+      return res.json({ message: 'Account deleted', storage_purge: purgeCounts });
     } catch (err) {
       await client.query('ROLLBACK');
       console.error('Delete account error:', err);
