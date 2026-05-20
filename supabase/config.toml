@@ -1,0 +1,8 @@
+# Supabase project config-as-code. Sections below are owned by this repo;
+# anything else lives in the dashboard until we bring it under git too.
+#
+# Apply with: `supabase config push` (CLI v1.180+).
+
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/custom_access_token_hook"
