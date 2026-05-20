@@ -9,7 +9,7 @@ export function initSentry() {
     dsn: DSN,
     environment: import.meta.env.MODE,
     enabled: import.meta.env.PROD,
-    sendDefaultPii: true,
+    sendDefaultPii: false,
     integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],
     tracesSampleRate: 0.2,
     replaysSessionSampleRate: 0,

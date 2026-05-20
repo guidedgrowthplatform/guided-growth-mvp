@@ -29,18 +29,18 @@ export type RealtimeSyncStatus = 'idle' | 'subscribing' | 'subscribed' | 'error'
  */
 export function useOnboardingRealtimeSync(): RealtimeSyncStatus {
   const qc = useQueryClient();
-  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const anonId = useAuthStore((s) => s.anonId);
   const [status, setStatus] = useState<RealtimeSyncStatus>('idle');
 
   useEffect(() => {
-    if (!userId) {
+    if (!anonId) {
       setStatus('idle');
       return;
     }
 
     setStatus('subscribing');
     const channel = supabase
-      .channel(`onboarding-states:${userId}`)
+      .channel(`onboarding-states:${anonId}`)
       .on(
         // @ts-expect-error — supabase-js types lag behind the runtime API
         // for postgres_changes; the call works at runtime.
@@ -49,7 +49,7 @@ export function useOnboardingRealtimeSync(): RealtimeSyncStatus {
           event: '*',
           schema: 'public',
           table: 'onboarding_states',
-          filter: `user_id=eq.${userId}`,
+          filter: `anon_id=eq.${anonId}`,
         },
         (payload: { new?: OnboardingState | null; eventType?: string }) => {
           const next = payload.new ?? null;
@@ -75,7 +75,7 @@ export function useOnboardingRealtimeSync(): RealtimeSyncStatus {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [userId, qc]);
+  }, [anonId, qc]);
 
   return status;
 }
