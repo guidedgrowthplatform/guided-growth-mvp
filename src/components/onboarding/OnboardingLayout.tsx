@@ -10,13 +10,12 @@ import { OnboardingSubtitleBar } from '@/components/onboarding/OnboardingSubtitl
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { DualButton } from '@/components/ui/DualButton';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
+import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useFocusedFieldContext } from '@/hooks/useFocusedFieldContext';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
-import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 import { stopTTS, unlockTTS } from '@/lib/services/tts-service';
-import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { AiListeningTooltip } from './AiListeningTooltip';
 
 interface OnboardingLayoutProps {
@@ -68,26 +67,13 @@ export function OnboardingLayout({
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
   );
 
-  // P1-09 — Vapi is the active voice path for onboarding. The DualButton
-  // splits into two independent toggles: LEFT = assistant TTS, RIGHT = mic
-  // (STT). Both flip the corresponding user preference on every click so the
-  // server-side record reflects what the user has set during the flow.
   const onboardingVoice = useOnboardingVoice();
-  const { preferences, updatePreferences } = useUserPreferences();
+  const { voiceOn, micOn, micAllowed, toggleVoice, toggleMic, requestMicPermission } =
+    useDualButtonControls();
   const vapiStatus = onboardingVoice?.status ?? 'idle';
-  const vapiActive = vapiStatus === 'active';
-  const vapiConnecting = vapiStatus === 'connecting';
   const vapiErrored = vapiStatus === 'error';
-  const vapiIsMuted = onboardingVoice?.isMuted ?? true;
   const vapiSpeaking = onboardingVoice?.isAssistantSpeaking ?? false;
-  const voiceChosen = preferences.voiceMode === 'voice';
-  const micGranted = preferences.micPermission === true;
-  const micRuntimeOn = micGranted && preferences.micEnabled === true;
-  // Intent-driven: orb reflects the user's preference, not Vapi's connect
-  // state. Without this the orb stays dark for ~1–2s while the call is
-  // negotiating, so users click again and spawn parallel Vapi instances.
-  const ttsOn = voiceChosen && !vapiErrored;
-  const micOn = vapiActive ? !vapiIsMuted : micRuntimeOn;
+  const ttsOn = voiceOn && !vapiErrored;
 
   const voicePlayer = useVoicePlayer();
 
@@ -147,53 +133,21 @@ export function OnboardingLayout({
   };
 
   const handleTtsToggleClick = () => {
-    setTooltipVisible(false);
-    localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
-    // When Vapi is in error state, the left orb doubles as the retry control.
+    handleTooltipDismiss();
     if (vapiErrored) {
       void onboardingVoice?.restartCall();
       return;
     }
-    // Off-click while the session is live (or coming up): tear it down to
-    // cap cost — same intent as the 8s idle-timeout in OnboardingVoiceProvider.
-    // Don't just mute the assistant track; the WebRTC session keeps billing.
-    if (vapiActive || vapiConnecting) {
-      onboardingVoice?.endCall();
-      void updatePreferences({ voiceMode: 'screen' });
-      useVoiceSettingsStore.getState().hydrate({ ttsEnabled: false });
-      return;
-    }
-    const nextChosen = !voiceChosen;
-    void updatePreferences({ voiceMode: nextChosen ? 'voice' : 'screen' });
-    useVoiceSettingsStore.getState().hydrate({ ttsEnabled: nextChosen });
-    // On-click after a prior end/idle stop: the auto-start gate is armed for
-    // this screen, so the pref flip alone won't reopen the session. Kick it.
-    if (nextChosen) void onboardingVoice?.restartCall();
+    toggleVoice();
   };
 
   const handleMicToggleClick = () => {
-    setTooltipVisible(false);
-    localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
-    if (vapiActive) {
-      const next = vapiIsMuted;
-      onboardingVoice?.setMicEnabled(next);
-      void updatePreferences({ micEnabled: next });
+    handleTooltipDismiss();
+    if (!micAllowed) {
+      void requestMicPermission();
       return;
     }
-    if (!micGranted) {
-      void (async () => {
-        let granted = true;
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          stream.getTracks().forEach((t) => t.stop());
-        } catch {
-          granted = false;
-        }
-        await updatePreferences({ micPermission: granted, micEnabled: granted });
-      })();
-      return;
-    }
-    void updatePreferences({ micEnabled: !preferences.micEnabled });
+    toggleMic();
   };
 
   const voiceControl = showVoiceButton ? (

@@ -10,6 +10,7 @@ import { ChatBubble } from '@/components/voice/ChatBubble';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { useOnboardingVoice as useOnboardingVoiceSession } from '@/contexts/useOnboardingVoiceSession';
 import { useAuth } from '@/hooks/useAuth';
+import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useLLM } from '@/hooks/useLLM';
 import { STEP_TO_SCREEN_ID } from '@/hooks/useOnboarding';
 import {
@@ -17,12 +18,10 @@ import {
   type OnboardingStepContext,
   type OnboardingVoiceResult,
 } from '@/hooks/useOnboardingVoice';
-import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { queryKeys } from '@/lib/query';
-import { speak, stopTTS, unlockTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
+import { speak, unlockTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
-import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 export interface VoiceMessage {
   id: string;
@@ -54,11 +53,14 @@ export function OnboardingChatOverlay({
   const { user } = useAuth();
   const displayName =
     user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || undefined;
-  const { preferences, updatePreferences } = useUserPreferences();
-  const voiceChosen = preferences.voiceMode === 'voice';
-  const micAllowed = preferences.micPermission === true;
-  const micRuntimeOn = micAllowed && preferences.micEnabled === true;
-  const [requestingMic, setRequestingMic] = useState(false);
+  const {
+    voiceOn: voiceChosen,
+    micOn: micRuntimeOn,
+    micAllowed,
+    toggleVoice,
+    toggleMic,
+    requestMicPermission,
+  } = useDualButtonControls();
   const { isListening, transcript, interim, toggle, error, resetTranscript } = useVoiceInput();
   const { processTranscript } = useOnboardingVoice();
   const onboardingVoiceSession = useOnboardingVoiceSession();
@@ -145,38 +147,15 @@ export function OnboardingChatOverlay({
     onClose();
   }, [isListening, toggle, onClose, resetTranscript]);
 
-  const handleToggleVoice = useCallback(() => {
-    const next = !voiceChosen;
-    if (!next) stopTTS();
-    void updatePreferences({ voiceMode: next ? 'voice' : 'screen' });
-    useVoiceSettingsStore.getState().hydrate({ ttsEnabled: next });
-  }, [voiceChosen, updatePreferences]);
-
   const handleToggleMic = useCallback(() => {
     if (!micAllowed) return;
-    const turningOn = !micRuntimeOn;
-    if (turningOn) {
-      unlockTTS();
-      stopTTS();
-      processedTranscriptRef.current = '';
-    }
-    void updatePreferences({ micEnabled: turningOn });
-  }, [micAllowed, micRuntimeOn, updatePreferences]);
+    if (!micRuntimeOn) processedTranscriptRef.current = '';
+    toggleMic();
+  }, [micAllowed, micRuntimeOn, toggleMic]);
 
-  const handleRequestMic = useCallback(async () => {
-    if (requestingMic) return;
-    setRequestingMic(true);
-    let granted = true;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-    } catch {
-      granted = false;
-    }
-    await updatePreferences({ micPermission: granted, micEnabled: granted });
-    if (granted) unlockTTS();
-    setRequestingMic(false);
-  }, [requestingMic, updatePreferences]);
+  const handleRequestMic = useCallback(() => {
+    void requestMicPermission();
+  }, [requestMicPermission]);
 
   useEffect(() => {
     if (!micRuntimeOn) {
@@ -436,7 +415,7 @@ export function OnboardingChatOverlay({
             ringStep={4}
             leftIcon={voiceChosen ? <IconChatVoice size={28} /> : <IconChatText size={28} />}
             rightIcon={micRuntimeOn ? <IconMic size={26} /> : <IconMicMuted size={26} />}
-            onLeftClick={handleToggleVoice}
+            onLeftClick={toggleVoice}
             onRightClick={micAllowed ? handleToggleMic : handleRequestMic}
             leftAriaLabel={voiceChosen ? 'Switch to screen mode' : 'Switch to voice mode'}
             rightAriaLabel={

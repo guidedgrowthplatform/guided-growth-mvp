@@ -13,14 +13,9 @@ export type OnboardingTranscriptListener = (event: RealtimeTranscriptEvent) => v
 
 export interface OnboardingVoiceContextValue {
   status: OnboardingVoiceStatus;
-  isMuted: boolean;
-  isTtsMuted: boolean;
   isAssistantSpeaking: boolean;
   errorMessage: string | null;
   currentScreenId: string | null;
-  toggleMute: () => void;
-  setMicEnabled: (enabled: boolean) => void;
-  setTtsEnabled: (enabled: boolean) => void;
   endCall: () => void;
   restartCall: () => Promise<void>;
   // Push a screen_context for a sub-screen surface that has no route of its
