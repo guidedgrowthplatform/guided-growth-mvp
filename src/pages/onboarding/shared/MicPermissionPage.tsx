@@ -21,7 +21,7 @@ export function MicPermissionPage() {
     localStorage.setItem('gg_onboarding_started_at', String(Date.now()));
     track('start_onboarding');
     track('view_mic_permission', {
-      ai_output_mode: voiceEnabled ? 'voice' : 'screen',
+      voice_mode: voiceEnabled ? 'voice' : 'screen',
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

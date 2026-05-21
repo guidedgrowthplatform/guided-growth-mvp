@@ -7,7 +7,6 @@ import { DualButton } from '@/components/ui/DualButton';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { useStepTiming } from './useStepTiming';
 
 export function VoicePreferencePage() {
@@ -34,7 +33,6 @@ export function VoicePreferencePage() {
       'VOICE-PREFERENCE',
     );
     await updatePreferences({ voiceMode: voiceEnabled ? 'voice' : 'screen' });
-    useVoiceSettingsStore.getState().hydrate({ ttsEnabled: voiceEnabled });
     if (!voiceEnabled) onboardingVoice?.endCall();
     trackStepComplete();
     navigate('/onboarding/mic-permission');

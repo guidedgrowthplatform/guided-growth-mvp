@@ -4,12 +4,12 @@ import { Link, useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useScreenMap } from '@/hooks/useScreenMap';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useVoiceChannelBusy } from '@/hooks/useVoiceChannelBusy';
-import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
+import { useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
-import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 type NavDestination = 'home' | 'progress' | 'focus' | 'profile';
@@ -61,10 +61,8 @@ function NavBarBackground() {
 
 export function BottomNav() {
   const location = useLocation();
-  const ttsEnabled = useVoiceSettingsStore((s) => s.ttsEnabled);
-  const setTtsEnabled = useVoiceSettingsStore((s) => s.setTtsEnabled);
-  const micEnabled = useVoiceSettingsStore((s) => s.micEnabled);
-  const setMicEnabled = useVoiceSettingsStore((s) => s.setMicEnabled);
+  const { voiceOn: ttsEnabled, micOn: micEnabled, toggleVoice, toggleMic } =
+    useDualButtonControls();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
   const isListening = useVoiceStore((s) => s.isListening);
   const currentRms = useAudioMetricsStore((s) => s.currentRms);
@@ -83,8 +81,7 @@ export function BottomNav() {
 
   const handleLeftToggle = () => {
     const next = !ttsEnabled;
-    if (!next) stopTTS();
-    setTtsEnabled(next);
+    toggleVoice();
     track('toggle_ai_voice', { new_state: next ? 'on' : 'off' });
     const screenId = routeToScreenId(location.pathname) ?? undefined;
     if (next) {
@@ -97,7 +94,7 @@ export function BottomNav() {
 
   const handleRightToggle = () => {
     const next = !micEnabled;
-    setMicEnabled(next);
+    toggleMic();
     track('toggle_mic', {
       new_state: next ? 'on' : 'off',
       during_conversation: channelBusy,
