@@ -5,9 +5,11 @@ import { useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import {
   OnboardingVoiceContext,
+  USER_SPEAKING_IDLE_MS,
   type OnboardingTranscriptListener,
   type OnboardingVoiceContextValue,
   type OnboardingVoiceStatus,
+  type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
 import {
   useRealtimeVoice,
@@ -94,6 +96,13 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const [endedFlag, setEndedFlag] = useState(false);
   const [providerError, setProviderError] = useState<string | null>(null);
   const [remoteEndCooldown, setRemoteEndCooldown] = useState(false);
+  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
+  const userActiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const userClosedOverlayRef = useRef(false);
+  const prevSettledStatusRef = useRef<OnboardingVoiceStatus>('idle');
+  const [messages, setMessages] = useState<VoiceMessage[]>([]);
+  const lastAssistantFinalRef = useRef<{ text: string; at: number }>({ text: '', at: 0 });
 
   const lastPushedScreenIdRef = useRef<string | null>(null);
   const lastScreenChangeTsRef = useRef<string | null>(null);
@@ -173,6 +182,8 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     fatalErrorRef.current = false;
     clearRetryTimer();
     lastScreenChangeTsRef.current = new Date().toISOString();
+    setMessages([]);
+    lastAssistantFinalRef.current = { text: '', at: 0 };
     const sid = activeSubScreenIdRef.current ?? currentScreenIdRef.current;
     if (sid) void pushScreenContext(sid, null);
   }, [pushScreenContext, clearRetryTimer]);
@@ -229,6 +240,46 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleTranscript = useCallback((evt: RealtimeTranscriptEvent) => {
+    if (evt.role === 'user') {
+      if (evt.kind === 'partial') {
+        if (userActiveTimerRef.current) clearTimeout(userActiveTimerRef.current);
+        setIsUserSpeaking(true);
+        userActiveTimerRef.current = setTimeout(() => {
+          userActiveTimerRef.current = null;
+          setIsUserSpeaking(false);
+        }, USER_SPEAKING_IDLE_MS);
+      } else {
+        if (userActiveTimerRef.current) {
+          clearTimeout(userActiveTimerRef.current);
+          userActiveTimerRef.current = null;
+        }
+        setIsUserSpeaking(false);
+      }
+    }
+    if (evt.kind === 'final') {
+      const text = evt.text.trim();
+      if (text) {
+        const now = Date.now();
+        let skip = false;
+        if (evt.role === 'assistant') {
+          if (lastAssistantFinalRef.current.text === text && now - lastAssistantFinalRef.current.at < 1500) {
+            skip = true;
+          } else {
+            lastAssistantFinalRef.current = { text, at: now };
+          }
+        }
+        if (!skip) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `vapi-${evt.role}-${now}`,
+              role: evt.role === 'assistant' ? 'ai' : 'user',
+              text,
+            },
+          ]);
+        }
+      }
+    }
     for (const listener of transcriptListenersRef.current) {
       try {
         listener(evt);
@@ -277,12 +328,50 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     return () => {
       if (retryTimerRef.current !== null) clearTimeout(retryTimerRef.current);
-      if (remoteEndCooldownTimerRef.current !== null) clearTimeout(remoteEndCooldownTimerRef.current);
+      if (remoteEndCooldownTimerRef.current !== null)
+        clearTimeout(remoteEndCooldownTimerRef.current);
+      if (userActiveTimerRef.current !== null) clearTimeout(userActiveTimerRef.current);
     };
   }, []);
 
   const status = mapStatus(state, endedFlag);
   const errorMessage = providerError ?? realtimeError;
+
+  useEffect(() => {
+    if (status !== 'active') {
+      if (userActiveTimerRef.current !== null) {
+        clearTimeout(userActiveTimerRef.current);
+        userActiveTimerRef.current = null;
+      }
+      setIsUserSpeaking(false);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (status === 'connecting' || status === 'idle') return;
+    const prev = prevSettledStatusRef.current;
+    if (prev !== 'active' && status === 'active') {
+      if (!userClosedOverlayRef.current) setOverlayOpen(true);
+    } else if (prev === 'active' && (status === 'ended' || status === 'error')) {
+      setOverlayOpen(false);
+      userClosedOverlayRef.current = false;
+    }
+    prevSettledStatusRef.current = status;
+  }, [status]);
+
+  const openOverlay = useCallback(() => {
+    userClosedOverlayRef.current = false;
+    setOverlayOpen(true);
+  }, []);
+
+  const closeOverlay = useCallback(() => {
+    userClosedOverlayRef.current = true;
+    setOverlayOpen(false);
+  }, []);
+
+  const appendMessage = useCallback((msg: VoiceMessage) => {
+    setMessages((prev) => [...prev, msg]);
+  }, []);
 
   const vapiShouldBeLive =
     inOnboarding &&
@@ -310,11 +399,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
           if (pendingRef.current === 'starting') pendingRef.current = null;
         });
     } else {
-      if (
-        status !== 'active' &&
-        status !== 'connecting' &&
-        pendingRef.current !== 'starting'
-      ) {
+      if (status !== 'active' && status !== 'connecting' && pendingRef.current !== 'starting') {
         return;
       }
       pendingRef.current = 'stopping';
@@ -414,8 +499,14 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     () => ({
       status,
       isAssistantSpeaking: isSpeaking,
+      isUserSpeaking,
       errorMessage,
       currentScreenId: activeSubScreenId ?? currentScreenId,
+      overlayOpen,
+      openOverlay,
+      closeOverlay,
+      messages,
+      appendMessage,
       endCall,
       restartCall,
       pushSubScreen,
@@ -424,9 +515,15 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     [
       status,
       isSpeaking,
+      isUserSpeaking,
       errorMessage,
       activeSubScreenId,
       currentScreenId,
+      overlayOpen,
+      openOverlay,
+      closeOverlay,
+      messages,
+      appendMessage,
       endCall,
       restartCall,
       pushSubScreen,

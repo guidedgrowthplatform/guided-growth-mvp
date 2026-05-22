@@ -8,7 +8,11 @@ import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components
 import { DualButton } from '@/components/ui/DualButton';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
-import { useOnboardingVoice as useOnboardingVoiceSession } from '@/contexts/useOnboardingVoiceSession';
+import {
+  useOnboardingVoice as useOnboardingVoiceSession,
+  useOnboardingTranscripts,
+  type VoiceMessage,
+} from '@/contexts/useOnboardingVoiceSession';
 import { useAuth } from '@/hooks/useAuth';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useLLM } from '@/hooks/useLLM';
@@ -18,23 +22,15 @@ import {
   type OnboardingStepContext,
   type OnboardingVoiceResult,
 } from '@/hooks/useOnboardingVoice';
-import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { queryKeys } from '@/lib/query';
-import { speak, unlockTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
-import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
+import { speak } from '@/lib/services/tts-service';
 
-export interface VoiceMessage {
-  id: string;
-  role: 'user' | 'ai';
-  text: string;
-}
+export type { VoiceMessage };
 
 interface OnboardingChatOverlayProps {
   stepContext: OnboardingStepContext;
   onAction: (result: OnboardingVoiceResult) => void;
   onClose: () => void;
-  messages: VoiceMessage[];
-  setMessages: React.Dispatch<React.SetStateAction<VoiceMessage[]>>;
 }
 
 const IDLE_GRADIENT =
@@ -47,8 +43,6 @@ export function OnboardingChatOverlay({
   stepContext,
   onAction,
   onClose,
-  messages,
-  setMessages,
 }: OnboardingChatOverlayProps) {
   const { user } = useAuth();
   const displayName =
@@ -61,24 +55,16 @@ export function OnboardingChatOverlay({
     toggleMic,
     requestMicPermission,
   } = useDualButtonControls();
-  const { isListening, transcript, interim, toggle, error, resetTranscript } = useVoiceInput();
   const { processTranscript } = useOnboardingVoice();
   const onboardingVoiceSession = useOnboardingVoiceSession();
-  // Vapi is the source of truth for transcript bubbles whenever it's the
-  // driver of the turn. We mirror status into a ref so guards inside long-
-  // lived callbacks (runAssistant, line-183 effect) see the current value
-  // without re-creating those callbacks on every status flip.
   const vapiActive = onboardingVoiceSession?.status === 'active';
-  const vapiActiveRef = useRef(vapiActive);
-  useEffect(() => {
-    vapiActiveRef.current = vapiActive;
-  }, [vapiActive]);
-  const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
+  const isAssistantSpeaking = onboardingVoiceSession?.isAssistantSpeaking ?? false;
+  const isUserSpeaking = onboardingVoiceSession?.isUserSpeaking ?? false;
+  const messages = onboardingVoiceSession?.messages ?? [];
+  const appendMessage = onboardingVoiceSession!.appendMessage;
   const [isProcessing, setIsProcessing] = useState(false);
   const [draft, setDraft] = useState('');
   const [partialAssistant, setPartialAssistant] = useState('');
-  const lastErrorRef = useRef('');
-  const processedTranscriptRef = useRef('');
 
   // Path 3 active when both orbs off.
   const textOnlyMode = !voiceChosen && !micRuntimeOn;
@@ -104,154 +90,74 @@ export function OnboardingChatOverlay({
     scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages.length, llm.response, llm.isStreaming, partialAssistant]);
 
-  useEffect(() => {
-    if (!error || error === lastErrorRef.current) return;
-    lastErrorRef.current = error;
-    setMessages((prev) => [...prev, { id: `error-${Date.now()}`, role: 'ai', text: error }]);
-  }, [error, setMessages]);
-
-  // Vapi transcript fan-in: Path 1 only. In text-only mode the Vapi session
-  // is intentionally down, so subscribing is a no-op anyway — but we guard
-  // explicitly to keep Path 3 sealed off from any future Vapi behavior.
-  useEffect(() => {
-    if (textOnlyMode) return;
-    if (!onboardingVoiceSession) return;
-    return onboardingVoiceSession.subscribeTranscripts((evt) => {
-      if (evt.kind === 'partial') {
-        if (evt.role === 'assistant') setPartialAssistant(evt.text);
-        return;
-      }
-      // final
-      if (evt.role === 'assistant') setPartialAssistant('');
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `vapi-${evt.role}-${Date.now()}`,
-          role: evt.role === 'assistant' ? 'ai' : 'user',
-          text: evt.text,
-        },
-      ]);
-    });
-  }, [textOnlyMode, onboardingVoiceSession, setMessages]);
+  useOnboardingTranscripts((evt) => {
+    if (evt.role !== 'assistant') return;
+    if (evt.kind === 'partial') setPartialAssistant(evt.text);
+    else setPartialAssistant('');
+  }, !textOnlyMode);
 
   // Drop any lingering partial when Vapi disconnects.
   useEffect(() => {
     if (!vapiActive) setPartialAssistant('');
   }, [vapiActive]);
 
-  const voiceState = isProcessing ? 'processing' : isListening ? 'listening' : 'idle';
+  // Speaker-state derivation drives the gradient and the in-overlay dual
+  // button rings. Idle gradient = blue, listening gradient = yellow.
+  const voiceState: 'speaking' | 'listening' | 'idle' = isAssistantSpeaking
+    ? 'speaking'
+    : isUserSpeaking
+      ? 'listening'
+      : 'idle';
 
   const handleClose = useCallback(() => {
-    if (isListening) toggle();
-    resetTranscript();
     onClose();
-  }, [isListening, toggle, onClose, resetTranscript]);
+  }, [onClose]);
 
   const handleToggleMic = useCallback(() => {
     if (!micAllowed) return;
-    if (!micRuntimeOn) processedTranscriptRef.current = '';
     toggleMic();
-  }, [micAllowed, micRuntimeOn, toggleMic]);
+  }, [micAllowed, toggleMic]);
 
   const handleRequestMic = useCallback(() => {
     void requestMicPermission();
   }, [requestMicPermission]);
-
-  useEffect(() => {
-    if (!micRuntimeOn) {
-      if (isListening) toggle();
-      return;
-    }
-    if (!isListening && !isProcessing && !isSpeaking) {
-      const timer = setTimeout(() => {
-        if (!useTtsPlaybackStore.getState().isSpeaking && !isProcessing) {
-          unlockTTS();
-          toggle();
-        }
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [micRuntimeOn, isListening, isProcessing, isSpeaking, toggle]);
 
   const runAssistant = useCallback(
     (userText: string) => {
       setIsProcessing(true);
       processTranscript(userText, stepContext)
         .then((result) => {
-          setMessages((prev) => [
-            ...prev,
-            { id: `assistant-${Date.now()}`, role: 'ai', text: result.message },
-          ]);
+          appendMessage({ id: `assistant-${Date.now()}`, role: 'ai', text: result.message });
           if (voiceChosen) speak(result.message);
           if (result.success) onAction(result);
         })
         .catch(() => {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `error-${Date.now()}`,
-              role: 'ai',
-              text: 'Sorry, something went wrong. Please try again.',
-            },
-          ]);
+          appendMessage({
+            id: `error-${Date.now()}`,
+            role: 'ai',
+            text: 'Sorry, something went wrong. Please try again.',
+          });
         })
         .finally(() => setIsProcessing(false));
     },
-    [processTranscript, stepContext, onAction, setMessages, voiceChosen],
+    [processTranscript, stepContext, onAction, appendMessage, voiceChosen],
   );
-
-  useEffect(() => {
-    if (
-      micRuntimeOn &&
-      !isListening &&
-      transcript &&
-      !isProcessing &&
-      transcript !== processedTranscriptRef.current
-    ) {
-      processedTranscriptRef.current = transcript;
-      // When Vapi owns the turn, Vapi paints the user bubble + drives the
-      // assistant reply (server-side tools handle form fills). Skip the
-      // local mic-driven REST round-trip to avoid double bubbles and a
-      // duplicate LLM call. Reset the transcript so useVoiceInput's store
-      // doesn't replay this same text on the next render.
-      if (vapiActive) {
-        resetTranscript();
-        return;
-      }
-      setMessages((prev) => [
-        ...prev,
-        { id: `user-${Date.now()}`, role: 'user', text: transcript },
-      ]);
-      resetTranscript();
-      runAssistant(transcript);
-    }
-  }, [
-    micRuntimeOn,
-    isListening,
-    transcript,
-    isProcessing,
-    vapiActive,
-    resetTranscript,
-    setMessages,
-    runAssistant,
-  ]);
 
   const handleSendText = useCallback(
     (text: string) => {
       if (textOnlyMode) {
         if (llm.isStreaming) return;
-        setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', text }]);
+        appendMessage({ id: `user-${Date.now()}`, role: 'user', text });
         void llm.sendMessage(text);
         return;
       }
       if (isProcessing) return;
-      setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', text }]);
+      appendMessage({ id: `user-${Date.now()}`, role: 'user', text });
       runAssistant(text);
     },
-    [textOnlyMode, llm, isProcessing, setMessages, runAssistant],
+    [textOnlyMode, llm, isProcessing, appendMessage, runAssistant],
   );
 
-  // Mirror finalized llm assistant turns into parent messages.
   useEffect(() => {
     if (!textOnlyMode) return;
     for (const m of llm.messages) {
@@ -259,17 +165,17 @@ export function OnboardingChatOverlay({
       if (mirroredAssistantIdsRef.current.has(m.id)) continue;
       if (!m.content) continue;
       mirroredAssistantIdsRef.current.add(m.id);
-      setMessages((prev) => [...prev, { id: `llm-${m.id}`, role: 'ai', text: m.content }]);
+      appendMessage({ id: `llm-${m.id}`, role: 'ai', text: m.content });
     }
-  }, [textOnlyMode, llm.messages, setMessages]);
+  }, [textOnlyMode, llm.messages, appendMessage]);
 
   useEffect(() => {
     if (!textOnlyMode || !llm.error) return;
     const msg = llm.error.message;
     if (msg === lastLlmErrorRef.current) return;
     lastLlmErrorRef.current = msg;
-    setMessages((prev) => [...prev, { id: `llm-error-${Date.now()}`, role: 'ai', text: msg }]);
-  }, [textOnlyMode, llm.error, setMessages]);
+    appendMessage({ id: `llm-error-${Date.now()}`, role: 'ai', text: msg });
+  }, [textOnlyMode, llm.error, appendMessage]);
 
   // Tool-call side effects; get_user_context / log_event are server-only.
   useEffect(() => {
@@ -324,9 +230,8 @@ export function OnboardingChatOverlay({
   };
 
   const gradient = voiceState === 'listening' ? LISTENING_GRADIENT : IDLE_GRADIENT;
-  const activeRings = voiceState === 'listening' ? 'right' : isSpeaking ? 'left' : null;
-  const currentRms = useAudioMetricsStore((s) => s.currentRms);
-  const micIntensity = isListening ? Math.min(currentRms / 0.05, 1) : undefined;
+  const dualActiveRings: 'left' | 'right' | null =
+    micRuntimeOn && isUserSpeaking ? 'right' : voiceChosen && isAssistantSpeaking ? 'left' : null;
 
   return (
     <div className="fixed inset-0 z-50 flex animate-slide-up flex-col">
@@ -390,12 +295,8 @@ export function OnboardingChatOverlay({
             animate={false}
           />
         )}
-        {(voiceState === 'processing' ||
-          (textOnlyMode && llm.isStreaming && llm.response.length === 0)) && <TypingIndicator />}
-        {interim && (
-          <p className="mt-2 text-[12px] font-medium uppercase tracking-wide text-content-secondary">
-            {interim}
-          </p>
+        {(isProcessing || (textOnlyMode && llm.isStreaming && llm.response.length === 0)) && (
+          <TypingIndicator />
         )}
         <div ref={scrollAnchorRef} />
       </div>
@@ -409,8 +310,7 @@ export function OnboardingChatOverlay({
             size={91}
             leftActive={voiceChosen}
             rightActive={micRuntimeOn}
-            activeRings={micRuntimeOn ? activeRings : null}
-            intensity={micRuntimeOn ? micIntensity : undefined}
+            activeRings={dualActiveRings}
             ringCount={3}
             ringStep={4}
             leftIcon={voiceChosen ? <IconChatVoice size={28} /> : <IconChatText size={28} />}

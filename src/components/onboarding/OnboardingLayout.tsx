@@ -2,10 +2,7 @@ import { Icon } from '@iconify/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { OpenChatButton } from '@/components/home/OpenChatButton';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
-import {
-  OnboardingChatOverlay,
-  type VoiceMessage,
-} from '@/components/onboarding/OnboardingChatOverlay';
+import { OnboardingChatOverlay } from '@/components/onboarding/OnboardingChatOverlay';
 import { OnboardingSubtitleBar } from '@/components/onboarding/OnboardingSubtitleBar';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { DualButton } from '@/components/ui/DualButton';
@@ -61,7 +58,6 @@ export function OnboardingLayout({
   bgVariant = 'default',
 }: OnboardingLayoutProps) {
   const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
-  const [overlayOpen, setOverlayOpen] = useState(false);
   const focusedField = useFocusedFieldContext();
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
@@ -73,6 +69,10 @@ export function OnboardingLayout({
   const vapiStatus = onboardingVoice?.status ?? 'idle';
   const vapiErrored = vapiStatus === 'error';
   const vapiSpeaking = onboardingVoice?.isAssistantSpeaking ?? false;
+  const vapiUserSpeaking = onboardingVoice?.isUserSpeaking ?? false;
+  const overlayOpen = onboardingVoice?.overlayOpen ?? false;
+  const openOverlay = onboardingVoice!.openOverlay;
+  const closeOverlay = onboardingVoice!.closeOverlay;
   const ttsOn = voiceOn && !vapiErrored;
 
   const voicePlayer = useVoicePlayer();
@@ -92,12 +92,6 @@ export function OnboardingLayout({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceFileId]);
 
-  // Persist voice chat messages across overlay open/close
-  const [voiceMessages, setVoiceMessages] = useState<VoiceMessage[]>(() => [
-    { id: 'prompt', role: 'ai', text: voicePrompt || 'Hey — welcome. What can I help you with?' },
-  ]);
-
-  // Track previous transcript to detect new completions
   const prevTranscriptRef = useRef(transcript);
   useEffect(() => {
     if (onTranscript && transcript && transcript !== prevTranscriptRef.current && !isListening) {
@@ -109,7 +103,7 @@ export function OnboardingLayout({
   const handleOpenChat = () => {
     unlockTTS();
     resetTranscript();
-    setOverlayOpen(true);
+    openOverlay();
     setTooltipVisible(false);
     localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
   };
@@ -157,7 +151,7 @@ export function OnboardingLayout({
         size={88}
         leftActive={ttsOn}
         rightActive={micOn}
-        activeRings={ttsOn && vapiSpeaking ? 'left' : null}
+        activeRings={ttsOn && vapiSpeaking ? 'left' : micOn && vapiUserSpeaking ? 'right' : null}
         leftIcon={ttsOn ? <IconChatVoice size={30} /> : <IconChatText size={30} />}
         rightIcon={micOn ? <IconMic size={30} /> : <IconMicMuted size={30} />}
         onLeftClick={handleTtsToggleClick}
@@ -191,15 +185,13 @@ export function OnboardingLayout({
             extraData: focusedField ? { focusedField } : undefined,
           }}
           onAction={handleVoiceAction}
-          onClose={() => setOverlayOpen(false)}
-          messages={voiceMessages}
-          setMessages={setVoiceMessages}
+          onClose={closeOverlay}
         />
       )}
 
       {!overlayOpen && <OpenChatButton floating onPress={handleOpenChat} />}
 
-      {!overlayOpen && <OnboardingSubtitleBar messages={voiceMessages} />}
+      {!overlayOpen && <OnboardingSubtitleBar />}
 
       {onBack && (
         <button
