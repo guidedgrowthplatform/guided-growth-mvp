@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
+import { CARTESIA_VOICES, type VoiceGender } from '@/config/voiceConfig';
 import { supabase, sessionReady } from '@/lib/supabase';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
@@ -13,21 +14,8 @@ function setSpeaking(value: boolean) {
   }
 }
 
-// ─── Voice Configuration ────────────────────────────────────────────────────
 // User selects Male or Female on splash screen
-export type VoiceGender = 'male' | 'female';
-
-// Cartesia voice IDs (sonic-3 model) — primary TTS provider.
-// Both verified live on 2026-04-26 against `GET /voices` for the
-// production key. The previous male ID `a167e0f3-...` returned a
-// `voice_not_found` 404 after Cartesia rotated its public catalogue;
-// this surfaced as silent failure once the browser-fallback path was
-// in place to mask the upstream issue. `5ee9feff-...` is the current
-// public "Ronald - Thinker" — same name, similar timbre.
-const CARTESIA_VOICES: Record<VoiceGender, { id: string; name: string }> = {
-  male: { id: '5ee9feff-1265-424a-9d7f-8e4d431a12c7', name: 'Ronald' },
-  female: { id: 'f786b574-daa5-4673-aa0c-cbe3e8534c02', name: 'Katie' },
-};
+export type { VoiceGender };
 
 const VOICE_GENDER_KEY = 'guided_growth_voice_gender';
 
@@ -248,6 +236,8 @@ const SILENT_WAV =
  * user-initiated event. Call this on mic button tap / page entry.
  */
 export function unlockTTS(): void {
+  // Re-arm after transient 429/401/500 even when already unlocked.
+  cartesiaTtsAvailable = true;
   if (ttsUnlocked) return;
   try {
     const a = new Audio(SILENT_WAV);

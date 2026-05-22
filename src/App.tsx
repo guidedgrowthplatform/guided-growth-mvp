@@ -71,17 +71,21 @@ export default function App() {
     useAuthStore.getState().initialize();
   }, []);
 
-  // GLOB-03: any pointerdown/keydown reactivates a system-grayed mic.
-  // No-op for active or user-off states.
+  // GLOB-03: gesture or visibilitychange reactivates system-grayed mic.
   useEffect(() => {
     const onInteraction = () => {
       useVoiceSettingsStore.getState().reactivateIfSystemPaused();
     };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') onInteraction();
+    };
     document.addEventListener('pointerdown', onInteraction, { passive: true });
     document.addEventListener('keydown', onInteraction);
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       document.removeEventListener('pointerdown', onInteraction);
       document.removeEventListener('keydown', onInteraction);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
 
