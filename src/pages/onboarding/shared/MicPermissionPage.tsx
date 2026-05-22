@@ -6,6 +6,7 @@ import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components
 import { DualButton } from '@/components/ui/DualButton';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { useStepTiming } from './useStepTiming';
 
 export function MicPermissionPage() {
@@ -44,6 +45,7 @@ export function MicPermissionPage() {
     track('grant_mic_permission', { granted, dismissed: false });
     logEvent(granted ? 'mic_permission_granted' : 'mic_permission_denied', {}, 'MIC-PERMISSION');
     await updatePreferences({ micPermission: granted, micEnabled: granted });
+    useVoiceSettingsStore.getState().hydrate({ micEnabled: granted });
     goNext();
   };
 
@@ -53,6 +55,7 @@ export function MicPermissionPage() {
     track('grant_mic_permission', { granted: false, dismissed: true });
     logEvent('mic_permission_denied', {}, 'MIC-PERMISSION');
     await updatePreferences({ micPermission: false, micEnabled: false });
+    useVoiceSettingsStore.getState().hydrate({ micEnabled: false });
     goNext();
   };
 

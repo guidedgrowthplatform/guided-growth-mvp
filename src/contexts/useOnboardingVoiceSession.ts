@@ -34,6 +34,8 @@ export interface OnboardingVoiceContextValue {
   restartCall: () => Promise<void>;
   pushSubScreen: (screenId: string | null) => void;
   subscribeTranscripts: (listener: OnboardingTranscriptListener) => () => void;
+  voiceCapReached: boolean;
+  dismissVoiceCap: () => void;
 }
 
 export const OnboardingVoiceContext = createContext<OnboardingVoiceContextValue | null>(null);

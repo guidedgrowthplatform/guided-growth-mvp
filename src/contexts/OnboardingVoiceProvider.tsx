@@ -3,6 +3,7 @@ import type Vapi from '@vapi-ai/web';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
+import { VoiceCapModal } from '@/components/voice/VoiceCapModal';
 import {
   OnboardingVoiceContext,
   USER_SPEAKING_IDLE_MS,
@@ -23,7 +24,9 @@ import { buildContextMessage } from '@/lib/context/buildContextMessage';
 import { getScreenContext } from '@/lib/context/getScreenContext';
 import { getBundledRoutes } from '@/lib/context/screenContextsBundle';
 import { screenIdForRoute } from '@/lib/context/screenIdForRoute';
+import { countVapiToday, VAPI_CAP_DISABLED, VAPI_DAILY_CAP } from '@/lib/config/voice';
 import { useAuthStore } from '@/stores/authStore';
+import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 function isOnboardingPath(pathname: string): boolean {
@@ -373,6 +376,26 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     setMessages((prev) => [...prev, msg]);
   }, []);
 
+  const [vapiToday, setVapiToday] = useState(() =>
+    countVapiToday(useSessionLogStore.getState().events),
+  );
+  useEffect(() => {
+    return useSessionLogStore.subscribe((s) => setVapiToday(countVapiToday(s.events)));
+  }, []);
+  const voiceCapReached = !VAPI_CAP_DISABLED && vapiToday >= VAPI_DAILY_CAP;
+  const [capDismissed, setCapDismissed] = useState(false);
+  const dismissVoiceCap = useCallback(() => setCapDismissed(true), []);
+
+  const capLoggedDateRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!voiceCapReached) return;
+    const today = new Date().toDateString();
+    if (capLoggedDateRef.current === today) return;
+    capLoggedDateRef.current = today;
+    logEvent('voice_cap_reached', { count: vapiToday, limit: VAPI_DAILY_CAP });
+    track('voice_cap_reached', { count: vapiToday, limit: VAPI_DAILY_CAP });
+  }, [voiceCapReached, vapiToday, logEvent]);
+
   const vapiShouldBeLive =
     inOnboarding &&
     preferences.voiceMode === 'voice' &&
@@ -380,7 +403,8 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     preferences.micPermission === true &&
     !!currentScreenId &&
     !fatalErrorRef.current &&
-    !remoteEndCooldown;
+    !remoteEndCooldown &&
+    !voiceCapReached;
 
   useEffect(() => {
     vapiShouldBeLiveRef.current = vapiShouldBeLive;
@@ -403,6 +427,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         return;
       }
       pendingRef.current = 'stopping';
+      didCallStopRef.current = true;
       const prev = lastTransitionRef.current;
       lastTransitionRef.current = Promise.resolve(prev)
         .then(() => stop())
@@ -438,10 +463,10 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     clearIdleTimer();
     idleTimerRef.current = setTimeout(() => {
       idleTimerRef.current = null;
-      void updatePreferences({ voiceMode: 'screen', micEnabled: false });
-      useVoiceSettingsStore.getState().hydrate({ ttsEnabled: false, micEnabled: false });
+      if (pendingRef.current !== null) return;
+      useVoiceSettingsStore.getState().systemPauseMic();
     }, IDLE_TIMEOUT_MS);
-  }, [clearIdleTimer, updatePreferences]);
+  }, [clearIdleTimer]);
 
   useEffect(() => {
     armIdleTimerRef.current = armIdleTimer;
@@ -511,6 +536,8 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       restartCall,
       pushSubScreen,
       subscribeTranscripts,
+      voiceCapReached: voiceCapReached && !capDismissed && inOnboarding,
+      dismissVoiceCap,
     }),
     [
       status,
@@ -528,10 +555,17 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       restartCall,
       pushSubScreen,
       subscribeTranscripts,
+      voiceCapReached,
+      capDismissed,
+      inOnboarding,
+      dismissVoiceCap,
     ],
   );
 
   return (
-    <OnboardingVoiceContext.Provider value={value}>{children}</OnboardingVoiceContext.Provider>
+    <OnboardingVoiceContext.Provider value={value}>
+      {children}
+      <VoiceCapModal />
+    </OnboardingVoiceContext.Provider>
   );
 }

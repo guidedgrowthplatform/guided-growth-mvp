@@ -375,7 +375,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           voice_mode: 'realtime',
           voice_vendor: 'vapi',
         });
-        voiceAnchorIdRef.current = startVoice(toCanonicalScreenId(screen));
+        voiceAnchorIdRef.current = startVoice(toCanonicalScreenId(screen), { voice_vendor: 'vapi' });
         setStateSynced('listening');
         const t = tokenRef.current;
         if (t) setOwnerPhase(t, 'listening');

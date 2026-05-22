@@ -26,6 +26,30 @@ export const VOICE_CHAT_MAX_CONVERSATIONS = envNumber(
   5,
 );
 
+// ─── Vapi (Path 1) daily cap ────────────────────────────────────────────────
+// Test override; gg-spec UX-12 says 5. Revert before launch.
+export const VAPI_DAILY_CAP = envNumber(import.meta.env.VITE_VAPI_DAILY_CAP, 25);
+export const VAPI_CAP_DISABLED = import.meta.env.VITE_VOICE_CAP_DISABLED === '1';
+
+export interface CapCountableEvent {
+  event_type: string;
+  timestamp: string;
+  payload?: { voice_vendor?: string } | Record<string, unknown> | null;
+}
+
+export function countVapiToday(events: ReadonlyArray<CapCountableEvent>, now: Date = new Date()): number {
+  const today = now.toDateString();
+  let n = 0;
+  for (const e of events) {
+    if (e.event_type !== 'voice_started') continue;
+    const p = e.payload as { voice_vendor?: string } | null | undefined;
+    if (p?.voice_vendor !== 'vapi') continue;
+    if (new Date(e.timestamp).toDateString() !== today) continue;
+    n += 1;
+  }
+  return n;
+}
+
 /** TTS duration estimate: ms per character, minimum floor (ms). */
 export const VOICE_CHAT_TTS_MS_PER_CHAR = envNumber(import.meta.env.VITE_VOICE_TTS_MS_PER_CHAR, 65);
 export const VOICE_CHAT_TTS_MIN_MS = envNumber(import.meta.env.VITE_VOICE_TTS_MIN_MS, 2000);
