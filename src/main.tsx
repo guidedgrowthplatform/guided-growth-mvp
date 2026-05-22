@@ -11,6 +11,27 @@ import './index.css';
 
 export let deepLinkAuthError: string | null = null;
 
+export type AuthHandoffKind = 'email_confirmed' | 'password_reset';
+
+const HANDOFF_STORAGE_KEY = 'auth_handoff_pending';
+
+export function buildHandoffUrl(kind: AuthHandoffKind): string {
+  const flag = kind === 'email_confirmed' ? 'confirmed=1' : 'reset=1';
+  return `guidedgrowth://auth/handoff?${flag}`;
+}
+
+export function consumePendingAuthHandoff(): AuthHandoffKind | null {
+  try {
+    const raw = sessionStorage.getItem(HANDOFF_STORAGE_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(HANDOFF_STORAGE_KEY);
+    if (raw === 'email_confirmed' || raw === 'password_reset') return raw;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 initSentry();
 initAnalytics();
 trackOpenApp(Capacitor.isNativePlatform() ? Capacitor.getPlatform() : 'web');
@@ -33,8 +54,31 @@ if (Capacitor.isNativePlatform()) {
   const handleDeepLink = async (url: string) => {
     if (url === lastHandledUrl) return;
 
-    // PKCE flow: code is in query params
     const urlObj = new URL(url);
+
+    if (urlObj.host === 'auth' && urlObj.pathname === '/handoff') {
+      lastHandledUrl = url;
+      const confirmed = urlObj.searchParams.get('confirmed') === '1';
+      const reset = urlObj.searchParams.get('reset') === '1';
+      const kind: AuthHandoffKind | null = confirmed
+        ? 'email_confirmed'
+        : reset
+          ? 'password_reset'
+          : null;
+      const { Browser } = await import('@capacitor/browser');
+      Browser.close().catch(() => {});
+      if (kind) {
+        try {
+          sessionStorage.setItem(HANDOFF_STORAGE_KEY, kind);
+        } catch {
+          /* */
+        }
+        window.dispatchEvent(new CustomEvent<AuthHandoffKind>('auth:handoff', { detail: kind }));
+      }
+      return;
+    }
+
+    // PKCE flow: code is in query params
     const code = urlObj.searchParams.get('code');
     if (code) {
       lastHandledUrl = url;

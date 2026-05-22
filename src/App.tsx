@@ -1,6 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, useNavigate } from 'react-router-dom';
 import { OnboardingVoiceProvider } from '@/contexts/OnboardingVoiceProvider';
 import { SessionLogProvider } from '@/contexts/SessionLogProvider';
 import { ToastProvider, useToast } from '@/contexts/ToastContext';
@@ -11,7 +11,7 @@ import { queryClient } from '@/lib/query';
 import { AppRoutes } from '@/routes';
 import { useAuthStore } from '@/stores/authStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
-import { deepLinkAuthError } from './main';
+import { deepLinkAuthError, consumePendingAuthHandoff, type AuthHandoffKind } from './main';
 
 // Tanstack Query devtools ship as a tiny badge in the bottom-right corner.
 // That badge was visible in the APK v6 production build — on the emulator
@@ -34,6 +34,25 @@ function DeepLinkErrorReporter() {
       addToast('error', deepLinkAuthError);
     }
   }, [addToast]);
+  return null;
+}
+
+function AuthHandoffListener() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const go = (kind: AuthHandoffKind) => {
+      const message =
+        kind === 'email_confirmed'
+          ? 'Email verified! Sign in to continue.'
+          : 'Password updated! Sign in with your new password.';
+      navigate('/login', { replace: true, state: { message } });
+    };
+    const pending = consumePendingAuthHandoff();
+    if (pending) go(pending);
+    const onEvent = (e: Event) => go((e as CustomEvent<AuthHandoffKind>).detail);
+    window.addEventListener('auth:handoff', onEvent);
+    return () => window.removeEventListener('auth:handoff', onEvent);
+  }, [navigate]);
   return null;
 }
 
@@ -73,6 +92,7 @@ export default function App() {
           <VoiceProvider>
             <ToastProvider>
               <DeepLinkErrorReporter />
+              <AuthHandoffListener />
               <VoicePreferenceSync />
               <NavigateLogger />
               <OnboardingVoiceProvider>

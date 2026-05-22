@@ -1,6 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { identify, resetIdentity, track } from '@/analytics';
+import { clearPkceVerifier } from '@/lib/clearPkceVerifier';
+import { getWebOrigin } from '@/lib/env';
 import { Sentry } from '@/lib/sentry';
 import { supabase } from '@/lib/supabase';
 
@@ -257,10 +259,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     signUp: async (email, password) => {
       track('start_signup', { method: 'email' });
       const startedAt = Date.now();
-      const isNative = Capacitor.isNativePlatform();
-      const emailRedirectTo = isNative
-        ? 'guidedgrowth://auth/callback'
-        : `${window.location.origin}/auth/callback`;
+      const emailRedirectTo = `${getWebOrigin()}/auth/callback?type=signup`;
 
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -286,6 +285,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (data.session) {
         set({ user: null });
         await supabase.auth.signOut({ scope: 'global' });
+        await clearPkceVerifier();
         track('signup_error', {
           method: 'email',
           error_type: 'auto_confirm_misconfigured',
@@ -364,7 +364,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       const isNative = Capacitor.isNativePlatform();
       const redirectTo = isNative
         ? 'guidedgrowth://auth/callback'
-        : window.location.origin + '/auth/callback';
+        : `${getWebOrigin()}/auth/callback`;
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -385,12 +385,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     },
 
     resetPassword: async (email) => {
-      const isNative = Capacitor.isNativePlatform();
-      const base = isNative
-        ? 'guidedgrowth://auth/callback'
-        : window.location.origin + '/auth/callback';
-      const redirectTo = `${base}?next=reset-password`;
-
+      const redirectTo = `${getWebOrigin()}/auth/callback?type=recovery`;
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
       if (error) return { error: friendlyError(error) };
       return { error: null };
