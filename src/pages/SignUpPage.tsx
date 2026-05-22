@@ -1,9 +1,9 @@
-import { Capacitor } from '@capacitor/core';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { track } from '@/analytics';
+import { getWebOrigin } from '@/lib/env';
 import {
   AuthBackButton,
   SocialAuthButtons,
@@ -61,9 +61,7 @@ export function SignUpPage() {
 
   const handleResend = useCallback(async () => {
     if (resendCooldown > 0 || !emailRef.current) return;
-    const emailRedirectTo = Capacitor.isNativePlatform()
-      ? 'guidedgrowth://auth/callback'
-      : `${window.location.origin}/auth/callback`;
+    const emailRedirectTo = `${getWebOrigin()}/auth/callback?type=signup`;
     const { error: resendError } = await supabase.auth.resend({
       type: 'signup',
       email: emailRef.current,

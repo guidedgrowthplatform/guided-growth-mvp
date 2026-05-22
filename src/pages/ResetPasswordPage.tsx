@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { AuthBackButton, AuthAlert } from '@/components/auth';
+import { AuthBackButton, AuthAlert, AuthResultScreen } from '@/components/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
@@ -14,6 +14,7 @@ export function ResetPasswordPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   // Guard: redirect if no active session (user visited this page directly)
   useEffect(() => {
@@ -40,20 +41,34 @@ export function ResetPasswordPage() {
     setLoading(false);
     if (updateError) {
       setError(updateError);
-    } else {
-      navigate('/login', {
-        state: { message: 'Password updated! You can now sign in.' },
-        replace: true,
-      });
+      return;
     }
+    setSuccess(true);
   };
 
+  if (success) {
+    return (
+      <AuthResultScreen
+        title="Password updated"
+        body="Sign in with your new password to continue."
+        primaryLabel="Continue to sign in"
+        onPrimary={() =>
+          navigate('/login', {
+            state: { message: 'Password updated! You can now sign in.' },
+            replace: true,
+          })
+        }
+        handoffKind="password_reset"
+      />
+    );
+  }
+
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-secondary px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
+    <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
       <AuthBackButton />
 
       <div className="mt-6">
-        <h1 className="text-[30px] font-bold tracking-tight text-primary">Set New Password</h1>
+        <h1 className="text-[30px] font-bold tracking-tight text-content">Set New Password</h1>
         <p className="mt-2 text-base text-content-secondary">Enter your new password below</p>
       </div>
 

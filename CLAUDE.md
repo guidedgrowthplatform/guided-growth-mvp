@@ -218,6 +218,24 @@ Binary cells cycle: `'' → 'yes' → 'no' → ''`. This is handled in `Spreadsh
 - **Cold-start hydration**: on `SIGNED_IN` / `INITIAL_SESSION`, the provider fetches the last 24h from server to seed the store (returning user on new device).
 - **Persistence**: localStorage (`mvp03_session_log`). Pending events never trimmed; only synced events trim when over the 200 cap.
 
+### Auth email flows redirect to web — not the native scheme
+
+Signup confirmation and password reset emails always redirect to `${VITE_PUBLIC_WEB_ORIGIN}/auth/callback` regardless of platform. Custom-scheme links (`guidedgrowth://`) broke too often — cross-device opens, Gmail-on-Android, missing intent-filters. Web confirms/resets work universally; native users finish on web and use the "Open in app" CTA which fires `guidedgrowth://auth/handoff?confirmed=1|reset=1` (a signal only, no tokens passed). The native handler in `src/main.tsx` writes a `sessionStorage` flag + dispatches `auth:handoff`, and `AuthHandoffListener` in `src/App.tsx` routes to `/login` with a success toast.
+
+OAuth (`signInWithGoogle`) still uses the custom scheme — that's an on-device in-app-browser handoff, not an email.
+
+**Supabase dashboard allowlist** (Auth → URL Configuration) must include:
+- Site URL: `https://guided-growth-mvp.vercel.app`
+- Redirect URLs:
+  - `https://guided-growth-mvp.vercel.app/auth/callback`
+  - `https://*.vercel.app/auth/callback` (preview deploys)
+  - `http://localhost:5173/auth/callback`
+  - `http://localhost:3000/auth/callback`
+  - `guidedgrowth://auth/callback` (OAuth on native)
+  - `guidedgrowth://auth/handoff` (post-confirm/reset native return)
+
+Native builds must set `VITE_PUBLIC_WEB_ORIGIN`. Android scheme is registered in `android/app/src/main/AndroidManifest.xml` (`VIEW` intent-filter for `guidedgrowth://auth`); iOS uses the `CFBundleURLSchemes` entry in `ios/App/App/Info.plist`.
+
 ### Offline Queue
 
 Failed entry saves are queued in `localStorage` via `offlineQueue.enqueue()` in `useEntries.ts`. They auto-flush on the browser's `online` event. The queue is at `src/cache/offlineQueue.ts`.
