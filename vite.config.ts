@@ -172,6 +172,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: parseInt(env.PORT || '5173'),
+      watch: {
+        ignored: ['**/ios/**', '**/android/**'],
+      },
       proxy: {
         '/api': {
           target: apiTarget,
