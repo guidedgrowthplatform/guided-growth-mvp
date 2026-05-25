@@ -1,5 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
+const liveReloadUrl = process.env.CAP_LIVE_RELOAD_URL;
+
 const config: CapacitorConfig = {
   appId: 'app.guidedgrowth.mvp',
   appName: 'Guided Growth Tracker',
@@ -10,18 +12,16 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'automatic',
     preferredContentMode: 'mobile',
-    scheme: 'Guided Growth',
+    scheme: 'App',
     allowsLinkPreview: false,
     scrollEnabled: false,
   },
   server: {
-    // Required for getUserMedia and inline audio playback on iOS WKWebView
     iosScheme: 'capacitor',
-    // Make Android scheme explicit (matches Capacitor 3+ default). The
-    // resulting WebView origin is `https://localhost`, which MUST be in
-    // api/_lib/cors.ts ALLOWED_ORIGINS or every fetch from Android fails
-    // CORS preflight with "Could not connect to server".
     androidScheme: 'https',
+    ...(liveReloadUrl
+      ? { url: liveReloadUrl, cleartext: liveReloadUrl.startsWith('http://') }
+      : {}),
     allowNavigation: [
       'api.cartesia.ai',
       'guided-growth-mvp.vercel.app',

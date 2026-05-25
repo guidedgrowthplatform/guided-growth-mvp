@@ -20,6 +20,7 @@
     "type-check": "tsc --noEmit",
     "prepare": "husky",
     "cap:local": "VITE_API_URL=http://$(ipconfig getifaddr en0):3000 npm run build && npx cap sync ios",
+    "cap:live": "CAP_LIVE_RELOAD_URL=http://localhost:5173 npx cap sync ios && xattr -cr ios/App && CAP_LIVE_RELOAD_URL=http://localhost:5173 npx cap run ios",
     "cap:sync": "npx cap sync ios && node scripts/patch-ios-plist.mjs",
     "cap:sync:android": "npx cap sync android",
     "cap:sync:all": "npx cap sync ios && node scripts/patch-ios-plist.mjs && npx cap sync android",
