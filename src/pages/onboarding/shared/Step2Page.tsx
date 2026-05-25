@@ -6,6 +6,8 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { pathToSpec } from './pathToSpec';
 import { useStepTiming } from './useStepTiming';
 
@@ -31,6 +33,16 @@ export function Step2Page() {
         : null,
   );
 
+  const snapshot = useOnboardingFormSnapshot({ path: plan ?? undefined });
+
+  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
+    if (result.action !== 'set_path') return;
+    const params = result.params as { value?: string };
+    if (params.value === 'simple' || params.value === 'braindump') {
+      setPlan(params.value);
+    }
+  }, []);
+
   const handleNext = useCallback(async () => {
     await saveStepAsync(2, {}, { path: plan as 'simple' | 'braindump' });
     track('select_onboarding_path', {
@@ -47,12 +59,15 @@ export function Step2Page() {
   return (
     <OnboardingLayout
       currentStep={2}
+      screenId="ONBOARD-FORK--FORM"
+      formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"
       ctaDisabled={!plan}
       showVoiceButton
       onNext={handleNext}
       onBack={() => navigate('/onboarding/step-1')}
+      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Let's build your plan."

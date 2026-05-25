@@ -1,19 +1,70 @@
 import { Icon } from '@iconify/react';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { OpenChatButton } from '@/components/home/OpenChatButton';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { OnboardingChatOverlay } from '@/components/onboarding/OnboardingChatOverlay';
 import { OnboardingSubtitleBar } from '@/components/onboarding/OnboardingSubtitleBar';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { DualButton } from '@/components/ui/DualButton';
-import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
+import { useOnboardingTranscripts, useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useFocusedFieldContext } from '@/hooks/useFocusedFieldContext';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import {
+  type OnboardingVoiceResult,
+  useOnboardingVoice as useOnboardingVoiceHook,
+} from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 import { stopTTS, unlockTTS } from '@/lib/services/tts-service';
 import { AiListeningTooltip } from './AiListeningTooltip';
+
+// Single-token (or token-with-punctuation) utterances that are pure
+// conversational backchannel — affirmations, hesitations, greetings.
+// These never carry form values, so they're not worth a parser round-trip.
+// Vapi's own LLM responds to them naturally in parallel.
+const BACKCHANNEL_TOKENS = new Set([
+  'yeah',
+  'yes',
+  'yep',
+  'yup',
+  'ok',
+  'okay',
+  'sure',
+  'right',
+  'mhm',
+  'mmhm',
+  'uh huh',
+  'uh-huh',
+  'no',
+  'nope',
+  'nah',
+  'thanks',
+  'thank you',
+  'cool',
+  'great',
+  'awesome',
+  'hi',
+  'hey',
+  'hello',
+  'um',
+  'uh',
+  'hmm',
+  'huh',
+  'wait',
+]);
+function isConversationalBackchannel(text: string): boolean {
+  // Strip trailing punctuation + lowercase, then compare against the set.
+  // Multi-word entries like "uh huh" / "thank you" matter, so check first.
+  const cleaned = text
+    .toLowerCase()
+    .replace(/[.,!?;:]+$/g, '')
+    .trim();
+  if (BACKCHANNEL_TOKENS.has(cleaned)) return true;
+  // Also catch very short utterances (< 3 chars) — too short to plausibly
+  // be a form value worth round-tripping.
+  if (cleaned.length < 3) return true;
+  return false;
+}
 
 interface OnboardingLayoutProps {
   currentStep: number;
@@ -35,6 +86,12 @@ interface OnboardingLayoutProps {
   onVoiceAction?: (result: OnboardingVoiceResult) => void;
   showTooltip?: boolean;
   bgVariant?: 'default' | 'secondary';
+  screenId?: string;
+  // Snapshot of filled form fields (persisted + in-flight) — typically
+  // produced by useOnboardingFormSnapshot({...overrides}). Threaded into
+  // /api/process-command's filled_fields and pushed to Vapi via the
+  // provider's setFormSnapshot so both LLMs see what's already known.
+  formSnapshot?: Record<string, unknown>;
 }
 
 export function OnboardingLayout({
@@ -56,6 +113,8 @@ export function OnboardingLayout({
   onVoiceAction,
   showTooltip = false,
   bgVariant = 'default',
+  screenId,
+  formSnapshot,
 }: OnboardingLayoutProps) {
   const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
   const focusedField = useFocusedFieldContext();
@@ -99,6 +158,119 @@ export function OnboardingLayout({
     }
     prevTranscriptRef.current = transcript;
   }, [transcript, isListening, onTranscript]);
+
+  // Voice → form fill: subscribe to Vapi user transcripts at the page level
+  // (independent of the chat overlay). On each final user utterance, POST it
+  // to /api/process-command and forward the structured action to the page's
+  // onVoiceAction handler. This makes "say your nickname" actually fill the
+  // form whether or not the chat overlay is open.
+  //
+  // Active whenever onVoiceAction is provided. The overlay's own listener
+  // (OnboardingChatOverlay.tsx:93) only handles assistant transcripts, so
+  // there's no double-processing.
+  //
+  // Time-based debounce (USER_FINAL_DEBOUNCE_MS): Vapi STT sometimes emits
+  // a second final transcript moments after the first when ambient noise is
+  // captured (e.g. "Male" → "Male" + a phantom "White."). Both would be
+  // valid-looking utterances with different text, so an exact-match dedup
+  // doesn't catch it. Drop any final transcript that arrives within the
+  // window. Users who legitimately want to change a field can re-speak
+  // after the window expires.
+  const USER_FINAL_DEBOUNCE_MS = 1500;
+  const { processTranscript } = useOnboardingVoiceHook();
+  const lastProcessedAtRef = useRef<number>(0);
+  const lastProcessedTextRef = useRef<string>('');
+  const handleUserFinal = useCallback(
+    (text: string) => {
+      if (!onVoiceAction) return;
+      if (!text) return;
+      // Skip obvious conversational backchannel — short pure-affirmation /
+      // acknowledgment utterances Vapi handles fine on its own. No point
+      // burning a /api/process-command call (and a GPT round-trip) just to
+      // get action=error back. Vapi's conversational LLM responds to these
+      // naturally in parallel.
+      if (isConversationalBackchannel(text)) {
+        if (import.meta.env.DEV) {
+          console.debug('[onboarding-voice] skipped backchannel transcript:', text);
+        }
+        return;
+      }
+      const now = Date.now();
+      if (text === lastProcessedTextRef.current) return;
+      if (now - lastProcessedAtRef.current < USER_FINAL_DEBOUNCE_MS) {
+        if (import.meta.env.DEV) {
+          console.debug('[onboarding-voice] debounced final transcript:', text);
+        }
+        return;
+      }
+      lastProcessedAtRef.current = now;
+      lastProcessedTextRef.current = text;
+      void processTranscript(text, {
+        step: currentStep,
+        screen_id: screenId,
+        options: voiceOptions,
+        prompt: voicePrompt,
+        filled_fields: formSnapshot,
+        extraData: focusedField ? { focusedField } : undefined,
+      })
+        .then((result) => {
+          if (result.success) {
+            onVoiceAction(result);
+            // Bypass the 700ms snapshot debounce — Vapi may be formulating
+            // its next turn right now and would otherwise re-ask for the
+            // just-filled field. The flush sends an immediate add-message
+            // with the latest snapshot (triggerResponseEnabled: false).
+            onboardingVoice?.flushFormSnapshot();
+            onboardingVoice?.notifyParserResult({
+              ok: true,
+              transcript: text,
+              action: result.action,
+              params: result.params,
+            });
+          } else {
+            onboardingVoice?.notifyParserResult({
+              ok: false,
+              transcript: text,
+              reason: (result.confidence ?? 0) < 0.5 ? 'low-confidence' : 'no-extraction',
+            });
+          }
+        })
+        .catch((err) => {
+          if (import.meta.env.DEV) console.warn('[onboarding-voice] processTranscript:', err);
+        });
+    },
+    [
+      onVoiceAction,
+      processTranscript,
+      currentStep,
+      screenId,
+      voiceOptions,
+      voicePrompt,
+      focusedField,
+      formSnapshot,
+      onboardingVoice,
+    ],
+  );
+
+  useOnboardingTranscripts((evt) => {
+    if (evt.role !== 'user' || evt.kind !== 'final') return;
+    handleUserFinal(evt.text.trim());
+  }, !!onVoiceAction);
+
+  // Push the current snapshot to the provider on every render. The provider
+  // shallow-compares against its own ref and only schedules a debounced Vapi
+  // push when something actually changed — so this is cheap even when called
+  // every render. Skipped entirely when no snapshot is supplied.
+  useEffect(() => {
+    if (!formSnapshot) return;
+    if (!onboardingVoice) {
+      if (import.meta.env.DEV) {
+        console.debug('[onboarding-voice] setFormSnapshot skipped — no provider in tree');
+      }
+      return;
+    }
+    onboardingVoice.setFormSnapshot(formSnapshot);
+  }, [formSnapshot, onboardingVoice]);
 
   const handleOpenChat = () => {
     unlockTTS();
@@ -180,6 +352,7 @@ export function OnboardingLayout({
         <OnboardingChatOverlay
           stepContext={{
             step: currentStep,
+            screen_id: screenId,
             options: voiceOptions,
             prompt: voicePrompt,
             extraData: focusedField ? { focusedField } : undefined,

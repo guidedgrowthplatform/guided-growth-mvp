@@ -7,6 +7,7 @@ import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useStepTiming } from './useStepTiming';
 
@@ -45,10 +46,30 @@ export function Step1Page() {
   }, [onboardingState?.data]);
 
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (result.action !== 'fill_field') return;
-    const params = result.params as { fieldName?: string; value?: string };
-    if (typeof params.value !== 'string') return;
-    if (params.fieldName === 'nickname') setNickname(params.value);
+    if (result.action === 'fill_field') {
+      const params = result.params as { fieldName?: string; value?: string | number };
+      // GPT-4o-mini occasionally returns `value` as a number despite the
+      // prompt asking for a string (e.g. age=26). Coerce defensively.
+      const raw = params.value;
+      if (raw === undefined || raw === null) return;
+      const asString = typeof raw === 'number' ? String(raw) : raw;
+      if (typeof asString !== 'string') return;
+      if (params.fieldName === 'nickname') setNickname(asString);
+      else if (params.fieldName === 'age') {
+        const n = typeof raw === 'number' ? raw : parseInt(asString, 10);
+        if (!isNaN(n) && n >= 13 && n <= 120) setAge(n);
+      } else if (params.fieldName === 'referralOtherText') setReferralOtherText(asString);
+      return;
+    }
+    if (result.action === 'select_option') {
+      const params = result.params as { fieldName?: string; value?: string };
+      if (typeof params.value !== 'string') return;
+      if (params.fieldName === 'gender' && GENDER_OPTIONS.includes(params.value)) {
+        setGender(params.value);
+      } else if (params.fieldName === 'referralSource' && REFERRAL_OPTIONS.includes(params.value)) {
+        setReferralSource(params.value);
+      }
+    }
   }, []);
 
   const handleNext = useCallback(() => {
@@ -65,11 +86,30 @@ export function Step1Page() {
     });
     trackStepComplete();
     navigate('/onboarding/step-2');
-  }, [nickname, age, gender, referralSource, referralOtherText, navigate, saveStep, trackStepComplete]);
+  }, [
+    nickname,
+    age,
+    gender,
+    referralSource,
+    referralOtherText,
+    navigate,
+    saveStep,
+    trackStepComplete,
+  ]);
+
+  const formSnapshot = useOnboardingFormSnapshot({
+    nickname: nickname.trim() || undefined,
+    age: age === '' ? undefined : age,
+    gender: gender ?? undefined,
+    referralSource: referralSource ?? undefined,
+    referralOtherText: referralOtherText.trim() || undefined,
+  });
 
   return (
     <OnboardingLayout
       currentStep={1}
+      screenId="ONBOARD-01--FORM"
+      formSnapshot={formSnapshot}
       ctaLabel="Continue"
       onBack={() => navigate('/onboarding/mic-permission')}
       onNext={handleNext}

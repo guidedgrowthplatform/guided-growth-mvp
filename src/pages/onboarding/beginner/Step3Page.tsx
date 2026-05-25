@@ -6,6 +6,8 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useStepTiming } from '../shared/useStepTiming';
 
 const categories = [
@@ -18,6 +20,8 @@ const categories = [
   { label: 'Break bad habits', image: '/images/onboarding/break-bad-habits.png' },
   { label: 'Get more organized', image: '/images/onboarding/get-more-organized.png' },
 ];
+
+const CATEGORY_LABELS = categories.map((c) => c.label);
 
 export function Step3Page() {
   const navigate = useNavigate();
@@ -33,6 +37,16 @@ export function Step3Page() {
     }
   }, [onboardingState?.data?.category]);
 
+  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
+    if (result.action !== 'select_option') return;
+    const params = result.params as { fieldName?: string; value?: string };
+    if (params.fieldName !== 'category' || typeof params.value !== 'string') return;
+    const match = CATEGORY_LABELS.find((l) => l.toLowerCase() === params.value!.toLowerCase());
+    if (match) setSelected(match);
+  }, []);
+
+  const snapshot = useOnboardingFormSnapshot({ category: selected ?? undefined });
+
   const handleNext = useCallback(async () => {
     await saveStepAsync(3, { category: selected });
     track('select_improvement_areas', {
@@ -46,6 +60,8 @@ export function Step3Page() {
   return (
     <OnboardingLayout
       currentStep={3}
+      screenId="ONBOARD-BEGINNER-01"
+      formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"
       onNext={handleNext}
@@ -53,6 +69,7 @@ export function Step3Page() {
       ctaDisabled={!selected}
       showVoiceButton
       aiListeningPrompt='"What is the main category you would like to focus on?"'
+      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="What feels most worth improving right now?"

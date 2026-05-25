@@ -7,6 +7,8 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useStepTiming } from '../shared/useStepTiming';
 
 const DEFAULT_QUESTIONS = [
@@ -66,6 +68,28 @@ export function AdvancedStep6Page() {
 
   const questions = customPrompts ?? DEFAULT_QUESTIONS;
 
+  const snapshot = useOnboardingFormSnapshot({
+    reflectionSchedule: schedule,
+    customPrompts: customPrompts ?? undefined,
+  });
+
+  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
+    if (result.action === 'select_option') {
+      const p = result.params as { fieldName?: string; value?: string };
+      if (p.fieldName !== 'reflectionSchedule' || typeof p.value !== 'string') return;
+      if (p.value === 'Weekday' || p.value === 'Weekend' || p.value === 'Every day') {
+        setSchedule(p.value);
+      }
+      return;
+    }
+    if (result.action === 'set_reflection_config') {
+      const p = result.params as { schedule?: string };
+      if (p.schedule === 'Weekday' || p.schedule === 'Weekend' || p.schedule === 'Every day') {
+        setSchedule(p.schedule);
+      }
+    }
+  }, []);
+
   const handleReviewPlan = useCallback(async () => {
     const configRecord: Record<string, { days: number[]; time: string; reminder: boolean }> = {};
     if (habitConfigs) {
@@ -89,10 +113,13 @@ export function AdvancedStep6Page() {
   return (
     <OnboardingLayout
       currentStep={6}
+      screenId="ONBOARD-ADVANCED-04"
+      formSnapshot={snapshot}
       ctaLabel="Final Step"
       onBack={() => navigate('/onboarding/advanced-results')}
       onNext={handleReviewPlan}
       showVoiceButton
+      onVoiceAction={handleVoiceAction}
       secondaryAction={{
         label: 'Optional: Create My Own Prompts',
         onClick: () =>

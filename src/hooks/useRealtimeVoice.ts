@@ -1,4 +1,5 @@
 import Vapi from '@vapi-ai/web';
+import type { AssistantOverrides } from '@vapi-ai/web/dist/api';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
 import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
@@ -64,6 +65,12 @@ export interface UseRealtimeVoiceOptions {
   // TTS, partial and final). The provider fans this out to the chat overlay
   // so the conversation can be rendered as bubbles.
   onTranscript?: (event: RealtimeTranscriptEvent) => void;
+  // Optional per-call assistantOverrides builder. Called inside start() right
+  // before vapi.start(); resolves to undefined to fall back to the dashboard
+  // assistant config (static firstMessage). Used to inject screen context +
+  // state_delta so the very first utterance is contextual instead of the
+  // generic "Hi welcome to…" line on the assistant config.
+  getAssistantOverrides?: () => Promise<Partial<AssistantOverrides> | undefined>;
 }
 
 export interface UseRealtimeVoiceReturn {
@@ -134,8 +141,16 @@ function toCanonicalScreenId(screen?: string): string | undefined {
  * plumbing, and the spec-named state fields.
  */
 export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeVoiceReturn {
-  const { metadata, onEnd, onError, startAudioOff, onCallStart, onUserActivity, onTranscript } =
-    options;
+  const {
+    metadata,
+    onEnd,
+    onError,
+    startAudioOff,
+    onCallStart,
+    onUserActivity,
+    onTranscript,
+    getAssistantOverrides,
+  } = options;
   const { acquireRealtime, releaseToken, setStatus: setOwnerPhase } = useVoice();
   const { startVoice, endVoice } = useSessionLog();
 
@@ -168,6 +183,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   const onErrorRef = useRef(onError);
   const onUserActivityRef = useRef(onUserActivity);
   const onTranscriptRef = useRef(onTranscript);
+  const getAssistantOverridesRef = useRef(getAssistantOverrides);
   const metadataRef = useRef(metadata);
   useEffect(() => {
     onCallStartRef.current = onCallStart;
@@ -175,6 +191,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     onErrorRef.current = onError;
     onUserActivityRef.current = onUserActivity;
     onTranscriptRef.current = onTranscript;
+    getAssistantOverridesRef.current = getAssistantOverrides;
     metadataRef.current = metadata;
   });
 
@@ -459,9 +476,29 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
 
     const client = vapiRef.current;
 
+    // Build per-call overrides (screen context + state_delta as a system
+    // message + firstMessageMode flip). On any failure, fall back to the
+    // assistant's dashboard config — the static firstMessage is preferable
+    // to no call at all.
+    let extraOverrides: Partial<AssistantOverrides> | undefined;
+    try {
+      extraOverrides = await getAssistantOverridesRef.current?.();
+    } catch (err) {
+      console.warn(
+        '[vapi] getAssistantOverrides threw, falling back to dashboard firstMessage:',
+        err,
+      );
+    }
+
     try {
       await client.start(ASSISTANT_ID, {
+        ...(extraOverrides ?? {}),
+        // Merge variableValues so override-supplied variables (e.g.
+        // `initial_screen_context` from buildAssistantOverrides) coexist with
+        // the per-call identity/screen variables. The base values win on key
+        // collisions — they're load-bearing for the Vapi assistant prompt.
         variableValues: {
+          ...(extraOverrides?.variableValues ?? {}),
           anon_id: metadata.anon_id,
           // dual-field for one deploy cycle; drop user_id in follow-up MR
           user_id: metadata.anon_id,

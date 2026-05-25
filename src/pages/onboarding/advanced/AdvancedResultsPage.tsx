@@ -8,6 +8,8 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 import { useStepTiming } from '../shared/useStepTiming';
 
@@ -112,6 +114,53 @@ export function AdvancedResultsPage() {
 
   const regenerateCountRef = useRef(0);
 
+  // Snapshot mirrors the shape persisted in onboarding_states.data — each
+  // habit name maps to {days[], time, reminder}, defaulting time and reminder
+  // since AI-generated habits don't carry per-habit time yet.
+  const snapshotHabitConfigs = useMemo(() => {
+    if (habits.length === 0) return undefined;
+    return Object.fromEntries(
+      habits.map((h) => [h.name, { days: Array.from(h.days), time: '21:45', reminder: true }]),
+    );
+  }, [habits]);
+  const snapshot = useOnboardingFormSnapshot({
+    habitConfigs: snapshotHabitConfigs,
+    brainDumpText: fallbackBrainDump.trim() || undefined,
+  });
+
+  const handleVoiceAction = useCallback(
+    (result: OnboardingVoiceResult) => {
+      if (result.action === 'remove_habit') {
+        const p = result.params as { name?: string };
+        if (typeof p.name !== 'string') return;
+        const name = p.name.trim().toLowerCase();
+        const idx = habits.findIndex((h) => h.name.toLowerCase() === name);
+        if (idx === -1) return;
+        navigate('/onboarding/advanced-results', {
+          replace: true,
+          state: { ...locationState, deletedIndex: idx },
+        });
+        return;
+      }
+      if (result.action === 'update_habit') {
+        const p = result.params as { name?: string; patch?: { days?: number[]; time?: string } };
+        if (typeof p.name !== 'string' || !p.patch) return;
+        const name = p.name.trim().toLowerCase();
+        const idx = habits.findIndex((h) => h.name.toLowerCase() === name);
+        if (idx === -1) return;
+        navigate('/onboarding/edit-habit', {
+          state: {
+            habitIndex: idx,
+            habitName: habits[idx].name,
+            days: Array.isArray(p.patch.days) ? p.patch.days : Array.from(habits[idx].days),
+            time: typeof p.patch.time === 'string' ? p.patch.time : '21:45',
+          },
+        });
+      }
+    },
+    [habits, locationState, navigate],
+  );
+
   const handleConfirm = useCallback(async () => {
     const habitConfigsArray = habits.map((h) => ({
       name: h.name,
@@ -132,10 +181,13 @@ export function AdvancedResultsPage() {
     return (
       <OnboardingLayout
         currentStep={4}
+        screenId="ONBOARD-ADVANCED-02"
+        formSnapshot={snapshot}
         ctaLabel="Looks Good!"
         onBack={() => navigate('/onboarding/advanced-input')}
         onNext={() => navigate('/onboarding/advanced-input')}
         showVoiceButton
+        onVoiceAction={handleVoiceAction}
       >
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
           <Icon icon="ic:round-info-outline" width={40} height={40} className="text-primary" />
@@ -153,9 +205,12 @@ export function AdvancedResultsPage() {
   return (
     <OnboardingLayout
       currentStep={4}
+      screenId="ONBOARD-ADVANCED-02"
+      formSnapshot={snapshot}
       ctaLabel="Looks Good!"
       onBack={() => navigate('/onboarding/advanced-input')}
       onNext={handleConfirm}
+      onVoiceAction={handleVoiceAction}
       secondaryAction={{
         label: 'Regenerate',
         onClick: () => {

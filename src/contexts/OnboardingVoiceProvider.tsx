@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import type Vapi from '@vapi-ai/web';
+import type { AssistantOverrides } from '@vapi-ai/web/dist/api';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
@@ -10,6 +11,7 @@ import {
   type OnboardingTranscriptListener,
   type OnboardingVoiceContextValue,
   type OnboardingVoiceStatus,
+  type ParserResultFeedback,
   type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
 import {
@@ -24,6 +26,7 @@ import { buildContextMessage } from '@/lib/context/buildContextMessage';
 import { getScreenContext } from '@/lib/context/getScreenContext';
 import { getBundledRoutes } from '@/lib/context/screenContextsBundle';
 import { screenIdForRoute } from '@/lib/context/screenIdForRoute';
+import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
 import { countVapiToday, VAPI_CAP_DISABLED, VAPI_DAILY_CAP } from '@/lib/config/voice';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
@@ -130,6 +133,14 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const lastTransitionRef = useRef<Promise<unknown> | null>(null);
   const vapiShouldBeLiveRef = useRef(false);
 
+  // Form snapshot — updated by each onboarding page via setFormSnapshot.
+  // Read by buildOverridesForCall (cold start) and pushScreenContext (screen
+  // change), and used to drive a debounced "form state update" add-message
+  // when the snapshot changes mid-screen.
+  const formSnapshotRef = useRef<Record<string, unknown>>({});
+  const formSnapshotPushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const FORM_SNAPSHOT_DEBOUNCE_MS = 700;
+
   const pushScreenContext = useCallback(
     async (screenId: string, sinceTs: string | null) => {
       const client = getClientRef.current();
@@ -141,6 +152,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
           screen_id: ctx.screen_id,
           context_block: ctx.context_block,
           state_delta: ctx.state_delta,
+          filled_form_state: formSnapshotRef.current,
         });
         client.send({
           type: 'add-message',
@@ -156,6 +168,156 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     },
     [qc, logEvent],
   );
+
+  // Shallow-compare two snapshot objects so we only re-push to Vapi when
+  // something actually changed. Deep equality would matter for nested
+  // habitConfigs, but pages typically re-create that object only when its
+  // contents change, so referential identity tracks the contents well enough.
+  function shallowSnapshotEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+    const ka = Object.keys(a);
+    const kb = Object.keys(b);
+    if (ka.length !== kb.length) return false;
+    for (const k of ka) if (a[k] !== b[k]) return false;
+    return true;
+  }
+
+  const setFormSnapshot = useCallback((snapshot: Record<string, unknown>) => {
+    const next = snapshot ?? {};
+    if (shallowSnapshotEqual(formSnapshotRef.current, next)) return;
+    formSnapshotRef.current = next;
+    if (import.meta.env.DEV) {
+      console.debug('[onboarding-voice] form snapshot updated', next);
+    }
+    // Skip mid-screen reactive push if Vapi isn't connected yet — cold-start
+    // overrides will carry the snapshot, and pushScreenContext picks it up
+    // on screen change.
+    const client = getClientRef.current();
+    if (!client) return;
+    if (formSnapshotPushTimerRef.current) clearTimeout(formSnapshotPushTimerRef.current);
+    formSnapshotPushTimerRef.current = setTimeout(() => {
+      formSnapshotPushTimerRef.current = null;
+      const c = getClientRef.current();
+      if (!c) return;
+      const sid =
+        lastPushedScreenIdRef.current ??
+        activeSubScreenIdRef.current ??
+        currentScreenIdRef.current ??
+        '';
+      // Snapshot-only update — distinct from the full screen-context message
+      // so Vapi doesn't treat it as a screen change. triggerResponseEnabled
+      // is false so Vapi updates its context silently without speaking after
+      // every field fill.
+      const lines: string[] = [];
+      for (const [k, v] of Object.entries(formSnapshotRef.current)) {
+        if (v === undefined || v === null) continue;
+        if (typeof v === 'string' && v.trim() === '') continue;
+        if (Array.isArray(v) && v.length === 0) continue;
+        if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v as object).length === 0)
+          continue;
+        const rendered =
+          typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
+            ? String(v)
+            : JSON.stringify(v);
+        lines.push(`- ${k}: ${rendered}`);
+      }
+      if (lines.length === 0) return;
+      const body = [
+        '[FORM STATE UPDATE]',
+        `The user has updated form fields on the current screen (${sid}). Latest filled state:`,
+        ...lines,
+        '(All other screen context unchanged — do not greet again or change screens.)',
+      ].join('\n');
+      c.send({
+        type: 'add-message',
+        message: { role: 'system', content: body },
+        triggerResponseEnabled: false,
+      });
+    }, FORM_SNAPSHOT_DEBOUNCE_MS);
+  }, []);
+
+  // Feedback channel from the /api/process-command parser back to Vapi.
+  // After each user utterance we run the parser; this tells Vapi how it
+  // went so Vapi can acknowledge cleanly on success or ask the user to
+  // repeat clearly on failure.
+  //
+  // Truncates the transcript to 200 chars so a long brain-dump on the
+  // advanced flow doesn't bloat the system message stream.
+  const notifyParserResult = useCallback((result: ParserResultFeedback) => {
+    const client = getClientRef.current();
+    if (!client) return;
+    const transcript = result.transcript.slice(0, 200);
+    const body = result.ok
+      ? [
+          `[PARSER OK]`,
+          `The user said: "${transcript}".`,
+          `I extracted action=${result.action} with params ${JSON.stringify(result.params)}.`,
+          `The form is now updated. In your next turn, acknowledge naturally (e.g. "Got it" or by referencing the value), then move on to the next unfilled field — do NOT re-ask for this one.`,
+        ].join('\n')
+      : [
+          `[PARSER MISS]`,
+          `The user said: "${transcript}".`,
+          `I could not extract a clear form value (reason: ${result.reason}).`,
+          `If you believe they intended to fill a field on this screen, ask them to repeat the value clearly in one short sentence. Otherwise continue the conversation naturally — do NOT mention "parser" or any technical issue to the user.`,
+        ].join('\n');
+    client.send({
+      type: 'add-message',
+      message: { role: 'system', content: body },
+      triggerResponseEnabled: false,
+    });
+    if (import.meta.env.DEV) {
+      console.debug('[onboarding-voice] notifyParserResult', result.ok ? 'OK' : 'MISS', {
+        transcript,
+      });
+    }
+  }, []);
+
+  // Force-flush the pending debounced snapshot push immediately. Called by
+  // OnboardingLayout right after the parser dispatches a definitive form
+  // action — without this, Vapi only learns about the change 700ms later
+  // (after the debounce), which can be AFTER Vapi has already formulated a
+  // response that re-asks for the just-filled field.
+  const flushFormSnapshot = useCallback(() => {
+    const client = getClientRef.current();
+    if (!client) return;
+    if (formSnapshotPushTimerRef.current) {
+      clearTimeout(formSnapshotPushTimerRef.current);
+      formSnapshotPushTimerRef.current = null;
+    }
+    const sid =
+      lastPushedScreenIdRef.current ??
+      activeSubScreenIdRef.current ??
+      currentScreenIdRef.current ??
+      '';
+    const lines: string[] = [];
+    for (const [k, v] of Object.entries(formSnapshotRef.current)) {
+      if (v === undefined || v === null) continue;
+      if (typeof v === 'string' && v.trim() === '') continue;
+      if (Array.isArray(v) && v.length === 0) continue;
+      if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v as object).length === 0) {
+        continue;
+      }
+      const rendered =
+        typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
+          ? String(v)
+          : JSON.stringify(v);
+      lines.push(`- ${k}: ${rendered}`);
+    }
+    if (lines.length === 0) return;
+    const body = [
+      '[FORM STATE UPDATE — immediate, parser-dispatched]',
+      `The user's last utterance filled a form field. Updated snapshot for ${sid}:`,
+      ...lines,
+      'Acknowledge naturally in your next turn (do not re-ask for these). Other screen context unchanged.',
+    ].join('\n');
+    client.send({
+      type: 'add-message',
+      message: { role: 'system', content: body },
+      triggerResponseEnabled: false,
+    });
+    if (import.meta.env.DEV) {
+      console.debug('[onboarding-voice] flushFormSnapshot (immediate)', sid);
+    }
+  }, []);
 
   const clearRetryTimer = useCallback(() => {
     if (retryTimerRef.current !== null) {
@@ -178,18 +340,68 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Pushes a snapshot-only system message — same renderer as the mid-screen
+  // debounced push, but synchronous at call time. Used by onCallStart as a
+  // safety net when the cold-start variableValues path can't be relied on
+  // (i.e. the dashboard prompt doesn't include {{initial_screen_context}}).
+  const pushFormSnapshotMessage = useCallback((sid: string) => {
+    const client = getClientRef.current();
+    if (!client) return;
+    const lines: string[] = [];
+    for (const [k, v] of Object.entries(formSnapshotRef.current)) {
+      if (v === undefined || v === null) continue;
+      if (typeof v === 'string' && v.trim() === '') continue;
+      if (Array.isArray(v) && v.length === 0) continue;
+      if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v as object).length === 0) {
+        continue;
+      }
+      const rendered =
+        typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
+          ? String(v)
+          : JSON.stringify(v);
+      lines.push(`- ${k}: ${rendered}`);
+    }
+    if (lines.length === 0) return;
+    const body = [
+      '[FORM STATE — initial snapshot for this screen]',
+      `Screen: ${sid}. The user has these values already entered (treat as KNOWN; do NOT re-ask, DO use them — e.g. greet by nickname if filled):`,
+      ...lines,
+      '(All other screen context unchanged.)',
+    ].join('\n');
+    client.send({
+      type: 'add-message',
+      message: { role: 'system', content: body },
+      triggerResponseEnabled: false,
+    });
+    if (import.meta.env.DEV) {
+      console.debug('[onboarding-voice] cold-start snapshot add-message sent', sid);
+    }
+  }, []);
+
   const onCallStart = useCallback(() => {
     setEndedFlag(false);
     setProviderError(null);
     retryCountRef.current = 0;
     fatalErrorRef.current = false;
     clearRetryTimer();
-    lastScreenChangeTsRef.current = new Date().toISOString();
     setMessages([]);
     lastAssistantFinalRef.current = { text: '', at: 0 };
     const sid = activeSubScreenIdRef.current ?? currentScreenIdRef.current;
-    if (sid) void pushScreenContext(sid, null);
-  }, [pushScreenContext, clearRetryTimer]);
+    // If we already injected the screen context via assistantOverrides at
+    // vapi.start() (the cold-start path), skip the redundant context push —
+    // Vapi would fire a second turn-0 response and stutter the opening.
+    // But ALSO send a snapshot-only add-message with triggerResponseEnabled
+    // false so the FORM STATE block lands as a system message regardless of
+    // whether the dashboard prompt contains the {{initial_screen_context}}
+    // placeholder (variable substitution silently drops when placeholder is
+    // missing — the snapshot would otherwise never reach Vapi on cold start).
+    if (sid && lastPushedScreenIdRef.current !== sid) {
+      lastScreenChangeTsRef.current = new Date().toISOString();
+      void pushScreenContext(sid, null);
+    } else if (sid) {
+      pushFormSnapshotMessage(sid);
+    }
+  }, [pushScreenContext, clearRetryTimer, pushFormSnapshotMessage]);
 
   const onEnd = useCallback(() => {
     const userInitiated = didCallStopRef.current;
@@ -265,7 +477,10 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         const now = Date.now();
         let skip = false;
         if (evt.role === 'assistant') {
-          if (lastAssistantFinalRef.current.text === text && now - lastAssistantFinalRef.current.at < 1500) {
+          if (
+            lastAssistantFinalRef.current.text === text &&
+            now - lastAssistantFinalRef.current.at < 1500
+          ) {
             skip = true;
           } else {
             lastAssistantFinalRef.current = { text, at: now };
@@ -299,6 +514,51 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Per-call override builder — fires inside useRealtimeVoice.start() right
+  // before vapi.start(). Injects the current screen's context_block + recent
+  // state_delta as a system message and flips firstMessageMode so the model
+  // generates the opening from that context (instead of the static dashboard
+  // firstMessage greeting). Pre-seeds lastPushedScreenIdRef so onCallStart
+  // skips the now-redundant add-message push.
+  const buildOverridesForCall = useCallback(async (): Promise<
+    Partial<AssistantOverrides> | undefined
+  > => {
+    const sid = activeSubScreenIdRef.current ?? currentScreenIdRef.current;
+    if (!sid) return undefined;
+    try {
+      const ctx = await getScreenContext(qc, sid, null);
+      if (import.meta.env.DEV) {
+        console.debug(
+          '[onboarding-voice] cold start — filledFormState',
+          formSnapshotRef.current,
+          'stateDelta count',
+          ctx.state_delta.length,
+        );
+      }
+      const overrides = buildAssistantOverrides({
+        screenId: ctx.screen_id,
+        contextBlock: ctx.context_block,
+        stateDelta: ctx.state_delta,
+        filledFormState: formSnapshotRef.current,
+      });
+      lastPushedScreenIdRef.current = sid;
+      lastScreenChangeTsRef.current = new Date().toISOString();
+      // session_log event types are enum-gated; PostHog handles the
+      // visibility for this one — no need to grow the enum.
+      track('vapi_overrides_applied', {
+        screen_id: sid,
+        delta_count: ctx.state_delta.length,
+      });
+      return overrides as unknown as Partial<AssistantOverrides>;
+    } catch (err) {
+      console.warn(
+        '[onboarding-voice] buildAssistantOverrides failed, falling back to dashboard firstMessage:',
+        err,
+      );
+      return undefined;
+    }
+  }, [qc]);
+
   const {
     state,
     error: realtimeError,
@@ -314,6 +574,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     onError,
     onUserActivity: handleUserActivity,
     onTranscript: handleTranscript,
+    getAssistantOverrides: buildOverridesForCall,
   });
 
   useEffect(() => {
@@ -351,11 +612,19 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   }, [status]);
 
   useEffect(() => {
-    if (status === 'connecting' || status === 'idle') return;
+    // Skip the transient 'connecting' phase so we don't churn the ref on
+    // every retry. All terminal/settled statuses (idle/active/ended/error)
+    // update prev so toggle-off → toggle-on cycles transition correctly.
+    if (status === 'connecting') return;
     const prev = prevSettledStatusRef.current;
     if (prev !== 'active' && status === 'active') {
       if (!userClosedOverlayRef.current) setOverlayOpen(true);
-    } else if (prev === 'active' && (status === 'ended' || status === 'error')) {
+    } else if (prev === 'active' && status !== 'active') {
+      // ANY exit from active — including 'idle' (DualButton toggle-off, which
+      // does NOT route through endCall and therefore doesn't set endedFlag).
+      // Previously this branch was gated to ended/error only; that left the
+      // overlay open after a mic/voice toggle-off and trapped prev='active'
+      // so the next toggle-on couldn't reopen.
       setOverlayOpen(false);
       userClosedOverlayRef.current = false;
     }
@@ -535,6 +804,9 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       endCall,
       restartCall,
       pushSubScreen,
+      setFormSnapshot,
+      flushFormSnapshot,
+      notifyParserResult,
       subscribeTranscripts,
       voiceCapReached: voiceCapReached && !capDismissed && inOnboarding,
       dismissVoiceCap,
@@ -554,6 +826,9 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       endCall,
       restartCall,
       pushSubScreen,
+      setFormSnapshot,
+      flushFormSnapshot,
+      notifyParserResult,
       subscribeTranscripts,
       voiceCapReached,
       capDismissed,

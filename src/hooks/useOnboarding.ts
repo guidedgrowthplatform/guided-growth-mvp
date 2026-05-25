@@ -47,13 +47,13 @@ export function useOnboarding() {
       data: Partial<OnboardingStepData>;
       brainDump?: { raw?: string; parsed?: ParsedHabit[] };
     }) => onboardingApi.saveOnboardingStep(step, path, data, brainDump),
-    onSuccess: (updated, vars) => {
+    onSuccess: (updated) => {
       qc.setQueryData(queryKeys.onboarding.state, updated);
-      const screenId =
-        STEP_TO_SCREEN_ID[vars.step] ?? `ONBOARD-${String(vars.step).padStart(2, '0')}`;
-      // form_submit spec keeps screen_id in payload alongside the column —
-      // the LLM reads payload for state delta, the column is for joins.
-      logEvent('form_submit', { screen_id: screenId }, screenId);
+      // form_submit is logged SYNCHRONOUSLY in saveStep / saveStepAsync below
+      // (BEFORE the mutation kicks off) so the optimistic session_log store
+      // contains it before the page navigates. Logging here would race the
+      // navigate(), so by the time the next screen's pushScreenContext reads
+      // state_delta, form_submit wouldn't be there yet.
     },
   });
 
@@ -83,20 +83,44 @@ export function useOnboarding() {
     },
   });
 
+  // Synchronously emit form_submit into the optimistic session_log store
+  // BEFORE the saveStep mutation is queued. Two reasons:
+  // 1. Continue handlers do `saveStep(...); navigate(...)` synchronously, so
+  //    by the time the next screen mounts and its Vapi pushScreenContext
+  //    fires, the form_submit must already be in state_delta. If we waited
+  //    for mutation.onSuccess (server round-trip), it would land too late.
+  // 2. The local store is "optimistic" — failed server POSTs still leave
+  //    the row in the local delta, which is exactly what state_delta needs
+  //    to reflect user intent.
+  const emitFormSubmit = useCallback(
+    (step: number, data: Partial<OnboardingStepData>, path: OnboardingPath | null) => {
+      const screenId = STEP_TO_SCREEN_ID[step] ?? `ONBOARD-${String(step).padStart(2, '0')}`;
+      const payload: Record<string, unknown> = { screen_id: screenId, ...data };
+      if (path) payload.path = path;
+      if (import.meta.env.DEV) {
+        console.debug('[onboarding] form_submit (optimistic)', { screenId, payload });
+      }
+      logEvent('form_submit', payload, screenId);
+    },
+    [logEvent],
+  );
+
   const saveStep = useCallback(
     (
       step: number,
       data: Partial<OnboardingStepData>,
       options?: { path?: OnboardingPath; brainDump?: { raw?: string; parsed?: ParsedHabit[] } },
     ) => {
+      const path = options?.path ?? state?.path ?? null;
+      emitFormSubmit(step, data, options?.path ?? null);
       saveMutation.mutate({
         step,
-        path: options?.path ?? state?.path ?? null,
+        path,
         data,
         brainDump: options?.brainDump,
       });
     },
-    [saveMutation, state?.path],
+    [saveMutation, state?.path, emitFormSubmit],
   );
 
   const saveStepAsync = useCallback(
@@ -105,14 +129,16 @@ export function useOnboarding() {
       data: Partial<OnboardingStepData>,
       options?: { path?: OnboardingPath; brainDump?: { raw?: string; parsed?: ParsedHabit[] } },
     ) => {
+      const path = options?.path ?? state?.path ?? null;
+      emitFormSubmit(step, data, options?.path ?? null);
       return saveMutation.mutateAsync({
         step,
-        path: options?.path ?? state?.path ?? null,
+        path,
         data,
         brainDump: options?.brainDump,
       });
     },
-    [saveMutation, state?.path],
+    [saveMutation, state?.path, emitFormSubmit],
   );
 
   const complete = useCallback(
