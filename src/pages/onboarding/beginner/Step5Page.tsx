@@ -11,6 +11,8 @@ import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { habitsByGoal } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useStepTiming } from '../shared/useStepTiming';
 
 // Bottom-sheet overlay screen_ids per master sheet. -04 fires when the user
@@ -143,11 +145,73 @@ export function Step5Page() {
     setSelectedHabits(next);
   }
 
+  // Serialize habitConfigs' Set<number> days into number[] for the snapshot,
+  // matching the persisted onboarding_states.data shape.
+  const snapshotHabitConfigs = useMemo(() => {
+    const entries = Object.entries(habitConfigs);
+    if (entries.length === 0) return undefined;
+    return Object.fromEntries(entries.map(([k, v]) => [k, { ...v, days: Array.from(v.days) }]));
+  }, [habitConfigs]);
+
+  const snapshot = useOnboardingFormSnapshot({
+    habitConfigs: snapshotHabitConfigs,
+    goals: state?.goals,
+    category: state?.category,
+  });
+
   const handleContinue = useCallback(() => {
     const queue = [...selectedHabits];
     setHabitQueue(queue);
     setCustomizingHabit(queue[0]);
   }, [selectedHabits]);
+
+  // Voice handler. Behavior depends on the current screen sub-phase:
+  // - selecting / customize sheet: select_option / add_habit toggles a habit
+  //   into the picker; remove_habit toggles it back out.
+  // - confirming: update_habit patches an existing config; remove_habit
+  //   drops it. Configure-via-voice during the bottom sheet itself is a
+  //   follow-up; for now sheet edits still happen by tap.
+  const handleVoiceAction = useCallback(
+    (result: OnboardingVoiceResult) => {
+      if (result.action === 'select_option' || result.action === 'add_habit') {
+        const p = result.params as { fieldName?: string; name?: string; value?: string };
+        const name =
+          typeof p.name === 'string'
+            ? p.name.trim()
+            : typeof p.value === 'string'
+              ? p.value.trim()
+              : '';
+        if (!name) return;
+        if (selectedHabits.has(name) || selectedHabits.size >= 2) return;
+        toggleHabit(name);
+        return;
+      }
+      if (result.action === 'remove_habit') {
+        const p = result.params as { name?: string };
+        if (typeof p.name !== 'string') return;
+        const name = p.name.trim();
+        if (!name) return;
+        if (selectedHabits.has(name)) toggleHabit(name);
+        return;
+      }
+      if (result.action === 'update_habit') {
+        const p = result.params as { name?: string; patch?: Partial<HabitConfig> };
+        if (typeof p.name !== 'string' || !p.patch) return;
+        const name = p.name.trim();
+        setHabitConfigs((prev) => {
+          if (!prev[name]) return prev;
+          const patched: HabitConfig = { ...prev[name], ...p.patch };
+          // If the patch supplied days as an array, rebuild the Set.
+          if (Array.isArray(p.patch?.days)) {
+            patched.days = new Set(p.patch.days as number[]);
+          }
+          return { ...prev, [name]: patched };
+        });
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedHabits],
+  );
 
   function handleSheetClose() {
     setCustomizingHabit(null);
@@ -213,6 +277,8 @@ export function Step5Page() {
     <>
       <OnboardingLayout
         currentStep={5}
+        screenId="ONBOARD-BEGINNER-03"
+        formSnapshot={snapshot}
         ctaLabel={phase === 'confirming' ? 'Confirm & Continue' : 'Continue'}
         ctaVariant="inline"
         onNext={handleOnNext}
@@ -224,6 +290,7 @@ export function Step5Page() {
         ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
         showVoiceButton
         aiListeningPrompt='"Select up to 2 daily habits to build your foundation."'
+        onVoiceAction={handleVoiceAction}
       >
         <OnboardingHeader
           title="Here's a good place to start"

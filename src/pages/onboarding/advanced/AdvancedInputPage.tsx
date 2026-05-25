@@ -7,6 +7,8 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useStepTiming } from '../shared/useStepTiming';
 
 export function AdvancedInputPage() {
@@ -26,6 +28,18 @@ export function AdvancedInputPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onboardingState?.data?.brainDumpText]);
 
+  const snapshot = useOnboardingFormSnapshot({
+    brainDumpText: text.trim() || undefined,
+  });
+
+  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
+    if (result.action !== 'fill_field') return;
+    const p = result.params as { fieldName?: string; value?: string };
+    if (p.fieldName !== 'brainDumpText' || typeof p.value !== 'string') return;
+    // Append, don't overwrite — brain dump is additive.
+    setText((prev) => (prev.trim() ? `${prev}\n${p.value}` : (p.value ?? '')));
+  }, []);
+
   const handleNext = useCallback(async () => {
     await saveStepAsync(3, { brainDumpText: text });
     track('submit_voice_goals', {
@@ -38,11 +52,14 @@ export function AdvancedInputPage() {
   return (
     <OnboardingLayout
       currentStep={3}
+      screenId="ONBOARD-ADVANCED"
+      formSnapshot={snapshot}
       ctaLabel="Create My Plan"
       onBack={() => navigate('/onboarding/step-2')}
       onNext={handleNext}
       ctaDisabled={!text.trim()}
       showVoiceButton
+      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Tell me what you want to achieve"

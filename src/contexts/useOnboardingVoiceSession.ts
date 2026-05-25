@@ -33,10 +33,40 @@ export interface OnboardingVoiceContextValue {
   endCall: () => void;
   restartCall: () => Promise<void>;
   pushSubScreen: (screenId: string | null) => void;
+  // Page-level snapshot of already-filled form fields. Pages call this on
+  // each render with their current snapshot (cheap — shallow-compared in the
+  // provider). The provider includes it in cold-start assistantOverrides,
+  // each pushScreenContext, and a debounced mid-screen "form state update"
+  // add-message so Vapi stays in sync without per-keystroke flooding.
+  setFormSnapshot: (snapshot: Record<string, unknown>) => void;
+  // Force an immediate snapshot push to Vapi (bypasses the 700ms debounce).
+  // Used right after the parser dispatches a successful action so Vapi knows
+  // about the form change BEFORE formulating its next turn — without this,
+  // Vapi can ask "what's your name?" milliseconds after we just filled it.
+  flushFormSnapshot: () => void;
+  // Feedback loop from the /api/process-command parser back to Vapi.
+  // Lands as a [PARSER OK] or [PARSER MISS] system add-message so Vapi can
+  // (a) acknowledge naturally on success, or (b) ask the user to repeat
+  // clearly on failure. triggerResponseEnabled is false on both — Vapi
+  // incorporates into its next response without speaking twice.
+  notifyParserResult: (result: ParserResultFeedback) => void;
   subscribeTranscripts: (listener: OnboardingTranscriptListener) => () => void;
   voiceCapReached: boolean;
   dismissVoiceCap: () => void;
 }
+
+export type ParserResultFeedback =
+  | {
+      ok: true;
+      transcript: string;
+      action: string;
+      params: Record<string, unknown>;
+    }
+  | {
+      ok: false;
+      transcript: string;
+      reason: 'no-extraction' | 'low-confidence';
+    };
 
 export const OnboardingVoiceContext = createContext<OnboardingVoiceContextValue | null>(null);
 

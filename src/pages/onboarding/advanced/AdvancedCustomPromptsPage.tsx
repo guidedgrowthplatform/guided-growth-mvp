@@ -5,6 +5,8 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useStepTiming } from '../shared/useStepTiming';
 
 type JournalMode = 'freeform' | 'custom';
@@ -57,6 +59,26 @@ export function AdvancedCustomPromptsPage() {
     setPrompts((prev) => prev.map((p, i) => (i === index ? value : p)));
   }
 
+  const snapshot = useOnboardingFormSnapshot({
+    customPrompts: filledPrompts.length > 0 ? filledPrompts : undefined,
+  });
+
+  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
+    if (result.action !== 'fill_field') return;
+    const p = result.params as { fieldName?: string; value?: string };
+    if (typeof p.fieldName !== 'string' || typeof p.value !== 'string') return;
+    const m = p.fieldName.match(/^customPrompts\[(\d+)\]$/);
+    if (!m) return;
+    const idx = parseInt(m[1], 10);
+    setPrompts((prev) => {
+      const next = [...prev];
+      while (next.length <= idx) next.push('');
+      next[idx] = p.value!;
+      return next;
+    });
+    setJournalMode('custom');
+  }, []);
+
   function deletePrompt(index: number) {
     setPrompts((prev) => prev.filter((_, i) => i !== index));
   }
@@ -75,6 +97,8 @@ export function AdvancedCustomPromptsPage() {
   return (
     <OnboardingLayout
       currentStep={1}
+      screenId="ONBOARD-ADV-CUSTOM"
+      formSnapshot={snapshot}
       ctaLabel="Continue"
       onBack={() =>
         navigate('/onboarding/advanced-step-6', { state: { habitConfigs: state?.habitConfigs } })
@@ -82,6 +106,7 @@ export function AdvancedCustomPromptsPage() {
       onNext={handleDone}
       ctaDisabled={!canSubmit}
       showVoiceButton
+      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="How do you want to journal?"

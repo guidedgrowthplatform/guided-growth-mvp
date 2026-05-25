@@ -6,9 +6,11 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { Sentry } from '@/lib/sentry';
-import { deriveStateFromOnboarding, type PlanReviewState } from './planReviewDerive';
 import { pathToSpec } from './pathToSpec';
+import { deriveStateFromOnboarding, type PlanReviewState } from './planReviewDerive';
 
 const CATEGORY_ICONS: Record<string, string> = {
   Sleep: 'ic:outline-nightlight-round',
@@ -85,6 +87,24 @@ export function PlanReviewPage() {
     handleStartPlan();
   }, [onboardingState, state, isCompleting, handleStartPlan]);
 
+  // Voice "let's go" / "start" / "looks good" — direct confirm path that
+  // doesn't depend on the current_step bump above. Both paths share
+  // autoCompletedRef so we don't double-fire.
+  // Read-only screen — no in-flight overrides, just the persisted snapshot
+  // (which by this point should include every prior screen's fields).
+  const snapshot = useOnboardingFormSnapshot();
+
+  const handleVoiceAction = useCallback(
+    (result: OnboardingVoiceResult) => {
+      if (result.action !== 'confirm_plan') return;
+      if (autoCompletedRef.current || isCompleting) return;
+      if (!state?.habitConfigs || !state?.reflectionConfig) return;
+      autoCompletedRef.current = true;
+      handleStartPlan();
+    },
+    [state, isCompleting, handleStartPlan],
+  );
+
   if (!state?.habitConfigs || !state?.reflectionConfig) {
     Sentry.captureMessage('PlanReviewPage: missing state — redirecting to /onboarding', {
       level: 'error',
@@ -108,10 +128,13 @@ export function PlanReviewPage() {
   return (
     <OnboardingLayout
       currentStep={source === 'advanced' ? 6 : 7}
+      screenId={source === 'advanced' ? 'ONBOARD-ADVANCED-05' : 'ONBOARD-BEGINNER-06'}
+      formSnapshot={snapshot}
       ctaLabel={isCompleting ? 'Completing...' : 'Start plan'}
       onNext={handleStartPlan}
       ctaDisabled={isCompleting}
       showVoiceButton
+      onVoiceAction={handleVoiceAction}
       onBack={() =>
         navigate(source === 'advanced' ? '/onboarding/advanced-step-6' : '/onboarding/step-6', {
           state:

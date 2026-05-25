@@ -8,6 +8,8 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { goalsByCategory } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useStepTiming } from '../shared/useStepTiming';
 
 export function Step4Page() {
@@ -40,6 +42,26 @@ export function Step4Page() {
     });
   }
 
+  const snapshot = useOnboardingFormSnapshot({
+    goals: selected.size > 0 ? Array.from(selected) : undefined,
+    category,
+  });
+
+  const handleVoiceAction = useCallback(
+    (result: OnboardingVoiceResult) => {
+      if (result.action !== 'select_multiple') return;
+      const params = result.params as { fieldName?: string; values?: unknown };
+      if (params.fieldName !== 'goals' || !Array.isArray(params.values)) return;
+      const allowed = new Set(goals);
+      const filtered = params.values
+        .filter((v): v is string => typeof v === 'string')
+        .filter((v) => allowed.has(v))
+        .slice(0, 2);
+      if (filtered.length > 0) setSelected(new Set(filtered));
+    },
+    [goals],
+  );
+
   const handleNext = useCallback(async () => {
     await saveStepAsync(4, { goals: Array.from(selected) });
     track('select_specific_goals', {
@@ -53,6 +75,8 @@ export function Step4Page() {
   return (
     <OnboardingLayout
       currentStep={4}
+      screenId="ONBOARD-BEGINNER-02"
+      formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"
       onNext={handleNext}
@@ -60,6 +84,7 @@ export function Step4Page() {
       ctaDisabled={selected.size === 0}
       showVoiceButton
       aiListeningPrompt='"Within that category, what specific area would you like to improve?"'
+      onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Let's narrow it down"

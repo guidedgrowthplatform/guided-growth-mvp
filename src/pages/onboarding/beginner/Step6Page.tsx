@@ -13,6 +13,8 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { Sentry } from '@/lib/sentry';
 import { useStepTiming } from '../shared/useStepTiming';
 
@@ -88,6 +90,41 @@ export function Step6Page() {
     });
   }
 
+  const snapshot = useOnboardingFormSnapshot({
+    reflectionConfig: { time, days: [...days], reminder, schedule },
+  });
+
+  const handleVoiceAction = useCallback(
+    (result: OnboardingVoiceResult) => {
+      if (result.action !== 'set_reflection_config') return;
+      const p = result.params as {
+        time?: string;
+        days?: number[];
+        reminder?: boolean;
+        schedule?: string;
+      };
+      if (typeof p.time === 'string' && /^\d{1,2}:\d{2}$/.test(p.time)) setTime(p.time);
+      if (Array.isArray(p.days)) {
+        const ds = p.days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+        if (ds.length > 0) {
+          setDays(new Set(ds));
+          const matched = inferSchedule(new Set(ds));
+          if (matched) setSchedule(matched);
+        }
+      }
+      if (typeof p.reminder === 'boolean') setReminder(p.reminder);
+      if (p.schedule === 'Weekday' || p.schedule === 'Weekend' || p.schedule === 'Every day') {
+        handleScheduleChange(p.schedule);
+      }
+    },
+    // handleScheduleChange is a fresh closure per render but only references
+    // stable setState functions and module-level constants, so omitting it
+    // from deps is safe — and including it would invalidate the useCallback
+    // every render, defeating the memoization.
+
+    [],
+  );
+
   const handleOnNext = useCallback(async () => {
     try {
       if (!state?.habitConfigs) {
@@ -127,12 +164,15 @@ export function Step6Page() {
   return (
     <OnboardingLayout
       currentStep={6}
+      screenId="ONBOARD-BEGINNER-07"
+      formSnapshot={snapshot}
       ctaLabel="Review My Plan"
       ctaVariant="inline"
       showVoiceButton
       aiListeningPrompt='"When would you like to do your daily reflection?"'
       footerText="You can change these settings later in your profile."
       onNext={handleOnNext}
+      onVoiceAction={handleVoiceAction}
       onBack={() =>
         navigate('/onboarding/step-5', {
           state: {

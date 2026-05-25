@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser, setUserContext, handlePreflight } from './_lib/auth.js';
 import { extractDateFromTranscript } from './_lib/date-parser.js';
+import { buildOnboardingPrompt } from './_lib/llm/onboardingPrompt.js';
 import { scrubPII } from './_lib/pii-scrubber.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
 import { getClientIp } from './_lib/validation.js';
@@ -257,95 +258,6 @@ User: "Lock my mood at seven."
 User: "Marc done yoga."
 {"corrected_transcript":"mark done yoga","action":"complete","entity":"habit","params":{"name":"yoga","date":"today"},"confidence":0.8}`;
 
-interface FocusedFieldShape {
-  name: string;
-  value: string;
-  type: string;
-}
-
-function isFocusedFieldContext(value: unknown): value is FocusedFieldShape {
-  if (!value || typeof value !== 'object') return false;
-  const v = value as Record<string, unknown>;
-  return typeof v.name === 'string' && typeof v.value === 'string' && typeof v.type === 'string';
-}
-
-/** Build a system prompt for onboarding steps. Returns JSON with step-specific parsing rules. */
-function buildOnboardingPrompt(ctx: Record<string, unknown>): string {
-  const step = typeof ctx.step === 'number' ? ctx.step : 0;
-  const options = Array.isArray(ctx.options) ? ctx.options : [];
-  const prompt = typeof ctx.prompt === 'string' ? ctx.prompt : '';
-  const focusedField = isFocusedFieldContext(ctx.focusedField) ? ctx.focusedField : null;
-
-  const optionsStr = options.join(', ');
-
-  const focusedSection = focusedField
-    ? `
-
-## Focused Field
-A text input is focused: name="${focusedField.name}" current value="${focusedField.value}".
-If the user's utterance plausibly fills that field (e.g. they speak a name while a name field is focused), return:
-{"action":"fill_field","params":{"fieldName":"${focusedField.name}","value":"<extracted value>"},"confidence":0.0-1.0,"message":"<acknowledgement>"}
-Otherwise route as normal onboarding_select per the step-specific instructions below.`
-    : '';
-
-  return `You are an onboarding assistant helping users configure their life-tracking settings.
-
-## Current Step: ${step}
-## User Prompt: "${prompt}"
-## Available Options: ${optionsStr}${focusedSection}
-
-Your job is to extract the user's choices from their spoken input and return a JSON object.
-
-IMPORTANT: Always scrub any PII (names, emails, phone numbers, ages) that appear in the user's speech before processing. Replace names with [NAME], ages with [AGE], emails with [EMAIL], etc.
-
-Return ONLY valid JSON in this format:
-{
-  "action": "onboarding_select",
-  "params": {
-    ... step-specific fields (see below) ...
-  },
-  "confidence": 0.0-1.0,
-  "message": "Human-friendly response"
-}
-
-## Step-Specific Instructions:
-
-### Step 1: Demographics
-Parse: nickname, ageRange (from options), gender (Male/Female/Other)
-Example: "I'm Alex, 25 to 34, male"
-Output: {"nickname": "Alex", "ageRange": "25 - 34", "gender": "Male"}
-
-### Step 2: Path Selection
-Parse: "simple" or "braindump" (keep it simple vs brain dump)
-Example: "I want to keep it simple"
-Output: {"path": "simple"}
-
-### Step 3: Category Selection
-Parse: One category from options
-Example: "I want to focus on sleep"
-Output: {"category": "Sleep better"}
-
-### Step 4: Goal Selection
-Parse: Up to 2 goals from options
-Example: "I want to fall asleep earlier and sleep more deeply"
-Output: {"goals": ["Fall asleep earlier", "Sleep more deeply"]}
-
-### Step 5: Habit Selection
-Parse: Up to 2 habits from options
-Example: "No screens after 10 PM and cool room temperature"
-Output: {"habits": ["No screens after 10 PM", "Cool room temperature"]}
-
-### Step 6: Reflection Schedule
-Parse: time (HH:MM format) and schedule (Weekday/Weekend/Every day)
-Example: "I want to reflect at 9 PM on weekdays"
-Output: {"time": "21:00", "schedule": "Weekday"}
-
-## Matching Strategy:
-- Match user input against the available options using fuzzy matching
-- If confidence is below 0.5, return success: false with a helpful error message
-- Always return a message that acknowledges what was understood`;
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   if (req.method !== 'POST') {
@@ -479,7 +391,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Different validation for onboarding vs home voice commands
     if (isOnboarding) {
       const action = String(parsed.action);
-      if (action !== 'onboarding_select' && action !== 'fill_field') {
+      const VALID_ONBOARDING_ACTIONS = new Set([
+        // legacy
+        'onboarding_select',
+        'fill_field',
+        // Flow 3 vocabulary — see docs/superpowers/specs/2026-05-22-voice-driven-onboarding-flow-3-design.md
+        'select_option',
+        'select_multiple',
+        'add_habit',
+        'update_habit',
+        'remove_habit',
+        'set_reflection_config',
+        'set_path',
+        'confirm_plan',
+        'navigate_next',
+        'error',
+      ]);
+      if (!VALID_ONBOARDING_ACTIONS.has(action)) {
         console.error('Invalid onboarding action:', parsed.action);
         return res.status(502).json({ error: 'Invalid onboarding action' });
       }
