@@ -376,7 +376,7 @@ export function OnboardingLayout({
         </button>
       )}
       <div
-        className={`-mx-[2px] flex flex-1 flex-col gap-[16px] overflow-y-auto px-[2px] pt-4 ${ctaVariant === 'inline' ? 'pb-[80px]' : 'pb-4'}`}
+        className={`flex flex-1 flex-col gap-[16px] pt-4 ${ctaVariant === 'inline' ? 'pb-[80px]' : 'pb-4'}`}
       >
         {children}
       </div>

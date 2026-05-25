@@ -7,11 +7,15 @@ import { ToastProvider, useToast } from '@/contexts/ToastContext';
 import { VoiceProvider } from '@/contexts/VoiceContext';
 import { useNavigateLogger } from '@/hooks/useNavigateLogger';
 import { useVoicePreferenceSync } from '@/hooks/useVoicePreferenceSync';
+import {
+  type AuthHandoffKind,
+  consumePendingAuthError,
+  consumePendingAuthHandoff,
+} from '@/lib/auth/authHandoff';
 import { queryClient } from '@/lib/query';
 import { AppRoutes } from '@/routes';
 import { useAuthStore } from '@/stores/authStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
-import { deepLinkAuthError, consumePendingAuthHandoff, type AuthHandoffKind } from './main';
 
 // Tanstack Query devtools ship as a tiny badge in the bottom-right corner.
 // That badge was visible in the APK v6 production build — on the emulator
@@ -30,9 +34,14 @@ const ReactQueryDevtools = import.meta.env.DEV
 function DeepLinkErrorReporter() {
   const { addToast } = useToast();
   useEffect(() => {
-    if (deepLinkAuthError) {
-      addToast('error', deepLinkAuthError);
-    }
+    // sessionStorage is the single source of truth; the event is just a poke.
+    const flush = () => {
+      const msg = consumePendingAuthError();
+      if (msg) addToast('error', msg);
+    };
+    flush();
+    window.addEventListener('auth:error', flush);
+    return () => window.removeEventListener('auth:error', flush);
   }, [addToast]);
   return null;
 }

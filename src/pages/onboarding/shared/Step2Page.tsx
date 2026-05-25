@@ -71,24 +71,18 @@ export function Step2Page() {
     >
       <OnboardingHeader
         title="Let's build your plan."
-        subtitle="How would you like to set up your habits today?"
+        subtitle="How much experience do you have with habit tracking?"
       />
       <div className="flex flex-col gap-[20px]">
         <SelectionCard
-          icon="ic:outline-explore"
-          iconBg="#E2E8F0"
-          iconColor="rgb(var(--color-primary))"
           title="I'm new to habit tracking"
-          description="Start with a few recommended habits"
+          description="I'll help you step by step"
           selected={plan === 'simple'}
           onSelect={() => setPlan('simple')}
         />
         <SelectionCard
-          icon="ic:round-mic"
-          iconBg="#E2E8F0"
-          iconColor="#8B5CF6"
           title="I already have experience with habit tracking"
-          description="Tell me everything you want to achieve, and I'll organize it"
+          description="Tell me your habits and I'll organize them"
           selected={plan === 'braindump'}
           onSelect={() => setPlan('braindump')}
         />

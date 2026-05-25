@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { GoalTextarea } from '@/components/onboarding/GoalTextarea';
-import { GuidanceBadge } from '@/components/onboarding/GuidanceBadge';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
@@ -55,6 +54,7 @@ export function AdvancedInputPage() {
       screenId="ONBOARD-ADVANCED"
       formSnapshot={snapshot}
       ctaLabel="Create My Plan"
+      ctaVariant="inline"
       onBack={() => navigate('/onboarding/step-2')}
       onNext={handleNext}
       ctaDisabled={!text.trim()}
@@ -66,7 +66,6 @@ export function AdvancedInputPage() {
         subtitle="You can say or type as much as you want. We'll organize it for you."
       />
       <div className="flex flex-col items-center gap-[24px] py-[16px]">
-        <GuidanceBadge text='TRY: "I WOULD LIKE TO READ FOR 15 MINS EVERY NIGHT AT 8 PM"' />
         <GoalTextarea value={text} onChange={setText} textareaRef={textareaRef} />
       </div>
     </OnboardingLayout>

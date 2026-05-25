@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { Icon } from '@iconify/react';
 import { Button } from '@/components/ui/Button';
-import { buildHandoffUrl, type AuthHandoffKind } from '../../main';
+import { type AuthHandoffKind, buildHandoffUrl } from '@/lib/auth/authHandoff';
 
 interface AuthResultScreenProps {
   title: string;
