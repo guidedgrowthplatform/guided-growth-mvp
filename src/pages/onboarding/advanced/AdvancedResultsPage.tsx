@@ -190,7 +190,7 @@ export function AdvancedResultsPage() {
         onVoiceAction={handleVoiceAction}
       >
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-          <Icon icon="ic:round-info-outline" width={40} height={40} className="text-primary" />
+          <Icon icon="ic:outline-info" width={40} height={40} className="text-primary" />
           <h2 className="text-xl font-bold text-content">Tell me a bit more</h2>
           <p className="max-w-[280px] text-content-secondary">
             I didn&apos;t quite catch anything specific to turn into habits. Could you share what

@@ -3,35 +3,19 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { initAnalytics } from '@/analytics';
 import { InputMethodProvider } from '@/contexts/InputMethodContext';
+import {
+  type AuthHandoffKind,
+  setPendingAuthError,
+  setPendingAuthHandoff,
+} from '@/lib/auth/authHandoff';
 import { supabase } from '@/lib/supabase';
 import App from './App';
+import { registerBundledIcons } from './lib/icons/registerIcons';
 import { trackOpenApp } from './lib/openAppTracking';
 import { initSentry } from './lib/sentry';
 import './index.css';
 
-export let deepLinkAuthError: string | null = null;
-
-export type AuthHandoffKind = 'email_confirmed' | 'password_reset';
-
-const HANDOFF_STORAGE_KEY = 'auth_handoff_pending';
-
-export function buildHandoffUrl(kind: AuthHandoffKind): string {
-  const flag = kind === 'email_confirmed' ? 'confirmed=1' : 'reset=1';
-  return `guidedgrowth://auth/handoff?${flag}`;
-}
-
-export function consumePendingAuthHandoff(): AuthHandoffKind | null {
-  try {
-    const raw = sessionStorage.getItem(HANDOFF_STORAGE_KEY);
-    if (!raw) return null;
-    sessionStorage.removeItem(HANDOFF_STORAGE_KEY);
-    if (raw === 'email_confirmed' || raw === 'password_reset') return raw;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
+registerBundledIcons();
 initSentry();
 initAnalytics();
 trackOpenApp(Capacitor.isNativePlatform() ? Capacitor.getPlatform() : 'web');
@@ -68,11 +52,7 @@ if (Capacitor.isNativePlatform()) {
       const { Browser } = await import('@capacitor/browser');
       Browser.close().catch(() => {});
       if (kind) {
-        try {
-          sessionStorage.setItem(HANDOFF_STORAGE_KEY, kind);
-        } catch {
-          /* */
-        }
+        setPendingAuthHandoff(kind);
         window.dispatchEvent(new CustomEvent<AuthHandoffKind>('auth:handoff', { detail: kind }));
       }
       return;
@@ -88,7 +68,8 @@ if (Capacitor.isNativePlatform()) {
       Browser.close().catch(() => {});
 
       if (error) {
-        deepLinkAuthError = error.message;
+        setPendingAuthError(error.message);
+        window.dispatchEvent(new CustomEvent('auth:error'));
       }
       return;
     }
@@ -112,7 +93,8 @@ if (Capacitor.isNativePlatform()) {
         Browser.close().catch(() => {});
 
         if (error) {
-          deepLinkAuthError = error.message;
+          setPendingAuthError(error.message);
+          window.dispatchEvent(new CustomEvent('auth:error'));
         }
       }
     }

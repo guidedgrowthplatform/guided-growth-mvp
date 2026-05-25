@@ -61,7 +61,7 @@ export function FocusTimer({ remainingSeconds, progress, status, onEditPress }: 
             onClick={onEditPress}
             className="mt-3 flex items-center gap-1 text-content-secondary"
           >
-            <Icon icon="lets-icons:edit" width={22} />
+            <Icon icon="mdi:pencil-outline" width={22} />
           </button>
         )}
       </div>

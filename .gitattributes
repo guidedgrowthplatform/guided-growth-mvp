@@ -1,0 +1,3 @@
+# Deterministic line endings for the generated icon bundle so the CI
+# drift check (git diff --exit-code) doesn't false-positive on CRLF.
+src/generated/icon-bundle.json text eol=lf
