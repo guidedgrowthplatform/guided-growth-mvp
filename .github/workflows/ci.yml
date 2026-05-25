@@ -10,6 +10,8 @@ name: CI/CD Pipeline
 #   MATCH_DEPLOY_KEY                 — SSH private key authorized on match repo
 #   VITE_SUPABASE_URL                — baked into the iOS bundle at build time
 #   VITE_SUPABASE_ANON_KEY           — baked into the iOS bundle at build time
+#   VITE_VAPI_PUBLIC_KEY             — Vapi realtime voice (required for onboarding)
+#   VITE_VAPI_ASSISTANT_ID           — Vapi assistant id (required for onboarding)
 #   VITE_CARTESIA_AGENT_ID           — voice agent (optional but recommended)
 #   VITE_POSTHOG_KEY                 — analytics (optional)
 #   VITE_SENTRY_DSN                  — error tracking (optional)
@@ -89,6 +91,8 @@ jobs:
           VITE_API_URL: 'https://guided-growth-mvp.vercel.app'
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_VAPI_PUBLIC_KEY: ${{ secrets.VITE_VAPI_PUBLIC_KEY }}
+          VITE_VAPI_ASSISTANT_ID: ${{ secrets.VITE_VAPI_ASSISTANT_ID }}
           VITE_CARTESIA_AGENT_ID: ${{ secrets.VITE_CARTESIA_AGENT_ID }}
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
