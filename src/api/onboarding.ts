@@ -25,6 +25,12 @@ export async function completeOnboarding(finalData?: Partial<OnboardingStepData>
   await apiPost<{ message: string }>('/api/onboarding/complete', { finalData });
 }
 
-export async function deleteAccount(): Promise<void> {
-  await apiDelete<{ message: string }>('/api/onboarding/delete-account');
+export interface DeleteAccountResponse {
+  message: string;
+  storage_purge: { avatars: number; journalImages: number };
+  storage_purge_errors: string[];
+}
+
+export async function deleteAccount(): Promise<DeleteAccountResponse> {
+  return apiDelete<DeleteAccountResponse>('/api/onboarding/delete-account');
 }

@@ -133,11 +133,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (route === 'delete-account' && req.method === 'DELETE') {
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+    const authUserId = user.authUserId;
 
-      const countsRes = await client.query<{ counts: Record<string, number> | null }>(
+    let counts: Record<string, number> = {};
+    try {
+      const countsRes = await pool.query<{ counts: Record<string, number> | null }>(
         `SELECT jsonb_object_agg(t, c) AS counts FROM (
            SELECT 'onboarding_states' AS t, count(*)::int AS c FROM onboarding_states  WHERE anon_id = $1
            UNION ALL SELECT 'user_habits',        count(*)::int FROM user_habits        WHERE anon_id = $1
@@ -155,60 +155,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          ) s`,
         [user.anonId],
       );
-      const counts = countsRes.rows[0]?.counts ?? {};
-
-      const authUserId = user.authUserId;
-
-      await client.query(
-        `INSERT INTO admin_audit_log (admin_user_id, action, target_type, target_identifier, payload_json)
-         VALUES ($1, 'delete_account', 'user', $2, $3)`,
-        [authUserId, authUserId, JSON.stringify({ counts })],
-      );
-
-      await client.query('DELETE FROM profiles WHERE id = $1', [authUserId]);
-
-      // auth-delete inside the txn — failure here rolls back the profile delete.
-      // Post-deleteUser COMMIT failure is unrecoverable (auth gone, profile remains);
-      // accepted because subsequent RLS lookups deny with current_anon_id() = NULL.
-      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(authUserId);
-      if (deleteError) {
-        await client.query('ROLLBACK');
-        console.error('Failed to delete Supabase Auth user:', deleteError);
-        return res.status(500).json({ error: 'Failed to delete auth user' });
-      }
-
-      await client.query('COMMIT');
-
-      // best-effort storage purge after the account is gone; orphans are recoverable
-      const purgeCounts = { avatars: 0, journalImages: 0 };
-      for (const bucket of ['avatars', 'journal-images'] as const) {
-        const { data: files, error: listErr } = await supabaseAdmin.storage
-          .from(bucket)
-          .list(authUserId, { limit: 1000 });
-        if (listErr) {
-          console.error(`Storage list error (${bucket}):`, listErr);
-          continue;
-        }
-        if (files && files.length > 0) {
-          const paths = files.map((f) => `${authUserId}/${f.name}`);
-          const { error: rmErr } = await supabaseAdmin.storage.from(bucket).remove(paths);
-          if (rmErr) {
-            console.error(`Storage remove error (${bucket}):`, rmErr);
-          } else {
-            if (bucket === 'avatars') purgeCounts.avatars = paths.length;
-            else purgeCounts.journalImages = paths.length;
-          }
-        }
-      }
-
-      return res.json({ message: 'Account deleted', storage_purge: purgeCounts });
-    } catch (err) {
-      await client.query('ROLLBACK');
-      console.error('Delete account error:', err);
-      return res.status(500).json({ error: 'Failed to delete account' });
-    } finally {
-      client.release();
+      counts = countsRes.rows[0]?.counts ?? {};
+    } catch (e) {
+      console.warn('[delete-account] counts read failed (continuing):', e);
     }
+
+    // CASCADE from auth.users → profiles → anon_id tables wipes everything.
+    const authResult = await deleteAuthUserWithRetry(authUserId);
+    if (!authResult.ok) {
+      console.error('[delete-account] auth delete failed after retries', {
+        authUserId,
+        error: authResult.err,
+      });
+      return res.status(503).json({ error: 'Account service unavailable, please try again' });
+    }
+
+    console.info('[delete-account] success', { authUserId, counts });
+
+    const purgeCounts = { avatars: 0, journalImages: 0 };
+    const purgeErrors: string[] = [];
+    for (const bucket of ['avatars', 'journal-images'] as const) {
+      const { data: files, error: listErr } = await supabaseAdmin.storage
+        .from(bucket)
+        .list(authUserId, { limit: 1000 });
+      if (listErr) {
+        console.error(`Storage list error (${bucket}):`, listErr);
+        purgeErrors.push(`${bucket}:list`);
+        continue;
+      }
+      if (files && files.length > 0) {
+        const paths = files.map((f) => `${authUserId}/${f.name}`);
+        const { error: rmErr } = await supabaseAdmin.storage.from(bucket).remove(paths);
+        if (rmErr) {
+          console.error(`Storage remove error (${bucket}):`, rmErr);
+          purgeErrors.push(`${bucket}:remove`);
+        } else if (bucket === 'avatars') {
+          purgeCounts.avatars = paths.length;
+        } else {
+          purgeCounts.journalImages = paths.length;
+        }
+      }
+    }
+
+    return res.json({
+      message: 'Account deleted',
+      storage_purge: purgeCounts,
+      storage_purge_errors: purgeErrors,
+    });
   }
 
   // PATCH /api/onboarding/profile — also fired by LLM update_profile tool.
@@ -362,4 +355,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   return res.status(404).json({ error: 'Not found' });
+}
+
+type AuthDeleteResult = { ok: true } | { ok: false; err: unknown };
+
+async function deleteAuthUserWithRetry(authUserId: string): Promise<AuthDeleteResult> {
+  const attempts = 3;
+  const perCallTimeoutMs = 8_000;
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      const { error } = await Promise.race([
+        supabaseAdmin.auth.admin.deleteUser(authUserId),
+        new Promise<never>((_, rej) =>
+          setTimeout(() => rej(new Error('timeout')), perCallTimeoutMs),
+        ),
+      ]);
+      // 404 = already gone from a prior attempt that succeeded post-network-drop.
+      if (!error || error.status === 404) return { ok: true };
+      if (i === attempts) return { ok: false, err: error };
+    } catch (e) {
+      if (i === attempts) return { ok: false, err: e };
+    }
+    await new Promise((r) => setTimeout(r, 500 * i));
+  }
+  return { ok: false, err: new Error('unreachable') };
 }
