@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useOnboarding } from '@/hooks/useOnboarding';
 
 /**
@@ -65,6 +66,9 @@ export function shouldAdvanceToNextScreen(input: AgentAdvanceInput): boolean {
 export function useAgentNavigation(currentStep: number, nextRoute: string | null): void {
   const { state } = useOnboarding();
   const navigate = useNavigate();
+  const { voiceOn, micOn } = useDualButtonControls();
+  // Voice-only: text/tap modes navigate client-side via the page's handleNext.
+  const voiceActive = voiceOn || micOn;
   const advancedRef = useRef(false);
   const initialPersistedStepRef = useRef<number | undefined>(undefined);
 
@@ -75,6 +79,7 @@ export function useAgentNavigation(currentStep: number, nextRoute: string | null
   }, [state?.current_step]);
 
   useEffect(() => {
+    if (!voiceActive) return;
     if (
       !shouldAdvanceToNextScreen({
         persistedStep: state?.current_step,
@@ -88,5 +93,5 @@ export function useAgentNavigation(currentStep: number, nextRoute: string | null
     }
     advancedRef.current = true;
     navigate(nextRoute as string);
-  }, [state, currentStep, nextRoute, navigate]);
+  }, [state, currentStep, nextRoute, navigate, voiceActive]);
 }

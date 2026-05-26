@@ -72,7 +72,7 @@ export function ChatComposer({
         disabled={disabled}
         autoFocus={autoFocus}
         tabIndex={tabbable ? 0 : -1}
-        className="flex-1 bg-transparent text-[15px] text-content placeholder:text-content-tertiary focus:outline-none disabled:opacity-60"
+        className="flex-1 bg-transparent text-[15px] text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:opacity-60"
       />
       <button
         type="submit"

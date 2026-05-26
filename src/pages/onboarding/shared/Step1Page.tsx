@@ -73,13 +73,14 @@ export function Step1Page() {
   }, []);
 
   const handleNext = useCallback(() => {
+    if (!nickname.trim() || !age || !gender || !referralSource) return;
     const effectiveReferral =
       referralSource === 'Other' && referralOtherText.trim()
         ? `Other: ${referralOtherText.trim()}`
         : referralSource;
     saveStep(1, {
       nickname,
-      age: age === '' ? undefined : age,
+      age,
       gender,
       referralSource: effectiveReferral,
       referralOtherText,
@@ -109,6 +110,7 @@ export function Step1Page() {
     <OnboardingLayout
       currentStep={1}
       screenId="ONBOARD-01--FORM"
+      autoAdvance
       formSnapshot={formSnapshot}
       ctaLabel="Continue"
       onBack={() => navigate('/onboarding/mic-permission')}

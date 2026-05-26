@@ -87,6 +87,7 @@ interface OnboardingLayoutProps {
   showTooltip?: boolean;
   bgVariant?: 'default' | 'secondary';
   screenId?: string;
+  autoAdvance?: boolean;
   // Snapshot of filled form fields (persisted + in-flight) — typically
   // produced by useOnboardingFormSnapshot({...overrides}). Threaded into
   // /api/process-command's filled_fields and pushed to Vapi via the
@@ -114,6 +115,7 @@ export function OnboardingLayout({
   showTooltip = false,
   bgVariant = 'default',
   screenId,
+  autoAdvance = false,
   formSnapshot,
 }: OnboardingLayoutProps) {
   const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
@@ -350,14 +352,18 @@ export function OnboardingLayout({
     >
       {overlayOpen && (
         <OnboardingChatOverlay
+          key={currentStep}
           stepContext={{
             step: currentStep,
             screen_id: screenId,
             options: voiceOptions,
             prompt: voicePrompt,
+            filled_fields: formSnapshot,
             extraData: focusedField ? { focusedField } : undefined,
           }}
           onAction={handleVoiceAction}
+          onAdvance={handleNext}
+          autoAdvance={autoAdvance}
           onClose={closeOverlay}
         />
       )}

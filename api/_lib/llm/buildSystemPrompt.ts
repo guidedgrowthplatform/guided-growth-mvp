@@ -12,6 +12,7 @@ export interface BuildSystemPromptArgs {
   // querying session_log — avoids the race where a logEvent POST hasn't
   // landed before the LLM call.
   recent_events?: SessionStateDeltaEntry[];
+  mode?: 'chat' | 'opener';
 }
 
 export interface BuildSystemPromptResult {
@@ -101,13 +102,25 @@ export async function buildSystemPromptForRequest(
 
   const isOnboardingScreen = args.screen_id.startsWith('ONBOARD-');
   const onboardingNudge = isOnboardingScreen ? `\n\n${ONBOARDING_TOOL_INSTRUCTIONS}` : '';
+  const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${onboardingNudge}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${onboardingNudge}${openerNudge}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
 }
+
+const OPENER_INSTRUCTIONS = `## Opener Turn
+
+The user just opened the chat overlay on this screen and has NOT typed anything yet. The "user message" you see is a placeholder.
+
+Speak first. Follow the screen's BEHAVIOR / AI RESPONSE PATTERN exactly — use the full opening line the screen specifies (often a complete question covering all the fields it wants to capture). If the screen quotes an AI Voice copy line for the opening turn, use that verbatim or close to it. Use the recent events (state delta) to make it feel current when relevant.
+
+Rules:
+- No generic greetings like "How can I help?", "What's up?", or "What can I do for you?".
+- Do NOT mention that the chat was just opened. Just open the conversation naturally.
+- Do NOT call any tools on this turn — no \`update_profile\`, no \`navigate_next\`. Pure text only. Tools resume on the next user-initiated turn.`;
 
 const ONBOARDING_TOOL_INSTRUCTIONS = `## Onboarding Screen Rules
 

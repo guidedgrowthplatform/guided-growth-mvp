@@ -4,6 +4,7 @@ import type {
   OnboardingStepData,
   ParsedHabit,
 } from '@shared/types';
+import type { OnboardingTurnResponse } from '@shared/types/llm';
 import { apiDelete, apiPost, apiPut } from './client';
 
 export async function saveOnboardingStep(
@@ -27,4 +28,20 @@ export async function completeOnboarding(finalData?: Partial<OnboardingStepData>
 
 export async function deleteAccount(): Promise<void> {
   await apiDelete<{ message: string }>('/api/onboarding/delete-account');
+}
+
+export function parseOnboardingInput(
+  screenId: string,
+  text: string,
+  options: string[],
+  filledFields: Record<string, unknown>,
+  step?: number,
+): Promise<OnboardingTurnResponse> {
+  return apiPost<OnboardingTurnResponse>('/api/llm/onboarding', {
+    screen_id: screenId,
+    user_message: text,
+    options,
+    filled_fields: filledFields,
+    step,
+  });
 }

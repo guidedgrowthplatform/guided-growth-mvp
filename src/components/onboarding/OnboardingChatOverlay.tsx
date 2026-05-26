@@ -1,10 +1,15 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { X } from 'lucide-react';
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchScreenRoutes } from '@/api/context';
+import { parseOnboardingInput } from '@/api/onboarding';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
+import {
+  getOnboardingOpener,
+  getOnboardingRevisitOpener,
+} from '@/components/onboarding/onboardingOpeners';
 import { DualButton } from '@/components/ui/DualButton';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
@@ -14,6 +19,7 @@ import {
   type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useAuth } from '@/hooks/useAuth';
+import { useChatSession } from '@/hooks/useChatSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useLLM } from '@/hooks/useLLM';
 import { STEP_TO_SCREEN_ID } from '@/hooks/useOnboarding';
@@ -24,13 +30,62 @@ import {
 } from '@/hooks/useOnboardingVoice';
 import { queryKeys } from '@/lib/query';
 import { speak } from '@/lib/services/tts-service';
+import type { OnboardingState } from '@shared/types';
 
 export type { VoiceMessage };
 
 interface OnboardingChatOverlayProps {
   stepContext: OnboardingStepContext;
   onAction: (result: OnboardingVoiceResult) => void;
+  onAdvance?: () => void;
+  autoAdvance?: boolean;
   onClose: () => void;
+}
+
+const ADVANCE_DELAY_MS = 800;
+
+const REVISIT_NUDGE =
+  'Sure — just tell me the new value (like “my age is 30”), or say “move on” to keep things as they are.';
+
+const AFFIRMATION_TOKENS = new Set([
+  'yes',
+  'yep',
+  'yeah',
+  'yup',
+  'sure',
+  'ok',
+  'okay',
+  'sounds good',
+  'looks good',
+  'all good',
+  'move on',
+  'keep',
+  'keep it',
+  'keep going',
+  'keep that',
+  'next',
+  'continue',
+  'go on',
+  "that's right",
+  'correct',
+  'done',
+  'perfect',
+]);
+const AFFIRMATION_PHRASES = ['move on', 'looks good', 'sounds good'];
+const NEGATION_TOKENS = ['no', 'nope', 'nah', 'not', 'change', 'wrong', 'edit', 'switch'];
+
+// Revisit "move on" intent. Conservative: anything with a negation falls
+// through to the parser so edits never auto-advance.
+function isAffirmation(text: string): boolean {
+  const cleaned = text
+    .toLowerCase()
+    .replace(/[.,!?;:]+$/g, '')
+    .trim();
+  if (!cleaned) return false;
+  const words = cleaned.split(/\s+/);
+  if (words.some((w) => NEGATION_TOKENS.includes(w))) return false;
+  if (AFFIRMATION_TOKENS.has(cleaned)) return true;
+  return AFFIRMATION_PHRASES.some((p) => cleaned.includes(p));
 }
 
 const IDLE_GRADIENT =
@@ -42,6 +97,8 @@ const LISTENING_GRADIENT =
 export function OnboardingChatOverlay({
   stepContext,
   onAction,
+  onAdvance,
+  autoAdvance = false,
   onClose,
 }: OnboardingChatOverlayProps) {
   const { user } = useAuth();
@@ -60,17 +117,27 @@ export function OnboardingChatOverlay({
   const vapiActive = onboardingVoiceSession?.status === 'active';
   const isAssistantSpeaking = onboardingVoiceSession?.isAssistantSpeaking ?? false;
   const isUserSpeaking = onboardingVoiceSession?.isUserSpeaking ?? false;
-  const messages = onboardingVoiceSession?.messages ?? [];
+  const sessionMessages = onboardingVoiceSession?.messages;
+  const messages = useMemo(() => sessionMessages ?? [], [sessionMessages]);
   const appendMessage = onboardingVoiceSession!.appendMessage;
+  const startThread = onboardingVoiceSession!.startThread;
   const [isProcessing, setIsProcessing] = useState(false);
   const [draft, setDraft] = useState('');
   const [partialAssistant, setPartialAssistant] = useState('');
 
-  // Path 3 active when both orbs off.
   const textOnlyMode = !voiceChosen && !micRuntimeOn;
+  // Prefer the canonical screen_id (matches onboardingPrompt vocab + opener keys).
   const screenId =
-    STEP_TO_SCREEN_ID[stepContext.step] ?? `ONBOARD-${String(stepContext.step).padStart(2, '0')}`;
-  const llm = useLLM(screenId, { coachingStyle: 'warm' });
+    stepContext.screen_id ??
+    STEP_TO_SCREEN_ID[stepContext.step] ??
+    `ONBOARD-${String(stepContext.step).padStart(2, '0')}`;
+  const isOnboardingScreen = screenId.startsWith('ONBOARD-');
+  const { chatSessionId, initialMessages, status: sessionStatus } = useChatSession(screenId);
+  const llm = useLLM(screenId, {
+    coachingStyle: 'warm',
+    chatSessionId: chatSessionId ?? undefined,
+    initialMessages,
+  });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: routesData } = useQuery({
@@ -80,8 +147,26 @@ export function OnboardingChatOverlay({
     enabled: textOnlyMode,
   });
   const firedToolEventIdsRef = useRef<Set<string>>(new Set());
-  const mirroredAssistantIdsRef = useRef<Set<string>>(new Set());
+  const mirroredIdsRef = useRef<Set<string>>(new Set());
   const lastLlmErrorRef = useRef<string>('');
+  const openerFiredScreensRef = useRef<Set<string>>(new Set());
+
+  // Frozen at mount (overlay is key={currentStep}). Warm cache snapshot, not
+  // page-local state — prefill hydrates after this child's first render.
+  const revisitOpenerRef = useRef<string | null | undefined>(undefined);
+  if (revisitOpenerRef.current === undefined) {
+    const onboardingState =
+      queryClient.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null;
+    revisitOpenerRef.current = getOnboardingRevisitOpener(screenId, onboardingState) ?? null;
+  }
+  const landedComplete = revisitOpenerRef.current !== null;
+  // Latest onAdvance — deferred advance must fire the page's fresh handleNext.
+  const onAdvanceRef = useRef(onAdvance);
+  useEffect(() => {
+    onAdvanceRef.current = onAdvance;
+  });
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(advanceTimerRef.current), []);
 
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
@@ -143,29 +228,97 @@ export function OnboardingChatOverlay({
     [processTranscript, stepContext, onAction, appendMessage, voiceChosen],
   );
 
+  const runOnboardingTurn = useCallback(
+    async (text: string) => {
+      if (landedComplete && isAffirmation(text)) {
+        appendMessage({ id: `ai-${Date.now()}`, role: 'ai', text: 'Great — moving on.' });
+        clearTimeout(advanceTimerRef.current);
+        advanceTimerRef.current = setTimeout(() => onAdvanceRef.current?.(), ADVANCE_DELAY_MS);
+        return;
+      }
+      setIsProcessing(true);
+      try {
+        const res = await parseOnboardingInput(
+          screenId,
+          text,
+          stepContext.options ?? [],
+          stepContext.filled_fields ?? {},
+          stepContext.step,
+        );
+        let appliedField = false;
+        for (const a of res.actions) {
+          if (a.action === 'navigate_next' || a.action === 'confirm_plan' || a.action === 'error') {
+            continue;
+          }
+          appliedField = true;
+          onAction({
+            success: true,
+            action: a.action,
+            params: a.params,
+            message: res.message,
+            confidence: 1,
+          });
+        }
+        // Complete screen + no edit → engine has nothing to collect and tends
+        // to improvise; invite the concrete change instead of looping.
+        if (landedComplete && !appliedField) {
+          appendMessage({ id: `ai-${Date.now()}`, role: 'ai', text: REVISIT_NUDGE });
+        } else if (res.message) {
+          appendMessage({ id: `ai-${Date.now()}`, role: 'ai', text: res.message });
+        }
+        if (autoAdvance && appliedField) {
+          clearTimeout(advanceTimerRef.current);
+          advanceTimerRef.current = setTimeout(() => onAdvanceRef.current?.(), ADVANCE_DELAY_MS);
+        }
+      } catch {
+        appendMessage({
+          id: `err-${Date.now()}`,
+          role: 'ai',
+          text: 'Sorry, something went wrong. Please try again.',
+        });
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [screenId, stepContext, onAction, appendMessage, autoAdvance, landedComplete],
+  );
+
   const handleSendText = useCallback(
     (text: string) => {
       if (textOnlyMode) {
-        if (llm.isStreaming) return;
+        if (isProcessing || llm.isStreaming) return;
         appendMessage({ id: `user-${Date.now()}`, role: 'user', text });
-        void llm.sendMessage(text);
+        if (isOnboardingScreen) void runOnboardingTurn(text);
+        else void llm.sendMessage(text);
         return;
       }
       if (isProcessing) return;
       appendMessage({ id: `user-${Date.now()}`, role: 'user', text });
       runAssistant(text);
     },
-    [textOnlyMode, llm, isProcessing, appendMessage, runAssistant],
+    [
+      textOnlyMode,
+      isOnboardingScreen,
+      llm,
+      isProcessing,
+      appendMessage,
+      runOnboardingTurn,
+      runAssistant,
+    ],
   );
 
   useEffect(() => {
     if (!textOnlyMode) return;
     for (const m of llm.messages) {
-      if (m.role !== 'assistant') continue;
-      if (mirroredAssistantIdsRef.current.has(m.id)) continue;
+      if (m.role !== 'assistant' && m.role !== 'user') continue;
+      if (mirroredIdsRef.current.has(m.id)) continue;
       if (!m.content) continue;
-      mirroredAssistantIdsRef.current.add(m.id);
-      appendMessage({ id: `llm-${m.id}`, role: 'ai', text: m.content });
+      mirroredIdsRef.current.add(m.id);
+      appendMessage({
+        id: `llm-${m.id}`,
+        role: m.role === 'assistant' ? 'ai' : 'user',
+        text: m.content,
+      });
     }
   }, [textOnlyMode, llm.messages, appendMessage]);
 
@@ -208,6 +361,36 @@ export function OnboardingChatOverlay({
     if (textOnlyMode) return;
     if (llm.isStreaming) llm.cancel();
   }, [textOnlyMode, llm]);
+
+  // Reset to a fresh per-screen thread before paint so the prior screen's
+  // bubbles never bleed through. Seeds empty when a screen has no opener.
+  useLayoutEffect(() => {
+    if (!textOnlyMode || !isOnboardingScreen) return;
+    const opener = revisitOpenerRef.current ?? getOnboardingOpener(screenId);
+    startThread(screenId, opener ? [{ id: `opener-${screenId}`, role: 'ai', text: opener }] : []);
+  }, [textOnlyMode, isOnboardingScreen, screenId, startThread]);
+
+  const initialMessagesLength = initialMessages.length;
+  const llmMessagesLength = llm.messages.length;
+  const sendOpener = llm.sendOpener;
+  useEffect(() => {
+    if (!textOnlyMode || isOnboardingScreen) return;
+    if (openerFiredScreensRef.current.has(screenId)) return;
+    if (sessionStatus !== 'ready') return;
+    if (!chatSessionId) return;
+    if (initialMessagesLength > 0 || llmMessagesLength > 0) return;
+    openerFiredScreensRef.current.add(screenId);
+    void sendOpener();
+  }, [
+    textOnlyMode,
+    isOnboardingScreen,
+    screenId,
+    sessionStatus,
+    chatSessionId,
+    initialMessagesLength,
+    llmMessagesLength,
+    sendOpener,
+  ]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -328,7 +511,7 @@ export function OnboardingChatOverlay({
           value={draft}
           onValueChange={setDraft}
           onSubmit={handleSendText}
-          disabled={textOnlyMode ? llm.isStreaming : isProcessing}
+          disabled={textOnlyMode ? isProcessing || llm.isStreaming : isProcessing}
           className="pointer-events-auto flex h-[44px] w-full items-center gap-2 rounded-full bg-white pl-5 pr-3 shadow-[0px_10px_24px_-8px_rgba(15,23,42,0.18)]"
         />
       </div>

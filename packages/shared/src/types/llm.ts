@@ -7,10 +7,23 @@ export interface LLMRequest {
   screen_id: string;
   user_message: string;
   coaching_style?: CoachingStyle;
+  mode?: 'chat' | 'opener';
+  chat_session_id?: string;
+  user_turn_id?: string;
   // Client-supplied optimistic state_delta from the local sessionLogStore.
   // When present, the backend uses these instead of querying session_log,
   // closing the race where a fire-and-forget logEvent hasn't landed yet.
   recent_events?: SessionStateDeltaEntry[];
+}
+
+export interface ChatHistoryResponse {
+  chat_session_id: string;
+  messages: LLMChatMessage[];
+}
+
+export interface ChatSessionResponse {
+  chat_session_id: string;
+  messages: LLMChatMessage[];
 }
 
 export type LLMStreamEvent =
@@ -32,4 +45,14 @@ export interface LLMChatMessage {
   role: 'user' | 'assistant';
   content: string;
   toolEvents?: LLMToolEvent[];
+}
+
+export interface OnboardingAction {
+  action: string;
+  params: Record<string, unknown>;
+}
+
+export interface OnboardingTurnResponse {
+  message: string;
+  actions: OnboardingAction[];
 }
