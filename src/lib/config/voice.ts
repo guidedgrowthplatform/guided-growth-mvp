@@ -37,7 +37,10 @@ export interface CapCountableEvent {
   payload?: { voice_vendor?: string } | Record<string, unknown> | null;
 }
 
-export function countVapiToday(events: ReadonlyArray<CapCountableEvent>, now: Date = new Date()): number {
+export function countVapiToday(
+  events: ReadonlyArray<CapCountableEvent>,
+  now: Date = new Date(),
+): number {
   const today = now.toDateString();
   let n = 0;
   for (const e of events) {
@@ -164,9 +167,6 @@ const SUPABASE_URL = envString(import.meta.env.VITE_SUPABASE_URL, '');
 export const VOICE_ASSETS_BASE_URL = SUPABASE_URL
   ? `${SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/public/voice-assets`
   : '';
-
-/** Alias kept for the AudioDebugPage smoke test; prefer VOICE_ASSETS_BASE_URL. */
-export const AUDIO_DEBUG_SUPABASE_STORAGE_BASE = VOICE_ASSETS_BASE_URL;
 
 /**
  * Build a public URL for an MP3 asset in the Supabase `voice-assets` bucket.
