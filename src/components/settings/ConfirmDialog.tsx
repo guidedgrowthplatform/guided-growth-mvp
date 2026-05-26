@@ -23,19 +23,23 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const [visible, setVisible] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
   }, []);
 
-  const handleClose = useCallback(
-    (confirmed: boolean) => {
-      if (isLoading) return;
-      setVisible(false);
-      setTimeout(() => (confirmed ? onConfirm() : onCancel()), 200);
-    },
-    [onConfirm, onCancel, isLoading],
-  );
+  const handleCancel = useCallback(() => {
+    if (isLoading || submitted) return;
+    setVisible(false);
+    setTimeout(onCancel, 200);
+  }, [onCancel, isLoading, submitted]);
+
+  const handleConfirm = useCallback(() => {
+    if (isLoading || submitted) return;
+    setSubmitted(true);
+    onConfirm();
+  }, [onConfirm, isLoading, submitted]);
 
   const isDanger = variant === 'danger';
 
@@ -43,7 +47,7 @@ export function ConfirmDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
       <div
         className={`absolute inset-0 bg-black transition-opacity duration-200 ${visible ? 'opacity-40' : 'opacity-0'}`}
-        onClick={() => handleClose(false)}
+        onClick={handleCancel}
       />
       <div
         className={`relative mx-6 w-full rounded-3xl bg-surface p-6 shadow-xl transition-all duration-200 ${
@@ -64,8 +68,8 @@ export function ConfirmDialog({
         <div className="mt-6 flex flex-col gap-3">
           <button
             type="button"
-            onClick={() => handleClose(true)}
-            disabled={isLoading}
+            onClick={handleConfirm}
+            disabled={isLoading || submitted}
             className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white transition-colors ${
               isLoading
                 ? isDanger
@@ -81,8 +85,8 @@ export function ConfirmDialog({
           </button>
           <button
             type="button"
-            onClick={() => handleClose(false)}
-            disabled={isLoading}
+            onClick={handleCancel}
+            disabled={isLoading || submitted}
             className="w-full rounded-xl border border-border px-4 py-3 text-sm font-semibold text-content transition-colors active:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-50"
           >
             {cancelLabel}

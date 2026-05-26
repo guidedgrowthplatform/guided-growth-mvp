@@ -110,12 +110,15 @@ export function SettingsPage() {
         /* best-effort */
       }
 
-      await deleteAccount();
+      const result = await deleteAccount();
       track('confirm_delete_account', {
         days_since_signup: daysSince,
         total_habits: totalHabits,
         total_checkins: totalCheckins,
       });
+      if (result.storage_purge_errors.length > 0) {
+        addToast('info', "Account deleted; some files couldn't be purged.");
+      }
       localStorage.clear();
       sessionStorage.clear();
       await signOut();
