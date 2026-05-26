@@ -118,9 +118,9 @@ export function ReflectionsListPage() {
           type="button"
           onClick={() => navigate(-1)}
           aria-label="Go back"
-          className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full text-content hover:bg-surface-secondary active:bg-surface-secondary"
+          className="flex h-10 w-10 items-center justify-center rounded-2xl bg-surface shadow-card"
         >
-          <Icon icon="mdi:arrow-left" width={24} height={24} />
+          <Icon icon="ic:round-arrow-back" width={16} className="text-content" />
         </button>
         <h1 className="flex-1 text-center text-base font-semibold text-content">Reflections</h1>
         <div className="h-10 w-10" aria-hidden />

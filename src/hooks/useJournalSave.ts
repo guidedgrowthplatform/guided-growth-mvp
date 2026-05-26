@@ -1,14 +1,17 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createJournalEntry } from '@/api/journal';
 import { useToast } from '@/contexts/ToastContext';
 import { useSessionLog } from '@/hooks/useSessionLog';
+import { queryKeys } from '@/lib/query';
 import type { JournalEntryCreate } from '@shared/types';
 
 export function useJournalSave() {
   const { addToast } = useToast();
   const navigate = useNavigate();
   const { logEvent } = useSessionLog();
+  const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
 
   const save = async (data: JournalEntryCreate): Promise<boolean> => {
@@ -25,6 +28,7 @@ export function useJournalSave() {
         },
         data.type === 'template' ? 'EVENING-REFLECTION-GUIDED' : 'EVENING-REFLECTION-FREEFORM',
       );
+      qc.invalidateQueries({ queryKey: queryKeys.journal.all });
       addToast('success', 'Reflection saved!');
       navigate('/home');
       return true;
