@@ -1,8 +1,10 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { useToast } from '@/contexts/ToastContext';
 import { useMetrics } from '@/hooks/useMetrics';
+import { queryKeys } from '@/lib/query';
 import type { Phase } from './types';
 import { daysToFrequency } from './types';
 import { useAdvancedPath } from './useAdvancedPath';
@@ -12,6 +14,7 @@ export function useAddHabitState() {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const { create } = useMetrics();
+  const qc = useQueryClient();
 
   const [phase, setPhase] = useState<Phase>('choose-path');
   const [path, setPath] = useState<'simple' | 'braindump' | null>(null);
@@ -146,6 +149,9 @@ export function useAddHabitState() {
       });
 
       if (succeeded.length > 0) {
+        qc.invalidateQueries({ queryKey: queryKeys.habits.all });
+        qc.invalidateQueries({ queryKey: ['habitsForDate'] });
+        window.dispatchEvent(new Event('habits-changed'));
         navigate('/', { replace: true });
       }
     } catch {
@@ -153,7 +159,7 @@ export function useAddHabitState() {
     } finally {
       setSaving(false);
     }
-  }, [phase, beginner.habitConfigs, advanced.advancedHabits, create, navigate, addToast]);
+  }, [phase, beginner.habitConfigs, advanced.advancedHabits, create, navigate, addToast, qc]);
 
   return {
     phase,

@@ -94,7 +94,10 @@ export function ReminderSheet({
   return (
     <BottomSheet onClose={onClose}>
       {(close) => (
-        <div className="flex flex-col gap-6 px-6 pb-8">
+        <div
+          className="flex flex-col gap-6 px-6 pt-2"
+          style={{ paddingBottom: 'calc(150px + env(safe-area-inset-bottom))' }}
+        >
           <div>
             <h2 className="text-[28px] font-semibold leading-tight text-content">
               When would you like to do your quick check-ins

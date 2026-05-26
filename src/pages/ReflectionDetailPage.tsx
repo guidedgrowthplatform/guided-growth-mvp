@@ -50,13 +50,17 @@ function GuidedBody({ entry }: { entry: JournalEntry }) {
 
 function AIInsightCard() {
   return (
-    <div className="rounded-2xl bg-surface p-5 shadow-card">
-      <div className="flex items-center justify-between">
-        <p className="text-base font-bold text-content">AI Insight</p>
-        <Icon icon="mdi:auto-awesome" width={22} height={22} className="text-primary" />
-      </div>
-      <p className="mt-2 text-sm text-content-secondary">
-        Personalized insights about this reflection will appear here soon.
+    <div className="relative overflow-hidden rounded-2xl bg-surface p-5 shadow-card">
+      <Icon
+        icon="mdi:auto-awesome"
+        width={28}
+        height={28}
+        className="absolute right-5 top-5 text-primary"
+      />
+      <p className="text-base font-bold text-content">AI Insight</p>
+      <p className="mt-2 max-w-[85%] text-sm leading-relaxed text-content-secondary">
+        You&apos;ve maintained a 5-day streak of high productivity. Data suggests evening journaling
+        helps you process accomplishments more effectively. Keep it up!
       </p>
     </div>
   );
@@ -116,9 +120,9 @@ export function ReflectionDetailPage() {
           type="button"
           onClick={() => navigate(-1)}
           aria-label="Go back"
-          className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full text-content hover:bg-surface-secondary active:bg-surface-secondary"
+          className="flex h-10 w-10 items-center justify-center rounded-2xl bg-surface shadow-card"
         >
-          <Icon icon="mdi:arrow-left" width={24} height={24} />
+          <Icon icon="ic:round-arrow-back" width={16} className="text-content" />
         </button>
         <h1 className="flex-1 text-center text-lg font-semibold text-content">Journal Entry</h1>
         <button

@@ -1,7 +1,7 @@
 import { Icon } from '@iconify/react';
 import { format } from 'date-fns';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { SegmentedControl } from '@/components/insights';
 import { GuidedTab } from '@/components/journal/GuidedTab';
@@ -27,22 +27,30 @@ const tabItems = [
 
 const GUIDED_TEMPLATE_ID = 'daily-reflection';
 
+interface JournalNavState {
+  initialTab?: Tab;
+  prefillTitle?: string;
+}
+
 export function JournalFlowPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const navState = (location.state as JournalNavState | null) ?? null;
   const { user } = useAuth();
   const { save, saving } = useJournalSave();
   const { logEvent } = useSessionLog();
   const userName = user?.nickname ?? user?.name ?? 'there';
 
-  const [activeTab, setActiveTab] = useState<Tab>('guided');
-  const [displayTab, setDisplayTab] = useState<Tab>('guided');
+  const initialTab: Tab = navState?.initialTab ?? 'guided';
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const [displayTab, setDisplayTab] = useState<Tab>(initialTab);
   const [animating, setAnimating] = useState(false);
   const [direction, setDirection] = useState<'left' | 'right'>('right');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const [now] = useState(() => new Date());
 
-  const [freeformTitle, setFreeformTitle] = useState('');
+  const [freeformTitle, setFreeformTitle] = useState(navState?.prefillTitle ?? '');
   const [freeformBody, setFreeformBody] = useState('');
   const [guidedAnswers, setGuidedAnswers] = useState<Record<string, string>>({});
 

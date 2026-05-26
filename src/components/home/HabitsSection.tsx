@@ -5,6 +5,12 @@ import { useHabitsForDate } from '@/hooks/useHabitsForDate';
 import { HabitListItem } from './HabitListItem';
 import { SectionHeader } from './SectionHeader';
 
+interface JournalNavState {
+  initialTab: 'freeform';
+  prefillTitle: string;
+  habitName: string;
+}
+
 interface HabitsSectionProps {
   selectedDate: string;
   screenId?: string;
@@ -19,8 +25,13 @@ export function HabitsSection({ selectedDate, screenId }: HabitsSectionProps) {
   );
 
   const handleAddNote = (habitName: string) => {
-    window.dispatchEvent(new CustomEvent('toggle-journal'));
-    addToast('info', `Add a note for "${habitName}"`);
+    track('tap_habit_note', { source: 'home_today' });
+    const state: JournalNavState = {
+      initialTab: 'freeform',
+      prefillTitle: habitName,
+      habitName,
+    };
+    navigate('/journal', { state });
   };
 
   const handleToggle = async (habitId: string, currentlyCompleted: boolean) => {
