@@ -44,6 +44,7 @@ export function Step2Page() {
   }, []);
 
   const handleNext = useCallback(async () => {
+    if (!plan) return;
     await saveStepAsync(2, {}, { path: plan as 'simple' | 'braindump' });
     track('select_onboarding_path', {
       path: pathToSpec(plan),
@@ -60,6 +61,7 @@ export function Step2Page() {
     <OnboardingLayout
       currentStep={2}
       screenId="ONBOARD-FORK--FORM"
+      autoAdvance
       formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"

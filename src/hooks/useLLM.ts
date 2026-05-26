@@ -13,6 +13,7 @@ export type LLMStatus = 'idle' | 'streaming' | 'done' | 'error';
 
 export interface UseLLMReturn {
   sendMessage: (text: string) => Promise<void>;
+  sendOpener: () => Promise<void>;
   messages: LLMChatMessage[];
   response: string;
   toolEvents: LLMToolEvent[];
@@ -31,9 +32,18 @@ function makeId(counter: { n: number }): string {
   return `msg-${counter.n}`;
 }
 
-export function useLLM(screenId: string, opts?: { coachingStyle?: CoachingStyle }): UseLLMReturn {
+export function useLLM(
+  screenId: string,
+  opts?: {
+    coachingStyle?: CoachingStyle;
+    chatSessionId?: string;
+    initialMessages?: LLMChatMessage[];
+  },
+): UseLLMReturn {
   const { sessionId, logEvent } = useSessionLog();
   const coachingStyle = opts?.coachingStyle ?? 'warm';
+  const chatSessionId = opts?.chatSessionId;
+  const initialMessages = opts?.initialMessages;
 
   const [messages, setMessages] = useState<LLMChatMessage[]>([]);
   const [response, setResponse] = useState('');
@@ -44,6 +54,10 @@ export function useLLM(screenId: string, opts?: { coachingStyle?: CoachingStyle 
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
   const idCounterRef = useRef({ n: 0 });
+  const messagesRef = useRef<LLMChatMessage[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const reset = useCallback(() => {
     if (abortRef.current) {
@@ -67,18 +81,21 @@ export function useLLM(screenId: string, opts?: { coachingStyle?: CoachingStyle 
     }
   }, []);
 
-  const sendMessage = useCallback(
-    async (text: string) => {
-      // Sync guard: blocks back-to-back calls before React re-renders.
+  const runStream = useCallback(
+    async (opts: { mode: 'chat' | 'opener'; text: string; surfaceErrors: boolean }) => {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
 
-      const userMsg: LLMChatMessage = {
-        id: makeId(idCounterRef.current),
-        role: 'user',
-        content: text,
-      };
-      setMessages((prev) => [...prev, userMsg]);
+      let userTurnId: string | null = null;
+      if (opts.mode === 'chat') {
+        userTurnId = makeId(idCounterRef.current);
+        const userMsg: LLMChatMessage = {
+          id: userTurnId,
+          role: 'user',
+          content: opts.text,
+        };
+        setMessages((prev) => [...prev, userMsg]);
+      }
       setResponse('');
       setToolEvents([]);
       setError(null);
@@ -135,6 +152,7 @@ export function useLLM(screenId: string, opts?: { coachingStyle?: CoachingStyle 
                 'llm_call',
                 {
                   screen_id: screenId,
+                  mode: opts.mode,
                   latency_ms: e.latency_ms,
                   total_tokens: e.total_tokens,
                   tool_rounds: e.tool_rounds,
@@ -147,9 +165,12 @@ export function useLLM(screenId: string, opts?: { coachingStyle?: CoachingStyle 
             break;
           }
           case 'error': {
-            setStatus('error');
-            setError(new Error(`${e.code}: ${e.message}`));
-            // Stop reading; any follow-up frames would overwrite error state.
+            if (opts.surfaceErrors) {
+              setStatus('error');
+              setError(new Error(`${e.code}: ${e.message}`));
+            } else {
+              setStatus('idle');
+            }
             controller.abort();
             break;
           }
@@ -157,34 +178,32 @@ export function useLLM(screenId: string, opts?: { coachingStyle?: CoachingStyle 
       };
 
       try {
-        // Pass the optimistic local delta so the backend doesn't race a
-        // pending /api/session_log POST. Filter out llm_call rows server-side
-        // anyway, but trimming here keeps the body small.
         const recent_events = useSessionLogStore.getState().getDeltaSince(null);
 
         await streamLLM(
           {
             session_id: sessionId,
             screen_id: screenId,
-            user_message: text,
+            user_message: opts.text,
             coaching_style: coachingStyle,
+            mode: opts.mode,
+            chat_session_id: chatSessionId,
+            user_turn_id: userTurnId ?? undefined,
             recent_events,
           },
           onEvent,
           controller.signal,
         );
       } catch (err) {
-        // Trust the controller's own signal for abort detection; per-call,
-        // can't be poisoned by a sibling sendMessage.
         const wasAborted =
           controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError');
         if (wasAborted) {
-          // If we already surfaced an error via SSE 'error' frame, keep that.
-          // Otherwise this is a user/unmount cancel — fall back to idle.
           setStatus((prev) => (prev === 'error' ? 'error' : 'idle'));
-        } else {
+        } else if (opts.surfaceErrors) {
           setStatus('error');
           setError(err instanceof Error ? err : new Error(String(err)));
+        } else {
+          setStatus('idle');
         }
       } finally {
         if (abortRef.current === controller) {
@@ -193,7 +212,17 @@ export function useLLM(screenId: string, opts?: { coachingStyle?: CoachingStyle 
         inFlightRef.current = false;
       }
     },
-    [sessionId, screenId, coachingStyle, logEvent],
+    [sessionId, screenId, coachingStyle, logEvent, chatSessionId],
+  );
+
+  const sendMessage = useCallback(
+    (text: string) => runStream({ mode: 'chat', text, surfaceErrors: true }),
+    [runStream],
+  );
+
+  const sendOpener = useCallback(
+    () => runStream({ mode: 'opener', text: '', surfaceErrors: false }),
+    [runStream],
   );
 
   useEffect(() => {
@@ -206,8 +235,17 @@ export function useLLM(screenId: string, opts?: { coachingStyle?: CoachingStyle 
     };
   }, []);
 
+  // Seed once per session; deps chatSessionId only (initialMessages ref churns).
+  useEffect(() => {
+    if (!chatSessionId) return;
+    if (messagesRef.current.length > 0) return;
+    setMessages(initialMessages ?? []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatSessionId]);
+
   return {
     sendMessage,
+    sendOpener,
     messages,
     response,
     toolEvents,

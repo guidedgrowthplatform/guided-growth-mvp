@@ -279,4 +279,37 @@ describe('useLLM', () => {
       await firstPromise;
     });
   });
+
+  it('seeds messages from initialMessages on mount without fetching history', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    let seeded: UseLLMReturn | null = null;
+    function SeedBridge() {
+      const v = useLLM('CHAT-DEBUG', {
+        chatSessionId: 'sess-1',
+        initialMessages: [
+          { id: 'h1', role: 'user', content: 'earlier' },
+          { id: 'h2', role: 'assistant', content: 'prior reply' },
+        ],
+      });
+      useEffect(() => {
+        seeded = v;
+      });
+      return null;
+    }
+    act(() => {
+      root.render(
+        <Wrapper>
+          <SeedBridge />
+        </Wrapper>,
+      );
+    });
+    await flush();
+
+    expect(seeded!.messages).toHaveLength(2);
+    expect(seeded!.messages[0]).toMatchObject({ role: 'user', content: 'earlier' });
+    // session endpoint already returned history — no extra mount fetch
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

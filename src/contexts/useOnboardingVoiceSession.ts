@@ -30,6 +30,8 @@ export interface OnboardingVoiceContextValue {
   closeOverlay: () => void;
   messages: VoiceMessage[];
   appendMessage: (msg: VoiceMessage) => void;
+  // Text path only; idempotent per screenId. Voice resets via onCallStart.
+  startThread: (screenId: string, initial: VoiceMessage[]) => void;
   endCall: () => void;
   restartCall: () => Promise<void>;
   pushSubScreen: (screenId: string | null) => void;

@@ -22,12 +22,12 @@ import {
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { normalizeCoachingStyle } from '@/lib/coaching/styles';
+import { countVapiToday, VAPI_CAP_DISABLED, VAPI_DAILY_CAP } from '@/lib/config/voice';
 import { buildContextMessage } from '@/lib/context/buildContextMessage';
 import { getScreenContext } from '@/lib/context/getScreenContext';
 import { getBundledRoutes } from '@/lib/context/screenContextsBundle';
 import { screenIdForRoute } from '@/lib/context/screenIdForRoute';
 import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
-import { countVapiToday, VAPI_CAP_DISABLED, VAPI_DAILY_CAP } from '@/lib/config/voice';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
@@ -108,6 +108,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const userClosedOverlayRef = useRef(false);
   const prevSettledStatusRef = useRef<OnboardingVoiceStatus>('idle');
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
+  const threadScreenIdRef = useRef<string | null>(null);
   const lastAssistantFinalRef = useRef<{ text: string; at: number }>({ text: '', at: 0 });
 
   const lastPushedScreenIdRef = useRef<string | null>(null);
@@ -385,6 +386,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     fatalErrorRef.current = false;
     clearRetryTimer();
     setMessages([]);
+    threadScreenIdRef.current = null;
     lastAssistantFinalRef.current = { text: '', at: 0 };
     const sid = activeSubScreenIdRef.current ?? currentScreenIdRef.current;
     // If we already injected the screen context via assistantOverrides at
@@ -645,6 +647,12 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     setMessages((prev) => [...prev, msg]);
   }, []);
 
+  const startThread = useCallback((screenId: string, initial: VoiceMessage[]) => {
+    if (threadScreenIdRef.current === screenId) return;
+    threadScreenIdRef.current = screenId;
+    setMessages(initial);
+  }, []);
+
   const [vapiToday, setVapiToday] = useState(() =>
     countVapiToday(useSessionLogStore.getState().events),
   );
@@ -801,6 +809,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       closeOverlay,
       messages,
       appendMessage,
+      startThread,
       endCall,
       restartCall,
       pushSubScreen,
@@ -823,6 +832,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       closeOverlay,
       messages,
       appendMessage,
+      startThread,
       endCall,
       restartCall,
       pushSubScreen,

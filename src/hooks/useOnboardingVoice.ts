@@ -35,7 +35,7 @@ const SCREEN_FALLBACKS: Record<string, string> = {
   'ONBOARD-01--FORM':
     "I didn't catch that clearly. Could you say your name again? Or just type it in — totally fine.",
   'ONBOARD-FORK--FORM':
-    "No pressure either way — just tap the one that feels right, or say 'simple' or 'brain dump.'",
+    "No pressure either way — just tap the one that feels right, or say 'beginner' or 'advanced.'",
   'ONBOARD-BEGINNER-01':
     "I didn't catch which area. Just say one — like 'sleep' or 'focus' — or tap it.",
   'ONBOARD-BEGINNER-02': 'Could you say that again? Or just tap the ones that resonate.',

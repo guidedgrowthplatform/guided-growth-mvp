@@ -48,6 +48,7 @@ export function Step3Page() {
   const snapshot = useOnboardingFormSnapshot({ category: selected ?? undefined });
 
   const handleNext = useCallback(async () => {
+    if (!selected) return;
     await saveStepAsync(3, { category: selected });
     track('select_improvement_areas', {
       areas: [selected],
@@ -61,6 +62,7 @@ export function Step3Page() {
     <OnboardingLayout
       currentStep={3}
       screenId="ONBOARD-BEGINNER-01"
+      autoAdvance
       formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"

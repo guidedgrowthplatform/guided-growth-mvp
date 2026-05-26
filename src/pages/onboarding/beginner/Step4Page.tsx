@@ -63,6 +63,7 @@ export function Step4Page() {
   );
 
   const handleNext = useCallback(async () => {
+    if (selected.size === 0) return;
     await saveStepAsync(4, { goals: Array.from(selected) });
     track('select_specific_goals', {
       category,

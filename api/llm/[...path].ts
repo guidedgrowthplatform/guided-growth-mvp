@@ -10,18 +10,14 @@ import {
   type ToolName,
   type ToolResult,
 } from '../_lib/llm/tools.js';
-import {
-  openChatCompletionStream,
-  getOpenAIKey,
-  OpenAIError,
-  type ChatCompletionMessage,
-  type OpenAIStreamChunk,
-} from '../_lib/llm/openai.js';
+import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
+import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
 import {
   buildSystemPromptForRequest,
   BuildSystemPromptError,
 } from '../_lib/llm/buildSystemPrompt.js';
 import type { SessionStateDeltaEntry } from '@shared/types/context.js';
+import { runOnboardingTurn } from '../_lib/llm/onboardingTurn.js';
 
 type CoachingStyle = 'warm' | 'direct' | 'reflective';
 const COACHING_STYLES = new Set<CoachingStyle>(['warm', 'direct', 'reflective']);
@@ -35,25 +31,34 @@ type LLMStreamEvent =
   | { type: 'error'; code: string; message: string };
 
 const MAX_ROUNDS = 5;
-const MAX_RETRY = 2;
+const CHAT_SESSION_ID_PATTERN = /^[0-9a-fA-F-]{8,64}$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-interface AssembledToolCall {
-  id: string;
-  name: string;
-  argsRaw: string;
+interface PersistedToolRow {
+  toolCallId: string;
+  toolName: string;
+  resultJson: string;
 }
 
-function sleep(ms: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+function isExpiredPreviousResponse(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const status = (err as { status?: number }).status;
+  const code = (err as { code?: string }).code;
+  const message = (err as { message?: string }).message ?? '';
+  if (status === 404 || code === 'response_not_found') return true;
+  if (/previous_response_id/i.test(message) && /not.*found|expired/i.test(message)) return true;
+  return false;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
 
-  // Only the bare /api/llm route is valid here.
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] === '__index' ? '' : segments[0] || '';
+  if (route === 'onboarding') {
+    return handleOnboardingTurn(req, res);
+  }
   if (route !== '') {
     return res.status(404).json({ error: 'Not found' });
   }
@@ -62,14 +67,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Surface missing key as JSON 500 before SSE opens.
   try {
     getOpenAIKey();
   } catch (err) {
     return res.status(500).json({ error: (err as Error).message });
   }
 
-  // Per-IP
   const ip = getClientIp(req.headers);
   const ipRl = checkRateLimit(ip, {
     windowMs: 60_000,
@@ -82,7 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const user = await requireUser(req, res);
   if (!user) return;
-  await setUserContext(user.authUserId);
+  await setUserContext(user.anonId);
 
   const userRl = checkRateLimit(user.authUserId, {
     windowMs: 60_000,
@@ -99,7 +102,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(429).json({ error: 'Too many requests', retryAfter });
   }
 
-  // Body validation
   const body = (req.body ?? {}) as Record<string, unknown>;
   const sessionId = body.session_id;
   if (typeof sessionId !== 'string' || sessionId.trim().length < 8) {
@@ -109,10 +111,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (typeof screenId !== 'string' || screenId.length === 0 || screenId.length > 200) {
     return res.status(400).json({ error: 'screen_id is required (1-200 chars)' });
   }
-  const userMessage = body.user_message;
-  if (typeof userMessage !== 'string' || userMessage.length === 0 || userMessage.length > 2000) {
-    return res.status(400).json({ error: 'user_message is required (1-2000 chars)' });
+  const mode: 'chat' | 'opener' = body.mode === 'opener' ? 'opener' : 'chat';
+  const userMessageRaw = body.user_message;
+  if (mode === 'chat') {
+    if (
+      typeof userMessageRaw !== 'string' ||
+      userMessageRaw.length === 0 ||
+      userMessageRaw.length > 2000
+    ) {
+      return res.status(400).json({ error: 'user_message is required (1-2000 chars)' });
+    }
+  } else if (userMessageRaw !== undefined && typeof userMessageRaw !== 'string') {
+    return res.status(400).json({ error: 'user_message must be a string when provided' });
   }
+  const userMessage: string =
+    mode === 'opener' ? '[user just opened the chat — no message yet]' : (userMessageRaw as string);
+
   let coachingStyle: CoachingStyle = 'warm';
   if (body.coaching_style !== undefined) {
     if (
@@ -124,30 +138,68 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     coachingStyle = body.coaching_style as CoachingStyle;
   }
 
-  // Optional client-supplied optimistic state_delta. When present, backend
-  // uses it instead of querying session_log — closes the race where a
-  // logEvent POST hasn't landed before the LLM call fires.
   let recentEvents: SessionStateDeltaEntry[] | undefined;
   if (body.recent_events !== undefined) {
     if (!Array.isArray(body.recent_events)) {
       return res.status(400).json({ error: 'recent_events must be an array' });
     }
-    // Shallow validation only — buildSystemPromptForRequest is the consumer.
     recentEvents = body.recent_events as SessionStateDeltaEntry[];
   }
 
-  const scrubbedMessage = scrubPII(userMessage);
+  let chatSessionId: string | null = null;
+  let userTurnId: string | null = null;
+  if (body.chat_session_id !== undefined) {
+    if (
+      typeof body.chat_session_id !== 'string' ||
+      !CHAT_SESSION_ID_PATTERN.test(body.chat_session_id)
+    ) {
+      return res.status(400).json({ error: 'chat_session_id must be 8-64 hex/dash chars' });
+    }
+    chatSessionId = body.chat_session_id;
+    if (mode === 'chat') {
+      if (typeof body.user_turn_id !== 'string' || !UUID_PATTERN.test(body.user_turn_id)) {
+        return res.status(400).json({ error: 'user_turn_id is required (UUID) when mode=chat' });
+      }
+      userTurnId = body.user_turn_id;
+    }
+  }
+  const persistChat = chatSessionId !== null;
 
-  // Build before logging start so unknown_screen_id returns JSON 404, not SSE.
+  const isOnboardingScreen = screenId.startsWith('ONBOARD-');
+  const scrubbedMessage = isOnboardingScreen ? userMessage : scrubPII(userMessage);
+
   let systemPrompt: string;
+  let previousResponseId: string | null = null;
+  let foreignOwned: boolean;
   try {
-    const built = await buildSystemPromptForRequest({
-      anon_id: user.anonId,
-      screen_id: screenId,
-      coaching_style: coachingStyle,
-      recent_events: recentEvents,
-    });
+    const [built, ownerRow] = await Promise.all([
+      buildSystemPromptForRequest({
+        anon_id: user.anonId,
+        screen_id: screenId,
+        coaching_style: coachingStyle,
+        recent_events: recentEvents,
+        mode,
+      }),
+      persistChat
+        ? pool
+            .query<{ foreign_owned: boolean; prev_response_id: string | null }>(
+              `SELECT
+                 EXISTS (
+                   SELECT 1 FROM chat_messages
+                    WHERE chat_session_id = $2 AND anon_id <> $1
+                 ) AS foreign_owned,
+                 (SELECT openai_response_id FROM chat_messages
+                    WHERE anon_id = $1 AND chat_session_id = $2 AND role = 'assistant'
+                      AND openai_response_id IS NOT NULL
+                    ORDER BY turn_index DESC LIMIT 1) AS prev_response_id`,
+              [user.anonId, chatSessionId],
+            )
+            .then((r) => r.rows[0] ?? null)
+        : Promise.resolve(null),
+    ]);
     systemPrompt = built.systemPrompt;
+    previousResponseId = ownerRow?.prev_response_id ?? null;
+    foreignOwned = ownerRow?.foreign_owned ?? false;
     if (process.env.NODE_ENV !== 'production') {
       console.log(
         '[/api/llm] prompt assembled',
@@ -157,10 +209,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           context_version: built.contextVersion,
           delta_count: built.deltaCount,
           system_prompt_chars: systemPrompt.length,
+          previous_response_id: previousResponseId,
+          mode,
         }),
       );
-      console.log('[/api/llm] system_prompt:\n' + systemPrompt);
-      console.log('[/api/llm] user_message:', scrubbedMessage);
     }
   } catch (err) {
     if (err instanceof BuildSystemPromptError) {
@@ -171,37 +223,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .json({ error: 'build_system_prompt_failed', message: (err as Error).message });
   }
 
-  try {
-    await pool.query(
-      `INSERT INTO session_log (anon_id, session_id, event_type, screen_id, payload)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [
-        user.anonId,
-        sessionId,
-        'llm_call',
-        screenId,
-        {
-          phase: 'start',
-          screen_id: screenId,
-          coaching_style: coachingStyle,
-          model: 'gpt-4o-mini',
-        },
-      ],
-    );
-  } catch (err) {
-    return res
-      .status(500)
-      .json({ error: `Failed to log llm_call start: ${(err as Error).message}` });
+  // Blocks reuse of another anon's session id before streaming.
+  if (foreignOwned) {
+    return res.status(403).json({ error: 'chat_session_forbidden' });
   }
 
-  // Open SSE
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders?.();
 
-  // Abort OpenAI fetch on client disconnect.
   const abortController = new AbortController();
   let clientClosed = false;
   req.on('close', () => {
@@ -220,6 +252,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   type EndStatus = 'ok' | 'error' | 'tool_cap' | 'cancelled';
   let endStatus: EndStatus = 'error';
   let endCode: string | null = null;
+  let finalAssistantContent = '';
+  let finalAssistantToolCalls: Array<{
+    id: string;
+    type: 'function';
+    function: { name: string; arguments: string };
+  }> | null = null;
+  let finalResponseId: string | null = null;
+  const persistedToolRows: PersistedToolRow[] = [];
+
+  const writeStartRow = async () => {
+    try {
+      await pool.query(
+        `INSERT INTO session_log (anon_id, session_id, event_type, screen_id, payload)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          user.anonId,
+          sessionId,
+          'llm_call',
+          screenId,
+          {
+            phase: 'start',
+            screen_id: screenId,
+            coaching_style: coachingStyle,
+            model: 'gpt-4o-mini',
+            mode,
+            had_previous_response_id: previousResponseId !== null,
+          },
+        ],
+      );
+    } catch {
+      // best-effort
+    }
+  };
 
   const writeEndRow = async () => {
     try {
@@ -239,6 +304,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             latency_ms: Math.round(performance.now() - startedAt),
             total_tokens: totalTokens,
             tool_rounds: toolRounds,
+            mode,
           },
         ],
       );
@@ -247,39 +313,135 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   };
 
-  const messages: ChatCompletionMessage[] = [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: scrubbedMessage },
+  // Server-owned turn_index. Dedicated client + advisory xact-lock so base=MAX+1
+  // and the turn lands contiguously (pool is max:1; pool.query can't span a txn).
+  const persistChatTurn = async () => {
+    if (!persistChat) return;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [chatSessionId]);
+      // Retry idempotency: same user_turn_id already persisted → whole turn done.
+      if (mode === 'chat' && userTurnId) {
+        const dup = await client.query('SELECT 1 FROM chat_messages WHERE id = $1', [userTurnId]);
+        if (dup.rowCount) {
+          await client.query('COMMIT');
+          return;
+        }
+      }
+      const baseRes = await client.query<{ base: number }>(
+        'SELECT COALESCE(MAX(turn_index) + 1, 0) AS base FROM chat_messages WHERE chat_session_id = $1',
+        [chatSessionId],
+      );
+      const base = baseRes.rows[0].base;
+      const assistantIndex = mode === 'opener' ? base : base + 1;
+
+      if (mode === 'chat' && userTurnId) {
+        await client.query(
+          `INSERT INTO chat_messages
+             (id, anon_id, chat_session_id, screen_id, turn_index, role, content, mode)
+           VALUES ($1, $2, $3, $4, $5, 'user', $6, $7)
+           ON CONFLICT (id) DO NOTHING`,
+          [userTurnId, user.anonId, chatSessionId, screenId, base, scrubbedMessage, mode],
+        );
+      }
+
+      await client.query(
+        `INSERT INTO chat_messages
+           (anon_id, chat_session_id, screen_id, turn_index, role, content, tool_calls, openai_response_id, mode)
+         VALUES ($1, $2, $3, $4, 'assistant', $5, $6, $7, $8)
+         ON CONFLICT (chat_session_id, turn_index) DO NOTHING`,
+        [
+          user.anonId,
+          chatSessionId,
+          screenId,
+          assistantIndex,
+          finalAssistantContent.length > 0 ? finalAssistantContent : null,
+          finalAssistantToolCalls ? JSON.stringify(finalAssistantToolCalls) : null,
+          finalResponseId,
+          mode,
+        ],
+      );
+
+      for (let i = 0; i < persistedToolRows.length; i++) {
+        const tr = persistedToolRows[i];
+        await client.query(
+          `INSERT INTO chat_messages
+             (anon_id, chat_session_id, screen_id, turn_index, role, content, tool_call_id, tool_name, mode)
+           VALUES ($1, $2, $3, $4, 'tool', $5, $6, $7, $8)
+           ON CONFLICT (chat_session_id, turn_index) DO NOTHING`,
+          [
+            user.anonId,
+            chatSessionId,
+            screenId,
+            assistantIndex + 1 + i,
+            tr.resultJson,
+            tr.toolCallId,
+            tr.toolName,
+            mode,
+          ],
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (err) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // rollback best-effort
+      }
+      console.error('[/api/llm] persist chat turn failed', err);
+    } finally {
+      client.release();
+    }
+  };
+
+  let currentInput: ResponseInputItem[] = [
+    { type: 'message', role: 'user', content: scrubbedMessage },
   ];
+  let currentPreviousId: string | null = previousResponseId;
 
   try {
     let finished = false;
     for (let round = 0; round < MAX_ROUNDS && !finished; round++) {
       if (clientClosed) return;
-      // Eager fetch + per-round retry for 429
-      let stream: AsyncIterable<OpenAIStreamChunk> | null = null;
-      let lastErr: unknown = null;
-      for (let attempt = 0; attempt <= MAX_RETRY; attempt++) {
+
+      let stream: AsyncIterable<
+        import('../_lib/llm/openai-responses.js').ResponsesStreamEvent
+      > | null = null;
+      let openErr: unknown = null;
+      try {
+        stream = await openResponsesStream({
+          instructions: systemPrompt,
+          input: currentInput,
+          tools: mode === 'opener' ? undefined : TOOL_DEFINITIONS,
+          previousResponseId: currentPreviousId ?? undefined,
+          store: true,
+          signal: abortController.signal,
+        });
+      } catch (err) {
+        openErr = err;
+      }
+
+      if (!stream && openErr && currentPreviousId && isExpiredPreviousResponse(openErr)) {
+        currentPreviousId = null;
         try {
-          stream = await openChatCompletionStream({
-            messages,
-            tools: TOOL_DEFINITIONS,
+          stream = await openResponsesStream({
+            instructions: systemPrompt,
+            input: currentInput,
+            tools: mode === 'opener' ? undefined : TOOL_DEFINITIONS,
+            previousResponseId: undefined,
+            store: true,
             signal: abortController.signal,
           });
-          lastErr = null;
-          break;
-        } catch (err) {
-          lastErr = err;
-          const status = (err as { status?: number }).status;
-          if (status === 429 && attempt < MAX_RETRY) {
-            await sleep(attempt === 0 ? 300 : 900);
-            continue;
-          }
-          break;
+          openErr = null;
+        } catch (retryErr) {
+          openErr = retryErr;
         }
       }
+
       if (!stream) {
-        const err = lastErr as Error;
+        const err = openErr as Error;
         endStatus = 'error';
         endCode = 'openai_error';
         send({ type: 'error', code: 'openai_error', message: err?.message ?? 'Unknown error' });
@@ -288,39 +450,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       let assistantContent = '';
-      const toolCallMap = new Map<number, AssembledToolCall>();
-      let finishReason: 'stop' | 'length' | 'tool_calls' | null = null;
+      const roundToolCalls: Array<{ callId: string; name: string; argumentsRaw: string }> = [];
+      let thisResponseId: string | null = null;
+      let streamFailed = false;
 
       try {
-        for await (const chunk of stream) {
-          if (chunk.usage?.total_tokens) {
-            totalTokens = chunk.usage.total_tokens;
-          }
-          const choice = chunk.choices?.[0];
-          if (!choice) continue;
-          const delta = choice.delta || {};
-          if (typeof delta.content === 'string' && delta.content.length > 0) {
-            assistantContent += delta.content;
-            send({ type: 'delta', content: delta.content });
-          }
-          if (Array.isArray(delta.tool_calls)) {
-            for (const tc of delta.tool_calls) {
-              const idx = tc.index;
-              let existing = toolCallMap.get(idx);
-              if (!existing) {
-                existing = { id: tc.id ?? '', name: tc.function?.name ?? '', argsRaw: '' };
-                toolCallMap.set(idx, existing);
-              }
-              if (tc.id && !existing.id) existing.id = tc.id;
-              if (tc.function?.name && !existing.name) existing.name = tc.function.name;
-              if (typeof tc.function?.arguments === 'string') {
-                existing.argsRaw += tc.function.arguments;
-              }
+        for await (const evt of stream) {
+          switch (evt.type) {
+            case 'delta': {
+              assistantContent += evt.content;
+              send({ type: 'delta', content: evt.content });
+              break;
+            }
+            case 'tool_call': {
+              roundToolCalls.push({
+                callId: evt.callId,
+                name: evt.name,
+                argumentsRaw: evt.argumentsRaw,
+              });
+              break;
+            }
+            case 'completed': {
+              thisResponseId = evt.responseId || null;
+              if (evt.totalTokens) totalTokens = evt.totalTokens;
+              break;
+            }
+            case 'error': {
+              streamFailed = true;
+              endStatus = clientClosed ? 'cancelled' : 'error';
+              endCode = evt.code;
+              send({ type: 'error', code: evt.code, message: evt.message });
+              break;
             }
           }
-          if (choice.finish_reason) {
-            finishReason = choice.finish_reason;
-          }
+          if (streamFailed) break;
         }
       } catch (err) {
         const status = (err as { status?: number }).status;
@@ -332,59 +495,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
       }
 
-      if (finishReason === 'tool_calls' && toolCallMap.size > 0) {
-        toolRounds++;
-        const assembled = Array.from(toolCallMap.values()).filter((t) => t.id && t.name);
-
-        // Append assistant message carrying the tool_calls
-        messages.push({
-          role: 'assistant',
-          content: assistantContent.length > 0 ? assistantContent : null,
-          tool_calls: assembled.map((t) => ({
-            id: t.id,
-            type: 'function',
-            function: { name: t.name, arguments: t.argsRaw || '{}' },
-          })),
-        });
-
-        for (const tc of assembled) {
-          let args: Record<string, unknown> = {};
-          try {
-            const parsed = JSON.parse(tc.argsRaw || '{}');
-            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-              args = parsed as Record<string, unknown>;
-            }
-          } catch {
-            args = {};
-          }
-          send({ type: 'tool_call', id: tc.id, name: tc.name, args });
-
-          let result: ToolResult;
-          if (!TOOL_NAMES.has(tc.name)) {
-            result = { ok: false, error: 'unknown_tool', message: `Unknown tool: ${tc.name}` };
-          } else {
-            try {
-              result = await dispatchToolCall(
-                { auth_user_id: user.authUserId, anon_id: user.anonId, session_id: sessionId },
-                tc.name as ToolName,
-                args,
-              );
-            } catch (err) {
-              result = { ok: false, error: 'handler_error', message: (err as Error).message };
-            }
-          }
-          send({ type: 'tool_result', id: tc.id, ok: result.ok, result });
-          messages.push({
-            role: 'tool',
-            tool_call_id: tc.id,
-            content: JSON.stringify(result),
-          });
-        }
-        continue;
+      if (streamFailed) {
+        res.end();
+        return;
       }
 
-      // stop / length / no tool calls
-      finished = true;
+      if (roundToolCalls.length === 0) {
+        finalAssistantContent = assistantContent;
+        finalResponseId = thisResponseId;
+        finished = true;
+        break;
+      }
+
+      toolRounds++;
+      finalAssistantContent = assistantContent;
+      finalAssistantToolCalls = roundToolCalls.map((tc) => ({
+        id: tc.callId,
+        type: 'function',
+        function: { name: tc.name, arguments: tc.argumentsRaw || '{}' },
+      }));
+
+      const nextInput: ResponseInputItem[] = [];
+      for (const tc of roundToolCalls) {
+        let args: Record<string, unknown> = {};
+        try {
+          const parsed = JSON.parse(tc.argumentsRaw || '{}');
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            args = parsed as Record<string, unknown>;
+          }
+        } catch {
+          args = {};
+        }
+        send({ type: 'tool_call', id: tc.callId, name: tc.name, args });
+
+        let result: ToolResult;
+        if (!TOOL_NAMES.has(tc.name)) {
+          result = { ok: false, error: 'unknown_tool', message: `Unknown tool: ${tc.name}` };
+        } else {
+          try {
+            result = await dispatchToolCall(
+              { auth_user_id: user.authUserId, anon_id: user.anonId, session_id: sessionId },
+              tc.name as ToolName,
+              args,
+            );
+          } catch (err) {
+            result = { ok: false, error: 'handler_error', message: (err as Error).message };
+          }
+        }
+        const resultJson = JSON.stringify(result);
+        send({ type: 'tool_result', id: tc.callId, ok: result.ok, result });
+        persistedToolRows.push({
+          toolCallId: tc.callId,
+          toolName: tc.name,
+          resultJson,
+        });
+        nextInput.push({
+          type: 'function_call_output',
+          call_id: tc.callId,
+          output: resultJson,
+        });
+      }
+
+      currentPreviousId = thisResponseId;
+      currentInput = nextInput;
     }
 
     if (!finished) {
@@ -395,6 +568,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
+    await persistChatTurn();
     const latencyMs = Math.round(performance.now() - startedAt);
     endStatus = 'ok';
     send({
@@ -412,6 +586,86 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     send({ type: 'error', code, message: (err as Error).message });
     res.end();
   } finally {
-    await writeEndRow();
+    await Promise.allSettled([writeStartRow(), writeEndRow()]);
+  }
+}
+
+// POST /api/llm/onboarding — multi-action structured onboarding turn (non-streaming).
+async function handleOnboardingTurn(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const ip = getClientIp(req.headers);
+  const ipRl = checkRateLimit(ip, { windowMs: 60_000, maxRequests: 30, keyPrefix: 'llm-ip' });
+  if (ipRl.limited) {
+    return res.status(429).json({ error: 'Too many requests', retryAfter: ipRl.retryAfter });
+  }
+
+  const user = await requireUser(req, res);
+  if (!user) return;
+  await setUserContext(user.anonId);
+
+  const userRl = checkRateLimit(user.authUserId, {
+    windowMs: 60_000,
+    maxRequests: 20,
+    keyPrefix: 'llm-user',
+  });
+  const userDailyRl = checkRateLimit(user.authUserId, {
+    windowMs: 86_400_000,
+    maxRequests: 200,
+    keyPrefix: 'llm-user-daily',
+  });
+  if (userRl.limited || userDailyRl.limited) {
+    const retryAfter = userRl.retryAfter || userDailyRl.retryAfter;
+    return res.status(429).json({ error: 'Too many requests', retryAfter });
+  }
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+
+  const screenId = body.screen_id;
+  if (typeof screenId !== 'string' || screenId.length === 0 || screenId.length > 200) {
+    return res.status(400).json({ error: 'screen_id is required (1-200 chars)' });
+  }
+
+  const userMessage = body.user_message;
+  if (typeof userMessage !== 'string' || userMessage.length > 2000) {
+    return res.status(400).json({ error: 'user_message must be a string (≤2000 chars)' });
+  }
+
+  let options: string[] = [];
+  if (body.options !== undefined) {
+    if (!Array.isArray(body.options) || !body.options.every((o) => typeof o === 'string')) {
+      return res.status(400).json({ error: 'options must be an array of strings' });
+    }
+    options = body.options as string[];
+  }
+
+  let filledFields: Record<string, unknown> = {};
+  if (body.filled_fields !== undefined) {
+    if (
+      typeof body.filled_fields !== 'object' ||
+      body.filled_fields === null ||
+      Array.isArray(body.filled_fields)
+    ) {
+      return res.status(400).json({ error: 'filled_fields must be a plain object' });
+    }
+    filledFields = body.filled_fields as Record<string, unknown>;
+  }
+
+  const step = typeof body.step === 'number' ? body.step : undefined;
+
+  try {
+    const result = await runOnboardingTurn({
+      screenId,
+      step,
+      text: userMessage,
+      options,
+      filledFields,
+    });
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error('[/api/llm/onboarding] failed', err);
+    return res.status(502).json({ error: (err as Error).message });
   }
 }

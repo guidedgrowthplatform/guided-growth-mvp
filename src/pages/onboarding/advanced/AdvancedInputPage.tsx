@@ -40,6 +40,7 @@ export function AdvancedInputPage() {
   }, []);
 
   const handleNext = useCallback(async () => {
+    if (!text.trim()) return;
     await saveStepAsync(3, { brainDumpText: text });
     track('submit_voice_goals', {
       transcript_length_chars: text.length,
