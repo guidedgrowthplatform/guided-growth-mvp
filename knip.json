@@ -1,0 +1,36 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "src/main.tsx",
+        "index.html",
+        "api/**/*.ts!",
+        "!api/_lib/**",
+        "scripts/validate-prompt.ts",
+        "scripts/*.mjs",
+        "e2e/**/*.spec.ts",
+        "src/test/setup-storage.ts"
+      ],
+      "project": ["src/**/*.{ts,tsx}", "api/**/*.ts", "scripts/**/*.{ts,mjs}"],
+      "ignore": [
+        "src/generated/**",
+        "dist/**",
+        "ios/**",
+        "android/**",
+        "supabase/**",
+        "gcartesia-agents/**",
+        ".claude/**",
+        "**/*.test.ts",
+        "**/*.test.tsx"
+      ],
+      "vite": { "config": "vite.config.ts" },
+      "vitest": { "config": "vite.config.ts" },
+      "playwright": { "config": "playwright.config.ts" }
+    },
+    "packages/shared": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    }
+  }
+}

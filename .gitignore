@@ -134,3 +134,4 @@ gradle_build_log.txt
 
 # Claude scratch dir (one-off intermediate files; never commit)
 .claude/scratch/
+knip-report.txt
