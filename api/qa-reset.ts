@@ -44,18 +44,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const client = await pool.connect();
   try {
-    const { rows: userRows } = await client.query<{ id: string }>(
-      `SELECT id FROM auth.users WHERE email = $1`,
+    // Look up the user row (matches auth.users.id) AND the profile's anon_id.
+    // Per migration 025_anon_id, onboarding_states + user_habits use anon_id, not user_id.
+    // profiles itself still keys on id (= auth.users.id).
+    const { rows: userRows } = await client.query<{ user_id: string; anon_id: string | null }>(
+      `SELECT au.id AS user_id, p.anon_id
+         FROM auth.users au
+         LEFT JOIN profiles p ON p.id = au.id
+        WHERE au.email = $1`,
       [email]
     );
     if (!userRows.length) {
       return res.status(404).json({ error: `QA user ${email} not found` });
     }
-    const userId = userRows[0].id;
+    const { user_id: userId, anon_id: anonId } = userRows[0];
 
-    await client.query(`DELETE FROM onboarding_states WHERE user_id = $1`, [userId]);
-    await client.query(`DELETE FROM user_habits WHERE user_id = $1`, [userId]);
-    // NOTE: profiles table uses `id` as the auth.users FK, not `user_id`.
+    // Only delete onboarding-state + habits if we have an anon_id (profile exists).
+    // If the user never finished signup-to-profile linkage, anon_id can be null —
+    // in that case there's nothing to clean up in those tables anyway.
+    if (anonId) {
+      await client.query(`DELETE FROM onboarding_states WHERE anon_id = $1`, [anonId]);
+      await client.query(`DELETE FROM user_habits WHERE anon_id = $1`, [anonId]);
+    }
+
+    // profiles keeps id as the auth.users FK; we just NULL the onboarding-related fields.
     await client.query(
       `UPDATE profiles
          SET onboarding_path   = NULL,
@@ -67,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [userId]
     );
 
-    return res.status(200).json({ ok: true, reset: email });
+    return res.status(200).json({ ok: true, reset: email, anon_id_seen: anonId !== null });
   } catch (err: any) {
     console.error('[qa-reset] error:', err);
     // QA endpoint — surface the underlying error so we can diagnose without Vercel logs.
