@@ -55,6 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     await client.query(`DELETE FROM onboarding_states WHERE user_id = $1`, [userId]);
     await client.query(`DELETE FROM user_habits WHERE user_id = $1`, [userId]);
+    // NOTE: profiles table uses `id` as the auth.users FK, not `user_id`.
     await client.query(
       `UPDATE profiles
          SET onboarding_path   = NULL,
@@ -62,7 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              age_group         = NULL,
              gender            = NULL,
              referral_source   = NULL
-       WHERE user_id = $1`,
+       WHERE id = $1`,
       [userId]
     );
 
