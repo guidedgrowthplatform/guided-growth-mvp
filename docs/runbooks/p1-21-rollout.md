@@ -25,8 +25,8 @@ Adds `profiles.anon_id` to split user identity from behavioral data across 15 ta
 ## Rollback
 
 - **Apply failed:** `BEGIN`/`COMMIT` rolled back atomically. Investigate the error and re-run.
-- **Apply succeeded, code is broken:** rollback Vercel to the previous deployment. Note that previous deploys read `user_id` columns which no longer exist, so they will 5xx until either (a) the new code is re-deployed or (b) `025_anon_id_down.sql` is applied.
-- `025_anon_id_down.sql` exists for emergency revert. Test on staging before considering for prod — it is a destructive reversal.
+- **Apply succeeded, code is broken:** rollback Vercel to the previous deployment. Note that previous deploys read `user_id` columns which no longer exist, so they will 5xx until the new code is re-deployed. Forward-fix is the standard rollout strategy.
+- **Emergency schema revert** (last resort, destructive — restores `user_id` columns across session_log, feedback, affirmations, entries, and pre-025 RLS policies): recover the reversal SQL from git history at `git show bb0c3fb:supabase/migrations/025_anon_id_down.sql`. Test on staging before considering for prod. Any rows added after 025 cannot be undone — they'll be dropped along with `anon_id`.
 
 ## Out of scope (follow-up MRs)
 
