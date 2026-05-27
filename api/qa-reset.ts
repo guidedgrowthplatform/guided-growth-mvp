@@ -68,9 +68,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     return res.status(200).json({ ok: true, reset: email });
-  } catch (err) {
+  } catch (err: any) {
     console.error('[qa-reset] error:', err);
-    return res.status(500).json({ error: 'Reset failed' });
+    // QA endpoint — surface the underlying error so we can diagnose without Vercel logs.
+    // Auth + regex guard upstream make this safe (only QA accounts can ever reach this).
+    return res.status(500).json({
+      error: 'Reset failed',
+      message: err?.message ?? String(err),
+      code: err?.code,
+      detail: err?.detail,
+      hint: err?.hint,
+      where: err?.where,
+    });
   } finally {
     client.release();
   }
