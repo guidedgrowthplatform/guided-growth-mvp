@@ -1,26 +1,33 @@
 /**
  * POST /api/qa-reset
  *
- * Scoped QA-only endpoint. Resets onboarding state for the single
- * dedicated test account so MobAI-driven test runs can start fresh
- * without manual SQL intervention.
+ * Scoped QA-only endpoint. Resets onboarding state for the dedicated
+ * test accounts so MobAI-driven test runs can start fresh without
+ * manual SQL intervention.
  *
- * What it touches (and ONLY what it touches):
+ * Request body (optional): { "email": "qa-onboarding-fresh@guidedgrowth.test" }
+ * Defaults to "qa-onboarding-fresh@guidedgrowth.test" when omitted.
+ *
+ * SAFETY: the email is guarded by a strict regex — only addresses matching
+ *   ^qa-onboarding-[a-z0-9-]+@guidedgrowth\.test$
+ * are accepted. ANY other email (real users, admin users, etc.) is rejected
+ * with 400. The guard is the security boundary, not the default value.
+ *
+ * What it touches (and ONLY what it touches) for the matched user:
  *   - DELETE FROM onboarding_states WHERE user_id = <qa user>
  *   - DELETE FROM user_habits      WHERE user_id = <qa user>
  *   - UPDATE profiles SET onboarding-related fields = NULL WHERE user_id = <qa user>
  *
- * It cannot touch any other user or any other table.
- * Guarded by a secret bearer token stored in Vercel env (QA_RESET_TOKEN).
+ * Auth: bearer token via Authorization header, value = process.env.QA_RESET_TOKEN.
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from './_lib/db.js';
 
-const QA_EMAIL = 'qa-onboarding-01@guidedgrowth.test';
+const QA_EMAIL_PATTERN = /^qa-onboarding-[a-z0-9-]+@guidedgrowth\.test$/;
+const DEFAULT_QA_EMAIL = 'qa-onboarding-fresh@guidedgrowth.test';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Only POST
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // Verify bearer token
@@ -29,25 +36,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  // Resolve the target email and enforce the QA-only guard
+  const email = (req.body?.email ?? DEFAULT_QA_EMAIL).toString().toLowerCase().trim();
+  if (!QA_EMAIL_PATTERN.test(email)) {
+    return res.status(400).json({ error: 'Email is not a QA account (must match qa-onboarding-*@guidedgrowth.test)' });
+  }
+
   const client = await pool.connect();
   try {
-    // Look up the QA user — hardcoded email is the only safety net we need
     const { rows: userRows } = await client.query<{ id: string }>(
       `SELECT id FROM auth.users WHERE email = $1`,
-      [QA_EMAIL]
+      [email]
     );
     if (!userRows.length) {
-      return res.status(404).json({ error: `QA user ${QA_EMAIL} not found` });
+      return res.status(404).json({ error: `QA user ${email} not found` });
     }
     const userId = userRows[0].id;
 
-    // Clear onboarding state
     await client.query(`DELETE FROM onboarding_states WHERE user_id = $1`, [userId]);
-
-    // Clear habits created during onboarding
     await client.query(`DELETE FROM user_habits WHERE user_id = $1`, [userId]);
-
-    // Reset profile onboarding fields only (keep the profile row itself)
     await client.query(
       `UPDATE profiles
          SET onboarding_path   = NULL,
@@ -59,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [userId]
     );
 
-    return res.status(200).json({ ok: true, reset: QA_EMAIL });
+    return res.status(200).json({ ok: true, reset: email });
   } catch (err) {
     console.error('[qa-reset] error:', err);
     return res.status(500).json({ error: 'Reset failed' });
