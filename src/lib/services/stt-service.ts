@@ -1,4 +1,4 @@
-// STT recording service — captures mic audio, encodes WAV, sends to Cartesia Ink / OpenAI Whisper
+// STT recording service — captures mic audio, encodes WAV, sends to /api/stt (Soniox)
 import { Capacitor } from '@capacitor/core';
 import { supabase, sessionReady } from '@/lib/supabase';
 import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
@@ -392,7 +392,7 @@ export async function startRecording(callbacks: SttCallbacks): Promise<void> {
   }
 }
 
-export async function stopAndTranscribe(): Promise<string> {
+export async function stopAndTranscribe(externalSignal?: AbortSignal): Promise<string> {
   // If already transcribing, wait briefly then bail — prevents stuck state
   if (isTranscribing) {
     console.warn('[STT] stopAndTranscribe called while already transcribing');
@@ -458,20 +458,30 @@ export async function stopAndTranscribe(): Promise<string> {
 
     const form = new FormData();
     form.append('file', wavBlob, 'recording.wav');
-    form.append('model_id', 'scribe_v1');
-    form.append('language_code', 'en');
-    form.append('tag_audio_events', 'false');
-    form.append('diarize', 'false');
 
     const controller = new AbortController();
     currentSttAbort = controller;
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort('timeout'), 30000);
+    // External-abort plumb-through: caller-supplied signal forwards into fetch.
+    let externalAborted = false;
+    const onExternalAbort = () => {
+      externalAborted = true;
+      controller.abort('external');
+    };
+    if (externalSignal) {
+      if (externalSignal.aborted) {
+        externalAborted = true;
+        controller.abort('external');
+      } else {
+        externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+      }
+    }
 
     const authHeaders = await getAuthHeaders();
 
     let res: Response;
     try {
-      res = await fetch(`${getApiBase()}/api/cartesia-stt`, {
+      res = await fetch(`${getApiBase()}/api/stt`, {
         method: 'POST',
         headers: authHeaders,
         body: form,
@@ -479,6 +489,10 @@ export async function stopAndTranscribe(): Promise<string> {
       });
     } catch (fetchErr) {
       clearTimeout(timeoutId);
+      // External cancel: surface a DOMException AbortError for callers to detect.
+      if (externalAborted) {
+        throw new DOMException('STT aborted by caller', 'AbortError');
+      }
       const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
       if (msg.includes('abort')) {
         throw new Error("Hmm, I didn't catch that in time. Try saying it again?");
@@ -486,6 +500,7 @@ export async function stopAndTranscribe(): Promise<string> {
       throw new Error("Couldn't connect right now. Try again in a moment.");
     } finally {
       clearTimeout(timeoutId);
+      if (externalSignal) externalSignal.removeEventListener('abort', onExternalAbort);
       if (currentSttAbort === controller) {
         currentSttAbort = null;
       }

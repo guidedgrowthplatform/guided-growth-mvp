@@ -6,7 +6,7 @@ What's wired today. **Do not extend.** Reference for reading existing code, debu
 
 ```
 Mic (getUserMedia) → src/lib/services/stt-service.ts (PCM upload)
-  → POST /api/cartesia-stt (Cartesia Ink REST) → transcript
+  → POST /api/stt (Soniox async REST) → transcript
     → useVoiceCommand.processTranscript()
       → localParse() (regex fallback) OR POST /api/process-command (gpt-4o-mini)
         → { action, entity, params, confidence }
@@ -21,7 +21,7 @@ Mic (getUserMedia) → src/lib/services/stt-service.ts (PCM upload)
 
 | File | Purpose | Migration target |
 |---|---|---|
-| `api/cartesia-stt.ts` | One-shot STT for the voice-command pipeline. POSTs to Cartesia Ink. | Likely renamed (`api/stt.ts`) but logic stays. |
+| `api/stt.ts` | One-shot STT for the voice-command pipeline. POSTs to Soniox async REST. | Stable. |
 | `api/cartesia-tts.ts` | One-shot TTS. POSTs `https://api.cartesia.ai/tts/bytes`. | Likely renamed (`api/tts.ts`) but logic stays. |
 | `api/process-command.ts` | GPT-4o-mini NLU. Parses transcript → `{ action, entity, params, confidence }`. | Folds into `callLLM()` with `screen_contexts` ctx. |
 
@@ -29,7 +29,7 @@ Mic (getUserMedia) → src/lib/services/stt-service.ts (PCM upload)
 
 | File | Purpose |
 |---|---|
-| `src/lib/services/stt-service.ts` | `getUserMedia` → PCM → upload to `/api/cartesia-stt`. |
+| `src/lib/services/stt-service.ts` | `getUserMedia` → PCM → upload to `/api/stt`. |
 | `src/lib/services/tts-service.ts` | Browser TTS playback; calls `/api/cartesia-tts`. **Used by ~17 UI components**, not just Path 2. |
 | `src/lib/services/action-dispatcher.ts` | Maps `{action, entity, params}` → DataService method calls. |
 | `src/lib/config/dispatcher-config.ts` | Dispatcher rules (which action+entity → which method). |
@@ -67,7 +67,7 @@ Cost (current):
 
 ## Key design decisions
 
-1. **STT provider is Cartesia (Ink)**, via `/api/cartesia-stt`. The earlier Web Speech API / DeepGram / Whisper evaluation was POC-era and got overruled — don't reopen that comparison without a real reason.
+1. **STT provider is Soniox (async REST)**, via `/api/stt`. Migrated from OpenAI Whisper; the earlier Web Speech / DeepGram / Ink evaluations are POC-era history — don't reopen without a real reason.
 2. **NLU model is `gpt-4o-mini`** at temperature 0.1 with `response_format: json_object`. Same prompt for all surfaces.
 3. **Local parser exists as a fallback** — if `/api/process-command` is unavailable, `useVoiceCommand.localParse()` does regex parsing instead of erroring. Keep both paths working until the migration decides whether to retain offline support.
 4. **Single-action only** — one intent per transcript. Multi-intent is intentionally unsupported.
@@ -123,11 +123,13 @@ Cost (current):
 | TTS Voice | All English voices | Best available |
 | Talk-back toggle | on / off | on |
 
-## Naming trap — `cartesia-stt` and `cartesia-tts` are NOT Path 1
+## Naming trap — `/api/cartesia-tts` is NOT Path 1
 
-These endpoint names suggest they belong to the legacy Cartesia Line agent (Path 1). They don't. They're Path 2's REST endpoints. The Cartesia Line agent does its own STT and TTS internally over WebSocket — it never hits `/api/cartesia-stt` or `/api/cartesia-tts`.
+The TTS endpoint name still has "cartesia" in it, which suggests it belongs to the legacy Cartesia Line agent (Path 1). It doesn't — it's a Path 2 REST endpoint. The legacy Line agent does its own STT and TTS internally over WebSocket — it never hits `/api/stt` or `/api/cartesia-tts`.
 
-If you're tracing a request to those endpoints, you're in Path 2.
+(`/api/stt` was previously named `/api/cartesia-stt` for the same historical reason; it's been renamed.)
+
+If you're tracing a request to either endpoint, you're in Path 2.
 
 ## Audio formats
 
@@ -139,7 +141,7 @@ If you're tracing a request to those endpoints, you're in Path 2.
 ## Cartesia version
 
 `Cartesia-Version: 2026-03-01` header on the STT/TTS REST calls. Pinned in:
-- `api/cartesia-stt.ts`
+- `api/stt.ts`
 - `api/cartesia-tts.ts`
 
 Bump together when Cartesia ships a breaking version. Coordinate with the Path 1 legacy code's `2026-03-01` pin until that retires.

@@ -43,7 +43,7 @@ Pick by what the surface needs. **Don't use a heavier shape than required** — 
 
 ```
 1. Does the surface need to play audio that the user hears?
-   NO  → no Path 2 audio. The surface might be Path 3 (text-only) or no AI at all.
+   NO  → no Path 2 audio. The surface might be Path 2 (app-code, text-only) or no AI at all.
    YES → continue.
 
 2. Does the user need to speak a reply?
@@ -63,7 +63,7 @@ Pick by what the surface needs. **Don't use a heavier shape than required** — 
 | MP3 lookup + playback | `useVoicePlayer` (target hook) + `voice-manifest.json` (target manifest in Supabase Storage) | Plays pre-generated MP3 by key. Falls back to Sonic REST if asset missing. |
 | Sonic REST (live TTS) | `api/cartesia-tts.ts` (today) | POSTs `https://api.cartesia.ai/tts/bytes` with text + voice_id + model_id (`sonic-3`). Returns audio bytes. |
 | TTS playback | `src/lib/services/tts-service.ts` | Browser-side scheduling; consumed by ~17 UI components beyond Path 2 (toasts, check-in cards, feedback button). Audit when touching. |
-| Mic capture + Ink STT | `src/lib/services/stt-service.ts` + `api/cartesia-stt.ts` | `getUserMedia` → PCM upload → Ink REST → transcript. |
+| Mic capture + Ink STT | `src/lib/services/stt-service.ts` + `api/stt.ts` | `getUserMedia` → PCM upload → Ink REST → transcript. |
 | Intent parse (target) | `callLLM()` + `screen_contexts` ctx for the surface | Returns same `{ action, entity, params, confidence }` shape as today's NLU, plus optional spoken reply text. |
 | Intent parse (today) | `api/process-command.ts` + `src/lib/prompts/voice-command-system.ts` | GPT-4o-mini, temperature 0.1, `response_format: json_object`. 21 few-shot examples + 17 parse rules. |
 | CRUD execution | `src/lib/services/action-dispatcher.ts` + `src/lib/config/dispatcher-config.ts` | Maps intent → DataService method. |

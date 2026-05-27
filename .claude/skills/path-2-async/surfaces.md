@@ -32,7 +32,7 @@ Every Path 2 surface, with the hook chain and which composition shape (A/B/C/D f
 
 | Layer | File |
 |---|---|
-| STT REST handler | `api/cartesia-stt.ts` |
+| STT REST handler | `api/stt.ts` |
 | TTS REST handler | `api/cartesia-tts.ts` |
 | NLU REST handler (legacy) | `api/process-command.ts` |
 | NLU prompt (legacy) | `src/lib/prompts/voice-command-system.ts` |
