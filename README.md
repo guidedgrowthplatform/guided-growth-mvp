@@ -77,7 +77,7 @@ npx vercel --prod
 - Tailwind CSS
 - Supabase (Postgres + Auth)
 - OpenAI GPT-4o-mini (voice command parsing)
-- Cartesia Sonic-3 (TTS) / OpenAI Whisper (STT)
+- Cartesia Sonic-3 (TTS) / Soniox (STT)
 - Web Vibration API / Capacitor Haptics
 
 ## Architecture

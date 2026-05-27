@@ -30,7 +30,7 @@ This app's Vapi assistants will route their LLM calls via `callLLM()` so context
 
 User talks → Ink turns audio into written words. Streaming, low-latency.
 
-In the new architecture, Ink shows up in **Path 2** (the async reflection composition) for transcribing the user's spoken reply after the MP3 prompt plays. Endpoint: `POST https://api.cartesia.ai/stt/...` (currently wrapped by `/api/cartesia-stt.ts`).
+In the new architecture, Ink shows up in **Path 2** (the async reflection composition) for transcribing the user's spoken reply after the MP3 prompt plays. Endpoint: `POST https://api.cartesia.ai/stt/...` (currently wrapped by `/api/stt.ts`).
 
 ### Sonic — text-to-speech
 
@@ -71,7 +71,7 @@ People say "Cartesia" to mean any of these. Always disambiguate:
 | "the Cartesia agent" | almost always Line (legacy onboarding agent) — verify before assuming |
 | "Cartesia voice" | the cloned voice ID (a `voice_id` parameter); same across Sonic REST and Vapi-via-Sonic |
 | "Sonic API" | `POST /tts/bytes` |
-| "Ink API" | `POST /stt/...` (today wrapped by `/api/cartesia-stt`) |
+| "Ink API" | `POST /stt/...` (today wrapped by `/api/stt`) |
 
 ## LLM providers
 
@@ -92,4 +92,4 @@ Swap providers without touching voice infra (Vapi or Cartesia). Two bills, two f
 | "If we use Vapi, we drop Cartesia." | No. Vapi uses Cartesia Sonic for TTS. The voice survives. |
 | "Sonic-3 is a different product from Sonic." | No. Same product, newer model. |
 | "Line and Vapi do the same thing." | Functionally yes, but Line is retiring in this app. Vapi takes over. |
-| "/api/cartesia-stt belongs to the onboarding agent." | No. It's a Path-2 REST endpoint. The legacy Line agent did its own STT internally. |
+| "/api/stt belongs to the onboarding agent." | No. It's a Path-2 REST endpoint. The legacy Line agent did its own STT internally. |
