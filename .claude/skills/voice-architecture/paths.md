@@ -23,10 +23,10 @@ User → Frontend → MP3 prompt (plays to user)
                 → User
 Side effects: ActionDispatcher logic invoked from callLLM result → Supabase writes → UI updates
 
-PATH 3 — Direct LLM (Text Chat)
+PATH 3 — Direct LLM (Three non-Vapi orb states — UX-26 States 2/3/4)
 ─────────────────────────────────────────────────────────────────────────
 User → Frontend → callLLM() → LLM → Frontend renders text → User
-Side effects: tap actions write session_log; CRUD via ActionDispatcher when intent maps to one
+Side effects: tap actions write session_log; CRUD via ActionDispatcher when intent maps to one (snake_case tools: update_profile, navigate_next, log_event)
 ```
 
 ## Decision matrix — which path for a new surface?
@@ -45,10 +45,10 @@ Ask in order. First "yes" picks.
 
 3. Is voice involved at all (mic input or TTS output)?
    YES → Path 2 (Async).  Compose MP3 / Ink STT / callLLM / Sonic TTS as needed.
-   NO  → Path 3 (Direct LLM).
+   NO  → Path 3 (Direct LLM, the three non-Vapi orb states).
 ```
 
-Path 1 only opens for the conversational onboarding journey. Everything else conversational and voice-flavored is Path 2. Everything text-only is Path 3.
+Path 1 only opens for the conversational onboarding journey (full-duplex orb State 1). Everything else conversational and voice-flavored is Path 2 (async). The three non-Vapi orb states (UX-26 States 2/3/4) — wherever they appear — are Path 3.
 
 ## Per-surface mapping (target state)
 
@@ -68,8 +68,10 @@ Path 1 only opens for the conversational onboarding journey. Everything else con
 | Journal voice input | Path 2 | Ink STT only (transcript-only mode). No LLM unless user asks for analysis. |
 | Feedback voice note | Path 2 | Ink STT only. |
 | Affirmation playback | Path 2 | Sonic REST one-shot. |
-| Text chat surfaces | Path 3 | callLLM only. |
-| Tap-driven actions (add habit, log goal, etc.) | Path 3 | Write session_log; LLM reads delta on next call. See [shared.md](shared.md). |
+| Onboarding chat overlay — typed branch | Path 3 | callLLM only. |
+| Tap actions (accept suggestion, change pref, navigate step, complete habit) | Path 3 | Write session_log; LLM reads delta on next call. See [shared.md](shared.md). |
+| Post-onboarding CHAT screen | Path 3 | Defaults State 2; flips to 3 or 4 via orb. Same callLLM path. |
+| Tap-driven LLM consumers (suggestions, summaries, parse-on-submit) | Path 3 | callLLM with synthesized prompt. |
 
 > **Pre-recorded MP3 status (May 2026)**: not all of SPLASH/PREF/MIC/POST-AUTH have generated MP3 assets yet. Until they do, those screens fall through to live Sonic REST under Path 2. The flow is the same; only the "MP3 prompt" box collapses to a no-op.
 
@@ -77,7 +79,7 @@ Path 1 only opens for the conversational onboarding journey. Everything else con
 
 | | Path 1 — Vapi | Path 2 — Async | Path 3 — Direct LLM |
 |---|---|---|---|
-| **Triggered by** | Onboarding screen mount, chat overlay open | User opens check-in / journal / feedback / single-utterance command | User submits text in chat / tap action |
+| **Triggered by** | Onboarding screen mount, chat overlay open (full-duplex) | User opens check-in / journal / feedback / single-utterance command | User submits text or finishes STT in a non-Vapi orb state |
 | **Transport** | Vapi Web SDK (WebRTC) | HTTPS POST to Ink + Sonic + LLM endpoints | HTTPS POST to LLM endpoint |
 | **Conversation** | Multi-turn, interruption-aware | Single turn (one prompt → one reply) | Single turn |
 | **STT** | Deepgram Flux (inside Vapi) | Cartesia Ink REST | n/a |
@@ -91,7 +93,7 @@ Path 1 only opens for the conversational onboarding journey. Everything else con
 
 - **Path 1 only for live conversation** — Vapi billed per session-minute. Opening it speculatively burns minutes for silence. Restrict to surfaces that genuinely need bidirectional realtime.
 - **Path 2 for asynchronous voice** — Sonic and Ink billed per usage. Cheaper per interaction. No persistent connection, so cost scales with what the user actually does.
-- **Path 3 for everything else** — text chat and tap-driven flows don't need voice machinery. Going through callLLM keeps context (`screen_contexts`) and state delta (`session_log`) consistent across paths.
+- **Path 3 for the three non-Vapi orb states** — text or STT-only or TTS-only flows don't need Vapi's full duplex. Going through callLLM keeps context (`screen_contexts`) and state delta (`session_log`) consistent across paths.
 
 ## Anti-patterns to refuse
 

@@ -1,19 +1,19 @@
 # Path 3 — Side Effects, session_log, and the "Caught Up" Pattern
 
-How text-only and tap-driven flows still trigger DB writes, frontend changes, and LLM awareness — without going through voice infrastructure.
+How Path 3 surfaces (UX-26 States 2/3/4) trigger DB writes, frontend changes, and LLM awareness — without going through Vapi.
 
 ## Two kinds of side effects
 
 ### 1. LLM-driven (chat surface returns an intent)
 
-The user types something in a chat surface. callLLM returns a response that includes a CRUD intent. The intent is dispatched the same way Path 2 does it.
+The user types something in a chat surface. callLLM returns a response that includes a CRUD intent (snake_case tool name like `update_profile`, `navigate_next`, or `log_event`). The intent is dispatched the same way path-2-async does it.
 
 ```
 User types: "I just finished my morning meditation"
     ↓
-callLLM('direct')
+callLLM()
     ↓
-LLM returns: { reply: "Nice! Logged.", action: "complete", entity: "habit", params: { name: "meditation" }, confidence: 0.92 }
+LLM returns: { reply: "Nice! Logged.", tool: "log_event", params: { entity: "habit", name: "meditation" }, confidence: 0.92 }
     ↓
 Frontend renders reply text
     ↓
@@ -22,7 +22,7 @@ ActionDispatcher dispatches the intent → DataService → Supabase
 session_log write: event_type='habit_completed', payload={...}
 ```
 
-The dispatcher branch is the same as Path 2 — just invoked from a text response instead of a transcribed voice utterance.
+The dispatcher branch is the same as path-2-async — just invoked from a text response instead of a transcribed voice utterance.
 
 ### 2. Tap-driven (no LLM involved right now)
 
@@ -47,8 +47,8 @@ Both keep `session_log` honest. The LLM's awareness depends on **every meaningfu
 ## The "caught up" sequence
 
 ```
-Time 0: User opens evening check-in.
-        callLLM('direct') runs.
+Time 0: User opens a screen that calls the LLM.
+        callLLM() runs.
         Last LLM timestamp recorded: T0.
 
 Time 1: User taps "complete habit: meditation".
@@ -61,8 +61,8 @@ Time 2: User taps "log goal: walk 5000 steps".
         session_log write: event_type='goal_logged', timestamp T2.
         No LLM call.
 
-Time 3: User opens morning check-in next day.
-        callLLM('direct') runs.
+Time 3: User opens the next screen that calls the LLM.
+        callLLM() runs.
         Reads session_log rows for user since T0.
         Sees: habit_completed (T1), goal_logged (T2).
         Prepends to prompt as state delta.
@@ -81,7 +81,7 @@ Most taps shouldn't. But these do:
 
 When in doubt: if the tap's purpose is "do this thing", skip the LLM. If the tap's purpose is "tell me / suggest / interpret", call the LLM.
 
-## Side-effect chain — same shape as Path 1 and Path 2
+## Side-effect chain — same shape as Path 1 and path-2-async
 
 The pattern repeats across all three paths:
 
@@ -92,15 +92,15 @@ Source of intent → Side-effect handler → Supabase write → UI updates
 | Path | Source | Handler | UI bridge |
 |---|---|---|---|
 | Path 1 | Vapi tool call | Vapi tool webhook (`/api/vapi-tool`) | Supabase Realtime → useOnboardingRealtimeSync |
-| Path 2 | callLLM intent (or legacy `/api/process-command` intent) | ActionDispatcher | React Query invalidate |
-| Path 3 | callLLM intent (chat surface) OR tap action | ActionDispatcher OR direct DataService | React Query invalidate; session_log write |
+| path-2-async | callLLM intent (or legacy `/api/process-command` intent) | ActionDispatcher | React Query invalidate |
+| Path 3 | callLLM intent (chat surface / STT) OR tap action | ActionDispatcher OR direct DataService | React Query invalidate; session_log write |
 
 Same shape, different sources. Don't invent new patterns.
 
 ## When NOT to use ActionDispatcher
 
 ActionDispatcher is for intents that fit the `{ action, entity, params, confidence }` shape (CRUD-ish operations). It's the right destination for:
-- Things the LLM might also do via a single-utterance command (Path 2)
+- Things the LLM might also do via a single-utterance command (path-2-async)
 - Tap actions that mirror a voice command
 
 It's the wrong destination for:

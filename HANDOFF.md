@@ -1,8 +1,13 @@
 # Session Handoff — Path 3 Text Chat + Text-Driven Onboarding
 
-_Updated: 2026-05-25 · Branch: `feat/llm-responses-api`_
+_Updated: 2026-05-28 · Carved from `fix/orb-four-state-routing` (now merged to main; orb four-state work split into its own MR)._
 
 Three related workstreams. Read top-to-bottom once, then jump to **Remaining Work**.
+
+> **Note on orb four-state routing:** the four-state orb model (UX-26 States 1–4) is being carved
+> into its own MR rather than landing with this docs/onboarding work. In the interim,
+> `voice_in_only` mode is **non-functional** pending the Soniox realtime STT migration — surfaces
+> that map to that state should fall back to text input until the migration lands.
 
 ---
 
@@ -25,7 +30,7 @@ Three related workstreams. Read top-to-bottom once, then jump to **Remaining Wor
 
 ## 1. Workstream A — Path 3 chat-session hardening (DONE, committed)
 
-**What it is:** Path 3 = the Direct-LLM **text chat** path (`/api/llm` streaming + `useLLM` +
+**What it is:** Path 3 = the **text chat** path (`/api/llm` streaming + `useLLM` +
 `chat_messages` persistence). Surface: the post-onboarding CHAT screen.
 
 **Headline fix:** client-computed `turn_index` desynced from the DB whenever a turn used a tool →
