@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser, setUserContext, handlePreflight } from './_lib/auth.js';
 import { extractDateFromTranscript } from './_lib/date-parser.js';
-import { buildOnboardingPrompt } from './_lib/llm/onboardingPrompt.js';
 import { scrubPII } from './_lib/pii-scrubber.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
 import { getClientIp } from './_lib/validation.js';
@@ -304,7 +303,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'OPENAI_API_KEY not configured' });
   }
 
-  const { transcript, existingHabits, onboarding_context } = req.body;
+  const { transcript, existingHabits } = req.body;
   if (!transcript || typeof transcript !== 'string') {
     return res.status(400).json({ error: 'Missing transcript' });
   }
@@ -312,11 +311,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Transcript too long (max 2000 chars)' });
   }
 
-  // Check if this is an onboarding request
-  const isOnboarding = !!(onboarding_context && typeof onboarding_context === 'object');
-  const onboardingCtx = isOnboarding ? (onboarding_context as Record<string, unknown>) : null;
-
-  // Sanitize existingHabits: limit count and per-item length to prevent prompt injection / cost abuse
   const sanitizedHabits: string[] = [];
   if (Array.isArray(existingHabits)) {
     for (const h of existingHabits.slice(0, 50)) {
@@ -331,14 +325,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? `\n\n## User's Existing Habits\n${sanitizedHabits.join(', ')}\n\nOnly correct a habit name to an existing one when the spoken name is PHONETICALLY ALMOST IDENTICAL (e.g. "playing pedal" → "playing paddle"). If the user says a clearly different name (e.g. "playing laptop" vs "playing game"), treat it as a NEW habit — do NOT match to the existing one. When in doubt, use the name exactly as spoken.`
       : '';
 
-  // For onboarding, build a custom system prompt and sanitize options
-  const systemPrompt = isOnboarding
-    ? buildOnboardingPrompt(onboardingCtx as Record<string, unknown>)
-    : SYSTEM_PROMPT + habitContext;
-
-  // Scrub PII from transcript before sending to OpenAI
-  // EXCEPTION: onboarding Step 1 needs the user's real name, so skip scrubbing for onboarding
-  const sanitizedTranscript = isOnboarding ? transcript : scrubPII(transcript);
+  const systemPrompt = SYSTEM_PROMPT + habitContext;
+  const sanitizedTranscript = scrubPII(transcript);
 
   try {
     const startTime = Date.now();
@@ -388,71 +376,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(502).json({ error: 'GPT response missing required field (action)' });
     }
 
-    // Different validation for onboarding vs home voice commands
-    if (isOnboarding) {
-      const action = String(parsed.action);
-      const VALID_ONBOARDING_ACTIONS = new Set([
-        // legacy
-        'onboarding_select',
-        'fill_field',
-        // Flow 3 vocabulary — see docs/superpowers/specs/2026-05-22-voice-driven-onboarding-flow-3-design.md
-        'select_option',
-        'select_multiple',
-        'add_habit',
-        'update_habit',
-        'remove_habit',
-        'set_reflection_config',
-        'set_path',
-        'confirm_plan',
-        'navigate_next',
-        'error',
-      ]);
-      if (!VALID_ONBOARDING_ACTIONS.has(action)) {
-        console.error('Invalid onboarding action:', parsed.action);
-        return res.status(502).json({ error: 'Invalid onboarding action' });
-      }
-    } else {
-      // Home voice commands need both action and entity
-      if (!parsed.entity) {
-        console.error('GPT response missing entity:', parsed);
-        return res.status(502).json({ error: 'GPT response missing required field (entity)' });
-      }
+    if (!parsed.entity) {
+      console.error('GPT response missing entity:', parsed);
+      return res.status(502).json({ error: 'GPT response missing required field (entity)' });
+    }
 
-      // Allowlist validation — prevent prompt injection from returning unexpected actions
-      const VALID_ACTIONS = new Set([
-        'create',
-        'complete',
-        'delete',
-        'update',
-        'query',
-        'log',
-        'reflect',
-        'suggest',
-        'help',
-        'checkin',
-        'focus',
-      ]);
-      const VALID_ENTITIES = new Set(['habit', 'metric', 'journal', 'summary', 'checkin', 'focus']);
-      if (!VALID_ACTIONS.has(String(parsed.action)) || !VALID_ENTITIES.has(String(parsed.entity))) {
-        console.error('GPT returned invalid action/entity:', parsed.action, parsed.entity);
-        return res.status(502).json({ error: 'Unexpected command type returned' });
-      }
+    const VALID_ACTIONS = new Set([
+      'create',
+      'complete',
+      'delete',
+      'update',
+      'query',
+      'log',
+      'reflect',
+      'suggest',
+      'help',
+      'checkin',
+      'focus',
+    ]);
+    const VALID_ENTITIES = new Set(['habit', 'metric', 'journal', 'summary', 'checkin', 'focus']);
+    if (!VALID_ACTIONS.has(String(parsed.action)) || !VALID_ENTITIES.has(String(parsed.entity))) {
+      console.error('GPT returned invalid action/entity:', parsed.action, parsed.entity);
+      return res.status(502).json({ error: 'Unexpected command type returned' });
     }
 
     const latency = Date.now() - startTime;
 
-    // ─── Post-processing: extract date from transcript if GPT missed it (home voice only) ───
     const params = (parsed.params || {}) as Record<string, unknown>;
-    if (!isOnboarding) {
-      const needsDate = ['complete', 'log'].includes(String(parsed.action));
-      const gptDateIsToday = !params.date || params.date === 'today';
+    const needsDate = ['complete', 'log'].includes(String(parsed.action));
+    const gptDateIsToday = !params.date || params.date === 'today';
 
-      if (needsDate && gptDateIsToday) {
-        const extractedDate = extractDateFromTranscript(transcript);
-        if (extractedDate) {
-          params.date = extractedDate;
-          parsed.params = params;
-        }
+    if (needsDate && gptDateIsToday) {
+      const extractedDate = extractDateFromTranscript(transcript);
+      if (extractedDate) {
+        params.date = extractedDate;
+        parsed.params = params;
       }
     }
 

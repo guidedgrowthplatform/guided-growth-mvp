@@ -61,7 +61,6 @@ export function Step2Page() {
     <OnboardingLayout
       currentStep={2}
       screenId="ONBOARD-FORK--FORM"
-      autoAdvance
       formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"

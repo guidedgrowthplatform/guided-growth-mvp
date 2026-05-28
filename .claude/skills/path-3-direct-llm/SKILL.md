@@ -99,9 +99,27 @@ Everything else writes to `session_log` and waits.
 
 ## Side effects
 
-Path 3 actions can still trigger the same side-effect pattern as Path 1 and path-2-async — when the LLM's response includes a CRUD intent, it routes through the same `ActionDispatcher` → `DataService` → Supabase chain. Tool names are snake_case: `update_profile`, `navigate_next`, `log_event`.
+Path 3 actions can still trigger the same side-effect pattern as Path 1 and path-2-async — when the LLM's response includes a CRUD intent, it routes through the same `ActionDispatcher` → `DataService` → Supabase chain. Base tool names: `update_profile`, `navigate_next`, `log_event`, `get_user_context`.
 
 For tap-driven flows that are pure CRUD (no LLM), call DataService directly **and** write to session_log so the next LLM call is aware. See [side-effects.md](side-effects.md) for the exact pattern.
+
+## Onboarding tool-calling
+
+On `ONBOARD-*` screens the LLM receives a per-screen tool set and the base tools are excluded. Eight tools in `api/_lib/llm/onboarding/schemas.ts`:
+
+- `submit_profile` (ONBOARD-01--FORM)
+- `submit_path_choice` (ONBOARD-FORK--FORM)
+- `submit_category` (ONBOARD-BEGINNER-01)
+- `submit_goals` (ONBOARD-BEGINNER-02)
+- `add_habit` / `remove_habit` (ONBOARD-BEGINNER-03)
+- `submit_reflection_config` (ONBOARD-BEGINNER-07)
+- `submit_brain_dump` (ONBOARD-ADVANCED)
+
+Gating: `getOnboardingTools(screen_id)` in `api/_lib/llm/onboarding/registry.ts`. The `allowedToolNames` gate in `api/llm/[...path].ts` rejects hallucinated base-tool calls on these screens.
+
+Eager-call directive: `ONBOARDING_TOOL_ADDENDUM` in `api/_lib/llm/onboarding/systemPromptAddendum.ts`. The prompt also injects an "## Already-Filled Fields" block from `onboarding_states.data` so the LLM doesn't re-ask across session restart.
+
+Handlers UPSERT into `onboarding_states` keyed on `anon_id` with `GREATEST(current_step, X)` monotonic guards and JSONB `||` merges. See [side-effects.md](side-effects.md) for the full chain.
 
 ## Relationship to the other paths
 

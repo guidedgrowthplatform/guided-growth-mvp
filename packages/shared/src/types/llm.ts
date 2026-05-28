@@ -47,12 +47,3 @@ export interface LLMChatMessage {
   toolEvents?: LLMToolEvent[];
 }
 
-export interface OnboardingAction {
-  action: string;
-  params: Record<string, unknown>;
-}
-
-export interface OnboardingTurnResponse {
-  message: string;
-  actions: OnboardingAction[];
-}

@@ -8,10 +8,10 @@ import { useOnboarding } from '@/hooks/useOnboarding';
  *    values that haven't been saveStep'd yet).
  *
  * Empty / undefined fields are kept as-is in the merged object — the renderer
- * downstream (buildOnboardingPrompt / buildContextMessage) strips them.
+ * downstream (buildContextMessage) strips them.
  *
  * Consumed by:
- * - OnboardingLayout → processTranscript `filled_fields` (parser hot path).
+ * - OnboardingLayout → processTranscript `filled_fields` (Vapi parser hot path).
  * - OnboardingLayout → onboardingVoice.setFormSnapshot() (Vapi context push).
  */
 export function useOnboardingFormSnapshot(

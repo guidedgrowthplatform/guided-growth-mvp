@@ -3,6 +3,7 @@ import { buildSystemPrompt } from '@shared/coaching/systemPrompt.js';
 import type { CoachingStyle } from '@shared/coaching/styles.js';
 import { buildContextMessage } from '@shared/context/buildContextMessage.js';
 import type { SessionStateDeltaEntry } from '@shared/types/context.js';
+import { ONBOARDING_TOOL_ADDENDUM } from './onboarding/systemPromptAddendum.js';
 
 export interface BuildSystemPromptArgs {
   anon_id: string;
@@ -101,14 +102,40 @@ export async function buildSystemPromptForRequest(
   });
 
   const isOnboardingScreen = args.screen_id.startsWith('ONBOARD-');
-  const onboardingNudge = isOnboardingScreen ? `\n\n${ONBOARDING_TOOL_INSTRUCTIONS}` : '';
+  const onboardingNudge = isOnboardingScreen ? `\n\n${ONBOARDING_TOOL_ADDENDUM}` : '';
   const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
+  const alreadyFilledBlock = isOnboardingScreen
+    ? await buildAlreadyFilledBlock(args.anon_id)
+    : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${onboardingNudge}${openerNudge}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${onboardingNudge}${alreadyFilledBlock}${openerNudge}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
+}
+
+async function buildAlreadyFilledBlock(anonId: string): Promise<string> {
+  const res = await pool.query<{
+    data: Record<string, unknown> | null;
+    current_step: number;
+    path: string | null;
+  }>(
+    `SELECT data, current_step, path FROM onboarding_states WHERE anon_id = $1`,
+    [anonId],
+  );
+  const row = res.rows[0];
+  if (!row) return '';
+  const data = row.data ?? {};
+  const hasData = Object.keys(data).length > 0;
+  if (!hasData && !row.path) return '';
+  return (
+    `\n\n## Already-Filled Fields\n` +
+    `current_step: ${row.current_step}\n` +
+    (row.path ? `path: ${row.path}\n` : '') +
+    `data: ${JSON.stringify(data)}\n` +
+    `Do NOT re-ask for any field that already has a value here. Acknowledge briefly if the user re-states it, then move to the next still-missing field per the screen's BEHAVIOR.`
+  );
 }
 
 const OPENER_INSTRUCTIONS = `## Opener Turn
@@ -121,26 +148,3 @@ Rules:
 - No generic greetings like "How can I help?", "What's up?", or "What can I do for you?".
 - Do NOT mention that the chat was just opened. Just open the conversation naturally.
 - Do NOT call any tools on this turn — no \`update_profile\`, no \`navigate_next\`. Pure text only. Tools resume on the next user-initiated turn.`;
-
-const ONBOARDING_TOOL_INSTRUCTIONS = `## Onboarding Screen Rules
-
-When CURRENT SCREEN starts with \`ONBOARD-\`, the screen's BEHAVIOR block is your script. Drive the user through the step — do not just respond conversationally.
-
-OPENING TURN. If this is the first message on this screen (no prior assistant turn for the user-message you're responding to) AND the user's input is a greeting ("Hey", "Hi", "Hello") or otherwise doesn't answer the screen's questions: do NOT greet back generically. Open the screen's script directly — ask the first question from the BEHAVIOR block (or the AI Voice copy if quoted there). For ONBOARD-01 that's: "OK — let me get to know you. What's your name, how old are you, how do you identify, and how did you hear about us?" Never say "What can I help you with?" — this is a guided flow, not a generic chat.
-
-Use tools aggressively. The "What this screen is for" block tells you which fields to capture and where to go next.
-
-Capture profile fields with \`update_profile\`:
-- Recognize names from: "Call me X", "You can call me X", "I'm X", "My name is X", "Name's X", or a single capitalized word reply on a name-asking screen. Save as field=\`name\` (or \`nickname\` if user prefers a short handle).
-- Recognize age expressions ("twenty-five", "25", "I'm 30") → field=\`age_group\` (store the string value, server validates).
-- Recognize gender: "guy/man/boy" → "Male"; "girl/woman/lady" → "Female"; "non-binary/they" → "Other". Save as field=\`gender\`.
-- Recognize referral: "TikTok/Instagram/IG" → "Social media"; "friend" → "Friend"; "Google/search" → "Website". Save as field=\`referral_source\`.
-- Call \`update_profile\` once per field you extract, in the SAME turn as your text response. Tools first, then text.
-
-Never re-ask a field you just captured. If the user gave a name, acknowledge it ("Hey Mint.") and ask only for the next missing field per the screen's BEHAVIOR.
-
-Advance with \`navigate_next\`:
-- When the screen's NEXT condition in BEHAVIOR is satisfied (e.g. all required fields collected, or a single choice made), call \`navigate_next({target_screen: "..."})\` with the screen ID from the BEHAVIOR block's NEXT line.
-- Do this in the same turn — after your acknowledgement text and any \`update_profile\` calls.
-
-If the user is vague or off-topic, follow the EDGE CASES guidance in the BEHAVIOR block instead of falling back to a generic greeting.`;

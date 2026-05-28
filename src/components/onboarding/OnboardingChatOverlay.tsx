@@ -3,12 +3,12 @@ import { X } from 'lucide-react';
 import { useRef, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchScreenRoutes } from '@/api/context';
-import { parseOnboardingInput } from '@/api/onboarding';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import {
   getOnboardingOpener,
   getOnboardingRevisitOpener,
+  type RevisitOpener,
 } from '@/components/onboarding/onboardingOpeners';
 import { DualButton } from '@/components/ui/DualButton';
 import { ChatBubble } from '@/components/voice/ChatBubble';
@@ -29,6 +29,7 @@ import {
   type OnboardingVoiceResult,
 } from '@/hooks/useOnboardingVoice';
 import { useState3VoiceInput } from '@/hooks/useState3VoiceInput';
+import { toolEventToVoiceActions } from '@/lib/onboarding/toolEventToVoiceActions';
 import { orbStateFrom } from '@/lib/orb/orbState';
 import { routeOrbSend } from '@/lib/orb/routeOrbSend';
 import { queryKeys } from '@/lib/query';
@@ -41,14 +42,10 @@ interface OnboardingChatOverlayProps {
   stepContext: OnboardingStepContext;
   onAction: (result: OnboardingVoiceResult) => void;
   onAdvance?: () => void;
-  autoAdvance?: boolean;
   onClose: () => void;
 }
 
 const ADVANCE_DELAY_MS = 800;
-
-const REVISIT_NUDGE =
-  'Sure — just tell me the new value (like “my age is 30”), or say “move on” to keep things as they are.';
 
 const AFFIRMATION_TOKENS = new Set([
   'yes',
@@ -101,7 +98,6 @@ export function OnboardingChatOverlay({
   stepContext,
   onAction,
   onAdvance,
-  autoAdvance = false,
   onClose,
 }: OnboardingChatOverlayProps) {
   const { user } = useAuth();
@@ -133,13 +129,17 @@ export function OnboardingChatOverlay({
   const isVoiceOutOnly = orbState === 'voice_out_only';
   const isVoiceInOnly = orbState === 'voice_in_only';
   const isOverlayDriven = !isVapi;
-  // Prefer the canonical screen_id (matches onboardingPrompt vocab + opener keys).
+  // Prefer the canonical screen_id (matches opener keys).
   const screenId =
     stepContext.screen_id ??
     STEP_TO_SCREEN_ID[stepContext.step] ??
     `ONBOARD-${String(stepContext.step).padStart(2, '0')}`;
   const isOnboardingScreen = screenId.startsWith('ONBOARD-');
-  const { chatSessionId, initialMessages, status: sessionStatus } = useChatSession(screenId);
+  // Onboarding re-entry is recap-only: a fresh session avoids resuming the prior
+  // transcript (no previous_response_id chain) so the coach starts clean.
+  const { chatSessionId, initialMessages, status: sessionStatus } = useChatSession(screenId, {
+    resume: !isOnboardingScreen,
+  });
   const llm = useLLM(screenId, {
     coachingStyle: 'warm',
     chatSessionId: chatSessionId ?? undefined,
@@ -160,13 +160,12 @@ export function OnboardingChatOverlay({
 
   // Frozen at mount (overlay is key={currentStep}). Warm cache snapshot, not
   // page-local state — prefill hydrates after this child's first render.
-  const revisitOpenerRef = useRef<string | null | undefined>(undefined);
-  if (revisitOpenerRef.current === undefined) {
+  const [revisitOpener] = useState<RevisitOpener | null>(() => {
     const onboardingState =
       queryClient.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null;
-    revisitOpenerRef.current = getOnboardingRevisitOpener(screenId, onboardingState) ?? null;
-  }
-  const landedComplete = revisitOpenerRef.current !== null;
+    return getOnboardingRevisitOpener(screenId, onboardingState) ?? null;
+  });
+  const landedComplete = revisitOpener?.complete === true;
   // Latest onAdvance — deferred advance must fire the page's fresh handleNext.
   const onAdvanceRef = useRef(onAdvance);
   useEffect(() => {
@@ -247,61 +246,19 @@ export function OnboardingChatOverlay({
   }, [isVoiceOutOnly]);
 
   const runOnboardingTurn = useCallback(
-    async (text: string) => {
+    (text: string) => {
       if (landedComplete && isAffirmation(text)) {
-        appendMessage({ id: `ai-${Date.now()}`, role: 'ai', text: 'Great — moving on.' });
+        const now = Date.now();
+        appendMessage({ id: `user-${now}`, role: 'user', text });
+        appendMessage({ id: `ai-${now}`, role: 'ai', text: 'Great — moving on.' });
         if (isVoiceOutOnlyRef.current) void speak('Great — moving on.');
         clearTimeout(advanceTimerRef.current);
         advanceTimerRef.current = setTimeout(() => onAdvanceRef.current?.(), ADVANCE_DELAY_MS);
         return;
       }
-      setIsProcessing(true);
-      try {
-        const res = await parseOnboardingInput(
-          screenId,
-          text,
-          stepContext.options ?? [],
-          stepContext.filled_fields ?? {},
-          stepContext.step,
-        );
-        let appliedField = false;
-        for (const a of res.actions) {
-          if (a.action === 'navigate_next' || a.action === 'confirm_plan' || a.action === 'error') {
-            continue;
-          }
-          appliedField = true;
-          onAction({
-            success: true,
-            action: a.action,
-            params: a.params,
-            message: res.message,
-            confidence: 1,
-          });
-        }
-        // Complete screen + no edit → engine has nothing to collect and tends
-        // to improvise; invite the concrete change instead of looping.
-        if (landedComplete && !appliedField) {
-          appendMessage({ id: `ai-${Date.now()}`, role: 'ai', text: REVISIT_NUDGE });
-          if (isVoiceOutOnlyRef.current) void speak(REVISIT_NUDGE);
-        } else if (res.message) {
-          appendMessage({ id: `ai-${Date.now()}`, role: 'ai', text: res.message });
-          if (isVoiceOutOnlyRef.current) void speak(res.message);
-        }
-        if (autoAdvance && appliedField) {
-          clearTimeout(advanceTimerRef.current);
-          advanceTimerRef.current = setTimeout(() => onAdvanceRef.current?.(), ADVANCE_DELAY_MS);
-        }
-      } catch {
-        appendMessage({
-          id: `err-${Date.now()}`,
-          role: 'ai',
-          text: 'Sorry, something went wrong. Please try again.',
-        });
-      } finally {
-        setIsProcessing(false);
-      }
+      void llm.sendMessage(text);
     },
-    [screenId, stepContext, onAction, appendMessage, autoAdvance, landedComplete],
+    [llm, appendMessage, landedComplete],
   );
 
   const handleSendText = useCallback(
@@ -313,9 +270,10 @@ export function OnboardingChatOverlay({
         isStreaming: llm.isStreaming,
       });
       if (action === 'noop') return;
-      appendMessage({ id: `user-${Date.now()}`, role: 'user', text });
-      if (action === 'vapi') runAssistant(text);
-      else if (action === 'onboarding') void runOnboardingTurn(text);
+      if (action === 'vapi') {
+        appendMessage({ id: `user-${Date.now()}`, role: 'user', text });
+        runAssistant(text);
+      } else if (action === 'onboarding') void runOnboardingTurn(text);
       else void llm.sendMessage(text);
     },
     [
@@ -357,9 +315,9 @@ export function OnboardingChatOverlay({
     appendMessage({ id: `llm-error-${Date.now()}`, role: 'ai', text: msg });
   }, [isOverlayDriven, llm.error, appendMessage]);
 
-  // Tool-call side effects; get_user_context / log_event are server-only.
   useEffect(() => {
     if (!isOverlayDriven) return;
+    let confirmAdvance = false;
     for (const evt of llm.toolEvents) {
       if (!evt.result?.ok) continue;
       if (firedToolEventIdsRef.current.has(evt.id)) continue;
@@ -377,11 +335,55 @@ export function OnboardingChatOverlay({
           void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.state });
           break;
         }
-        default:
+        case 'confirm_step_complete': {
+          const cp = evt.result?.payload as { result?: { advance?: boolean } } | undefined;
+          if (cp?.result?.advance === true) confirmAdvance = true;
           break;
+        }
+        default: {
+          const synthetic = toolEventToVoiceActions(evt);
+          if (synthetic.length === 0) break;
+          for (const r of synthetic) onAction(r);
+          const payload = evt.result?.payload as
+            | { ok?: boolean; result?: Record<string, unknown> }
+            | undefined;
+          if (payload?.ok && payload.result) {
+            queryClient.setQueryData<OnboardingState | null>(
+              queryKeys.onboarding.state,
+              (prev) => {
+                if (!prev) return prev;
+                const handlerData =
+                  (payload.result?.data as Record<string, unknown> | undefined) ?? {};
+                const handlerStep =
+                  typeof payload.result?.current_step === 'number'
+                    ? payload.result.current_step
+                    : prev.current_step;
+                // Keep prev.updated_at (no client clock) so the authoritative
+                // Realtime row always wins the updated_at guard downstream.
+                return {
+                  ...prev,
+                  data: { ...prev.data, ...handlerData },
+                  current_step: Math.max(prev.current_step, handlerStep),
+                };
+              },
+            );
+          }
+          break;
+        }
       }
     }
-  }, [isOverlayDriven, llm.toolEvents, navigate, queryClient, routesData]);
+    if (confirmAdvance) {
+      clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = setTimeout(() => onAdvanceRef.current?.(), ADVANCE_DELAY_MS);
+    }
+  }, [
+    isOverlayDriven,
+    llm.toolEvents,
+    navigate,
+    queryClient,
+    routesData,
+    onAction,
+  ]);
 
   // Abort in-flight llm stream when Vapi takes over.
   useEffect(() => {
@@ -399,12 +401,12 @@ export function OnboardingChatOverlay({
   // bubbles never bleed through. Seeds empty when a screen has no opener.
   useLayoutEffect(() => {
     if (!isOverlayDriven || !isOnboardingScreen) return;
-    const opener = revisitOpenerRef.current ?? getOnboardingOpener(screenId);
+    const opener = revisitOpener?.text ?? getOnboardingOpener(screenId);
     startThread(
       screenId,
       opener ? [{ id: `opener-${screenId}`, role: 'ai', text: opener }] : [],
     );
-  }, [isOverlayDriven, isOnboardingScreen, screenId, startThread]);
+  }, [isOverlayDriven, isOnboardingScreen, screenId, startThread, revisitOpener]);
 
   const initialMessagesLength = initialMessages.length;
   const llmMessagesLength = llm.messages.length;

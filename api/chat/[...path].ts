@@ -153,19 +153,24 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
   if (typeof screenId !== 'string' || screenId.length === 0 || screenId.length > 200) {
     return res.status(400).json({ error: 'screen_id is required (1-200 chars)' });
   }
+  // resume=false → always a clean session (no prior-transcript chain). Used on
+  // onboarding screens where the deterministic recap is the only re-entry surface.
+  const resume = body.resume !== false;
 
-  const recent = await pool.query<{ chat_session_id: string }>(
-    `SELECT chat_session_id, max(created_at) AS last_activity
-       FROM chat_messages
-      WHERE anon_id = $1 AND screen_id = $2
-        AND created_at > now() - make_interval(mins => $3)
-      GROUP BY chat_session_id
-      ORDER BY last_activity DESC
-      LIMIT 1`,
-    [user.anonId, screenId, SESSION_RECENCY_MINUTES],
-  );
+  const recent = resume
+    ? await pool.query<{ chat_session_id: string }>(
+        `SELECT chat_session_id, max(created_at) AS last_activity
+           FROM chat_messages
+          WHERE anon_id = $1 AND screen_id = $2
+            AND created_at > now() - make_interval(mins => $3)
+          GROUP BY chat_session_id
+          ORDER BY last_activity DESC
+          LIMIT 1`,
+        [user.anonId, screenId, SESSION_RECENCY_MINUTES],
+      )
+    : null;
 
-  const resumed = recent.rows[0]?.chat_session_id ?? null;
+  const resumed = recent?.rows[0]?.chat_session_id ?? null;
   const chatSessionId = resumed ?? globalThis.crypto.randomUUID();
   const messages = resumed ? await loadMessages(user.anonId, chatSessionId, DEFAULT_LIMIT) : [];
 

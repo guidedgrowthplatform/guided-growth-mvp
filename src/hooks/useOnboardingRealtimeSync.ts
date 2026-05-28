@@ -54,6 +54,8 @@ export function useOnboardingRealtimeSync(): RealtimeSyncStatus {
         (payload: { new?: OnboardingState | null; eventType?: string }) => {
           const next = payload.new ?? null;
           if (!next) return;
+          // RLS already scopes delivery; drop any foreign row as defense-in-depth.
+          if (next.anon_id !== anonId) return;
           // Guard against out-of-order Realtime delivery clobbering the
           // cache with a stale row. `onboarding_states.updated_at` is bumped
           // by the API on every write (Alembic trigger) so strict `>` is

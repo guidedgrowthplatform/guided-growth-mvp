@@ -4,14 +4,32 @@ The three non-Vapi orb states (UX-26 States 2, 3, 4) wherever they appear. Some 
 
 ## Chat surfaces (Path 3)
 
-| Surface | Orb state | Today | Target |
-|---|---|---|---|
-| Onboarding chat overlay — typed branch | State 4 (text only) | Mixed wiring (text submit goes ad-hoc) | callLLM (channel discriminator planned, not implemented today) |
-| Onboarding chat overlay — TTS-out / type-in branch | State 2 (voice_out_only) | TTS via `tts-service.ts` for system lines; text input from user | callLLM for response generation; TTS via `tts-service.ts` for playback |
-| Onboarding chat overlay — STT-in / text-out branch | State 3 (voice_in_only) | Soniox async via `/api/stt`; LLM reply rendered as text only | callLLM after STT transcript ready. **Note**: State 3 is non-functional today pending Soniox realtime STT wiring |
-| Post-onboarding CHAT screen | Defaults State 2, can flip to 3 or 4 via orb | Mixed wiring | Same callLLM path as onboarding overlay |
-| Tap-driven LLM consumers (suggestions, summaries, parse-on-submit) | n/a (no orb interaction) | Ad-hoc | callLLM with synthesized prompt |
-| Background jobs (insights, summaries, nightly digests) | n/a (server-side) | Not built | callLLM server-side |
+| Surface | Orb state | Wiring |
+|---|---|---|
+| Onboarding chat overlay — typed branch | State 4 (text only) | `useLLM` → `/api/llm`. Onboarding tools on `ONBOARD-*` screens (see SKILL.md). |
+| Onboarding chat overlay — TTS-out / type-in branch | State 2 (voice_out_only) | `useLLM` → `/api/llm`; assistant text spoken via `tts-service.ts` |
+| Onboarding chat overlay — STT-in / text-out branch | State 3 (voice_in_only) | Soniox async via `/api/stt` → `useLLM`. State 3 STT realtime wiring is the remaining gap. |
+| Post-onboarding CHAT screen | Defaults State 2, can flip to 3 or 4 via orb | Same `useLLM` path. Base tools, no onboarding tools. |
+| Tap-driven LLM consumers (suggestions, summaries, parse-on-submit) | n/a (no orb interaction) | Ad-hoc — should consolidate on `useLLM`. |
+| Background jobs (insights, summaries, nightly digests) | n/a (server-side) | Not built |
+
+## Onboarding tool-driven screens
+
+These eight surfaces are the LLM-driven onboarding flow. The LLM calls a `submit_*`/`add_habit`/`remove_habit` tool; the handler UPSERTs `onboarding_states`; `useOnboardingRealtimeSync` (mounted on `OnboardingLayout`) writes the cache when Supabase Realtime fires; the overlay also merges `tool_result.result.data` into the cache as a local-only fallback so the form fills even without Realtime; `handleNext` page-level validation gates the advance.
+
+Realtime delivery requires migration `038_onboarding_states_realtime.sql` (REPLICA IDENTITY FULL + add to `supabase_realtime` publication). Pending apply; the local cache merge in the overlay covers the gap.
+
+| Screen | Tool |
+|---|---|
+| `ONBOARD-01--FORM` | `submit_profile` |
+| `ONBOARD-FORK--FORM` | `submit_path_choice` |
+| `ONBOARD-BEGINNER-01` | `submit_category` |
+| `ONBOARD-BEGINNER-02` | `submit_goals` |
+| `ONBOARD-BEGINNER-03` | `add_habit` / `remove_habit` |
+| `ONBOARD-BEGINNER-07` | `submit_reflection_config` |
+| `ONBOARD-ADVANCED` | `submit_brain_dump` |
+
+The overlay also merges `tool_result.result.data` into the cache as a Realtime fallback. The adapter `src/lib/onboarding/toolEventToVoiceActions.ts` translates each tool event into the existing `OnboardingVoiceResult` shape so page-level `onVoiceAction` handlers stay unchanged.
 
 ## Taps that DON'T call the LLM (write session_log instead)
 

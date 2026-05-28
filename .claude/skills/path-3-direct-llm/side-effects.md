@@ -93,9 +93,41 @@ Source of intent → Side-effect handler → Supabase write → UI updates
 |---|---|---|---|
 | Path 1 | Vapi tool call | Vapi tool webhook (`/api/vapi-tool`) | Supabase Realtime → useOnboardingRealtimeSync |
 | path-2-async | callLLM intent (or legacy `/api/process-command` intent) | ActionDispatcher | React Query invalidate |
-| Path 3 | callLLM intent (chat surface / STT) OR tap action | ActionDispatcher OR direct DataService | React Query invalidate; session_log write |
+| Path 3 (chat / STT) | callLLM intent OR onboarding tool call OR tap action | ActionDispatcher OR onboarding dispatch OR direct DataService | React Query invalidate; Supabase Realtime; session_log write |
 
 Same shape, different sources. Don't invent new patterns.
+
+## Onboarding tool-driven side effects (path-3)
+
+On `ONBOARD-*` screens path-3 routes tool calls through a dedicated dispatcher with its own handlers. This is the same data sink as path-1 (Vapi) but invoked in-process by `/api/llm` rather than via a Vapi webhook.
+
+```
+User types in OnboardingChatOverlay (text_only / voice_in_only / voice_out_only)
+    ↓
+useLLM.sendMessage → /api/llm streaming
+    ↓
+OpenAI Responses API returns tool_call (e.g. submit_profile)
+    ↓
+dispatchOnboardingToolCall (api/_lib/llm/onboarding/dispatch.ts)
+    ↓
+handler UPSERTs onboarding_states (anon_id key, GREATEST(current_step, X), JSONB || merge)
+    ↓
+tool_result emitted on SSE; handler echoes merged `data` + `current_step`
+    ↓
+Two parallel UI bridges converge:
+  (a) Supabase Realtime → useOnboardingRealtimeSync → queryKeys.onboarding.state cache
+  (b) OnboardingChatOverlay merges tool_result.result.data into the cache (Realtime fallback)
+    ↓
+page-level handleVoiceAction (via the toolEventToVoiceActions adapter) updates local form state
+    ↓
+auto-advance ~200ms after a successful submit_* (gated by handleNext page validation)
+```
+
+Notes:
+- `anon_id` is injected from the session inside `dispatchOnboardingToolCall`; the LLM schemas never expose it.
+- Path-1 and path-3 hit the same `onboarding_states` rows; the `GREATEST` guard + JSONB `||` merge make concurrent writes commutative.
+- The local cache merge (b) is shape-preserving: it never writes a partial `OnboardingState`, only patches `data` + `current_step` + `updated_at` on existing rows.
+- "## Already-Filled Fields" is injected into the system prompt from `onboarding_states.data` (see `buildSystemPromptForRequest`) so the LLM doesn't re-ask across session restart.
 
 ## When NOT to use ActionDispatcher
 

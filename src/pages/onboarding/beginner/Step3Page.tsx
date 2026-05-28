@@ -62,7 +62,6 @@ export function Step3Page() {
     <OnboardingLayout
       currentStep={3}
       screenId="ONBOARD-BEGINNER-01"
-      autoAdvance
       formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"
