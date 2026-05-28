@@ -39,8 +39,18 @@ export function Step1Page() {
     // Support legacy ageRange data
     if (onboardingState.data.ageRange && !onboardingState.data.age) setAge('');
     if (onboardingState.data.gender) setGender(onboardingState.data.gender as string);
-    if (onboardingState.data.referralSource)
-      setReferralSource(onboardingState.data.referralSource as string);
+    const storedReferral = onboardingState.data.referralSource as string | undefined;
+    if (storedReferral) {
+      if (storedReferral.startsWith('Other: ')) {
+        setReferralSource('Other');
+        setReferralOtherText(storedReferral.slice('Other: '.length));
+      } else if (REFERRAL_OPTIONS.includes(storedReferral)) {
+        setReferralSource(storedReferral);
+      } else {
+        setReferralSource('Other');
+        setReferralOtherText(storedReferral);
+      }
+    }
     if (onboardingState.data.referralOtherText)
       setReferralOtherText(onboardingState.data.referralOtherText as string);
   }, [onboardingState?.data]);
@@ -110,7 +120,6 @@ export function Step1Page() {
     <OnboardingLayout
       currentStep={1}
       screenId="ONBOARD-01--FORM"
-      autoAdvance
       formSnapshot={formSnapshot}
       ctaLabel="Continue"
       onBack={() => navigate('/onboarding/mic-permission')}

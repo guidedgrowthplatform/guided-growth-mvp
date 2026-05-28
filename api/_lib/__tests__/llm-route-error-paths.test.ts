@@ -374,6 +374,8 @@ describe('LLM route — dedupLookup short-circuit', () => {
       rowCount: 1,
       rows: [{ foreign_owned: false, prev_response_id: null }],
     });
+    // writeStartRow INSERT — now runs before the round loop (true start marker).
+    pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [] });
 
     async function* gen1() {
       yield {

@@ -10,6 +10,9 @@ import {
   type ToolName,
   type ToolResult,
 } from '../_lib/llm/tools.js';
+import { dispatchOnboardingToolCall } from '../_lib/llm/onboarding/dispatch.js';
+import { getOnboardingTools } from '../_lib/llm/onboarding/registry.js';
+import { isOnboardingToolName } from '../_lib/llm/onboarding/schemas.js';
 import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
 import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
 import {
@@ -17,7 +20,6 @@ import {
   BuildSystemPromptError,
 } from '../_lib/llm/buildSystemPrompt.js';
 import type { SessionStateDeltaEntry } from '@shared/types/context.js';
-import { runOnboardingTurn } from '../_lib/llm/onboardingTurn.js';
 
 type CoachingStyle = 'warm' | 'direct' | 'reflective';
 const COACHING_STYLES = new Set<CoachingStyle>(['warm', 'direct', 'reflective']);
@@ -54,9 +56,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] === '__index' ? '' : segments[0] || '';
-  if (route === 'onboarding') {
-    return handleOnboardingTurn(req, res);
-  }
   if (route !== '') {
     return res.status(404).json({ error: 'Not found' });
   }
@@ -161,6 +160,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const persistChat = chatSessionId !== null;
 
   const isOnboardingScreen = screenId.startsWith('ONBOARD-');
+  // Onboarding captures real name/age/brain-dump — scrubbing would destroy the
+  // signal. Stored raw in chat_messages (see CLAUDE.md gotcha #8).
   const scrubbedMessage = isOnboardingScreen ? userMessage : scrubPII(userMessage);
 
   let systemPrompt: string;
@@ -308,6 +309,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   };
 
+  // Single-shot end-row write, called before every res.end() (not after).
+  let finalized = false;
+  const finalize = async () => {
+    if (finalized) return;
+    finalized = true;
+    await writeEndRow();
+  };
+
   // Server-owned turn_index. Dedicated client + advisory xact-lock so base=MAX+1
   // and the turn lands contiguously (pool is max:1; pool.query can't span a txn).
   const persistChatTurn = async (opts: { includeAssistant?: boolean } = {}) => {
@@ -421,6 +430,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   ];
   let currentPreviousId: string | null = previousResponseId;
 
+  // On ONBOARD-* screens expose ONLY the onboarding tools (avoids LLM
+  // double-writing via update_profile/navigate_next which target a different
+  // sink). Matches path-1 Vapi assistant scope.
+  const onboardingTools = getOnboardingTools(screenId);
+  const requestTools =
+    mode === 'opener'
+      ? undefined
+      : onboardingTools !== undefined
+        ? onboardingTools
+        : TOOL_DEFINITIONS;
+  const allowedToolNames = new Set<string>(
+    requestTools ? requestTools.map((t) => t.name) : [],
+  );
+
+  await writeStartRow();
+
   try {
     let finished = false;
     for (let round = 0; round < MAX_ROUNDS && !finished; round++) {
@@ -434,7 +459,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         stream = await openResponsesStream({
           instructions: systemPrompt,
           input: currentInput,
-          tools: mode === 'opener' ? undefined : TOOL_DEFINITIONS,
+          tools: requestTools,
           previousResponseId: currentPreviousId ?? undefined,
           store: true,
           signal: abortController.signal,
@@ -449,7 +474,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           stream = await openResponsesStream({
             instructions: systemPrompt,
             input: currentInput,
-            tools: mode === 'opener' ? undefined : TOOL_DEFINITIONS,
+            tools: requestTools,
             previousResponseId: undefined,
             store: true,
             signal: abortController.signal,
@@ -466,6 +491,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         endCode = 'openai_error';
         send({ type: 'error', code: 'openai_error', message: err?.message ?? 'Unknown error' });
         await persistChatTurn({ includeAssistant: false });
+        await finalize();
         res.end();
         return;
       }
@@ -513,12 +539,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         endCode = code;
         send({ type: 'error', code, message: (err as Error).message });
         await persistChatTurn({ includeAssistant: false });
+        await finalize();
         res.end();
         return;
       }
 
       if (streamFailed) {
         await persistChatTurn({ includeAssistant: false });
+        await finalize();
         res.end();
         return;
       }
@@ -552,7 +580,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         send({ type: 'tool_call', id: tc.callId, name: tc.name, args });
 
         let result: ToolResult;
-        if (!TOOL_NAMES.has(tc.name)) {
+        if (!allowedToolNames.has(tc.name)) {
+          result = {
+            ok: false,
+            error: 'unknown_tool',
+            message: `Tool ${tc.name} not available on this screen`,
+          };
+        } else if (isOnboardingToolName(tc.name)) {
+          try {
+            result = await dispatchOnboardingToolCall(tc.name, args, {
+              anon_id: user.anonId,
+              screen_id: screenId,
+            });
+          } catch (err) {
+            result = { ok: false, error: 'handler_error', message: (err as Error).message };
+          }
+        } else if (!TOOL_NAMES.has(tc.name)) {
           result = { ok: false, error: 'unknown_tool', message: `Unknown tool: ${tc.name}` };
         } else {
           try {
@@ -596,6 +639,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       endCode = 'tool_cap_reached';
       send({ type: 'error', code: 'tool_cap_reached', message: 'Exceeded max tool rounds (5)' });
       await persistChatTurn({ includeAssistant: false });
+      await finalize();
       res.end();
       return;
     }
@@ -609,6 +653,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       total_tokens: totalTokens,
       tool_rounds: toolRounds,
     });
+    await finalize();
     res.end();
   } catch (err) {
     const status = (err as { status?: number }).status;
@@ -617,88 +662,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     endCode = code;
     send({ type: 'error', code, message: (err as Error).message });
     await persistChatTurn({ includeAssistant: false });
+    await finalize();
     res.end();
   } finally {
-    await Promise.allSettled([writeStartRow(), writeEndRow()]);
-  }
-}
-
-// POST /api/llm/onboarding — multi-action structured onboarding turn (non-streaming).
-async function handleOnboardingTurn(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const ip = getClientIp(req.headers);
-  const ipRl = checkRateLimit(ip, { windowMs: 60_000, maxRequests: 30, keyPrefix: 'llm-ip' });
-  if (ipRl.limited) {
-    return res.status(429).json({ error: 'Too many requests', retryAfter: ipRl.retryAfter });
-  }
-
-  const user = await requireUser(req, res);
-  if (!user) return;
-  await setUserContext(user.anonId);
-
-  const userRl = checkRateLimit(user.authUserId, {
-    windowMs: 60_000,
-    maxRequests: 20,
-    keyPrefix: 'llm-user',
-  });
-  const userDailyRl = checkRateLimit(user.authUserId, {
-    windowMs: 86_400_000,
-    maxRequests: 200,
-    keyPrefix: 'llm-user-daily',
-  });
-  if (userRl.limited || userDailyRl.limited) {
-    const retryAfter = userRl.retryAfter || userDailyRl.retryAfter;
-    return res.status(429).json({ error: 'Too many requests', retryAfter });
-  }
-
-  const body = (req.body ?? {}) as Record<string, unknown>;
-
-  const screenId = body.screen_id;
-  if (typeof screenId !== 'string' || screenId.length === 0 || screenId.length > 200) {
-    return res.status(400).json({ error: 'screen_id is required (1-200 chars)' });
-  }
-
-  const userMessage = body.user_message;
-  if (typeof userMessage !== 'string' || userMessage.length > 2000) {
-    return res.status(400).json({ error: 'user_message must be a string (≤2000 chars)' });
-  }
-
-  let options: string[] = [];
-  if (body.options !== undefined) {
-    if (!Array.isArray(body.options) || !body.options.every((o) => typeof o === 'string')) {
-      return res.status(400).json({ error: 'options must be an array of strings' });
-    }
-    options = body.options as string[];
-  }
-
-  let filledFields: Record<string, unknown> = {};
-  if (body.filled_fields !== undefined) {
-    if (
-      typeof body.filled_fields !== 'object' ||
-      body.filled_fields === null ||
-      Array.isArray(body.filled_fields)
-    ) {
-      return res.status(400).json({ error: 'filled_fields must be a plain object' });
-    }
-    filledFields = body.filled_fields as Record<string, unknown>;
-  }
-
-  const step = typeof body.step === 'number' ? body.step : undefined;
-
-  try {
-    const result = await runOnboardingTurn({
-      screenId,
-      step,
-      text: userMessage,
-      options,
-      filledFields,
-    });
-    return res.status(200).json(result);
-  } catch (err) {
-    console.error('[/api/llm/onboarding] failed', err);
-    return res.status(502).json({ error: (err as Error).message });
+    await finalize();
   }
 }

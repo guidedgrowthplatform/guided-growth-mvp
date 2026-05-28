@@ -1,0 +1,512 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../../../db.js', () => ({ default: { query: vi.fn(), connect: vi.fn() } }));
+
+const pool = (await import('../../../db.js')).default as {
+  query: ReturnType<typeof vi.fn>;
+  connect: ReturnType<typeof vi.fn>;
+};
+
+const { MAX_HABITS } = await import('../schemas.js');
+
+// addHabit runs inside pool.connect() — fake client routes by SQL shape.
+function habitClient(opts: { hc?: Record<string, unknown> | null; upsert?: unknown }) {
+  const query = vi.fn(async (sql: string) => {
+    if (/SELECT data->'habitConfigs'/.test(sql)) {
+      return { rowCount: 1, rows: [{ hc: opts.hc ?? {} }] };
+    }
+    if (/INSERT INTO onboarding_states/.test(sql)) {
+      return { rowCount: 1, rows: [opts.upsert ?? { data: {}, current_step: 5 }] };
+    }
+    return { rowCount: 0, rows: [] };
+  });
+  return { query, release: vi.fn() };
+}
+
+const { submitProfile } = await import('../handlers/submitProfile.js');
+const { submitPathChoice } = await import('../handlers/submitPathChoice.js');
+const { submitCategory } = await import('../handlers/submitCategory.js');
+const { submitGoals } = await import('../handlers/submitGoals.js');
+const { addHabit } = await import('../handlers/addHabit.js');
+const { removeHabit } = await import('../handlers/removeHabit.js');
+const { submitReflectionConfig } = await import('../handlers/submitReflectionConfig.js');
+const { submitBrainDump } = await import('../handlers/submitBrainDump.js');
+
+const CTX = { anon_id: '11111111-1111-4111-8111-111111111111' };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  pool.query.mockResolvedValue({ rowCount: 1, rows: [] });
+});
+
+// ─── submit_profile ───────────────────────────────────────────────────
+
+describe('submit_profile', () => {
+  it('rejects missing nickname', async () => {
+    const r = await submitProfile(CTX, {});
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects nickname over 50 chars', async () => {
+    const r = await submitProfile(CTX, { nickname: 'a'.repeat(51) });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects nickname with special chars', async () => {
+    const r = await submitProfile(CTX, { nickname: 'a-b!' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects non-numeric age', async () => {
+    const r = await submitProfile(CTX, { nickname: 'alice', age: 'abc' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects age below 13', async () => {
+    const r = await submitProfile(CTX, { nickname: 'alice', age: '12' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects age above 120', async () => {
+    const r = await submitProfile(CTX, { nickname: 'alice', age: '121' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects negative age', async () => {
+    const r = await submitProfile(CTX, { nickname: 'alice', age: '-5' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('accepts boundary ages 13 and 120', async () => {
+    pool.query.mockResolvedValue({ rowCount: 1, rows: [{ data: {}, current_step: 2 }] });
+    const lo = await submitProfile(CTX, { nickname: 'a', age: '13' });
+    const hi = await submitProfile(CTX, { nickname: 'a', age: '120' });
+    expect(lo.ok).toBe(true);
+    expect(hi.ok).toBe(true);
+  });
+
+  it('rejects gender outside enum', async () => {
+    const r = await submitProfile(CTX, { nickname: 'alice', gender: 'unknown' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('accepts nickname-only and emits monotonic UPSERT', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { nickname: 'alice' }, current_step: 2 }],
+    });
+    const r = await submitProfile(CTX, { nickname: 'alice' });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.result).toMatchObject({ data: { nickname: 'alice' }, current_step: 2 });
+    }
+    const [sql, params] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/GREATEST\(onboarding_states\.current_step, 2\)/);
+    expect(sql).toMatch(/data = onboarding_states\.data \|\| \$2::jsonb/);
+    expect(sql).toMatch(/RETURNING data, current_step/);
+    expect(params[0]).toBe(CTX.anon_id);
+    expect(JSON.parse(params[1] as string)).toEqual({ nickname: 'alice' });
+  });
+
+  it('accepts all fields and merges camelCase data payload', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          data: { nickname: 'alice', age: 28, gender: 'Female', referralSource: 'Reddit' },
+          current_step: 2,
+        },
+      ],
+    });
+    const r = await submitProfile(CTX, {
+      nickname: 'alice',
+      age: '28',
+      gender: 'Female',
+      referral_source: 'Reddit',
+    });
+    expect(r.ok).toBe(true);
+    const [, params] = pool.query.mock.calls[0];
+    expect(JSON.parse(params[1] as string)).toEqual({
+      nickname: 'alice',
+      age: 28,
+      gender: 'Female',
+      referralSource: 'Reddit',
+    });
+  });
+});
+
+// ─── submit_path_choice ──────────────────────────────────────────────
+
+describe('submit_path_choice', () => {
+  it('rejects missing path', async () => {
+    const r = await submitPathChoice(CTX, {});
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects path outside enum', async () => {
+    const r = await submitPathChoice(CTX, { path: 'other' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('accepts simple', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: {}, current_step: 3, path: 'simple' }],
+    });
+    const r = await submitPathChoice(CTX, { path: 'simple' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result).toMatchObject({ path: 'simple', current_step: 3 });
+    const [sql] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/GREATEST\(onboarding_states\.current_step, 3\)/);
+  });
+
+  it('accepts braindump', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: {}, current_step: 3, path: 'braindump' }],
+    });
+    const r = await submitPathChoice(CTX, { path: 'braindump' });
+    expect(r.ok).toBe(true);
+  });
+});
+
+// ─── submit_category ─────────────────────────────────────────────────
+
+describe('submit_category', () => {
+  it('rejects missing category', async () => {
+    const r = await submitCategory(CTX, {});
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects category outside enum', async () => {
+    const r = await submitCategory(CTX, { category: 'Sleep more' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('accepts valid category and bumps to step 4', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { category: 'Sleep better' }, current_step: 4 }],
+    });
+    const r = await submitCategory(CTX, { category: 'Sleep better' });
+    expect(r.ok).toBe(true);
+    const [sql] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/GREATEST\(onboarding_states\.current_step, 4\)/);
+  });
+});
+
+// ─── submit_goals ────────────────────────────────────────────────────
+
+describe('submit_goals', () => {
+  it('rejects non-array goals', async () => {
+    const r = await submitGoals(CTX, { goals: 'walk' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects empty array', async () => {
+    const r = await submitGoals(CTX, { goals: [] });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('accepts goals when no category set (free-text path)', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ category: null }] })
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { goals: ['anything'] }, current_step: 5 }],
+      });
+    const r = await submitGoals(CTX, { goals: ['anything'] });
+    expect(r.ok).toBe(true);
+  });
+
+  it('fuzzy-matches against the category goal list', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ category: 'Move more' }] })
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { goals: ['Walk more'] }, current_step: 5 }],
+      });
+    const r = await submitGoals(CTX, { goals: ['walk more'] });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.goals).toEqual(['Walk more']);
+  });
+
+  it('rejects when nothing matches the category list', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ category: 'Sleep better' }] });
+    const r = await submitGoals(CTX, { goals: ['zzzzz qqqq'] });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('caps at MAX_GOALS=2', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ category: 'Sleep better' }] })
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            data: { goals: ['Fall asleep earlier', 'Wake up earlier'] },
+            current_step: 5,
+          },
+        ],
+      });
+    const r = await submitGoals(CTX, {
+      goals: [
+        'Fall asleep earlier',
+        'Wake up earlier',
+        'Sleep more consistently',
+      ],
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect((r.result.goals as string[]).length).toBeLessThanOrEqual(2);
+  });
+});
+
+// ─── add_habit ───────────────────────────────────────────────────────
+
+describe('add_habit', () => {
+  const validHabit = {
+    name: 'Walk',
+    days: [1, 2, 3, 4, 5],
+    time: '09:00',
+    reminder: true,
+    schedule: 'Weekday',
+  };
+
+  it('rejects missing name', async () => {
+    const r = await addHabit(CTX, { ...validHabit, name: '' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects days out of 0-6 range', async () => {
+    const r = await addHabit(CTX, { ...validHabit, days: [7] });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects invalid time format', async () => {
+    const r = await addHabit(CTX, { ...validHabit, time: '9am' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects non-boolean reminder', async () => {
+    const r = await addHabit(CTX, { ...validHabit, reminder: 'yes' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects schedule outside enum', async () => {
+    const r = await addHabit(CTX, { ...validHabit, schedule: 'Daily' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  // Fixture filled to MAX_HABITS so the cap test tracks the real limit.
+  const atCap = Object.fromEntries(
+    Array.from({ length: MAX_HABITS }, (_, i) => [`Existing${i}`, {}]),
+  );
+
+  it('returns max_habits_reached when at cap with new name', async () => {
+    const client = habitClient({ hc: atCap });
+    pool.connect.mockResolvedValue(client);
+    const r = await addHabit(CTX, { ...validHabit, name: 'NewHabit' });
+    expect(r).toEqual({
+      ok: false,
+      error: 'handler_error',
+      message: 'max_habits_reached',
+    });
+    const sqls = client.query.mock.calls.map((c) => c[0] as string);
+    expect(sqls.some((s) => /INSERT INTO onboarding_states/.test(s))).toBe(false);
+    expect(sqls.some((s) => /ROLLBACK/.test(s))).toBe(true);
+  });
+
+  it('allows edit when at cap (existing name)', async () => {
+    const hc = { Walk: {}, ...atCap };
+    const client = habitClient({
+      hc,
+      upsert: { data: { habitConfigs: { Walk: {} } }, current_step: 5 },
+    });
+    pool.connect.mockResolvedValue(client);
+    const r = await addHabit(CTX, { ...validHabit, name: 'Walk' });
+    expect(r.ok).toBe(true);
+    const sqls = client.query.mock.calls.map((c) => c[0] as string);
+    expect(sqls.some((s) => /INSERT INTO onboarding_states/.test(s))).toBe(true);
+  });
+
+  it('treats case-variant name as edit (symmetric with remove_habit)', async () => {
+    const client = habitClient({
+      hc: { Walk: {}, ...atCap },
+      upsert: { data: { habitConfigs: { Walk: {} } }, current_step: 5 },
+    });
+    pool.connect.mockResolvedValue(client);
+    const r = await addHabit(CTX, { ...validHabit, name: 'walk' });
+    expect(r.ok).toBe(true);
+  });
+
+  it('wraps the write in a txn with advisory lock + commit', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, validHabit);
+    const sqls = client.query.mock.calls.map((c) => c[0] as string);
+    expect(sqls[0]).toMatch(/BEGIN/);
+    expect(sqls.some((s) => /pg_advisory_xact_lock/.test(s))).toBe(true);
+    expect(sqls.some((s) => /COMMIT/.test(s))).toBe(true);
+  });
+
+  it('UPSERT carries jsonb_set merge payload', async () => {
+    const client = habitClient({
+      hc: {},
+      upsert: { data: { habitConfigs: { Walk: {} } }, current_step: 5 },
+    });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, validHabit);
+    const upsert = client.query.mock.calls.find((c) =>
+      /INSERT INTO onboarding_states/.test(c[0] as string),
+    );
+    expect(upsert).toBeDefined();
+    const [sql, params] = upsert!;
+    expect(sql).toMatch(/jsonb_set/);
+    expect(sql).toMatch(/GREATEST\(onboarding_states\.current_step, 5\)/);
+    // $3 is the merge sub-payload { [name]: habitEntry }
+    expect(JSON.parse(params[2] as string)).toEqual({
+      Walk: {
+        days: [1, 2, 3, 4, 5],
+        time: '09:00',
+        reminder: true,
+        schedule: 'Weekday',
+      },
+    });
+  });
+
+  it('dedupes + sorts days', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, { ...validHabit, days: [3, 1, 1, 2] });
+    const upsert = client.query.mock.calls.find((c) =>
+      /INSERT INTO onboarding_states/.test(c[0] as string),
+    );
+    const merge = JSON.parse(upsert![1][2] as string);
+    expect(merge.Walk.days).toEqual([1, 2, 3]);
+  });
+});
+
+// ─── remove_habit ────────────────────────────────────────────────────
+
+describe('remove_habit', () => {
+  it('rejects missing name', async () => {
+    const r = await removeHabit(CTX, {});
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('returns ok when row absent (idempotent)', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+    const r = await removeHabit(CTX, { name: 'Walk' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.removed).toBeNull();
+  });
+
+  it('returns ok when key absent (idempotent)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ hc: { Run: {} }, data: { habitConfigs: { Run: {} } }, current_step: 5 }],
+    });
+    const r = await removeHabit(CTX, { name: 'Walk' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.removed).toBeNull();
+    expect(pool.query).toHaveBeenCalledTimes(1); // no UPDATE issued
+  });
+
+  it('case-insensitive match removes the entry', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ hc: { Walk: {} }, data: { habitConfigs: { Walk: {} } }, current_step: 5 }],
+      })
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ data: { habitConfigs: {} }, current_step: 5 }],
+      });
+    const r = await removeHabit(CTX, { name: 'walk' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.removed).toBe('Walk');
+    const [sql] = pool.query.mock.calls[1];
+    expect(sql).toMatch(/jsonb_set\(data, '\{habitConfigs\}', \(data->'habitConfigs'\) - \$2::text\)/);
+  });
+});
+
+// ─── submit_reflection_config ────────────────────────────────────────
+
+describe('submit_reflection_config', () => {
+  const valid = {
+    time: '21:45',
+    days: [1, 2, 3, 4, 5],
+    reminder: true,
+    schedule: 'Weekday',
+  };
+
+  it('rejects invalid time', async () => {
+    const r = await submitReflectionConfig(CTX, { ...valid, time: '99:99' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects days out of range', async () => {
+    const r = await submitReflectionConfig(CTX, { ...valid, days: [-1] });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('accepts valid config and bumps to step 7', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        { data: { reflectionConfig: valid }, current_step: 7 },
+      ],
+    });
+    const r = await submitReflectionConfig(CTX, valid);
+    expect(r.ok).toBe(true);
+    const [sql, params] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/GREATEST\(onboarding_states\.current_step, 7\)/);
+    expect(JSON.parse(params[1] as string)).toEqual({ reflectionConfig: valid });
+  });
+});
+
+// ─── submit_brain_dump ───────────────────────────────────────────────
+
+describe('submit_brain_dump', () => {
+  it('rejects missing brain_dump_raw', async () => {
+    const r = await submitBrainDump(CTX, {});
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects under 10 chars', async () => {
+    const r = await submitBrainDump(CTX, { brain_dump_raw: 'short' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects whitespace-only that meets raw length', async () => {
+    const r = await submitBrainDump(CTX, { brain_dump_raw: '            ' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects over 5000 chars', async () => {
+    const r = await submitBrainDump(CTX, { brain_dump_raw: 'x'.repeat(5001) });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('dual-writes data.brainDumpText and brain_dump_raw column', async () => {
+    const text = 'I want to sleep better and exercise more regularly.';
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          data: { brainDumpText: text },
+          current_step: 4,
+          brain_dump_raw: text,
+        },
+      ],
+    });
+    const r = await submitBrainDump(CTX, { brain_dump_raw: text });
+    expect(r.ok).toBe(true);
+    const [sql, params] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/brain_dump_raw = \$3/);
+    expect(sql).toMatch(/GREATEST\(onboarding_states\.current_step, 4\)/);
+    expect(JSON.parse(params[1] as string)).toEqual({ brainDumpText: text });
+    expect(params[2]).toBe(text);
+  });
+});

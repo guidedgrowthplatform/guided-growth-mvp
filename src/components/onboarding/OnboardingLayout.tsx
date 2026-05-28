@@ -9,6 +9,7 @@ import { DualButton } from '@/components/ui/DualButton';
 import { useOnboardingTranscripts, useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useFocusedFieldContext } from '@/hooks/useFocusedFieldContext';
+import { useOnboardingRealtimeSync } from '@/hooks/useOnboardingRealtimeSync';
 import {
   type OnboardingVoiceResult,
   useOnboardingVoice as useOnboardingVoiceHook,
@@ -87,7 +88,6 @@ interface OnboardingLayoutProps {
   showTooltip?: boolean;
   bgVariant?: 'default' | 'secondary';
   screenId?: string;
-  autoAdvance?: boolean;
   // Snapshot of filled form fields (persisted + in-flight) — typically
   // produced by useOnboardingFormSnapshot({...overrides}). Threaded into
   // /api/process-command's filled_fields and pushed to Vapi via the
@@ -115,10 +115,10 @@ export function OnboardingLayout({
   showTooltip = false,
   bgVariant = 'default',
   screenId,
-  autoAdvance = false,
   formSnapshot,
 }: OnboardingLayoutProps) {
   const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
+  useOnboardingRealtimeSync();
   const focusedField = useFocusedFieldContext();
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
@@ -363,7 +363,6 @@ export function OnboardingLayout({
           }}
           onAction={handleVoiceAction}
           onAdvance={handleNext}
-          autoAdvance={autoAdvance}
           onClose={closeOverlay}
         />
       )}

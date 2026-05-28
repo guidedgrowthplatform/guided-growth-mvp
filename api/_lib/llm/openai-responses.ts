@@ -1,6 +1,5 @@
 import OpenAI from 'openai';
 import { getOpenAIKey, OpenAIError } from './openai.js';
-import type { TOOL_DEFINITIONS } from './tools.js';
 
 export type ResponseInputItem =
   | { type: 'message'; role: 'user' | 'assistant'; content: string }
@@ -12,11 +11,17 @@ export type ResponsesStreamEvent =
   | { type: 'completed'; responseId: string | null; totalTokens: number }
   | { type: 'error'; code: string; message: string };
 
+export interface ToolSchema {
+  readonly name: string;
+  readonly description: string;
+  readonly parameters: unknown;
+}
+
 export interface OpenResponsesStreamOpts {
   model?: string;
   instructions: string;
   input: ResponseInputItem[];
-  tools?: typeof TOOL_DEFINITIONS;
+  tools?: readonly ToolSchema[];
   previousResponseId?: string;
   store?: boolean;
   signal?: AbortSignal;
@@ -33,7 +38,7 @@ function client(): OpenAI {
 }
 
 function toResponsesTools(
-  tools: typeof TOOL_DEFINITIONS,
+  tools: readonly ToolSchema[],
 ): Array<{
   type: 'function';
   name: string;

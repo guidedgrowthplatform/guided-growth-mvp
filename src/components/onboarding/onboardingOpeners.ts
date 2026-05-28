@@ -1,4 +1,4 @@
-import type { OnboardingState } from '@shared/types';
+import type { OnboardingState, OnboardingStepData } from '@shared/types';
 
 // Curated opening lines per onboarding screen (gg-spec packets). Deterministic —
 // rendered as the first coach bubble so the question never drifts.
@@ -25,31 +25,90 @@ export function getOnboardingOpener(screenId: string): string | undefined {
   return ONBOARDING_OPENERS[screenId];
 }
 
-// Deterministic summary + "move on?" prompt, only when the screen's required
-// fields are already present. undefined → caller falls back to first-visit opener.
+export interface RevisitOpener {
+  text: string;
+  // All fields present → caller may offer affirm→auto-advance.
+  complete: boolean;
+}
+
+interface FieldSpec {
+  label: string;
+  recap: (d: OnboardingStepData, state: OnboardingState) => string | null;
+}
+
+// Multi-field steps only — single-field steps use tailored copy below.
+const STEP_FIELDS: Record<string, FieldSpec[]> = {
+  'ONBOARD-01': onboard01Fields(),
+  'ONBOARD-01--FORM': onboard01Fields(),
+};
+
+function onboard01Fields(): FieldSpec[] {
+  return [
+    { label: 'your name', recap: (d) => (d.nickname ? `your name's ${d.nickname}` : null) },
+    { label: 'your age', recap: (d) => (d.age ? `you're ${d.age}` : null) },
+    { label: 'how you identify', recap: (d) => (d.gender ? `${d.gender}` : null) },
+    {
+      label: 'how you found us',
+      recap: (d) => (d.referralSource ? `found us via ${d.referralSource}` : null),
+    },
+  ];
+}
+
+function humanJoin(parts: string[]): string {
+  if (parts.length <= 1) return parts.join('');
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+  return `${parts.slice(0, -1).join(', ')}, and ${parts[parts.length - 1]}`;
+}
+
+// null → nothing known yet, caller falls back to the first-visit opener.
 export function getOnboardingRevisitOpener(
   screenId: string,
   state: OnboardingState | null,
-): string | undefined {
-  if (!state) return undefined;
+): RevisitOpener | null {
+  if (!state) return null;
   const d = state.data ?? {};
+
+  // Single-field steps: tailored copy, always complete (all-or-nothing).
   switch (screenId) {
-    case 'ONBOARD-01':
-    case 'ONBOARD-01--FORM': {
-      if (!d.nickname || !d.age || !d.gender || !d.referralSource) return undefined;
-      return `Last time you told me your name's ${d.nickname}, you're ${d.age}, ${d.gender}, and found us via ${d.referralSource}. Want to keep that and move on, or change something?`;
-    }
     case 'ONBOARD-FORK':
     case 'ONBOARD-FORK--FORM': {
-      if (!state.path) return undefined;
+      if (!state.path) return null;
       const choice = state.path === 'braindump' ? 'advanced' : 'beginner';
-      return `You picked the ${choice} path. Want to keep it and move on, or switch?`;
+      return {
+        text: `You picked the ${choice} path. Want to keep it and move on, or switch?`,
+        complete: true,
+      };
     }
     case 'ONBOARD-BEGINNER-01': {
-      if (!d.category) return undefined;
-      return `You chose ${d.category}. Want to stick with that and move on, or pick another?`;
+      if (!d.category) return null;
+      return {
+        text: `You chose ${d.category}. Want to stick with that and move on, or pick another?`,
+        complete: true,
+      };
     }
-    default:
-      return undefined;
   }
+
+  const specs = STEP_FIELDS[screenId];
+  if (!specs) return null;
+
+  const filled: string[] = [];
+  const missing: string[] = [];
+  for (const f of specs) {
+    const frag = f.recap(d, state);
+    if (frag) filled.push(frag);
+    else missing.push(f.label);
+  }
+  if (filled.length === 0) return null;
+
+  const summary = humanJoin(filled);
+  if (missing.length === 0) {
+    return {
+      text: `Last time you told me ${summary}. Want to keep that and move on, or change something?`,
+      complete: true,
+    };
+  }
+  return {
+    text: `Last time you told me ${summary}. I still need ${humanJoin(missing)} — want to fill that in?`,
+    complete: false,
+  };
 }

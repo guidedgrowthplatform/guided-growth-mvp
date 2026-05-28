@@ -127,6 +127,18 @@ Vercel Hobby plan allows **12 serverless functions**. We currently use **8**. Do
 
 `useToast()` must be called within `<ToastProvider>`. This wraps the entire app in `App.tsx`. If you create a new hook that uses `useToast()`, make sure it's only called from components rendered inside the provider tree.
 
+### 8. Onboarding LLM Text Is Stored Unscrubbed (Intentional)
+
+`/api/llm` runs `scrubPII()` on user messages **except** on `ONBOARD-*` screens (`isOnboardingScreen` in `api/llm/[...path].ts`). Onboarding's whole job is capturing the real nickname/age/referral and the verbatim brain-dump, so scrubbing would destroy the signal. The raw text is persisted to `chat_messages.content` for these screens.
+
+- This is a deliberate carve-out, not a bug — do not "fix" it by scrubbing onboarding messages.
+- Data isolation still holds: `chat_messages` is keyed by `anon_id` and read with `WHERE anon_id = $1`.
+- Follow-up (not yet built): a retention/cleanup policy for onboarding `chat_messages` once onboarding completes.
+
+### 9. Realtime IS Subject to RLS (unlike service-role queries)
+
+Gotcha #5 only applies to **server-side** `pg` queries (service role bypasses RLS). **Supabase Realtime** subscriptions run with the client's anon key + session JWT, so RLS *is* enforced there. `onboarding_states` has an enabled `user_isolation` policy (`anon_id = current_anon_id()`, JWT-based, fail-closed), which is what actually prevents a client from subscribing to another user's rows. The client-side `filter: anon_id=eq.X` is redundant defense-in-depth, not the boundary.
+
 ---
 
 ## Development Workflow

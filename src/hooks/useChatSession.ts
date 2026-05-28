@@ -15,9 +15,10 @@ export interface UseChatSessionReturn {
 // must not carry one user's session into another's login.
 export function useChatSession(
   screenId: string,
-  opts?: { enabled?: boolean },
+  opts?: { enabled?: boolean; resume?: boolean },
 ): UseChatSessionReturn {
   const enabled = opts?.enabled ?? true;
+  const resume = opts?.resume ?? true;
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [initialMessages, setInitialMessages] = useState<LLMChatMessage[]>([]);
@@ -39,7 +40,7 @@ export function useChatSession(
     void (async () => {
       try {
         // TODO: thread AbortSignal — fast toggles can mint orphan sessions
-        const res = await createOrResumeChatSession(screenId);
+        const res = await createOrResumeChatSession(screenId, { resume });
         if (cancelled) return;
         setChatSessionId(res.chat_session_id);
         setInitialMessages(res.messages);
@@ -52,7 +53,7 @@ export function useChatSession(
     return () => {
       cancelled = true;
     };
-  }, [screenId, userId, enabled]);
+  }, [screenId, userId, enabled, resume]);
 
   return { chatSessionId, initialMessages, status };
 }
