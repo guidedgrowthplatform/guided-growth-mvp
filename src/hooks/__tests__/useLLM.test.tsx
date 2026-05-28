@@ -25,8 +25,8 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 let hookRef: UseLLMReturn | null = null;
-function Bridge({ screenId }: { screenId: string }) {
-  const v = useLLM(screenId);
+function Bridge({ screenId, chatSessionId }: { screenId: string; chatSessionId?: string }) {
+  const v = useLLM(screenId, { chatSessionId });
   useEffect(() => {
     hookRef = v;
   });
@@ -36,11 +36,11 @@ function Bridge({ screenId }: { screenId: string }) {
 let container: HTMLDivElement;
 let root: Root;
 
-function mount(screenId = 'CHAT-DEBUG') {
+function mount(screenId = 'CHAT-DEBUG', chatSessionId: string | undefined = 'sess-test') {
   act(() => {
     root.render(
       <Wrapper>
-        <Bridge screenId={screenId} />
+        <Bridge screenId={screenId} chatSessionId={chatSessionId} />
       </Wrapper>,
     );
   });
@@ -311,5 +311,94 @@ describe('useLLM', () => {
     expect(seeded!.messages[0]).toMatchObject({ role: 'user', content: 'earlier' });
     // session endpoint already returned history — no extra mount fetch
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('seeds once per chatSessionId; same id with new initialMessages ref does not re-seed', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+
+    let seeded: UseLLMReturn | null = null;
+    function SeedBridge({ initials }: { initials: { id: string; role: 'user'; content: string }[] }) {
+      const v = useLLM('CHAT-DEBUG', { chatSessionId: 'sess-A', initialMessages: initials });
+      useEffect(() => {
+        seeded = v;
+      });
+      return null;
+    }
+    act(() => {
+      root.render(
+        <Wrapper>
+          <SeedBridge initials={[{ id: 'a', role: 'user', content: 'first' }]} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    expect(seeded!.messages).toHaveLength(1);
+
+    // Re-render with a different initialMessages ref but same chatSessionId
+    act(() => {
+      root.render(
+        <Wrapper>
+          <SeedBridge initials={[{ id: 'b', role: 'user', content: 'second' }]} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    expect(seeded!.messages).toHaveLength(1);
+    expect(seeded!.messages[0].content).toBe('first');
+  });
+
+  it('switching chatSessionId re-seeds', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+
+    let seeded: UseLLMReturn | null = null;
+    function SeedBridge({ sid, initials }: { sid: string; initials: { id: string; role: 'user'; content: string }[] }) {
+      const v = useLLM('CHAT-DEBUG', { chatSessionId: sid, initialMessages: initials });
+      useEffect(() => {
+        seeded = v;
+      });
+      return null;
+    }
+    act(() => {
+      root.render(
+        <Wrapper>
+          <SeedBridge sid="sess-1" initials={[{ id: 'a', role: 'user', content: 'one' }]} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    expect(seeded!.messages[0].content).toBe('one');
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <SeedBridge sid="sess-2" initials={[{ id: 'b', role: 'user', content: 'two' }]} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    expect(seeded!.messages).toHaveLength(1);
+    expect(seeded!.messages[0].content).toBe('two');
+  });
+
+  it('sendMessage with no chatSessionId no-ops and warns in dev', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge screenId="CHAT-DEBUG" chatSessionId={undefined} />
+        </Wrapper>,
+      );
+    });
+    await act(async () => {
+      await hookRef!.sendMessage('orphan');
+    });
+    await flush();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(hookRef!.messages).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 });

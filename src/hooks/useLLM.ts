@@ -50,14 +50,11 @@ export function useLLM(
   const [toolEvents, setToolEvents] = useState<LLMToolEvent[]>([]);
   const [status, setStatus] = useState<LLMStatus>('idle');
   const [error, setError] = useState<Error | null>(null);
+  const [seededFor, setSeededFor] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
   const idCounterRef = useRef({ n: 0 });
-  const messagesRef = useRef<LLMChatMessage[]>([]);
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
 
   const reset = useCallback(() => {
     if (abortRef.current) {
@@ -216,8 +213,16 @@ export function useLLM(
   );
 
   const sendMessage = useCallback(
-    (text: string) => runStream({ mode: 'chat', text, surfaceErrors: true }),
-    [runStream],
+    (text: string) => {
+      if (!chatSessionId) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[useLLM] sendMessage called without chatSessionId; no-op');
+        }
+        return Promise.resolve();
+      }
+      return runStream({ mode: 'chat', text, surfaceErrors: true });
+    },
+    [runStream, chatSessionId],
   );
 
   const sendOpener = useCallback(
@@ -235,10 +240,12 @@ export function useLLM(
     };
   }, []);
 
-  // Seed once per session; deps chatSessionId only (initialMessages ref churns).
+  // Seed once per chatSessionId; initialMessages ref churns are ignored.
+  // assumes chatSessionId + initialMessages co-render (React 18 batches useChatSession setStates)
   useEffect(() => {
     if (!chatSessionId) return;
-    if (messagesRef.current.length > 0) return;
+    if (seededFor === chatSessionId) return;
+    setSeededFor(chatSessionId);
     setMessages(initialMessages ?? []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatSessionId]);

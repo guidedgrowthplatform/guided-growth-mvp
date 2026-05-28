@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateDate, validateUUID, getClientIp } from '../validation';
+import { validateDate, validateUUID, getClientIp, UUID_REGEX } from '../validation';
 
 describe('validateDate', () => {
   it('accepts valid YYYY-MM-DD dates', () => {
@@ -56,6 +56,38 @@ describe('validateUUID', () => {
     expect(validateUUID('550e8400-e29b-41d4-a716')).toBeNull();
     expect(validateUUID(null)).toBeNull();
     expect(validateUUID(123)).toBeNull();
+  });
+});
+
+describe('UUID_REGEX', () => {
+  it('matches a canonical v4', () => {
+    expect(UUID_REGEX.test('550e8400-e29b-41d4-a716-446655440000')).toBe(true);
+  });
+
+  it('rejects 32-char no-dash form', () => {
+    expect(UUID_REGEX.test('550e8400e29b41d4a716446655440000')).toBe(false);
+  });
+
+  it('rejects non-v4 versions', () => {
+    // v1
+    expect(UUID_REGEX.test('550e8400-e29b-11d4-a716-446655440000')).toBe(false);
+    // v3
+    expect(UUID_REGEX.test('550e8400-e29b-31d4-a716-446655440000')).toBe(false);
+    // v5
+    expect(UUID_REGEX.test('550e8400-e29b-51d4-a716-446655440000')).toBe(false);
+    // v7
+    expect(UUID_REGEX.test('550e8400-e29b-71d4-a716-446655440000')).toBe(false);
+  });
+
+  it('rejects invalid variant nibble', () => {
+    // variant must be [89ab]; `c` invalid
+    expect(UUID_REGEX.test('550e8400-e29b-41d4-c716-446655440000')).toBe(false);
+  });
+
+  it('rejects malformed strings', () => {
+    expect(UUID_REGEX.test('')).toBe(false);
+    expect(UUID_REGEX.test('not-a-uuid')).toBe(false);
+    expect(UUID_REGEX.test('xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx')).toBe(false);
   });
 });
 

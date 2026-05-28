@@ -20,8 +20,8 @@ vi.mock('@/stores/authStore', () => ({
 }));
 
 let hookRef: UseChatSessionReturn | null = null;
-function Bridge({ screenId }: { screenId: string }) {
-  const v = useChatSession(screenId);
+function Bridge({ screenId, enabled }: { screenId: string; enabled?: boolean }) {
+  const v = useChatSession(screenId, enabled === undefined ? undefined : { enabled });
   useEffect(() => {
     hookRef = v;
   });
@@ -84,6 +84,56 @@ describe('useChatSession', () => {
     await flush();
 
     expect(localSet).not.toHaveBeenCalled();
+  });
+
+  it('enabled:false → idle, no POST', async () => {
+    createOrResumeChatSession.mockResolvedValue({ chat_session_id: 'x', messages: [] });
+
+    act(() => {
+      root.render(<Bridge screenId="ONBOARD-04" enabled={false} />);
+    });
+    await flush();
+
+    expect(hookRef!.status).toBe('idle');
+    expect(hookRef!.chatSessionId).toBeNull();
+    expect(createOrResumeChatSession).not.toHaveBeenCalled();
+  });
+
+  it('toggling enabled false→true fires the POST', async () => {
+    createOrResumeChatSession.mockResolvedValue({ chat_session_id: 'sess-flip', messages: [] });
+
+    act(() => {
+      root.render(<Bridge screenId="ONBOARD-05" enabled={false} />);
+    });
+    await flush();
+    expect(createOrResumeChatSession).not.toHaveBeenCalled();
+
+    act(() => {
+      root.render(<Bridge screenId="ONBOARD-05" enabled={true} />);
+    });
+    await flush();
+
+    expect(createOrResumeChatSession).toHaveBeenCalledTimes(1);
+    expect(hookRef!.status).toBe('ready');
+    expect(hookRef!.chatSessionId).toBe('sess-flip');
+  });
+
+  it('unmount during fetch does not throw', async () => {
+    let resolveFn!: (v: { chat_session_id: string; messages: [] }) => void;
+    createOrResumeChatSession.mockReturnValue(
+      new Promise((r) => {
+        resolveFn = r;
+      }),
+    );
+
+    act(() => {
+      root.render(<Bridge screenId="ONBOARD-06" />);
+    });
+    await flush();
+
+    act(() => root.unmount());
+    resolveFn({ chat_session_id: 'late', messages: [] });
+    await flush();
   });
 
   it('surfaces error status when the request fails', async () => {

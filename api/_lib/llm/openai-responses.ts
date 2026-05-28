@@ -9,7 +9,7 @@ export type ResponseInputItem =
 export type ResponsesStreamEvent =
   | { type: 'delta'; content: string }
   | { type: 'tool_call'; callId: string; name: string; argumentsRaw: string }
-  | { type: 'completed'; responseId: string; totalTokens: number }
+  | { type: 'completed'; responseId: string | null; totalTokens: number }
   | { type: 'error'; code: string; message: string };
 
 export interface OpenResponsesStreamOpts {
@@ -124,7 +124,7 @@ async function* iterateEvents(
             response?: { id?: unknown; usage?: { total_tokens?: unknown } };
           };
           const responseId =
-            typeof e.response?.id === 'string' ? e.response.id : '';
+            typeof e.response?.id === 'string' ? e.response.id : null;
           const totalTokens =
             typeof e.response?.usage?.total_tokens === 'number'
               ? e.response.usage.total_tokens
