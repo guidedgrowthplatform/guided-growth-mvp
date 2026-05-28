@@ -123,6 +123,14 @@ export interface ToolContext {
   auth_user_id: string;
   anon_id: string;
   session_id: string;
+  user_turn_id?: string;
+  tool_call_id?: string;
+  dedupLookup?: (toolCallId: string) => Promise<ToolResult | null>;
+}
+
+async function checkDedup(ctx: ToolContext): Promise<ToolResult | null> {
+  if (!ctx.dedupLookup || !ctx.tool_call_id) return null;
+  return ctx.dedupLookup(ctx.tool_call_id);
 }
 
 export type ToolError = 'unknown_tool' | 'invalid_args' | 'not_found' | 'handler_error';
@@ -180,6 +188,8 @@ function isProfileField(v: unknown): v is UpdateProfileField {
 }
 
 async function updateProfile(ctx: ToolContext, args: Record<string, unknown>): Promise<ToolResult> {
+  const cached = await checkDedup(ctx);
+  if (cached) return cached;
   const field = args.field;
   const value = args.value;
   if (!isProfileField(field)) return invalid('field must be one of the whitelisted values');
@@ -202,6 +212,8 @@ async function updateProfile(ctx: ToolContext, args: Record<string, unknown>): P
 }
 
 async function navigateNext(ctx: ToolContext, args: Record<string, unknown>): Promise<ToolResult> {
+  const cached = await checkDedup(ctx);
+  if (cached) return cached;
   const targetScreen = getString(args, 'target_screen')?.trim();
   if (!targetScreen) return invalid('target_screen is required');
   if (targetScreen.length > SCREEN_ID_MAX_LEN) return invalid('target_screen is too long');
@@ -229,6 +241,8 @@ async function navigateNext(ctx: ToolContext, args: Record<string, unknown>): Pr
 }
 
 async function logEvent(ctx: ToolContext, args: Record<string, unknown>): Promise<ToolResult> {
+  const cached = await checkDedup(ctx);
+  if (cached) return cached;
   const eventName = args.event_name;
   if (!isSessionLogEvent(eventName))
     return invalid('event_name is not a canonical session_log event');
