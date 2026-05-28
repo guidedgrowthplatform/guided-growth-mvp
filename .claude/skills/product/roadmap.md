@@ -18,7 +18,7 @@ Personalized flow that sets up each user's habit + journaling system without man
 
 Voice-first AI interaction for hands-free logging, coaching, and natural conversation across all surfaces where voice is relevant.
 
-→ Implementation context: the `voice-architecture` umbrella skill plus `path-1-vapi` (onboarding voice — Vapi target, Cartesia Line today), `path-2-async` (daily check-ins + single-utterance commands — MP3 + Ink + callLLM + Sonic), and `path-3-direct-llm` (text chat).
+→ Implementation context: the `voice-architecture` umbrella skill plus `path-1-vapi` (onboarding voice — Vapi target, Cartesia Line today), `path-2-async` (daily check-ins + single-utterance commands — MP3 + Ink + callLLM + Sonic), and `path-3-direct-llm` (onboarding's three non-Vapi orb states).
 
 ## 4. Focus & Accountability
 

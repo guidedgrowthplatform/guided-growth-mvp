@@ -32,7 +32,7 @@ Every place the conversational onboarding journey lives.
 | Today | Target |
 |---|---|
 | Voice mode: voice-commands pipeline (Cartesia REST STT/TTS + GPT-4o-mini NLU) via `useOnboardingVoice`. | Vapi assistant (same Path 1 runtime) — the overlay is a coached onboarding moment, so it belongs on Path 1 even though today it uses the legacy single-utterance pipeline. |
-| Text mode: direct text submit (today's wiring is mixed). | callLLM via Path 3 if the user is typing? **Decision pending** — see "Open question" below. |
+| Text mode: direct text submit (today's wiring is mixed). | callLLM via Path 3 (direct LLM) if the user is typing? **Decision pending** — see "Open question" below. |
 
 **Open question:** if the chat overlay is showing both a typed input and a mic button, the typed branch could route through Path 3 (direct LLM) instead of opening Vapi. Worth deciding when migrating the overlay.
 

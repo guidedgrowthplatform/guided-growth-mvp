@@ -1,6 +1,6 @@
 ---
 name: voice-architecture
-description: Umbrella reference for how voice + chat work in the Guided Growth app. Three call paths — Path 1 Vapi (onboarding), Path 2 Async (check-ins, MP3 + Cartesia Ink + callLLM + Sonic), Path 3 Direct LLM (text chat). Read this when asking "which path do I use?", reasoning about callLLM / screen_contexts / session_log, choosing between Vapi and Cartesia, or comparing the paths. Per-path implementation details live in path-1-vapi / path-2-async / path-3-direct-llm.
+description: Umbrella reference for how voice + chat work in the Guided Growth app. Three call paths — Path 1 Vapi (full-duplex voice, orb State 1), Path 2 Async Reflection (daily check-ins via MP3 + Cartesia Ink + callLLM + Sonic), and Path 3 Direct LLM (the three non-Vapi orb states — UX-26 States 2/3/4). Read this when asking "which path do I use?", reasoning about callLLM / screen_contexts / session_log, choosing between Vapi and Cartesia, or comparing the paths. Per-path implementation details live in path-1-vapi / path-2-async / path-3-direct-llm.
 user-invocable: false
 ---
 
@@ -15,7 +15,7 @@ PATH 1 — Vapi (Onboarding)              full STT + LLM + TTS bundled in Vapi a
 PATH 2 — Async Reflection (Check-ins)   composed pipeline, asynchronous turns
   User → Frontend → MP3 prompt → user reply → Cartesia Ink (STT) → callLLM → LLM → Sonic API (TTS) → User
 
-PATH 3 — Direct LLM (Text Chat)         text in, text out, no voice infra
+PATH 3 — Direct LLM (Orb States 2/3/4)  text in, text out, no Vapi
   User → Frontend → callLLM → LLM → Frontend renders text → User
 ```
 
@@ -38,11 +38,11 @@ PATH 3 — Direct LLM (Text Chat)         text in, text out, no voice infra
 |---|---|
 | Vapi assistant config, onboarding voice, gcartesia-agents repo, useOnboardingAgent, useRealtimeVoice | [path-1-vapi](../path-1-vapi/SKILL.md) |
 | Morning/evening check-in voice, MP3 + Sonic composition, Cartesia REST endpoints, useVoiceCommand/Chat/Input, ActionDispatcher | [path-2-async](../path-2-async/SKILL.md) |
-| Text chat surfaces, callLLM consumers, tap-driven LLM use, session_log writes from text flows | [path-3-direct-llm](../path-3-direct-llm/SKILL.md) |
+| The three non-Vapi orb states (UX-26 States 2/3/4), useLLM consumers, /api/llm, tap-driven LLM use | [path-3-direct-llm](../path-3-direct-llm/SKILL.md) |
 
 ## Migration posture
 
-The repo is mid-migration. Today's code is mostly Cartesia (Line agent + REST STT/TTS + bespoke NLU). Target is the diagram above: Vapi for Path 1, callLLM-orchestrated MP3 + Cartesia for Path 2, callLLM-only for Path 3.
+The repo is mid-migration. Today's code is mostly Cartesia (Line agent + REST STT/TTS + bespoke NLU). Target is the diagram above: Vapi for Path 1, callLLM-orchestrated MP3 + Cartesia for Path 2 (async voice), callLLM-only for Path 3 (the three non-Vapi orb states).
 
 **Each path skill leads with its target state.** Current code is documented as legacy (`current-cartesia-*.md` files inside each path) — preserve while reading existing code, do not extend.
 

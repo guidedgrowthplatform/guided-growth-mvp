@@ -28,6 +28,6 @@ Specs only exist for sections that have been written up. Sections in the roadmap
 - `voice-architecture` — umbrella for the 3-path voice/chat model (Vapi onboarding / async check-ins / direct LLM chat). Start here for any voice question.
 - `path-1-vapi` — onboarding voice (Vapi assistant; legacy Cartesia Line code)
 - `path-2-async` — daily check-ins, journal/feedback voice, single-utterance commands (MP3 + Cartesia Ink + callLLM + Sonic; legacy REST + GPT-4o-mini NLU)
-- `path-3-direct-llm` — text chat surfaces and tap-driven LLM calls
+- `path-3-direct-llm` — direct LLM path for onboarding's three non-Vapi orb states (UX-26 States 2/3/4)
 - `naming-conventions` — file/folder naming when implementing features from specs
 - `frontend-design` — UI guidelines when building screens from specs

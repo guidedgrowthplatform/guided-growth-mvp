@@ -95,7 +95,7 @@ Tap-driven actions (add a habit, mark a goal complete, change a preference) writ
 
 Trigger points where `callLLM()` *is* invoked:
 - User starts a Vapi session (Path 1)
-- User submits text in chat / journal (Path 3)
+- User submits text in a chat surface or finishes STT in a non-Vapi orb state (Path 3)
 - User finishes speaking inside a check-in (Path 2)
 - Background job runs (insights, summaries — Path 3)
 
@@ -119,7 +119,7 @@ If you touch any of these, audit both Path 1 and Path 2 consumers — neither pa
 |---|---|---|
 | Path 1 (Vapi) | Vapi session-minutes (Vapi internally pays Deepgram + Cartesia) | Tokens to your provider via callLLM ctx (BYO key) |
 | Path 2 (Async) | Cartesia Ink seconds + Cartesia Sonic characters | Tokens via callLLM |
-| Path 3 (Direct) | none | Tokens via callLLM |
+| Path 3 (Direct LLM) | none | Tokens via callLLM |
 
 Implication: don't open Path 1 sessions speculatively. Don't call Path 2 TTS for fixed text that could be MP3. Don't call Path 3 LLM for taps that could just write to session_log.
 
