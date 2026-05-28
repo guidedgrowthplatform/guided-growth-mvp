@@ -1,9 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
+import { UUID_REGEX } from '../_lib/validation.js';
 import type { LLMChatMessage, LLMToolEvent } from '@shared/types/llm';
 
-const CHAT_SESSION_ID_PATTERN = /^[0-9a-fA-F-]{8,64}$/;
+function isValidChatSessionId(id: unknown): id is string {
+  return typeof id === 'string' && UUID_REGEX.test(id);
+}
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
 // Resume window. UX heuristic, not a security boundary (auth + anon_id scope are).
@@ -121,8 +124,8 @@ async function handleHistory(req: VercelRequest, res: VercelResponse) {
   await setUserContext(user.anonId);
 
   const chatSessionId = req.query.chat_session_id;
-  if (typeof chatSessionId !== 'string' || !CHAT_SESSION_ID_PATTERN.test(chatSessionId)) {
-    return res.status(400).json({ error: 'chat_session_id is required (8-64 hex/dash chars)' });
+  if (!isValidChatSessionId(chatSessionId)) {
+    return res.status(400).json({ error: 'chat_session_id must be a UUID' });
   }
 
   let limit = DEFAULT_LIMIT;

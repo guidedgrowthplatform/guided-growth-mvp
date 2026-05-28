@@ -3,7 +3,7 @@ import { createOrResumeChatSession } from '@/api/chat';
 import { useAuthStore } from '@/stores/authStore';
 import type { LLMChatMessage } from '@shared/types/llm';
 
-export type ChatSessionStatus = 'loading' | 'ready' | 'error';
+export type ChatSessionStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export interface UseChatSessionReturn {
   chatSessionId: string | null;
@@ -13,7 +13,11 @@ export interface UseChatSessionReturn {
 
 // In-memory only (no localStorage) + refetch on auth change — a shared tab
 // must not carry one user's session into another's login.
-export function useChatSession(screenId: string): UseChatSessionReturn {
+export function useChatSession(
+  screenId: string,
+  opts?: { enabled?: boolean },
+): UseChatSessionReturn {
+  const enabled = opts?.enabled ?? true;
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [initialMessages, setInitialMessages] = useState<LLMChatMessage[]>([]);
@@ -23,6 +27,10 @@ export function useChatSession(screenId: string): UseChatSessionReturn {
     let cancelled = false;
     setChatSessionId(null);
     setInitialMessages([]);
+    if (!enabled) {
+      setStatus('idle');
+      return;
+    }
     if (!userId) {
       setStatus('error');
       return;
@@ -30,6 +38,7 @@ export function useChatSession(screenId: string): UseChatSessionReturn {
     setStatus('loading');
     void (async () => {
       try {
+        // TODO: thread AbortSignal — fast toggles can mint orphan sessions
         const res = await createOrResumeChatSession(screenId);
         if (cancelled) return;
         setChatSessionId(res.chat_session_id);
@@ -43,7 +52,7 @@ export function useChatSession(screenId: string): UseChatSessionReturn {
     return () => {
       cancelled = true;
     };
-  }, [screenId, userId]);
+  }, [screenId, userId, enabled]);
 
   return { chatSessionId, initialMessages, status };
 }

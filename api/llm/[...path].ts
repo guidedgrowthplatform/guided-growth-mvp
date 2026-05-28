@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { checkRateLimit } from '../_lib/rate-limit.js';
-import { getClientIp } from '../_lib/validation.js';
+import { getClientIp, UUID_REGEX } from '../_lib/validation.js';
 import { scrubPII } from '../_lib/pii-scrubber.js';
 import {
   TOOL_DEFINITIONS,
@@ -31,8 +31,6 @@ type LLMStreamEvent =
   | { type: 'error'; code: string; message: string };
 
 const MAX_ROUNDS = 5;
-const CHAT_SESSION_ID_PATTERN = /^[0-9a-fA-F-]{8,64}$/;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface PersistedToolRow {
   toolCallId: string;
@@ -149,15 +147,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let chatSessionId: string | null = null;
   let userTurnId: string | null = null;
   if (body.chat_session_id !== undefined) {
-    if (
-      typeof body.chat_session_id !== 'string' ||
-      !CHAT_SESSION_ID_PATTERN.test(body.chat_session_id)
-    ) {
-      return res.status(400).json({ error: 'chat_session_id must be 8-64 hex/dash chars' });
+    if (typeof body.chat_session_id !== 'string' || !UUID_REGEX.test(body.chat_session_id)) {
+      return res.status(400).json({ error: 'chat_session_id must be a UUID' });
     }
     chatSessionId = body.chat_session_id;
     if (mode === 'chat') {
-      if (typeof body.user_turn_id !== 'string' || !UUID_PATTERN.test(body.user_turn_id)) {
+      if (typeof body.user_turn_id !== 'string' || !UUID_REGEX.test(body.user_turn_id)) {
         return res.status(400).json({ error: 'user_turn_id is required (UUID) when mode=chat' });
       }
       userTurnId = body.user_turn_id;
@@ -315,14 +310,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Server-owned turn_index. Dedicated client + advisory xact-lock so base=MAX+1
   // and the turn lands contiguously (pool is max:1; pool.query can't span a txn).
-  const persistChatTurn = async () => {
+  const persistChatTurn = async (opts: { includeAssistant?: boolean } = {}) => {
+    const includeAssistant = opts.includeAssistant ?? true;
     if (!persistChat) return;
+    if (!includeAssistant && persistedToolRows.length === 0) return; // nothing to write
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [chatSessionId]);
-      // Retry idempotency: same user_turn_id already persisted → whole turn done.
-      if (mode === 'chat' && userTurnId) {
+      if (includeAssistant && mode === 'chat' && userTurnId) {
         const dup = await client.query('SELECT 1 FROM chat_messages WHERE id = $1', [userTurnId]);
         if (dup.rowCount) {
           await client.query('COMMIT');
@@ -336,7 +332,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const base = baseRes.rows[0].base;
       const assistantIndex = mode === 'opener' ? base : base + 1;
 
-      if (mode === 'chat' && userTurnId) {
+      if (includeAssistant && mode === 'chat' && userTurnId) {
         await client.query(
           `INSERT INTO chat_messages
              (id, anon_id, chat_session_id, screen_id, turn_index, role, content, mode)
@@ -346,39 +342,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
       }
 
-      await client.query(
-        `INSERT INTO chat_messages
-           (anon_id, chat_session_id, screen_id, turn_index, role, content, tool_calls, openai_response_id, mode)
-         VALUES ($1, $2, $3, $4, 'assistant', $5, $6, $7, $8)
-         ON CONFLICT (chat_session_id, turn_index) DO NOTHING`,
-        [
-          user.anonId,
-          chatSessionId,
-          screenId,
-          assistantIndex,
-          finalAssistantContent.length > 0 ? finalAssistantContent : null,
-          finalAssistantToolCalls ? JSON.stringify(finalAssistantToolCalls) : null,
-          finalResponseId,
-          mode,
-        ],
-      );
-
-      for (let i = 0; i < persistedToolRows.length; i++) {
-        const tr = persistedToolRows[i];
+      if (includeAssistant) {
         await client.query(
           `INSERT INTO chat_messages
-             (anon_id, chat_session_id, screen_id, turn_index, role, content, tool_call_id, tool_name, mode)
-           VALUES ($1, $2, $3, $4, 'tool', $5, $6, $7, $8)
+             (anon_id, chat_session_id, screen_id, turn_index, role, content, tool_calls, openai_response_id, mode)
+           VALUES ($1, $2, $3, $4, 'assistant', $5, $6, $7, $8)
            ON CONFLICT (chat_session_id, turn_index) DO NOTHING`,
           [
             user.anonId,
             chatSessionId,
             screenId,
-            assistantIndex + 1 + i,
+            assistantIndex,
+            finalAssistantContent.length > 0 ? finalAssistantContent : null,
+            finalAssistantToolCalls ? JSON.stringify(finalAssistantToolCalls) : null,
+            finalResponseId,
+            mode,
+          ],
+        );
+      }
+
+      // Error-path persist: skip assistant row, still write tool rows for dedup.
+      // Bare ON CONFLICT covers both (chat_session_id, turn_index) and the
+      // (user_turn_id, tool_call_id) dedup unique — either match suppresses.
+      const toolStartIndex = includeAssistant ? assistantIndex + 1 : base;
+      for (let i = 0; i < persistedToolRows.length; i++) {
+        const tr = persistedToolRows[i];
+        await client.query(
+          `INSERT INTO chat_messages
+             (anon_id, chat_session_id, screen_id, turn_index, role, content, tool_call_id, tool_name, mode, user_turn_id)
+           VALUES ($1, $2, $3, $4, 'tool', $5, $6, $7, $8, $9)
+           ON CONFLICT DO NOTHING`,
+          [
+            user.anonId,
+            chatSessionId,
+            screenId,
+            toolStartIndex + i,
             tr.resultJson,
             tr.toolCallId,
             tr.toolName,
             mode,
+            userTurnId,
           ],
         );
       }
@@ -393,6 +396,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('[/api/llm] persist chat turn failed', err);
     } finally {
       client.release();
+    }
+  };
+
+  // Reuse persisted tool row from a prior crash mid-turn; same (user_turn_id, tool_call_id).
+  const dedupLookup = async (toolCallId: string): Promise<ToolResult | null> => {
+    if (!persistChat || !userTurnId) return null;
+    const r = await pool.query<{ content: string | null }>(
+      `SELECT content FROM chat_messages
+        WHERE user_turn_id = $1 AND tool_call_id = $2 AND role = 'tool'
+        LIMIT 1`,
+      [userTurnId, toolCallId],
+    );
+    if (!r.rowCount || !r.rows[0] || !r.rows[0].content) return null;
+    try {
+      return JSON.parse(r.rows[0].content) as ToolResult;
+    } catch {
+      return null;
     }
   };
 
@@ -445,6 +465,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         endStatus = 'error';
         endCode = 'openai_error';
         send({ type: 'error', code: 'openai_error', message: err?.message ?? 'Unknown error' });
+        await persistChatTurn({ includeAssistant: false });
         res.end();
         return;
       }
@@ -471,7 +492,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               break;
             }
             case 'completed': {
-              thisResponseId = evt.responseId || null;
+              thisResponseId = evt.responseId;
               if (evt.totalTokens) totalTokens = evt.totalTokens;
               break;
             }
@@ -491,11 +512,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         endStatus = clientClosed ? 'cancelled' : 'error';
         endCode = code;
         send({ type: 'error', code, message: (err as Error).message });
+        await persistChatTurn({ includeAssistant: false });
         res.end();
         return;
       }
 
       if (streamFailed) {
+        await persistChatTurn({ includeAssistant: false });
         res.end();
         return;
       }
@@ -534,7 +557,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } else {
           try {
             result = await dispatchToolCall(
-              { auth_user_id: user.authUserId, anon_id: user.anonId, session_id: sessionId },
+              {
+                auth_user_id: user.authUserId,
+                anon_id: user.anonId,
+                session_id: sessionId,
+                user_turn_id: userTurnId ?? undefined,
+                tool_call_id: tc.callId,
+                dedupLookup,
+              },
               tc.name as ToolName,
               args,
             );
@@ -556,6 +586,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
+      // null on partial completion → chain implicitly resets next round.
       currentPreviousId = thisResponseId;
       currentInput = nextInput;
     }
@@ -564,6 +595,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       endStatus = 'tool_cap';
       endCode = 'tool_cap_reached';
       send({ type: 'error', code: 'tool_cap_reached', message: 'Exceeded max tool rounds (5)' });
+      await persistChatTurn({ includeAssistant: false });
       res.end();
       return;
     }
@@ -584,6 +616,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     endStatus = clientClosed ? 'cancelled' : 'error';
     endCode = code;
     send({ type: 'error', code, message: (err as Error).message });
+    await persistChatTurn({ includeAssistant: false });
     res.end();
   } finally {
     await Promise.allSettled([writeStartRow(), writeEndRow()]);

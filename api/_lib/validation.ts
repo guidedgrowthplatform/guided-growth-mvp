@@ -23,8 +23,9 @@ export function validateDate(value: unknown): string | null {
   return value;
 }
 
-/** Validate UUID v4 format */
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// RFC 4122 v4: version nibble `4`, variant nibble `[89ab]`.
+export const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function validateUUID(value: unknown): string | null {
   if (typeof value !== 'string') return null;
