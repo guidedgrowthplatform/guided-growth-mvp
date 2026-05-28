@@ -28,8 +28,11 @@ import {
   type OnboardingStepContext,
   type OnboardingVoiceResult,
 } from '@/hooks/useOnboardingVoice';
+import { useState3VoiceInput } from '@/hooks/useState3VoiceInput';
+import { orbStateFrom } from '@/lib/orb/orbState';
+import { routeOrbSend } from '@/lib/orb/routeOrbSend';
 import { queryKeys } from '@/lib/query';
-import { speak } from '@/lib/services/tts-service';
+import { speak, stopTTS } from '@/lib/services/tts-service';
 import type { OnboardingState } from '@shared/types';
 
 export type { VoiceMessage };
@@ -125,7 +128,11 @@ export function OnboardingChatOverlay({
   const [draft, setDraft] = useState('');
   const [partialAssistant, setPartialAssistant] = useState('');
 
-  const textOnlyMode = !voiceChosen && !micRuntimeOn;
+  const orbState = orbStateFrom(voiceChosen, micRuntimeOn);
+  const isVapi = orbState === 'vapi';
+  const isVoiceOutOnly = orbState === 'voice_out_only';
+  const isVoiceInOnly = orbState === 'voice_in_only';
+  const isOverlayDriven = !isVapi;
   // Prefer the canonical screen_id (matches onboardingPrompt vocab + opener keys).
   const screenId =
     stepContext.screen_id ??
@@ -144,7 +151,7 @@ export function OnboardingChatOverlay({
     queryKey: ['screenRoutes'],
     queryFn: fetchScreenRoutes,
     staleTime: 5 * 60 * 1000,
-    enabled: textOnlyMode,
+    enabled: isOverlayDriven,
   });
   const firedToolEventIdsRef = useRef<Set<string>>(new Set());
   const mirroredIdsRef = useRef<Set<string>>(new Set());
@@ -179,18 +186,25 @@ export function OnboardingChatOverlay({
     if (evt.role !== 'assistant') return;
     if (evt.kind === 'partial') setPartialAssistant(evt.text);
     else setPartialAssistant('');
-  }, !textOnlyMode);
+  }, isVapi);
 
   // Drop any lingering partial when Vapi disconnects.
   useEffect(() => {
     if (!vapiActive) setPartialAssistant('');
   }, [vapiActive]);
 
+  const handleSendTextRef = useRef<(t: string) => void>(() => {});
+  const { isListeningLocal } = useState3VoiceInput({
+    active: isVoiceInOnly,
+    vapiStatus: onboardingVoiceSession?.status ?? null,
+    onTranscript: (t) => handleSendTextRef.current(t),
+  });
+
   // Speaker-state derivation drives the gradient and the in-overlay dual
   // button rings. Idle gradient = blue, listening gradient = yellow.
   const voiceState: 'speaking' | 'listening' | 'idle' = isAssistantSpeaking
     ? 'speaking'
-    : isUserSpeaking
+    : isUserSpeaking || isListeningLocal
       ? 'listening'
       : 'idle';
 
@@ -213,7 +227,6 @@ export function OnboardingChatOverlay({
       processTranscript(userText, stepContext)
         .then((result) => {
           appendMessage({ id: `assistant-${Date.now()}`, role: 'ai', text: result.message });
-          if (voiceChosen) speak(result.message);
           if (result.success) onAction(result);
         })
         .catch(() => {
@@ -225,13 +238,19 @@ export function OnboardingChatOverlay({
         })
         .finally(() => setIsProcessing(false));
     },
-    [processTranscript, stepContext, onAction, appendMessage, voiceChosen],
+    [processTranscript, stepContext, onAction, appendMessage],
   );
+
+  const isVoiceOutOnlyRef = useRef(isVoiceOutOnly);
+  useEffect(() => {
+    isVoiceOutOnlyRef.current = isVoiceOutOnly;
+  }, [isVoiceOutOnly]);
 
   const runOnboardingTurn = useCallback(
     async (text: string) => {
       if (landedComplete && isAffirmation(text)) {
         appendMessage({ id: `ai-${Date.now()}`, role: 'ai', text: 'Great — moving on.' });
+        if (isVoiceOutOnlyRef.current) void speak('Great — moving on.');
         clearTimeout(advanceTimerRef.current);
         advanceTimerRef.current = setTimeout(() => onAdvanceRef.current?.(), ADVANCE_DELAY_MS);
         return;
@@ -263,8 +282,10 @@ export function OnboardingChatOverlay({
         // to improvise; invite the concrete change instead of looping.
         if (landedComplete && !appliedField) {
           appendMessage({ id: `ai-${Date.now()}`, role: 'ai', text: REVISIT_NUDGE });
+          if (isVoiceOutOnlyRef.current) void speak(REVISIT_NUDGE);
         } else if (res.message) {
           appendMessage({ id: `ai-${Date.now()}`, role: 'ai', text: res.message });
+          if (isVoiceOutOnlyRef.current) void speak(res.message);
         }
         if (autoAdvance && appliedField) {
           clearTimeout(advanceTimerRef.current);
@@ -285,19 +306,20 @@ export function OnboardingChatOverlay({
 
   const handleSendText = useCallback(
     (text: string) => {
-      if (textOnlyMode) {
-        if (isProcessing || llm.isStreaming) return;
-        appendMessage({ id: `user-${Date.now()}`, role: 'user', text });
-        if (isOnboardingScreen) void runOnboardingTurn(text);
-        else void llm.sendMessage(text);
-        return;
-      }
-      if (isProcessing) return;
+      const action = routeOrbSend({
+        orbState,
+        isOnboardingScreen,
+        isProcessing,
+        isStreaming: llm.isStreaming,
+      });
+      if (action === 'noop') return;
       appendMessage({ id: `user-${Date.now()}`, role: 'user', text });
-      runAssistant(text);
+      if (action === 'vapi') runAssistant(text);
+      else if (action === 'onboarding') void runOnboardingTurn(text);
+      else void llm.sendMessage(text);
     },
     [
-      textOnlyMode,
+      orbState,
       isOnboardingScreen,
       llm,
       isProcessing,
@@ -308,7 +330,11 @@ export function OnboardingChatOverlay({
   );
 
   useEffect(() => {
-    if (!textOnlyMode) return;
+    handleSendTextRef.current = handleSendText;
+  });
+
+  useEffect(() => {
+    if (!isOverlayDriven) return;
     for (const m of llm.messages) {
       if (m.role !== 'assistant' && m.role !== 'user') continue;
       if (mirroredIdsRef.current.has(m.id)) continue;
@@ -319,20 +345,21 @@ export function OnboardingChatOverlay({
         role: m.role === 'assistant' ? 'ai' : 'user',
         text: m.content,
       });
+      if (m.role === 'assistant' && isVoiceOutOnlyRef.current) void speak(m.content);
     }
-  }, [textOnlyMode, llm.messages, appendMessage]);
+  }, [isOverlayDriven, llm.messages, appendMessage]);
 
   useEffect(() => {
-    if (!textOnlyMode || !llm.error) return;
+    if (!isOverlayDriven || !llm.error) return;
     const msg = llm.error.message;
     if (msg === lastLlmErrorRef.current) return;
     lastLlmErrorRef.current = msg;
     appendMessage({ id: `llm-error-${Date.now()}`, role: 'ai', text: msg });
-  }, [textOnlyMode, llm.error, appendMessage]);
+  }, [isOverlayDriven, llm.error, appendMessage]);
 
   // Tool-call side effects; get_user_context / log_event are server-only.
   useEffect(() => {
-    if (!textOnlyMode) return;
+    if (!isOverlayDriven) return;
     for (const evt of llm.toolEvents) {
       if (!evt.result?.ok) continue;
       if (firedToolEventIdsRef.current.has(evt.id)) continue;
@@ -354,27 +381,36 @@ export function OnboardingChatOverlay({
           break;
       }
     }
-  }, [textOnlyMode, llm.toolEvents, navigate, queryClient, routesData]);
+  }, [isOverlayDriven, llm.toolEvents, navigate, queryClient, routesData]);
 
-  // Abort in-flight llm stream on switch to voice/mic-on.
+  // Abort in-flight llm stream when Vapi takes over.
   useEffect(() => {
-    if (textOnlyMode) return;
+    if (isOverlayDriven) return;
     if (llm.isStreaming) llm.cancel();
-  }, [textOnlyMode, llm]);
+  }, [isOverlayDriven, llm]);
+
+  // Kill any in-flight TTS when leaving State 2.
+  useEffect(() => {
+    if (isVoiceOutOnly) return;
+    stopTTS();
+  }, [isVoiceOutOnly]);
 
   // Reset to a fresh per-screen thread before paint so the prior screen's
   // bubbles never bleed through. Seeds empty when a screen has no opener.
   useLayoutEffect(() => {
-    if (!textOnlyMode || !isOnboardingScreen) return;
+    if (!isOverlayDriven || !isOnboardingScreen) return;
     const opener = revisitOpenerRef.current ?? getOnboardingOpener(screenId);
-    startThread(screenId, opener ? [{ id: `opener-${screenId}`, role: 'ai', text: opener }] : []);
-  }, [textOnlyMode, isOnboardingScreen, screenId, startThread]);
+    startThread(
+      screenId,
+      opener ? [{ id: `opener-${screenId}`, role: 'ai', text: opener }] : [],
+    );
+  }, [isOverlayDriven, isOnboardingScreen, screenId, startThread]);
 
   const initialMessagesLength = initialMessages.length;
   const llmMessagesLength = llm.messages.length;
   const sendOpener = llm.sendOpener;
   useEffect(() => {
-    if (!textOnlyMode || isOnboardingScreen) return;
+    if (!isOverlayDriven || isOnboardingScreen) return;
     if (openerFiredScreensRef.current.has(screenId)) return;
     if (sessionStatus !== 'ready') return;
     if (!chatSessionId) return;
@@ -382,7 +418,7 @@ export function OnboardingChatOverlay({
     openerFiredScreensRef.current.add(screenId);
     void sendOpener();
   }, [
-    textOnlyMode,
+    isOverlayDriven,
     isOnboardingScreen,
     screenId,
     sessionStatus,
@@ -414,7 +450,11 @@ export function OnboardingChatOverlay({
 
   const gradient = voiceState === 'listening' ? LISTENING_GRADIENT : IDLE_GRADIENT;
   const dualActiveRings: 'left' | 'right' | null =
-    micRuntimeOn && isUserSpeaking ? 'right' : voiceChosen && isAssistantSpeaking ? 'left' : null;
+    micRuntimeOn && (isUserSpeaking || isListeningLocal)
+      ? 'right'
+      : voiceChosen && isAssistantSpeaking
+        ? 'left'
+        : null;
 
   return (
     <div className="fixed inset-0 z-50 flex animate-slide-up flex-col">
@@ -458,7 +498,7 @@ export function OnboardingChatOverlay({
             />
           </div>
         ))}
-        {textOnlyMode && llm.isStreaming && llm.response.length > 0 && (
+        {isOverlayDriven && llm.isStreaming && llm.response.length > 0 && (
           <ChatBubble
             role="ai"
             text={llm.response}
@@ -468,7 +508,7 @@ export function OnboardingChatOverlay({
             animate={false}
           />
         )}
-        {!textOnlyMode && partialAssistant.length > 0 && (
+        {isVapi && partialAssistant.length > 0 && (
           <ChatBubble
             role="ai"
             text={partialAssistant}
@@ -478,7 +518,7 @@ export function OnboardingChatOverlay({
             animate={false}
           />
         )}
-        {(isProcessing || (textOnlyMode && llm.isStreaming && llm.response.length === 0)) && (
+        {(isProcessing || (isOverlayDriven && llm.isStreaming && llm.response.length === 0)) && (
           <TypingIndicator />
         )}
         <div ref={scrollAnchorRef} />
@@ -511,7 +551,7 @@ export function OnboardingChatOverlay({
           value={draft}
           onValueChange={setDraft}
           onSubmit={handleSendText}
-          disabled={textOnlyMode ? isProcessing || llm.isStreaming : isProcessing}
+          disabled={isOverlayDriven ? isProcessing || llm.isStreaming : isProcessing}
           className="pointer-events-auto flex h-[44px] w-full items-center gap-2 rounded-full bg-white pl-5 pr-3 shadow-[0px_10px_24px_-8px_rgba(15,23,42,0.18)]"
         />
       </div>

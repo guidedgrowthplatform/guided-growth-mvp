@@ -69,6 +69,15 @@ function mapStatus(state: RealtimeVoiceState, ended: boolean): OnboardingVoiceSt
 // mid-call screen-context message body.
 const PROVIDER_SCREEN_TAG = 'onboard_session';
 
+export function applyStartThread(
+  prev: VoiceMessage[],
+  initial: VoiceMessage[],
+  mode: 'replace' | 'append-if-empty',
+): VoiceMessage[] {
+  if (mode === 'append-if-empty') return prev.length === 0 ? initial : prev;
+  return initial;
+}
+
 export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const qc = useQueryClient();
@@ -647,11 +656,18 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     setMessages((prev) => [...prev, msg]);
   }, []);
 
-  const startThread = useCallback((screenId: string, initial: VoiceMessage[]) => {
-    if (threadScreenIdRef.current === screenId) return;
-    threadScreenIdRef.current = screenId;
-    setMessages(initial);
-  }, []);
+  const startThread = useCallback(
+    (
+      screenId: string,
+      initial: VoiceMessage[],
+      mode: 'replace' | 'append-if-empty' = 'replace',
+    ) => {
+      if (threadScreenIdRef.current === screenId) return;
+      threadScreenIdRef.current = screenId;
+      setMessages((prev) => applyStartThread(prev, initial, mode));
+    },
+    [],
+  );
 
   const [vapiToday, setVapiToday] = useState(() =>
     countVapiToday(useSessionLogStore.getState().events),
