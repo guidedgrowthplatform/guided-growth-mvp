@@ -39,7 +39,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Resolve the target email and enforce the QA-only guard
   const email = (req.body?.email ?? DEFAULT_QA_EMAIL).toString().toLowerCase().trim();
   if (!QA_EMAIL_PATTERN.test(email)) {
-    return res.status(400).json({ error: 'Email is not a QA account (must match qa-onboarding-*@guidedgrowth.test)' });
+    return res
+      .status(400)
+      .json({ error: 'Email is not a QA account (must match qa-onboarding-*@guidedgrowth.test)' });
   }
 
   const client = await pool.connect();
@@ -52,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          FROM auth.users au
          LEFT JOIN profiles p ON p.id = au.id
         WHERE au.email = $1`,
-      [email]
+      [email],
     );
     if (!userRows.length) {
       return res.status(404).json({ error: `QA user ${email} not found` });
@@ -76,21 +78,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              gender            = NULL,
              referral_source   = NULL
        WHERE id = $1`,
-      [userId]
+      [userId],
     );
 
     return res.status(200).json({ ok: true, reset: email, anon_id_seen: anonId !== null });
-  } catch (err: any) {
+  } catch (err) {
+    const e = err as {
+      message?: string;
+      code?: string;
+      detail?: string;
+      hint?: string;
+      where?: string;
+    };
     console.error('[qa-reset] error:', err);
     // QA endpoint — surface the underlying error so we can diagnose without Vercel logs.
     // Auth + regex guard upstream make this safe (only QA accounts can ever reach this).
     return res.status(500).json({
       error: 'Reset failed',
-      message: err?.message ?? String(err),
-      code: err?.code,
-      detail: err?.detail,
-      hint: err?.hint,
-      where: err?.where,
+      message: e.message ?? String(err),
+      code: e.code,
+      detail: e.detail,
+      hint: e.hint,
+      where: e.where,
     });
   } finally {
     client.release();

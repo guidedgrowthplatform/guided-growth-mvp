@@ -5,6 +5,7 @@ import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 're
 import { useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { VoiceCapModal } from '@/components/voice/VoiceCapModal';
+import { applyStartThread } from '@/contexts/applyStartThread';
 import {
   OnboardingVoiceContext,
   USER_SPEAKING_IDLE_MS,
@@ -68,15 +69,6 @@ function mapStatus(state: RealtimeVoiceState, ended: boolean): OnboardingVoiceSt
 // `onboard_*` prefix → surface='onboarding'. Real screen_id rides in the
 // mid-call screen-context message body.
 const PROVIDER_SCREEN_TAG = 'onboard_session';
-
-export function applyStartThread(
-  prev: VoiceMessage[],
-  initial: VoiceMessage[],
-  mode: 'replace' | 'append-if-empty',
-): VoiceMessage[] {
-  if (mode === 'append-if-empty') return prev.length === 0 ? initial : prev;
-  return initial;
-}
 
 export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const location = useLocation();

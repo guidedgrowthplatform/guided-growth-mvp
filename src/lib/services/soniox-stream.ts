@@ -2,7 +2,13 @@
 import { getApiBase, getAuthHeaders } from '@/lib/services/api-auth';
 import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 
-export type SonioxState = 'idle' | 'connecting' | 'listening' | 'responding' | 'finalizing' | 'error';
+export type SonioxState =
+  | 'idle'
+  | 'connecting'
+  | 'listening'
+  | 'responding'
+  | 'finalizing'
+  | 'error';
 
 // Minimal socket abstraction so the core is testable with a fake.
 export interface SonioxSocket {
@@ -73,7 +79,9 @@ interface SonioxToken {
 
 // Tolerant end-of-utterance detection — one-line change if the real shape differs.
 function isEndToken(tok: SonioxToken): boolean {
-  return (tok.text !== undefined && END_MARKERS.has(tok.text)) || tok.is_end === true || tok.end === true;
+  return (
+    (tok.text !== undefined && END_MARKERS.has(tok.text)) || tok.is_end === true || tok.end === true
+  );
 }
 
 export function createSonioxSession(deps: SonioxCoreDeps): SonioxSession {
@@ -154,7 +162,7 @@ export function createSonioxSession(deps: SonioxCoreDeps): SonioxSession {
 
   function handleMessage(raw: string): void {
     if (disposed) return;
-    let parsed: { tokens?: SonioxToken[]; finished?: boolean } | null = null;
+    let parsed: { tokens?: SonioxToken[]; finished?: boolean } | null;
     try {
       parsed = JSON.parse(raw);
     } catch {
@@ -481,7 +489,10 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
     }
   }
 
-  function setupScriptProcessorFallback(ctx: AudioContext, source: MediaStreamAudioSourceNode): void {
+  function setupScriptProcessorFallback(
+    ctx: AudioContext,
+    source: MediaStreamAudioSourceNode,
+  ): void {
     const node = ctx.createScriptProcessor(4096, 1, 1);
     const srcRate = ctx.sampleRate;
     node.onaudioprocess = (e: AudioProcessingEvent) => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { applyStartThread } from '../OnboardingVoiceProvider';
 import type { VoiceMessage } from '@/contexts/useOnboardingVoiceSession';
+import { applyStartThread } from '../applyStartThread';
 
 const msg = (id: string, text: string): VoiceMessage => ({
   id,

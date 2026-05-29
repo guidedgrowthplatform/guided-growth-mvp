@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { track } from '@/analytics';
-import { getWebOrigin } from '@/lib/env';
 import {
   AuthBackButton,
   SocialAuthButtons,
@@ -14,6 +13,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
+import { getWebOrigin } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import { loginSchema, type LoginForm } from '@/lib/validation';
 

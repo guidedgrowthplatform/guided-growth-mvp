@@ -1,16 +1,17 @@
-import { apiGet } from './client';
-
-export type {
+import type {
+  ScreenContext,
   ScreenContextBlock,
   SessionStateDeltaEntry,
   SessionStateDeltaResponse,
-  ScreenContext,
 } from '@shared/types/context.js';
+import { apiGet } from './client';
 
-import type {
+export type {
+  ScreenContext,
   ScreenContextBlock,
+  SessionStateDeltaEntry,
   SessionStateDeltaResponse,
-} from '@shared/types/context.js';
+};
 
 export interface ScreenRouteEntry {
   screen_id: string;
