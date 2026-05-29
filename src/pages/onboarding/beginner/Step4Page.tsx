@@ -16,7 +16,14 @@ export function Step4Page() {
   const navigate = useNavigate();
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
-  const category = (location.state as { category?: string })?.category ?? 'Sleep better';
+  // Two paths land users on this page: the manual Continue button passes
+  // `category` via React Router location.state, and voice auto-nav uses
+  // bare `navigate(path)` with no state. Prefer the persisted value from
+  // onboarding_states (always populated by submit_category before the
+  // user gets here either way) so both paths render the right subcategory.
+  const persistedCategory = onboardingState?.data?.category as string | undefined;
+  const stateCategory = (location.state as { category?: string })?.category;
+  const category = persistedCategory ?? stateCategory ?? 'Sleep better';
   const goals = goalsByCategory[category] ?? goalsByCategory['Sleep better'];
   const [selected, setSelected] = useState<Set<string>>(new Set());
 

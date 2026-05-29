@@ -392,7 +392,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           voice_mode: 'realtime',
           voice_vendor: 'vapi',
         });
-        voiceAnchorIdRef.current = startVoice(toCanonicalScreenId(screen), { voice_vendor: 'vapi' });
+        voiceAnchorIdRef.current = startVoice(toCanonicalScreenId(screen), {
+          voice_vendor: 'vapi',
+        });
         setStateSynced('listening');
         const t = tokenRef.current;
         if (t) setOwnerPhase(t, 'listening');
@@ -490,6 +492,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       );
     }
 
+    // Per-call session id. Surfaces in tool-call payloads via Vapi static
+    // params so server handlers can correlate tool writes with a single call.
+    const sessionId = crypto.randomUUID();
+
     try {
       await client.start(ASSISTANT_ID, {
         ...(extraOverrides ?? {}),
@@ -502,6 +508,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
           anon_id: metadata.anon_id,
           // dual-field for one deploy cycle; drop user_id in follow-up MR
           user_id: metadata.anon_id,
+          session_id: sessionId,
           screen: metadata.screen ?? '',
           canonical_screen_id: toCanonicalScreenId(metadata.screen) ?? '',
           coaching_style: metadata.coaching_style ?? 'warm',

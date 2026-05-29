@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as onboardingApi from '@/api/onboarding';
 import { useSessionLog } from '@/hooks/useSessionLog';
@@ -32,7 +32,27 @@ export function useOnboarding() {
   // Lazy state init keeps Date.now() out of the render path (purity rule).
   const [startTime] = useState(() => Date.now());
 
-  const state = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null;
+  // Subscribe to cache updates for the onboarding state key so this hook
+  // re-renders when the row changes — including writes from
+  // useOnboardingRealtimeSync (Vapi tool webhook path). Previously this was a
+  // one-time getQueryData() snapshot read, so realtime updates didn't
+  // propagate until a parent re-render forced this hook to re-run.
+  //
+  // Implementation note: we use a manual getQueryCache().subscribe() instead
+  // of useQuery() to avoid the "No queryFn was passed" warning. The actual
+  // fetcher lives in useAppGate; we only observe here.
+  const [state, setState] = useState<OnboardingState | null>(
+    () => qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null,
+  );
+  useEffect(() => {
+    const unsubscribe = qc.getQueryCache().subscribe((event) => {
+      if (event.type !== 'updated') return;
+      const key = event.query.queryKey;
+      if (!Array.isArray(key) || key[0] !== 'onboarding' || key[1] !== 'state') return;
+      setState(qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null);
+    });
+    return unsubscribe;
+  }, [qc]);
   const isCompleted = state?.status === 'completed';
 
   const saveMutation = useMutation({

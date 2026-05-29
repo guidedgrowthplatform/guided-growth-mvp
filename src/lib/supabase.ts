@@ -57,3 +57,9 @@ supabase.auth
   .getSession()
   .then(() => resolveSessionReady())
   .catch(() => resolveSessionReady());
+
+// Dev-only: expose the client on window for quick console debugging
+// (e.g. supabase.getChannels()). Stripped from prod bundles.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  (window as unknown as { supabase: SupabaseClient }).supabase = supabase;
+}

@@ -36,10 +36,22 @@ export function Step5Page() {
     phase?: 'confirming';
     reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string };
   } | null;
+  // Voice auto-nav arrives with no location.state; the manual Continue
+  // button passes it. Persisted onboarding state is the reliable source
+  // for goals + category (both written by their submit_* tools), so prefer
+  // it and treat location.state as a fast-path hint.
+  const persistedGoals = onboardingState?.data?.goals as string[] | undefined;
+  const persistedCategory = onboardingState?.data?.category as string | undefined;
   const goals = useMemo(
-    () => (state?.goals?.length ? state.goals : ['Fall asleep earlier']),
-    [state],
+    () =>
+      persistedGoals?.length
+        ? persistedGoals
+        : state?.goals?.length
+          ? state.goals
+          : ['Fall asleep earlier'],
+    [persistedGoals, state],
   );
+  const resolvedCategory = persistedCategory ?? state?.category;
 
   useAgentNavigation(5, '/onboarding/step-6');
   const trackStepComplete = useStepTiming(7, 'configure_habit', 'beginner');
@@ -155,8 +167,8 @@ export function Step5Page() {
 
   const snapshot = useOnboardingFormSnapshot({
     habitConfigs: snapshotHabitConfigs,
-    goals: state?.goals,
-    category: state?.category,
+    goals,
+    category: resolvedCategory,
   });
 
   const handleContinue = useCallback(() => {
@@ -255,7 +267,7 @@ export function Step5Page() {
         state: {
           habitConfigs: serializedConfigs,
           goals,
-          category: state?.category,
+          category: resolvedCategory,
           reflectionConfig: state?.reflectionConfig,
         },
       });
@@ -266,6 +278,7 @@ export function Step5Page() {
     phase,
     habitConfigs,
     goals,
+    resolvedCategory,
     state,
     navigate,
     handleContinue,

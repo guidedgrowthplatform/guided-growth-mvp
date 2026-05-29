@@ -105,7 +105,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           onboardingPath,
           user.authUserId,
           data?.nickname || null,
-          data?.ageRange || null,
+          // age_group is VARCHAR(20) — originally held range strings ("25-34")
+          // when the field was `ageRange`. The current UI + Vapi flow stores
+          // `data.age` as a number. We coerce to string to satisfy the column
+          // type; if the legacy `ageRange` key is set we prefer it.
+          typeof data?.ageRange === 'string' && data.ageRange.length > 0
+            ? data.ageRange
+            : typeof data?.age === 'number' && Number.isFinite(data.age)
+              ? String(data.age)
+              : null,
           data?.gender || null,
           data?.referralSource &&
           typeof data.referralSource === 'string' &&
