@@ -24,7 +24,7 @@ export function DateStrip({ selectedDate, onSelectDate, entries }: DateStripProp
   }, []);
 
   useEffect(() => {
-    selectedRef.current?.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+    selectedRef.current?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
   }, [selectedDate]);
 
   const selectedDateObj = new Date(selectedDate + 'T00:00:00');

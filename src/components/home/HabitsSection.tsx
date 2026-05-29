@@ -1,7 +1,12 @@
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
+import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { useToast } from '@/contexts/ToastContext';
 import { useHabitsForDate } from '@/hooks/useHabitsForDate';
+import type { HabitWithStatus } from '@/hooks/useHabitsForDate';
+import { useSessionLog } from '@/hooks/useSessionLog';
+import { getDataService } from '@/lib/services/service-provider';
 import { HabitListItem } from './HabitListItem';
 import { SectionHeader } from './SectionHeader';
 
@@ -19,10 +24,32 @@ interface HabitsSectionProps {
 export function HabitsSection({ selectedDate, screenId }: HabitsSectionProps) {
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const { logEvent } = useSessionLog();
   const { habits, loading, error, toggleComplete, reload } = useHabitsForDate(
     selectedDate,
     screenId,
   );
+  const [pendingDelete, setPendingDelete] = useState<HabitWithStatus | null>(null);
+  const isDeleting = useRef(false);
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete || isDeleting.current) return;
+    isDeleting.current = true;
+    const { habit, streak } = pendingDelete;
+    try {
+      const ds = await getDataService();
+      await ds.deleteHabit(habit.id);
+      track('delete_habit', { habit_id: habit.id, name: habit.name, current_streak: streak });
+      logEvent('habit_deleted', { habit_id: habit.id, name: habit.name }, screenId);
+      window.dispatchEvent(new Event('habits-changed'));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete habit';
+      addToast('error', msg);
+    } finally {
+      isDeleting.current = false;
+      setPendingDelete(null);
+    }
+  };
 
   const handleAddNote = (habitName: string) => {
     track('tap_habit_note', { source: 'home_today' });
@@ -132,19 +159,24 @@ export function HabitsSection({ selectedDate, screenId }: HabitsSectionProps) {
         onAction={() => navigate('/habits')}
       />
       <div className="flex flex-col gap-3">
-        {habits.map(({ habit, completed, streak }) => (
+        {habits.map((item) => (
           <HabitListItem
-            key={habit.id}
-            name={habit.name}
-            subtitle={habit.frequency}
-            streak={streak}
-            isCompleted={completed}
-            onToggleComplete={() => handleToggle(habit.id, completed)}
-            onAddNote={() => handleAddNote(habit.name)}
-            onClick={() => navigate('/habit/' + habit.id)}
+            key={item.habit.id}
+            name={item.habit.name}
+            subtitle={item.habit.frequency}
+            streak={item.streak}
+            isCompleted={item.completed}
+            onToggleComplete={() => handleToggle(item.habit.id, item.completed)}
+            onAddNote={() => handleAddNote(item.habit.name)}
+            onClick={() => navigate('/habit/' + item.habit.id)}
+            onDelete={() => setPendingDelete(item)}
           />
         ))}
       </div>
+
+      {pendingDelete && (
+        <DeleteHabitModal onDelete={handleConfirmDelete} onKeep={() => setPendingDelete(null)} />
+      )}
     </div>
   );
 }
