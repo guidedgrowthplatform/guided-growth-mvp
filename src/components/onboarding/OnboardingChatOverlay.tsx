@@ -28,6 +28,7 @@ import {
   type OnboardingStepContext,
   type OnboardingVoiceResult,
 } from '@/hooks/useOnboardingVoice';
+import { useMicRingIntensity } from '@/hooks/useMicRingIntensity';
 import { useState3VoiceInput } from '@/hooks/useState3VoiceInput';
 import { toolEventToVoiceActions } from '@/lib/onboarding/toolEventToVoiceActions';
 import { orbStateFrom } from '@/lib/orb/orbState';
@@ -123,6 +124,7 @@ export function OnboardingChatOverlay({
   const [isProcessing, setIsProcessing] = useState(false);
   const [draft, setDraft] = useState('');
   const [partialAssistant, setPartialAssistant] = useState('');
+  const [partialUser, setPartialUser] = useState('');
 
   const orbState = orbStateFrom(voiceChosen, micRuntimeOn);
   const isVapi = orbState === 'vapi';
@@ -179,7 +181,7 @@ export function OnboardingChatOverlay({
 
   useEffect(() => {
     scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages.length, llm.response, llm.isStreaming, partialAssistant]);
+  }, [messages.length, llm.response, llm.isStreaming, partialAssistant, partialUser]);
 
   useOnboardingTranscripts((evt) => {
     if (evt.role !== 'assistant') return;
@@ -192,12 +194,34 @@ export function OnboardingChatOverlay({
     if (!vapiActive) setPartialAssistant('');
   }, [vapiActive]);
 
+  // Drop the user partial when leaving State 3.
+  useEffect(() => {
+    if (!isVoiceInOnly) setPartialUser('');
+  }, [isVoiceInOnly]);
+
   const handleSendTextRef = useRef<(t: string) => void>(() => {});
   const { isListeningLocal } = useState3VoiceInput({
     active: isVoiceInOnly,
     vapiStatus: onboardingVoiceSession?.status ?? null,
-    onTranscript: (t) => handleSendTextRef.current(t),
+    onTranscript: (t) => {
+      setPartialUser('');
+      handleSendTextRef.current(t);
+    },
+    onInterim: (t) => setPartialUser(t),
+    responding: isProcessing || llm.isStreaming,
+    onError: () => {
+      appendMessage({
+        id: `voice-err-${Date.now()}`,
+        role: 'ai',
+        text: "I lost the voice connection — you can keep typing.",
+      });
+      setPartialUser('');
+      // Flip to text state (State 4); user re-taps mic to retry.
+      if (micRuntimeOn) toggleMic();
+    },
   });
+
+  const micRingIntensity = useMicRingIntensity(isVoiceInOnly && isListeningLocal);
 
   // Speaker-state derivation drives the gradient and the in-overlay dual
   // button rings. Idle gradient = blue, listening gradient = yellow.
@@ -520,6 +544,16 @@ export function OnboardingChatOverlay({
             animate={false}
           />
         )}
+        {isVoiceInOnly && partialUser.length > 0 && (
+          <ChatBubble
+            role="user"
+            text={partialUser}
+            userName={displayName}
+            eyebrowVariant="dark"
+            compact
+            animate={false}
+          />
+        )}
         {(isProcessing || (isOverlayDriven && llm.isStreaming && llm.response.length === 0)) && (
           <TypingIndicator />
         )}
@@ -538,6 +572,7 @@ export function OnboardingChatOverlay({
             activeRings={dualActiveRings}
             ringCount={3}
             ringStep={4}
+            intensity={dualActiveRings === 'right' ? micRingIntensity : undefined}
             leftIcon={voiceChosen ? <IconChatVoice size={28} /> : <IconChatText size={28} />}
             rightIcon={micRuntimeOn ? <IconMic size={26} /> : <IconMicMuted size={26} />}
             onLeftClick={toggleVoice}
