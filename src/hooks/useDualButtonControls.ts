@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { stopTTS, unlockTTS } from '@/lib/services/tts-service';
+import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 export interface DualButtonControls {
   voiceOn: boolean;

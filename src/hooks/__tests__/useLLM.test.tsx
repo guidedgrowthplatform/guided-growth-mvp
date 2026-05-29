@@ -5,10 +5,9 @@ import { useEffect, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
 import { SessionLogContext, type SessionLogContextValue } from '@/contexts/SessionLogContext';
-import { useLLM, type UseLLMReturn } from '../useLLM';
 import type { LLMStreamEvent } from '@shared/types/llm';
+import { useLLM, type UseLLMReturn } from '../useLLM';
 
 const logEventMock = vi.fn();
 const sessionCtx: SessionLogContextValue = {
@@ -19,9 +18,7 @@ const sessionCtx: SessionLogContextValue = {
 };
 
 function Wrapper({ children }: { children: ReactNode }) {
-  return (
-    <SessionLogContext.Provider value={sessionCtx}>{children}</SessionLogContext.Provider>
-  );
+  return <SessionLogContext.Provider value={sessionCtx}>{children}</SessionLogContext.Provider>;
 }
 
 let hookRef: UseLLMReturn | null = null;
@@ -65,7 +62,11 @@ function mockSSE(events: LLMStreamEvent[], opts?: { delay?: number }): Response 
   });
 }
 
-function pendingSSE(): { response: Response; emit: (e: LLMStreamEvent) => void; close: () => void } {
+function pendingSSE(): {
+  response: Response;
+  emit: (e: LLMStreamEvent) => void;
+  close: () => void;
+} {
   const encoder = new TextEncoder();
   let ctrl!: ReadableStreamDefaultController<Uint8Array>;
   const stream = new ReadableStream<Uint8Array>({
@@ -317,7 +318,11 @@ describe('useLLM', () => {
     vi.stubGlobal('fetch', vi.fn());
 
     let seeded: UseLLMReturn | null = null;
-    function SeedBridge({ initials }: { initials: { id: string; role: 'user'; content: string }[] }) {
+    function SeedBridge({
+      initials,
+    }: {
+      initials: { id: string; role: 'user'; content: string }[];
+    }) {
       const v = useLLM('CHAT-DEBUG', { chatSessionId: 'sess-A', initialMessages: initials });
       useEffect(() => {
         seeded = v;
@@ -351,7 +356,13 @@ describe('useLLM', () => {
     vi.stubGlobal('fetch', vi.fn());
 
     let seeded: UseLLMReturn | null = null;
-    function SeedBridge({ sid, initials }: { sid: string; initials: { id: string; role: 'user'; content: string }[] }) {
+    function SeedBridge({
+      sid,
+      initials,
+    }: {
+      sid: string;
+      initials: { id: string; role: 'user'; content: string }[];
+    }) {
       const v = useLLM('CHAT-DEBUG', { chatSessionId: sid, initialMessages: initials });
       useEffect(() => {
         seeded = v;

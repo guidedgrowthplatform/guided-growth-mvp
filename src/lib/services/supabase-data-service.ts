@@ -1,3 +1,10 @@
+import type {
+  UserPreferences,
+  Affirmation,
+  Reflection,
+  ReflectionConfig,
+  OnboardingState,
+} from '@shared/types';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../supabase';
 import { encryptJournal, decryptJournal } from '../utils/journal-crypto';
@@ -13,13 +20,6 @@ import type {
   CheckInRecord,
   FocusSession,
 } from './data-service.interface';
-import type {
-  UserPreferences,
-  Affirmation,
-  Reflection,
-  ReflectionConfig,
-  OnboardingState,
-} from '@shared/types';
 
 function todayStr(): string {
   const d = new Date();

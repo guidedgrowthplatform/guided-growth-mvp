@@ -16,6 +16,8 @@ export default tseslint.config(
       'android/',
       'ios/',
       'scripts/',
+      'playwright-report/',
+      'test-results/',
     ],
   },
 
