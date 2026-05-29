@@ -71,7 +71,7 @@ export function CalendarPage() {
   };
 
   return (
-    <div className="flex flex-col gap-5 pb-8">
+    <div className="flex flex-col gap-5 pb-28">
       <CalendarHeader month={currentMonth} onPrev={handlePrevMonth} onNext={handleNextMonth} />
 
       <MetricSegmentedControl value={activeMetric} onChange={setActiveMetric} />
