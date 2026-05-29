@@ -22,13 +22,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useChatSession } from '@/hooks/useChatSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useLLM } from '@/hooks/useLLM';
+import { useMicRingIntensity } from '@/hooks/useMicRingIntensity';
 import { STEP_TO_SCREEN_ID } from '@/hooks/useOnboarding';
 import {
   useOnboardingVoice,
   type OnboardingStepContext,
   type OnboardingVoiceResult,
 } from '@/hooks/useOnboardingVoice';
-import { useMicRingIntensity } from '@/hooks/useMicRingIntensity';
 import { useState3VoiceInput } from '@/hooks/useState3VoiceInput';
 import { toolEventToVoiceActions } from '@/lib/onboarding/toolEventToVoiceActions';
 import { orbStateFrom } from '@/lib/orb/orbState';
@@ -139,7 +139,11 @@ export function OnboardingChatOverlay({
   const isOnboardingScreen = screenId.startsWith('ONBOARD-');
   // Onboarding re-entry is recap-only: a fresh session avoids resuming the prior
   // transcript (no previous_response_id chain) so the coach starts clean.
-  const { chatSessionId, initialMessages, status: sessionStatus } = useChatSession(screenId, {
+  const {
+    chatSessionId,
+    initialMessages,
+    status: sessionStatus,
+  } = useChatSession(screenId, {
     resume: !isOnboardingScreen,
   });
   const llm = useLLM(screenId, {
@@ -213,7 +217,7 @@ export function OnboardingChatOverlay({
       appendMessage({
         id: `voice-err-${Date.now()}`,
         role: 'ai',
-        text: "I lost the voice connection — you can keep typing.",
+        text: 'I lost the voice connection — you can keep typing.',
       });
       setPartialUser('');
       // Flip to text state (State 4); user re-taps mic to retry.
@@ -372,25 +376,22 @@ export function OnboardingChatOverlay({
             | { ok?: boolean; result?: Record<string, unknown> }
             | undefined;
           if (payload?.ok && payload.result) {
-            queryClient.setQueryData<OnboardingState | null>(
-              queryKeys.onboarding.state,
-              (prev) => {
-                if (!prev) return prev;
-                const handlerData =
-                  (payload.result?.data as Record<string, unknown> | undefined) ?? {};
-                const handlerStep =
-                  typeof payload.result?.current_step === 'number'
-                    ? payload.result.current_step
-                    : prev.current_step;
-                // Keep prev.updated_at (no client clock) so the authoritative
-                // Realtime row always wins the updated_at guard downstream.
-                return {
-                  ...prev,
-                  data: { ...prev.data, ...handlerData },
-                  current_step: Math.max(prev.current_step, handlerStep),
-                };
-              },
-            );
+            queryClient.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, (prev) => {
+              if (!prev) return prev;
+              const handlerData =
+                (payload.result?.data as Record<string, unknown> | undefined) ?? {};
+              const handlerStep =
+                typeof payload.result?.current_step === 'number'
+                  ? payload.result.current_step
+                  : prev.current_step;
+              // Keep prev.updated_at (no client clock) so the authoritative
+              // Realtime row always wins the updated_at guard downstream.
+              return {
+                ...prev,
+                data: { ...prev.data, ...handlerData },
+                current_step: Math.max(prev.current_step, handlerStep),
+              };
+            });
           }
           break;
         }
@@ -400,14 +401,7 @@ export function OnboardingChatOverlay({
       clearTimeout(advanceTimerRef.current);
       advanceTimerRef.current = setTimeout(() => onAdvanceRef.current?.(), ADVANCE_DELAY_MS);
     }
-  }, [
-    isOverlayDriven,
-    llm.toolEvents,
-    navigate,
-    queryClient,
-    routesData,
-    onAction,
-  ]);
+  }, [isOverlayDriven, llm.toolEvents, navigate, queryClient, routesData, onAction]);
 
   // Abort in-flight llm stream when Vapi takes over.
   useEffect(() => {
@@ -426,10 +420,7 @@ export function OnboardingChatOverlay({
   useLayoutEffect(() => {
     if (!isOverlayDriven || !isOnboardingScreen) return;
     const opener = revisitOpener?.text ?? getOnboardingOpener(screenId);
-    startThread(
-      screenId,
-      opener ? [{ id: `opener-${screenId}`, role: 'ai', text: opener }] : [],
-    );
+    startThread(screenId, opener ? [{ id: `opener-${screenId}`, role: 'ai', text: opener }] : []);
   }, [isOverlayDriven, isOnboardingScreen, screenId, startThread, revisitOpener]);
 
   const initialMessagesLength = initialMessages.length;
@@ -475,12 +466,14 @@ export function OnboardingChatOverlay({
   };
 
   const gradient = voiceState === 'listening' ? LISTENING_GRADIENT : IDLE_GRADIENT;
-  const dualActiveRings: 'left' | 'right' | null =
-    micRuntimeOn && (isUserSpeaking || isListeningLocal)
+  const dualActiveRings: 'left' | 'right' | 'idle' | null =
+    micRuntimeOn && isUserSpeaking
       ? 'right'
       : voiceChosen && isAssistantSpeaking
         ? 'left'
-        : null;
+        : vapiActive
+          ? 'idle'
+          : null;
 
   return (
     <div className="fixed inset-0 z-50 flex animate-slide-up flex-col">

@@ -52,6 +52,17 @@ export function Step6Page() {
       schedule: ScheduleOption;
     };
   } | null;
+  // Voice auto-nav lands here with no location.state; the manual Continue
+  // button populates it. Persisted onboarding state (written by submit_*
+  // tools before the user got here) is the reliable source for the carry-
+  // through fields used by PlanReviewPage downstream.
+  const persistedData = onboardingState?.data as Record<string, unknown> | undefined;
+  const resolvedHabitConfigs =
+    (persistedData?.habitConfigs as
+      | Record<string, { days: number[] | Set<number>; time: string; reminder: boolean }>
+      | undefined) ?? state?.habitConfigs;
+  const resolvedGoals = (persistedData?.goals as string[] | undefined) ?? state?.goals;
+  const resolvedCategory = (persistedData?.category as string | undefined) ?? state?.category;
 
   const incoming = state?.reflectionConfig;
   const [time, setTime] = useState(incoming?.time ?? '21:45');
@@ -127,13 +138,13 @@ export function Step6Page() {
 
   const handleOnNext = useCallback(async () => {
     try {
-      if (!state?.habitConfigs) {
+      if (!resolvedHabitConfigs) {
         throw new Error(
-          'Step6: habitConfigs missing from navigation state — previous steps did not pass data forward',
+          'Step6: habitConfigs missing from both nav state and persisted data — previous steps did not save',
         );
       }
       const serializedConfigs = Object.fromEntries(
-        Object.entries(state.habitConfigs).map(([k, v]) => [
+        Object.entries(resolvedHabitConfigs).map(([k, v]) => [
           k,
           { ...v, days: v.days instanceof Set ? [...v.days] : v.days },
         ]),
@@ -143,8 +154,8 @@ export function Step6Page() {
       navigate('/onboarding/step-7', {
         state: {
           habitConfigs: serializedConfigs,
-          goals: state?.goals,
-          category: state?.category,
+          goals: resolvedGoals,
+          category: resolvedCategory,
           reflectionConfig: { time, days: [...days], reminder, schedule },
         },
       });
@@ -152,14 +163,25 @@ export function Step6Page() {
       Sentry.captureException(err, {
         tags: { flow: 'onboarding', step: '6' },
         extra: {
-          hasHabitConfigs: !!state?.habitConfigs,
-          hasGoals: !!state?.goals,
-          hasCategory: !!state?.category,
+          hasHabitConfigs: !!resolvedHabitConfigs,
+          hasGoals: !!resolvedGoals,
+          hasCategory: !!resolvedCategory,
         },
       });
       throw err;
     }
-  }, [state, time, days, reminder, schedule, navigate, saveStepAsync, trackStepComplete]);
+  }, [
+    resolvedHabitConfigs,
+    resolvedGoals,
+    resolvedCategory,
+    time,
+    days,
+    reminder,
+    schedule,
+    navigate,
+    saveStepAsync,
+    trackStepComplete,
+  ]);
 
   return (
     <OnboardingLayout
@@ -176,9 +198,9 @@ export function Step6Page() {
       onBack={() =>
         navigate('/onboarding/step-5', {
           state: {
-            goals: state?.goals,
-            category: state?.category,
-            habitConfigs: state?.habitConfigs,
+            goals: resolvedGoals,
+            category: resolvedCategory,
+            habitConfigs: resolvedHabitConfigs,
           },
         })
       }

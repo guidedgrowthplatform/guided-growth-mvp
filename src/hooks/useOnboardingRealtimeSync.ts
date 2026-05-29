@@ -52,6 +52,9 @@ export function useOnboardingRealtimeSync(): RealtimeSyncStatus {
           filter: `anon_id=eq.${anonId}`,
         },
         (payload: { new?: OnboardingState | null; eventType?: string }) => {
+          if (import.meta.env.DEV) {
+            console.log('[realtime] onboarding_states event', payload.eventType, payload.new);
+          }
           const next = payload.new ?? null;
           if (!next) return;
           // RLS already scopes delivery; drop any foreign row as defense-in-depth.
@@ -62,9 +65,15 @@ export function useOnboardingRealtimeSync(): RealtimeSyncStatus {
           // safe.
           const current = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state);
           if (current?.updated_at && next.updated_at && current.updated_at > next.updated_at) {
+            if (import.meta.env.DEV) {
+              console.log('[realtime] dropped (stale)', next.updated_at, '<', current.updated_at);
+            }
             return;
           }
           qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, next);
+          if (import.meta.env.DEV) {
+            console.log('[realtime] cache updated → data:', next.data);
+          }
         },
       )
       .subscribe((channelStatus) => {

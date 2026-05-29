@@ -67,6 +67,21 @@ function isConversationalBackchannel(text: string): boolean {
   return false;
 }
 
+// Screens that have migrated off the legacy /api/process-command parser onto
+// dedicated Vapi tools. On these screens the Vapi LLM calls our tool webhook
+// directly (e.g. submit_profile → /api/vapi/tool), which writes Supabase and
+// the frontend picks up the change via Realtime. Running the parser in
+// parallel would race with the tool write and burn a GPT round-trip.
+const VAPI_TOOL_DRIVEN_SCREENS = new Set<string>([
+  'ONBOARD-01--FORM',
+  'ONBOARD-FORK--FORM',
+  'ONBOARD-BEGINNER-01',
+  'ONBOARD-BEGINNER-02',
+  'ONBOARD-BEGINNER-03',
+  'ONBOARD-BEGINNER-07',
+  'ONBOARD-ADVANCED',
+]);
+
 interface OnboardingLayoutProps {
   currentStep: number;
   ctaLabel: string;
@@ -118,8 +133,11 @@ export function OnboardingLayout({
   formSnapshot,
 }: OnboardingLayoutProps) {
   const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
-  useOnboardingRealtimeSync();
   const focusedField = useFocusedFieldContext();
+  // Server-side tool writes (Vapi `submit_profile` etc.) update onboarding_states
+  // directly. Subscribe here so the postgres_changes broadcast lands in React
+  // Query cache and the form auto-fills without a refetch.
+  useOnboardingRealtimeSync();
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
   );
@@ -186,6 +204,16 @@ export function OnboardingLayout({
     (text: string) => {
       if (!onVoiceAction) return;
       if (!text) return;
+      if (screenId && VAPI_TOOL_DRIVEN_SCREENS.has(screenId)) {
+        if (import.meta.env.DEV) {
+          console.debug(
+            '[onboarding-voice] skipped legacy parser — Vapi tool path:',
+            screenId,
+            text,
+          );
+        }
+        return;
+      }
       // Skip obvious conversational backchannel — short pure-affirmation /
       // acknowledgment utterances Vapi handles fine on its own. No point
       // burning a /api/process-command call (and a GPT round-trip) just to
@@ -325,7 +353,15 @@ export function OnboardingLayout({
         size={88}
         leftActive={ttsOn}
         rightActive={micOn}
-        activeRings={ttsOn && vapiSpeaking ? 'left' : micOn && vapiUserSpeaking ? 'right' : null}
+        activeRings={
+          ttsOn && vapiSpeaking
+            ? 'left'
+            : micOn && vapiUserSpeaking
+              ? 'right'
+              : vapiStatus === 'active'
+                ? 'idle'
+                : null
+        }
         leftIcon={ttsOn ? <IconChatVoice size={30} /> : <IconChatText size={30} />}
         rightIcon={micOn ? <IconMic size={30} /> : <IconMicMuted size={30} />}
         onLeftClick={handleTtsToggleClick}

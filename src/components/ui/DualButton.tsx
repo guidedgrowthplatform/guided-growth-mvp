@@ -1,6 +1,11 @@
 import { type CSSProperties, type ReactNode } from 'react';
 
-type ActiveSide = 'left' | 'right' | 'both';
+type ActiveSide = 'left' | 'right' | 'both' | 'idle';
+
+// Sourced from the chat overlay gradient tokens (OnboardingChatOverlay.tsx:92-95).
+// Blue matches the overlay's idle/assistant color, gold matches the user-speaks color.
+const IDLE_RING_BLUE = 'rgba(19,91,236,0.7)';
+const IDLE_RING_GOLD = 'rgba(253,208,23,0.7)';
 
 interface DualButtonProps {
   leftIcon: ReactNode;
@@ -161,6 +166,17 @@ interface ActiveRingsProps {
 }
 
 function ActiveRings({ side, dialWidth, dialHeight, step, count, intensity }: ActiveRingsProps) {
+  if (side === 'idle') {
+    return (
+      <IdleRingStack
+        dialWidth={dialWidth}
+        dialHeight={dialHeight}
+        step={step}
+        count={count}
+        intensity={intensity}
+      />
+    );
+  }
   const sides: Array<'left' | 'right'> = side === 'both' ? ['left', 'right'] : [side];
   return (
     <>
@@ -175,6 +191,56 @@ function ActiveRings({ side, dialWidth, dialHeight, step, count, intensity }: Ac
           intensity={intensity}
         />
       ))}
+    </>
+  );
+}
+
+interface IdleRingStackProps {
+  dialWidth: number;
+  dialHeight: number;
+  step: number;
+  count: number;
+  intensity?: number;
+}
+
+// Full-circle pulsing ring stack used when the Vapi session is connected but
+// neither side is speaking. Each ring is a solid single color; the stack
+// alternates gold and blue across the concentric rings.
+function IdleRingStack({ dialWidth, dialHeight, step, count, intensity }: IdleRingStackProps) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => {
+        const offset = step * (i + 1);
+        const ringWidth = dialWidth + offset * 2;
+        const ringHeight = dialHeight + offset * 2;
+        const opacity = 1 - i * 0.25;
+        const borderColor = i % 2 === 0 ? IDLE_RING_GOLD : IDLE_RING_BLUE;
+        return (
+          <div
+            key={`idle-${offset}`}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-1/2 top-1/2"
+            style={{
+              width: ringWidth,
+              height: ringHeight,
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            <div
+              className="h-full w-full animate-ring-pulse rounded-full border"
+              style={
+                {
+                  borderColor,
+                  '--ring-opacity': opacity,
+                  '--pulse-scale':
+                    intensity != null ? Math.min(0.05 + intensity * 0.1, 0.15) : 0.05,
+                  animationDelay: `${i * 0.25}s`,
+                } as CSSProperties
+              }
+            />
+          </div>
+        );
+      })}
     </>
   );
 }
@@ -216,9 +282,7 @@ function RingStack({ side, dialWidth, dialHeight, step, count, intensity }: Ring
                 {
                   '--ring-opacity': opacity,
                   '--pulse-scale':
-                    intensity != null
-                      ? Math.min(0.05 + intensity * 0.1, 0.15)
-                      : 0.05,
+                    intensity != null ? Math.min(0.05 + intensity * 0.1, 0.15) : 0.05,
                   animationDelay: `${i * 0.25}s`,
                 } as CSSProperties
               }
