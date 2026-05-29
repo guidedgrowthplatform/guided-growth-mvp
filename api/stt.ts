@@ -31,7 +31,12 @@ const VOCAB_TERMS = [
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
 
-  const bypassAuth = process.env.AUTH_BYPASS_MODE === 'true';
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const bypassAuth =
+    process.env.AUTH_BYPASS_MODE === 'true' && process.env.NODE_ENV !== 'production';
   let userId = 'anonymous';
 
   if (!bypassAuth) {
@@ -47,10 +52,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
   if (rl.limited) {
     return res.status(429).json({ error: 'Rate limit exceeded' });
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const apiKey = process.env.SONIOX_API_KEY;
@@ -222,8 +223,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     cleanupFile();
     return res.status(200).json({ text });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
     console.error('[STT] Error:', err);
-    return res.status(500).json({ error: msg });
+    return res.status(500).json({ error: 'Transcription failed' });
   }
 }
