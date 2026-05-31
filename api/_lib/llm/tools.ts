@@ -34,14 +34,14 @@ interface ToolDefinition {
 
 export type ToolName = 'get_user_context' | 'update_profile' | 'navigate_next' | 'log_event';
 
-export const UPDATE_PROFILE_FIELDS = [
+const UPDATE_PROFILE_FIELDS = [
   'name',
   'nickname',
   'age_group',
   'gender',
   'referral_source',
 ] as const;
-export type UpdateProfileField = (typeof UPDATE_PROFILE_FIELDS)[number];
+type UpdateProfileField = (typeof UPDATE_PROFILE_FIELDS)[number];
 
 export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   {
@@ -273,7 +273,7 @@ async function logEvent(ctx: ToolContext, args: Record<string, unknown>): Promis
 
 type ToolHandler = (ctx: ToolContext, args: Record<string, unknown>) => Promise<ToolResult>;
 
-export const TOOL_HANDLERS: Record<ToolName, ToolHandler> = {
+const TOOL_HANDLERS: Record<ToolName, ToolHandler> = {
   get_user_context: getUserContext,
   update_profile: updateProfile,
   navigate_next: navigateNext,

@@ -56,4 +56,3 @@ export function getBundledScreenIds(): string[] {
 }
 
 export const BUNDLE_VERSION = typedBundle.version;
-export const BUNDLE_SCOPE = typedBundle.scope;

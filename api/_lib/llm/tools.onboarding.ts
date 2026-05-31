@@ -96,8 +96,6 @@ export type PathOption = (typeof PATH_OPTIONS)[number];
 
 export const MAX_GOALS = 2;
 export const MAX_HABITS = 2;
-export const AGE_MIN = 13;
-export const AGE_MAX = 120;
 
 export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
   {
@@ -354,7 +352,3 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     },
   },
 ] as const;
-
-export function findOnboardingTool(name: string): OnboardingTool | undefined {
-  return ONBOARDING_TOOLS.find((t) => t.name === name);
-}
