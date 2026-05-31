@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { STATE3_VOICE_IN_ENABLED } from '@/lib/config/voice';
+import { track } from '@/analytics/posthog';
+import { VOICE_IN_ENABLED } from '@/lib/config/voice';
 import {
   startSonioxBrowserSession,
   type BrowserSttHandle,
@@ -9,7 +10,7 @@ import {
 export type VapiStatus = 'idle' | 'connecting' | 'active' | 'ended' | 'error' | null | undefined;
 
 // Vapi-released gate. Local mic must not contend with WebRTC track.
-export function shouldStartState3(active: boolean, vapiStatus: VapiStatus): boolean {
+export function shouldStartVoiceIn(active: boolean, vapiStatus: VapiStatus): boolean {
   if (!active) return false;
   return vapiStatus !== 'active' && vapiStatus !== 'connecting';
 }
@@ -23,7 +24,7 @@ interface Options {
   onError?: (msg: string) => void;
 }
 
-export function useState3VoiceInput({
+export function useVoiceInCapture({
   active,
   vapiStatus,
   onTranscript,
@@ -31,9 +32,9 @@ export function useState3VoiceInput({
   responding,
   onError,
 }: Options): {
-  isListeningLocal: boolean;
+  isListening: boolean;
 } {
-  const [isListeningLocal, setIsListeningLocal] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const onTranscriptRef = useRef(onTranscript);
   const onInterimRef = useRef(onInterim);
   const onErrorRef = useRef(onError);
@@ -59,8 +60,8 @@ export function useState3VoiceInput({
   }, [responding]);
 
   useEffect(() => {
-    if (!STATE3_VOICE_IN_ENABLED) return;
-    if (!shouldStartState3(active, vapiStatus)) return;
+    if (!VOICE_IN_ENABLED) return;
+    if (!shouldStartVoiceIn(active, vapiStatus)) return;
 
     let disposed = false;
     const handle = startSonioxBrowserSession({
@@ -73,11 +74,12 @@ export function useState3VoiceInput({
         if (trimmed) onTranscriptRef.current(trimmed);
       },
       onStateChange: (s: SonioxState) => {
-        if (!disposed) setIsListeningLocal(s === 'listening');
+        if (!disposed) setIsListening(s === 'listening');
       },
+      onConnected: (m) => track('stt_connect_ms', { ...m }),
       onError: (msg) => {
         if (disposed) return;
-        setIsListeningLocal(false);
+        setIsListening(false);
         onErrorRef.current?.(msg);
       },
     });
@@ -88,9 +90,9 @@ export function useState3VoiceInput({
       disposed = true;
       sessionRef.current = null;
       handle.stop();
-      setIsListeningLocal(false);
+      setIsListening(false);
     };
   }, [active, vapiStatus]);
 
-  return { isListeningLocal };
+  return { isListening };
 }

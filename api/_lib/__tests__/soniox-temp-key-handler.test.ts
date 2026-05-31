@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../auth.js', () => ({
-  requireUser: vi.fn(),
+  getAuthUserNoDb: vi.fn(),
   handlePreflight: vi.fn(() => false),
 }));
 vi.mock('../rate-limit.js', () => ({
@@ -46,12 +46,8 @@ beforeEach(() => {
   (rateLimit.checkRateLimit as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     limited: false,
   });
-  (auth.requireUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+  (auth.getAuthUserNoDb as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
     authUserId: 'user-A',
-    anonId: 'anon-A',
-    firstName: null,
-    email: 'a@example.com',
-    role: 'user',
     status: 'active',
   });
   vi.stubEnv('NODE_ENV', 'test');
@@ -77,19 +73,29 @@ describe('POST /api/soniox-temp-key', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('short-circuits when requireUser returns null (no fetch, no rate-limit)', async () => {
-    (auth.requireUser as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(
-      async (_req: VercelRequest, res: VercelResponse) => {
-        res.status(401).json({ error: 'Authentication required' });
-        return null;
-      },
-    );
+  it('returns 401 when auth fails (no fetch, no rate-limit)', async () => {
+    (auth.getAuthUserNoDb as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
     const req = mockReq();
     const res = mockRes();
     await handler(req, res);
     expect(res._status).toBe(401);
+    expect(rateLimit.checkRateLimit).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 when the account is disabled (no fetch, no rate-limit)', async () => {
+    (auth.getAuthUserNoDb as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      authUserId: 'user-A',
+      status: 'disabled',
+    });
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const req = mockReq();
+    const res = mockRes();
+    await handler(req, res);
+    expect(res._status).toBe(403);
     expect(rateLimit.checkRateLimit).not.toHaveBeenCalled();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -112,7 +118,7 @@ describe('POST /api/soniox-temp-key', () => {
     const sentBody = JSON.parse(init.body as string);
     expect(sentBody.usage_type).toBe('transcribe_websocket');
     expect(sentBody.single_use).toBe(true);
-    expect(sentBody.client_reference_id).toBe('anon-A');
+    expect(sentBody.client_reference_id).toBeUndefined();
   });
 
   it('returns 502 when Soniox responds ok but without an api_key', async () => {

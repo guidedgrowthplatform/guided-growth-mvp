@@ -6,7 +6,8 @@ const pool = new pg.Pool({
     ? { ca: process.env.SUPABASE_SSL_CERT, rejectUnauthorized: true }
     : { rejectUnauthorized: false },
   max: 1,
-  idleTimeoutMillis: 10000,
+  // keep the warm-instance socket alive between calls — cold pooler connect is ~2.8s
+  idleTimeoutMillis: 60000,
 });
 
 export default pool;

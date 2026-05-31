@@ -13,18 +13,25 @@ const BAR_BOTTOM = 240;
 export function OnboardingSubtitleBar() {
   const session = useOnboardingVoiceSession();
   const status = session?.status ?? 'idle';
+  // voice-in keeps Vapi idle but still produces coach replies.
+  const voiceInActive = session?.voiceInListening ?? false;
   const [latestText, setLatestText] = useState<string>('');
   const [state, setState] = useState<DisplayState>('expanded');
 
-  useOnboardingTranscripts((evt) => setLatestText(evt.text));
+  // Coach subtitle only — the bus now also carries voice-in user transcripts.
+  useOnboardingTranscripts((evt) => {
+    if (evt.role !== 'assistant') return;
+    setLatestText(evt.text);
+  });
 
   useEffect(() => {
     if (status === 'active') {
       setState((prev) => (prev === 'closed' ? 'closed' : 'expanded'));
-    } else {
+    } else if (!voiceInActive) {
+      // Drop the subtitle only when neither Vapi nor voice-in is engaged.
       setLatestText('');
     }
-  }, [status]);
+  }, [status, voiceInActive]);
 
   if (!latestText) return null;
   if (state === 'closed') return null;

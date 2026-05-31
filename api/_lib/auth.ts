@@ -49,6 +49,27 @@ export async function getUser(req: VercelRequest): Promise<AuthenticatedUser | n
   }
 }
 
+// JWT-only verify, no profiles query — keeps the cold pg connect (~2.8s) off
+// latency-critical paths that need just the auth user id (e.g. STT temp key).
+export async function getAuthUserNoDb(
+  req: VercelRequest,
+): Promise<{ authUserId: string; status: 'active' | 'disabled' } | null> {
+  try {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+    const token = authHeader.slice(7);
+    const {
+      data: { user },
+      error,
+    } = await supabaseAdmin.auth.getUser(token);
+    if (error || !user) return null;
+    const claims = user.app_metadata as { status?: string };
+    return { authUserId: user.id, status: (claims.status ?? 'active') as 'active' | 'disabled' };
+  } catch {
+    return null;
+  }
+}
+
 export async function requireUser(
   req: VercelRequest,
   res: VercelResponse,

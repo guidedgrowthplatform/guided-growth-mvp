@@ -112,8 +112,6 @@ export function AdvancedResultsPage() {
     track('view_ai_organized_plan', { habits_generated_count: habits.length });
   }, [habits.length]);
 
-  const regenerateCountRef = useRef(0);
-
   // Snapshot mirrors the shape persisted in onboarding_states.data — each
   // habit name maps to {days[], time, reminder}, defaulting time and reminder
   // since AI-generated habits don't carry per-habit time yet.
@@ -207,19 +205,12 @@ export function AdvancedResultsPage() {
       currentStep={4}
       screenId="ONBOARD-ADVANCED-02"
       formSnapshot={snapshot}
-      ctaLabel="Looks Good!"
+      ctaLabel="Continue"
       onBack={() => navigate('/onboarding/advanced-input')}
       onNext={handleConfirm}
       onVoiceAction={handleVoiceAction}
-      secondaryAction={{
-        label: 'Regenerate',
-        onClick: () => {
-          regenerateCountRef.current += 1;
-          track('tap_regenerate_plan', { regeneration_count: regenerateCountRef.current });
-          navigate('/onboarding/advanced-input');
-        },
-      }}
       showVoiceButton
+      hideOpenChat
     >
       <OnboardingHeader
         title="We organized this for you"
@@ -241,10 +232,14 @@ export function AdvancedResultsPage() {
                 },
               })
             }
-            showCheckmark
-            showAiIcon
+            showEditIcon
           />
         ))}
+        <div className="rounded-[16px] bg-surface-secondary px-[20px] py-[18px]">
+          <p className="text-[15px] font-medium leading-[22px] text-content-tertiary">
+            Tap Edit to change the schedule for any habit.
+          </p>
+        </div>
       </div>
     </OnboardingLayout>
   );

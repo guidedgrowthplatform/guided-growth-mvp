@@ -7,6 +7,7 @@ interface HabitSummaryCardProps {
   onEdit: () => void;
   showCheckmark?: boolean;
   showAiIcon?: boolean;
+  showEditIcon?: boolean;
 }
 
 export function HabitSummaryCard({
@@ -15,6 +16,7 @@ export function HabitSummaryCard({
   onEdit,
   showCheckmark,
   showAiIcon,
+  showEditIcon,
 }: HabitSummaryCardProps) {
   return (
     <div className="w-full overflow-clip rounded-[24px] border-2 border-primary bg-surface p-[2px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.04)]">
@@ -43,7 +45,7 @@ export function HabitSummaryCard({
             className="flex cursor-pointer items-center gap-[4px] text-[14px] font-semibold leading-[20px] text-primary"
           >
             Edit
-            {showAiIcon && <Icon icon="ic:round-edit" className="size-[16px]" />}
+            {(showEditIcon || showAiIcon) && <Icon icon="ic:round-edit" className="size-[16px]" />}
           </button>
         </div>
         <DayPicker selectedDays={selectedDays} onToggleDay={() => {}} disabled />

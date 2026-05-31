@@ -148,16 +148,6 @@ export function PlanReviewPage() {
               : { habitConfigs, goals, category, reflectionConfig },
         })
       }
-      secondaryAction={{
-        label: 'Edit plan',
-        onClick: () =>
-          navigate(source === 'advanced' ? '/onboarding/advanced-results' : '/onboarding/step-5', {
-            state:
-              source === 'advanced'
-                ? {}
-                : { habitConfigs, goals, category, reflectionConfig, phase: 'confirming' },
-          }),
-      }}
     >
       <OnboardingHeader
         title="Your starting plan"

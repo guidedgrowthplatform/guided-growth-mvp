@@ -26,9 +26,9 @@ export const VOICE_CHAT_MAX_CONVERSATIONS = envNumber(
   5,
 );
 
-// ─── Path 3 State 3 (voice-in streaming) ────────────────────────────────────
-// Env-backed kill-switch; State 3 only. Remove once stable in prod.
-export const STATE3_VOICE_IN_ENABLED = import.meta.env.VITE_STATE3_ENABLED === 'true';
+// ─── Path 3 voice-in (streaming) ────────────────────────────────────
+// Env-backed kill-switch; voice-in only. Remove once stable in prod.
+export const VOICE_IN_ENABLED = import.meta.env.VITE_STATE3_ENABLED === 'true';
 
 // ─── Vapi (Path 1) daily cap ────────────────────────────────────────────────
 // Test override; gg-spec UX-12 says 5. Revert before launch.

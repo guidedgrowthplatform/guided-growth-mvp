@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -8,20 +9,40 @@ import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { queryKeys } from '@/lib/query';
+import type { OnboardingState } from '@shared/types';
 import { pathToSpec } from './pathToSpec';
 import { useStepTiming } from './useStepTiming';
 
 export function Step2Page() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [plan, setPlan] = useState<'simple' | 'braindump' | null>(null);
   const trackStepComplete = useStepTiming(4, 'onboarding_path', pathToSpec(plan));
+  // Once the user explicitly picks, their choice owns the radio — a later coach
+  // write must not snap it out from under them.
+  const userTouchedRef = useRef(false);
 
   useEffect(() => {
+    if (userTouchedRef.current) return;
     if (onboardingState?.path) {
       setPlan(onboardingState.path as 'simple' | 'braindump');
     }
   }, [onboardingState?.path]);
+
+  // Tap or voice pick: own the radio + prime the cache so the coach opener
+  // reflects it. The authoritative save happens on Continue.
+  const applyPathChoice = useCallback(
+    (value: 'simple' | 'braindump') => {
+      userTouchedRef.current = true;
+      setPlan(value);
+      qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, (prev) =>
+        prev ? { ...prev, path: value } : prev,
+      );
+    },
+    [qc],
+  );
 
   // null defers navigation until path is set so we route to the right fork.
   useAgentNavigation(
@@ -35,13 +56,16 @@ export function Step2Page() {
 
   const snapshot = useOnboardingFormSnapshot({ path: plan ?? undefined });
 
-  const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
-    if (result.action !== 'set_path') return;
-    const params = result.params as { value?: string };
-    if (params.value === 'simple' || params.value === 'braindump') {
-      setPlan(params.value);
-    }
-  }, []);
+  const handleVoiceAction = useCallback(
+    (result: OnboardingVoiceResult) => {
+      if (result.action !== 'set_path') return;
+      const params = result.params as { value?: string };
+      if (params.value === 'simple' || params.value === 'braindump') {
+        applyPathChoice(params.value);
+      }
+    },
+    [applyPathChoice],
+  );
 
   const handleNext = useCallback(async () => {
     if (!plan) return;
@@ -79,13 +103,13 @@ export function Step2Page() {
           title="I'm new to habit tracking"
           description="I'll help you step by step"
           selected={plan === 'simple'}
-          onSelect={() => setPlan('simple')}
+          onSelect={() => applyPathChoice('simple')}
         />
         <SelectionCard
           title="I already have experience with habit tracking"
           description="Tell me your habits and I'll organize them"
           selected={plan === 'braindump'}
-          onSelect={() => setPlan('braindump')}
+          onSelect={() => applyPathChoice('braindump')}
         />
       </div>
     </OnboardingLayout>
