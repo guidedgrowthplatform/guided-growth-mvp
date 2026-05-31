@@ -11,6 +11,9 @@ import { useSessionLog } from './useSessionLog';
 
 export type LLMStatus = 'idle' | 'streaming' | 'done' | 'error';
 
+// Shown when a turn yields neither text nor a tool action — else the UI looks frozen.
+const EMPTY_TURN_FALLBACK = "Sorry, I didn't quite get that — could you say it another way?";
+
 export interface UseLLMReturn {
   sendMessage: (text: string) => Promise<void>;
   sendOpener: () => Promise<void>;
@@ -102,6 +105,7 @@ export function useLLM(
       abortRef.current = controller;
 
       let acc = '';
+      let sawTerminal = false;
       const localTools: LLMToolEvent[] = [];
 
       const onEvent = (e: LLMStreamEvent) => {
@@ -134,13 +138,20 @@ export function useLLM(
             break;
           }
           case 'done': {
-            const assistant: LLMChatMessage = {
-              id: makeId(idCounterRef.current),
-              role: 'assistant',
-              content: acc,
-              toolEvents: localTools.length > 0 ? [...localTools] : undefined,
-            };
-            setMessages((prev) => [...prev, assistant]);
+            sawTerminal = true;
+            // Skip a blank assistant turn (tool-only). Truly empty (no text, no
+            // tools) → fallback line so the turn never renders as silence.
+            const display =
+              acc.trim() === '' && localTools.length === 0 ? EMPTY_TURN_FALLBACK : acc;
+            if (display.trim() !== '') {
+              const assistant: LLMChatMessage = {
+                id: makeId(idCounterRef.current),
+                role: 'assistant',
+                content: display,
+                toolEvents: localTools.length > 0 ? [...localTools] : undefined,
+              };
+              setMessages((prev) => [...prev, assistant]);
+            }
             setResponse('');
             setToolEvents([]);
             setStatus('done');
@@ -162,6 +173,7 @@ export function useLLM(
             break;
           }
           case 'error': {
+            sawTerminal = true;
             if (opts.surfaceErrors) {
               setStatus('error');
               setError(new Error(`${e.code}: ${e.message}`));
@@ -207,6 +219,16 @@ export function useLLM(
           abortRef.current = null;
         }
         inFlightRef.current = false;
+        // Stream ended with no done/error frame (truncated/killed) — clear the
+        // stuck 'streaming' status, else every later send is gated to noop.
+        if (!sawTerminal && !controller.signal.aborted) {
+          if (opts.surfaceErrors) {
+            setError((prev) => prev ?? new Error('connection ended unexpectedly'));
+            setStatus((prev) => (prev === 'streaming' ? 'error' : prev));
+          } else {
+            setStatus((prev) => (prev === 'streaming' ? 'idle' : prev));
+          }
+        }
       }
     },
     [sessionId, screenId, coachingStyle, logEvent, chatSessionId],

@@ -1,10 +1,15 @@
-import { Icon } from '@iconify/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ALL_DAYS, WEEKDAYS, WEEKEND } from '@/components/onboarding/constants';
+import {
+  ALL_DAYS,
+  formatCadence,
+  toggleSetItem,
+  WEEKDAYS,
+  WEEKEND,
+} from '@/components/onboarding/constants';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
-import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
+import { DayPicker } from '@/components/ui/DayPicker';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
@@ -17,13 +22,14 @@ const DEFAULT_QUESTIONS = [
   'What am I grateful for today?',
 ];
 
-const SCHEDULE_DAYS: Record<ScheduleOption, Set<number>> = {
-  Weekday: WEEKDAYS,
-  Weekend: WEEKEND,
-  'Every day': ALL_DAYS,
-};
-
-const SCHEDULE_OPTIONS: ScheduleOption[] = ['Weekday', 'Weekend', 'Every day'];
+// String labels (persisted / voice) → day set
+function daysFromScheduleLabel(label: string): Set<number> | null {
+  const lower = label.toLowerCase();
+  if (lower.includes('weekday')) return new Set(WEEKDAYS);
+  if (lower.includes('weekend')) return new Set(WEEKEND);
+  if (lower.includes('every') || lower.includes('daily')) return new Set(ALL_DAYS);
+  return null;
+}
 
 interface LocationState {
   habitConfigs?: Array<{ name: string; days: number[] }>;
@@ -40,52 +46,56 @@ export function AdvancedStep6Page() {
   useAgentNavigation(5, '/onboarding/step-7');
   const trackStepComplete = useStepTiming(7, 'advanced_journal_setup', 'advanced');
 
-  const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set(WEEKDAYS));
   const customPrompts = state?.customPrompts ?? onboardingState?.data?.customPrompts ?? null;
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const habitConfigs = state?.habitConfigs;
 
+  // Rehydrate day selection: full-fidelity days first, cadence label as fallback.
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
+    const cfg = onboardingState?.data?.reflectionConfig;
+    if (cfg?.days?.length) {
+      setSelectedDays(new Set(cfg.days));
+      return;
     }
-    if (showDropdown) document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [showDropdown]);
-
-  useEffect(() => {
     const incoming = onboardingState?.data?.reflectionSchedule;
-    if (typeof incoming !== 'string') return;
-    const lower = incoming.toLowerCase();
-    if (lower.includes('weekday')) setSchedule('Weekday');
-    else if (lower.includes('weekend')) setSchedule('Weekend');
-    else if (lower.includes('every') || lower.includes('daily')) setSchedule('Every day');
-  }, [onboardingState?.data?.reflectionSchedule]);
+    if (typeof incoming === 'string') {
+      const days = daysFromScheduleLabel(incoming);
+      if (days) setSelectedDays(days);
+    }
+  }, [onboardingState?.data?.reflectionConfig, onboardingState?.data?.reflectionSchedule]);
 
   const questions = customPrompts ?? DEFAULT_QUESTIONS;
 
   const snapshot = useOnboardingFormSnapshot({
-    reflectionSchedule: schedule,
+    reflectionSchedule: formatCadence(selectedDays),
     customPrompts: customPrompts ?? undefined,
   });
+
+  const handleToggleDay = useCallback((day: number) => {
+    setSelectedDays((prev) => toggleSetItem(prev, day));
+  }, []);
 
   const handleVoiceAction = useCallback((result: OnboardingVoiceResult) => {
     if (result.action === 'select_option') {
       const p = result.params as { fieldName?: string; value?: string };
       if (p.fieldName !== 'reflectionSchedule' || typeof p.value !== 'string') return;
-      if (p.value === 'Weekday' || p.value === 'Weekend' || p.value === 'Every day') {
-        setSchedule(p.value);
-      }
+      const days = daysFromScheduleLabel(p.value);
+      if (days) setSelectedDays(days);
       return;
     }
     if (result.action === 'set_reflection_config') {
-      const p = result.params as { schedule?: string };
-      if (p.schedule === 'Weekday' || p.schedule === 'Weekend' || p.schedule === 'Every day') {
-        setSchedule(p.schedule);
+      const p = result.params as { schedule?: string; days?: number[] };
+      if (Array.isArray(p.days)) {
+        const valid = p.days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+        if (valid.length > 0) {
+          setSelectedDays(new Set(valid));
+          return;
+        }
+      }
+      if (typeof p.schedule === 'string') {
+        const days = daysFromScheduleLabel(p.schedule);
+        if (days) setSelectedDays(days);
       }
     }
   }, []);
@@ -97,8 +107,13 @@ export function AdvancedStep6Page() {
         configRecord[h.name] = { days: h.days, time: '21:45', reminder: true };
       }
     }
-    const days = [...(SCHEDULE_DAYS[schedule] ?? WEEKDAYS)];
-    const reflectionConfig = { time: '21:45', days, reminder: true, schedule };
+    const days = [...selectedDays];
+    const reflectionConfig = {
+      time: '21:45',
+      days,
+      reminder: true,
+      schedule: formatCadence(selectedDays),
+    };
     await saveStepAsync(5, { habitConfigs: configRecord, reflectionConfig });
     trackStepComplete();
     navigate('/onboarding/step-7', {
@@ -108,52 +123,26 @@ export function AdvancedStep6Page() {
         source: 'advanced',
       },
     });
-  }, [habitConfigs, schedule, navigate, saveStepAsync, trackStepComplete]);
+  }, [habitConfigs, selectedDays, navigate, saveStepAsync, trackStepComplete]);
 
   return (
     <OnboardingLayout
       currentStep={6}
       screenId="ONBOARD-ADVANCED-04"
       formSnapshot={snapshot}
-      ctaLabel="Final Step"
+      ctaLabel="Continue"
       onBack={() => navigate('/onboarding/advanced-results')}
       onNext={handleReviewPlan}
       showVoiceButton
       onVoiceAction={handleVoiceAction}
-      secondaryAction={{
-        label: 'Optional: Create My Own Prompts',
-        onClick: () =>
-          navigate('/onboarding/advanced-custom-prompts', {
-            state: {
-              habitConfigs,
-              customPrompts,
-              journalMode: customPrompts ? 'custom' : undefined,
-            },
-          }),
-      }}
     >
       <OnboardingHeader
-        title="Meet your AI Voice Journal"
-        subtitle="We will turn your voice into text and learn from it to personalize your coaching."
+        title="Your daily reflection"
+        subtitle="Choose how you would like to reflect each day"
       />
 
-      <div className="flex flex-col gap-[8px] rounded-[16px] border border-primary/10 bg-surface p-[25px] shadow-[0px_0px_30px_0px_rgba(19,91,236,0.15)]">
-        <div className="flex items-center gap-[12px] pb-[16px]">
-          <div className="relative flex size-[40px] items-center justify-center rounded-full bg-primary/10">
-            <Icon icon="mingcute:mic-fill" width={19} height={14} className="text-primary" />
-            <span className="absolute right-[-4px] top-[-4px] text-[10px]">✨</span>
-          </div>
-          <span className="text-[20px] font-bold text-content">Daily Reflection</span>
-        </div>
-
-        <div className="flex items-center gap-[8px] rounded-[16px] bg-primary-bg p-[12px]">
-          <Icon icon="mingcute:mic-ai-fill" width={24} height={24} className="text-primary" />
-          <span className="text-[14px] font-semibold leading-[20px] text-primary">
-            Powered by AI Voice-to-Text. Just talk, we'll type.
-          </span>
-        </div>
-
-        <div className="flex flex-col gap-[12px] pb-[24px] pt-[24px]">
+      <div className="flex flex-col gap-[20px] rounded-[16px] border border-primary/10 bg-surface p-[24px] shadow-[0px_0px_30px_0px_rgba(19,91,236,0.15)]">
+        <div className="flex flex-col gap-[12px]">
           <span className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-content-secondary">
             You'll answer {questions.length} quick questions:
           </span>
@@ -164,48 +153,27 @@ export function AdvancedStep6Page() {
           ))}
         </div>
 
-        <div className="my-[16px] border-t border-border" />
+        <button
+          type="button"
+          onClick={() =>
+            navigate('/onboarding/advanced-custom-prompts', {
+              state: {
+                habitConfigs,
+                customPrompts,
+                journalMode: customPrompts ? 'custom' : undefined,
+              },
+            })
+          }
+          className="w-full rounded-full border-2 border-primary py-[14px] text-center text-[16px] font-bold text-primary"
+        >
+          Optional: Create My Own Prompts
+        </button>
 
-        <div className="flex items-center justify-between">
-          <span className="text-[14px] font-semibold uppercase tracking-[0.7px] text-content-secondary">
+        <div className="flex flex-col gap-[8px]">
+          <span className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-content-secondary">
             Schedule:
           </span>
-          <div className="relative" ref={dropdownRef}>
-            <button
-              type="button"
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="flex items-center gap-[4px] rounded-full bg-border-light px-[16px] py-[8px]"
-            >
-              <span className="text-[14px] font-semibold text-content">
-                {schedule === 'Every day' ? 'Daily' : schedule}
-              </span>
-              <Icon
-                icon="ic:round-keyboard-arrow-down"
-                width={8}
-                height={5}
-                className="text-content"
-              />
-            </button>
-            {showDropdown && (
-              <div className="absolute right-0 top-full z-10 mt-[4px] rounded-[12px] border border-border bg-surface py-[4px] shadow-lg">
-                {SCHEDULE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => {
-                      setSchedule(opt);
-                      setShowDropdown(false);
-                    }}
-                    className={`w-full px-[16px] py-[8px] text-left text-[14px] font-medium ${
-                      schedule === opt ? 'text-primary' : 'text-content'
-                    } hover:bg-border-light`}
-                  >
-                    {opt === 'Every day' ? 'Daily' : opt}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <DayPicker selectedDays={selectedDays} onToggleDay={handleToggleDay} />
         </div>
       </div>
     </OnboardingLayout>

@@ -391,6 +391,63 @@ describe('useLLM', () => {
     expect(seeded!.messages[0].content).toBe('two');
   });
 
+  it('tool-only turn (no text) appends no assistant bubble', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      mockSSE([
+        { type: 'tool_call', id: 't1', name: 'submit_path_choice', args: { path: 'simple' } },
+        { type: 'tool_result', id: 't1', ok: true, result: { path: 'simple' } },
+        { type: 'done', latency_ms: 10, total_tokens: 5, tool_rounds: 1 },
+      ]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount();
+    await act(async () => {
+      await hookRef!.sendMessage('i already have habits');
+    });
+    await flush();
+
+    expect(hookRef!.status).toBe('done');
+    // only the user turn; no empty assistant bubble
+    expect(hookRef!.messages).toHaveLength(1);
+    expect(hookRef!.messages[0].role).toBe('user');
+  });
+
+  it('truly empty turn (no text, no tools) appends a fallback assistant line', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        mockSSE([{ type: 'done', latency_ms: 10, total_tokens: 5, tool_rounds: 0 }]),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount();
+    await act(async () => {
+      await hookRef!.sendMessage('hello?');
+    });
+    await flush();
+
+    expect(hookRef!.status).toBe('done');
+    expect(hookRef!.messages).toHaveLength(2);
+    expect(hookRef!.messages[1].role).toBe('assistant');
+    expect(hookRef!.messages[1].content.trim().length).toBeGreaterThan(0);
+  });
+
+  it('stream ends with no terminal frame: status leaves streaming (not stuck)', async () => {
+    // delta then close, no done/error — simulates a truncated/killed stream
+    const fetchMock = vi.fn().mockResolvedValue(mockSSE([{ type: 'delta', content: 'partial' }]));
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount();
+    await act(async () => {
+      await hookRef!.sendMessage('hi');
+    });
+    await flush();
+
+    expect(hookRef!.status).not.toBe('streaming');
+    expect(hookRef!.isStreaming).toBe(false);
+  });
+
   it('sendMessage with no chatSessionId no-ops and warns in dev', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);

@@ -9,12 +9,14 @@ import { applyStartThread } from '@/contexts/applyStartThread';
 import {
   OnboardingVoiceContext,
   USER_SPEAKING_IDLE_MS,
-  type OnboardingTranscriptListener,
   type OnboardingVoiceContextValue,
   type OnboardingVoiceStatus,
   type ParserResultFeedback,
   type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
+import { useDualButtonControls } from '@/hooks/useDualButtonControls';
+import { useOnboardingChat } from '@/hooks/useOnboardingChat';
+import type { OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import {
   useRealtimeVoice,
   type RealtimeTranscriptEvent,
@@ -22,12 +24,21 @@ import {
 } from '@/hooks/useRealtimeVoice';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { useVoiceInCapture } from '@/hooks/useVoiceInCapture';
 import { normalizeCoachingStyle } from '@/lib/coaching/styles';
-import { countVapiToday, VAPI_CAP_DISABLED, VAPI_DAILY_CAP } from '@/lib/config/voice';
+import {
+  countVapiToday,
+  VOICE_IN_ENABLED,
+  VAPI_CAP_DISABLED,
+  VAPI_DAILY_CAP,
+} from '@/lib/config/voice';
 import { buildContextMessage } from '@/lib/context/buildContextMessage';
 import { getScreenContext } from '@/lib/context/getScreenContext';
 import { getBundledRoutes } from '@/lib/context/screenContextsBundle';
 import { screenIdForRoute } from '@/lib/context/screenIdForRoute';
+import { orbStateFrom } from '@/lib/orb/orbState';
+import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
+import { createListenerBus } from '@/lib/util/listenerBus';
 import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
@@ -76,6 +87,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const anonId = useAuthStore((s) => s.anonId);
   const { logEvent } = useSessionLog();
   const { preferences, updatePreferences } = useUserPreferences();
+  const { voiceOn, micOn, toggleMic } = useDualButtonControls();
 
   const fallbackLoggedRef = useRef(false);
   const { coachingStyle, fallbackUsed } = useMemo(() => {
@@ -123,7 +135,16 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const remoteEndCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasAssistantSpokenRef = useRef(false);
-  const transcriptListenersRef = useRef<Set<OnboardingTranscriptListener>>(new Set());
+  const transcriptBus = useRef(
+    createListenerBus<RealtimeTranscriptEvent>('onboarding-voice/transcript'),
+  ).current;
+  const voiceActionBus = useRef(
+    createListenerBus<OnboardingVoiceResult>('onboarding-voice/voice-action'),
+  ).current;
+  const notifyTranscriptListeners = transcriptBus.notify;
+  const subscribeTranscripts = transcriptBus.subscribe;
+  const notifyVoiceActions = voiceActionBus.notify;
+  const subscribeVoiceActions = voiceActionBus.subscribe;
   const startRef = useRef<(() => Promise<void>) | null>(null);
   const getClientRef = useRef<() => Vapi | null>(() => null);
   const currentScreenIdRef = useRef<string | null>(currentScreenId);
@@ -457,65 +478,55 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     if (idleTimerRef.current !== null) armIdleTimerRef.current();
   }, []);
 
-  const handleTranscript = useCallback((evt: RealtimeTranscriptEvent) => {
-    if (evt.role === 'user') {
-      if (evt.kind === 'partial') {
-        if (userActiveTimerRef.current) clearTimeout(userActiveTimerRef.current);
-        setIsUserSpeaking(true);
-        userActiveTimerRef.current = setTimeout(() => {
-          userActiveTimerRef.current = null;
+  const handleTranscript = useCallback(
+    (evt: RealtimeTranscriptEvent) => {
+      if (evt.role === 'user') {
+        if (evt.kind === 'partial') {
+          if (userActiveTimerRef.current) clearTimeout(userActiveTimerRef.current);
+          setIsUserSpeaking(true);
+          userActiveTimerRef.current = setTimeout(() => {
+            userActiveTimerRef.current = null;
+            setIsUserSpeaking(false);
+          }, USER_SPEAKING_IDLE_MS);
+        } else {
+          if (userActiveTimerRef.current) {
+            clearTimeout(userActiveTimerRef.current);
+            userActiveTimerRef.current = null;
+          }
           setIsUserSpeaking(false);
-        }, USER_SPEAKING_IDLE_MS);
-      } else {
-        if (userActiveTimerRef.current) {
-          clearTimeout(userActiveTimerRef.current);
-          userActiveTimerRef.current = null;
         }
-        setIsUserSpeaking(false);
       }
-    }
-    if (evt.kind === 'final') {
-      const text = evt.text.trim();
-      if (text) {
-        const now = Date.now();
-        let skip = false;
-        if (evt.role === 'assistant') {
-          if (
-            lastAssistantFinalRef.current.text === text &&
-            now - lastAssistantFinalRef.current.at < 1500
-          ) {
-            skip = true;
-          } else {
-            lastAssistantFinalRef.current = { text, at: now };
+      if (evt.kind === 'final') {
+        const text = evt.text.trim();
+        if (text) {
+          const now = Date.now();
+          let skip = false;
+          if (evt.role === 'assistant') {
+            if (
+              lastAssistantFinalRef.current.text === text &&
+              now - lastAssistantFinalRef.current.at < 1500
+            ) {
+              skip = true;
+            } else {
+              lastAssistantFinalRef.current = { text, at: now };
+            }
+          }
+          if (!skip) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `vapi-${evt.role}-${now}`,
+                role: evt.role === 'assistant' ? 'ai' : 'user',
+                text,
+              },
+            ]);
           }
         }
-        if (!skip) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `vapi-${evt.role}-${now}`,
-              role: evt.role === 'assistant' ? 'ai' : 'user',
-              text,
-            },
-          ]);
-        }
       }
-    }
-    for (const listener of transcriptListenersRef.current) {
-      try {
-        listener(evt);
-      } catch (err) {
-        console.warn('[onboarding-voice] transcript listener threw:', err);
-      }
-    }
-  }, []);
-
-  const subscribeTranscripts = useCallback((listener: OnboardingTranscriptListener) => {
-    transcriptListenersRef.current.add(listener);
-    return () => {
-      transcriptListenersRef.current.delete(listener);
-    };
-  }, []);
+      notifyTranscriptListeners(evt);
+    },
+    [notifyTranscriptListeners],
+  );
 
   // Per-call override builder — fires inside useRealtimeVoice.start() right
   // before vapi.start(). Injects the current screen's context_block + recent
@@ -660,6 +671,104 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     },
     [],
   );
+
+  // Page registers its authoritative screen_id so the lifted LLM keys context
+  // off the same id the page uses — not the (sometimes coarser) route id.
+  const [registeredScreenId, setRegisteredScreenId] = useState<string | null>(null);
+  const registerScreen = useCallback((screenId: string | null) => {
+    setRegisteredScreenId((prev) => (prev === screenId ? prev : screenId));
+  }, []);
+
+  // Page registers its advance handler (confirm_step_complete fires it).
+  const onAdvanceRef = useRef<(() => void) | null>(null);
+  const registerAdvance = useCallback((cb: (() => void) | null) => {
+    onAdvanceRef.current = cb;
+  }, []);
+  const fireAdvance = useCallback(() => onAdvanceRef.current?.(), []);
+
+  const orbState = orbStateFrom(voiceOn, micOn);
+  const voiceInShouldBeLive =
+    VOICE_IN_ENABLED && inOnboarding && micOn && !voiceOn && !!currentScreenId;
+
+  const emitAssistant = useCallback(
+    (text: string, kind: 'partial' | 'final') => {
+      notifyTranscriptListeners({ role: 'assistant', kind, text });
+    },
+    [notifyTranscriptListeners],
+  );
+
+  const chatScreenId = activeSubScreenId ?? registeredScreenId ?? currentScreenId;
+  // Exclude Vapi (state 1) — it owns its own turns; minting a Direct-LLM session
+  // there would orphan one per screen.
+  const chatEnabled =
+    inOnboarding &&
+    orbState !== 'vapi' &&
+    !!chatScreenId &&
+    chatScreenId.startsWith('ONBOARD-') &&
+    (overlayOpen || voiceInShouldBeLive);
+
+  const { sendUserTurn, chatBusy } = useOnboardingChat({
+    screenId: chatScreenId,
+    enabled: chatEnabled,
+    orbState,
+    coachingStyle,
+    appendMessage,
+    startThread,
+    emitAssistant,
+    onVoiceAction: notifyVoiceActions,
+    onAdvance: fireAdvance,
+  });
+
+  const emitVoiceInInterim = useCallback(
+    (text: string) => {
+      notifyTranscriptListeners({ role: 'user', kind: 'partial', text });
+    },
+    [notifyTranscriptListeners],
+  );
+
+  // Final voice turn → clear the live partial, then route to the LLM (the user
+  // bubble is added by the LLM message mirror, same as typed input).
+  const emitVoiceInFinal = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      notifyTranscriptListeners({ role: 'user', kind: 'final', text: trimmed });
+      sendUserTurn(trimmed);
+    },
+    [notifyTranscriptListeners, sendUserTurn],
+  );
+
+  const handleVoiceInError = useCallback(
+    (msg: string) => {
+      setProviderError(msg);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `voice-err-${Date.now()}`,
+          role: 'ai',
+          text: 'I lost the voice connection — you can keep typing.',
+        },
+      ]);
+      // disarm mic → State 4; user re-taps to retry
+      if (micOn) toggleMic();
+    },
+    [micOn, toggleMic],
+  );
+
+  const { isListening: voiceInListening } = useVoiceInCapture({
+    active: voiceInShouldBeLive,
+    vapiStatus: status,
+    onTranscript: emitVoiceInFinal,
+    onInterim: emitVoiceInInterim,
+    responding: false,
+    onError: handleVoiceInError,
+  });
+
+  useEffect(() => {
+    if (!voiceInShouldBeLive) return;
+    startKeyWarmLoop();
+    return () => stopKeyWarmLoop();
+  }, [voiceInShouldBeLive]);
 
   const [vapiToday, setVapiToday] = useState(() =>
     countVapiToday(useSessionLogStore.getState().events),
@@ -810,6 +919,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       status,
       isAssistantSpeaking: isSpeaking,
       isUserSpeaking,
+      voiceInListening,
       errorMessage,
       currentScreenId: activeSubScreenId ?? currentScreenId,
       overlayOpen,
@@ -818,6 +928,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       messages,
       appendMessage,
       startThread,
+      sendUserTurn,
+      chatBusy,
+      subscribeVoiceActions,
+      registerScreen,
+      registerAdvance,
       endCall,
       restartCall,
       pushSubScreen,
@@ -832,6 +947,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       status,
       isSpeaking,
       isUserSpeaking,
+      voiceInListening,
       errorMessage,
       activeSubScreenId,
       currentScreenId,
@@ -841,6 +957,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       messages,
       appendMessage,
       startThread,
+      sendUserTurn,
+      chatBusy,
+      subscribeVoiceActions,
+      registerScreen,
+      registerAdvance,
       endCall,
       restartCall,
       pushSubScreen,

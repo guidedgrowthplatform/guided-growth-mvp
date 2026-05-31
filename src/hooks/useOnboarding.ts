@@ -15,7 +15,7 @@ import type {
 // Step → canonical screen_id (matches screen_contexts). Steps 8-9 cover the
 // advanced flow and aren't keyed by integer — they fall through to the format
 // string fallback in the handler below.
-export const STEP_TO_SCREEN_ID: Record<number, string> = {
+const STEP_TO_SCREEN_ID: Record<number, string> = {
   1: 'ONBOARD-01',
   2: 'ONBOARD-FORK',
   3: 'ONBOARD-BEGINNER-01',

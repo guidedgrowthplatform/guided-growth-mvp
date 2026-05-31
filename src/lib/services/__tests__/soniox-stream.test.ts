@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  BoundedPcmBuffer,
+  createPrimedKeyGetter,
   createSonioxSession,
+  emptyVadState,
+  shouldCloseSocket,
+  shouldOpenSocket,
+  updateVad,
   type SonioxCoreDeps,
   type SonioxSocket,
   type SonioxState,
@@ -272,7 +278,10 @@ describe('createSonioxSession', () => {
 
     // Drop #1 -> schedule reconnect -> reopen with a fresh key.
     h.sockets[0].emitClose(1006);
-    h.timers.filter((t) => !t.cleared).pop()?.fn();
+    h.timers
+      .filter((t) => !t.cleared)
+      .pop()
+      ?.fn();
     await h.flush();
     expect(h.keyCount()).toBe(2);
     expect(h.sockets).toHaveLength(2);
@@ -301,7 +310,10 @@ describe('createSonioxSession', () => {
     h.sockets[0].emitOpen();
 
     h.sockets[0].emitClose(1006); // drop #1 -> schedule reconnect
-    h.timers.filter((t) => !t.cleared).pop()?.fn(); // reconnect: getTempKey rejects -> no open
+    h.timers
+      .filter((t) => !t.cleared)
+      .pop()
+      ?.fn(); // reconnect: getTempKey rejects -> no open
     await h.flush();
 
     expect(h.error).toHaveBeenCalledWith('voice connection lost');
@@ -333,9 +345,32 @@ describe('createSonioxSession', () => {
     h.sockets[0].emitMessage({ tokens: [{ text: 'pending words', is_final: true }] });
     h.session.finalize();
     // No terminal token arrives; fire the watchdog timer (last scheduled).
-    h.timers.filter((t) => !t.cleared).pop()?.fn();
+    h.timers
+      .filter((t) => !t.cleared)
+      .pop()
+      ?.fn();
     expect(h.final).toHaveBeenCalledWith('pending words');
     expect(h.sockets[0].closed).toBe(true);
+  });
+
+  it('11b. drop during the finalize window does NOT reconnect (no orphaned socket)', async () => {
+    const h = makeHarness();
+    h.session.start();
+    await h.flush();
+    h.sockets[0].emitOpen();
+    h.sockets[0].emitMessage({ tokens: [{ text: 'pending words', is_final: true }] });
+
+    h.session.finalize();
+    // Socket drops mid-finalize, before any terminal token.
+    h.sockets[0].emitClose(1006);
+
+    // No reconnect timer (RECONNECT_DELAY_MS = 500) was scheduled.
+    expect(h.timers.filter((t) => !t.cleared && t.ms === 500)).toHaveLength(0);
+    // Firing remaining timers (finalize watchdog) must not reopen a socket / re-mint.
+    h.timers.filter((t) => !t.cleared).forEach((t) => t.fn());
+    await h.flush();
+    expect(h.sockets).toHaveLength(1);
+    expect(h.keyCount()).toBe(1);
   });
 
   it('12. keepalive suppressed when audio was sent within the window', async () => {
@@ -374,7 +409,10 @@ describe('createSonioxSession', () => {
     // Each drop reopens and resets the consecutive budget, but the lifetime count climbs.
     for (let i = 0; i < 2; i++) {
       h.sockets[i].emitClose(1006);
-      h.timers.filter((t) => !t.cleared).pop()?.fn(); // fire reconnect
+      h.timers
+        .filter((t) => !t.cleared)
+        .pop()
+        ?.fn(); // fire reconnect
       await h.flush();
       h.sockets[i + 1].emitOpen();
     }
@@ -384,5 +422,105 @@ describe('createSonioxSession', () => {
     h.sockets[2].emitClose(1006);
     expect(h.error).toHaveBeenCalledWith('voice connection lost');
     expect(h.session.getState()).toBe('error');
+  });
+});
+
+describe('createPrimedKeyGetter', () => {
+  it('returns the primed key on first call, fresh mints after', async () => {
+    let freshCount = 0;
+    const get = createPrimedKeyGetter(Promise.resolve('primed'), async () => {
+      freshCount += 1;
+      return `fresh-${freshCount}`;
+    });
+
+    expect(await get()).toBe('primed');
+    expect(freshCount).toBe(0);
+    expect(await get()).toBe('fresh-1');
+    expect(await get()).toBe('fresh-2');
+  });
+
+  it('propagates a rejected primed key, then re-mints fresh on the next call', async () => {
+    const get = createPrimedKeyGetter(
+      Promise.reject(new Error('mint failed')),
+      async () => 'fresh',
+    );
+
+    await expect(get()).rejects.toThrow('mint failed');
+    await expect(get()).resolves.toBe('fresh');
+  });
+});
+
+describe('BoundedPcmBuffer', () => {
+  it('accumulates frames and drains once', () => {
+    const buf = new BoundedPcmBuffer(100);
+    buf.push(new Int16Array([1, 2, 3]));
+    buf.push(new Int16Array([4, 5]));
+    expect(buf.size).toBe(5);
+
+    const drained = buf.drain();
+    expect(drained).toHaveLength(2);
+    expect(Array.from(drained[0])).toEqual([1, 2, 3]);
+    expect(buf.size).toBe(0);
+    expect(buf.drain()).toHaveLength(0);
+  });
+
+  it('drops oldest frames past the sample cap', () => {
+    const buf = new BoundedPcmBuffer(4);
+    buf.push(new Int16Array([1, 2])); // total 2
+    buf.push(new Int16Array([3, 4])); // total 4
+    buf.push(new Int16Array([5, 6])); // total 6 -> drop oldest -> 4
+
+    expect(buf.size).toBe(4);
+    const drained = buf.drain();
+    expect(drained.map((f) => Array.from(f))).toEqual([
+      [3, 4],
+      [5, 6],
+    ]);
+  });
+
+  it('drops a single frame larger than the cap entirely (no orphaned total)', () => {
+    const buf = new BoundedPcmBuffer(4);
+    buf.push(new Int16Array([1, 2, 3, 4, 5]));
+    expect(buf.size).toBe(0);
+    expect(buf.drain()).toHaveLength(0);
+  });
+});
+
+describe('VAD gate (warm graph / paid socket)', () => {
+  // VAD_OPEN_RMS=0.01, VAD_OPEN_SUSTAIN_MS=150, VAD_SILENCE_CLOSE_MS=2500
+  it('latches speech start on the first above-threshold frame', () => {
+    let v = emptyVadState();
+    v = updateVad(v, 0.005, 1000);
+    expect(v.speechStartedAt).toBe(0);
+    v = updateVad(v, 0.02, 1100);
+    expect(v.speechStartedAt).toBe(1100);
+    expect(v.lastSpeechAt).toBe(1100);
+    // start time stays latched while speech continues
+    v = updateVad(v, 0.03, 1200);
+    expect(v.speechStartedAt).toBe(1100);
+    expect(v.lastSpeechAt).toBe(1200);
+  });
+
+  it('resets speech start on silence but keeps lastSpeechAt', () => {
+    let v = updateVad(emptyVadState(), 0.02, 1000);
+    v = updateVad(v, 0.001, 1050);
+    expect(v.speechStartedAt).toBe(0);
+    expect(v.lastSpeechAt).toBe(1000);
+  });
+
+  it('opens the socket only after sustained speech and only when none is open', () => {
+    const start = updateVad(emptyVadState(), 0.02, 1000);
+    expect(shouldOpenSocket(start, 1100, false)).toBe(false); // 100ms < 150ms
+    expect(shouldOpenSocket(start, 1160, false)).toBe(true); // 160ms ≥ 150ms
+    expect(shouldOpenSocket(start, 1160, true)).toBe(false); // socket already open
+    expect(shouldOpenSocket(emptyVadState(), 9999, false)).toBe(false); // no speech
+  });
+
+  it('closes the socket only after sustained silence and only when open', () => {
+    const spoke = updateVad(emptyVadState(), 0.02, 1000);
+    expect(shouldCloseSocket(spoke, 3000, true)).toBe(false); // 2000ms < 2500ms
+    expect(shouldCloseSocket(spoke, 3500, true)).toBe(true); // 2500ms ≥ 2500ms
+    expect(shouldCloseSocket(spoke, 3500, false)).toBe(false); // no socket to close
+    expect(shouldCloseSocket(emptyVadState(), 9999, true)).toBe(false); // never spoke
   });
 });

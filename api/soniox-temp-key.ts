@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireUser, handlePreflight } from './_lib/auth.js';
+import { getAuthUserNoDb, handlePreflight } from './_lib/auth.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
 
 const SONIOX_TEMP_KEY_URL = 'https://api.soniox.com/v1/auth/temporary-api-key';
@@ -13,15 +13,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const bypassAuth =
     process.env.AUTH_BYPASS_MODE === 'true' && process.env.NODE_ENV !== 'production';
-  // anonId NOT authUserId — anonymization
-  let clientReferenceId = 'anonymous';
+  // server-side rate-limit key only; never sent to Soniox (anonymization)
+  let rateLimitKey = 'anonymous';
   if (!bypassAuth) {
-    const user = await requireUser(req, res);
-    if (!user) return;
-    clientReferenceId = user.anonId;
+    const user = await getAuthUserNoDb(req);
+    if (!user) return res.status(401).json({ error: 'Authentication required' });
+    if (user.status === 'disabled') return res.status(403).json({ error: 'Account disabled' });
+    rateLimitKey = user.authUserId;
   }
 
-  const rl = checkRateLimit(clientReferenceId, {
+  const rl = checkRateLimit(rateLimitKey, {
     windowMs: 60_000,
     maxRequests: 30,
     keyPrefix: 'soniox-temp-key',
@@ -45,7 +46,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({
         usage_type: 'transcribe_websocket',
         expires_in_seconds: 300,
-        client_reference_id: clientReferenceId,
         single_use: true,
         max_session_duration_seconds: 3600,
       }),

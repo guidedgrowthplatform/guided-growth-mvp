@@ -6,9 +6,14 @@ import { OnboardingChatOverlay } from '@/components/onboarding/OnboardingChatOve
 import { OnboardingSubtitleBar } from '@/components/onboarding/OnboardingSubtitleBar';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { DualButton } from '@/components/ui/DualButton';
-import { useOnboardingTranscripts, useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
+import {
+  useOnboardingTranscripts,
+  useOnboardingVoice,
+  useOnboardingVoiceActions,
+} from '@/contexts/useOnboardingVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useFocusedFieldContext } from '@/hooks/useFocusedFieldContext';
+import { useMicRingIntensity } from '@/hooks/useMicRingIntensity';
 import { useOnboardingRealtimeSync } from '@/hooks/useOnboardingRealtimeSync';
 import {
   type OnboardingVoiceResult,
@@ -16,6 +21,7 @@ import {
 } from '@/hooks/useOnboardingVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
+import { orbStateFrom } from '@/lib/orb/orbState';
 import { stopTTS, unlockTTS } from '@/lib/services/tts-service';
 import { AiListeningTooltip } from './AiListeningTooltip';
 
@@ -89,6 +95,7 @@ interface OnboardingLayoutProps {
   ctaDisabled?: boolean;
   children: ReactNode;
   showVoiceButton?: boolean;
+  hideOpenChat?: boolean;
   onBack?: () => void;
   ctaVariant?: 'full' | 'inline';
   aiListeningPrompt?: string;
@@ -117,6 +124,7 @@ export function OnboardingLayout({
   ctaDisabled,
   children,
   showVoiceButton,
+  hideOpenChat = false,
   onBack,
   ctaVariant = 'full',
   aiListeningPrompt,
@@ -153,6 +161,10 @@ export function OnboardingLayout({
   const openOverlay = onboardingVoice!.openOverlay;
   const closeOverlay = onboardingVoice!.closeOverlay;
   const ttsOn = voiceOn && !vapiErrored;
+  // Page orb rings/ripples in voice-in even with the overlay closed (UX-18).
+  const isVoiceInOnly = orbStateFrom(voiceOn, micOn) === 'voice_in_only';
+  const voiceInListening = onboardingVoice?.voiceInListening ?? false;
+  const micRingIntensity = useMicRingIntensity(isVoiceInOnly && voiceInListening);
 
   const voicePlayer = useVoicePlayer();
 
@@ -287,6 +299,9 @@ export function OnboardingLayout({
     handleUserFinal(evt.text.trim());
   }, !!onVoiceAction);
 
+  // LLM tool calls (now provider-owned) drive this page's onVoiceAction.
+  useOnboardingVoiceActions((r) => handleVoiceAction(r), !!onVoiceAction);
+
   // Push the current snapshot to the provider on every render. The provider
   // shallow-compares against its own ref and only schedules a debounced Vapi
   // push when something actually changed — so this is cheap even when called
@@ -323,6 +338,23 @@ export function OnboardingLayout({
     onNext();
   };
 
+  // Register this page's screen_id + advance handler so the provider-owned LLM
+  // keys context correctly and confirm_step_complete advances the right page.
+  const handleNextRef = useRef(handleNext);
+  handleNextRef.current = handleNext;
+  const registerScreen = onboardingVoice?.registerScreen;
+  const registerAdvance = onboardingVoice?.registerAdvance;
+  useEffect(() => {
+    if (!registerScreen) return;
+    registerScreen(screenId ?? null);
+    return () => registerScreen(null);
+  }, [registerScreen, screenId]);
+  useEffect(() => {
+    if (!registerAdvance) return;
+    registerAdvance(() => handleNextRef.current());
+    return () => registerAdvance(null);
+  }, [registerAdvance]);
+
   const handleTooltipDismiss = () => {
     setTooltipVisible(false);
     localStorage.setItem('onboarding-voice-tooltip-shown', 'true');
@@ -354,14 +386,17 @@ export function OnboardingLayout({
         leftActive={ttsOn}
         rightActive={micOn}
         activeRings={
-          ttsOn && vapiSpeaking
-            ? 'left'
-            : micOn && vapiUserSpeaking
-              ? 'right'
-              : vapiStatus === 'active'
-                ? 'idle'
-                : null
+          isVoiceInOnly && voiceInListening
+            ? 'right'
+            : ttsOn && vapiSpeaking
+              ? 'left'
+              : micOn && vapiUserSpeaking
+                ? 'right'
+                : vapiStatus === 'active'
+                  ? 'idle'
+                  : null
         }
+        intensity={isVoiceInOnly && voiceInListening ? micRingIntensity : undefined}
         leftIcon={ttsOn ? <IconChatVoice size={30} /> : <IconChatText size={30} />}
         rightIcon={micOn ? <IconMic size={30} /> : <IconMicMuted size={30} />}
         onLeftClick={handleTtsToggleClick}
@@ -386,24 +421,9 @@ export function OnboardingLayout({
     <div
       className={`relative flex min-h-dvh flex-col ${bgVariant === 'secondary' ? 'bg-surface-secondary' : 'bg-surface'} px-6 pb-[48px] pt-[max(16px,env(safe-area-inset-top))]`}
     >
-      {overlayOpen && (
-        <OnboardingChatOverlay
-          key={currentStep}
-          stepContext={{
-            step: currentStep,
-            screen_id: screenId,
-            options: voiceOptions,
-            prompt: voicePrompt,
-            filled_fields: formSnapshot,
-            extraData: focusedField ? { focusedField } : undefined,
-          }}
-          onAction={handleVoiceAction}
-          onAdvance={handleNext}
-          onClose={closeOverlay}
-        />
-      )}
+      {overlayOpen && <OnboardingChatOverlay key={currentStep} onClose={closeOverlay} />}
 
-      {!overlayOpen && <OpenChatButton floating onPress={handleOpenChat} />}
+      {!overlayOpen && !hideOpenChat && <OpenChatButton floating onPress={handleOpenChat} />}
 
       {!overlayOpen && <OnboardingSubtitleBar />}
 

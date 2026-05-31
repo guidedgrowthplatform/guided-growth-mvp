@@ -208,11 +208,12 @@ This document is the **single source of truth** for all PostHog event tracking i
 
 ## 🆕 v6.0 — New Technical & Safety Events
 
-| #   | Event Name                       | Trigger                                   | Key Properties                                                    | Priority | Screen(s)       |
-| --- | -------------------------------- | ----------------------------------------- | ----------------------------------------------------------------- | -------- | --------------- |
-| 68  | `llm_call`                       | Any LLM call via the backend wrapper      | `screen_id`, `tokens`, `latency_ms`, `delta_event_count`, `model` | **P1**   | All LLM screens |
-| 69  | `mental_health_safety_triggered` | Crisis boundary fires (UX-06)             | `from_screen`, `trigger_phrase_category`                          | **P0**   | VOICE-01        |
-| 70  | `voice_cap_reached`              | User hits 5 voice conversations/day limit | _(none)_                                                          | **P2**   | VOICE-CAP       |
+| #   | Event Name                       | Trigger                                    | Key Properties                                                                                                                                                                                                                                      | Priority | Screen(s)             |
+| --- | -------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------- |
+| 68  | `llm_call`                       | Any LLM call via the backend wrapper       | `screen_id`, `tokens`, `latency_ms`, `delta_event_count`, `model`                                                                                                                                                                                   | **P1**   | All LLM screens       |
+| 69  | `mental_health_safety_triggered` | Crisis boundary fires (UX-06)              | `from_screen`, `trigger_phrase_category`                                                                                                                                                                                                            | **P0**   | VOICE-01              |
+| 70  | `voice_cap_reached`              | User hits 5 voice conversations/day limit  | _(none)_                                                                                                                                                                                                                                            | **P2**   | VOICE-CAP             |
+| 85  | `stt_connect_ms`                 | State 3 (voice-in) STT reaches `listening` | `mic_ms`, `audio_setup_ms`, `key_ms`, `ws_ms`, `total_ms`, `cached` — `ws_ms` is true connect latency (socket-open→`listening`); `total_ms` is arm→`listening`, includes user think-time before speaking (VAD-gated), so it is NOT a connect figure | **P1**   | ONBOARD-\* (voice-in) |
 
 ---
 

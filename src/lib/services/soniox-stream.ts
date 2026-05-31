@@ -1,5 +1,5 @@
 // Soniox realtime STT streaming client. Pure testable core + thin browser layer.
-import { getApiBase, getAuthHeaders } from '@/lib/services/api-auth';
+import { takeTempKey } from '@/lib/services/soniox-temp-key-cache';
 import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 
 export type SonioxState =
@@ -214,7 +214,8 @@ export function createSonioxSession(deps: SonioxCoreDeps): SonioxSession {
   }
 
   function handleUnexpectedDrop(): void {
-    if (disposed || closingIntentionally) return;
+    // pendingFinalize: reconnecting here would orphan a socket the caller dropped
+    if (disposed || closingIntentionally || pendingFinalize) return;
     clearKeepAlive();
     socket = null;
     if (reconnectsLeft > 0 && totalReconnects < maxLifetimeReconnects) {
@@ -350,12 +351,60 @@ export interface BrowserSttHandle {
   stop(): void;
 }
 
+export interface ConnectMetrics {
+  mic_ms: number;
+  audio_setup_ms: number;
+  key_ms: number;
+  ws_ms: number;
+  total_ms: number;
+  cached: boolean;
+}
+
 export interface StartBrowserSttOpts {
   onInterim: (text: string) => void;
   onFinal: (text: string) => void;
   onStateChange: (s: SonioxState) => void;
   onError: (msg: string) => void;
+  onConnected?: (m: ConnectMetrics) => void;
   config?: Partial<SonioxConfig>;
+}
+
+// First call returns the warm key; later calls re-mint — keys are single-use.
+export function createPrimedKeyGetter(
+  primed: Promise<string>,
+  fresh: () => Promise<string>,
+): () => Promise<string> {
+  let used = false;
+  return () => {
+    if (!used) {
+      used = true;
+      return primed;
+    }
+    return fresh();
+  };
+}
+
+// Drop-oldest ring, bounded by total samples.
+export class BoundedPcmBuffer {
+  private frames: Int16Array[] = [];
+  private total = 0;
+  constructor(private readonly maxSamples: number) {}
+  push(frame: Int16Array): void {
+    this.frames.push(frame);
+    this.total += frame.length;
+    while (this.total > this.maxSamples && this.frames.length > 0) {
+      this.total -= this.frames.shift()!.length;
+    }
+  }
+  drain(): Int16Array[] {
+    const out = this.frames;
+    this.frames = [];
+    this.total = 0;
+    return out;
+  }
+  get size(): number {
+    return this.total;
+  }
 }
 
 const SONIOX_WS_URL = 'wss://stt-rt.soniox.com/transcribe-websocket';
@@ -432,15 +481,47 @@ function realSocketAdapter(url: string): SonioxSocket {
   };
 }
 
-async function fetchTempKey(): Promise<string> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${getApiBase()}/api/soniox-temp-key`, {
-    method: 'POST',
-    headers,
-  });
-  if (!res.ok) throw new Error(`soniox-temp-key ${res.status}`);
-  const data = await res.json();
-  return data.apiKey as string;
+const CONNECT_TIMEOUT_MS = 7000;
+// armed but zero audio frames — dead capture; else orb sits on 'listening' forever
+const ARM_TIMEOUT_MS = 12000;
+// 1.5s @ 16k — opening words captured before the socket reaches 'listening'.
+const PREBUFFER_MAX_SAMPLES = 24000;
+
+// VAD hysteresis. The local graph stays warm while armed (free); the paid
+// Soniox socket opens only on sustained speech and closes after silence.
+const VAD_OPEN_RMS = 0.01;
+const VAD_OPEN_SUSTAIN_MS = 150;
+const VAD_SILENCE_CLOSE_MS = 2500;
+// smooth per-quantum RMS for VAD — raw quanta are too jittery to gate on
+const VAD_RMS_EMA_ALPHA = 0.2;
+
+export interface VadState {
+  speechStartedAt: number;
+  lastSpeechAt: number;
+}
+
+export function emptyVadState(): VadState {
+  return { speechStartedAt: 0, lastSpeechAt: 0 };
+}
+
+export function updateVad(vad: VadState, rms: number, now: number): VadState {
+  if (rms >= VAD_OPEN_RMS) {
+    return {
+      speechStartedAt: vad.speechStartedAt === 0 ? now : vad.speechStartedAt,
+      lastSpeechAt: now,
+    };
+  }
+  return { speechStartedAt: 0, lastSpeechAt: vad.lastSpeechAt };
+}
+
+export function shouldOpenSocket(vad: VadState, now: number, hasSocket: boolean): boolean {
+  return (
+    !hasSocket && vad.speechStartedAt !== 0 && now - vad.speechStartedAt >= VAD_OPEN_SUSTAIN_MS
+  );
+}
+
+export function shouldCloseSocket(vad: VadState, now: number, hasSocket: boolean): boolean {
+  return hasSocket && vad.lastSpeechAt !== 0 && now - vad.lastSpeechAt >= VAD_SILENCE_CLOSE_MS;
 }
 
 export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserSttHandle {
@@ -450,33 +531,148 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
   let captureNode: ScriptProcessorNode | AudioWorkletNode | null = null;
   let sourceNode: MediaStreamAudioSourceNode | null = null;
   let stopped = false;
+  let armed = false;
+  // True once any audio frame arrives — distinguishes a dead mic from a quiet user.
+  let framesSeen = false;
   let pcmBuffer = new Float32Array(0);
 
-  const session = createSonioxSession({
-    url: SONIOX_WS_URL,
-    openSocket: realSocketAdapter,
-    getTempKey: fetchTempKey,
-    onInterim: opts.onInterim,
-    onFinal: opts.onFinal,
-    onStateChange: opts.onStateChange,
-    onError: opts.onError,
-    now: () => performance.now(),
-    setTimer: (fn, ms) => setTimeout(fn, ms),
-    clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
-    config: opts.config,
-  });
+  const tBootStart = performance.now();
+  let micMs = 0;
+  let audioSetupMs = 0;
+  let connectMetricsSent = false;
+  const prebuf = new BoundedPcmBuffer(PREBUFFER_MAX_SAMPLES);
+
+  // One Soniox socket per utterance; null while armed-and-silent.
+  let session: SonioxSession | null = null;
+  let sessionListening = false;
+  let responding = false;
+  let vad = emptyVadState();
+  let vadRmsEma = 0;
+  let sessionWatchdog: ReturnType<typeof setTimeout> | null = null;
+  let armWatchdog: ReturnType<typeof setTimeout> | null = null;
+  let visibilityHandler: (() => void) | null = null;
+
+  function clearSessionWatchdog(): void {
+    if (sessionWatchdog !== null) {
+      clearTimeout(sessionWatchdog);
+      sessionWatchdog = null;
+    }
+  }
+
+  function clearArmWatchdog(): void {
+    if (armWatchdog !== null) {
+      clearTimeout(armWatchdog);
+      armWatchdog = null;
+    }
+  }
+
+  function openSocket(): void {
+    if (session || stopped || !armed) return;
+    clearArmWatchdog(); // socket attempt underway; per-socket watchdog owns connect
+    const isFirst = !connectMetricsSent;
+    let connectingAt = 0;
+    let keyMs = 0;
+    let cachedKey = false;
+
+    // Fresh single-use key per socket; first one drains the warm cache.
+    const getTempKey = () => {
+      const t = performance.now();
+      return takeTempKey().then((r) => {
+        if (isFirst) {
+          keyMs = performance.now() - t;
+          cachedKey = r.cached;
+        }
+        return r.apiKey;
+      });
+    };
+
+    clearSessionWatchdog();
+    sessionWatchdog = setTimeout(() => {
+      sessionWatchdog = null;
+      if (stopped || sessionListening) return;
+      opts.onError('voice connection timed out');
+      stop();
+    }, CONNECT_TIMEOUT_MS);
+
+    const s = createSonioxSession({
+      url: SONIOX_WS_URL,
+      openSocket: realSocketAdapter,
+      getTempKey,
+      onInterim: opts.onInterim,
+      onFinal: opts.onFinal,
+      onStateChange: (st) => {
+        if (st === 'connecting' && connectingAt === 0) connectingAt = performance.now();
+        if (st === 'error') clearSessionWatchdog();
+        if (st === 'listening' && !sessionListening) {
+          sessionListening = true;
+          clearSessionWatchdog();
+          for (const f of prebuf.drain()) s.feedAudio(f);
+          if (responding) s.setResponding(true);
+          if (isFirst && !connectMetricsSent) {
+            connectMetricsSent = true;
+            const tListen = performance.now();
+            opts.onConnected?.({
+              mic_ms: Math.round(micMs),
+              audio_setup_ms: Math.round(audioSetupMs),
+              key_ms: Math.round(keyMs),
+              ws_ms: connectingAt ? Math.round(tListen - connectingAt) : 0,
+              total_ms: Math.round(tListen - tBootStart),
+              cached: cachedKey,
+            });
+          }
+        }
+      },
+      onError: (msg) => {
+        clearSessionWatchdog();
+        if (!stopped) opts.onError(msg);
+        stop();
+      },
+      now: () => performance.now(),
+      setTimer: (fn, ms) => setTimeout(fn, ms),
+      clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
+      config: opts.config,
+    });
+    session = s;
+    s.start();
+  }
+
+  // Close the paid socket after an utterance; graph stays warm (ripple alive).
+  function endUtterance(): void {
+    if (!session) return;
+    const s = session;
+    session = null;
+    sessionListening = false;
+    vad = emptyVadState();
+    clearSessionWatchdog();
+    prebuf.drain(); // start the next utterance's lead-in clean
+    s.finalize();
+  }
+
+  function emitFrame(frame: Int16Array): void {
+    // armed-silent or connecting → retain in prebuffer, drained on 'listening'
+    if (session && sessionListening) session.feedAudio(frame);
+    else prebuf.push(frame);
+  }
 
   function onFrame(float32: Float32Array, srcRate: number): void {
     if (stopped) return;
-    // per-frame RMS — ring stays responsive despite chunked sends
-    useAudioMetricsStore.getState().pushChunkRms(computeRms(float32));
+    framesSeen = true;
+    const now = performance.now();
+    const rms = computeRms(float32);
+    // raw RMS drives the ripple (responsive); EMA drives VAD (stable)
+    useAudioMetricsStore.getState().pushChunkRms(rms);
+    vadRmsEma = vadRmsEma * (1 - VAD_RMS_EMA_ALPHA) + rms * VAD_RMS_EMA_ALPHA;
+    vad = updateVad(vad, vadRmsEma, now);
+    if (armed && shouldOpenSocket(vad, now, session !== null)) openSocket();
+    else if (shouldCloseSocket(vad, now, session !== null)) endUtterance();
+
     const down = downsampleTo16k(float32, srcRate);
     const merged = new Float32Array(pcmBuffer.length + down.length);
     merged.set(pcmBuffer);
     merged.set(down, pcmBuffer.length);
     pcmBuffer = merged;
     while (pcmBuffer.length >= FRAME_SAMPLES_16K) {
-      session.feedAudio(float32ToInt16(pcmBuffer.subarray(0, FRAME_SAMPLES_16K)));
+      emitFrame(float32ToInt16(pcmBuffer.subarray(0, FRAME_SAMPLES_16K)));
       pcmBuffer = pcmBuffer.slice(FRAME_SAMPLES_16K);
     }
   }
@@ -484,9 +680,26 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
   // trailing partial — else last <120ms lost on stop
   function flushBuffer(): void {
     if (pcmBuffer.length > 0) {
-      session.feedAudio(float32ToInt16(pcmBuffer));
+      emitFrame(float32ToInt16(pcmBuffer));
       pcmBuffer = new Float32Array(0);
     }
+  }
+
+  function stop(): void {
+    if (stopped) return;
+    stopped = true;
+    armed = false;
+    clearSessionWatchdog();
+    clearArmWatchdog();
+    // drain before mic-off — feedAudio gated on 'listening'
+    flushBuffer();
+    if (session) {
+      const s = session;
+      session = null;
+      sessionListening = false;
+      s.finalize();
+    }
+    cleanup();
   }
 
   function setupScriptProcessorFallback(
@@ -508,6 +721,10 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
   }
 
   function cleanup(): void {
+    if (visibilityHandler) {
+      document.removeEventListener('visibilitychange', visibilityHandler);
+      visibilityHandler = null;
+    }
     if (sourceNode) {
       sourceNode.disconnect();
       sourceNode = null;
@@ -534,6 +751,7 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
 
   async function boot(): Promise<void> {
     try {
+      const micStart = performance.now();
       mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
@@ -542,7 +760,9 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
           autoGainControl: true,
         },
       });
+      micMs = performance.now() - micStart;
       if (stopped) return cleanup();
+      const audioStart = performance.now();
       // Browsers may ignore the requested rate; read back the actual one.
       try {
         audioContext = new AudioContext({ sampleRate: TARGET_RATE });
@@ -583,7 +803,26 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
         cleanup();
         return;
       }
-      session.start();
+      audioSetupMs = performance.now() - audioStart;
+      // iOS suspends the AudioContext on background; resume on return.
+      visibilityHandler = () => {
+        if (stopped || !armed) return;
+        if (document.visibilityState === 'visible' && audioContext?.state === 'suspended') {
+          void audioContext.resume();
+        }
+      };
+      document.addEventListener('visibilitychange', visibilityHandler);
+      // Armed: graph runs + ripple is live; the socket opens on first speech.
+      armed = true;
+      opts.onStateChange('listening');
+      armWatchdog = setTimeout(() => {
+        armWatchdog = null;
+        // Only a truly dead capture (zero frames) is an error; a quiet/thinking
+        // user still emits frames (ripple stays live) and must not be kicked.
+        if (stopped || session || connectMetricsSent || framesSeen) return;
+        opts.onError('microphone not capturing audio');
+        stop();
+      }, ARM_TIMEOUT_MS);
     } catch (err) {
       cleanup();
       if (!stopped) opts.onError(err instanceof Error ? err.message : 'Mic capture failed');
@@ -593,14 +832,10 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
   void boot();
 
   return {
-    setResponding: (responding) => session.setResponding(responding),
-    stop: () => {
-      if (stopped) return;
-      // drain before mic-off — feedAudio gated on 'listening'
-      flushBuffer();
-      stopped = true;
-      cleanup();
-      session.finalize();
+    setResponding: (r) => {
+      responding = r;
+      session?.setResponding(r);
     },
+    stop,
   };
 }

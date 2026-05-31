@@ -6,3 +6,4 @@ export * from './context/buildContextMessage.js';
 export * from './coaching/styles.js';
 export * from './coaching/systemPrompt.js';
 export * from './types/llm.js';
+export * from './data/onboardingGoals.js';

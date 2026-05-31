@@ -1,5 +1,16 @@
 import { Send } from 'lucide-react';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
+
+// 2 lines @ 20px line-height; beyond this the textarea scrolls
+const MAX_TEXTAREA_HEIGHT = 40;
 
 export interface ChatComposerProps {
   onSubmit: (text: string) => void;
@@ -35,21 +46,46 @@ export function ChatComposer({
   const isControlled = value !== undefined;
   const [internal, setInternal] = useState('');
   const current = isControlled ? (value as string) : internal;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const setCurrent = (next: string) => {
     if (!isControlled) setInternal(next);
     onValueChange?.(next);
   };
 
+  // grow to fit content up to 2 lines, then scroll
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
+  }, [current]);
+
+  useEffect(() => {
+    if (autoFocus) textareaRef.current?.focus();
+  }, [autoFocus]);
+
   const trimmed = current.trim();
   const sendDisabled = disabled || !trimmed;
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const submit = () => {
     if (sendDisabled) return;
     onSubmit(trimmed);
     if (!isControlled) setInternal('');
     if (isControlled) onValueChange?.('');
+  };
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    submit();
+  };
+
+  // Enter sends; Shift+Enter inserts a newline
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      submit();
+    }
   };
 
   return (
@@ -58,27 +94,28 @@ export function ChatComposer({
       onSubmit={handleSubmit}
       className={
         className ??
-        'flex h-[44px] w-full items-center gap-2 rounded-full bg-white pl-5 pr-3 shadow-[0px_10px_24px_-8px_rgba(15,23,42,0.18)]'
+        'flex min-h-[44px] w-full items-end gap-1 rounded-[22px] bg-white py-1.5 pl-5 pr-2 shadow-[0px_10px_24px_-8px_rgba(15,23,42,0.18)]'
       }
     >
       {leadingSlot}
-      <input
+      <textarea
+        ref={textareaRef}
         id={inputId}
-        type="text"
+        rows={1}
         value={current}
         onChange={(e) => setCurrent(e.target.value)}
+        onKeyDown={handleKeyDown}
         placeholder={placeholder}
         aria-label={placeholder}
         disabled={disabled}
-        autoFocus={autoFocus}
         tabIndex={tabbable ? 0 : -1}
-        className="flex-1 bg-transparent text-[15px] text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:opacity-60"
+        className="flex-1 resize-none self-center overflow-y-auto bg-transparent text-[15px] leading-5 text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:opacity-60"
       />
       <button
         type="submit"
         disabled={sendDisabled}
         aria-label={sendLabel}
-        className="flex h-8 w-8 items-center justify-center text-primary transition-opacity disabled:opacity-40"
+        className="flex h-8 w-8 shrink-0 items-center justify-center text-primary transition-opacity disabled:opacity-40"
       >
         <Send className="h-5 w-5" />
       </button>
