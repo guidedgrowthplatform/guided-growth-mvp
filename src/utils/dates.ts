@@ -42,5 +42,3 @@ export function getWeekDays(date: Date | string): Date[] {
   const { start, end } = getWeekRange(d);
   return eachDayOfInterval({ start, end });
 }
-
-export const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;

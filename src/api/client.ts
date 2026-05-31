@@ -21,7 +21,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${getApiUrl()}${endpoint}`;
 
   const headers: Record<string, string> = {

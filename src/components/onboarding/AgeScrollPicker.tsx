@@ -3,10 +3,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 const ITEM_HEIGHT = 40;
 const VISIBLE_ITEMS = 5;
-const AGE_VALUES = Array.from({ length: 88 }, (_, i) => i + 13);
+// 13–120, matching the backend AGE_MAX and the voice-input clamp in Step1Page.
+const AGE_VALUES = Array.from({ length: 108 }, (_, i) => i + 13);
 
 interface ScrollColumnProps {
-  selected: number;
+  selected: number | '';
   onChange: (age: number) => void;
   onSelect: (age: number) => void;
 }
@@ -15,7 +16,8 @@ function ScrollColumn({ selected, onChange, onSelect }: ScrollColumnProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isUserScroll = useRef(true);
   const scrollTimer = useRef<ReturnType<typeof setTimeout>>();
-  const selectedIndex = AGE_VALUES.indexOf(selected);
+  // Unselected ('') scrolls to the first value but highlights nothing.
+  const selectedIndex = selected === '' ? 0 : AGE_VALUES.indexOf(selected);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -112,7 +114,7 @@ function ScrollColumn({ selected, onChange, onSelect }: ScrollColumnProps) {
 }
 
 interface AgeScrollPickerProps {
-  value: number;
+  value: number | '';
   onChange: (age: number) => void;
 }
 
@@ -130,9 +132,12 @@ export function AgeScrollPicker({ value, onChange }: AgeScrollPickerProps) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center px-[16px] py-[14px]"
+        aria-label="Your age"
+        aria-haspopup="true"
+        aria-expanded={open}
       >
         <span className="flex-1 text-center text-[15px] font-medium text-content">
-          {open ? 'Select your age' : (value ?? 'Select your age')}
+          {open ? 'Select your age' : value || 'Select your age'}
         </span>
         <ChevronDown
           className={`h-5 w-5 shrink-0 text-content-tertiary transition-transform duration-200 ${open ? 'rotate-180' : ''}`}

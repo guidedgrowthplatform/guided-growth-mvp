@@ -1,4 +1,4 @@
-export const MAX_PROGRESS_SEGMENTS = 8;
+const MAX_PROGRESS_SEGMENTS = 8;
 
 export function computeProgressSegments(
   completed: number,

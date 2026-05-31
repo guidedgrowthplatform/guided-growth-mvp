@@ -32,21 +32,3 @@ initService();
 export async function getDataService(): Promise<DataService> {
   return initService();
 }
-
-// Synchronous getter — returns mock if supabase not yet loaded
-export function getDataServiceSync(): DataService {
-  if (_service) return _service;
-  // If supabase mode but not yet initialized, return mock temporarily
-  // The async init will swap it once resolved
-  if (useSupabase) {
-    if (import.meta.env.DEV)
-      console.log('[ServiceProvider] SupabaseDataService loading... using mock temporarily');
-  }
-  return mockDataService;
-}
-
-// Reset (for testing)
-export function resetServiceProvider(): void {
-  _service = null;
-  _initPromise = null;
-}

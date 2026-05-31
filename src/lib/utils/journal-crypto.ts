@@ -18,7 +18,7 @@ const APP_SALT = 'life-growth-tracker-journal-v1';
  * @param userId - The user's ID (from auth store)
  * @returns Promise<CryptoKey> - The derived key for AES-GCM
  */
-export async function deriveKey(userId: string): Promise<CryptoKey> {
+async function deriveKey(userId: string): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const material = await crypto.subtle.importKey(
     'raw',

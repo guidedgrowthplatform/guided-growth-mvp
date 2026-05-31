@@ -10,13 +10,13 @@ interface Args {
   isStreaming: boolean;
 }
 
-export function routeOrbSend({ orbState, isOnboardingScreen, isProcessing, isStreaming }: Args): OrbSendAction {
+export function routeOrbSend({
+  orbState,
+  isOnboardingScreen,
+  isProcessing,
+  isStreaming,
+}: Args): OrbSendAction {
   if (isProcessing || isStreaming) return 'noop';
   if (orbState === 'vapi') return 'vapi';
   return isOnboardingScreen ? 'onboarding' : 'llm';
-}
-
-// Should the assistant reply be spoken via local Cartesia TTS?
-export function shouldSpeakReply(orbState: OrbState): boolean {
-  return orbState === 'voice_out_only';
 }

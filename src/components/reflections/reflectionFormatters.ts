@@ -3,7 +3,7 @@ import type { JournalEntry } from '@shared/types';
 
 const PREVIEW_MAX_CHARS = 180;
 
-export function stripHtml(html: string): string {
+function stripHtml(html: string): string {
   return html
     .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')

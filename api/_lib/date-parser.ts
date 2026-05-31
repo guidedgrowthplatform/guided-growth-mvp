@@ -9,7 +9,7 @@
  * than shared.
  */
 
-export const MONTHS: Record<string, number> = {
+const MONTHS: Record<string, number> = {
   january: 1,
   february: 2,
   march: 3,
@@ -35,7 +35,7 @@ export const MONTHS: Record<string, number> = {
   dec: 12,
 };
 
-export const ORDINALS: Record<string, number> = {
+const ORDINALS: Record<string, number> = {
   first: 1,
   second: 2,
   third: 3,
@@ -78,7 +78,7 @@ export const ORDINALS: Record<string, number> = {
   'twenty ninth': 29,
 };
 
-export const YEAR_WORDS: Record<string, number> = {
+const YEAR_WORDS: Record<string, number> = {
   'two thousand twenty-five': 2025,
   'two thousand twenty five': 2025,
   'two thousand twenty-six': 2026,
@@ -98,7 +98,7 @@ export const YEAR_WORDS: Record<string, number> = {
 };
 
 /** Convert word or digit to day number: "fifteenth" → 15, "5" → 5, "5th" → 5 */
-export function parseDay(s: string): number | null {
+function parseDay(s: string): number | null {
   const trimmed = s.trim().toLowerCase();
   if (ORDINALS[trimmed]) return ORDINALS[trimmed];
   const n = parseInt(trimmed, 10);
@@ -106,7 +106,7 @@ export function parseDay(s: string): number | null {
 }
 
 /** Try to extract a year from remaining text: "two thousand twenty six" → 2026 */
-export function parseYear(s: string): number {
+function parseYear(s: string): number {
   const trimmed = s.trim().toLowerCase();
   // Numeric year
   const numMatch = trimmed.match(/\d{4}/);

@@ -67,15 +67,6 @@ export const languages = [
   },
 ];
 
-export const sttLabels: Record<string, string> = {
-  cartesia: 'Cartesia Ink',
-};
-
-export const modeLabels: Record<string, string> = {
-  'auto-stop': 'Auto-stop',
-  'always-on': 'Always On',
-};
-
 export function formatTime12h(time24: string): string {
   const [h, m] = time24.split(':').map(Number);
   const period = h >= 12 ? 'PM' : 'AM';

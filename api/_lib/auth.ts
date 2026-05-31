@@ -6,7 +6,7 @@ import { supabaseAdmin } from './supabase-admin.js';
 
 export type { AuthenticatedUser };
 
-export async function getUser(req: VercelRequest): Promise<AuthenticatedUser | null> {
+async function getUser(req: VercelRequest): Promise<AuthenticatedUser | null> {
   try {
     const authHeader = req.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

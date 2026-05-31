@@ -25,12 +25,6 @@ function habitToMetric(h: {
   };
 }
 
-export async function fetchAllMetrics(): Promise<Metric[]> {
-  const ds = await getDataService();
-  const habits = await ds.getAllHabits();
-  return habits.map(habitToMetric);
-}
-
 export async function fetchMetrics(): Promise<Metric[]> {
   const ds = await getDataService();
   const habits = await ds.getHabits();
@@ -47,11 +41,6 @@ export async function updateMetric(id: string, data: MetricUpdate): Promise<Metr
   const ds = await getDataService();
   const habit = await ds.updateHabit(id, data);
   return habitToMetric(habit);
-}
-
-export async function deleteMetric(id: string): Promise<void> {
-  const ds = await getDataService();
-  await ds.deleteHabit(id);
 }
 
 export async function reorderMetrics(metricIds: string[]): Promise<Metric[]> {
