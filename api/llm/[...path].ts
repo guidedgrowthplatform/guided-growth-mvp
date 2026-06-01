@@ -13,6 +13,9 @@ import {
 import { dispatchOnboardingToolCall } from '../_lib/llm/onboarding/dispatch.js';
 import { getOnboardingTools } from '../_lib/llm/onboarding/registry.js';
 import { isOnboardingToolName } from '../_lib/llm/onboarding/schemas.js';
+import { dispatchCheckinToolCall } from '../_lib/llm/checkin/dispatch.js';
+import { getCheckinTools } from '../_lib/llm/checkin/registry.js';
+import { isCheckinToolName } from '../_lib/llm/checkin/schemas.js';
 import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
 import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
 import {
@@ -434,15 +437,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // double-writing via update_profile/navigate_next which target a different
   // sink). Matches path-1 Vapi assistant scope.
   const onboardingTools = getOnboardingTools(screenId);
+  const checkinTools = getCheckinTools(screenId);
   const requestTools =
     mode === 'opener'
       ? undefined
       : onboardingTools !== undefined
         ? onboardingTools
-        : TOOL_DEFINITIONS;
-  const allowedToolNames = new Set<string>(
-    requestTools ? requestTools.map((t) => t.name) : [],
-  );
+        : checkinTools !== undefined
+          ? checkinTools
+          : TOOL_DEFINITIONS;
+  const allowedToolNames = new Set<string>(requestTools ? requestTools.map((t) => t.name) : []);
 
   await writeStartRow();
 
@@ -591,6 +595,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             result = await dispatchOnboardingToolCall(tc.name, args, {
               anon_id: user.anonId,
               screen_id: screenId,
+            });
+          } catch (err) {
+            result = { ok: false, error: 'handler_error', message: (err as Error).message };
+          }
+        } else if (isCheckinToolName(tc.name)) {
+          try {
+            result = await dispatchCheckinToolCall(tc.name, args, {
+              anon_id: user.anonId,
+              tool_call_id: tc.callId,
+              dedupLookup,
             });
           } catch (err) {
             result = { ok: false, error: 'handler_error', message: (err as Error).message };

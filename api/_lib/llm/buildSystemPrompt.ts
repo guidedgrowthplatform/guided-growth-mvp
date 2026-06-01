@@ -5,6 +5,8 @@ import { buildContextMessage } from '@shared/context/buildContextMessage.js';
 import type { SessionStateDeltaEntry } from '@shared/types/context.js';
 import { ONBOARDING_TOOL_ADDENDUM } from './onboarding/systemPromptAddendum.js';
 import { stripResponsePattern } from './onboarding/stripResponsePattern.js';
+import { CHECKIN_TOOL_ADDENDUM } from './checkin/systemPromptAddendum.js';
+import { isCheckinScreen } from './checkin/registry.js';
 
 export interface BuildSystemPromptArgs {
   anon_id: string;
@@ -108,11 +110,12 @@ export async function buildSystemPromptForRequest(
   });
 
   const onboardingNudge = isOnboardingScreen ? `\n\n${ONBOARDING_TOOL_ADDENDUM}` : '';
+  const checkinNudge = isCheckinScreen(args.screen_id) ? `\n\n${CHECKIN_TOOL_ADDENDUM}` : '';
   const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
   const alreadyFilledBlock = isOnboardingScreen ? await buildAlreadyFilledBlock(args.anon_id) : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${onboardingNudge}${alreadyFilledBlock}${openerNudge}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${openerNudge}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
