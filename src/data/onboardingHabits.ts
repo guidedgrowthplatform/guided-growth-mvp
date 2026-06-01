@@ -7,6 +7,11 @@
 // validates against the same taxonomy. Re-exported for existing frontend imports.
 export { goalsByCategory } from '@shared/data/onboardingGoals';
 
+// Product cap on habits selectable during onboarding. Spec is still 1–3
+// pending Yair; we're holding at 2 in code and consolidating to one
+// constant so a future change only edits here.
+export const MAX_HABITS_ONBOARDING = 2;
+
 export const habitsByGoal: Record<string, string[]> = {
   // Sleep better
   'Fall asleep earlier': [

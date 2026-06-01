@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { track } from '@/analytics/posthog';
 import { HabitCustomizeSheet, type HabitConfig } from '@/components/onboarding/HabitCustomizeSheet';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
@@ -8,12 +9,14 @@ import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
-import { habitsByGoal } from '@/data/onboardingHabits';
+import { habitsByGoal, MAX_HABITS_ONBOARDING } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import { useStepTiming } from '../shared/useStepTiming';
+import { deriveHabitVoiceUpdate } from './deriveHabitVoiceUpdate';
 
 // Bottom-sheet overlay screen_ids per master sheet. -04 fires when the user
 // is configuring their 1st picked habit, -05 when they advance to the 2nd.
@@ -26,6 +29,7 @@ export function Step5Page() {
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const onboardingVoice = useOnboardingVoice();
+  const { logEvent } = useSessionLog();
   const state = location.state as {
     goals?: string[];
     category?: string;
@@ -140,14 +144,24 @@ export function Step5Page() {
       });
       return;
     }
-    if (selectedHabits.size >= 2) return;
+    if (selectedHabits.size >= MAX_HABITS_ONBOARDING) return;
     const next = new Set(selectedHabits);
     next.add(habit);
     setSelectedHabits(next);
   }
 
-  function addCustomHabit(goal: string, habit: string) {
-    if (selectedHabits.size >= 2) return;
+  // input_method: 'voice' when called from handleVoiceAction (Vapi tool
+  // event), 'manual' when called from HabitPickerPanel's tap CTA. Spec
+  // packet (ONBOARD-BEGINNER-03) promises a `create_habit` PostHog
+  // event + `habit_added` session_log event for both surfaces; before
+  // this fix neither was firing for custom adds.
+  function addCustomHabit(
+    goal: string,
+    habit: string,
+    input_method: 'voice' | 'manual' = 'manual',
+  ) {
+    if (selectedHabits.size >= MAX_HABITS_ONBOARDING) return;
+    if (selectedHabits.has(habit)) return;
     setCustomHabits((prev) => ({
       ...prev,
       [goal]: [...(prev[goal] ?? []), habit],
@@ -155,6 +169,21 @@ export function Step5Page() {
     const next = new Set(selectedHabits);
     next.add(habit);
     setSelectedHabits(next);
+
+    // PostHog: spec-canonical event name from app-posthog-events. `source:
+    // 'onboarding'` per the doc's enum. input_method overrides the
+    // analytics provider's auto-attach so we don't race the
+    // InputMethodContext decay window during a voice turn.
+    track('create_habit', {
+      habit_name: habit,
+      source: 'onboarding',
+      input_method,
+      is_suggested: false,
+    });
+    // session_log: past-tense per app-session-events convention. No
+    // habit_id yet — the row isn't persisted until step-7 save. LLM
+    // state-delta consumers only need the name + the screen here.
+    logEvent('habit_added', { name: habit, source: 'onboarding_custom' }, 'ONBOARD-BEGINNER-03');
   }
 
   // Serialize habitConfigs' Set<number> days into number[] for the snapshot,
@@ -186,16 +215,31 @@ export function Step5Page() {
   const handleVoiceAction = useCallback(
     (result: OnboardingVoiceResult) => {
       if (result.action === 'select_option' || result.action === 'add_habit') {
-        const p = result.params as { fieldName?: string; name?: string; value?: string };
-        const name =
-          typeof p.name === 'string'
-            ? p.name.trim()
-            : typeof p.value === 'string'
-              ? p.value.trim()
-              : '';
-        if (!name) return;
-        if (selectedHabits.has(name) || selectedHabits.size >= 2) return;
-        toggleHabit(name);
+        // Route through the pure helper so the predefined-vs-custom
+        // decision is testable in isolation. Custom names land in the
+        // currently-expanded goal section so the picker actually
+        // renders the new chip (regression #161: previously only
+        // selectedHabits got the entry; the picker had nothing to
+        // show and the user saw nothing happen).
+        const update = deriveHabitVoiceUpdate(
+          {
+            goals,
+            habitsByGoal,
+            selectedHabits,
+            customHabits,
+            expandedGoal,
+          },
+          result,
+        );
+        if (update.kind === 'toggle') {
+          // Auto-expand the goal that owns this row so the state
+          // change is visible even when the user voiced a habit
+          // under a collapsed/other section (Edge 1 from review).
+          if (update.goal !== expandedGoal) setExpandedGoal(update.goal);
+          toggleHabit(update.name);
+        } else if (update.kind === 'addCustom') {
+          addCustomHabit(update.goal, update.name, 'voice');
+        }
         return;
       }
       if (result.action === 'remove_habit') {
@@ -221,8 +265,11 @@ export function Step5Page() {
         });
       }
     },
+    // toggleHabit / addCustomHabit close over state via setState
+    // callbacks; we only need to re-derive when the inputs the
+    // helper reads change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedHabits],
+    [selectedHabits, customHabits, expandedGoal, goals],
   );
 
   function handleSheetClose() {
@@ -320,9 +367,9 @@ export function Step5Page() {
                 expanded={expandedGoal === goal}
                 onToggleExpanded={() => setExpandedGoal((prev) => (prev === goal ? '' : goal))}
                 selectedHabits={selectedHabits}
-                maxReached={selectedHabits.size >= 2}
+                maxReached={selectedHabits.size >= MAX_HABITS_ONBOARDING}
                 onToggleHabit={toggleHabit}
-                onAddCustomHabit={(habit) => addCustomHabit(goal, habit)}
+                onAddCustomHabit={(habit) => addCustomHabit(goal, habit, 'manual')}
               />
             ))}
           </div>
