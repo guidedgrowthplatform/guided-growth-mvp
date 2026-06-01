@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { stopTTS, unlockTTS } from '@/lib/services/tts-service';
-import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 
 export interface DualButtonControls {
   voiceOn: boolean;
@@ -22,14 +21,12 @@ export function useDualButtonControls(): DualButtonControls {
     const next = !voiceOn;
     if (!next) stopTTS();
     void updatePreferences({ voiceMode: next ? 'voice' : 'screen' });
-    useVoiceSettingsStore.getState().hydrate({ ttsEnabled: next });
   }, [voiceOn, updatePreferences]);
 
   const toggleMic = useCallback(() => {
     if (!micAllowed) return;
     const next = !micOn;
     void updatePreferences({ micEnabled: next });
-    useVoiceSettingsStore.getState().hydrate({ micEnabled: next });
   }, [micAllowed, micOn, updatePreferences]);
 
   const requestMicPermission = useCallback(async () => {
@@ -41,7 +38,6 @@ export function useDualButtonControls(): DualButtonControls {
       granted = false;
     }
     await updatePreferences({ micPermission: granted, micEnabled: granted });
-    useVoiceSettingsStore.getState().hydrate({ micEnabled: granted });
     if (granted) unlockTTS();
     return granted;
   }, [updatePreferences]);

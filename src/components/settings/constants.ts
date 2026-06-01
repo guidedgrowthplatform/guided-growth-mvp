@@ -1,4 +1,5 @@
-import type { RecordingMode, SttProvider } from '@/stores/voiceSettingsStore';
+import type { SttProvider } from '@/stores/voiceSettingsStore';
+import type { RecordingMode } from '@shared/types';
 
 export const sttOptions: { value: SttProvider; label: string; description: string }[] = [
   {

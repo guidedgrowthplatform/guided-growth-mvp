@@ -900,7 +900,6 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const endCall = useCallback(() => {
     didCallStopRef.current = true;
     void updatePreferences({ voiceMode: 'screen', micEnabled: false });
-    useVoiceSettingsStore.getState().hydrate({ ttsEnabled: false, micEnabled: false });
   }, [updatePreferences]);
 
   const restartCall = useCallback(async () => {
@@ -911,7 +910,6 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     setRemoteEndCooldown(false);
     setProviderError(null);
     await updatePreferences({ voiceMode: 'voice', micEnabled: true });
-    useVoiceSettingsStore.getState().hydrate({ ttsEnabled: true, micEnabled: true });
   }, [clearRetryTimer, clearRemoteEndCooldownTimer, updatePreferences]);
 
   const value = useMemo<OnboardingVoiceContextValue>(

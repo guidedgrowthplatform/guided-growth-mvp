@@ -27,11 +27,8 @@ import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { queryKeys } from '@/lib/query';
-import {
-  useVoiceSettingsStore,
-  type RecordingMode,
-  type SttProvider,
-} from '@/stores/voiceSettingsStore';
+import { useVoiceSettingsStore, type SttProvider } from '@/stores/voiceSettingsStore';
+import type { RecordingMode } from '@shared/types';
 
 type SheetType =
   | 'editProfile'
@@ -47,7 +44,8 @@ export function SettingsPage() {
   const { addToast } = useToast();
   const { user, signOut } = useAuth();
   const { preferences: pageSettings, updatePreference, updatePreferences } = useUserPreferences();
-  const { recordingMode, setRecordingMode, sttProvider, setSttProvider } = useVoiceSettingsStore();
+  const recordingMode = pageSettings.recordingMode;
+  const { sttProvider, setSttProvider } = useVoiceSettingsStore();
 
   const [activeSheet, setActiveSheet] = useState<SheetType | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -273,7 +271,7 @@ export function SettingsPage() {
           options={recordingOptions}
           selected={recordingMode}
           onSelect={(v) => {
-            setRecordingMode(v as RecordingMode);
+            void updatePreferences({ recordingMode: v as RecordingMode });
             setActiveSheet(null);
           }}
           onClose={() => setActiveSheet(null)}

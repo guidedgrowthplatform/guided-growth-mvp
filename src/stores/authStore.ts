@@ -3,6 +3,8 @@ import { create } from 'zustand';
 import { identify, resetIdentity, track } from '@/analytics';
 import { clearPkceVerifier } from '@/lib/clearPkceVerifier';
 import { getWebOrigin } from '@/lib/env';
+import { SETTINGS_STORAGE_KEY } from '@/lib/preferences/snapshot';
+import { queryClient } from '@/lib/query';
 import { Sentry } from '@/lib/sentry';
 import { supabase } from '@/lib/supabase';
 
@@ -349,6 +351,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
     signOut: async () => {
       await supabase.auth.signOut({ scope: 'global' });
+      queryClient.clear();
+      localStorage.removeItem(SETTINGS_STORAGE_KEY);
       clearUserIdentity(setAnonId);
       set({ user: null });
     },
