@@ -1,5 +1,8 @@
+import { Check } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
+import { Button } from '@/components/ui/Button';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
 import { speak, stopTTS } from '@/lib/services/tts-service';
@@ -82,7 +85,11 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
     screenId: isMorning ? 'MCHECK-01' : 'ECHECK-06',
   });
   const { addToast } = useToast();
+  const navigate = useNavigate();
   const [values, setValues] = useState<CheckInValues>(emptyValues);
+  // GitLab #171: post-save confirmation state so the user gets a visible
+  // acknowledgement + a way to jump straight to their check-in history.
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const completedRef = useRef(false);
   const mountTimeRef = useRef<number>(0);
@@ -128,6 +135,14 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
     };
   }, []);
 
+  // Card is CSS-collapsed (never remounted), so success + completed flags
+  // must be reset when the user moves to another date — otherwise a stale
+  // success view + dead abandon tracking carry across day switches.
+  useEffect(() => {
+    setShowSuccess(false);
+    completedRef.current = false;
+  }, [selectedDate]);
+
   useEffect(() => {
     if (checkIn) {
       setValues({
@@ -169,17 +184,54 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
         const morningRef = buildEveningReference(checkIn);
         speak(morningRef);
       }
-      onClose?.();
+      // GitLab #171: show the in-place success confirmation instead of
+      // closing silently. The user dismisses via the CTA (navigates to
+      // history) or by collapsing the card from HomePage's QuickActionCards.
+      setShowSuccess(true);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to save check-in';
       addToast('error', msg);
     }
   };
 
+  const handleViewHistory = () => {
+    onClose?.();
+    navigate('/report', { state: { tab: 'history' } });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center rounded-2xl border border-border-light bg-surface p-5 shadow-sm">
         <p className="text-sm text-content-secondary">Loading check-in...</p>
+      </div>
+    );
+  }
+
+  if (showSuccess) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="rounded-2xl border border-border-light bg-surface p-5 text-center shadow-sm"
+      >
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+          <Check className="h-6 w-6 text-primary" aria-hidden="true" />
+        </div>
+        <h3 className="text-base font-semibold text-content">Check-in saved</h3>
+        <p className="mt-1 text-sm text-content-secondary">
+          {isMorning
+            ? "You're set for the day — see how today fits into your week."
+            : 'Another day logged — see how it fits into your week.'}
+        </p>
+        <Button
+          variant="primary"
+          size="md"
+          fullWidth
+          onClick={handleViewHistory}
+          className="mt-4 rounded-full"
+        >
+          See your check-in history
+        </Button>
       </div>
     );
   }
