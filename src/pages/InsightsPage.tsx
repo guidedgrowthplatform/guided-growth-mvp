@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import {
   InsightsHeader,
@@ -14,10 +15,15 @@ const tabItems = [
 ];
 
 export function InsightsPage() {
-  const [activeTab, setActiveTab] = useState('analytics');
+  // Allow callers (e.g. CheckInCard success state, GitLab #171) to deep-link
+  // straight to the Check-in History tab via navigate('/report', { state: { tab: 'history' } }).
+  const location = useLocation();
+  const initialTab =
+    (location.state as { tab?: string } | null)?.tab === 'history' ? 'history' : 'analytics';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [timeRange, setTimeRange] = useState('week');
   const [animating, setAnimating] = useState(false);
-  const [displayTab, setDisplayTab] = useState(activeTab);
+  const [displayTab, setDisplayTab] = useState(initialTab);
   const [direction, setDirection] = useState<'left' | 'right'>('right');
   const scrollRef = useRef<HTMLDivElement>(null);
 
