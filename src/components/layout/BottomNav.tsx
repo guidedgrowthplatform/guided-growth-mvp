@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
@@ -11,6 +11,43 @@ import { useVoiceChannelBusy } from '@/hooks/useVoiceChannelBusy';
 import { useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 import { useVoiceStore } from '@/stores/voiceStore';
+
+// Soft-keyboard heuristic: visual viewport shrinks by more than this when the
+// on-screen keyboard opens. 150px clears address-bar collapse + browser chrome.
+const KEYBOARD_OPEN_THRESHOLD_PX = 150;
+
+/**
+ * Detects whether the on-screen keyboard is open by watching the Visual
+ * Viewport API. Used to hide the bottom nav so it doesn't ride up with the
+ * keyboard on iOS Safari / Android Chrome / Capacitor WebViews.
+ *
+ * Falls back to `false` (nav visible) on platforms without visualViewport
+ * support (older WebViews / SSR), which matches today's behaviour.
+ */
+function useSoftKeyboardOpen(): boolean {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const update = () => {
+      const delta = window.innerHeight - vv.height;
+      setOpen(delta > KEYBOARD_OPEN_THRESHOLD_PX);
+    };
+
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
+  }, []);
+
+  return open;
+}
 
 type NavDestination = 'home' | 'progress' | 'focus' | 'profile';
 
@@ -77,6 +114,7 @@ export function BottomNav() {
   const { routeToScreenId } = useScreenMap();
   const voiceAnchorIdRef = useRef<string | null>(null);
   const micRequestPendingRef = useRef<boolean>(false);
+  const keyboardOpen = useSoftKeyboardOpen();
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/' || location.pathname === '/home';
@@ -125,8 +163,12 @@ export function BottomNav() {
     logEvent('mic_tapped', { from_screen: screenId ?? 'UNKNOWN' }, screenId);
   };
 
+  // CSS-hide (not unmount) while the soft keyboard is up — position:fixed
+  // anchors to the layout viewport and rides up over content as the visual
+  // viewport shrinks (issue #194). Unmounting would orphan in-flight voice
+  // anchors held in voiceAnchorIdRef.
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-[60] lg:hidden">
+    <nav className={`fixed inset-x-0 bottom-0 z-[60] lg:hidden ${keyboardOpen ? 'hidden' : ''}`}>
       <div>
         <div className="relative" style={{ height: '72px' }}>
           <NavBarBackground />
