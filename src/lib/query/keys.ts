@@ -18,6 +18,7 @@ export const queryKeys = {
     affirmation: ['reflections', 'affirmation'] as const,
   },
   checkins: {
+    all: ['checkins'] as const,
     byDate: (date: string) => ['checkins', date] as const,
     range: (start: string, end: string) => ['checkins', 'range', start, end] as const,
   },

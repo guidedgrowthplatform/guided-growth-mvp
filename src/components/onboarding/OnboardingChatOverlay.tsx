@@ -9,7 +9,7 @@ import {
   useOnboardingVoice as useOnboardingVoiceSession,
   useOnboardingTranscripts,
 } from '@/contexts/useOnboardingVoiceSession';
-import { useAuth } from '@/hooks/useAuth';
+import { useDisplayName } from '@/hooks/useDisplayName';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicRingIntensity } from '@/hooks/useMicRingIntensity';
 import { orbStateFrom } from '@/lib/orb/orbState';
@@ -27,9 +27,7 @@ const LISTENING_GRADIENT =
 // Direct-LLM + Vapi chat surface. The LLM session is owned by the provider
 // (works overlay-open or closed); this component only renders + sends.
 export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
-  const { user } = useAuth();
-  const displayName =
-    user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || undefined;
+  const displayName = useDisplayName();
   const {
     voiceOn: voiceChosen,
     micOn: micRuntimeOn,

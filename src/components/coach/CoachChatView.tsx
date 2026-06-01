@@ -4,24 +4,30 @@ import { ChatComposer } from '@/components/chat/ChatComposer';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
-import { useAuth } from '@/hooks/useAuth';
 import { useMicEnabled } from '@/hooks/useMicEnabled';
-import { useVoiceChat } from '@/hooks/useVoiceChat';
+import type { CoachChatApi } from '@/lib/chat/coachChatTypes';
 import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 
-interface VoiceCheckInOverlayProps {
+interface CoachChatViewProps extends CoachChatApi {
+  displayName?: string;
   onClose: () => void;
 }
 
+// Assumes the host screen has the 72px bottom nav (true for every current mount).
 const NAV_RESERVE = 'calc(72px + env(safe-area-inset-bottom))';
 
-export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
-  const { user } = useAuth();
-  const displayName =
-    user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || undefined;
-  const { messages, voiceState, startListening, stopListening, sendText, updateHabitDays } =
-    useVoiceChat(displayName);
+export function CoachChatView({
+  messages,
+  voiceState,
+  speaking,
+  startListening,
+  stopListening,
+  sendText,
+  updateHabitDays,
+  displayName,
+  onClose,
+}: CoachChatViewProps) {
   const [draft, setDraft] = useState('');
 
   const micEnabled = useMicEnabled();
@@ -36,12 +42,12 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
   }, [messages.length, voiceState]);
 
   useEffect(() => {
-    if (micEnabled && voiceState === 'idle') {
+    if (micEnabled && voiceState === 'idle' && !speaking) {
       startListening();
     } else if (!micEnabled && voiceState === 'listening') {
       stopListening();
     }
-  }, [micEnabled, voiceState, startListening, stopListening]);
+  }, [micEnabled, voiceState, speaking, startListening, stopListening]);
 
   const handleClose = useCallback(() => {
     stopListening();
@@ -129,7 +135,7 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
             sendText(t);
             setDraft('');
           }}
-          disabled={voiceState === 'processing'}
+          disabled={voiceState !== 'idle'}
           className="pointer-events-auto flex min-h-[44px] w-full items-end gap-1 rounded-[22px] bg-white py-1.5 pl-5 pr-2 shadow-[0px_10px_24px_-8px_rgba(15,23,42,0.18)]"
         />
       </div>

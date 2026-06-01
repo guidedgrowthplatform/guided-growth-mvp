@@ -1,12 +1,13 @@
 import { type ReactNode, useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { OpenChatButton, VoiceCheckInOverlay } from '@/components/home';
+import { CoachChatOverlay } from '@/components/coach';
+import { OpenChatButton } from '@/components/home';
 import { ToastContainer } from '@/components/ui/Toast';
 import { unlockTTS } from '@/lib/services/tts-service';
 import { BottomNav } from './BottomNav';
 
 export function Layout({ children }: { children: ReactNode }) {
-  const [showVoiceCheckIn, setShowVoiceCheckIn] = useState(false);
+  const [showCoachChat, setShowCoachChat] = useState(false);
   const location = useLocation();
   const isFullWidth =
     location.pathname === '/report' ||
@@ -14,9 +15,9 @@ export function Layout({ children }: { children: ReactNode }) {
     location.pathname === '/journal' ||
     location.pathname.startsWith('/reflections');
 
-  const handleVoicePress = useCallback(() => {
+  const handleOpenChat = useCallback(() => {
     unlockTTS();
-    setShowVoiceCheckIn(true);
+    setShowCoachChat(true);
   }, []);
 
   return (
@@ -32,13 +33,15 @@ export function Layout({ children }: { children: ReactNode }) {
       </main>
 
       <BottomNav />
-      {!showVoiceCheckIn && (
+      {!showCoachChat && (
         <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] right-6 z-20">
-          <OpenChatButton onPress={handleVoicePress} />
+          <OpenChatButton onPress={handleOpenChat} />
         </div>
       )}
       <ToastContainer />
-      {showVoiceCheckIn && <VoiceCheckInOverlay onClose={() => setShowVoiceCheckIn(false)} />}
+      {showCoachChat && (
+        <CoachChatOverlay screenId="HOME-CHECKIN" onClose={() => setShowCoachChat(false)} />
+      )}
     </div>
   );
 }
