@@ -23,8 +23,11 @@ import { TimeBadge } from '@/components/settings/TimeBadge';
 import { UserInfoSection } from '@/components/settings/UserInfoSection';
 import { VoiceSettingsSheet } from '@/components/settings/VoiceSettingsSheet';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { Toggle } from '@/components/ui/Toggle';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
+import { useDualButtonControls } from '@/hooks/useDualButtonControls';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { queryKeys } from '@/lib/query';
 import { useVoiceSettingsStore, type SttProvider } from '@/stores/voiceSettingsStore';
@@ -44,6 +47,8 @@ export function SettingsPage() {
   const { addToast } = useToast();
   const { user, signOut } = useAuth();
   const { preferences: pageSettings, updatePreference, updatePreferences } = useUserPreferences();
+  const { requestMicPermission } = useDualButtonControls();
+  const { logEvent } = useSessionLog();
   const recordingMode = pageSettings.recordingMode;
   const { sttProvider, setSttProvider } = useVoiceSettingsStore();
 
@@ -52,6 +57,47 @@ export function SettingsPage() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [micBusy, setMicBusy] = useState(false);
+
+  const micAllowed = pageSettings.micPermission === true;
+
+  const handleMicToggle = useCallback(
+    async (next: boolean) => {
+      if (micBusy) return;
+      setMicBusy(true);
+      try {
+        if (next) {
+          // Enabling: trigger the OS prompt via the same hook the nav uses.
+          const granted = await requestMicPermission();
+          track('grant_mic_permission', { granted, dismissed: false, source: 'settings' });
+          logEvent(
+            granted ? 'mic_permission_granted' : 'mic_permission_denied',
+            { source: 'settings' },
+            'SETTINGS',
+          );
+          if (!granted) {
+            addToast(
+              'error',
+              'Microphone access was denied. Enable it for Guided Growth in your device settings.',
+            );
+          }
+        } else {
+          // Disabling: turn off in-app mic use. We can't programmatically revoke the
+          // OS-level grant — the helper text under the row tells the user how.
+          await updatePreferences({ micPermission: false, micEnabled: false });
+          track('revoke_mic_permission', { source: 'settings' });
+          logEvent('mic_permission_revoked', { source: 'settings' }, 'SETTINGS');
+        }
+      } catch (err) {
+        // Surface failures so the user knows the toggle snap-back wasn't silent.
+        console.error('[settings] mic toggle failed', err);
+        addToast('error', 'Could not update microphone setting. Please try again.');
+      } finally {
+        setMicBusy(false);
+      }
+    },
+    [micBusy, requestMicPermission, updatePreferences, addToast, logEvent],
+  );
 
   const qc = useQueryClient();
   const onboardingState = qc.getQueryData<{ data?: { nickname?: string } }>(
@@ -160,6 +206,32 @@ export function SettingsPage() {
         <SettingsCard>
           <ThemeToggle />
         </SettingsCard>
+      </section>
+
+      {/* Microphone */}
+      <section className="mt-8">
+        <SettingSectionHeader title="Microphone" />
+        <SettingsCard>
+          <SettingRow
+            icon={micAllowed ? 'mdi:microphone' : 'mdi:microphone-off'}
+            label="Microphone Access"
+            isFirst
+            right={
+              <Toggle
+                checked={micAllowed}
+                onChange={(next) => {
+                  void handleMicToggle(next);
+                }}
+                disabled={micBusy}
+                label="Microphone Access"
+              />
+            }
+          />
+        </SettingsCard>
+        <p className="mt-2 px-4 text-xs leading-[18px] text-content-secondary">
+          Turning this off stops Guided Growth from using your microphone. To fully revoke access,
+          open your device's Settings, find Guided Growth, and disable Microphone.
+        </p>
       </section>
 
       {/* Check-In Routine */}
