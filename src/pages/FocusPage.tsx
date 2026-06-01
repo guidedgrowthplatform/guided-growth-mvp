@@ -1,14 +1,17 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { FocusControls } from '@/components/focus/FocusControls';
 import { FocusSessionSheet } from '@/components/focus/FocusSessionSheet';
 import { FocusTimer } from '@/components/focus/FocusTimer';
+import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useToast } from '@/contexts/ToastContext';
 import { useFocusSession } from '@/hooks/useFocusSession';
 import { useFocusTimer } from '@/hooks/useFocusTimer';
 import { useHabits } from '@/hooks/useHabits';
+import { useNavigationGuard } from '@/hooks/useNavigationGuard';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { speak } from '@/lib/services/tts-service';
 
@@ -18,10 +21,15 @@ export function FocusPage() {
   const { saveFocusSession, error: saveError } = useFocusSession();
   const { addToast } = useToast();
   const { logEvent } = useSessionLog();
+  const navigate = useNavigate();
 
   const [showSheet, setShowSheet] = useState(false);
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
   const [notify, setNotify] = useState(true);
+  // When the exit guard fires, we stash the intended destination here (or
+  // `null` if the user pressed hardware/browser back) and open the modal.
+  // Confirming cancels the session and navigates; dismissing keeps the user.
+  const [pendingExit, setPendingExit] = useState<{ to: string | null } | null>(null);
 
   // Track session start time
   const sessionStartRef = useRef<string | null>(null);
@@ -125,8 +133,37 @@ export function FocusPage() {
     timer.pause();
   }, [timer, selectedHabit?.name]);
 
+  // Guard active only when a session is in flight. Idle (not started) and
+  // completed (already saved by the completion effect) exit silently.
+  const isSessionActive = timer.status === 'running' || timer.status === 'paused';
+
+  // Track pendingExit via a ref so the guard's capture-phase listener (which
+  // stays armed while the modal is open) bails on the second tap instead of
+  // overwriting the stashed destination from the first.
+  const pendingExitRef = useRef<{ to: string | null } | null>(null);
+  useEffect(() => {
+    pendingExitRef.current = pendingExit;
+  }, [pendingExit]);
+
+  const handleExitAttempt = useCallback((to: string | null) => {
+    if (pendingExitRef.current) return;
+    setPendingExit({ to });
+  }, []);
+
+  useNavigationGuard(isSessionActive, handleExitAttempt);
+
+  // Auto-close the dialog if the timer naturally completes while it's open —
+  // otherwise the modal copy ("still running") lies and the back path lands
+  // somewhere unexpected once the guard tears down underneath it.
+  useEffect(() => {
+    if (!isSessionActive && pendingExit) setPendingExit(null);
+  }, [isSessionActive, pendingExit]);
+
   const handleStop = useCallback(() => {
-    if (sessionStartRef.current && timer.status === 'running') {
+    // Include 'paused': the guard fires for both, so a paused exit must
+    // still emit telemetry + clear sessionStartRef (otherwise it leaks
+    // into the next session's start timestamp).
+    if (sessionStartRef.current && (timer.status === 'running' || timer.status === 'paused')) {
       const durationMinutes = Math.max(1, Math.round(timer.totalSeconds / 60));
       const elapsedSeconds = timer.totalSeconds - timer.remainingSeconds;
       const habitLabel = selectedHabit?.name ?? null;
@@ -168,6 +205,31 @@ export function FocusPage() {
     }
     timer.stop();
   }, [timer, selectedHabitId, selectedHabit?.name, saveFocusSession, logEvent]);
+
+  const handleConfirmExit = useCallback(() => {
+    // Cancel the session FIRST (fires focus_ended cancelled + abandon_focus_session),
+    // then navigate. handleStop sets timer.status to 'idle' which deactivates
+    // the navigation guard before we navigate.
+    handleStop();
+    const to = pendingExit?.to ?? null;
+    setPendingExit(null);
+    // Defer navigation a tick so state updates flush and the guard tears down
+    // its capture-phase click listener before the router-level navigate fires.
+    setTimeout(() => {
+      if (to) {
+        navigate(to);
+      } else {
+        // Back-path: stack is [..., prev, /focus, sentinel]. One back step
+        // pops only the sentinel and lands on the duplicate /focus entry,
+        // not on prev — so use go(-2) to actually leave /focus.
+        window.history.go(-2);
+      }
+    }, 0);
+  }, [handleStop, navigate, pendingExit]);
+
+  const handleDismissExit = useCallback(() => {
+    setPendingExit(null);
+  }, []);
 
   return (
     <div className="flex min-h-dvh flex-col bg-primary-bg pb-[calc(5rem+env(safe-area-inset-bottom))]">
@@ -233,6 +295,18 @@ export function FocusPage() {
             }}
           />
         </BottomSheet>
+      )}
+
+      {pendingExit && (
+        <ConfirmDialog
+          title="End focus session?"
+          message="Your timer is still running. Leaving now will cancel this session."
+          confirmLabel="End session"
+          cancelLabel="Keep focusing"
+          variant="danger"
+          onConfirm={handleConfirmExit}
+          onCancel={handleDismissExit}
+        />
       )}
     </div>
   );
