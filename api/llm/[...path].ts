@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { checkRateLimit } from '../_lib/rate-limit.js';
-import { getClientIp, UUID_REGEX } from '../_lib/validation.js';
+import { getClientIp, UUID_REGEX, validateTimezone } from '../_lib/validation.js';
 import { scrubPII } from '../_lib/pii-scrubber.js';
 import {
   TOOL_DEFINITIONS,
@@ -145,6 +145,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     recentEvents = body.recent_events as SessionStateDeltaEntry[];
   }
+
+  const timezone = validateTimezone(body.timezone) ?? 'UTC';
 
   let chatSessionId: string | null = null;
   let userTurnId: string | null = null;
@@ -605,6 +607,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               anon_id: user.anonId,
               tool_call_id: tc.callId,
               dedupLookup,
+              timezone,
             });
           } catch (err) {
             result = { ok: false, error: 'handler_error', message: (err as Error).message };

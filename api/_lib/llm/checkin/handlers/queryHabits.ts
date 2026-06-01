@@ -13,7 +13,7 @@ export async function queryHabits(
     if (!found.ok) return found.error;
     const habit = found.value;
 
-    const today = todayStr();
+    const today = todayStr(ctx.timezone);
     const res = await pool.query<{ completed_today: boolean; last_30: number }>(
       `SELECT
          bool_or(date = $3) AS completed_today,

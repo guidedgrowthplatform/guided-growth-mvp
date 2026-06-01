@@ -1,23 +1,7 @@
 // Onboarding tool schemas — fed to OpenAI Responses API for ONBOARD-* screens.
 // Mirrors path-1 Vapi tool set; anon_id is omitted because path-3 injects it
 // from the authenticated session, not from LLM args.
-
-interface JSONSchemaProp {
-  readonly type: 'string' | 'number' | 'boolean' | 'array';
-  readonly description?: string;
-  readonly enum?: readonly string[];
-  readonly items?: {
-    readonly type: 'string' | 'number';
-    readonly enum?: readonly string[];
-  };
-}
-
-interface JSONSchema {
-  readonly type: 'object';
-  readonly properties: Readonly<Record<string, JSONSchemaProp>>;
-  readonly required: readonly string[];
-  readonly additionalProperties: false;
-}
+import type { JSONSchema } from '../jsonSchemaTypes.js';
 
 export type OnboardingToolName =
   | 'submit_profile'

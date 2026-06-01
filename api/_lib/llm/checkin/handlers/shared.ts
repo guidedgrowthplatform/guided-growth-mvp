@@ -1,4 +1,5 @@
 import pool from '../../../db.js';
+import { validateDate } from '../../../validation.js';
 import type { ToolResult } from '../../tools.js';
 import { invalid, notFound } from '../../toolArgs.js';
 import { FREQUENCY_OPTIONS } from '../schemas.js';
@@ -7,7 +8,6 @@ export {
   ok,
   invalid,
   notFound,
-  handlerError,
   getString,
   getNumber,
   getNumberArray,
@@ -19,6 +19,8 @@ export type CheckinHandlerCtx = {
   anon_id: string;
   tool_call_id?: string;
   dedupLookup?: (toolCallId: string) => Promise<ToolResult | null>;
+  // Validated IANA tz from the request; date helpers resolve the user's local day.
+  timezone?: string;
 };
 
 export async function checkDedup(ctx: CheckinHandlerCtx): Promise<ToolResult | null> {
@@ -26,7 +28,7 @@ export async function checkDedup(ctx: CheckinHandlerCtx): Promise<ToolResult | n
   return ctx.dedupLookup(ctx.tool_call_id);
 }
 
-// Local-time dates; toISOString() would save the wrong day east of UTC.
+// Weekday → index (0=Sunday), multilingual for spoken input.
 const DAY_NAMES: Record<string, number> = {
   sunday: 0,
   monday: 1,
@@ -58,36 +60,40 @@ const DAY_NAMES: Record<string, number> = {
   sabtu: 6,
 };
 
-function formatLocalDate(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+// en-CA yields YYYY-MM-DD; computing in tz avoids the server-UTC off-by-one.
+function formatInTz(d: Date, tz: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
 }
 
-export function todayStr(): string {
-  return formatLocalDate(new Date());
+export function todayStr(tz: string = 'UTC'): string {
+  return formatInTz(new Date(), tz);
 }
 
-// "today"/"yesterday"/weekday/YYYY-MM-DD → local YYYY-MM-DD (most recent incl. today).
-export function parseDateParam(dateStr: unknown): string {
-  if (!dateStr || dateStr === 'today') return todayStr();
-  if (dateStr === 'yesterday') {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return formatLocalDate(d);
-  }
+// "today"/"yesterday"/weekday/YYYY-MM-DD → tz-local YYYY-MM-DD; null if a literal date is unparseable.
+export function parseDateParam(dateStr: unknown, tz: string = 'UTC'): string | null {
+  if (!dateStr || dateStr === 'today') return todayStr(tz);
+  // Calendar math on the tz-local triple treated as UTC, then formatted back.
+  const minusDays = (days: number): string => {
+    const [y, m, d] = todayStr(tz).split('-').map(Number);
+    const base = new Date(Date.UTC(y, m - 1, d));
+    base.setUTCDate(base.getUTCDate() - days);
+    return formatInTz(base, 'UTC');
+  };
+  if (dateStr === 'yesterday') return minusDays(1);
   const lower = String(dateStr).toLowerCase();
   const dayIndex = DAY_NAMES[lower] ?? -1;
   if (dayIndex !== -1) {
-    const now = new Date();
-    let diff = now.getDay() - dayIndex;
+    const [y, m, d] = todayStr(tz).split('-').map(Number);
+    let diff = new Date(Date.UTC(y, m - 1, d)).getUTCDay() - dayIndex;
     if (diff < 0) diff += 7;
-    const target = new Date(now);
-    target.setDate(target.getDate() - diff);
-    return formatLocalDate(target);
+    return minusDays(diff);
   }
-  return String(dateStr);
+  return validateDate(dateStr);
 }
 
 // Strip articles + trailing "habit(s)"/"please" so spoken names match stored (ILIKE).

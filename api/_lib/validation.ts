@@ -32,6 +32,17 @@ export function validateUUID(value: unknown): string | null {
   return UUID_REGEX.test(value) ? value : null;
 }
 
+// IANA timezone → the zone, or null if invalid (Intl rejects unknown zones).
+export function validateTimezone(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 64) return null;
+  try {
+    new Intl.DateTimeFormat(undefined, { timeZone: value });
+    return value;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Get a safe client IP from Vercel headers.
  * x-real-ip is set by Vercel infrastructure and cannot be spoofed by clients.

@@ -41,13 +41,22 @@ export async function createMetric(
   const existing = await findMetricByName(ctx.anon_id, name);
   if (existing) return invalid(`You already track a metric called "${existing.name}".`);
 
-  const res = await pool.query<InsertedMetric>(
-    `INSERT INTO metrics (anon_id, name, input_type, scale_min, scale_max)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING id, name, input_type, scale_min, scale_max`,
-    [ctx.anon_id, name, inputType, scaleMin ?? null, scaleMax ?? null],
-  );
-  const row = res.rows[0];
+  let row: InsertedMetric;
+  try {
+    const res = await pool.query<InsertedMetric>(
+      `INSERT INTO metrics (anon_id, name, input_type, scale_min, scale_max)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, input_type, scale_min, scale_max`,
+      [ctx.anon_id, name, inputType, scaleMin ?? null, scaleMax ?? null],
+    );
+    row = res.rows[0];
+  } catch (err) {
+    // UNIQUE(anon_id,name) race past the findMetricByName check.
+    if ((err as { code?: string }).code === '23505') {
+      return invalid(`You already track a metric called "${name}".`);
+    }
+    throw err;
+  }
 
   return ok({
     created: true,
