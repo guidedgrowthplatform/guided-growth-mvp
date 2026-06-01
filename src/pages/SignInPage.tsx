@@ -7,7 +7,6 @@ import { SocialAuthButtons, AuthDivider, AuthFooter, AuthAlert } from '@/compone
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
-import { useVoicePlayer } from '@/hooks/useVoicePlayer';
 import { loginSchema, type LoginForm } from '@/lib/validation';
 
 export function SignInPage() {
@@ -16,13 +15,6 @@ export function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const successMessage = (location.state as { message?: string } | null)?.message ?? null;
-
-  // SignIn loads without a preceding gesture — defer on iOS autoplay block.
-  const { play, stop } = useVoicePlayer();
-  useEffect(() => {
-    void play('splash_hook', { deferOnAutoplayBlock: true });
-    return () => stop();
-  }, [play, stop]);
 
   useEffect(() => {
     track('view_login_screen');
