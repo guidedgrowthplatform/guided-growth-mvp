@@ -119,8 +119,6 @@ export function AddHabitPage() {
             showDeleteModal={s.showDeleteModal}
             onConfirmDelete={s.handleAdvancedDelete}
             onCancelDelete={s.cancelDelete}
-            isListening={s.isListening}
-            toggleVoice={s.toggleVoice}
             onBack={s.handleBack}
           />
         );
