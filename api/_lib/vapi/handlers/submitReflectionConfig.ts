@@ -8,7 +8,11 @@
  * Validation patterns mirror add_habit for time/days/schedule.
  */
 import pool from '../../db.js';
-import { SCHEDULE_OPTIONS } from '../../llm/tools.onboarding.js';
+import {
+  inferSchedule,
+  SCHEDULE_OPTIONS,
+  type ScheduleOption,
+} from '../../llm/tools.onboarding.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIME_REGEX = /^([01]?\d|2[0-3]):[0-5]\d$/;
@@ -90,11 +94,16 @@ export async function submitReflectionConfig(
     return { error: 'validation_failed: reminder must be a boolean' };
   }
 
-  const schedule = getString(args, 'schedule');
-  if (schedule === undefined || !isScheduleOption(schedule)) {
+  const scheduleRaw = getString(args, 'schedule');
+  if (scheduleRaw === undefined || !isScheduleOption(scheduleRaw)) {
     console.log('[vapi/tool] validation_failed reason=schedule_not_in_enum');
     return { error: `validation_failed: schedule must be one of ${SCHEDULE_OPTIONS.join(', ')}` };
   }
+
+  // Reconcile: days is authoritative, schedule is a UI hint kept in sync so
+  // PlanReviewPage's formatCadence(days) is faithful. If days doesn't match a
+  // preset (custom combination), fall back to the LLM-supplied label.
+  const schedule: ScheduleOption = inferSchedule(days) ?? (scheduleRaw as ScheduleOption);
 
   const reflectionConfig = { time, days, reminder, schedule };
   const payload = JSON.stringify({ reflectionConfig });

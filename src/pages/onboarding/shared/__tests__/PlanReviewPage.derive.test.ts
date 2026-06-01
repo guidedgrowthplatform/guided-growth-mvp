@@ -17,10 +17,21 @@ import { deriveStateFromOnboarding } from '../planReviewDerive';
 
 describe('deriveStateFromOnboarding', () => {
   // Minimal valid data — what the agent writes after ONBOARD-05/06/08.
+  // Habit shape includes `schedule` per api/_lib/vapi/handlers/addHabit.ts.
   const validData = {
     habitConfigs: {
-      'Morning walk': { days: [1, 2, 3, 4, 5], time: '07:00', reminder: true },
-      Meditate: { days: [0, 1, 2, 3, 4, 5, 6], time: '21:00', reminder: false },
+      'Morning walk': {
+        days: [1, 2, 3, 4, 5],
+        time: '07:00',
+        reminder: true,
+        schedule: 'Weekday',
+      },
+      Meditate: {
+        days: [0, 1, 2, 3, 4, 5, 6],
+        time: '21:00',
+        reminder: false,
+        schedule: 'Every day',
+      },
     },
     reflectionConfig: {
       time: '22:00',
@@ -39,8 +50,10 @@ describe('deriveStateFromOnboarding', () => {
       days: [1, 2, 3, 4, 5],
       time: '07:00',
       reminder: true,
+      schedule: 'Weekday',
     });
     expect(result!.habitConfigs.Meditate.reminder).toBe(false);
+    expect(result!.habitConfigs.Meditate.schedule).toBe('Every day');
     expect(result!.reflectionConfig).toEqual({
       time: '22:00',
       days: [0, 1, 2, 3, 4, 5, 6],
@@ -148,6 +161,49 @@ describe('deriveStateFromOnboarding', () => {
     });
     expect(result!.goals).toBeUndefined();
     expect(result!.category).toBeUndefined();
+  });
+
+  it('passes the schedule field through verbatim (informational; cadence reads days only)', () => {
+    // Post-Mint-round-2 the page renders formatCadence(days) and ignores
+    // schedule. Backend reconciliation (api/_lib/vapi/handlers/addHabit.ts +
+    // submitReflectionConfig.ts) and frontend HabitCustomizeSheet now keep
+    // days authoritative, so a stale-shape row like the one below should
+    // not occur in practice. We still preserve the field through derive so
+    // future consumers (e.g. edit screens) can read it without re-fetching.
+    const result = deriveStateFromOnboarding({
+      ...validData,
+      habitConfigs: {
+        '5-minute breathing': {
+          days: [0, 1, 2, 3, 4, 5, 6],
+          time: '09:00',
+          reminder: true,
+          schedule: 'Weekday',
+        },
+      },
+    });
+    expect(result!.habitConfigs['5-minute breathing']).toEqual({
+      days: [0, 1, 2, 3, 4, 5, 6],
+      time: '09:00',
+      reminder: true,
+      schedule: 'Weekday',
+    });
+  });
+
+  it('omits schedule key when not present (advanced-flow habit shape)', () => {
+    // AdvancedStep6Page builds habitConfigs without `schedule`.
+    // PlanReviewPage falls back to formatCadence(days) in that case.
+    const result = deriveStateFromOnboarding({
+      ...validData,
+      habitConfigs: {
+        Stretch: { days: [1, 3, 5], time: '18:00', reminder: true },
+      },
+    });
+    expect(result!.habitConfigs.Stretch).toEqual({
+      days: [1, 3, 5],
+      time: '18:00',
+      reminder: true,
+    });
+    expect('schedule' in result!.habitConfigs.Stretch).toBe(false);
   });
 
   it('drops non-string goals silently', () => {

@@ -4,7 +4,13 @@ import { SchedulePicker, type ScheduleOption } from '@/components/onboarding/Sch
 import { DayPicker } from '@/components/ui/DayPicker';
 import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
 import { Toggle } from '@/components/ui/Toggle';
-import { ALL_DAYS, SECTION_LABEL_CLASS, toggleSetItem } from './constants';
+import {
+  inferSchedule,
+  SCHEDULE_DAYS,
+  SECTION_LABEL_CLASS,
+  toggleSetItem,
+  WEEKDAYS,
+} from './constants';
 
 export interface HabitConfig {
   time: string;
@@ -26,11 +32,27 @@ export function HabitCustomizeSheet({
   onNext,
   isLastHabit,
 }: HabitCustomizeSheetProps) {
+  // Schedule and days are kept reconciled: picking a chip narrows days,
+  // toggling a day re-infers the chip label. PlanReviewPage can then read
+  // formatCadence(days) alone and get a faithful cadence.
   const [time, setTime] = useState('21:45');
-  const [days, setDays] = useState<Set<number>>(new Set(ALL_DAYS));
+  const [days, setDays] = useState<Set<number>>(new Set(WEEKDAYS));
   const [reminder, setReminder] = useState(true);
   const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+
+  function handleScheduleChange(value: ScheduleOption) {
+    setSchedule(value);
+    setDays(new Set(SCHEDULE_DAYS[value]));
+  }
+
+  function handleToggleDay(day: number) {
+    setDays((prev) => {
+      const next = toggleSetItem(prev, day);
+      setSchedule(inferSchedule(next) ?? 'Weekday');
+      return next;
+    });
+  }
 
   function handleSubmit() {
     onNext({ time, days: new Set(days), reminder, schedule });
@@ -71,16 +93,13 @@ export function HabitCustomizeSheet({
         {/* SCHEDULE */}
         <div className="flex items-center justify-between">
           <span className={SECTION_LABEL_CLASS}>Schedule</span>
-          <SchedulePicker value={schedule} onChange={setSchedule} />
+          <SchedulePicker value={schedule} onChange={handleScheduleChange} />
         </div>
 
         {/* HOW OFTEN */}
         <div className="flex flex-col gap-[16px]">
           <span className={SECTION_LABEL_CLASS}>How often?</span>
-          <DayPicker
-            selectedDays={days}
-            onToggleDay={(day) => setDays((prev) => toggleSetItem(prev, day))}
-          />
+          <DayPicker selectedDays={days} onToggleDay={handleToggleDay} />
         </div>
 
         {/* REMINDER */}

@@ -17,6 +17,15 @@ export interface PlanReviewHabitConfig {
   days: number[];
   time: string;
   reminder: boolean;
+  /**
+   * Canonical schedule preset ('Weekday' | 'Weekend' | 'Every day')
+   * written by api/_lib/vapi/handlers/addHabit.ts. Optional because the
+   * advanced flow (AdvancedStep6Page) builds habit configs without it.
+   * Consumers should prefer this over `days` when labeling cadence:
+   * HabitCustomizeSheet leaves the day picker on ALL_DAYS even when the
+   * user picks "Weekday" from the schedule chip.
+   */
+  schedule?: string;
 }
 
 export interface PlanReviewReflectionConfig {
@@ -49,10 +58,14 @@ export function deriveStateFromOnboarding(input: unknown): PlanReviewState | nul
       : daysInput instanceof Set
         ? Array.from(daysInput as Set<number>)
         : [];
+    const scheduleRaw = (cfg as { schedule?: unknown }).schedule;
     habitConfigs[name] = {
       days,
       time: String((cfg as { time?: unknown }).time ?? ''),
       reminder: Boolean((cfg as { reminder?: unknown }).reminder),
+      ...(typeof scheduleRaw === 'string' && scheduleRaw.length > 0
+        ? { schedule: scheduleRaw }
+        : {}),
     };
   }
   if (Object.keys(habitConfigs).length === 0) return null;
