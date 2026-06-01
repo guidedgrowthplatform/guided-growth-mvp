@@ -20,6 +20,28 @@ function fmtLocal(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Returns true iff the habit was created on or before `selectedDate` in the
+ * user's local timezone. `habit.createdAt` is a UTC ISO timestamp from
+ * Postgres `timestamptz`; we convert it to a local-tz yyyy-MM-dd then do a
+ * string compare (lexicographic compare is safe for that format).
+ *
+ * Inclusive on the creation date itself — a habit created on May 26 shows
+ * starting May 26.
+ *
+ * Exported for unit-testing the timezone edge cases.
+ */
+export function isHabitVisibleOnDate(createdAtIso: string, selectedDate: string): boolean {
+  const created = new Date(createdAtIso);
+  if (Number.isNaN(created.getTime())) {
+    // Malformed createdAt — fail open (show the habit) so we never hide real data
+    // due to a parse glitch; this matches prior behavior.
+    return true;
+  }
+  const createdLocal = fmtLocal(created);
+  return createdLocal <= selectedDate;
+}
+
 export function calcCurrentStreak(completions: HabitCompletion[], fromDate: string): number {
   if (completions.length === 0) return 0;
   const dates = [...new Set(completions.map((c) => c.date))].sort().reverse();
@@ -36,6 +58,11 @@ async function loadHabitsForDate(date: string): Promise<HabitWithStatus[]> {
   const ds = await getDataService();
   const allHabits = await ds.getHabits();
 
+  // Hide habits that didn't exist yet on `date` (issue #173). Prevents the
+  // newly-created habit from appearing on prior dates and skewing
+  // completion analytics.
+  const visibleHabits = allHabits.filter((habit) => isHabitVisibleOnDate(habit.createdAt, date));
+
   const streakStart = new Date(date + 'T00:00:00');
   streakStart.setDate(streakStart.getDate() - 30);
   const streakStartStr = fmtLocal(streakStart);
@@ -48,7 +75,7 @@ async function loadHabitsForDate(date: string): Promise<HabitWithStatus[]> {
     byHabit.set(c.habitId, arr);
   }
 
-  return allHabits.map((habit) => {
+  return visibleHabits.map((habit) => {
     const habitCompletions = byHabit.get(habit.id) ?? [];
     return {
       habit,
