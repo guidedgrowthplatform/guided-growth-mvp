@@ -4,6 +4,7 @@ import type { CoachingStyle } from '@shared/coaching/styles.js';
 import { buildContextMessage } from '@shared/context/buildContextMessage.js';
 import type { SessionStateDeltaEntry } from '@shared/types/context.js';
 import { ONBOARDING_TOOL_ADDENDUM } from './onboarding/systemPromptAddendum.js';
+import { stripResponsePattern } from './onboarding/stripResponsePattern.js';
 
 export interface BuildSystemPromptArgs {
   anon_id: string;
@@ -94,19 +95,21 @@ export async function buildSystemPromptForRequest(
   // Do NOT hydrate UserContext.name / email / last_name from profiles —
   // the LLM gets first_name only via the AI Context Block on screens
   // where it's already part of the prompt.
+  const isOnboardingScreen = args.screen_id.startsWith('ONBOARD-');
+
   const coachingPreamble = buildSystemPrompt({ coachingStyle: args.coaching_style });
+  const contextBlock = isOnboardingScreen
+    ? stripResponsePattern(screen.context_block)
+    : screen.context_block;
   const contextMessage = buildContextMessage({
     screen_id: args.screen_id,
-    context_block: screen.context_block,
+    context_block: contextBlock,
     state_delta,
   });
 
-  const isOnboardingScreen = args.screen_id.startsWith('ONBOARD-');
   const onboardingNudge = isOnboardingScreen ? `\n\n${ONBOARDING_TOOL_ADDENDUM}` : '';
   const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
-  const alreadyFilledBlock = isOnboardingScreen
-    ? await buildAlreadyFilledBlock(args.anon_id)
-    : '';
+  const alreadyFilledBlock = isOnboardingScreen ? await buildAlreadyFilledBlock(args.anon_id) : '';
 
   return {
     systemPrompt: `${coachingPreamble}${onboardingNudge}${alreadyFilledBlock}${openerNudge}\n\n${contextMessage}`,
@@ -120,10 +123,7 @@ async function buildAlreadyFilledBlock(anonId: string): Promise<string> {
     data: Record<string, unknown> | null;
     current_step: number;
     path: string | null;
-  }>(
-    `SELECT data, current_step, path FROM onboarding_states WHERE anon_id = $1`,
-    [anonId],
-  );
+  }>(`SELECT data, current_step, path FROM onboarding_states WHERE anon_id = $1`, [anonId]);
   const row = res.rows[0];
   if (!row) return '';
   const data = row.data ?? {};
