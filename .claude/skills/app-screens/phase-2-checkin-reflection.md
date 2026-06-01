@@ -136,7 +136,7 @@ ALL DONE: 'I did everything' / 'All of them'
 
 **System Action:**
 
-1. Open Cartesia Ink STT
+1. Open Soniox STT
 2. Parse voice: match habit names to status
 3. Update Supabase habit_completions
 4. After all accounted for: transition to ECHECK-04 (if goal exists) or ECHECK-05 (reflection)
@@ -213,7 +213,7 @@ SORT OF: 'I'll mark that as done. Every bit counts.'
 
 1. Iterate through today's habits one by one
 2. LLM generates phrasing variation, sent to Cartesia Sonic
-3. Open Cartesia Ink STT, wait for response after each
+3. Open Soniox STT, wait for response after each
 4. Save status per response
 5. After all: summarize and transition to ECHECK-04 (if goal) or ECHECK-05 (reflection)
 
@@ -687,7 +687,7 @@ SCREEN: Morning Check-in (async reflection pattern, NOT Vapi)
 STATE: User starting morning check-in. Four scales: sleep, mood, energy, stress, plus optional voice goal at MCHECK-02.
 BEHAVIOR (v2 plan async pattern):
 1. MP3 prompt plays in Yair's cloned voice ('Morning, [Name]. Quick check-in.').
-2. User responds via voice (Cartesia Ink streaming STT) or taps emoji scales.
+2. User responds via voice (Soniox streaming STT) or taps emoji scales.
 3. MP3 thinking acknowledgment plays while LLM processes (target 2-3s).
 4. LLM-generated personalized response sent to Cartesia Sonic API for live TTS in cloned voice.
 5. Optional follow-up if needed.
@@ -712,7 +712,7 @@ Live LLM response (Cartesia Sonic API, live TTS, varies): 'Solid sleep, [Name]. 
 [Async reflection pattern - NOT Vapi]
 State machine:
 1. PROMPT: MCHECK-01 loads, plays prompt MP3 from Supabase Storage
-2. LISTENING: Mic activates for user voice (Cartesia Ink STT) OR user taps scales
+2. LISTENING: Mic activates for user voice (Soniox STT) OR user taps scales
 3. THINKING: 'Check In' tapped or voice complete -> thinking ack MP3 plays while LLM processes
 4. RESPONDING: LLM response streamed to Cartesia Sonic API for live TTS in cloned voice
 5. FOLLOWUP_OPTIONAL: Tap-to-talk if user wants to elaborate
@@ -744,7 +744,7 @@ MIXED: 'Sleep was rough but energy's up - interesting. Let's work with what you'
 **System Action:**
 
 1. Play prompt MP3 from Supabase Storage
-2. Open Cartesia Ink STT for voice input (parallel with tap UI)
+2. Open Soniox STT for voice input (parallel with tap UI)
 3. On 'Check In' tap or voice complete: parse to 5-point scales
 4. Save to Supabase checkins {user_id, type: 'morning', date, sleep, mood, energy, stress}
 5. Play thinking ack MP3
@@ -820,7 +820,7 @@ If still vague: 'No problem. Talk tonight.'
 **System Action:**
 
 1. Play prompt MP3 from Supabase Storage
-2. Open Cartesia Ink STT for voice input
+2. Open Soniox STT for voice input
 3. If goal: save to Supabase daily_goals {user_id, date, goal_text, status: 'pending'}
 4. Store for evening reference (ECHECK-04)
 5. LLM response via callLLM() -> Cartesia Sonic API

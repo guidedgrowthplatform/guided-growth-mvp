@@ -1,6 +1,6 @@
 # Path 3 — Side Effects, session_log, and the "Caught Up" Pattern
 
-How Path 3 surfaces (UX-26 States 2/3/4) trigger DB writes, frontend changes, and LLM awareness — without going through Vapi.
+How the Direct-LLM surfaces (UX-26 States 2/3/4 — cost-tier Path 2 for States 2/3, Path 3 for State 4) trigger DB writes, frontend changes, and LLM awareness — without going through Vapi.
 
 ## Two kinds of side effects
 

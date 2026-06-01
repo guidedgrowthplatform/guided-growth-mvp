@@ -85,7 +85,7 @@ This is the single piece of code that bridges agent tool writes and the UI. With
 
 Today: `_format_screen_context(metadata.screen)` looks up the row in `gcartesia-agents/screen_contexts.json` and appends the `AI Context / Expected User Response / AI Response / Edge Cases / Notes` block to the system prompt at session start.
 
-Target: Vapi assistant reads from `screen_contexts` table (Supabase) via callLLM ctx. The JSON file goes away once the Supabase table is the source of truth.
+Now: the app reads `screen_contexts` (bundled at `src/generated/screen_contexts.json`, falling back to the Supabase table) and injects it into the Vapi assistant — **not via callLLM** — through `assistantOverrides.variableValues.initial_screen_context` at session start and `client.send({ type: 'add-message', role: 'system' })` on screen change (`src/lib/voice/buildAssistantOverrides.ts`, `OnboardingVoiceProvider.pushScreenContext`). The legacy `gcartesia-agents/screen_contexts.json` goes away with the Python agent.
 
 Migration is in flight: `supabase/migrations/016_screen_contexts_and_session_log.sql` creates the table; `scripts/voice-sync/seed_contexts.py` seeds it from the Voice Journey Sheet. Wiring it into the legacy Python agent (P1-42) and into the Vapi assistant ctx are both pending.
 

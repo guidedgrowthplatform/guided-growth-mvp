@@ -1,17 +1,19 @@
-# Path 3 Surfaces — Where Direct LLM Runs
+# Path 3 Surfaces — Where the Direct-LLM Implementation Runs
 
 The three non-Vapi orb states (UX-26 States 2, 3, 4) wherever they appear. Some are live today; many are pending callLLM landing.
 
-## Chat surfaces (Path 3)
+> **Cost tier reminder.** State 2 (one-way TTS) and State 3 (mic-in / text-out) are cost-tier **Path 2** (one voice half on); only State 4 (text only) is cost-tier **Path 3**. They all share the Direct-LLM implementation documented here. The "Path" column below is the cost tier.
 
-| Surface | Orb state | Wiring |
-|---|---|---|
-| Onboarding chat overlay — typed branch | State 4 (text only) | `useLLM` → `/api/llm`. Onboarding tools on `ONBOARD-*` screens (see SKILL.md). |
-| Onboarding chat overlay — TTS-out / type-in branch | State 2 (voice_out_only) | `useLLM` → `/api/llm`; assistant text spoken via `tts-service.ts` |
-| Onboarding chat overlay — STT-in / text-out branch | State 3 (voice_in_only) | Soniox async via `/api/stt` → `useLLM`. State 3 STT realtime wiring is the remaining gap. |
-| Post-onboarding CHAT screen | Defaults State 2, can flip to 3 or 4 via orb | Same `useLLM` path. Base tools, no onboarding tools. |
-| Tap-driven LLM consumers (suggestions, summaries, parse-on-submit) | n/a (no orb interaction) | Ad-hoc — should consolidate on `useLLM`. |
-| Background jobs (insights, summaries, nightly digests) | n/a (server-side) | Not built |
+## Chat surfaces (Direct-LLM implementation)
+
+| Surface | Orb state | Cost tier | Wiring |
+|---|---|---|---|
+| Onboarding chat overlay — typed branch | State 4 (text only) | Path 3 | `useLLM` → `/api/llm`. Onboarding tools on `ONBOARD-*` screens (see SKILL.md). |
+| Onboarding chat overlay — TTS-out / type-in branch | State 2 (voice_out_only) | Path 2 | `useLLM` → `/api/llm`; assistant text spoken via Cartesia `tts-service.ts` |
+| Onboarding chat overlay — STT-in / text-out branch | State 3 (voice_in_only) | Path 2 | Soniox via `/api/stt` → `useLLM`. State 3 STT realtime wiring is the remaining gap. |
+| Post-onboarding CHAT screen | Defaults State 2, can flip to 3 or 4 via orb | Path 2 (State 4 → Path 3) | Same `useLLM` path. Base tools, no onboarding tools. |
+| Tap-driven LLM consumers (suggestions, summaries, parse-on-submit) | n/a (no orb interaction) | Path 3 | Ad-hoc — should consolidate on `useLLM`. |
+| Background jobs (insights, summaries, nightly digests) | n/a (server-side) | Path 3 | Not built |
 
 ## Onboarding tool-driven screens
 

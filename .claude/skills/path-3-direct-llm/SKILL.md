@@ -1,19 +1,21 @@
 ---
 name: path-3-direct-llm
-description: Path 3 — Direct LLM path for the three non-Vapi orb states (UX-26 States 2, 3, 4). Frontend → useLLM → /api/llm → frontend renders text (optionally spoken via TTS in State 2 (`tts-service.ts`), or driven by STT in State 3). No Vapi orchestration. Covers any surface running a non-Vapi orb combination — onboarding chat overlay, post-onboarding CHAT, tap-driven LLM consumers. Auto-invoked when working on the non-Vapi orb states (voice_out_only / voice_in_only / text_only), useLLM, /api/llm, /api/stt, or the onboarding parser. NOT for the Vapi orb State 1 (path-1-vapi) and NOT for daily check-ins (path-2-async).
+description: Direct-LLM implementation behind the three non-Vapi orb states (UX-26 States 2, 3, 4). Frontend → useLLM → /api/llm → frontend renders text (optionally spoken via Cartesia TTS in State 2 (`tts-service.ts`), or driven by Soniox STT in State 3). No Vapi orchestration. NOTE on cost tiers: by the dual-button model these states split across Path 2 (States 2/3 — one voice half on) and Path 3 (State 4 — text only); this one implementation spans both, the folder name is historical. Covers any surface running a non-Vapi orb combination — onboarding chat overlay, post-onboarding CHAT, tap-driven LLM consumers. Auto-invoked when working on the non-Vapi orb states (voice_out_only / voice_in_only / text_only), useLLM, /api/llm, /api/stt, or the onboarding parser. NOT for the Vapi orb State 1 (path-1-vapi) and NOT for the check-in async-reflection loop (path-2-async).
 user-invocable: false
 ---
 
 # Path 3 — Direct LLM (Three Non-Vapi Orb States)
 
-This skill covers Path 3 — the direct LLM path that runs UX-26 States 2, 3, and 4 wherever those orb combinations appear (onboarding chat overlay, post-onboarding CHAT, tap-driven LLM consumers). Path 1 (Vapi) owns State 1 (full duplex voice).
+This skill covers the **Direct-LLM implementation** that runs UX-26 States 2, 3, and 4 wherever those orb combinations appear (onboarding chat overlay, post-onboarding CHAT, tap-driven LLM consumers). Path 1 (Vapi) owns State 1 (full-duplex voice).
+
+> **Cost tier vs. this skill.** The dual-button model assigns these states to two cost tiers: State 2 (AI on, mic off) and State 3 (AI off, mic on) are **Path 2** (one voice half on); only State 4 (both off) is **Path 3** (text only). They share this single implementation — `useLLM` → `/api/llm`, plus direct Cartesia TTS (State 2) or direct Soniox STT (State 3). So "path-3-direct-llm" the folder ≠ "Path 3" the cost tier; the name predates the reframe. See [voice-architecture/paths.md](../voice-architecture/paths.md) for the state→path table.
 
 Per `gg-spec/docs/global-ux-rules.md`:
-- **State 2** (AI on, mic off) — TTS via `tts-service.ts` speaks; user types or taps.
-- **State 3** (AI off, mic on) — STT captures user speech; LLM reply rendered as text only, no audio.
-- **State 4** (both off) — pure text in / text out.
+- **State 2** (AI on, mic off) — Cartesia TTS via `tts-service.ts` speaks; user types or taps. *(cost tier: Path 2)*
+- **State 3** (AI off, mic on) — Soniox STT captures user speech; LLM reply rendered as text only, no audio. *(cost tier: Path 2)*
+- **State 4** (both off) — pure text in / text out. *(cost tier: Path 3)*
 
-All three states route through `useLLM` → `/api/llm` (or the onboarding parser for screen-bound flows). STT runs Soniox async via `/api/stt`.
+All three states route through `useLLM` → `/api/llm` (or the onboarding parser for screen-bound flows). STT runs Soniox via `/api/stt`.
 
 ```
 User → Frontend → callLLM() → LLM → Frontend renders text → User
@@ -129,4 +131,4 @@ Handlers UPSERT into `onboarding_states` keyed on `anon_id` with `GREATEST(curre
 | `screen_contexts` table | yes — via callLLM ctx | yes — same |
 | `session_log` table | yes — read (delta) + write (tap events) | yes — read on each callLLM; write at meaningful points |
 | `ActionDispatcher` | optional — when LLM returns a CRUD intent (`update_profile`, `navigate_next`, `log_event`) | path-2-async: yes (single-utterance commands). Path 1: replaced by Vapi tool webhooks. |
-| Voice infra (Vapi / Cartesia) | **no** | Path 1: Vapi. path-2-async: Cartesia Ink + Sonic. |
+| Voice infra (Vapi / Soniox / Cartesia) | State 4: none. State 2: Cartesia Sonic out. State 3: Soniox STT in. | Path 1: Vapi (Soniox + Cartesia inside). path-2-async: Soniox + Cartesia Sonic. |

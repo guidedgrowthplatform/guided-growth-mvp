@@ -1,6 +1,6 @@
 ---
 name: path-1-vapi
-description: Path 1 — Vapi-orchestrated voice for the onboarding journey. Vapi assistant handles STT (Deepgram Flux) + LLM (BYO key, ctx via callLLM) + TTS (Cartesia Sonic-3) inside one realtime WebRTC session. Side effects flow Vapi tool webhook → Supabase write → Realtime → frontend (form auto-fill, navigate_next, current_step bump). Auto-invoked when working on the onboarding step pages, useOnboardingAgent / useRealtimeVoice / useOnboardingVoice / useOnboardingRealtimeSync, OnboardingChatOverlay, /api/cartesia-agent-token (legacy) or /api/vapi-* (target), the gcartesia-agents/ Python repo (legacy), Vapi assistant config, or onboarding tool webhooks. NOT for daily check-ins (path-2-async) or text chat (path-3-direct-llm).
+description: Path 1 — Vapi-orchestrated voice for the onboarding journey (orb State 1, both halves on). Vapi assistant handles STT (Soniox) + LLM (OpenAI, configured in the Vapi dashboard — no BYO key, no callLLM proxy) + TTS (Cartesia Sonic 3.5) inside one realtime WebRTC session. App context IS injected (not via callLLM) — through assistantOverrides.variableValues (initial_screen_context, anon_id, screen, coaching_style) at cold start and client.send add-message mid-session (buildAssistantOverrides.ts, OnboardingVoiceProvider.pushScreenContext). Side effects flow Vapi tool webhook → Supabase write → Realtime → frontend (form auto-fill, navigate_next, current_step bump). Auto-invoked when working on the onboarding step pages, useOnboardingAgent / useRealtimeVoice / useOnboardingVoice / useOnboardingRealtimeSync, OnboardingChatOverlay, /api/cartesia-agent-token (legacy) or /api/vapi-* (target), the gcartesia-agents/ Python repo (legacy), Vapi assistant config, or onboarding tool webhooks. NOT for daily check-ins (path-2-async) or text chat (path-3-direct-llm).
 user-invocable: false
 ---
 
@@ -11,10 +11,12 @@ Realtime bidirectional voice, used only for the **conversational onboarding jour
 ```
 User ⇄ Frontend (Vapi Web SDK) ⇄ Vapi assistant ⇄ User
                                   │
-                                  ├─ STT: Deepgram Flux (streaming)
-                                  ├─ LLM: BYO key, ctx via callLLM
-                                  └─ TTS: Cartesia Sonic-3 (cloned voice)
+                                  ├─ STT: Soniox (multilingual, sub-200ms)
+                                  ├─ LLM: OpenAI, runs inside Vapi (dashboard config; no BYO key, no callLLM proxy)
+                                  └─ TTS: Cartesia Sonic 3.5 (cloned voice)
 
+Context injection (NOT callLLM): app feeds screen context + session_log delta + form snapshot into Vapi via
+  assistantOverrides.variableValues.initial_screen_context (cold start) and client.send({type:'add-message'}) (mid-session).
 Side effects: Vapi tool call → /api/vapi-tool → Supabase write → Realtime → frontend
 ```
 
@@ -32,8 +34,9 @@ Side effects: Vapi tool call → /api/vapi-tool → Supabase write → Realtime 
 | Browser SDK | `CartesiaAgentClient` over WebSocket | `@vapi-ai/web` over WebRTC |
 | Token endpoint | `/api/cartesia-agent-token.ts` | Vapi call/assistant provisioner (`/api/vapi-call` or similar) |
 | Tool runtime | Python `tools.py` (aiohttp → Supabase REST) | Vercel function (e.g. `/api/vapi-tool`) writing same Supabase rows |
-| LLM call | Inside Cartesia Line, BYO key | Inside Vapi, BYO key, **routed via `callLLM()` for ctx + delta** |
-| TTS provider | Cartesia Sonic-3 | Cartesia Sonic-3 (same — Vapi uses Cartesia under the hood) |
+| LLM call | Inside Cartesia Line | **Inside Vapi (OpenAI, dashboard config). No BYO key, no callLLM proxy. Context injected via `assistantOverrides.variableValues` + `add-message`, NOT callLLM** |
+| STT provider | (Cartesia Line internal) | Soniox (inside Vapi) |
+| TTS provider | Cartesia Sonic-3 | Cartesia Sonic 3.5 (Vapi uses Cartesia under the hood) |
 | Side-effect bridge | Supabase Realtime → `useOnboardingRealtimeSync` | **Same** — only the source of writes changes |
 | Per-screen sessions | Yes (each step mounts a fresh WS) | TBD — likely same shape, or one assistant with screen pushed via metadata |
 
@@ -66,9 +69,9 @@ Pre-onboarding screens (SPLASH/PREF/MIC/POST-AUTH) are **Path 2**, not Path 1, e
 1. Screen mounts → useOnboardingAgent('onboard_03')
 2. Browser: POST /api/vapi-call → ephemeral Vapi call config
 3. Browser opens Vapi WebRTC session (assistant id + metadata: { user_id, screen, coaching_style })
-4. Vapi spawns assistant → builds prompt for that screen (callLLM ctx prepended)
+4. Vapi spawns assistant → screen context injected via `assistantOverrides.variableValues.initial_screen_context` (not callLLM)
 5. Assistant speaks intro → audio streams to browser
-6. User speaks → mic streams to Vapi → Deepgram Flux transcribes
+6. User speaks → mic streams to Vapi → Soniox transcribes
 7. Assistant decides to call a tool → Vapi POSTs /api/vapi-tool with the tool args
 8. /api/vapi-tool writes to Supabase (onboarding_states.data merge, current_step bump, etc.)
 9. Supabase Realtime fans out → useOnboardingRealtimeSync hydrates form

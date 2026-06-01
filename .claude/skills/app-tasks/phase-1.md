@@ -195,7 +195,7 @@ The Vapi assistant config is the runtime that all onboarding voice screens conne
 
 SETUP
 - Pull system prompt from sheet's Global Context tab
-- Confirm LLM (GPT-4o mini), STT (Cartesia Ink), TTS (Cartesia Sonic-3 + Yair's voice_id)
+- Confirm LLM (GPT-4o mini), STT (Soniox), TTS (Cartesia Sonic 3.5 + Yair's voice_id)
 
 BUILD
 - In Vapi dashboard: create assistant, paste system prompt, wire LLM/STT/TTS, set first_message generation strategy, attach tools (P1-14)
@@ -656,7 +656,7 @@ VERIFY
 
 **Detailed explanation:**
 
-Vapi orchestrates the onboarding voice flow: STT (Cartesia Ink) → LLM (GPT-4o mini) → TTS (Cartesia Sonic-3 with Yair's cloned voice). The web SDK is what the frontend imports; server SDK is optional (most config lives in the Vapi dashboard).
+Vapi orchestrates the onboarding voice flow: STT (Soniox) → LLM (GPT-4o mini) → TTS (Cartesia Sonic 3.5 with Yair's cloned voice). The web SDK is what the frontend imports; server SDK is optional (most config lives in the Vapi dashboard).
 
 SETUP
 - Confirm package versions: @vapi-ai/web (latest stable)
@@ -1619,6 +1619,7 @@ STT VENDOR EVAL: Cartesia Ink vs current Deepgram Flux
 - Compare WER (word error rate) and latency
 - If Cartesia Ink within 1-2% WER of Deepgram: switch (vendor consolidation with our existing Sonic-3 TTS = single billing + SDK)
 - If WER worse: stay on Deepgram
+- RESOLVED (May 2026): neither — Soniox chosen as sole STT (multilingual, sub-200ms). Ink and Deepgram both dropped.
 
 VOICE MODEL EVAL
 - Test Cartesia Sonic 2 vs current Sonic 3 — Sonic 2 may be ~50ms faster, see if quality acceptable for the cloned voice

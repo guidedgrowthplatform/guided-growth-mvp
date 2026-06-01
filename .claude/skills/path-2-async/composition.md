@@ -13,13 +13,13 @@ Use for: SPLASH-01, PREF-01, MIC-01, POST-AUTH-01, affirmation playback
 
 B — Transcript-only (no LLM, no TTS)
 ─────────────────────────────────────
-User → mic → Cartesia Ink (STT) → transcript → drop into form
+User → mic → Soniox (STT) → transcript → drop into form
 Use for: edit-habit / add-habit voice input (advanced flow), onboarding-layout shared mic — anywhere `useVoiceInput` is wired without an NLU step
 
 
 C — Single-utterance command
 ─────────────────────────────────────
-User → mic → Cartesia Ink → callLLM → ActionDispatcher → DataService → Supabase
+User → mic → Soniox → callLLM → ActionDispatcher → DataService → Supabase
                                    ↘ optional Sonic API → playback (talk-back)
 Use for: home check-in single utterance ("create a habit called meditation"),
          any surface with tap-to-speak that maps speech → one CRUD action
@@ -29,7 +29,7 @@ D — Full async loop (prompt + reply + response)
 ─────────────────────────────────────
 User → MP3 prompt (or Sonic REST) → playback
      → user speaks reply
-     → Cartesia Ink (STT)
+     → Soniox (STT)
      → callLLM
      → LLM
      → Sonic API (TTS)
@@ -61,9 +61,9 @@ Pick by what the surface needs. **Don't use a heavier shape than required** — 
 | Piece | File | Notes |
 |---|---|---|
 | MP3 lookup + playback | `useVoicePlayer` (target hook) + `voice-manifest.json` (target manifest in Supabase Storage) | Plays pre-generated MP3 by key. Falls back to Sonic REST if asset missing. |
-| Sonic REST (live TTS) | `api/cartesia-tts.ts` (today) | POSTs `https://api.cartesia.ai/tts/bytes` with text + voice_id + model_id (`sonic-3`). Returns audio bytes. |
+| Sonic REST (live TTS) | `api/cartesia-tts.ts` (today) | POSTs `https://api.cartesia.ai/tts/bytes` with text + voice_id + model_id (`sonic-3` in code today; locked target `sonic-3.5`). Returns audio bytes. |
 | TTS playback | `src/lib/services/tts-service.ts` | Browser-side scheduling; consumed by ~17 UI components beyond Path 2 (toasts, check-in cards, feedback button). Audit when touching. |
-| Mic capture + Ink STT | `src/lib/services/stt-service.ts` + `api/stt.ts` | `getUserMedia` → PCM upload → Ink REST → transcript. |
+| Mic capture + Soniox STT | `src/lib/services/stt-service.ts` + `api/stt.ts` | `getUserMedia` → PCM upload → Soniox REST → transcript. |
 | Intent parse (target) | `callLLM()` + `screen_contexts` ctx for the surface | Returns same `{ action, entity, params, confidence }` shape as today's NLU, plus optional spoken reply text. |
 | Intent parse (today) | `api/process-command.ts` + `src/lib/prompts/voice-command-system.ts` | GPT-4o-mini, temperature 0.1, `response_format: json_object`. 21 few-shot examples + 17 parse rules. |
 | CRUD execution | `src/lib/services/action-dispatcher.ts` + `src/lib/config/dispatcher-config.ts` | Maps intent → DataService method. |
