@@ -147,7 +147,13 @@ export function Step1Page() {
         <AgeScrollPicker value={age} onChange={setAge} />
       </OnboardingSection>
       <OnboardingSection label="How do you identify?">
-        <ChipSelect options={GENDER_OPTIONS} value={gender} onChange={setGender} columns={3} />
+        <ChipSelect
+          options={GENDER_OPTIONS}
+          value={gender}
+          onChange={setGender}
+          columns={3}
+          ariaLabel="How do you identify?"
+        />
       </OnboardingSection>
       <OnboardingSection label="How did you hear about us?">
         <ChipSelect
@@ -155,6 +161,7 @@ export function Step1Page() {
           value={referralSource}
           onChange={setReferralSource}
           columns={3}
+          ariaLabel="How did you hear about us?"
         />
         {referralSource === 'Other' && (
           <div className="mt-3">
