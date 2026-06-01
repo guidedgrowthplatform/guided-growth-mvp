@@ -22,7 +22,7 @@ The LLM is **ALWAYS available** from app load onward. Every user input — voice
 
 ## Three input types (key mental model)
 
-1. **User voice input** — User speaks. Audio captured by Cartesia Ink STT, sent to `callLLM()`. Path depends on screen (see Three Paths below).
+1. **User voice input** — User speaks. Audio captured by Soniox STT, sent to `callLLM()`. Path depends on screen (see Three Paths below).
 2. **User text input** — User types in any text field (chat, habit name, reflection answer). Sent to `callLLM()` via Direct LLM path. No voice infrastructure involved.
 3. **User tap input** — User taps a button. Two sub-cases:
    - (a) **Navigation tap** (Continue, Sign Up, Back) — frontend handles, no LLM call.
@@ -30,9 +30,11 @@ The LLM is **ALWAYS available** from app load onward. Every user input — voice
 
 ## Three LLM paths (v2 plan)
 
-- **Path 1 — Vapi:** live voice agent. **ONBOARDING ONLY.** Screens: SPLASH (silent), WELCOME, VOICE-PREFERENCE, MIC-PERMISSION, POST-AUTH-SIGNUP [DEPRECATED], ONBOARD-01..ONBOARD-BEGINNER-10, HOME-RETURN, ONBOARD-ADVANCED-01/02. Cost: highest per minute.
-- **Path 2 — Async Reflection:** MP3 prompt + Cartesia Sonic API for response. **CHECK-INS ONLY.** Screens: MCHECK-01, MCHECK-02, ECHECK-01..06. Pattern: pre-recorded prompt MP3 → user voice (Ink STT) → brief 'thinking' MP3 ack → LLM response streamed to Cartesia Sonic API for live TTS. Cost: ~$0.006/check-in (much cheaper than Vapi).
-- **Path 3 — Direct LLM:** `callLLM()` with no voice infrastructure. **Everything else** — text chat, free-form voice conversation (CHAT uses Cartesia Sonic for TTS only, no Vapi assistant), habit edit, settings, focus session, insights, milestones. Cost: just LLM API tokens.
+> **Path naming follows the dual-button cost-tier model** (UX-26, see [voice-architecture](../voice-architecture/SKILL.md)): the path is the *live button state*, not the screen. Path 1 = both halves on (State 1); Path 2 = exactly one voice half on (States 2/3); Path 3 = both off (State 4). The screen lists below are **default states** — a user flipping an orb half re-derives the path. STT is Soniox; TTS is Cartesia Sonic 3.5. Note: a screen showing the AI speak one-way (Cartesia Sonic, mic off) is State 2 = Path 2, even outside check-ins.
+
+- **Path 1 — Vapi (State 1):** live voice agent, both halves on. **Default for ONBOARDING.** Screens: SPLASH (silent), WELCOME, VOICE-PREFERENCE, MIC-PERMISSION, POST-AUTH-SIGNUP [DEPRECATED], ONBOARD-01..ONBOARD-BEGINNER-10, HOME-RETURN, ONBOARD-ADVANCED-01/02. Cost: highest per minute.
+- **Path 2 — one voice half (States 2/3):** the check-in **Async Reflection** loop is one pattern here. Screens defaulting to it: MCHECK-01, MCHECK-02, ECHECK-01..06. Pattern: pre-recorded prompt MP3 → user voice (Soniox STT) → brief 'thinking' MP3 ack → LLM response streamed to Cartesia Sonic API for live TTS. Cost: ~$0.006/check-in (much cheaper than Vapi). Free-form voice conversation (CHAT speaking one-way via Cartesia Sonic) also lives here.
+- **Path 3 — Direct LLM (State 4):** `callLLM()` with no voice in either direction. Text chat, habit edit, settings, focus session, insights, milestones. Cost: just LLM API tokens.
 - All three paths use the SAME `callLLM()` wrapper backend-side. Same context+delta injection. Same logging. Same anonymization (`anon_id` always passed, never auth user_id).
 - `callLLM()` decides path: Vapi if onboarding voice session active, Async Reflection if on a check-in screen, Direct otherwise. Routing logic lives in `callLLM()`.
 

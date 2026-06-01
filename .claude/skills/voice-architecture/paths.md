@@ -35,9 +35,10 @@ PATH 1 (State 1): AI half ON + Mic half ON, Vapi full-duplex
 ─────────────────────────────────────────────────────────────────────────
 User → Frontend → ┌──── Vapi (full voice orchestration) ─────┐ → Frontend → User
                   │  STT (Soniox, multilingual, sub-200ms)   │
-                  │  LLM (BYO key, wired via callLLM ctx)     │
+                  │  LLM (OpenAI inside Vapi, no BYO/callLLM) │
                   │  TTS (Cartesia Sonic 3.5, cloned voice)   │
                   └──────────────────────────────────────────┘
+Context: injected into the Vapi assistant (NOT callLLM) via assistantOverrides.variableValues + add-message.
 Side effects: Vapi tool webhook → Supabase write → Realtime → frontend (auto-fill / navigate_next)
 
 PATH 2 (State 2 or State 3): exactly one voice half on
@@ -113,7 +114,7 @@ The Path column is the surface's **default**. A user flipping an orb half re-der
 | **Transport** | Vapi Web SDK (WebRTC) | HTTPS POST to Soniox + Sonic + LLM endpoints | HTTPS POST to LLM endpoint |
 | **Conversation** | Multi-turn, interruption-aware, full-duplex | Single turn, or turn-based prompt then reply | Single turn |
 | **STT** | Soniox (inside Vapi) | Soniox, streaming or REST | n/a |
-| **LLM call** | Inside Vapi, BYO key, ctx via callLLM | callLLM (direct) | callLLM (direct) |
+| **LLM call** | Inside Vapi (OpenAI, dashboard config); no BYO, no callLLM — context via `variableValues` + `add-message` | callLLM (direct) | callLLM (direct) |
 | **TTS** | Cartesia Sonic 3.5 (inside Vapi) | Cartesia Sonic 3.5 (REST) | n/a |
 | **Cost driver** | Vapi session-minutes | Per-character TTS + per-second STT + LLM tokens | LLM tokens only |
 | **Side effects** | Vapi tool webhook → Supabase → Realtime → UI | callLLM result → ActionDispatcher → DataService → UI | session_log write; optional ActionDispatcher |

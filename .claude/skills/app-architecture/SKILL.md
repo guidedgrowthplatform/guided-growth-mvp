@@ -27,9 +27,11 @@ Source: Google Sheet **Guided Growth OS App Master** · tab `Architecture` · gi
 
 ## Three LLM Call Paths, One Entry Point
 
-- **Path 1 — Vapi (live voice, onboarding only):** User speaks, Cartesia STT transcribes, Vapi assistant calls LLM, agent speaks response back via Cartesia TTS. Used for SPLASH, WELCOME, VOICE-PREFERENCE, MIC-PERMISSION, POST-AUTH-SIGNUP [DEPRECATED], ONBOARD-01..ONBOARD-BEGINNER-10, HOME-RETURN, ONBOARD-ADVANCED-01..02. Most expensive per minute.
-- **Path 2 — Async Reflection (MP3 prompt + Cartesia Sonic API for response, check-ins only):** User hears MP3 prompt in cloned voice → speaks reply (Cartesia Ink STT) → brief MP3 acknowledgment plays while `callLLM()` processes → LLM-generated response streams to Cartesia Sonic API for live TTS in cloned voice. Used for MCHECK-01, MCHECK-02, ECHECK-01..06. Cheaper than Vapi (~$0.006/check-in target). NEW in v2 plan.
-- **Path 3 — Direct LLM (everything else):** Frontend calls `/api/llm`. Backend calls LLM (OpenAI GPT-4o mini for MVP). No voice infrastructure. Used for text chat, free-form voice conversations (Cartesia Sonic for TTS only, no Vapi assistant), habit edits, settings, insights, focus, milestones.
+> Paths are **cost tiers keyed to the UX-26 dual-button orb state**, not fixed screen groups — the path follows the live button state (see [voice-architecture](../voice-architecture/SKILL.md)). Screen lists below are defaults. STT is Soniox; TTS is Cartesia Sonic 3.5.
+
+- **Path 1 — Vapi (State 1, both halves on; default for onboarding):** User speaks, Soniox STT transcribes, Vapi assistant calls LLM, agent speaks response back via Cartesia Sonic 3.5 TTS. Default for SPLASH, WELCOME, VOICE-PREFERENCE, MIC-PERMISSION, POST-AUTH-SIGNUP [DEPRECATED], ONBOARD-01..ONBOARD-BEGINNER-10, HOME-RETURN, ONBOARD-ADVANCED-01..02. Most expensive per minute.
+- **Path 2 — one voice half (States 2/3); the check-in Async Reflection loop is one pattern here:** User hears MP3 prompt in cloned voice → speaks reply (Soniox STT) → brief MP3 acknowledgment plays while `callLLM()` processes → LLM-generated response streams to Cartesia Sonic API for live TTS in cloned voice. Default for MCHECK-01, MCHECK-02, ECHECK-01..06; also any one-way TTS (e.g. CHAT speaking with mic off). Cheaper than Vapi (~$0.006/check-in target). NEW in v2 plan.
+- **Path 3 — Direct LLM (State 4, both halves off):** Frontend calls `/api/llm`. Backend calls LLM (OpenAI GPT-4o mini for MVP). No voice infrastructure. Used for text chat, habit edits, settings, insights, focus, milestones.
 - All three paths use the **same `callLLM()` wrapper** backend-side. Same context+delta injection. Same logging. Same anonymization (`anon_id` always passed, never auth user_id).
 - `callLLM()` decides path: Vapi if onboarding voice session active, Async Reflection if on a check-in screen, Direct otherwise. Routing logic lives in `callLLM()`.
 
@@ -130,7 +132,7 @@ Used by all 9 check-in screens (MCHECK-01, MCHECK-02, ECHECK-01..06).
 **State machine:** `PROMPT → LISTENING → THINKING → RESPONDING → FOLLOWUP_OPTIONAL → CLOSING → DONE`
 
 - **PROMPT:** Play pre-recorded MP3 from Supabase Storage in user's onboarded voice (cloned founder voice).
-- **LISTENING:** Open mic via Cartesia Ink STT for streaming transcription. User can also tap UI scales (parallel input).
+- **LISTENING:** Open mic via Soniox STT for streaming transcription. User can also tap UI scales (parallel input).
 - **THINKING:** User finishes speaking (silence detection) or taps Check In. Play short 'thinking' MP3 (~1-2s) while `callLLM()` processes.
 - **RESPONDING:** LLM response streamed to Cartesia Sonic API (NOT Vapi). Cartesia Sonic returns TTS audio in cloned voice. Display text alongside audio (UX-22 voice + text sync).
 - **FOLLOWUP_OPTIONAL:** If LLM determines a follow-up question is needed, loop back to LISTENING. Otherwise proceed.

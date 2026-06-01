@@ -83,7 +83,7 @@ HELP / WHAT CAN YOU DO: 'I can help you add or change habits, talk through how y
 
 **System Action:**
 
-1. Capture voice via Cartesia Ink STT
+1. Capture voice via Soniox STT
 2. Send to LLM via callLLM() with context (habits, recent check-ins, goals, coaching style, anon_id only per UX-20)
 3. LLM determines intent
 4. Route by intent: habit CRUD, coaching, data query, general

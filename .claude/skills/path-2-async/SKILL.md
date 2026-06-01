@@ -1,17 +1,19 @@
 ---
 name: path-2-async
-description: Path 2 — Async voice composition for daily check-ins, single-utterance commands, transcript-only voice input, and any pre-recorded prompt + reply loop. Composition is MP3 prompt (or Sonic REST) → user reply → Cartesia Ink (STT) → callLLM → LLM → Sonic API (TTS) → user. Side effects via ActionDispatcher → DataService → Supabase. Auto-invoked when working on morning/evening check-ins, VoiceCheckInOverlay, EditHabitPage / useAdvancedPath (advanced-flow voice input), OnboardingLayout shared mic, useVoiceChat / useVoiceCommand / useVoiceInput, /api/stt, /api/cartesia-tts, /api/process-command (legacy), action-dispatcher, voice-command-system prompt, useVoicePlayer, MP3 voice manifest, or affirmation playback. NOT for onboarding (path-1-vapi) or pure text chat (path-3-direct-llm).
+description: Path 2 — the check-in async-reflection implementation, ONE pattern inside cost-tier Path 2 (orb States 2/3, exactly one voice half on). Covers daily check-ins, single-utterance commands, transcript-only voice input, and any pre-recorded prompt + reply loop. Composition is MP3 prompt (or Sonic REST) → user reply → Soniox (STT) → callLLM → LLM → Sonic API (TTS) → user. Side effects via ActionDispatcher → DataService → Supabase. Auto-invoked when working on morning/evening check-ins, VoiceCheckInOverlay, EditHabitPage / useAdvancedPath (advanced-flow voice input), OnboardingLayout shared mic, useVoiceChat / useVoiceCommand / useVoiceInput, /api/stt, /api/cartesia-tts, /api/process-command (legacy), action-dispatcher, voice-command-system prompt, useVoicePlayer, MP3 voice manifest, or affirmation playback. NOT for onboarding (path-1-vapi) or pure text chat (path-3-direct-llm).
 user-invocable: false
 ---
 
 # Path 2 — Async Reflection (Daily Check-ins)
 
-Asynchronous voice composition. The user hears a prompt (pre-recorded MP3 if available, otherwise live Sonic REST), speaks a reply, the reply is transcribed by Cartesia Ink, run through `callLLM()`, and the LLM's response is spoken back via Sonic API. **Single turn — one prompt, one reply, one response.** Multi-turn conversation is Path 1's job.
+> **Scope.** Cost-tier **Path 2** is any state with exactly one voice half on (orb State 2 = AI speaks one-way; State 3 = mic-in, text reply). This skill documents ONE pattern inside that tier — the check-in async-reflection loop. The other Path-2 surfaces (one-way TTS, mic-only voice input on CHAT, etc.) share the Direct-LLM implementation in [path-3-direct-llm](../path-3-direct-llm/SKILL.md). See [voice-architecture/paths.md](../voice-architecture/paths.md) for the full state→path table.
+
+Asynchronous voice composition. The user hears a prompt (pre-recorded MP3 if available, otherwise live Sonic REST), speaks a reply, the reply is transcribed by Soniox, run through `callLLM()`, and the LLM's response is spoken back via Sonic API. A check-in is a turn-based string of State 2 (prompt) then State 3 (reply) — **never both halves live at once**, so never Vapi. Multi-turn interruption-aware dialogue is Path 1's job.
 
 ```
 User → Frontend → MP3 prompt (plays to user)
                 → user speaks reply
-                → Cartesia Ink (STT)
+                → Soniox (STT)
                 → callLLM()
                 → LLM
                 → Sonic API (TTS)
@@ -22,7 +24,7 @@ Side effects: callLLM result → ActionDispatcher → DataService → Supabase �
 
 ## Reference files
 
-- [composition.md](composition.md) — the MP3 → mic → Ink → callLLM → Sonic loop in detail, plus how to skip pieces (transcript-only, broadcast-only, etc.)
+- [composition.md](composition.md) — the MP3 → mic → Soniox → callLLM → Sonic loop in detail, plus how to skip pieces (transcript-only, broadcast-only, etc.)
 - [surfaces.md](surfaces.md) — every Path 2 surface (target + today's overlap with the legacy single-utterance pipeline)
 - [current-cartesia-rest.md](current-cartesia-rest.md) — what's wired today (`/api/stt`, `/api/cartesia-tts`, `/api/process-command` GPT-4o-mini NLU, ActionDispatcher) — preserve while reading existing code, do not extend
 
@@ -53,10 +55,10 @@ Side effects: callLLM result → ActionDispatcher → DataService → Supabase �
 
 | Surface | Composition | Notes |
 |---|---|---|
-| Morning check-in | MP3 prompt → mic → Ink → callLLM → Sonic | Replaces today's Line session for `metadata.screen='morning'` |
-| Evening check-in | MP3 prompt → mic → Ink → callLLM → Sonic | Replaces today's Line session for `metadata.screen='evening'` |
-| Home voice check-in (single utterance) | (no MP3) → mic → Ink → callLLM → Sonic | Today's voice-command pipeline lives here |
-| Edit/add-habit voice input (advanced flow) | mic → Ink → (no LLM by default) → no TTS | Transcript-only — drops into form field |
+| Morning check-in | MP3 prompt → mic → Soniox → callLLM → Sonic | Replaces today's Line session for `metadata.screen='morning'` |
+| Evening check-in | MP3 prompt → mic → Soniox → callLLM → Sonic | Replaces today's Line session for `metadata.screen='evening'` |
+| Home voice check-in (single utterance) | (no MP3) → mic → Soniox → callLLM → Sonic | Today's voice-command pipeline lives here |
+| Edit/add-habit voice input (advanced flow) | mic → Soniox → (no LLM by default) → no TTS | Transcript-only — drops into form field |
 | SPLASH-01 / PREF-01 / MIC-01 / POST-AUTH-01 | MP3 (when generated) → no mic → no LLM → no TTS | One-way broadcast. Today: live Sonic REST one-shot until MP3s exist. |
 | Affirmation playback | text → Sonic REST → playback | Dynamic text, one-way |
 
@@ -66,10 +68,10 @@ See [surfaces.md](surfaces.md) for component → file mapping.
 
 Path 2 is a **construction kit**, not a fixed pipeline. Compose only the pieces a surface needs:
 
-- **One-way broadcast** (splash, affirmation): MP3 or Sonic REST → playback. Skip mic, Ink, callLLM.
-- **Transcript-only** (journal voice input, feedback): mic → Ink → drop transcript into form. Skip callLLM, Sonic.
-- **Single-utterance command** (home check-in voice command): mic → Ink → callLLM → ActionDispatcher → optional Sonic. Skip MP3.
-- **Full async loop** (morning/evening check-ins): MP3 prompt → mic → Ink → callLLM → Sonic → playback.
+- **One-way broadcast** (splash, affirmation): MP3 or Sonic REST → playback. Skip mic, Soniox, callLLM.
+- **Transcript-only** (journal voice input, feedback): mic → Soniox → drop transcript into form. Skip callLLM, Sonic.
+- **Single-utterance command** (home check-in voice command): mic → Soniox → callLLM → ActionDispatcher → optional Sonic. Skip MP3.
+- **Full async loop** (morning/evening check-ins): MP3 prompt → mic → Soniox → callLLM → Sonic → playback.
 
 The diagram in [composition.md](composition.md) shows all four shapes side by side.
 
@@ -78,7 +80,7 @@ The diagram in [composition.md](composition.md) shows all four shapes side by si
 The diagram says morning/evening check-ins were intended for Vapi-style realtime, but the new design moves them to Path 2:
 
 - Check-ins are **single-prompt, single-reply** in shape — the user doesn't need bidirectional turn-taking.
-- Vapi session-minutes are billed for the whole open window. A 30-second async loop is cheaper as Ink + Sonic than as a Vapi session.
+- Vapi session-minutes are billed for the whole open window. A 30-second async loop is cheaper as Soniox + Sonic than as a Vapi session.
 - Pre-recorded MP3 prompts give near-zero first-byte latency for the fixed opening line.
 - callLLM + screen_contexts + session_log gives the same "AI knows where the user is and what they did" as Path 1, without the realtime infra.
 

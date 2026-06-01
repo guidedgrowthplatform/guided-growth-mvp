@@ -89,7 +89,7 @@ SPLASH → WELCOME → AUTH-SIGNUP / AUTH-LOGIN
 
 ## Key v2-plan changes (May 2026)
 
-- **Onboarding is all Vapi.** No MP3s on SPLASH / WELCOME / VOICE-PREFERENCE / MIC-PERMISSION / POST-AUTH. Vapi live TTS in cloned voice via Cartesia Sonic-3 (May 5 2026 pivot from Cartesia Line).
+- **Onboarding is all Vapi.** No MP3s on SPLASH / WELCOME / VOICE-PREFERENCE / MIC-PERMISSION / POST-AUTH. Vapi live TTS in cloned voice via Cartesia Sonic 3.5; STT via Soniox (May 5 2026 pivot from Cartesia Line).
 - **Check-ins use Async Reflection** (Path 2), not Vapi. See `app-architecture` → Async Reflection section.
 - **POST-AUTH-01** is marked `[DEPRECATED]` — its responsibilities moved into the live Vapi flow.
 - **Screen ID renames** logged in the Sync Log tab (see `app-overview`). Notable: ONBOARD-BEGINNER-10 → STARTING-PLAN (Phase 2 caught up to Figma name).

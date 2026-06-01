@@ -106,7 +106,7 @@ Everything else writes to `session_log` and waits. Cheap and aware.
 | File | Owner | Used by |
 |---|---|---|
 | `src/lib/services/tts-service.ts` | (browser TTS playback, calls Sonic REST) | Path 2 + ~17 UI components (toasts, check-in cards, feedback button) |
-| `src/lib/services/stt-service.ts` | (browser mic capture + Ink REST upload) | Path 2 |
+| `src/lib/services/stt-service.ts` | (browser mic capture + Soniox REST upload) | Path 2 |
 | `src/contexts/VoiceContext.tsx` + `src/hooks/useVoice.ts` | (mutual-exclusion lock between voice modes) | Path 1 + Path 2 |
 | `src/stores/voiceSettingsStore.ts` | (recording mode, TTS toggle, voice preference) | Path 1 + Path 2 + Settings UI |
 | `src/stores/voiceStore.ts` | (listening / transcript / interim state) | Path 1 + Path 2 |
@@ -117,9 +117,9 @@ If you touch any of these, audit both Path 1 and Path 2 consumers — neither pa
 
 | Path | Voice provider bill | LLM bill |
 |---|---|---|
-| Path 1 (Vapi) | Vapi session-minutes (Vapi internally pays Deepgram + Cartesia) | Tokens to your provider via callLLM ctx (BYO key) |
-| Path 2 (Async) | Cartesia Ink seconds + Cartesia Sonic characters | Tokens via callLLM |
-| Path 3 (Direct LLM) | none | Tokens via callLLM |
+| Path 1 (Vapi, State 1) | Vapi session-minutes (Vapi internally pays Soniox + Cartesia) | LLM tokens billed inside Vapi (OpenAI, dashboard config — no BYO key, no callLLM; context injected via variableValues) |
+| Path 2 (one voice half, States 2/3) | Soniox seconds (State 3) + Cartesia Sonic characters (State 2) | Tokens via callLLM |
+| Path 3 (text only, State 4) | none | Tokens via callLLM |
 
 Implication: don't open Path 1 sessions speculatively. Don't call Path 2 TTS for fixed text that could be MP3. Don't call Path 3 LLM for taps that could just write to session_log.
 

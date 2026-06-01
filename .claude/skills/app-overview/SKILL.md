@@ -48,7 +48,7 @@ Deep-link to a specific tab: `https://docs.google.com/spreadsheets/d/<spreadshee
 ## V2 plan — key decisions (locked May 2026)
 
 - **All 5 stages = MVP.** Stage 1 Foundation → Stage 2 `callLLM` wrapper + integrations → Stage 3 Onboarding LLM-active screens → Stage 4 QA/safety/polish → Stage 5 Check-ins/text-chat/feedback.
-- **Onboarding = all Vapi** (Cartesia STT + Cartesia Sonic TTS through Vapi). No MP3s on SPLASH/WELCOME/PREF/MIC/POST-AUTH. Switched from Cartesia Line May 5 2026 (Line concurrency limits at scale).
+- **Onboarding = all Vapi** (Soniox STT + Cartesia Sonic 3.5 TTS through Vapi). No MP3s on SPLASH/WELCOME/PREF/MIC/POST-AUTH. Switched from Cartesia Line May 5 2026 (Line concurrency limits at scale).
 - **Check-ins = Async Reflection** (NOT Vapi). MP3 prompt → user voice → MP3 thinking ack → LLM response via Cartesia Sonic API. Target ~$0.006/check-in.
 - **Anonymization in MVP** (P1-46, Stage 1, ~3 hours). `anon_id` flows through `callLLM()`, session_log, PostHog. Identity (email, name) lives separately.
 - **Crisis safety** (P1-47, Stage 4, ~1 hour) — single global system prompt rule. UX-06 + GC-15.

@@ -131,7 +131,7 @@ SETUP
 
 BUILD
 - Implement useAsyncReflection() hook backing onto real backend (replaces mock from P2-02)
-- Backend: POST /api/reflection accepts audio (Cartesia Ink STT) / text, kicks off async LLM job
+- Backend: POST /api/reflection accepts audio (Soniox STT) / text, kicks off async LLM job
 - Polling or SSE returns result when ready
 - LLM uses same context shape as Path 1/3 (P1-11 dep)
 - Response audio: Cartesia Sonic API direct (NOT Vapi) — cheaper TTS for personalized response
