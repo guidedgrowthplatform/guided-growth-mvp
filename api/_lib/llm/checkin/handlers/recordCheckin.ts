@@ -22,7 +22,8 @@ export async function recordCheckin(
   }
   if (provided === 0) return invalid('provide at least one of sleep, mood, energy, stress (1-5)');
 
-  const date = todayStr();
+  const date = todayStr(ctx.timezone);
+  // COALESCE keeps prior dims when a later partial check-in omits them.
   const res = await pool.query<{
     sleep: number | null;
     mood: number | null;
@@ -32,10 +33,10 @@ export async function recordCheckin(
     `INSERT INTO daily_checkins (anon_id, date, sleep, mood, energy, stress)
      VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (anon_id, date) DO UPDATE SET
-       sleep = EXCLUDED.sleep,
-       mood = EXCLUDED.mood,
-       energy = EXCLUDED.energy,
-       stress = EXCLUDED.stress,
+       sleep = COALESCE(EXCLUDED.sleep, daily_checkins.sleep),
+       mood = COALESCE(EXCLUDED.mood, daily_checkins.mood),
+       energy = COALESCE(EXCLUDED.energy, daily_checkins.energy),
+       stress = COALESCE(EXCLUDED.stress, daily_checkins.stress),
        updated_at = now()
      RETURNING sleep, mood, energy, stress`,
     [ctx.anon_id, date, values.sleep, values.mood, values.energy, values.stress],

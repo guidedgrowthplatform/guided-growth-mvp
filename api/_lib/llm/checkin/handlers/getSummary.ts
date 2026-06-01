@@ -3,7 +3,7 @@ import type { ToolResult } from '../../tools.js';
 import { ok, todayStr, type CheckinHandlerCtx } from './shared.js';
 
 export async function getSummary(ctx: CheckinHandlerCtx): Promise<ToolResult> {
-  const today = todayStr();
+  const today = todayStr(ctx.timezone);
   // Last 7 days inclusive.
   const res = await pool.query<{
     active_habits: number;

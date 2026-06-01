@@ -23,8 +23,10 @@ export async function logMetric(
   if (!found.ok) return found.error;
   const metric = found.value;
 
-  const date = parseDateParam(getString(args, 'date'));
-  if (date > todayStr()) return invalid(`Cannot log "${metric.name}" for a future date (${date}).`);
+  const date = parseDateParam(getString(args, 'date'), ctx.timezone);
+  if (date === null) return invalid(`I didn't recognize "${getString(args, 'date')}" as a date.`);
+  if (date > todayStr(ctx.timezone))
+    return invalid(`Cannot log "${metric.name}" for a future date (${date}).`);
 
   await pool.query(
     `INSERT INTO metric_entries (anon_id, metric_id, value, date)

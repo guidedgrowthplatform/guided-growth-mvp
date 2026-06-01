@@ -40,6 +40,33 @@ life-growth-tracker/
 
 ---
 
+## Code Comments — Minimal, WHY-only
+
+Comments are a cost. Default to **none** and let names + types carry the meaning. Add one only when the code can't explain itself — a non-obvious WHY, a gotcha, a deliberate trade-off.
+
+**Rules (all languages):**
+
+- **Max 2 lines.** No multi-line narrative blocks. No JSDoc/docblock paragraphs describing behavior.
+- **Fragments, not prose.** No `we` / `this function` / `the user`; no subject-verb-object sentences.
+- **Only the non-obvious.** Never restate what the line plainly does. If removing the comment loses no information, remove it.
+- **Don't narrate diffs.** Don't add a comment to explain a change to the reviewer — that's the MR description's job.
+- **Don't restore deleted comments** when editing nearby code, unless asked.
+
+If a comment can't survive these rules, delete it.
+
+```ts
+// BAD — restates the code, full sentence, explains the diff
+// We loop over each date and parse it, then check if it is in the future
+// (changed from the old behavior that silently fell back to today).
+for (const raw of dates) { ... }
+
+// GOOD — only the non-obvious constraint, terse
+// toISOString() would save the wrong day east of UTC.
+const date = parseDateParam(raw, tz);
+```
+
+---
+
 ## Related repo — `gg-spec` (sibling, not nested)
 
 Per-screen spec packets live in a separate repo cloned as a sibling directory:

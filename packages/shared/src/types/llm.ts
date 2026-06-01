@@ -14,6 +14,9 @@ export interface LLMRequest {
   // When present, the backend uses these instead of querying session_log,
   // closing the race where a fire-and-forget logEvent hasn't landed yet.
   recent_events?: SessionStateDeltaEntry[];
+  // Client IANA timezone; server validates, falls back to UTC. Used for check-in
+  // date math so "today"/"yesterday" resolve to the user's local day, not server UTC.
+  timezone?: string;
 }
 
 export interface ChatHistoryResponse {

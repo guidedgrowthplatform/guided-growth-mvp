@@ -1,21 +1,6 @@
 // Check-in tool schemas (HOME-CHECKIN). Mirrors onboarding; anon_id is injected
 // server-side from the session, not from LLM args.
-
-interface JSONSchemaProp {
-  readonly type: 'string' | 'number' | 'boolean' | 'array';
-  readonly description?: string;
-  readonly enum?: readonly string[];
-  readonly items?: {
-    readonly type: 'string' | 'number';
-  };
-}
-
-interface JSONSchema {
-  readonly type: 'object';
-  readonly properties: Readonly<Record<string, JSONSchemaProp>>;
-  readonly required: readonly string[];
-  readonly additionalProperties: false;
-}
+import type { JSONSchema } from '../jsonSchemaTypes.js';
 
 export type CheckinToolName =
   | 'create_habit'

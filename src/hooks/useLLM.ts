@@ -199,6 +199,9 @@ export function useLLM(
             chat_session_id: chatSessionId,
             user_turn_id: userTurnId ?? undefined,
             recent_events,
+            ...(opts.mode === 'chat'
+              ? { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }
+              : {}),
           },
           onEvent,
           controller.signal,

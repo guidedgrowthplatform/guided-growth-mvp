@@ -24,10 +24,11 @@ export async function completeHabit(
   const rawDates =
     datesArg && datesArg.length > 0 ? datesArg : [getString(args, 'date') ?? 'today'];
 
-  const today = todayStr();
+  const today = todayStr(ctx.timezone);
   const completed: string[] = [];
   for (const raw of rawDates) {
-    const date = parseDateParam(raw);
+    const date = parseDateParam(raw, ctx.timezone);
+    if (date === null) return invalid(`I didn't recognize "${raw}" as a date.`);
     if (date > today)
       return invalid(`Cannot complete "${habit.name}" for a future date (${date}).`);
     await pool.query(

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateDate, validateUUID, getClientIp, UUID_REGEX } from '../validation';
+import { validateDate, validateUUID, validateTimezone, getClientIp, UUID_REGEX } from '../validation';
 
 describe('validateDate', () => {
   it('accepts valid YYYY-MM-DD dates', () => {
@@ -56,6 +56,28 @@ describe('validateUUID', () => {
     expect(validateUUID('550e8400-e29b-41d4-a716')).toBeNull();
     expect(validateUUID(null)).toBeNull();
     expect(validateUUID(123)).toBeNull();
+  });
+});
+
+describe('validateTimezone', () => {
+  it('accepts valid IANA zones', () => {
+    expect(validateTimezone('America/Los_Angeles')).toBe('America/Los_Angeles');
+    expect(validateTimezone('Asia/Jakarta')).toBe('Asia/Jakarta');
+    expect(validateTimezone('UTC')).toBe('UTC');
+  });
+
+  it('rejects unknown / malformed zones', () => {
+    expect(validateTimezone('Foo/Bar')).toBeNull();
+    expect(validateTimezone('+05:00')).toBeNull();
+    expect(validateTimezone('America/Los_Angeles ')).toBeNull(); // trailing space
+  });
+
+  it('rejects empty, oversized, and non-string inputs', () => {
+    expect(validateTimezone('')).toBeNull();
+    expect(validateTimezone('A'.repeat(65))).toBeNull();
+    expect(validateTimezone(null)).toBeNull();
+    expect(validateTimezone(undefined)).toBeNull();
+    expect(validateTimezone(123)).toBeNull();
   });
 });
 

@@ -13,24 +13,8 @@
  * different shapes — keep them aligned with gg-spec packets.
  */
 
-// JSON Schema subset. Defined inline (not imported from tools.ts) because
-// per-screen tools need richer types (arrays, enums on items, etc.) than
-// the four base LLM tools.
-interface JSONSchemaProp {
-  readonly type: 'string' | 'number' | 'boolean' | 'array';
-  readonly description?: string;
-  readonly enum?: readonly string[];
-  readonly items?: {
-    readonly type: 'string' | 'number';
-    readonly enum?: readonly string[];
-  };
-}
-interface JSONSchema {
-  readonly type: 'object';
-  readonly properties: Readonly<Record<string, JSONSchemaProp>>;
-  readonly required: readonly string[];
-  readonly additionalProperties: false;
-}
+// Richer JSON-schema subset (array items, enums) than tools.ts's four base tools.
+import type { JSONSchema } from './jsonSchemaTypes.js';
 
 export type OnboardingToolName =
   | 'submit_profile'

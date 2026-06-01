@@ -38,6 +38,7 @@ export async function dispatchCheckinToolCall(
     anon_id: string | null | undefined;
     tool_call_id?: string;
     dedupLookup?: (toolCallId: string) => Promise<ToolResult | null>;
+    timezone?: string;
   },
 ): Promise<ToolResult> {
   if (!ctx.anon_id) {
@@ -51,7 +52,12 @@ export async function dispatchCheckinToolCall(
   }
   const handler = HANDLERS[name];
   return handler(
-    { anon_id: ctx.anon_id, tool_call_id: ctx.tool_call_id, dedupLookup: ctx.dedupLookup },
+    {
+      anon_id: ctx.anon_id,
+      tool_call_id: ctx.tool_call_id,
+      dedupLookup: ctx.dedupLookup,
+      timezone: ctx.timezone,
+    },
     args as Record<string, unknown>,
   );
 }
