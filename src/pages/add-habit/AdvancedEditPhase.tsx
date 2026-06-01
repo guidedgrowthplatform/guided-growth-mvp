@@ -17,8 +17,6 @@ interface AdvancedEditPhaseProps {
   showDeleteModal: boolean;
   onConfirmDelete: () => void;
   onCancelDelete: () => void;
-  isListening: boolean;
-  toggleVoice: () => void;
   onBack: () => void;
 }
 
@@ -34,8 +32,6 @@ export function AdvancedEditPhase({
   showDeleteModal,
   onConfirmDelete,
   onCancelDelete,
-  isListening,
-  toggleVoice,
   onBack,
 }: AdvancedEditPhaseProps) {
   return (
@@ -80,29 +76,15 @@ export function AdvancedEditPhase({
         </button>
       </div>
 
-      <div className="flex items-center gap-4 pt-4">
+      <div className="pt-4">
         <button
           type="button"
           onClick={onSave}
-          className="flex-1 rounded-full bg-primary py-4 text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25)]"
+          className="w-full rounded-full bg-primary py-4 text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25)]"
         >
           Save
         </button>
-        <button
-          type="button"
-          onClick={toggleVoice}
-          className={`flex size-14 items-center justify-center rounded-full bg-primary shadow-[0px_25px_50px_-12px_rgba(19,91,236,0.4)] ${
-            isListening ? 'animate-pulse ring-4 ring-primary/30' : ''
-          }`}
-        >
-          <Icon icon="ic:round-mic" className="size-[22px] text-white" />
-        </button>
       </div>
-      {isListening && (
-        <p className="mt-2 animate-pulse text-center text-sm font-medium text-primary">
-          Listening...
-        </p>
-      )}
 
       {showDeleteModal && <DeleteHabitModal onDelete={onConfirmDelete} onKeep={onCancelDelete} />}
     </div>
