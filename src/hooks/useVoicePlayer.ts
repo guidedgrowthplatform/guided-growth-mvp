@@ -5,7 +5,7 @@ import manifestData from '@/data/voice-manifest.json';
 import { useVoice } from '@/hooks/useVoice';
 import { attemptPlayWithGestureFallback } from '@/lib/audio/attempt-play-with-gesture-fallback';
 import { voiceAssetUrl } from '@/lib/config/voice';
-import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+import { isVoiceOutEnabled } from '@/lib/services/voiceGate';
 
 function deriveSurface(screen: string): Surface {
   if (screen.startsWith('WELCOME')) return 'splash';
@@ -129,7 +129,7 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
 
   const play = useCallback(
     async (fileId: string, opts?: PlayOptions): Promise<void> => {
-      if (!useVoiceSettingsStore.getState().ttsEnabled) return;
+      if (!isVoiceOutEnabled()) return;
 
       const entry = getManifestEntry(fileId);
       if (!entry) {

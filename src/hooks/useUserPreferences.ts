@@ -2,41 +2,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSessionLog } from '@/hooks/useSessionLog';
+import {
+  DEFAULT_PREFERENCES,
+  loadLocalPreferences,
+  saveLocalPreferences,
+  type UserPreferences,
+} from '@/lib/preferences/snapshot';
 import { queryKeys } from '@/lib/query';
 import { supabaseDataService } from '@/lib/services/supabase-data-service';
-import type { UserPreferences as DbUserPreferences, VoiceMode, RecordingMode } from '@shared/types';
+import type { UserPreferences as DbUserPreferences } from '@shared/types';
 
-export interface UserPreferences {
-  coachingStyle: string;
-  voiceModel: string;
-  language: string;
-  morningTime: string;
-  nightTime: string;
-  pushNotifications: boolean;
-  voiceMode: VoiceMode;
-  micEnabled: boolean;
-  micPermission: boolean;
-  recordingMode: RecordingMode;
-  defaultView: DbUserPreferences['default_view'];
-  spreadsheetRange: DbUserPreferences['spreadsheet_range'];
-}
-
-const DEFAULT_PREFERENCES: UserPreferences = {
-  coachingStyle: 'friendly',
-  voiceModel: 'alex',
-  language: 'en-US',
-  morningTime: '07:00',
-  nightTime: '22:30',
-  pushNotifications: true,
-  voiceMode: 'voice',
-  micEnabled: true,
-  micPermission: false,
-  recordingMode: 'auto-stop',
-  defaultView: 'spreadsheet',
-  spreadsheetRange: 'month',
-};
-
-const SETTINGS_STORAGE_KEY = 'mvp03_page_settings';
+export type { UserPreferences };
+export { DEFAULT_PREFERENCES };
 
 type WirePreferences = Partial<DbUserPreferences>;
 
@@ -56,20 +33,12 @@ const CAMEL_TO_SNAKE: Record<keyof UserPreferences, keyof DbUserPreferences> = {
 };
 
 function fromWire(row: WirePreferences): UserPreferences {
-  return {
-    coachingStyle: row.coaching_style ?? DEFAULT_PREFERENCES.coachingStyle,
-    voiceModel: row.voice_model ?? DEFAULT_PREFERENCES.voiceModel,
-    language: row.language ?? DEFAULT_PREFERENCES.language,
-    morningTime: row.morning_time ?? DEFAULT_PREFERENCES.morningTime,
-    nightTime: row.night_time ?? DEFAULT_PREFERENCES.nightTime,
-    pushNotifications: row.push_notifications ?? DEFAULT_PREFERENCES.pushNotifications,
-    voiceMode: row.voice_mode ?? DEFAULT_PREFERENCES.voiceMode,
-    micEnabled: row.mic_enabled ?? DEFAULT_PREFERENCES.micEnabled,
-    micPermission: row.mic_permission ?? DEFAULT_PREFERENCES.micPermission,
-    recordingMode: row.recording_mode ?? DEFAULT_PREFERENCES.recordingMode,
-    defaultView: row.default_view ?? DEFAULT_PREFERENCES.defaultView,
-    spreadsheetRange: row.spreadsheet_range ?? DEFAULT_PREFERENCES.spreadsheetRange,
-  };
+  const out = { ...DEFAULT_PREFERENCES };
+  for (const camel of Object.keys(CAMEL_TO_SNAKE) as (keyof UserPreferences)[]) {
+    const value = row[CAMEL_TO_SNAKE[camel]];
+    if (value != null) (out as Record<string, unknown>)[camel] = value;
+  }
+  return out;
 }
 
 function toWire(partial: Partial<UserPreferences>): WirePreferences {
@@ -79,24 +48,6 @@ function toWire(partial: Partial<UserPreferences>): WirePreferences {
     if (snake) wire[snake] = partial[key];
   }
   return wire as WirePreferences;
-}
-
-function loadLocalPreferences(): UserPreferences {
-  try {
-    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (raw) return { ...DEFAULT_PREFERENCES, ...JSON.parse(raw) };
-  } catch {
-    // ignore
-  }
-  return DEFAULT_PREFERENCES;
-}
-
-function saveLocalPreferences(prefs: UserPreferences) {
-  try {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(prefs));
-  } catch {
-    // ignore
-  }
 }
 
 export function useUserPreferences() {
@@ -125,7 +76,9 @@ export function useUserPreferences() {
     { previous: UserPreferences | undefined }
   >({
     mutationFn: async (partial) =>
-      (await supabaseDataService.upsertPreferences(toWire(partial) as Partial<DbUserPreferences>)) as WirePreferences,
+      (await supabaseDataService.upsertPreferences(
+        toWire(partial) as Partial<DbUserPreferences>,
+      )) as WirePreferences,
     onMutate: async (partial) => {
       await qc.cancelQueries({ queryKey: queryKeys.preferences.all });
       const previous = qc.getQueryData<UserPreferences>(queryKeys.preferences.all);

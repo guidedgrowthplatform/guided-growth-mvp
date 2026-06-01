@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { CARTESIA_VOICES, type VoiceGender } from '@/config/voiceConfig';
 import { supabase, sessionReady } from '@/lib/supabase';
-import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+import { isVoiceOutEnabled } from './voiceGate';
 
 export const useTtsPlaybackStore = create<{ isSpeaking: boolean }>(() => ({
   isSpeaking: false,
@@ -262,8 +262,7 @@ export function speak(
   text: string,
   options?: { rate?: number; pitch?: number; volume?: number },
 ): Promise<void> {
-  const { ttsEnabled } = useVoiceSettingsStore.getState();
-  if (!ttsEnabled) return Promise.resolve();
+  if (!isVoiceOutEnabled()) return Promise.resolve();
   const clean = cleanText(text);
   if (!clean) return Promise.resolve();
 

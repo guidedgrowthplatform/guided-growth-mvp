@@ -1,12 +1,13 @@
 import { X } from 'lucide-react';
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
+import { ChatComposer } from '@/components/chat/ChatComposer';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { useAuth } from '@/hooks/useAuth';
+import { useMicEnabled } from '@/hooks/useMicEnabled';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
-import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 interface VoiceCheckInOverlayProps {
@@ -19,10 +20,11 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
   const { user } = useAuth();
   const displayName =
     user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || undefined;
-  const { messages, voiceState, startListening, stopListening, updateHabitDays } =
+  const { messages, voiceState, startListening, stopListening, sendText, updateHabitDays } =
     useVoiceChat(displayName);
+  const [draft, setDraft] = useState('');
 
-  const micEnabled = useVoiceSettingsStore((s) => s.micEnabled);
+  const micEnabled = useMicEnabled();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
   const interim = useVoiceStore((s) => s.interim);
 
@@ -86,14 +88,20 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
       </button>
 
       <div
-        className="relative z-10 flex-1 overflow-y-auto px-6 pb-6 pt-24"
+        className="relative z-10 flex-1 overflow-y-auto px-6 pb-6 pt-14"
         onClick={(e) => e.stopPropagation()}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
         {messages.map((msg) => (
           <div key={msg.id} className="flex flex-col">
-            <ChatBubble role={msg.role} text={msg.text} userName={displayName} />
+            <ChatBubble
+              role={msg.role}
+              text={msg.text}
+              userName={displayName}
+              compact
+              eyebrowVariant="dark"
+            />
             {msg.habitCards?.map((card, i) => (
               <HabitSuggestionCard
                 key={i}
@@ -111,6 +119,19 @@ export function VoiceCheckInOverlay({ onClose }: VoiceCheckInOverlayProps) {
           </p>
         )}
         <div ref={scrollAnchorRef} />
+      </div>
+
+      <div className="relative z-10 px-4 pb-[56px]" onClick={(e) => e.stopPropagation()}>
+        <ChatComposer
+          value={draft}
+          onValueChange={setDraft}
+          onSubmit={(t) => {
+            sendText(t);
+            setDraft('');
+          }}
+          disabled={voiceState === 'processing'}
+          className="pointer-events-auto flex min-h-[44px] w-full items-end gap-1 rounded-[22px] bg-white py-1.5 pl-5 pr-2 shadow-[0px_10px_24px_-8px_rgba(15,23,42,0.18)]"
+        />
       </div>
     </div>
   );

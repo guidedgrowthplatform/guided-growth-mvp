@@ -1,6 +1,8 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+import { isVoiceOutEnabled } from '../voiceGate';
+
+vi.mock('../voiceGate', () => ({ isVoiceOutEnabled: vi.fn(() => true) }));
 
 // Short-circuit Supabase auth — keeps getAuthHeaders() off a real client.
 vi.mock('@/lib/supabase', () => ({
@@ -24,7 +26,7 @@ describe('tts-service: stale speak() never overlaps with the latest one', () => 
   let originalRevokeObjectURL: typeof URL.revokeObjectURL;
 
   beforeEach(() => {
-    useVoiceSettingsStore.setState({ ttsEnabled: true });
+    vi.mocked(isVoiceOutEnabled).mockReturnValue(true);
     audioInstances = [];
     pauseSpies = [];
     blobResolvers = [];
@@ -128,7 +130,7 @@ describe('tts-service: speak() Promise lifecycle (PR-0b)', () => {
   let originalRevokeObjectURL: typeof URL.revokeObjectURL;
 
   beforeEach(() => {
-    useVoiceSettingsStore.setState({ ttsEnabled: true });
+    vi.mocked(isVoiceOutEnabled).mockReturnValue(true);
     audioInstances = [];
     blobResolvers = [];
 
@@ -164,8 +166,8 @@ describe('tts-service: speak() Promise lifecycle (PR-0b)', () => {
     URL.revokeObjectURL = originalRevokeObjectURL;
   });
 
-  it('resolves immediately when ttsEnabled is false', async () => {
-    useVoiceSettingsStore.setState({ ttsEnabled: false });
+  it('resolves immediately when voice output is disabled', async () => {
+    vi.mocked(isVoiceOutEnabled).mockReturnValue(false);
     const { speak } = await import('../tts-service');
 
     let resolved = false;

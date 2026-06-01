@@ -6,7 +6,6 @@ import { SessionLogProvider } from '@/contexts/SessionLogProvider';
 import { ToastProvider, useToast } from '@/contexts/ToastContext';
 import { VoiceProvider } from '@/contexts/VoiceContext';
 import { useNavigateLogger } from '@/hooks/useNavigateLogger';
-import { useVoicePreferenceSync } from '@/hooks/useVoicePreferenceSync';
 import {
   type AuthHandoffKind,
   consumePendingAuthError,
@@ -65,11 +64,6 @@ function AuthHandoffListener() {
   return null;
 }
 
-function VoicePreferenceSync() {
-  useVoicePreferenceSync();
-  return null;
-}
-
 function NavigateLogger() {
   useNavigateLogger();
   return null;
@@ -106,7 +100,6 @@ export default function App() {
             <ToastProvider>
               <DeepLinkErrorReporter />
               <AuthHandoffListener />
-              <VoicePreferenceSync />
               <NavigateLogger />
               <OnboardingVoiceProvider>
                 <AppRoutes />

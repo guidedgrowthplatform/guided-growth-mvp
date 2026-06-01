@@ -1,4 +1,3 @@
-import { Icon } from '@iconify/react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
@@ -7,7 +6,6 @@ import { DualButton } from '@/components/ui/DualButton';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { useStepTiming } from './useStepTiming';
 
 export function VoicePreferencePage() {
@@ -34,7 +32,6 @@ export function VoicePreferencePage() {
       'VOICE-PREFERENCE',
     );
     await updatePreferences({ voiceMode: voiceEnabled ? 'voice' : 'screen' });
-    useVoiceSettingsStore.getState().hydrate({ ttsEnabled: voiceEnabled });
     if (!voiceEnabled) onboardingVoice?.endCall();
     trackStepComplete();
     navigate('/onboarding/mic-permission');
@@ -42,16 +39,7 @@ export function VoicePreferencePage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[max(32px,env(safe-area-inset-bottom))] pt-[max(16px,env(safe-area-inset-top))]">
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        aria-label="Go back"
-        className="mb-2 flex h-10 w-10 items-center justify-center rounded-2xl bg-surface shadow-card"
-      >
-        <Icon icon="ic:round-arrow-back" width={18} height={18} className="text-content" />
-      </button>
-
-      <div>
+      <div className="mt-8">
         <h1 className="text-[28px] font-bold leading-tight text-primary">Can I talk?</h1>
         <p className="mt-3 text-[15px] leading-[22px] text-content-secondary">
           Do you prefer that I talk, or write on the screen to you? If you&apos;d like me to talk,

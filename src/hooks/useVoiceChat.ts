@@ -4,7 +4,6 @@ import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
 import { useVoice } from '@/hooks/useVoice';
 import { speak, stopTTS } from '@/lib/services/tts-service';
 import { useCommandStore } from '@/stores/commandStore';
-import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { useVoiceCommand } from './useVoiceCommand';
 import { useVoiceInput } from './useVoiceInput';
@@ -106,17 +105,6 @@ export function useVoiceChat(userName?: string, surface: Surface = 'chat') {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const store = useVoiceSettingsStore.getState();
-    const prevMode = store.recordingMode;
-    if (prevMode !== 'always-on') store.setRecordingMode('always-on', { transient: true });
-    return () => {
-      if (prevMode !== 'always-on') {
-        useVoiceSettingsStore.getState().setRecordingMode(prevMode, { transient: true });
-      }
-    };
-  }, []);
-
   // Process transcript when recording stops and transcript is available
   useEffect(() => {
     if (!transcript || transcript === lastHandledTranscript.current) return;
@@ -210,6 +198,22 @@ export function useVoiceChat(userName?: string, surface: Surface = 'chat') {
     ]);
   }, [commandError]);
 
+  // Typed text reuses the voice command path; bail mid-turn —
+  // useVoiceCommand's reentrancy guard would silently drop it.
+  const sendText = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || isProcessing) return;
+      stopTTS();
+      setMessages((prev) => [
+        ...prev,
+        { id: makeId(), role: 'user', text: trimmed, timestamp: Date.now() },
+      ]);
+      processTranscript(trimmed);
+    },
+    [isProcessing, processTranscript],
+  );
+
   const startListening = useCallback(() => {
     // Stop any TTS that's playing before listening
     stopTTS();
@@ -257,6 +261,7 @@ export function useVoiceChat(userName?: string, surface: Surface = 'chat') {
     isSupported: true,
     startListening,
     stopListening,
+    sendText,
     reset,
     updateHabitDays,
   };
