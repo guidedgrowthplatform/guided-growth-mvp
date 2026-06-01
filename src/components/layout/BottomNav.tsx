@@ -61,8 +61,14 @@ function NavBarBackground() {
 
 export function BottomNav() {
   const location = useLocation();
-  const { voiceOn: ttsEnabled, micOn: micEnabled, toggleVoice, toggleMic } =
-    useDualButtonControls();
+  const {
+    voiceOn: ttsEnabled,
+    micOn: micEnabled,
+    micAllowed,
+    toggleVoice,
+    toggleMic,
+    requestMicPermission,
+  } = useDualButtonControls();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
   const isListening = useVoiceStore((s) => s.isListening);
   const currentRms = useAudioMetricsStore((s) => s.currentRms);
@@ -70,6 +76,7 @@ export function BottomNav() {
   const { logEvent, startVoice, endVoice } = useSessionLog();
   const { routeToScreenId } = useScreenMap();
   const voiceAnchorIdRef = useRef<string | null>(null);
+  const micRequestPendingRef = useRef<boolean>(false);
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/' || location.pathname === '/home';
@@ -93,13 +100,28 @@ export function BottomNav() {
   };
 
   const handleRightToggle = () => {
+    const screenId = routeToScreenId(location.pathname) ?? undefined;
+    // Pre-build users default to micPermission=false; prompt instead of no-op.
+    if (!micAllowed) {
+      if (micRequestPendingRef.current) return;
+      micRequestPendingRef.current = true;
+      logEvent('mic_tapped', { from_screen: screenId ?? 'UNKNOWN' }, screenId);
+      void requestMicPermission()
+        .then((granted) => {
+          if (!granted) return;
+          track('toggle_mic', { new_state: 'on', during_conversation: channelBusy });
+        })
+        .finally(() => {
+          micRequestPendingRef.current = false;
+        });
+      return;
+    }
     const next = !micEnabled;
     toggleMic();
     track('toggle_mic', {
       new_state: next ? 'on' : 'off',
       during_conversation: channelBusy,
     });
-    const screenId = routeToScreenId(location.pathname) ?? undefined;
     logEvent('mic_tapped', { from_screen: screenId ?? 'UNKNOWN' }, screenId);
   };
 
