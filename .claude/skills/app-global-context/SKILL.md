@@ -6,7 +6,7 @@ user-invocable: false
 
 # Global Context Knowledge Base
 
-Source: Google Sheet **Guided Growth OS App Master** · tab `Global Context` · gid `6608461` · maintained by Yair (structure + philosophy) + team (capability entries).
+Source: This file is the canonical Claude Code reference for Global Context. At runtime these GC rules are baked into the base system prompt constant in `packages/shared/src/coaching/systemPrompt.ts` (Layer 1), not synced from a Sheet tab or Supabase. There is no live `Global Context` Sheet tab; the old gid `6608461` was removed, and per task P1-03 Global Context is intentionally not synced. Maintained by Yair (structure + philosophy) plus team (capability entries).
 
 Layer 2 of the 3-layer context architecture:
 - **Layer 1** — always-injected (identity + safety + current screen + state delta).
@@ -58,13 +58,6 @@ This tab syncs to Supabase `global_context` table via a planned `seed_global_con
 
 ## Refresh
 
-```
-mcp__google-sheets__get_sheet_data(
-  spreadsheet_id="1iNEdUm5vqmjk3YGEF1uMwfurcvgVRHykWUeBGHDBqcw",
-  sheet="Global Context"
-)
-```
+There is no live `Global Context` Sheet tab to resync from. This file IS the source of record. To change Global Context, edit this file and mirror the runtime change into the base system prompt constant in `packages/shared/src/coaching/systemPrompt.ts`.
 
-Trigger: "refresh app-global-context" or "resync the sheet".
-
-_Last refreshed: 2026-05-11_
+_Last refreshed: 2026-06-01 (corrected stale Sheet-tab reference; gid 6608461 no longer exists in the live Sheet)._

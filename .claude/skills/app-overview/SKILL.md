@@ -26,7 +26,7 @@ Single source of truth for the entire Guided Growth OS app — screens, UX rules
 | Screens | `app-screens` | `1034476295` | folder (phase + section split) |
 | session_log Events | `app-session-events` | `1240955040` | single |
 | LLM Activation | `app-llm-activation` | `1245145682` | single |
-| Global Context | `app-global-context` | `6608461` | single |
+| Global Context | `app-global-context` | (no live tab; baked into system prompt) | single |
 | UX Rules | `app-ux-rules` | `1169394369` | single |
 | Tooltips | `app-tooltips` | `1296180754` | single |
 | PostHog Events | `app-posthog-events` | `211484324` | single |
