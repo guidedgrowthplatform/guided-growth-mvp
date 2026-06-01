@@ -3,12 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { AuthFooter } from '@/components/auth';
 import { AIPulseVisual } from '@/components/welcome/AIPulseVisual';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
+import { FIRST_OPEN, getFlag, setFlag } from '@/lib/storage/persistentFlags';
 
 export function WelcomePage() {
   const navigate = useNavigate();
   const { play, stop } = useVoicePlayer();
   useEffect(() => {
-    void play('splash_welcome', { deferOnAutoplayBlock: true });
+    if (getFlag(FIRST_OPEN)) return;
+    void play('splash_hook', { deferOnAutoplayBlock: true })
+      .then(() => setFlag(FIRST_OPEN, 'true'))
+      .catch(() => {});
     return () => stop();
   }, [play, stop]);
 

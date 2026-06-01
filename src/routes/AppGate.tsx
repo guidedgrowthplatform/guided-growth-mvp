@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useAppGate } from '@/hooks/useAppGate';
+import { FIRST_OPEN, getFlag } from '@/lib/storage/persistentFlags';
 import { useAuthStore } from '@/stores/authStore';
 
 function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
@@ -49,8 +50,10 @@ export function AppGate({
     return <Navigate to="/" replace />;
   }
 
-  // All protected routes: redirect unauthenticated to login
-  if (gate.status === 'unauthenticated') return <Navigate to="/login" replace />;
+  // Unauthenticated: first open shows splash → welcome intro, then straight to login.
+  if (gate.status === 'unauthenticated') {
+    return <Navigate to={getFlag(FIRST_OPEN) ? '/login' : '/splash'} replace />;
+  }
 
   // Onboarding routes: only allow if not completed
   if (allow === 'onboarding') {

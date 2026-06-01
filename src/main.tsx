@@ -8,6 +8,7 @@ import {
   setPendingAuthError,
   setPendingAuthHandoff,
 } from '@/lib/auth/authHandoff';
+import { hydratePersistentFlags } from '@/lib/storage/persistentFlags';
 import { supabase } from '@/lib/supabase';
 import App from './App';
 import { registerBundledIcons } from './lib/icons/registerIcons';
@@ -113,10 +114,12 @@ if (Capacitor.isNativePlatform()) {
   });
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <InputMethodProvider>
-      <App />
-    </InputMethodProvider>
-  </React.StrictMode>,
-);
+hydratePersistentFlags().finally(() => {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <InputMethodProvider>
+        <App />
+      </InputMethodProvider>
+    </React.StrictMode>,
+  );
+});

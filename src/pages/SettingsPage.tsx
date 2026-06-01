@@ -223,15 +223,11 @@ export function SettingsPage() {
                   void handleMicToggle(next);
                 }}
                 disabled={micBusy}
-                label="Microphone Access"
+                ariaLabel="Microphone Access"
               />
             }
           />
         </SettingsCard>
-        <p className="mt-2 px-4 text-xs leading-[18px] text-content-secondary">
-          Turning this off stops Guided Growth from using your microphone. To fully revoke access,
-          open your device's Settings, find Guided Growth, and disable Microphone.
-        </p>
       </section>
 
       {/* Check-In Routine */}

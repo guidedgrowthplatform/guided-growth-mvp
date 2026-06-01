@@ -54,7 +54,7 @@ export function AdvancedInputPage() {
       currentStep={3}
       screenId="ONBOARD-ADVANCED"
       formSnapshot={snapshot}
-      ctaLabel="Create My Plan"
+      ctaLabel="Continue"
       ctaVariant="inline"
       onBack={() => navigate('/onboarding/step-2')}
       onNext={handleNext}
