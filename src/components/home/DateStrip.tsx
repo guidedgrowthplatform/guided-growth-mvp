@@ -14,6 +14,7 @@ const CELL_STEP = CELL_WIDTH + CELL_GAP;
 
 export function DateStrip({ selectedDate, onSelectDate, entries }: DateStripProps) {
   const selectedRef = useRef<HTMLButtonElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const dates = useMemo(() => {
     const today = new Date();
@@ -23,15 +24,28 @@ export function DateStrip({ selectedDate, onSelectDate, entries }: DateStripProp
     });
   }, []);
 
+  // Center selected date inside the strip without yanking the page (#175).
+  // Use getBoundingClientRect — offsetLeft is relative to offsetParent (body),
+  // not the scroll container, and inflates the target by the strip's page offset.
   useEffect(() => {
-    selectedRef.current?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    const container = scrollContainerRef.current;
+    const target = selectedRef.current;
+    if (!container || !target) return;
+
+    const cRect = container.getBoundingClientRect();
+    const tRect = target.getBoundingClientRect();
+    const delta = tRect.left + tRect.width / 2 - (cRect.left + cRect.width / 2);
+    const maxScrollLeft = container.scrollWidth - container.clientWidth;
+    const next = Math.max(0, Math.min(container.scrollLeft + delta, maxScrollLeft));
+
+    container.scrollTo({ left: next, behavior: 'smooth' });
   }, [selectedDate]);
 
   const selectedDateObj = new Date(selectedDate + 'T00:00:00');
   const selectedIndex = dates.findIndex((d) => isSameDay(d, selectedDateObj));
 
   return (
-    <div className="scrollbar-hidden -mx-4 overflow-x-auto px-4">
+    <div ref={scrollContainerRef} className="scrollbar-hidden -mx-4 overflow-x-auto px-4">
       <div className="flex gap-2">
         {dates.map((date) => {
           const dateStr = format(date, 'yyyy-MM-dd');
