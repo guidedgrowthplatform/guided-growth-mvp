@@ -24,15 +24,19 @@ describe('onboarding tool registry', () => {
 describe('ONBOARDING_TOOL_ADDENDUM', () => {
   it('keeps the load-bearing confirm_step_complete rules', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).toContain('confirm_step_complete');
-    expect(ONBOARDING_TOOL_ADDENDUM).toContain(
-      'NEVER call confirm_step_complete in the same turn',
-    );
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain('NEVER call confirm_step_complete in the same turn');
   });
 
   it('keeps the path-fork synonyms and verbatim brain-dump rule', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).toContain('submit_path_choice');
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/BRAIN DUMP/);
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/verbatim/i);
+  });
+
+  it('forbids pre-narrating the next screen after a change', () => {
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain('STAY ON THIS SCREEN AFTER A CHANGE');
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/begin the NEXT screen's task|start the next one/i);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/overrides the BEHAVIOR block/i);
   });
 });
 
