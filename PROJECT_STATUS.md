@@ -23,6 +23,8 @@
 
 ## Architecture Flow (MVP-03)
 
+> **Superseded — historical.** This MVP-03 voice-command pipeline (process-command → ActionDispatcher → commandStore → VoiceTranscript) has been retired. Home check-ins now run on the CoachChat / `callLLM` (`/api/llm`) path; the frontend NLU engine files listed below no longer exist. See the `voice-architecture` / `path-2-async` / `path-3-direct-llm` skills for the current model.
+
 ```
 User speaks
   → Web Speech API (mic button)

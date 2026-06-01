@@ -86,12 +86,10 @@ npx vercel --prod
 src/
 ├── api/              # API layer (entries, metrics, preferences)
 ├── components/       # UI components (capture, layout, voice)
-├── hooks/            # React hooks (useVoiceInput, useVoiceCommand, useEntries)
+├── hooks/            # React hooks (useVoiceInput, useEntries)
 ├── lib/
-│   ├── config/       # Externalized config (dispatcher, prompts)
-│   ├── prompts/      # GPT system prompts
+│   ├── config/       # Externalized config (voice)
 │   └── services/     # Core services
-│       ├── action-dispatcher.ts    # Voice command → action routing
 │       ├── supabase-data-service.ts # Supabase CRUD
 │       ├── mock-data-service.ts    # localStorage fallback
 │       ├── tts-service.ts          # Text-to-Speech

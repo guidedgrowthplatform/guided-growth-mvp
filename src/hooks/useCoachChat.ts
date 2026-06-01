@@ -178,7 +178,7 @@ export function useCoachChat(
     void sendMessage(text);
   }, [chatSessionId, sendMessage]);
 
-  // ─── Error bubbles (no localParse fallback) ──────────────────────────
+  // ─── Error bubbles (no offline-parse fallback) ───────────────────────
   useEffect(() => {
     if (!llmError) return;
     if (llmError.message === lastLlmErrorRef.current) return;

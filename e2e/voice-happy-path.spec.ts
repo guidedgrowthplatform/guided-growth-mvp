@@ -3,11 +3,11 @@
  *
  * Headless Chromium does not expose Web Speech API, so we cannot drive the
  * mic UI directly. Instead we exercise the integration the same way the
- * voice command hook does after speech recognition completes:
+ * client does after speech recognition completes:
  *
  *   1. Authenticate via the real Supabase auth UI (mirrors what users do).
- *   2. Pull the session token out of supabase-js (the same path
- *      `useVoiceCommand` uses at src/hooks/useVoiceCommand.ts:255).
+ *   2. Pull the session token out of supabase-js (the same path the client
+ *      uses to authorize API calls).
  *   3. POST a canned transcript ("create a habit called pushups") to
  *      /api/process-command, asserting the API returns the expected
  *      action/entity shape.

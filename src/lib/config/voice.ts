@@ -115,32 +115,6 @@ function buildAgeMap(): Record<string, number> {
 export const ONBOARDING_AGE_WORD_TO_NUM: Readonly<Record<string, number>> =
   Object.freeze(buildAgeMap());
 
-// ─── Voice command domain data (useVoiceCommand) ────────────────────────────
-/**
- * Common speech-to-text misrecognitions for our app's domain vocabulary.
- *
- * TODO(voice-layer): Alejandro suggested moving fuzzy intent matching into
- * an LLM-backed module; tracked for Phase 2. For now this dictionary is
- * at least centralized so it can be edited without touching hook code.
- */
-export const STT_CORRECTIONS: Readonly<Record<string, string>> = Object.freeze({
-  matrix: 'metric',
-  mattress: 'metric',
-  matrices: 'metrics',
-  metrix: 'metric',
-  matric: 'metric',
-  mediation: 'meditation',
-  meditating: 'meditation',
-  exorcise: 'exercise',
-  exercize: 'exercise',
-  jogging: 'jogging',
-  journaling: 'journal',
-  reflexion: 'reflection',
-  streak: 'streak',
-  habbit: 'habit',
-  habbits: 'habits',
-});
-
 // ─── Audio debug page (AudioDebugPage) ──────────────────────────────────────
 /**
  * Web origin hosting the static MP3 assets used for the remote-MP3 smoke test.
