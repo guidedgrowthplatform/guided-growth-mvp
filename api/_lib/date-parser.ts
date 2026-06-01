@@ -2,11 +2,6 @@
  * Date parsing helpers for voice transcripts. Used as a safety net by
  * process-command.ts when the LLM returns "today" but the transcript
  * actually contains an explicit date phrase.
- *
- * Symmetric in spirit with src/lib/services/action-dispatcher.ts, which
- * does its own date parsing on the client side. Vercel functions cannot
- * import from src/, so the constants are intentionally duplicated rather
- * than shared.
  */
 
 const MONTHS: Record<string, number> = {

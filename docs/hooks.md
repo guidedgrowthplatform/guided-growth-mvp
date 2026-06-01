@@ -14,6 +14,7 @@ VoiceContext token plumbing, and the spec-named state fields
 (`isListening`, `isSpeaking`, `error`).
 
 **Signature**
+
 ```ts
 useRealtimeVoice({
   metadata: { user_id, screen?, coaching_style? },
@@ -28,13 +29,13 @@ useRealtimeVoice({
 
 **State machine** (Vapi events → state)
 
-| State | Driven by |
-|---|---|
-| `idle` | initial; end of `cleanup()` |
-| `connecting` | `start()` entry, after `acquireRealtime` |
-| `listening` | `call-start`; `speech-end` |
-| `speaking` | `speech-start` (only on transition from non-speaking) |
-| `error` | `error` event, `call-start-failed`, or pre-start env-missing |
+| State        | Driven by                                                    |
+| ------------ | ------------------------------------------------------------ |
+| `idle`       | initial; end of `cleanup()`                                  |
+| `connecting` | `start()` entry, after `acquireRealtime`                     |
+| `listening`  | `call-start`; `speech-end`                                   |
+| `speaking`   | `speech-start` (only on transition from non-speaking)        |
+| `error`      | `error` event, `call-start-failed`, or pre-start env-missing |
 
 `'thinking'` is preserved in the type literal but never entered — Vapi
 exposes no STT-finished-pre-LLM event.
@@ -46,13 +47,13 @@ forwards `variableValues` to the `before_llm_call` webhook (P1-11).
 
 **Side effects**
 
-| Surface | Event | Trigger | Payload |
-|---|---|---|---|
-| PostHog | `start_voice_session` | first `call-start` | `{ context, screen, voice_mode: 'realtime', voice_vendor: 'vapi' }` |
-| PostHog | `complete_voice_session` | graceful `call-end` | `{ context, duration_seconds, turn_count, transcript_length_chars, voice_vendor: 'vapi', vapi_first_audio_ms }` |
-| PostHog | `cancel_voice_session` | `error` / `call-start-failed` after `call-start` | `{ context, duration_seconds, reason: 'error', voice_vendor: 'vapi' }` |
-| session_log | `voice_started` | first `call-start` | `(canonicalScreenId)` → returns `anchorId` |
-| session_log | `voice_ended` | cleanup, only if anchor exists | `(anchorId, 'user_exit' \| 'error', { turn_count })` |
+| Surface     | Event                    | Trigger                                          | Payload                                                                                                         |
+| ----------- | ------------------------ | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| PostHog     | `start_voice_session`    | first `call-start`                               | `{ context, screen, voice_mode: 'realtime', voice_vendor: 'vapi' }`                                             |
+| PostHog     | `complete_voice_session` | graceful `call-end`                              | `{ context, duration_seconds, turn_count, transcript_length_chars, voice_vendor: 'vapi', vapi_first_audio_ms }` |
+| PostHog     | `cancel_voice_session`   | `error` / `call-start-failed` after `call-start` | `{ context, duration_seconds, reason: 'error', voice_vendor: 'vapi' }`                                          |
+| session_log | `voice_started`          | first `call-start`                               | `(canonicalScreenId)` → returns `anchorId`                                                                      |
+| session_log | `voice_ended`            | cleanup, only if anchor exists                   | `(anchorId, 'user_exit' \| 'error', { turn_count })`                                                            |
 
 - `turn_count` increments only on transitions INTO `speaking`.
 - `transcript_length_chars` accumulates from `message` events with
@@ -93,10 +94,6 @@ _Documented in Path 2 skill (async voice composition for check-ins)._
 ### useVoiceChat
 
 _Documented in Path 2 skill (async voice composition for check-ins)._
-
-### useVoiceCommand
-
-_Documented in Path 2 skill._
 
 ### useVoice / VoiceContext
 

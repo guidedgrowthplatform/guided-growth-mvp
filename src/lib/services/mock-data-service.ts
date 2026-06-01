@@ -26,11 +26,9 @@ function generateId(): string {
 }
 
 /**
- * Format a Date as YYYY-MM-DD using LOCAL components. Must stay in
- * lockstep with action-dispatcher.formatLocalDate so entries saved
- * through this service and entries queried via the dispatcher share
- * the same date key. UTC-based slicing broke duplicate detection and
- * "today" queries for users east of UTC during morning local hours.
+ * Format a Date as YYYY-MM-DD using LOCAL components. UTC-based slicing
+ * broke duplicate detection and "today" queries for users east of UTC
+ * during morning local hours.
  */
 function fmtLocalDate(d: Date): string {
   const y = d.getFullYear();

@@ -5,9 +5,7 @@ import { scrubPII } from './_lib/pii-scrubber.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
 import { getClientIp } from './_lib/validation.js';
 
-// NOTE: Prompt is inlined here because Vercel serverless functions cannot
-// import from ../src/lib/. The canonical version lives in
-// src/lib/prompts/voice-command-system.ts — keep them in sync.
+// Prompt inlined — Vercel functions cannot import from ../src/lib/.
 
 const SYSTEM_PROMPT = `You are the voice command processor for "Life Tracker", a habit-tracking and self-improvement app. Your job is to:
 1. CORRECT any misspoken, misheard, or garbled words from the speech-to-text transcript

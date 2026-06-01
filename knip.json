@@ -7,7 +7,6 @@
         "index.html",
         "api/**/*.ts!",
         "!api/_lib/**",
-        "scripts/validate-prompt.ts",
         "scripts/*.mjs",
         "e2e/**/*.spec.ts",
         "src/test/setup-storage.ts"

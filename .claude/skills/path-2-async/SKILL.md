@@ -6,6 +6,8 @@ user-invocable: false
 
 # Path 2 — Async Reflection (Daily Check-ins)
 
+> **⚠️ Stale — partial update pending (Phase 3).** The legacy **frontend NLU engine** this skill describes as "today" has been **deleted**: `useVoiceCommand` (`localParse`), `action-dispatcher.ts`, `dispatcher-config.ts`, `voice-command-system.ts`, `prompt-config.ts`, and `scripts/validate-prompt.ts` no longer exist. The home check-in now runs on the **CoachChat / `callLLM` (`/api/llm`)** path. The `## Migration posture` / "today" tables below still name those files — treat them as **historical** until the full rewrite (handoff Task 2). Still live: the **backend** `/api/process-command` (used only by onboarding voice on a few screens, pending its own cutover).
+
 > **Scope.** Cost-tier **Path 2** is any state with exactly one voice half on (orb State 2 = AI speaks one-way; State 3 = mic-in, text reply). This skill documents ONE pattern inside that tier — the check-in async-reflection loop. The other Path-2 surfaces (one-way TTS, mic-only voice input on CHAT, etc.) share the Direct-LLM implementation in [path-3-direct-llm](../path-3-direct-llm/SKILL.md). See [voice-architecture/paths.md](../voice-architecture/paths.md) for the full state→path table.
 
 Asynchronous voice composition. The user hears a prompt (pre-recorded MP3 if available, otherwise live Sonic REST), speaks a reply, the reply is transcribed by Soniox, run through `callLLM()`, and the LLM's response is spoken back via Sonic API. A check-in is a turn-based string of State 2 (prompt) then State 3 (reply) — **never both halves live at once**, so never Vapi. Multi-turn interruption-aware dialogue is Path 1's job.
