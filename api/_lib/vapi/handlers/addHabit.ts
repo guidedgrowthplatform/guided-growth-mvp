@@ -14,29 +14,18 @@
  * user_habits on completion.
  */
 import pool from '../../db.js';
-import { MAX_HABITS, SCHEDULE_OPTIONS, type ScheduleOption } from '../../llm/tools.onboarding.js';
+import {
+  inferSchedule,
+  MAX_HABITS,
+  SCHEDULE_DAYS,
+  SCHEDULE_OPTIONS,
+  type ScheduleOption,
+} from '../../llm/tools.onboarding.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIME_REGEX = /^([01]?\d|2[0-3]):[0-5]\d$/;
 const NAME_MAX_LEN = 100;
 const DEFAULT_TIME = '09:00';
-
-// Day-of-week sets per schedule preset (0 = Sunday), mirroring the frontend
-// SchedulePicker so a voice-added habit lands with the same shape as a
-// tap-added one.
-const SCHEDULE_DAYS: Record<ScheduleOption, number[]> = {
-  Weekday: [1, 2, 3, 4, 5],
-  Weekend: [0, 6],
-  'Every day': [0, 1, 2, 3, 4, 5, 6],
-};
-
-function inferSchedule(days: number[]): ScheduleOption | null {
-  const key = [...days].sort((a, b) => a - b).join(',');
-  for (const opt of SCHEDULE_OPTIONS) {
-    if (SCHEDULE_DAYS[opt].join(',') === key) return opt;
-  }
-  return null;
-}
 
 export type HandlerResult = { result: string } | { error: string };
 
@@ -113,18 +102,22 @@ export async function addHabit(args: Record<string, unknown>): Promise<HandlerRe
     daysRaw.length > 0 &&
     daysRaw.every((d) => Number.isInteger(d) && d >= 0 && d <= 6);
 
-  // Resolve days + schedule together so they always agree:
-  //  - both given   -> trust the explicit days, keep the given label
-  //  - days only    -> infer the matching preset (else label it Weekday)
+  // Resolve days + schedule together so they always agree. Days is the
+  // authoritative field — when both are given, we re-infer the schedule label
+  // from days so the persisted shape never carries a stale chip ({days:[1,3,5]
+  // + schedule:'Weekday'} from LLM drift becomes {days:[1,3,5] +
+  // schedule:'Weekday'} only when inferSchedule can't match a preset; else it
+  // matches reality). PlanReviewPage's formatCadence(days) is then faithful.
+  //  - both given    -> trust days, overwrite schedule via inferSchedule
+  //  - days only     -> infer the matching preset (else label it Weekday)
   //  - schedule only -> expand the preset into its day set
-  //  - neither      -> Weekday preset
+  //  - neither       -> Weekday preset
   let days: number[];
   let schedule: ScheduleOption;
   if (daysValid) {
     days = Array.from(new Set(daysRaw as number[])).sort((a, b) => a - b);
-    schedule = scheduleProvided
-      ? (scheduleRaw as ScheduleOption)
-      : (inferSchedule(days) ?? 'Weekday');
+    const inferred = inferSchedule(days);
+    schedule = inferred ?? (scheduleProvided ? (scheduleRaw as ScheduleOption) : 'Weekday');
   } else if (scheduleProvided) {
     schedule = scheduleRaw as ScheduleOption;
     days = [...SCHEDULE_DAYS[schedule]];

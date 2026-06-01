@@ -1,5 +1,6 @@
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
+import { inferSchedule, type ScheduleOption } from '../../tools.onboarding.js';
 import { SCHEDULE_OPTIONS } from '../schemas.js';
 import {
   getBoolean,
@@ -36,10 +37,15 @@ export async function submitReflectionConfig(
   const reminder = getBoolean(args, 'reminder');
   if (reminder === undefined) return invalid('reminder must be a boolean');
 
-  const schedule = getString(args, 'schedule');
-  if (schedule === undefined || !isScheduleOption(schedule)) {
+  const scheduleRaw = getString(args, 'schedule');
+  if (scheduleRaw === undefined || !isScheduleOption(scheduleRaw)) {
     return invalid(`schedule must be one of ${SCHEDULE_OPTIONS.join(', ')}`);
   }
+
+  // Reconcile: days is authoritative, schedule kept in sync so a stale label
+  // from LLM drift lands corrected. Falls back to the LLM-supplied label when
+  // days is a custom combination.
+  const schedule: ScheduleOption = inferSchedule(days) ?? (scheduleRaw as ScheduleOption);
 
   const reflectionConfig = { time, days, reminder, schedule };
   const payload = JSON.stringify({ reflectionConfig });

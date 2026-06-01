@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  WEEKDAYS,
-  WEEKEND,
-  ALL_DAYS,
+  inferSchedule,
+  SCHEDULE_DAYS,
   toggleSetItem,
-  setsEqual,
+  WEEKDAYS,
 } from '@/components/onboarding/constants';
 import { DailyReflectionCard } from '@/components/onboarding/DailyReflectionCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -17,19 +16,6 @@ import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { Sentry } from '@/lib/sentry';
 import { useStepTiming } from '../shared/useStepTiming';
-
-const SCHEDULE_DAYS: Record<ScheduleOption, Set<number>> = {
-  Weekday: WEEKDAYS,
-  Weekend: WEEKEND,
-  'Every day': ALL_DAYS,
-};
-
-function inferSchedule(days: Set<number>): ScheduleOption | null {
-  for (const [label, preset] of Object.entries(SCHEDULE_DAYS)) {
-    if (setsEqual(days, preset)) return label as ScheduleOption;
-  }
-  return null;
-}
 
 export function Step6Page() {
   const navigate = useNavigate();

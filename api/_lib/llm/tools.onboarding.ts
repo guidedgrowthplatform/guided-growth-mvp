@@ -91,6 +91,34 @@ export type CategoryOption = (typeof CATEGORY_OPTIONS)[number];
 export const SCHEDULE_OPTIONS = ['Weekday', 'Weekend', 'Every day'] as const;
 export type ScheduleOption = (typeof SCHEDULE_OPTIONS)[number];
 
+/**
+ * Day-of-week sets per schedule preset (0 = Sunday). Mirror of the same map
+ * in src/components/onboarding/constants.ts so frontend and backend write
+ * identical {days, schedule} shapes.
+ */
+export const SCHEDULE_DAYS: Record<ScheduleOption, readonly number[]> = {
+  Weekday: [1, 2, 3, 4, 5],
+  Weekend: [0, 6],
+  'Every day': [0, 1, 2, 3, 4, 5, 6],
+};
+
+/**
+ * Reconcile a days array against the SchedulePicker presets. Returns the
+ * matching preset label or null when `days` is a custom combination
+ * (e.g. Mon/Wed/Fri). Handlers should run this AFTER validating days +
+ * schedule independently and overwrite the persisted label with the inferred
+ * one — that way `{days:[1,2,3,4,5], schedule:'Every day'}` (LLM drift)
+ * lands as `{days:[1,2,3,4,5], schedule:'Weekday'}`, and PlanReviewPage's
+ * formatCadence(days) is faithful without consulting schedule.
+ */
+export function inferSchedule(days: readonly number[]): ScheduleOption | null {
+  const key = [...days].sort((a, b) => a - b).join(',');
+  for (const opt of SCHEDULE_OPTIONS) {
+    if ([...SCHEDULE_DAYS[opt]].sort((a, b) => a - b).join(',') === key) return opt;
+  }
+  return null;
+}
+
 export const PATH_OPTIONS = ['simple', 'braindump'] as const;
 export type PathOption = (typeof PATH_OPTIONS)[number];
 

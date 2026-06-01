@@ -1,3 +1,5 @@
+import type { ScheduleOption } from './SchedulePicker';
+
 /** Shared style for uppercase section labels in onboarding cards */
 export const SECTION_LABEL_CLASS =
   'text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-content-tertiary';
@@ -31,6 +33,15 @@ export const ALL_DAYS = new Set([
   DAYS.SATURDAY,
 ]);
 
+/** Day-of-week sets per SchedulePicker preset. Mirror of the same map in
+ * api/_lib/llm/tools.onboarding.ts so frontend and backend write identical
+ * shapes. */
+export const SCHEDULE_DAYS: Record<ScheduleOption, Set<number>> = {
+  Weekday: WEEKDAYS,
+  Weekend: WEEKEND,
+  'Every day': ALL_DAYS,
+};
+
 /** Toggle an item in a Set, returning a new Set */
 export function toggleSetItem<T>(prev: Set<T>, item: T): Set<T> {
   const next = new Set(prev);
@@ -52,4 +63,21 @@ export function formatCadence(days: Set<number>): string {
   if (setsEqual(days, WEEKDAYS)) return 'Weekdays';
   if (setsEqual(days, WEEKEND)) return 'Weekends';
   return `${days.size} days/week`;
+}
+
+/**
+ * Infer the matching SchedulePicker preset for a given day set, or null if
+ * the set doesn't match any preset (custom day combinations).
+ *
+ * Used by HabitCustomizeSheet + Step6Page to keep `schedule` and `days` in
+ * sync: toggling a day re-derives the chip label, so the persisted
+ * {days, schedule} pair always agrees. PlanReviewPage then reads
+ * formatCadence(days) alone and gets a faithful label without consulting
+ * schedule.
+ */
+export function inferSchedule(days: Set<number>): ScheduleOption | null {
+  for (const [label, preset] of Object.entries(SCHEDULE_DAYS)) {
+    if (setsEqual(days, preset)) return label as ScheduleOption;
+  }
+  return null;
 }

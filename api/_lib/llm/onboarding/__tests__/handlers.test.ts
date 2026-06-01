@@ -251,11 +251,7 @@ describe('submit_goals', () => {
         ],
       });
     const r = await submitGoals(CTX, {
-      goals: [
-        'Fall asleep earlier',
-        'Wake up earlier',
-        'Sleep more consistently',
-      ],
+      goals: ['Fall asleep earlier', 'Wake up earlier', 'Sleep more consistently'],
     });
     expect(r.ok).toBe(true);
     if (r.ok) expect((r.result.goals as string[]).length).toBeLessThanOrEqual(2);
@@ -385,6 +381,63 @@ describe('add_habit', () => {
     const merge = JSON.parse(upsert![1][2] as string);
     expect(merge.Walk.days).toEqual([1, 2, 3]);
   });
+
+  // Mint round-2: days is authoritative — when LLM supplies stale schedule
+  // label vs days, the schedule field is overwritten so PlanReviewPage's
+  // formatCadence(days) is faithful and the persisted shape is self-consistent.
+  it('reconciles stale schedule label against days (Every day -> Weekday)', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, { ...validHabit, days: [1, 2, 3, 4, 5], schedule: 'Every day' });
+    const upsert = client.query.mock.calls.find((c) =>
+      /INSERT INTO onboarding_states/.test(c[0] as string),
+    );
+    const merge = JSON.parse(upsert![1][2] as string);
+    expect(merge.Walk.schedule).toBe('Weekday');
+    expect(merge.Walk.days).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('reconciles stale schedule label against days (Weekday -> Every day)', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, {
+      ...validHabit,
+      days: [0, 1, 2, 3, 4, 5, 6],
+      schedule: 'Weekday',
+    });
+    const upsert = client.query.mock.calls.find((c) =>
+      /INSERT INTO onboarding_states/.test(c[0] as string),
+    );
+    const merge = JSON.parse(upsert![1][2] as string);
+    expect(merge.Walk.schedule).toBe('Every day');
+  });
+
+  it('keeps the LLM-supplied schedule when days is a custom combination (no preset match)', async () => {
+    // Mon/Wed/Fri doesn't match any preset; falling back to the LLM's label
+    // is best-effort since there's no "custom" enum value. PlanReviewPage
+    // renders "3 days/week" via formatCadence regardless.
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, { ...validHabit, days: [1, 3, 5], schedule: 'Weekday' });
+    const upsert = client.query.mock.calls.find((c) =>
+      /INSERT INTO onboarding_states/.test(c[0] as string),
+    );
+    const merge = JSON.parse(upsert![1][2] as string);
+    expect(merge.Walk.schedule).toBe('Weekday');
+    expect(merge.Walk.days).toEqual([1, 3, 5]);
+  });
+
+  it('canonical match: days+schedule already agree (no-op reconcile)', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, { ...validHabit, days: [1, 2, 3, 4, 5], schedule: 'Weekday' });
+    const upsert = client.query.mock.calls.find((c) =>
+      /INSERT INTO onboarding_states/.test(c[0] as string),
+    );
+    const merge = JSON.parse(upsert![1][2] as string);
+    expect(merge.Walk.schedule).toBe('Weekday');
+    expect(merge.Walk.days).toEqual([1, 2, 3, 4, 5]);
+  });
 });
 
 // ─── remove_habit ────────────────────────────────────────────────────
@@ -427,7 +480,9 @@ describe('remove_habit', () => {
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.result.removed).toBe('Walk');
     const [sql] = pool.query.mock.calls[1];
-    expect(sql).toMatch(/jsonb_set\(data, '\{habitConfigs\}', \(data->'habitConfigs'\) - \$2::text\)/);
+    expect(sql).toMatch(
+      /jsonb_set\(data, '\{habitConfigs\}', \(data->'habitConfigs'\) - \$2::text\)/,
+    );
   });
 });
 
@@ -454,15 +509,33 @@ describe('submit_reflection_config', () => {
   it('accepts valid config and bumps to step 7', async () => {
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
-      rows: [
-        { data: { reflectionConfig: valid }, current_step: 7 },
-      ],
+      rows: [{ data: { reflectionConfig: valid }, current_step: 7 }],
     });
     const r = await submitReflectionConfig(CTX, valid);
     expect(r.ok).toBe(true);
     const [sql, params] = pool.query.mock.calls[0];
     expect(sql).toMatch(/GREATEST\(onboarding_states\.current_step, 7\)/);
     expect(JSON.parse(params[1] as string)).toEqual({ reflectionConfig: valid });
+  });
+
+  // Mint round-2: days authoritative, schedule reconciled at write time so
+  // PlanReviewPage's formatCadence(days) is faithful.
+  it('reconciles stale schedule label against days (Every day -> Weekday)', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ data: {}, current_step: 7 }] });
+    await submitReflectionConfig(CTX, { ...valid, days: [1, 2, 3, 4, 5], schedule: 'Every day' });
+    const params = pool.query.mock.calls[0][1];
+    const payload = JSON.parse(params[1] as string);
+    expect(payload.reflectionConfig.schedule).toBe('Weekday');
+    expect(payload.reflectionConfig.days).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('keeps the LLM-supplied label when days is a custom combination', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ data: {}, current_step: 7 }] });
+    await submitReflectionConfig(CTX, { ...valid, days: [1, 3, 5], schedule: 'Weekday' });
+    const params = pool.query.mock.calls[0][1];
+    const payload = JSON.parse(params[1] as string);
+    expect(payload.reflectionConfig.schedule).toBe('Weekday'); // no preset match → keep LLM label
+    expect(payload.reflectionConfig.days).toEqual([1, 3, 5]);
   });
 });
 
