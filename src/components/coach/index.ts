@@ -1,0 +1,1 @@
+export { CoachChatOverlay } from './CoachChatOverlay';

@@ -7,5 +7,4 @@ export { OpenChatButton } from './OpenChatButton';
 export { FeedbackSheet } from './FeedbackSheet';
 export { QuickActionCards } from './QuickActionCards';
 export { ReminderSheet } from './ReminderSheet';
-export { VoiceCheckInOverlay } from './VoiceCheckInOverlay';
 export { RecentReflectionsSection } from './RecentReflectionsSection';

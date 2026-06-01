@@ -18,14 +18,6 @@ const envString = (raw: string | undefined, fallback: string): string => {
   return trimmed.length > 0 ? trimmed : fallback;
 };
 
-// ─── Voice chat (useVoiceChat) ──────────────────────────────────────────────
-export const VOICE_CHAT_CAP_KEY = 'gg_voice_count';
-export const VOICE_CHAT_CAP_DATE_KEY = 'gg_voice_count_date';
-export const VOICE_CHAT_MAX_CONVERSATIONS = envNumber(
-  import.meta.env.VITE_VOICE_MAX_CONVERSATIONS,
-  5,
-);
-
 // ─── Path 3 voice-in (streaming) ────────────────────────────────────
 // Env-backed kill-switch; voice-in only. Remove once stable in prod.
 export const VOICE_IN_ENABLED = import.meta.env.VITE_STATE3_ENABLED === 'true';
@@ -56,10 +48,6 @@ export function countVapiToday(
   }
   return n;
 }
-
-/** TTS duration estimate: ms per character, minimum floor (ms). */
-export const VOICE_CHAT_TTS_MS_PER_CHAR = envNumber(import.meta.env.VITE_VOICE_TTS_MS_PER_CHAR, 65);
-export const VOICE_CHAT_TTS_MIN_MS = envNumber(import.meta.env.VITE_VOICE_TTS_MIN_MS, 2000);
 
 // ─── STT service (stt-service) ──────────────────────────────────────────────
 /** Commands shorter than this (seconds) keep native sample rate for accuracy. */

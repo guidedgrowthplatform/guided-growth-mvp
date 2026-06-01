@@ -13,7 +13,7 @@ import {
   FeedbackSheet,
   ReminderSheet,
 } from '@/components/home';
-import { useAuth } from '@/hooks/useAuth';
+import { useDisplayName } from '@/hooks/useDisplayName';
 import { useEntries } from '@/hooks/useEntries';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
@@ -31,7 +31,6 @@ function deriveHomeScreenId(fromOnboarding: boolean): string {
 export function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
   const { preferences, updatePreferences } = useUserPreferences();
   const { logEvent } = useSessionLog();
   const fromOnboarding = (location.state as { fromOnboarding?: boolean })?.fromOnboarding === true;
@@ -87,8 +86,7 @@ export function HomePage() {
     }
   }, [showCheckIn, homeScreenId, logEvent]);
 
-  const displayName =
-    user?.nickname || user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'there';
+  const displayName = useDisplayName('there');
 
   // Post-onboarding: auto-show ReminderSheet once
   useEffect(() => {
