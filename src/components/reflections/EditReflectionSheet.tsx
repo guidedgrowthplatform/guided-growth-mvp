@@ -35,21 +35,26 @@ export function EditReflectionSheet({ entry, onClose, onSaved }: EditReflectionS
 
   const handleSave = async (close: () => void) => {
     setSaving(true);
+    let updated: JournalEntry;
     try {
-      const updated =
+      updated =
         entry.type === 'freeform'
           ? await updateJournalEntry(entry.id, {
               title: freeformTitle || undefined,
               fields: { body: freeformBody },
             })
           : await updateJournalEntry(entry.id, { fields: guidedAnswers });
-      addToast('success', 'Reflection updated');
-      close();
-      onSaved(updated);
     } catch {
       addToast('error', 'Failed to update — please try again');
       setSaving(false);
+      return;
     }
+    // Narrow try to the await: parent onSaved side effects must not trip
+    // the error toast. setSaving(false) still runs on both paths.
+    addToast('success', 'Reflection updated');
+    close();
+    onSaved(updated);
+    setSaving(false);
   };
 
   return (
