@@ -6,10 +6,10 @@ import { WEEKDAYS } from '@/components/onboarding/constants';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { type OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 import { useStepTiming } from '../shared/useStepTiming';
 

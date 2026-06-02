@@ -3,17 +3,20 @@ import { ONBOARDING_TOOLS, ONBOARDING_TOOL_NAMES, isOnboardingToolName } from '.
 import { getOnboardingTools, isOnboardingScreen } from '../registry.js';
 
 describe('ONBOARDING_TOOLS', () => {
-  it('exposes the nine canonical tool names', () => {
+  it('exposes the twelve canonical tool names', () => {
     expect(ONBOARDING_TOOLS.map((t) => t.name).sort()).toEqual([
       'add_habit',
+      'confirm_plan',
       'confirm_step_complete',
       'remove_habit',
       'submit_brain_dump',
       'submit_category',
+      'submit_custom_prompts',
       'submit_goals',
       'submit_path_choice',
       'submit_profile',
       'submit_reflection_config',
+      'update_habit',
     ]);
   });
 
@@ -58,13 +61,7 @@ describe('ONBOARDING_TOOLS', () => {
 
   it('add_habit requires the full schedule shape', () => {
     const tool = ONBOARDING_TOOLS.find((t) => t.name === 'add_habit')!;
-    expect(tool.parameters.required).toEqual([
-      'name',
-      'days',
-      'time',
-      'reminder',
-      'schedule',
-    ]);
+    expect(tool.parameters.required).toEqual(['name', 'days', 'time', 'reminder', 'schedule']);
     expect(tool.parameters.properties.schedule).toMatchObject({
       enum: ['Weekday', 'Weekend', 'Every day'],
     });
@@ -144,6 +141,19 @@ describe('ONBOARDING_TOOLS', () => {
           ],
         },
         {
+          "name": "update_habit",
+          "properties": [
+            "days",
+            "name",
+            "reminder",
+            "schedule",
+            "time",
+          ],
+          "required": [
+            "name",
+          ],
+        },
+        {
           "name": "submit_reflection_config",
           "properties": [
             "days",
@@ -156,6 +166,15 @@ describe('ONBOARDING_TOOLS', () => {
             "reminder",
             "schedule",
             "time",
+          ],
+        },
+        {
+          "name": "submit_custom_prompts",
+          "properties": [
+            "prompts",
+          ],
+          "required": [
+            "prompts",
           ],
         },
         {
@@ -174,14 +193,21 @@ describe('ONBOARDING_TOOLS', () => {
             "brain_dump_raw",
           ],
         },
+        {
+          "name": "confirm_plan",
+          "properties": [
+            "reason",
+          ],
+          "required": [],
+        },
       ]
     `);
   });
 });
 
 describe('ONBOARDING_TOOL_NAMES + isOnboardingToolName', () => {
-  it('set contains exactly the nine names', () => {
-    expect(ONBOARDING_TOOL_NAMES.size).toBe(9);
+  it('set contains exactly the twelve names', () => {
+    expect(ONBOARDING_TOOL_NAMES.size).toBe(12);
   });
 
   it('isOnboardingToolName accepts known names', () => {

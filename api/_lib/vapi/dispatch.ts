@@ -17,9 +17,12 @@ import { submitCategory } from './handlers/submitCategory.js';
 import { submitGoals } from './handlers/submitGoals.js';
 import { addHabit } from './handlers/addHabit.js';
 import { removeHabit } from './handlers/removeHabit.js';
+import { updateHabit } from './handlers/updateHabit.js';
 import { submitReflectionConfig } from './handlers/submitReflectionConfig.js';
+import { submitCustomPrompts } from './handlers/submitCustomPrompts.js';
 import { submitBrainDump } from './handlers/submitBrainDump.js';
 import { navigateNext } from './handlers/navigateNext.js';
+import { confirmPlan } from './handlers/confirmPlan.js';
 
 export type DispatchResult = { result: string } | { error: string };
 
@@ -40,12 +43,18 @@ export async function dispatchVapiToolCall(
       return addHabit(args);
     case 'remove_habit':
       return removeHabit(args);
+    case 'update_habit':
+      return updateHabit(args);
     case 'submit_reflection_config':
       return submitReflectionConfig(args);
+    case 'submit_custom_prompts':
+      return submitCustomPrompts(args);
     case 'submit_brain_dump':
       return submitBrainDump(args);
     case 'navigate_next':
       return navigateNext(args);
+    case 'confirm_plan':
+      return confirmPlan(args);
     default:
       console.log(`[vapi/tool] unknown_tool name=${name}`);
       return { error: `unknown_tool: ${name}` };

@@ -10,10 +10,13 @@ import {
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { DayPicker } from '@/components/ui/DayPicker';
+import {
+  useOnboardingVoice,
+  type OnboardingVoiceResult,
+} from '@/contexts/useOnboardingVoiceSession';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useStepTiming } from '../shared/useStepTiming';
 
 const DEFAULT_QUESTIONS = [
@@ -41,6 +44,7 @@ export function AdvancedStep6Page() {
   const navigate = useNavigate();
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
+  const onboardingVoice = useOnboardingVoice();
   const state = location.state as LocationState | null;
 
   useAgentNavigation(5, '/onboarding/step-7');
@@ -49,7 +53,15 @@ export function AdvancedStep6Page() {
   const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set(WEEKDAYS));
   const customPrompts = state?.customPrompts ?? onboardingState?.data?.customPrompts ?? null;
 
-  const habitConfigs = state?.habitConfigs;
+  const habitConfigs =
+    state?.habitConfigs ?? (onboardingState?.data?.habitConfigs as LocationState['habitConfigs']);
+
+  // Vapi + Direct-LLM context for the reflection-setup screen.
+  useEffect(() => {
+    if (!onboardingVoice) return;
+    onboardingVoice.pushSubScreen('ONBOARD-ADVANCED-04');
+    return () => onboardingVoice.pushSubScreen(null);
+  }, [onboardingVoice]);
 
   // Rehydrate day selection: full-fidelity days first, cadence label as fallback.
   useEffect(() => {

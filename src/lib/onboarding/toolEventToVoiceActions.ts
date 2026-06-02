@@ -1,4 +1,4 @@
-import type { OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import type { OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession';
 import type { LLMToolEvent } from '@shared/types/llm';
 
 function asString(v: unknown): string | undefined {
@@ -77,6 +77,21 @@ export function toolEventToVoiceActions(event: LLMToolEvent): OnboardingVoiceRes
       if (name) out.push(r('remove_habit', { name }));
       return out;
     }
+    case 'update_habit': {
+      const name = asString(args.name);
+      if (!name) return out;
+      const patch: Record<string, unknown> = {};
+      const days = asNumberArray(args.days);
+      const time = asString(args.time);
+      const reminder = asBoolean(args.reminder);
+      const schedule = asString(args.schedule);
+      if (days !== undefined) patch.days = days;
+      if (time !== undefined) patch.time = time;
+      if (reminder !== undefined) patch.reminder = reminder;
+      if (schedule !== undefined) patch.schedule = schedule;
+      if (Object.keys(patch).length > 0) out.push(r('update_habit', { name, patch }));
+      return out;
+    }
     case 'submit_reflection_config': {
       const time = asString(args.time);
       const days = asNumberArray(args.days);
@@ -94,6 +109,18 @@ export function toolEventToVoiceActions(event: LLMToolEvent): OnboardingVoiceRes
     case 'submit_brain_dump': {
       const raw = asString(args.brain_dump_raw);
       if (raw) out.push(r('fill_field', { fieldName: 'brainDumpText', value: raw }));
+      return out;
+    }
+    case 'submit_custom_prompts': {
+      const prompts = asStringArray(args.prompts);
+      if (prompts)
+        prompts.forEach((value, i) =>
+          out.push(r('fill_field', { fieldName: `customPrompts[${i}]`, value })),
+        );
+      return out;
+    }
+    case 'confirm_plan': {
+      out.push(r('confirm_plan', {}));
       return out;
     }
     default:

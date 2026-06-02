@@ -5,11 +5,11 @@ import { track } from '@/analytics';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { type OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession';
 import { goalsByCategory } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useStepTiming } from '../shared/useStepTiming';
 
 export function Step4Page() {

@@ -10,9 +10,12 @@ export type OnboardingToolName =
   | 'submit_goals'
   | 'add_habit'
   | 'remove_habit'
+  | 'update_habit'
   | 'submit_reflection_config'
+  | 'submit_custom_prompts'
   | 'submit_brain_dump'
-  | 'confirm_step_complete';
+  | 'confirm_step_complete'
+  | 'confirm_plan';
 
 export interface OnboardingToolDefinition {
   readonly name: OnboardingToolName;
@@ -108,7 +111,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'submit_goals',
     description:
-      'Persist 1–2 goals on ONBOARD-BEGINNER-02. Do not wait for both — 1 is enough. Strings must match the category\'s allowed goal options (server fuzzy-matches).',
+      "Persist 1–2 goals on ONBOARD-BEGINNER-02. Do not wait for both — 1 is enough. Strings must match the category's allowed goal options (server fuzzy-matches).",
     parameters: {
       type: 'object',
       properties: {
@@ -173,6 +176,40 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
     },
   },
   {
+    name: 'update_habit',
+    description:
+      'Edit an existing habit\'s schedule on the plan-review/confirm screen. Provide the habit `name` (case-insensitive) and ONLY the field(s) to change — time and/or days. Unspecified fields are PRESERVED (unlike add_habit, which resets them to defaults). Use when the user tweaks a habit they already added (e.g. "move meditation to 8am", "make running every day"). Fails if the habit isn\'t found.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'Name of the existing habit to edit (case-insensitive). 1-100 chars.',
+        },
+        days: {
+          type: 'array',
+          description: 'New days of week as 0-6 ints, 0=Sunday.',
+          items: { type: 'number' },
+        },
+        time: {
+          type: 'string',
+          description: 'New time of day in HH:MM 24-hour format.',
+        },
+        reminder: {
+          type: 'boolean',
+          description: 'New reminder notification toggle.',
+        },
+        schedule: {
+          type: 'string',
+          description: 'New preset matching the days array.',
+          enum: [...SCHEDULE_OPTIONS],
+        },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'submit_reflection_config',
     description:
       'Persist the evening reflection schedule on ONBOARD-BEGINNER-07. Fill missing fields with defaults: schedule="Weekday" (days=[1,2,3,4,5]), time="21:45", reminder=true.',
@@ -203,15 +240,34 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
     },
   },
   {
+    name: 'submit_custom_prompts',
+    description:
+      "Persist the user's custom evening-reflection prompts on ONBOARD-ADV-CUSTOM. The prompts array REPLACES the saved set — always send the COMPLETE list the user currently wants, never just the newest one. Call the moment the user gives one or more prompts; do not confirm.",
+    parameters: {
+      type: 'object',
+      properties: {
+        prompts: {
+          type: 'array',
+          description:
+            'The COMPLETE current list of custom reflection prompts (replaces the saved set).',
+          items: { type: 'string' },
+        },
+      },
+      required: ['prompts'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'confirm_step_complete',
     description:
-      "Signal that the user has explicitly affirmed they are done with the current step and want to move on (e.g. \"yes\", \"move on\", \"next\", \"looks good\"). The frontend uses this to advance. Never call on the same turn as a submit_*/add_habit/remove_habit tool. Never call if required fields for this screen are still missing.",
+      'Signal that the user has explicitly affirmed they are done with the current step and want to move on (e.g. "yes", "move on", "next", "looks good"). The frontend uses this to advance. Never call on the same turn as a submit_*/add_habit/remove_habit tool. Never call if required fields for this screen are still missing.',
     parameters: {
       type: 'object',
       properties: {
         reason: {
           type: 'string',
-          description: 'Short telemetry-only note about why advance was called (e.g. "user affirmed recap").',
+          description:
+            'Short telemetry-only note about why advance was called (e.g. "user affirmed recap").',
         },
       },
       required: [],
@@ -221,7 +277,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'submit_brain_dump',
     description:
-      'Persist the user\'s verbatim brain-dump text on ONBOARD-ADVANCED. Pass the FULL transcript — never summarize or rephrase.',
+      "Persist the user's verbatim brain-dump text on ONBOARD-ADVANCED. Pass the FULL transcript — never summarize or rephrase.",
     parameters: {
       type: 'object',
       properties: {
@@ -231,6 +287,22 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
         },
       },
       required: ['brain_dump_raw'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'confirm_plan',
+    description:
+      'Complete onboarding from the plan-review screen (ONBOARD-BEGINNER-06 beginner / ONBOARD-ADVANCED-05 advanced). Call the moment the user confirms their starting plan and wants to begin ("looks good", "let\'s go", "start", "I\'m ready"). The frontend finishes onboarding and enters the app in response. Do not call before the plan-review screen.',
+    parameters: {
+      type: 'object',
+      properties: {
+        reason: {
+          type: 'string',
+          description: 'Short telemetry-only note (e.g. "user said let\'s go").',
+        },
+      },
+      required: [],
       additionalProperties: false,
     },
   },

@@ -10,10 +10,10 @@ import { DailyReflectionCard } from '@/components/onboarding/DailyReflectionCard
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
+import { type OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { Sentry } from '@/lib/sentry';
 import { useStepTiming } from '../shared/useStepTiming';
 

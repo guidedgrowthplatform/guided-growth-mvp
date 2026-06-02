@@ -1,16 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { formatCadence } from '@/components/onboarding/constants';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
+import {
+  useOnboardingVoice,
+  type OnboardingVoiceResult,
+} from '@/contexts/useOnboardingVoiceSession';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { Sentry } from '@/lib/sentry';
 import { pathToSpec } from './pathToSpec';
-import { deriveStateFromOnboarding, type PlanReviewState } from './planReviewDerive';
+import {
+  deriveStateFromOnboarding,
+  type PlanReviewHabitConfig,
+  type PlanReviewState,
+} from './planReviewDerive';
 
 const CATEGORY_ICONS: Record<string, string> = {
   Sleep: 'ic:outline-nightlight-round',
@@ -28,12 +35,37 @@ export function PlanReviewPage() {
   const location = useLocation();
   const routerState = location.state as PlanReviewState | null;
   const { state: onboardingState, complete, isCompleting } = useOnboarding();
+  const onboardingVoice = useOnboardingVoice();
+
+  // Voice update_habit edits on this screen, applied over the base state.
+  // Backend persists them too, but a frozen routerState would otherwise shadow
+  // the change and complete() would write the stale config.
+  const [habitPatches, setHabitPatches] = useState<Record<string, Partial<PlanReviewHabitConfig>>>(
+    {},
+  );
 
   // Router state carries source='advanced' that agent-driven derivation can't reconstruct.
-  const state = useMemo<PlanReviewState | null>(
-    () => routerState ?? deriveStateFromOnboarding(onboardingState?.data),
-    [routerState, onboardingState?.data],
-  );
+  const state = useMemo<PlanReviewState | null>(() => {
+    const base = routerState ?? deriveStateFromOnboarding(onboardingState?.data);
+    if (!base?.habitConfigs || Object.keys(habitPatches).length === 0) return base;
+    const habitConfigs = { ...base.habitConfigs };
+    for (const [name, patch] of Object.entries(habitPatches)) {
+      const key = Object.keys(habitConfigs).find((k) => k.toLowerCase() === name.toLowerCase());
+      if (key) habitConfigs[key] = { ...habitConfigs[key], ...patch };
+    }
+    return { ...base, habitConfigs };
+  }, [routerState, onboardingState?.data, habitPatches]);
+
+  // Voice nav lands here with no router state → state.source undefined; fall back to persisted path.
+  const source: 'advanced' | 'beginner' =
+    state?.source ?? (onboardingState?.path === 'braindump' ? 'advanced' : 'beginner');
+
+  // Advanced plan-review screen context (Vapi + Direct-LLM); beginner route resolves on its own.
+  useEffect(() => {
+    if (!onboardingVoice || source !== 'advanced') return;
+    onboardingVoice.pushSubScreen('ONBOARD-ADVANCED-05');
+    return () => onboardingVoice.pushSubScreen(null);
+  }, [onboardingVoice, source]);
 
   // Track view_starting_plan on mount
   const hasTrackedView = useRef(false);
@@ -43,9 +75,9 @@ export function PlanReviewPage() {
     track('view_starting_plan', {
       total_habits: Object.keys(state.habitConfigs).length,
       has_journal: Boolean(state.reflectionConfig),
-      onboarding_path: pathToSpec(state.source === 'advanced' ? 'braindump' : 'simple'),
+      onboarding_path: pathToSpec(source === 'advanced' ? 'braindump' : 'simple'),
     });
-  }, [state]);
+  }, [state, source]);
 
   // Read the start timestamp written by MicPermissionPage to localStorage.
   // The previous onboardingStartRef was initialized here (last screen), so
@@ -57,7 +89,7 @@ export function PlanReviewPage() {
   const handleStartPlan = useCallback(() => {
     if (!state?.habitConfigs) return;
     track('complete_onboarding', {
-      onboarding_path: pathToSpec(state.source === 'advanced' ? 'braindump' : 'simple'),
+      onboarding_path: pathToSpec(source === 'advanced' ? 'braindump' : 'simple'),
       total_habits: Object.keys(state.habitConfigs).length,
       has_journal: Boolean(state.reflectionConfig),
       total_time_seconds:
@@ -96,6 +128,15 @@ export function PlanReviewPage() {
 
   const handleVoiceAction = useCallback(
     (result: OnboardingVoiceResult) => {
+      if (result.action === 'update_habit') {
+        const p = result.params as { name?: string; patch?: Partial<PlanReviewHabitConfig> };
+        if (typeof p.name === 'string' && p.patch) {
+          const name = p.name;
+          const patch = p.patch;
+          setHabitPatches((prev) => ({ ...prev, [name]: { ...prev[name], ...patch } }));
+        }
+        return;
+      }
       if (result.action !== 'confirm_plan') return;
       if (autoCompletedRef.current || isCompleting) return;
       if (!state?.habitConfigs || !state?.reflectionConfig) return;
@@ -119,7 +160,7 @@ export function PlanReviewPage() {
     return <Navigate to="/onboarding" replace />;
   }
 
-  const { habitConfigs, goals, category, reflectionConfig, source } = state;
+  const { habitConfigs, goals, category, reflectionConfig } = state;
   const categoryIcon = category
     ? (CATEGORY_ICONS[category] ?? 'ic:outline-check-circle')
     : 'ic:outline-check-circle';

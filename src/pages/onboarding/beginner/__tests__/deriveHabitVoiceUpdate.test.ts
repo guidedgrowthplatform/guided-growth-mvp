@@ -14,8 +14,8 @@
  * @vitest-environment node
  */
 import { describe, it, expect } from 'vitest';
+import { type OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession';
 import { MAX_HABITS_ONBOARDING } from '@/data/onboardingHabits';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { deriveHabitVoiceUpdate, type HabitVoiceState } from '../deriveHabitVoiceUpdate';
 
 // Trimmed slice of the real habitsByGoal to keep these tests focused on

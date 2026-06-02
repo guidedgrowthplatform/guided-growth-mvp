@@ -4,10 +4,10 @@ import { track } from '@/analytics';
 import { GoalTextarea } from '@/components/onboarding/GoalTextarea';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { type OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useStepTiming } from '../shared/useStepTiming';
 
 export function AdvancedInputPage() {

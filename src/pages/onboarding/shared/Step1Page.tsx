@@ -6,10 +6,10 @@ import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingSection } from '@/components/onboarding/OnboardingSection';
 import { ChipSelect } from '@/components/ui/ChipSelect';
+import { type OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useStepTiming } from './useStepTiming';
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
@@ -140,7 +140,6 @@ export function Step1Page() {
           placeholder="Enter your nickname"
           value={nickname}
           onChange={setNickname}
-          voiceField="nickname"
         />
       </OnboardingSection>
       <OnboardingSection label="How old are you?">

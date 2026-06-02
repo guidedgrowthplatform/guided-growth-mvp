@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ScreenRouteEntry } from '@/api/context';
-import type { OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
+import type { OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession';
 import { toolEventToVoiceActions } from '@/lib/onboarding/toolEventToVoiceActions';
 import { queryKeys } from '@/lib/query';
 import type { OnboardingState } from '@shared/types';

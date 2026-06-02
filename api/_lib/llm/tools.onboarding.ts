@@ -23,9 +23,12 @@ export type OnboardingToolName =
   | 'submit_goals'
   | 'add_habit'
   | 'remove_habit'
+  | 'update_habit'
   | 'submit_reflection_config'
+  | 'submit_custom_prompts'
   | 'submit_brain_dump'
-  | 'navigate_next';
+  | 'navigate_next'
+  | 'confirm_plan';
 
 /**
  * Vapi tool-lifecycle message. Vapi speaks these at fixed points around the
@@ -278,6 +281,45 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     },
   },
   {
+    name: 'update_habit',
+    screen: 'ONBOARD-BEGINNER-06',
+    description:
+      'Edit an existing habit\'s schedule on the plan-review/confirm screen. DATA ONLY — does NOT advance the screen. Provide the habit `name` (case-insensitive) and ONLY the field(s) the user wants to change (time and/or days). Unspecified fields are PRESERVED — unlike add_habit, which resets them to defaults. Use when the user tweaks a habit they already added (e.g. "move meditation to 8am", "make running every day"). Fails if the habit isn\'t found — recover by offering to add it. Do not ask for permission — just call.',
+    messages: {
+      requestStart: 'Updating that habit — anything else to tweak?',
+      requestFailed: "Hmm, couldn't update that — which habit, and what change?",
+    },
+    parameters: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'Name of the existing habit to edit (case-insensitive). 1-100 chars.',
+        },
+        days: {
+          type: 'array',
+          description: 'New days of week as 0-6 ints, 0=Sunday.',
+          items: { type: 'number' },
+        },
+        time: {
+          type: 'string',
+          description: 'New time of day in HH:MM 24-hour format, e.g. "08:00".',
+        },
+        reminder: {
+          type: 'boolean',
+          description: 'New reminder notification toggle.',
+        },
+        schedule: {
+          type: 'string',
+          description: 'New preset matching the days array.',
+          enum: [...SCHEDULE_OPTIONS],
+        },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'submit_reflection_config',
     screen: 'ONBOARD-BEGINNER-07',
     description:
@@ -310,6 +352,29 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
         },
       },
       required: [],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'submit_custom_prompts',
+    screen: 'ONBOARD-ADV-CUSTOM',
+    description:
+      "Save the user's custom evening-reflection prompts. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user gives one or more prompts. The prompts array REPLACES the saved set — always send the COMPLETE current list the user wants, never just the newest one (if they had two and add a third, send all three). Do not ask for permission — just call.",
+    messages: {
+      requestStart: 'Saving your prompts — want to add another, or are you set?',
+      requestFailed: "Didn't catch those — what were the prompts again?",
+    },
+    parameters: {
+      type: 'object',
+      properties: {
+        prompts: {
+          type: 'array',
+          description:
+            'The COMPLETE current list of custom reflection prompts. Always send every prompt the user wants, not just the latest — this array replaces the saved set.',
+          items: { type: 'string' },
+        },
+      },
+      required: ['prompts'],
       additionalProperties: false,
     },
   },
@@ -360,6 +425,27 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
         },
       },
       required: ['target_step'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'confirm_plan',
+    screen: 'ONBOARD-BEGINNER-06',
+    description:
+      'Complete onboarding from the plan-review screen (ONBOARD-BEGINNER-06 beginner / ONBOARD-ADVANCED-05 advanced). Call the moment the user confirms their starting plan and wants to begin ("looks good", "let\'s go", "start", "I\'m ready"). The frontend finishes onboarding and enters the app in response. Do not call before the plan-review screen.',
+    messages: {
+      requestStart: 'Locking in your plan — here we go.',
+      requestFailed: 'Hmm, let me try that once more.',
+    },
+    parameters: {
+      type: 'object',
+      properties: {
+        reason: {
+          type: 'string',
+          description: 'Short telemetry-only note (e.g. "user said let\'s go").',
+        },
+      },
+      required: [],
       additionalProperties: false,
     },
   },
