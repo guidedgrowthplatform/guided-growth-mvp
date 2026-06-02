@@ -4,13 +4,20 @@ stages:
 voice-sync:
   stage: sync
   image: python:3.11
+  # Runs on a GitLab Pipeline Schedule (create one targeting main) and on manual
+  # web runs. Does NOT run on every push or on external (Xcode Cloud) pipelines.
+  # Requires CI vars: GCP_SA_KEY (file), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+  # See gg-spec/docs/supabase-seed-reenable-runbook.md.
   rules:
-    - when: never
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
   resource_group: voice-sync
   timeout: 5 minutes
   variables:
     PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
     GOOGLE_APPLICATION_CREDENTIALS: "$GCP_SA_KEY"
+    GOOGLE_SHEET_ID: "1iNEdUm5vqmjk3YGEF1uMwfurcvgVRHykWUeBGHDBqcw"
   cache:
     key: voice-sync-pip
     paths:
