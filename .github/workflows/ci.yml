@@ -180,6 +180,21 @@ jobs:
           path: android/app/build/outputs/bundle/release/*.aab
           retention-days: 14
 
+      # Play caps release notes at 500 chars/locale — fail early, not mid-upload.
+      - name: Validate Play release notes length
+        if: >-
+          github.event_name == 'push'
+          && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          f=release-notes/whatsnew-en-US
+          [ -f "$f" ] || { echo "::error::Missing $f"; exit 1; }
+          len=$(wc -m < "$f" | tr -d ' ')
+          echo "Release notes length: $len chars"
+          if [ "$len" -gt 500 ]; then
+            echo "::error::Play release notes exceed 500 chars ($len). Trim $f."
+            exit 1
+          fi
+
       - name: Deploy to Google Play (internal track)
         if: >-
           github.event_name == 'push'
@@ -190,6 +205,7 @@ jobs:
           packageName: app.guidedgrowth.mvp
           releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
           track: internal
+          whatsNewDirectory: release-notes
 
       - name: Notify Mattermost (AAB ready)
         if: >-
