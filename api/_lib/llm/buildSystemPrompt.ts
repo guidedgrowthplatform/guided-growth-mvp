@@ -25,16 +25,6 @@ export interface BuildSystemPromptResult {
   deltaCount: number;
 }
 
-export class BuildSystemPromptError extends Error {
-  code: string;
-  status: number;
-  constructor(code: string, status: number, message: string) {
-    super(message);
-    this.code = code;
-    this.status = status;
-  }
-}
-
 interface ScreenRow {
   context_block: string;
   version: number;
@@ -56,14 +46,16 @@ export async function buildSystemPromptForRequest(
     `SELECT context_block, version FROM screen_contexts WHERE screen_id = $1`,
     [args.screen_id],
   );
+  // Missing row (un-seeded env) → generic block, not a 404 that breaks every chat user.
+  let screen: ScreenRow;
   if (screenRes.rowCount === 0) {
-    throw new BuildSystemPromptError(
-      'unknown_screen_id',
-      404,
-      `Unknown screen_id: ${args.screen_id}`,
+    console.warn(
+      `[buildSystemPrompt] no screen_contexts row for "${args.screen_id}" — using generic fallback`,
     );
+    screen = { context_block: FALLBACK_CONTEXT_BLOCK, version: 0 };
+  } else {
+    screen = screenRes.rows[0];
   }
-  const screen = screenRes.rows[0];
 
   let state_delta: SessionStateDeltaEntry[];
   if (args.recent_events && args.recent_events.length > 0) {
@@ -140,6 +132,9 @@ async function buildAlreadyFilledBlock(anonId: string): Promise<string> {
     `Do NOT re-ask for any field that already has a value here. Acknowledge briefly if the user re-states it, then move to the next still-missing field per the screen's BEHAVIOR.`
   );
 }
+
+const FALLBACK_CONTEXT_BLOCK = `## Screen
+No screen-specific guidance is configured for this screen. Respond helpfully and briefly in your coaching voice, using the recent activity below for continuity. Do not invent screen-specific instructions or pre-announce features.`;
 
 const OPENER_INSTRUCTIONS = `## Opener Turn
 

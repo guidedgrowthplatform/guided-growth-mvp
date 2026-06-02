@@ -14,7 +14,8 @@ export type CheckinToolName =
   | 'start_focus'
   | 'query_habits'
   | 'get_summary'
-  | 'suggest_habit';
+  | 'suggest_habit'
+  | 'log_reflection';
 
 export interface CheckinToolDefinition {
   readonly name: CheckinToolName;
@@ -25,6 +26,8 @@ export interface CheckinToolDefinition {
 export const FREQUENCY_OPTIONS = ['daily', 'weekdays', 'weekly', '3x/week'] as const;
 export const INPUT_TYPE_OPTIONS = ['scale', 'binary', 'numeric', 'text'] as const;
 export const HABIT_NAME_MAX_LEN = 100;
+export const REFLECTION_TEXT_MAX_LEN = 5000;
+export const REFLECTION_TITLE_MAX_LEN = HABIT_NAME_MAX_LEN;
 
 export const CHECKIN_TOOLS: readonly CheckinToolDefinition[] = [
   {
@@ -216,6 +219,23 @@ export const CHECKIN_TOOLS: readonly CheckinToolDefinition[] = [
       type: 'object',
       properties: {},
       required: [],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'log_reflection',
+    description:
+      'Save a journal/reflection entry for the user. Call ONLY when the user explicitly asks to journal, write something down, or log a reflection (e.g. "journal this", "write this down", "log a reflection: ..."). Save the user\'s own words. Save-only — you cannot read entries back. Never auto-journal ordinary conversation.',
+    parameters: {
+      type: 'object',
+      properties: {
+        text: {
+          type: 'string',
+          description: "The reflection content in the user's words. Required, non-empty.",
+        },
+        title: { type: 'string', description: 'Optional short title for the entry.' },
+      },
+      required: ['text'],
       additionalProperties: false,
     },
   },

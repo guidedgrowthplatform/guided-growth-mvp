@@ -11,6 +11,7 @@ import { startFocus } from './handlers/startFocus.js';
 import { queryHabits } from './handlers/queryHabits.js';
 import { getSummary } from './handlers/getSummary.js';
 import { suggestHabit } from './handlers/suggestHabit.js';
+import { logReflection } from './handlers/logReflection.js';
 import type { CheckinHandlerCtx } from './handlers/shared.js';
 import { isCheckinToolName, type CheckinToolName } from './schemas.js';
 
@@ -29,6 +30,7 @@ const HANDLERS: Record<CheckinToolName, Handler> = {
   query_habits: queryHabits,
   get_summary: getSummary,
   suggest_habit: suggestHabit,
+  log_reflection: logReflection,
 };
 
 export async function dispatchCheckinToolCall(

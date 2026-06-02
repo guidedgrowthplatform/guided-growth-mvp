@@ -35,7 +35,6 @@ vi.mock('../llm/buildSystemPrompt.js', () => ({
     contextVersion: 1,
     deltaCount: 0,
   }),
-  BuildSystemPromptError: class BuildSystemPromptError extends Error {},
 }));
 
 const pool = (await import('../db.js')).default as {

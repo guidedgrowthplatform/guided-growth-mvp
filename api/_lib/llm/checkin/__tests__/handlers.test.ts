@@ -18,7 +18,10 @@ const { startFocus } = await import('../handlers/startFocus.js');
 const { queryHabits } = await import('../handlers/queryHabits.js');
 const { getSummary } = await import('../handlers/getSummary.js');
 const { suggestHabit } = await import('../handlers/suggestHabit.js');
+const { logReflection } = await import('../handlers/logReflection.js');
 const { todayStr, HABIT_SUGGESTIONS, DEFAULT_SUGGESTION } = await import('../handlers/shared.js');
+
+const poolConnect = (pool as unknown as { connect: ReturnType<typeof vi.fn> }).connect;
 
 const CTX = { anon_id: '11111111-1111-4111-8111-111111111111' };
 
@@ -186,8 +189,7 @@ describe('record_checkin', () => {
     ]);
     const r = await recordCheckin(CTX, { mood: 3 });
     expect(r.ok).toBe(true);
-    if (r.ok)
-      expect(r.result.checkin).toEqual({ sleep: 4, mood: 3, energy: 2, stress: 5 });
+    if (r.ok) expect(r.result.checkin).toEqual({ sleep: 4, mood: 3, energy: 2, stress: 5 });
   });
 });
 
@@ -287,7 +289,11 @@ describe('update_habit', () => {
         { rows: [{ id: 'h1', name: 'pull ups', cadence: 'weekdays', schedule_days: null }] },
       ],
     ]);
-    const r = await updateHabit(CTX, { name: 'pushups', new_name: 'pull ups', frequency: 'weekdays' });
+    const r = await updateHabit(CTX, {
+      name: 'pushups',
+      new_name: 'pull ups',
+      frequency: 'weekdays',
+    });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.result.habit).toMatchObject({ name: 'pull ups', frequency: 'weekdays' });
     const [sql, params] = lastCall(/UPDATE user_habits/);
@@ -310,7 +316,9 @@ describe('create_metric', () => {
   });
 
   it('rejects a duplicate name (pre-insert check)', async () => {
-    route([[/FROM metrics[\s\S]*ILIKE/, { rows: [{ id: 'm1', name: 'Weight', input_type: 'numeric' }] }]]);
+    route([
+      [/FROM metrics[\s\S]*ILIKE/, { rows: [{ id: 'm1', name: 'Weight', input_type: 'numeric' }] }],
+    ]);
     const r = await createMetric(CTX, { name: 'weight' });
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
   });
@@ -361,7 +369,9 @@ describe('delete_metric', () => {
   });
 
   it('hard-deletes scoped to anon_id', async () => {
-    route([[/FROM metrics[\s\S]*ILIKE/, { rows: [{ id: 'm1', name: 'weight', input_type: 'numeric' }] }]]);
+    route([
+      [/FROM metrics[\s\S]*ILIKE/, { rows: [{ id: 'm1', name: 'weight', input_type: 'numeric' }] }],
+    ]);
     const r = await deleteMetric(CTX, { name: 'weight' });
     expect(r.ok).toBe(true);
     const [sql, params] = lastCall(/DELETE FROM metrics/);
@@ -373,7 +383,10 @@ describe('delete_metric', () => {
 describe('start_focus', () => {
   it('defaults to a 25-minute session', async () => {
     route([
-      [/INSERT INTO focus_sessions/, { rows: [{ id: 'f1', duration_minutes: 25, started_at: 't' }] }],
+      [
+        /INSERT INTO focus_sessions/,
+        { rows: [{ id: 'f1', duration_minutes: 25, started_at: 't' }] },
+      ],
     ]);
     const r = await startFocus(CTX, {});
     expect(r.ok).toBe(true);
@@ -408,7 +421,13 @@ describe('query_habits', () => {
     route([
       [
         /SELECT name, cadence FROM user_habits/,
-        { rowCount: 2, rows: [{ name: 'pushups', cadence: 'daily' }, { name: 'reading', cadence: 'weekdays' }] },
+        {
+          rowCount: 2,
+          rows: [
+            { name: 'pushups', cadence: 'daily' },
+            { name: 'reading', cadence: 'weekdays' },
+          ],
+        },
       ],
     ]);
     const r = await queryHabits(CTX, {});
@@ -449,10 +468,7 @@ describe('query_habits', () => {
 describe('get_summary', () => {
   it('returns 7-day counts scoped to anon_id', async () => {
     route([
-      [
-        /active_habits/,
-        { rows: [{ active_habits: 3, completions: 9, checkins: 5, journals: 2 }] },
-      ],
+      [/active_habits/, { rows: [{ active_habits: 3, completions: 9, checkins: 5, journals: 2 }] }],
     ]);
     const r = await getSummary(CTX);
     expect(r.ok).toBe(true);
@@ -490,7 +506,10 @@ describe('suggest_habit', () => {
 
   it('returns the default suggestion when the user already has every suggestion', async () => {
     route([
-      [/SELECT name FROM user_habits/, { rows: HABIT_SUGGESTIONS.map((name: string) => ({ name })) }],
+      [
+        /SELECT name FROM user_habits/,
+        { rows: HABIT_SUGGESTIONS.map((name: string) => ({ name })) },
+      ],
     ]);
     const r = await suggestHabit(CTX, {});
     expect(r.ok).toBe(true);
@@ -525,5 +544,64 @@ describe('future-date guard is timezone-relative', () => {
       { name: 'pushups', date: '2026-06-02' },
     );
     expect(la).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+});
+
+describe('log_reflection', () => {
+  function makeClient() {
+    return {
+      query: vi.fn(async (sql: string) => {
+        if (/INSERT INTO journal_entries/.test(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'j1', anon_id: CTX.anon_id, type: 'freeform', date: '2026-06-02' }],
+          };
+        }
+        return { rowCount: 1, rows: [] };
+      }),
+      release: vi.fn(),
+    };
+  }
+
+  it('rejects missing text without touching the db', async () => {
+    const r = await logReflection(CTX, {});
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
+    expect(poolConnect).not.toHaveBeenCalled();
+  });
+
+  it('rejects over-length text without touching the db', async () => {
+    const r = await logReflection(CTX, { text: 'x'.repeat(5001) });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(poolConnect).not.toHaveBeenCalled();
+  });
+
+  it('saves a freeform entry under the body field, scoped to anon_id', async () => {
+    const client = makeClient();
+    poolConnect.mockResolvedValue(client);
+
+    const r = await logReflection(CTX, { text: 'I felt calm today' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result).toMatchObject({ logged: true, entry_id: 'j1' });
+    expect(JSON.stringify(r)).not.toContain('I felt calm today');
+
+    const fieldInsert = client.query.mock.calls.find((c) =>
+      /INSERT INTO journal_entry_fields/.test(c[0] as string),
+    );
+    expect(fieldInsert?.[1]).toEqual(['j1', 'body', 'I felt calm today']);
+    const parentInsert = client.query.mock.calls.find((c) =>
+      /INSERT INTO journal_entries/.test(c[0] as string),
+    );
+    expect((parentInsert?.[1] as unknown[])?.[0]).toBe(CTX.anon_id);
+  });
+
+  it('short-circuits on a dedup hit without writing', async () => {
+    const cached = { ok: true as const, result: { logged: true, cached: true } };
+    const r = await logReflection(
+      { anon_id: CTX.anon_id, tool_call_id: 'call-1', dedupLookup: async () => cached },
+      { text: 'dup' },
+    );
+    expect(r).toBe(cached);
+    expect(poolConnect).not.toHaveBeenCalled();
   });
 });
