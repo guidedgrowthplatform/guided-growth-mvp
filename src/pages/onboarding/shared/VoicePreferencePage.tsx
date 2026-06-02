@@ -51,8 +51,8 @@ export function VoicePreferencePage() {
         <DualButton
           size={170}
           width={180}
-          leftActive={voiceChosen}
-          rightActive={micGranted}
+          leftActive={false}
+          rightActive={false}
           leftIcon={voiceChosen ? <IconChatVoice size={58} /> : <IconChatText size={58} />}
           rightIcon={micGranted ? <IconMic size={48} /> : <IconMicMuted size={48} />}
           leftAriaLabel="Coach voice indicator"

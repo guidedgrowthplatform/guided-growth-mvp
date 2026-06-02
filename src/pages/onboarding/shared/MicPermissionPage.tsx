@@ -82,7 +82,7 @@ export function MicPermissionPage() {
           size={170}
           width={180}
           leftActive={voiceEnabled}
-          rightActive={micGranted}
+          rightActive={false}
           leftIcon={voiceEnabled ? <IconChatVoice size={58} /> : <IconChatText size={58} />}
           rightIcon={micGranted ? <IconMic size={48} /> : <IconMicMuted size={48} />}
           leftAriaLabel="Coach voice indicator"

@@ -26,11 +26,8 @@ export function WelcomePage() {
         <div className="mt-16 flex flex-1 flex-col items-center justify-center">
           <AIPulseVisual />
           <p className="mt-12 px-4 text-center text-[20px] font-semibold leading-[28px] text-heading">
-            Hi, I&apos;m your AI Coach. I&apos;m
-            <br />
-            here to help you grow, one
-            <br />
-            habit at a time.
+            Hi, I&apos;m your AI Coach. I&apos;m here to help improve your behavior in any area of
+            your life that you want!
           </p>
         </div>
 

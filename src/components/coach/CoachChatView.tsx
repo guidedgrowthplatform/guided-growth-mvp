@@ -5,6 +5,7 @@ import { ChatBubble } from '@/components/voice/ChatBubble';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { useMicEnabled } from '@/hooks/useMicEnabled';
+import { useSmoothReveal } from '@/hooks/useSmoothReveal';
 import type { CoachChatApi } from '@/lib/chat/coachChatTypes';
 import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
@@ -13,9 +14,6 @@ interface CoachChatViewProps extends CoachChatApi {
   displayName?: string;
   onClose: () => void;
 }
-
-// Assumes the host screen has the 72px bottom nav (true for every current mount).
-const NAV_RESERVE = 'calc(72px + env(safe-area-inset-bottom))';
 
 export function CoachChatView({
   messages,
@@ -33,6 +31,7 @@ export function CoachChatView({
   const micEnabled = useMicEnabled();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
   const interim = useVoiceStore((s) => s.interim);
+  const revealedInterim = useSmoothReveal(interim);
 
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
@@ -76,11 +75,7 @@ export function CoachChatView({
   };
 
   return (
-    <div
-      className="fixed left-0 right-0 top-0 z-30 flex flex-col"
-      style={{ bottom: NAV_RESERVE }}
-      onClick={handleClose}
-    >
+    <div className="fixed inset-0 z-30 flex flex-col" onClick={handleClose}>
       <div className="absolute inset-0 backdrop-blur-[100px]" style={gradientStyle} />
 
       <button
@@ -107,6 +102,7 @@ export function CoachChatView({
               userName={displayName}
               compact
               eyebrowVariant="dark"
+              markdown
             />
             {msg.habitCards?.map((card, i) => (
               <HabitSuggestionCard
@@ -120,14 +116,23 @@ export function CoachChatView({
         ))}
         {voiceState === 'processing' && <TypingIndicator />}
         {interim && (
-          <p className="mt-2 text-[12px] font-medium uppercase tracking-wide text-white/70">
-            {interim}
-          </p>
+          <ChatBubble
+            role="user"
+            text={revealedInterim}
+            userName={displayName}
+            compact
+            eyebrowVariant="dark"
+            animate={false}
+            streaming
+          />
         )}
         <div ref={scrollAnchorRef} />
       </div>
 
-      <div className="relative z-10 px-4 pb-[56px]" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="relative z-10 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <ChatComposer
           value={draft}
           onValueChange={setDraft}

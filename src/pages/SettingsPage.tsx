@@ -30,6 +30,7 @@ import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { queryKeys } from '@/lib/query';
+import { FIRST_OPEN, setFlag } from '@/lib/storage/persistentFlags';
 import { useVoiceSettingsStore, type SttProvider } from '@/stores/voiceSettingsStore';
 import type { RecordingMode } from '@gg/shared/types';
 
@@ -114,14 +115,14 @@ export function SettingsPage() {
     try {
       await signOut();
       track('complete_logout');
-      window.location.href = '/login';
+      navigate('/login', { replace: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to log out';
       addToast('error', msg);
       setIsLoggingOut(false);
       setShowLogoutConfirm(false);
     }
-  }, [signOut, addToast]);
+  }, [signOut, addToast, navigate]);
 
   const handleDeleteAccount = useCallback(async () => {
     setIsDeletingAccount(true);
@@ -165,14 +166,15 @@ export function SettingsPage() {
       }
       localStorage.clear();
       sessionStorage.clear();
+      setFlag(FIRST_OPEN, 'true');
       await signOut();
-      window.location.href = '/login';
+      navigate('/login', { replace: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete account';
       addToast('error', msg);
       setIsDeletingAccount(false);
     }
-  }, [signOut, addToast]);
+  }, [signOut, addToast, navigate]);
 
   // Lookup labels
   const _coachingLabel =

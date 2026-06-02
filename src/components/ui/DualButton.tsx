@@ -1,6 +1,6 @@
 import { type CSSProperties, type ReactNode } from 'react';
 
-type ActiveSide = 'left' | 'right' | 'both' | 'idle';
+type ActiveSide = 'left' | 'right' | 'both' | 'idle' | 'ready';
 
 // Sourced from the chat overlay gradient tokens (OnboardingChatOverlay.tsx:92-95).
 // Blue matches the overlay's idle/assistant color, gold matches the user-speaks color.
@@ -177,6 +177,9 @@ function ActiveRings({ side, dialWidth, dialHeight, step, count, intensity }: Ac
       />
     );
   }
+  if (side === 'ready') {
+    return <ReadyRing dialWidth={dialWidth} dialHeight={dialHeight} step={step} />;
+  }
   const sides: Array<'left' | 'right'> = side === 'both' ? ['left', 'right'] : [side];
   return (
     <>
@@ -242,6 +245,37 @@ function IdleRingStack({ dialWidth, dialHeight, step, count, intensity }: IdleRi
         );
       })}
     </>
+  );
+}
+
+// Mic-on but silent: one steady right-side arc — "ready, go ahead". No pulse,
+// so it reads as waiting (vs the animated RingStack ripple once speech lands).
+function ReadyRing({
+  dialWidth,
+  dialHeight,
+  step,
+}: {
+  dialWidth: number;
+  dialHeight: number;
+  step: number;
+}) {
+  const offset = step;
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute left-1/2 top-1/2"
+      style={{
+        width: dialWidth + offset * 2,
+        height: dialHeight + offset * 2,
+        transform: 'translate(-50%, -50%)',
+        clipPath: 'inset(0 0 0 50%)',
+      }}
+    >
+      <div
+        className="h-full w-full rounded-full border"
+        style={{ borderColor: IDLE_RING_GOLD, opacity: 0.55 }}
+      />
+    </div>
   );
 }
 

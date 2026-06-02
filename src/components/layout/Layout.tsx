@@ -32,7 +32,7 @@ export function Layout({ children }: { children: ReactNode }) {
         )}
       </main>
 
-      <BottomNav />
+      <BottomNav hidden={showCoachChat} />
       {!showCoachChat && (
         <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] right-6 z-20">
           <OpenChatButton onPress={handleOpenChat} />

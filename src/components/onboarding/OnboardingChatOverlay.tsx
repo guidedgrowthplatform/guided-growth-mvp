@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
@@ -11,7 +11,8 @@ import {
 } from '@/contexts/useOnboardingVoiceSession';
 import { useDisplayName } from '@/hooks/useDisplayName';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
-import { useMicRingIntensity } from '@/hooks/useMicRingIntensity';
+import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
+import { useSmoothReveal } from '@/hooks/useSmoothReveal';
 import { orbStateFrom } from '@/lib/orb/orbState';
 
 interface OnboardingChatOverlayProps {
@@ -51,12 +52,23 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
   const [partialAssistant, setPartialAssistant] = useState('');
   const [partialUser, setPartialUser] = useState('');
 
-  const scrollAnchorRef = useRef<HTMLDivElement>(null);
+  const displayedAssistant = useSmoothReveal(partialAssistant);
+  const displayedUser = useSmoothReveal(partialUser);
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const pinnedToBottomRef = useRef(true);
   const touchStartY = useRef<number | null>(null);
 
-  useEffect(() => {
-    scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages.length, chatBusy, partialAssistant, partialUser]);
+  const handleScrollPin = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (el) pinnedToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }, []);
+
+  useLayoutEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el || !pinnedToBottomRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages.length, chatBusy, displayedAssistant, displayedUser]);
 
   // Coach text — partials stream from both Vapi and the Direct-LLM path; clears
   // on final (the final lands as a message bubble).
@@ -80,7 +92,9 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
     else setPartialUser('');
   }, isVoiceInOnly);
 
-  const micRingIntensity = useMicRingIntensity(isVoiceInOnly && voiceInListening);
+  const { intensity: micRingIntensity, speaking: micSpeaking } = useMicVoiceActivity(
+    isVoiceInOnly && voiceInListening,
+  );
 
   // Idle gradient = blue, listening gradient = yellow.
   const voiceState: 'speaking' | 'listening' | 'idle' = isAssistantSpeaking
@@ -130,9 +144,11 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
   };
 
   const gradient = voiceState === 'listening' ? LISTENING_GRADIENT : IDLE_GRADIENT;
-  const dualActiveRings: 'left' | 'right' | 'idle' | null =
+  const dualActiveRings: 'left' | 'right' | 'ready' | 'idle' | null =
     isVoiceInOnly && voiceInListening
-      ? 'right'
+      ? micSpeaking
+        ? 'right'
+        : 'ready'
       : micRuntimeOn && isUserSpeaking
         ? 'right'
         : voiceChosen && isAssistantSpeaking
@@ -161,6 +177,7 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
       </button>
 
       <div
+        ref={scrollContainerRef}
         className="relative z-10 flex-1 overflow-y-auto px-6 pt-[64px]"
         style={{
           paddingBottom: 'calc(240px + max(48px, env(safe-area-inset-bottom)))',
@@ -169,6 +186,7 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
           WebkitMaskImage:
             'linear-gradient(to top, transparent 0px, transparent 120px, black 240px, black 100%)',
         }}
+        onScroll={handleScrollPin}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -180,31 +198,35 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
               userName={displayName}
               eyebrowVariant="dark"
               compact
+              animate={false}
+              markdown
             />
           </div>
         ))}
-        {partialAssistant.length > 0 && (
+        {displayedAssistant.length > 0 && (
           <ChatBubble
             role="ai"
-            text={partialAssistant}
+            text={displayedAssistant}
             userName={displayName}
             eyebrowVariant="dark"
             compact
             animate={false}
+            streaming
+            markdown
           />
         )}
-        {isVoiceInOnly && partialUser.length > 0 && (
+        {isVoiceInOnly && displayedUser.length > 0 && (
           <ChatBubble
             role="user"
-            text={partialUser}
+            text={displayedUser}
             userName={displayName}
             eyebrowVariant="dark"
             compact
             animate={false}
+            streaming
           />
         )}
         {chatBusy && partialAssistant.length === 0 && <TypingIndicator />}
-        <div ref={scrollAnchorRef} />
       </div>
 
       <div
