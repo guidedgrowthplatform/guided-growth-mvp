@@ -11,7 +11,6 @@ import { useOnboarding } from '@/hooks/useOnboarding';
  * downstream (buildContextMessage) strips them.
  *
  * Consumed by:
- * - OnboardingLayout → processTranscript `filled_fields` (Vapi parser hot path).
  * - OnboardingLayout → onboardingVoice.setFormSnapshot() (Vapi context push).
  */
 export function useOnboardingFormSnapshot(

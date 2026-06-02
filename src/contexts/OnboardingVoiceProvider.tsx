@@ -10,13 +10,12 @@ import {
   OnboardingVoiceContext,
   USER_SPEAKING_IDLE_MS,
   type OnboardingVoiceContextValue,
+  type OnboardingVoiceResult,
   type OnboardingVoiceStatus,
-  type ParserResultFeedback,
   type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useOnboardingChat } from '@/hooks/useOnboardingChat';
-import type { OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import {
   useRealtimeVoice,
   type RealtimeTranscriptEvent,
@@ -256,90 +255,6 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         triggerResponseEnabled: false,
       });
     }, FORM_SNAPSHOT_DEBOUNCE_MS);
-  }, []);
-
-  // Feedback channel from the /api/process-command parser back to Vapi.
-  // After each user utterance we run the parser; this tells Vapi how it
-  // went so Vapi can acknowledge cleanly on success or ask the user to
-  // repeat clearly on failure.
-  //
-  // Truncates the transcript to 200 chars so a long brain-dump on the
-  // advanced flow doesn't bloat the system message stream.
-  const notifyParserResult = useCallback((result: ParserResultFeedback) => {
-    const client = getClientRef.current();
-    if (!client) return;
-    const transcript = result.transcript.slice(0, 200);
-    const body = result.ok
-      ? [
-          `[PARSER OK]`,
-          `The user said: "${transcript}".`,
-          `I extracted action=${result.action} with params ${JSON.stringify(result.params)}.`,
-          `The form is now updated. In your next turn, acknowledge naturally (e.g. "Got it" or by referencing the value), then move on to the next unfilled field — do NOT re-ask for this one.`,
-        ].join('\n')
-      : [
-          `[PARSER MISS]`,
-          `The user said: "${transcript}".`,
-          `I could not extract a clear form value (reason: ${result.reason}).`,
-          `If you believe they intended to fill a field on this screen, ask them to repeat the value clearly in one short sentence. Otherwise continue the conversation naturally — do NOT mention "parser" or any technical issue to the user.`,
-        ].join('\n');
-    client.send({
-      type: 'add-message',
-      message: { role: 'system', content: body },
-      triggerResponseEnabled: false,
-    });
-    if (import.meta.env.DEV) {
-      console.debug('[onboarding-voice] notifyParserResult', result.ok ? 'OK' : 'MISS', {
-        transcript,
-      });
-    }
-  }, []);
-
-  // Force-flush the pending debounced snapshot push immediately. Called by
-  // OnboardingLayout right after the parser dispatches a definitive form
-  // action — without this, Vapi only learns about the change 700ms later
-  // (after the debounce), which can be AFTER Vapi has already formulated a
-  // response that re-asks for the just-filled field.
-  const flushFormSnapshot = useCallback(() => {
-    const client = getClientRef.current();
-    if (!client) return;
-    if (formSnapshotPushTimerRef.current) {
-      clearTimeout(formSnapshotPushTimerRef.current);
-      formSnapshotPushTimerRef.current = null;
-    }
-    const sid =
-      lastPushedScreenIdRef.current ??
-      activeSubScreenIdRef.current ??
-      currentScreenIdRef.current ??
-      '';
-    const lines: string[] = [];
-    for (const [k, v] of Object.entries(formSnapshotRef.current)) {
-      if (v === undefined || v === null) continue;
-      if (typeof v === 'string' && v.trim() === '') continue;
-      if (Array.isArray(v) && v.length === 0) continue;
-      if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v as object).length === 0) {
-        continue;
-      }
-      const rendered =
-        typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
-          ? String(v)
-          : JSON.stringify(v);
-      lines.push(`- ${k}: ${rendered}`);
-    }
-    if (lines.length === 0) return;
-    const body = [
-      '[FORM STATE UPDATE — immediate, parser-dispatched]',
-      `The user's last utterance filled a form field. Updated snapshot for ${sid}:`,
-      ...lines,
-      'Acknowledge naturally in your next turn (do not re-ask for these). Other screen context unchanged.',
-    ].join('\n');
-    client.send({
-      type: 'add-message',
-      message: { role: 'system', content: body },
-      triggerResponseEnabled: false,
-    });
-    if (import.meta.env.DEV) {
-      console.debug('[onboarding-voice] flushFormSnapshot (immediate)', sid);
-    }
   }, []);
 
   const clearRetryTimer = useCallback(() => {
@@ -935,8 +850,6 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       restartCall,
       pushSubScreen,
       setFormSnapshot,
-      flushFormSnapshot,
-      notifyParserResult,
       subscribeTranscripts,
       voiceCapReached: voiceCapReached && !capDismissed && inOnboarding,
       dismissVoiceCap,
@@ -964,8 +877,6 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       restartCall,
       pushSubScreen,
       setFormSnapshot,
-      flushFormSnapshot,
-      notifyParserResult,
       subscribeTranscripts,
       voiceCapReached,
       capDismissed,

@@ -5,8 +5,15 @@
  * a component (keeps react-refresh HMR working in dev).
  */
 import { createContext, useContext, useEffect, useRef } from 'react';
-import type { OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import type { RealtimeTranscriptEvent } from '@/hooks/useRealtimeVoice';
+
+export interface OnboardingVoiceResult {
+  success: boolean;
+  action: string;
+  params: Record<string, unknown>;
+  message: string;
+  confidence: number;
+}
 
 export type OnboardingVoiceActionListener = (result: OnboardingVoiceResult) => void;
 
@@ -59,34 +66,10 @@ export interface OnboardingVoiceContextValue {
   // each pushScreenContext, and a debounced mid-screen "form state update"
   // add-message so Vapi stays in sync without per-keystroke flooding.
   setFormSnapshot: (snapshot: Record<string, unknown>) => void;
-  // Force an immediate snapshot push to Vapi (bypasses the 700ms debounce).
-  // Used right after the parser dispatches a successful action so Vapi knows
-  // about the form change BEFORE formulating its next turn — without this,
-  // Vapi can ask "what's your name?" milliseconds after we just filled it.
-  flushFormSnapshot: () => void;
-  // Feedback loop from the /api/process-command parser back to Vapi.
-  // Lands as a [PARSER OK] or [PARSER MISS] system add-message so Vapi can
-  // (a) acknowledge naturally on success, or (b) ask the user to repeat
-  // clearly on failure. triggerResponseEnabled is false on both — Vapi
-  // incorporates into its next response without speaking twice.
-  notifyParserResult: (result: ParserResultFeedback) => void;
   subscribeTranscripts: (listener: OnboardingTranscriptListener) => () => void;
   voiceCapReached: boolean;
   dismissVoiceCap: () => void;
 }
-
-export type ParserResultFeedback =
-  | {
-      ok: true;
-      transcript: string;
-      action: string;
-      params: Record<string, unknown>;
-    }
-  | {
-      ok: false;
-      transcript: string;
-      reason: 'no-extraction' | 'low-confidence';
-    };
 
 export const OnboardingVoiceContext = createContext<OnboardingVoiceContextValue | null>(null);
 

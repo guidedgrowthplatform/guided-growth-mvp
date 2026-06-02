@@ -29,6 +29,7 @@ const { submitCategory } = await import('../handlers/submitCategory.js');
 const { submitGoals } = await import('../handlers/submitGoals.js');
 const { addHabit } = await import('../handlers/addHabit.js');
 const { removeHabit } = await import('../handlers/removeHabit.js');
+const { updateHabit } = await import('../handlers/updateHabit.js');
 const { submitReflectionConfig } = await import('../handlers/submitReflectionConfig.js');
 const { submitBrainDump } = await import('../handlers/submitBrainDump.js');
 
@@ -259,6 +260,92 @@ describe('submit_goals', () => {
 });
 
 // ─── add_habit ───────────────────────────────────────────────────────
+
+describe('update_habit', () => {
+  const HC = (hc: Record<string, unknown>) => ({
+    rowCount: 1,
+    rows: [{ hc, current_step: 7 }],
+  });
+
+  it('rejects missing name', async () => {
+    const r = await updateHabit(CTX, {});
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('idempotent ok + no write when the habit is absent', async () => {
+    pool.query.mockResolvedValueOnce(HC({ Run: { days: [1], time: '07:00' } }));
+    const r = await updateHabit(CTX, { name: 'Walk', time: '08:00' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.updated).toBeNull();
+    expect(pool.query).toHaveBeenCalledTimes(1); // SELECT only, no UPDATE
+  });
+
+  it('rejects when no fields are provided to change', async () => {
+    pool.query.mockResolvedValueOnce(HC({ Walk: { days: [1], time: '07:00' } }));
+    const r = await updateHabit(CTX, { name: 'Walk' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).toHaveBeenCalledTimes(1); // SELECT only
+  });
+
+  it('patches only the provided field, preserving the rest (case-insensitive)', async () => {
+    pool.query
+      .mockResolvedValueOnce(
+        HC({
+          Meditate: { days: [1, 2, 3, 4, 5], time: '07:00', reminder: true, schedule: 'Weekday' },
+        }),
+      )
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ data: {}, current_step: 7 }] });
+    const r = await updateHabit(CTX, { name: 'meditate', time: '08:00' });
+    expect(r.ok).toBe(true);
+    // UPDATE is the 2nd query; $2 carries { [matchKey]: mergedEntry }.
+    const merge = JSON.parse(pool.query.mock.calls[1][1][1] as string);
+    expect(merge).toEqual({
+      Meditate: { days: [1, 2, 3, 4, 5], time: '08:00', reminder: true, schedule: 'Weekday' },
+    });
+  });
+
+  it('days change re-infers schedule and preserves the untouched time', async () => {
+    pool.query
+      .mockResolvedValueOnce(
+        HC({ Walk: { days: [1, 2, 3, 4, 5], time: '07:00', reminder: true, schedule: 'Weekday' } }),
+      )
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ data: {}, current_step: 7 }] });
+    await updateHabit(CTX, { name: 'Walk', days: [0, 6] });
+    const merge = JSON.parse(pool.query.mock.calls[1][1][1] as string);
+    expect(merge.Walk.days).toEqual([0, 6]);
+    expect(merge.Walk.schedule).toBe('Weekend');
+    expect(merge.Walk.time).toBe('07:00');
+  });
+
+  it('schedule only: expands days from the preset', async () => {
+    pool.query
+      .mockResolvedValueOnce(
+        HC({ Walk: { days: [1, 2, 3, 4, 5], time: '07:00', schedule: 'Weekday' } }),
+      )
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ data: {}, current_step: 7 }] });
+    await updateHabit(CTX, { name: 'Walk', schedule: 'Every day' });
+    const merge = JSON.parse(pool.query.mock.calls[1][1][1] as string);
+    expect(merge.Walk.schedule).toBe('Every day');
+    expect(merge.Walk.days).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it('merge payload carries only the patched habit (sibling habits untouched by ||)', async () => {
+    pool.query
+      .mockResolvedValueOnce(
+        HC({
+          Walk: { days: [1], time: '07:00' },
+          Read: { days: [2], time: '21:00' },
+        }),
+      )
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ data: {}, current_step: 7 }] });
+    await updateHabit(CTX, { name: 'Walk', time: '08:00' });
+    const [sql, params] = pool.query.mock.calls[1];
+    // jsonb `||` merges the single key, so the payload names only Walk; Read survives in-DB.
+    expect(JSON.parse(params[1] as string)).toEqual({ Walk: { days: [1], time: '08:00' } });
+    expect(sql).toMatch(/COALESCE\(data->'habitConfigs', '\{\}'::jsonb\) \|\| \$2::jsonb/);
+  });
+});
 
 describe('add_habit', () => {
   const validHabit = {

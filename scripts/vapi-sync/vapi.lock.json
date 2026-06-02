@@ -1,4 +1,69 @@
 {
-  "tools": {},
-  "assistant": { "id": null, "hash": null }
+  "tools": {
+    "submit_profile": {
+      "id": "5a030a30-0b01-4efc-a969-27eb2e0d2f99",
+      "hash": "147110df0129c734",
+      "updatedAt": "2026-06-02T12:13:34.625Z"
+    },
+    "submit_path_choice": {
+      "id": "b5d5fd52-d570-4cca-b4cd-5c35f552fa78",
+      "hash": "f18eeee40c372f2d",
+      "updatedAt": "2026-06-02T12:13:35.397Z"
+    },
+    "submit_category": {
+      "id": "b80a2138-08c8-4a38-af51-1da2c4c0ea89",
+      "hash": "c27c9c8742ecddc3",
+      "updatedAt": "2026-06-02T12:13:36.141Z"
+    },
+    "submit_goals": {
+      "id": "6def1873-72ad-4526-8d3a-2310f5a5b209",
+      "hash": "5af417e898fa52ab",
+      "updatedAt": "2026-06-02T12:13:36.862Z"
+    },
+    "add_habit": {
+      "id": "76cc0563-3429-4a1b-a78b-fe0751601071",
+      "hash": "c34ac5ede988de86",
+      "updatedAt": "2026-06-02T12:13:37.641Z"
+    },
+    "remove_habit": {
+      "id": "923cbe30-fac4-43c1-be0a-0647cbacf142",
+      "hash": "ea68bfc39a2f32d5",
+      "updatedAt": "2026-06-02T12:13:39.178Z"
+    },
+    "submit_reflection_config": {
+      "id": "0509bfab-8f62-4d86-b794-a7edf743ab05",
+      "hash": "987c1736d9202f72",
+      "updatedAt": "2026-06-02T12:13:39.904Z"
+    },
+    "submit_custom_prompts": {
+      "id": "0c3e4be2-2089-4bf4-be10-072ffa115250",
+      "hash": "2700d4119287fcda",
+      "updatedAt": "2026-06-02T12:13:40.345Z"
+    },
+    "submit_brain_dump": {
+      "id": "a3cb662a-3371-42a0-88e9-187101e332c3",
+      "hash": "3e83cc6ef1634ac3",
+      "updatedAt": "2026-06-02T12:13:41.227Z"
+    },
+    "navigate_next": {
+      "id": "502c1f98-eaf5-4b7b-b50a-b40e8734346c",
+      "hash": "5412c1a3ab7207cd",
+      "updatedAt": "2026-06-02T12:13:42.008Z"
+    },
+    "confirm_plan": {
+      "id": "607404a5-fdfb-4869-98a2-0065776166e8",
+      "hash": "62b4bca3bce4ff67",
+      "updatedAt": "2026-06-02T12:13:42.334Z"
+    },
+    "update_habit": {
+      "id": "2bf6c8e8-81ff-4240-953c-a25a0c72cdac",
+      "hash": "3956ab84b87bea21",
+      "updatedAt": "2026-06-02T13:56:37.987Z"
+    }
+  },
+  "assistant": {
+    "id": "1272f6ba-d570-4736-9496-03ee16b6d109",
+    "hash": "42de26a38174a0a9",
+    "updatedAt": "2026-06-02T13:56:38.984Z"
+  }
 }

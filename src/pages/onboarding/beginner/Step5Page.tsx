@@ -8,12 +8,14 @@ import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { OnboardingTooltip } from '@/components/onboarding/OnboardingTooltip';
 import { BottomSheet } from '@/components/ui/BottomSheet';
-import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
+import {
+  useOnboardingVoice,
+  type OnboardingVoiceResult,
+} from '@/contexts/useOnboardingVoiceSession';
 import { habitsByGoal, MAX_HABITS_ONBOARDING } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useStepTiming } from '../shared/useStepTiming';
 import { deriveHabitVoiceUpdate } from './deriveHabitVoiceUpdate';

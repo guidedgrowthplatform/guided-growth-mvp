@@ -19,6 +19,8 @@ const pool = (await import('../../db.js')).default as {
 
 const { addHabit } = await import('../handlers/addHabit.js');
 const { submitReflectionConfig } = await import('../handlers/submitReflectionConfig.js');
+const { confirmPlan } = await import('../handlers/confirmPlan.js');
+const { updateHabit } = await import('../handlers/updateHabit.js');
 
 const ANON = '11111111-1111-4111-8111-111111111111';
 
@@ -129,5 +131,88 @@ describe('vapi submitReflectionConfig — reconciliation', () => {
     const payload = JSON.parse(pool.query.mock.calls[0][1][1] as string);
     expect(payload.reflectionConfig.schedule).toBe('Weekend');
     expect(payload.reflectionConfig.days).toEqual([0, 6]);
+  });
+});
+
+describe('vapi confirmPlan — State-1 completion', () => {
+  it('invalid anon_id: returns invalid_identity, no DB write', async () => {
+    const res = await confirmPlan({ anon_id: 'not-a-uuid' });
+    expect(res).toEqual({ error: 'invalid_identity' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('missing anon_id: returns invalid_identity, no DB write', async () => {
+    const res = await confirmPlan({});
+    expect(res).toEqual({ error: 'invalid_identity' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('valid anon_id: monotonic GREATEST bump to step 8, returns ok', async () => {
+    const res = await confirmPlan({ anon_id: ANON });
+    expect(res).toEqual({ result: 'ok' });
+    expect(pool.query).toHaveBeenCalledTimes(1);
+    const [sql, params] = pool.query.mock.calls[0];
+    expect(sql).toContain('GREATEST(onboarding_states.current_step, 8)');
+    expect(params).toEqual([ANON]);
+  });
+});
+
+describe('vapi updateHabit — partial patch', () => {
+  it('invalid anon_id: returns invalid_identity', async () => {
+    const res = await updateHabit({ anon_id: 'not-a-uuid', name: 'Walk', time: '08:00' });
+    expect(res).toEqual({ error: 'invalid_identity' });
+  });
+
+  it('idempotent ok + no write when the habit is absent', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ hc: { Run: { days: [1], time: '07:00' } } }] });
+    const res = await updateHabit({ anon_id: ANON, name: 'Walk', time: '08:00' });
+    expect(res).toEqual({ result: 'ok' });
+    // Only the SELECT ran — no UPDATE for a habit that isn't there.
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('patches only the provided field, preserving the rest (case-insensitive)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rows: [
+        {
+          hc: {
+            Meditate: { days: [1, 2, 3, 4, 5], time: '07:00', reminder: true, schedule: 'Weekday' },
+          },
+        },
+      ],
+    });
+    const res = await updateHabit({ anon_id: ANON, name: 'meditate', time: '08:00' });
+    expect(res).toEqual({ result: 'ok' });
+    // UPDATE is the 2nd query; $2 carries { [name]: mergedEntry }.
+    const merge = JSON.parse(pool.query.mock.calls[1][1][1] as string);
+    expect(merge.Meditate).toEqual({
+      days: [1, 2, 3, 4, 5],
+      time: '08:00',
+      reminder: true,
+      schedule: 'Weekday',
+    });
+  });
+
+  it('days change re-infers schedule and preserves the untouched time', async () => {
+    pool.query.mockResolvedValueOnce({
+      rows: [
+        {
+          hc: {
+            Walk: { days: [1, 2, 3, 4, 5], time: '07:00', reminder: true, schedule: 'Weekday' },
+          },
+        },
+      ],
+    });
+    await updateHabit({ anon_id: ANON, name: 'Walk', days: [0, 6] });
+    const merge = JSON.parse(pool.query.mock.calls[1][1][1] as string);
+    expect(merge.Walk.days).toEqual([0, 6]);
+    expect(merge.Walk.schedule).toBe('Weekend');
+    expect(merge.Walk.time).toBe('07:00');
+  });
+
+  it('requires at least one field to change', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ hc: { Walk: { days: [1], time: '07:00' } } }] });
+    const res = await updateHabit({ anon_id: ANON, name: 'Walk' });
+    expect(res).toEqual({ error: 'validation_failed: provide at least one field to update' });
   });
 });

@@ -3,10 +3,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import {
+  useOnboardingVoice,
+  type OnboardingVoiceResult,
+} from '@/contexts/useOnboardingVoiceSession';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useStepTiming } from '../shared/useStepTiming';
 
 type JournalMode = 'freeform' | 'custom';
@@ -32,9 +35,17 @@ export function AdvancedCustomPromptsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { state: onboardingState } = useOnboarding();
+  const onboardingVoice = useOnboardingVoice();
   const state = location.state as LocationState | null;
 
   useAgentNavigation(5, '/onboarding/advanced-step-6');
+
+  // Vapi + Direct-LLM context for the custom-prompts screen.
+  useEffect(() => {
+    if (!onboardingVoice) return;
+    onboardingVoice.pushSubScreen('ONBOARD-ADV-CUSTOM');
+    return () => onboardingVoice.pushSubScreen(null);
+  }, [onboardingVoice]);
   const trackStepComplete = useStepTiming(7, 'custom_prompts', 'advanced');
 
   const [journalMode, setJournalMode] = useState<JournalMode>(state?.journalMode ?? 'custom');

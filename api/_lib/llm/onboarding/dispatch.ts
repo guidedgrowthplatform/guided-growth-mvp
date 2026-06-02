@@ -1,5 +1,6 @@
 import type { ToolResult } from '../tools.js';
 import { addHabit } from './handlers/addHabit.js';
+import { confirmPlan } from './handlers/confirmPlan.js';
 import { confirmStepComplete } from './handlers/confirmStepComplete.js';
 import { removeHabit } from './handlers/removeHabit.js';
 import { submitBrainDump } from './handlers/submitBrainDump.js';
@@ -8,13 +9,12 @@ import { submitGoals } from './handlers/submitGoals.js';
 import { submitPathChoice } from './handlers/submitPathChoice.js';
 import { submitProfile } from './handlers/submitProfile.js';
 import { submitReflectionConfig } from './handlers/submitReflectionConfig.js';
+import { updateHabit } from './handlers/updateHabit.js';
+import { submitCustomPrompts } from './handlers/submitCustomPrompts.js';
 import type { OnboardingHandlerCtx } from './handlers/shared.js';
 import { isOnboardingToolName, type OnboardingToolName } from './schemas.js';
 
-type Handler = (
-  ctx: OnboardingHandlerCtx,
-  args: Record<string, unknown>,
-) => Promise<ToolResult>;
+type Handler = (ctx: OnboardingHandlerCtx, args: Record<string, unknown>) => Promise<ToolResult>;
 
 const HANDLERS: Record<OnboardingToolName, Handler> = {
   submit_profile: submitProfile,
@@ -23,9 +23,12 @@ const HANDLERS: Record<OnboardingToolName, Handler> = {
   submit_goals: submitGoals,
   add_habit: addHabit,
   remove_habit: removeHabit,
+  update_habit: updateHabit,
   submit_reflection_config: submitReflectionConfig,
+  submit_custom_prompts: submitCustomPrompts,
   submit_brain_dump: submitBrainDump,
   confirm_step_complete: confirmStepComplete,
+  confirm_plan: confirmPlan,
 };
 
 export async function dispatchOnboardingToolCall(

@@ -3,7 +3,9 @@
  *
  * Reads ONBOARDING_TOOLS from api/_lib/llm/tools.onboarding.ts, wraps each in
  * Vapi's envelope, then for each tool: skip if hash unchanged, PATCH if
- * mutated, POST if new. Finally PATCHes the configured assistant to attach
+ * mutated, POST only if it exists in neither the lockfile nor live Vapi
+ * (matched by name — so a stale/empty lockfile adopts existing tools instead
+ * of duplicating them). Finally PATCHes the configured assistant to attach
  * the union of (existing-on-assistant) ∪ (our-managed) tool IDs.
  *
  * Lockfile (vapi.lock.json) holds {tools: {name → {id, hash}}, assistant: {…}}
@@ -32,6 +34,7 @@ import { wrapTool, type VapiToolEnvelope } from './wrap.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const IS_DEV = process.argv.includes('--dev');
+const IS_DRY = process.argv.includes('--dry-run');
 const LOCKFILE = resolve(__dirname, IS_DEV ? 'vapi.lock.dev.json' : 'vapi.lock.json');
 const VAPI_BASE = 'https://api.vapi.ai';
 
@@ -169,6 +172,38 @@ interface VapiToolCreated {
   [k: string]: unknown;
 }
 
+interface VapiToolListItem {
+  id: string;
+  function?: { name?: string; description?: string; parameters?: unknown };
+  server?: { url?: string };
+}
+
+// Live tools indexed by function-name. Lets the loop adopt tools made by a
+// prior run or by hand (so an empty/stale lockfile never duplicates them), and
+// backs the --dry-run field diff.
+async function fetchRemoteToolsByName(apiKey: string): Promise<Map<string, VapiToolListItem[]>> {
+  const tools = await vapiFetch<VapiToolListItem[]>('GET', '/tool?limit=1000', apiKey);
+  const byName = new Map<string, VapiToolListItem[]>();
+  for (const t of Array.isArray(tools) ? tools : []) {
+    const name = t.function?.name;
+    if (!name || !t.id) continue;
+    byName.set(name, [...(byName.get(name) ?? []), t]);
+  }
+  return byName;
+}
+
+// Fields a PATCH would overwrite on an existing tool (secret excluded — GET
+// never returns it; it always rotates here).
+function diffEnvelope(live: VapiToolListItem | undefined, env: VapiToolEnvelope): string[] {
+  if (!live) return [];
+  const changed: string[] = [];
+  if ((live.function?.description ?? '') !== env.function.description) changed.push('description');
+  if (JSON.stringify(live.function?.parameters ?? null) !== JSON.stringify(env.function.parameters))
+    changed.push('parameters');
+  if ((live.server?.url ?? '') !== env.server.url) changed.push('server.url');
+  return changed;
+}
+
 function dedupe(ids: ReadonlyArray<string>): string[] {
   return Array.from(new Set(ids));
 }
@@ -204,6 +239,8 @@ async function main(): Promise<void> {
   );
 
   const lock = loadLock();
+  const remoteByName = await fetchRemoteToolsByName(apiKey);
+  if (IS_DRY) console.log('[dry-run] no writes will be made.\n');
 
   let createdCount = 0;
   let updatedCount = 0;
@@ -220,11 +257,38 @@ async function main(): Promise<void> {
       continue;
     }
 
-    if (prev) {
-      await patchTool(prev.id, envelope, apiKey);
-      console.log(`  ↻ updated    ${tool.name}  (${prev.id})`);
+    // Existing tool: lockfile first, else adopt by name from live Vapi.
+    const liveMatches = remoteByName.get(tool.name) ?? [];
+    if (!prev && liveMatches.length > 1) {
+      throw new Error(
+        `Vapi already has ${liveMatches.length} tools named "${tool.name}" ` +
+          `(${liveMatches.map((t) => t.id).join(', ')}). ` +
+          `Resolve the duplicates in the Vapi dashboard before syncing.`,
+      );
+    }
+    const liveItem = liveMatches[0];
+    const existingId = prev?.id ?? liveItem?.id;
+
+    if (IS_DRY) {
+      if (existingId) {
+        const changed = diffEnvelope(liveItem, envelope);
+        const detail = changed.length
+          ? `def changes: ${changed.join(', ')} (+secret)`
+          : 'secret only';
+        console.log(`  ↻ would update  ${tool.name}  (${existingId})  — ${detail}`);
+        updatedCount++;
+      } else {
+        console.log(`  + would create  ${tool.name}`);
+        createdCount++;
+      }
+      continue;
+    }
+
+    if (existingId) {
+      await patchTool(existingId, envelope, apiKey);
+      console.log(`  ↻ updated    ${tool.name}  (${existingId})`);
       lock.tools[tool.name] = {
-        id: prev.id,
+        id: existingId,
         hash: h,
         updatedAt: new Date().toISOString(),
       };
@@ -244,6 +308,14 @@ async function main(): Promise<void> {
       };
       createdCount++;
     }
+  }
+
+  if (IS_DRY) {
+    console.log(
+      `\n[dry-run] no changes written. Would: ${createdCount} create, ${updatedCount} update ` +
+        `(existing tools re-pushed from code + rotated secret). Run without --dry-run to apply.`,
+    );
+    return;
   }
 
   // Attach to assistant — UNION semantics so we never strip IDs the user

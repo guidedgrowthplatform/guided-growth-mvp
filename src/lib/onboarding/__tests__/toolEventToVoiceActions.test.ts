@@ -36,10 +36,34 @@ describe('toolEventToVoiceActions', () => {
       }),
     );
     expect(out).toEqual([
-      { success: true, action: 'fill_field', params: { fieldName: 'nickname', value: 'alice' }, message: '', confidence: 1 },
-      { success: true, action: 'fill_field', params: { fieldName: 'age', value: '28' }, message: '', confidence: 1 },
-      { success: true, action: 'select_option', params: { fieldName: 'gender', value: 'Female' }, message: '', confidence: 1 },
-      { success: true, action: 'select_option', params: { fieldName: 'referralSource', value: 'Reddit' }, message: '', confidence: 1 },
+      {
+        success: true,
+        action: 'fill_field',
+        params: { fieldName: 'nickname', value: 'alice' },
+        message: '',
+        confidence: 1,
+      },
+      {
+        success: true,
+        action: 'fill_field',
+        params: { fieldName: 'age', value: '28' },
+        message: '',
+        confidence: 1,
+      },
+      {
+        success: true,
+        action: 'select_option',
+        params: { fieldName: 'gender', value: 'Female' },
+        message: '',
+        confidence: 1,
+      },
+      {
+        success: true,
+        action: 'select_option',
+        params: { fieldName: 'referralSource', value: 'Reddit' },
+        message: '',
+        confidence: 1,
+      },
     ]);
   });
 
@@ -109,6 +133,23 @@ describe('toolEventToVoiceActions', () => {
     });
   });
 
+  it('update_habit → update_habit with name + patch of only the provided fields', () => {
+    const out = toolEventToVoiceActions(evt('update_habit', { name: 'Meditate', time: '08:00' }));
+    expect(out).toEqual([
+      {
+        success: true,
+        action: 'update_habit',
+        params: { name: 'Meditate', patch: { time: '08:00' } },
+        message: '',
+        confidence: 1,
+      },
+    ]);
+  });
+
+  it('update_habit with name only (no patch fields) emits nothing', () => {
+    expect(toolEventToVoiceActions(evt('update_habit', { name: 'Meditate' }))).toEqual([]);
+  });
+
   it('submit_reflection_config preserves the full schedule shape', () => {
     const out = toolEventToVoiceActions(
       evt('submit_reflection_config', {
@@ -134,6 +175,33 @@ describe('toolEventToVoiceActions', () => {
     const text = 'I want to focus on sleep and exercise.';
     const out = toolEventToVoiceActions(evt('submit_brain_dump', { brain_dump_raw: text }));
     expect(out[0].params).toEqual({ fieldName: 'brainDumpText', value: text });
+  });
+
+  it('submit_custom_prompts fans out one fill_field per prompt with indexed fieldName', () => {
+    const out = toolEventToVoiceActions(evt('submit_custom_prompts', { prompts: ['a', 'b'] }));
+    expect(out).toEqual([
+      {
+        success: true,
+        action: 'fill_field',
+        params: { fieldName: 'customPrompts[0]', value: 'a' },
+        message: '',
+        confidence: 1,
+      },
+      {
+        success: true,
+        action: 'fill_field',
+        params: { fieldName: 'customPrompts[1]', value: 'b' },
+        message: '',
+        confidence: 1,
+      },
+    ]);
+  });
+
+  it('confirm_plan → confirm_plan action (PlanReviewPage completes)', () => {
+    const out = toolEventToVoiceActions(evt('confirm_plan', { reason: 'user said let us go' }));
+    expect(out).toEqual([
+      { success: true, action: 'confirm_plan', params: {}, message: '', confidence: 1 },
+    ]);
   });
 
   it('ignores non-string / wrong-type fields gracefully', () => {

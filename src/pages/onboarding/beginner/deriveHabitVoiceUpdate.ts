@@ -26,8 +26,8 @@
  * category. See gg-spec/screens/ONBOARD-BEGINNER-03.md "Custom habits
  * allowed - capture name via voice/text."
  */
+import { type OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession';
 import { MAX_HABITS_ONBOARDING } from '@/data/onboardingHabits';
-import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 
 export interface HabitVoiceState {
   /** Goals selected for this onboarding session, in display order. */
