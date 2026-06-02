@@ -1,3 +1,6 @@
+import { MarkdownMessage } from '@/components/chat/MarkdownMessage';
+import { safeStreamPrefix } from '@/lib/markdown/parse';
+
 interface ChatBubbleProps {
   role: 'user' | 'ai';
   text: string;
@@ -5,6 +8,20 @@ interface ChatBubbleProps {
   animate?: boolean;
   eyebrowVariant?: 'light' | 'dark';
   compact?: boolean;
+  streaming?: boolean;
+  markdown?: boolean;
+}
+
+function StreamingText({ text }: { text: string }) {
+  if (text.length === 0) return null;
+  return (
+    <>
+      {text.slice(0, -1)}
+      <span key={text.length} className="animate-fade-in">
+        {text.slice(-1)}
+      </span>
+    </>
+  );
 }
 
 export function ChatBubble({
@@ -14,6 +31,8 @@ export function ChatBubble({
   animate = true,
   eyebrowVariant = 'light',
   compact = false,
+  streaming = false,
+  markdown = false,
 }: ChatBubbleProps) {
   const isUser = role === 'user';
   const isLightBackdrop = eyebrowVariant === 'dark';
@@ -40,7 +59,15 @@ export function ChatBubble({
       ? 'py-[14px] pl-[21px] pr-[23px]'
       : 'py-[14px] pl-[21px] pr-[30px]';
 
-  const textLeading = compact ? 'leading-[20px]' : isUser ? 'leading-[29.25px]' : 'leading-[27.5px]';
+  const textLeading = compact
+    ? 'leading-[20px]'
+    : isUser
+      ? 'leading-[29.25px]'
+      : 'leading-[27.5px]';
+
+  const textClasses = isUser
+    ? `text-[14px] font-medium ${textLeading} text-[#0f172a]`
+    : `text-[14px] font-semibold ${textLeading} text-white`;
 
   return (
     <div className={`flex flex-col ${wrapperMargins}`}>
@@ -63,15 +90,13 @@ export function ChatBubble({
               : `rounded-bl-[16px] rounded-br-[16px] rounded-tr-[16px] bg-[rgba(19,91,236,0.8)] ${bubblePad}`
           } ${animate ? 'animate-bubble-in' : ''}`}
         >
-          <p
-            className={
-              isUser
-                ? `text-[14px] font-medium ${textLeading} text-[#0f172a]`
-                : `text-[14px] font-semibold ${textLeading} text-white`
-            }
-          >
-            {text}
-          </p>
+          {markdown ? (
+            <div className={textClasses}>
+              <MarkdownMessage text={streaming ? safeStreamPrefix(text) : text} />
+            </div>
+          ) : (
+            <p className={textClasses}>{streaming ? <StreamingText text={text} /> : text}</p>
+          )}
         </div>
       </div>
     </div>

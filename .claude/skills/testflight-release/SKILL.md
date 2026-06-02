@@ -1,6 +1,6 @@
 ---
 name: testflight-release
-description: Use when cutting a new iOS TestFlight release, bumping the app version, tagging a build for distribution, or asked to "ship a release" / "push v2.x". Covers the v* tag → CI → TestFlight pipeline and the semver decision.
+description: Use when cutting a new iOS TestFlight / Android Play release, bumping the app version, tagging a build for distribution, or asked to "ship a release" / "push v2.x". Covers the v* tag → CI → TestFlight + Play internal pipeline, tester release notes, and the semver decision.
 user-invocable: false
 ---
 
@@ -28,6 +28,16 @@ Semver against the previous release tag:
 
 Always check `git log <last-tag>..HEAD` before deciding. `package.json` `version` is **not** the source of truth — tags are.
 
+## Tester notes (TestFlight "What to Test" + Play release notes)
+
+One committed file drives the tester-facing notes on **both** stores — automated, no console editing:
+
+- **File:** `release-notes/whatsnew-en-US` (plain text, no extension; `whatsnew-<locale>` is the Play-required naming). Edit this one file in place each release — never create a versioned copy.
+- **iOS:** `fastlane/Fastfile` reads it (`__dir__`-anchored) and passes it as `upload_to_testflight(changelog:)` → TestFlight "What to Test". Fail-safe: if the file is missing, `changelog` is `nil` and the upload still succeeds (no notes).
+- **Android:** `ci.yml` Play step sets `whatsNewDirectory: release-notes` → Play release notes. A guard step **fails the build** if the file is missing or **>500 chars** (Play's per-locale limit; iOS allows ~4000).
+- **Content:** tester-facing "what to test" steps (not a dev changelog). Keep it ≤500 chars, plain ASCII. ~4–5 short steps is the sweet spot.
+- Add a second file (e.g. `whatsnew-es-ES`) only for another **locale**; the same text goes to both stores otherwise.
+
 ## Cutting a release
 
 1. **Confirm you're on `main` and up to date:**
@@ -38,7 +48,8 @@ Always check `git log <last-tag>..HEAD` before deciding. `package.json` `version
    ```bash
    git log $(git describe --tags --abbrev=0)..HEAD --oneline
    ```
-3. **Create the annotated tag** with a release-note message (mirror the style of `git show v2.3.0`):
+3. **Update tester notes** — overwrite `release-notes/whatsnew-en-US` with this release's "what to test" (≤500 chars), and commit it to `main` *before* tagging so the tag captures it. CI reads the file at tag time.
+4. **Create the annotated tag** with a release-note message (mirror the style of `git show v2.3.0`):
    ```bash
    git tag -a vX.Y.Z -m "Release vX.Y.Z: <short title>
 
@@ -46,12 +57,12 @@ Always check `git log <last-tag>..HEAD` before deciding. `package.json` `version
    - Builds on v<previous> (<one-line of what that shipped>)"
    ```
    Annotated tags only (`-a`), never lightweight — they carry the release notes and the tagger identity.
-4. **Push the tag:**
+5. **Push the tag:**
    ```bash
    git push origin vX.Y.Z
    ```
-5. **Verify CI fired** — check GitHub Actions for the `iOS TestFlight` job on the new tag. Build typically takes 12–18 min.
-6. **Confirm in App Store Connect** that the new build appears in TestFlight before notifying testers.
+6. **Verify CI fired** — check GitHub Actions for the `iOS TestFlight` job on the new tag. Build typically takes 12–18 min.
+7. **Confirm in App Store Connect** that the new build appears in TestFlight before notifying testers.
 
 ## Before tagging — checks
 
@@ -69,6 +80,7 @@ Always check `git log <last-tag>..HEAD` before deciding. `package.json` `version
 | Lightweight tag (`git tag vX.Y.Z`) | Use `-a` so release notes ship with the tag. |
 | Pushing to GitHub directly | We push to `origin` (GitLab); GitHub is downstream via mirror. |
 | Tagging before a fix is merged to `main` | `ios-testflight` only fires for tags reachable from `main`. Merge first, then tag. |
+| Forgetting to update `release-notes/whatsnew-en-US` | Testers get last release's "what to test" (iOS) or the build fails the 500-char guard (Android). Edit + commit it before tagging. |
 
 ## Rollback
 

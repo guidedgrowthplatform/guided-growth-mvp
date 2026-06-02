@@ -12,7 +12,7 @@ import {
   type OnboardingVoiceResult,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
-import { useMicRingIntensity } from '@/hooks/useMicRingIntensity';
+import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useOnboardingRealtimeSync } from '@/hooks/useOnboardingRealtimeSync';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
@@ -89,7 +89,9 @@ export function OnboardingLayout({
   // Page orb rings/ripples in voice-in even with the overlay closed (UX-18).
   const isVoiceInOnly = orbStateFrom(voiceOn, micOn) === 'voice_in_only';
   const voiceInListening = onboardingVoice?.voiceInListening ?? false;
-  const micRingIntensity = useMicRingIntensity(isVoiceInOnly && voiceInListening);
+  const { intensity: micRingIntensity, speaking: micSpeaking } = useMicVoiceActivity(
+    isVoiceInOnly && voiceInListening,
+  );
 
   const voicePlayer = useVoicePlayer();
 
@@ -186,6 +188,19 @@ export function OnboardingLayout({
     toggleMic();
   };
 
+  const orbActiveRings: 'left' | 'right' | 'ready' | 'idle' | null =
+    isVoiceInOnly && voiceInListening
+      ? micSpeaking
+        ? 'right'
+        : 'ready'
+      : ttsOn && vapiSpeaking
+        ? 'left'
+        : micOn && vapiUserSpeaking
+          ? 'right'
+          : vapiStatus === 'active'
+            ? 'idle'
+            : null;
+
   const voiceControl = showVoiceButton ? (
     <div className="relative my-6 flex flex-col items-center gap-2">
       {tooltipVisible && <VoiceTooltip autoDismissMs={4000} onDismiss={handleTooltipDismiss} />}
@@ -193,18 +208,8 @@ export function OnboardingLayout({
         size={88}
         leftActive={ttsOn}
         rightActive={micOn}
-        activeRings={
-          isVoiceInOnly && voiceInListening
-            ? 'right'
-            : ttsOn && vapiSpeaking
-              ? 'left'
-              : micOn && vapiUserSpeaking
-                ? 'right'
-                : vapiStatus === 'active'
-                  ? 'idle'
-                  : null
-        }
-        intensity={isVoiceInOnly && voiceInListening ? micRingIntensity : undefined}
+        activeRings={orbActiveRings}
+        intensity={orbActiveRings === 'right' ? micRingIntensity : undefined}
         leftIcon={ttsOn ? <IconChatVoice size={30} /> : <IconChatText size={30} />}
         rightIcon={micOn ? <IconMic size={30} /> : <IconMicMuted size={30} />}
         onLeftClick={handleTtsToggleClick}

@@ -40,7 +40,7 @@ export function SignInPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-surface px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
       <div className="mt-6">
-        <h1 className="text-4xl font-bold tracking-tight text-content">Welcome back!</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-primary">Welcome!</h1>
         <p className="mt-2 text-lg font-medium text-content-secondary">
           Let's check in with your habits today.
         </p>

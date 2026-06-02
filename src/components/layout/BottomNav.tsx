@@ -5,11 +5,11 @@ import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
+import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useScreenMap } from '@/hooks/useScreenMap';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useVoiceChannelBusy } from '@/hooks/useVoiceChannelBusy';
 import { useTtsPlaybackStore } from '@/lib/services/tts-service';
-import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 // Soft-keyboard heuristic: visual viewport shrinks by more than this when the
@@ -96,7 +96,7 @@ function NavBarBackground() {
   );
 }
 
-export function BottomNav() {
+export function BottomNav({ hidden = false }: { hidden?: boolean }) {
   const location = useLocation();
   const {
     voiceOn: ttsEnabled,
@@ -108,7 +108,7 @@ export function BottomNav() {
   } = useDualButtonControls();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
   const isListening = useVoiceStore((s) => s.isListening);
-  const currentRms = useAudioMetricsStore((s) => s.currentRms);
+  const { intensity: micIntensity, speaking: micSpeaking } = useMicVoiceActivity(isListening);
   const channelBusy = useVoiceChannelBusy();
   const { logEvent, startVoice, endVoice } = useSessionLog();
   const { routeToScreenId } = useScreenMap();
@@ -121,8 +121,14 @@ export function BottomNav() {
     return location.pathname === path;
   };
 
-  const activeRings = isSpeaking ? 'left' : isListening ? 'right' : null;
-  const intensity = isListening ? Math.min(currentRms / 0.05, 1) : undefined;
+  const activeRings: 'left' | 'right' | 'ready' | null = isSpeaking
+    ? 'left'
+    : isListening
+      ? micSpeaking
+        ? 'right'
+        : 'ready'
+      : null;
+  const intensity = activeRings === 'right' ? micIntensity : undefined;
 
   const handleLeftToggle = () => {
     const next = !ttsEnabled;
@@ -168,7 +174,9 @@ export function BottomNav() {
   // viewport shrinks (issue #194). Unmounting would orphan in-flight voice
   // anchors held in voiceAnchorIdRef.
   return (
-    <nav className={`fixed inset-x-0 bottom-0 z-[60] lg:hidden ${keyboardOpen ? 'hidden' : ''}`}>
+    <nav
+      className={`fixed inset-x-0 bottom-0 z-[60] lg:hidden ${keyboardOpen || hidden ? 'hidden' : ''}`}
+    >
       <div>
         <div className="relative" style={{ height: '72px' }}>
           <NavBarBackground />
