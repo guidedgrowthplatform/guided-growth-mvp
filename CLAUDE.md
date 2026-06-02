@@ -117,14 +117,24 @@ This means `/api/metrics` hits the catch-all with `segments[0] === '__index'`, w
 
 Vercel Hobby plan allows **12 serverless functions**. We currently use **8**. Do NOT create new top-level files in `api/` — add sub-routes to existing catch-all handlers instead.
 
-### 3. Path Aliases — Vite, Not TypeScript
+### 3. Path Aliases + the `@gg/shared` package (THREE resolution lanes)
 
 ```
-@/     → src/          (resolved by Vite alias in vite.config.ts)
-@shared/ → packages/shared/src/  (resolved by Vite alias)
+@/         → src/                 (Vite alias in vite.config.ts)
+@gg/shared → packages/shared/src/ (build-time lanes) / packages/shared/dist/ (runtime lane)
 ```
 
-**Do NOT use `composite: true` or `references` in tsconfig.** Vite resolves aliases at build time. TypeScript composite mode expects pre-built output which doesn't exist. The `tsconfig.json` has `paths` configured for editor intellisense only — Vite does the actual resolution.
+`@gg/shared` is a **real workspace package** (`packages/shared/package.json`, name `@gg/shared`, with an `exports` map). It resolves three independent ways — do not collapse them:
+
+- **Frontend (Vite dev/build, vitest):** Vite alias → source `.ts`.
+- **Typecheck / editor / eslint:** tsconfig `paths` (`@gg/shared` + `@gg/shared/*` in both root `tsconfig.json` and `api/tsconfig.json`) → source `.ts`.
+- **API runtime (Node on Vercel) + `vercel dev`:** the package `exports` map → compiled `dist/*.js`. Node can't run `.ts`, so the runtime lane MUST be built.
+
+**Why this matters:** the API ships as a node-file-traced tree, so a bare alias would survive into runtime and crash (`ERR_MODULE_NOT_FOUND`). A real package name + `exports` + `dist` is what lets Node resolve it natively.
+
+- **Build step:** `tsc -b packages/shared` runs via root `postinstall` (and `predev:api`), emitting `dist/` before any build/trace. `dist/` is gitignored.
+- **Import specifiers are extensionless** (e.g. `@gg/shared/types/llm`) so the single `./*` exports wildcard maps cleanly to `dist/*.js`. Internal re-exports _inside_ `packages/shared/src` keep their `.js` extensions (Node ESM).
+- **`composite: true` is correct on `packages/shared/tsconfig.json`** (it's a standalone built project). Do NOT add `composite`/`references` to the root app `tsconfig.json` — Vite resolves the app, and composite there expects prebuilt output that doesn't exist.
 
 ### 4. Database Pool `max: 1`
 
@@ -164,7 +174,7 @@ Vercel Hobby plan allows **12 serverless functions**. We currently use **8**. Do
 
 ### 9. Realtime IS Subject to RLS (unlike service-role queries)
 
-Gotcha #5 only applies to **server-side** `pg` queries (service role bypasses RLS). **Supabase Realtime** subscriptions run with the client's anon key + session JWT, so RLS *is* enforced there. `onboarding_states` has an enabled `user_isolation` policy (`anon_id = current_anon_id()`, JWT-based, fail-closed), which is what actually prevents a client from subscribing to another user's rows. The client-side `filter: anon_id=eq.X` is redundant defense-in-depth, not the boundary.
+Gotcha #5 only applies to **server-side** `pg` queries (service role bypasses RLS). **Supabase Realtime** subscriptions run with the client's anon key + session JWT, so RLS _is_ enforced there. `onboarding_states` has an enabled `user_isolation` policy (`anon_id = current_anon_id()`, JWT-based, fail-closed), which is what actually prevents a client from subscribing to another user's rows. The client-side `filter: anon_id=eq.X` is redundant defense-in-depth, not the boundary.
 
 ---
 
@@ -264,6 +274,7 @@ Signup confirmation and password reset emails always redirect to `${VITE_PUBLIC_
 OAuth (`signInWithGoogle`) still uses the custom scheme — that's an on-device in-app-browser handoff, not an email.
 
 **Supabase dashboard allowlist** (Auth → URL Configuration) must include:
+
 - Site URL: `https://guided-growth-mvp.vercel.app`
 - Redirect URLs:
   - `https://guided-growth-mvp.vercel.app/auth/callback`
@@ -296,7 +307,7 @@ api/preferences.ts (serverless function)
 
 ### Shared Types
 
-ALL TypeScript types live in `packages/shared/src/types/index.ts`. Both frontend and API import from here via the `@shared/` alias. When adding a new type, put it in this file.
+ALL TypeScript types live in `packages/shared/src/types/index.ts`. Both frontend and API import from here via the `@gg/shared` package (see Gotcha #3). When adding a new type, put it in this file.
 
 ### Keyboard Shortcuts
 
@@ -326,21 +337,21 @@ All core tables are now created in the migrations (previously `allowlist`, `entr
 
 ## File Quick Reference
 
-| What                                     | Where                                                                                                                                   |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| All shared types                         | `packages/shared/src/types/index.ts`                                                                                                    |
-| Vite config (aliases, PWA, proxy, tests) | `vite.config.ts`                                                                                                                        |
-| Vercel routing & rewrites                | `vercel.json`                                                                                                                           |
-| DB connection                            | `api/_lib/db.ts`                                                                                                                        |
-| Auth middleware                          | `api/_lib/auth.ts`                                                                                                                      |
-| Main app entry                           | `src/main.tsx` → `src/App.tsx`                                                                                                          |
-| Spreadsheet orchestrator                 | `src/components/capture/CaptureView.tsx`                                                                                                |
-| Toast system                             | `src/contexts/ToastContext.tsx` + `src/components/ui/Toast.tsx`                                                                         |
-| Offline queue                            | `src/cache/offlineQueue.ts`                                                                                                             |
-| PWA manifest                             | `public/manifest.json`                                                                                                                  |
-| Tailwind config (animations)             | `tailwind.config.js`                                                                                                                    |
-| DB migrations                            | `supabase/migrations/`                                                                                                                  |
-| Claude skills (naming, frontend design)  | `.claude/skills/*/SKILL.md`                                                                                                             |
-| Product specs & roadmap                  | `.claude/skills/product/` (auto-loaded for scope/feature talk)                                                                          |
-| Voice/chat architecture (umbrella)       | `.claude/skills/voice-architecture/` — start here for any voice question                                                                |
+| What                                     | Where                                                                                                                                                                |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| All shared types                         | `packages/shared/src/types/index.ts`                                                                                                                                 |
+| Vite config (aliases, PWA, proxy, tests) | `vite.config.ts`                                                                                                                                                     |
+| Vercel routing & rewrites                | `vercel.json`                                                                                                                                                        |
+| DB connection                            | `api/_lib/db.ts`                                                                                                                                                     |
+| Auth middleware                          | `api/_lib/auth.ts`                                                                                                                                                   |
+| Main app entry                           | `src/main.tsx` → `src/App.tsx`                                                                                                                                       |
+| Spreadsheet orchestrator                 | `src/components/capture/CaptureView.tsx`                                                                                                                             |
+| Toast system                             | `src/contexts/ToastContext.tsx` + `src/components/ui/Toast.tsx`                                                                                                      |
+| Offline queue                            | `src/cache/offlineQueue.ts`                                                                                                                                          |
+| PWA manifest                             | `public/manifest.json`                                                                                                                                               |
+| Tailwind config (animations)             | `tailwind.config.js`                                                                                                                                                 |
+| DB migrations                            | `supabase/migrations/`                                                                                                                                               |
+| Claude skills (naming, frontend design)  | `.claude/skills/*/SKILL.md`                                                                                                                                          |
+| Product specs & roadmap                  | `.claude/skills/product/` (auto-loaded for scope/feature talk)                                                                                                       |
+| Voice/chat architecture (umbrella)       | `.claude/skills/voice-architecture/` — start here for any voice question                                                                                             |
 | Voice paths (per-path detail)            | `.claude/skills/path-1-vapi/` (onboarding), `.claude/skills/path-2-async/` (check-ins), `.claude/skills/path-3-direct-llm/` (onboarding's three non-Vapi orb states) |

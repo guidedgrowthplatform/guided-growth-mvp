@@ -1,5 +1,5 @@
 import type { SttProvider } from '@/stores/voiceSettingsStore';
-import type { RecordingMode } from '@shared/types';
+import type { RecordingMode } from '@gg/shared/types';
 
 export const sttOptions: { value: SttProvider; label: string; description: string }[] = [
   {

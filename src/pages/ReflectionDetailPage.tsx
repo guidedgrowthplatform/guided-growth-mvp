@@ -6,7 +6,7 @@ import { fetchJournalEntry } from '@/api/journal';
 import { EditReflectionSheet } from '@/components/reflections/EditReflectionSheet';
 import { entryHeading, formatDetailHeader } from '@/components/reflections/reflectionFormatters';
 import { useToast } from '@/contexts/ToastContext';
-import type { JournalEntry } from '@shared/types';
+import type { JournalEntry } from '@gg/shared/types';
 import '@/styles/tiptap.css';
 
 const GUIDED_PROMPTS = [

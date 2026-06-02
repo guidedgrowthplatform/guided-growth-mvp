@@ -3,7 +3,7 @@ import type {
   ScreenContextBlock,
   SessionStateDeltaEntry,
   SessionStateDeltaResponse,
-} from '@shared/types/context.js';
+} from '@gg/shared/types/context';
 import { apiGet } from './client';
 
 export type {

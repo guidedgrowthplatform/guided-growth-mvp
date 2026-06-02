@@ -1,4 +1,8 @@
-import type { UserPreferences as DbUserPreferences, VoiceMode, RecordingMode } from '@shared/types';
+import type {
+  UserPreferences as DbUserPreferences,
+  VoiceMode,
+  RecordingMode,
+} from '@gg/shared/types';
 
 // Leaf module: no hooks, no supabase, no react-query — safe to import from
 // non-hook services (voiceGate, tts-service graph).

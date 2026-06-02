@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import type { AuthenticatedUser } from '@shared/types';
+import type { AuthenticatedUser } from '@gg/shared/types';
 import { handleCors } from './cors.js';
 import pool from './db.js';
 import { supabaseAdmin } from './supabase-admin.js';

@@ -10,7 +10,7 @@ import { ReflectionListCard } from '@/components/reflections/ReflectionListCard'
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import { useToast } from '@/contexts/ToastContext';
 import { queryKeys } from '@/lib/query';
-import type { JournalEntry } from '@shared/types';
+import type { JournalEntry } from '@gg/shared/types';
 
 const FETCH_MONTHS = 6;
 

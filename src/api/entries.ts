@@ -1,5 +1,5 @@
 import { getDataService } from '@/lib/services/service-provider';
-import type { EntriesMap, DayEntries } from '@shared/types';
+import type { EntriesMap, DayEntries } from '@gg/shared/types';
 
 async function buildEntriesFromDataService(start: string, end: string): Promise<EntriesMap> {
   const ds = await getDataService();

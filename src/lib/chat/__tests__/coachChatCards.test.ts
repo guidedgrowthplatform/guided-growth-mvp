@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LLMChatMessage, LLMToolEvent } from '@shared/types/llm';
+import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
 import { buildHabitCards, cardFromEvent, DEFAULT_WEEK } from '../coachChatCards';
 
 function evt(name: string, payload: unknown, ok = true): LLMToolEvent {

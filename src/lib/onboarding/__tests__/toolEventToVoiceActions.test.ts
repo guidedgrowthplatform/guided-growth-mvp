@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LLMToolEvent } from '@shared/types/llm';
+import type { LLMToolEvent } from '@gg/shared/types/llm';
 import { toolEventToVoiceActions } from '../toolEventToVoiceActions';
 
 function evt(name: string, args: Record<string, unknown>): LLMToolEvent {

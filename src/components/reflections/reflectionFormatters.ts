@@ -1,5 +1,5 @@
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
-import type { JournalEntry } from '@shared/types';
+import type { JournalEntry } from '@gg/shared/types';
 
 const PREVIEW_MAX_CHARS = 180;
 

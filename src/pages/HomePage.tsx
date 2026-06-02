@@ -18,7 +18,7 @@ import { useEntries } from '@/hooks/useEntries';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { speak } from '@/lib/services/tts-service';
-import type { EntriesMap } from '@shared/types';
+import type { EntriesMap } from '@gg/shared/types';
 
 // Pick the HOME-* variant the user is currently looking at. The auto-emitter
 // can only resolve "/" to one alphabetically-first match (HOME-EVENING), so

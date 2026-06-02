@@ -1,12 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useNavigate } from 'react-router-dom';
-import type { JournalEntry } from '@shared/types';
-import {
-  entryHeading,
-  formatListLabel,
-  previewText,
-  truncate,
-} from './reflectionFormatters';
+import type { JournalEntry } from '@gg/shared/types';
+import { entryHeading, formatListLabel, previewText, truncate } from './reflectionFormatters';
 
 interface ReflectionListCardProps {
   entry: JournalEntry;

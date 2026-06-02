@@ -10,7 +10,7 @@ import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { queryKeys } from '@/lib/query';
-import type { OnboardingState } from '@shared/types';
+import type { OnboardingState } from '@gg/shared/types';
 import { pathToSpec } from './pathToSpec';
 import { useStepTiming } from './useStepTiming';
 

@@ -4,7 +4,7 @@ import type {
   Reflection,
   ReflectionConfig,
   OnboardingState,
-} from '@shared/types';
+} from '@gg/shared/types';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../supabase';
 import { encryptJournal, decryptJournal } from '../utils/journal-crypto';

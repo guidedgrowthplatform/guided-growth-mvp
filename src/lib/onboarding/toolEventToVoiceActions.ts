@@ -1,5 +1,5 @@
 import type { OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession';
-import type { LLMToolEvent } from '@shared/types/llm';
+import type { LLMToolEvent } from '@gg/shared/types/llm';
 
 function asString(v: unknown): string | undefined {
   return typeof v === 'string' ? v : undefined;

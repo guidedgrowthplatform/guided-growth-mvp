@@ -14,8 +14,8 @@ import type { OrbState } from '@/lib/orb/orbState';
 import { routeOrbSend } from '@/lib/orb/routeOrbSend';
 import { queryKeys } from '@/lib/query';
 import { speak, stopTTS } from '@/lib/services/tts-service';
-import type { OnboardingState } from '@shared/types';
-import type { CoachingStyle } from '@shared/types/llm';
+import type { OnboardingState } from '@gg/shared/types';
+import type { CoachingStyle } from '@gg/shared/types/llm';
 
 const ADVANCE_DELAY_MS = 800;
 

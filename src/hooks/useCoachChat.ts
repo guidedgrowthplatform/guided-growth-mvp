@@ -8,7 +8,7 @@ import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { buildHabitCards } from '@/lib/chat/coachChatCards';
 import type { ChatMessage, CoachChatApi, VoiceChatState } from '@/lib/chat/coachChatTypes';
 import { speak, stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
-import type { CoachingStyle } from '@shared/types/llm';
+import type { CoachingStyle } from '@gg/shared/types/llm';
 
 const LLM_ERROR_TEXT = "Something didn't work on my end. Mind trying that again?";
 const SESSION_ERROR_TEXT =

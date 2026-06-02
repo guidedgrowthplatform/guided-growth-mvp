@@ -1,5 +1,5 @@
 import { buildContextMessage } from '@/lib/context/buildContextMessage';
-import type { SessionStateDeltaEntry } from '@shared/types/context.js';
+import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 
 // Per-call Vapi overrides for the cold-start contextual opening. Two pieces:
 //

@@ -6,7 +6,7 @@ import type {
   LLMChatMessage,
   LLMStreamEvent,
   LLMToolEvent,
-} from '@shared/types/llm';
+} from '@gg/shared/types/llm';
 import { useSessionLog } from './useSessionLog';
 
 export type LLMStatus = 'idle' | 'streaming' | 'done' | 'error';

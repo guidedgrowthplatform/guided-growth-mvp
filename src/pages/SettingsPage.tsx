@@ -31,7 +31,7 @@ import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { queryKeys } from '@/lib/query';
 import { useVoiceSettingsStore, type SttProvider } from '@/stores/voiceSettingsStore';
-import type { RecordingMode } from '@shared/types';
+import type { RecordingMode } from '@gg/shared/types';
 
 type SheetType =
   | 'editProfile'

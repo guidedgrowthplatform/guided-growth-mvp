@@ -3,9 +3,9 @@
  * Sourced from the approved Google Sheet.
  */
 
-// goalsByCategory lives in @shared so the serverless submit_goals handler
+// goalsByCategory lives in @gg/shared so the serverless submit_goals handler
 // validates against the same taxonomy. Re-exported for existing frontend imports.
-export { goalsByCategory } from '@shared/data/onboardingGoals';
+export { goalsByCategory } from '@gg/shared/data/onboardingGoals';
 
 // Product cap on habits selectable during onboarding. Spec is still 1–3
 // pending Yair; we're holding at 2 in code and consolidating to one

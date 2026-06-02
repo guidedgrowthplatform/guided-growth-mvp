@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { goalsByCategory } from '@shared/data/onboardingGoals.js';
+import { goalsByCategory } from '@gg/shared/data/onboardingGoals';
 import { ONBOARDING_TOOL_ADDENDUM } from '../systemPromptAddendum.js';
 import { CATEGORY_OPTIONS, ONBOARDING_TOOLS } from '../schemas.js';
 

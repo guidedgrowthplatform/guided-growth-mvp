@@ -1,4 +1,4 @@
-import type { SessionLogEvent } from '@shared/types/session-events';
+import type { SessionLogEvent } from '@gg/shared/types/session-events';
 import { apiPost } from './client';
 
 export interface LogEventBody {

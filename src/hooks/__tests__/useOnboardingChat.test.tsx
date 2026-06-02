@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createOrResumeChatSession } from '@/api/chat';
 import { SessionLogContext, type SessionLogContextValue } from '@/contexts/SessionLogContext';
 import { useAuthStore } from '@/stores/authStore';
-import type { LLMStreamEvent } from '@shared/types/llm';
+import type { LLMStreamEvent } from '@gg/shared/types/llm';
 import { useOnboardingChat, type UseOnboardingChatReturn } from '../useOnboardingChat';
 
 vi.mock('@/api/chat', () => ({

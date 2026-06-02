@@ -1,8 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { sessionReady, supabase } from '@/lib/supabase';
-import type { LLMRequest, LLMStreamEvent } from '@shared/types/llm';
+import type { LLMRequest, LLMStreamEvent } from '@gg/shared/types/llm';
 
-export type { LLMRequest, LLMStreamEvent } from '@shared/types/llm';
+export type { LLMRequest, LLMStreamEvent } from '@gg/shared/types/llm';
 
 function getApiUrl(): string {
   if (Capacitor.isNativePlatform()) {

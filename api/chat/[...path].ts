@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { UUID_REGEX } from '../_lib/validation.js';
-import type { LLMChatMessage, LLMToolEvent } from '@shared/types/llm';
+import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
 
 function isValidChatSessionId(id: unknown): id is string {
   return typeof id === 'string' && UUID_REGEX.test(id);

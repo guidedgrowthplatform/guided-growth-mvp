@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { queryKeys } from '@/lib/query';
-import type { LLMChatMessage } from '@shared/types/llm';
+import type { LLMChatMessage } from '@gg/shared/types/llm';
 
 // Write tools — read-only (query_habits, get_summary, suggest_habit) skip refresh.
 const MUTATION_TOOLS: ReadonlySet<string> = new Set([

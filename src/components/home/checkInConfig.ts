@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import type { CheckInDimension } from '@shared/types';
+import type { CheckInDimension } from '@gg/shared/types';
 import {
   SleepPoor,
   SleepFair,

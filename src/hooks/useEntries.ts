@@ -4,7 +4,7 @@ import * as entriesApi from '@/api/entries';
 import { offlineQueue, registerReplayHandler } from '@/cache/offlineQueue';
 import { useToast } from '@/contexts/ToastContext';
 import { queryKeys } from '@/lib/query';
-import type { EntriesMap, DayEntries } from '@shared/types';
+import type { EntriesMap, DayEntries } from '@gg/shared/types';
 
 // queued entries replay via DataService instead of the (now-removed) /api/entries
 registerReplayHandler('entry', async (body, endpoint) => {

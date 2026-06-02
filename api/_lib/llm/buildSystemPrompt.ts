@@ -1,8 +1,8 @@
 import pool from '../db.js';
-import { buildSystemPrompt } from '@shared/coaching/systemPrompt.js';
-import type { CoachingStyle } from '@shared/coaching/styles.js';
-import { buildContextMessage } from '@shared/context/buildContextMessage.js';
-import type { SessionStateDeltaEntry } from '@shared/types/context.js';
+import { buildSystemPrompt } from '@gg/shared/coaching/systemPrompt';
+import type { CoachingStyle } from '@gg/shared/coaching/styles';
+import { buildContextMessage } from '@gg/shared/context/buildContextMessage';
+import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 import { ONBOARDING_TOOL_ADDENDUM } from './onboarding/systemPromptAddendum.js';
 import { stripResponsePattern } from './onboarding/stripResponsePattern.js';
 import { CHECKIN_TOOL_ADDENDUM } from './checkin/systemPromptAddendum.js';

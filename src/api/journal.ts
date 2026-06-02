@@ -1,4 +1,4 @@
-import type { JournalEntry, JournalEntryCreate } from '@shared/types';
+import type { JournalEntry, JournalEntryCreate } from '@gg/shared/types';
 import { apiGet, apiPost, apiPut, apiDelete } from './client';
 
 export function createJournalEntry(data: JournalEntryCreate): Promise<JournalEntry> {

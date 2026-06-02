@@ -61,7 +61,7 @@ export default tseslint.config(
           groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
           pathGroups: [
             { pattern: '@/**', group: 'internal', position: 'before' },
-            { pattern: '@shared/**', group: 'internal', position: 'before' },
+            { pattern: '@gg/shared/**', group: 'internal', position: 'before' },
           ],
           pathGroupsExcludedImportTypes: ['builtin'],
           'newlines-between': 'never',

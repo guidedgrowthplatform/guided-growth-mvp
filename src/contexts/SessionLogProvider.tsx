@@ -5,7 +5,7 @@ import { logSessionEvent } from '@/api/sessionLog';
 import { offlineQueue } from '@/cache/offlineQueue';
 import { supabase } from '@/lib/supabase';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
-import { isSessionLogEvent, type SessionLogEvent } from '@shared/types/session-events';
+import { isSessionLogEvent, type SessionLogEvent } from '@gg/shared/types/session-events';
 import { SessionLogContext, type SessionLogContextValue } from './SessionLogContext';
 
 const HYDRATION_WINDOW_MS = 24 * 60 * 60 * 1000; // 24h

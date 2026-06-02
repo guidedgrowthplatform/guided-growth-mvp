@@ -10,7 +10,7 @@ import type {
   OnboardingState,
   OnboardingStepData,
   ParsedHabit,
-} from '@shared/types';
+} from '@gg/shared/types';
 
 // Step → canonical screen_id (matches screen_contexts). Steps 8-9 cover the
 // advanced flow and aren't keyed by integer — they fall through to the format

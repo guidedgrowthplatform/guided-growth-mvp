@@ -12,7 +12,7 @@
  * SessionLogProvider — see task #13.
  */
 import { create } from 'zustand';
-import type { SessionStateDeltaEntry } from '@shared/types/context.js';
+import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 
 const STORE_KEY = 'mvp03_session_log';
 const MAX_EVENTS = 200;

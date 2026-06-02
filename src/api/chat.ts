@@ -1,4 +1,4 @@
-import type { ChatSessionResponse } from '@shared/types/llm';
+import type { ChatSessionResponse } from '@gg/shared/types/llm';
 import { apiPost } from './client';
 
 export function createOrResumeChatSession(

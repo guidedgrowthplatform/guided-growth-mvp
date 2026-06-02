@@ -4,7 +4,7 @@ import { GuidedTab } from '@/components/journal/GuidedTab';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
-import type { JournalEntry } from '@shared/types';
+import type { JournalEntry } from '@gg/shared/types';
 
 const FreeformTab = lazy(() =>
   import('@/components/journal/FreeformTab').then((m) => ({ default: m.FreeformTab })),

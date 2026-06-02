@@ -6,4 +6,4 @@ export {
   normalizeCoachingStyle,
   type CoachingStyle,
   type CoachingStyleConfig,
-} from '@shared/coaching/styles.js';
+} from '@gg/shared/coaching/styles';
