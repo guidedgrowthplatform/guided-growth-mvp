@@ -176,6 +176,10 @@ Vercel Hobby plan allows **12 serverless functions**. We currently use **8**. Do
 
 Gotcha #5 only applies to **server-side** `pg` queries (service role bypasses RLS). **Supabase Realtime** subscriptions run with the client's anon key + session JWT, so RLS _is_ enforced there. `onboarding_states` has an enabled `user_isolation` policy (`anon_id = current_anon_id()`, JWT-based, fail-closed), which is what actually prevents a client from subscribing to another user's rows. The client-side `filter: anon_id=eq.X` is redundant defense-in-depth, not the boundary.
 
+### 10. Direct-LLM context is sanitized; Vapi context is not
+
+`/api/llm` (Direct-LLM, Path 2 + 3) runs every `context_block` through `stripForwardPointers()` in `buildSystemPrompt.ts` — drops `NEXT:` lines, `-> SCREEN`/`(SCREEN)` arrows, `navigate/route to SCREEN`, and the whole `--- SUPPLEMENTARY ---` tail — then appends `NO_PRENARRATION_RULE`. This stops the coach from pre-narrating the next screen. Applies to **all** screens (not just `ONBOARD-*`). Do NOT re-gate it or move it into `buildContextMessage` — Vapi (Path 1) shares that helper and legitimately needs the raw forward pointers to drive navigation.
+
 ---
 
 ## Development Workflow
