@@ -24,8 +24,7 @@ export function validateDate(value: unknown): string | null {
 }
 
 // RFC 4122 v4: version nibble `4`, variant nibble `[89ab]`.
-export const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function validateUUID(value: unknown): string | null {
   if (typeof value !== 'string') return null;
@@ -35,6 +34,8 @@ export function validateUUID(value: unknown): string | null {
 // IANA timezone → the zone, or null if invalid (Intl rejects unknown zones).
 export function validateTimezone(value: unknown): string | null {
   if (typeof value !== 'string' || value.length === 0 || value.length > 64) return null;
+  // Node 22+ Intl accepts UTC-offset identifiers (+HH:mm); IANA names only.
+  if (/^[+-]/.test(value)) return null;
   try {
     new Intl.DateTimeFormat(undefined, { timeZone: value });
     return value;
