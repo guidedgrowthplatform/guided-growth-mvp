@@ -37,14 +37,6 @@ const VOICE_ID = 'f786b574-daa5-4673-aa0c-cbe3e8534c02';
 // Format: { file_id, text, screen, trigger }
 
 const VOICE_LINES = [
-  // Splash screen
-  {
-    file_id: 'splash_welcome',
-    text: "Welcome to Guided Growth. I'm your personal coach, here to help you build habits that actually stick. Sign up and let's get started — it only takes a minute.",
-    screen: 'splash',
-    trigger: 'screen_load',
-  },
-
   // Onboarding
   {
     file_id: 'onboarding_welcome',

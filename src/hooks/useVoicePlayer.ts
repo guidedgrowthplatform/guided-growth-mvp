@@ -50,8 +50,9 @@ interface PlayOptions {
 }
 
 interface UseVoicePlayerReturn {
-  /** Play a pre-recorded MP3 by file_id from the manifest */
-  play: (fileId: string, opts?: PlayOptions) => Promise<void>;
+  /** Play an MP3 by file_id. Resolves true if playback started, false if it
+   *  was a no-op / blocked / aborted / errored. Never rejects. */
+  play: (fileId: string, opts?: PlayOptions) => Promise<boolean>;
   /** Stop playback */
   stop: () => void;
   /** Pause playback */
@@ -94,6 +95,8 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const tokenRef = useRef<ReleaseToken | null>(null);
   const mountedRef = useRef(true);
+  // Cancels a pending deferred-autoplay listener so it can't fire post-nav.
+  const abortRef = useRef<AbortController | null>(null);
 
   const dropToken = useCallback(() => {
     const t = tokenRef.current;
@@ -102,10 +105,25 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
     releaseToken(t);
   }, [releaseToken]);
 
+  // Detach a clip and release its token; no-op if a newer clip superseded it.
+  const settle = useCallback(
+    (audio: HTMLAudioElement, nextState: VoicePlayerState) => {
+      if (audioRef.current !== audio) return;
+      audioRef.current = null;
+      if (mountedRef.current) {
+        setState(nextState);
+        setCurrentFileId(null);
+      }
+      dropToken();
+    },
+    [dropToken],
+  );
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      abortRef.current?.abort();
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
@@ -115,6 +133,8 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
   }, [dropToken]);
 
   const stop = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -128,8 +148,8 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
   }, [dropToken]);
 
   const play = useCallback(
-    async (fileId: string, opts?: PlayOptions): Promise<void> => {
-      if (!isVoiceOutEnabled()) return;
+    async (fileId: string, opts?: PlayOptions): Promise<boolean> => {
+      if (!isVoiceOutEnabled()) return false;
 
       const entry = getManifestEntry(fileId);
       if (!entry) {
@@ -146,7 +166,7 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
         if (import.meta.env.DEV) {
           console.warn(`[VoicePlayer] No manifest entry for file_id: ${fileId}`);
         }
-        return;
+        return false;
       }
 
       // Resolve the asset URL. New manifest rows carry `file` (bucket
@@ -156,7 +176,7 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
       const src = entry.file ? voiceAssetUrl(entry.file) : (entry.url ?? '');
       if (!src) {
         console.warn(`[VoicePlayer] Cannot resolve URL for file_id: ${fileId}`);
-        return;
+        return false;
       }
 
       // Stop any existing playback (and release the prior token).
@@ -164,7 +184,11 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
         audioRef.current.pause();
         audioRef.current = null;
       }
+      abortRef.current?.abort();
       dropToken();
+
+      const abort = new AbortController();
+      abortRef.current = abort;
 
       const token = acquireBroadcast({
         surface: deriveSurface(entry.screen),
@@ -183,68 +207,43 @@ export function useVoicePlayer(): UseVoicePlayerReturn {
           }
         },
       });
-      if (!token) return;
+      if (!token) return false;
       tokenRef.current = token;
 
       setState('loading');
       setCurrentFileId(fileId);
 
-      try {
-        const audio = new Audio(src);
-        audioRef.current = audio;
+      const audio = new Audio(src);
+      audioRef.current = audio;
 
-        await new Promise<void>((resolve, reject) => {
-          audio.oncanplaythrough = () => {
-            if (mountedRef.current) setState('playing');
-            const t = tokenRef.current;
-            if (t) setBroadcastState(t, 'playing');
-          };
-          audio.onended = () => {
-            audioRef.current = null;
-            if (mountedRef.current) {
-              setState('idle');
-              setCurrentFileId(null);
-            }
-            dropToken();
-            resolve();
-          };
-          audio.onerror = () => {
-            audioRef.current = null;
-            if (mountedRef.current) {
-              setState('error');
-              setCurrentFileId(null);
-            }
-            dropToken();
-            reject(new Error(`Failed to load audio: ${fileId}`));
-          };
-          attemptPlayWithGestureFallback(audio, { defer: opts?.deferOnAutoplayBlock })
-            .then(() => {
-              track('play_mp3', {
-                file_id: fileId,
-                screen: entry.screen,
-                trigger: entry.trigger,
-              });
-            })
-            .catch((err) => {
-              if (mountedRef.current) setState('error');
-              dropToken();
-              reject(err);
-            });
+      audio.oncanplaythrough = () => {
+        if (audioRef.current !== audio) return;
+        if (mountedRef.current) setState('playing');
+        const t = tokenRef.current;
+        if (t) setBroadcastState(t, 'playing');
+      };
+      audio.onended = () => settle(audio, 'idle');
+      audio.onerror = () => settle(audio, 'error');
+
+      try {
+        await attemptPlayWithGestureFallback(audio, {
+          defer: opts?.deferOnAutoplayBlock,
+          signal: abort.signal,
         });
       } catch (err) {
-        // DOMException on autoplay is the common case (browser autoplay
-        // policy kicks in before first user gesture). Spamming prod
-        // console for each page nav is noise — same rationale as above.
-        if (import.meta.env.DEV) {
+        // Abort = deliberate cancel (stop()/unmount already settled the clip).
+        const aborted = err instanceof DOMException && err.name === 'AbortError';
+        if (import.meta.env.DEV && !aborted) {
           console.warn(`[VoicePlayer] Error playing ${fileId}:`, err);
         }
-        if (mountedRef.current) {
-          setState('error');
-          setCurrentFileId(null);
-        }
+        settle(audio, 'error');
+        return false;
       }
+
+      track('play_mp3', { file_id: fileId, screen: entry.screen, trigger: entry.trigger });
+      return true;
     },
-    [acquireBroadcast, dropToken, setBroadcastState],
+    [acquireBroadcast, dropToken, setBroadcastState, settle],
   );
 
   const pause = useCallback(() => {

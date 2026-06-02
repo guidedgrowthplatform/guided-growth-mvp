@@ -10,9 +10,9 @@ export function WelcomePage() {
   const { play, stop } = useVoicePlayer();
   useEffect(() => {
     if (getFlag(FIRST_OPEN)) return;
-    void play('splash_hook', { deferOnAutoplayBlock: true })
-      .then(() => setFlag(FIRST_OPEN, 'true'))
-      .catch(() => {});
+    void play('splash_hook', { deferOnAutoplayBlock: true }).then((played) => {
+      if (played) setFlag(FIRST_OPEN, 'true');
+    });
     return () => stop();
   }, [play, stop]);
 
