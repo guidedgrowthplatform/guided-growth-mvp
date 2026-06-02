@@ -1,0 +1,2 @@
+v2.7.0 — Coach Chat + onboarding improvements.
+Test: 1) Open Coach Chat from Home, send a message, confirm it replies and saves your reflection. 2) Run a fresh onboarding incl. the plan-confirmation step. 3) Do a morning/evening check-in and confirm habits save on the right date. 4) Confirm welcome voice doesn't play on login/auth screens. Report any coach replies that mention the next screen early.

@@ -70,9 +70,15 @@ platform :ios do
     )
 
     # --- Upload to TestFlight -----------------------------------------------
+    # Shared tester notes; same file feeds Play release notes in ci.yml.
+    # __dir__-anchored so cwd doesn't matter.
+    notes_path = File.expand_path("../release-notes/whatsnew-en-US", __dir__)
+    changelog = File.exist?(notes_path) ? File.read(notes_path).strip : nil
+
     upload_to_testflight(
       api_key: api_key,
-      skip_waiting_for_build_processing: true
+      skip_waiting_for_build_processing: true,
+      changelog: changelog
     )
   end
 
