@@ -23,6 +23,7 @@ name: CI/CD Pipeline
 #   ANDROID_KEY_ALIAS                — signing key alias
 #   ANDROID_KEY_PASSWORD             — signing key password
 #   SERVICE_ACCOUNT_JSON             — Play Console service account JSON
+#   MATTERMOST_ANDROID_CI_WEBHOOK_URL — Mattermost incoming webhook (release notify; optional)
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -196,10 +197,10 @@ jobs:
           success()
           && github.event_name == 'push'
           && startsWith(github.ref, 'refs/tags/v')
-          && env.MATTERMOST_WEBHOOK_URL != ''
+          && env.MATTERMOST_ANDROID_CI_WEBHOOK_URL != ''
         continue-on-error: true
         env:
-          MATTERMOST_WEBHOOK_URL: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
+          MATTERMOST_ANDROID_CI_WEBHOOK_URL: ${{ secrets.MATTERMOST_ANDROID_CI_WEBHOOK_URL }}
           ARTIFACT_URL: ${{ steps.upload_aab.outputs.artifact-url }}
         run: |
           short_sha="${GITHUB_SHA::8}"
@@ -209,17 +210,16 @@ jobs:
             "$short_sha" "$commit_msg" "$ARTIFACT_URL" "$run_url")
 
           payload=$(jq -n \
-            --arg channel "MVPtesting" \
             --arg username "guided-growth-ci" \
             --arg icon ":robot_face:" \
             --arg text "$text" \
-            '{channel: $channel, username: $username, icon_emoji: $icon, text: $text}')
+            '{username: $username, icon_emoji: $icon, text: $text}')
 
           http_code=$(curl -sS -o /tmp/mm_resp -w '%{http_code}' \
             -X POST \
             -H 'Content-Type: application/json' \
             --data "$payload" \
-            "$MATTERMOST_WEBHOOK_URL")
+            "$MATTERMOST_ANDROID_CI_WEBHOOK_URL")
 
           if [ "$http_code" != "200" ]; then
             echo "Mattermost notification failed (HTTP $http_code):" >&2
