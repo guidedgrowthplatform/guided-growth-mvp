@@ -4,7 +4,7 @@ import * as metricsApi from '@/api/metrics';
 import { useToast } from '@/contexts/ToastContext';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { queryKeys } from '@/lib/query';
-import type { MetricCreate, MetricUpdate } from '@shared/types';
+import type { MetricCreate, MetricUpdate } from '@gg/shared/types';
 
 export function useMetrics() {
   const { addToast } = useToast();

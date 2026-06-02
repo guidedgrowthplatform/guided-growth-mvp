@@ -1,4 +1,4 @@
-import type { LLMChatMessage, LLMToolEvent } from '@shared/types/llm';
+import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
 import type { HabitCard } from './coachChatTypes';
 
 // suggest_habit returns a name only — default to weekdays.

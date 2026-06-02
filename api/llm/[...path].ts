@@ -22,7 +22,7 @@ import {
   buildSystemPromptForRequest,
   BuildSystemPromptError,
 } from '../_lib/llm/buildSystemPrompt.js';
-import type { SessionStateDeltaEntry } from '@shared/types/context.js';
+import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 
 type CoachingStyle = 'warm' | 'direct' | 'reflective';
 const COACHING_STYLES = new Set<CoachingStyle>(['warm', 'direct', 'reflective']);

@@ -1,6 +1,6 @@
 import { format, subDays } from 'date-fns';
 import { describe, it, expect } from 'vitest';
-import type { Metric, EntriesMap } from '@shared/types';
+import type { Metric, EntriesMap } from '@gg/shared/types';
 import { computeStreak } from './streaks';
 
 const makeMetric = (overrides: Partial<Metric> = {}): Metric => ({

@@ -1,5 +1,5 @@
 import { getDataService } from '@/lib/services/service-provider';
-import type { Metric, MetricCreate, MetricUpdate } from '@shared/types';
+import type { Metric, MetricCreate, MetricUpdate } from '@gg/shared/types';
 
 // Convert DataService habit to Metric format
 function habitToMetric(h: {

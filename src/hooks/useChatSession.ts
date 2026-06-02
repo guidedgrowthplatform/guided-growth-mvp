@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createOrResumeChatSession } from '@/api/chat';
 import { useAuthStore } from '@/stores/authStore';
-import type { LLMChatMessage } from '@shared/types/llm';
+import type { LLMChatMessage } from '@gg/shared/types/llm';
 
 export type ChatSessionStatus = 'idle' | 'loading' | 'ready' | 'error';
 

@@ -1,4 +1,4 @@
-import type { OnboardingState, OnboardingStepData } from '@shared/types';
+import type { OnboardingState, OnboardingStepData } from '@gg/shared/types';
 
 // Curated opening lines per onboarding screen (gg-spec packets). Deterministic —
 // rendered as the first coach bubble so the question never drifts.

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { OnboardingState, OnboardingStepData } from '@shared/types';
+import type { OnboardingState, OnboardingStepData } from '@gg/shared/types';
 import { getOnboardingRevisitOpener } from './onboardingOpeners';
 
-function makeState(over: Partial<OnboardingState> & { data?: OnboardingStepData }): OnboardingState {
+function makeState(
+  over: Partial<OnboardingState> & { data?: OnboardingStepData },
+): OnboardingState {
   return {
     id: 'id',
     anon_id: 'anon',
@@ -57,7 +59,10 @@ describe('getOnboardingRevisitOpener', () => {
   });
 
   it('FORK with a path chosen → complete, mapped to user-facing label', () => {
-    const opener = getOnboardingRevisitOpener('ONBOARD-FORK--FORM', makeState({ path: 'braindump' }));
+    const opener = getOnboardingRevisitOpener(
+      'ONBOARD-FORK--FORM',
+      makeState({ path: 'braindump' }),
+    );
     expect(opener?.complete).toBe(true);
     expect(opener?.text).toContain('advanced');
     expect(opener?.text).not.toContain('braindump');

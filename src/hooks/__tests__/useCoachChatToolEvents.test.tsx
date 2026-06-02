@@ -6,7 +6,7 @@ import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
-import type { LLMChatMessage, LLMToolEvent } from '@shared/types/llm';
+import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
 import { useCoachChatToolEvents } from '../useCoachChatToolEvents';
 
 function toolEvt(id: string, name: string, ok = true): LLMToolEvent {

@@ -5,7 +5,7 @@ import { createJournalEntry } from '@/api/journal';
 import { useToast } from '@/contexts/ToastContext';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { queryKeys } from '@/lib/query';
-import type { JournalEntryCreate } from '@shared/types';
+import type { JournalEntryCreate } from '@gg/shared/types';
 
 export function useJournalSave() {
   const { addToast } = useToast();

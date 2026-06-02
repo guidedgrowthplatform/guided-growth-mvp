@@ -4,7 +4,7 @@ import { useSessionLog } from '@/hooks/useSessionLog';
 import { queryKeys } from '@/lib/query';
 import { getDataService } from '@/lib/services/service-provider';
 import { useAuthStore } from '@/stores/authStore';
-import type { CheckInData } from '@shared/types';
+import type { CheckInData } from '@gg/shared/types';
 
 async function fetchCheckIn(date: string) {
   const ds = await getDataService();

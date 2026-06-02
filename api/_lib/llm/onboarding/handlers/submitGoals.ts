@@ -1,4 +1,4 @@
-import { goalsByCategory as GOALS_BY_CATEGORY } from '@shared/data/onboardingGoals.js';
+import { goalsByCategory as GOALS_BY_CATEGORY } from '@gg/shared/data/onboardingGoals';
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
 import { MAX_GOALS } from '../schemas.js';

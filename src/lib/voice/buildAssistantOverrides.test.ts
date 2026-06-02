@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SessionStateDeltaEntry } from '@shared/types/context.js';
+import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 import { buildAssistantOverrides } from './buildAssistantOverrides';
 
 function makeEvent(over: Partial<SessionStateDeltaEntry> = {}): SessionStateDeltaEntry {

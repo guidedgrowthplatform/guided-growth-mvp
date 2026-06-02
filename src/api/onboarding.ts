@@ -3,7 +3,7 @@ import type {
   OnboardingState,
   OnboardingStepData,
   ParsedHabit,
-} from '@shared/types';
+} from '@gg/shared/types';
 import { apiDelete, apiPost, apiPut } from './client';
 
 export async function saveOnboardingStep(

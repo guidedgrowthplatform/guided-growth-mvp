@@ -10,7 +10,7 @@ import {
 } from '@/lib/preferences/snapshot';
 import { queryKeys } from '@/lib/query';
 import { supabaseDataService } from '@/lib/services/supabase-data-service';
-import type { UserPreferences as DbUserPreferences } from '@shared/types';
+import type { UserPreferences as DbUserPreferences } from '@gg/shared/types';
 
 export type { UserPreferences };
 export { DEFAULT_PREFERENCES };

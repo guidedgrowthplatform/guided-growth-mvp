@@ -6,7 +6,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionLogContext, type SessionLogContextValue } from '@/contexts/SessionLogContext';
-import type { LLMStreamEvent } from '@shared/types/llm';
+import type { LLMStreamEvent } from '@gg/shared/types/llm';
 import { useLLM, type UseLLMReturn } from '../useLLM';
 
 const logEventMock = vi.fn();

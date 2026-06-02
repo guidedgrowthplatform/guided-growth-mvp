@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
 import { speak, stopTTS } from '@/lib/services/tts-service';
-import type { CheckInData, CheckInDimension } from '@shared/types';
+import type { CheckInData, CheckInDimension } from '@gg/shared/types';
 import { checkInDimensions } from './checkInConfig';
 import { EmojiOptionButton } from './EmojiOptionButton';
 

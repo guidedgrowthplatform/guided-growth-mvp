@@ -9,7 +9,7 @@ import {
   truncate,
 } from '@/components/reflections/reflectionFormatters';
 import { queryKeys } from '@/lib/query';
-import type { JournalEntry } from '@shared/types';
+import type { JournalEntry } from '@gg/shared/types';
 import { SectionHeader } from './SectionHeader';
 
 const HOME_PREVIEW_MAX = 90;
@@ -32,7 +32,11 @@ export function RecentReflectionsSection() {
     };
   }, []);
 
-  const { data: entries, isPending, isError } = useQuery({
+  const {
+    data: entries,
+    isPending,
+    isError,
+  } = useQuery({
     queryKey: queryKeys.journal.range(start, end),
     queryFn: () => fetchJournalEntries(start, end),
     select: selectRecentEntries,

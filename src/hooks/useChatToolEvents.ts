@@ -5,8 +5,8 @@ import type { ScreenRouteEntry } from '@/api/context';
 import type { OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession';
 import { toolEventToVoiceActions } from '@/lib/onboarding/toolEventToVoiceActions';
 import { queryKeys } from '@/lib/query';
-import type { OnboardingState } from '@shared/types';
-import type { LLMToolEvent } from '@shared/types/llm';
+import type { OnboardingState } from '@gg/shared/types';
+import type { LLMToolEvent } from '@gg/shared/types/llm';
 
 interface UseChatToolEventsArgs {
   toolEvents: LLMToolEvent[];

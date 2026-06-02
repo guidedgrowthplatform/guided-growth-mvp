@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { queryKeys } from '@/lib/query';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
-import type { OnboardingState } from '@shared/types';
+import type { OnboardingState } from '@gg/shared/types';
 
 export type RealtimeSyncStatus = 'idle' | 'subscribing' | 'subscribed' | 'error';
 

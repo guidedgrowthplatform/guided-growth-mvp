@@ -1,6 +1,6 @@
 import { format, subDays, addDays, eachDayOfInterval, isSameDay } from 'date-fns';
 import { useRef, useEffect, useMemo } from 'react';
-import type { EntriesMap } from '@shared/types';
+import type { EntriesMap } from '@gg/shared/types';
 
 interface DateStripProps {
   selectedDate: string;

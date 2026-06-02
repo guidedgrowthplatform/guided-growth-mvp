@@ -1,4 +1,4 @@
-import type { Metric } from '@shared/types';
+import type { Metric } from '@gg/shared/types';
 
 export function getCellColor(value: string | undefined | null, metric: Metric): string {
   if (!value || value === '') return 'bg-slate-100/30 text-slate-500';

@@ -11,7 +11,7 @@
  */
 import type { ScreenRouteEntry } from '@/api/context';
 import bundle from '@/generated/screen_contexts.json';
-import type { ScreenContextBlock } from '@shared/types/context.js';
+import type { ScreenContextBlock } from '@gg/shared/types/context';
 
 interface BundleScreen {
   screen_id: string;
