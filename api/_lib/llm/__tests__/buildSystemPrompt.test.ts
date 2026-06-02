@@ -1,0 +1,64 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('../../db.js', () => ({ default: { query: vi.fn() } }));
+
+const pool = (await import('../../db.js')).default as { query: ReturnType<typeof vi.fn> };
+const { buildSystemPromptForRequest } = await import('../buildSystemPrompt.js');
+
+const BLOCK = `SCREEN_ID: HOME-MORNING
+BEHAVIOR: Ask the thing. -> beginner path (ONBOARD-BEGINNER-01)
+NEXT: New -> ONBOARD-BEGINNER-01.
+
+--- SUPPLEMENTARY ---
+
+AI RESPONSE PATTERN:
+'Now let's pick a focus area.'`;
+
+// Non-onboarding screen + recent_events → only the screen_contexts query fires.
+const recent_events = [
+  {
+    id: 'e1',
+    session_id: 's',
+    timestamp: '2026-01-01T00:00:00Z',
+    event_type: 'navigate',
+    screen_id: 'HOME-MORNING',
+    payload: {},
+  },
+];
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  pool.query.mockResolvedValue({ rows: [{ context_block: BLOCK, version: 3 }], rowCount: 1 });
+});
+
+describe('buildSystemPromptForRequest', () => {
+  it('sanitizes forward pointers and injects the stay-on-screen rule', async () => {
+    const { systemPrompt } = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'HOME-MORNING',
+      coaching_style: 'warm',
+      recent_events,
+    });
+    expect(systemPrompt).toContain('Stay On The Current Screen');
+    expect(systemPrompt).not.toContain('ONBOARD-BEGINNER-01');
+    expect(systemPrompt).not.toContain('NEXT:');
+    expect(systemPrompt).toContain('BEHAVIOR:');
+    // rule lands before the screen context it governs
+    expect(systemPrompt.indexOf('Stay On The Current Screen')).toBeLessThan(
+      systemPrompt.indexOf('BEHAVIOR:'),
+    );
+  });
+
+  it('opener instructions reference BEHAVIOR, not the stripped AI RESPONSE PATTERN', async () => {
+    const { systemPrompt } = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'HOME-MORNING',
+      coaching_style: 'warm',
+      recent_events,
+      mode: 'opener',
+    });
+    expect(systemPrompt).toContain('Opener Turn');
+    expect(systemPrompt).toContain("this screen's BEHAVIOR calls for");
+    expect(systemPrompt).not.toContain('AI RESPONSE PATTERN');
+  });
+});

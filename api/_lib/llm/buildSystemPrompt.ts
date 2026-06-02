@@ -4,7 +4,8 @@ import type { CoachingStyle } from '@gg/shared/coaching/styles';
 import { buildContextMessage } from '@gg/shared/context/buildContextMessage';
 import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 import { ONBOARDING_TOOL_ADDENDUM } from './onboarding/systemPromptAddendum.js';
-import { stripResponsePattern } from './onboarding/stripResponsePattern.js';
+import { stripForwardPointers } from './stripForwardPointers.js';
+import { NO_PRENARRATION_RULE } from './noPrenarrationRule.js';
 import { CHECKIN_TOOL_ADDENDUM } from './checkin/systemPromptAddendum.js';
 import { isCheckinScreen } from './checkin/registry.js';
 
@@ -92,9 +93,8 @@ export async function buildSystemPromptForRequest(
   const isOnboardingScreen = args.screen_id.startsWith('ONBOARD-');
 
   const coachingPreamble = buildSystemPrompt({ coachingStyle: args.coaching_style });
-  const contextBlock = isOnboardingScreen
-    ? stripResponsePattern(screen.context_block)
-    : screen.context_block;
+  // Direct-LLM only — Vapi keeps raw context elsewhere (it drives navigation).
+  const contextBlock = stripForwardPointers(screen.context_block);
   const contextMessage = buildContextMessage({
     screen_id: args.screen_id,
     context_block: contextBlock,
@@ -107,7 +107,7 @@ export async function buildSystemPromptForRequest(
   const alreadyFilledBlock = isOnboardingScreen ? await buildAlreadyFilledBlock(args.anon_id) : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${openerNudge}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}\n\n${NO_PRENARRATION_RULE}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${openerNudge}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
@@ -140,7 +140,7 @@ const OPENER_INSTRUCTIONS = `## Opener Turn
 
 The user just opened the chat overlay on this screen and has NOT typed anything yet. The "user message" you see is a placeholder.
 
-Speak first. Follow the screen's BEHAVIOR / AI RESPONSE PATTERN exactly — use the full opening line the screen specifies (often a complete question covering all the fields it wants to capture). If the screen quotes an AI Voice copy line for the opening turn, use that verbatim or close to it. Use the recent events (state delta) to make it feel current when relevant.
+Speak first. Open with the line this screen's BEHAVIOR calls for (often a complete question covering all the fields it wants to capture). Use the recent events (state delta) to make it feel current when relevant.
 
 Rules:
 - No generic greetings like "How can I help?", "What's up?", or "What can I do for you?".
