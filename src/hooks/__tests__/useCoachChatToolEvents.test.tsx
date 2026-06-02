@@ -6,11 +6,20 @@ import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
+import { track } from '@/analytics';
 import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
 import { useCoachChatToolEvents } from '../useCoachChatToolEvents';
 
-function toolEvt(id: string, name: string, ok = true): LLMToolEvent {
-  return { id, name, args: {}, result: { ok, payload: { result: {} } } };
+vi.mock('@/analytics', () => ({ track: vi.fn() }));
+const trackMock = track as unknown as ReturnType<typeof vi.fn>;
+
+function toolEvt(
+  id: string,
+  name: string,
+  ok = true,
+  args: Record<string, unknown> = {},
+): LLMToolEvent {
+  return { id, name, args, result: { ok, payload: { result: {} } } };
 }
 
 function assistant(id: string, toolEvents: LLMToolEvent[]): LLMChatMessage {
@@ -118,6 +127,31 @@ describe('useCoachChatToolEvents', () => {
     const resumed = [assistant('m1', [toolEvt('e1', 'create_habit')])];
     render({ messages: resumed, resetKey: 'sess-A', initialMessages: resumed });
     expect(habitsChanged).not.toHaveBeenCalled();
+  });
+
+  it('forwards an ok tool event to the funnel tracker once', () => {
+    render({
+      messages: [assistant('m1', [toolEvt('e1', 'create_habit', true, { name: 'Meditate' })])],
+      resetKey: 'sess-A',
+      initialMessages: [],
+    });
+    expect(trackMock).toHaveBeenCalledTimes(1);
+    expect(trackMock.mock.calls[0][0]).toBe('create_habit');
+  });
+
+  it('does not fire a funnel event on a failed result', () => {
+    render({
+      messages: [assistant('m1', [toolEvt('e1', 'create_habit', false)])],
+      resetKey: 'sess-A',
+      initialMessages: [],
+    });
+    expect(trackMock).not.toHaveBeenCalled();
+  });
+
+  it('does not re-fire funnel events for a resumed thread', () => {
+    const resumed = [assistant('m1', [toolEvt('e1', 'create_habit', true, { name: 'x' })])];
+    render({ messages: resumed, resetKey: 'sess-A', initialMessages: resumed });
+    expect(trackMock).not.toHaveBeenCalled();
   });
 
   it('fires again for a new session after resetKey changes', () => {

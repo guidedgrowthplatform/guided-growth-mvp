@@ -4,6 +4,7 @@ import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { supabaseAdmin } from '../_lib/supabase-admin.js';
 import { validateDate, validateUUID, sanitizeContent } from '../_lib/validation.js';
+import { createJournalEntry } from '../_lib/journal/createJournalEntry.js';
 import { dispatchFeedbackAlert } from '../_lib/feedback-emailer.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -95,40 +96,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'At least one non-empty field required' });
       }
 
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-        const ins = await client.query(
-          `INSERT INTO journal_entries (anon_id, type, template_id, title, date, habit_id)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING id, anon_id, type, template_id, title, date::text, habit_id, created_at, updated_at`,
-          [
-            user.anonId,
-            type,
-            type === 'template' ? template_id : null,
-            title?.trim() || null,
-            validDate,
-            validHabitId,
-          ],
-        );
-        const entry = ins.rows[0];
-        const fieldsMap: Record<string, string> = {};
-        for (const [key, value] of fieldEntries) {
-          const sanitized = sanitizeContent(value as string);
-          await client.query(
-            `INSERT INTO journal_entry_fields (entry_id, field_key, content) VALUES ($1, $2, $3)`,
-            [entry.id, key, sanitized],
-          );
-          fieldsMap[key] = sanitized;
-        }
-        await client.query('COMMIT');
-        return res.status(201).json({ ...entry, fields: fieldsMap });
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      } finally {
-        client.release();
-      }
+      const entry = await createJournalEntry({
+        anon_id: user.anonId,
+        type,
+        template_id: type === 'template' ? template_id : null,
+        title,
+        date: validDate,
+        habit_id: validHabitId,
+        fields: Object.fromEntries(fieldEntries) as Record<string, string>,
+      });
+      return res.status(201).json(entry);
     }
 
     // GET /api/reflections/journal?start=&end=&habitId= — list entries
@@ -160,7 +137,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
            LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
            WHERE je.anon_id = $1 AND je.date >= $2 AND je.date <= $3
            ORDER BY je.created_at DESC`;
-      const params = habitFilter ? [user.anonId, start, end, habitFilter] : [user.anonId, start, end];
+      const params = habitFilter
+        ? [user.anonId, start, end, habitFilter]
+        : [user.anonId, start, end];
       const result = await pool.query(sql, params);
       const entriesMap = new Map<string, Record<string, unknown>>();
       for (const row of result.rows) {

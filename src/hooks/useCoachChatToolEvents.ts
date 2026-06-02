@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+import { trackCoachToolEvent } from '@/analytics/coachFunnel';
 import { queryKeys } from '@/lib/query';
 import type { LLMChatMessage } from '@gg/shared/types/llm';
 
@@ -14,6 +15,7 @@ const MUTATION_TOOLS: ReadonlySet<string> = new Set([
   'delete_metric',
   'record_checkin',
   'start_focus',
+  'log_reflection',
 ]);
 
 function toolEventIds(messages: LLMChatMessage[]): string[] {
@@ -49,6 +51,7 @@ export function useCoachChatToolEvents(
         if (!evt.result?.ok) continue;
         if (firedIdsRef.current.has(evt.id)) continue;
         firedIdsRef.current.add(evt.id);
+        trackCoachToolEvent(evt);
         if (MUTATION_TOOLS.has(evt.name)) mutated = true;
       }
     }

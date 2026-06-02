@@ -18,10 +18,7 @@ import { getCheckinTools } from '../_lib/llm/checkin/registry.js';
 import { isCheckinToolName } from '../_lib/llm/checkin/schemas.js';
 import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
 import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
-import {
-  buildSystemPromptForRequest,
-  BuildSystemPromptError,
-} from '../_lib/llm/buildSystemPrompt.js';
+import { buildSystemPromptForRequest } from '../_lib/llm/buildSystemPrompt.js';
 import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 
 type CoachingStyle = 'warm' | 'direct' | 'reflective';
@@ -216,9 +213,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
   } catch (err) {
-    if (err instanceof BuildSystemPromptError) {
-      return res.status(err.status).json({ error: err.code, message: err.message });
-    }
     return res
       .status(500)
       .json({ error: 'build_system_prompt_failed', message: (err as Error).message });

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isCheckinScreen, trackCheckinStarted } from '@/analytics/coachFunnel';
 import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
 import { useChatSession } from '@/hooks/useChatSession';
 import { useCoachChatToolEvents } from '@/hooks/useCoachChatToolEvents';
@@ -57,6 +58,7 @@ export function useCoachChat(
   const pendingTurnRef = useRef<string | null>(null);
   const lastHandledTranscript = useRef('');
   const openerSentRef = useRef<string | null>(null);
+  const startCheckinFiredRef = useRef<string | null>(null);
   const spokenSeededForRef = useRef<string | null>(null);
   const spokenIdsRef = useRef<Set<string>>(new Set());
   const lastLlmErrorRef = useRef('');
@@ -124,6 +126,15 @@ export function useCoachChat(
     if (initialMessages.length > 0) return; // resumed thread already populated
     void sendOpener();
   }, [chatSessionId, initialMessages, sendOpener]);
+
+  // ─── Funnel: opening the coach chat on a check-in screen = start_checkin ──
+  useEffect(() => {
+    if (!chatSessionId || !isCheckinScreen(screenId)) return;
+    if (startCheckinFiredRef.current === chatSessionId) return;
+    startCheckinFiredRef.current = chatSessionId;
+    if (initialMessages.length > 0) return; // resumed thread — already started earlier
+    trackCheckinStarted(screenId);
+  }, [chatSessionId, screenId, initialMessages]);
 
   // ─── Pre-seed spoken ids from resumed history (declared BEFORE the speak
   // effect so it runs first in-commit) — prevents replaying old turns ──
