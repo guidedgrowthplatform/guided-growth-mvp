@@ -174,7 +174,7 @@ export function Step6Page() {
       currentStep={6}
       screenId="ONBOARD-BEGINNER-07"
       formSnapshot={snapshot}
-      ctaLabel="Review My Plan"
+      ctaLabel="Continue"
       ctaVariant="inline"
       showVoiceButton
       aiListeningPrompt='"When would you like to do your daily reflection?"'

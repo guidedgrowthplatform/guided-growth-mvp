@@ -341,7 +341,7 @@ export function Step5Page() {
         currentStep={5}
         screenId="ONBOARD-BEGINNER-03"
         formSnapshot={snapshot}
-        ctaLabel={phase === 'confirming' ? 'Confirm & Continue' : 'Continue'}
+        ctaLabel="Continue"
         ctaVariant="inline"
         onNext={handleOnNext}
         onBack={
