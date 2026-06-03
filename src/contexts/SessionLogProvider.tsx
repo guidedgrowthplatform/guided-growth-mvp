@@ -3,6 +3,7 @@ import { ApiError } from '@/api/client';
 import { fetchSessionStateDelta } from '@/api/context';
 import { logSessionEvent } from '@/api/sessionLog';
 import { offlineQueue } from '@/cache/offlineQueue';
+import { clearOnboardingChatSessionId } from '@/lib/onboarding/onboardingChatSession';
 import { supabase } from '@/lib/supabase';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { isSessionLogEvent, type SessionLogEvent } from '@gg/shared/types/session-events';
@@ -85,6 +86,7 @@ export function SessionLogProvider({ children }: { children: ReactNode }) {
         }
         sessionIdRef.current = fresh;
         useSessionLogStore.getState().clear();
+        clearOnboardingChatSessionId();
       }
       if (next && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
         // Hydrate once per signed-in session. Already-hydrated stores skip.

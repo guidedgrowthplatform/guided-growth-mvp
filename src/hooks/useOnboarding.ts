@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as onboardingApi from '@/api/onboarding';
 import { useSessionLog } from '@/hooks/useSessionLog';
+import { clearOnboardingChatSessionId } from '@/lib/onboarding/onboardingChatSession';
 import { queryKeys } from '@/lib/query';
 import { useAuthStore } from '@/stores/authStore';
 import type {
@@ -99,6 +100,7 @@ export function useOnboarding() {
         'STARTING-PLAN',
       );
       await useAuthStore.getState().updateProfile();
+      clearOnboardingChatSessionId();
       navigate('/home', { replace: true, state: { fromOnboarding: true } });
     },
   });
