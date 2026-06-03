@@ -1,7 +1,6 @@
 import { Icon } from '@iconify/react';
 import type { RefObject } from 'react';
 import { GuidanceBadge } from '@/components/onboarding/GuidanceBadge';
-import { VoiceMicButton } from '@/components/onboarding/VoiceMicButton';
 import { AddHabitHeader } from './AddHabitHeader';
 
 const PLACEHOLDER =
@@ -11,8 +10,6 @@ interface AdvancedInputPhaseProps {
   brainDumpText: string;
   setBrainDumpText: (text: string) => void;
   textareaRef: RefObject<HTMLTextAreaElement>;
-  isListening: boolean;
-  toggleVoice: () => void;
   onDone: () => void;
   onBack: () => void;
 }
@@ -21,8 +18,6 @@ export function AdvancedInputPhase({
   brainDumpText,
   setBrainDumpText,
   textareaRef,
-  isListening,
-  toggleVoice,
   onDone,
   onBack,
 }: AdvancedInputPhaseProps) {
@@ -39,10 +34,6 @@ export function AdvancedInputPhase({
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-6 py-8">
-        <VoiceMicButton isListening={isListening} onPress={toggleVoice} />
-        {isListening && (
-          <p className="animate-pulse text-sm font-medium text-primary">Listening...</p>
-        )}
         <GuidanceBadge text='TRY: "I WOULD LIKE TO READ FOR 15 MINS EVERY NIGHT AT 8 PM"' />
         <div className="min-h-[140px] w-full rounded-2xl bg-surface/60 px-5 pb-10 pt-5">
           <textarea

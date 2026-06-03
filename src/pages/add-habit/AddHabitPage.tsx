@@ -86,8 +86,6 @@ export function AddHabitPage() {
             brainDumpText={s.brainDumpText}
             setBrainDumpText={s.setBrainDumpText}
             textareaRef={s.textareaRef}
-            isListening={s.isListening}
-            toggleVoice={s.toggleVoice}
             onDone={s.handleBrainDumpDone}
             onBack={s.handleBack}
           />
