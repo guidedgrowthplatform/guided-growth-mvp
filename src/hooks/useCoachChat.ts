@@ -52,7 +52,7 @@ export function useCoachChat(
   const { acquireRealtime, releaseToken, setStatus } = useVoice();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
 
-  useCoachChatToolEvents(llmMessages, chatSessionId, initialMessages);
+  const lastCreatedItem = useCoachChatToolEvents(llmMessages, chatSessionId, initialMessages);
 
   const tokenRef = useRef<ReleaseToken | null>(null);
   const pendingTurnRef = useRef<string | null>(null);
@@ -283,5 +283,6 @@ export function useCoachChat(
     stopListening,
     sendText,
     updateHabitDays,
+    lastCreatedItem,
   };
 }
