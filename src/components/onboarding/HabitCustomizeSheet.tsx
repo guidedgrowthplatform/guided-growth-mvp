@@ -73,7 +73,7 @@ export function HabitCustomizeSheet({
             onClick={onClose}
             className="flex size-[44px] items-center justify-center rounded-full bg-border-light"
           >
-            <Icon icon="ic:round-close" className="size-[16px] text-content" />
+            <Icon icon="ic:round-close" className="size-[24px] text-content" />
           </button>
         </div>
 
