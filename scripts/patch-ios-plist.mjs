@@ -23,6 +23,13 @@ const PATCHES = [
     value:
       'Guided Growth uses your microphone for voice commands to manage habits, log metrics, and record reflections hands-free.',
   },
+  // WKWebView blocks mDNS-based WebRTC ICE candidates without this entry,
+  // even after mic permission. Vapi (Daily) calls silently fail to connect (#88).
+  {
+    key: 'NSLocalNetworkUsageDescription',
+    value:
+      'Guided Growth uses local network access to connect to your voice coach.',
+  },
   // Declares the app uses no non-exempt encryption (only Apple's standard
   // HTTPS / TLS stack), which bypasses the App Store Connect export
   // compliance prompt on every TestFlight upload. Flip to `true` (and
@@ -77,9 +84,15 @@ for (const { key, value } of PATCHES) {
     valueXml = `<string>${value}</string>`;
   }
 
-  // Insert before the closing </dict>
+  // Anchor to the last </dict> — String.replace with a string anchor matches
+  // only the first occurrence, which after `cap sync` is nested inside
+  // CFBundleURLTypes (where iOS doesn't read privacy keys).
   const insertion = `\t<key>${key}</key>\n\t${valueXml}\n`;
-  plist = plist.replace('</dict>', `${insertion}</dict>`);
+  const closeIdx = plist.lastIndexOf('</dict>');
+  if (closeIdx === -1) {
+    throw new Error('[patch-ios-plist] no closing </dict> found in Info.plist');
+  }
+  plist = plist.slice(0, closeIdx) + insertion + plist.slice(closeIdx);
   patched = true;
   console.log(`[patch-ios-plist] ✚ Added ${key}`);
 }
