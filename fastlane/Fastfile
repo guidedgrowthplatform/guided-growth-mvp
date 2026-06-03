@@ -75,9 +75,12 @@ platform :ios do
     notes_path = File.expand_path("../release-notes/whatsnew-en-US", __dir__)
     changelog = File.exist?(notes_path) ? File.read(notes_path).strip : nil
 
+    # Wait for processing so changelog ("What to Test") reliably attaches;
+    # bounded timeout fails loud instead of hanging on a slow Apple queue.
     upload_to_testflight(
       api_key: api_key,
-      skip_waiting_for_build_processing: true,
+      skip_waiting_for_build_processing: false,
+      wait_processing_timeout_duration: 1800,
       changelog: changelog
     )
   end
