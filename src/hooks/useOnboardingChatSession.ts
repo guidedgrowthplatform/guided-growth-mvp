@@ -12,6 +12,7 @@ const EMPTY_INITIAL_MESSAGES: LLMChatMessage[] = [];
 export interface OnboardingChatSession {
   chatSessionId: string | null;
   initialMessages: LLMChatMessage[];
+  useStableSession: boolean;
 }
 
 // Stable id (flag-gated + authed) → cross-step LLM memory; else legacy per-screen.
@@ -34,6 +35,10 @@ export function useOnboardingChatSession(
   });
 
   return useStableSession
-    ? { chatSessionId: stableChatSessionId, initialMessages: EMPTY_INITIAL_MESSAGES }
-    : { chatSessionId: legacy.chatSessionId, initialMessages: legacy.initialMessages };
+    ? { chatSessionId: stableChatSessionId, initialMessages: EMPTY_INITIAL_MESSAGES, useStableSession }
+    : {
+        chatSessionId: legacy.chatSessionId,
+        initialMessages: legacy.initialMessages,
+        useStableSession,
+      };
 }

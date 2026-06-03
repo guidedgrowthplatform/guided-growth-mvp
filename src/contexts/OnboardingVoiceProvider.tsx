@@ -597,7 +597,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     (
       screenId: string,
       initial: VoiceMessage[],
-      mode: 'replace' | 'append-if-empty' = 'replace',
+      mode: 'replace' | 'append-if-empty' | 'append' = 'replace',
     ) => {
       if (threadScreenIdRef.current === screenId) return;
       threadScreenIdRef.current = screenId;

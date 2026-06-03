@@ -10,9 +10,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createOrResumeChatSession } from '@/api/chat';
 import { SessionLogContext, type SessionLogContextValue } from '@/contexts/SessionLogContext';
 import { getOrCreateOnboardingChatSessionId } from '@/lib/onboarding/onboardingChatSession';
+import { queryKeys } from '@/lib/query';
 import { useAuthStore } from '@/stores/authStore';
 import type { LLMStreamEvent } from '@gg/shared/types/llm';
-import { useOnboardingChat, type UseOnboardingChatReturn } from '../useOnboardingChat';
+import {
+  useOnboardingChat,
+  type UseOnboardingChatArgs,
+  type UseOnboardingChatReturn,
+} from '../useOnboardingChat';
 
 vi.mock('@/api/chat', () => ({
   createOrResumeChatSession: vi.fn(async () => ({ chat_session_id: 'sess-1', messages: [] })),
@@ -47,14 +52,21 @@ function mockSSE(events: LLMStreamEvent[]): Response {
 }
 
 let hookRef: UseOnboardingChatReturn | null = null;
-function Bridge({ screenId = 'ONBOARD-FORK--FORM' }: { screenId?: string }) {
+const noopStartThread: UseOnboardingChatArgs['startThread'] = () => {};
+function Bridge({
+  screenId = 'ONBOARD-FORK--FORM',
+  startThread = noopStartThread,
+}: {
+  screenId?: string;
+  startThread?: UseOnboardingChatArgs['startThread'];
+}) {
   const v = useOnboardingChat({
     screenId,
     enabled: true,
     orbState: 'voice_in_only',
     coachingStyle: 'warm',
     appendMessage: vi.fn(),
-    startThread: vi.fn(),
+    startThread,
     emitAssistant: vi.fn(),
     onVoiceAction: vi.fn(),
     onAdvance: vi.fn(),
@@ -63,6 +75,16 @@ function Bridge({ screenId = 'ONBOARD-FORK--FORM' }: { screenId?: string }) {
     hookRef = v;
   });
   return null;
+}
+
+// Pull (screenId, openerId, mode) out of a captured startThread call.
+function startThreadCall(spy: ReturnType<typeof vi.fn>, i: number) {
+  const [screenId, initial, mode] = spy.mock.calls[i] as [
+    string,
+    { id: string }[],
+    string | undefined,
+  ];
+  return { screenId, openerId: initial[0]?.id, mode };
 }
 
 let container: HTMLDivElement;
@@ -262,5 +284,95 @@ describe('stable onboarding session', () => {
     const ids = llmChatSessionIds(fetchMock);
     expect(ids.length).toBeGreaterThanOrEqual(2);
     expect(ids.every((id) => id === STABLE_ID)).toBe(true);
+  });
+});
+
+describe('continuous thread (Phase 2, stable ON)', () => {
+  beforeEach(() => {
+    vi.stubEnv('VITE_ONBOARDING_STABLE_CHAT_SESSION', 'true');
+    (getOrCreateOnboardingChatSessionId as ReturnType<typeof vi.fn>).mockReturnValue(STABLE_ID);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    qc.setQueryData(queryKeys.onboarding.state, null);
+  });
+
+  it('appends a unique opener per screen with mode "append" (no per-screen wipe)', async () => {
+    const startThread = vi.fn();
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge screenId="ONBOARD-FORK--FORM" startThread={startThread} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge screenId="ONBOARD-BEGINNER-01" startThread={startThread} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+
+    expect(startThread).toHaveBeenCalledTimes(2);
+    const a = startThreadCall(startThread, 0);
+    const b = startThreadCall(startThread, 1);
+    expect(a.mode).toBe('append');
+    expect(b.mode).toBe('append');
+    expect(a.openerId).toBe('opener-ONBOARD-FORK--FORM-0');
+    expect(b.openerId).toBe('opener-ONBOARD-BEGINNER-01-1');
+  });
+
+  it('back-nav appends a distinct revisit opener (no React key collision)', async () => {
+    qc.setQueryData(queryKeys.onboarding.state, { path: 'simple', data: {} } as never);
+    const startThread = vi.fn();
+    const render = (screenId: string) =>
+      act(() => {
+        root.render(
+          <Wrapper>
+            <Bridge screenId={screenId} startThread={startThread} />
+          </Wrapper>,
+        );
+      });
+
+    render('ONBOARD-FORK--FORM');
+    await flush();
+    render('ONBOARD-BEGINNER-01');
+    await flush();
+    render('ONBOARD-FORK--FORM'); // back to A
+    await flush();
+
+    expect(startThread).toHaveBeenCalledTimes(3);
+    const firstA = startThreadCall(startThread, 0);
+    const revisitA = startThreadCall(startThread, 2);
+    expect(revisitA.screenId).toBe('ONBOARD-FORK--FORM');
+    expect(revisitA.mode).toBe('append');
+    // Distinct id → no duplicate React key when both bubbles are in the thread.
+    expect(revisitA.openerId).not.toBe(firstA.openerId);
+    expect(revisitA.openerId).toBe('opener-ONBOARD-FORK--FORM-2');
+  });
+});
+
+describe('legacy thread (flag OFF)', () => {
+  it('replaces per screen with the default mode (today behavior)', async () => {
+    const startThread = vi.fn();
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge screenId="ONBOARD-FORK--FORM" startThread={startThread} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+
+    const call = startThreadCall(startThread, 0);
+    expect(call.mode).toBeUndefined(); // default 'replace'
+    expect(call.openerId).toBe('opener-ONBOARD-FORK--FORM'); // no visit suffix
   });
 });

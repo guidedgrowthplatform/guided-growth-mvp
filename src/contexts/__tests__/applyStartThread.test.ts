@@ -25,4 +25,15 @@ describe('applyStartThread', () => {
     const initial = [msg('i1', 'init')];
     expect(applyStartThread(prev, initial, 'append-if-empty')).toBe(prev);
   });
+
+  it('append concatenates initial onto prev (keeps continuous thread)', () => {
+    const prev = [msg('p1', 'prev')];
+    const initial = [msg('i1', 'init')];
+    expect(applyStartThread(prev, initial, 'append')).toEqual([prev[0], initial[0]]);
+  });
+
+  it('append onto empty prev yields just initial', () => {
+    const initial = [msg('i1', 'init')];
+    expect(applyStartThread([], initial, 'append')).toEqual(initial);
+  });
 });
