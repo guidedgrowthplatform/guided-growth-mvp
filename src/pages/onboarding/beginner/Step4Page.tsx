@@ -32,10 +32,12 @@ export function Step4Page() {
   const trackStepComplete = useStepTiming(6, 'specific_goals', 'beginner');
 
   useEffect(() => {
-    if (onboardingState?.data?.goals && Array.isArray(onboardingState.data.goals)) {
-      setSelected(new Set(onboardingState.data.goals as string[]));
-    }
-  }, [onboardingState?.data?.goals]);
+    const saved = onboardingState?.data?.goals;
+    if (!Array.isArray(saved)) return;
+    const allowed = new Set(goals);
+    const valid = saved.filter((g): g is string => typeof g === 'string' && allowed.has(g));
+    setSelected(new Set(valid));
+  }, [onboardingState?.data?.goals, goals]);
 
   function toggleGoal(goal: string) {
     setSelected((prev) => {

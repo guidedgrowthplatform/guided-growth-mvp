@@ -295,7 +295,7 @@ export function OnboardingLayout({
       ) : (
         <div className="relative -mx-6 -mb-12 bg-gradient-to-t from-surface via-surface to-transparent px-6 pb-[40px] pt-[24px]">
           {aiListeningPrompt && !overlayOpen && (
-            <div className="absolute bottom-full right-[24px] z-10 mb-[-8px]">
+            <div className="pointer-events-none absolute bottom-full right-[24px] z-10 mb-[-8px]">
               <AiListeningTooltip
                 text={transcript || aiListeningPrompt}
                 visible={isListening || !!transcript}
