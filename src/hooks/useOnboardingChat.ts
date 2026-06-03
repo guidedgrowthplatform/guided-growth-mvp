@@ -6,9 +6,9 @@ import {
   getOnboardingRevisitOpener,
 } from '@/components/onboarding/onboardingOpeners';
 import type { OnboardingVoiceResult, VoiceMessage } from '@/contexts/useOnboardingVoiceSession';
-import { useChatSession } from '@/hooks/useChatSession';
 import { useChatToolEvents } from '@/hooks/useChatToolEvents';
 import { useLLM } from '@/hooks/useLLM';
+import { useOnboardingChatSession } from '@/hooks/useOnboardingChatSession';
 import { isAffirmation } from '@/lib/onboarding/isAffirmation';
 import type { OrbState } from '@/lib/orb/orbState';
 import { routeOrbSend } from '@/lib/orb/routeOrbSend';
@@ -58,10 +58,11 @@ export function useOnboardingChat({
   const qc = useQueryClient();
   const isOnboardingScreen = (screenId ?? '').startsWith('ONBOARD-');
 
-  const { chatSessionId, initialMessages } = useChatSession(screenId ?? '', {
-    enabled: enabled && !!screenId,
-    resume: !isOnboardingScreen,
-  });
+  const { chatSessionId, initialMessages } = useOnboardingChatSession(
+    screenId ?? '',
+    enabled,
+    isOnboardingScreen,
+  );
   const llm = useLLM(screenId ?? '', {
     coachingStyle,
     chatSessionId: chatSessionId ?? undefined,
