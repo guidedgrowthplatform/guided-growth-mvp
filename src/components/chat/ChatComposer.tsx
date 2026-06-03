@@ -4,6 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CompositionEvent,
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
@@ -47,6 +48,7 @@ export function ChatComposer({
   const [internal, setInternal] = useState('');
   const current = isControlled ? (value as string) : internal;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isComposingRef = useRef(false);
 
   const setCurrent = (next: string) => {
     if (!isControlled) setInternal(next);
@@ -82,10 +84,22 @@ export function ChatComposer({
 
   // Enter sends; Shift+Enter inserts a newline
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // iOS IME / predictive-text fires Enter while composing — never submit then.
+    if (isComposingRef.current || e.nativeEvent.isComposing) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       submit();
     }
+  };
+
+  const handleCompositionStart = () => {
+    isComposingRef.current = true;
+  };
+
+  // iOS Safari/WKWebView can buffer characters until composition ends — re-commit.
+  const handleCompositionEnd = (e: CompositionEvent<HTMLTextAreaElement>) => {
+    isComposingRef.current = false;
+    setCurrent(e.currentTarget.value);
   };
 
   return (
@@ -105,10 +119,15 @@ export function ChatComposer({
         value={current}
         onChange={(e) => setCurrent(e.target.value)}
         onKeyDown={handleKeyDown}
+        onCompositionStart={handleCompositionStart}
+        onCompositionEnd={handleCompositionEnd}
         placeholder={placeholder}
         aria-label={placeholder}
         disabled={disabled}
         tabIndex={tabbable ? 0 : -1}
+        autoCapitalize="sentences"
+        autoCorrect="on"
+        spellCheck
         className="flex-1 resize-none self-center overflow-y-auto bg-transparent text-[15px] leading-5 text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:opacity-60"
       />
       <button
