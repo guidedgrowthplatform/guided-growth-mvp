@@ -154,6 +154,18 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const pendingRef = useRef<'starting' | 'stopping' | null>(null);
   const lastTransitionRef = useRef<Promise<unknown> | null>(null);
   const vapiShouldBeLiveRef = useRef(false);
+  // Cold-start guard — onCallStart fires on every Vapi reconnect, not just on
+  // the first call-start of a session. Reset on user-initiated session end.
+  const hasEverStartedRef = useRef(false);
+
+  // Provider lives for the whole app; on logout → new user the previous
+  // user's onboarding transcript (stored unscrubbed by design) would leak
+  // into the next session without this. Remote call-end / fatal errors
+  // bypass the user-initiated-end reset, so anonId is the reliable signal.
+  useEffect(() => {
+    setMessages([]);
+    hasEverStartedRef.current = false;
+  }, [anonId]);
 
   // Form snapshot — updated by each onboarding page via setFormSnapshot.
   // Read by buildOverridesForCall (cold start) and pushScreenContext (screen
@@ -161,7 +173,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // when the snapshot changes mid-screen.
   const formSnapshotRef = useRef<Record<string, unknown>>({});
   const formSnapshotPushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const FORM_SNAPSHOT_DEBOUNCE_MS = 700;
+  const FORM_SNAPSHOT_DEBOUNCE_MS = 1200;
 
   const pushScreenContext = useCallback(
     async (screenId: string, sinceTs: string | null) => {
@@ -322,7 +334,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     retryCountRef.current = 0;
     fatalErrorRef.current = false;
     clearRetryTimer();
-    setMessages([]);
+    // call-start also fires on silent WebRTC reconnects — only wipe on cold start.
+    if (!hasEverStartedRef.current) {
+      setMessages([]);
+      hasEverStartedRef.current = true;
+    }
     threadScreenIdRef.current = null;
     lastAssistantFinalRef.current = { text: '', at: 0 };
     const sid = activeSubScreenIdRef.current ?? currentScreenIdRef.current;
@@ -348,6 +364,9 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     didCallStopRef.current = false;
     lastPushedScreenIdRef.current = null;
     lastScreenChangeTsRef.current = null;
+    if (userInitiated) {
+      hasEverStartedRef.current = false;
+    }
     if (!userInitiated) {
       setRemoteEndCooldown(true);
       clearRemoteEndCooldownTimer();
