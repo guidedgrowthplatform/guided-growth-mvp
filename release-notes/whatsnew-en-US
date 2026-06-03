@@ -1,2 +1,2 @@
-v2.7.2 — Fixes for chat and check-ins.
-Test: 1) Open Coach Chat and send a message, confirm it replies. 2) Do a morning or evening check-in and confirm it saves.
+v2.8.0 — Coach Chat confirms + auto-routes after creating a habit or reflection; iOS chat input fixes; onboarding goal-selection fix.
+Test: 1) Ask the coach in chat to create a habit; confirm message appears and you land on Habits. 2) Same for "log a reflection". 3) Type in chat on iOS — characters shouldn't drop. 4) Run onboarding beginner steps; goal selection should work.
