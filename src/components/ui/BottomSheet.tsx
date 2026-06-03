@@ -80,7 +80,7 @@ export function BottomSheet({
     : `absolute inset-x-0 bottom-0 ${topOffset}`;
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-[70]">
       <div
         className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-all duration-300 ease-out ${
           isVisible ? 'opacity-100' : 'opacity-0'
