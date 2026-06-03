@@ -28,7 +28,7 @@ export interface UseOnboardingChatArgs {
   startThread: (
     screenId: string,
     initial: VoiceMessage[],
-    mode?: 'replace' | 'append-if-empty',
+    mode?: 'replace' | 'append-if-empty' | 'append',
   ) => void;
   // Push assistant text onto the transcript bus (subtitle bar + overlay render).
   emitAssistant: (text: string, kind: 'partial' | 'final') => void;
@@ -58,7 +58,7 @@ export function useOnboardingChat({
   const qc = useQueryClient();
   const isOnboardingScreen = (screenId ?? '').startsWith('ONBOARD-');
 
-  const { chatSessionId, initialMessages } = useOnboardingChatSession(
+  const { chatSessionId, initialMessages, useStableSession } = useOnboardingChatSession(
     screenId ?? '',
     enabled,
     isOnboardingScreen,
@@ -84,6 +84,11 @@ export function useOnboardingChat({
   const landedCompleteRef = useRef(false);
   // First voice-in final can arrive before the chat session lands — hold it.
   const pendingTurnRef = useRef<string | null>(null);
+  // Stable read inside the screen-change effect (kept out of its dep array).
+  const useStableSessionRef = useRef(useStableSession);
+  useStableSessionRef.current = useStableSession;
+  // Monotonic — globally-unique opener ids so revisits never collide React keys.
+  const visitCounterRef = useRef(0);
 
   // Latest values via refs so sendUserTurn stays stable (no context-value churn).
   const onAdvanceRef = useRef(onAdvance);
@@ -102,23 +107,30 @@ export function useOnboardingChat({
     advanceTimerRef.current = setTimeout(() => onAdvanceRef.current?.(), ADVANCE_DELAY_MS);
   }, []);
 
-  // Reset per-screen state + seed the opener when the screen changes.
+  // Seed the opener when the screen changes. Stable session → continuous thread
+  // (append opener, keep prior turns); legacy → per-screen wipe (reset + replace).
   useEffect(() => {
     if (!enabled || !screenId || !isOnboardingScreen) return;
     if (openerSeededRef.current === screenId) return;
     openerSeededRef.current = screenId;
-    mirroredIdsRef.current = new Set();
+    const stable = useStableSessionRef.current;
+    if (!stable) mirroredIdsRef.current = new Set();
     lastLlmErrorRef.current = '';
     pendingTurnRef.current = null;
     clearTimeout(advanceTimerRef.current);
-    llm.reset();
+    if (!stable) llm.reset();
 
     const onboardingState =
       qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null;
     const revisit = getOnboardingRevisitOpener(screenId, onboardingState);
     landedCompleteRef.current = revisit?.complete === true;
     const opener = revisit?.text ?? getOnboardingOpener(screenId);
-    startThread(screenId, opener ? [{ id: `opener-${screenId}`, role: 'ai', text: opener }] : []);
+    if (stable) {
+      const openerId = `opener-${screenId}-${visitCounterRef.current++}`;
+      startThread(screenId, opener ? [{ id: openerId, role: 'ai', text: opener }] : [], 'append');
+    } else {
+      startThread(screenId, opener ? [{ id: `opener-${screenId}`, role: 'ai', text: opener }] : []);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, screenId, isOnboardingScreen, startThread, qc]);
 
@@ -182,7 +194,9 @@ export function useOnboardingChat({
     routes: routesData?.routes,
     onVoiceAction,
     onAdvance: scheduleAdvance,
-    resetKey: screenId,
+    // Stable session → session-scoped dedup (call_ids are globally unique);
+    // legacy → per-screen reset, unchanged.
+    resetKey: useStableSession ? (chatSessionId ?? screenId) : screenId,
   });
 
   const sendUserTurn = useCallback(
