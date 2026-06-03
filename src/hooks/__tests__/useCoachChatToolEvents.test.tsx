@@ -7,6 +7,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { track } from '@/analytics';
+import type { LastCreatedItem } from '@/lib/chat/coachChatTypes';
 import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
 import { useCoachChatToolEvents } from '../useCoachChatToolEvents';
 
@@ -26,12 +27,14 @@ function assistant(id: string, toolEvents: LLMToolEvent[]): LLMChatMessage {
   return { id, role: 'assistant', content: 'ok', toolEvents };
 }
 
+let lastCreatedRef: LastCreatedItem | undefined;
+
 function Bridge(props: {
   messages: LLMChatMessage[];
   resetKey: string | null;
   initialMessages: LLMChatMessage[];
 }) {
-  useCoachChatToolEvents(props.messages, props.resetKey, props.initialMessages);
+  lastCreatedRef = useCoachChatToolEvents(props.messages, props.resetKey, props.initialMessages);
   return null;
 }
 
@@ -58,6 +61,7 @@ beforeEach(() => {
   qc = new QueryClient();
   invalidateSpy = vi.spyOn(qc, 'invalidateQueries').mockImplementation(() => Promise.resolve());
   habitsChanged = vi.fn();
+  lastCreatedRef = undefined;
   window.addEventListener('habits-changed', habitsChanged);
 });
 
@@ -152,6 +156,113 @@ describe('useCoachChatToolEvents', () => {
     const resumed = [assistant('m1', [toolEvt('e1', 'create_habit', true, { name: 'x' })])];
     render({ messages: resumed, resetKey: 'sess-A', initialMessages: resumed });
     expect(trackMock).not.toHaveBeenCalled();
+  });
+
+  // Real wire shape: useLLM.ts:129 sets result = { ok, payload: e.result } and
+  // the server's ok() helper already wraps as { ok: true, result: {...} }, so
+  // the habit id lives at payload.result.habit.id — same depth coachChatCards reads.
+  it('captures lastCreatedItem from a create_habit tool result', () => {
+    const evt: LLMToolEvent = {
+      id: 'e1',
+      name: 'create_habit',
+      args: { name: 'Meditate' },
+      result: {
+        ok: true,
+        payload: { ok: true, result: { created: true, habit: { id: 'h-123', name: 'Meditate' } } },
+      },
+    };
+    render({
+      messages: [assistant('m1', [evt])],
+      resetKey: 'sess-A',
+      initialMessages: [],
+    });
+    expect(lastCreatedRef).toEqual({ type: 'habit', id: 'h-123' });
+  });
+
+  it('captures lastCreatedItem from a log_reflection tool result', () => {
+    const evt: LLMToolEvent = {
+      id: 'e1',
+      name: 'log_reflection',
+      args: {},
+      result: {
+        ok: true,
+        payload: { ok: true, result: { logged: true, entry_id: 'r-9', date: '2026-06-02' } },
+      },
+    };
+    render({
+      messages: [assistant('m1', [evt])],
+      resetKey: 'sess-A',
+      initialMessages: [],
+    });
+    expect(lastCreatedRef).toEqual({ type: 'reflection', id: 'r-9' });
+  });
+
+  it('keeps the latest created item across multiple creates in a session', () => {
+    const e1: LLMToolEvent = {
+      id: 'e1',
+      name: 'create_habit',
+      args: {},
+      result: { ok: true, payload: { ok: true, result: { habit: { id: 'h-1' } } } },
+    };
+    const e2: LLMToolEvent = {
+      id: 'e2',
+      name: 'log_reflection',
+      args: {},
+      result: { ok: true, payload: { ok: true, result: { entry_id: 'r-2' } } },
+    };
+    render({
+      messages: [assistant('m1', [e1, e2])],
+      resetKey: 'sess-A',
+      initialMessages: [],
+    });
+    expect(lastCreatedRef).toEqual({ type: 'reflection', id: 'r-2' });
+  });
+
+  it('does not capture lastCreatedItem for non-create tools', () => {
+    const evt: LLMToolEvent = {
+      id: 'e1',
+      name: 'complete_habit',
+      args: {},
+      result: { ok: true, payload: { ok: true, result: {} } },
+    };
+    render({
+      messages: [assistant('m1', [evt])],
+      resetKey: 'sess-A',
+      initialMessages: [],
+    });
+    expect(lastCreatedRef).toBeUndefined();
+  });
+
+  it('does not capture lastCreatedItem when the create result is not ok', () => {
+    const evt: LLMToolEvent = {
+      id: 'e1',
+      name: 'create_habit',
+      args: {},
+      result: { ok: false, payload: { ok: false, result: {} } },
+    };
+    render({
+      messages: [assistant('m1', [evt])],
+      resetKey: 'sess-A',
+      initialMessages: [],
+    });
+    expect(lastCreatedRef).toBeUndefined();
+  });
+
+  // Regression guard: the old shallow shape (payload.habit, no result wrapper)
+  // must NOT be picked up — that was the bug Mint caught.
+  it('rejects the old shallow shape with payload.habit at depth 1', () => {
+    const evt: LLMToolEvent = {
+      id: 'e1',
+      name: 'create_habit',
+      args: {},
+      result: { ok: true, payload: { habit: { id: 'h-wrong' } } },
+    };
+    render({
+      messages: [assistant('m1', [evt])],
+      resetKey: 'sess-A',
+      initialMessages: [],
+    });
+    expect(lastCreatedRef).toBeUndefined();
   });
 
   it('fires again for a new session after resetKey changes', () => {

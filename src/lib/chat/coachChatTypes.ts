@@ -16,6 +16,17 @@ export interface ChatMessage {
 
 export type VoiceChatState = 'idle' | 'listening' | 'processing';
 
+export type CreatedItemType = 'habit' | 'reflection';
+
+export interface LastCreatedItem {
+  type: CreatedItemType;
+  id: string;
+}
+
+export interface CoachChatCloseInfo {
+  lastCreatedItem?: LastCreatedItem;
+}
+
 export interface CoachChatApi {
   messages: ChatMessage[];
   voiceState: VoiceChatState;
@@ -24,4 +35,5 @@ export interface CoachChatApi {
   stopListening: () => void;
   sendText: (text: string) => void;
   updateHabitDays: (messageId: string, cardIndex: number, days: boolean[]) => void;
+  lastCreatedItem?: LastCreatedItem;
 }
