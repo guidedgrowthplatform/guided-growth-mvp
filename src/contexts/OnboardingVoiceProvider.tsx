@@ -35,6 +35,7 @@ import { buildContextMessage } from '@/lib/context/buildContextMessage';
 import { getScreenContext } from '@/lib/context/getScreenContext';
 import { getBundledRoutes } from '@/lib/context/screenContextsBundle';
 import { screenIdForRoute } from '@/lib/context/screenIdForRoute';
+import { isStableOnboardingChatEnabled } from '@/lib/onboarding/onboardingChatSession';
 import { orbStateFrom } from '@/lib/orb/orbState';
 import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
 import { createListenerBus } from '@/lib/util/listenerBus';
@@ -42,6 +43,7 @@ import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+import { shouldWipeOnAnonIdChange, shouldWipeOnColdStart } from './onboardingThreadWipe';
 
 function isOnboardingPath(pathname: string): boolean {
   return pathname === '/onboarding' || pathname.startsWith('/onboarding/');
@@ -162,9 +164,16 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // user's onboarding transcript (stored unscrubbed by design) would leak
   // into the next session without this. Remote call-end / fatal errors
   // bypass the user-initiated-end reset, so anonId is the reliable signal.
+  // Stable ON: first resolve (null→id) keeps the hydrated thread; only a switch wipes.
+  const prevAnonIdRef = useRef<string | null>(null);
   useEffect(() => {
-    setMessages([]);
-    hasEverStartedRef.current = false;
+    const prev = prevAnonIdRef.current;
+    const next = anonId ?? null;
+    prevAnonIdRef.current = next;
+    if (shouldWipeOnAnonIdChange(isStableOnboardingChatEnabled(), prev, next)) {
+      setMessages([]);
+      hasEverStartedRef.current = false;
+    }
   }, [anonId]);
 
   // Form snapshot — updated by each onboarding page via setFormSnapshot.
@@ -335,8 +344,9 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     fatalErrorRef.current = false;
     clearRetryTimer();
     // call-start also fires on silent WebRTC reconnects — only wipe on cold start.
+    // Stable ON: keep the thread across the Vapi round-trip; turns append in handleTranscript.
     if (!hasEverStartedRef.current) {
-      setMessages([]);
+      if (shouldWipeOnColdStart(isStableOnboardingChatEnabled())) setMessages([]);
       hasEverStartedRef.current = true;
     }
     threadScreenIdRef.current = null;
