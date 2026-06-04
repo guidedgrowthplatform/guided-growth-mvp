@@ -63,9 +63,20 @@ describe('confirm_step_complete', () => {
       {},
     );
     expect(blocked).toMatchObject({ result: { advance: false } });
-    row({ habitConfigs: { Walk: {} } });
+    expect(pool.query).toHaveBeenCalledTimes(1); // no bump when blocked
+    row({ habitConfigs: { Walk: {} } }); // SELECT
+    pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ current_step: 6 }] }); // UPDATE bump
     const ok = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-BEGINNER-03' }, {});
-    expect(ok).toMatchObject({ result: { advance: true } });
+    expect(ok).toMatchObject({ result: { advance: true, current_step: 6 } });
+  });
+
+  it('habit confirm bumps current_step to 6 so useAgentNavigation advances', async () => {
+    row({ habitConfigs: { Walk: {} } });
+    pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ current_step: 6 }] });
+    await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-BEGINNER-03' }, {});
+    const update = pool.query.mock.calls[1];
+    expect(update[0]).toMatch(/UPDATE onboarding_states SET current_step = GREATEST/);
+    expect(update[1]).toEqual([ANON, 6]);
   });
 
   // Drift guard: locks the set of screens whose advance is gated on a required field.

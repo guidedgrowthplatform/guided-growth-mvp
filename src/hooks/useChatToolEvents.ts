@@ -62,7 +62,11 @@ export function useChatToolEvents({
         }
         case 'confirm_step_complete': {
           const cp = evt.result?.payload as { result?: { advance?: boolean } } | undefined;
-          if (cp?.result?.advance === true) confirmAdvance = true;
+          if (cp?.result?.advance === true) {
+            confirmAdvance = true;
+            // Multi-item screens bump current_step here → useAgentNavigation advances.
+            mergeOnboardingState(qc, evt);
+          }
           break;
         }
         default: {
