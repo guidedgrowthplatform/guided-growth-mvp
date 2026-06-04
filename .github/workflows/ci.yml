@@ -24,6 +24,8 @@ name: CI/CD Pipeline
 #   ANDROID_KEY_PASSWORD             — signing key password
 #   SERVICE_ACCOUNT_JSON             — Play Console service account JSON
 #   MATTERMOST_ANDROID_CI_WEBHOOK_URL — Mattermost incoming webhook (release notify; optional)
+#   FIREBASE_APP_ID                  — Firebase Android app id (App Distribution; optional)
+#   FIREBASE_SERVICE_ACCOUNT_JSON    — service account JSON w/ Firebase App Distribution Admin
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -160,7 +162,9 @@ jobs:
         run: |
           printf '%s' "$KEYSTORE_BASE64" | base64 -d > android/app/guidedgrowth.keystore
 
-      - name: Build Release AAB
+      # bundleRelease -> AAB for Play; assembleRelease -> APK for Firebase
+      # App Distribution (testers can't sideload an AAB). Same signing config.
+      - name: Build Release AAB + APK
         working-directory: android
         env:
           KEYSTORE_FILE: 'guidedgrowth.keystore'
@@ -169,7 +173,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew bundleRelease --no-daemon \
+          ./gradlew bundleRelease assembleRelease --no-daemon \
             -PversionCode=${{ github.run_number }} \
             -PversionName=${{ github.ref_name }}
 
@@ -207,6 +211,24 @@ jobs:
           releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
           track: internal
           whatsNewDirectory: release-notes
+
+      # TestFlight-equivalent: emails the tester group an install link per
+      # tagged release. Skips silently when FIREBASE_APP_ID is unset so the
+      # release never reds before Firebase is configured.
+      - name: Distribute to Firebase App Distribution
+        if: >-
+          github.event_name == 'push'
+          && startsWith(github.ref, 'refs/tags/v')
+          && env.FIREBASE_APP_ID != ''
+        env:
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          groups: internal-testers
+          file: android/app/build/outputs/apk/release/app-release.apk
+          releaseNotes: ${{ github.ref_name }}
 
       - name: Notify Mattermost (AAB ready)
         if: >-
