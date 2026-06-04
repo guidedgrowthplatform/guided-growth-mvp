@@ -27,8 +27,3 @@ export function clearOnboardingChatSessionId(): void {
     // best-effort
   }
 }
-
-// Dark-launch gate. Default OFF unless the env flag is explicitly 'true'.
-export function isStableOnboardingChatEnabled(): boolean {
-  return import.meta.env.VITE_ONBOARDING_STABLE_CHAT_SESSION === 'true';
-}

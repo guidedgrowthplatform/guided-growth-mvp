@@ -1,9 +1,6 @@
 import { useMemo } from 'react';
 import { useChatSession } from '@/hooks/useChatSession';
-import {
-  getOrCreateOnboardingChatSessionId,
-  isStableOnboardingChatEnabled,
-} from '@/lib/onboarding/onboardingChatSession';
+import { getOrCreateOnboardingChatSessionId } from '@/lib/onboarding/onboardingChatSession';
 import { useAuthStore } from '@/stores/authStore';
 import type { LLMChatMessage } from '@gg/shared/types/llm';
 
@@ -15,15 +12,15 @@ export interface OnboardingChatSession {
   useStableSession: boolean;
 }
 
-// Stable id (flag-gated + authed) → cross-step LLM memory; else legacy per-screen.
-// Auth-gated keeps pre-login behavior unchanged; useChatSession stays unconditional.
+// Stable id (authed onboarding) → cross-step LLM memory; else legacy per-screen.
+// Pre-login / non-onboarding keeps the legacy per-screen session.
 export function useOnboardingChatSession(
   screenId: string,
   enabled: boolean,
   isOnboardingScreen: boolean,
 ): OnboardingChatSession {
   const userId = useAuthStore((s) => s.user?.id ?? null);
-  const useStableSession = isStableOnboardingChatEnabled() && isOnboardingScreen && !!userId;
+  const useStableSession = isOnboardingScreen && !!userId;
   const stableChatSessionId = useMemo(
     () => (useStableSession ? getOrCreateOnboardingChatSessionId() : null),
     [useStableSession],
@@ -35,7 +32,11 @@ export function useOnboardingChatSession(
   });
 
   return useStableSession
-    ? { chatSessionId: stableChatSessionId, initialMessages: EMPTY_INITIAL_MESSAGES, useStableSession }
+    ? {
+        chatSessionId: stableChatSessionId,
+        initialMessages: EMPTY_INITIAL_MESSAGES,
+        useStableSession,
+      }
     : {
         chatSessionId: legacy.chatSessionId,
         initialMessages: legacy.initialMessages,
