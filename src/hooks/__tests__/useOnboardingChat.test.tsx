@@ -173,7 +173,8 @@ describe('useOnboardingChat', () => {
       );
     vi.stubGlobal('fetch', fetchMock);
 
-    // Hold the session mint open so chatSessionId is null when the user speaks.
+    // Buffering needs the legacy async session: an authed, non-onboarding screen
+    // (authed onboarding now takes the stable path, which mints its id synchronously).
     let resolveSession!: (v: { chat_session_id: string; messages: [] }) => void;
     (createOrResumeChatSession as ReturnType<typeof vi.fn>).mockImplementationOnce(
       () => new Promise((r) => (resolveSession = r)),
@@ -182,7 +183,7 @@ describe('useOnboardingChat', () => {
     act(() => {
       root.render(
         <Wrapper>
-          <Bridge />
+          <Bridge screenId="CHAT" />
         </Wrapper>,
       );
     });
@@ -317,7 +318,6 @@ function llmChatSessionIds(fetchMock: ReturnType<typeof vi.fn>): string[] {
 
 describe('stable onboarding session', () => {
   beforeEach(() => {
-    vi.stubEnv('VITE_ONBOARDING_STABLE_CHAT_SESSION', 'true');
     (getOrCreateOnboardingChatSessionId as ReturnType<typeof vi.fn>).mockReturnValue(STABLE_ID);
   });
 
@@ -396,7 +396,6 @@ describe('stable onboarding session', () => {
 
 describe('continuous thread (Phase 2, stable ON)', () => {
   beforeEach(() => {
-    vi.stubEnv('VITE_ONBOARDING_STABLE_CHAT_SESSION', 'true');
     (getOrCreateOnboardingChatSessionId as ReturnType<typeof vi.fn>).mockReturnValue(STABLE_ID);
   });
 
@@ -464,8 +463,9 @@ describe('continuous thread (Phase 2, stable ON)', () => {
   });
 });
 
-describe('legacy thread (flag OFF)', () => {
-  it('replaces per screen with the default mode (today behavior)', async () => {
+describe('legacy thread (unauthed)', () => {
+  it('replaces per screen with the default mode (pre-login behavior)', async () => {
+    useAuthStore.setState({ user: null });
     const startThread = vi.fn();
 
     act(() => {
