@@ -14,9 +14,13 @@ beforeEach(() => {
 
 describe('dispatchOnboardingToolCall', () => {
   it('refuses when anon_id is missing', async () => {
-    const result = await dispatchOnboardingToolCall('submit_profile', { nickname: 'a' }, {
-      anon_id: undefined,
-    });
+    const result = await dispatchOnboardingToolCall(
+      'submit_profile',
+      { nickname: 'a' },
+      {
+        anon_id: undefined,
+      },
+    );
     expect(result).toEqual({
       ok: false,
       error: 'invalid_args',
@@ -26,9 +30,13 @@ describe('dispatchOnboardingToolCall', () => {
   });
 
   it('refuses when anon_id is empty string', async () => {
-    const result = await dispatchOnboardingToolCall('submit_profile', { nickname: 'a' }, {
-      anon_id: '',
-    });
+    const result = await dispatchOnboardingToolCall(
+      'submit_profile',
+      { nickname: 'a' },
+      {
+        anon_id: '',
+      },
+    );
     expect(result).toMatchObject({ ok: false, error: 'invalid_args' });
     expect(pool.query).not.toHaveBeenCalled();
   });
@@ -40,11 +48,9 @@ describe('dispatchOnboardingToolCall', () => {
   });
 
   it('refuses non-object args', async () => {
-    const result = await dispatchOnboardingToolCall(
-      'submit_profile',
-      'not-an-object' as unknown,
-      { anon_id: ANON },
-    );
+    const result = await dispatchOnboardingToolCall('submit_profile', 'not-an-object' as unknown, {
+      anon_id: ANON,
+    });
     expect(result).toMatchObject({ ok: false, error: 'invalid_args' });
   });
 
@@ -76,23 +82,38 @@ describe('dispatchOnboardingToolCall', () => {
   });
 
   it('routes confirm_step_complete without touching the DB', async () => {
+    const result = await dispatchOnboardingToolCall('confirm_step_complete', {}, { anon_id: ANON });
+    expect(result).toEqual({ ok: true, result: { advance: true } });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('routes ask_clarification without touching the DB and echoes the message', async () => {
     const result = await dispatchOnboardingToolCall(
-      'confirm_step_complete',
-      {},
+      'ask_clarification',
+      { message: '  Would you like step-by-step, or do you have a list?  ' },
       { anon_id: ANON },
     );
-    expect(result).toEqual({ ok: true, result: { advance: true } });
+    expect(result).toEqual({
+      ok: true,
+      result: { message: 'Would you like step-by-step, or do you have a list?' },
+    });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects ask_clarification with an empty message', async () => {
+    const result = await dispatchOnboardingToolCall(
+      'ask_clarification',
+      { message: '   ' },
+      { anon_id: ANON },
+    );
+    expect(result).toMatchObject({ ok: false });
     expect(pool.query).not.toHaveBeenCalled();
   });
 
   it('propagates handler exceptions for the caller to wrap', async () => {
     pool.query.mockRejectedValueOnce(new Error('connection lost'));
     await expect(
-      dispatchOnboardingToolCall(
-        'submit_profile',
-        { nickname: 'alice' },
-        { anon_id: ANON },
-      ),
+      dispatchOnboardingToolCall('submit_profile', { nickname: 'alice' }, { anon_id: ANON }),
     ).rejects.toThrow('connection lost');
   });
 });

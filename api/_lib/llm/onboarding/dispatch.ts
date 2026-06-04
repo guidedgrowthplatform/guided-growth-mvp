@@ -1,5 +1,6 @@
 import type { ToolResult } from '../tools.js';
 import { addHabit } from './handlers/addHabit.js';
+import { askClarification } from './handlers/askClarification.js';
 import { confirmPlan } from './handlers/confirmPlan.js';
 import { confirmStepComplete } from './handlers/confirmStepComplete.js';
 import { removeHabit } from './handlers/removeHabit.js';
@@ -29,6 +30,7 @@ const HANDLERS: Record<OnboardingToolName, Handler> = {
   submit_brain_dump: submitBrainDump,
   confirm_step_complete: confirmStepComplete,
   confirm_plan: confirmPlan,
+  ask_clarification: askClarification,
 };
 
 export async function dispatchOnboardingToolCall(

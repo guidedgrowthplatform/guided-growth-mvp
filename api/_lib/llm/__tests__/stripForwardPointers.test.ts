@@ -90,12 +90,16 @@ describe('stripForwardPointers', () => {
       expect(out).not.toContain('read them to me one by one');
     });
 
+    it('strips the bare routing scaffold (path arrows + "Route based on answer")', () => {
+      expect(out).not.toContain('beginner path');
+      expect(out).not.toContain('advanced path');
+      expect(out).not.toContain('Route based on answer');
+    });
+
     it('keeps current-screen coaching content', () => {
       expect(out).toContain('BEHAVIOR:');
       expect(out).toContain('DO NOT:');
       expect(out).toContain('IF NEW:');
-      expect(out).toContain('beginner path');
-      expect(out).toContain('advanced path');
     });
 
     it('preserves backward references (where the user came from)', () => {

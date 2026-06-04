@@ -33,6 +33,8 @@ type LLMStreamEvent =
   | { type: 'error'; code: string; message: string };
 
 const MAX_ROUNDS = 5;
+const ONBOARDING_MODEL = 'gpt-4o';
+const FORK_SCREEN_ID = 'ONBOARD-FORK--FORM';
 
 interface PersistedToolRow {
   toolCallId: string;
@@ -162,15 +164,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const persistChat = chatSessionId !== null;
 
   const isOnboardingScreen = screenId.startsWith('ONBOARD-');
+  const requestModel: string | undefined = isOnboardingScreen ? ONBOARDING_MODEL : undefined;
   // Onboarding captures real name/age/brain-dump — scrubbing would destroy the
   // signal. Stored raw in chat_messages (see CLAUDE.md gotcha #8).
   const scrubbedMessage = isOnboardingScreen ? userMessage : scrubPII(userMessage);
 
+  const isForkScreen = screenId === FORK_SCREEN_ID;
+
   let systemPrompt: string;
   let previousResponseId: string | null = null;
   let foreignOwned: boolean;
+  let pathAlreadySet = false;
   try {
-    const [built, ownerRow] = await Promise.all([
+    const [built, ownerRow, forkPathRow] = await Promise.all([
       buildSystemPromptForRequest({
         anon_id: user.anonId,
         screen_id: screenId,
@@ -194,10 +200,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             )
             .then((r) => r.rows[0] ?? null)
         : Promise.resolve(null),
+      isForkScreen
+        ? pool
+            .query<{
+              path: string | null;
+            }>(`SELECT path FROM onboarding_states WHERE anon_id = $1`, [user.anonId])
+            .then((r) => r.rows[0] ?? null)
+        : Promise.resolve(null),
     ]);
     systemPrompt = built.systemPrompt;
     previousResponseId = ownerRow?.prev_response_id ?? null;
     foreignOwned = ownerRow?.foreign_owned ?? false;
+    pathAlreadySet = typeof forkPathRow?.path === 'string' && forkPathRow.path.length > 0;
     if (process.env.NODE_ENV !== 'production') {
       console.log(
         '[/api/llm] prompt assembled',
@@ -270,7 +284,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             phase: 'start',
             screen_id: screenId,
             coaching_style: coachingStyle,
-            model: 'gpt-4o-mini',
+            model: requestModel ?? 'gpt-4o-mini',
             mode,
             had_previous_response_id: previousResponseId !== null,
           },
@@ -444,6 +458,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           : TOOL_DEFINITIONS;
   const allowedToolNames = new Set<string>(requestTools ? requestTools.map((t) => t.name) : []);
 
+  const forceForkChoice = isForkScreen && !pathAlreadySet && mode !== 'opener';
+  const forkChoiceTools = forceForkChoice
+    ? requestTools?.filter((t) => t.name === 'submit_path_choice' || t.name === 'ask_clarification')
+    : undefined;
+
   await writeStartRow();
 
   try {
@@ -451,18 +470,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     for (let round = 0; round < MAX_ROUNDS && !finished; round++) {
       if (clientClosed) return;
 
+      const forcingThisRound = forceForkChoice && round === 0;
+      const baseStreamOpts = {
+        model: requestModel,
+        instructions: systemPrompt,
+        input: currentInput,
+        tools: forcingThisRound ? forkChoiceTools : requestTools,
+        toolChoice: forcingThisRound ? ('required' as const) : undefined,
+        store: true,
+        signal: abortController.signal,
+      };
+
       let stream: AsyncIterable<
         import('../_lib/llm/openai-responses.js').ResponsesStreamEvent
       > | null = null;
       let openErr: unknown = null;
       try {
         stream = await openResponsesStream({
-          instructions: systemPrompt,
-          input: currentInput,
-          tools: requestTools,
+          ...baseStreamOpts,
           previousResponseId: currentPreviousId ?? undefined,
-          store: true,
-          signal: abortController.signal,
         });
       } catch (err) {
         openErr = err;
@@ -471,14 +497,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!stream && openErr && currentPreviousId && isExpiredPreviousResponse(openErr)) {
         currentPreviousId = null;
         try {
-          stream = await openResponsesStream({
-            instructions: systemPrompt,
-            input: currentInput,
-            tools: requestTools,
-            previousResponseId: undefined,
-            store: true,
-            signal: abortController.signal,
-          });
+          stream = await openResponsesStream({ ...baseStreamOpts, previousResponseId: undefined });
           openErr = null;
         } catch (retryErr) {
           openErr = retryErr;
