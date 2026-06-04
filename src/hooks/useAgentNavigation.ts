@@ -4,7 +4,6 @@
    initialization block below for the full rationale. */
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useOnboarding } from '@/hooks/useOnboarding';
 
 /**
@@ -50,19 +49,23 @@ export function shouldAdvanceToNextScreen(input: AgentAdvanceInput): boolean {
 }
 
 /**
- * Advance the user to the next onboarding screen when the agent has
- * navigated them via `navigate_next`.
+ * Advance the user to the next onboarding screen when current_step climbs
+ * past this screen — driven by the agent in BOTH voice and text-chat modes.
  *
  * Architecture
  * ------------
- * The Vapi assistant has TWO kinds of tools:
- *   - `submit_*` tools — save data only. They do NOT touch current_step.
- *   - `navigate_next` — the only tool that writes current_step.
+ * current_step is bumped two ways, both surfaced here via the cached
+ * onboarding state:
+ *   - Voice (Vapi): `navigate_next` writes current_step.
+ *   - Text/async (Direct-LLM): `submit_*`/`add_habit` handlers GREATEST-bump
+ *     current_step to the next step when a single-choice screen is satisfied
+ *     (category→4, goals→5, path→3). Multi-item screens (habits/reflection)
+ *     bump to their OWN step, so they don't auto-advance — the user taps
+ *     Continue. This is the deterministic advance: the Direct-LLM model
+ *     reliably calls submit_*, but will NOT call confirm_step_complete.
  *
- * So on a back-navved page, the user can edit fields freely (data tools
- * fire, persistedStep doesn't change). Auto-nav only fires when the LLM
- * has explicitly received user confirmation ("ready to continue?") and
- * called `navigate_next`.
+ * Tap mode can't trigger this: Continue does `saveStep(); navigate()`
+ * synchronously, so the page unmounts before the cache transition lands.
  *
  * Leading-edge rule
  * -----------------
@@ -75,21 +78,17 @@ export function shouldAdvanceToNextScreen(input: AgentAdvanceInput): boolean {
  * forward.
  *
  * Subsequent observations (after the ref is initialized) DO fire when
- * persistedStep climbs past currentStep — that's the `navigate_next` call
- * the LLM made after the user confirmed.
+ * persistedStep climbs past currentStep — the agent advanced the user.
  *
  * Idempotent: fires at most once per mount via `advancedRef`. Lagging
  * Realtime events or React Query refetches can't double-navigate.
  *
- * Per Voice System Implementation Guide §2.5: "In voice mode the user
- * should NEVER have to press a button to advance to the next screen."
+ * Resumed users whose current_step is ALREADY past this screen get no
+ * transition (GREATEST keeps it flat) → no auto-advance; they tap Continue.
  */
 export function useAgentNavigation(currentStep: number, nextRoute: string | null): void {
   const { state } = useOnboarding();
   const navigate = useNavigate();
-  const { voiceOn, micOn } = useDualButtonControls();
-  // Voice-only: text/tap modes navigate client-side via the page's handleNext.
-  const voiceActive = voiceOn || micOn;
   const advancedRef = useRef(false);
   // The persistedStep value observed at the START of this mount. Set once
   // on the first render where state.current_step is defined. Subsequent
@@ -118,15 +117,6 @@ export function useAgentNavigation(currentStep: number, nextRoute: string | null
     hasInitializedRef.current && persistedStep !== initialPersistedStepRef.current;
 
   useEffect(() => {
-    if (!voiceActive) {
-      if (import.meta.env.DEV) {
-        console.debug(
-          `[useAgentNavigation] skip currentStep=${currentStep} reason=voice_inactive ` +
-            `voiceOn=${voiceOn} micOn=${micOn} — auto-nav is voice-only`,
-        );
-      }
-      return;
-    }
     const input: AgentAdvanceInput = {
       persistedStep,
       currentStep,
@@ -159,14 +149,5 @@ export function useAgentNavigation(currentStep: number, nextRoute: string | null
     }
     advancedRef.current = true;
     navigate(nextRoute as string);
-  }, [
-    persistedStep,
-    currentStep,
-    nextRoute,
-    navigate,
-    voiceActive,
-    voiceOn,
-    micOn,
-    hasStepChanged,
-  ]);
+  }, [persistedStep, currentStep, nextRoute, navigate, hasStepChanged]);
 }

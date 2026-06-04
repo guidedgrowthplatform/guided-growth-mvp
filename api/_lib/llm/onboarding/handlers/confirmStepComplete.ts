@@ -33,10 +33,9 @@ export async function confirmStepComplete(
   const check = ctx.screen_id ? REQUIRED[ctx.screen_id] : undefined;
   if (!check) return ok({ advance: true });
 
-  const res = await pool.query<Row>(
-    `SELECT data, path FROM onboarding_states WHERE anon_id = $1`,
-    [ctx.anon_id],
-  );
+  const res = await pool.query<Row>(`SELECT data, path FROM onboarding_states WHERE anon_id = $1`, [
+    ctx.anon_id,
+  ]);
   const row = res.rows[0] ?? { data: null, path: null };
   if (!check(row)) {
     return ok({ advance: false, reason: 'required field missing for this step' });

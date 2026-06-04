@@ -9,10 +9,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createOrResumeChatSession } from '@/api/chat';
 import { SessionLogContext, type SessionLogContextValue } from '@/contexts/SessionLogContext';
+import type { VoiceMessage } from '@/contexts/useOnboardingVoiceSession';
 import { getOrCreateOnboardingChatSessionId } from '@/lib/onboarding/onboardingChatSession';
 import { queryKeys } from '@/lib/query';
 import { useAuthStore } from '@/stores/authStore';
-import type { LLMStreamEvent } from '@gg/shared/types/llm';
+import type { LLMStreamEvent, LLMToolEvent } from '@gg/shared/types/llm';
+import { useChatToolEvents } from '../useChatToolEvents';
 import {
   useOnboardingChat,
   type UseOnboardingChatArgs,
@@ -53,23 +55,30 @@ function mockSSE(events: LLMStreamEvent[]): Response {
 
 let hookRef: UseOnboardingChatReturn | null = null;
 const noopStartThread: UseOnboardingChatArgs['startThread'] = () => {};
+interface BridgeProps {
+  screenId?: string;
+  enabled?: boolean;
+  appendMessage?: (m: VoiceMessage) => void;
+  onAdvance?: () => void;
+  startThread?: UseOnboardingChatArgs['startThread'];
+}
 function Bridge({
   screenId = 'ONBOARD-FORK--FORM',
+  enabled = true,
+  appendMessage = vi.fn(),
+  onAdvance = vi.fn(),
   startThread = noopStartThread,
-}: {
-  screenId?: string;
-  startThread?: UseOnboardingChatArgs['startThread'];
-}) {
+}: BridgeProps) {
   const v = useOnboardingChat({
     screenId,
-    enabled: true,
+    enabled,
     orbState: 'voice_in_only',
     coachingStyle: 'warm',
-    appendMessage: vi.fn(),
+    appendMessage,
     startThread,
     emitAssistant: vi.fn(),
     onVoiceAction: vi.fn(),
-    onAdvance: vi.fn(),
+    onAdvance,
   });
   useEffect(() => {
     hookRef = v;
@@ -192,6 +201,104 @@ describe('useOnboardingChat', () => {
     });
     await flush();
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/llm'))).toBe(true);
+  });
+});
+
+function confirmStepCompleteStream(): Response {
+  return mockSSE([
+    { type: 'tool_call', id: 'tc-1', name: 'confirm_step_complete', args: {} },
+    { type: 'tool_result', id: 'tc-1', ok: true, result: { ok: true, result: { advance: true } } },
+    { type: 'delta', content: 'great, all set' },
+    { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 1 },
+  ]);
+}
+
+function advanceEvt(id = 'tc-1'): LLMToolEvent {
+  return {
+    id,
+    name: 'confirm_step_complete',
+    args: {},
+    result: { ok: true, payload: { ok: true, result: { advance: true } } },
+  };
+}
+
+describe('useChatToolEvents — latch keeps advance alive when enabled is false (Bug 2)', () => {
+  type ToolBridgeProps = {
+    events: LLMToolEvent[];
+    active: boolean;
+    resetKey: string | null;
+    onAdvance: () => void;
+  };
+  function ToolBridge(props: ToolBridgeProps) {
+    useChatToolEvents({
+      toolEvents: props.events,
+      active: props.active,
+      routes: [],
+      onVoiceAction: vi.fn(),
+      onAdvance: props.onAdvance,
+      resetKey: props.resetKey,
+    });
+    return null;
+  }
+  const renderTool = (p: ToolBridgeProps) =>
+    act(() => {
+      root.render(
+        <Wrapper>
+          <ToolBridge {...p} />
+        </Wrapper>,
+      );
+    });
+
+  it('confirm_step_complete advance fires when active stays true though enabled is false', () => {
+    const onAdvance = vi.fn();
+    renderTool({ events: [advanceEvt()], active: true, resetKey: 'ONBOARD-FORK--FORM', onAdvance });
+    expect(onAdvance).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-fire the same advance event id after a screen (resetKey) change', () => {
+    const onAdvance = vi.fn();
+    renderTool({ events: [advanceEvt()], active: true, resetKey: 'ONBOARD-FORK--FORM', onAdvance });
+    expect(onAdvance).toHaveBeenCalledTimes(1);
+    renderTool({ events: [advanceEvt()], active: true, resetKey: 'ONBOARD-FORK--FORM', onAdvance });
+    expect(onAdvance).toHaveBeenCalledTimes(1);
+    renderTool({
+      events: [advanceEvt('tc-2')],
+      active: true,
+      resetKey: 'ONBOARD-GOAL--FORM',
+      onAdvance,
+    });
+    expect(onAdvance).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('useOnboardingChat — final message mirrors after enabled flips false (Bug 2)', () => {
+  it('final assistant message still appends after enabled flips false post-send', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(confirmStepCompleteStream()));
+    const appended: VoiceMessage[] = [];
+    const appendMessage = (m: VoiceMessage) => appended.push(m);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge enabled appendMessage={appendMessage} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      hookRef!.sendUserTurn('done with this');
+    });
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge enabled={false} appendMessage={appendMessage} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+
+    expect(appended.some((m) => m.role === 'ai' && m.text === 'great, all set')).toBe(true);
   });
 });
 
@@ -344,7 +451,7 @@ describe('continuous thread (Phase 2, stable ON)', () => {
     await flush();
     render('ONBOARD-BEGINNER-01');
     await flush();
-    render('ONBOARD-FORK--FORM'); // back to A
+    render('ONBOARD-FORK--FORM');
     await flush();
 
     expect(startThread).toHaveBeenCalledTimes(3);
@@ -352,7 +459,6 @@ describe('continuous thread (Phase 2, stable ON)', () => {
     const revisitA = startThreadCall(startThread, 2);
     expect(revisitA.screenId).toBe('ONBOARD-FORK--FORM');
     expect(revisitA.mode).toBe('append');
-    // Distinct id → no duplicate React key when both bubbles are in the thread.
     expect(revisitA.openerId).not.toBe(firstA.openerId);
     expect(revisitA.openerId).toBe('opener-ONBOARD-FORK--FORM-2');
   });
@@ -372,7 +478,72 @@ describe('legacy thread (flag OFF)', () => {
     await flush();
 
     const call = startThreadCall(startThread, 0);
-    expect(call.mode).toBeUndefined(); // default 'replace'
-    expect(call.openerId).toBe('opener-ONBOARD-FORK--FORM'); // no visit suffix
+    expect(call.mode).toBeUndefined();
+    expect(call.openerId).toBe('opener-ONBOARD-FORK--FORM');
+  });
+});
+
+describe('advance dispatch survives mid-stream mic-off end-to-end (Bug 2)', () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }));
+  afterEach(() => vi.useRealTimers());
+
+  it('confirm_step_complete still advances when the mic drops mid-stream', async () => {
+    let releaseToolResult!: () => void;
+    const gate = new Promise<void>((r) => (releaseToolResult = r));
+    const encoder = new TextEncoder();
+    const gatedStream = new Response(
+      new ReadableStream<Uint8Array>({
+        async start(controller) {
+          const send = (e: LLMStreamEvent) =>
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
+          send({ type: 'tool_call', id: 'tc-1', name: 'confirm_step_complete', args: {} });
+          await gate;
+          send({
+            type: 'tool_result',
+            id: 'tc-1',
+            ok: true,
+            result: { ok: true, result: { advance: true } },
+          });
+          controller.close();
+        },
+      }),
+      { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(gatedStream));
+    const onAdvance = vi.fn();
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge enabled onAdvance={onAdvance} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    await act(async () => {
+      hookRef!.sendUserTurn('done — let’s move on');
+    });
+    await flush();
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge enabled={false} onAdvance={onAdvance} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      releaseToolResult();
+      await flush();
+    });
+    await flush();
+    expect(onAdvance).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(onAdvance).toHaveBeenCalledTimes(1);
   });
 });
