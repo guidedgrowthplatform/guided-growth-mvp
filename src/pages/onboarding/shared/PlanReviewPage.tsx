@@ -168,7 +168,6 @@ export function PlanReviewPage() {
 
   return (
     <OnboardingLayout
-      currentStep={source === 'advanced' ? 6 : 7}
       screenId={source === 'advanced' ? 'ONBOARD-ADVANCED-05' : 'ONBOARD-BEGINNER-06'}
       formSnapshot={snapshot}
       ctaLabel={isCompleting ? 'Completing...' : 'Start plan'}

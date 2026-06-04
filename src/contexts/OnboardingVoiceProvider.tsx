@@ -4,6 +4,7 @@ import type { AssistantOverrides } from '@vapi-ai/web/dist/api';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
+import { OnboardingChatOverlay } from '@/components/onboarding/OnboardingChatOverlay';
 import { VoiceCapModal } from '@/components/voice/VoiceCapModal';
 import { applyStartThread } from '@/contexts/applyStartThread';
 import {
@@ -903,6 +904,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   return (
     <OnboardingVoiceContext.Provider value={value}>
       {children}
+      {inOnboarding && overlayOpen && <OnboardingChatOverlay onClose={closeOverlay} />}
       <VoiceCapModal />
     </OnboardingVoiceContext.Provider>
   );

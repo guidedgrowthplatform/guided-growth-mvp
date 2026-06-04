@@ -178,7 +178,6 @@ export function AdvancedResultsPage() {
   if (habits.length === 0) {
     return (
       <OnboardingLayout
-        currentStep={4}
         screenId="ONBOARD-ADVANCED-02"
         formSnapshot={snapshot}
         ctaLabel="Looks Good!"
@@ -202,7 +201,6 @@ export function AdvancedResultsPage() {
 
   return (
     <OnboardingLayout
-      currentStep={4}
       screenId="ONBOARD-ADVANCED-02"
       formSnapshot={snapshot}
       ctaLabel="Continue"
