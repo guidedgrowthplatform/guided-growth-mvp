@@ -81,6 +81,7 @@ export function useOnboardingChat({
   const lastLlmErrorRef = useRef<string>('');
   const openerSeededRef = useRef<string | null>(null);
   const advanceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const streamActiveRef = useRef(false);
   const landedCompleteRef = useRef(false);
   // First voice-in final can arrive before the chat session lands — hold it.
   const pendingTurnRef = useRef<string | null>(null);
@@ -107,6 +108,11 @@ export function useOnboardingChat({
     advanceTimerRef.current = setTimeout(() => onAdvanceRef.current?.(), ADVANCE_DELAY_MS);
   }, []);
 
+  const startStream = useCallback((text: string) => {
+    streamActiveRef.current = true;
+    void llmRef.current.sendMessage(text);
+  }, []);
+
   // Seed the opener when the screen changes. Stable session → continuous thread
   // (append opener, keep prior turns); legacy → per-screen wipe (reset + replace).
   useEffect(() => {
@@ -117,6 +123,7 @@ export function useOnboardingChat({
     if (!stable) mirroredIdsRef.current = new Set();
     lastLlmErrorRef.current = '';
     pendingTurnRef.current = null;
+    streamActiveRef.current = false;
     clearTimeout(advanceTimerRef.current);
     if (!stable) llm.reset();
 
@@ -150,12 +157,14 @@ export function useOnboardingChat({
     if (!chatSessionId || !pendingTurnRef.current) return;
     const text = pendingTurnRef.current;
     pendingTurnRef.current = null;
-    void llmRef.current.sendMessage(text);
-  }, [chatSessionId]);
+    startStream(text);
+  }, [chatSessionId, startStream]);
+
+  const toolActive = enabled || streamActiveRef.current;
 
   // Mirror LLM messages → shared thread (skip empties; speak in voice-out mode).
   useEffect(() => {
-    if (!enabled) return;
+    if (!toolActive) return;
     for (const m of llm.messages) {
       if (m.role !== 'assistant' && m.role !== 'user') continue;
       if (mirroredIdsRef.current.has(m.id)) continue;
@@ -171,13 +180,13 @@ export function useOnboardingChat({
         if (orbStateRef.current === 'voice_out_only') void speak(m.content);
       }
     }
-  }, [enabled, llm.messages, appendMessage, emitAssistant]);
+  }, [toolActive, llm.messages, appendMessage, emitAssistant]);
 
   // Live streaming partial → transcript bus (overlay + subtitle render it).
   useEffect(() => {
-    if (!enabled || !llm.isStreaming || llm.response.length === 0) return;
+    if (!toolActive || !llm.isStreaming || llm.response.length === 0) return;
     emitAssistant(llm.response, 'partial');
-  }, [enabled, llm.isStreaming, llm.response, emitAssistant]);
+  }, [toolActive, llm.isStreaming, llm.response, emitAssistant]);
 
   // Surface LLM errors as a coach bubble (dedup identical consecutive messages).
   useEffect(() => {
@@ -190,7 +199,7 @@ export function useOnboardingChat({
 
   useChatToolEvents({
     toolEvents: llm.toolEvents,
-    active: enabled,
+    active: toolActive,
     routes: routesData?.routes,
     onVoiceAction,
     onAdvance: scheduleAdvance,
@@ -222,9 +231,9 @@ export function useOnboardingChat({
         pendingTurnRef.current = text;
         return;
       }
-      void llmRef.current.sendMessage(text);
+      startStream(text);
     },
-    [isOnboardingScreen, appendMessage, scheduleAdvance],
+    [isOnboardingScreen, appendMessage, scheduleAdvance, startStream],
   );
 
   return { sendUserTurn, chatBusy: llm.isStreaming };

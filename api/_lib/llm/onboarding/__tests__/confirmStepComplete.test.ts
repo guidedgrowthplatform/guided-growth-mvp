@@ -68,6 +68,37 @@ describe('confirm_step_complete', () => {
     expect(ok).toMatchObject({ result: { advance: true } });
   });
 
+  // Drift guard: locks the set of screens whose advance is gated on a required field.
+  it('gates exactly the expected mapped screens, leaving recap/blank-journal ungated', async () => {
+    const MAPPED = [
+      'ONBOARD-01--FORM',
+      'ONBOARD-FORK--FORM',
+      'ONBOARD-BEGINNER-01',
+      'ONBOARD-BEGINNER-02',
+      'ONBOARD-BEGINNER-03',
+      'ONBOARD-BEGINNER-07',
+      'ONBOARD-ADVANCED',
+      'ONBOARD-ADVANCED-04',
+    ].sort();
+
+    for (const screen_id of MAPPED) {
+      row({}, null);
+      const r = await confirmStepComplete({ anon_id: ANON, screen_id }, {});
+      expect(r, `${screen_id} should gate on a missing field`).toMatchObject({
+        result: { advance: false },
+      });
+    }
+
+    // Representative unmapped screen advances unconditionally, no row read.
+    vi.clearAllMocks();
+    const recap = await confirmStepComplete(
+      { anon_id: ANON, screen_id: 'ONBOARD-ADVANCED-02' },
+      {},
+    );
+    expect(recap).toMatchObject({ result: { advance: true } });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
   it('blocks advance when the row is absent entirely', async () => {
     pool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
     const r = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-ADVANCED' }, {});
