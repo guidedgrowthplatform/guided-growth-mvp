@@ -28,7 +28,7 @@ name: CI/CD Pipeline
 #   FIREBASE_SERVICE_ACCOUNT_JSON    — service account JSON w/ Firebase App Distribution Admin
 #
 # Repository variables (Settings → Variables → Actions):
-#   SKIP_TESTFLIGHT                  — default skips iOS; set to 'false' to build TestFlight
+#   SKIP_TESTFLIGHT                  — default builds iOS TestFlight; set to 'true' to skip
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -278,12 +278,11 @@ jobs:
     # upload with "SDK version issue (409)".
     runs-on: macos-26
     needs: build
-    # Fires on v* tag pushes or manual dispatch — but only when the repo
-    # variable SKIP_TESTFLIGHT is explicitly 'false'. Default (unset) skips
-    # iOS so Android-only release tags don't burn the slow macOS runner.
-    # To ship an iOS build: set repo var SKIP_TESTFLIGHT=false, then tag.
+    # Fires on v* tag pushes or manual dispatch by default. To skip iOS on a
+    # release (Android-only, save the slow macOS runner) set repo variable
+    # SKIP_TESTFLIGHT='true'.
     if: >-
-      vars.SKIP_TESTFLIGHT == 'false'
+      vars.SKIP_TESTFLIGHT != 'true'
       && (
         github.event_name == 'workflow_dispatch'
         || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
