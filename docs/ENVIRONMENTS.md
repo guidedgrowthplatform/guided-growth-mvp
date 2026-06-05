@@ -2,7 +2,7 @@
 
 How Guided Growth runs three environments, each with its own TestFlight build, mirroring the per-branch Vercel previews on the web side. This is the runbook for standing the system up and for promoting a build from dev to staging to main.
 
-Status: the code and CI in this repo are env-aware (see "What is wired" below). The account-level resources (Apple bundle ids, App Store Connect apps, Supabase projects, GitHub Environments) are one-time manual setup, listed under "Prerequisites". Until those exist, the default single-environment production release (tag + `SKIP_TESTFLIGHT=false`) keeps working unchanged.
+Status: the code and CI in this repo are env-aware (see "What is wired" below). The account-level resources (Apple bundle ids, App Store Connect apps, Supabase projects, GitHub Environments) are one-time manual setup, listed under "Prerequisites". Until those exist, the default single-environment production release (push a `v*` tag) keeps working unchanged.
 
 ---
 
@@ -10,11 +10,11 @@ Status: the code and CI in this repo are env-aware (see "What is wired" below). 
 
 Web already has per-branch previews for free: Vercel builds a preview URL for every branch and the production deploy comes from `main`. Mobile cannot do that as cheaply (each iOS build burns slow macOS runner minutes, which are scarce), so the mobile mirror is three long-lived stages instead of one-per-branch:
 
-| Stage | Branch | Web (Vercel) | iOS bundle id | TestFlight app | Backend (Supabase) |
-|------|--------|--------------|---------------|----------------|--------------------|
-| dev | `develop` | preview deploy | `app.guidedgrowth.dev` | GG Dev | dev project |
-| staging | `staging` | preview deploy | `app.guidedgrowth.staging` | GG Staging | staging project |
-| production | `main` | production deploy | `app.guidedgrowth.mvp` | GG (prod) | prod project (existing) |
+| Stage      | Branch    | Web (Vercel)      | iOS bundle id              | TestFlight app | Backend (Supabase)      |
+| ---------- | --------- | ----------------- | -------------------------- | -------------- | ----------------------- |
+| dev        | `develop` | preview deploy    | `app.guidedgrowth.dev`     | GG Dev         | dev project             |
+| staging    | `staging` | preview deploy    | `app.guidedgrowth.staging` | GG Staging     | staging project         |
+| production | `main`    | production deploy | `app.guidedgrowth.mvp`     | GG (prod)      | prod project (existing) |
 
 Distinct bundle ids mean a tester can hold dev, staging, and production side by side on one phone, the same way distinct preview URLs isolate the web. Production keeps the existing `app.guidedgrowth.mvp` id so the live TestFlight app and its testers are never disrupted.
 
@@ -67,6 +67,7 @@ Per-branch previews already exist, so `develop` and `staging` get preview URLs a
 In Settings, Environments, create `dev`, `staging`, `production`. On each, set:
 
 Variables:
+
 - `APP_IDENTIFIER` (e.g. `app.guidedgrowth.dev`)
 - `APP_DISPLAY_NAME` (e.g. `GG Dev`)
 - `CAP_EXTRA_NAV_HOSTS` (that stage's Supabase host, e.g. `abcd.supabase.co`)
@@ -74,6 +75,7 @@ Variables:
 - `MATCH_GIT_BRANCH` (optional, defaults to `main`)
 
 Secrets (same names as `ci.yml`, but each scoped to the stage):
+
 - Web: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPI_PUBLIC_KEY`, `VITE_VAPI_ASSISTANT_ID`, `VITE_CARTESIA_AGENT_ID`, `VITE_STATE3_ENABLED`, `VITE_POSTHOG_KEY`, `VITE_SENTRY_DSN`
 - iOS: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_CONTENT`, `APPLE_TEAM_ID`, `MATCH_GIT_URL`, `MATCH_PASSWORD`, `MATCH_DEPLOY_KEY`
 
@@ -87,7 +89,7 @@ The Apple signing secrets are the same across stages (one team, one match repo, 
 2. Pick the environment (dev / staging / production).
 3. The run builds the web bundle with that stage's secrets, then builds and uploads the IPA to that stage's TestFlight app. Testers see it under the matching app in TestFlight.
 
-The existing tag-based `ci.yml` path still ships production (tag `v*` with repo var `SKIP_TESTFLIGHT=false`). Use whichever you prefer for production; use this dispatch workflow for dev and staging.
+The existing tag-based `ci.yml` path still ships production (push a `v*` tag; iOS builds by default, set repo var `SKIP_TESTFLIGHT=true` to skip it). Use whichever you prefer for production; use this dispatch workflow for dev and staging.
 
 ---
 
@@ -97,9 +99,10 @@ Promotion is a code merge. A change rides up the same three branches, getting wi
 
 1. Build on `develop`. Feature branches merge into `develop` via MR. Dispatch the dev TestFlight build, the team and Timothy smoke it against the dev backend.
 2. Promote to `staging`. Open an MR `develop -> staging`. After it merges, dispatch the staging TestFlight build. Staging is the rehearsal: it runs the staging backend with production-like config, this is where QA signs off.
-3. Promote to `main`. Open an MR `staging -> main`. After it merges, ship production either by tagging `v*` (with `SKIP_TESTFLIGHT=false`) or by dispatching this workflow for `production`. This is the build founding users receive.
+3. Promote to `main`. Open an MR `staging -> main`. After it merges, ship production either by tagging `v*` (iOS builds by default; `SKIP_TESTFLIGHT=true` skips it) or by dispatching this workflow for `production`. This is the build founding users receive.
 
 Rules:
+
 - Promotion is always forward and via MR (`main` is protected, a human merges). Never push straight to `main`.
 - Do not cherry-pick a build "straight to prod". A production build should have existed on staging first.
 - A hotfix branches off `main`, merges to `main` via MR, then merges back down into `staging` and `develop` so the stages do not drift.
