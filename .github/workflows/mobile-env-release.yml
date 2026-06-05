@@ -1,0 +1,171 @@
+name: Mobile Env Release (TestFlight)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Per-environment iOS TestFlight build: dev / staging / production.
+# Mirrors the per-branch Vercel web previews on the mobile side — each
+# environment is its own bundle id, its own TestFlight app, its own backend.
+#
+# This is DATA-DRIVEN by GitHub Environments (Settings → Environments).
+# Define one environment per stage (dev, staging, production), and on each set:
+#
+#   Variables:
+#     APP_IDENTIFIER        — bundle id for this stage (e.g. app.guidedgrowth.dev)
+#     APP_DISPLAY_NAME      — home-screen name (e.g. "GG Dev")
+#     CAP_EXTRA_NAV_HOSTS   — extra allowNavigation hosts, comma-separated
+#                             (this stage's Supabase host, e.g. abcd.supabase.co)
+#     VITE_API_URL          — API/web origin for this stage's Vercel deployment
+#     MATCH_GIT_BRANCH      — (optional) match repo branch, defaults to "main"
+#
+#   Secrets (same names as ci.yml, but scoped per environment):
+#     VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_VAPI_PUBLIC_KEY,
+#     VITE_VAPI_ASSISTANT_ID, VITE_CARTESIA_AGENT_ID, VITE_STATE3_ENABLED,
+#     VITE_POSTHOG_KEY, VITE_SENTRY_DSN,
+#     ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_CONTENT, APPLE_TEAM_ID,
+#     MATCH_GIT_URL, MATCH_PASSWORD, MATCH_DEPLOY_KEY
+#
+# Prereqs (one-time, see docs/ENVIRONMENTS.md): each bundle id must exist in
+# App Store Connect with a TestFlight app, and have an appstore profile in the
+# match repo (run the match-bootstrap workflow once per bundle id with
+# APP_IDENTIFIER set).
+#
+# Promotion: dev → staging → main is a code merge (develop → staging → main).
+# This workflow only builds; pick the environment to ship a TestFlight build.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        type: choice
+        required: true
+        default: dev
+        options:
+          - dev
+          - staging
+          - production
+
+jobs:
+  web-build:
+    name: Build web (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build web
+        env:
+          APP_IDENTIFIER: ${{ vars.APP_IDENTIFIER }}
+          APP_DISPLAY_NAME: ${{ vars.APP_DISPLAY_NAME }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_VAPI_PUBLIC_KEY: ${{ secrets.VITE_VAPI_PUBLIC_KEY }}
+          VITE_VAPI_ASSISTANT_ID: ${{ secrets.VITE_VAPI_ASSISTANT_ID }}
+          VITE_CARTESIA_AGENT_ID: ${{ secrets.VITE_CARTESIA_AGENT_ID }}
+          VITE_STATE3_ENABLED: ${{ secrets.VITE_STATE3_ENABLED }}
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ inputs.environment }}
+          path: dist/
+          retention-days: 7
+
+  ios-testflight:
+    name: iOS TestFlight (${{ inputs.environment }})
+    runs-on: macos-26
+    needs: web-build
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Load match SSH deploy key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.MATCH_DEPLOY_KEY }}
+
+      - name: Trust git hosts (avoid host-key prompt hanging the clone)
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H github.com gitlab.com >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Ruby + Bundler cache
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Install npm dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Download web build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-${{ inputs.environment }}
+          path: dist
+
+      # Fail loud if tester notes are missing — a build with blank "What to
+      # Test" defeats the point. TestFlight caps What-to-Test at 4000 chars.
+      - name: Validate iOS release notes present
+        run: |
+          f=release-notes/whatsnew-en-US
+          [ -s "$f" ] || { echo "::error::Missing or empty $f — testers need release notes."; exit 1; }
+          len=$(wc -m < "$f" | tr -d ' ')
+          echo "Release notes length: $len chars"
+          if [ "$len" -gt 4000 ]; then
+            echo "::error::TestFlight What-to-Test exceeds 4000 chars ($len). Trim $f."
+            exit 1
+          fi
+
+      - name: Add iOS platform & sync Capacitor
+        env:
+          APP_IDENTIFIER: ${{ vars.APP_IDENTIFIER }}
+          APP_DISPLAY_NAME: ${{ vars.APP_DISPLAY_NAME }}
+          CAP_EXTRA_NAV_HOSTS: ${{ vars.CAP_EXTRA_NAV_HOSTS }}
+        run: |
+          [ -d ios ] || npx cap add ios
+          npx cap sync ios
+          node scripts/patch-ios-plist.mjs
+
+      - name: Build IPA & upload to TestFlight (fastlane)
+        env:
+          APP_IDENTIFIER: ${{ vars.APP_IDENTIFIER }}
+          MATCH_GIT_BRANCH: ${{ vars.MATCH_GIT_BRANCH }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bundle exec fastlane ios beta
+
+      - name: Upload IPA artifact (debug)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-${{ inputs.environment }}
+          path: build/ios/*.ipa
+          retention-days: 14
+          if-no-files-found: warn

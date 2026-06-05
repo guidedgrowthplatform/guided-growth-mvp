@@ -1,5 +1,10 @@
 # Releasing iOS + Android
 
+> Multiple environments (dev / staging / main, each with its own TestFlight build)
+> and the dev -> staging -> main promotion runbook live in
+> [`docs/ENVIRONMENTS.md`](./ENVIRONMENTS.md). This file covers the production
+> release mechanics.
+
 The release pipeline is fully automated. A single tag push to `main`
 produces a signed iOS build in TestFlight and a debug Android APK in
 GitHub Actions artifacts, with a Mattermost notification when the APK
