@@ -317,6 +317,11 @@ jobs:
       - name: Install npm dependencies
         run: npm ci --ignore-scripts
 
+      # sharp@0.32 fetches its native binary via an install script that
+      # --ignore-scripts skips; @capacitor/assets needs it. Rebuild just sharp.
+      - name: Build sharp native binary
+        run: npm rebuild sharp
+
       - name: Download web build artifact
         uses: actions/download-artifact@v4
         with:
