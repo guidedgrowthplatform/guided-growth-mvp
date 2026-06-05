@@ -147,6 +147,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
+      - name: Build sharp native binary
+        run: npm rebuild sharp
+
       - name: Download web build artifact
         uses: actions/download-artifact@v4
         with:
@@ -158,6 +161,7 @@ jobs:
           [ -d android ] || npx cap add android
           npx cap copy android
           npx cap sync android
+          npx @capacitor/assets generate --android --assetPath assets
 
       - name: Decode Keystore
         env:
