@@ -1,73 +1,78 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { usePageTracking } from '@/analytics';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useAppGate } from '@/hooks/useAppGate';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { AppGate } from './AppGate';
 
-const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })));
-const HabitsPage = lazy(() =>
+const HomePage = lazyWithRetry(() =>
+  import('@/pages/HomePage').then((m) => ({ default: m.HomePage })),
+);
+const HabitsPage = lazyWithRetry(() =>
   import('@/pages/HabitsPage').then((m) => ({ default: m.HabitsPage })),
 );
-const HabitDetailPage = lazy(() =>
+const HabitDetailPage = lazyWithRetry(() =>
   import('@/pages/HabitDetailPage').then((m) => ({ default: m.HabitDetailPage })),
 );
-const HabitReflectionPage = lazy(() =>
+const HabitReflectionPage = lazyWithRetry(() =>
   import('@/pages/HabitReflectionPage').then((m) => ({ default: m.HabitReflectionPage })),
 );
-const CalendarPage = lazy(() =>
+const CalendarPage = lazyWithRetry(() =>
   import('@/pages/CalendarPage').then((m) => ({ default: m.CalendarPage })),
 );
-const InsightsPage = lazy(() =>
+const InsightsPage = lazyWithRetry(() =>
   import('@/pages/InsightsPage').then((m) => ({ default: m.InsightsPage })),
 );
-const FocusPage = lazy(() => import('@/pages/FocusPage').then((m) => ({ default: m.FocusPage })));
-const SettingsPage = lazy(() =>
+const FocusPage = lazyWithRetry(() =>
+  import('@/pages/FocusPage').then((m) => ({ default: m.FocusPage })),
+);
+const SettingsPage = lazyWithRetry(() =>
   import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
-const PrivacyPolicyPage = lazy(() =>
+const PrivacyPolicyPage = lazyWithRetry(() =>
   import('@/pages/PrivacyPolicyPage').then((m) => ({ default: m.PrivacyPolicyPage })),
 );
-const SignInPage = lazy(() =>
+const SignInPage = lazyWithRetry(() =>
   import('@/pages/SignInPage').then((m) => ({ default: m.SignInPage })),
 );
-const WelcomePage = lazy(() =>
+const WelcomePage = lazyWithRetry(() =>
   import('@/pages/WelcomePage').then((m) => ({ default: m.WelcomePage })),
 );
-const SplashScreenPage = lazy(() =>
+const SplashScreenPage = lazyWithRetry(() =>
   import('@/pages/SplashScreenPage').then((m) => ({ default: m.SplashScreenPage })),
 );
-const SignUpPage = lazy(() =>
+const SignUpPage = lazyWithRetry(() =>
   import('@/pages/SignUpPage').then((m) => ({ default: m.SignUpPage })),
 );
-const ForgotPasswordPage = lazy(() =>
+const ForgotPasswordPage = lazyWithRetry(() =>
   import('@/pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })),
 );
-const AddHabitPage = lazy(() =>
+const AddHabitPage = lazyWithRetry(() =>
   import('@/pages/add-habit').then((m) => ({ default: m.AddHabitPage })),
 );
-const StatusPage = lazy(() =>
+const StatusPage = lazyWithRetry(() =>
   import('@/pages/StatusPage').then((m) => ({ default: m.StatusPage })),
 );
-const AuthCallbackPage = lazy(() =>
+const AuthCallbackPage = lazyWithRetry(() =>
   import('@/pages/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage })),
 );
-const ResetPasswordPage = lazy(() =>
+const ResetPasswordPage = lazyWithRetry(() =>
   import('@/pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })),
 );
-const JournalFlowPage = lazy(() =>
+const JournalFlowPage = lazyWithRetry(() =>
   import('@/pages/JournalFlowPage').then((m) => ({ default: m.JournalFlowPage })),
 );
-const ReflectionsListPage = lazy(() =>
+const ReflectionsListPage = lazyWithRetry(() =>
   import('@/pages/ReflectionsListPage').then((m) => ({ default: m.ReflectionsListPage })),
 );
-const ReflectionDetailPage = lazy(() =>
+const ReflectionDetailPage = lazyWithRetry(() =>
   import('@/pages/ReflectionDetailPage').then((m) => ({ default: m.ReflectionDetailPage })),
 );
 const lazyOnboarding = (name: string) =>
-  lazy(() =>
+  lazyWithRetry(() =>
     import('@/pages/onboarding').then((m) => ({
       default: (m as Record<string, React.ComponentType>)[name],
     })),
