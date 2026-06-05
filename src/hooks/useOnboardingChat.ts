@@ -100,6 +100,7 @@ export function useOnboardingChat({
   llmRef.current = llm;
   const chatSessionIdRef = useRef(chatSessionId);
   chatSessionIdRef.current = chatSessionId;
+  const suppressTrailingRef = useRef(false);
 
   useEffect(() => () => clearTimeout(advanceTimerRef.current), []);
 
@@ -124,6 +125,7 @@ export function useOnboardingChat({
     lastLlmErrorRef.current = '';
     pendingTurnRef.current = null;
     streamActiveRef.current = false;
+    suppressTrailingRef.current = false;
     clearTimeout(advanceTimerRef.current);
     if (!stable) llm.reset();
 
@@ -169,6 +171,10 @@ export function useOnboardingChat({
       if (m.role !== 'assistant' && m.role !== 'user') continue;
       if (mirroredIdsRef.current.has(m.id)) continue;
       if (!m.content) continue;
+      if (suppressTrailingRef.current && m.role === 'assistant') {
+        mirroredIdsRef.current.add(m.id);
+        continue;
+      }
       mirroredIdsRef.current.add(m.id);
       appendMessage({
         id: `llm-${m.id}`,
@@ -202,7 +208,10 @@ export function useOnboardingChat({
     active: toolActive,
     routes: routesData?.routes,
     onVoiceAction,
-    onAdvance: scheduleAdvance,
+    onAdvance: () => {
+      suppressTrailingRef.current = true;
+      scheduleAdvance();
+    },
     // Stable session → session-scoped dedup (call_ids are globally unique);
     // legacy → per-screen reset, unchanged.
     resetKey: useStableSession ? (chatSessionId ?? screenId) : screenId,
