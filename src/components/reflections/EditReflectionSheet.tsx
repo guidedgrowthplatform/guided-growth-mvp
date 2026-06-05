@@ -1,12 +1,13 @@
-import { lazy, Suspense, useState } from 'react';
+import { Suspense, useState } from 'react';
 import { updateJournalEntry } from '@/api/journal';
 import { GuidedTab } from '@/components/journal/GuidedTab';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import type { JournalEntry } from '@gg/shared/types';
 
-const FreeformTab = lazy(() =>
+const FreeformTab = lazyWithRetry(() =>
   import('@/components/journal/FreeformTab').then((m) => ({ default: m.FreeformTab })),
 );
 

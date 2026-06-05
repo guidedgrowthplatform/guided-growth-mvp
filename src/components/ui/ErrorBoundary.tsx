@@ -1,5 +1,6 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react';
 import { Sentry } from '@/lib/sentry';
+import { isChunkLoadError } from '@/utils/lazyWithRetry';
 import { Button } from './Button';
 
 interface ErrorBoundaryProps {
@@ -20,10 +21,17 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('ErrorBoundary caught:', error, info.componentStack);
-    Sentry.captureException(error, { extra: { componentStack: info.componentStack } });
+    Sentry.captureException(error, {
+      tags: { chunkLoadError: isChunkLoadError(error) },
+      extra: { componentStack: info.componentStack },
+    });
   }
 
   handleRetry = () => {
+    if (isChunkLoadError(this.state.error)) {
+      window.location.reload();
+      return;
+    }
     this.setState({ hasError: false, error: null });
   };
 
