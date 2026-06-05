@@ -110,6 +110,7 @@ export function useOnboardingChat({
   }, []);
 
   const startStream = useCallback((text: string) => {
+    suppressTrailingRef.current = false;
     streamActiveRef.current = true;
     void llmRef.current.sendMessage(text);
   }, []);
@@ -125,7 +126,7 @@ export function useOnboardingChat({
     lastLlmErrorRef.current = '';
     pendingTurnRef.current = null;
     streamActiveRef.current = false;
-    suppressTrailingRef.current = false;
+    suppressTrailingRef.current = true;
     clearTimeout(advanceTimerRef.current);
     if (!stable) llm.reset();
 
@@ -208,10 +209,7 @@ export function useOnboardingChat({
     active: toolActive,
     routes: routesData?.routes,
     onVoiceAction,
-    onAdvance: () => {
-      suppressTrailingRef.current = true;
-      scheduleAdvance();
-    },
+    onAdvance: scheduleAdvance,
     // Stable session → session-scoped dedup (call_ids are globally unique);
     // legacy → per-screen reset, unchanged.
     resetKey: useStableSession ? (chatSessionId ?? screenId) : screenId,
