@@ -173,6 +173,7 @@ export function useOnboardingChat({
       if (mirroredIdsRef.current.has(m.id)) continue;
       if (!m.content) continue;
       if (suppressTrailingRef.current && m.role === 'assistant') {
+        suppressTrailingRef.current = false;
         mirroredIdsRef.current.add(m.id);
         continue;
       }
