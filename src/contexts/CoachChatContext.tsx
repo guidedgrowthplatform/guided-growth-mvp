@@ -1,18 +1,20 @@
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from 'react';
 import { unlockTTS } from '@/lib/services/tts-service';
 
+export type CheckinScreenId = 'HOME-CHECKIN' | 'MCHECK-01' | 'ECHECK-01';
+
 interface CoachChatContextValue {
-  openScreenId: string | null;
-  openCoachChat: (screenId: string) => void;
+  openScreenId: CheckinScreenId | null;
+  openCoachChat: (screenId: CheckinScreenId) => void;
   closeCoachChat: () => void;
 }
 
 const CoachChatContext = createContext<CoachChatContextValue | null>(null);
 
 export function CoachChatProvider({ children }: { children: ReactNode }) {
-  const [openScreenId, setOpenScreenId] = useState<string | null>(null);
+  const [openScreenId, setOpenScreenId] = useState<CheckinScreenId | null>(null);
 
-  const openCoachChat = useCallback((screenId: string) => {
+  const openCoachChat = useCallback((screenId: CheckinScreenId) => {
     unlockTTS();
     setOpenScreenId(screenId);
   }, []);

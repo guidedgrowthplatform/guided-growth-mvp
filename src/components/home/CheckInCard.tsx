@@ -1,7 +1,8 @@
-import { Check, Mic } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
+import { IconMic } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 import { useCoachChatLauncher } from '@/contexts/CoachChatContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -20,12 +21,11 @@ interface CheckInCardProps {
 }
 
 export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
-  // hour < 15 mirrors the morning/evening logic used for analytics + the coach
-  // screen below — keep them in sync.
+  // captured at mount; card is CSS-collapsed, not remounted.
   const isMorning = new Date().getHours() < 15;
   const { checkIn, loading, saving, save } = useCheckIn(selectedDate, {
     type: isMorning ? 'morning' : 'evening',
-    screenId: isMorning ? 'MCHECK-01' : 'ECHECK-06',
+    screenId: isMorning ? 'MCHECK-01' : 'ECHECK-01',
   });
   const { addToast } = useToast();
   const navigate = useNavigate();
@@ -52,16 +52,15 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
         const v = valuesRef.current;
         const filled = [v.sleep, v.mood, v.energy, v.stress].filter((x) => x !== null).length;
         if (filled > 0) {
-          const hour = new Date().getHours();
           track('abandon_checkin', {
-            checkin_type: hour < 15 ? 'morning' : 'evening',
+            checkin_type: isMorning ? 'morning' : 'evening',
             fields_completed: filled,
             time_spent_seconds: Math.round((Date.now() - start) / 1000),
           });
         }
       }
     };
-  }, []);
+  }, [isMorning]);
 
   // Card is CSS-collapsed (never remounted), so success + completed flags
   // must be reset when the user moves to another date — otherwise a stale
@@ -92,9 +91,8 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
     try {
       await save(values);
       completedRef.current = true;
-      const hour = new Date().getHours();
       track('complete_checkin', {
-        checkin_type: hour < 15 ? 'morning' : 'evening',
+        checkin_type: isMorning ? 'morning' : 'evening',
         sleep_quality: values.sleep,
         mood: values.mood,
         energy_level: values.energy,
@@ -118,7 +116,7 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   };
 
   const handleTalk = () => {
-    openCoachChat(isMorning ? 'MCHECK-01' : 'ECHECK-06');
+    openCoachChat(isMorning ? 'MCHECK-01' : 'ECHECK-01');
   };
 
   if (loading) {
@@ -192,7 +190,7 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
         onClick={handleTalk}
         className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-border-light py-2.5 text-sm font-semibold text-content-secondary transition-colors hover:bg-surface-secondary"
       >
-        <Mic className="h-4 w-4" aria-hidden="true" />
+        <IconMic className="h-4 w-4" />
         {isMorning ? 'Talk through your morning' : 'Talk through your day'}
       </button>
     </div>

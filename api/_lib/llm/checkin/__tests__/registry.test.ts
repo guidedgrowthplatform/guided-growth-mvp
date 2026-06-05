@@ -204,7 +204,7 @@ describe('getCheckinTools / isCheckinScreen', () => {
   it('returns tools for the explicit check-in conversation screens', () => {
     expect(getCheckinTools('HOME-CHECKIN')).toBe(CHECKIN_TOOLS);
     expect(getCheckinTools('MCHECK-01')).toBe(CHECKIN_TOOLS);
-    expect(getCheckinTools('ECHECK-06')).toBe(CHECKIN_TOOLS);
+    expect(getCheckinTools('ECHECK-01')).toBe(CHECKIN_TOOLS);
   });
 
   it('returns undefined for dashboard/onboarding/other screens', () => {
@@ -212,8 +212,8 @@ describe('getCheckinTools / isCheckinScreen', () => {
     expect(getCheckinTools('HOME-FIRST')).toBeUndefined();
     expect(getCheckinTools('HOME-MORNING')).toBeUndefined();
     expect(getCheckinTools('ONBOARD-01--FORM')).toBeUndefined();
-    // Other MCHECK/ECHECK steps are not wired for tools (only the two entry screens).
-    expect(getCheckinTools('ECHECK-01')).toBeUndefined();
+    // Wrap-up + other MCHECK/ECHECK steps are not wired for tools (only the entry screens).
+    expect(getCheckinTools('ECHECK-06')).toBeUndefined();
     expect(getCheckinTools(null)).toBeUndefined();
     expect(getCheckinTools(undefined)).toBeUndefined();
     expect(getCheckinTools('')).toBeUndefined();
