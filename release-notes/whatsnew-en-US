@@ -1,2 +1,2 @@
-v2.8.0 — Coach Chat confirms + auto-routes after creating a habit or reflection; iOS chat input fixes; onboarding goal-selection fix.
-Test: 1) Ask the coach in chat to create a habit; confirm message appears and you land on Habits. 2) Same for "log a reflection". 3) Type in chat on iOS — characters shouldn't drop. 4) Run onboarding beginner steps; goal selection should work.
+v2.8.3 — Onboarding chat reliably advances through every step; fixes for app-loading errors after an update (Android + iOS).
+Test: 1) Run onboarding; each chat reply should move you to the next step. 2) Reopen the app after updating — no blank screen or load error. 3) Browse around on Android; pages should load without import errors.
