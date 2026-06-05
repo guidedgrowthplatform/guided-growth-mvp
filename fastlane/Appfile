@@ -1,8 +1,10 @@
-app_identifier("app.guidedgrowth.mvp")
+# Per-environment bundle id (dev / staging / main). Defaults to production so
+# an unset APP_IDENTIFIER keeps the existing single-env release behaviour.
+app_identifier(ENV.fetch("APP_IDENTIFIER", "app.guidedgrowth.mvp"))
 
 apple_id(ENV["APPLE_ID"]) if ENV["APPLE_ID"]
 team_id(ENV["APPLE_TEAM_ID"]) if ENV["APPLE_TEAM_ID"]
 
 for_platform :android do
-  package_name("app.guidedgrowth.mvp")
+  package_name(ENV.fetch("APP_IDENTIFIER", "app.guidedgrowth.mvp"))
 end
