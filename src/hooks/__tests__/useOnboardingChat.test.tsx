@@ -483,6 +483,95 @@ describe('legacy thread (unauthed)', () => {
   });
 });
 
+describe('suppresses a prior screen trailing coach line after navigation', () => {
+  beforeEach(() => {
+    (getOrCreateOnboardingChatSessionId as ReturnType<typeof vi.fn>).mockReturnValue(STABLE_ID);
+  });
+
+  it('drops the fork turn trailing line that lands after advancing to category', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const encoder = new TextEncoder();
+    const gated = new Response(
+      new ReadableStream<Uint8Array>({
+        async start(controller) {
+          const send = (e: LLMStreamEvent) =>
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
+          send({ type: 'delta', content: 'The fact that you are here means something.' });
+          await gate;
+          send({ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 });
+          controller.close();
+        },
+      }),
+      { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(gated));
+    const appended: VoiceMessage[] = [];
+    const appendMessage = (m: VoiceMessage) => appended.push(m);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge screenId="ONBOARD-FORK--FORM" appendMessage={appendMessage} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+    await act(async () => {
+      hookRef!.sendUserTurn('No I have not');
+    });
+    await flush();
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge screenId="ONBOARD-BEGINNER-01" appendMessage={appendMessage} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      release();
+      await flush();
+    });
+    await flush();
+
+    expect(appended.some((m) => m.text.includes('The fact that you are here'))).toBe(false);
+  });
+
+  it('renders the next coach reply after a suppression (one-shot, no leak)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        mockSSE([
+          { type: 'delta', content: 'Got it, added that habit.' },
+          { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 },
+        ]),
+      ),
+    );
+    const appended: VoiceMessage[] = [];
+    const appendMessage = (m: VoiceMessage) => appended.push(m);
+
+    // Land on a fresh screen → suppression armed by the opener-seed effect.
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge screenId="ONBOARD-BEGINNER-03" appendMessage={appendMessage} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      hookRef!.sendUserTurn('add a daily walk');
+    });
+    await flush();
+
+    expect(appended.some((m) => m.role === 'ai' && m.text.includes('added that habit'))).toBe(true);
+  });
+});
+
 describe('advance dispatch survives mid-stream mic-off end-to-end (Bug 2)', () => {
   beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }));
   afterEach(() => vi.useRealTimers());

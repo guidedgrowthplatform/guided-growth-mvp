@@ -3,9 +3,10 @@ import { ONBOARDING_TOOLS, ONBOARDING_TOOL_NAMES, isOnboardingToolName } from '.
 import { getOnboardingTools, isOnboardingScreen } from '../registry.js';
 
 describe('ONBOARDING_TOOLS', () => {
-  it('exposes the twelve canonical tool names', () => {
+  it('exposes the thirteen canonical tool names', () => {
     expect(ONBOARDING_TOOLS.map((t) => t.name).sort()).toEqual([
       'add_habit',
+      'ask_clarification',
       'confirm_plan',
       'confirm_step_complete',
       'remove_habit',
@@ -49,6 +50,12 @@ describe('ONBOARDING_TOOLS', () => {
     expect(tool.parameters.properties.path).toMatchObject({
       enum: ['simple', 'braindump'],
     });
+  });
+
+  it('ask_clarification requires a message and writes no enum', () => {
+    const tool = ONBOARDING_TOOLS.find((t) => t.name === 'ask_clarification')!;
+    expect(tool.parameters.required).toEqual(['message']);
+    expect(tool.parameters.properties.message.type).toBe('string');
   });
 
   it('submit_category enum has 8 categories', () => {
@@ -200,14 +207,23 @@ describe('ONBOARDING_TOOLS', () => {
           ],
           "required": [],
         },
+        {
+          "name": "ask_clarification",
+          "properties": [
+            "message",
+          ],
+          "required": [
+            "message",
+          ],
+        },
       ]
     `);
   });
 });
 
 describe('ONBOARDING_TOOL_NAMES + isOnboardingToolName', () => {
-  it('set contains exactly the twelve names', () => {
-    expect(ONBOARDING_TOOL_NAMES.size).toBe(12);
+  it('set contains exactly the thirteen names', () => {
+    expect(ONBOARDING_TOOL_NAMES.size).toBe(13);
   });
 
   it('isOnboardingToolName accepts known names', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OnboardingState, OnboardingStepData } from '@gg/shared/types';
-import { getOnboardingRevisitOpener } from './onboardingOpeners';
+import { getOnboardingOpener, getOnboardingRevisitOpener } from './onboardingOpeners';
 
 function makeState(
   over: Partial<OnboardingState> & { data?: OnboardingStepData },
@@ -75,5 +75,25 @@ describe('getOnboardingRevisitOpener', () => {
     );
     expect(opener?.complete).toBe(true);
     expect(opener?.text).toContain('Health');
+  });
+});
+
+describe('getOnboardingOpener coverage', () => {
+  it.each([
+    'ONBOARD-01--FORM',
+    'ONBOARD-FORK--FORM',
+    'ONBOARD-BEGINNER-01',
+    'ONBOARD-BEGINNER-02',
+    'ONBOARD-BEGINNER-03',
+    'ONBOARD-BEGINNER-07',
+    'ONBOARD-BEGINNER-06',
+    'ONBOARD-ADVANCED',
+    'ONBOARD-ADVANCED-02',
+    'ONBOARD-ADVANCED-04',
+    'ONBOARD-ADVANCED-05',
+    'ONBOARD-ADV-CUSTOM',
+  ])('%s has a non-empty opener', (screenId) => {
+    const opener = getOnboardingOpener(screenId);
+    expect(opener && opener.length > 0).toBe(true);
   });
 });

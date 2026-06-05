@@ -83,7 +83,6 @@ export function Step2Page() {
 
   return (
     <OnboardingLayout
-      currentStep={2}
       screenId="ONBOARD-FORK--FORM"
       formSnapshot={snapshot}
       ctaLabel="Continue"

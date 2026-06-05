@@ -16,6 +16,7 @@ interface UseChatToolEventsArgs {
   onVoiceAction: (result: OnboardingVoiceResult) => void;
   // confirm_step_complete with advance=true → schedule the page advance.
   onAdvance: () => void;
+  onWillAdvance?: () => void;
   // Reset the fired-event dedup when this changes (screen change).
   resetKey: string | null;
 }
@@ -28,6 +29,7 @@ export function useChatToolEvents({
   routes,
   onVoiceAction,
   onAdvance,
+  onWillAdvance,
   resetKey,
 }: UseChatToolEventsArgs): void {
   const navigate = useNavigate();
@@ -43,6 +45,7 @@ export function useChatToolEvents({
   useEffect(() => {
     if (!active) return;
     let confirmAdvance = false;
+    let willAdvance = false;
     for (const evt of toolEvents) {
       if (!evt.result?.ok) continue;
       if (firedIdsRef.current.has(evt.id)) continue;
@@ -52,8 +55,10 @@ export function useChatToolEvents({
           const target = (evt.args as { target_screen?: unknown }).target_screen;
           if (typeof target !== 'string') break;
           const route = routes?.find((r) => r.screen_id === target)?.route;
-          if (route) navigate(route);
-          else console.warn('[onboarding] navigate_next: unknown target_screen', target);
+          if (route) {
+            navigate(route);
+            willAdvance = true;
+          } else console.warn('[onboarding] navigate_next: unknown target_screen', target);
           break;
         }
         case 'update_profile': {
@@ -62,20 +67,35 @@ export function useChatToolEvents({
         }
         case 'confirm_step_complete': {
           const cp = evt.result?.payload as { result?: { advance?: boolean } } | undefined;
-          if (cp?.result?.advance === true) confirmAdvance = true;
+          if (cp?.result?.advance === true) {
+            confirmAdvance = true;
+            willAdvance = true;
+            // Multi-item screens bump current_step here → useAgentNavigation advances.
+            mergeOnboardingState(qc, evt);
+          }
           break;
         }
         default: {
           const synthetic = toolEventToVoiceActions(evt);
           if (synthetic.length === 0) break;
           for (const r of synthetic) onVoiceAction(r);
+          const before = qc.getQueryData<OnboardingState | null>(
+            queryKeys.onboarding.state,
+          )?.current_step;
           mergeOnboardingState(qc, evt);
+          const after = qc.getQueryData<OnboardingState | null>(
+            queryKeys.onboarding.state,
+          )?.current_step;
+          if (typeof before === 'number' && typeof after === 'number' && after > before) {
+            willAdvance = true;
+          }
           break;
         }
       }
     }
     if (confirmAdvance) onAdvance();
-  }, [active, toolEvents, navigate, qc, routes, onVoiceAction, onAdvance]);
+    if (willAdvance) onWillAdvance?.();
+  }, [active, toolEvents, navigate, qc, routes, onVoiceAction, onAdvance, onWillAdvance]);
 }
 
 // Optimistic merge of a submit_* handler result into the cached onboarding

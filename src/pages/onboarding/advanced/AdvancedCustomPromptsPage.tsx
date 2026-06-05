@@ -107,7 +107,6 @@ export function AdvancedCustomPromptsPage() {
 
   return (
     <OnboardingLayout
-      currentStep={1}
       screenId="ONBOARD-ADV-CUSTOM"
       formSnapshot={snapshot}
       ctaLabel="Continue"

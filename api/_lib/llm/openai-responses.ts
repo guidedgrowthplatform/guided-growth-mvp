@@ -27,6 +27,7 @@ export interface OpenResponsesStreamOpts {
   signal?: AbortSignal;
   temperature?: number;
   maxOutputTokens?: number;
+  toolChoice?: 'auto' | 'required' | { type: 'function'; name: string };
 }
 
 let cachedClient: OpenAI | null = null;
@@ -37,9 +38,7 @@ function client(): OpenAI {
   return cachedClient;
 }
 
-function toResponsesTools(
-  tools: readonly ToolSchema[],
-): Array<{
+function toResponsesTools(tools: readonly ToolSchema[]): Array<{
   type: 'function';
   name: string;
   description: string;
@@ -72,20 +71,17 @@ export async function openResponsesStream(
   }
   if (opts.tools && opts.tools.length > 0) {
     body.tools = toResponsesTools(opts.tools);
-    body.tool_choice = 'auto';
+    body.tool_choice = opts.toolChoice ?? 'auto';
   }
 
-  const stream = (await client().responses.create(
-    body as unknown as Parameters<typeof client>[0],
-    { signal: opts.signal },
-  )) as unknown as AsyncIterable<unknown>;
+  const stream = (await client().responses.create(body as unknown as Parameters<typeof client>[0], {
+    signal: opts.signal,
+  })) as unknown as AsyncIterable<unknown>;
 
   return iterateEvents(stream);
 }
 
-async function* iterateEvents(
-  raw: AsyncIterable<unknown>,
-): AsyncGenerator<ResponsesStreamEvent> {
+async function* iterateEvents(raw: AsyncIterable<unknown>): AsyncGenerator<ResponsesStreamEvent> {
   try {
     for await (const evt of raw) {
       if (!evt || typeof evt !== 'object' || !('type' in evt)) continue;
@@ -128,22 +124,17 @@ async function* iterateEvents(
           const e = evt as {
             response?: { id?: unknown; usage?: { total_tokens?: unknown } };
           };
-          const responseId =
-            typeof e.response?.id === 'string' ? e.response.id : null;
+          const responseId = typeof e.response?.id === 'string' ? e.response.id : null;
           const totalTokens =
-            typeof e.response?.usage?.total_tokens === 'number'
-              ? e.response.usage.total_tokens
-              : 0;
+            typeof e.response?.usage?.total_tokens === 'number' ? e.response.usage.total_tokens : 0;
           yield { type: 'completed', responseId, totalTokens };
           return;
         }
         case 'response.failed':
         case 'error': {
           const e = evt as { error?: { code?: unknown; message?: unknown } };
-          const code =
-            typeof e.error?.code === 'string' ? e.error.code : 'openai_error';
-          const message =
-            typeof e.error?.message === 'string' ? e.error.message : 'Unknown error';
+          const code = typeof e.error?.code === 'string' ? e.error.code : 'openai_error';
+          const message = typeof e.error?.message === 'string' ? e.error.message : 'Unknown error';
           yield { type: 'error', code, message };
           return;
         }

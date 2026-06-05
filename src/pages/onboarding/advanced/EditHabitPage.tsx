@@ -73,7 +73,6 @@ function EditHabitForm({ state }: { state: EditHabitState }) {
 
   return (
     <OnboardingLayout
-      currentStep={4}
       ctaLabel="Continue"
       onNext={handleSave}
       ctaDisabled={!name.trim()}

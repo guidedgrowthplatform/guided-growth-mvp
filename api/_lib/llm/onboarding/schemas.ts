@@ -15,7 +15,8 @@ export type OnboardingToolName =
   | 'submit_custom_prompts'
   | 'submit_brain_dump'
   | 'confirm_step_complete'
-  | 'confirm_plan';
+  | 'confirm_plan'
+  | 'ask_clarification';
 
 export interface OnboardingToolDefinition {
   readonly name: OnboardingToolName;
@@ -111,7 +112,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'submit_goals',
     description:
-      "Persist 1–2 goals on ONBOARD-BEGINNER-02. Do not wait for both — 1 is enough. Strings must match the category's allowed goal options (server fuzzy-matches).",
+      "Persist 1–2 goals on ONBOARD-BEGINNER-02. Do not wait for both — 1 is enough. Each string MUST be copied verbatim from the GOAL OPTIONS BY CATEGORY list for the user's chosen category (shown in the screen context). Never paraphrase, rename, or invent a goal label — non-matching strings are rejected.",
     parameters: {
       type: 'object',
       properties: {
@@ -303,6 +304,22 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
         },
       },
       required: [],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'ask_clarification',
+    description:
+      "Call this INSTEAD of committing data when the user's reply is ambiguous or they asked you something, and you can't yet map their answer to an option (e.g. on the path fork). Put your clarifying question in `message`, then ask it. Use this rather than free-texting so you never skip past a single-choice screen without resolving it.",
+    parameters: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          description: 'Your clarifying question to ask the user. 1-300 chars.',
+        },
+      },
+      required: ['message'],
       additionalProperties: false,
     },
   },

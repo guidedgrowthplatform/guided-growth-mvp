@@ -69,7 +69,9 @@ export async function submitGoals(
     }
     validated = matches;
     if (validated.length === 0) {
-      return invalid('no submitted goal matches the chosen category');
+      return invalid(
+        `None of the submitted goals match "${category}". Re-call submit_goals using EXACTLY one or two of these labels, verbatim: ${allowed.join(' | ')}. Do not paraphrase.`,
+      );
     }
   } else {
     validated = goals.filter((g) => g.length > 0 && g.length <= 100);
