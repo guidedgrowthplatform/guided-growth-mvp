@@ -112,7 +112,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'submit_goals',
     description:
-      "Persist 1–2 goals on ONBOARD-BEGINNER-02. Do not wait for both — 1 is enough. Strings must match the category's allowed goal options (server fuzzy-matches).",
+      "Persist 1–2 goals on ONBOARD-BEGINNER-02. Do not wait for both — 1 is enough. Each string MUST be copied verbatim from the GOAL OPTIONS BY CATEGORY list for the user's chosen category (shown in the screen context). Never paraphrase, rename, or invent a goal label — non-matching strings are rejected.",
     parameters: {
       type: 'object',
       properties: {
