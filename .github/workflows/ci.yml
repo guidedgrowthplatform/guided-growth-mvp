@@ -327,6 +327,8 @@ jobs:
         run: |
           [ -d ios ] || npx cap add ios
           npx cap sync ios
+          # ios/ is gitignored + regenerated here; brand the icon/splash at build time from assets/
+          npx @capacitor/assets generate --ios --assetPath assets
           node scripts/patch-ios-plist.mjs
 
       # Fail loud if tester notes are missing — the Fastfile passes nil
