@@ -135,6 +135,34 @@ TestFlight**. If you're iterating fast, expect a parade of nearly
 identical builds in App Store Connect; nothing to worry about, but
 add release notes to the meaningful ones.
 
+## Release notes (TestFlight "What to Test")
+
+Tester notes live in [`release-notes/whatsnew-en-US`](../release-notes/whatsnew-en-US),
+one shared file that feeds both the iOS "What to Test" field and the Play
+release notes. Update it in the same commit/tag as the build.
+
+How it attaches on iOS (`fastlane/Fastfile`, `beta` lane):
+
+- The file is read and passed as `changelog` to `upload_to_testflight`.
+- `skip_waiting_for_build_processing: false` (with a 1800s timeout) makes
+  fastlane wait for Apple to finish processing before setting the notes.
+  This is the fix for the known flaky-attachment issue: if you do not wait,
+  the changelog often does not stick because the build is not yet ready to
+  accept it.
+- CI fails loud (the "Validate iOS release notes present" step) if the file
+  is missing/empty or over TestFlight's 4000-char cap, so a build never
+  ships with blank notes.
+
+Visibility caveat (where "I don't see the notes" usually comes from):
+
+- "What to Test" reliably shows for **external** TestFlight testers/groups.
+- For **internal** testers (App Store Connect Users with the Internal Tester
+  role), Apple has historically not surfaced the per-build "What to Test"
+  the same way. If a tester (e.g. Timothy) reports missing notes, check
+  whether they are an internal or external tester, and confirm the build's
+  "Test Information" in App Store Connect shows the changelog text. The notes
+  ARE attached to the build either way; the gap is Apple's tester-facing UI.
+
 ## What's automated
 
 | Concern                               | Mechanism                                                                                                                                                       |
