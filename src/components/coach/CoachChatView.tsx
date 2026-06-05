@@ -1,10 +1,14 @@
 import { X } from 'lucide-react';
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
+import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
+import { DualButton } from '@/components/ui/DualButton';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
+import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicEnabled } from '@/hooks/useMicEnabled';
+import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
 import type { CoachChatApi } from '@/lib/chat/coachChatTypes';
 import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
@@ -29,9 +33,21 @@ export function CoachChatView({
   const [draft, setDraft] = useState('');
 
   const micEnabled = useMicEnabled();
+  const { voiceOn, micOn, micAllowed, toggleVoice, toggleMic, requestMicPermission } =
+    useDualButtonControls();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
   const interim = useVoiceStore((s) => s.interim);
   const revealedInterim = useSmoothReveal(interim);
+
+  const isListening = voiceState === 'listening';
+  const { intensity: micRingIntensity, speaking: micSpeaking } = useMicVoiceActivity(isListening);
+  const dualActiveRings: 'left' | 'right' | 'ready' | null = isListening
+    ? micSpeaking
+      ? 'right'
+      : 'ready'
+    : speaking && voiceOn
+      ? 'left'
+      : null;
 
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
@@ -130,9 +146,24 @@ export function CoachChatView({
       </div>
 
       <div
-        className="relative z-10 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        className="relative z-10 flex flex-col items-center gap-4 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
         onClick={(e) => e.stopPropagation()}
       >
+        <DualButton
+          size={91}
+          leftActive={voiceOn}
+          rightActive={micOn}
+          activeRings={dualActiveRings}
+          ringCount={3}
+          ringStep={4}
+          intensity={dualActiveRings === 'right' ? micRingIntensity : undefined}
+          leftIcon={voiceOn ? <IconChatVoice size={28} /> : <IconChatText size={28} />}
+          rightIcon={micOn ? <IconMic size={26} /> : <IconMicMuted size={26} />}
+          onLeftClick={toggleVoice}
+          onRightClick={micAllowed ? toggleMic : () => void requestMicPermission()}
+          leftAriaLabel={voiceOn ? 'Switch to screen mode' : 'Switch to voice mode'}
+          rightAriaLabel={!micAllowed ? 'Allow microphone' : micOn ? 'Turn mic off' : 'Turn mic on'}
+        />
         <ChatComposer
           value={draft}
           onValueChange={setDraft}

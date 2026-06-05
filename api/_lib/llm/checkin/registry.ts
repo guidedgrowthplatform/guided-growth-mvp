@@ -1,7 +1,7 @@
 import { CHECKIN_TOOLS, type CheckinToolDefinition } from './schemas.js';
 
-// Explicit set, not a HOME- prefix (which would catch dashboard screens).
-const CHECKIN_SCREEN_IDS: ReadonlySet<string> = new Set(['HOME-CHECKIN']);
+// Explicit set, not a HOME-/MCHECK-/ECHECK- prefix (which would catch dashboard screens).
+const CHECKIN_SCREEN_IDS: ReadonlySet<string> = new Set(['HOME-CHECKIN', 'MCHECK-01', 'ECHECK-06']);
 
 export function isCheckinScreen(screenId: string | null | undefined): boolean {
   return typeof screenId === 'string' && CHECKIN_SCREEN_IDS.has(screenId);
