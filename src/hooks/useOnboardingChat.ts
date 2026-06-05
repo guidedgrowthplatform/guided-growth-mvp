@@ -210,6 +210,9 @@ export function useOnboardingChat({
     routes: routesData?.routes,
     onVoiceAction,
     onAdvance: scheduleAdvance,
+    onWillAdvance: () => {
+      suppressTrailingRef.current = true;
+    },
     // Stable session → session-scoped dedup (call_ids are globally unique);
     // legacy → per-screen reset, unchanged.
     resetKey: useStableSession ? (chatSessionId ?? screenId) : screenId,
