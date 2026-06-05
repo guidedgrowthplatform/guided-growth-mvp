@@ -1,30 +1,34 @@
-import { type ReactNode, useState, useCallback } from 'react';
+import { type ReactNode, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CoachChatOverlay } from '@/components/coach';
 import { OpenChatButton } from '@/components/home';
 import { ToastContainer } from '@/components/ui/Toast';
+import { CoachChatProvider, useCoachChatLauncher } from '@/contexts/CoachChatContext';
 import type { CoachChatCloseInfo } from '@/lib/chat/coachChatTypes';
-import { unlockTTS } from '@/lib/services/tts-service';
 import { BottomNav } from './BottomNav';
 
 export function Layout({ children }: { children: ReactNode }) {
-  const [showCoachChat, setShowCoachChat] = useState(false);
+  return (
+    <CoachChatProvider>
+      <LayoutInner>{children}</LayoutInner>
+    </CoachChatProvider>
+  );
+}
+
+function LayoutInner({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { openScreenId, openCoachChat, closeCoachChat } = useCoachChatLauncher();
+  const chatOpen = openScreenId !== null;
   const isFullWidth =
     location.pathname === '/report' ||
     location.pathname === '/focus' ||
     location.pathname === '/journal' ||
     location.pathname.startsWith('/reflections');
 
-  const handleOpenChat = useCallback(() => {
-    unlockTTS();
-    setShowCoachChat(true);
-  }, []);
-
   const handleCloseChat = useCallback(
     (info?: CoachChatCloseInfo) => {
-      setShowCoachChat(false);
+      closeCoachChat();
       const created = info?.lastCreatedItem;
       if (!created) return;
       if (created.type === 'habit') {
@@ -33,7 +37,7 @@ export function Layout({ children }: { children: ReactNode }) {
         navigate(`/reflections/${created.id}`);
       }
     },
-    [navigate],
+    [navigate, closeCoachChat],
   );
 
   return (
@@ -48,14 +52,14 @@ export function Layout({ children }: { children: ReactNode }) {
         )}
       </main>
 
-      <BottomNav hidden={showCoachChat} />
-      {!showCoachChat && (
+      <BottomNav hidden={chatOpen} />
+      {!chatOpen && (
         <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] right-6 z-20">
-          <OpenChatButton onPress={handleOpenChat} />
+          <OpenChatButton onPress={() => openCoachChat('HOME-CHECKIN')} />
         </div>
       )}
       <ToastContainer />
-      {showCoachChat && <CoachChatOverlay screenId="HOME-CHECKIN" onClose={handleCloseChat} />}
+      {chatOpen && <CoachChatOverlay screenId={openScreenId} onClose={handleCloseChat} />}
     </div>
   );
 }

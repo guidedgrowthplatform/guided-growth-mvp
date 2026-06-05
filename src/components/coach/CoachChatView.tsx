@@ -3,11 +3,14 @@ import { useRef, useCallback, useEffect, useState } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
+import { OrbControls } from '@/components/voice/OrbControls';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
+import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicEnabled } from '@/hooks/useMicEnabled';
+import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
 import type { CoachChatApi } from '@/lib/chat/coachChatTypes';
-import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
+import { stopTTS } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 interface CoachChatViewProps extends CoachChatApi {
@@ -29,9 +32,19 @@ export function CoachChatView({
   const [draft, setDraft] = useState('');
 
   const micEnabled = useMicEnabled();
-  const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
+  const { voiceOn, micAllowed, toggleVoice, toggleMic, requestMicPermission } =
+    useDualButtonControls();
   const interim = useVoiceStore((s) => s.interim);
   const revealedInterim = useSmoothReveal(interim);
+
+  const isListening = voiceState === 'listening';
+  const { intensity: micRingIntensity, speaking: micSpeaking } = useMicVoiceActivity(isListening);
+
+  const dualActiveRings = ((): 'left' | 'right' | 'ready' | null => {
+    if (isListening) return micSpeaking ? 'right' : 'ready';
+    if (speaking && voiceOn) return 'left';
+    return null;
+  })();
 
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
@@ -66,7 +79,7 @@ export function CoachChatView({
   };
 
   const gradientStyle: React.CSSProperties = {
-    backgroundImage: isSpeaking
+    backgroundImage: speaking
       ? 'linear-gradient(to bottom, rgba(97,111,137,0.55), rgba(97,111,137,0.65), rgba(97,111,137,0.75), rgba(19,91,236,0.9))'
       : micEnabled
         ? 'linear-gradient(to bottom, rgba(246,246,246,0.45), rgba(81,81,81,0.55), rgba(167,144,52,0.75), rgba(253,208,23,0.9))'
@@ -130,9 +143,22 @@ export function CoachChatView({
       </div>
 
       <div
-        className="relative z-10 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        className="relative z-10 flex flex-col items-center gap-4 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
         onClick={(e) => e.stopPropagation()}
       >
+        <OrbControls
+          size={91}
+          leftActive={voiceOn}
+          rightActive={micEnabled}
+          activeRings={dualActiveRings}
+          ringCount={3}
+          ringStep={4}
+          intensity={micRingIntensity}
+          micAllowed={micAllowed}
+          onToggleVoice={toggleVoice}
+          onToggleMic={toggleMic}
+          onRequestMic={() => void requestMicPermission()}
+        />
         <ChatComposer
           value={draft}
           onValueChange={setDraft}

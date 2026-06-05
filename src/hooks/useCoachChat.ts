@@ -4,6 +4,7 @@ import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
 import { useChatSession } from '@/hooks/useChatSession';
 import { useCoachChatToolEvents } from '@/hooks/useCoachChatToolEvents';
 import { useLLM } from '@/hooks/useLLM';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoice } from '@/hooks/useVoice';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { buildHabitCards } from '@/lib/chat/coachChatCards';
@@ -23,6 +24,9 @@ export function useCoachChat(
 ): CoachChatApi {
   const surface = opts?.surface ?? 'chat';
   const coachingStyle = opts?.coachingStyle ?? 'warm';
+
+  const { preferences } = useUserPreferences();
+  const voiceModeOn = preferences.voiceMode === 'voice';
 
   const {
     chatSessionId,
@@ -153,10 +157,12 @@ export function useCoachChat(
       if (m.role !== 'assistant' || !m.content) continue;
       if (spokenIdsRef.current.has(m.id)) continue;
       spokenIdsRef.current.add(m.id);
+      // screen/text mode: mark seen but stay silent — no backlog when voice re-enables
+      if (!voiceModeOn) continue;
       setTtsActive((c) => c + 1);
       void speak(m.content).finally(() => setTtsActive((c) => Math.max(0, c - 1)));
     }
-  }, [llmMessages]);
+  }, [llmMessages, voiceModeOn]);
 
   // ─── Transcript → LLM (held until the session lands) ─────────────────
   const submitTurn = useCallback(
