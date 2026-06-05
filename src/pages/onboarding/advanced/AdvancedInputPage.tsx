@@ -51,7 +51,6 @@ export function AdvancedInputPage() {
 
   return (
     <OnboardingLayout
-      currentStep={3}
       screenId="ONBOARD-ADVANCED"
       formSnapshot={snapshot}
       ctaLabel="Continue"

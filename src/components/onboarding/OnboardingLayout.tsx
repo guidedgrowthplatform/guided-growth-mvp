@@ -2,7 +2,6 @@ import { Icon } from '@iconify/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { OpenChatButton } from '@/components/home/OpenChatButton';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
-import { OnboardingChatOverlay } from '@/components/onboarding/OnboardingChatOverlay';
 import { OnboardingSubtitleBar } from '@/components/onboarding/OnboardingSubtitleBar';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { DualButton } from '@/components/ui/DualButton';
@@ -21,7 +20,6 @@ import { stopTTS, unlockTTS } from '@/lib/services/tts-service';
 import { AiListeningTooltip } from './AiListeningTooltip';
 
 interface OnboardingLayoutProps {
-  currentStep: number;
   ctaLabel: string;
   onNext: () => void;
   ctaDisabled?: boolean;
@@ -46,7 +44,6 @@ interface OnboardingLayoutProps {
 }
 
 export function OnboardingLayout({
-  currentStep,
   ctaLabel,
   onNext,
   ctaDisabled,
@@ -84,7 +81,6 @@ export function OnboardingLayout({
   const vapiUserSpeaking = onboardingVoice?.isUserSpeaking ?? false;
   const overlayOpen = onboardingVoice?.overlayOpen ?? false;
   const openOverlay = onboardingVoice!.openOverlay;
-  const closeOverlay = onboardingVoice!.closeOverlay;
   const ttsOn = voiceOn && !vapiErrored;
   // Page orb rings/ripples in voice-in even with the overlay closed (UX-18).
   const isVoiceInOnly = orbStateFrom(voiceOn, micOn) === 'voice_in_only';
@@ -234,8 +230,6 @@ export function OnboardingLayout({
     <div
       className={`relative flex min-h-dvh flex-col ${bgVariant === 'secondary' ? 'bg-surface-secondary' : 'bg-surface'} px-6 pb-[48px] pt-[max(16px,env(safe-area-inset-top))]`}
     >
-      {overlayOpen && <OnboardingChatOverlay key={currentStep} onClose={closeOverlay} />}
-
       {!overlayOpen && !hideOpenChat && <OpenChatButton floating onPress={handleOpenChat} />}
 
       {!overlayOpen && <OnboardingSubtitleBar />}

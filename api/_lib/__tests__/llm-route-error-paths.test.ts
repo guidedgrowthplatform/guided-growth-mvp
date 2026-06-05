@@ -435,8 +435,7 @@ describe('LLM route — dedupLookup short-circuit', () => {
     const dedupLookups = pool.query.mock.calls.filter((c) => {
       const sql = c[0] as string;
       return (
-        typeof sql === 'string' &&
-        sql.includes('WHERE user_turn_id = $1 AND tool_call_id = $2')
+        typeof sql === 'string' && sql.includes('WHERE user_turn_id = $1 AND tool_call_id = $2')
       );
     });
     expect(dedupLookups.length).toBe(1);
@@ -462,5 +461,92 @@ describe('LLM route — dedupLookup short-circuit', () => {
       expect(toolInsert.params).toContain(USER_TURN_ID);
       expect(toolInsert.params).toContain('call-dedup-1');
     }
+  });
+});
+
+describe('LLM route — onboarding model + fork tool-choice forcing', () => {
+  async function* completedOnly() {
+    yield { type: 'completed', responseId: 'resp-fork', totalTokens: 1 };
+  }
+
+  function firstStreamOpts() {
+    return (openResponsesStream as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as {
+      model?: string;
+      toolChoice?: unknown;
+      tools?: ReadonlyArray<{ name: string }>;
+    };
+  }
+
+  async function runFork(opts: { path: string | null }) {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ foreign_owned: false, prev_response_id: null }],
+      })
+      .mockResolvedValueOnce({
+        rowCount: opts.path ? 1 : 0,
+        rows: opts.path ? [{ path: opts.path }] : [],
+      });
+    pool.query.mockResolvedValue({ rowCount: 1, rows: [] });
+    (openResponsesStream as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      completedOnly(),
+    );
+    const { client } = makeClient();
+    pool.connect.mockResolvedValue(client);
+
+    await handler(
+      mockReq({
+        session_id: 'sess-abcd1234',
+        screen_id: 'ONBOARD-FORK--FORM',
+        user_message: "no I haven't",
+        chat_session_id: CHAT_SESSION_ID,
+        user_turn_id: USER_TURN_ID,
+      }),
+      mockRes(),
+    );
+  }
+
+  it('forces required choice over {submit_path_choice, ask_clarification} on the fork before a path is set', async () => {
+    await runFork({ path: null });
+    const o = firstStreamOpts();
+    expect(o.model).toBe('gpt-4o');
+    expect(o.toolChoice).toBe('required');
+    expect(o.tools?.map((t) => t.name).sort()).toEqual(['ask_clarification', 'submit_path_choice']);
+  });
+
+  it('does NOT force once a path is already saved (so the confirm turn can advance)', async () => {
+    await runFork({ path: 'simple' });
+    const o = firstStreamOpts();
+    expect(o.model).toBe('gpt-4o');
+    expect(o.toolChoice).toBeUndefined();
+    expect(o.tools?.length ?? 0).toBeGreaterThan(2);
+  });
+
+  it('check-in / non-onboarding screens keep the default model and never force', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ foreign_owned: false, prev_response_id: null }],
+    });
+    pool.query.mockResolvedValue({ rowCount: 1, rows: [] });
+    (openResponsesStream as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      completedOnly(),
+    );
+    const { client } = makeClient();
+    pool.connect.mockResolvedValue(client);
+
+    await handler(
+      mockReq({
+        session_id: 'sess-abcd1234',
+        screen_id: 'HOME-FIRST',
+        user_message: 'hi',
+        chat_session_id: CHAT_SESSION_ID,
+        user_turn_id: USER_TURN_ID,
+      }),
+      mockRes(),
+    );
+
+    const o = firstStreamOpts();
+    expect(o.model).toBeUndefined();
+    expect(o.toolChoice).toBeUndefined();
   });
 });

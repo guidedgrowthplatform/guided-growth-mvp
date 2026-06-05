@@ -17,6 +17,12 @@ const REQUIRED: Record<string, (row: Row) => boolean> = {
   'ONBOARD-ADVANCED-04': (r) => isObject(r.data?.reflectionConfig),
 };
 
+// Multi-item screens whose submit_* bumps to their OWN step (no transition for
+// useAgentNavigation). confirm bumps to the next step so the advance fires.
+const NEXT_STEP: Record<string, number> = {
+  'ONBOARD-BEGINNER-03': 6,
+};
+
 function isObject(v: unknown): boolean {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
@@ -39,6 +45,16 @@ export async function confirmStepComplete(
   const row = res.rows[0] ?? { data: null, path: null };
   if (!check(row)) {
     return ok({ advance: false, reason: 'required field missing for this step' });
+  }
+
+  const nextStep = ctx.screen_id ? NEXT_STEP[ctx.screen_id] : undefined;
+  if (nextStep !== undefined) {
+    const bumped = await pool.query<{ current_step: number }>(
+      `UPDATE onboarding_states SET current_step = GREATEST(current_step, $2), updated_at = now()
+       WHERE anon_id = $1 RETURNING current_step`,
+      [ctx.anon_id, nextStep],
+    );
+    return ok({ advance: true, current_step: bumped.rows[0]?.current_step ?? nextStep });
   }
   return ok({ advance: true });
 }

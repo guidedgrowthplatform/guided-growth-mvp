@@ -21,9 +21,11 @@ const SECTION_BOUNDARY = new RegExp(
 
 const NEXT_LINE = /^[ \t]*NEXT:.*$/gm;
 const ARROW_POINTER = new RegExp(String.raw`\s*(?:->|→)\s*${SCREEN_ID}`, 'g');
+const ARROW_PATH = /\s*(?:->|→)\s*(?:beginner|advanced)\s+path\b/gi;
 const PARENTHETICAL = new RegExp(String.raw`\s*\(${SCREEN_ID}\)`, 'g');
 const NAVIGATE_TO = new RegExp(String.raw`\bnavigate to\s+${SCREEN_ID}`, 'gi');
 const ROUTE_TO = new RegExp(String.raw`\broute to\s+(?:${SCREEN_ID}|beginner|advanced)\b`, 'gi');
+const ROUTE_BASED = /\bRoute based on (?:the )?answer:?/gi;
 
 export function stripForwardPointers(contextBlock: string): string {
   const boundary = SECTION_BOUNDARY.exec(contextBlock);
@@ -32,9 +34,11 @@ export function stripForwardPointers(contextBlock: string): string {
   head = head
     .replace(NEXT_LINE, '')
     .replace(ARROW_POINTER, '')
+    .replace(ARROW_PATH, '')
     .replace(PARENTHETICAL, '')
     .replace(NAVIGATE_TO, 'continue')
-    .replace(ROUTE_TO, 'continue');
+    .replace(ROUTE_TO, 'continue')
+    .replace(ROUTE_BASED, '');
 
   return head
     .replace(/[ \t]+$/gm, '')

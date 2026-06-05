@@ -19,6 +19,18 @@ export const ONBOARDING_OPENERS: Record<string, string> = {
     "Here are a few habits that really help with this. Pick what feels doable. Not heroic. Not impressive. Doable. Because one habit done consistently beats five that don't stick. You can also create your own if none of these fit.",
   'ONBOARD-ADVANCED':
     "Tell me everything you want to achieve — say or type as much as you want, and I'll organize it into habits for you.",
+  'ONBOARD-BEGINNER-07':
+    "One last thing — let's set up a short evening reflection. I can ask you a few simple questions each evening, or you can free-write. Which sounds better? You can change it anytime.",
+  'ONBOARD-BEGINNER-06':
+    "Here's your starting plan. Take a look — does it all look right, or want to change anything before we start?",
+  'ONBOARD-ADVANCED-04':
+    "Let's set up your evening reflection — I can ask you a few questions each evening, or you can free-write. Which feels better?",
+  'ONBOARD-ADVANCED-05':
+    "Here's what I put together from everything you shared. Want to start with this, or tweak anything first?",
+  'ONBOARD-ADV-CUSTOM':
+    "What would you like me to ask you each evening? Give me up to three prompts and I'll use those.",
+  'ONBOARD-ADVANCED-02':
+    'Here are the habits I pulled from what you shared. Take a look — keep them as they are, or want to change anything?',
 };
 
 export function getOnboardingOpener(screenId: string): string | undefined {

@@ -84,7 +84,6 @@ export function Step4Page() {
 
   return (
     <OnboardingLayout
-      currentStep={4}
       screenId="ONBOARD-BEGINNER-02"
       formSnapshot={snapshot}
       ctaLabel="Continue"

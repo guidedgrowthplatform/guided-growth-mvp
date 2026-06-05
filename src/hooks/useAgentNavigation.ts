@@ -90,31 +90,17 @@ export function useAgentNavigation(currentStep: number, nextRoute: string | null
   const { state } = useOnboarding();
   const navigate = useNavigate();
   const advancedRef = useRef(false);
-  // The persistedStep value observed at the START of this mount. Set once
-  // on the first render where state.current_step is defined. Subsequent
-  // changes are compared against this baseline to detect "step changed
-  // during the mount" (a leading edge).
-  const initialPersistedStepRef = useRef<number | undefined>(undefined);
-  // True once we've recorded the initial value. Distinguishes "ref is
-  // undefined because we haven't initialized" from "ref is undefined
-  // because the initial value was undefined" — both legitimate states.
-  const hasInitializedRef = useRef(false);
+  // Back-nav/resume arrive already-ahead and must not auto-advance. Seeded off
+  // currentStep, not a step snapshot a same-commit submit_* bump can poison.
+  const arrivedAheadRef = useRef<boolean | undefined>(undefined);
 
   const persistedStep = state?.current_step;
 
-  // First-render initialization. Records the initial value but doesn't
-  // fire — that's the whole point of leading-edge. Runs in render rather
-  // than useEffect so the initial value is captured BEFORE the predicate
-  // effect runs on the same render.
-  if (!hasInitializedRef.current && persistedStep !== undefined) {
-    initialPersistedStepRef.current = persistedStep;
-    hasInitializedRef.current = true;
+  if (arrivedAheadRef.current === undefined && persistedStep !== undefined) {
+    arrivedAheadRef.current = persistedStep > currentStep;
   }
 
-  // Has persistedStep CHANGED since the initial observation? Only true
-  // once we've initialized AND the current value differs from the seed.
-  const hasStepChanged =
-    hasInitializedRef.current && persistedStep !== initialPersistedStepRef.current;
+  const hasStepChanged = arrivedAheadRef.current === false;
 
   useEffect(() => {
     const input: AgentAdvanceInput = {
@@ -130,7 +116,7 @@ export function useAgentNavigation(currentStep: number, nextRoute: string | null
         if (input.alreadyAdvanced) reason = 'already_advanced_this_mount';
         else if (input.persistedStep === undefined) reason = 'persisted_step_undefined';
         else if (!input.hasStepChanged)
-          reason = `awaiting_step_change (current=${input.persistedStep}, initial=${initialPersistedStepRef.current})`;
+          reason = `arrived_ahead_no_autoadvance (persisted=${input.persistedStep}, page=${currentStep})`;
         else if (input.persistedStep <= input.currentStep)
           reason = `persisted_step_not_advanced (db=${input.persistedStep} <= page=${input.currentStep})`;
         else if (!input.nextRoute) reason = 'next_route_unresolved';
@@ -144,7 +130,7 @@ export function useAgentNavigation(currentStep: number, nextRoute: string | null
     if (import.meta.env.DEV) {
       console.debug(
         `[useAgentNavigation] FIRE currentStep=${currentStep} → ${nextRoute} ` +
-          `(initial=${initialPersistedStepRef.current} → now=${persistedStep})`,
+          `(arrivedAhead=${arrivedAheadRef.current}, now=${persistedStep})`,
       );
     }
     advancedRef.current = true;
