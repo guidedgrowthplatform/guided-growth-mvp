@@ -11,14 +11,15 @@ const SIZE = 1024;
 const SPLASH = 2732; // @capacitor/assets splash source size
 const SAFE = 0.62; // swoosh fills ~62% of the square; rest is padding/safe-zone
 
-// swoosh + tapering dots, lifted from public/logo.svg (wordmark subpaths dropped)
-const swoosh = `M2935 7084 c-476 -36 -827 -129 -1190 -314 -747 -381 -1336 -1066 -1550 -1802 -73 -251 -100 -464 -92 -727 15 -495 158 -918 465 -1366 412 -604 1021 -1024 1767 -1220 462 -122 1023 -123 1515 -5 739 178 1397 631 2086 1435 164 192 349 426 602 765 818 1093 916 1222 1110 1460 218 266 439 489 623 629 389 294 852 436 1359 418 266 -10 473 -50 690 -134 248 -95 389 -191 618 -420 95 -94 194 -186 219 -202 117 -78 251 -96 355 -49 142 65 219 205 188 340 -16 69 -77 185 -140 270 -105 140 -310 312 -575 483 -124 81 -389 214 -515 259 -431 154 -991 192 -1475 100 -597 -114 -1168 -435 -1578 -889 -210 -232 -709 -878 -1302 -1685 -510 -695 -692 -921 -980 -1219 -406 -419 -801 -688 -1225 -833 -571 -195 -1209 -175 -1750 55 -659 280 -1132 831 -1264 1471 -45 218 -46 497 -2 711 105 506 427 998 870 1329 404 302 849 449 1356 449 372 0 692 -74 989 -229 159 -83 278 -172 458 -347 89 -86 189 -175 222 -196 171 -110 387 -57 467 115 79 169 9 381 -188 570 -133 129 -418 337 -608 446 -284 162 -631 270 -1000 312 -137 16 -434 27 -525 20 z M7090 5520 a 280 280 0 1 0 560 0 a 280 280 0 1 0 -560 0 z M6540 4730 a 210 210 0 1 0 420 0 a 210 210 0 1 0 -420 0 z M6070 3990 a 140 140 0 1 0 280 0 a 140 140 0 1 0 -280 0 z M5635 3350 a 65 65 0 1 0 130 0 a 65 65 0 1 0 -130 0 z`;
-
-// drift guard: fail loud if logo.svg redesigned without re-syncing the swoosh above
-const norm = (s) => s.replace(/\s+/g, ' ').trim();
-if (!norm(logoSvg).includes(norm(swoosh))) {
-  throw new Error('build-icon: swoosh no longer matches public/logo.svg — re-sync the path');
+// GG mark = ribbon + 4 dots + right-G body + left-G crossbar; wordmark dropped.
+// Sliced live from logo.svg (swoosh start → crossbar close) so it can't drift like a hand-copied path.
+const markStart = logoSvg.indexOf('M2935 7084');
+const crossbarStart = logoSvg.indexOf('M2451 4604', markStart);
+const markEnd = crossbarStart === -1 ? -1 : logoSvg.indexOf('z', crossbarStart) + 1;
+if (markStart === -1 || crossbarStart === -1 || markEnd === 0) {
+  throw new Error('build-icon: GG mark subpaths not found in public/logo.svg — re-sync extraction');
 }
+const swoosh = logoSvg.slice(markStart, markEnd).replace(/\s+/g, ' ').trim();
 
 const swooshSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1225" height="719" viewBox="0 0 1225 719">
 <g transform="translate(0,719) scale(0.1,-0.1)" fill="#ffffff" stroke="none"><path d="${swoosh}"/></g>
