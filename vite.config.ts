@@ -136,6 +136,11 @@ export default defineConfig(({ mode }) => {
           // happily serves 404s for the new chunk filenames and crashes
           // dynamic imports (saw this on APK v5 → v6 upgrade).
           cleanupOutdatedCaches: true,
+          // Never serve index.html (the SPA navigateFallback) in place of a
+          // missing /assets chunk. On Android (https://localhost) the SW
+          // would return HTML for a .js request -> "Failed to fetch
+          // dynamically imported module". 404 lets Suspense recover instead.
+          navigateFallbackDenylist: [/^\/assets\//],
           runtimeCaching: [
             {
               urlPattern: /^\/api\/.*/i,
