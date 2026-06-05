@@ -5,7 +5,7 @@ const liveReloadUrl = process.env.CAP_LIVE_RELOAD_URL;
 // Per-environment identity (dev / staging / main). Defaults to production so
 // an unset env leaves the existing single-env build untouched. See docs/ENVIRONMENTS.md.
 const appId = process.env.APP_IDENTIFIER ?? 'app.guidedgrowth.mvp';
-const appName = process.env.APP_DISPLAY_NAME ?? 'Guided Growth Tracker';
+const appName = process.env.APP_DISPLAY_NAME ?? 'Guided Growth';
 // Comma-separated hosts to add to allowNavigation (e.g. a staging Supabase host).
 const extraNavHosts = (process.env.CAP_EXTRA_NAV_HOSTS ?? '')
   .split(',')
