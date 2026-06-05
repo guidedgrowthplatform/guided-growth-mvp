@@ -330,6 +330,21 @@ jobs:
           npx cap sync ios
           node scripts/patch-ios-plist.mjs
 
+      # Fail loud if tester notes are missing — the Fastfile passes nil
+      # changelog when the file is absent, silently shipping a build with a
+      # blank "What to Test". Mirrors the Android notes check above.
+      # TestFlight caps What-to-Test at 4000 chars.
+      - name: Validate iOS release notes present
+        run: |
+          f=release-notes/whatsnew-en-US
+          [ -s "$f" ] || { echo "::error::Missing or empty $f — testers need release notes."; exit 1; }
+          len=$(wc -m < "$f" | tr -d ' ')
+          echo "Release notes length: $len chars"
+          if [ "$len" -gt 4000 ]; then
+            echo "::error::TestFlight What-to-Test exceeds 4000 chars ($len). Trim $f."
+            exit 1
+          fi
+
       - name: Build IPA & upload to TestFlight (fastlane)
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
