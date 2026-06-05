@@ -48,6 +48,7 @@ function GuidedBody({ entry }: { entry: JournalEntry }) {
   );
 }
 
+// Placeholder until insight generation is wired.
 function AIInsightCard() {
   return (
     <div className="relative overflow-hidden rounded-2xl bg-surface p-5 shadow-card">
@@ -59,8 +60,7 @@ function AIInsightCard() {
       />
       <p className="text-base font-bold text-content">AI Insight</p>
       <p className="mt-2 max-w-[85%] text-sm leading-relaxed text-content-secondary">
-        You&apos;ve maintained a 5-day streak of high productivity. Data suggests evening journaling
-        helps you process accomplishments more effectively. Keep it up!
+        Personalized insights from your reflections are coming soon.
       </p>
     </div>
   );

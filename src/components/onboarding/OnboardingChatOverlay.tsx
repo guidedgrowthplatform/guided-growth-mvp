@@ -1,9 +1,8 @@
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
-import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
-import { DualButton } from '@/components/ui/DualButton';
 import { ChatBubble } from '@/components/voice/ChatBubble';
+import { OrbControls } from '@/components/voice/OrbControls';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import {
   useOnboardingVoice as useOnboardingVoiceSession,
@@ -234,22 +233,18 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
         style={{ paddingBottom: 'max(48px, env(safe-area-inset-bottom))' }}
       >
         <div className="pointer-events-auto">
-          <DualButton
+          <OrbControls
             size={91}
             leftActive={voiceChosen}
             rightActive={micRuntimeOn}
             activeRings={dualActiveRings}
             ringCount={3}
             ringStep={4}
-            intensity={dualActiveRings === 'right' ? micRingIntensity : undefined}
-            leftIcon={voiceChosen ? <IconChatVoice size={28} /> : <IconChatText size={28} />}
-            rightIcon={micRuntimeOn ? <IconMic size={26} /> : <IconMicMuted size={26} />}
-            onLeftClick={toggleVoice}
-            onRightClick={micAllowed ? handleToggleMic : handleRequestMic}
-            leftAriaLabel={voiceChosen ? 'Switch to screen mode' : 'Switch to voice mode'}
-            rightAriaLabel={
-              !micAllowed ? 'Allow microphone' : micRuntimeOn ? 'Turn mic off' : 'Turn mic on'
-            }
+            intensity={micRingIntensity}
+            micAllowed={micAllowed}
+            onToggleVoice={toggleVoice}
+            onToggleMic={handleToggleMic}
+            onRequestMic={handleRequestMic}
           />
         </div>
 
