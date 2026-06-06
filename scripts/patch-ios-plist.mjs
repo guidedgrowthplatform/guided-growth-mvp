@@ -15,6 +15,13 @@ import { resolve } from 'path';
 
 const PLIST_PATH = resolve('ios/App/App/Info.plist');
 
+// reverse-domain only — guards the raw-XML interpolation below
+const rawAppId = process.env.APP_IDENTIFIER ?? 'app.guidedgrowth.mvp';
+const appId = /^[A-Za-z0-9.-]+$/.test(rawAppId) ? rawAppId : 'app.guidedgrowth.mvp';
+if (appId !== rawAppId) {
+  console.warn(`[patch-ios-plist] invalid APP_IDENTIFIER '${rawAppId}', falling back to default`);
+}
+
 // Value type is inferred from the JS value:
 //   string → <string>, boolean → <true/>/<false/>, { __xml } → raw XML literal.
 const PATCHES = [
@@ -50,7 +57,7 @@ const PATCHES = [
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>app.guidedgrowth.mvp</string>
+			<string>${appId}</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>guidedgrowth</string>

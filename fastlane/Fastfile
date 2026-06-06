@@ -41,11 +41,10 @@ platform :ios do
       xcodeproj: "ios/App/App.xcodeproj"
     )
 
-    # --- Marketing version from the vX.Y.Z tag -----------------------------
-    # ios/ is regenerated each CI run, so CFBundleShortVersionString resets to
-    # the Capacitor template default; agvtool rewrites it from the tag here.
-    release_tag = ENV["CI_COMMIT_TAG"] || ENV["GITHUB_REF_NAME"]
-    if release_tag && release_tag =~ /^v(\d+\.\d+\.\d+)/
+    # --- Marketing version: explicit APP_VERSION, else the vX.Y.Z tag -------
+    # APP_VERSION covers tagless dispatch builds (else stuck at 1.0.0).
+    version_source = ENV["APP_VERSION"] || ENV["CI_COMMIT_TAG"] || ENV["GITHUB_REF_NAME"]
+    if version_source && version_source =~ /^v?(\d+\.\d+\.\d+)/
       increment_version_number(
         version_number: $1,
         xcodeproj: "ios/App/App.xcodeproj"

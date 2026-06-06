@@ -187,7 +187,7 @@ export function SettingsPage() {
 
   const fullName = user?.name;
   const email = user?.email ?? '';
-  const displayName = fullName ?? email.split('@')[0] ?? 'User';
+  const displayName = fullName || email.split('@')[0] || 'User';
 
   return (
     <div>

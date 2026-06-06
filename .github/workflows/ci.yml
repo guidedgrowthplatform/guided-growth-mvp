@@ -161,7 +161,6 @@ jobs:
           [ -d android ] || npx cap add android
           npx cap copy android
           npx cap sync android
-          npx @capacitor/assets generate --android --assetPath assets
 
       - name: Decode Keystore
         env:
@@ -169,27 +168,32 @@ jobs:
         run: |
           printf '%s' "$KEYSTORE_BASE64" | base64 -d > android/app/guidedgrowth.keystore
 
-      # bundleRelease -> AAB for Play; assembleRelease -> APK for Firebase
-      # App Distribution (testers can't sideload an AAB). Same signing config.
-      - name: Build Release AAB + APK
-        working-directory: android
+      # prod: blue icon, AAB for Play + APK. qa: red icon, APK for Firebase.
+      # Built sequentially so each flavor regenerates main/res with its master.
+      - name: Build prod + qa release
         env:
           KEYSTORE_FILE: 'guidedgrowth.keystore'
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          chmod +x gradlew
-          ./gradlew bundleRelease assembleRelease --no-daemon \
-            -PversionCode=${{ github.run_number }} \
-            -PversionName=${{ github.ref_name }}
+          chmod +x android/gradlew
+          build_flavor() {
+            node scripts/select-icon-master.mjs "$1"
+            npx @capacitor/assets generate --android --assetPath assets
+            (cd android && ./gradlew "${@:2}" --no-daemon \
+              -PversionCode=${{ github.run_number }} \
+              -PversionName=${{ github.ref_name }})
+          }
+          build_flavor prod bundleProdRelease assembleProdRelease
+          build_flavor qa assembleQaRelease
 
       - name: Upload AAB artifact
         id: upload_aab
         uses: actions/upload-artifact@v4
         with:
           name: guided-growth-aab
-          path: android/app/build/outputs/bundle/release/*.aab
+          path: android/app/build/outputs/bundle/prodRelease/*.aab
           retention-days: 14
 
       # Play caps release notes at 500 chars/locale — fail early, not mid-upload.
@@ -215,26 +219,25 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: app.guidedgrowth.mvp
-          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+          releaseFiles: android/app/build/outputs/bundle/prodRelease/app-prod-release.aab
           track: internal
           whatsNewDirectory: release-notes
 
-      # TestFlight-equivalent: emails the tester group an install link per
-      # tagged release. Skips silently when FIREBASE_APP_ID is unset so the
-      # release never reds before Firebase is configured.
-      - name: Distribute to Firebase App Distribution
+      # QA app (app.guidedgrowth.staging) → testers. Skips silently when
+      # FIREBASE_APP_ID_QA is unset so the release never reds pre-Firebase.
+      - name: Distribute QA to Firebase App Distribution
         if: >-
           github.event_name == 'push'
           && startsWith(github.ref, 'refs/tags/v')
-          && env.FIREBASE_APP_ID != ''
+          && env.FIREBASE_APP_ID_QA != ''
         env:
-          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_APP_ID_QA: ${{ secrets.FIREBASE_APP_ID_QA }}
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
-          appId: ${{ secrets.FIREBASE_APP_ID }}
+          appId: ${{ secrets.FIREBASE_APP_ID_QA }}
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           groups: internal-testers
-          file: android/app/build/outputs/apk/release/app-release.apk
+          file: android/app/build/outputs/apk/qa/release/app-qa-release.apk
           releaseNotes: ${{ github.ref_name }}
 
       - name: Notify Mattermost (AAB ready)

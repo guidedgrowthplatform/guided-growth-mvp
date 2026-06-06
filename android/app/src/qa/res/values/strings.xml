@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Guided Growth QA</string>
+    <string name="title_activity_main">Guided Growth QA</string>
+    <string name="package_name">app.guidedgrowth.staging</string>
+    <string name="custom_url_scheme">app.guidedgrowth.staging</string>
+</resources>

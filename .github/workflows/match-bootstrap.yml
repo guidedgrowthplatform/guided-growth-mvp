@@ -16,6 +16,11 @@ name: Bootstrap match repo (one-shot)
 
 on:
   workflow_dispatch:
+    inputs:
+      app_identifier:
+        description: 'Bundle ID to bootstrap (e.g. app.guidedgrowth.staging)'
+        required: true
+        default: 'app.guidedgrowth.mvp'
 
 jobs:
   bootstrap-match:
@@ -44,6 +49,7 @@ jobs:
 
       - name: Run match in write mode
         env:
+          APP_IDENTIFIER: ${{ inputs.app_identifier }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
