@@ -23,6 +23,7 @@ import { submitCustomPrompts } from './handlers/submitCustomPrompts.js';
 import { submitBrainDump } from './handlers/submitBrainDump.js';
 import { navigateNext } from './handlers/navigateNext.js';
 import { confirmPlan } from './handlers/confirmPlan.js';
+import { logEntry } from './handlers/logEntry.js';
 
 export type DispatchResult = { result: string } | { error: string };
 
@@ -55,6 +56,8 @@ export async function dispatchVapiToolCall(
       return navigateNext(args);
     case 'confirm_plan':
       return confirmPlan(args);
+    case 'log_entry':
+      return logEntry(args);
     default:
       console.log(`[vapi/tool] unknown_tool name=${name}`);
       return { error: `unknown_tool: ${name}` };

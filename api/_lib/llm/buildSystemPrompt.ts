@@ -107,7 +107,7 @@ export async function buildSystemPromptForRequest(
   const alreadyFilledBlock = isOnboardingScreen ? await buildAlreadyFilledBlock(args.anon_id) : '';
 
   return {
-    systemPrompt: `${coachingPreamble}\n\n${NO_PRENARRATION_RULE}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${openerNudge}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}\n\n${NO_PRENARRATION_RULE}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${openerNudge}\n\n${UNIVERSAL_LOGGING_BLOCK}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
@@ -132,6 +132,14 @@ async function buildAlreadyFilledBlock(anonId: string): Promise<string> {
     `Do NOT re-ask for any field that already has a value here. Acknowledge briefly if the user re-states it, then move to the next still-missing field per the screen's BEHAVIOR.`
   );
 }
+
+const UNIVERSAL_LOGGING_BLOCK = `UNIVERSAL LOGGING. At any moment the user may volunteer something about their life: an action
+they took, something they want, plan, ate, or bought, a Fearless Life mission, people they
+spoke to, a quantity, anything. Whenever they do, silently call log_entry to capture it as data,
+even if it is unrelated to the current screen. Pick the best category and kind from the allowed
+lists. Capture first, then continue exactly where you were. Do NOT switch topics, start coaching
+on it, or treat it as a new thread. A brief acknowledgement ("got it, logged") is fine, derailing
+is not. This ability is always available to you, on every screen.`;
 
 const FALLBACK_CONTEXT_BLOCK = `## Screen
 No screen-specific guidance is configured for this screen. Respond helpfully and briefly in your coaching voice, using the recent activity below for continuity. Do not invent screen-specific instructions or pre-announce features.`;

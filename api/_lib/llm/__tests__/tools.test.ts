@@ -1,7 +1,7 @@
 /**
  * P1-07 — Agent Tool Definitions.
  *
- * Tests the four LLM tools both Vapi (Path 1) and Direct LLM (Path 3) will
+ * Tests the five LLM tools both Vapi (Path 1) and Direct LLM (Path 3) will
  * consume. The exported TOOL_DEFINITIONS array is the wire artifact (pasted
  * into Vapi assistant config, fed to the LLM via SDK tool_choice). The
  * dispatchToolCall function is the runtime entrypoint both paths route
@@ -27,13 +27,19 @@ beforeEach(() => {
 });
 
 describe('TOOL_DEFINITIONS', () => {
-  it('exports exactly four tools', () => {
-    expect(TOOL_DEFINITIONS).toHaveLength(4);
+  it('exports exactly five tools', () => {
+    expect(TOOL_DEFINITIONS).toHaveLength(5);
   });
 
   it('exposes the canonical tool names', () => {
     const names = TOOL_DEFINITIONS.map((t) => t.name).sort();
-    expect(names).toEqual(['get_user_context', 'log_event', 'navigate_next', 'update_profile']);
+    expect(names).toEqual([
+      'get_user_context',
+      'log_entry',
+      'log_event',
+      'navigate_next',
+      'update_profile',
+    ]);
   });
 
   it('every tool has a non-empty description', () => {
@@ -228,6 +234,62 @@ describe('dispatchToolCall — log_event', () => {
     });
 
     expect(result).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+});
+
+describe('dispatchToolCall — log_entry', () => {
+  it('inserts a user_logs row and returns logged:true', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 'log-1' }] });
+
+    const result = await dispatchToolCall({ ...CTX, screen_id: 'HOME-FIRST' }, 'log_entry', {
+      content: 'spoke to 3 people today',
+      category: 'social',
+      kind: 'did',
+      structured: { count: 3 },
+    });
+
+    expect(result).toMatchObject({ ok: true, result: { logged: true, user_log_id: 'log-1' } });
+    const [sql, params] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/INSERT INTO user_logs/);
+    expect(params[0]).toBe('anon-A');
+    expect(params[1]).toBe('spoke to 3 people today');
+    expect(params[2]).toBe('social');
+    expect(params[3]).toBe('did');
+    expect(params[5]).toBe('HOME-FIRST');
+  });
+
+  it('accepts minimal args (content only)', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 'log-2' }] });
+    const result = await dispatchToolCall(CTX, 'log_entry', { content: 'ate a lot' });
+    expect(result).toMatchObject({ ok: true });
+    const [, params] = pool.query.mock.calls[0];
+    expect(params[1]).toBe('ate a lot');
+    expect(params[2]).toBeNull();
+    expect(params[3]).toBeNull();
+  });
+
+  it('rejects missing content', async () => {
+    const result = await dispatchToolCall(CTX, 'log_entry', {});
+    expect(result).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid category', async () => {
+    const result = await dispatchToolCall(CTX, 'log_entry', { content: 'test', category: 'bogus' });
+    expect(result).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid kind', async () => {
+    const result = await dispatchToolCall(CTX, 'log_entry', { content: 'test', kind: 'maybe' });
+    expect(result).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects content over 8000 chars', async () => {
+    const result = await dispatchToolCall(CTX, 'log_entry', { content: 'x'.repeat(8001) });
+    expect(result).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
   });
 });
 

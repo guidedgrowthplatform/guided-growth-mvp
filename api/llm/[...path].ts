@@ -446,15 +446,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // On ONBOARD-* screens expose ONLY the onboarding tools (avoids LLM
   // double-writing via update_profile/navigate_next which target a different
   // sink). Matches path-1 Vapi assistant scope.
+  // log_entry is always-on: appended to every screen's tool set so the coach
+  // can silently capture user life-facts without derailing the current flow.
+  const logEntryTool = TOOL_DEFINITIONS.find((t) => t.name === 'log_entry')!;
   const onboardingTools = getOnboardingTools(screenId);
   const checkinTools = getCheckinTools(screenId);
   const requestTools =
     mode === 'opener'
       ? undefined
       : onboardingTools !== undefined
-        ? onboardingTools
+        ? [...onboardingTools, logEntryTool]
         : checkinTools !== undefined
-          ? checkinTools
+          ? [...checkinTools, logEntryTool]
           : TOOL_DEFINITIONS;
   const allowedToolNames = new Set<string>(requestTools ? requestTools.map((t) => t.name) : []);
 
@@ -634,6 +637,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 auth_user_id: user.authUserId,
                 anon_id: user.anonId,
                 session_id: sessionId,
+                screen_id: screenId,
                 user_turn_id: userTurnId ?? undefined,
                 tool_call_id: tc.callId,
                 dedupLookup,

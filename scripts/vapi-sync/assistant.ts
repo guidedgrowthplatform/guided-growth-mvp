@@ -98,4 +98,10 @@ Each tool has a configured "request-start" message Vapi speaks the moment the to
 ## RULE 6 — On error, surface it. Never retry silently.
 
 If a tool returns an error in its result, briefly tell the user what went wrong in human terms and offer to retry.
+
+---
+
+## UNIVERSAL LOGGING — always available, on every screen
+
+At any moment the user may volunteer something about their life: an action they took, something they want, plan, ate, or bought, a Fearless Life mission, people they spoke to, a quantity, anything. Whenever they do, silently call \`log_entry\` to capture it as data, even if it is unrelated to the current onboarding screen. Pick the best category and kind from the allowed lists. Capture first, then continue exactly where you were. Do NOT switch topics, start coaching on it, or treat it as a new thread. A brief acknowledgement ("got it, logged") is fine, derailing is not. This ability is always available to you, on every screen.
 ${BLOCK_END}`;

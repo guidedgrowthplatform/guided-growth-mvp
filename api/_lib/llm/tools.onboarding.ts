@@ -28,7 +28,8 @@ export type OnboardingToolName =
   | 'submit_custom_prompts'
   | 'submit_brain_dump'
   | 'navigate_next'
-  | 'confirm_plan';
+  | 'confirm_plan'
+  | 'log_entry';
 
 /**
  * Vapi tool-lifecycle message. Vapi speaks these at fixed points around the
@@ -425,6 +426,56 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
         },
       },
       required: ['target_step'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'log_entry',
+    screen: '*',
+    description:
+      "Capture anything the user states about their life as data: an action they did, something they want or plan, a quantity, food, an errand, a Fearless Life mission, people they spoke to, etc. Call this whenever the user volunteers such a fact, even if it is off the current screen's topic. Silent capture, do not derail the conversation.",
+    messages: {
+      requestStart: 'Got it, logged.',
+    },
+    parameters: {
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          description: "The user's statement, verbatim or lightly cleaned.",
+        },
+        category: {
+          type: 'string',
+          description: 'Best-guess domain, use misc if unsure.',
+          enum: [
+            'fitness',
+            'nutrition',
+            'health',
+            'social',
+            'mission',
+            'work',
+            'purchase',
+            'wishlist',
+            'media',
+            'place',
+            'reflection',
+            'intention',
+            'misc',
+          ],
+        },
+        kind: {
+          type: 'string',
+          description:
+            'Did it happen (did), is it a wish (want), an intention (plan), or a feeling/state (felt).',
+          enum: ['did', 'want', 'plan', 'felt'],
+        },
+        structured: {
+          type: 'object',
+          description:
+            'Optional extracted fields, e.g. {"qty":10,"item":"bananas"} or {"count":3,"unit":"people"}.',
+        },
+      },
+      required: ['content'],
       additionalProperties: false,
     },
   },

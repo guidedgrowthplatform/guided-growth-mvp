@@ -32,7 +32,12 @@ interface ToolDefinition {
   readonly parameters: JSONSchemaObject;
 }
 
-export type ToolName = 'get_user_context' | 'update_profile' | 'navigate_next' | 'log_event';
+export type ToolName =
+  | 'get_user_context'
+  | 'update_profile'
+  | 'navigate_next'
+  | 'log_event'
+  | 'log_entry';
 
 const UPDATE_PROFILE_FIELDS = [
   'name',
@@ -117,12 +122,59 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: 'log_entry',
+    description:
+      "Capture anything the user states about their life as data: an action they did, something they want or plan, a quantity, food, an errand, a Fearless Life mission, people they spoke to, etc. Call this whenever the user volunteers such a fact, even if it is off the current screen's topic. Silent capture, do not derail the conversation.",
+    parameters: {
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          description: "The user's statement, verbatim or lightly cleaned.",
+        },
+        category: {
+          type: 'string',
+          enum: [
+            'fitness',
+            'nutrition',
+            'health',
+            'social',
+            'mission',
+            'work',
+            'purchase',
+            'wishlist',
+            'media',
+            'place',
+            'reflection',
+            'intention',
+            'misc',
+          ],
+          description: 'Best-guess domain, use misc if unsure.',
+        },
+        kind: {
+          type: 'string',
+          enum: ['did', 'want', 'plan', 'felt'],
+          description:
+            'Did it happen (did), is it a wish (want), an intention (plan), or a feeling/state (felt).',
+        },
+        structured: {
+          type: 'object',
+          description:
+            'Optional extracted fields, e.g. {"qty":10,"item":"bananas"} or {"count":3,"unit":"people"}.',
+        },
+      },
+      required: ['content'],
+      additionalProperties: false,
+    },
+  },
 ] as const;
 
 export interface ToolContext {
   auth_user_id: string;
   anon_id: string;
   session_id: string;
+  screen_id?: string;
   user_turn_id?: string;
   tool_call_id?: string;
   dedupLookup?: (toolCallId: string) => Promise<ToolResult | null>;
@@ -240,6 +292,64 @@ async function navigateNext(ctx: ToolContext, args: Record<string, unknown>): Pr
   };
 }
 
+const VALID_CATEGORIES = new Set([
+  'fitness',
+  'nutrition',
+  'health',
+  'social',
+  'mission',
+  'work',
+  'purchase',
+  'wishlist',
+  'media',
+  'place',
+  'reflection',
+  'intention',
+  'misc',
+]);
+const VALID_KINDS = new Set(['did', 'want', 'plan', 'felt']);
+const CONTENT_MAX_LEN = 8000;
+
+async function logEntry(ctx: ToolContext, args: Record<string, unknown>): Promise<ToolResult> {
+  const content = getString(args, 'content')?.trim();
+  if (!content) return invalid('content is required');
+  if (content.length > CONTENT_MAX_LEN)
+    return invalid(`content exceeds ${CONTENT_MAX_LEN} characters`);
+
+  const category = getString(args, 'category') ?? null;
+  if (category !== null && !VALID_CATEGORIES.has(category)) return invalid('invalid category');
+
+  const kind = getString(args, 'kind') ?? null;
+  if (kind !== null && !VALID_KINDS.has(kind)) return invalid('invalid kind');
+
+  let structured: Record<string, unknown> | null = null;
+  if (args.structured !== undefined) {
+    if (
+      typeof args.structured !== 'object' ||
+      args.structured === null ||
+      Array.isArray(args.structured)
+    ) {
+      return invalid('structured must be an object');
+    }
+    structured = args.structured as Record<string, unknown>;
+  }
+
+  const result = await pool.query<{ id: string }>(
+    `INSERT INTO user_logs (anon_id, content, category, kind, structured, source)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id`,
+    [
+      ctx.anon_id,
+      content,
+      category,
+      kind,
+      structured ? JSON.stringify(structured) : null,
+      ctx.screen_id ?? null,
+    ],
+  );
+  return { ok: true, result: { logged: true, user_log_id: result.rows[0].id } };
+}
+
 async function logEvent(ctx: ToolContext, args: Record<string, unknown>): Promise<ToolResult> {
   const cached = await checkDedup(ctx);
   if (cached) return cached;
@@ -278,6 +388,7 @@ const TOOL_HANDLERS: Record<ToolName, ToolHandler> = {
   update_profile: updateProfile,
   navigate_next: navigateNext,
   log_event: logEvent,
+  log_entry: logEntry,
 };
 
 export async function dispatchToolCall(
