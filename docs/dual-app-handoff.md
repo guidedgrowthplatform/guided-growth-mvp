@@ -49,7 +49,7 @@ Commits:
 - **`android/app/src/qa/res/values/strings.xml`** (new) — QA source-set overrides: `app_name` = "Guided Growth QA", `package_name` + `custom_url_scheme` = `app.guidedgrowth.staging`.
 - **`.github/workflows/ci.yml`** —
   - Moved `@capacitor/assets generate` out of the shared "Add Android platform" step.
-  - Added a `build_flavor()` shell helper that runs `select-icon-master` → `generate` → gradle assemble for each flavor. Builds **prod** (`bundleProdRelease assembleProdRelease`, blue icon) then **qa** (`assembleQaRelease`, red icon) sequentially — each regenerates `main/res` with its own master, so no qa mipmap source-set is needed.
+  - Added a `build_flavor()` shell helper that runs `select-icon-master` → `generate` → gradle assemble for each flavor. Builds **prod** (`bundleProdRelease`, blue icon) then **qa** (`assembleQaRelease`, red icon) sequentially — each regenerates `main/res` with its own master, so no qa mipmap source-set is needed.
   - Fixed all flavored output paths (these would have **broken the existing prod release** otherwise): AAB artifact glob `bundle/prodRelease/*.aab`; Play upload `bundle/prodRelease/app-prod-release.aab`.
   - Firebase App Distribution now ships the **QA** APK (`apk/qa/release/app-qa-release.apk`) using a new `FIREBASE_APP_ID_QA` secret, gated to skip silently when unset.
 

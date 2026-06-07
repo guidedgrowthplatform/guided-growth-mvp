@@ -24,7 +24,7 @@ name: CI/CD Pipeline
 #   ANDROID_KEY_PASSWORD             — signing key password
 #   SERVICE_ACCOUNT_JSON             — Play Console service account JSON
 #   MATTERMOST_ANDROID_CI_WEBHOOK_URL — Mattermost incoming webhook (release notify; optional)
-#   FIREBASE_APP_ID                  — Firebase Android app id (App Distribution; optional)
+#   FIREBASE_APP_ID_QA               — Firebase Android app id for QA (App Distribution; optional)
 #   FIREBASE_SERVICE_ACCOUNT_JSON    — service account JSON w/ Firebase App Distribution Admin
 #
 # Repository variables (Settings → Variables → Actions):
@@ -168,7 +168,7 @@ jobs:
         run: |
           printf '%s' "$KEYSTORE_BASE64" | base64 -d > android/app/guidedgrowth.keystore
 
-      # prod: blue icon, AAB for Play + APK. qa: red icon, APK for Firebase.
+      # prod: blue icon, AAB for Play. qa: red icon, APK for Firebase.
       # Built sequentially so each flavor regenerates main/res with its master.
       - name: Build prod + qa release
         env:
@@ -185,7 +185,7 @@ jobs:
               -PversionCode=${{ github.run_number }} \
               -PversionName=${{ github.ref_name }})
           }
-          build_flavor prod bundleProdRelease assembleProdRelease
+          build_flavor prod bundleProdRelease
           build_flavor qa assembleQaRelease
 
       - name: Upload AAB artifact
