@@ -3,6 +3,7 @@ import { buildSystemPrompt } from '@gg/shared/coaching/systemPrompt';
 import type { CoachingStyle } from '@gg/shared/coaching/styles';
 import { buildContextMessage } from '@gg/shared/context/buildContextMessage';
 import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
+import { buildCanonicalOptionsBlock } from './onboarding/canonicalOptions.js';
 import { ONBOARDING_TOOL_ADDENDUM } from './onboarding/systemPromptAddendum.js';
 import { stripForwardPointers } from './stripForwardPointers.js';
 import { NO_PRENARRATION_RULE } from './noPrenarrationRule.js';
@@ -104,23 +105,34 @@ export async function buildSystemPromptForRequest(
   const onboardingNudge = isOnboardingScreen ? `\n\n${ONBOARDING_TOOL_ADDENDUM}` : '';
   const checkinNudge = isCheckinScreen(args.screen_id) ? `\n\n${CHECKIN_TOOL_ADDENDUM}` : '';
   const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
-  const alreadyFilledBlock = isOnboardingScreen ? await buildAlreadyFilledBlock(args.anon_id) : '';
+  const onboardingRow = isOnboardingScreen ? await fetchOnboardingRow(args.anon_id) : null;
+  const alreadyFilledBlock = onboardingRow ? buildAlreadyFilledBlock(onboardingRow) : '';
+  const optionsBlock = isOnboardingScreen
+    ? buildCanonicalOptionsBlock(args.screen_id, onboardingRow?.data ?? {})
+    : '';
 
   return {
-    systemPrompt: `${coachingPreamble}\n\n${NO_PRENARRATION_RULE}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${openerNudge}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}\n\n${NO_PRENARRATION_RULE}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${optionsBlock}${openerNudge}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
 }
 
-async function buildAlreadyFilledBlock(anonId: string): Promise<string> {
-  const res = await pool.query<{
-    data: Record<string, unknown> | null;
-    current_step: number;
-    path: string | null;
-  }>(`SELECT data, current_step, path FROM onboarding_states WHERE anon_id = $1`, [anonId]);
-  const row = res.rows[0];
-  if (!row) return '';
+interface OnboardingRow {
+  data: Record<string, unknown> | null;
+  current_step: number;
+  path: string | null;
+}
+
+async function fetchOnboardingRow(anonId: string): Promise<OnboardingRow | null> {
+  const res = await pool.query<OnboardingRow>(
+    `SELECT data, current_step, path FROM onboarding_states WHERE anon_id = $1`,
+    [anonId],
+  );
+  return res.rows[0] ?? null;
+}
+
+function buildAlreadyFilledBlock(row: OnboardingRow): string {
   const data = row.data ?? {};
   const hasData = Object.keys(data).length > 0;
   if (!hasData && !row.path) return '';

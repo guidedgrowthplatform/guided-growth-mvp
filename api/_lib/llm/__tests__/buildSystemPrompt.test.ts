@@ -49,6 +49,29 @@ describe('buildSystemPromptForRequest', () => {
     );
   });
 
+  it('wires the canonical goal options into the final onboarding prompt', async () => {
+    pool.query.mockReset();
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [
+          { context_block: 'SCREEN_ID: ONBOARD-BEGINNER-02\nBEHAVIOR: pick goals.', version: 1 },
+        ],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({
+        rows: [{ data: { category: 'Sleep better' }, current_step: 4, path: 'simple' }],
+        rowCount: 1,
+      });
+    const { systemPrompt } = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ONBOARD-BEGINNER-02',
+      coaching_style: 'warm',
+      recent_events,
+    });
+    expect(systemPrompt).toContain('Goal Options (category: Sleep better)');
+    expect(systemPrompt).toContain('Fall asleep earlier | Wake up earlier');
+  });
+
   it('opener instructions reference BEHAVIOR, not the stripped AI RESPONSE PATTERN', async () => {
     const { systemPrompt } = await buildSystemPromptForRequest({
       anon_id: 'a',
