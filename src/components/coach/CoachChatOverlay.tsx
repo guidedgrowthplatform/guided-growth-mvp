@@ -1,21 +1,22 @@
 import { useCallback } from 'react';
-import { useCoachChat } from '@/hooks/useCoachChat';
+import { useCoachVoice } from '@/contexts/useCoachVoiceSession';
 import { useDisplayName } from '@/hooks/useDisplayName';
 import type { CoachChatCloseInfo } from '@/lib/chat/coachChatTypes';
 import { CoachChatView } from './CoachChatView';
 
 interface Props {
-  screenId: string;
   onClose: (info?: CoachChatCloseInfo) => void;
 }
 
-// Reusable coach conversation overlay — mount on any post-onboarding screen.
-export function CoachChatOverlay({ screenId, onClose }: Props) {
+// Pure view of the coach chat — session lives in CoachVoiceProvider so
+// closing this overlay does not tear the chat down.
+export function CoachChatOverlay({ onClose }: Props) {
   const displayName = useDisplayName();
-  const api = useCoachChat(screenId);
-  const { lastCreatedItem } = api;
+  const api = useCoachVoice();
+  const lastCreatedItem = api?.lastCreatedItem;
   const handleClose = useCallback(() => {
     onClose(lastCreatedItem ? { lastCreatedItem } : undefined);
   }, [onClose, lastCreatedItem]);
+  if (!api) return null;
   return <CoachChatView {...api} displayName={displayName} onClose={handleClose} />;
 }

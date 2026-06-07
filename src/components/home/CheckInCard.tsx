@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/Button';
 import { useCoachChatLauncher } from '@/contexts/CoachChatContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
+import { useDualButtonControls } from '@/hooks/useDualButtonControls';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { unlockTTS } from '@/lib/services/tts-service';
 import type { CheckInDimension } from '@gg/shared/types';
 import { checkInDimensions } from './checkInConfig';
 import { EmojiOptionButton } from './EmojiOptionButton';
@@ -30,6 +33,8 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   const { addToast } = useToast();
   const navigate = useNavigate();
   const { openCoachChat } = useCoachChatLauncher();
+  const { micAllowed, requestMicPermission } = useDualButtonControls();
+  const { updatePreferences } = useUserPreferences();
   const [values, setValues] = useState<CheckInValues>(emptyValues);
   // GitLab #171: post-save confirmation state so the user gets a visible
   // acknowledgement + a way to jump straight to their check-in history.
@@ -115,7 +120,15 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
     navigate('/report', { state: { tab: 'history' } });
   };
 
-  const handleTalk = () => {
+  const handleTalk = async () => {
+    unlockTTS();
+    // "Talk instead" implies State 3 (voice off, mic on). Request permission if
+    // needed, set the orb state so the chat opens with the mic already armed.
+    const granted = micAllowed || (await requestMicPermission());
+    await updatePreferences({
+      voiceMode: 'screen',
+      micEnabled: granted,
+    });
     openCoachChat(isMorning ? 'MCHECK-01' : 'ECHECK-01');
   };
 
