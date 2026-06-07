@@ -8,8 +8,9 @@ import { useLLM } from '@/hooks/useLLM';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoice } from '@/hooks/useVoice';
 import { useVoiceInCapture } from '@/hooks/useVoiceInCapture';
-import { buildHabitCards } from '@/lib/chat/coachChatCards';
+import { buildCheckinCard, buildHabitCards } from '@/lib/chat/coachChatCards';
 import type { ChatMessage, CoachChatApi, VoiceChatState } from '@/lib/chat/coachChatTypes';
+import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
 import { speak, stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 import type { CoachingStyle } from '@gg/shared/types/llm';
@@ -113,10 +114,17 @@ export function useCoachChat(
   // Stable callback identities so useVoiceInCapture's ref-update effects
   // don't churn every render of useCoachChat. The handlers read fresh state
   // via the refs declared above.
-  const handleSonioxFinal = useCallback((t: string) => {
-    onTranscriptStreamRef.current?.('user', t, 'final');
-    submitTurnRef.current(t);
-  }, []);
+  const handleSonioxFinal = useCallback(
+    (t: string) => {
+      // Clear interim AT THE MOMENT we route the final, so the user bubble
+      // doesn't flicker between Soniox closing the socket and the message
+      // bubble landing.
+      setInterim('');
+      onTranscriptStreamRef.current?.('user', t, 'final');
+      submitTurnRef.current(t);
+    },
+    [setInterim],
+  );
 
   const handleSonioxInterim = useCallback(
     (t: string) => {
@@ -126,8 +134,20 @@ export function useCoachChat(
     [setInterim],
   );
 
+  // Match onboarding's voice-in setup EXACTLY:
+  //   1. Static preference-based gate (`micOn && !voiceModeOn`) — never
+  //      churns on transient state like TTS playback. A churning gate tears
+  //      down the Soniox WS every TTS turn and loses audio frames during
+  //      the rebuild window.
+  //   2. `startKeyWarmLoop()` — pre-fetches Soniox temp keys so the WS
+  //      handshake doesn't wait on a 500-1500ms key mint. Without this,
+  //      cold-mint latency lets the VAD silence timer kill the connection
+  //      before it reaches 'listening' → only partial transcripts arrive.
+  //   3. `responding: false` and `vapiStatus: 'idle'` (coach has no Vapi).
+  const voiceInActive = micOn && !voiceModeOn;
+
   const { isListening } = useVoiceInCapture({
-    active: micOn,
+    active: voiceInActive,
     vapiStatus: 'idle',
     onTranscript: handleSonioxFinal,
     onInterim: handleSonioxInterim,
@@ -135,9 +155,19 @@ export function useCoachChat(
     onError: handleVoiceError,
   });
 
+  // Warm the temp-key cache whenever voice-in is armed. Mirrors onboarding
+  // line 698-702 of OnboardingVoiceProvider — this is the single biggest
+  // reliability win, since each utterance's WebSocket open would otherwise
+  // pay the full key-mint latency from cold.
   useEffect(() => {
-    if (!isListening) setInterim('');
-  }, [isListening, setInterim]);
+    if (!voiceInActive) return;
+    startKeyWarmLoop();
+    return () => stopKeyWarmLoop();
+  }, [voiceInActive]);
+
+  // Clear interim immediately when Soniox finalizes the turn (inside
+  // handleSonioxFinal) — NOT reactively on `isListening` flipping, which
+  // caused user text to flash-disappear before the final reached the LLM.
 
   const voiceState: VoiceChatState =
     isStreaming || sessionStatus === 'loading' ? 'processing' : isListening ? 'listening' : 'idle';
@@ -307,6 +337,7 @@ export function useCoachChat(
         role,
         text: m.content,
         habitCards: role === 'ai' ? buildHabitCards(m, dayOverrides) : undefined,
+        checkinCard: role === 'ai' ? buildCheckinCard(m) : undefined,
       });
     }
     return [...out, ...errorBubbles];

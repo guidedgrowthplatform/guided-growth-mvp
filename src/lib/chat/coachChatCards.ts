@@ -1,5 +1,5 @@
 import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
-import type { HabitCard } from './coachChatTypes';
+import type { CheckInCardData, HabitCard } from './coachChatTypes';
 
 // suggest_habit returns a name only — default to weekdays.
 export const DEFAULT_WEEK: ReadonlyArray<boolean> = [false, true, true, true, true, true, false];
@@ -41,4 +41,41 @@ export function buildHabitCards(
     cards.push(override ? { ...card, days: override } : card);
   }
   return cards.length ? cards : undefined;
+}
+
+// Pull the merged DB-side check-in row out of a successful record_checkin
+// tool event (the handler returns `{recorded, date, checkin: {sleep, mood,
+// energy, stress}}` after the UPSERT, so partial check-ins show the right
+// merged values — not just whatever subset the LLM passed in args).
+function checkinFromEvent(evt: LLMToolEvent): CheckInCardData | null {
+  if (evt.name !== 'record_checkin') return null;
+  if (!evt.result?.ok) return null;
+  const payload = evt.result.payload as { result?: Record<string, unknown> } | undefined;
+  const r = payload?.result;
+  if (!r) return null;
+  const checkin = r.checkin as
+    | Partial<Record<'sleep' | 'mood' | 'energy' | 'stress', unknown>>
+    | undefined;
+  const date = typeof r.date === 'string' ? r.date : '';
+  if (!checkin || !date) return null;
+  const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
+  return {
+    sleep: num(checkin.sleep),
+    mood: num(checkin.mood),
+    energy: num(checkin.energy),
+    stress: num(checkin.stress),
+    date,
+  };
+}
+
+// Last successful record_checkin in this message wins (a single turn rarely
+// fires more than once, but COALESCE on the server means the latest is
+// authoritative anyway).
+export function buildCheckinCard(m: LLMChatMessage): CheckInCardData | undefined {
+  let latest: CheckInCardData | undefined;
+  for (const evt of m.toolEvents ?? []) {
+    const card = checkinFromEvent(evt);
+    if (card) latest = card;
+  }
+  return latest;
 }
