@@ -8,14 +8,14 @@ const { confirmStepComplete } = await import('../handlers/confirmStepComplete.js
 const ANON = '11111111-1111-4111-8111-111111111111';
 
 function row(data: Record<string, unknown> | null, path: string | null = null) {
-  pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ data, path }] });
+  pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ data, path, current_step: null }] });
 }
 
 beforeEach(() => vi.clearAllMocks());
 
 describe('confirm_step_complete', () => {
   it('advances on an unmapped screen without reading the row', async () => {
-    const r = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-ADVANCED-02' }, {});
+    const r = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-ADV-CUSTOM' }, {});
     expect(r).toEqual({ ok: true, result: { advance: true } });
     expect(pool.query).not.toHaveBeenCalled();
   });
@@ -34,12 +34,14 @@ describe('confirm_step_complete', () => {
 
   it('advances when nickname is present', async () => {
     row({ nickname: 'alice' });
+    pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ current_step: 2 }] });
     const r = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-01--FORM' }, {});
-    expect(r).toMatchObject({ ok: true, result: { advance: true } });
+    expect(r).toMatchObject({ ok: true, result: { advance: true, current_step: 2 } });
   });
 
   it('fork advance keys off the path column, not data', async () => {
     row({}, 'simple');
+    pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ current_step: 3 }] });
     const r = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-FORK--FORM' }, {});
     expect(r).toMatchObject({ ok: true, result: { advance: true } });
   });
@@ -52,6 +54,7 @@ describe('confirm_step_complete', () => {
     );
     expect(blocked).toMatchObject({ result: { advance: false } });
     row({ goals: ['Walk more'] });
+    pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ current_step: 5 }] });
     const ok = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-BEGINNER-02' }, {});
     expect(ok).toMatchObject({ result: { advance: true } });
   });
@@ -102,12 +105,46 @@ describe('confirm_step_complete', () => {
 
     // Representative unmapped screen advances unconditionally, no row read.
     vi.clearAllMocks();
-    const recap = await confirmStepComplete(
-      { anon_id: ANON, screen_id: 'ONBOARD-ADVANCED-02' },
-      {},
-    );
+    const recap = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-ADV-CUSTOM' }, {});
     expect(recap).toMatchObject({ result: { advance: true } });
     expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  // Invariant: a gated screen present in REQUIRED must also be in NEXT_STEP, else it
+  // returns advance:true with no current_step and useAgentNavigation never fires.
+  it('every gated screen advances with a numeric current_step when its field is satisfied', async () => {
+    const FIXTURES: Record<
+      string,
+      { data: Record<string, unknown>; path: string | null; nextStep: number }
+    > = {
+      'ONBOARD-01--FORM': { data: { nickname: 'a' }, path: null, nextStep: 2 },
+      'ONBOARD-FORK--FORM': { data: {}, path: 'simple', nextStep: 3 },
+      'ONBOARD-BEGINNER-01': { data: { category: 'health' }, path: null, nextStep: 4 },
+      'ONBOARD-BEGINNER-02': { data: { goals: ['x'] }, path: null, nextStep: 5 },
+      'ONBOARD-BEGINNER-03': { data: { habitConfigs: { Walk: {} } }, path: null, nextStep: 6 },
+      'ONBOARD-BEGINNER-07': { data: { reflectionConfig: { t: 1 } }, path: null, nextStep: 7 },
+      'ONBOARD-ADVANCED': { data: { brainDumpText: 'hello' }, path: null, nextStep: 4 },
+      'ONBOARD-ADVANCED-04': { data: { reflectionConfig: { t: 1 } }, path: null, nextStep: 6 },
+    };
+    for (const [screen_id, fx] of Object.entries(FIXTURES)) {
+      vi.clearAllMocks();
+      pool.query
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ data: fx.data, path: fx.path, current_step: 1 }],
+        })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ current_step: fx.nextStep }] });
+      const r = await confirmStepComplete({ anon_id: ANON, screen_id }, {});
+      expect(r.result, `${screen_id} should advance`).toMatchObject({
+        advance: true,
+        current_step: fx.nextStep,
+      });
+      const update = pool.query.mock.calls.find((c) => String(c[0]).includes('GREATEST'));
+      expect(update?.[1], `${screen_id} bumps to its mapped next step`).toEqual([
+        ANON,
+        fx.nextStep,
+      ]);
+    }
   });
 
   it('blocks advance when the row is absent entirely', async () => {
