@@ -1,6 +1,7 @@
 export const queryKeys = {
   onboarding: {
     state: ['onboarding', 'state'] as const,
+    lastNavStep: ['onboarding', 'lastNavStep'] as const,
   },
   metrics: {
     all: ['metrics'] as const,

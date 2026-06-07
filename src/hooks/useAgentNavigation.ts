@@ -2,9 +2,11 @@
    render to capture the initial persistedStep BEFORE the advance effect runs on
    the same render (leading-edge detection). See the inline comments at the
    initialization block below for the full rationale. */
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { queryKeys } from '@/lib/query';
 
 /**
  * Input to the agent-advance decision. Kept as a pure shape so the
@@ -89,17 +91,27 @@ export function shouldAdvanceToNextScreen(input: AgentAdvanceInput): boolean {
 export function useAgentNavigation(currentStep: number, nextRoute: string | null): void {
   const { state } = useOnboarding();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const advancedRef = useRef(false);
-  // Seed at mount: row absent now but appearing past-step later is forward progress, not back-nav.
   const arrivedAheadRef = useRef<boolean | undefined>(undefined);
 
   const persistedStep = state?.current_step;
 
+  // Suppress auto-advance only on a genuine back-nav: arriving already-ahead AND
+  // from a LATER screen. Arriving already-ahead from an EARLIER screen is the UI
+  // catching up to a server the chat raced forward — it must keep advancing.
   if (arrivedAheadRef.current === undefined) {
-    arrivedAheadRef.current = persistedStep !== undefined && persistedStep > currentStep;
+    const prevStep = qc.getQueryData<number>(queryKeys.onboarding.lastNavStep);
+    const cameFromEarlier = prevStep !== undefined && prevStep < currentStep;
+    const ahead = persistedStep !== undefined && persistedStep > currentStep;
+    arrivedAheadRef.current = ahead && !cameFromEarlier;
   }
 
   const hasStepChanged = arrivedAheadRef.current === false;
+
+  useEffect(() => {
+    qc.setQueryData(queryKeys.onboarding.lastNavStep, currentStep);
+  }, [qc, currentStep]);
 
   useEffect(() => {
     const input: AgentAdvanceInput = {

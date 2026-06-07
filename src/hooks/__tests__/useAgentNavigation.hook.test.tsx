@@ -95,11 +95,35 @@ describe('useAgentNavigation — advances on current_step bump without voice (te
     expect(navigateSpy).toHaveBeenCalledWith('/onboarding/step-2');
   });
 
-  it('does NOT yank forward when current_step is already past at mount (back-nav)', async () => {
+  it('does NOT yank forward when current_step is already past at mount (cold load / resume)', async () => {
     qc.setQueryData(queryKeys.onboarding.state, stateAt(5));
     render(2, '/onboarding/step-3');
     await flush();
     expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it('does NOT yank forward when arriving from a LATER screen (deliberate back-nav)', async () => {
+    qc.setQueryData(queryKeys.onboarding.lastNavStep, 6);
+    qc.setQueryData(queryKeys.onboarding.state, stateAt(7));
+    render(5, '/onboarding/step-6');
+    await flush();
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it('catches up (advances) when arriving from an EARLIER screen but the server already raced ahead', async () => {
+    qc.setQueryData(queryKeys.onboarding.lastNavStep, 5);
+    qc.setQueryData(queryKeys.onboarding.state, stateAt(7));
+    render(6, '/onboarding/step-7');
+    await flush();
+    expect(navigateSpy).toHaveBeenCalledWith('/onboarding/step-7');
+  });
+
+  it('starts the catch-up cascade from an early screen when the server is several steps ahead', async () => {
+    qc.setQueryData(queryKeys.onboarding.lastNavStep, 1);
+    qc.setQueryData(queryKeys.onboarding.state, stateAt(7));
+    render(2, '/onboarding/step-3');
+    await flush();
+    expect(navigateSpy).toHaveBeenCalledWith('/onboarding/step-3');
   });
 
   it('navigates at most once per mount (idempotent across re-renders)', async () => {
