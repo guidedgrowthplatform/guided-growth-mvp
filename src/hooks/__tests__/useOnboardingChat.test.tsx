@@ -214,29 +214,26 @@ function confirmStepCompleteStream(): Response {
   ]);
 }
 
-function advanceEvt(id = 'tc-1'): LLMToolEvent {
+function advanceEvt(id = 'tc-1', currentStep = 2): LLMToolEvent {
   return {
     id,
     name: 'confirm_step_complete',
     args: {},
-    result: { ok: true, payload: { ok: true, result: { advance: true } } },
+    result: {
+      ok: true,
+      payload: { ok: true, result: { advance: true, current_step: currentStep } },
+    },
   };
 }
 
 describe('useChatToolEvents — latch keeps advance alive when enabled is false (Bug 2)', () => {
-  type ToolBridgeProps = {
-    events: LLMToolEvent[];
-    active: boolean;
-    resetKey: string | null;
-    onAdvance: () => void;
-  };
+  type ToolBridgeProps = { events: LLMToolEvent[]; active: boolean; resetKey: string | null };
   function ToolBridge(props: ToolBridgeProps) {
     useChatToolEvents({
       toolEvents: props.events,
       active: props.active,
       routes: [],
       onVoiceAction: vi.fn(),
-      onAdvance: props.onAdvance,
       resetKey: props.resetKey,
     });
     return null;
@@ -249,26 +246,32 @@ describe('useChatToolEvents — latch keeps advance alive when enabled is false 
         </Wrapper>,
       );
     });
+  const seed = (step: number) =>
+    qc.setQueryData(queryKeys.onboarding.state, {
+      current_step: step,
+      data: {},
+      path: null,
+    } as never);
+  const step = () =>
+    (qc.getQueryData(queryKeys.onboarding.state) as { current_step?: number } | undefined)
+      ?.current_step;
 
-  it('confirm_step_complete advance fires when active stays true though enabled is false', () => {
-    const onAdvance = vi.fn();
-    renderTool({ events: [advanceEvt()], active: true, resetKey: 'ONBOARD-FORK--FORM', onAdvance });
-    expect(onAdvance).toHaveBeenCalledTimes(1);
+  it('confirm advance bumps current_step when active stays true though enabled is false', () => {
+    seed(1);
+    renderTool({ events: [advanceEvt('tc-1', 2)], active: true, resetKey: 'ONBOARD-FORK--FORM' });
+    expect(step()).toBe(2);
   });
 
   it('does not re-fire the same advance event id after a screen (resetKey) change', () => {
-    const onAdvance = vi.fn();
-    renderTool({ events: [advanceEvt()], active: true, resetKey: 'ONBOARD-FORK--FORM', onAdvance });
-    expect(onAdvance).toHaveBeenCalledTimes(1);
-    renderTool({ events: [advanceEvt()], active: true, resetKey: 'ONBOARD-FORK--FORM', onAdvance });
-    expect(onAdvance).toHaveBeenCalledTimes(1);
-    renderTool({
-      events: [advanceEvt('tc-2')],
-      active: true,
-      resetKey: 'ONBOARD-GOAL--FORM',
-      onAdvance,
-    });
-    expect(onAdvance).toHaveBeenCalledTimes(2);
+    seed(1);
+    renderTool({ events: [advanceEvt('tc-1', 2)], active: true, resetKey: 'ONBOARD-FORK--FORM' });
+    expect(step()).toBe(2);
+    // Same id, higher step, same resetKey → deduped, no further merge.
+    renderTool({ events: [advanceEvt('tc-1', 9)], active: true, resetKey: 'ONBOARD-FORK--FORM' });
+    expect(step()).toBe(2);
+    // New id under a new resetKey → merges.
+    renderTool({ events: [advanceEvt('tc-2', 3)], active: true, resetKey: 'ONBOARD-GOAL--FORM' });
+    expect(step()).toBe(3);
   });
 });
 
@@ -573,10 +576,7 @@ describe('suppresses a prior screen trailing coach line after navigation', () =>
 });
 
 describe('advance dispatch survives mid-stream mic-off end-to-end (Bug 2)', () => {
-  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }));
-  afterEach(() => vi.useRealTimers());
-
-  it('confirm_step_complete still advances when the mic drops mid-stream', async () => {
+  it('confirm_step_complete still bumps current_step when the mic drops mid-stream', async () => {
     let releaseToolResult!: () => void;
     const gate = new Promise<void>((r) => (releaseToolResult = r));
     const encoder = new TextEncoder();
@@ -591,7 +591,7 @@ describe('advance dispatch survives mid-stream mic-off end-to-end (Bug 2)', () =
             type: 'tool_result',
             id: 'tc-1',
             ok: true,
-            result: { ok: true, result: { advance: true } },
+            result: { ok: true, result: { advance: true, current_step: 3 } },
           });
           controller.close();
         },
@@ -599,12 +599,19 @@ describe('advance dispatch survives mid-stream mic-off end-to-end (Bug 2)', () =
       { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
     );
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(gatedStream));
-    const onAdvance = vi.fn();
+    qc.setQueryData(queryKeys.onboarding.state, {
+      current_step: 2,
+      data: {},
+      path: null,
+    } as never);
+    const step = () =>
+      (qc.getQueryData(queryKeys.onboarding.state) as { current_step?: number } | undefined)
+        ?.current_step;
 
     act(() => {
       root.render(
         <Wrapper>
-          <Bridge enabled onAdvance={onAdvance} />
+          <Bridge enabled />
         </Wrapper>,
       );
     });
@@ -614,25 +621,55 @@ describe('advance dispatch survives mid-stream mic-off end-to-end (Bug 2)', () =
     });
     await flush();
 
+    // Mic drops mid-stream → enabled flips false; the streamActiveRef latch keeps
+    // toolActive true so the tool_result still dispatches.
     act(() => {
       root.render(
         <Wrapper>
-          <Bridge enabled={false} onAdvance={onAdvance} />
+          <Bridge enabled={false} />
         </Wrapper>,
       );
     });
     await flush();
+    expect(step()).toBe(2);
 
     await act(async () => {
       releaseToolResult();
       await flush();
     });
     await flush();
-    expect(onAdvance).not.toHaveBeenCalled();
+    expect(step()).toBe(3);
+  });
+});
+
+describe('revisit "move on" shortcut (already-complete screen)', () => {
+  it('affirming on a complete revisited screen fires onAdvance directly (no stream)', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    // FORK with a chosen path → getOnboardingRevisitOpener marks it complete.
+    qc.setQueryData(queryKeys.onboarding.state, {
+      current_step: 2,
+      data: {},
+      path: 'simple',
+    } as never);
+    const onAdvance = vi.fn();
 
     act(() => {
-      vi.advanceTimersByTime(800);
+      root.render(
+        <Wrapper>
+          <Bridge enabled screenId="ONBOARD-FORK--FORM" onAdvance={onAdvance} />
+        </Wrapper>,
+      );
     });
+    await flush();
+
+    await act(async () => {
+      hookRef!.sendUserTurn('yes');
+    });
+    await flush();
+
     expect(onAdvance).toHaveBeenCalledTimes(1);
+    // No LLM round-trip for the revisit shortcut.
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/llm'))).toBe(false);
   });
 });

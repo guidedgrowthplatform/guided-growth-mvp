@@ -9,15 +9,13 @@ import type { OnboardingVoiceResult, VoiceMessage } from '@/contexts/useOnboardi
 import { useChatToolEvents } from '@/hooks/useChatToolEvents';
 import { useLLM } from '@/hooks/useLLM';
 import { useOnboardingChatSession } from '@/hooks/useOnboardingChatSession';
-import { isAffirmation } from '@/lib/onboarding/isAffirmation';
 import type { OrbState } from '@/lib/orb/orbState';
 import { routeOrbSend } from '@/lib/orb/routeOrbSend';
 import { queryKeys } from '@/lib/query';
 import { speak, stopTTS } from '@/lib/services/tts-service';
+import { detectAffirmation } from '@gg/shared/onboarding/detectAffirmation';
 import type { OnboardingState } from '@gg/shared/types';
 import type { CoachingStyle } from '@gg/shared/types/llm';
-
-const ADVANCE_DELAY_MS = 800;
 
 export interface UseOnboardingChatArgs {
   screenId: string | null;
@@ -80,7 +78,6 @@ export function useOnboardingChat({
   const mirroredIdsRef = useRef<Set<string>>(new Set());
   const lastLlmErrorRef = useRef<string>('');
   const openerSeededRef = useRef<string | null>(null);
-  const advanceTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const streamActiveRef = useRef(false);
   const landedCompleteRef = useRef(false);
   // First voice-in final can arrive before the chat session lands — hold it.
@@ -102,13 +99,6 @@ export function useOnboardingChat({
   chatSessionIdRef.current = chatSessionId;
   const suppressTrailingRef = useRef(false);
 
-  useEffect(() => () => clearTimeout(advanceTimerRef.current), []);
-
-  const scheduleAdvance = useCallback(() => {
-    clearTimeout(advanceTimerRef.current);
-    advanceTimerRef.current = setTimeout(() => onAdvanceRef.current?.(), ADVANCE_DELAY_MS);
-  }, []);
-
   const startStream = useCallback((text: string) => {
     suppressTrailingRef.current = false;
     streamActiveRef.current = true;
@@ -127,7 +117,6 @@ export function useOnboardingChat({
     pendingTurnRef.current = null;
     streamActiveRef.current = false;
     suppressTrailingRef.current = true;
-    clearTimeout(advanceTimerRef.current);
     if (!stable) llm.reset();
 
     const onboardingState =
@@ -210,7 +199,6 @@ export function useOnboardingChat({
     active: toolActive,
     routes: routesData?.routes,
     onVoiceAction,
-    onAdvance: scheduleAdvance,
     onWillAdvance: () => {
       suppressTrailingRef.current = true;
     },
@@ -229,12 +217,18 @@ export function useOnboardingChat({
       });
       if (action === 'noop' || action === 'vapi') return;
       // Revisit "move on" shortcut: affirm on an already-complete screen advances.
-      if (action === 'onboarding' && landedCompleteRef.current && isAffirmation(text)) {
+      if (
+        action === 'onboarding' &&
+        landedCompleteRef.current &&
+        detectAffirmation(text, 'single').affirmed
+      ) {
         const now = Date.now();
         appendMessage({ id: `user-${now}`, role: 'user', text });
         appendMessage({ id: `ai-${now}`, role: 'ai', text: 'Great — moving on.' });
         if (orbStateRef.current === 'voice_out_only') void speak('Great — moving on.');
-        scheduleAdvance();
+        // Already-complete revisit: no current_step transition for useAgentNavigation,
+        // so advance the page directly (synchronous, this screen only — no timer race).
+        onAdvanceRef.current?.();
         return;
       }
       // Session not minted yet (cold voice-in entry) — hold; flushed on ready.
@@ -244,7 +238,7 @@ export function useOnboardingChat({
       }
       startStream(text);
     },
-    [isOnboardingScreen, appendMessage, scheduleAdvance, startStream],
+    [isOnboardingScreen, appendMessage, startStream],
   );
 
   return { sendUserTurn, chatBusy: llm.isStreaming };
