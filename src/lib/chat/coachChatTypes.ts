@@ -7,11 +7,20 @@ export interface HabitCard {
   days: boolean[];
 }
 
+export interface CheckInCardData {
+  sleep: number | null;
+  mood: number | null;
+  energy: number | null;
+  stress: number | null;
+  date: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'ai';
   text: string;
   habitCards?: HabitCard[];
+  checkinCard?: CheckInCardData;
 }
 
 export type VoiceChatState = 'idle' | 'listening' | 'processing';

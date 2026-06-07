@@ -4,6 +4,7 @@ import { ChatComposer } from '@/components/chat/ChatComposer';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { ChatBubble } from '@/components/voice/ChatBubble';
+import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { useCoachTranscripts } from '@/contexts/useCoachVoiceSession';
@@ -195,6 +196,15 @@ export function CoachChatView({
                 onDaysChange={(days) => updateHabitDays(msg.id, i, days)}
               />
             ))}
+            {msg.checkinCard && (
+              <CheckInResultCard
+                sleep={msg.checkinCard.sleep}
+                mood={msg.checkinCard.mood}
+                energy={msg.checkinCard.energy}
+                stress={msg.checkinCard.stress}
+                date={msg.checkinCard.date}
+              />
+            )}
           </div>
         ))}
         {displayedAssistant.length > 0 && (
