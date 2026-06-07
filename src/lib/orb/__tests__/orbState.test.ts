@@ -18,7 +18,11 @@ describe('orbStateFrom', () => {
 });
 
 describe('routeOrbSend', () => {
-  const base = { isOnboardingScreen: true, isProcessing: false, isStreaming: false };
+  const base = {
+    surface: 'onboarding' as const,
+    isProcessing: false,
+    isStreaming: false,
+  };
 
   it('processing → noop regardless of state', () => {
     expect(routeOrbSend({ ...base, orbState: 'vapi', isProcessing: true })).toBe('noop');
@@ -30,15 +34,21 @@ describe('routeOrbSend', () => {
   it('vapi → vapi', () => {
     expect(routeOrbSend({ ...base, orbState: 'vapi' })).toBe('vapi');
   });
-  it('onboarding screen, non-vapi → onboarding', () => {
+  it('onboarding surface, non-vapi → onboarding', () => {
     expect(routeOrbSend({ ...base, orbState: 'text_only' })).toBe('onboarding');
     expect(routeOrbSend({ ...base, orbState: 'voice_out_only' })).toBe('onboarding');
     expect(routeOrbSend({ ...base, orbState: 'voice_in_only' })).toBe('onboarding');
   });
-  it('non-onboarding screen, non-vapi → llm', () => {
-    const off = { ...base, isOnboardingScreen: false };
-    expect(routeOrbSend({ ...off, orbState: 'text_only' })).toBe('llm');
-    expect(routeOrbSend({ ...off, orbState: 'voice_out_only' })).toBe('llm');
-    expect(routeOrbSend({ ...off, orbState: 'voice_in_only' })).toBe('llm');
+  it('checkin surface, non-vapi → checkin', () => {
+    const checkin = { ...base, surface: 'checkin' as const };
+    expect(routeOrbSend({ ...checkin, orbState: 'text_only' })).toBe('checkin');
+    expect(routeOrbSend({ ...checkin, orbState: 'voice_out_only' })).toBe('checkin');
+    expect(routeOrbSend({ ...checkin, orbState: 'voice_in_only' })).toBe('checkin');
+  });
+  it('coach surface, non-vapi → llm', () => {
+    const coach = { ...base, surface: 'coach' as const };
+    expect(routeOrbSend({ ...coach, orbState: 'text_only' })).toBe('llm');
+    expect(routeOrbSend({ ...coach, orbState: 'voice_out_only' })).toBe('llm');
+    expect(routeOrbSend({ ...coach, orbState: 'voice_in_only' })).toBe('llm');
   });
 });

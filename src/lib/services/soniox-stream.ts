@@ -664,7 +664,12 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
     vadRmsEma = vadRmsEma * (1 - VAD_RMS_EMA_ALPHA) + rms * VAD_RMS_EMA_ALPHA;
     vad = updateVad(vad, vadRmsEma, now);
     if (armed && shouldOpenSocket(vad, now, session !== null)) openSocket();
-    else if (shouldCloseSocket(vad, now, session !== null)) endUtterance();
+    // Only finalize a session that's actually reached 'listening' — closing it
+    // mid-handshake aborts the WS upgrade and the user sees
+    // "WebSocket closed before connection established". On slow links (high
+    // RTT to Soniox) the connect can take 2-3s; the VAD silence timer would
+    // otherwise fire first and kill the still-connecting socket.
+    else if (shouldCloseSocket(vad, now, sessionListening)) endUtterance();
 
     const down = downsampleTo16k(float32, srcRate);
     const merged = new Float32Array(pcmBuffer.length + down.length);
