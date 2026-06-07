@@ -141,7 +141,11 @@ beforeEach(() => {
 
 describe('LLM route — affirmation deterministic advance', () => {
   it('bumps and emits a synthetic confirm_step_complete on a satisfied required screen', async () => {
-    routeQueries({ data: { nickname: 'Sam' }, path: null, current_step: 1 });
+    routeQueries({
+      data: { nickname: 'Sam', age: 28, gender: 'Female', referralSource: 'Reddit' },
+      path: null,
+      current_step: 1,
+    });
     (openResponsesStream as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
       noToolStream(),
     );

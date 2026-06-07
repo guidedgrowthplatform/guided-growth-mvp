@@ -37,7 +37,15 @@ describe('buildCanonicalOptionsBlock', () => {
     expect(buildCanonicalOptionsBlock('ONBOARD-BEGINNER-03', {})).toBe('');
   });
 
+  it('injects profile-collection guidance for ONBOARD-01--FORM (all four fields, no early advance)', () => {
+    const out = buildCanonicalOptionsBlock('ONBOARD-01--FORM', {});
+    expect(out).toContain('Profile Fields');
+    expect(out).toContain('nickname, age, gender');
+    expect(out).toContain('referral source');
+    expect(out).toContain('Do NOT call confirm_step_complete');
+  });
+
   it('returns empty for unrelated screens', () => {
-    expect(buildCanonicalOptionsBlock('ONBOARD-01--FORM', { category: 'Sleep better' })).toBe('');
+    expect(buildCanonicalOptionsBlock('ONBOARD-FORK--FORM', { category: 'Sleep better' })).toBe('');
   });
 });

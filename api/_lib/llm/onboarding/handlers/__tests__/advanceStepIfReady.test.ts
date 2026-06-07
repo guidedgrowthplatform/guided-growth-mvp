@@ -17,10 +17,25 @@ describe('advanceStepIfReady', () => {
     expect(pool.query).toHaveBeenCalledTimes(1); // no bump when blocked
   });
 
-  it('bumps and returns current_step when required is satisfied', async () => {
+  it('returns required_missing when only nickname is present (other profile fields missing)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rows: [{ data: { nickname: 'alice' }, path: null, current_step: 1 }],
+    });
+    const r = await advanceStepIfReady(ANON, 'ONBOARD-01--FORM');
+    expect(r).toEqual({ advanced: false, reason: 'required_missing' });
+    expect(pool.query).toHaveBeenCalledTimes(1); // no bump when blocked
+  });
+
+  it('bumps and returns current_step when all four profile fields are present', async () => {
     pool.query
       .mockResolvedValueOnce({
-        rows: [{ data: { nickname: 'alice' }, path: null, current_step: 1 }],
+        rows: [
+          {
+            data: { nickname: 'alice', age: 28, gender: 'Female', referralSource: 'Reddit' },
+            path: null,
+            current_step: 1,
+          },
+        ],
       })
       .mockResolvedValueOnce({ rows: [{ current_step: 2 }] });
     const r = await advanceStepIfReady(ANON, 'ONBOARD-01--FORM');

@@ -32,8 +32,14 @@ describe('confirm_step_complete', () => {
     expect(r).toMatchObject({ ok: true, result: { advance: false } });
   });
 
-  it('advances when nickname is present', async () => {
+  it('blocks advance when only nickname is present (other profile fields missing)', async () => {
     row({ nickname: 'alice' });
+    const r = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-01--FORM' }, {});
+    expect(r).toMatchObject({ ok: true, result: { advance: false } });
+  });
+
+  it('advances when all four profile fields are present', async () => {
+    row({ nickname: 'alice', age: 28, gender: 'Female', referralSource: 'Reddit' });
     pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ current_step: 2 }] });
     const r = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-01--FORM' }, {});
     expect(r).toMatchObject({ ok: true, result: { advance: true, current_step: 2 } });
@@ -117,7 +123,11 @@ describe('confirm_step_complete', () => {
       string,
       { data: Record<string, unknown>; path: string | null; nextStep: number }
     > = {
-      'ONBOARD-01--FORM': { data: { nickname: 'a' }, path: null, nextStep: 2 },
+      'ONBOARD-01--FORM': {
+        data: { nickname: 'a', age: 28, gender: 'Female', referralSource: 'Reddit' },
+        path: null,
+        nextStep: 2,
+      },
       'ONBOARD-FORK--FORM': { data: {}, path: 'simple', nextStep: 3 },
       'ONBOARD-BEGINNER-01': { data: { category: 'health' }, path: null, nextStep: 4 },
       'ONBOARD-BEGINNER-02': { data: { goals: ['x'] }, path: null, nextStep: 5 },

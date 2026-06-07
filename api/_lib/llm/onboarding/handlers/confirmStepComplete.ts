@@ -10,7 +10,14 @@ type Row = {
 
 // Min field that must exist before a screen may advance. Unmapped → allow.
 const REQUIRED: Record<string, (row: Row) => boolean> = {
-  'ONBOARD-01--FORM': (r) => typeof r.data?.nickname === 'string' && r.data.nickname.length > 0,
+  'ONBOARD-01--FORM': (r) =>
+    typeof r.data?.nickname === 'string' &&
+    r.data.nickname.length > 0 &&
+    typeof r.data?.age === 'number' &&
+    typeof r.data?.gender === 'string' &&
+    r.data.gender.length > 0 &&
+    typeof r.data?.referralSource === 'string' &&
+    r.data.referralSource.length > 0,
   'ONBOARD-FORK--FORM': (r) => typeof r.path === 'string' && r.path.length > 0,
   'ONBOARD-BEGINNER-01': (r) => typeof r.data?.category === 'string' && r.data.category.length > 0,
   'ONBOARD-BEGINNER-02': (r) => Array.isArray(r.data?.goals) && r.data.goals.length > 0,

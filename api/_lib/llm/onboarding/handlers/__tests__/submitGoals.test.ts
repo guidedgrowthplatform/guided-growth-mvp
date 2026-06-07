@@ -21,6 +21,9 @@ describe('submitGoals', () => {
     const result = await submitGoals({ anon_id: ANON }, { goals: ['Wake up earlier'] });
 
     expect(result.ok).toBe(true);
+    // DATA ONLY: the UPSERT must not bump current_step (advance flows via confirm_step_complete).
+    const upsertSql = String(pool.query.mock.calls[1][0]);
+    expect(upsertSql).not.toMatch(/current_step = GREATEST/);
   });
 
   it('rejects a paraphrase and returns the exact allowed labels', async () => {

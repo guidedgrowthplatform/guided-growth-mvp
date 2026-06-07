@@ -16,6 +16,15 @@ export function buildCanonicalOptionsBlock(
     ? data.goals.filter((g): g is string => typeof g === 'string')
     : [];
 
+  if (screenId === 'ONBOARD-01--FORM') {
+    return (
+      `\n\n## Profile Fields\n` +
+      `Collect ALL four: nickname, age, gender (Male | Female | Other), referral source.\n` +
+      `Call submit_profile as fields come in — always include the nickname plus every field gathered so far (it requires the nickname each call).\n` +
+      `Do NOT call confirm_step_complete (do not advance) until all four are provided.`
+    );
+  }
+
   if (screenId === 'ONBOARD-BEGINNER-02') {
     const rows: [string, string[]][] =
       category && goalsByCategory[category]

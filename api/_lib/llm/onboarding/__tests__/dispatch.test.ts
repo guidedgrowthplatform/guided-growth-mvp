@@ -78,7 +78,8 @@ describe('dispatchOnboardingToolCall', () => {
     expect(pool.query).toHaveBeenCalled();
     const sql = pool.query.mock.calls[0][0] as string;
     expect(sql).toMatch(/onboarding_states/);
-    expect(sql).toMatch(/GREATEST/);
+    // DATA ONLY: profile UPDATE no longer bumps current_step.
+    expect(sql).not.toMatch(/current_step = GREATEST/);
   });
 
   it('routes confirm_step_complete without touching the DB', async () => {

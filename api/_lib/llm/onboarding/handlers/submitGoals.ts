@@ -84,9 +84,8 @@ export async function submitGoals(
 
   const result = await pool.query<{ data: Record<string, unknown>; current_step: number }>(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
-     VALUES ($1, 5, 'in_progress', $2::jsonb, now())
+     VALUES ($1, 4, 'in_progress', $2::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET
-       current_step = GREATEST(onboarding_states.current_step, 5),
        status = 'in_progress',
        data = onboarding_states.data || $2::jsonb,
        updated_at = now()
@@ -97,7 +96,7 @@ export async function submitGoals(
   const row = result.rows[0];
   return ok({
     data: row?.data ?? { goals: finalGoals },
-    current_step: row?.current_step ?? 5,
+    current_step: row?.current_step ?? 4,
     goals: finalGoals,
     ...(dropped.length > 0 ? { dropped } : {}),
   });
