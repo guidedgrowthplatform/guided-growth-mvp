@@ -90,14 +90,13 @@ export function useAgentNavigation(currentStep: number, nextRoute: string | null
   const { state } = useOnboarding();
   const navigate = useNavigate();
   const advancedRef = useRef(false);
-  // Back-nav/resume arrive already-ahead and must not auto-advance. Seeded off
-  // currentStep, not a step snapshot a same-commit submit_* bump can poison.
+  // Seed at mount: row absent now but appearing past-step later is forward progress, not back-nav.
   const arrivedAheadRef = useRef<boolean | undefined>(undefined);
 
   const persistedStep = state?.current_step;
 
-  if (arrivedAheadRef.current === undefined && persistedStep !== undefined) {
-    arrivedAheadRef.current = persistedStep > currentStep;
+  if (arrivedAheadRef.current === undefined) {
+    arrivedAheadRef.current = persistedStep !== undefined && persistedStep > currentStep;
   }
 
   const hasStepChanged = arrivedAheadRef.current === false;

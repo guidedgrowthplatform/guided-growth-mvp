@@ -85,6 +85,16 @@ describe('useAgentNavigation — advances on current_step bump without voice (te
     expect(navigateSpy).toHaveBeenCalledWith('/onboarding/step-5');
   });
 
+  it('navigates when the row is absent at mount and first appears past the screen (new user, ONBOARD-01--FORM stall regression)', async () => {
+    render(1, '/onboarding/step-2');
+    await flush();
+    expect(navigateSpy).not.toHaveBeenCalled();
+
+    act(() => qc.setQueryData(queryKeys.onboarding.state, stateAt(2)));
+    await flush();
+    expect(navigateSpy).toHaveBeenCalledWith('/onboarding/step-2');
+  });
+
   it('does NOT yank forward when current_step is already past at mount (back-nav)', async () => {
     qc.setQueryData(queryKeys.onboarding.state, stateAt(5));
     render(2, '/onboarding/step-3');
