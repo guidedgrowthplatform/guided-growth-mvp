@@ -211,7 +211,7 @@ export function useOnboardingChat({
     (text: string) => {
       const action = routeOrbSend({
         orbState: orbStateRef.current,
-        isOnboardingScreen,
+        surface: isOnboardingScreen ? 'onboarding' : 'coach',
         isProcessing: false,
         isStreaming: llmRef.current.isStreaming,
       });

@@ -3,13 +3,16 @@ import { isCheckinScreen, trackCheckinStarted } from '@/analytics/coachFunnel';
 import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
 import { useChatSession } from '@/hooks/useChatSession';
 import { useCoachChatToolEvents } from '@/hooks/useCoachChatToolEvents';
+import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useLLM } from '@/hooks/useLLM';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoice } from '@/hooks/useVoice';
-import { useVoiceInput } from '@/hooks/useVoiceInput';
-import { buildHabitCards } from '@/lib/chat/coachChatCards';
+import { useVoiceInCapture } from '@/hooks/useVoiceInCapture';
+import { buildCheckinCard, buildHabitCards } from '@/lib/chat/coachChatCards';
 import type { ChatMessage, CoachChatApi, VoiceChatState } from '@/lib/chat/coachChatTypes';
+import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
 import { speak, stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
+import { useVoiceStore } from '@/stores/voiceStore';
 import type { CoachingStyle } from '@gg/shared/types/llm';
 
 const LLM_ERROR_TEXT = "Something didn't work on my end. Mind trying that again?";
@@ -18,15 +21,31 @@ const SESSION_ERROR_TEXT =
 
 // Reusable post-onboarding coach conversation. Screen-parameterized so it can
 // mount on any screen; the tools the LLM gets are decided server-side per screenId.
+//
+// onTranscriptStream (optional): provider-side hook for broadcasting streaming
+// partials + finals (both user-side from Soniox and assistant-side from LLM)
+// to a transcript bus so the subtitle bar can show live activity outside the
+// overlay.
 export function useCoachChat(
   screenId: string,
-  opts?: { surface?: Surface; coachingStyle?: CoachingStyle },
+  opts?: {
+    surface?: Surface;
+    coachingStyle?: CoachingStyle;
+    onTranscriptStream?: (
+      role: 'user' | 'assistant',
+      text: string,
+      kind: 'partial' | 'final',
+    ) => void;
+  },
 ): CoachChatApi {
   const surface = opts?.surface ?? 'chat';
   const coachingStyle = opts?.coachingStyle ?? 'warm';
+  const onTranscriptStream = opts?.onTranscriptStream;
 
   const { preferences } = useUserPreferences();
   const voiceModeOn = preferences.voiceMode === 'voice';
+  const { micOn } = useDualButtonControls();
+  const setInterim = useVoiceStore((s) => s.setInterim);
 
   const {
     chatSessionId,
@@ -37,6 +56,7 @@ export function useCoachChat(
     sendMessage,
     sendOpener,
     messages: llmMessages,
+    response: llmResponse,
     isStreaming,
     error: llmError,
   } = useLLM(screenId, {
@@ -45,14 +65,6 @@ export function useCoachChat(
     initialMessages,
   });
 
-  const {
-    isListening,
-    transcript,
-    start,
-    stop,
-    resetTranscript,
-    error: voiceError,
-  } = useVoiceInput();
   const { acquireRealtime, releaseToken, setStatus } = useVoice();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
 
@@ -60,7 +72,6 @@ export function useCoachChat(
 
   const tokenRef = useRef<ReleaseToken | null>(null);
   const pendingTurnRef = useRef<string | null>(null);
-  const lastHandledTranscript = useRef('');
   const openerSentRef = useRef<string | null>(null);
   const startCheckinFiredRef = useRef<string | null>(null);
   const spokenSeededForRef = useRef<string | null>(null);
@@ -69,12 +80,94 @@ export function useCoachChat(
   const lastVoiceErrorRef = useRef('');
   const errorSeqRef = useRef(0);
   const lastAssistantIdRef = useRef<string | null>(null);
+  // Stable identity for the streaming Soniox session callbacks so
+  // useVoiceInCapture's WebSocket lifecycle doesn't churn each render.
+  const submitTurnRef = useRef<(text: string) => void>(() => undefined);
 
   const [dayOverrides, setDayOverrides] = useState<Map<string, boolean[]>>(() => new Map());
   const [errorBubbles, setErrorBubbles] = useState<ChatMessage[]>([]);
   // >0 from speak() dispatch until playback ends — closes the gap where the TTS
   // store's isSpeaking flips async (fetch latency) and the channel would release early.
   const [ttsActive, setTtsActive] = useState(0);
+
+  // Streaming Soniox: mic toggle drives `active`; partials → useVoiceStore.interim
+  // (overlay's user bubble reads it); finals → submitTurnRef → LLM. `responding`
+  // is hard-coded false — true would put the session into 'responding' state and
+  // silently drop audio frames (see soniox-stream.ts feedAudio()).
+  const handleVoiceError = useCallback((msg: string) => {
+    if (msg === lastVoiceErrorRef.current) return;
+    lastVoiceErrorRef.current = msg;
+    setErrorBubbles((prev) => [
+      ...prev,
+      { id: `voice-error-${(errorSeqRef.current += 1)}`, role: 'ai', text: msg },
+    ]);
+  }, []);
+
+  // Sync the latest onTranscriptStream into a ref via effect (NOT during
+  // render — render-phase mutations are unsafe and can race with effect-phase
+  // callback invocations from the Soniox session).
+  const onTranscriptStreamRef = useRef(onTranscriptStream);
+  useEffect(() => {
+    onTranscriptStreamRef.current = onTranscriptStream;
+  }, [onTranscriptStream]);
+
+  // Stable callback identities so useVoiceInCapture's ref-update effects
+  // don't churn every render of useCoachChat. The handlers read fresh state
+  // via the refs declared above.
+  const handleSonioxFinal = useCallback(
+    (t: string) => {
+      // Clear interim AT THE MOMENT we route the final, so the user bubble
+      // doesn't flicker between Soniox closing the socket and the message
+      // bubble landing.
+      setInterim('');
+      onTranscriptStreamRef.current?.('user', t, 'final');
+      submitTurnRef.current(t);
+    },
+    [setInterim],
+  );
+
+  const handleSonioxInterim = useCallback(
+    (t: string) => {
+      setInterim(t);
+      onTranscriptStreamRef.current?.('user', t, 'partial');
+    },
+    [setInterim],
+  );
+
+  // Match onboarding's voice-in setup EXACTLY:
+  //   1. Static preference-based gate (`micOn && !voiceModeOn`) — never
+  //      churns on transient state like TTS playback. A churning gate tears
+  //      down the Soniox WS every TTS turn and loses audio frames during
+  //      the rebuild window.
+  //   2. `startKeyWarmLoop()` — pre-fetches Soniox temp keys so the WS
+  //      handshake doesn't wait on a 500-1500ms key mint. Without this,
+  //      cold-mint latency lets the VAD silence timer kill the connection
+  //      before it reaches 'listening' → only partial transcripts arrive.
+  //   3. `responding: false` and `vapiStatus: 'idle'` (coach has no Vapi).
+  const voiceInActive = micOn && !voiceModeOn;
+
+  const { isListening } = useVoiceInCapture({
+    active: voiceInActive,
+    vapiStatus: 'idle',
+    onTranscript: handleSonioxFinal,
+    onInterim: handleSonioxInterim,
+    responding: false,
+    onError: handleVoiceError,
+  });
+
+  // Warm the temp-key cache whenever voice-in is armed. Mirrors onboarding
+  // line 698-702 of OnboardingVoiceProvider — this is the single biggest
+  // reliability win, since each utterance's WebSocket open would otherwise
+  // pay the full key-mint latency from cold.
+  useEffect(() => {
+    if (!voiceInActive) return;
+    startKeyWarmLoop();
+    return () => stopKeyWarmLoop();
+  }, [voiceInActive]);
+
+  // Clear interim immediately when Soniox finalizes the turn (inside
+  // handleSonioxFinal) — NOT reactively on `isListening` flipping, which
+  // caused user text to flash-disappear before the final reached the LLM.
 
   const voiceState: VoiceChatState =
     isStreaming || sessionStatus === 'loading' ? 'processing' : isListening ? 'listening' : 'idle';
@@ -151,49 +244,56 @@ export function useCoachChat(
     );
   }, [chatSessionId, initialMessages]);
 
-  // ─── Speak each newly-seen assistant message ─────────────────────────
+  // ─── Speak each newly-seen assistant message + emit to transcript bus ─
   useEffect(() => {
     for (const m of llmMessages) {
       if (m.role !== 'assistant' || !m.content) continue;
       if (spokenIdsRef.current.has(m.id)) continue;
       spokenIdsRef.current.add(m.id);
+      // Final text flows to the subtitle bar regardless of voice mode.
+      onTranscriptStream?.('assistant', m.content, 'final');
       // screen/text mode: mark seen but stay silent — no backlog when voice re-enables
       if (!voiceModeOn) continue;
       setTtsActive((c) => c + 1);
       void speak(m.content).finally(() => setTtsActive((c) => Math.max(0, c - 1)));
     }
-  }, [llmMessages, voiceModeOn]);
+  }, [llmMessages, voiceModeOn, onTranscriptStream]);
 
-  // ─── Transcript → LLM (held until the session lands) ─────────────────
+  // Live partial stream → transcript bus (subtitle renders typing in real time).
+  useEffect(() => {
+    if (!onTranscriptStream) return;
+    if (!isStreaming || llmResponse.length === 0) return;
+    onTranscriptStream('assistant', llmResponse, 'partial');
+  }, [isStreaming, llmResponse, onTranscriptStream]);
+
+  // ─── Transcript → LLM (queued while busy, flushed when free) ──────────
+  // Streaming Soniox can land multiple finals during a single LLM turn. The
+  // old `if (isStreaming) return` guard silently dropped the second utterance.
+  // Now we hold it in pendingTurnRef and flush as soon as the LLM is idle.
   const submitTurn = useCallback(
     (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || isStreaming) return;
-      if (!chatSessionId) {
-        pendingTurnRef.current = trimmed;
+      if (!trimmed) return;
+      stopTTS();
+      if (!chatSessionId || isStreaming) {
+        pendingTurnRef.current = pendingTurnRef.current
+          ? `${pendingTurnRef.current} ${trimmed}`
+          : trimmed;
         return;
       }
       void sendMessage(trimmed);
     },
     [chatSessionId, isStreaming, sendMessage],
   );
+  submitTurnRef.current = submitTurn;
 
+  // Flush queued turn once the session is ready AND the LLM is idle.
   useEffect(() => {
-    if (!transcript || transcript === lastHandledTranscript.current) return;
-    if (isListening) return;
-    lastHandledTranscript.current = transcript;
-    stopTTS();
-    submitTurn(transcript);
-    resetTranscript();
-  }, [transcript, isListening, submitTurn, resetTranscript]);
-
-  // Flush a held turn once the session is ready (sendMessage changes with it).
-  useEffect(() => {
-    if (!chatSessionId || !pendingTurnRef.current) return;
+    if (!chatSessionId || isStreaming || !pendingTurnRef.current) return;
     const text = pendingTurnRef.current;
     pendingTurnRef.current = null;
     void sendMessage(text);
-  }, [chatSessionId, sendMessage]);
+  }, [chatSessionId, isStreaming, sendMessage]);
 
   // ─── Error bubbles (no offline-parse fallback) ───────────────────────
   useEffect(() => {
@@ -205,15 +305,6 @@ export function useCoachChat(
       { id: `llm-error-${(errorSeqRef.current += 1)}`, role: 'ai', text: LLM_ERROR_TEXT },
     ]);
   }, [llmError]);
-
-  useEffect(() => {
-    if (!voiceError || voiceError === lastVoiceErrorRef.current) return;
-    lastVoiceErrorRef.current = voiceError;
-    setErrorBubbles((prev) => [
-      ...prev,
-      { id: `voice-error-${(errorSeqRef.current += 1)}`, role: 'ai', text: voiceError },
-    ]);
-  }, [voiceError]);
 
   // Session never landed → sendMessage silently no-ops; surface it so input isn't swallowed.
   useEffect(() => {
@@ -246,31 +337,30 @@ export function useCoachChat(
         role,
         text: m.content,
         habitCards: role === 'ai' ? buildHabitCards(m, dayOverrides) : undefined,
+        checkinCard: role === 'ai' ? buildCheckinCard(m) : undefined,
       });
     }
     return [...out, ...errorBubbles];
   }, [llmMessages, dayOverrides, errorBubbles]);
 
   // ─── Controls ────────────────────────────────────────────────────────
+  // Mic lifecycle is now driven inside useVoiceInCapture via the `active`
+  // flag (=micOn). These remain in the API for backwards compat with
+  // CoachChatView but the toggle is the dual-button orb.
   const startListening = useCallback(() => {
     stopTTS();
-    lastHandledTranscript.current = '';
-    resetTranscript();
-    void start();
-  }, [resetTranscript, start]);
+  }, []);
 
   const stopListening = useCallback(() => {
-    stop();
-  }, [stop]);
+    // no-op — orb's right half drives the mic
+  }, []);
 
   const sendText = useCallback(
     (text: string) => {
-      const trimmed = text.trim();
-      if (!trimmed || isStreaming) return;
       stopTTS();
-      submitTurn(trimmed);
+      submitTurn(text);
     },
-    [isStreaming, submitTurn],
+    [submitTurn],
   );
 
   const updateHabitDays = useCallback((messageId: string, cardIndex: number, days: boolean[]) => {

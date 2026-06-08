@@ -1,16 +1,23 @@
 import { type ReactNode, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CoachChatOverlay } from '@/components/coach';
+import { CoachChatOverlay, CoachSubtitleBar } from '@/components/coach';
 import { OpenChatButton } from '@/components/home';
 import { ToastContainer } from '@/components/ui/Toast';
 import { CoachChatProvider, useCoachChatLauncher } from '@/contexts/CoachChatContext';
+import { CoachVoiceProvider } from '@/contexts/CoachVoiceProvider';
 import type { CoachChatCloseInfo } from '@/lib/chat/coachChatTypes';
 import { BottomNav } from './BottomNav';
 
 export function Layout({ children }: { children: ReactNode }) {
+  // CoachChatProvider owns open/close state + target screenId.
+  // CoachVoiceProvider sits inside it and owns the lifted chat session +
+  // Soniox stream so closing the overlay does not tear them down.
+  // Both run only on app routes (Layout isn't used by onboarding).
   return (
     <CoachChatProvider>
-      <LayoutInner>{children}</LayoutInner>
+      <CoachVoiceProvider>
+        <LayoutInner>{children}</LayoutInner>
+      </CoachVoiceProvider>
     </CoachChatProvider>
   );
 }
@@ -54,12 +61,15 @@ function LayoutInner({ children }: { children: ReactNode }) {
 
       <BottomNav hidden={chatOpen} />
       {!chatOpen && (
-        <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] right-6 z-20">
-          <OpenChatButton onPress={() => openCoachChat('HOME-CHECKIN')} />
-        </div>
+        <>
+          <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] right-6 z-20">
+            <OpenChatButton onPress={() => openCoachChat('HOME-CHECKIN')} />
+          </div>
+          <CoachSubtitleBar />
+        </>
       )}
       <ToastContainer />
-      {chatOpen && <CoachChatOverlay screenId={openScreenId} onClose={handleCloseChat} />}
+      {chatOpen && <CoachChatOverlay onClose={handleCloseChat} />}
     </div>
   );
 }

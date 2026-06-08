@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { useCoachVoice } from '@/contexts/useCoachVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useScreenMap } from '@/hooks/useScreenMap';
@@ -107,7 +108,14 @@ export function BottomNav({ hidden = false }: { hidden?: boolean }) {
     requestMicPermission,
   } = useDualButtonControls();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
-  const isListening = useVoiceStore((s) => s.isListening);
+  // Listen-state is sourced from the lifted coach session (Soniox streaming)
+  // first; legacy voiceStore.isListening (set by record-and-send paths the
+  // onboarding flow still uses) is the fallback. OR-combine so the orb lights
+  // up whichever surface is active.
+  const coachVoice = useCoachVoice();
+  const coachListening = (coachVoice?.voiceState ?? 'idle') === 'listening';
+  const legacyListening = useVoiceStore((s) => s.isListening);
+  const isListening = coachListening || legacyListening;
   const { intensity: micIntensity, speaking: micSpeaking } = useMicVoiceActivity(isListening);
   const channelBusy = useVoiceChannelBusy();
   const { logEvent, startVoice, endVoice } = useSessionLog();

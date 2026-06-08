@@ -1,0 +1,1097 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Security review — plan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              ink: '#0b1020',
+              panel: '#11182e',
+              panel2: '#0e1426',
+              line: '#1f2a44',
+              claude: '#d97757',
+            },
+            fontFamily: {
+              sans: [
+                'ui-sans-serif',
+                'system-ui',
+                '-apple-system',
+                'Segoe UI',
+                'Roboto',
+                'Helvetica',
+                'Arial',
+                'sans-serif',
+              ],
+              mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+            },
+          },
+        },
+      };
+    </script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
+    ></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      html,
+      body {
+        background: #0b1020;
+      }
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #243152;
+        border-radius: 8px;
+      }
+      .fade-in {
+        animation: fade 0.3s ease both;
+      }
+      @keyframes fade {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .notab::-webkit-scrollbar {
+        height: 6px;
+      }
+    </style>
+  </head>
+  <body class="font-sans text-slate-200 antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState, useMemo } = React;
+
+      /* ─────────── tones / helpers ─────────── */
+      const TONES = {
+        red: {
+          dot: 'bg-rose-400',
+          txt: 'text-rose-300',
+          chip: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+          bar: 'bg-rose-500/80',
+          ring: 'ring-rose-500/40',
+          edge: 'border-rose-500/40',
+        },
+        amber: {
+          dot: 'bg-amber-400',
+          txt: 'text-amber-300',
+          chip: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+          bar: 'bg-amber-500/80',
+          ring: 'ring-amber-500/40',
+          edge: 'border-amber-500/40',
+        },
+        emerald: {
+          dot: 'bg-emerald-400',
+          txt: 'text-emerald-300',
+          chip: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+          bar: 'bg-emerald-500/80',
+          ring: 'ring-emerald-500/40',
+          edge: 'border-emerald-500/40',
+        },
+        slate: {
+          dot: 'bg-slate-400',
+          txt: 'text-slate-300',
+          chip: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
+          bar: 'bg-slate-500/70',
+          ring: 'ring-slate-500/40',
+          edge: 'border-slate-500/40',
+        },
+      };
+      const KIND = {
+        ops: 'No code',
+        backend: 'Backend',
+        fullstack: 'Front + back',
+        frontend: 'Frontend',
+      };
+      const hrs = (h) => (Number.isInteger(h) ? h + 'h' : h.toFixed(1) + 'h');
+      const days = (h) => (h / 8).toFixed(1) + 'd';
+      const get = (m, it) => (m === 'claude' ? it.claude : it.solo);
+
+      /* ─────────── DATA: 7 areas ─────────── */
+      const AREAS = [
+        {
+          id: 'crisis',
+          tab: 'Crisis safety',
+          title: 'A user in crisis might not get help',
+          sev: 'Now',
+          sevTone: 'red',
+          reach: 'Worst case if it fails: real harm to a vulnerable user, plus liability.',
+          problem:
+            'If someone types something alarming, whether they get pointed to help depends entirely on the AI following one line in its instructions. There is no hard backstop, and nothing checks the reply before the user sees it.',
+          good: [
+            "There is a built-in crisis line (988) in the AI's instructions",
+            'It is hard-coded, not something a user can turn off',
+          ],
+          gaps: [
+            {
+              tone: 'red',
+              t: 'Detection is instruction-only — odd phrasing or a jailbreak can slip past it',
+            },
+            { tone: 'amber', t: "Nothing checks the AI's reply before it reaches the user" },
+          ],
+          plan: [
+            {
+              id: 'SAFE-1',
+              title: 'Check the message before it hits the AI',
+              layer: 'Crisis',
+              kind: 'backend',
+              owner: 'Backend',
+              tone: 'red',
+              solo: 4,
+              claude: 2,
+              what: "A simple check on the user's text. If it clearly signals crisis, show the help resources directly — independent of what the AI does.",
+              why: "The one failure here is a person, not a bad answer. We can't leave it to the model alone.",
+              done: 'Clear crisis language always shows the help resources, no matter what the AI replies.',
+              files: ['api/llm/[...path].ts', 'packages/shared/src/coaching/systemPrompt.ts'],
+              deps: ['—'],
+            },
+            {
+              id: 'SAFE-2',
+              title: 'Check the reply before showing it',
+              layer: 'Crisis',
+              kind: 'backend',
+              owner: 'Backend',
+              tone: 'amber',
+              solo: 4,
+              claude: 2,
+              what: "Run the AI's reply through OpenAI's safety check (free, no new vendor). If it trips, add the help resources.",
+              why: 'Catches the case where the AI gets talked into a harmful answer.',
+              done: 'A flagged reply never reaches the user without the help note attached.',
+              files: ['api/llm/[...path].ts'],
+              deps: ['—'],
+            },
+          ],
+          decide: [
+            {
+              t: 'Soft or hard?',
+              d: 'When the crisis check trips, do we let the chat continue with the help note, or stop and hand off?',
+            },
+          ],
+        },
+        {
+          id: 'cost',
+          tab: 'Voice / AI cost',
+          title: 'Anyone can run up our voice bill',
+          sev: 'Now',
+          sevTone: 'red',
+          reach:
+            'Worst case if it fails: a large, fast bill across Vapi, OpenAI, Cartesia, Soniox.',
+          problem:
+            'When a voice session starts, the phone talks straight to Vapi — our server never sees it. The Vapi key ships inside the app, so it can be pulled out and used directly. The "daily limit" is only a screen check, and our request counter resets every time the server restarts.',
+          good: [
+            'Logins are real (verified, not trusting the phone)',
+            'Vapi webhook is checked with a safe secret compare',
+          ],
+          gaps: [
+            {
+              tone: 'red',
+              t: 'The voice session bypasses our server entirely — nothing can stop it mid-flight',
+            },
+            { tone: 'red', t: 'The Vapi key is in the app bundle — usable without logging in' },
+            {
+              tone: 'amber',
+              t: 'The daily limit is UI-only and the request counter forgets on restart',
+            },
+          ],
+          plan: [
+            {
+              id: 'PR-0',
+              title: 'Set a spend cap in Vapi',
+              layer: 'Bill ceiling',
+              kind: 'ops',
+              owner: 'Vapi account owner',
+              tone: 'red',
+              solo: 0.5,
+              claude: 0.5,
+              what: 'In the Vapi dashboard: monthly spend limit + alerts, max call length, and a cap on calls running at once.',
+              why: "The only thing that stops someone using our key directly. Until it's set, the rest doesn't matter.",
+              done: 'A hard monthly spend limit and call-length cap are live.',
+              files: ['Vapi dashboard — no code'],
+              deps: ['—'],
+            },
+            {
+              id: 'PR-A',
+              title: 'A counter that survives restarts',
+              layer: 'Shared limit',
+              kind: 'backend',
+              owner: 'Yonas · Backend',
+              tone: 'emerald',
+              solo: 4,
+              claude: 2,
+              what: 'A small table + helper that counts usage per user per day and keeps the count across restarts.',
+              why: 'Today the count resets on restart, so daily limits never hold. Everything else needs this first.',
+              done: 'Two requests at once can never both slip past; the count holds across restarts.',
+              files: ['supabase/migrations/0XX_rate_limit_counters.sql', 'api/_lib/rate-limit.ts'],
+              deps: ['—'],
+            },
+            {
+              id: 'PR-B',
+              title: 'Server checks every voice call',
+              layer: 'Server limit',
+              kind: 'backend',
+              owner: 'Yonas · Backend',
+              tone: 'red',
+              solo: 12,
+              claude: 7,
+              what: "Turn on the Vapi call webhook. When a call starts, check the day's count and end it if over. Record calls on the server, not from the phone.",
+              why: 'The only place we can actually stop spend on the direct phone-to-Vapi path.',
+              done: 'A call over the limit gets ended by the server; under, it runs.',
+              files: ['api/vapi/[...path].ts', 'api/_lib/vapi/*'],
+              deps: ['PR-A', 'PR-0'],
+            },
+            {
+              id: 'PR-C',
+              title: 'Ask the server before starting',
+              layer: 'Friendly limit',
+              kind: 'fullstack',
+              owner: 'Mint · Front + back',
+              tone: 'amber',
+              solo: 8,
+              claude: 4.5,
+              what: 'Before opening a voice session the app asks "am I allowed?" The server answers from the real count.',
+              why: 'Cleaner limit message, and a cheap no before an expensive call opens.',
+              done: 'Over the limit, the app shows the cap message and never opens the call.',
+              files: ['src/contexts/OnboardingVoiceProvider.tsx', 'src/hooks/useRealtimeVoice.ts'],
+              deps: ['PR-A'],
+            },
+            {
+              id: 'PR-D',
+              title: 'Same limit on the other paid endpoints',
+              layer: 'Cover the rest',
+              kind: 'backend',
+              owner: 'Backend',
+              tone: 'emerald',
+              solo: 4,
+              claude: 1.5,
+              what: 'Use the new counter for daily limits on chat, speech-to-text and text-to-speech.',
+              why: 'Same restart problem. Quick once PR-A exists.',
+              done: 'Daily limits on those endpoints hold across restarts.',
+              files: [
+                'api/llm/[...path].ts',
+                'api/stt.ts',
+                'api/cartesia-tts.ts',
+                'api/soniox-temp-key.ts',
+              ],
+              deps: ['PR-A'],
+            },
+          ],
+          decide: [
+            { t: 'The real daily number', d: 'Code says 25, spec says 5. Pick the launch number.' },
+            { t: 'At the limit', d: 'End a running call, or only block new ones?' },
+          ],
+          extra: 'cost',
+        },
+        {
+          id: 'data',
+          tab: 'Data kept too long',
+          title: 'We keep sensitive data forever',
+          sev: 'Now',
+          sevTone: 'amber',
+          reach:
+            "A legal gap today (GDPR/CCPA), and the highest-value target if there's ever a breach.",
+          problem:
+            'Onboarding stores the user\'s real nickname, age and raw "brain dump" — and keeps it with no expiry. There is no way for a user to delete their data, and no auto-cleanup.',
+          good: [
+            'Identity is split from behavior (anonymous id)',
+            'Normal chat is stripped of personal info — onboarding is the deliberate exception',
+          ],
+          gaps: [
+            { tone: 'amber', t: 'Raw onboarding text is stored with no expiry' },
+            { tone: 'amber', t: 'No "delete my data" for users' },
+          ],
+          plan: [
+            {
+              id: 'DATA-1',
+              title: 'Auto-delete raw onboarding text',
+              layer: 'Cleanup',
+              kind: 'backend',
+              owner: 'Backend',
+              tone: 'amber',
+              solo: 4,
+              claude: 2,
+              what: 'A scheduled cleanup that removes the raw nickname/age/brain-dump a set time after onboarding finishes.',
+              why: "We don't need the raw text after onboarding; keeping it is pure downside.",
+              done: 'Raw onboarding text is gone N days after a user completes onboarding.',
+              files: ['supabase/migrations/*', 'onboarding_states, chat_messages'],
+              deps: ['—'],
+            },
+            {
+              id: 'DATA-2',
+              title: 'A "delete my data" button',
+              layer: 'User control',
+              kind: 'fullstack',
+              owner: 'Front + back',
+              tone: 'amber',
+              solo: 8,
+              claude: 4,
+              what: "A settings option that wipes a user's stored data on request.",
+              why: 'Basic privacy expectation and a compliance requirement.',
+              done: 'A user can wipe their data from settings.',
+              files: ['SETTINGS screen', 'api/* delete route'],
+              deps: ['—'],
+            },
+          ],
+          decide: [
+            {
+              t: 'Keep-for-how-long',
+              d: 'How many days after onboarding before we auto-delete the raw text?',
+            },
+          ],
+        },
+        {
+          id: 'tools',
+          tab: 'Tool power',
+          title: "AI tools aren't fully fenced in",
+          sev: 'Soon',
+          sevTone: 'amber',
+          reach: "Contained to the user's own account, but can corrupt their data or jump screens.",
+          problem:
+            'When the AI uses a tool — add a habit, move to the next screen, update profile — the inputs aren\'t checked against a strict shape, and "go to screen" accepts any screen including admin ones. The Vapi webhook can also run the same action twice on a retry.',
+          good: [
+            "The user's id is set by the server, not the AI",
+            'No tool can send data outside the app (no email / web / export)',
+          ],
+          gaps: [
+            {
+              tone: 'amber',
+              t: "Tool inputs aren't validated against a fixed shape before running",
+            },
+            { tone: 'amber', t: '"Go to screen" accepts any screen, including admin' },
+            { tone: 'red', t: 'Vapi actions can run twice on a retry (duplicate habits / state)' },
+          ],
+          plan: [
+            {
+              id: 'TOOL-1',
+              title: 'Validate tool inputs',
+              layer: 'Fencing',
+              kind: 'backend',
+              owner: 'Backend',
+              tone: 'amber',
+              solo: 6,
+              claude: 3,
+              what: "Check each tool's inputs against a fixed shape before doing anything.",
+              why: 'Stops a bad or malformed input from reaching the handler.',
+              done: 'A tool call with the wrong shape is rejected before it runs.',
+              files: ['api/_lib/llm/tools.ts', 'api/llm/[...path].ts'],
+              deps: ['—'],
+            },
+            {
+              id: 'TOOL-2',
+              title: 'Limit "go to screen"',
+              layer: 'Fencing',
+              kind: 'backend',
+              owner: 'Backend',
+              tone: 'amber',
+              solo: 2,
+              claude: 1,
+              what: 'Only allow the screens that make sense for the current step.',
+              why: 'Stops the AI from jumping to admin or skipping the flow.',
+              done: '"Go to screen" only accepts allowed targets.',
+              files: ['api/_lib/llm/tools.ts'],
+              deps: ['—'],
+            },
+            {
+              id: 'TOOL-3',
+              title: 'Make Vapi actions retry-safe',
+              layer: 'Reliability',
+              kind: 'backend',
+              owner: 'Backend',
+              tone: 'red',
+              solo: 4,
+              claude: 2,
+              what: 'Add an id to each action so a repeated webhook is ignored (the chat path already does this).',
+              why: "A network retry shouldn't create duplicate habits or double-advance onboarding.",
+              done: 'The same action sent twice only happens once.',
+              files: ['api/_lib/vapi/handlers/*'],
+              deps: ['—'],
+            },
+          ],
+        },
+        {
+          id: 'secrets',
+          tab: 'Logins & keys',
+          title: 'One master key guards everything',
+          sev: 'Soon',
+          sevTone: 'amber',
+          reach: "Low chance, but if that key leaks it's the whole database.",
+          problem:
+            "Our database connection uses a master key that ignores the per-user walls, so all the protection lives in our app code. There's no routine to rotate that key (or the AI keys) if one leaks, and the admin action log can be edited by that same master key.",
+          good: [
+            'Logins are verified, not trusting the phone',
+            'Admin access is gated on a verified role',
+            'No secrets ship in the app bundle',
+          ],
+          gaps: [
+            {
+              tone: 'red',
+              t: 'One master DB key bypasses all per-user walls — single point of failure',
+            },
+            { tone: 'amber', t: 'No routine to rotate the master / AI keys if one leaks' },
+            { tone: 'amber', t: 'Admin action log can be changed by the master key' },
+          ],
+          plan: [
+            {
+              id: 'SEC-1',
+              title: 'Write & test a key-rotation routine',
+              layer: 'Hygiene',
+              kind: 'backend',
+              owner: 'Backend + ops',
+              tone: 'amber',
+              solo: 3,
+              claude: 2,
+              what: 'A documented, tested way to swap the DB and AI keys quickly.',
+              why: 'If a key leaks, we need to rotate in minutes, not scramble.',
+              done: 'We can rotate each key with a written, tested step list.',
+              files: ['Vercel env', 'docs/'],
+              deps: ['—'],
+            },
+            {
+              id: 'SEC-3',
+              title: 'Make the admin log tamper-evident',
+              layer: 'Audit',
+              kind: 'backend',
+              owner: 'Backend',
+              tone: 'amber',
+              solo: 4,
+              claude: 2,
+              what: 'Make admin action records append-only / hard to quietly edit.',
+              why: "So an attacker with the master key can't erase their tracks.",
+              done: "Admin log entries can't be silently changed.",
+              files: ['api/admin/[...path].ts', 'migrations'],
+              deps: ['—'],
+            },
+            {
+              id: 'SEC-2',
+              title: 'A lower-power DB connection for reads',
+              layer: 'Bigger fix',
+              kind: 'backend',
+              owner: 'Backend',
+              tone: 'red',
+              solo: 12,
+              claude: 8,
+              what: "A second DB connection that respects the per-user walls, so the master key isn't the only thing between a bug and everyone's data.",
+              why: "Removes the single point of failure. Bigger change — schedule it, don't rush it.",
+              done: "User-data reads go through a connection that can't see other users.",
+              files: ['api/_lib/db.ts', 'RLS policies'],
+              deps: ['—'],
+            },
+          ],
+        },
+        {
+          id: 'injection',
+          tab: 'Prompt injection',
+          title: 'Users can push the coach off-script',
+          sev: 'Soon',
+          sevTone: 'amber',
+          reach: "Only the attacker's own session — they can't reach anyone else's data.",
+          problem:
+            'A few pieces of text the app sends to the AI come straight from the phone with no cleaning — recent activity events and onboarding form fields. A user can stuff instructions in there to make the coach act differently. The upside: the walls hold, so they can only do this to their own account.',
+          good: [
+            "Every user's data is walled off — a jailbreak stays in the attacker's own account",
+            "No tool can send data out, so there's nothing to steal with",
+          ],
+          gaps: [
+            {
+              tone: 'amber',
+              t: 'Recent activity events from the phone go into the AI prompt unchecked',
+            },
+            { tone: 'amber', t: 'Onboarding form values go in without escaping' },
+            {
+              tone: 'slate',
+              t: 'No quick check on input/output for obvious attacks; no leak tripwire',
+            },
+          ],
+          plan: [
+            {
+              id: 'INJ-1',
+              title: 'Clean what the phone sends in',
+              layer: 'Input',
+              kind: 'backend',
+              owner: 'Backend',
+              tone: 'amber',
+              solo: 4,
+              claude: 2,
+              what: 'Escape line breaks and drop unexpected shapes in the activity events and form values before they go into the prompt.',
+              why: 'Stops a user from smuggling instructions through those fields.',
+              done: "Pasted instructions in those fields don't change how the coach behaves.",
+              files: [
+                'packages/shared/src/context/buildContextMessage.ts',
+                'api/_lib/llm/buildSystemPrompt.ts',
+              ],
+              deps: ['—'],
+            },
+            {
+              id: 'INJ-2',
+              title: 'Run a safety check in and out',
+              layer: 'Filter',
+              kind: 'backend',
+              owner: 'Backend',
+              tone: 'emerald',
+              solo: 3,
+              claude: 1.5,
+              what: "Pass messages through OpenAI's moderation check on the way in and out (free, no new vendor).",
+              why: 'A cheap net for obvious abuse — shares the work with the crisis check (SAFE-2).',
+              done: 'Obvious abusive input/output gets flagged.',
+              files: ['api/llm/[...path].ts'],
+              deps: ['—'],
+            },
+            {
+              id: 'INJ-3',
+              title: 'Add a prompt-leak tripwire',
+              layer: 'Detect',
+              kind: 'backend',
+              owner: 'Backend',
+              tone: 'emerald',
+              solo: 2,
+              claude: 1,
+              what: "Hide a marker in the AI's instructions and alert if it ever shows up in a reply.",
+              why: 'Tells us if someone got the AI to spill its instructions.',
+              done: 'If the marker appears in any reply, we get an alert.',
+              files: ['api/_lib/llm/buildSystemPrompt.ts'],
+              deps: ['—'],
+            },
+          ],
+        },
+        {
+          id: 'phone',
+          tab: 'Phone app',
+          title: 'Login token sits in plain phone storage',
+          sev: 'Later',
+          sevTone: 'slate',
+          reach:
+            'Needs a stolen or jailbroken phone, or a hostile network — single user at a time.',
+          problem:
+            "On the phone the login token is kept in normal app storage, not the secure keychain, so on a compromised phone it can be lifted. The app's custom link can be triggered by any other app, and there's no certificate pinning, so traffic could be snooped on a hostile network.",
+          good: [
+            'Login uses the secure (PKCE) flow',
+            'The app only loads our own bundled code and a short list of allowed hosts',
+          ],
+          gaps: [
+            { tone: 'amber', t: 'Token is in plain storage, not the Keychain / Keystore' },
+            { tone: 'amber', t: "Android custom link isn't verified — a fake app could grab it" },
+            { tone: 'slate', t: 'No certificate pinning' },
+          ],
+          plan: [
+            {
+              id: 'APP-1',
+              title: 'Move the token to secure storage',
+              layer: 'Storage',
+              kind: 'frontend',
+              owner: 'Frontend',
+              tone: 'amber',
+              solo: 8,
+              claude: 4,
+              what: 'Store the login token in the iOS Keychain / Android Keystore instead of plain app storage.',
+              why: "So a stolen phone doesn't hand over the login.",
+              done: 'The token is no longer readable from plain app storage.',
+              files: ['src/lib/supabase.ts', 'Capacitor secure storage'],
+              deps: ['—'],
+            },
+            {
+              id: 'APP-2',
+              title: 'Verify the Android link',
+              layer: 'Links',
+              kind: 'frontend',
+              owner: 'Frontend + ops',
+              tone: 'amber',
+              solo: 4,
+              claude: 2,
+              what: 'Turn on verified Android app links so only our app can handle the link.',
+              why: 'Stops a copycat app from intercepting it.',
+              done: 'Only our app opens the guidedgrowth:// link on Android.',
+              files: ['AndroidManifest.xml', 'assetlinks.json'],
+              deps: ['—'],
+            },
+            {
+              id: 'APP-3',
+              title: 'Add certificate pinning',
+              layer: 'Network',
+              kind: 'frontend',
+              owner: 'Frontend',
+              tone: 'slate',
+              solo: 8,
+              claude: 5,
+              what: "Pin our server's certificate so traffic can't be silently snooped on a hostile network.",
+              why: 'Defense for untrusted Wi-Fi. More effort, lower likelihood — do it after the rest.',
+              done: 'API traffic fails closed against a man-in-the-middle.',
+              files: ['Capacitor http config'],
+              deps: ['—'],
+            },
+          ],
+        },
+      ];
+
+      const GOOD_NEWS = [
+        "Every user's data is walled off — verified id on every query, ownership checks on chats.",
+        'No AI tool can send data out of the app (no email, web call, or export). A jailbreak has nothing to steal with.',
+        'So the scary "AI got jailbroken" case is contained: a user can only mess with their own account, not reach anyone else\'s.',
+      ];
+
+      /* ─────────── helpers over data ─────────── */
+      const areaTotal = (a, m) => a.plan.reduce((s, it) => s + get(m, it), 0);
+      const grand = (m) => AREAS.reduce((s, a) => s + areaTotal(a, m), 0);
+      const fixCount = AREAS.reduce((s, a) => s + a.plan.length, 0);
+
+      /* ─────────── shared UI ─────────── */
+      function Toggle({ mode, setMode }) {
+        return (
+          <div className="border-line bg-panel2 inline-flex rounded-xl border p-1 text-sm font-medium">
+            {[
+              { k: 'solo', label: 'Dev alone' },
+              { k: 'claude', label: 'Dev + Claude' },
+            ].map((o) => (
+              <button
+                key={o.k}
+                onClick={() => setMode(o.k)}
+                className={
+                  'rounded-lg px-3.5 py-1.5 transition-all ' +
+                  (mode === o.k
+                    ? o.k === 'claude'
+                      ? 'bg-claude text-white shadow'
+                      : 'bg-slate-200 text-slate-900 shadow'
+                    : 'text-slate-400 hover:text-slate-200')
+                }
+              >
+                {o.k === 'claude' ? '✦ ' : ''}
+                {o.label}
+              </button>
+            ))}
+          </div>
+        );
+      }
+      function Metric({ label, value, sub, accent }) {
+        return (
+          <div className="border-line bg-panel min-w-[7.5rem] rounded-xl border px-4 py-3">
+            <div className="text-[11px] uppercase tracking-wider text-slate-500">{label}</div>
+            <div className={'text-2xl font-semibold tabular-nums ' + (accent || 'text-slate-100')}>
+              {value}
+            </div>
+            {sub && <div className="mt-0.5 text-xs text-slate-500">{sub}</div>}
+          </div>
+        );
+      }
+      function Card({ it, mode }) {
+        const [open, setOpen] = useState(false);
+        const tone = TONES[it.tone];
+        const h = get(mode, it);
+        const saved = it.solo - it.claude;
+        const speed = it.claude > 0 ? it.solo / it.claude : 1;
+        return (
+          <div
+            className={
+              'border-line bg-panel rounded-xl border transition-all ' +
+              (open ? 'ring-1 ' + tone.ring : 'hover:border-slate-600')
+            }
+          >
+            <button
+              onClick={() => setOpen(!open)}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left"
+            >
+              <span className={'h-2.5 w-2.5 shrink-0 rounded-full ' + tone.dot}></span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-slate-100">{it.id}</span>
+                  <span className="text-slate-300">{it.title}</span>
+                </div>
+                <div className="mt-0.5 text-xs text-slate-500">
+                  {KIND[it.kind]} · {it.owner}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="text-lg font-semibold tabular-nums text-slate-100">{hrs(h)}</div>
+                {mode === 'claude' && saved > 0 ? (
+                  <div className="text-claude text-[11px] font-medium">
+                    ✦ −{hrs(saved)} · {speed.toFixed(1)}×
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-slate-600">
+                    {it.kind === 'ops' ? 'ops' : 'est.'}
+                  </div>
+                )}
+              </div>
+              <span className={'text-slate-500 transition-transform ' + (open ? 'rotate-90' : '')}>
+                ›
+              </span>
+            </button>
+            {open && (
+              <div className="fade-in border-line/60 border-t px-4 pb-4 pt-2">
+                <p className="text-sm leading-relaxed text-slate-300">{it.what}</p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                  <span className="font-medium text-slate-400">Why: </span>
+                  {it.why}
+                </p>
+                <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-200/90">
+                  <span className="font-medium text-emerald-400">Done when: </span>
+                  {it.done}
+                </div>
+                <div className="mt-3">
+                  <div className="mb-1 text-[11px] uppercase tracking-wider text-slate-500">
+                    Start here
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {it.files.map((f, i) => (
+                      <span
+                        key={i}
+                        className="bg-panel2 border-line/60 rounded border px-2 py-1 font-mono text-[12px] text-sky-300/90"
+                      >
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="border-line/60 mt-3 flex items-center gap-4 border-t pt-3 text-xs text-slate-500">
+                  <span>
+                    Needs first: <b className="text-slate-300">{it.deps.join(', ')}</b>
+                  </span>
+                  <span className="ml-auto">
+                    alone <b className="text-slate-300">{hrs(it.solo)}</b>
+                  </span>
+                  <span className="text-claude">
+                    ✦ +Claude <b>{hrs(it.claude)}</b>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      /* cost-only diagram */
+      function Box({ tone, tag, children, dim }) {
+        const t = TONES[tone] || { edge: 'border-line', dot: 'bg-slate-400' };
+        return (
+          <div
+            className={
+              'bg-panel2 rounded-lg border px-3 py-2 text-sm ' +
+              (dim ? 'border-line text-slate-400' : t.edge + ' text-slate-200')
+            }
+          >
+            {tag && (
+              <div
+                className={
+                  'mb-0.5 text-[10px] font-semibold uppercase tracking-wide ' +
+                  (dim ? 'text-slate-600' : t.txt)
+                }
+              >
+                {tag}
+              </div>
+            )}
+            {children}
+          </div>
+        );
+      }
+      const Arrow = ({ label }) => (
+        <div className="flex shrink-0 flex-col items-center justify-center px-1 text-slate-600">
+          <div className="whitespace-nowrap text-[10px] text-slate-500">{label}</div>
+          <div className="text-lg leading-none">→</div>
+        </div>
+      );
+      function CostDiagram() {
+        return (
+          <div className="border-line bg-panel mb-5 rounded-2xl border p-5">
+            <h3 className="mb-4 text-sm font-semibold text-slate-300">How the fix fits together</h3>
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-stretch gap-1">
+                <Box dim>Phone app</Box>
+                <Arrow label="can I start? (PR-C)" />
+                <Box tone="amber" tag="PR-C">
+                  Server says yes / no
+                </Box>
+              </div>
+              <div className="flex flex-wrap items-stretch gap-1">
+                <Box dim>Phone app</Box>
+                <Arrow label="voice" />
+                <Box dim>Vapi</Box>
+                <Arrow label="call started (PR-B)" />
+                <Box tone="red" tag="PR-B">
+                  Server ends it if over limit
+                </Box>
+              </div>
+              <div className="flex flex-wrap items-stretch gap-1">
+                <Box dim>Chat · speech · text-to-speech (PR-D)</Box>
+                <Arrow label="count" />
+                <Box tone="emerald" tag="PR-A">
+                  One usage counter in the DB
+                </Box>
+              </div>
+              <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-sm text-slate-300">
+                <span className="font-semibold text-rose-300">PR-0 · Vapi spend cap</span> — the
+                hard ceiling, stops even the skip-the-app case.
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      /* ─────────── tab content ─────────── */
+      function AreaView({ area, mode }) {
+        const sub = areaTotal(area, mode);
+        const t = TONES[area.sevTone];
+        return (
+          <div className="fade-in">
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex-1">
+                <div className="mb-1 flex items-center gap-2">
+                  <span className={'rounded-full border px-2 py-0.5 text-[11px] ' + t.chip}>
+                    {area.sev}
+                  </span>
+                  <h2 className="text-xl font-bold text-slate-50">{area.title}</h2>
+                </div>
+                <p className="text-sm text-slate-400">{area.reach}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="text-xl font-semibold tabular-nums text-slate-100">{hrs(sub)}</div>
+                <div className="text-[11px] text-slate-500">{area.plan.length} fixes</div>
+              </div>
+            </div>
+
+            <div className="border-line bg-panel mb-5 rounded-2xl border p-5">
+              <p className="leading-relaxed text-slate-200">{area.problem}</p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div>
+                  <div className="mb-1.5 text-[11px] uppercase tracking-wider text-emerald-400/80">
+                    Already OK
+                  </div>
+                  <ul className="space-y-1">
+                    {area.good.map((g, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-slate-400">
+                        <span className="mt-0.5 text-emerald-400">✓</span>
+                        {g}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <div className="mb-1.5 text-[11px] uppercase tracking-wider text-rose-400/80">
+                    What's missing
+                  </div>
+                  <ul className="space-y-1">
+                    {area.gaps.map((g, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-slate-400">
+                        <span
+                          className={'mt-1 h-2 w-2 shrink-0 rounded-full ' + TONES[g.tone].dot}
+                        ></span>
+                        {g.t}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {area.extra === 'cost' && <CostDiagram />}
+
+            <h3 className="mb-3 text-xs uppercase tracking-widest text-slate-500">
+              The fix · click any item
+            </h3>
+            <div className="space-y-2.5">
+              {area.plan.map((it) => (
+                <Card key={it.id} it={it} mode={mode} />
+              ))}
+            </div>
+
+            {area.decide && (
+              <div className="mt-5">
+                <h3 className="mb-2 text-xs uppercase tracking-widest text-slate-500">
+                  Decide first
+                </h3>
+                <div className="space-y-2">
+                  {area.decide.map((d, i) => (
+                    <div key={i} className="border-line bg-panel rounded-xl border px-4 py-3">
+                      <div className="text-sm font-medium text-slate-200">{d.t}</div>
+                      <div className="mt-0.5 text-sm text-slate-500">{d.d}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      function Overview({ mode, setTab }) {
+        return (
+          <div className="fade-in">
+            <div className="mb-5 rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-5">
+              <div className="mb-2 text-sm font-semibold text-emerald-300">
+                First, the good news
+              </div>
+              <ul className="space-y-1.5">
+                {GOOD_NEWS.map((g, i) => (
+                  <li key={i} className="flex gap-2 text-sm text-slate-300">
+                    <span className="mt-0.5 text-emerald-400">✓</span>
+                    {g}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <h3 className="mb-3 text-xs uppercase tracking-widest text-slate-500">
+              7 issues, worst-first · click to open
+            </h3>
+            <div className="space-y-2.5">
+              {AREAS.map((a, i) => {
+                const t = TONES[a.sevTone];
+                const sub = areaTotal(a, mode);
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => setTab(a.id)}
+                    className={
+                      'border-line bg-panel flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all hover:border-slate-600'
+                    }
+                  >
+                    <span className="w-5 font-semibold tabular-nums text-slate-600">{i + 1}</span>
+                    <span className={'h-2.5 w-2.5 shrink-0 rounded-full ' + t.dot}></span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-slate-100">{a.title}</span>
+                        <span className={'rounded-full border px-2 py-0.5 text-[10px] ' + t.chip}>
+                          {a.sev}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 text-xs text-slate-500">{a.reach}</div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-base font-semibold tabular-nums text-slate-100">
+                        {hrs(sub)}
+                      </div>
+                      <div className="text-[11px] text-slate-500">{a.plan.length} fixes</div>
+                    </div>
+                    <span className="text-slate-600">›</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="mt-5 text-sm text-slate-500">
+              Order is by how bad it gets and how likely, not by effort. Crisis safety and voice
+              cost are the two to start now; the phone-app items are real but need a stolen phone or
+              hostile network, so they come last.
+            </p>
+          </div>
+        );
+      }
+
+      /* ─────────── app ─────────── */
+      function App() {
+        const [mode, setMode] = useState('claude');
+        const [tab, setTab] = useState('overview');
+        const gTotal = useMemo(() => grand(mode), [mode]);
+        const speed = grand('solo') / grand('claude');
+
+        const TABS = [
+          { id: 'overview', label: 'Overview' },
+          ...AREAS.map((a) => ({ id: a.id, label: a.tab })),
+        ];
+        const area = AREAS.find((a) => a.id === tab);
+
+        return (
+          <div className="mx-auto max-w-5xl px-5 py-8">
+            <header className="mb-6">
+              <div className="mb-2 flex items-center gap-2 text-xs text-slate-500">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-rose-400"></span>
+                GUIDED GROWTH · SECURITY REVIEW · TEAM PLAN
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-50">
+                What we found, and the plan
+              </h1>
+              <p className="mt-1 text-slate-400">
+                {AREAS.length} issues across the app. Each tab is one issue with what to do about
+                it.
+              </p>
+
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <Toggle mode={mode} setMode={setMode} />
+                <div className="ml-auto flex flex-wrap gap-2.5">
+                  <Metric label="Total work" value={hrs(gTotal)} sub={days(gTotal)} />
+                  <Metric
+                    label="Fixes"
+                    value={fixCount}
+                    sub={AREAS.length + ' areas'}
+                    accent="text-sky-300"
+                  />
+                  <Metric
+                    label="With Claude"
+                    value={speed.toFixed(1) + '×'}
+                    sub="less work"
+                    accent="text-claude"
+                  />
+                </div>
+              </div>
+              <div className="mt-3 text-xs text-slate-500">
+                {mode === 'claude' ? (
+                  <span>
+                    With each dev paired with Claude: about{' '}
+                    <b className="text-slate-300">{days(grand('claude'))}</b> of work total, down
+                    from <b className="text-slate-300">{days(grand('solo'))}</b>.
+                  </span>
+                ) : (
+                  <span>
+                    Devs working alone. Flip to{' '}
+                    <span className="text-claude font-medium">Dev + Claude</span> to see the
+                    difference.
+                  </span>
+                )}
+              </div>
+            </header>
+
+            {/* tab bar */}
+            <div className="notab border-line mb-6 flex gap-1.5 overflow-x-auto border-b pb-2">
+              {TABS.map((tb) => {
+                const a = AREAS.find((x) => x.id === tb.id);
+                const active = tab === tb.id;
+                const dot = a ? TONES[a.sevTone].dot : 'bg-slate-400';
+                return (
+                  <button
+                    key={tb.id}
+                    onClick={() => setTab(tb.id)}
+                    className={
+                      'flex shrink-0 items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-all ' +
+                      (active
+                        ? 'bg-panel border border-slate-600 text-slate-100'
+                        : 'hover:bg-panel/50 border border-transparent text-slate-400 hover:text-slate-200')
+                    }
+                  >
+                    {tb.id !== 'overview' && (
+                      <span className={'h-2 w-2 rounded-full ' + dot}></span>
+                    )}
+                    {tb.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {tab === 'overview' ? (
+              <Overview mode={mode} setTab={setTab} />
+            ) : (
+              <AreaView area={area} mode={mode} />
+            )}
+
+            <footer className="border-line mt-10 border-t pt-4 text-xs text-slate-600">
+              Times are rough planning numbers (8h/day). The detail inside each card is a starting
+              point — devs and their Claudes work out the exact code.
+            </footer>
+          </div>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+  </body>
+</html>

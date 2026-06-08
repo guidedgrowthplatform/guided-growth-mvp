@@ -1,15 +1,18 @@
 import { X } from 'lucide-react';
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
+import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
+import { DualButton } from '@/components/ui/DualButton';
 import { ChatBubble } from '@/components/voice/ChatBubble';
+import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
-import { OrbControls } from '@/components/voice/OrbControls';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
+import { useCoachTranscripts } from '@/contexts/useCoachVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
-import { useMicEnabled } from '@/hooks/useMicEnabled';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
 import type { CoachChatApi } from '@/lib/chat/coachChatTypes';
+import { orbStateFrom } from '@/lib/orb/orbState';
 import { stopTTS } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 
@@ -18,58 +21,105 @@ interface CoachChatViewProps extends CoachChatApi {
   onClose: () => void;
 }
 
+const IDLE_GRADIENT =
+  'linear-gradient(to top, rgba(19,91,236,0.7) 0%, rgba(255,255,255,0.7) 54%, rgba(255,255,255,0.7) 81%, rgba(246,246,246,0.7) 100%)';
+
+const LISTENING_GRADIENT =
+  'linear-gradient(to top, rgba(253,208,23,0.7) 5%, rgba(255,255,255,0.001) 68%, rgba(255,255,255,0.7) 88%, rgba(246,246,246,0.7) 100%)';
+
+// Coach chat overlay UI — mirrors OnboardingChatOverlay's orb-first shape
+// (DualButton + gradients + smooth-reveal partials), driven by CoachChatApi
+// from CoachVoiceProvider. Used for HOME-CHECKIN, MCHECK-*, ECHECK-*.
 export function CoachChatView({
   messages,
   voiceState,
   speaking,
-  startListening,
-  stopListening,
   sendText,
   updateHabitDays,
   displayName,
   onClose,
 }: CoachChatViewProps) {
-  const [draft, setDraft] = useState('');
+  const {
+    voiceOn: voiceChosen,
+    micOn: micRuntimeOn,
+    micAllowed,
+    toggleVoice,
+    toggleMic,
+    requestMicPermission,
+  } = useDualButtonControls();
 
-  const micEnabled = useMicEnabled();
-  const { voiceOn, micAllowed, toggleVoice, toggleMic, requestMicPermission } =
-    useDualButtonControls();
+  // Soniox interim (set by useCoachChat's onInterim). Shows the user typing-by-voice.
   const interim = useVoiceStore((s) => s.interim);
-  const revealedInterim = useSmoothReveal(interim);
 
+  const isVoiceInOnly = orbStateFrom(voiceChosen, micRuntimeOn) === 'voice_in_only';
   const isListening = voiceState === 'listening';
-  const { intensity: micRingIntensity, speaking: micSpeaking } = useMicVoiceActivity(isListening);
+  const isProcessing = voiceState === 'processing';
 
-  const dualActiveRings = ((): 'left' | 'right' | 'ready' | null => {
-    if (isListening) return micSpeaking ? 'right' : 'ready';
-    if (speaking && voiceOn) return 'left';
-    return null;
-  })();
+  const [draft, setDraft] = useState('');
+  const [partialAssistant, setPartialAssistant] = useState('');
 
-  const scrollAnchorRef = useRef<HTMLDivElement>(null);
+  const displayedAssistant = useSmoothReveal(partialAssistant);
+  const displayedUser = useSmoothReveal(interim);
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const pinnedToBottomRef = useRef(true);
   const touchStartY = useRef<number | null>(null);
 
-  useEffect(() => {
-    scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, voiceState]);
+  const handleScrollPin = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (el) pinnedToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }, []);
 
-  useEffect(() => {
-    if (micEnabled && voiceState === 'idle' && !speaking) {
-      startListening();
-    } else if (!micEnabled && voiceState === 'listening') {
-      stopListening();
-    }
-  }, [micEnabled, voiceState, speaking, startListening, stopListening]);
+  useLayoutEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el || !pinnedToBottomRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages.length, isProcessing, displayedAssistant, displayedUser]);
+
+  useCoachTranscripts((evt) => {
+    if (evt.role !== 'assistant') return;
+    if (evt.kind === 'partial') setPartialAssistant(evt.text);
+    else setPartialAssistant('');
+  });
+
+  const { intensity: micRingIntensity, speaking: micSpeaking } = useMicVoiceActivity(
+    isVoiceInOnly && isListening,
+  );
 
   const handleClose = useCallback(() => {
-    stopListening();
     stopTTS();
     onClose();
-  }, [stopListening, onClose]);
+  }, [onClose]);
 
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+  const handleToggleMic = useCallback(() => {
+    if (!micAllowed) return;
+    toggleMic();
+  }, [micAllowed, toggleMic]);
+
+  const handleRequestMic = useCallback(() => {
+    void requestMicPermission();
+  }, [requestMicPermission]);
+
+  const handleSendText = useCallback(
+    (text: string) => {
+      sendText(text);
+      setDraft('');
+    },
+    [sendText],
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleClose]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
   };
+
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     if (touchStartY.current === null) return;
     const deltaY = e.changedTouches[0].clientY - touchStartY.current;
@@ -78,32 +128,52 @@ export function CoachChatView({
     touchStartY.current = null;
   };
 
-  const gradientStyle: React.CSSProperties = {
-    backgroundImage: speaking
-      ? 'linear-gradient(to bottom, rgba(97,111,137,0.55), rgba(97,111,137,0.65), rgba(97,111,137,0.75), rgba(19,91,236,0.9))'
-      : micEnabled
-        ? 'linear-gradient(to bottom, rgba(246,246,246,0.45), rgba(81,81,81,0.55), rgba(167,144,52,0.75), rgba(253,208,23,0.9))'
-        : 'linear-gradient(to bottom, rgba(148,163,184,0.2), rgba(203,213,225,0.15), rgba(241,245,249,0.1))',
-    transition: 'background-image 300ms ease-out',
-  };
+  const visualState: 'speaking' | 'listening' | 'idle' = speaking
+    ? 'speaking'
+    : isListening
+      ? 'listening'
+      : 'idle';
+
+  const gradient = visualState === 'listening' ? LISTENING_GRADIENT : IDLE_GRADIENT;
+  const dualActiveRings: 'left' | 'right' | 'ready' | 'idle' | null =
+    isVoiceInOnly && isListening
+      ? micSpeaking
+        ? 'right'
+        : 'ready'
+      : voiceChosen && speaking
+        ? 'left'
+        : null;
 
   return (
-    <div className="fixed inset-0 z-30 flex flex-col" onClick={handleClose}>
-      <div className="absolute inset-0 backdrop-blur-[100px]" style={gradientStyle} />
+    <div className="fixed inset-0 z-50 flex animate-slide-up flex-col">
+      <div className="absolute inset-0 bg-white" />
+      <div
+        className="absolute inset-0 backdrop-blur-[50px]"
+        style={{ backgroundImage: gradient, transition: 'background-image 300ms ease-out' }}
+      />
 
       <button
+        type="button"
         onClick={handleClose}
-        className="absolute right-4 z-20 flex items-center gap-1 text-[14px] font-medium text-white/90 transition-colors hover:text-white"
-        style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}
         aria-label="Close chat"
+        className="absolute right-6 z-30 flex items-center gap-1.5 text-[12px] font-semibold leading-[16px] text-slate-700"
+        style={{ top: 'max(16px, env(safe-area-inset-top))' }}
       >
         <span>Close chat</span>
         <X className="h-5 w-5" />
       </button>
 
       <div
-        className="relative z-10 flex-1 overflow-y-auto px-6 pb-6 pt-14"
-        onClick={(e) => e.stopPropagation()}
+        ref={scrollContainerRef}
+        className="relative z-10 flex-1 overflow-y-auto px-6 pt-[64px]"
+        style={{
+          paddingBottom: 'calc(240px + max(48px, env(safe-area-inset-bottom)))',
+          maskImage:
+            'linear-gradient(to top, transparent 0px, transparent 120px, black 240px, black 100%)',
+          WebkitMaskImage:
+            'linear-gradient(to top, transparent 0px, transparent 120px, black 240px, black 100%)',
+        }}
+        onScroll={handleScrollPin}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -113,8 +183,9 @@ export function CoachChatView({
               role={msg.role}
               text={msg.text}
               userName={displayName}
-              compact
               eyebrowVariant="dark"
+              compact
+              animate={false}
               markdown
             />
             {msg.habitCards?.map((card, i) => (
@@ -125,48 +196,72 @@ export function CoachChatView({
                 onDaysChange={(days) => updateHabitDays(msg.id, i, days)}
               />
             ))}
+            {msg.checkinCard && (
+              <CheckInResultCard
+                sleep={msg.checkinCard.sleep}
+                mood={msg.checkinCard.mood}
+                energy={msg.checkinCard.energy}
+                stress={msg.checkinCard.stress}
+                date={msg.checkinCard.date}
+              />
+            )}
           </div>
         ))}
-        {voiceState === 'processing' && <TypingIndicator />}
-        {interim && (
+        {displayedAssistant.length > 0 && (
+          <ChatBubble
+            role="ai"
+            text={displayedAssistant}
+            userName={displayName}
+            eyebrowVariant="dark"
+            compact
+            animate={false}
+            streaming
+            markdown
+          />
+        )}
+        {isVoiceInOnly && displayedUser.length > 0 && (
           <ChatBubble
             role="user"
-            text={revealedInterim}
+            text={displayedUser}
             userName={displayName}
-            compact
             eyebrowVariant="dark"
+            compact
             animate={false}
             streaming
           />
         )}
-        <div ref={scrollAnchorRef} />
+        {isProcessing && partialAssistant.length === 0 && <TypingIndicator />}
       </div>
 
       <div
-        className="relative z-10 flex flex-col items-center gap-4 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
-        onClick={(e) => e.stopPropagation()}
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-[20px] px-6 pt-[24px]"
+        style={{ paddingBottom: 'max(48px, env(safe-area-inset-bottom))' }}
       >
-        <OrbControls
-          size={91}
-          leftActive={voiceOn}
-          rightActive={micEnabled}
-          activeRings={dualActiveRings}
-          ringCount={3}
-          ringStep={4}
-          intensity={micRingIntensity}
-          micAllowed={micAllowed}
-          onToggleVoice={toggleVoice}
-          onToggleMic={toggleMic}
-          onRequestMic={() => void requestMicPermission()}
-        />
+        <div className="pointer-events-auto">
+          <DualButton
+            size={91}
+            leftActive={voiceChosen}
+            rightActive={micRuntimeOn}
+            activeRings={dualActiveRings}
+            ringCount={3}
+            ringStep={4}
+            intensity={dualActiveRings === 'right' ? micRingIntensity : undefined}
+            leftIcon={voiceChosen ? <IconChatVoice size={28} /> : <IconChatText size={28} />}
+            rightIcon={micRuntimeOn ? <IconMic size={26} /> : <IconMicMuted size={26} />}
+            onLeftClick={toggleVoice}
+            onRightClick={micAllowed ? handleToggleMic : handleRequestMic}
+            leftAriaLabel={voiceChosen ? 'Switch to screen mode' : 'Switch to voice mode'}
+            rightAriaLabel={
+              !micAllowed ? 'Allow microphone' : micRuntimeOn ? 'Turn mic off' : 'Turn mic on'
+            }
+          />
+        </div>
+
         <ChatComposer
           value={draft}
           onValueChange={setDraft}
-          onSubmit={(t) => {
-            sendText(t);
-            setDraft('');
-          }}
-          disabled={voiceState !== 'idle'}
+          onSubmit={handleSendText}
+          disabled={isProcessing}
           className="pointer-events-auto flex min-h-[44px] w-full items-end gap-1 rounded-[22px] bg-white py-1.5 pl-5 pr-2 shadow-[0px_10px_24px_-8px_rgba(15,23,42,0.18)]"
         />
       </div>

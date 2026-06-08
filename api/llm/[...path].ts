@@ -626,7 +626,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             error: 'unknown_tool',
             message: `Tool ${tc.name} not available on this screen`,
           };
-        } else if (isOnboardingToolName(tc.name)) {
+        } else if (onboardingTools !== undefined && isOnboardingToolName(tc.name)) {
+          // Onboarding screen — dispatch to onboarding handler. Screen context
+          // wins over tool-name precedence so overlapping names (update_habit,
+          // create_habit, etc.) hit the right table.
           try {
             result = await dispatchOnboardingToolCall(tc.name, args, {
               anon_id: user.anonId,
@@ -635,7 +638,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           } catch (err) {
             result = { ok: false, error: 'handler_error', message: (err as Error).message };
           }
-        } else if (isCheckinToolName(tc.name)) {
+        } else if (checkinTools !== undefined && isCheckinToolName(tc.name)) {
+          // Check-in screen — dispatch to check-in handler regardless of
+          // whether the tool name also appears in the onboarding registry.
           try {
             result = await dispatchCheckinToolCall(tc.name, args, {
               anon_id: user.anonId,
