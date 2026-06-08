@@ -71,7 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { rows } = await pool.query('SELECT anon_id FROM profiles WHERE id = $1', [userId]);
       if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
       const targetAnonId = rows[0].anon_id;
-      const [metrics, entries, reflections] = await Promise.all([
+      const [metrics, entries, journalEntries] = await Promise.all([
         pool.query('SELECT COUNT(*)::int as count FROM metrics WHERE anon_id = $1', [targetAnonId]),
         pool.query('SELECT COUNT(*)::int as count FROM entries WHERE anon_id = $1', [targetAnonId]),
         pool.query('SELECT COUNT(*)::int as count FROM journal_entries WHERE anon_id = $1', [
@@ -80,17 +80,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ]);
       const metricsCount = metrics.rows[0].count;
       const entriesCount = entries.rows[0].count;
-      const reflectionsCount = reflections.rows[0].count;
+      const journalCount = journalEntries.rows[0].count;
+      // `reflections` key kept for admin-client back-compat; now counts journal_entries.
       await logAuditAction(user.authUserId, 'read_user_data', 'user', userId, {
         metrics: metricsCount,
         entries: entriesCount,
-        reflections: reflectionsCount,
+        reflections: journalCount,
       });
       return res.json({
         user_id: userId,
         metrics: metricsCount,
         entries: entriesCount,
-        reflections: reflectionsCount,
+        reflections: journalCount,
       });
     }
 
