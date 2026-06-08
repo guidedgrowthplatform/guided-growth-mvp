@@ -176,8 +176,7 @@ jobs:
         run: |
           printf '%s' "$KEYSTORE_BASE64" | base64 -d > android/app/guidedgrowth.keystore
 
-      # bundleRelease -> AAB for Play; assembleRelease -> APK for Firebase
-      # App Distribution (testers can't sideload an AAB). Same signing config.
+      # bundleProdRelease -> AAB for Play; assembleProdRelease -> APK for Firebase.
       - name: Build Release AAB + APK
         working-directory: android
         env:
@@ -187,7 +186,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew bundleRelease assembleRelease --no-daemon \
+          ./gradlew bundleProdRelease assembleProdRelease --no-daemon \
             -PversionCode=${{ github.run_number }} \
             -PversionName=${{ github.ref_name }}
 
@@ -196,7 +195,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: guided-growth-aab
-          path: android/app/build/outputs/bundle/release/*.aab
+          path: android/app/build/outputs/bundle/prodRelease/*.aab
           retention-days: 14
 
       # Play caps release notes at 500 chars/locale — fail early, not mid-upload.
@@ -222,7 +221,7 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: app.guidedgrowth.mvp
-          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+          releaseFiles: android/app/build/outputs/bundle/prodRelease/app-prod-release.aab
           track: internal
           whatsNewDirectory: release-notes
 
@@ -241,7 +240,7 @@ jobs:
           appId: ${{ secrets.FIREBASE_APP_ID }}
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           groups: internal-testers
-          file: android/app/build/outputs/apk/release/app-release.apk
+          file: android/app/build/outputs/apk/prod/release/app-prod-release.apk
           releaseNotes: ${{ github.ref_name }}
 
       - name: Notify Mattermost (AAB ready)

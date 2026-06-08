@@ -44,6 +44,11 @@ on:
           - dev
           - staging
           - production
+      version:
+        description: 'Marketing version (e.g. 2.9.2). Tagless dispatch builds need this so QA is not stuck at 1.0.0.'
+        type: string
+        required: false
+        default: ''
 
 jobs:
   web-build:
@@ -120,6 +125,10 @@ jobs:
       - name: Install npm dependencies
         run: npm ci --ignore-scripts
 
+      # --ignore-scripts skips sharp's native binary; @capacitor/assets needs it
+      - name: Build sharp native binary
+        run: npm rebuild sharp
+
       - name: Download web build artifact
         uses: actions/download-artifact@v4
         with:
@@ -147,11 +156,15 @@ jobs:
         run: |
           [ -d ios ] || npx cap add ios
           npx cap sync ios
+          # generate rewrites Info.plist — must run before patch
+          node scripts/select-icon-master.mjs "${{ inputs.environment }}"
+          npx @capacitor/assets generate --ios --assetPath assets
           node scripts/patch-ios-plist.mjs
 
       - name: Build IPA & upload to TestFlight (fastlane)
         env:
           APP_IDENTIFIER: ${{ vars.APP_IDENTIFIER }}
+          APP_VERSION: ${{ inputs.version }}
           MATCH_GIT_BRANCH: ${{ vars.MATCH_GIT_BRANCH }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}

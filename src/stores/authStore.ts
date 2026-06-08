@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { identify, resetIdentity, track } from '@/analytics';
+import { authScheme } from '@/lib/appVariant';
 import { clearPkceVerifier } from '@/lib/clearPkceVerifier';
 import { getWebOrigin } from '@/lib/env';
 import { SETTINGS_STORAGE_KEY } from '@/lib/preferences/snapshot';
@@ -23,7 +24,7 @@ function mapUser(u: any): AppUser {
   const claims = u.app_metadata as { role?: string; status?: string };
   return {
     id: u.id,
-    email: u.email,
+    email: u.email ?? '',
     name: u.user_metadata?.full_name ?? null,
     image: u.user_metadata?.avatar_url ?? null,
     nickname: u.user_metadata?.nickname ?? null,
@@ -157,6 +158,7 @@ export interface AuthState {
     password: string,
   ) => Promise<{ error: string | null; confirmationPending?: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signInAsGuest: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
@@ -349,6 +351,22 @@ export const useAuthStore = create<AuthState>((set, get) => {
       return { error: null };
     },
 
+    signInAsGuest: async () => {
+      track('start_signup', { method: 'guest' });
+      const { data, error } = await supabase.auth.signInAnonymously();
+      if (error) {
+        track('signup_error', { method: 'guest', error_type: categorizeAuthError(error) });
+        return { error: friendlyError(error) };
+      }
+      if (data?.user) {
+        const user = mapUser(data.user);
+        set({ user });
+        identifyUser(user, get().anonId, setAnonId);
+        track('complete_signup', { method: 'guest' }, { send_instantly: true });
+      }
+      return { error: null };
+    },
+
     signOut: async () => {
       await supabase.auth.signOut({ scope: 'global' });
       queryClient.clear();
@@ -367,7 +385,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     signInWithGoogle: async () => {
       const isNative = Capacitor.isNativePlatform();
       const redirectTo = isNative
-        ? 'guidedgrowth://auth/callback'
+        ? `${await authScheme()}://auth/callback`
         : `${getWebOrigin()}/auth/callback`;
 
       const { data, error } = await supabase.auth.signInWithOAuth({

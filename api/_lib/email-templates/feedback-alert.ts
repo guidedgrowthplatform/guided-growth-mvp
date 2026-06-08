@@ -23,10 +23,12 @@ const SENTIMENT_LABEL: Record<FeedbackSentiment, string> = {
 
 export function renderFeedbackAlert(input: FeedbackAlertInput): RenderedEmail {
   const label = SENTIMENT_LABEL[input.sentiment];
-  const subject = `[Feedback · ${label}] from ${input.userEmail}`;
+  // guests have no email
+  const displayEmail = input.userEmail || '(anonymous guest)';
+  const subject = `[Feedback · ${label}] from ${displayEmail}`;
 
   const safeSentiment = escapeHtml(label);
-  const safeUserEmail = escapeHtml(input.userEmail);
+  const safeUserEmail = escapeHtml(displayEmail);
   const safeSubmittedAt = escapeHtml(input.submittedAt);
   const safeText = escapeHtml(input.text || '(no text)').replace(/\n/g, '<br>');
 
@@ -52,7 +54,7 @@ export function renderFeedbackAlert(input: FeedbackAlertInput): RenderedEmail {
     '',
     input.text || '(no text)',
     '',
-    `From: ${input.userEmail}`,
+    `From: ${displayEmail}`,
     `Submitted: ${input.submittedAt}`,
   ].join('\n');
 
