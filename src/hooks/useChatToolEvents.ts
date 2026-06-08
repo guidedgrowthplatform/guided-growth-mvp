@@ -14,8 +14,6 @@ interface UseChatToolEventsArgs {
   routes: ScreenRouteEntry[] | undefined;
   // Synthetic submit_* actions → page reactions (radio updates, etc).
   onVoiceAction: (result: OnboardingVoiceResult) => void;
-  // confirm_step_complete with advance=true → schedule the page advance.
-  onAdvance: () => void;
   onWillAdvance?: () => void;
   // Reset the fired-event dedup when this changes (screen change).
   resetKey: string | null;
@@ -28,7 +26,6 @@ export function useChatToolEvents({
   active,
   routes,
   onVoiceAction,
-  onAdvance,
   onWillAdvance,
   resetKey,
 }: UseChatToolEventsArgs): void {
@@ -44,7 +41,6 @@ export function useChatToolEvents({
 
   useEffect(() => {
     if (!active) return;
-    let confirmAdvance = false;
     let willAdvance = false;
     for (const evt of toolEvents) {
       if (!evt.result?.ok) continue;
@@ -68,9 +64,8 @@ export function useChatToolEvents({
         case 'confirm_step_complete': {
           const cp = evt.result?.payload as { result?: { advance?: boolean } } | undefined;
           if (cp?.result?.advance === true) {
-            confirmAdvance = true;
             willAdvance = true;
-            // Multi-item screens bump current_step here → useAgentNavigation advances.
+            // Real or server-synthetic confirm bumps current_step → useAgentNavigation advances.
             mergeOnboardingState(qc, evt);
           }
           break;
@@ -93,9 +88,8 @@ export function useChatToolEvents({
         }
       }
     }
-    if (confirmAdvance) onAdvance();
     if (willAdvance) onWillAdvance?.();
-  }, [active, toolEvents, navigate, qc, routes, onVoiceAction, onAdvance, onWillAdvance]);
+  }, [active, toolEvents, navigate, qc, routes, onVoiceAction, onWillAdvance]);
 }
 
 // Optimistic merge of a submit_* handler result into the cached onboarding

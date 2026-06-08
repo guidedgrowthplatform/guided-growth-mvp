@@ -1,13 +1,7 @@
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
 import { AGE_MAX, AGE_MIN, GENDER_OPTIONS } from '../schemas.js';
-import {
-  getString,
-  invalid,
-  NICKNAME_REGEX,
-  ok,
-  type OnboardingHandlerCtx,
-} from './shared.js';
+import { getString, invalid, NICKNAME_REGEX, ok, type OnboardingHandlerCtx } from './shared.js';
 
 const NICKNAME_MAX_LEN = 50;
 const REFERRAL_MAX_LEN = 200;
@@ -59,11 +53,12 @@ export async function submitProfile(
   if (gender !== undefined) data.gender = gender;
   if (referralSource !== undefined) data.referralSource = referralSource;
 
+  // DATA ONLY — current_step is not touched on UPDATE. Advancement happens via
+  // confirm_step_complete / advanceStepIfReady. INSERT seeds step-1 (this screen's own step).
   const result = await pool.query<{ data: Record<string, unknown>; current_step: number }>(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
-     VALUES ($1, 2, 'in_progress', $2::jsonb, now())
+     VALUES ($1, 1, 'in_progress', $2::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET
-       current_step = GREATEST(onboarding_states.current_step, 2),
        status = 'in_progress',
        data = onboarding_states.data || $2::jsonb,
        updated_at = now()
@@ -72,5 +67,5 @@ export async function submitProfile(
   );
 
   const row = result.rows[0];
-  return ok({ data: row?.data ?? data, current_step: row?.current_step ?? 2 });
+  return ok({ data: row?.data ?? data, current_step: row?.current_step ?? 1 });
 }

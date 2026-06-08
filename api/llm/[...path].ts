@@ -13,6 +13,9 @@ import {
 import { dispatchOnboardingToolCall } from '../_lib/llm/onboarding/dispatch.js';
 import { getOnboardingTools } from '../_lib/llm/onboarding/registry.js';
 import { isOnboardingToolName } from '../_lib/llm/onboarding/schemas.js';
+import { detectAffirmation } from '@gg/shared/onboarding/detectAffirmation';
+import { screenKind } from '@gg/shared/onboarding/screenKind';
+import { advanceStepIfReady } from '../_lib/llm/onboarding/handlers/confirmStepComplete.js';
 import { dispatchCheckinToolCall } from '../_lib/llm/checkin/dispatch.js';
 import { getCheckinTools } from '../_lib/llm/checkin/registry.js';
 import { isCheckinToolName } from '../_lib/llm/checkin/schemas.js';
@@ -571,6 +574,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (roundToolCalls.length === 0) {
+        // No tool call this turn — deterministic onboarding advance on bare affirmation.
+        // toolRounds === 0 → no tools across the whole request (no double-fire after a real tool).
+        if (isOnboardingScreen && mode === 'chat' && toolRounds === 0) {
+          const aff = detectAffirmation(userMessage, screenKind(screenId));
+          if (aff.affirmed) {
+            const bump = await advanceStepIfReady(user.anonId, screenId);
+            if (bump.advanced) {
+              const synthId = `srv-confirm-${user.anonId}-${screenId}`;
+              send({ type: 'tool_call', id: synthId, name: 'confirm_step_complete', args: {} });
+              send({
+                type: 'tool_result',
+                id: synthId,
+                ok: true,
+                result: { ok: true, result: { advance: true, current_step: bump.current_step } },
+              });
+            }
+          }
+        }
         finalAssistantContent = assistantContent;
         finalResponseId = thisResponseId;
         finished = true;

@@ -26,9 +26,15 @@ describe('onboarding tool registry', () => {
 });
 
 describe('ONBOARDING_TOOL_ADDENDUM', () => {
-  it('keeps the load-bearing confirm_step_complete rules', () => {
+  it('allows same-turn confirm but keeps the required-fields guard', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).toContain('confirm_step_complete');
-    expect(ONBOARDING_TOOL_ADDENDUM).toContain('NEVER call confirm_step_complete in the same turn');
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/SAME turn as a submit_/i);
+    expect(ONBOARDING_TOOL_ADDENDUM).toContain(
+      'NEVER call confirm_step_complete if required fields for the screen are still missing',
+    );
+    expect(ONBOARDING_TOOL_ADDENDUM).not.toContain(
+      'in the same turn as a submit_*/add_*/remove_* call',
+    );
   });
 
   it('steers plan-review to confirm_plan, not confirm_step_complete', () => {

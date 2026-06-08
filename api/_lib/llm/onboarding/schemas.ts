@@ -261,7 +261,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'confirm_step_complete',
     description:
-      'Signal that the user has explicitly affirmed they are done with the current step and want to move on (e.g. "yes", "move on", "next", "looks good"). The frontend uses this to advance. Never call on the same turn as a submit_*/add_habit/remove_habit tool. Never call if required fields for this screen are still missing.',
+      'Signal that the user has explicitly affirmed they are done with the current step and want to move on (e.g. "yes", "move on", "next", "looks good"). The frontend uses this to advance. May be called in the same turn as a submit_*/add_habit/remove_habit tool. Never call if required fields for this screen are still missing.',
     parameters: {
       type: 'object',
       properties: {
