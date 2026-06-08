@@ -74,7 +74,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const [metrics, entries, reflections] = await Promise.all([
         pool.query('SELECT COUNT(*)::int as count FROM metrics WHERE anon_id = $1', [targetAnonId]),
         pool.query('SELECT COUNT(*)::int as count FROM entries WHERE anon_id = $1', [targetAnonId]),
-        pool.query('SELECT COUNT(*)::int as count FROM reflections WHERE anon_id = $1', [targetAnonId]),
+        pool.query('SELECT COUNT(*)::int as count FROM journal_entries WHERE anon_id = $1', [
+          targetAnonId,
+        ]),
       ]);
       const metricsCount = metrics.rows[0].count;
       const entriesCount = entries.rows[0].count;
@@ -123,7 +125,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'INSERT INTO allowlist (email, added_by_user_id, note) VALUES ($1, $2, $3) RETURNING *',
         [email, user.authUserId, note || null],
       );
-      await logAuditAction(user.authUserId, 'add_allowlist', 'allowlist', email, { note: note || null });
+      await logAuditAction(user.authUserId, 'add_allowlist', 'allowlist', email, {
+        note: note || null,
+      });
       return res.status(201).json(result.rows[0]);
     }
     if (req.method === 'DELETE') {
@@ -132,7 +136,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!validateUUID(id)) return res.status(400).json({ error: 'Invalid ID format' });
       const result = await pool.query('DELETE FROM allowlist WHERE id = $1 RETURNING *', [id]);
       if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-      await logAuditAction(user.authUserId, 'remove_allowlist', 'allowlist', result.rows[0].email, null);
+      await logAuditAction(
+        user.authUserId,
+        'remove_allowlist',
+        'allowlist',
+        result.rows[0].email,
+        null,
+      );
       return res.json({ message: 'Removed' });
     }
     return res.status(405).json({ error: 'Method not allowed' });

@@ -157,8 +157,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
            UNION ALL SELECT 'journal_entries',    count(*)::int FROM journal_entries    WHERE anon_id = $1
            UNION ALL SELECT 'metrics',            count(*)::int FROM metrics            WHERE anon_id = $1
            UNION ALL SELECT 'metric_entries',     count(*)::int FROM metric_entries     WHERE anon_id = $1
-           UNION ALL SELECT 'reflection_configs', count(*)::int FROM reflection_configs WHERE anon_id = $1
-           UNION ALL SELECT 'reflections',        count(*)::int FROM reflections        WHERE anon_id = $1
            UNION ALL SELECT 'habit_completions',  count(*)::int FROM habit_completions  WHERE anon_id = $1
          ) s`,
         [user.anonId],
