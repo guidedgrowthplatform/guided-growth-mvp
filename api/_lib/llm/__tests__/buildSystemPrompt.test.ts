@@ -49,6 +49,50 @@ describe('buildSystemPromptForRequest', () => {
     );
   });
 
+  it('carries Yair identity, multilingual, verbatim 988, tone discipline globally', async () => {
+    const { systemPrompt } = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'HOME-MORNING',
+      coaching_style: 'warm',
+      recent_events,
+    });
+    expect(systemPrompt).toContain('You are Yair');
+    expect(systemPrompt).toContain('you are multilingual');
+    expect(systemPrompt).toContain('Please reach out to 988');
+    expect(systemPrompt).toContain('## Tone Discipline');
+  });
+
+  it('injects PRODUCT_CONTEXT off onboarding, omits it on onboarding screens', async () => {
+    const off = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'HOME-MORNING',
+      coaching_style: 'warm',
+      recent_events,
+    });
+    expect(off.systemPrompt).toContain('## What We Have Today (MVP)');
+    expect(off.systemPrompt).toContain('Founding User Context');
+
+    pool.query.mockReset();
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [
+          { context_block: 'SCREEN_ID: ONBOARD-BEGINNER-02\nBEHAVIOR: pick goals.', version: 1 },
+        ],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    const on = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ONBOARD-BEGINNER-02',
+      coaching_style: 'warm',
+      recent_events,
+    });
+    expect(on.systemPrompt).toContain('You are Yair');
+    expect(on.systemPrompt).toContain('Please reach out to 988');
+    expect(on.systemPrompt).not.toContain('## What We Have Today (MVP)');
+    expect(on.systemPrompt).not.toContain('Founding User Context');
+  });
+
   it('wires the canonical goal options into the final onboarding prompt', async () => {
     pool.query.mockReset();
     pool.query
