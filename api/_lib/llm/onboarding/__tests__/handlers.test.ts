@@ -363,24 +363,54 @@ describe('add_habit', () => {
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
   });
 
-  it('rejects days out of 0-6 range', async () => {
-    const r = await addHabit(CTX, { ...validHabit, days: [7] });
-    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  // Vapi parity: malformed/omitted fields default rather than rejecting.
+  function persistedHabit(client: ReturnType<typeof habitClient>) {
+    const upsert = client.query.mock.calls.find((c) =>
+      /INSERT INTO onboarding_states/.test(c[0] as string),
+    );
+    return JSON.parse(upsert![1][2] as string).Walk;
+  }
+
+  it('name-only call succeeds with all four defaults', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    const r = await addHabit(CTX, { name: 'Walk' });
+    expect(r).toMatchObject({ ok: true });
+    expect(persistedHabit(client)).toEqual({
+      days: [1, 2, 3, 4, 5],
+      time: '09:00',
+      reminder: true,
+      schedule: 'Weekday',
+    });
   });
 
-  it('rejects invalid time format', async () => {
-    const r = await addHabit(CTX, { ...validHabit, time: '9am' });
-    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  it('defaults days when out of 0-6 range', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    const r = await addHabit(CTX, { name: 'Walk', days: [7] });
+    expect(r).toMatchObject({ ok: true });
+    expect(persistedHabit(client).days).toEqual([1, 2, 3, 4, 5]);
   });
 
-  it('rejects non-boolean reminder', async () => {
-    const r = await addHabit(CTX, { ...validHabit, reminder: 'yes' });
-    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  it('defaults time when format is invalid', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, { ...validHabit, time: '9am' });
+    expect(persistedHabit(client).time).toBe('09:00');
   });
 
-  it('rejects schedule outside enum', async () => {
-    const r = await addHabit(CTX, { ...validHabit, schedule: 'Daily' });
-    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+  it('defaults reminder when non-boolean', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, { ...validHabit, reminder: 'yes' });
+    expect(persistedHabit(client).reminder).toBe(true);
+  });
+
+  it('ignores schedule outside enum, infers from days', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, { ...validHabit, schedule: 'Daily' });
+    expect(persistedHabit(client).schedule).toBe('Weekday');
   });
 
   // Fixture filled to MAX_HABITS so the cap test tracks the real limit.

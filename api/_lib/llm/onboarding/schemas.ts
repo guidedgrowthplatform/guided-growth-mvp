@@ -43,6 +43,8 @@ export const MAX_HABITS = 2;
 export const AGE_MIN = 13;
 export const AGE_MAX = 120;
 
+// Direct-LLM counterpart of the Vapi tools in api/_lib/llm/tools.onboarding.ts.
+// Keep required-arrays / enums in sync when either side changes.
 export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'submit_profile',
@@ -112,7 +114,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'submit_goals',
     description:
-      "Persist 1–2 goals on ONBOARD-BEGINNER-02. Do not wait for both — 1 is enough. Each string MUST be copied verbatim from the GOAL OPTIONS BY CATEGORY list for the user's chosen category (shown in the screen context). Never paraphrase, rename, or invent a goal label — non-matching strings are rejected.",
+      "Persist the user's COMPLETE goal selection (1–2 goals) on ONBOARD-BEGINNER-02. This REPLACES the prior save, so EVERY call MUST include ALL goals the user currently wants — not just the newest one. Do not wait for both — 1 is enough to call. Each string MUST be copied verbatim from the GOAL OPTIONS BY CATEGORY list for the user's chosen category (shown in the screen context). Never paraphrase, rename, or invent a goal label — non-matching strings are rejected.",
     parameters: {
       type: 'object',
       properties: {
@@ -129,7 +131,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'add_habit',
     description:
-      'Add or edit a habit on ONBOARD-BEGINNER-03. Supply defaults for fields the user did not specify: schedule="Weekday" (days=[1,2,3,4,5]), time="09:00", reminder=true. Call again with same name to edit. Server enforces max 2 habits — if you try a 3rd new habit the tool returns max_habits_reached.',
+      'Add or edit a habit on ONBOARD-BEGINNER-03. Only `name` is required — omit any field the user did not specify and the server fills sensible defaults (schedule="Weekday"/days=[1,2,3,4,5], time="09:00", reminder=true). Call again with same name to edit. Server enforces max 2 habits — if you try a 3rd new habit the tool returns max_habits_reached.',
     parameters: {
       type: 'object',
       properties: {
@@ -156,7 +158,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
           enum: [...SCHEDULE_OPTIONS],
         },
       },
-      required: ['name', 'days', 'time', 'reminder', 'schedule'],
+      required: ['name'],
       additionalProperties: false,
     },
   },
