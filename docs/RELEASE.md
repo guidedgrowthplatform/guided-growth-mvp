@@ -22,8 +22,8 @@ git push origin v2.1.2                             # fire the pipeline
 
 That's it. Watch under **GitHub → Actions → CI/CD Pipeline**. When
 green, the iOS build is in **App Store Connect → TestFlight →
-Builds**, and the Android APK link is posted to the **MVPtesting**
-Mattermost channel.
+Builds**, the Android AAB is on the Play internal track, and the
+**MVPtesting** Mattermost channel posts when it's ready.
 
 ## Step-by-step (first-time releaser)
 
