@@ -94,15 +94,15 @@ These are one-time setup steps a human with the right access performs. Nothing i
   - Variables: `APP_IDENTIFIER=app.guidedgrowth.staging`, `APP_DISPLAY_NAME=Guided Growth QA`, `VITE_API_URL=` the **prod** web origin, `CAP_EXTRA_NAV_HOSTS` empty.
   - Secrets: **copy the production values verbatim** (shared backend) — `VITE_*`, `ASC_*`, `APPLE_TEAM_ID`, `MATCH_*`.
 - [ ] Run **`match-bootstrap`** once with `app_identifier=app.guidedgrowth.staging` (grant the match repo deploy key write access for the run, then revoke).
-- [ ] Run **`mobile-env-release`** with `environment=staging` (and a `version`, e.g. the current marketing version) → lands in the QA TestFlight. Production keeps shipping via the existing `v*` tag flow.
+- [ ] Push a **`qa-v*`** tag (e.g. `qa-v2.9.3`) → `qa-release.yml` builds the QA iOS IPA → QA TestFlight (and the qa Android APK → Firebase in the same run). Production keeps shipping via the existing `v*` tag flow.
 - [ ] Add the team to each app's TestFlight internal group; everyone enables Automatic Updates once.
 
 ### 4.2 Android (Alejandro)
 
 - [ ] Create the "Guided Growth QA" app in Google Play Console (or at least the Firebase app for `app.guidedgrowth.staging`).
-- [ ] Add the **`FIREBASE_APP_ID_QA`** secret (the QA Firebase Android app id) at **repo level** (the `qa-android-release.yml` workflow has no GitHub Environment, so it reads repo-level secrets) + confirm `FIREBASE_SERVICE_ACCOUNT_JSON` is present. Without `FIREBASE_APP_ID_QA` the QA distribution step skips silently (build still succeeds).
+- [ ] Add the **`FIREBASE_APP_ID_QA`** secret (the QA Firebase Android app id) at **repo level** (`qa-release.yml`'s Android job reads it as a repo-level secret) + confirm `FIREBASE_SERVICE_ACCOUNT_JSON` is present. Without `FIREBASE_APP_ID_QA` the QA distribution step skips silently (build still succeeds).
 - [ ] (When push notifications are wired) add a `google-services.json` covering **both** package names, or split per source set. Not needed for App Distribution; only for FCM.
-- [ ] Verify: a `v*` tag ships **prod** (AAB → Play internal, APK → Firebase via `FIREBASE_APP_ID`). Separately **dispatch `QA Android Build (Firebase)`** to ship the qa APK → Firebase `internal-testers`. QA Android is decoupled from the tag and does **not** ship on a `v*` tag.
+- [ ] Verify: a `v*` tag ships **prod** (AAB → Play internal, APK → Firebase via `FIREBASE_APP_ID`). Separately, a **`qa-v*`** tag ships the qa APK → Firebase `internal-testers` via `qa-release.yml`. QA is decoupled from the prod `v*` tag (`qa-v*` does not match the `v*` glob).
 
 ### 4.3 Guest mode (Yair)
 

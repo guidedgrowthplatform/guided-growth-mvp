@@ -91,6 +91,8 @@ The Apple signing secrets are the same across stages (one team, one match repo, 
 Production is unchanged: push a `v*` tag to ship via `ci.yml` (iOS builds by default; repo var `SKIP_TESTFLIGHT=true` skips it). `qa-v*` does not match the `v*` glob, so QA tags never trigger a prod release.
 
 > The previous per-environment iOS dispatch workflow (`mobile-env-release.yml`) and the standalone `qa-android-release.yml` were consolidated into `qa-release.yml`. A `dev` stage is not currently wired.
+>
+> Both QA platforms now share one web bundle built under the `staging` Environment, so the QA app's baked-in config (`VITE_API_URL`, `VITE_*`) follows that Environment. Keep staging's values equal to prod while the backend is shared; if they ever diverge, QA Android content follows staging, not prod.
 
 ---
 
