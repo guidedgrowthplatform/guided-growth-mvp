@@ -22,6 +22,9 @@ if (appId !== rawAppId) {
   console.warn(`[patch-ios-plist] invalid APP_IDENTIFIER '${rawAppId}', falling back to default`);
 }
 
+// per-flavor OAuth scheme — mirror src/lib/appVariant.ts schemeForAppId (exact QA id)
+const authScheme = appId === 'app.guidedgrowth.staging' ? 'guidedgrowthqa' : 'guidedgrowth';
+
 // Value type is inferred from the JS value:
 //   string → <string>, boolean → <true/>/<false/>, { __xml } → raw XML literal.
 const PATCHES = [
@@ -46,9 +49,9 @@ const PATCHES = [
     key: 'ITSAppUsesNonExemptEncryption',
     value: false,
   },
-  // Registers the `guidedgrowth://` custom URL scheme so iOS can route the
-  // Supabase Google-OAuth callback back into the app. Without this, Safari
-  // shows "address is invalid" after the user finishes signing in.
+  // Registers the per-flavor OAuth callback scheme (stable guidedgrowth://,
+  // QA guidedgrowthqa://) so iOS routes the Supabase Google-OAuth callback
+  // back into the right app. Without this, Safari shows "address is invalid".
   {
     key: 'CFBundleURLTypes',
     value: {
@@ -60,7 +63,7 @@ const PATCHES = [
 			<string>${appId}</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>guidedgrowth</string>
+				<string>${authScheme}</string>
 			</array>
 		</dict>
 	</array>`,

@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { identify, resetIdentity, track } from '@/analytics';
+import { authScheme } from '@/lib/appVariant';
 import { clearPkceVerifier } from '@/lib/clearPkceVerifier';
 import { getWebOrigin } from '@/lib/env';
 import { SETTINGS_STORAGE_KEY } from '@/lib/preferences/snapshot';
@@ -384,7 +385,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     signInWithGoogle: async () => {
       const isNative = Capacitor.isNativePlatform();
       const redirectTo = isNative
-        ? 'guidedgrowth://auth/callback'
+        ? `${await authScheme()}://auth/callback`
         : `${getWebOrigin()}/auth/callback`;
 
       const { data, error } = await supabase.auth.signInWithOAuth({

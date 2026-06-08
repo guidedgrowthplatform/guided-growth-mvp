@@ -40,7 +40,8 @@ async function getUser(req: VercelRequest): Promise<AuthenticatedUser | null> {
       authUserId: user.id,
       anonId: profile.anon_id,
       firstName: profile.first_name,
-      email: user.email!,
+      // anonymous (guest) users have no email
+      email: user.email ?? '',
       role: (claims.role ?? 'user') as 'user' | 'admin',
       status: (claims.status ?? 'active') as 'active' | 'disabled',
     };
