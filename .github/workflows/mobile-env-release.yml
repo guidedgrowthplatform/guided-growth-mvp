@@ -1,4 +1,4 @@
-name: Mobile Env Release (TestFlight)
+name: iOS TestFlight Build (per environment)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Per-environment iOS TestFlight build: dev / staging / production.

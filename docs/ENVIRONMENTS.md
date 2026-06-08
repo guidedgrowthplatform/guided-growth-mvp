@@ -85,7 +85,7 @@ The Apple signing secrets are the same across stages (one team, one match repo, 
 
 ## Building a stage's TestFlight
 
-1. GitHub, Actions, "Mobile Env Release (TestFlight)", Run workflow.
+1. GitHub, Actions, "iOS TestFlight Build (per environment)", Run workflow.
 2. Pick the environment (dev / staging / production).
 3. The run builds the web bundle with that stage's secrets, then builds and uploads the IPA to that stage's TestFlight app. Testers see it under the matching app in TestFlight.
 
