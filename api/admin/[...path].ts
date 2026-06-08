@@ -81,7 +81,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const metricsCount = metrics.rows[0].count;
       const entriesCount = entries.rows[0].count;
       const journalCount = journalEntries.rows[0].count;
-      // `reflections` key kept for admin-client back-compat; now counts journal_entries.
       await logAuditAction(user.authUserId, 'read_user_data', 'user', userId, {
         metrics: metricsCount,
         entries: entriesCount,
