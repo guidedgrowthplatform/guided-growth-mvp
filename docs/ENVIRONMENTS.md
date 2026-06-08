@@ -31,7 +31,7 @@ These changes make a single codebase build any of the three stages from one set 
 - `.github/workflows/mobile-env-release.yml` is a `workflow_dispatch` pipeline with an `environment` choice (dev / staging / production). It is data-driven by GitHub Environments: it reads each stage's bundle id, display name, web origin, and scoped secrets from that Environment, builds the web bundle, then builds and uploads the iOS IPA to that stage's TestFlight app.
 - `.env.local.example` documents the new vars for local builds.
 
-Android per-stage package ids are not yet wired (the Android `applicationId` is fixed in `android/app/build.gradle`). See "Follow-ups".
+Android has two product flavors (`prod` = `app.guidedgrowth.mvp`, `qa` = `app.guidedgrowth.staging`) in `android/app/build.gradle`. Prod ships from `ci.yml` on a `v*` tag (AAB → Play, APK → Firebase via `FIREBASE_APP_ID`); the QA flavor ships from the dispatch-only `.github/workflows/qa-android-release.yml` (APK → Firebase via `FIREBASE_APP_ID_QA`).
 
 ---
 
@@ -111,6 +111,6 @@ Rules:
 
 ## Follow-ups (not in this change)
 
-- Android per-stage `applicationId` via Gradle product flavors or `applicationIdSuffix`, plus a per-stage Play track, so Android mirrors the iOS three-app split. Today Android builds the single `app.guidedgrowth.mvp` id.
+- Android prod/qa flavors are wired (prod → Play + Firebase, qa → Firebase via `qa-android-release.yml`). A full per-stage `dev` Android id + per-stage Play tracks are still open if Android is to mirror the iOS three-app split beyond prod/qa.
 - Per-stage release notes wiring is handled by the release-notes step (see the s2 work and `docs/RELEASE.md`).
 - Optional: auto-dispatch the dev build on push to `develop`. Left manual on purpose to protect the scarce macOS runner minutes; revisit if minutes allow.

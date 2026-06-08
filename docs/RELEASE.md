@@ -6,9 +6,11 @@
 > release mechanics.
 
 The release pipeline is fully automated. A single tag push to `main`
-produces a signed iOS build in TestFlight and a debug Android APK in
-GitHub Actions artifacts, with a Mattermost notification when the APK
-is ready. End-to-end takes ~10–15 minutes.
+produces a signed iOS build in TestFlight and a signed Android release
+AAB on the Play internal track (plus the prod APK to Firebase App
+Distribution), with a Mattermost notification when the AAB is ready.
+End-to-end takes ~10–15 minutes. (The QA Android app ships separately via
+the dispatch-only `qa-android-release.yml` workflow, not on the tag.)
 
 ## Quick reference
 
@@ -75,7 +77,8 @@ The `v*` tag triggers
 
 1. `validate-and-test` — lint, type-check, vitest, npm audit
 2. `build` — Vite production bundle (with all `VITE_*` env baked in)
-3. **`build-apk`** (parallel) — Android debug APK + Mattermost ping
+3. **`build-apk`** (parallel) — prod-flavor release AAB → Play internal,
+   prod APK → Firebase, + Mattermost ping
 4. **`ios-testflight`** (parallel) — `cap sync ios` → fastlane match →
    archive → upload to TestFlight
 
@@ -90,8 +93,9 @@ below.
   ~5 min after the workflow turns green; processing takes another
   5–10 min before testers can install. Add to a tester group via the
   build's "Test Information" → "Add to Group".
-- **Android:** Mattermost #MVPtesting channel posts a link to the APK
-  artifact. Anyone in the channel can download and sideload.
+- **Android:** the prod AAB lands on the Play **internal** track and the
+  prod APK goes to Firebase App Distribution; Mattermost #MVPtesting posts
+  when the AAB is ready.
 - **Release notes:** add a brief changelog under the tag in
   GitLab → Tags → click the tag → Edit, or write directly in the
   `git tag -m` message above.
@@ -239,10 +243,11 @@ etc.):
 
 ## Files of interest
 
-| Path                                    | Purpose                                                           |
-| --------------------------------------- | ----------------------------------------------------------------- |
-| `fastlane/Fastfile`                     | iOS `:beta` lane (release) and `:bootstrap_match` lane (one-shot) |
-| `.github/workflows/ci.yml`              | Main pipeline (validate → build → Android APK + iOS TestFlight)   |
-| `.github/workflows/match-bootstrap.yml` | Manual-only match population workflow                             |
-| `scripts/patch-ios-plist.mjs`           | Idempotent post-`cap sync` plist patcher                          |
-| `capacitor.config.ts`                   | Bundle ID, plugin config, native scheme                           |
+| Path                                       | Purpose                                                                          |
+| ------------------------------------------ | -------------------------------------------------------------------------------- |
+| `fastlane/Fastfile`                        | iOS `:beta` lane (release) and `:bootstrap_match` lane (one-shot)                |
+| `.github/workflows/ci.yml`                 | Main pipeline (validate → build → prod AAB→Play + APK→Firebase + iOS TestFlight) |
+| `.github/workflows/qa-android-release.yml` | Dispatch-only QA Android build (qa flavor → Firebase)                            |
+| `.github/workflows/match-bootstrap.yml`    | Manual-only match population workflow                                            |
+| `scripts/patch-ios-plist.mjs`              | Idempotent post-`cap sync` plist patcher                                         |
+| `capacitor.config.ts`                      | Bundle ID, plugin config, native scheme                                          |
