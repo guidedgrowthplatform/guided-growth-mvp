@@ -1,0 +1,30 @@
+name: Setup JS deps
+description: Node 22 + npm ci, plus optional sharp native rebuild (needed for @capacitor/assets).
+
+inputs:
+  rebuild-sharp:
+    description: Rebuild sharp's native binary (skip on web-only jobs that never run @capacitor/assets).
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - shell: bash
+      run: npm ci --ignore-scripts
+
+    # --ignore-scripts skips sharp's native binary; libvips download flakes, so retry.
+    - if: inputs.rebuild-sharp == 'true'
+      shell: bash
+      run: |
+        for i in 1 2 3; do
+          npm rebuild sharp && exit 0
+          echo "sharp rebuild failed (attempt $i/3), retrying in 10s..."
+          sleep 10
+        done
+        exit 1
