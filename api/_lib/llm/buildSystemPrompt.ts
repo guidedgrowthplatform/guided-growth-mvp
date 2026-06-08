@@ -1,5 +1,5 @@
 import pool from '../db.js';
-import { buildSystemPrompt } from '@gg/shared/coaching/systemPrompt';
+import { buildSystemPrompt, PRODUCT_CONTEXT } from '@gg/shared/coaching/systemPrompt';
 import type { CoachingStyle } from '@gg/shared/coaching/styles';
 import { buildContextMessage } from '@gg/shared/context/buildContextMessage';
 import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
@@ -102,6 +102,9 @@ export async function buildSystemPromptForRequest(
     state_delta,
   });
 
+  // Product Q&A only off onboarding — keeps the coach from volunteering
+  // feature/cap/founding info mid-onboarding.
+  const productBlock = isOnboardingScreen ? '' : `\n\n${PRODUCT_CONTEXT}`;
   const onboardingNudge = isOnboardingScreen ? `\n\n${ONBOARDING_TOOL_ADDENDUM}` : '';
   const checkinNudge = isCheckinScreen(args.screen_id) ? `\n\n${CHECKIN_TOOL_ADDENDUM}` : '';
   const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
@@ -112,7 +115,7 @@ export async function buildSystemPromptForRequest(
     : '';
 
   return {
-    systemPrompt: `${coachingPreamble}\n\n${NO_PRENARRATION_RULE}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${optionsBlock}${openerNudge}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${optionsBlock}${openerNudge}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };

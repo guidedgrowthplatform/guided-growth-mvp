@@ -1,6 +1,6 @@
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
-import { inferSchedule, type ScheduleOption } from '../../tools.onboarding.js';
+import { inferSchedule, SCHEDULE_DAYS, type ScheduleOption } from '../../tools.onboarding.js';
 import { MAX_HABITS, SCHEDULE_OPTIONS } from '../schemas.js';
 import {
   getBoolean,
@@ -14,6 +14,7 @@ import {
 } from './shared.js';
 
 const NAME_MAX_LEN = 100;
+const DEFAULT_TIME = '09:00';
 
 function isScheduleOption(v: string): boolean {
   return (SCHEDULE_OPTIONS as readonly string[]).includes(v);
@@ -29,32 +30,35 @@ export async function addHabit(
     return invalid(`name must be at most ${NAME_MAX_LEN} characters`);
   }
 
+  // name-only parity with Vapi: every other field is optional and defaulted.
   const daysRaw = getNumberArray(args, 'days');
-  if (daysRaw === undefined) return invalid('days must be an array of integers 0-6');
-  for (const d of daysRaw) {
-    if (!Number.isInteger(d) || d < 0 || d > 6) {
-      return invalid('each day must be an integer 0-6');
-    }
-  }
-  const days = Array.from(new Set(daysRaw)).sort((a, b) => a - b);
-
-  const time = getString(args, 'time');
-  if (time === undefined || !TIME_REGEX.test(time)) {
-    return invalid('time must be HH:MM in 24-hour format');
-  }
-
-  const reminder = getBoolean(args, 'reminder');
-  if (reminder === undefined) return invalid('reminder must be a boolean');
+  const daysValid =
+    daysRaw !== undefined &&
+    daysRaw.length > 0 &&
+    daysRaw.every((d) => Number.isInteger(d) && d >= 0 && d <= 6);
 
   const scheduleRaw = getString(args, 'schedule');
-  if (scheduleRaw === undefined || !isScheduleOption(scheduleRaw)) {
-    return invalid(`schedule must be one of ${SCHEDULE_OPTIONS.join(', ')}`);
+  const scheduleProvided = scheduleRaw !== undefined && isScheduleOption(scheduleRaw);
+
+  // days authoritative; reconcile schedule from days, else expand preset, else Weekday.
+  let days: number[];
+  let schedule: ScheduleOption;
+  if (daysValid) {
+    days = Array.from(new Set(daysRaw as number[])).sort((a, b) => a - b);
+    schedule =
+      inferSchedule(days) ?? (scheduleProvided ? (scheduleRaw as ScheduleOption) : 'Weekday');
+  } else if (scheduleProvided) {
+    schedule = scheduleRaw as ScheduleOption;
+    days = [...SCHEDULE_DAYS[schedule]];
+  } else {
+    schedule = 'Weekday';
+    days = [...SCHEDULE_DAYS.Weekday];
   }
 
-  // Reconcile: days is authoritative, schedule kept in sync so a stale label
-  // from LLM drift (e.g. {days:[1..5], schedule:'Every day'}) lands corrected.
-  // Falls back to the LLM-supplied label when days is a custom combination.
-  const schedule: ScheduleOption = inferSchedule(days) ?? (scheduleRaw as ScheduleOption);
+  const timeRaw = getString(args, 'time');
+  const time = timeRaw !== undefined && TIME_REGEX.test(timeRaw) ? timeRaw : DEFAULT_TIME;
+
+  const reminder = getBoolean(args, 'reminder') ?? true;
 
   const habitEntry = { days, time, reminder, schedule };
   const insertPayload = JSON.stringify({ habitConfigs: { [name]: habitEntry } });
