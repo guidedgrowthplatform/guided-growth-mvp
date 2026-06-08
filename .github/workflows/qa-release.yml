@@ -1,0 +1,237 @@
+name: QA Release (Staging — iOS + Android)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Single QA pipeline for the staging app (app.guidedgrowth.staging):
+#   • iOS    → TestFlight (fastlane match + ASC API key)
+#   • Android→ Firebase App Distribution (internal-testers group)
+#
+# Trigger: push a `qa-v*` tag (e.g. qa-v2.9.3 → marketing version 2.9.3). Does NOT
+# match ci.yml's `v*` glob, so prod releases never fire from a QA tag. Manual
+# workflow_dispatch is kept as an escape hatch (pass `version` for a clean number).
+#
+# DATA-DRIVEN by the `staging` GitHub Environment (Settings → Environments):
+#   Variables: APP_IDENTIFIER, APP_DISPLAY_NAME, VITE_API_URL, CAP_EXTRA_NAV_HOSTS, MATCH_GIT_BRANCH
+#   Secrets:   VITE_* + ASC_* + MATCH_* + APPLE_TEAM_ID (inherit from repo level)
+# Android signing + Firebase secrets are repo-level:
+#   ANDROID_KEYSTORE_BASE64/PASSWORD, ANDROID_KEY_ALIAS/PASSWORD,
+#   FIREBASE_APP_ID_QA, FIREBASE_SERVICE_ACCOUNT_JSON
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    tags: ['qa-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semver marketing version (e.g. 2.9.2). REQUIRED for a real iOS version on tagless dispatch — the Fastfile only bumps iOS when this matches X.Y.Z; otherwise iOS ships its project default (1.0.0). Android accepts the qa-<run_number> fallback.'
+        type: string
+        required: false
+        default: ''
+
+concurrency:
+  group: qa-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  resolve-version:
+    name: Resolve QA version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/qa-v* ]]; then
+            v="${GITHUB_REF_NAME#qa-v}"          # qa-v2.9.3 -> 2.9.3
+          elif [ -n "${{ inputs.version }}" ]; then
+            v="${{ inputs.version }}"
+          else
+            v="qa-${{ github.run_number }}"
+          fi
+          echo "Resolved QA version: $v"
+          # Fastfile only bumps iOS on a semver match; warn loudly when it won't.
+          if [[ ! "$v" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "::warning::Version '$v' is not semver — iOS will ship its project default (1.0.0). Pass a semver 'version' on dispatch, or use a qa-v* tag. Android is unaffected."
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+  web-build:
+    name: Build web (staging)
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-js-deps
+        with:
+          rebuild-sharp: 'false'
+
+      - name: Build web
+        env:
+          APP_IDENTIFIER: ${{ vars.APP_IDENTIFIER }}
+          APP_DISPLAY_NAME: ${{ vars.APP_DISPLAY_NAME }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_VAPI_PUBLIC_KEY: ${{ secrets.VITE_VAPI_PUBLIC_KEY }}
+          VITE_VAPI_ASSISTANT_ID: ${{ secrets.VITE_VAPI_ASSISTANT_ID }}
+          VITE_CARTESIA_AGENT_ID: ${{ secrets.VITE_CARTESIA_AGENT_ID }}
+          VITE_STATE3_ENABLED: ${{ secrets.VITE_STATE3_ENABLED }}
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+        run: npm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-staging
+          path: dist/
+          retention-days: 7
+
+  android-qa:
+    name: Build QA APK → Firebase
+    runs-on: ubuntu-latest
+    environment: staging
+    needs: [resolve-version, web-build]
+    # job-level so the Firebase step's `if` can read it (step env is out of scope there)
+    env:
+      FIREBASE_APP_ID_QA: ${{ secrets.FIREBASE_APP_ID_QA }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - uses: ./.github/actions/setup-js-deps
+
+      - name: Download web build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-staging
+          path: dist
+
+      # android/ is committed (gradle `qa` flavor carries the staging id + scheme);
+      # no APP_* identity needed here.
+      - uses: ./.github/actions/capacitor-build
+        with:
+          platform: android
+          icon-variant: qa
+
+      - name: Decode Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > android/app/guidedgrowth.keystore
+
+      - name: Build QA APK
+        working-directory: android
+        env:
+          KEYSTORE_FILE: 'guidedgrowth.keystore'
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          # via env so the version string can't break shell quoting
+          VERSION_NAME: ${{ needs.resolve-version.outputs.version }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleQaRelease --no-daemon \
+            -PversionCode=${{ github.run_number }} \
+            -PversionName="$VERSION_NAME"
+
+      - name: Upload QA APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guided-growth-qa-apk
+          path: android/app/build/outputs/apk/qa/release/app-qa-release.apk
+          retention-days: 14
+
+      # skips silently when FIREBASE_APP_ID_QA unset
+      - name: Distribute QA to Firebase App Distribution
+        if: env.FIREBASE_APP_ID_QA != ''
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID_QA }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          groups: internal-testers
+          file: android/app/build/outputs/apk/qa/release/app-qa-release.apk
+          releaseNotes: ${{ needs.resolve-version.outputs.version }}
+
+  ios-qa:
+    name: Build QA IPA → TestFlight
+    runs-on: macos-26
+    environment: staging
+    needs: [resolve-version, web-build]
+    # job-level so identity reaches the capacitor-build composite's steps
+    # (step-level env on a `uses:` does NOT propagate into a composite).
+    env:
+      APP_IDENTIFIER: ${{ vars.APP_IDENTIFIER }}
+      APP_DISPLAY_NAME: ${{ vars.APP_DISPLAY_NAME }}
+      CAP_EXTRA_NAV_HOSTS: ${{ vars.CAP_EXTRA_NAV_HOSTS }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load match SSH deploy key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.MATCH_DEPLOY_KEY }}
+
+      - name: Trust git hosts (avoid host-key prompt hanging the clone)
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H github.com gitlab.com >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Setup Ruby + Bundler cache
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - uses: ./.github/actions/setup-js-deps
+
+      - name: Download web build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-staging
+          path: dist
+
+      # Fail loud if tester notes are missing — a build with blank "What to
+      # Test" defeats the point. TestFlight caps What-to-Test at 4000 chars.
+      - name: Validate iOS release notes present
+        run: |
+          f=release-notes/whatsnew-en-US
+          [ -s "$f" ] || { echo "::error::Missing or empty $f — testers need release notes."; exit 1; }
+          len=$(wc -m < "$f" | tr -d ' ')
+          echo "Release notes length: $len chars"
+          if [ "$len" -gt 4000 ]; then
+            echo "::error::TestFlight What-to-Test exceeds 4000 chars ($len). Trim $f."
+            exit 1
+          fi
+
+      - uses: ./.github/actions/capacitor-build
+        with:
+          platform: ios
+          icon-variant: staging
+
+      - name: Build IPA & upload to TestFlight (fastlane)
+        env:
+          APP_VERSION: ${{ needs.resolve-version.outputs.version }}
+          MATCH_GIT_BRANCH: ${{ vars.MATCH_GIT_BRANCH }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bundle exec fastlane ios beta
+
+      - name: Upload IPA artifact (debug)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-staging
+          path: build/ios/*.ipa
+          retention-days: 14
+          if-no-files-found: warn

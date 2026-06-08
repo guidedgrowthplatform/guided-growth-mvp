@@ -28,10 +28,10 @@ These changes make a single codebase build any of the three stages from one set 
 
 - `capacitor.config.ts` reads `APP_IDENTIFIER` (bundle id), `APP_DISPLAY_NAME` (home-screen name), and `CAP_EXTRA_NAV_HOSTS` (extra allowNavigation hosts, comma-separated, for the stage's Supabase host). All default to the production values.
 - `fastlane/Appfile` and `fastlane/Fastfile` read `APP_IDENTIFIER` for the iOS bundle id and the Android package name, and `MATCH_GIT_BRANCH` (defaults to `main`) for the match repo branch. The `beta` and `bootstrap_match` lanes are both env-aware.
-- `.github/workflows/mobile-env-release.yml` is a `workflow_dispatch` pipeline with an `environment` choice (dev / staging / production). It is data-driven by GitHub Environments: it reads each stage's bundle id, display name, web origin, and scoped secrets from that Environment, builds the web bundle, then builds and uploads the iOS IPA to that stage's TestFlight app.
+- `.github/workflows/qa-release.yml` is the single QA pipeline. It fires on a `qa-v*` tag (manual `workflow_dispatch` kept as an escape hatch), is data-driven by the `staging` GitHub Environment, and builds **both** platforms for `app.guidedgrowth.staging`: iOS → TestFlight and Android (qa flavor) → Firebase. Shared build steps live in two composite actions (`.github/actions/setup-js-deps`, `.github/actions/capacitor-build`).
 - `.env.local.example` documents the new vars for local builds.
 
-Android has two product flavors (`prod` = `app.guidedgrowth.mvp`, `qa` = `app.guidedgrowth.staging`) in `android/app/build.gradle`. Prod ships from `ci.yml` on a `v*` tag (AAB → Play, APK → Firebase via `FIREBASE_APP_ID`); the QA flavor ships from the dispatch-only `.github/workflows/qa-android-release.yml` (APK → Firebase via `FIREBASE_APP_ID_QA`).
+Android has two product flavors (`prod` = `app.guidedgrowth.mvp`, `qa` = `app.guidedgrowth.staging`) in `android/app/build.gradle`. Prod ships from `ci.yml` on a `v*` tag (AAB → Play, APK → Firebase via `FIREBASE_APP_ID`); the QA flavor ships from `qa-release.yml` on a `qa-v*` tag (APK → Firebase via `FIREBASE_APP_ID_QA`), alongside the QA iOS build.
 
 ---
 
@@ -83,13 +83,16 @@ The Apple signing secrets are the same across stages (one team, one match repo, 
 
 ---
 
-## Building a stage's TestFlight
+## Building QA (staging)
 
-1. GitHub, Actions, "iOS TestFlight Build (per environment)", Run workflow.
-2. Pick the environment (dev / staging / production).
-3. The run builds the web bundle with that stage's secrets, then builds and uploads the IPA to that stage's TestFlight app. Testers see it under the matching app in TestFlight.
+1. Push a `qa-v*` tag, e.g. `qa-v2.9.3` (the marketing version is derived from the tag: `qa-v2.9.3` → `2.9.3`). Or run `qa-release.yml` from the Actions tab and pass a `version`.
+2. The run builds the web bundle once with the `staging` Environment's vars/secrets, then builds **both** the iOS IPA → QA TestFlight and the Android qa APK → Firebase `internal-testers`.
 
-The existing tag-based `ci.yml` path still ships production (push a `v*` tag; iOS builds by default, set repo var `SKIP_TESTFLIGHT=true` to skip it). Use whichever you prefer for production; use this dispatch workflow for dev and staging.
+Production is unchanged: push a `v*` tag to ship via `ci.yml` (iOS builds by default; repo var `SKIP_TESTFLIGHT=true` skips it). `qa-v*` does not match the `v*` glob, so QA tags never trigger a prod release.
+
+> The previous per-environment iOS dispatch workflow (`mobile-env-release.yml`) and the standalone `qa-android-release.yml` were consolidated into `qa-release.yml`. A `dev` stage is not currently wired.
+>
+> Both QA platforms now share one web bundle built under the `staging` Environment, so the QA app's baked-in config (`VITE_API_URL`, `VITE_*`) follows that Environment. Keep staging's values equal to prod while the backend is shared; if they ever diverge, QA Android content follows staging, not prod.
 
 ---
 
@@ -97,9 +100,9 @@ The existing tag-based `ci.yml` path still ships production (push a `v*` tag; iO
 
 Promotion is a code merge. A change rides up the same three branches, getting wider exposure at each step.
 
-1. Build on `develop`. Feature branches merge into `develop` via MR. Dispatch the dev TestFlight build, the team and Timothy smoke it against the dev backend.
-2. Promote to `staging`. Open an MR `develop -> staging`. After it merges, dispatch the staging TestFlight build. Staging is the rehearsal: it runs the staging backend with production-like config, this is where QA signs off.
-3. Promote to `main`. Open an MR `staging -> main`. After it merges, ship production either by tagging `v*` (iOS builds by default; `SKIP_TESTFLIGHT=true` skips it) or by dispatching this workflow for `production`. This is the build founding users receive.
+1. Build on `develop`. Feature branches merge into `develop` via MR. (A `dev` stage build is not currently wired — smoke on a staging build for now.)
+2. Promote to `staging`. Open an MR `develop -> staging`. After it merges, push a `qa-v*` tag to ship the staging build (iOS + Android together). Staging is the rehearsal: production-like config, this is where QA signs off.
+3. Promote to `main`. Open an MR `staging -> main`. After it merges, ship production by tagging `v*` (iOS builds by default; `SKIP_TESTFLIGHT=true` skips it). This is the build founding users receive.
 
 Rules:
 
@@ -111,6 +114,6 @@ Rules:
 
 ## Follow-ups (not in this change)
 
-- Android prod/qa flavors are wired (prod → Play + Firebase, qa → Firebase via `qa-android-release.yml`). A full per-stage `dev` Android id + per-stage Play tracks are still open if Android is to mirror the iOS three-app split beyond prod/qa.
+- Android prod/qa flavors are wired (prod → Play + Firebase via `ci.yml`, qa → Firebase via `qa-release.yml`). A full per-stage `dev` Android id + per-stage Play tracks are still open if Android is to mirror an iOS three-app split beyond prod/qa.
 - Per-stage release notes wiring is handled by the release-notes step (see the s2 work and `docs/RELEASE.md`).
-- Optional: auto-dispatch the dev build on push to `develop`. Left manual on purpose to protect the scarce macOS runner minutes; revisit if minutes allow.
+- A `dev` stage (third TestFlight app + GitHub Environment) is not wired. QA tags are explicit (`qa-v*`) to protect scarce macOS runner minutes; revisit auto-on-branch if minutes allow.

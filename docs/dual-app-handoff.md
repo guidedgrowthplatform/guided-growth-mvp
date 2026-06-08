@@ -36,7 +36,7 @@ Commits:
 ### 2.1 iOS (the pipeline was already env-aware; these are the gap-fills)
 
 - **`.github/workflows/match-bootstrap.yml`** — added a `workflow_dispatch` input `app_identifier` (default `app.guidedgrowth.mvp`) and passed it as `APP_IDENTIFIER` to the run step. This lets you bootstrap signing (distribution cert + appstore provisioning profile) for `app.guidedgrowth.staging`. The Fastfile `bootstrap_match` lane already reads `APP_IDENTIFIER`.
-- **`.github/workflows/mobile-env-release.yml`** —
+- **`.github/workflows/mobile-env-release.yml`** _(since consolidated into `qa-release.yml` — see §5)_ —
   - Added a `version` input so tagless dispatch builds carry a real marketing version (otherwise they default to `1.0.0`).
   - Inserted the icon select + generation **in the correct order**: `cap sync ios` → `select-icon-master.mjs` → `@capacitor/assets generate --ios` → `patch-ios-plist.mjs`. Order is load-bearing: `@capacitor/assets generate` rewrites `Info.plist`, so the plist patch must run **after** it (else the CFBundleURLTypes/privacy-key patch is wiped). Before this change the per-env builds shipped the **Capacitor default placeholder icon** — there was no icon generation in this workflow at all.
   - Passes `APP_VERSION` to the fastlane step.
@@ -48,7 +48,7 @@ Commits:
 - **`android/app/build.gradle`** — added `flavorDimensions "env"` with two product flavors: `prod` (inherits `app.guidedgrowth.mvp` from `defaultConfig`) and `qa` (`app.guidedgrowth.staging`). `namespace` stays `app.guidedgrowth.mvp` (it's the code package, independent of `applicationId`). Both flavors share the existing release keystore; the distinct `applicationId` is what lets them coexist on one device.
 - **`android/app/src/qa/res/values/strings.xml`** (new) — QA source-set overrides: `app_name` = "Guided Growth QA", `package_name` + `custom_url_scheme` = `app.guidedgrowth.staging`.
 - **`.github/workflows/ci.yml`** — stays **prod-only** (unchanged behavior vs. before flavors). On a `v*` tag it builds the `prod` flavor: `bundleProdRelease` (AAB → Play internal) + `assembleProdRelease` (APK → Firebase via `FIREBASE_APP_ID`). Only the gradle task/output-path names changed to the flavored form (`bundle/prodRelease/`, `apk/prod/release/`); prod distribution is otherwise identical to main.
-- **`.github/workflows/qa-android-release.yml`** (new) — QA Android lives here, **not** in `ci.yml`. **Dispatch-only** (decoupled from the `v*` tag so a QA build can't red/block the stable release). Builds web → `select-icon-master qa` (red) → `@capacitor/assets generate` → `assembleQaRelease` → Firebase via `FIREBASE_APP_ID_QA` (job-level env so the skip-when-unset guard works). Optional `version` input; defaults `versionName` to `qa-<run_number>`.
+- **`.github/workflows/qa-android-release.yml`** (new) _(since consolidated into `qa-release.yml` — see §5)_ — QA Android lives here, **not** in `ci.yml`. **Dispatch-only** (decoupled from the `v*` tag so a QA build can't red/block the stable release). Builds web → `select-icon-master qa` (red) → `@capacitor/assets generate` → `assembleQaRelease` → Firebase via `FIREBASE_APP_ID_QA` (job-level env so the skip-when-unset guard works). Optional `version` input; defaults `versionName` to `qa-<run_number>`.
 
 ### 2.3 Icons (two-master mechanism with auto-derive)
 
@@ -94,15 +94,15 @@ These are one-time setup steps a human with the right access performs. Nothing i
   - Variables: `APP_IDENTIFIER=app.guidedgrowth.staging`, `APP_DISPLAY_NAME=Guided Growth QA`, `VITE_API_URL=` the **prod** web origin, `CAP_EXTRA_NAV_HOSTS` empty.
   - Secrets: **copy the production values verbatim** (shared backend) — `VITE_*`, `ASC_*`, `APPLE_TEAM_ID`, `MATCH_*`.
 - [ ] Run **`match-bootstrap`** once with `app_identifier=app.guidedgrowth.staging` (grant the match repo deploy key write access for the run, then revoke).
-- [ ] Run **`mobile-env-release`** with `environment=staging` (and a `version`, e.g. the current marketing version) → lands in the QA TestFlight. Production keeps shipping via the existing `v*` tag flow.
+- [ ] Push a **`qa-v*`** tag (e.g. `qa-v2.9.3`) → `qa-release.yml` builds the QA iOS IPA → QA TestFlight (and the qa Android APK → Firebase in the same run). Production keeps shipping via the existing `v*` tag flow.
 - [ ] Add the team to each app's TestFlight internal group; everyone enables Automatic Updates once.
 
 ### 4.2 Android (Alejandro)
 
 - [ ] Create the "Guided Growth QA" app in Google Play Console (or at least the Firebase app for `app.guidedgrowth.staging`).
-- [ ] Add the **`FIREBASE_APP_ID_QA`** secret (the QA Firebase Android app id) at **repo level** (the `qa-android-release.yml` workflow has no GitHub Environment, so it reads repo-level secrets) + confirm `FIREBASE_SERVICE_ACCOUNT_JSON` is present. Without `FIREBASE_APP_ID_QA` the QA distribution step skips silently (build still succeeds).
+- [ ] Add the **`FIREBASE_APP_ID_QA`** secret (the QA Firebase Android app id) at **repo level** (`qa-release.yml`'s Android job reads it as a repo-level secret) + confirm `FIREBASE_SERVICE_ACCOUNT_JSON` is present. Without `FIREBASE_APP_ID_QA` the QA distribution step skips silently (build still succeeds).
 - [ ] (When push notifications are wired) add a `google-services.json` covering **both** package names, or split per source set. Not needed for App Distribution; only for FCM.
-- [ ] Verify: a `v*` tag ships **prod** (AAB → Play internal, APK → Firebase via `FIREBASE_APP_ID`). Separately **dispatch `QA Android Build (Firebase)`** to ship the qa APK → Firebase `internal-testers`. QA Android is decoupled from the tag and does **not** ship on a `v*` tag.
+- [ ] Verify: a `v*` tag ships **prod** (AAB → Play internal, APK → Firebase via `FIREBASE_APP_ID`). Separately, a **`qa-v*`** tag ships the qa APK → Firebase `internal-testers` via `qa-release.yml`. QA is decoupled from the prod `v*` tag (`qa-v*` does not match the `v*` glob).
 
 ### 4.3 Guest mode (Yair)
 
@@ -113,8 +113,8 @@ These are one-time setup steps a human with the right access performs. Nothing i
 ## 5. How to operate it going forward
 
 - **Replace the QA icon:** `cp <new>.png assets/icon-qa.png` and commit. The fg/bg layers auto-regenerate; no other change.
-- **Ship a QA iOS build:** run `mobile-env-release` (env=staging, version=x.y.z).
-- **Ship a QA Android build:** dispatch `QA Android Build (Firebase)` (optional `version`). Dispatch-only and intentionally decoupled from the `v*` tag.
+- **Ship a QA build (iOS + Android together):** push a `qa-v*` tag, e.g. `qa-v2.9.3` (marketing version derived from the tag). `qa-release.yml` builds the QA iOS IPA → TestFlight and the qa-flavor APK → Firebase in one run. Manual `workflow_dispatch` (with a `version` input) is kept as an escape hatch. Decoupled from the prod `v*` tag — `qa-v*` does not match `v*`.
+  - _(History: this replaced the separate `mobile-env-release.yml` + `qa-android-release.yml` workflows, now consolidated into `qa-release.yml` + the `.github/actions/setup-js-deps` and `capacitor-build` composites.)_
 - **Ship stable:** unchanged — push a `v*` tag (prod iOS TestFlight + prod Android AAB→Play + APK→Firebase).
 - **QA test data:** lives under throwaway/guest accounts; deletable anytime. Real personal accounts live only in the stable app.
 - **Versioning:** `major.feature.fix`, same string on both stores per release; single-source from the `v*` tag (iOS via agvtool, Android via `-PversionName`).
