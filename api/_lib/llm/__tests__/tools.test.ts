@@ -291,6 +291,14 @@ describe('dispatchToolCall — log_entry', () => {
     expect(result).toMatchObject({ ok: false, error: 'invalid_args' });
     expect(pool.query).not.toHaveBeenCalled();
   });
+
+  it('returns cached result on duplicate tool_call_id (dedup guard)', async () => {
+    const cached = { ok: true as const, result: { logged: true, user_log_id: 'log-prev' } };
+    const ctx = { ...CTX, tool_call_id: 'tc-1', dedupLookup: async () => cached };
+    const result = await dispatchToolCall(ctx, 'log_entry', { content: 'spoke to 3 people' });
+    expect(result).toEqual(cached);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
 });
 
 describe('dispatchToolCall — error envelope', () => {

@@ -139,7 +139,9 @@ spoke to, a quantity, anything. Whenever they do, silently call log_entry to cap
 even if it is unrelated to the current screen. Pick the best category and kind from the allowed
 lists. Capture first, then continue exactly where you were. Do NOT switch topics, start coaching
 on it, or treat it as a new thread. A brief acknowledgement ("got it, logged") is fine, derailing
-is not. This ability is always available to you, on every screen.`;
+is not. This ability is always available to you, on every screen. On onboarding screens, skip
+facts already captured by another tool this turn (update_profile, submit_brain_dump, structured
+onboarding tools) — do not double-log what a structured tool already wrote.`;
 
 const FALLBACK_CONTEXT_BLOCK = `## Screen
 No screen-specific guidance is configured for this screen. Respond helpfully and briefly in your coaching voice, using the recent activity below for continuity. Do not invent screen-specific instructions or pre-announce features.`;

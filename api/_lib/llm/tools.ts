@@ -311,6 +311,10 @@ const VALID_KINDS = new Set(['did', 'want', 'plan', 'felt']);
 const CONTENT_MAX_LEN = 8000;
 
 async function logEntry(ctx: ToolContext, args: Record<string, unknown>): Promise<ToolResult> {
+  // Same PII carve-out as chat_messages: content may include raw personal data on onboarding
+  // screens (scrubPII bypassed there) and is subject to the same pending cleanup policy.
+  const cached = await checkDedup(ctx);
+  if (cached) return cached;
   const content = getString(args, 'content')?.trim();
   if (!content) return invalid('content is required');
   if (content.length > CONTENT_MAX_LEN)
