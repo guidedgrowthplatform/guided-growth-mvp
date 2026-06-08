@@ -211,13 +211,22 @@ export default defineConfig(({ mode }) => {
     },
     test: {
       environment: 'node',
-      include: ['src/**/*.test.{ts,tsx}', 'api/**/*.test.{ts,tsx}'],
+      include: [
+        'src/**/*.test.{ts,tsx}',
+        'api/**/*.test.{ts,tsx}',
+        'packages/shared/**/*.test.{ts,tsx}',
+      ],
       setupFiles: ['./src/test/setup-storage.ts'],
       coverage: {
         provider: 'v8',
         reporter: ['text', 'cobertura'],
-        include: ['src/**/*.{ts,tsx}', 'api/**/*.{ts,tsx}'],
-        exclude: ['src/**/*.test.{ts,tsx}', 'api/**/*.test.{ts,tsx}', 'src/**/*.d.ts'],
+        include: ['src/**/*.{ts,tsx}', 'api/**/*.{ts,tsx}', 'packages/shared/**/*.{ts,tsx}'],
+        exclude: [
+          'src/**/*.test.{ts,tsx}',
+          'api/**/*.test.{ts,tsx}',
+          'packages/shared/**/*.test.{ts,tsx}',
+          'src/**/*.d.ts',
+        ],
       },
     },
   };

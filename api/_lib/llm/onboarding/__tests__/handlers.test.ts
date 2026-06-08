@@ -92,18 +92,20 @@ describe('submit_profile', () => {
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
   });
 
-  it('accepts nickname-only and emits monotonic UPSERT', async () => {
+  it('accepts nickname-only, seeds step 1, does NOT bump current_step', async () => {
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
-      rows: [{ data: { nickname: 'alice' }, current_step: 2 }],
+      rows: [{ data: { nickname: 'alice' }, current_step: 1 }],
     });
     const r = await submitProfile(CTX, { nickname: 'alice' });
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.result).toMatchObject({ data: { nickname: 'alice' }, current_step: 2 });
+      expect(r.result).toMatchObject({ data: { nickname: 'alice' }, current_step: 1 });
     }
     const [sql, params] = pool.query.mock.calls[0];
-    expect(sql).toMatch(/GREATEST\(onboarding_states\.current_step, 2\)/);
+    // DATA ONLY: INSERT seeds this screen's own step (1); UPDATE never touches current_step.
+    expect(sql).toMatch(/VALUES \(\$1, 1,/);
+    expect(sql).not.toMatch(/current_step = GREATEST/);
     expect(sql).toMatch(/data = onboarding_states\.data \|\| \$2::jsonb/);
     expect(sql).toMatch(/RETURNING data, current_step/);
     expect(params[0]).toBe(CTX.anon_id);
