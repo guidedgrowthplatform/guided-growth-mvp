@@ -1,0 +1,31 @@
+name: Capacitor build
+description: Sync a native platform, brand the icon, generate assets (iOS also patches Info.plist).
+
+# Identity (APP_IDENTIFIER / APP_DISPLAY_NAME / CAP_EXTRA_NAV_HOSTS) is read from the
+# environment by capacitor.config.ts + patch-ios-plist.mjs. The caller MUST set these at
+# JOB level for iOS (step-level env on a `uses:` does not propagate into a composite).
+# iOS is regenerated each run (ios/ is gitignored) so it needs them; android/ is committed
+# (gradle `qa` flavor already carries the staging id + scheme), so Android sets nothing.
+
+inputs:
+  platform:
+    description: ios | android
+    required: true
+  icon-variant:
+    description: Passed to select-icon-master.mjs (qa | staging -> red QA icons).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        [ -d "${{ inputs.platform }}" ] || npx cap add ${{ inputs.platform }}
+        npx cap sync ${{ inputs.platform }}
+        node scripts/select-icon-master.mjs ${{ inputs.icon-variant }}
+        npx @capacitor/assets generate --${{ inputs.platform }} --assetPath assets
+
+    # generate rewrites Info.plist — patch the URL scheme after it.
+    - if: inputs.platform == 'ios'
+      shell: bash
+      run: node scripts/patch-ios-plist.mjs

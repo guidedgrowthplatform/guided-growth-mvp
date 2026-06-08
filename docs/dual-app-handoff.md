@@ -113,8 +113,8 @@ These are one-time setup steps a human with the right access performs. Nothing i
 ## 5. How to operate it going forward
 
 - **Replace the QA icon:** `cp <new>.png assets/icon-qa.png` and commit. The fg/bg layers auto-regenerate; no other change.
-- **Ship a QA iOS build:** run `mobile-env-release` (env=staging, version=x.y.z).
-- **Ship a QA Android build:** dispatch `QA Android Build (Firebase)` (optional `version`). Dispatch-only and intentionally decoupled from the `v*` tag.
+- **Ship a QA build (iOS + Android together):** push a `qa-v*` tag, e.g. `qa-v2.9.3` (marketing version derived from the tag). `qa-release.yml` builds the QA iOS IPA → TestFlight and the qa-flavor APK → Firebase in one run. Manual `workflow_dispatch` (with a `version` input) is kept as an escape hatch. Decoupled from the prod `v*` tag — `qa-v*` does not match `v*`.
+  - _(History: this replaced the separate `mobile-env-release.yml` + `qa-android-release.yml` workflows, now consolidated into `qa-release.yml` + the `.github/actions/setup-js-deps` and `capacitor-build` composites.)_
 - **Ship stable:** unchanged — push a `v*` tag (prod iOS TestFlight + prod Android AAB→Play + APK→Firebase).
 - **QA test data:** lives under throwaway/guest accounts; deletable anytime. Real personal accounts live only in the stable app.
 - **Versioning:** `major.feature.fix`, same string on both stores per release; single-source from the `v*` tag (iOS via agvtool, Android via `-PversionName`).
