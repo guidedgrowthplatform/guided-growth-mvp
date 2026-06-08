@@ -9,7 +9,7 @@ type Row = {
 };
 
 // Min field that must exist before a screen may advance. Unmapped → allow.
-const REQUIRED: Record<string, (row: Row) => boolean> = {
+export const REQUIRED: Record<string, (row: Row) => boolean> = {
   'ONBOARD-01--FORM': (r) =>
     typeof r.data?.nickname === 'string' &&
     r.data.nickname.length > 0 &&
@@ -30,7 +30,7 @@ const REQUIRED: Record<string, (row: Row) => boolean> = {
 
 // Value = that screen's page currentStep + 1 (the immediately-next screen). A
 // wrong value skips a screen. GREATEST in the UPDATE never lowers current_step.
-const NEXT_STEP: Record<string, number> = {
+export const NEXT_STEP: Record<string, number> = {
   'ONBOARD-01--FORM': 2,
   'ONBOARD-FORK--FORM': 3,
   'ONBOARD-BEGINNER-01': 4,
@@ -89,8 +89,11 @@ export async function confirmStepComplete(
 
   const res = await advanceStepIfReady(ctx.anon_id, screenId);
   if (res.advanced) return ok({ advance: true, current_step: res.current_step });
-  if (res.reason === 'required_missing') {
-    return ok({ advance: false, reason: 'required field missing for this step' });
-  }
-  return ok({ advance: true });
+  // no_next_step here means REQUIRED-mapped but absent from NEXT_STEP (config gap):
+  // advancing with no current_step would no-op useAgentNavigation and strand the user.
+  const reason =
+    res.reason === 'required_missing'
+      ? 'required field missing for this step'
+      : 'no next step configured for this screen';
+  return ok({ advance: false, reason });
 }

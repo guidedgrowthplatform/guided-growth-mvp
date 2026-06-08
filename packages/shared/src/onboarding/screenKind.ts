@@ -1,6 +1,6 @@
 export type ScreenKind = 'single' | 'multi';
 
-const MULTI_SCREENS = new Set<string>([
+export const MULTI_SCREENS = new Set<string>([
   'ONBOARD-BEGINNER-02',
   'ONBOARD-BEGINNER-03',
   'ONBOARD-ADVANCED-02',

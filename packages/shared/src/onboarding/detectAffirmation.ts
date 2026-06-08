@@ -88,7 +88,7 @@ function compile(phrases: string[]): { phrase: string; re: RegExp }[] {
 const NEGATION_RE = compile(NEGATION);
 const ADDITIVE_RE = compile(ADDITIVE);
 const DONE_RE = compile(DONE_SIGNALS);
-const SINGLE_AFFIRM_RE = compile([...DONE_SIGNALS, ...SINGLE_AFFIRM]);
+const SINGLE_AFFIRM_RE = compile(SINGLE_AFFIRM);
 
 function normalize(raw: string): string {
   return raw

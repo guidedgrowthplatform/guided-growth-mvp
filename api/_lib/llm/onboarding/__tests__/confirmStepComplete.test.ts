@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../../db.js', () => ({ default: { query: vi.fn() } }));
 
 const pool = (await import('../../../db.js')).default as { query: ReturnType<typeof vi.fn> };
-const { confirmStepComplete } = await import('../handlers/confirmStepComplete.js');
+const { confirmStepComplete, REQUIRED, NEXT_STEP } =
+  await import('../handlers/confirmStepComplete.js');
+const { MULTI_SCREENS } = await import('@gg/shared/onboarding/screenKind');
 
 const ANON = '11111111-1111-4111-8111-111111111111';
 
@@ -161,5 +163,30 @@ describe('confirm_step_complete', () => {
     pool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
     const r = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-ADVANCED' }, {});
     expect(r).toMatchObject({ result: { advance: false } });
+  });
+
+  // Drift guards: keep the three independent screen-id maps from silently diverging.
+  it('every REQUIRED-gated screen is also in NEXT_STEP', () => {
+    const missing = Object.keys(REQUIRED).filter((s) => NEXT_STEP[s] === undefined);
+    expect(missing, `gated screens absent from NEXT_STEP: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('every MULTI_SCREENS entry is a known advanceable screen in NEXT_STEP', () => {
+    const missing = [...MULTI_SCREENS].filter((s) => NEXT_STEP[s] === undefined);
+    expect(missing, `multi screens absent from NEXT_STEP: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('a REQUIRED-only screen blocks advance rather than no-op advancing', async () => {
+    const orig = NEXT_STEP['ONBOARD-01--FORM'];
+    delete NEXT_STEP['ONBOARD-01--FORM'];
+    try {
+      row({ nickname: 'a', age: 28, gender: 'Female', referralSource: 'Reddit' });
+      const r = await confirmStepComplete({ anon_id: ANON, screen_id: 'ONBOARD-01--FORM' }, {});
+      expect(r).toMatchObject({
+        result: { advance: false, reason: 'no next step configured for this screen' },
+      });
+    } finally {
+      NEXT_STEP['ONBOARD-01--FORM'] = orig;
+    }
   });
 });
