@@ -1,4 +1,4 @@
-name: QA Android Release (Firebase)
+name: QA Android Build (Firebase)
 
 # QA app (app.guidedgrowth.staging) → Firebase. Dispatch-only, decoupled from
 # the prod v* tag in ci.yml. Uses FIREBASE_APP_ID_QA + the shared keystore/VITE secrets.

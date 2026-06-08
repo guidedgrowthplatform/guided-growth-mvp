@@ -102,7 +102,7 @@ These are one-time setup steps a human with the right access performs. Nothing i
 - [ ] Create the "Guided Growth QA" app in Google Play Console (or at least the Firebase app for `app.guidedgrowth.staging`).
 - [ ] Add the **`FIREBASE_APP_ID_QA`** secret (the QA Firebase Android app id) at **repo level** (the `qa-android-release.yml` workflow has no GitHub Environment, so it reads repo-level secrets) + confirm `FIREBASE_SERVICE_ACCOUNT_JSON` is present. Without `FIREBASE_APP_ID_QA` the QA distribution step skips silently (build still succeeds).
 - [ ] (When push notifications are wired) add a `google-services.json` covering **both** package names, or split per source set. Not needed for App Distribution; only for FCM.
-- [ ] Verify: a `v*` tag ships **prod** (AAB → Play internal, APK → Firebase via `FIREBASE_APP_ID`). Separately **dispatch `QA Android Release (Firebase)`** to ship the qa APK → Firebase `internal-testers`. QA Android is decoupled from the tag and does **not** ship on a `v*` tag.
+- [ ] Verify: a `v*` tag ships **prod** (AAB → Play internal, APK → Firebase via `FIREBASE_APP_ID`). Separately **dispatch `QA Android Build (Firebase)`** to ship the qa APK → Firebase `internal-testers`. QA Android is decoupled from the tag and does **not** ship on a `v*` tag.
 
 ### 4.3 Guest mode (Yair)
 
@@ -114,7 +114,7 @@ These are one-time setup steps a human with the right access performs. Nothing i
 
 - **Replace the QA icon:** `cp <new>.png assets/icon-qa.png` and commit. The fg/bg layers auto-regenerate; no other change.
 - **Ship a QA iOS build:** run `mobile-env-release` (env=staging, version=x.y.z).
-- **Ship a QA Android build:** dispatch `QA Android Release (Firebase)` (optional `version`). Dispatch-only and intentionally decoupled from the `v*` tag.
+- **Ship a QA Android build:** dispatch `QA Android Build (Firebase)` (optional `version`). Dispatch-only and intentionally decoupled from the `v*` tag.
 - **Ship stable:** unchanged — push a `v*` tag (prod iOS TestFlight + prod Android AAB→Play + APK→Firebase).
 - **QA test data:** lives under throwaway/guest accounts; deletable anytime. Real personal accounts live only in the stable app.
 - **Versioning:** `major.feature.fix`, same string on both stores per release; single-source from the `v*` tag (iOS via agvtool, Android via `-PversionName`).
