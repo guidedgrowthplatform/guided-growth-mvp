@@ -13,11 +13,6 @@ export const queryKeys = {
   preferences: {
     all: ['preferences'] as const,
   },
-  reflections: {
-    config: ['reflections', 'config'] as const,
-    range: (start: string, end: string) => ['reflections', start, end] as const,
-    affirmation: ['reflections', 'affirmation'] as const,
-  },
   checkins: {
     all: ['checkins'] as const,
     byDate: (date: string) => ['checkins', date] as const,

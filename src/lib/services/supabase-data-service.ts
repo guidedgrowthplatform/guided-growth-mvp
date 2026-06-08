@@ -1,10 +1,4 @@
-import type {
-  UserPreferences,
-  Affirmation,
-  Reflection,
-  ReflectionConfig,
-  OnboardingState,
-} from '@gg/shared/types';
+import type { UserPreferences, Affirmation, OnboardingState } from '@gg/shared/types';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../supabase';
 import { encryptJournal, decryptJournal } from '../utils/journal-crypto';
@@ -830,88 +824,6 @@ export class SupabaseDataService implements DataService {
     return { id: data.id, anon_id: data.anon_id, value: data.value };
   }
 
-  async listReflections(startDate: string, endDate: string): Promise<Reflection[]> {
-    const anonId = getCurrentAnonId();
-    const { data, error } = await supabase
-      .from('reflections')
-      .select('*')
-      .eq('anon_id', anonId)
-      .gte('date', startDate)
-      .lte('date', endDate)
-      .order('date', { ascending: false });
-
-    if (error) throw new Error(error.message);
-
-    return (data || []).map((r) => ({
-      id: r.id,
-      anon_id: r.anon_id,
-      date: r.date,
-      field_id: r.field_id,
-      value: r.value,
-    }));
-  }
-
-  async upsertReflectionsForDate(
-    date: string,
-    fields: { field_id: string; value: string }[],
-  ): Promise<void> {
-    if (date > todayStr()) throw new Error('Cannot save reflection for future dates');
-    const anonId = getCurrentAnonId();
-
-    for (const f of fields) {
-      if (f.value === '' || f.value == null) {
-        const { error } = await supabase
-          .from('reflections')
-          .delete()
-          .eq('anon_id', anonId)
-          .eq('date', date)
-          .eq('field_id', f.field_id);
-        if (error) throw new Error(error.message);
-      } else {
-        const { error } = await supabase
-          .from('reflections')
-          .upsert(
-            { anon_id: anonId, date, field_id: f.field_id, value: f.value },
-            { onConflict: 'anon_id,date,field_id' },
-          );
-        if (error) throw new Error(error.message);
-      }
-    }
-  }
-
-  async getReflectionConfig(): Promise<ReflectionConfig | null> {
-    const anonId = getCurrentAnonId();
-    const { data, error } = await supabase
-      .from('reflection_configs')
-      .select('fields, show_affirmation')
-      .eq('anon_id', anonId)
-      .maybeSingle();
-
-    if (error) throw new Error(error.message);
-    if (!data) return null;
-
-    return { fields: data.fields ?? [], show_affirmation: !!data.show_affirmation };
-  }
-
-  async upsertReflectionConfig(config: ReflectionConfig): Promise<ReflectionConfig> {
-    const anonId = getCurrentAnonId();
-    const { data, error } = await supabase
-      .from('reflection_configs')
-      .upsert(
-        {
-          anon_id: anonId,
-          fields: config.fields,
-          show_affirmation: config.show_affirmation,
-        },
-        { onConflict: 'anon_id' },
-      )
-      .select('fields, show_affirmation')
-      .single();
-
-    if (error) throw new Error(error.message);
-    return { fields: data.fields ?? [], show_affirmation: !!data.show_affirmation };
-  }
-
   async getOnboardingState(): Promise<OnboardingState | null> {
     const anonId = getCurrentAnonId();
     const { data, error } = await supabase
@@ -969,8 +881,6 @@ export class SupabaseDataService implements DataService {
       { table: 'daily_checkins', column: 'anon_id' },
       { table: 'metric_entries', fk: 'metric_id', via: 'metrics' },
       { table: 'entries', fk: 'metric_id', via: 'metrics' },
-      { table: 'reflections', column: 'anon_id' },
-      { table: 'reflection_configs', column: 'anon_id' },
       { table: 'affirmations', column: 'anon_id' },
       { table: 'metrics', column: 'anon_id' },
       { table: 'user_habits', column: 'anon_id' },
