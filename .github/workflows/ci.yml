@@ -148,7 +148,14 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Build sharp native binary
-        run: npm rebuild sharp
+        # libvips download from GitHub releases flakes; retry before failing.
+        run: |
+          for i in 1 2 3; do
+            npm rebuild sharp && exit 0
+            echo "sharp rebuild failed (attempt $i/3), retrying in 10s..."
+            sleep 10
+          done
+          exit 1
 
       - name: Download web build artifact
         uses: actions/download-artifact@v4
@@ -324,7 +331,14 @@ jobs:
       # sharp@0.32 fetches its native binary via an install script that
       # --ignore-scripts skips; @capacitor/assets needs it. Rebuild just sharp.
       - name: Build sharp native binary
-        run: npm rebuild sharp
+        # libvips download from GitHub releases flakes; retry before failing.
+        run: |
+          for i in 1 2 3; do
+            npm rebuild sharp && exit 0
+            echo "sharp rebuild failed (attempt $i/3), retrying in 10s..."
+            sleep 10
+          done
+          exit 1
 
       - name: Download web build artifact
         uses: actions/download-artifact@v4
