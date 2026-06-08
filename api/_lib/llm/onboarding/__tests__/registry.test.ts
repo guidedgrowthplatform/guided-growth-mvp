@@ -66,9 +66,9 @@ describe('ONBOARDING_TOOLS', () => {
     expect(enumVals).toContain('Break bad habits');
   });
 
-  it('add_habit requires the full schedule shape', () => {
+  it('add_habit requires only name — other fields are server-defaulted (Vapi parity)', () => {
     const tool = ONBOARDING_TOOLS.find((t) => t.name === 'add_habit')!;
-    expect(tool.parameters.required).toEqual(['name', 'days', 'time', 'reminder', 'schedule']);
+    expect(tool.parameters.required).toEqual(['name']);
     expect(tool.parameters.properties.schedule).toMatchObject({
       enum: ['Weekday', 'Weekend', 'Every day'],
     });
@@ -131,11 +131,7 @@ describe('ONBOARDING_TOOLS', () => {
             "time",
           ],
           "required": [
-            "days",
             "name",
-            "reminder",
-            "schedule",
-            "time",
           ],
         },
         {
