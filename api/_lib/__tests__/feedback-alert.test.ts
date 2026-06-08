@@ -71,4 +71,16 @@ describe('renderFeedbackAlert', () => {
     expect(html).toContain('(no text)');
     expect(text).toContain('(no text)');
   });
+
+  it('renders "(anonymous guest)" when userEmail is empty (guest)', () => {
+    const { subject, html, text } = renderFeedbackAlert({
+      ...BASE,
+      sentiment: 'love',
+      userEmail: '',
+    });
+    expect(subject).toBe('[Feedback · Loves it] from (anonymous guest)');
+    expect(subject).not.toContain('from null');
+    expect(html).toContain('(anonymous guest)');
+    expect(text).toContain('From: (anonymous guest)');
+  });
 });

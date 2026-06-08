@@ -83,6 +83,17 @@ describe('dispatchFeedbackAlert', () => {
     });
   });
 
+  it('omits replyTo and labels the sender for guests (empty userEmail)', async () => {
+    process.env.FEEDBACK_ALERT_TO = 'a@x.com';
+    sendEmailMock.mockResolvedValueOnce({ ok: true, id: 're_2' });
+    const { dispatchFeedbackAlert } = await import('../feedback-emailer');
+    await dispatchFeedbackAlert({ ...BASE_INPUT, userEmail: '' });
+
+    const arg = sendEmailMock.mock.calls[0][0];
+    expect(arg.replyTo).toBeUndefined();
+    expect(arg.subject).toBe('[Feedback · Loves it] from (anonymous guest)');
+  });
+
   it('logs failure and does not throw when sendEmail returns ok:false', async () => {
     process.env.FEEDBACK_ALERT_TO = 'a@x.com';
     sendEmailMock.mockResolvedValueOnce({ ok: false, status: 500 });

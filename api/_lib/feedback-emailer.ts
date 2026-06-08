@@ -1,8 +1,5 @@
 import { sendEmail } from './resend-client.js';
-import {
-  renderFeedbackAlert,
-  type FeedbackSentiment,
-} from './email-templates/feedback-alert.js';
+import { renderFeedbackAlert, type FeedbackSentiment } from './email-templates/feedback-alert.js';
 
 export interface DispatchFeedbackAlertInput {
   feedbackId: string;
@@ -36,7 +33,7 @@ export async function dispatchFeedbackAlert(input: DispatchFeedbackAlertInput): 
       subject: rendered.subject,
       html: rendered.html,
       text: rendered.text,
-      replyTo: userEmail,
+      replyTo: userEmail || undefined,
       tags: [
         { name: 'kind', value: 'feedback_alert' },
         { name: 'sentiment', value: sentiment },
