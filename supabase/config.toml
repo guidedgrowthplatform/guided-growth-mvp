@@ -6,3 +6,8 @@
 [auth.hook.custom_access_token]
 enabled = true
 uri = "pg-functions://postgres/public/custom_access_token_hook"
+
+# Staging remote — target for `supabase config push --project-ref <ref>`.
+# project_id must be a literal ref (env() interpolation unsupported here).
+[remotes.staging]
+project_id = "ppyouymvnrqxcsllrmsl"
