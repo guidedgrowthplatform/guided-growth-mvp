@@ -8,7 +8,7 @@ How Guided Growth runs two environments: **production** (live users) and **stagi
 - **Staging/QA app:** `https://guided-growth-qa.vercel.app` — **live**, pinned to the `staging` branch (Vercel → Domains, Preview + branch `staging`). Stable fallback alias: `https://guided-growth-mvp-git-staging-guided-growths-projects.vercel.app`.
 - **Caveat (until §4 done):** the QA app currently runs on the **Preview-scope env vars, which still point at the prod Supabase** — so QA writes land in prod until a separate staging project is provisioned and wired. Not for tester data-entry yet.
 
-> **Supersedes the shared-backend stance in `docs/dual-app-handoff.md`.** That doc's locked 2026-06-06 decision (QA shares the prod database, isolated by account) is reversed by the decision to run a separate staging environment. `docs/ENVIRONMENTS.md` already assumes a per-stage `staging` Supabase project — this doc is the backend half of that. The three docs must be reconciled (see review note); until then, this doc governs the database split.
+> **Decided — separate staging environment is approved** (Yair + team), superseding the 2026-06-06 shared-backend stance in `docs/dual-app-handoff.md` (QA shares prod, account-isolated). `docs/ENVIRONMENTS.md` already assumes a per-stage `staging` Supabase project — this doc is the backend half of that. Follow-up: reconcile the two older docs to point here for the database split.
 
 ---
 
