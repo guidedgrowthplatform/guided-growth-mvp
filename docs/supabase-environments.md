@@ -5,7 +5,8 @@ How Guided Growth runs two environments: **production** (live users) and **stagi
 - **Production project ref:** `pmunbflbjpoawicgimyc`
 - **Staging project ref:** _TBD — created in §4 Step 1_
 - **Production app:** live site on `main`
-- **Staging/QA app:** stable `*.vercel.app` URL (e.g. `gg-staging.vercel.app`) on the `staging` branch
+- **Staging/QA app:** `https://guidedgrowth-qa.vercel.app` — **configured**, pinned to the `staging` branch (Vercel → Domains, Preview + branch `staging`). Stable fallback alias: `https://guided-growth-mvp-git-staging-guided-growths-projects.vercel.app`.
+- **Caveat (until §4 done):** the QA app currently runs on the **Preview-scope env vars, which still point at the prod Supabase** — so QA writes land in prod until a separate staging project is provisioned and wired. Not for tester data-entry yet.
 
 > **Supersedes the shared-backend stance in `docs/dual-app-handoff.md`.** That doc's locked 2026-06-06 decision (QA shares the prod database, isolated by account) is reversed by the decision to run a separate staging environment. `docs/ENVIRONMENTS.md` already assumes a per-stage `staging` Supabase project — this doc is the backend half of that. The three docs must be reconciled (see review note); until then, this doc governs the database split.
 
@@ -53,12 +54,14 @@ We use **two independent projects** because migrations are already CLI-driven, w
 
 ## 3. Stable QA app on Vercel
 
-A permanent QA URL testers use every day, fed by the `staging` branch — not Vercel's throwaway per-MR previews.
+A permanent QA URL testers use every day, fed by the `staging` branch — not Vercel's throwaway per-MR previews. **Done:** `guidedgrowth-qa.vercel.app` is live on `staging`.
 
-- **Same Vercel project** (`guided-growth-mvp`); a fixed `*.vercel.app` domain pinned to the `staging` branch. No DNS work.
-- **Pick a short name freely.** In **Domains → Add Domain**, type any globally-unique `*.vercel.app` name (e.g. `gg-staging.vercel.app`, `guidedgrowth-qa.vercel.app`). It need not include the `guided-growths-projects` org slug; if taken, pick another.
-- **Pin it.** On that domain's settings, set **Git Branch = `staging`**. Every merge into `staging` rebuilds the same URL. The branch must have deployed once for the URL to serve content — push `staging` first, then assign.
-- **Custom subdomain later** (e.g. `qa.guidedgrowthapp.com`) is the same Domains → Add flow with a domain you own (needs a DNS record). Not required now.
+How it was set up (Vercel → **Domains** — not under Settings):
+
+- **Same Vercel project** (`guided-growth-mvp`); free `*.vercel.app` subdomain, no DNS, no purchase.
+- **Add Existing** → `guidedgrowth-qa.vercel.app` → **Connect to an environment: Preview** → branch **`staging`** → Add Domain. Left the prod row (`guided-growth-mvp.vercel.app → Production`) untouched.
+- **Gotcha:** a domain freshly connected to a Preview branch may **404 until the next deployment to that branch** — it doesn't retroactively alias the existing one. Push any commit to `staging` (or redeploy) and it starts serving. The auto alias `…-git-staging-…vercel.app` serves immediately in the meantime.
+- **Custom subdomain later** (e.g. `qa.guidedgrowthapp.com`) is the same flow with a domain you own (needs DNS). Not required.
 
 ---
 
