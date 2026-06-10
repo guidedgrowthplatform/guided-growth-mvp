@@ -8,6 +8,7 @@ import { type OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { useCtaLoading } from '../shared/useCtaLoading';
 import { useStepTiming } from '../shared/useStepTiming';
 
 const categories = [
@@ -58,15 +59,18 @@ export function Step3Page() {
     navigate('/onboarding/step-4', { state: { category: selected } });
   }, [selected, navigate, saveStepAsync, trackStepComplete]);
 
+  const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleNext);
+
   return (
     <OnboardingLayout
       screenId="ONBOARD-BEGINNER-01"
       formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"
-      onNext={handleNext}
+      onNext={handleNextCta}
       onBack={() => navigate('/onboarding/step-2')}
       ctaDisabled={!selected}
+      ctaLoading={ctaLoading}
       showVoiceButton
       aiListeningPrompt='"What is the main category you would like to focus on?"'
       onVoiceAction={handleVoiceAction}

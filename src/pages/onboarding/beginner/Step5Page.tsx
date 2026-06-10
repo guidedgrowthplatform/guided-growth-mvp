@@ -17,6 +17,7 @@ import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { useSessionLog } from '@/hooks/useSessionLog';
+import { useCtaLoading } from '../shared/useCtaLoading';
 import { useStepTiming } from '../shared/useStepTiming';
 import { deriveHabitVoiceUpdate } from './deriveHabitVoiceUpdate';
 
@@ -335,6 +336,8 @@ export function Step5Page() {
     trackStepComplete,
   ]);
 
+  const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleOnNext);
+
   return (
     <>
       <OnboardingLayout
@@ -342,13 +345,14 @@ export function Step5Page() {
         formSnapshot={snapshot}
         ctaLabel="Continue"
         ctaVariant="inline"
-        onNext={handleOnNext}
+        onNext={handleNextCta}
         onBack={
           phase === 'confirming'
             ? () => setPhase('selecting')
             : () => navigate('/onboarding/step-4')
         }
         ctaDisabled={phase === 'selecting' && selectedHabits.size === 0}
+        ctaLoading={ctaLoading}
         showVoiceButton
         aiListeningPrompt='"Select up to 2 daily habits to build your foundation."'
         onVoiceAction={handleVoiceAction}

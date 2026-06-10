@@ -8,6 +8,7 @@ import { type OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { useCtaLoading } from '../shared/useCtaLoading';
 import { useStepTiming } from '../shared/useStepTiming';
 
 export function AdvancedInputPage() {
@@ -49,6 +50,8 @@ export function AdvancedInputPage() {
     navigate('/onboarding/advanced-results', { state: { text } });
   }, [text, navigate, saveStepAsync, trackStepComplete]);
 
+  const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleNext);
+
   return (
     <OnboardingLayout
       screenId="ONBOARD-ADVANCED"
@@ -56,8 +59,9 @@ export function AdvancedInputPage() {
       ctaLabel="Continue"
       ctaVariant="inline"
       onBack={() => navigate('/onboarding/step-2')}
-      onNext={handleNext}
+      onNext={handleNextCta}
       ctaDisabled={!text.trim()}
+      ctaLoading={ctaLoading}
       showVoiceButton
       onVoiceAction={handleVoiceAction}
     >
