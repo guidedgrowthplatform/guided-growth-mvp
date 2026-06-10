@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { isTraceOn, startTurnTrace } from '@/lib/debug/traceConsole';
 import { sessionReady, supabase } from '@/lib/supabase';
 import type { LLMRequest, LLMStreamEvent } from '@gg/shared/types/llm';
 
@@ -45,6 +46,50 @@ export async function streamLLM(
   onEvent: (e: LLMStreamEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
+  // Dev-only trace of this turn. No-op unless ?debug=1 / localStorage gg_debug=1.
+  const tracing = isTraceOn();
+  const trace = tracing
+    ? startTurnTrace(`llm · ${req.screen_id}`, {
+        screen_id: req.screen_id,
+        user_message: req.user_message,
+        ...(req.mode ? { mode: req.mode } : {}),
+        ...(req.coaching_style ? { coaching_style: req.coaching_style } : {}),
+      })
+    : null;
+  let assembledText = '';
+  let deltaCount = 0;
+  const handleEvent = (evt: LLMStreamEvent): void => {
+    if (tracing && trace) {
+      switch (evt.type) {
+        case 'delta':
+          deltaCount += 1;
+          assembledText += evt.content;
+          break;
+        case 'tool_call':
+          trace.event(`tool_call → ${evt.name}`, evt.args);
+          break;
+        case 'tool_result':
+          trace.event(`tool_result ← ${evt.id} ok=${evt.ok}`, evt.result);
+          break;
+        case 'done':
+          trace.event(
+            `assistant text (${deltaCount} chunk${deltaCount === 1 ? '' : 's'})`,
+            assembledText,
+          );
+          trace.event('server summary', {
+            latency_ms: evt.latency_ms,
+            total_tokens: evt.total_tokens,
+            tool_rounds: evt.tool_rounds,
+          });
+          break;
+        case 'error':
+          trace.event(`error · ${evt.code}`, evt.message);
+          break;
+      }
+    }
+    onEvent(evt);
+  };
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'text/event-stream',
@@ -85,10 +130,14 @@ export async function streamLLM(
         // ignore
       }
     }
+    trace?.event(`http_error · ${response.status}`, message);
+    trace?.end();
     throw new Error(message);
   }
 
   if (!response.body) {
+    trace?.event('no_response_body');
+    trace?.end();
     throw new Error('Response has no body');
   }
 
@@ -117,15 +166,16 @@ export async function streamLLM(
       let block: string | null;
       while ((block = splitOff()) !== null) {
         const evt = parseEventBlock(block);
-        if (evt) onEvent(evt);
+        if (evt) handleEvent(evt);
       }
     }
     buffer += decoder.decode();
     if (buffer.trim().length > 0) {
       const evt = parseEventBlock(buffer);
-      if (evt) onEvent(evt);
+      if (evt) handleEvent(evt);
     }
   } finally {
+    trace?.end();
     try {
       reader.releaseLock();
     } catch {
