@@ -101,7 +101,7 @@ export function Step4Page() {
     >
       <OnboardingHeader
         title="Let's narrow it down"
-        subtitle={`Choose 1 or 2 specific goals to help you ${category.toLowerCase()}`}
+        subtitle={`Choose 1 or 2 specific areas to help you ${category.toLowerCase()}`}
       />
       <div className="inline-flex items-center gap-1 rounded-[10px] bg-surface px-2 py-1">
         <Icon icon="iconamoon:category" width={24} height={24} className="text-content" />
