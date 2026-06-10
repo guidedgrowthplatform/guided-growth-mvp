@@ -8,6 +8,10 @@
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?project_ref=pmunbflbjpoawicgimyc&read_only=true&features=database,docs"
     },
+    "sentry": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp"
+    },
     "google-sheets": {
       "command": "uvx",
       "args": ["mcp-google-sheets@latest"],
