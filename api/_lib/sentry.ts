@@ -63,6 +63,11 @@ function redact(value: unknown, key?: string, seen: WeakSet<object> = new WeakSe
   return value;
 }
 
+// Shared with the Vapi live-debug broadcaster — same PII rules, object form.
+export function redactArgs(args: unknown): unknown {
+  return redact(args);
+}
+
 function safeArgs(args: unknown): string {
   try {
     return JSON.stringify(redact(args)) ?? 'undefined';

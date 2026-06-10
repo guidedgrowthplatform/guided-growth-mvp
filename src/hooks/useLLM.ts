@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { streamLLM } from '@/api/llm';
+import { isOnboardingScreen, logDebugEvent } from '@/lib/debug/onboardingDebug';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import type {
   CoachingStyle,
@@ -136,6 +137,9 @@ export function useLLM(
       let sawTerminal = false;
       const localTools: LLMToolEvent[] = [];
 
+      // Direct-LLM (Path 2/3) tap — onboarding only; same console timeline as Vapi.
+      const debugOnb = isOnboardingScreen(screenId);
+
       const onEvent = (e: LLMStreamEvent) => {
         switch (e.type) {
           case 'delta': {
@@ -150,9 +154,21 @@ export function useLLM(
             const evt: LLMToolEvent = { id: e.id, name: e.name, args: e.args };
             localTools.push(evt);
             setToolEvents((prev) => [...prev, evt]);
+            if (debugOnb)
+              logDebugEvent({ source: 'llm', label: e.name, ok: null, detail: { args: e.args } });
             break;
           }
           case 'tool_result': {
+            if (debugOnb) {
+              const t = localTools.find((x) => x.id === e.id);
+              logDebugEvent({
+                source: 'llm',
+                label: t?.name ?? 'tool_result',
+                ok: e.ok,
+                code: e.ok ? null : 'tool_failed',
+                detail: { result: e.result },
+              });
+            }
             const idx = localTools.findIndex((t) => t.id === e.id);
             if (idx >= 0) {
               const updated: LLMToolEvent = {
@@ -207,6 +223,14 @@ export function useLLM(
           case 'error': {
             sawTerminal = true;
             flushDeltaBuffer();
+            if (debugOnb)
+              logDebugEvent({
+                source: 'llm',
+                label: 'llm_error',
+                ok: false,
+                code: e.code,
+                detail: { message: e.message },
+              });
             if (opts.surfaceErrors) {
               setStatus('error');
               setError(new Error(`${e.code}: ${e.message}`));

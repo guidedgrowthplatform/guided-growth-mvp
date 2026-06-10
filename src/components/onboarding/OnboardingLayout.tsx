@@ -13,6 +13,7 @@ import {
 } from '@/contexts/useOnboardingVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
+import { useOnboardingEventLog } from '@/hooks/useOnboardingEventLog';
 import { useOnboardingRealtimeSync } from '@/hooks/useOnboardingRealtimeSync';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
@@ -71,6 +72,8 @@ export function OnboardingLayout({
   // directly. Subscribe here so the postgres_changes broadcast lands in React
   // Query cache and the form auto-fills without a refetch.
   useOnboardingRealtimeSync();
+  // All-path event timeline → devtools console (DEV, or localStorage.gg_onboarding_debug).
+  useOnboardingEventLog();
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),
   );

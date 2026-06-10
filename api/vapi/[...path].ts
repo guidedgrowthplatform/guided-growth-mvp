@@ -26,6 +26,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyVapiSecret } from '../_lib/vapi/verifySecret.js';
 import { dispatchVapiToolCall } from '../_lib/vapi/dispatch.js';
 import { reportToolFailure, flushSentry } from '../_lib/sentry.js';
+import { broadcastVapiToolEvent } from '../_lib/vapi/debugChannel.js';
 
 interface VapiToolCall {
   id: string;
@@ -96,6 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const callId = message.call?.id ?? 'unknown';
     const results: ToolCallResultEnvelope[] = [];
+    const broadcasts: Promise<void>[] = [];
 
     for (const toolCall of message.toolCallList) {
       const toolCallId = toolCall.id;
@@ -132,6 +134,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const outcome = await dispatchVapiToolCall(name, args);
         if ('result' in outcome) {
           results.push({ toolCallId, result: outcome.result });
+          broadcasts.push(broadcastVapiToolEvent({ anonId, callId, tool: name, ok: true, args }));
         } else {
           // Normalize 'unknown_tool: foo' → 'unknown_tool' so fingerprint/tag/sampling stay bounded.
           const code = outcome.error.split(':')[0].trim();
@@ -142,15 +145,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             args: { ...args, vapi_error: outcome.error },
           });
           results.push({ toolCallId, error: outcome.error });
+          broadcasts.push(
+            broadcastVapiToolEvent({
+              anonId,
+              callId,
+              tool: name,
+              ok: false,
+              errorCode: code,
+              args,
+            }),
+          );
         }
       } catch (err) {
         console.error(`[vapi/tool] handler_error name=${name}`, err);
         reportToolFailure({ tool: name, anonId, errorCode: 'handler_error', args, error: err });
         results.push({ toolCallId, error: 'handler_error' });
+        broadcasts.push(
+          broadcastVapiToolEvent({
+            anonId,
+            callId,
+            tool: name,
+            ok: false,
+            errorCode: 'handler_error',
+            args,
+          }),
+        );
       }
     }
 
-    await flushSentry();
+    await Promise.all([...broadcasts, flushSentry()]);
     return res.status(200).json({ results });
   }
 
