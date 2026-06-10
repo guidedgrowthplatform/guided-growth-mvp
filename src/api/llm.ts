@@ -12,7 +12,7 @@ function getApiUrl(): string {
   return '';
 }
 
-const VALID_TYPES = new Set(['delta', 'tool_call', 'tool_result', 'done', 'error']);
+const VALID_TYPES = new Set(['delta', 'tool_call', 'tool_result', 'done', 'error', 'debug']);
 
 function parseEventBlock(block: string): LLMStreamEvent | null {
   const lines = block.split('\n');
@@ -85,8 +85,12 @@ export async function streamLLM(
         case 'error':
           trace.event(`error · ${evt.code}`, evt.message);
           break;
+        case 'debug':
+          trace.event(`· ${evt.phase}`, evt.data);
+          break;
       }
     }
+    if (evt.type === 'debug') return; // backend trace, console-only, not forwarded to the app
     onEvent(evt);
   };
 
@@ -113,7 +117,7 @@ export async function streamLLM(
     method: 'POST',
     credentials: 'include',
     headers,
-    body: JSON.stringify(req),
+    body: JSON.stringify(tracing ? { ...req, debug: true } : req),
     signal,
   });
 
