@@ -15,6 +15,7 @@ import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { Sentry } from '@/lib/sentry';
+import { useCtaLoading } from '../shared/useCtaLoading';
 import { useStepTiming } from '../shared/useStepTiming';
 
 export function Step6Page() {
@@ -169,6 +170,8 @@ export function Step6Page() {
     trackStepComplete,
   ]);
 
+  const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleOnNext);
+
   return (
     <OnboardingLayout
       screenId="ONBOARD-BEGINNER-07"
@@ -178,7 +181,8 @@ export function Step6Page() {
       showVoiceButton
       aiListeningPrompt='"When would you like to do your daily reflection?"'
       footerText="You can change these settings later in your profile."
-      onNext={handleOnNext}
+      onNext={handleNextCta}
+      ctaLoading={ctaLoading}
       onVoiceAction={handleVoiceAction}
       onBack={() =>
         navigate('/onboarding/step-5', {

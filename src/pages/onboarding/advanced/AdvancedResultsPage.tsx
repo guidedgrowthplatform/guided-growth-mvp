@@ -11,6 +11,7 @@ import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
+import { useCtaLoading } from '../shared/useCtaLoading';
 import { useStepTiming } from '../shared/useStepTiming';
 
 interface HabitItem {
@@ -175,6 +176,8 @@ export function AdvancedResultsPage() {
     navigate('/onboarding/advanced-step-6', { state: { habitConfigs: habitConfigsArray } });
   }, [habits, navigate, saveStepAsync, trackStepComplete]);
 
+  const { loading: ctaLoading, run: handleConfirmCta } = useCtaLoading(handleConfirm);
+
   if (habits.length === 0) {
     return (
       <OnboardingLayout
@@ -205,7 +208,8 @@ export function AdvancedResultsPage() {
       formSnapshot={snapshot}
       ctaLabel="Continue"
       onBack={() => navigate('/onboarding/advanced-input')}
-      onNext={handleConfirm}
+      onNext={handleConfirmCta}
+      ctaLoading={ctaLoading}
       onVoiceAction={handleVoiceAction}
       showVoiceButton
       hideOpenChat

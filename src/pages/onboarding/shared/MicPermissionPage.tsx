@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useStepTiming } from './useStepTiming';
@@ -12,7 +13,7 @@ export function MicPermissionPage() {
   const navigate = useNavigate();
   const { preferences, updatePreferences } = useUserPreferences();
   const { logEvent } = useSessionLog();
-  const [requesting, setRequesting] = useState(false);
+  const [requesting, setRequesting] = useState<'allow' | 'dismiss' | null>(null);
   const voiceEnabled = preferences.voiceMode === 'voice';
   const micGranted = preferences.micPermission === true;
   const trackStepComplete = useStepTiming(1, 'mic_permission', null);
@@ -33,7 +34,7 @@ export function MicPermissionPage() {
 
   const handleAllow = async () => {
     if (requesting) return;
-    setRequesting(true);
+    setRequesting('allow');
     let granted = true;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -49,7 +50,7 @@ export function MicPermissionPage() {
 
   const handleDismiss = async () => {
     if (requesting) return;
-    setRequesting(true);
+    setRequesting('dismiss');
     track('grant_mic_permission', { granted: false, dismissed: true });
     logEvent('mic_permission_denied', {}, 'MIC-PERMISSION');
     await updatePreferences({ micPermission: false, micEnabled: false });
@@ -95,18 +96,18 @@ export function MicPermissionPage() {
           <button
             type="button"
             onClick={handleAllow}
-            disabled={requesting}
+            disabled={requesting !== null}
             className="flex h-[56px] w-full items-center justify-center rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] transition-opacity disabled:opacity-50"
           >
-            Allow Microphone
+            {requesting === 'allow' ? <LoadingSpinner color="text-white" /> : 'Allow Microphone'}
           </button>
           <button
             type="button"
             onClick={handleDismiss}
-            disabled={requesting}
-            className="py-[8px] text-[15px] font-semibold text-content"
+            disabled={requesting !== null}
+            className="flex items-center justify-center py-[8px] text-[15px] font-semibold text-content"
           >
-            Dismiss
+            {requesting === 'dismiss' ? <LoadingSpinner size="sm" /> : 'Dismiss'}
           </button>
         </div>
       </div>

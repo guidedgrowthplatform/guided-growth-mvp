@@ -17,6 +17,7 @@ import {
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { useCtaLoading } from '../shared/useCtaLoading';
 import { useStepTiming } from '../shared/useStepTiming';
 
 const DEFAULT_QUESTIONS = [
@@ -137,13 +138,16 @@ export function AdvancedStep6Page() {
     });
   }, [habitConfigs, selectedDays, navigate, saveStepAsync, trackStepComplete]);
 
+  const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleReviewPlan);
+
   return (
     <OnboardingLayout
       screenId="ONBOARD-ADVANCED-04"
       formSnapshot={snapshot}
       ctaLabel="Continue"
       onBack={() => navigate('/onboarding/advanced-results')}
-      onNext={handleReviewPlan}
+      onNext={handleNextCta}
+      ctaLoading={ctaLoading}
       showVoiceButton
       onVoiceAction={handleVoiceAction}
     >

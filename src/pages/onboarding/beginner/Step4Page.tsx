@@ -10,6 +10,7 @@ import { goalsByCategory } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { useCtaLoading } from '../shared/useCtaLoading';
 import { useStepTiming } from '../shared/useStepTiming';
 
 export function Step4Page() {
@@ -82,15 +83,18 @@ export function Step4Page() {
     navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
   }, [selected, category, navigate, saveStepAsync, trackStepComplete]);
 
+  const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleNext);
+
   return (
     <OnboardingLayout
       screenId="ONBOARD-BEGINNER-02"
       formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"
-      onNext={handleNext}
+      onNext={handleNextCta}
       onBack={() => navigate('/onboarding/step-3')}
       ctaDisabled={selected.size === 0}
+      ctaLoading={ctaLoading}
       showVoiceButton
       aiListeningPrompt='"Within that category, what specific area would you like to improve?"'
       onVoiceAction={handleVoiceAction}

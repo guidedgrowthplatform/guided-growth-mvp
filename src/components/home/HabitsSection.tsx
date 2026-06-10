@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
+import { DailyProgressCard } from '@/components/habits/DailyProgressCard';
 import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { useToast } from '@/contexts/ToastContext';
 import { useHabitsForDate } from '@/hooks/useHabitsForDate';
@@ -159,6 +160,10 @@ export function HabitsSection({ selectedDate, screenId }: HabitsSectionProps) {
         onAction={() => navigate('/habits')}
       />
       <div className="flex flex-col gap-3">
+        <DailyProgressCard
+          completed={habits.filter((h) => h.completed).length}
+          total={habits.length}
+        />
         {habits.map((item) => (
           <HabitListItem
             key={item.habit.id}

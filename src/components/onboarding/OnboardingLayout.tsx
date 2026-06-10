@@ -5,6 +5,7 @@ import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components
 import { OnboardingSubtitleBar } from '@/components/onboarding/OnboardingSubtitleBar';
 import { VoiceTooltip } from '@/components/onboarding/VoiceTooltip';
 import { DualButton } from '@/components/ui/DualButton';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import {
   useOnboardingVoice,
   useOnboardingVoiceActions,
@@ -23,6 +24,7 @@ interface OnboardingLayoutProps {
   ctaLabel: string;
   onNext: () => void;
   ctaDisabled?: boolean;
+  ctaLoading?: boolean;
   children: ReactNode;
   showVoiceButton?: boolean;
   hideOpenChat?: boolean;
@@ -47,6 +49,7 @@ export function OnboardingLayout({
   ctaLabel,
   onNext,
   ctaDisabled,
+  ctaLoading,
   children,
   showVoiceButton,
   hideOpenChat = false,
@@ -255,10 +258,10 @@ export function OnboardingLayout({
           <button
             type="button"
             onClick={handleNext}
-            disabled={ctaDisabled}
+            disabled={ctaDisabled || ctaLoading}
             className="flex h-[56px] w-full items-center justify-center gap-2 rounded-full bg-primary text-[18px] font-medium leading-[28px] text-white shadow-[0px_20px_25px_-5px_rgba(26,47,176,0.2),0px_8px_10px_-6px_rgba(26,47,176,0.2)] transition-opacity disabled:opacity-50"
           >
-            {ctaLabel}
+            {ctaLoading ? <LoadingSpinner color="text-white" /> : ctaLabel}
           </button>
 
           {showVoiceButton && !onVoiceAction && (isListening || interim || transcript || error) && (
@@ -300,10 +303,10 @@ export function OnboardingLayout({
           <button
             type="button"
             onClick={handleNext}
-            disabled={ctaDisabled}
+            disabled={ctaDisabled || ctaLoading}
             className="flex h-[56px] w-full items-center justify-center rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] disabled:opacity-50"
           >
-            {ctaLabel}
+            {ctaLoading ? <LoadingSpinner color="text-white" /> : ctaLabel}
           </button>
           {(transcript || interim || error) &&
             showVoiceButton &&

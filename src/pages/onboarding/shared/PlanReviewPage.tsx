@@ -170,9 +170,9 @@ export function PlanReviewPage() {
     <OnboardingLayout
       screenId={source === 'advanced' ? 'ONBOARD-ADVANCED-05' : 'ONBOARD-BEGINNER-06'}
       formSnapshot={snapshot}
-      ctaLabel={isCompleting ? 'Completing...' : 'Start plan'}
+      ctaLabel="Start plan"
       onNext={handleStartPlan}
-      ctaDisabled={isCompleting}
+      ctaLoading={isCompleting}
       showVoiceButton
       onVoiceAction={handleVoiceAction}
       onBack={() =>
