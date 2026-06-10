@@ -31,8 +31,8 @@ export function buildCanonicalOptionsBlock(
         ? [[category, goalsByCategory[category]]]
         : Object.entries(goalsByCategory);
     return (
-      `\n\n## Goal Options${category ? ` (category: ${category})` : ''}\n` +
-      `Offer ONLY these goals, verbatim — never invent, rename, or paraphrase. Save using these exact labels.\n` +
+      `\n\n## Subcategory Options${category ? ` (category: ${category})` : ''}\n` +
+      `Offer ONLY these subcategories, verbatim — never invent, rename, or paraphrase. Save using these exact labels.\n` +
       formatOptions(rows)
     );
   }
@@ -44,8 +44,8 @@ export function buildCanonicalOptionsBlock(
       .map((g) => [g, habitsByGoal[g]]);
     if (rows.length === 0) return '';
     return (
-      `\n\n## Habit Options by Goal\n` +
-      `Suggest habits ONLY from this list, verbatim, for the user's goal(s). Do not invent or rename them.\n` +
+      `\n\n## Habit Options by Subcategory\n` +
+      `Suggest habits ONLY from this list, verbatim, for the user's subcategory(ies). Do not invent or rename them.\n` +
       formatOptions(rows)
     );
   }

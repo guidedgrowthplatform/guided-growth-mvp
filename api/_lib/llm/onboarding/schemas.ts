@@ -114,13 +114,13 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'submit_goals',
     description:
-      "Persist the user's COMPLETE goal selection (1–2 goals) on ONBOARD-BEGINNER-02. This REPLACES the prior save, so EVERY call MUST include ALL goals the user currently wants — not just the newest one. Do not wait for both — 1 is enough to call. Each string MUST be copied verbatim from the GOAL OPTIONS BY CATEGORY list for the user's chosen category (shown in the screen context). Never paraphrase, rename, or invent a goal label — non-matching strings are rejected.",
+      "Persist the user's COMPLETE subcategory selection (1–2 subcategories) on ONBOARD-BEGINNER-02. This REPLACES the prior save, so EVERY call MUST include ALL subcategories the user currently wants — not just the newest one. Do not wait for both — 1 is enough to call. Each string MUST be copied verbatim from the Subcategory Options list for the user's chosen category (shown in the screen context). Never paraphrase, rename, or invent a subcategory label — non-matching strings are rejected.",
     parameters: {
       type: 'object',
       properties: {
         goals: {
           type: 'array',
-          description: 'Array of 1-2 goal labels.',
+          description: 'Array of 1-2 subcategory labels.',
           items: { type: 'string' },
         },
       },
