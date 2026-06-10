@@ -18,6 +18,13 @@
       "env": {
         "SERVICE_ACCOUNT_PATH": "${SERVICE_ACCOUNT_PATH}"
       }
+    },
+    "vapi": {
+      "command": "npx",
+      "args": ["-y", "@vapi-ai/mcp-server"],
+      "env": {
+        "VAPI_TOKEN": "${VAPI_TOKEN}"
+      }
     }
   }
 }
