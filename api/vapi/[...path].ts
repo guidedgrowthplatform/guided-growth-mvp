@@ -25,6 +25,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyVapiSecret } from '../_lib/vapi/verifySecret.js';
 import { dispatchVapiToolCall } from '../_lib/vapi/dispatch.js';
+import { reportToolFailure, flushSentry } from '../_lib/sentry.js';
 
 interface VapiToolCall {
   id: string;
@@ -116,6 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log(
           `[vapi/tool] validation_failed reason=args_not_object name=${name} raw=${typeof rawArgs}`,
         );
+        reportToolFailure({ tool: name, errorCode: 'invalid_args' });
         results.push({ toolCallId, error: 'invalid_args' });
         continue;
       }
@@ -131,14 +133,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if ('result' in outcome) {
           results.push({ toolCallId, result: outcome.result });
         } else {
+          // Normalize 'unknown_tool: foo' → 'unknown_tool' so fingerprint/tag/sampling stay bounded.
+          const code = outcome.error.split(':')[0].trim();
+          reportToolFailure({
+            tool: name,
+            anonId,
+            errorCode: code,
+            args: { ...args, vapi_error: outcome.error },
+          });
           results.push({ toolCallId, error: outcome.error });
         }
       } catch (err) {
         console.error(`[vapi/tool] handler_error name=${name}`, err);
+        reportToolFailure({ tool: name, anonId, errorCode: 'handler_error', args, error: err });
         results.push({ toolCallId, error: 'handler_error' });
       }
     }
 
+    await flushSentry();
     return res.status(200).json({ results });
   }
 
