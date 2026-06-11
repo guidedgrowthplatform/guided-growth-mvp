@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHECKIN_TOOLS, CHECKIN_TOOL_NAMES, isCheckinToolName } from '../schemas.js';
-import { getCheckinTools, isCheckinScreen } from '../registry.js';
+import { getCheckinTools, getReadOnlyCheckinTools, isCheckinScreen } from '../registry.js';
 
 describe('CHECKIN_TOOLS', () => {
   it('exposes the thirteen canonical tool names', () => {
@@ -212,7 +212,7 @@ describe('getCheckinTools / isCheckinScreen', () => {
     expect(getCheckinTools('HOME-FIRST')).toBeUndefined();
     expect(getCheckinTools('HOME-MORNING')).toBeUndefined();
     expect(getCheckinTools('ONBOARD-01--FORM')).toBeUndefined();
-    // Wrap-up + other MCHECK/ECHECK steps are not wired for tools (only the entry screens).
+    // Wrap-up + other MCHECK/ECHECK steps are not wired for full tools (only entry screens).
     expect(getCheckinTools('ECHECK-06')).toBeUndefined();
     expect(getCheckinTools(null)).toBeUndefined();
     expect(getCheckinTools(undefined)).toBeUndefined();
@@ -224,5 +224,38 @@ describe('getCheckinTools / isCheckinScreen', () => {
     expect(isCheckinScreen('MCHECK-01')).toBe(true);
     expect(isCheckinScreen('HOME-FIRST')).toBe(false);
     expect(isCheckinScreen(null)).toBe(false);
+  });
+});
+
+describe('getReadOnlyCheckinTools', () => {
+  it('returns [query_habits, get_summary] for dashboard / chat / wrap-up screens', () => {
+    const expected = ['get_summary', 'query_habits'];
+    expect(
+      getReadOnlyCheckinTools('HOME-FIRST')
+        ?.map((t) => t.name)
+        .sort(),
+    ).toEqual(expected);
+    expect(
+      getReadOnlyCheckinTools('HOME-MORNING')
+        ?.map((t) => t.name)
+        .sort(),
+    ).toEqual(expected);
+    expect(
+      getReadOnlyCheckinTools('ECHECK-06')
+        ?.map((t) => t.name)
+        .sort(),
+    ).toEqual(expected);
+  });
+
+  it('returns undefined for onboarding (owns its own surface) and dedicated check-in screens', () => {
+    expect(getReadOnlyCheckinTools('ONBOARD-01--FORM')).toBeUndefined();
+    expect(getReadOnlyCheckinTools('ONBOARD-BEGINNER-03')).toBeUndefined();
+    // Dedicated check-in screens get the FULL CHECKIN_TOOLS via getCheckinTools; don't double-attach.
+    expect(getReadOnlyCheckinTools('HOME-CHECKIN')).toBeUndefined();
+    expect(getReadOnlyCheckinTools('MCHECK-01')).toBeUndefined();
+    expect(getReadOnlyCheckinTools('ECHECK-01')).toBeUndefined();
+    expect(getReadOnlyCheckinTools(null)).toBeUndefined();
+    expect(getReadOnlyCheckinTools(undefined)).toBeUndefined();
+    expect(getReadOnlyCheckinTools('')).toBeUndefined();
   });
 });

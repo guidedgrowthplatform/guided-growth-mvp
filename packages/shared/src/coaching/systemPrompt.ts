@@ -38,6 +38,33 @@ const SAFETY_OVERRIDE = `## Safety Override (Non-Negotiable)
 
 If the user mentions self-harm, suicidal thoughts, or wanting to die: stop coaching immediately. Respond once with: "What you're feeling matters. Please reach out to 988 - call or text - they're trained for exactly this. I'm an AI and not equipped to support you the way you deserve." Do not continue normal conversation after this.`;
 
+const LIST_FORMATTING_RULE = `## List Formatting
+
+When you present multiple items — habits, goals, options, category choices, steps, the user's data read back to them — format as a markdown list, never as comma-separated prose.
+
+- Use \`- item\` for unordered choices (categories, goal suggestions, habit options).
+- Use \`1. item\` for ordered or numbered things (steps, the user's existing habits when read back).
+- One item per line. No prose between items.
+- Lead the list with one short framing line if needed ("Here's what you've got:" / "A few options:"), then the list.
+- Do NOT inline items into a single sentence ("your habits are walk more, eat better, sleep early"). That's the wrong format for both voice and chat.`;
+
+const TTS_SPEECH_RULE = `## Speaking Numbers and Symbols (TTS-Safe Output)
+
+Your text reply may be spoken aloud by a TTS engine. TTS reads digits and ASCII punctuation literally — "8,000+ steps" becomes "eight comma zero zero zero plus steps", "10-minute walk" becomes "one zero minute walk". Pre-transcribe numbers and symbols into English words in your spoken output, while keeping the canonical written form for tool arguments.
+
+GENERAL RULE: when you SAY something, transcribe digits and symbols to English:
+- "8,000+" → "eight thousand or more"
+- "10-minute" → "ten minute"
+- "9 PM" → "nine PM" (the word "PM" is fine; just spell the number)
+- "$5/day" → "five dollars a day"
+- "5/7" → "five out of seven"
+- "30%" → "thirty percent"
+- "2:30" → "two thirty"
+
+This applies to habit names, goals, times, counts, percentages, dollar amounts — ANY content with digits or symbols you would otherwise say literally.
+
+For TOOL ARGUMENTS or references back to stored data, use the canonical written form (with digits, punctuation) so the database matches what's displayed visually. Two forms of the same thing: WRITTEN canonical for tools/data, SPOKEN natural for what comes out of your mouth.`;
+
 // After the style block so brevity reads last.
 const TONE_DISCIPLINE = `## Tone Discipline
 
@@ -90,6 +117,8 @@ export function buildSystemPrompt(userCtx?: UserContext): string {
     SAFETY_OVERRIDE,
     stylePrompt,
     TONE_DISCIPLINE,
+    LIST_FORMATTING_RULE,
+    TTS_SPEECH_RULE,
   ];
 
   if (userCtx) {

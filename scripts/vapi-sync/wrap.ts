@@ -42,9 +42,12 @@ function buildMessages(tool: OnboardingTool): VapiToolMessage[] | undefined {
   const m = tool.messages;
   if (!m) return undefined;
   const out: VapiToolMessage[] = [];
-  if (m.requestStart) out.push({ type: 'request-start', content: m.requestStart });
-  if (m.requestComplete) out.push({ type: 'request-complete', content: m.requestComplete });
-  if (m.requestFailed) out.push({ type: 'request-failed', content: m.requestFailed });
+  // !== undefined (not truthy): an empty string is an EXPLICIT silence signal.
+  // Truthy-stripping it makes Vapi fall back to its default ("Just a sec").
+  if (m.requestStart !== undefined) out.push({ type: 'request-start', content: m.requestStart });
+  if (m.requestComplete !== undefined)
+    out.push({ type: 'request-complete', content: m.requestComplete });
+  if (m.requestFailed !== undefined) out.push({ type: 'request-failed', content: m.requestFailed });
   return out.length > 0 ? out : undefined;
 }
 
