@@ -99,13 +99,20 @@ export function PlanReviewPage() {
     });
     // Clean up the persisted timestamp now that the flow is complete.
     localStorage.removeItem('gg_onboarding_started_at');
+    // End the Vapi session so voice doesn't bleed into /home post-onboarding.
+    // Fire-and-forget — completion proceeds regardless of whether endCall errors.
+    try {
+      onboardingVoice?.endCall();
+    } catch {
+      // ignore
+    }
     complete({
       habitConfigs: state.habitConfigs,
       goals: state.goals,
       category: state.category,
       reflectionConfig: state.reflectionConfig,
     });
-  }, [state, complete]);
+  }, [state, complete, source, onboardingVoice]);
 
   // Voice "let's go" mirrors the tap flow once the agent bumps current_step past 7.
   const autoCompletedRef = useRef(false);
@@ -147,7 +154,12 @@ export function PlanReviewPage() {
   );
 
   if (!state?.habitConfigs || !state?.reflectionConfig) {
-    Sentry.captureMessage('PlanReviewPage: missing state — redirecting to /onboarding', {
+    // Redirect to the earliest plausibly-incomplete step instead of /onboarding —
+    // bare /onboarding triggers OnboardingEntry, which re-routes based on
+    // current_step (still 7), creating a ping-pong loop. step-5 and step-4 have
+    // their own render guards that cascade back if their own data is missing.
+    const fallbackPath = !state?.habitConfigs ? '/onboarding/step-5' : '/onboarding/step-6';
+    Sentry.captureMessage(`PlanReviewPage: missing state — redirecting to ${fallbackPath}`, {
       level: 'error',
       tags: { flow: 'onboarding', step: '7-planreview' },
       extra: {
@@ -157,7 +169,7 @@ export function PlanReviewPage() {
         hasReflectionConfig: !!state?.reflectionConfig,
       },
     });
-    return <Navigate to="/onboarding" replace />;
+    return <Navigate to={fallbackPath} replace />;
   }
 
   const { habitConfigs, goals, category, reflectionConfig } = state;

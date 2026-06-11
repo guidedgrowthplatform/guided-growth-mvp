@@ -81,12 +81,21 @@ export function useOnboarding() {
   const completeMutation = useMutation({
     mutationFn: (finalData?: Partial<OnboardingStepData>) =>
       onboardingApi.completeOnboarding(finalData),
-    onSuccess: async (_result, finalData) => {
+    // Synchronous body, no await. Cache flip + clearSession + navigate fire
+    // before React can spin a re-render cascade between PlanReviewPage and
+    // AppGate — both subscribe to the same onboarding-state query, and a
+    // pre-this-fix async gap caused "Maximum update depth exceeded" when
+    // they both reacted to status='completed' simultaneously.
+    onSuccess: (_result, finalData) => {
       qc.setQueryData(queryKeys.onboarding.state, (old: OnboardingState | null | undefined) =>
         old
           ? { ...old, status: 'completed' as const, completed_at: new Date().toISOString() }
           : old,
       );
+      clearOnboardingChatSessionId();
+      navigate('/home', { replace: true, state: { fromOnboarding: true } });
+
+      // Fire-and-forget side effects — PlanReviewPage has already unmounted.
       const durationSec = Math.round((Date.now() - startTime) / 1000);
       const habitConfigs = finalData?.habitConfigs ?? finalData?.advancedHabitConfigs ?? null;
       const habitCount = habitConfigs ? Object.keys(habitConfigs).length : 0;
@@ -99,9 +108,7 @@ export function useOnboarding() {
         },
         'STARTING-PLAN',
       );
-      await useAuthStore.getState().updateProfile();
-      clearOnboardingChatSessionId();
-      navigate('/home', { replace: true, state: { fromOnboarding: true } });
+      void useAuthStore.getState().updateProfile();
     },
   });
 

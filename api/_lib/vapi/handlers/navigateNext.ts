@@ -51,6 +51,52 @@ function getInteger(args: Record<string, unknown>, key: string): number | undefi
   return undefined;
 }
 
+// Per-step data preconditions. Each entry: "if the user is leaving step N to
+// advance to N+1, this field must exist". Returns the missing-field message,
+// or null if the precondition passes. Back-nav (target_step <= current_step)
+// is always allowed — we only check FORWARD advances.
+function checkAdvanceData(args: {
+  sourceStep: number;
+  data: Record<string, unknown>;
+  path: string | null;
+  brainDumpRaw: string | null;
+}): string | null {
+  const { sourceStep, data, path, brainDumpRaw } = args;
+  switch (sourceStep) {
+    case 1:
+      if (!data.nickname) return 'profile_missing: call submit_profile (nickname required) first';
+      return null;
+    case 2:
+      if (!path) return 'path_missing: call submit_path_choice first';
+      return null;
+    case 3:
+      // Beginner path uses category; advanced (braindump) path uses brain_dump_raw.
+      if (!data.category && !(typeof brainDumpRaw === 'string' && brainDumpRaw.length > 0)) {
+        return 'category_or_braindump_missing: call submit_category (beginner) or submit_brain_dump (advanced) first';
+      }
+      return null;
+    case 4:
+      if (!Array.isArray(data.goals) || data.goals.length === 0) {
+        return 'goals_missing: call submit_goals first (with the chosen goals)';
+      }
+      return null;
+    case 5: {
+      const habits = data.habitConfigs as Record<string, unknown> | undefined;
+      if (!habits || Object.keys(habits).length === 0) {
+        return 'habits_missing: call add_habit at least once first';
+      }
+      return null;
+    }
+    case 6:
+      if (!data.reflectionConfig) {
+        return 'reflection_missing: call submit_reflection_config first';
+      }
+      return null;
+    default:
+      return null;
+  }
+}
+
 export async function navigateNext(args: Record<string, unknown>): Promise<HandlerResult> {
   console.log('[vapi/tool] received name=navigate_next anon_id=' + getString(args, 'anon_id'));
 
@@ -72,6 +118,49 @@ export async function navigateNext(args: Record<string, unknown>): Promise<Handl
     return {
       error: `validation_failed: target_step must be between ${MIN_STEP} and ${MAX_STEP}`,
     };
+  }
+
+  // Read current state for skip-check + data-precondition check. Both are
+  // backend hard guards against the agent skipping steps / advancing before
+  // the screen's data tool has fired. Prompt rules (RULE 7.5) already tell
+  // the model to chain data_tool → navigate_next; this is the safety net.
+  const existing = await pool.query<{
+    current_step: number;
+    data: Record<string, unknown> | null;
+    path: string | null;
+    brain_dump_raw: string | null;
+  }>(
+    `SELECT current_step, data, path, brain_dump_raw
+       FROM onboarding_states WHERE anon_id = $1`,
+    [anonId],
+  );
+  const row = existing.rows[0];
+  const currentStep = row?.current_step ?? 1;
+
+  // Reject multi-step forward jumps. Same step (re-render) and back-nav are fine.
+  if (targetStep > currentStep + 1) {
+    console.log(
+      `[vapi/tool] navigate_next rejected reason=cannot_skip_steps current=${currentStep} target=${targetStep}`,
+    );
+    return {
+      error: `cannot_skip_steps: current_step=${currentStep}, target_step=${targetStep}. Advance one step at a time.`,
+    };
+  }
+
+  // Single-step forward: verify the source step's data has been saved.
+  if (targetStep === currentStep + 1) {
+    const missing = checkAdvanceData({
+      sourceStep: currentStep,
+      data: (row?.data ?? {}) as Record<string, unknown>,
+      path: row?.path ?? null,
+      brainDumpRaw: row?.brain_dump_raw ?? null,
+    });
+    if (missing) {
+      console.log(
+        `[vapi/tool] navigate_next rejected reason=precondition_not_met current=${currentStep} target=${targetStep} detail=${missing}`,
+      );
+      return { error: missing };
+    }
   }
 
   // No GREATEST — explicitly set step to the LLM-supplied target. INSERT

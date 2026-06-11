@@ -1,6 +1,6 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -24,8 +24,10 @@ export function Step4Page() {
   // user gets here either way) so both paths render the right subcategory.
   const persistedCategory = onboardingState?.data?.category as string | undefined;
   const stateCategory = (location.state as { category?: string })?.category;
-  const category = persistedCategory ?? stateCategory ?? 'Sleep better';
-  const goals = goalsByCategory[category] ?? goalsByCategory['Sleep better'];
+  // No fallback: a missing category means step-3 didn't run / data was wiped.
+  // Don't pretend to know the right subcategory — redirect to step-3 (guard below).
+  const category = persistedCategory ?? stateCategory;
+  const goals = category ? (goalsByCategory[category] ?? []) : [];
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // ONBOARD-04 → step-5 on agent advance.
@@ -84,6 +86,12 @@ export function Step4Page() {
   }, [selected, category, navigate, saveStepAsync, trackStepComplete]);
 
   const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleNext);
+
+  // Render guard — declared after all hooks. If we arrived here without a
+  // category captured (browser refresh, agent skipped step-3, OnboardingEntry
+  // redirect with stale current_step), send the user back to step-3 instead of
+  // showing a guessed default.
+  if (!category) return <Navigate to="/onboarding/step-3" replace />;
 
   return (
     <OnboardingLayout

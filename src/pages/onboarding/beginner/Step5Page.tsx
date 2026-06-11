@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { track } from '@/analytics/posthog';
 import { HabitCustomizeSheet, type HabitConfig } from '@/components/onboarding/HabitCustomizeSheet';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
@@ -49,13 +49,11 @@ export function Step5Page() {
   // it and treat location.state as a fast-path hint.
   const persistedGoals = onboardingState?.data?.goals as string[] | undefined;
   const persistedCategory = onboardingState?.data?.category as string | undefined;
-  const goals = useMemo(
+  // No fallback to a hardcoded goal — if neither DB nor router state has goals,
+  // step-4 didn't run, and we redirect there via the guard below.
+  const goals = useMemo<string[] | undefined>(
     () =>
-      persistedGoals?.length
-        ? persistedGoals
-        : state?.goals?.length
-          ? state.goals
-          : ['Fall asleep earlier'],
+      persistedGoals?.length ? persistedGoals : state?.goals?.length ? state.goals : undefined,
     [persistedGoals, state],
   );
   const resolvedCategory = persistedCategory ?? state?.category;
@@ -78,7 +76,9 @@ export function Step5Page() {
     : undefined;
 
   const [customHabits, setCustomHabits] = useState<Record<string, string[]>>({});
-  const [expandedGoal, setExpandedGoal] = useState<string>(goals[0]);
+  // goals can be undefined transiently (render guard below sends user back to step-4),
+  // so default to '' here and let the guard handle the missing-goals case.
+  const [expandedGoal, setExpandedGoal] = useState<string>(goals?.[0] ?? '');
   const [selectedHabits, setSelectedHabits] = useState<Set<string>>(() =>
     incomingConfigs ? new Set(Object.keys(incomingConfigs)) : new Set(),
   );
@@ -118,8 +118,13 @@ export function Step5Page() {
   //   - selecting phase, no sheet  -> BEGINNER-03 (handled by route-driven push)
   //   - sheet open (1st habit)     -> BEGINNER-04
   //   - sheet open (2nd habit)     -> BEGINNER-05
-  //   - confirming phase, no sheet -> BEGINNER-06 (Review Habits)
-  // Pass `null` to revert to the route-derived screen.
+  //   - confirming phase, no sheet -> BEGINNER-03 (same as selecting)
+  // We intentionally do NOT push BEGINNER-06 in the confirming phase: that
+  // screen-id is also used by step-7 PlanReviewPage, whose context grants
+  // confirm_plan, and the model would erroneously fire confirm_plan from
+  // step-5 review-habits (skipping reflection entirely). Staying on
+  // BEGINNER-03 keeps navigate_next(target_step=6) as the correct way out
+  // and confirm_plan as FORBIDDEN.
   useEffect(() => {
     if (!onboardingVoice) return;
     if (customizingHabit !== null) {
@@ -128,12 +133,8 @@ export function Step5Page() {
       onboardingVoice.pushSubScreen(screenId);
       return;
     }
-    if (phase === 'confirming') {
-      onboardingVoice.pushSubScreen('ONBOARD-BEGINNER-06');
-      return;
-    }
     onboardingVoice.pushSubScreen(null);
-  }, [customizingHabit, habitQueue, phase, onboardingVoice]);
+  }, [customizingHabit, habitQueue, onboardingVoice]);
 
   function toggleHabit(habit: string) {
     if (selectedHabits.has(habit)) {
@@ -226,7 +227,9 @@ export function Step5Page() {
         // show and the user saw nothing happen).
         const update = deriveHabitVoiceUpdate(
           {
-            goals,
+            // Render guard above redirects when goals is undefined, so this
+            // callback only fires post-guard — but TS can't see across the closure.
+            goals: goals ?? [],
             habitsByGoal,
             selectedHabits,
             customHabits,
@@ -337,6 +340,11 @@ export function Step5Page() {
   ]);
 
   const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleOnNext);
+
+  // Render guard — declared after all hooks. If we arrived here without goals
+  // (browser refresh, agent skipped step-4, OnboardingEntry redirect with stale
+  // current_step), send the user back to step-4 instead of guessing a default.
+  if (!goals?.length) return <Navigate to="/onboarding/step-4" replace />;
 
   return (
     <>
