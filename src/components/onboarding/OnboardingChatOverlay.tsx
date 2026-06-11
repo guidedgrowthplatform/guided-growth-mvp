@@ -42,6 +42,7 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
   const isUserSpeaking = onboardingVoiceSession?.isUserSpeaking ?? false;
   const voiceInListening = onboardingVoiceSession?.voiceInListening ?? false;
   const chatBusy = onboardingVoiceSession?.chatBusy ?? false;
+  const assistantMergeOpen = onboardingVoiceSession?.assistantMergeOpen ?? false;
   const sessionMessages = onboardingVoiceSession?.messages;
   const messages = useMemo(() => sessionMessages ?? [], [sessionMessages]);
 
@@ -50,6 +51,9 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
   const [draft, setDraft] = useState('');
   const [partialAssistant, setPartialAssistant] = useState('');
   const [partialUser, setPartialUser] = useState('');
+  // Vapi has no client-side tool-call events; this fills the user-stops → assistant-starts gap.
+  const [waitingForAssistant, setWaitingForAssistant] = useState(false);
+  const prevUserSpeakingRef = useRef(false);
 
   const displayedAssistant = useSmoothReveal(partialAssistant);
   const displayedUser = useSmoothReveal(partialUser);
@@ -79,6 +83,22 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
 
   useEffect(() => {
     if (!vapiActive) setPartialAssistant('');
+  }, [vapiActive]);
+
+  useEffect(() => {
+    const userJustStopped = prevUserSpeakingRef.current && !isUserSpeaking;
+    prevUserSpeakingRef.current = isUserSpeaking;
+    if (userJustStopped) setWaitingForAssistant(true);
+  }, [isUserSpeaking]);
+
+  useEffect(() => {
+    if (isAssistantSpeaking || partialAssistant.length > 0 || isUserSpeaking) {
+      setWaitingForAssistant(false);
+    }
+  }, [isAssistantSpeaking, partialAssistant, isUserSpeaking]);
+
+  useEffect(() => {
+    if (!vapiActive) setWaitingForAssistant(false);
   }, [vapiActive]);
 
   useEffect(() => {
@@ -118,6 +138,7 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
   const handleSendText = useCallback(
     (text: string) => {
       onboardingVoiceSession?.sendUserTurn(text);
+      setWaitingForAssistant(true);
     },
     [onboardingVoiceSession],
   );
@@ -189,31 +210,47 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {messages.map((msg) => (
-          <div key={msg.id} className="flex flex-col">
+        {messages.map((msg, idx) => {
+          // Inline-append assistant partial INTO the last AI bubble while the
+          // merge window is open. The bubble grows continuously instead of
+          // partial-bubble-appears-then-vanishes-as-final-merges-upward.
+          const isLast = idx === messages.length - 1;
+          const inlinePartial =
+            isLast && msg.role === 'ai' && assistantMergeOpen && displayedAssistant.length > 0
+              ? `${msg.text} ${displayedAssistant}`.replace(/\s+/g, ' ').trim()
+              : null;
+          return (
+            <div key={msg.id} className="flex flex-col">
+              <ChatBubble
+                role={msg.role}
+                text={inlinePartial ?? msg.text}
+                userName={displayName}
+                eyebrowVariant="dark"
+                compact
+                animate={false}
+                streaming={inlinePartial != null}
+                markdown
+              />
+            </div>
+          );
+        })}
+        {displayedAssistant.length > 0 &&
+          !(
+            assistantMergeOpen &&
+            messages.length > 0 &&
+            messages[messages.length - 1].role === 'ai'
+          ) && (
             <ChatBubble
-              role={msg.role}
-              text={msg.text}
+              role="ai"
+              text={displayedAssistant}
               userName={displayName}
               eyebrowVariant="dark"
               compact
               animate={false}
+              streaming
               markdown
             />
-          </div>
-        ))}
-        {displayedAssistant.length > 0 && (
-          <ChatBubble
-            role="ai"
-            text={displayedAssistant}
-            userName={displayName}
-            eyebrowVariant="dark"
-            compact
-            animate={false}
-            streaming
-            markdown
-          />
-        )}
+          )}
         {isVoiceInOnly && displayedUser.length > 0 && (
           <ChatBubble
             role="user"
@@ -225,7 +262,7 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
             streaming
           />
         )}
-        {chatBusy && partialAssistant.length === 0 && <TypingIndicator />}
+        {(chatBusy || waitingForAssistant) && partialAssistant.length === 0 && <TypingIndicator />}
       </div>
 
       <div

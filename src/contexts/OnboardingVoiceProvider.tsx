@@ -124,6 +124,31 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const threadScreenIdRef = useRef<string | null>(null);
   const lastAssistantFinalRef = useRef<{ text: string; at: number }>({ text: '', at: 0 });
+  // Vapi splits one model turn into multiple transcript-final events on natural
+  // speech pauses. Consecutive assistant finals within this window merge into
+  // ONE chat bubble so the UI doesn't render N fragments for one reply.
+  const ASSISTANT_MERGE_WINDOW_MS = 4000;
+  const lastAssistantAppendAtRef = useRef<number>(0);
+  // assistantMergeOpen mirrors the merge window as observable state so the
+  // overlay can render partials INLINE with the last AI bubble while it's open,
+  // instead of as a separate streaming bubble that flickers.
+  const [assistantMergeOpen, setAssistantMergeOpen] = useState(false);
+  const mergeWindowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const armMergeWindow = useCallback(() => {
+    setAssistantMergeOpen(true);
+    if (mergeWindowTimerRef.current !== null) clearTimeout(mergeWindowTimerRef.current);
+    mergeWindowTimerRef.current = setTimeout(() => {
+      mergeWindowTimerRef.current = null;
+      setAssistantMergeOpen(false);
+    }, ASSISTANT_MERGE_WINDOW_MS);
+  }, []);
+  const closeMergeWindow = useCallback(() => {
+    if (mergeWindowTimerRef.current !== null) {
+      clearTimeout(mergeWindowTimerRef.current);
+      mergeWindowTimerRef.current = null;
+    }
+    setAssistantMergeOpen(false);
+  }, []);
 
   const lastPushedScreenIdRef = useRef<string | null>(null);
   const lastScreenChangeTsRef = useRef<string | null>(null);
@@ -265,11 +290,18 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         ...lines,
         '(All other screen context unchanged — do not greet again or change screens.)',
       ].join('\n');
-      c.send({
-        type: 'add-message',
-        message: { role: 'system', content: body },
-        triggerResponseEnabled: false,
-      });
+      try {
+        c.send({
+          type: 'add-message',
+          message: { role: 'system', content: body },
+          triggerResponseEnabled: false,
+        });
+      } catch (err) {
+        // Vapi SDK throws synchronously when send() runs pre-join. Next
+        // pushScreenContext / cold-start overrides will resend the snapshot.
+        if (import.meta.env.DEV)
+          console.debug('[onboarding-voice] form snapshot send skipped', err);
+      }
     }, FORM_SNAPSHOT_DEBOUNCE_MS);
   }, []);
 
@@ -322,13 +354,21 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       ...lines,
       '(All other screen context unchanged.)',
     ].join('\n');
-    client.send({
-      type: 'add-message',
-      message: { role: 'system', content: body },
-      triggerResponseEnabled: false,
-    });
-    if (import.meta.env.DEV) {
-      console.debug('[onboarding-voice] cold-start snapshot add-message sent', sid);
+    try {
+      client.send({
+        type: 'add-message',
+        message: { role: 'system', content: body },
+        triggerResponseEnabled: false,
+      });
+      if (import.meta.env.DEV) {
+        console.debug('[onboarding-voice] cold-start snapshot add-message sent', sid);
+      }
+    } catch (err) {
+      // Vapi SDK throws synchronously pre-join; pushScreenContext on screen
+      // change carries the same data, so a lost cold-start push isn't fatal.
+      if (import.meta.env.DEV) {
+        console.debug('[onboarding-voice] cold-start snapshot send skipped', err);
+      }
     }
   }, []);
 
@@ -415,6 +455,10 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         if (evt.kind === 'partial') {
           if (userActiveTimerRef.current) clearTimeout(userActiveTimerRef.current);
           setIsUserSpeaking(true);
+          // User starting to speak = assistant turn is semantically complete.
+          // Close any open assistant merge window so the next AI final starts a
+          // fresh bubble (instead of merging into the previous one).
+          closeMergeWindow();
           userActiveTimerRef.current = setTimeout(() => {
             userActiveTimerRef.current = null;
             setIsUserSpeaking(false);
@@ -443,20 +487,44 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
             }
           }
           if (!skip) {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: `vapi-${evt.role}-${now}`,
-                role: evt.role === 'assistant' ? 'ai' : 'user',
-                text,
-              },
-            ]);
+            if (evt.role === 'assistant') {
+              const withinMergeWindow =
+                now - lastAssistantAppendAtRef.current < ASSISTANT_MERGE_WINDOW_MS;
+              lastAssistantAppendAtRef.current = now;
+              armMergeWindow();
+              setMessages((prev) => {
+                const last = prev[prev.length - 1];
+                if (withinMergeWindow && last && last.role === 'ai') {
+                  // Glue with a space — Vapi already includes punctuation per fragment.
+                  const merged: VoiceMessage = {
+                    ...last,
+                    text: `${last.text} ${text}`.replace(/\s+/g, ' ').trim(),
+                  };
+                  return [...prev.slice(0, -1), merged];
+                }
+                return [...prev, { id: `vapi-${evt.role}-${now}`, role: 'ai', text }];
+              });
+            } else {
+              // User transcripts always start a fresh bubble + close any open
+              // assistant merge window (next AI utterance starts a fresh bubble).
+              lastAssistantAppendAtRef.current = 0;
+              closeMergeWindow();
+              setMessages((prev) => [
+                ...prev,
+                { id: `vapi-${evt.role}-${now}`, role: 'user', text },
+              ]);
+            }
           }
         }
       }
+      // Partials flow through unconditionally — the overlay decides where to
+      // render them (inline with the last AI bubble during merge window, or as
+      // a separate streaming bubble otherwise). The previous "suppress during
+      // merge" approach traded flicker for a stuck-feeling silent window;
+      // inline rendering avoids both.
       notifyTranscriptListeners(evt);
     },
-    [notifyTranscriptListeners],
+    [notifyTranscriptListeners, armMergeWindow, closeMergeWindow],
   );
 
   // Per-call override builder — fires inside useRealtimeVoice.start() right
@@ -859,6 +927,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       startThread,
       sendUserTurn,
       chatBusy,
+      assistantMergeOpen,
       subscribeVoiceActions,
       registerScreen,
       registerAdvance,
@@ -894,6 +963,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       pushSubScreen,
       setFormSnapshot,
       subscribeTranscripts,
+      assistantMergeOpen,
       voiceCapReached,
       capDismissed,
       inOnboarding,

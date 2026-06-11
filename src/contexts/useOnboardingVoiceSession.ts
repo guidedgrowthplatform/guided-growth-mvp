@@ -52,6 +52,11 @@ export interface OnboardingVoiceContextValue {
   sendUserTurn: (text: string) => void;
   // True while an LLM turn is in flight (drives composer-disabled + typing dots).
   chatBusy: boolean;
+  // True for ASSISTANT_MERGE_WINDOW_MS after the last assistant final transcript;
+  // the overlay uses this to render incoming assistant partials INLINE with the
+  // last AI bubble (continuous text growth) instead of as a separate streaming
+  // bubble below (which would flicker as finals merge in).
+  assistantMergeOpen: boolean;
   // LLM tool calls surface here so pages can react (radio updates, etc).
   subscribeVoiceActions: (listener: OnboardingVoiceActionListener) => () => void;
   // Page registers its canonical screen_id + advance handler with the provider.

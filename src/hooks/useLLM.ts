@@ -14,6 +14,11 @@ export type LLMStatus = 'idle' | 'streaming' | 'done' | 'error';
 // Shown when a turn yields neither text nor a tool action — else the UI looks frozen.
 const EMPTY_TURN_FALLBACK = "Sorry, I didn't quite get that — could you say it another way?";
 
+// Batches incoming token deltas into one setState per ~40ms window. OpenAI
+// streams 1-3 tokens per delta which fragmented lists/sentences visually
+// when each delta triggered its own React render + smooth-reveal animation.
+const DELTA_COALESCE_MS = 40;
+
 export interface UseLLMReturn {
   sendMessage: (text: string) => Promise<void>;
   sendOpener: () => Promise<void>;
@@ -58,12 +63,30 @@ export function useLLM(
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
   const idCounterRef = useRef({ n: 0 });
+  const deltaBufferRef = useRef('');
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushDeltaBuffer = useCallback(() => {
+    if (flushTimerRef.current !== null) {
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    }
+    if (deltaBufferRef.current.length === 0) return;
+    const pending = deltaBufferRef.current;
+    deltaBufferRef.current = '';
+    setResponse((prev) => prev + pending);
+  }, []);
 
   const reset = useCallback(() => {
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
     }
+    if (flushTimerRef.current !== null) {
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    }
+    deltaBufferRef.current = '';
     inFlightRef.current = false;
     setMessages([]);
     setResponse('');
@@ -76,6 +99,11 @@ export function useLLM(
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
+      if (flushTimerRef.current !== null) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+      deltaBufferRef.current = '';
       inFlightRef.current = false;
       setStatus('idle');
     }
@@ -112,7 +140,10 @@ export function useLLM(
         switch (e.type) {
           case 'delta': {
             acc += e.content;
-            setResponse((prev) => prev + e.content);
+            deltaBufferRef.current += e.content;
+            if (flushTimerRef.current === null) {
+              flushTimerRef.current = setTimeout(flushDeltaBuffer, DELTA_COALESCE_MS);
+            }
             break;
           }
           case 'tool_call': {
@@ -139,6 +170,7 @@ export function useLLM(
           }
           case 'done': {
             sawTerminal = true;
+            flushDeltaBuffer();
             // Skip a blank assistant turn (tool-only). Truly empty (no text, no
             // tools) → fallback line so the turn never renders as silence.
             const display =
@@ -174,6 +206,7 @@ export function useLLM(
           }
           case 'error': {
             sawTerminal = true;
+            flushDeltaBuffer();
             if (opts.surfaceErrors) {
               setStatus('error');
               setError(new Error(`${e.code}: ${e.message}`));
@@ -261,6 +294,11 @@ export function useLLM(
         abortRef.current.abort();
         abortRef.current = null;
       }
+      if (flushTimerRef.current !== null) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+      deltaBufferRef.current = '';
       inFlightRef.current = false;
     };
   }, []);

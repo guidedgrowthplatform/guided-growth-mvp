@@ -17,7 +17,7 @@ import { detectAffirmation } from '@gg/shared/onboarding/detectAffirmation';
 import { screenKind } from '@gg/shared/onboarding/screenKind';
 import { advanceStepIfReady } from '../_lib/llm/onboarding/handlers/confirmStepComplete.js';
 import { dispatchCheckinToolCall } from '../_lib/llm/checkin/dispatch.js';
-import { getCheckinTools } from '../_lib/llm/checkin/registry.js';
+import { getCheckinTools, getReadOnlyCheckinTools } from '../_lib/llm/checkin/registry.js';
 import { isCheckinToolName } from '../_lib/llm/checkin/schemas.js';
 import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
 import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
@@ -451,6 +451,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // sink). Matches path-1 Vapi assistant scope.
   const onboardingTools = getOnboardingTools(screenId);
   const checkinTools = getCheckinTools(screenId);
+  // Dashboard / chat / wrap-up screens get TOOL_DEFINITIONS + read-only check-in tools
+  // (query_habits, get_summary) so the coach can answer "what are my habits?" / "how was my week?".
+  const readOnlyCheckinTools = getReadOnlyCheckinTools(screenId);
   const requestTools =
     mode === 'opener'
       ? undefined
@@ -458,7 +461,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? onboardingTools
         : checkinTools !== undefined
           ? checkinTools
-          : TOOL_DEFINITIONS;
+          : readOnlyCheckinTools !== undefined
+            ? [...TOOL_DEFINITIONS, ...readOnlyCheckinTools]
+            : TOOL_DEFINITIONS;
   const allowedToolNames = new Set<string>(requestTools ? requestTools.map((t) => t.name) : []);
 
   const forceForkChoice = isForkScreen && !pathAlreadySet && mode !== 'opener';
@@ -638,9 +643,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           } catch (err) {
             result = { ok: false, error: 'handler_error', message: (err as Error).message };
           }
-        } else if (checkinTools !== undefined && isCheckinToolName(tc.name)) {
-          // Check-in screen — dispatch to check-in handler regardless of
-          // whether the tool name also appears in the onboarding registry.
+        } else if (
+          (checkinTools !== undefined || readOnlyCheckinTools !== undefined) &&
+          isCheckinToolName(tc.name)
+        ) {
+          // Check-in screen OR dashboard/chat screen with the read-only subset —
+          // dispatch to check-in handler regardless of whether the tool name
+          // also appears in the onboarding registry.
           try {
             result = await dispatchCheckinToolCall(tc.name, args, {
               anon_id: user.anonId,
