@@ -17,6 +17,9 @@ export interface LLMRequest {
   // Client IANA timezone; server validates, falls back to UTC. Used for check-in
   // date math so "today"/"yesterday" resolve to the user's local day, not server UTC.
   timezone?: string;
+  // When true, the server emits `debug` trace events on the stream. The client
+  // sets this only when its dev console trace is on; ignored in production.
+  debug?: boolean;
 }
 
 export interface ChatHistoryResponse {
@@ -34,7 +37,8 @@ export type LLMStreamEvent =
   | { type: 'tool_call'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool_result'; id: string; ok: boolean; result: unknown }
   | { type: 'done'; latency_ms: number; total_tokens: number; tool_rounds: number }
-  | { type: 'error'; code: string; message: string };
+  | { type: 'error'; code: string; message: string }
+  | { type: 'debug'; phase: string; data: Record<string, unknown> };
 
 export interface LLMToolEvent {
   id: string;
@@ -49,4 +53,3 @@ export interface LLMChatMessage {
   content: string;
   toolEvents?: LLMToolEvent[];
 }
-

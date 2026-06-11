@@ -73,6 +73,7 @@ Variables:
 - `CAP_EXTRA_NAV_HOSTS` (that stage's Supabase host, e.g. `abcd.supabase.co`)
 - `VITE_API_URL` (that stage's web origin)
 - `MATCH_GIT_BRANCH` (optional, defaults to `main`)
+- `VITE_DEBUG_TRACE` — set to `auto` on `dev` and `staging` to turn the AI-turn console trace on for every session in those stages with no opt-in. Leave it UNSET on `production` so the trace compiles off and cannot be enabled. The backend half needs no variable: it keys off Vercel's own `VERCEL_ENV` (on for preview, off for production). For the Vercel web preview, set the same `VITE_DEBUG_TRACE=auto` on the preview/staging scope. See `src/lib/debug/traceConsole.ts`.
 
 Secrets (same names as `ci.yml`, but each scoped to the stage):
 

@@ -33,7 +33,8 @@ type LLMStreamEvent =
   | { type: 'tool_call'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool_result'; id: string; ok: boolean; result: unknown }
   | { type: 'done'; latency_ms: number; total_tokens: number; tool_rounds: number }
-  | { type: 'error'; code: string; message: string };
+  | { type: 'error'; code: string; message: string }
+  | { type: 'debug'; phase: string; data: Record<string, unknown> };
 
 const MAX_ROUNDS = 5;
 const ONBOARDING_MODEL = 'gpt-4o';
@@ -166,6 +167,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   const persistChat = chatSessionId !== null;
 
+  // Step 2 backend trace: emit `debug` SSE events ONLY when the client opted in
+  // (it sets debug:true when its dev console trace is on) AND we are not in the
+  // production environment. VERCEL_ENV is 'production' | 'preview' | 'development'
+  // (NODE_ENV is 'production' on every Vercel deploy, so it cannot tell QA from
+  // prod). Result: on in dev + preview/QA, hard off in production. No-op when off,
+  // so the stream and behavior are unchanged.
+  const debugTrace = body.debug === true && process.env.VERCEL_ENV !== 'production';
+
   const isOnboardingScreen = screenId.startsWith('ONBOARD-');
   const requestModel: string | undefined = isOnboardingScreen ? ONBOARDING_MODEL : undefined;
   // Onboarding captures real name/age/brain-dump — scrubbing would destroy the
@@ -178,6 +187,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let previousResponseId: string | null = null;
   let foreignOwned: boolean;
   let pathAlreadySet = false;
+  let contextVersion: number;
+  let deltaCount: number;
   try {
     const [built, ownerRow, forkPathRow] = await Promise.all([
       buildSystemPromptForRequest({
@@ -212,6 +223,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : Promise.resolve(null),
     ]);
     systemPrompt = built.systemPrompt;
+    contextVersion = built.contextVersion;
+    deltaCount = built.deltaCount;
     previousResponseId = ownerRow?.prev_response_id ?? null;
     foreignOwned = ownerRow?.foreign_owned ?? false;
     pathAlreadySet = typeof forkPathRow?.path === 'string' && forkPathRow.path.length > 0;
@@ -256,6 +269,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const send = (event: LLMStreamEvent) => {
     if (clientClosed) return;
     res.write(`data: ${JSON.stringify(event)}\n\n`);
+  };
+
+  // Emits an inside-the-turn trace event. No-op unless the client opted in (dev/QA only).
+  const sendDebug = (phase: string, data: Record<string, unknown>) => {
+    if (debugTrace) send({ type: 'debug', phase, data });
   };
 
   const startedAt = performance.now();
@@ -466,6 +484,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? requestTools?.filter((t) => t.name === 'submit_path_choice' || t.name === 'ask_clarification')
     : undefined;
 
+  sendDebug('context-built', {
+    screen_id: screenId,
+    model: requestModel ?? 'gpt-4o-mini',
+    system_prompt_chars: systemPrompt.length,
+    context_version: contextVersion,
+    delta_count: deltaCount,
+    tools_offered: requestTools?.length ?? 0,
+    input_items: currentInput.length,
+  });
+
   await writeStartRow();
 
   try {
@@ -483,6 +511,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         store: true,
         signal: abortController.signal,
       };
+
+      const roundStartedAt = performance.now();
+      sendDebug('llm-request', {
+        round,
+        model: requestModel ?? 'gpt-4o-mini',
+        tools_offered: (forcingThisRound ? forkChoiceTools : requestTools)?.length ?? 0,
+      });
 
       let stream: AsyncIterable<
         import('../_lib/llm/openai-responses.js').ResponsesStreamEvent
@@ -542,6 +577,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             case 'completed': {
               thisResponseId = evt.responseId;
               if (evt.totalTokens) totalTokens = evt.totalTokens;
+              sendDebug('llm-response', {
+                round,
+                response_id: evt.responseId,
+                total_tokens: evt.totalTokens ?? null,
+                llm_ms: Math.round(performance.now() - roundStartedAt),
+                text_chars: assistantContent.length,
+                tool_calls: roundToolCalls.length,
+              });
               break;
             }
             case 'error': {
@@ -618,6 +661,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           args = {};
         }
         send({ type: 'tool_call', id: tc.callId, name: tc.name, args });
+        const toolStartedAt = performance.now();
+        sendDebug('tool-start', { tool: tc.name, id: tc.callId, args });
 
         let result: ToolResult;
         if (!allowedToolNames.has(tc.name)) {
@@ -672,6 +717,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
         const resultJson = JSON.stringify(result);
+        sendDebug('tool-end', {
+          tool: tc.name,
+          id: tc.callId,
+          ok: result.ok,
+          error: result.ok ? null : ((result as { error?: string }).error ?? null),
+          tool_ms: Math.round(performance.now() - toolStartedAt),
+        });
         send({ type: 'tool_result', id: tc.callId, ok: result.ok, result });
         persistedToolRows.push({
           toolCallId: tc.callId,
