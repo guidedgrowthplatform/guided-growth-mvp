@@ -57,6 +57,19 @@ export interface OnboardingTool {
   readonly screen: string;
   /** Lifecycle messages threaded into Vapi's tool `messages` array. */
   readonly messages?: ToolLifecycleMessages;
+  /**
+   * Pure data-save whose result the assistant does NOT need to speak. When true,
+   * the Vapi sync marks the tool `async: true`, so Vapi resumes the model the
+   * instant the call fires instead of waiting for the webhook + DB write. This
+   * removes the tool round-trip from the spoken latency (the ~4.5s/turn finding):
+   * the coach speaks now, the save lands in the background.
+   *
+   * Leave UNSET for result-dependent tools the assistant must hear back from:
+   * add_habit (max_habits_reached), update_habit (not_found), navigate_next
+   * (load-bearing screen change), confirm_plan (completes onboarding). Those
+   * stay blocking so the model reacts to the real outcome.
+   */
+  readonly nonBlocking?: boolean;
 }
 
 // Closed enums mirror UI options on ONBOARD-01--FORM.
@@ -116,6 +129,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
   {
     name: 'submit_profile',
     screen: 'ONBOARD-01--FORM',
+    nonBlocking: true,
     description:
       "Save profile fields (nickname, age, gender, referral source) to the database. DATA ONLY — this tool does NOT advance the user to the next screen. Use `navigate_next` for that, AFTER the user confirms they're ready. AUTO-CALL IMMEDIATELY the moment the user states any of these fields. Do not ask for permission. Do not summarize. Edit mode: re-call with only the field(s) the user is updating — never re-send unchanged values. Only include fields the user explicitly stated; never invent values. At least one field is required per call.",
     messages: {
@@ -151,6 +165,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
   {
     name: 'submit_path_choice',
     screen: 'ONBOARD-FORK--FORM',
+    nonBlocking: true,
     description:
       'Save the user\'s chosen onboarding path (simple vs braindump). DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user signals their choice. Phrases like "I\'m new", "this is my first time" → simple. "I already have habits", "I know what I want to work on" → braindump. Do not ask for permission to save — just call.',
     messages: {
@@ -173,6 +188,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
   {
     name: 'submit_category',
     screen: 'ONBOARD-BEGINNER-01',
+    nonBlocking: true,
     description:
       'Save the user\'s chosen category. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user names an improvement area, even loosely. Map to the closest of the 8 categories: "sleep more" → Sleep better, "be more active" → Move more, "eat healthier" → Eat better, "less stressed" → Reduce stress, "focus better" → Improve focus, "quit smoking/drinking/phone" → Break bad habits, "more organized/on top of things" → Get more organized, "more energy" → Feel more energized. Do not ask for permission — just call.',
     messages: {
@@ -195,6 +211,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
   {
     name: 'submit_goals',
     screen: 'ONBOARD-BEGINNER-02',
+    nonBlocking: true,
     description:
       "Save the user's COMPLETE goal selection for this screen (1 or 2 goals). This REPLACES whatever was saved before, so EVERY call MUST include ALL goals the user currently wants — never just the newest one. If they pick one goal now and add a second later, call again with BOTH goals in the array. If they change their mind, call again with only the goals they now want. DATA ONLY — does NOT advance to the next screen; use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY when the user names a goal — do not ask permission. Goal labels must match the on-screen options exactly.",
     messages: {
@@ -262,6 +279,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
   {
     name: 'remove_habit',
     screen: 'ONBOARD-BEGINNER-03',
+    nonBlocking: true,
     description:
       'Remove a previously-added habit. DATA ONLY — does NOT advance to the next screen. AUTO-CALL IMMEDIATELY the moment the user asks to drop a habit ("remove the walking one", "scratch that", "no longer caffeine"). Name match is case-insensitive. Do not ask for permission — just call.',
     messages: {
@@ -322,6 +340,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
   {
     name: 'submit_reflection_config',
     screen: 'ONBOARD-BEGINNER-07',
+    nonBlocking: true,
     description:
       'Save the user\'s evening reflection schedule. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user gives any signal about reflection timing (even just "evenings" or "around 9 PM"). All fields are optional — pass only what the user explicitly said and let the server fill the rest (defaults: schedule="Weekday", days=[1,2,3,4,5], time="21:45", reminder=true). If the user hasn\'t said anything specific yet, you can call with NO fields to lock in the defaults. **Do not ask the user clarifying questions about timing or reminders before calling — just call with whatever you know.**',
     messages: {
@@ -358,6 +377,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
   {
     name: 'submit_custom_prompts',
     screen: 'ONBOARD-ADV-CUSTOM',
+    nonBlocking: true,
     description:
       "Save the user's custom evening-reflection prompts. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user gives one or more prompts. The prompts array REPLACES the saved set — always send the COMPLETE current list the user wants, never just the newest one (if they had two and add a third, send all three). Do not ask for permission — just call.",
     messages: {
@@ -381,6 +401,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
   {
     name: 'submit_brain_dump',
     screen: 'ONBOARD-ADVANCED',
+    nonBlocking: true,
     description:
       "Save the user's verbatim brain-dump text. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user finishes describing what they want to work on (after a natural pause of a sentence or two). Pass the FULL transcript verbatim — never summarize, never rephrase, never paraphrase. Server parses this. Do not ask for permission — just call.",
     messages: {
