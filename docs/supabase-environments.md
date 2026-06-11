@@ -3,7 +3,7 @@
 How Guided Growth runs two environments: **production** (live users) and **staging/QA** (a safe copy for testing). Each has its own Supabase project and its own app URL. Schema **and reference content are both kept identical via migrations** — the catalog (categories/subcategories/starter_habits) ships as an idempotent seed migration (`043_seed_catalog.sql`), so every env gets it from `db push`. The only env-specific data is what testers create. **No prod→staging data copying.**
 
 - **Production project ref:** `pmunbflbjpoawicgimyc`
-- **Staging project ref:** _TBD — created in §4 Step 1_
+- **Staging project ref:** `ppyouymvnrqxcsllrmsl` (created 2026-06-10)
 - **Production app:** live site on `main`
 - **Staging/QA app:** `https://guided-growth-qa.vercel.app` — **live**, pinned to the `staging` branch (Vercel → Domains, Preview + branch `staging`). Stable fallback alias: `https://guided-growth-mvp-git-staging-guided-growths-projects.vercel.app`.
 - **Caveat (until §4 done):** the QA app currently runs on the **Preview-scope env vars, which still point at the prod Supabase** — so QA writes land in prod until a separate staging project is provisioned and wired. Not for tester data-entry yet.
@@ -229,6 +229,9 @@ jobs:
 5. **voice-sync seed targets ONE project.** `scripts/voice-sync/seed_contexts.py` reads `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`; `.github/workflows/voice-sync.yml` runs hourly against prod. Add a **second** CI run with staging secrets — do NOT repoint the hourly job. Upsert is keyed on `screen_id` (idempotent).
 6. **Custom access token hook** must be applied AND enabled (dashboard) on **both** projects; SQL migrations alone don't flip the toggle on a fresh project.
 7. **Perf/debug scripts** (`scripts/perf-*.mjs`, `scripts/check-cadences.mjs`) read `DATABASE_URL` directly — point them at staging via env when testing there.
+8. **Vapi voice is DISABLED in QA for now** (2026-06-10). A Vapi assistant's tool webhook can point at only **one** origin (prod), and Vapi tools are **org-global** — syncing a second assistant inside the prod org would repoint the prod tools' URLs. Decision: leave `VITE_VAPI_PUBLIC_KEY` / `VITE_VAPI_ASSISTANT_ID` **unset** in Preview scope (`useRealtimeVoice` fails soft; text/Direct-LLM onboarding unaffected). Later: dedicated staging assistant in a **separate Vapi org**, synced via `npm run vapi:sync -- --staging` with `VAPI_WEBHOOK_BASE_URL=https://guided-growth-qa.vercel.app`.
+9. **PostHog is split per env.** Separate staging PostHog project; its key goes in `VITE_POSTHOG_KEY` in the Preview scope so QA traffic never pollutes prod analytics.
+10. **`voice-assets` Storage bucket is NOT migration-created.** Create it manually in the staging dashboard, then copy the MP3s from the prod bucket via `scripts/copy-voice-assets.mjs`.
 
 ---
 
