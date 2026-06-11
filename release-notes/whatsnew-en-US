@@ -1,5 +1,6 @@
-v2.9.3 — Voice coach + onboarding reliability.
+v2.10.0 — Smoother voice onboarding.
 Test:
-- Speak in a check-in; words appear live, receipt card after.
-- Run onboarding; each reply advances to the next step.
-- Reopen after updating; no blank screen or load error.
+- Run voice onboarding; coach lists choices briefly, then advances right after you pick.
+- Coach shouldn't recite scripts or say "saving that" / "one moment".
+- On the goals/habits screens, the coach knows the exact on-screen options.
+- Reach plan review and confirm; no skipped steps, no crash or blank screen.
