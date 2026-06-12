@@ -202,6 +202,9 @@ export interface OnboardingStepData {
   > | null;
   reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string } | null;
   brainDumpText?: string | null;
+  // Persisted LLM parse so advanced-results can rehydrate on lost router state (no regex re-invent).
+  brainDumpHabits?: Array<{ name: string; days?: number[]; time?: string }> | null;
+  brainDumpParseSource?: 'llm' | 'regex_fallback' | null;
   customPrompts?: string[] | null;
   advancedHabitConfigs?: Record<
     string,
@@ -227,4 +230,14 @@ export interface ParsedHabit {
   frequency: string;
   days?: number[];
   time?: string;
+}
+
+export interface ParseBrainDumpRequest {
+  text: string;
+  session_id: string;
+  screen_id?: string;
+}
+
+export interface ParseBrainDumpResponse {
+  habits: ParsedHabit[];
 }

@@ -22,6 +22,7 @@ import { getCheckinTools, getReadOnlyCheckinTools } from '../_lib/llm/checkin/re
 import { isCheckinToolName } from '../_lib/llm/checkin/schemas.js';
 import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
 import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
+import { handleParseBrainDump } from '../_lib/llm/parseBrainDump.js';
 import { buildSystemPromptForRequest } from '../_lib/llm/buildSystemPrompt.js';
 import { reportToolFailure, reportRequestFailure, flushSentry } from '../_lib/sentry.js';
 import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
@@ -63,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] === '__index' ? '' : segments[0] || '';
-  if (route !== '') {
+  if (route !== '' && route !== 'parse-brain-dump') {
     return res.status(404).json({ error: 'Not found' });
   }
 
@@ -104,6 +105,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (userRl.limited || userDailyRl.limited) {
     const retryAfter = userRl.retryAfter || userDailyRl.retryAfter;
     return res.status(429).json({ error: 'Too many requests', retryAfter });
+  }
+
+  if (route === 'parse-brain-dump') {
+    return handleParseBrainDump(req, res, { anonId: user.anonId });
   }
 
   const body = (req.body ?? {}) as Record<string, unknown>;

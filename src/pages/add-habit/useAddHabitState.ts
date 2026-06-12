@@ -88,13 +88,8 @@ export function useAddHabitState() {
     setPhase('advanced-results');
   }
 
-  function handleAdvancedStartOver() {
-    advanced.handleStartOver();
-    setPhase('advanced-input');
-  }
-
-  function handleBrainDumpDone() {
-    advanced.handleBrainDumpDone();
+  async function handleBrainDumpDone() {
+    await advanced.handleBrainDumpDone();
     setPhase('advanced-results');
   }
 
@@ -182,7 +177,6 @@ export function useAddHabitState() {
     handleAdvancedEditStart,
     handleAdvancedEditSave,
     handleAdvancedDelete,
-    handleAdvancedStartOver,
     handleBrainDumpDone,
   };
 }

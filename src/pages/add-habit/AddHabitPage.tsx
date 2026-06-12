@@ -1,4 +1,3 @@
-import { BottomNav } from '@/components/layout/BottomNav';
 import { AdvancedEditPhase } from './AdvancedEditPhase';
 import { AdvancedInputPhase } from './AdvancedInputPhase';
 import { AdvancedResultsPhase } from './AdvancedResultsPhase';
@@ -88,6 +87,7 @@ export function AddHabitPage() {
             textareaRef={s.textareaRef}
             onDone={s.handleBrainDumpDone}
             onBack={s.handleBack}
+            parsing={s.parsing}
           />
         );
 
@@ -98,7 +98,6 @@ export function AddHabitPage() {
             onEditHabit={s.handleAdvancedEditStart}
             onConfirm={s.handleConfirm}
             saving={s.saving}
-            onStartOver={s.handleAdvancedStartOver}
             onBack={s.handleBack}
           />
         );
@@ -126,10 +125,5 @@ export function AddHabitPage() {
     }
   })();
 
-  return (
-    <>
-      {phase}
-      <BottomNav />
-    </>
-  );
+  return phase;
 }
