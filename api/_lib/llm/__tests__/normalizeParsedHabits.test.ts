@@ -35,6 +35,26 @@ describe('normalizeParsedHabits', () => {
     expect(out[1].days).toBeUndefined();
   });
 
+  it('coerces string day indices (strict:false tool drift)', () => {
+    const out = normalizeParsedHabits({
+      habits: [{ name: 'A', frequency: 'weekly', days: ['1', '3', '5', 'x', '9'] }],
+    });
+    expect(out[0].days).toEqual([1, 3, 5]);
+  });
+
+  it('rejects non-canonical frequency, defaulting to daily', () => {
+    const out = normalizeParsedHabits({
+      habits: [
+        { name: 'A', frequency: 'monthly-2nd-wednesday' },
+        { name: 'B', frequency: 'weekends' },
+        { name: 'C', frequency: '3x/week' },
+      ],
+    });
+    expect(out[0].frequency).toBe('daily');
+    expect(out[1].frequency).toBe('weekends');
+    expect(out[2].frequency).toBe('3x/week');
+  });
+
   it('keeps time only when valid HH:MM', () => {
     const out = normalizeParsedHabits({
       habits: [

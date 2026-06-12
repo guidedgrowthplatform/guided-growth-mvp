@@ -2,6 +2,7 @@ import { waitUntil } from '@vercel/functions';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../db.js';
 import { normalizeParsedHabits } from './normalizeParsedHabits.js';
+import { reportRequestFailure } from '../sentry.js';
 import { OpenAIError } from './openai.js';
 import { openResponsesJSON, type ToolSchema } from './openai-responses.js';
 
@@ -30,7 +31,8 @@ const PARSE_TOOL: ToolSchema = {
             name: { type: 'string', description: 'Short habit name, max 100 chars.' },
             frequency: {
               type: 'string',
-              description: "e.g. 'daily', 'weekdays', 'weekends', 'weekly', '3x/week'.",
+              enum: ['daily', 'weekdays', 'weekends', 'weekly', '3x/week'],
+              description: 'How often the habit recurs.',
             },
             days: {
               type: 'array',
@@ -142,5 +144,6 @@ async function logParse(
     );
   } catch {
     // best-effort logging; never block the response
+    reportRequestFailure('parse-brain-dump', 'log_write_failed', anonId);
   }
 }

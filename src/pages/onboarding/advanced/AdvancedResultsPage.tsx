@@ -16,6 +16,7 @@ import { useStepTiming } from '../shared/useStepTiming';
 interface HabitItem {
   name: string;
   days: Set<number>;
+  time?: string;
   selected: boolean;
 }
 
@@ -29,7 +30,7 @@ interface ResultsLocationState {
   updatedHabit?: UpdatedHabit;
   deletedIndex?: number;
   text?: string;
-  habits?: Array<{ name: string; days?: number[] }>;
+  habits?: Array<{ name: string; days?: number[]; time?: string }>;
   parseSource?: 'llm' | 'regex_fallback';
 }
 
@@ -37,7 +38,7 @@ interface ResultsLocationState {
 // real persisted LLM parse — never regex-reparse the brain dump, which fabricated
 // habits the user never entered (Mint, 2026-04-09).
 interface PersistedParse {
-  habits?: Array<{ name: string; days?: number[] }> | null;
+  habits?: Array<{ name: string; days?: number[]; time?: string }> | null;
   source?: 'llm' | 'regex_fallback' | null;
 }
 
@@ -51,6 +52,7 @@ function buildInitialHabits(
   return source.map((h) => ({
     name: h.name,
     days: new Set(h.days ?? WEEKDAYS),
+    time: h.time,
     selected: true,
   }));
 }
@@ -105,17 +107,20 @@ export function AdvancedResultsPage() {
     hasTrackedView.current = true;
     track('view_ai_organized_plan', {
       habits_generated_count: habits.length,
-      parse_source: locationState?.parseSource ?? persistedSource ?? 'unknown',
+      // fires only when habits exist, which guarantees a persisted source
+      parse_source: locationState?.parseSource ?? persistedSource ?? 'llm',
     });
   }, [habits.length, locationState?.parseSource, persistedSource]);
 
-  // Snapshot mirrors the shape persisted in onboarding_states.data — each
-  // habit name maps to {days[], time, reminder}, defaulting time and reminder
-  // since AI-generated habits don't carry per-habit time yet.
+  // Snapshot mirrors onboarding_states.data: name -> {days[], time, reminder}.
+  // time from the parsed habit; 21:45 fallback only when none was stated.
   const snapshotHabitConfigs = useMemo(() => {
     if (habits.length === 0) return undefined;
     return Object.fromEntries(
-      habits.map((h) => [h.name, { days: Array.from(h.days), time: '21:45', reminder: true }]),
+      habits.map((h) => [
+        h.name,
+        { days: Array.from(h.days), time: h.time ?? '21:45', reminder: true },
+      ]),
     );
   }, [habits]);
   const snapshot = useOnboardingFormSnapshot({
@@ -160,12 +165,13 @@ export function AdvancedResultsPage() {
     const habitConfigsArray = habits.map((h) => ({
       name: h.name,
       days: [...h.days],
+      time: h.time ?? '21:45',
     }));
     const goals = habits.map((h) => h.name);
     const habitConfigsRecord: Record<string, { days: number[]; time: string; reminder: boolean }> =
       {};
     habitConfigsArray.forEach((h) => {
-      habitConfigsRecord[h.name] = { days: h.days, time: '21:45', reminder: true };
+      habitConfigsRecord[h.name] = { days: h.days, time: h.time, reminder: true };
     });
     await saveStepAsync(4, { goals, habitConfigs: habitConfigsRecord });
     trackStepComplete();

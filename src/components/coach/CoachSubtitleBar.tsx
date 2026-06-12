@@ -28,16 +28,17 @@ export function CoachSubtitleBar() {
   // reflects the latest user partial.
   const interim = useVoiceStore((s) => s.interim);
 
+  // Sticky per screen — a mode flip must not re-open the gate.
   const openerDoneRef = useRef(false);
   useEffect(() => {
     openerDoneRef.current = false;
-  }, [textOnly, session?.currentScreenId]);
+  }, [session?.currentScreenId]);
 
   useCoachTranscripts((evt) => {
     if (!evt.text) return;
     if (textOnly && openerDoneRef.current) return;
     setBusText(evt.text);
-    if (textOnly && evt.role === 'assistant' && evt.kind === 'final') {
+    if (evt.role === 'assistant' && evt.kind === 'final') {
       openerDoneRef.current = true;
     }
   });

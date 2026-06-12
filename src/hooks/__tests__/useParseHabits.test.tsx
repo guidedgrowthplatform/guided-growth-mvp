@@ -90,6 +90,47 @@ describe('useParseHabits', () => {
     expect(result?.habits.length).toBeGreaterThan(0);
   });
 
+  it('aborts at the timeout and falls back to regex', async () => {
+    vi.useFakeTimers();
+    vi.mocked(parseBrainDump).mockImplementation(
+      (_t, _s, signal) =>
+        new Promise((_res, rej) => {
+          signal?.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError')));
+        }),
+    );
+    const ref = renderParse();
+    let pending: Promise<ParseResult>;
+    await act(async () => {
+      pending = ref.call();
+    });
+    let result: ParseResult | undefined;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+      result = await pending;
+    });
+    expect(result?.source).toBe('regex_fallback');
+    vi.useRealTimers();
+  });
+
+  it('aborts the prior controller on a concurrent parse', async () => {
+    const signals: AbortSignal[] = [];
+    vi.mocked(parseBrainDump).mockImplementation(
+      (_t, _s, signal) =>
+        new Promise((_res, rej) => {
+          signals.push(signal as AbortSignal);
+          signal?.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError')));
+        }),
+    );
+    const ref = renderParse();
+    await act(async () => {
+      void ref.call();
+      void ref.call();
+    });
+    expect(signals).toHaveLength(2);
+    expect(signals[0].aborted).toBe(true);
+    expect(signals[1].aborted).toBe(false);
+  });
+
   it('unmount mid-flight does not throw or warn on setState', async () => {
     let resolveParse: (h: never[]) => void = () => {};
     vi.mocked(parseBrainDump).mockReturnValue(

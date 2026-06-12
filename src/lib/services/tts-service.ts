@@ -107,6 +107,7 @@ let speakingHeld = false;
 let playSynthAbort: AbortController | null = null;
 let prefetch: Prefetch | null = null;
 let drainResolvers: Array<() => void> = [];
+let deferredOneShot: { text: string; volume: number } | null = null;
 
 function resolveDrainers(): void {
   const rs = drainResolvers;
@@ -124,6 +125,13 @@ function finishTurn(): void {
     setSpeaking(false);
   }
   resolveDrainers();
+  flushDeferredOneShot();
+}
+
+function flushDeferredOneShot(): void {
+  const pending = deferredOneShot;
+  deferredOneShot = null;
+  if (pending) void speak(pending.text, { volume: pending.volume });
 }
 
 // 1-ahead: synthesize playCursor+1 (if queued, not already pending) for this gen.
@@ -237,6 +245,7 @@ export function stopTTS(): void {
   drainRunning = false;
   turnActive = false;
   speakingHeld = false;
+  deferredOneShot = null;
   if (currentAudioResolver) {
     const resolver = currentAudioResolver;
     currentAudioResolver = null;
@@ -424,8 +433,11 @@ export function speak(
 
   const volume = options?.volume ?? 0.85;
 
-  // Don't let a one-shot (milestone/timer) tear down an in-progress coach turn.
-  if (turnActive) return Promise.resolve();
+  // Don't tear down an in-progress coach turn — defer and play when it finishes.
+  if (turnActive) {
+    deferredOneShot = { text: clean, volume };
+    return Promise.resolve();
+  }
 
   stopTTS();
   const myGeneration = ++speakGeneration;

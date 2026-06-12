@@ -38,6 +38,27 @@ function client(): OpenAI {
   return cachedClient;
 }
 
+// SDK APIError isn't an OpenAIError, so callers collapse it to a generic 500
+// with no upstream signal. Log status/body and remap, preserving aborts.
+function rethrowUpstream(err: unknown, context: string): never {
+  if (
+    err instanceof OpenAI.APIUserAbortError ||
+    (err instanceof Error && err.name === 'AbortError')
+  ) {
+    throw err;
+  }
+  if (err instanceof OpenAI.APIError) {
+    console.error('[openai-responses] upstream error', {
+      context,
+      status: err.status,
+      code: err.code,
+      body: typeof err.message === 'string' ? err.message.slice(0, 500) : undefined,
+    });
+    throw new OpenAIError(err.message || 'openai api error', err.status ?? 502);
+  }
+  throw err;
+}
+
 function toResponsesTools(tools: readonly ToolSchema[]): Array<{
   type: 'function';
   name: string;
@@ -74,9 +95,14 @@ export async function openResponsesStream(
     body.tool_choice = opts.toolChoice ?? 'auto';
   }
 
-  const stream = (await client().responses.create(body as unknown as Parameters<typeof client>[0], {
-    signal: opts.signal,
-  })) as unknown as AsyncIterable<unknown>;
+  let stream: AsyncIterable<unknown>;
+  try {
+    stream = (await client().responses.create(body as unknown as Parameters<typeof client>[0], {
+      signal: opts.signal,
+    })) as unknown as AsyncIterable<unknown>;
+  } catch (err) {
+    rethrowUpstream(err, 'stream');
+  }
 
   return iterateEvents(stream);
 }
@@ -107,14 +133,18 @@ export async function openResponsesJSON<T>(
     tool_choice: { type: 'function', name: opts.tool.name },
   };
 
-  const response = (await client().responses.create(
-    body as unknown as Parameters<typeof client>[0],
-    { signal: opts.signal },
-  )) as unknown as {
+  let response: {
     id?: unknown;
     usage?: { total_tokens?: unknown };
     output?: Array<{ type?: unknown; name?: unknown; arguments?: unknown }>;
   };
+  try {
+    response = (await client().responses.create(body as unknown as Parameters<typeof client>[0], {
+      signal: opts.signal,
+    })) as unknown as typeof response;
+  } catch (err) {
+    rethrowUpstream(err, 'json');
+  }
 
   const call = response.output?.find(
     (item) => item?.type === 'function_call' && item?.name === opts.tool.name,

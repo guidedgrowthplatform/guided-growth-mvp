@@ -5,7 +5,8 @@ import { Sentry } from '@/lib/sentry';
 import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 import type { ParsedHabit } from '@gg/shared/types';
 
-const PARSE_TIMEOUT_MS = 12_000;
+// Above server's 18s so a slow LLM lands instead of aborting early to regex.
+const PARSE_TIMEOUT_MS = 20_000;
 
 export type ParseSource = 'llm' | 'regex_fallback';
 
@@ -31,6 +32,8 @@ export function useParseHabits() {
   const parse = useCallback(
     async (text: string): Promise<ParseResult> => {
       setLoading(true);
+      // Cancel any in-flight parse so a double-call doesn't orphan its request.
+      controllerRef.current?.abort();
       const controller = new AbortController();
       controllerRef.current = controller;
       const timer = setTimeout(() => controller.abort(), PARSE_TIMEOUT_MS);

@@ -203,7 +203,7 @@ export interface OnboardingStepData {
   reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string } | null;
   brainDumpText?: string | null;
   // Persisted LLM parse so advanced-results can rehydrate on lost router state (no regex re-invent).
-  brainDumpHabits?: Array<{ name: string; days?: number[] }> | null;
+  brainDumpHabits?: Array<{ name: string; days?: number[]; time?: string }> | null;
   brainDumpParseSource?: 'llm' | 'regex_fallback' | null;
   customPrompts?: string[] | null;
   advancedHabitConfigs?: Record<
