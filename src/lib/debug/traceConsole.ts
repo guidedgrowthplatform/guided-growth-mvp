@@ -1,15 +1,5 @@
-//
-// Dev-only console trace of the AI turn pipeline. A debugging aid, nothing more.
-//
-// It exists so we can SEE what the coach actually does each turn (which tool it
-// picked, with what arguments, what came back, and how long the whole turn took)
-// instead of only seeing the final reply. It does NOT change app behavior: when
-// tracing is off, startTurnTrace is never called and nothing is logged.
-//
-// Enable:  add ?debug=1 to the URL, OR run  localStorage.setItem('gg_debug','1')
-//          in the console (persists across reloads).
-// Disable: remove the ?debug=1, or run  localStorage.removeItem('gg_debug').
-// Note:    the on/off state is read once per page load, so reload after toggling.
+// Dev-only console trace of the AI turn. Enable: ?debug=1 or localStorage.gg_debug=1
+// (state read once per load — reload after toggling).
 
 let cached: boolean | null = null;
 
