@@ -8,6 +8,7 @@ import { type OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { useParseHabits } from '@/hooks/useParseHabits';
 import { useCtaLoading } from '../shared/useCtaLoading';
 import { useStepTiming } from '../shared/useStepTiming';
 
@@ -17,6 +18,7 @@ export function AdvancedInputPage() {
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null!);
 
+  const { parse } = useParseHabits();
   useAgentNavigation(3, '/onboarding/advanced-results');
   const trackStepComplete = useStepTiming(5, 'advanced_input', 'advanced');
 
@@ -47,8 +49,15 @@ export function AdvancedInputPage() {
       transcript_length_chars: text.length,
     });
     trackStepComplete();
-    navigate('/onboarding/advanced-results', { state: { text } });
-  }, [text, navigate, saveStepAsync, trackStepComplete]);
+    const { habits, source } = await parse(text);
+    navigate('/onboarding/advanced-results', {
+      state: {
+        text,
+        habits: habits.map((h) => ({ name: h.name, days: h.days })),
+        parseSource: source,
+      },
+    });
+  }, [text, navigate, saveStepAsync, trackStepComplete, parse]);
 
   const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleNext);
 

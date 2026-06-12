@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
-import { CARTESIA_VOICES, type VoiceGender } from '@/config/voiceConfig';
+import { COACH_VOICE_ID, type VoiceGender } from '@/config/voiceConfig';
 import { supabase, sessionReady } from '@/lib/supabase';
 import { isVoiceOutEnabled } from './voiceGate';
 
@@ -39,10 +39,9 @@ export function setVoiceGender(gender: VoiceGender): void {
   }
 }
 
-/** Get Cartesia voice ID for the user's selected gender */
+// Gender selection unused post-onboarding; coach always speaks as Yair
 function getCartesiaVoiceId(): string {
-  const gender = getVoiceGender();
-  return CARTESIA_VOICES[gender].id;
+  return COACH_VOICE_ID;
 }
 
 // ─── API Base ───────────────────────────────────────────────────────────────
@@ -85,78 +84,202 @@ let currentTtsAbort: AbortController | null = null;
 let currentAudioResolver: (() => void) | null = null;
 // iOS Safari first-play rule — set by unlockTTS inside a gesture.
 let ttsUnlocked = false;
-// Bumped per speak(); stale callers bail at each await boundary.
+// Bumped per speak()/turn; stale callers bail at each await boundary.
 let speakGeneration = 0;
 
+// ─── Chunked speech-turn queue (coach streaming TTS) ─────────────────────────
+interface QueueItem {
+  text: string;
+  volume: number;
+}
+interface Prefetch {
+  text: string;
+  gen: number;
+  abort: AbortController;
+  blob: Promise<Blob | null>;
+}
+let speechQueue: QueueItem[] = [];
+let playCursor = 0;
+let drainRunning = false;
+let turnActive = false;
+let turnSealed = false;
+let speakingHeld = false;
+let playSynthAbort: AbortController | null = null;
+let prefetch: Prefetch | null = null;
+let drainResolvers: Array<() => void> = [];
+
+function resolveDrainers(): void {
+  const rs = drainResolvers;
+  drainResolvers = [];
+  rs.forEach((r) => r());
+}
+
+// Terminal: only place the queue flips speaking off + settles endSpeechTurn().
+function finishTurn(): void {
+  if (!turnActive) return;
+  turnActive = false;
+  prefetch = null;
+  if (speakingHeld) {
+    speakingHeld = false;
+    setSpeaking(false);
+  }
+  resolveDrainers();
+}
+
+async function runDrain(): Promise<void> {
+  drainRunning = true;
+  const gen = speakGeneration;
+  while (playCursor < speechQueue.length) {
+    if (gen !== speakGeneration) {
+      drainRunning = false;
+      if (turnSealed) finishTurn();
+      return;
+    }
+    const item = speechQueue[playCursor];
+    let blob: Blob | null;
+    if (prefetch && prefetch.gen === gen && prefetch.text === item.text) {
+      blob = await prefetch.blob;
+      prefetch = null;
+    } else {
+      const abort = new AbortController();
+      playSynthAbort = abort;
+      blob = await synthChunk(item.text, gen, abort);
+    }
+    // 1-ahead: synthesize the next chunk (if already queued) while this one plays.
+    if (gen === speakGeneration && !prefetch && playCursor + 1 < speechQueue.length) {
+      const next = speechQueue[playCursor + 1];
+      const abort = new AbortController();
+      const blobP = synthChunk(next.text, gen, abort);
+      blobP.catch(() => null);
+      prefetch = { text: next.text, gen, abort, blob: blobP };
+    }
+    if (gen !== speakGeneration) {
+      drainRunning = false;
+      if (turnSealed) finishTurn();
+      return;
+    }
+    if (blob) {
+      if (!speakingHeld) {
+        speakingHeld = true;
+        setSpeaking(true);
+      }
+      await playChunkBlob(blob, item.volume, gen);
+      if (gen !== speakGeneration) {
+        drainRunning = false;
+        if (turnSealed) finishTurn();
+        return;
+      }
+    }
+    playCursor++;
+  }
+  drainRunning = false;
+  if (turnSealed) finishTurn();
+}
+
+export function beginSpeechTurn(): number {
+  stopTTS();
+  speechQueue = [];
+  playCursor = 0;
+  turnSealed = false;
+  turnActive = true;
+  return ++speakGeneration;
+}
+
+export function pushSpeechChunk(text: string, opts?: { volume?: number }): void {
+  if (!turnActive || !isVoiceOutEnabled()) return;
+  if (!text.trim()) return;
+  speechQueue.push({ text, volume: opts?.volume ?? 0.85 });
+  if (!drainRunning) {
+    drainRunning = true;
+    void runDrain();
+  }
+}
+
+export function endSpeechTurn(): Promise<void> {
+  turnSealed = true;
+  if (!drainRunning && playCursor >= speechQueue.length) finishTurn();
+  return new Promise<void>((resolve) => {
+    if (!turnActive) resolve();
+    else drainResolvers.push(resolve);
+  });
+}
+
 export function stopTTS(): void {
+  ++speakGeneration;
   if (currentTtsAbort) {
     currentTtsAbort.abort();
     currentTtsAbort = null;
   }
+  if (playSynthAbort) {
+    playSynthAbort.abort();
+    playSynthAbort = null;
+  }
+  if (prefetch) {
+    prefetch.abort.abort();
+    prefetch = null;
+  }
+  speechQueue = [];
+  playCursor = 0;
+  turnSealed = true;
+  drainRunning = false;
+  turnActive = false;
+  speakingHeld = false;
   if (currentAudioResolver) {
     const resolver = currentAudioResolver;
     currentAudioResolver = null;
     resolver();
-    return;
-  }
-  if (currentAudio) {
+  } else if (currentAudio) {
     currentAudio.pause();
     currentAudio.currentTime = 0;
     currentAudio = null;
   }
   setSpeaking(false);
+  resolveDrainers();
 }
 
-async function playAudioFromResponse(
-  res: Response,
-  volume: number,
-  _label: string,
-  generation: number,
-): Promise<boolean> {
-  const audioBlob = await res.blob();
-  if (generation !== speakGeneration) return false;
+function base64ToBlob(base64: string, mime: string): Blob {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
 
-  // Hard-stop any peer playAudioFromResponse that resolved its blob in
-  // the same tick before we overwrite currentAudio.
+// Plays one decoded blob. Caller owns setSpeaking. Never rejects: a play error
+// (incl. iOS NotAllowedError) resolves false so the queue skips, not wedges.
+async function playChunkBlob(blob: Blob, volume: number, generation: number): Promise<boolean> {
+  if (generation !== speakGeneration) return false;
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.src = '';
     currentAudio = null;
   }
-
-  const audioUrl = URL.createObjectURL(audioBlob);
+  const audioUrl = URL.createObjectURL(blob);
   const audio = new Audio(audioUrl);
   audio.volume = volume;
   currentAudio = audio;
 
-  await new Promise<void>((resolve, reject) => {
-    const onFinish = () => {
+  return await new Promise<boolean>((resolve) => {
+    const cleanup = () => {
+      URL.revokeObjectURL(audioUrl);
+      if (currentAudio === audio) currentAudio = null;
+      if (currentAudioResolver === settle) currentAudioResolver = null;
+    };
+    // onended OR external stopTTS() (via currentAudioResolver)
+    const settle = () => {
       audio.pause();
-      URL.revokeObjectURL(audioUrl);
-      if (currentAudio === audio) currentAudio = null;
-      if (currentAudioResolver === onFinish) currentAudioResolver = null;
-      setSpeaking(false);
-      resolve();
+      cleanup();
+      resolve(true);
     };
-    currentAudioResolver = onFinish;
-    audio.onended = onFinish;
-    audio.onerror = (e) => {
-      URL.revokeObjectURL(audioUrl);
-      if (currentAudio === audio) currentAudio = null;
-      if (currentAudioResolver === onFinish) currentAudioResolver = null;
-      setSpeaking(false);
-      reject(e);
+    const fail = (err: unknown) => {
+      cleanup();
+      handleTtsError(err, 'Cartesia');
+      resolve(false);
     };
-    setSpeaking(true);
-    audio.play().catch((err) => {
-      if (currentAudio === audio) currentAudio = null;
-      if (currentAudioResolver === onFinish) currentAudioResolver = null;
-      setSpeaking(false);
-      reject(err);
-    });
+    currentAudioResolver = settle;
+    audio.onended = settle;
+    audio.onerror = (e) => fail(e);
+    audio.play().catch((err) => fail(err));
   });
-
-  return true;
 }
 
 /** Handle common TTS fetch errors — abort, autoplay, etc. */
@@ -179,44 +302,64 @@ function handleTtsError(err: unknown, label: string): boolean {
   return false;
 }
 
-/**
- * Speak text using Cartesia TTS API (sonic-3, primary and only provider).
- * Returns true if audio played successfully, false on failure.
- * No fallback: callers accept silent failure (visible chat message remains).
- */
-async function speakCartesia(text: string, volume: number, generation: number): Promise<boolean> {
-  if (!cartesiaTtsAvailable) return false;
-
+// Synthesize one chunk → blob, or null on disabled/stale/error/abort. Caller
+// owns the AbortController so play and 1-ahead prefetch cancel independently.
+async function synthChunk(
+  text: string,
+  generation: number,
+  abort: AbortController,
+): Promise<Blob | null> {
+  if (!cartesiaTtsAvailable) return null;
+  const clean = cleanText(text);
+  if (!clean) return null;
   try {
     const voiceId = getCartesiaVoiceId();
     const authHeaders = await getAuthHeaders();
-    if (generation !== speakGeneration) return false;
-
-    const abortController = new AbortController();
-    currentTtsAbort = abortController;
+    if (generation !== speakGeneration) return null;
 
     const res = await fetch(`${getApiBase()}/api/cartesia-tts`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeaders,
-      },
-      body: JSON.stringify({ text, voice_id: voiceId }),
-      signal: abortController.signal,
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
+      body: JSON.stringify({
+        text: clean,
+        voice_id: voiceId,
+        ...(Capacitor.isNativePlatform() ? { format: 'base64' } : {}),
+      }),
+      signal: abort.signal,
     });
-    if (generation !== speakGeneration) return false;
+    if (generation !== speakGeneration) return null;
 
     if (!res.ok) {
       console.warn('[TTS] Cartesia proxy error:', res.status);
       if (res.status === 429 || res.status === 401 || res.status === 500) {
         cartesiaTtsAvailable = false;
       }
-      return false;
+      return null;
     }
 
-    return await playAudioFromResponse(res, volume, 'Cartesia', generation);
+    if (Capacitor.isNativePlatform()) {
+      // CapacitorHttp's patched fetch corrupts binary bodies; base64-in-JSON survives
+      const { audio } = (await res.json()) as { audio: string };
+      return base64ToBlob(audio, 'audio/mpeg');
+    }
+    return await res.blob();
   } catch (err) {
-    return handleTtsError(err, 'Cartesia');
+    handleTtsError(err, 'Cartesia');
+    return null;
+  }
+}
+
+// One-shot path (non-coach callers): synth then play one blob, owns setSpeaking.
+async function speakCartesia(text: string, volume: number, generation: number): Promise<boolean> {
+  const abort = new AbortController();
+  currentTtsAbort = abort;
+  const blob = await synthChunk(text, generation, abort);
+  if (generation !== speakGeneration || !blob) return false;
+  setSpeaking(true);
+  try {
+    return await playChunkBlob(blob, volume, generation);
+  } finally {
+    if (generation === speakGeneration) setSpeaking(false);
   }
 }
 

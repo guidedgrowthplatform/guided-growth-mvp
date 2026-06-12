@@ -228,3 +228,13 @@ export interface ParsedHabit {
   days?: number[];
   time?: string;
 }
+
+export interface ParseBrainDumpRequest {
+  text: string;
+  session_id: string;
+  screen_id?: string;
+}
+
+export interface ParseBrainDumpResponse {
+  habits: ParsedHabit[];
+}

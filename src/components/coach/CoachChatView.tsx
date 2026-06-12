@@ -12,7 +12,6 @@ import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
 import type { CoachChatApi } from '@/lib/chat/coachChatTypes';
-import { orbStateFrom } from '@/lib/orb/orbState';
 import { stopTTS } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 
@@ -51,7 +50,8 @@ export function CoachChatView({
   // Soniox interim (set by useCoachChat's onInterim). Shows the user typing-by-voice.
   const interim = useVoiceStore((s) => s.interim);
 
-  const isVoiceInOnly = orbStateFrom(voiceChosen, micRuntimeOn) === 'voice_in_only';
+  // Capture runs whenever the right half is on (incl. both-on half-duplex).
+  const micLive = micRuntimeOn;
   const isListening = voiceState === 'listening';
   const isProcessing = voiceState === 'processing';
 
@@ -83,7 +83,7 @@ export function CoachChatView({
   });
 
   const { intensity: micRingIntensity, speaking: micSpeaking } = useMicVoiceActivity(
-    isVoiceInOnly && isListening,
+    micLive && isListening,
   );
 
   const handleClose = useCallback(() => {
@@ -135,13 +135,14 @@ export function CoachChatView({
       : 'idle';
 
   const gradient = visualState === 'listening' ? LISTENING_GRADIENT : IDLE_GRADIENT;
+  // Speaking wins over listening — both-on is half-duplex, never simultaneous.
   const dualActiveRings: 'left' | 'right' | 'ready' | 'idle' | null =
-    isVoiceInOnly && isListening
-      ? micSpeaking
-        ? 'right'
-        : 'ready'
-      : voiceChosen && speaking
-        ? 'left'
+    voiceChosen && speaking
+      ? 'left'
+      : micLive && isListening
+        ? micSpeaking
+          ? 'right'
+          : 'ready'
         : null;
 
   return (
@@ -219,7 +220,7 @@ export function CoachChatView({
             markdown
           />
         )}
-        {isVoiceInOnly && displayedUser.length > 0 && (
+        {micLive && displayedUser.length > 0 && (
           <ChatBubble
             role="user"
             text={displayedUser}

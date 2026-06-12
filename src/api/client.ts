@@ -69,10 +69,11 @@ export function apiGet<T>(endpoint: string): Promise<T> {
   return apiFetch<T>(endpoint);
 }
 
-export function apiPost<T>(endpoint: string, body: unknown): Promise<T> {
+export function apiPost<T>(endpoint: string, body: unknown, signal?: AbortSignal): Promise<T> {
   return apiFetch<T>(endpoint, {
     method: 'POST',
     body: JSON.stringify(body),
+    signal,
   });
 }
 

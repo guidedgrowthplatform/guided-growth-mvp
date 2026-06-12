@@ -317,15 +317,6 @@ export function AppRoutes() {
           }
         />
 
-        <Route
-          path="/add-habit"
-          element={
-            <AppGate allow="app">
-              <AddHabitPage />
-            </AppGate>
-          }
-        />
-
         {/* Main app (protected, with Layout) */}
         <Route
           element={
@@ -340,6 +331,7 @@ export function AppRoutes() {
           <Route path="report" element={<InsightsPage />} />
           <Route path="report/calendar" element={<CalendarPage />} />
           <Route path="habits" element={<HabitsPage />} />
+          <Route path="add-habit" element={<AddHabitPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="journal" element={<JournalFlowPage />} />
           <Route path="reflections" element={<ReflectionsListPage />} />

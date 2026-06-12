@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCoachTranscripts, useCoachVoice } from '@/contexts/useCoachVoiceSession';
+import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 type DisplayState = 'expanded' | 'collapsed' | 'closed';
@@ -16,6 +17,9 @@ export function CoachSubtitleBar() {
   const session = useCoachVoice();
   const isListening = session?.voiceState === 'listening';
   const speaking = session?.speaking ?? false;
+  const { voiceOn, micOn } = useDualButtonControls();
+  // UX-26 State 4: opening line only, then silent.
+  const textOnly = !voiceOn && !micOn;
   const [busText, setBusText] = useState<string>('');
   const [state, setState] = useState<DisplayState>('expanded');
 
@@ -24,9 +28,18 @@ export function CoachSubtitleBar() {
   // reflects the latest user partial.
   const interim = useVoiceStore((s) => s.interim);
 
+  const openerDoneRef = useRef(false);
+  useEffect(() => {
+    openerDoneRef.current = false;
+  }, [textOnly, session?.currentScreenId]);
+
   useCoachTranscripts((evt) => {
     if (!evt.text) return;
+    if (textOnly && openerDoneRef.current) return;
     setBusText(evt.text);
+    if (textOnly && evt.role === 'assistant' && evt.kind === 'final') {
+      openerDoneRef.current = true;
+    }
   });
 
   useEffect(() => {

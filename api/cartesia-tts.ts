@@ -3,8 +3,8 @@ import { requireUser, setUserContext, handlePreflight } from './_lib/auth.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
 import { getClientIp } from './_lib/validation.js';
 
-// Katie (female) — same voice used for MP3 generation
-const DEFAULT_VOICE_ID = 'f786b574-daa5-4673-aa0c-cbe3e8534c02';
+// Coach Yair cloned voice
+const DEFAULT_VOICE_ID = '0a974815-0e4d-4dfc-b478-37a7b943da70';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
@@ -42,7 +42,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { text, voice_id } = req.body as { text?: string; voice_id?: string };
+    const { text, voice_id, format } = req.body as {
+      text?: string;
+      voice_id?: string;
+      format?: string;
+    };
 
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return res.status(400).json({ error: 'Missing or empty "text" field' });
@@ -100,8 +104,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const audioBuffer = await response.arrayBuffer();
-    res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Cache-Control', 'public, max-age=3600');
+    // base64 lane: CapacitorHttp's patched fetch corrupts binary bodies on native
+    if (format === 'base64') {
+      return res.status(200).json({ audio: Buffer.from(audioBuffer).toString('base64') });
+    }
+    res.setHeader('Content-Type', 'audio/mpeg');
     return res.status(200).send(Buffer.from(audioBuffer));
   } catch (err) {
     if (err instanceof Error && err.name === 'TimeoutError') {

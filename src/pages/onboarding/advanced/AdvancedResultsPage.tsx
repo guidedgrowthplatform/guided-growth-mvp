@@ -31,6 +31,7 @@ interface ResultsLocationState {
   deletedIndex?: number;
   text?: string;
   habits?: Array<{ name: string; days?: number[] }>;
+  parseSource?: 'llm' | 'regex_fallback';
 }
 
 // NOTE: no fallback habits. Mint reported on 2026-04-09 that the AI
@@ -41,7 +42,8 @@ interface ResultsLocationState {
 // input screen with a clarification prompt. Never invent habits.
 
 function buildInitialHabits(state: ResultsLocationState | null, fallbackText: string): HabitItem[] {
-  if (state?.habits && state.habits.length > 0) {
+  // habits present (even empty) = already parsed upstream; empty is a valid "nothing concrete" result.
+  if (state?.habits) {
     return state.habits.map((h) => ({
       name: h.name,
       days: new Set(h.days ?? WEEKDAYS),
@@ -49,6 +51,7 @@ function buildInitialHabits(state: ResultsLocationState | null, fallbackText: st
     }));
   }
 
+  // Regex fallback only on lost router state (reload/deep-link), no upstream parse available.
   const sourceText = state?.text ?? fallbackText;
   if (sourceText) {
     const parsed = parseHabitsFromText(sourceText);
@@ -110,8 +113,11 @@ export function AdvancedResultsPage() {
   useEffect(() => {
     if (hasTrackedView.current || habits.length === 0) return;
     hasTrackedView.current = true;
-    track('view_ai_organized_plan', { habits_generated_count: habits.length });
-  }, [habits.length]);
+    track('view_ai_organized_plan', {
+      habits_generated_count: habits.length,
+      parse_source: locationState?.parseSource ?? 'unknown',
+    });
+  }, [habits.length, locationState?.parseSource]);
 
   // Snapshot mirrors the shape persisted in onboarding_states.data — each
   // habit name maps to {days[], time, reminder}, defaulting time and reminder
