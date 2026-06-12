@@ -6,9 +6,9 @@ describe('ONBOARDING_TOOLS', () => {
   it('exposes the thirteen canonical tool names', () => {
     expect(ONBOARDING_TOOLS.map((t) => t.name).sort()).toEqual([
       'add_habit',
+      'advance_step',
       'ask_clarification',
       'confirm_plan',
-      'confirm_step_complete',
       'remove_habit',
       'submit_brain_dump',
       'submit_category',
@@ -181,19 +181,21 @@ describe('ONBOARDING_TOOLS', () => {
           ],
         },
         {
-          "name": "confirm_step_complete",
-          "properties": [
-            "reason",
-          ],
-          "required": [],
-        },
-        {
           "name": "submit_brain_dump",
           "properties": [
             "brain_dump_raw",
           ],
           "required": [
             "brain_dump_raw",
+          ],
+        },
+        {
+          "name": "advance_step",
+          "properties": [
+            "target_step",
+          ],
+          "required": [
+            "target_step",
           ],
         },
         {
@@ -225,7 +227,7 @@ describe('ONBOARDING_TOOL_NAMES + isOnboardingToolName', () => {
   it('isOnboardingToolName accepts known names', () => {
     expect(isOnboardingToolName('submit_profile')).toBe(true);
     expect(isOnboardingToolName('add_habit')).toBe(true);
-    expect(isOnboardingToolName('confirm_step_complete')).toBe(true);
+    expect(isOnboardingToolName('advance_step')).toBe(true);
   });
 
   it('isOnboardingToolName rejects unknown / base tool names', () => {

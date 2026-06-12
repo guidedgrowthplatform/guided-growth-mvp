@@ -42,7 +42,7 @@ describe('buildCanonicalOptionsBlock', () => {
     expect(out).toContain('Profile Fields');
     expect(out).toContain('nickname, age, gender');
     expect(out).toContain('referral source');
-    expect(out).toContain('Do NOT call confirm_step_complete');
+    expect(out).toContain('Do NOT call advance_step');
   });
 
   it('returns empty for unrelated screens', () => {

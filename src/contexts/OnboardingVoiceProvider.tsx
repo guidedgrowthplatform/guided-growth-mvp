@@ -690,7 +690,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     setRegisteredScreenId((prev) => (prev === screenId ? prev : screenId));
   }, []);
 
-  // Page registers its advance handler (confirm_step_complete fires it).
+  // Page registers its advance handler (revisit-affirm shortcut fires it).
   const onAdvanceRef = useRef<(() => void) | null>(null);
   const registerAdvance = useCallback((cb: (() => void) | null) => {
     onAdvanceRef.current = cb;

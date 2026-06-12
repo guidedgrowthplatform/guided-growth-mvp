@@ -96,7 +96,11 @@ export async function buildSystemPromptForRequest(
 
   const coachingPreamble = buildSystemPrompt({ coachingStyle: args.coaching_style });
   // Direct-LLM only — Vapi keeps raw context elsewhere (it drives navigation).
-  const contextBlock = stripForwardPointers(screen.context_block);
+  // advance_step is the Direct-LLM nav tool; the shared bundle says navigate_next (Vapi's name).
+  const contextBlock = stripForwardPointers(screen.context_block).replace(
+    /navigate_next/g,
+    'advance_step',
+  );
   const contextMessage = buildContextMessage({
     screen_id: args.screen_id,
     context_block: contextBlock,

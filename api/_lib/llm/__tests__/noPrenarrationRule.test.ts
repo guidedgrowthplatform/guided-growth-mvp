@@ -12,6 +12,6 @@ describe('NO_PRENARRATION_RULE', () => {
   });
 
   it('names no tools (safe on tool-less screens)', () => {
-    expect(NO_PRENARRATION_RULE).not.toMatch(/navigate_next|update_profile|confirm_step_complete/);
+    expect(NO_PRENARRATION_RULE).not.toMatch(/navigate_next|update_profile|advance_step/);
   });
 });
