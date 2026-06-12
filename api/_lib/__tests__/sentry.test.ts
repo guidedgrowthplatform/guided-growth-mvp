@@ -5,7 +5,6 @@ const sentry = vi.hoisted(() => ({
   captureException: vi.fn(),
   captureMessage: vi.fn(),
   flush: vi.fn(() => Promise.resolve(true)),
-  contextLinesIntegration: vi.fn(() => ({})),
   dedupeIntegration: vi.fn(() => ({})),
 }));
 vi.mock('@sentry/node', () => sentry);

@@ -22,6 +22,7 @@
  * Stays under Vercel's 12-function limit — this is the 9th top-level api/ file.
  * Future routes added as new branches in this catch-all, NOT new files.
  */
+import { waitUntil } from '@vercel/functions';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyVapiSecret } from '../_lib/vapi/verifySecret.js';
 import { dispatchVapiToolCall } from '../_lib/vapi/dispatch.js';
@@ -173,7 +174,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    await Promise.all([...broadcasts, flushSentry()]);
+    // Telemetry off the voice critical path — deferred past the response, not awaited.
+    waitUntil(Promise.all([...broadcasts, flushSentry()]));
     return res.status(200).json({ results });
   }
 

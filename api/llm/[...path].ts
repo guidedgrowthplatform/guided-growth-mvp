@@ -1,3 +1,4 @@
+import { waitUntil } from '@vercel/functions';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
@@ -336,7 +337,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (endStatus === 'error') {
       reportRequestFailure('llm', endCode ?? 'internal_error', user.anonId);
     }
-    await flushSentry();
+    // Deferred — don't block the (error) response on the Sentry flush.
+    waitUntil(flushSentry());
   };
 
   // Server-owned turn_index. Dedicated client + advisory xact-lock so base=MAX+1
