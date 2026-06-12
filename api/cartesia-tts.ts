@@ -104,7 +104,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const audioBuffer = await response.arrayBuffer();
-    res.setHeader('Cache-Control', 'public, max-age=3600');
+    // private: auth-gated per-user TTS, not shared-cacheable
+    res.setHeader('Cache-Control', 'private, max-age=3600');
     // base64 lane: CapacitorHttp's patched fetch corrupts binary bodies on native
     if (format === 'base64') {
       return res.status(200).json({ audio: Buffer.from(audioBuffer).toString('base64') });

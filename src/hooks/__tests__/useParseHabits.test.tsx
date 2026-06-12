@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -36,7 +36,9 @@ function renderParse(): { call: () => Promise<ParseResult> } {
   };
   function Probe() {
     const { parse } = useParseHabits();
-    ref.call = () => parse('sleep earlier and work out three times a week');
+    useEffect(() => {
+      ref.call = () => parse('sleep earlier and work out three times a week');
+    }, [parse]);
     return null;
   }
   act(() => root.render(wrap(<Probe />)));
@@ -75,5 +77,38 @@ describe('useParseHabits', () => {
     });
     expect(result?.source).toBe('llm');
     expect(result?.habits).toHaveLength(0);
+  });
+
+  it('falls back to regex on abort/timeout', async () => {
+    vi.mocked(parseBrainDump).mockRejectedValue(new DOMException('aborted', 'AbortError'));
+    const ref = renderParse();
+    let result: ParseResult | undefined;
+    await act(async () => {
+      result = await ref.call();
+    });
+    expect(result?.source).toBe('regex_fallback');
+    expect(result?.habits.length).toBeGreaterThan(0);
+  });
+
+  it('unmount mid-flight does not throw or warn on setState', async () => {
+    let resolveParse: (h: never[]) => void = () => {};
+    vi.mocked(parseBrainDump).mockReturnValue(
+      new Promise((res) => {
+        resolveParse = res as (h: never[]) => void;
+      }),
+    );
+    const warn = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const ref = renderParse();
+    let pending: Promise<ParseResult>;
+    act(() => {
+      pending = ref.call();
+    });
+    act(() => root.unmount());
+    await act(async () => {
+      resolveParse([]);
+      await pending;
+    });
+    expect(warn.mock.calls.some(([m]) => String(m).includes('unmounted'))).toBe(false);
+    warn.mockRestore();
   });
 });

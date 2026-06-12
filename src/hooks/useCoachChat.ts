@@ -177,12 +177,25 @@ export function useCoachChat(
   // window — else immediate user replies get swallowed.
   const micMutedForTts = voiceModeOn && isSpeaking;
 
+  // Post-speech HOLD: keep the mic muted ~400ms after playback ends so the
+  // audio tail / room echo can't trip VAD and open a paid socket on the
+  // coach's own voice. Falling edge only; rising edge releases immediately.
+  const [micMutedHeld, setMicMutedHeld] = useState(false);
+  useEffect(() => {
+    if (micMutedForTts) {
+      setMicMutedHeld(true);
+      return;
+    }
+    const t = setTimeout(() => setMicMutedHeld(false), 400);
+    return () => clearTimeout(t);
+  }, [micMutedForTts]);
+
   const { isListening } = useVoiceInCapture({
     active: voiceInActive,
     vapiStatus: 'idle',
     onTranscript: handleSonioxFinal,
     onInterim: handleSonioxInterim,
-    responding: micMutedForTts,
+    responding: micMutedForTts || micMutedHeld,
     onError: handleVoiceError,
   });
 

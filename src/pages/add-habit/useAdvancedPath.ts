@@ -47,7 +47,11 @@ export function useAdvancedPath(phase: Phase) {
   }, [phase]);
 
   async function handleBrainDumpDone() {
-    const { habits } = await parse(brainDumpText);
+    const { habits, source } = await parse(brainDumpText);
+    track('view_ai_organized_plan', {
+      habits_generated_count: habits.length,
+      parse_source: source,
+    });
     setAdvancedHabits(
       habits.map((h) => ({
         name: h.name,

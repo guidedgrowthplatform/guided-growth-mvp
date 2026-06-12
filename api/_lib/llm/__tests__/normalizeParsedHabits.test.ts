@@ -48,8 +48,13 @@ describe('normalizeParsedHabits', () => {
     expect(out[2].time).toBeUndefined();
   });
 
-  it('applies no count cap — returns all valid habits', () => {
+  it('returns all valid habits under the cap', () => {
     const habits = Array.from({ length: 25 }, (_, i) => ({ name: `H${i}`, frequency: 'daily' }));
     expect(normalizeParsedHabits({ habits })).toHaveLength(25);
+  });
+
+  it('clamps to MAX_HABITS (50) when over the cap', () => {
+    const habits = Array.from({ length: 120 }, (_, i) => ({ name: `H${i}`, frequency: 'daily' }));
+    expect(normalizeParsedHabits({ habits })).toHaveLength(50);
   });
 });

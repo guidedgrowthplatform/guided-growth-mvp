@@ -2,7 +2,10 @@ import type { ParsedHabit } from '@gg/shared/types';
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-// Trust boundary for LLM tool output. No count cap — advanced path returns all habits.
+// Hard cap on parsed habits — guards against runaway LLM output.
+const MAX_HABITS = 50;
+
+// Trust boundary for LLM tool output.
 export function normalizeParsedHabits(raw: unknown): ParsedHabit[] {
   if (!raw || typeof raw !== 'object' || !Array.isArray((raw as { habits?: unknown }).habits)) {
     return [];
@@ -29,6 +32,7 @@ export function normalizeParsedHabits(raw: unknown): ParsedHabit[] {
     if (typeof h.time === 'string' && TIME_RE.test(h.time)) habit.time = h.time;
 
     out.push(habit);
+    if (out.length >= MAX_HABITS) break;
   }
   return out;
 }

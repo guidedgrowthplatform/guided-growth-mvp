@@ -126,6 +126,16 @@ function finishTurn(): void {
   resolveDrainers();
 }
 
+// 1-ahead: synthesize playCursor+1 (if queued, not already pending) for this gen.
+function maybePrefetchNext(gen: number): void {
+  if (gen !== speakGeneration || prefetch || playCursor + 1 >= speechQueue.length) return;
+  const next = speechQueue[playCursor + 1];
+  const abort = new AbortController();
+  const blobP = synthChunk(next.text, gen, abort);
+  blobP.catch(() => null);
+  prefetch = { text: next.text, gen, abort, blob: blobP };
+}
+
 async function runDrain(): Promise<void> {
   drainRunning = true;
   const gen = speakGeneration;
@@ -141,18 +151,17 @@ async function runDrain(): Promise<void> {
       blob = await prefetch.blob;
       prefetch = null;
     } else {
+      // Stale/non-matching prefetch — abort before synthesizing fresh.
+      if (prefetch) {
+        prefetch.abort.abort();
+        prefetch = null;
+      }
       const abort = new AbortController();
       playSynthAbort = abort;
       blob = await synthChunk(item.text, gen, abort);
     }
-    // 1-ahead: synthesize the next chunk (if already queued) while this one plays.
-    if (gen === speakGeneration && !prefetch && playCursor + 1 < speechQueue.length) {
-      const next = speechQueue[playCursor + 1];
-      const abort = new AbortController();
-      const blobP = synthChunk(next.text, gen, abort);
-      blobP.catch(() => null);
-      prefetch = { text: next.text, gen, abort, blob: blobP };
-    }
+    // Next chunk may have arrived during synth — prefetch it before play.
+    maybePrefetchNext(gen);
     if (gen !== speakGeneration) {
       drainRunning = false;
       if (turnSealed) finishTurn();
@@ -163,6 +172,7 @@ async function runDrain(): Promise<void> {
         speakingHeld = true;
         setSpeaking(true);
       }
+      maybePrefetchNext(gen);
       await playChunkBlob(blob, item.volume, gen);
       if (gen !== speakGeneration) {
         drainRunning = false;
@@ -192,6 +202,9 @@ export function pushSpeechChunk(text: string, opts?: { volume?: number }): void 
   if (!drainRunning) {
     drainRunning = true;
     void runDrain();
+  } else {
+    // arrived mid-playback — prefetch now so it's warm before its turn
+    maybePrefetchNext(speakGeneration);
   }
 }
 
@@ -410,6 +423,9 @@ export function speak(
   if (!clean) return Promise.resolve();
 
   const volume = options?.volume ?? 0.85;
+
+  // Don't let a one-shot (milestone/timer) tear down an in-progress coach turn.
+  if (turnActive) return Promise.resolve();
 
   stopTTS();
   const myGeneration = ++speakGeneration;

@@ -6,6 +6,7 @@ import { OpenAIError } from './openai.js';
 import { openResponsesJSON, type ToolSchema } from './openai-responses.js';
 
 const PARSE_MODEL = 'gpt-4o-mini';
+const PARSE_TIMEOUT_MS = 18_000;
 
 interface ParseUser {
   anonId: string;
@@ -20,6 +21,7 @@ const PARSE_TOOL: ToolSchema = {
     properties: {
       habits: {
         type: 'array',
+        maxItems: 50,
         description: 'One entry per distinct habit the user actually mentioned.',
         items: {
           type: 'object',
@@ -80,12 +82,17 @@ export async function handleParseBrainDump(
       : 'ONBOARD-ADVANCED';
 
   const startedAt = performance.now();
+  const abortController = new AbortController();
+  // Bound the upstream call; Vercel maxDuration is the hard ceiling otherwise.
+  const timeout = setTimeout(() => abortController.abort(), PARSE_TIMEOUT_MS);
+  req.on('close', () => abortController.abort());
   try {
     const { data, totalTokens } = await openResponsesJSON<unknown>({
       model: PARSE_MODEL,
       instructions: INSTRUCTIONS,
       input: [{ type: 'message', role: 'user', content: text }],
       tool: PARSE_TOOL,
+      signal: abortController.signal,
     });
     const habits = normalizeParsedHabits(data);
     const latencyMs = Math.round(performance.now() - startedAt);
@@ -97,8 +104,12 @@ export async function handleParseBrainDump(
   } catch (err) {
     const latencyMs = Math.round(performance.now() - startedAt);
     waitUntil(logParse(user.anonId, sessionId, screenId, 'error', latencyMs, 0, 0));
-    const status = err instanceof OpenAIError ? 502 : 502;
-    res.status(status).json({ error: 'parse_failed' });
+    if (res.writableEnded || res.headersSent) return;
+    const aborted = err instanceof Error && err.name === 'AbortError';
+    const status = aborted ? 504 : err instanceof OpenAIError ? err.status : 500;
+    res.status(status).json({ error: aborted ? 'parse_timeout' : 'parse_failed' });
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

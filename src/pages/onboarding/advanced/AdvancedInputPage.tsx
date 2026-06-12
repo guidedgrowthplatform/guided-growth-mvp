@@ -50,10 +50,17 @@ export function AdvancedInputPage() {
     });
     trackStepComplete();
     const { habits, source } = await parse(text);
+    const persistHabits = habits.map((h) => ({ name: h.name, days: h.days }));
+    // Persist parse result so advanced-results rehydrates real LLM habits on lost router state.
+    await saveStepAsync(3, {
+      brainDumpText: text,
+      brainDumpHabits: persistHabits,
+      brainDumpParseSource: source,
+    });
     navigate('/onboarding/advanced-results', {
       state: {
         text,
-        habits: habits.map((h) => ({ name: h.name, days: h.days })),
+        habits: persistHabits,
         parseSource: source,
       },
     });

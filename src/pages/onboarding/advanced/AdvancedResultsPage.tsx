@@ -10,7 +10,6 @@ import { type OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
-import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 import { useCtaLoading } from '../shared/useCtaLoading';
 import { useStepTiming } from '../shared/useStepTiming';
 
@@ -34,37 +33,26 @@ interface ResultsLocationState {
   parseSource?: 'llm' | 'regex_fallback';
 }
 
-// NOTE: no fallback habits. Mint reported on 2026-04-09 that the AI
-// was generating habits the user never entered (the old FALLBACK_HABITS
-// constant contained "Sleep by 11 PM", "Morning stretch", "No coffee
-// after 3 PM" which appeared for every vague brain-dump). Per the
-// feedback: if parsing produces nothing, send the user back to the
-// input screen with a clarification prompt. Never invent habits.
+// NEVER invent habits. On lost router state (reload/deep-link) rehydrate the
+// real persisted LLM parse — never regex-reparse the brain dump, which fabricated
+// habits the user never entered (Mint, 2026-04-09).
+interface PersistedParse {
+  habits?: Array<{ name: string; days?: number[] }> | null;
+  source?: 'llm' | 'regex_fallback' | null;
+}
 
-function buildInitialHabits(state: ResultsLocationState | null, fallbackText: string): HabitItem[] {
-  // habits present (even empty) = already parsed upstream; empty is a valid "nothing concrete" result.
-  if (state?.habits) {
-    return state.habits.map((h) => ({
-      name: h.name,
-      days: new Set(h.days ?? WEEKDAYS),
-      selected: true,
-    }));
-  }
-
-  // Regex fallback only on lost router state (reload/deep-link), no upstream parse available.
-  const sourceText = state?.text ?? fallbackText;
-  if (sourceText) {
-    const parsed = parseHabitsFromText(sourceText);
-    if (parsed.length > 0) {
-      return parsed.map((h) => ({
-        name: h.name,
-        days: new Set(WEEKDAYS),
-        selected: true,
-      }));
-    }
-  }
-
-  return [];
+function buildInitialHabits(
+  state: ResultsLocationState | null,
+  persisted: PersistedParse,
+): HabitItem[] {
+  // Router state wins (happy path); habits present (even empty) = parsed upstream.
+  const source = state?.habits ?? persisted.habits ?? null;
+  if (!source) return [];
+  return source.map((h) => ({
+    name: h.name,
+    days: new Set(h.days ?? WEEKDAYS),
+    selected: true,
+  }));
 }
 
 function applyLocationState(base: HabitItem[], state: ResultsLocationState | null): HabitItem[] {
@@ -91,10 +79,12 @@ export function AdvancedResultsPage() {
   const trackStepComplete = useStepTiming(6, 'ai_organized_plan_review', 'advanced');
 
   const fallbackBrainDump = onboardingState?.data?.brainDumpText ?? '';
+  const persistedHabits = onboardingState?.data?.brainDumpHabits ?? null;
+  const persistedSource = onboardingState?.data?.brainDumpParseSource ?? null;
 
   const baseHabits = useMemo(
-    () => buildInitialHabits(locationState, fallbackBrainDump),
-    [locationState, fallbackBrainDump],
+    () => buildInitialHabits(locationState, { habits: persistedHabits, source: persistedSource }),
+    [locationState, persistedHabits, persistedSource],
   );
   const habits = useMemo(
     () => applyLocationState(baseHabits, locationState),
@@ -115,9 +105,9 @@ export function AdvancedResultsPage() {
     hasTrackedView.current = true;
     track('view_ai_organized_plan', {
       habits_generated_count: habits.length,
-      parse_source: locationState?.parseSource ?? 'unknown',
+      parse_source: locationState?.parseSource ?? persistedSource ?? 'unknown',
     });
-  }, [habits.length, locationState?.parseSource]);
+  }, [habits.length, locationState?.parseSource, persistedSource]);
 
   // Snapshot mirrors the shape persisted in onboarding_states.data — each
   // habit name maps to {days[], time, reminder}, defaulting time and reminder
