@@ -26,9 +26,8 @@ export async function submitBrainDump(
     brain_dump_raw: string;
   }>(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, brain_dump_raw, updated_at)
-     VALUES ($1, 4, 'in_progress', $2::jsonb, $3, now())
+     VALUES ($1, 3, 'in_progress', $2::jsonb, $3, now())
      ON CONFLICT (anon_id) DO UPDATE SET
-       current_step = GREATEST(onboarding_states.current_step, 4),
        status = 'in_progress',
        data = onboarding_states.data || $2::jsonb,
        brain_dump_raw = $3,
@@ -40,7 +39,7 @@ export async function submitBrainDump(
   const row = result.rows[0];
   return ok({
     data: row?.data ?? { brainDumpText: brainDumpRaw },
-    current_step: row?.current_step ?? 4,
+    current_step: row?.current_step ?? 3,
     brain_dump_raw: row?.brain_dump_raw ?? brainDumpRaw,
   });
 }
