@@ -133,6 +133,61 @@ describe('vapi submitReflectionConfig — reconciliation', () => {
     expect(payload.reflectionConfig.schedule).toBe('Weekend');
     expect(payload.reflectionConfig.days).toEqual([0, 6]);
   });
+
+  // Regression for the rapid-chain-skips-reflection bug (feat/onboarding-voice-cleanup).
+  // The model used to fire submit_reflection_config with NO fields, relying on a
+  // (false) tool-description promise that the server would fill defaults. The
+  // server actually requires all four — these tests pin that down so a future
+  // "let the server fill defaults" patch can't silently re-open the loophole.
+  it('rejects call with no fields (no silent server defaults)', async () => {
+    const res = await submitReflectionConfig({ anon_id: ANON });
+    expect(res).toMatchObject({ error: expect.stringContaining('time') });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects call missing time', async () => {
+    const res = await submitReflectionConfig({
+      anon_id: ANON,
+      days: [1, 2, 3, 4, 5],
+      reminder: true,
+      schedule: 'Weekday',
+    });
+    expect(res).toMatchObject({ error: expect.stringContaining('time') });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects call missing days', async () => {
+    const res = await submitReflectionConfig({
+      anon_id: ANON,
+      time: '21:45',
+      reminder: true,
+      schedule: 'Weekday',
+    });
+    expect(res).toMatchObject({ error: expect.stringContaining('days') });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects call missing reminder', async () => {
+    const res = await submitReflectionConfig({
+      anon_id: ANON,
+      time: '21:45',
+      days: [1, 2, 3, 4, 5],
+      schedule: 'Weekday',
+    });
+    expect(res).toMatchObject({ error: expect.stringContaining('reminder') });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects call missing schedule', async () => {
+    const res = await submitReflectionConfig({
+      anon_id: ANON,
+      time: '21:45',
+      days: [1, 2, 3, 4, 5],
+      reminder: true,
+    });
+    expect(res).toMatchObject({ error: expect.stringContaining('schedule') });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
 });
 
 describe('vapi navigateNext — skip + precondition guards', () => {

@@ -34,7 +34,7 @@ export function PlanReviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const routerState = location.state as PlanReviewState | null;
-  const { state: onboardingState, complete, isCompleting } = useOnboarding();
+  const { state: onboardingState, complete, isCompleting, completeError } = useOnboarding();
   const onboardingVoice = useOnboardingVoice();
 
   // Voice update_habit edits on this screen, applied over the base state.
@@ -100,11 +100,16 @@ export function PlanReviewPage() {
     // Clean up the persisted timestamp now that the flow is complete.
     localStorage.removeItem('gg_onboarding_started_at');
     // End the Vapi session so voice doesn't bleed into /home post-onboarding.
-    // Fire-and-forget — completion proceeds regardless of whether endCall errors.
+    // endCall is sync void — try/catch only catches sync throws from the
+    // preferences dispatch (extremely unlikely). We still wrap so a future
+    // refactor of endCall doesn't silently break finalization.
     try {
       onboardingVoice?.endCall();
-    } catch {
-      // ignore
+    } catch (err) {
+      Sentry.captureException(err, {
+        tags: { flow: 'onboarding', step: '7-plan-review' },
+        extra: { phase: 'endCall' },
+      });
     }
     complete({
       habitConfigs: state.habitConfigs,
@@ -116,15 +121,45 @@ export function PlanReviewPage() {
 
   // Voice "let's go" mirrors the tap flow once the agent bumps current_step past 7.
   const autoCompletedRef = useRef(false);
+  // Wait ~700ms after Vapi stops speaking before tearing the call down. The
+  // BEGINNER-06 context tells the model to speak a send-off ("Good luck —
+  // you've got this.") right before firing confirm_plan; without this wait,
+  // endCall() in handleStartPlan would stop() the WebRTC mid-word. Resets
+  // whenever the model starts speaking again, so a brief silence between
+  // tool fire and the send-off doesn't trigger premature teardown.
+  const POST_SPEECH_QUIET_MS = 700;
+  const isAssistantSpeaking = onboardingVoice?.isAssistantSpeaking ?? false;
   useEffect(() => {
     if (autoCompletedRef.current) return;
     if (isCompleting) return;
+    // After a failed complete(), wait for the user to explicitly retry (tap or
+    // voice). Without this gate, the autoCompletedRef reset below would let a
+    // redundant Realtime push of current_step=8 re-trigger complete() and
+    // potentially loop on a persistent server error.
+    if (completeError) return;
     if (!state?.habitConfigs || !state?.reflectionConfig) return;
     if (!onboardingState) return;
     if (onboardingState.current_step <= 7) return;
-    autoCompletedRef.current = true;
-    handleStartPlan();
-  }, [onboardingState, state, isCompleting, handleStartPlan]);
+    // Don't tear down while the assistant is mid-utterance. Schedule the
+    // fire on next quiet window.
+    if (isAssistantSpeaking) return;
+    const timer = setTimeout(() => {
+      if (autoCompletedRef.current) return;
+      autoCompletedRef.current = true;
+      handleStartPlan();
+    }, POST_SPEECH_QUIET_MS);
+    return () => clearTimeout(timer);
+  }, [onboardingState, state, isCompleting, handleStartPlan, completeError, isAssistantSpeaking]);
+
+  // If completion fails, drop the single-fire latch so the user can retry —
+  // both by tap (the existing button) AND by voice ("let's go" / "start").
+  // Without this reset, autoCompletedRef stays true after the first failure
+  // and handleVoiceAction silently ignores any subsequent confirm_plan from
+  // the agent, leaving only the tap path open. The auto-complete effect above
+  // gates on !completeError so this reset alone can't trigger a retry loop.
+  useEffect(() => {
+    if (completeError) autoCompletedRef.current = false;
+  }, [completeError]);
 
   // Voice "let's go" / "start" / "looks good" — direct confirm path that
   // doesn't depend on the current_step bump above. Both paths share

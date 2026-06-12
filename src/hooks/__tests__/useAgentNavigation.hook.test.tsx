@@ -6,6 +6,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionLogContext, type SessionLogContextValue } from '@/contexts/SessionLogContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { queryKeys } from '@/lib/query';
 import type { OnboardingState } from '@gg/shared/types';
 import { useAgentNavigation } from '../useAgentNavigation';
@@ -36,9 +37,11 @@ function render(step: number, route: string) {
   act(() => {
     root.render(
       <QueryClientProvider client={qc}>
-        <SessionLogContext.Provider value={sessionCtx}>
-          <Probe step={step} route={route} />
-        </SessionLogContext.Provider>
+        <ToastProvider>
+          <SessionLogContext.Provider value={sessionCtx}>
+            <Probe step={step} route={route} />
+          </SessionLogContext.Provider>
+        </ToastProvider>
       </QueryClientProvider>,
     );
   });
