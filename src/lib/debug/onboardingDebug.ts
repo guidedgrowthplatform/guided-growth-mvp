@@ -1,6 +1,4 @@
-// Single source of truth for the onboarding event console log. All three voice
-// paths (Vapi / async / direct-LLM) route through logDebugEvent so the console
-// reads as one uniform timeline.
+// Single sink for the onboarding console log — all paths route through logDebugEvent.
 
 export type DebugSource = 'vapi' | 'llm' | 'session';
 
@@ -12,13 +10,11 @@ export interface DebugEntry {
   detail?: Record<string, unknown>;
 }
 
-// On in DEV, or in any build once localStorage.gg_onboarding_debug (or the
-// legacy gg_vapi_debug) is truthy — lets the client watch the live deployment
-// without a rebuild (set it in devtools, reload).
+// On in DEV, or any build where localStorage.gg_debug is set (watch live deploy, no rebuild).
 export function debugEnabled(): boolean {
   if (import.meta.env.DEV) return true;
   try {
-    return !!(localStorage.getItem('gg_onboarding_debug') || localStorage.getItem('gg_vapi_debug'));
+    return !!localStorage.getItem('gg_debug');
   } catch {
     return false;
   }

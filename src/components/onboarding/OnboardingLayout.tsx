@@ -72,7 +72,7 @@ export function OnboardingLayout({
   // directly. Subscribe here so the postgres_changes broadcast lands in React
   // Query cache and the form auto-fills without a refetch.
   useOnboardingRealtimeSync();
-  // All-path event timeline → devtools console (DEV, or localStorage.gg_onboarding_debug).
+  // All-path event timeline → console (DEV or localStorage.gg_debug).
   useOnboardingEventLog();
   const [tooltipVisible, setTooltipVisible] = useState(
     showTooltip && !localStorage.getItem('onboarding-voice-tooltip-shown'),

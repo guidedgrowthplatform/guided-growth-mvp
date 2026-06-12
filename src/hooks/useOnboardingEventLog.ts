@@ -13,19 +13,8 @@ interface VapiToolEventPayload {
   ts: string;
 }
 
-/**
- * Unified onboarding event console log. Prints two of the three streams to the
- * browser console as one timeline (the Direct-LLM tool stream is tapped inside
- * useLLM, since it lives in the chat provider, not here):
- *
- *  - Path 1 (Vapi): server-broadcast tool outcomes — the only client-side
- *    window into the audio-only WebRTC session's webhook tool calls.
- *  - Shared session timeline: navigate / voice_started / voice_ended /
- *    llm_call summaries from sessionLogStore, covering all paths.
- *
- * Gated by debugEnabled() (DEV or localStorage.gg_onboarding_debug). Mounted in
- * OnboardingLayout, so the session timeline is naturally scoped to onboarding.
- */
+// Vapi broadcasts + sessionLogStore timeline → console. The Direct-LLM stream
+// is tapped in useLLM (lives in the chat provider, not here).
 export function useOnboardingEventLog(): void {
   const anonId = useAuthStore((s) => s.anonId);
 

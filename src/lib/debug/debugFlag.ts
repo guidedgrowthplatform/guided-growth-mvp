@@ -1,12 +1,9 @@
-// Boot-time capture of ?debug=1|0 into localStorage. SPA navigation strips
-// query params before the first traced turn reads them — persisting wins.
-const KEYS = ['gg_debug', 'gg_onboarding_debug'];
-
+// SPA nav strips ?debug before the first traced turn reads it — persist to win.
 export function captureDebugFlag(): void {
   try {
     const v = new URLSearchParams(window.location.search).get('debug');
-    if (v === '1') KEYS.forEach((k) => localStorage.setItem(k, '1'));
-    else if (v === '0') KEYS.forEach((k) => localStorage.removeItem(k));
+    if (v === '1') localStorage.setItem('gg_debug', '1');
+    else if (v === '0') localStorage.removeItem('gg_debug');
     if (localStorage.getItem('gg_debug') === '1') {
       console.info(
         '%c[gg-debug] enabled — AI turns + onboarding events log here (?debug=0 to disable)',
