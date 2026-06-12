@@ -131,7 +131,11 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'add_habit',
     description:
-      'Add or edit a habit on ONBOARD-BEGINNER-03. Only `name` is required — omit any field the user did not specify and the server fills sensible defaults (schedule="Weekday"/days=[1,2,3,4,5], time="09:00", reminder=true). Call again with same name to edit. Server enforces max 2 habits — if you try a 3rd new habit the tool returns max_habits_reached.',
+      'Add or edit a habit on ONBOARD-BEGINNER-03. ' +
+      'ONE HABIT AT A TIME — STRICT (habits-ACROSS, not fields-WITHIN): even if the user names two habits in one breath ("walking and meditation"), capture and FULLY configure habit #1 (pick + days + time + reminder) BEFORE you call add_habit for habit #2. Do not batch picks with defaults and then come back to configure them. ' +
+      'WITHIN a single habit, batch-parsing a full sentence is fine — "walking every day at 9:30 PM with a reminder" → add_habit(name="Walking", days=[0,1,2,3,4,5,6], time="21:30", reminder=true, schedule="Every day") in one call. ' +
+      'TWO-CALL CONFIGURATION PATTERN per habit (when the user did NOT pre-state the schedule): (1) call add_habit(name=<exact label>) — records the pick with server defaults. (2) Ask the user for days, time, reminder — one short question at a time, waiting for each answer. (3) Call add_habit AGAIN with the same name plus the full schedule. Server merges by name. (4) THEN move to habit #2 if any. ' +
+      'Only `name` is required by the tool, but a habit is not "configured" until you have asked the user for days + time + reminder. Server enforces max 2 habits.',
     parameters: {
       type: 'object',
       properties: {
@@ -215,7 +219,10 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'submit_reflection_config',
     description:
-      'Persist the evening reflection schedule on ONBOARD-BEGINNER-07. Fill missing fields with defaults: schedule="Weekday" (days=[1,2,3,4,5]), time="21:45", reminder=true.',
+      "Persist the user's evening reflection schedule on ONBOARD-BEGINNER-07. " +
+      'PRECONDITION: do NOT call this until the user has actually answered when they want their reflection. The reflection schedule is the user\'s choice — do NOT pre-fill defaults silently just to advance. If the user has not given you a time yet, ASK FIRST (e.g. "When would you like to do your daily reflection?"). ' +
+      'ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). Once the user gives a time, infer the remaining fields from natural defaults (Weekday + reminder on) and call. ' +
+      'If the user says "whatever you think" / "default is fine", first ask once more ("What time works for you usually?"). If they still decline, pick 21:00 BUT tell them explicitly ("I\'ll set 9 PM — you can change it later in Settings") before calling — do NOT silently default.',
     parameters: {
       type: 'object',
       properties: {
@@ -296,7 +303,10 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'confirm_plan',
     description:
-      'Complete onboarding from the plan-review screen (ONBOARD-BEGINNER-06 beginner / ONBOARD-ADVANCED-05 advanced). Call the moment the user confirms their starting plan and wants to begin ("looks good", "let\'s go", "start", "I\'m ready"). The frontend finishes onboarding and enters the app in response. Do not call before the plan-review screen.',
+      'Complete onboarding from the FINAL plan-review screen (ONBOARD-BEGINNER-06 beginner / ONBOARD-ADVANCED-05 advanced). ' +
+      'STRICT PRECONDITION: only call when the user is ON the plan-review screen AND habits + reflection are BOTH already saved. If the screen context says step 5 (habits) or step 6 (reflection), you have NOT finished setup — finish that screen first. ' +
+      'Call the moment the user, ON THE PLAN-REVIEW SCREEN, confirms ("looks good", "let\'s go", "start", "I\'m ready"). The frontend finishes onboarding and enters the app in response. ' +
+      "If the backend returns confirm_plan_too_early, do NOT retry — call the suggested confirm_step_complete (or the screen's primary data tool) instead and let the user walk through the remaining screen.",
     parameters: {
       type: 'object',
       properties: {

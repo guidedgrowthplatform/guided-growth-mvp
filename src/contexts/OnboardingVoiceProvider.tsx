@@ -264,6 +264,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       const sid =
         lastPushedScreenIdRef.current ??
         activeSubScreenIdRef.current ??
+        registeredScreenIdRef.current ??
         currentScreenIdRef.current ??
         '';
       // Snapshot-only update — distinct from the full screen-context message
@@ -381,7 +382,8 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     // Thread persists across the Vapi round-trip; turns append in handleTranscript.
     threadScreenIdRef.current = null;
     lastAssistantFinalRef.current = { text: '', at: 0 };
-    const sid = activeSubScreenIdRef.current ?? currentScreenIdRef.current;
+    const sid =
+      activeSubScreenIdRef.current ?? registeredScreenIdRef.current ?? currentScreenIdRef.current;
     // If we already injected the screen context via assistantOverrides at
     // vapi.start() (the cold-start path), skip the redundant context push —
     // Vapi would fire a second turn-0 response and stutter the opening.
@@ -536,7 +538,8 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const buildOverridesForCall = useCallback(async (): Promise<
     Partial<AssistantOverrides> | undefined
   > => {
-    const sid = activeSubScreenIdRef.current ?? currentScreenIdRef.current;
+    const sid =
+      activeSubScreenIdRef.current ?? registeredScreenIdRef.current ?? currentScreenIdRef.current;
     if (!sid) return undefined;
     try {
       const ctx = await getScreenContext(qc, sid, null);
@@ -673,7 +676,16 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
 
   // Page registers its authoritative screen_id so the lifted LLM keys context
   // off the same id the page uses — not the (sometimes coarser) route id.
+  // The Direct-LLM chat path already preferred this id over the route lookup
+  // (see chatScreenId); the Vapi cold-start + push paths now do the same, so
+  // a stale route→screen entry in the bundle can't silently push the wrong
+  // context to Vapi. Mirror the state into a ref so the ref-based call sites
+  // (onCallStart, buildOverridesForCall, form-snapshot push) can read it.
   const [registeredScreenId, setRegisteredScreenId] = useState<string | null>(null);
+  const registeredScreenIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    registeredScreenIdRef.current = registeredScreenId;
+  }, [registeredScreenId]);
   const registerScreen = useCallback((screenId: string | null) => {
     setRegisteredScreenId((prev) => (prev === screenId ? prev : screenId));
   }, []);
@@ -805,7 +817,18 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (vapiShouldBeLive) {
-      if (status === 'active' || status === 'connecting' || pendingRef.current === 'starting') {
+      // Also skip when pendingRef==='stopping' — endCall() flips that flag
+      // BEFORE updatePreferences propagates, so vapiShouldBeLive can still
+      // briefly evaluate to true while we're tearing down. Without this
+      // guard a phantom start() would queue, fire after our direct stop(),
+      // and the next render would queue a second stop. Net: pointless
+      // start/stop churn on the way out.
+      if (
+        status === 'active' ||
+        status === 'connecting' ||
+        pendingRef.current === 'starting' ||
+        pendingRef.current === 'stopping'
+      ) {
         return;
       }
       pendingRef.current = 'starting';
@@ -839,8 +862,14 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       fatalErrorRef.current = false;
       setRemoteEndCooldown(false);
       setActiveSubScreenId(null);
+      // Belt to endCall's suspenders: any path that leaves the onboarding
+      // route — finalize tap, browser back, hard navigation — must also kill
+      // any in-flight Vapi call. The vapiShouldBeLive derivation will reach
+      // the same conclusion but on a slower timeline. stop() is sync void
+      // and self-guards (no-ops if already torn down), so no try/catch.
+      stop();
     }
-  }, [inOnboarding, clearRetryTimer, clearRemoteEndCooldownTimer]);
+  }, [inOnboarding, clearRetryTimer, clearRemoteEndCooldownTimer, stop]);
 
   useEffect(() => {
     if (isSpeaking) hasAssistantSpokenRef.current = true;
@@ -876,13 +905,13 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (status !== 'active') return;
-    const screenToFetch = activeSubScreenId ?? currentScreenId;
+    const screenToFetch = activeSubScreenId ?? registeredScreenId ?? currentScreenId;
     if (!screenToFetch) return;
     if (lastPushedScreenIdRef.current === screenToFetch) return;
     const priorTs = lastScreenChangeTsRef.current;
     lastScreenChangeTsRef.current = new Date().toISOString();
     void pushScreenContext(screenToFetch, priorTs);
-  }, [status, currentScreenId, activeSubScreenId, pushScreenContext]);
+  }, [status, currentScreenId, activeSubScreenId, registeredScreenId, pushScreenContext]);
 
   const pushSubScreen = useCallback((screenId: string | null) => {
     if (screenId === null) {
@@ -898,8 +927,24 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
 
   const endCall = useCallback(() => {
     didCallStopRef.current = true;
+    // Hard-stop the Vapi WebRTC immediately. Previously endCall only wrote
+    // preferences and let the vapiShouldBeLive effect discover the change —
+    // which left a ~1-2s window where the agent kept speaking after the user
+    // tapped "Start plan" and the app navigated to /home.
+    //
+    // pendingRef='stopping' protects against a phantom start firing in the
+    // window between stop() and the preferences flip (the start-branch's
+    // early-return clause checks for it). It MUST be cleared right after
+    // stop() returns — otherwise it leaks past the call and the start-guard
+    // refuses every future start() for the lifetime of the provider, which
+    // wraps the whole app and never unmounts. The lastTransitionRef path's
+    // .finally() clears it on that codepath, but we bypass that chain here
+    // for synchronous teardown, so clear inline.
+    pendingRef.current = 'stopping';
+    stop();
+    pendingRef.current = null;
     void updatePreferences({ voiceMode: 'screen', micEnabled: false });
-  }, [updatePreferences]);
+  }, [updatePreferences, stop]);
 
   const restartCall = useCallback(async () => {
     clearRetryTimer();

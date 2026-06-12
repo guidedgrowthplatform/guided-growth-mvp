@@ -34,7 +34,7 @@ export function PlanReviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const routerState = location.state as PlanReviewState | null;
-  const { state: onboardingState, complete, isCompleting } = useOnboarding();
+  const { state: onboardingState, complete, isCompleting, completeError } = useOnboarding();
   const onboardingVoice = useOnboardingVoice();
 
   // Voice update_habit edits on this screen, applied over the base state.
@@ -100,11 +100,16 @@ export function PlanReviewPage() {
     // Clean up the persisted timestamp now that the flow is complete.
     localStorage.removeItem('gg_onboarding_started_at');
     // End the Vapi session so voice doesn't bleed into /home post-onboarding.
-    // Fire-and-forget — completion proceeds regardless of whether endCall errors.
+    // endCall is sync void — try/catch only catches sync throws from the
+    // preferences dispatch (extremely unlikely). We still wrap so a future
+    // refactor of endCall doesn't silently break finalization.
     try {
       onboardingVoice?.endCall();
-    } catch {
-      // ignore
+    } catch (err) {
+      Sentry.captureException(err, {
+        tags: { flow: 'onboarding', step: '7-plan-review' },
+        extra: { phase: 'endCall' },
+      });
     }
     complete({
       habitConfigs: state.habitConfigs,
@@ -116,15 +121,38 @@ export function PlanReviewPage() {
 
   // Voice "let's go" mirrors the tap flow once the agent bumps current_step past 7.
   const autoCompletedRef = useRef(false);
+  // Wait ~700ms after Vapi stops speaking before tearing the call down. The
+  // BEGINNER-06 context tells the model to speak a send-off ("Good luck —
+  // you've got this.") right before firing confirm_plan; without this wait,
+  // endCall() in handleStartPlan would stop() the WebRTC mid-word. Resets
+  // whenever the model starts speaking again, so a brief silence between
+  // tool fire and the send-off doesn't trigger premature teardown.
+  const POST_SPEECH_QUIET_MS = 700;
+  const isAssistantSpeaking = onboardingVoice?.isAssistantSpeaking ?? false;
   useEffect(() => {
     if (autoCompletedRef.current) return;
     if (isCompleting) return;
     if (!state?.habitConfigs || !state?.reflectionConfig) return;
     if (!onboardingState) return;
     if (onboardingState.current_step <= 7) return;
-    autoCompletedRef.current = true;
-    handleStartPlan();
-  }, [onboardingState, state, isCompleting, handleStartPlan]);
+    // Don't tear down while the assistant is mid-utterance. Schedule the
+    // fire on next quiet window.
+    if (isAssistantSpeaking) return;
+    const timer = setTimeout(() => {
+      if (autoCompletedRef.current) return;
+      autoCompletedRef.current = true;
+      handleStartPlan();
+    }, POST_SPEECH_QUIET_MS);
+    return () => clearTimeout(timer);
+  }, [onboardingState, state, isCompleting, handleStartPlan, isAssistantSpeaking]);
+  // NOTE on the failed-complete() retry path:
+  // After complete() fails, autoCompletedRef intentionally STAYS true. That
+  // blocks the auto-complete effect above from re-firing on a redundant
+  // Realtime push of current_step=8 (which would otherwise retry-storm against
+  // a persistently-500ing backend). Voice retry is unblocked manually inside
+  // handleVoiceAction: receiving confirm_plan while a completeError is present
+  // clears the latch for that single attempt. Tap retry bypasses the gate
+  // entirely (calls handleStartPlan directly).
 
   // Voice "let's go" / "start" / "looks good" — direct confirm path that
   // doesn't depend on the current_step bump above. Both paths share
@@ -145,12 +173,19 @@ export function PlanReviewPage() {
         return;
       }
       if (result.action !== 'confirm_plan') return;
+      // One-shot voice retry on prior failure: clear the single-fire latch the
+      // auto-complete effect set so the rest of the gate proceeds. Does NOT
+      // re-enable the auto-complete effect (Realtime hiccup → retry storm);
+      // each voice "let's go" after an error is its own explicit attempt.
+      if (completeError && autoCompletedRef.current) {
+        autoCompletedRef.current = false;
+      }
       if (autoCompletedRef.current || isCompleting) return;
       if (!state?.habitConfigs || !state?.reflectionConfig) return;
       autoCompletedRef.current = true;
       handleStartPlan();
     },
-    [state, isCompleting, handleStartPlan],
+    [state, isCompleting, handleStartPlan, completeError],
   );
 
   if (!state?.habitConfigs || !state?.reflectionConfig) {

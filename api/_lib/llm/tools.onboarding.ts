@@ -219,12 +219,16 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     name: 'add_habit',
     screen: 'ONBOARD-BEGINNER-03',
     description:
-      "Add (or edit) a habit. DATA ONLY — does NOT advance to the next screen. Use `navigate_next(target_step=6)` ONLY after every picked habit has been configured with the user's schedule. " +
-      'TWO-CALL CONFIGURATION PATTERN: ' +
-      '(1) The instant the user names a habit pick, call add_habit(name="<exact label>") — this records the pick with server defaults (Weekday days, 09:00 time, reminder on). ' +
-      '(2) Then ask the user for schedule details — three short questions, one at a time: how often (daily/weekdays/weekends/specific days), what time, and whether they want a reminder. ' +
+      "Add (or edit) a habit. DATA ONLY — does NOT advance to the next screen. Use `navigate_next(target_step=6)` ONLY after every picked habit has been FULLY configured with the user's schedule. " +
+      'ONE HABIT AT A TIME — STRICT (this rule is about habits-ACROSS, not fields-WITHIN): ' +
+      'Even if the user names two habits in the same breath ("walking and meditation"), you process them SEQUENTIALLY. Capture pick #1, fully configure pick #1, THEN move to pick #2. Do NOT call add_habit for pick #2 until pick #1 has its days + time + reminder all asked-and-set. ' +
+      'WITHIN a single habit, batch-parsing a full sentence is fine — "walking every day at 9:30 PM with a reminder" can become add_habit(name="Walking", days=[0,1,2,3,4,5,6], time="21:30", reminder=true, schedule="Every day") in one call. The three-questions pattern below is only for when the user did NOT pre-state the schedule. ' +
+      'TWO-CALL CONFIGURATION PATTERN (per habit): ' +
+      '(1) Call add_habit(name="<exact label>") — records the pick with server defaults (Weekday days, 09:00 time, reminder on). ' +
+      '(2) Then ask the user three short questions, ONE AT A TIME: how often (daily/weekdays/weekends/specific days), what time, and whether they want a reminder. WAIT for each answer before asking the next. ' +
       '(3) Call add_habit AGAIN with the SAME name plus the configured fields: add_habit(name="<same>", days=[...], time="HH:MM", reminder=<bool>, schedule="Weekday"|"Weekend"|"Every day"). The server merges by name — this second call updates the same habit. ' +
-      '(4) Repeat for the next habit pick. Only after EVERY picked habit has its days + time + reminder asked-and-set should you call navigate_next(target_step=6). ' +
+      '(4) Only NOW move to the next habit pick (if any). Repeat the full two-call sequence for it. ' +
+      'Only after EVERY picked habit has its days + time + reminder asked-and-set should you call navigate_next(target_step=6). ' +
       'Server enforces a max of 2 habits — if you try a 3rd new habit the tool returns max_habits_reached and you should tell the user to remove one first. ' +
       'On step 5 (ONBOARD-BEGINNER-03), use add_habit for BOTH create AND edit. Do NOT use update_habit here — update_habit is for the final plan-review screen (step 7) only.',
     messages: {
@@ -330,7 +334,10 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     name: 'submit_reflection_config',
     screen: 'ONBOARD-BEGINNER-07',
     description:
-      'Save the user\'s evening reflection schedule. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user gives any signal about reflection timing (even just "evenings" or "around 9 PM"). All fields are optional — pass only what the user explicitly said and let the server fill the rest (defaults: schedule="Weekday", days=[1,2,3,4,5], time="21:45", reminder=true). If the user hasn\'t said anything specific yet, you can call with NO fields to lock in the defaults. **Do not ask the user clarifying questions about timing or reminders before calling — just call with whatever you know.**',
+      "Save the user's evening reflection schedule. DATA ONLY — does NOT advance to the next screen. Use `navigate_next(target_step=7)` AFTER this returns. " +
+      'PRECONDITION: do NOT call this until the user has actually answered when they want their reflection. ' +
+      "ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). If the user has not yet said a time, ASK FIRST — do NOT pre-fill defaults silently and fire this tool. The reflection screen is the user's choice; do not bypass it. " +
+      'Once the user gives you a time (e.g. "around 9 PM" → time="21:00", or "9:45 PM" → "21:45"), infer the missing fields from natural defaults (Weekday + reminder on) and call. Then chain navigate_next(target_step=7) in the same turn.',
     messages: {
       requestStart: '',
       requestFailed: '',
@@ -340,25 +347,24 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
       properties: {
         time: {
           type: 'string',
-          description: 'HH:MM 24-hour format. Optional — omit to default to 21:45.',
+          description: 'HH:MM 24-hour format.',
         },
         days: {
           type: 'array',
-          description: 'Days as 0-6 ints, 0=Sunday. Optional — omit to default to weekdays.',
+          description: 'Days as 0-6 ints, 0=Sunday.',
           items: { type: 'number' },
         },
         reminder: {
           type: 'boolean',
-          description: 'Reminder notification toggle. Optional — omit to default to true.',
+          description: 'Reminder notification toggle.',
         },
         schedule: {
           type: 'string',
-          description:
-            'Schedule preset matching the days array. Optional — omit to default to Weekday.',
+          description: 'Schedule preset matching the days array.',
           enum: [...SCHEDULE_OPTIONS],
         },
       },
-      required: [],
+      required: ['time', 'days', 'reminder', 'schedule'],
       additionalProperties: false,
     },
   },
