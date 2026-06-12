@@ -24,8 +24,7 @@ import { useVoiceStore } from '@/stores/voiceStore';
 import type { CoachingStyle } from '@gg/shared/types/llm';
 
 const LLM_ERROR_TEXT = "Something didn't work on my end. Mind trying that again?";
-const SESSION_ERROR_TEXT =
-  "I'm having trouble connecting right now. Try closing and reopening the chat.";
+const SESSION_ERROR_TEXT = "Can't connect right now — try reopening the chat.";
 
 // Reusable post-onboarding coach conversation. Screen-parameterized so it can
 // mount on any screen; the tools the LLM gets are decided server-side per screenId.
