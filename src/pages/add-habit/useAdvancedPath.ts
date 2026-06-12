@@ -1,17 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
 import { WEEKDAYS } from '@/components/onboarding/constants';
+import { useParseHabits } from '@/hooks/useParseHabits';
 import { speak, stopTTS } from '@/lib/services/tts-service';
-import { parseHabitsFromText } from '@/lib/utils/parse-habits-from-text';
 import type { HabitItem, Phase } from './types';
 
-const FALLBACK_HABITS: HabitItem[] = [
-  { name: 'Sleep by 11 PM', days: new Set(WEEKDAYS), time: '21:45' },
-  { name: 'Morning stretch', days: new Set(WEEKDAYS), time: '07:00' },
-  { name: 'No coffee after 3 PM', days: new Set(WEEKDAYS), time: '15:00' },
-];
-
 export function useAdvancedPath(phase: Phase) {
+  const { parse, loading: parsing } = useParseHabits();
   const [brainDumpText, setBrainDumpText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null!);
 
@@ -51,15 +46,19 @@ export function useAdvancedPath(phase: Phase) {
     }
   }, [phase]);
 
-  function handleBrainDumpDone() {
-    const parsed = parseHabitsFromText(brainDumpText);
-    if (parsed.length > 0) {
-      setAdvancedHabits(
-        parsed.map((h) => ({ name: h.name, days: new Set(WEEKDAYS), time: '21:45' })),
-      );
-    } else {
-      setAdvancedHabits(FALLBACK_HABITS.map((h) => ({ ...h, days: new Set(h.days) })));
-    }
+  async function handleBrainDumpDone() {
+    const { habits, source } = await parse(brainDumpText);
+    track('view_ai_organized_plan', {
+      habits_generated_count: habits.length,
+      parse_source: source,
+    });
+    setAdvancedHabits(
+      habits.map((h) => ({
+        name: h.name,
+        days: new Set(h.days ?? WEEKDAYS),
+        time: h.time ?? '21:45',
+      })),
+    );
   }
 
   function startEditHabit(index: number) {
@@ -100,15 +99,11 @@ export function useAdvancedPath(phase: Phase) {
     setShowDeleteModal(false);
   }
 
-  function handleStartOver() {
-    setBrainDumpText('');
-    setAdvancedHabits([]);
-  }
-
   return {
     brainDumpText,
     setBrainDumpText,
     textareaRef,
+    parsing,
     advancedHabits,
     editingIndex,
     editName,
@@ -124,6 +119,5 @@ export function useAdvancedPath(phase: Phase) {
     requestDelete,
     confirmDelete,
     cancelDelete,
-    handleStartOver,
   };
 }

@@ -25,7 +25,7 @@ function ActionCard({
       <span className="text-center text-sm font-semibold text-primary">{title}</span>
       <button
         onClick={onPress}
-        className="w-full rounded-full bg-[#eaf1fe] py-2 text-xs font-semibold text-content"
+        className="w-full rounded-full bg-[#eaf1fe] py-2 text-xs font-semibold text-[#1e3a8a]"
       >
         {buttonLabel}
       </button>

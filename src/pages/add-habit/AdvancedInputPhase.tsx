@@ -12,6 +12,7 @@ interface AdvancedInputPhaseProps {
   textareaRef: RefObject<HTMLTextAreaElement>;
   onDone: () => void;
   onBack: () => void;
+  parsing?: boolean;
 }
 
 export function AdvancedInputPhase({
@@ -20,6 +21,7 @@ export function AdvancedInputPhase({
   textareaRef,
   onDone,
   onBack,
+  parsing = false,
 }: AdvancedInputPhaseProps) {
   return (
     <div className="flex min-h-dvh flex-col bg-primary-bg px-5 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-[max(16px,env(safe-area-inset-top))]">
@@ -60,11 +62,11 @@ export function AdvancedInputPhase({
         </button>
         <button
           type="button"
-          disabled={brainDumpText.trim() === ''}
+          disabled={brainDumpText.trim() === '' || parsing}
           onClick={onDone}
           className="flex-1 rounded-full bg-primary py-4 text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25)] disabled:opacity-50"
         >
-          Done
+          {parsing ? 'Organizing…' : 'Continue'}
         </button>
       </div>
     </div>

@@ -28,6 +28,7 @@ function LayoutInner({ children }: { children: ReactNode }) {
   const { openScreenId, openCoachChat, closeCoachChat } = useCoachChatLauncher();
   const chatOpen = openScreenId !== null;
   const isFullWidth =
+    location.pathname === '/add-habit' ||
     location.pathname === '/report' ||
     location.pathname === '/focus' ||
     location.pathname === '/journal' ||
