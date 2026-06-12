@@ -932,14 +932,17 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     // which left a ~1-2s window where the agent kept speaking after the user
     // tapped "Start plan" and the app navigated to /home.
     //
-    // Set pendingRef='stopping' FIRST. The vapiShouldBeLive effect (below)
-    // short-circuits when pendingRef==='starting' — without an analogous
-    // guard for 'stopping', a re-render between stop() and the preferences
-    // flip could see vapiShouldBeLive=true (stale prefs) + status='idle'
-    // (just stopped) and queue a phantom start(). Marking 'stopping' tells
-    // the effect we're on the way out so any racing start gets skipped.
+    // pendingRef='stopping' protects against a phantom start firing in the
+    // window between stop() and the preferences flip (the start-branch's
+    // early-return clause checks for it). It MUST be cleared right after
+    // stop() returns — otherwise it leaks past the call and the start-guard
+    // refuses every future start() for the lifetime of the provider, which
+    // wraps the whole app and never unmounts. The lastTransitionRef path's
+    // .finally() clears it on that codepath, but we bypass that chain here
+    // for synchronous teardown, so clear inline.
     pendingRef.current = 'stopping';
     stop();
+    pendingRef.current = null;
     void updatePreferences({ voiceMode: 'screen', micEnabled: false });
   }, [updatePreferences, stop]);
 

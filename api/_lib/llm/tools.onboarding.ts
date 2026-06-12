@@ -347,25 +347,24 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
       properties: {
         time: {
           type: 'string',
-          description: 'HH:MM 24-hour format. Optional — omit to default to 21:45.',
+          description: 'HH:MM 24-hour format.',
         },
         days: {
           type: 'array',
-          description: 'Days as 0-6 ints, 0=Sunday. Optional — omit to default to weekdays.',
+          description: 'Days as 0-6 ints, 0=Sunday.',
           items: { type: 'number' },
         },
         reminder: {
           type: 'boolean',
-          description: 'Reminder notification toggle. Optional — omit to default to true.',
+          description: 'Reminder notification toggle.',
         },
         schedule: {
           type: 'string',
-          description:
-            'Schedule preset matching the days array. Optional — omit to default to Weekday.',
+          description: 'Schedule preset matching the days array.',
           enum: [...SCHEDULE_OPTIONS],
         },
       },
-      required: [],
+      required: ['time', 'days', 'reminder', 'schedule'],
       additionalProperties: false,
     },
   },

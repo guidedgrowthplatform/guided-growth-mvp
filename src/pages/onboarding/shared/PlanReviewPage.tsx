@@ -132,11 +132,6 @@ export function PlanReviewPage() {
   useEffect(() => {
     if (autoCompletedRef.current) return;
     if (isCompleting) return;
-    // After a failed complete(), wait for the user to explicitly retry (tap or
-    // voice). Without this gate, the autoCompletedRef reset below would let a
-    // redundant Realtime push of current_step=8 re-trigger complete() and
-    // potentially loop on a persistent server error.
-    if (completeError) return;
     if (!state?.habitConfigs || !state?.reflectionConfig) return;
     if (!onboardingState) return;
     if (onboardingState.current_step <= 7) return;
@@ -149,17 +144,15 @@ export function PlanReviewPage() {
       handleStartPlan();
     }, POST_SPEECH_QUIET_MS);
     return () => clearTimeout(timer);
-  }, [onboardingState, state, isCompleting, handleStartPlan, completeError, isAssistantSpeaking]);
-
-  // If completion fails, drop the single-fire latch so the user can retry —
-  // both by tap (the existing button) AND by voice ("let's go" / "start").
-  // Without this reset, autoCompletedRef stays true after the first failure
-  // and handleVoiceAction silently ignores any subsequent confirm_plan from
-  // the agent, leaving only the tap path open. The auto-complete effect above
-  // gates on !completeError so this reset alone can't trigger a retry loop.
-  useEffect(() => {
-    if (completeError) autoCompletedRef.current = false;
-  }, [completeError]);
+  }, [onboardingState, state, isCompleting, handleStartPlan, isAssistantSpeaking]);
+  // NOTE on the failed-complete() retry path:
+  // After complete() fails, autoCompletedRef intentionally STAYS true. That
+  // blocks the auto-complete effect above from re-firing on a redundant
+  // Realtime push of current_step=8 (which would otherwise retry-storm against
+  // a persistently-500ing backend). Voice retry is unblocked manually inside
+  // handleVoiceAction: receiving confirm_plan while a completeError is present
+  // clears the latch for that single attempt. Tap retry bypasses the gate
+  // entirely (calls handleStartPlan directly).
 
   // Voice "let's go" / "start" / "looks good" — direct confirm path that
   // doesn't depend on the current_step bump above. Both paths share
@@ -180,12 +173,19 @@ export function PlanReviewPage() {
         return;
       }
       if (result.action !== 'confirm_plan') return;
+      // One-shot voice retry on prior failure: clear the single-fire latch the
+      // auto-complete effect set so the rest of the gate proceeds. Does NOT
+      // re-enable the auto-complete effect (Realtime hiccup → retry storm);
+      // each voice "let's go" after an error is its own explicit attempt.
+      if (completeError && autoCompletedRef.current) {
+        autoCompletedRef.current = false;
+      }
       if (autoCompletedRef.current || isCompleting) return;
       if (!state?.habitConfigs || !state?.reflectionConfig) return;
       autoCompletedRef.current = true;
       handleStartPlan();
     },
-    [state, isCompleting, handleStartPlan],
+    [state, isCompleting, handleStartPlan, completeError],
   );
 
   if (!state?.habitConfigs || !state?.reflectionConfig) {
