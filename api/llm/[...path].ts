@@ -1,3 +1,4 @@
+import { waitUntil } from '@vercel/functions';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
@@ -22,6 +23,7 @@ import { isCheckinToolName } from '../_lib/llm/checkin/schemas.js';
 import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
 import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
 import { buildSystemPromptForRequest } from '../_lib/llm/buildSystemPrompt.js';
+import { reportToolFailure, reportRequestFailure, flushSentry } from '../_lib/sentry.js';
 import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 
 type CoachingStyle = 'warm' | 'direct' | 'reflective';
@@ -331,6 +333,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (finalized) return;
     finalized = true;
     await writeEndRow();
+    // Single chokepoint for hard request-level failures (cancelled excluded).
+    if (endStatus === 'error') {
+      reportRequestFailure('llm', endCode ?? 'internal_error', user.anonId);
+    }
+    // Deferred — don't block the (error) response on the Sentry flush.
+    waitUntil(flushSentry());
   };
 
   // Server-owned turn_index. Dedicated client + advisory xact-lock so base=MAX+1
@@ -641,6 +649,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               screen_id: screenId,
             });
           } catch (err) {
+            reportToolFailure({
+              tool: tc.name,
+              anonId: user.anonId,
+              errorCode: 'handler_error',
+              args,
+              error: err,
+            });
             result = { ok: false, error: 'handler_error', message: (err as Error).message };
           }
         } else if (
@@ -658,6 +673,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               timezone,
             });
           } catch (err) {
+            reportToolFailure({
+              tool: tc.name,
+              anonId: user.anonId,
+              errorCode: 'handler_error',
+              args,
+              error: err,
+            });
             result = { ok: false, error: 'handler_error', message: (err as Error).message };
           }
         } else if (!TOOL_NAMES.has(tc.name)) {
@@ -677,8 +699,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               args,
             );
           } catch (err) {
+            reportToolFailure({
+              tool: tc.name,
+              anonId: user.anonId,
+              errorCode: 'handler_error',
+              args,
+              error: err,
+            });
             result = { ok: false, error: 'handler_error', message: (err as Error).message };
           }
+        }
+        if (!result.ok && result.error !== 'handler_error') {
+          reportToolFailure({
+            tool: tc.name,
+            anonId: user.anonId,
+            errorCode: result.error,
+            args,
+          });
         }
         const resultJson = JSON.stringify(result);
         send({ type: 'tool_result', id: tc.callId, ok: result.ok, result });
