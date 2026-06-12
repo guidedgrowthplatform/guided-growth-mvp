@@ -153,7 +153,7 @@ export function AdvancedResultsPage() {
             habitIndex: idx,
             habitName: habits[idx].name,
             days: Array.isArray(p.patch.days) ? p.patch.days : Array.from(habits[idx].days),
-            time: typeof p.patch.time === 'string' ? p.patch.time : '21:45',
+            time: typeof p.patch.time === 'string' ? p.patch.time : (habits[idx].time ?? '21:45'),
           },
         });
       }
@@ -232,7 +232,7 @@ export function AdvancedResultsPage() {
                   habitIndex: i,
                   habitName: habit.name,
                   days: Array.from(habit.days),
-                  time: '21:45',
+                  time: habit.time ?? '21:45',
                 },
               })
             }
