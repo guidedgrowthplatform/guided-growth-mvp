@@ -223,6 +223,8 @@ export interface OnboardingState {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  // Server-authoritative chat session id; null until the first onboarding turn binds it.
+  chat_session_id: string | null;
 }
 
 export interface ParsedHabit {

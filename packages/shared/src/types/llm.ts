@@ -34,7 +34,7 @@ export type LLMStreamEvent =
   | { type: 'tool_call'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool_result'; id: string; ok: boolean; result: unknown }
   | { type: 'done'; latency_ms: number; total_tokens: number; tool_rounds: number }
-  | { type: 'error'; code: string; message: string };
+  | { type: 'error'; code: string; message: string; retryAfterMs?: number };
 
 export interface LLMToolEvent {
   id: string;
@@ -49,4 +49,3 @@ export interface LLMChatMessage {
   content: string;
   toolEvents?: LLMToolEvent[];
 }
-

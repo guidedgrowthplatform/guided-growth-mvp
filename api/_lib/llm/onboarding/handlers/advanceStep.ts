@@ -1,10 +1,11 @@
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
 import { checkAdvanceData } from '../preconditions.js';
+import { FIRST_STEP, MAX_DB_STEP } from '../stepTable.js';
 import { getNumber, handlerError, invalid, ok, type OnboardingHandlerCtx } from './shared.js';
 
-const MIN_STEP = 1;
-const MAX_STEP = 10;
+const MIN_STEP = FIRST_STEP;
+const MAX_STEP = MAX_DB_STEP;
 
 // Only tool that writes current_step. Bare-set (no GREATEST) so back-nav forward re-fires useAgentNavigation.
 export async function advanceStep(

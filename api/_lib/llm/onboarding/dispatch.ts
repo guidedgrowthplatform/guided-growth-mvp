@@ -36,7 +36,12 @@ const HANDLERS: Record<OnboardingToolName, Handler> = {
 export async function dispatchOnboardingToolCall(
   name: string,
   args: unknown,
-  ctx: { anon_id: string | null | undefined; screen_id?: string | null },
+  ctx: {
+    anon_id: string | null | undefined;
+    screen_id?: string | null;
+    tool_call_id?: string;
+    dedupLookup?: (toolCallId: string) => Promise<ToolResult | null>;
+  },
 ): Promise<ToolResult> {
   if (!ctx.anon_id) {
     return { ok: false, error: 'invalid_args', message: 'missing anon_id' };
@@ -46,6 +51,11 @@ export async function dispatchOnboardingToolCall(
   }
   if (typeof args !== 'object' || args === null || Array.isArray(args)) {
     return { ok: false, error: 'invalid_args', message: 'args must be an object' };
+  }
+  // Replay guard: a retried turn must not re-run a side-effecting tool (e.g. advance_step twice).
+  if (ctx.tool_call_id && ctx.dedupLookup) {
+    const cached = await ctx.dedupLookup(ctx.tool_call_id);
+    if (cached) return cached;
   }
   const handler = HANDLERS[name];
   return handler(

@@ -26,7 +26,7 @@ export interface UseOnboardingChatArgs {
   startThread: (
     screenId: string,
     initial: VoiceMessage[],
-    mode?: 'replace' | 'append-if-empty' | 'append',
+    mode?: 'replace' | 'append-if-empty' | 'append' | 'append-if-absent',
   ) => void;
   // Push assistant text onto the transcript bus (subtitle bar + overlay render).
   emitAssistant: (text: string, kind: 'partial' | 'final') => void;
@@ -39,6 +39,8 @@ export interface UseOnboardingChatReturn {
   // Low-frequency: flips at most twice per turn (start/end) — safe in context value.
   chatBusy: boolean;
 }
+
+const LLM_ERROR_TEXT = "Something didn't work on my end. Mind trying that again?";
 
 // Owns the Direct-LLM onboarding chat (Path 3) lifted out of the overlay so a
 // voice-in final reaches the LLM whether the overlay is open or closed.
@@ -85,8 +87,6 @@ export function useOnboardingChat({
   // Stable read inside the screen-change effect (kept out of its dep array).
   const useStableSessionRef = useRef(useStableSession);
   useStableSessionRef.current = useStableSession;
-  // Monotonic — globally-unique opener ids so revisits never collide React keys.
-  const visitCounterRef = useRef(0);
 
   // Latest values via refs so sendUserTurn stays stable (no context-value churn).
   const onAdvanceRef = useRef(onAdvance);
@@ -97,10 +97,8 @@ export function useOnboardingChat({
   llmRef.current = llm;
   const chatSessionIdRef = useRef(chatSessionId);
   chatSessionIdRef.current = chatSessionId;
-  const suppressTrailingRef = useRef(false);
 
   const startStream = useCallback((text: string) => {
-    suppressTrailingRef.current = false;
     streamActiveRef.current = true;
     void llmRef.current.sendMessage(text);
   }, []);
@@ -116,7 +114,9 @@ export function useOnboardingChat({
     lastLlmErrorRef.current = '';
     pendingTurnRef.current = null;
     streamActiveRef.current = false;
-    suppressTrailingRef.current = true;
+    // Abort any in-flight stream from the previous screen so a late final can't
+    // interleave after this screen's opener.
+    llmRef.current.cancel();
     if (!stable) llm.reset();
 
     const onboardingState =
@@ -124,11 +124,17 @@ export function useOnboardingChat({
     const revisit = getOnboardingRevisitOpener(screenId, onboardingState);
     landedCompleteRef.current = revisit?.complete === true;
     const opener = revisit?.text ?? getOnboardingOpener(screenId);
+    // Deterministic id (survives hook remount on overlay close/reopen) so the
+    // append-if-absent guard de-dups instead of colliding React keys.
+    const openerId = `opener-${screenId}-${revisit ? 'revisit' : 'first'}`;
     if (stable) {
-      const openerId = `opener-${screenId}-${visitCounterRef.current++}`;
-      startThread(screenId, opener ? [{ id: openerId, role: 'ai', text: opener }] : [], 'append');
+      startThread(
+        screenId,
+        opener ? [{ id: openerId, role: 'ai', text: opener }] : [],
+        'append-if-absent',
+      );
     } else {
-      startThread(screenId, opener ? [{ id: `opener-${screenId}`, role: 'ai', text: opener }] : []);
+      startThread(screenId, opener ? [{ id: openerId, role: 'ai', text: opener }] : []);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, screenId, isOnboardingScreen, startThread, qc]);
@@ -161,11 +167,6 @@ export function useOnboardingChat({
       if (m.role !== 'assistant' && m.role !== 'user') continue;
       if (mirroredIdsRef.current.has(m.id)) continue;
       if (!m.content) continue;
-      if (suppressTrailingRef.current && m.role === 'assistant') {
-        suppressTrailingRef.current = false;
-        mirroredIdsRef.current.add(m.id);
-        continue;
-      }
       mirroredIdsRef.current.add(m.id);
       appendMessage({
         id: `llm-${m.id}`,
@@ -173,6 +174,7 @@ export function useOnboardingChat({
         text: m.content,
       });
       if (m.role === 'assistant') {
+        lastLlmErrorRef.current = '';
         emitAssistant(m.content, 'final');
         if (orbStateRef.current === 'voice_out_only') void speak(m.content);
       }
@@ -185,13 +187,15 @@ export function useOnboardingChat({
     emitAssistant(llm.response, 'partial');
   }, [toolActive, llm.isStreaming, llm.response, emitAssistant]);
 
-  // Surface LLM errors as a coach bubble (dedup identical consecutive messages).
+  // Surface LLM errors as a friendly coach bubble. Dedup on the RAW message so
+  // distinct underlying errors still re-surface; render generic copy + speak it.
   useEffect(() => {
     if (!enabled || !llm.error) return;
     const msg = llm.error.message;
     if (msg === lastLlmErrorRef.current) return;
     lastLlmErrorRef.current = msg;
-    appendMessage({ id: `llm-error-${Date.now()}`, role: 'ai', text: msg });
+    appendMessage({ id: `llm-error-${Date.now()}`, role: 'ai', text: LLM_ERROR_TEXT });
+    if (orbStateRef.current === 'voice_out_only') void speak(LLM_ERROR_TEXT);
   }, [enabled, llm.error, appendMessage]);
 
   useChatToolEvents({
@@ -199,9 +203,6 @@ export function useOnboardingChat({
     active: toolActive,
     routes: routesData?.routes,
     onVoiceAction,
-    onWillAdvance: () => {
-      suppressTrailingRef.current = true;
-    },
     // Stable session → session-scoped dedup (call_ids are globally unique);
     // legacy → per-screen reset, unchanged.
     resetKey: useStableSession ? (chatSessionId ?? screenId) : screenId,
@@ -232,8 +233,11 @@ export function useOnboardingChat({
         return;
       }
       // Session not minted yet (cold voice-in entry) — hold; flushed on ready.
+      // Concat so a second utterance before the session lands isn't dropped.
       if (!chatSessionIdRef.current) {
-        pendingTurnRef.current = text;
+        pendingTurnRef.current = pendingTurnRef.current
+          ? `${pendingTurnRef.current} ${text}`
+          : text;
         return;
       }
       startStream(text);

@@ -223,6 +223,18 @@ export function useLLM(
           case 'error': {
             sawTerminal = true;
             flushDeltaBuffer();
+            // Salvage any streamed partial so it isn't orphaned in `response`.
+            if (acc.trim() !== '') {
+              const partial: LLMChatMessage = {
+                id: makeId(idCounterRef.current),
+                role: 'assistant',
+                content: acc,
+                toolEvents: localTools.length > 0 ? [...localTools] : undefined,
+              };
+              setMessages((prev) => [...prev, partial]);
+            }
+            setResponse('');
+            setToolEvents([]);
             if (debugOnb)
               logDebugEvent({
                 source: 'llm',

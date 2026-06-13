@@ -1,6 +1,8 @@
 // Direct-LLM onboarding advance/finalize guards, shared by advance_step + confirm_plan.
 // (Vapi's navigate_next/confirm_plan keep their own copies — that path is left untouched.)
 
+import { stepRequirement } from './stepTable.js';
+
 // Per-step data preconditions for a FORWARD advance (sourceStep → sourceStep+1).
 // Returns the missing-field message, or null if the precondition passes. Back-nav
 // (target <= current) is always allowed — callers only check forward advances.
@@ -11,31 +13,31 @@ export function checkAdvanceData(args: {
   brainDumpRaw: string | null;
 }): string | null {
   const { sourceStep, data, path, brainDumpRaw } = args;
-  switch (sourceStep) {
-    case 1:
+  switch (stepRequirement(sourceStep)) {
+    case 'nickname':
       if (!data.nickname) return 'profile_missing: call submit_profile (nickname required) first';
       return null;
-    case 2:
+    case 'path':
       if (!path) return 'path_missing: call submit_path_choice first';
       return null;
-    case 3:
+    case 'categoryOrBraindump':
       if (!data.category && !(typeof brainDumpRaw === 'string' && brainDumpRaw.length > 0)) {
         return 'category_or_braindump_missing: call submit_category (beginner) or submit_brain_dump (advanced) first';
       }
       return null;
-    case 4:
+    case 'goals':
       if (!Array.isArray(data.goals) || data.goals.length === 0) {
         return 'goals_missing: call submit_goals first (with the chosen goals)';
       }
       return null;
-    case 5: {
+    case 'habits': {
       const habits = data.habitConfigs as Record<string, unknown> | undefined;
       if (!habits || Object.keys(habits).length === 0) {
         return 'habits_missing: call add_habit at least once first';
       }
       return null;
     }
-    case 6:
+    case 'reflection':
       if (!data.reflectionConfig) {
         return 'reflection_missing: call submit_reflection_config first';
       }

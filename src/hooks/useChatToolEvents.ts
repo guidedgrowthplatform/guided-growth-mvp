@@ -14,7 +14,6 @@ interface UseChatToolEventsArgs {
   routes: ScreenRouteEntry[] | undefined;
   // Synthetic submit_* actions → page reactions (radio updates, etc).
   onVoiceAction: (result: OnboardingVoiceResult) => void;
-  onWillAdvance?: () => void;
   // Reset the fired-event dedup when this changes (screen change).
   resetKey: string | null;
 }
@@ -26,7 +25,6 @@ export function useChatToolEvents({
   active,
   routes,
   onVoiceAction,
-  onWillAdvance,
   resetKey,
 }: UseChatToolEventsArgs): void {
   const navigate = useNavigate();
@@ -41,7 +39,6 @@ export function useChatToolEvents({
 
   useEffect(() => {
     if (!active) return;
-    let willAdvance = false;
     for (const evt of toolEvents) {
       if (!evt.result?.ok) continue;
       if (firedIdsRef.current.has(evt.id)) continue;
@@ -53,7 +50,6 @@ export function useChatToolEvents({
           const route = routes?.find((r) => r.screen_id === target)?.route;
           if (route) {
             navigate(route);
-            willAdvance = true;
           } else console.warn('[onboarding] navigate_next: unknown target_screen', target);
           break;
         }
@@ -75,7 +71,6 @@ export function useChatToolEvents({
             qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, (prev) =>
               prev ? { ...prev, current_step: step } : prev,
             );
-            willAdvance = true;
           }
           break;
         }
@@ -83,22 +78,12 @@ export function useChatToolEvents({
           const synthetic = toolEventToVoiceActions(evt);
           if (synthetic.length === 0) break;
           for (const r of synthetic) onVoiceAction(r);
-          const before = qc.getQueryData<OnboardingState | null>(
-            queryKeys.onboarding.state,
-          )?.current_step;
           mergeOnboardingState(qc, evt);
-          const after = qc.getQueryData<OnboardingState | null>(
-            queryKeys.onboarding.state,
-          )?.current_step;
-          if (typeof before === 'number' && typeof after === 'number' && after > before) {
-            willAdvance = true;
-          }
           break;
         }
       }
     }
-    if (willAdvance) onWillAdvance?.();
-  }, [active, toolEvents, navigate, qc, routes, onVoiceAction, onWillAdvance]);
+  }, [active, toolEvents, navigate, qc, routes, onVoiceAction]);
 }
 
 // Optimistic merge of a submit_* handler result into the cached onboarding

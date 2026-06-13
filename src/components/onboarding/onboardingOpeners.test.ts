@@ -15,6 +15,7 @@ function makeState(
     completed_at: null,
     created_at: '',
     updated_at: '',
+    chat_session_id: null,
     ...over,
   };
 }

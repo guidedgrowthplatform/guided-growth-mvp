@@ -19,6 +19,10 @@ import { getCheckinTools, getReadOnlyCheckinTools } from '../_lib/llm/checkin/re
 import { isCheckinToolName } from '../_lib/llm/checkin/schemas.js';
 import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
 import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
+import { isRateLimit, safeErrorFrame, type SafeErrorCode } from '../_lib/llm/safeErrorFrame.js';
+import { validateRecentEvents } from '../_lib/llm/validateRecentEvents.js';
+import { loadTranscriptForReplay } from '../_lib/llm/loadChatHistory.js';
+import { RESUME_CONTINUATION_RULE } from '../_lib/llm/resumeContinuationRule.js';
 import { handleParseBrainDump } from '../_lib/llm/parseBrainDump.js';
 import { buildSystemPromptForRequest } from '../_lib/llm/buildSystemPrompt.js';
 import { reportToolFailure, reportRequestFailure, flushSentry } from '../_lib/sentry.js';
@@ -33,11 +37,13 @@ type LLMStreamEvent =
   | { type: 'tool_call'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool_result'; id: string; ok: boolean; result: unknown }
   | { type: 'done'; latency_ms: number; total_tokens: number; tool_rounds: number }
-  | { type: 'error'; code: string; message: string };
+  | { type: 'error'; code: string; message: string; retryAfterMs?: number };
 
 const MAX_ROUNDS = 5;
-const ONBOARDING_MODEL = 'gpt-4o';
+const ONBOARDING_MODEL = process.env.ONBOARDING_LLM_MODEL ?? 'gpt-4o-mini';
 const FORK_SCREEN_ID = 'ONBOARD-FORK--FORM';
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 interface PersistedToolRow {
   toolCallId: string;
@@ -146,10 +152,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let recentEvents: SessionStateDeltaEntry[] | undefined;
   if (body.recent_events !== undefined) {
-    if (!Array.isArray(body.recent_events)) {
-      return res.status(400).json({ error: 'recent_events must be an array' });
+    const validated = validateRecentEvents(body.recent_events);
+    if (!validated.ok) {
+      return res.status(400).json({ error: validated.error });
     }
-    recentEvents = body.recent_events as SessionStateDeltaEntry[];
+    recentEvents = validated.events;
   }
 
   const timezone = validateTimezone(body.timezone) ?? 'UTC';
@@ -353,6 +360,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       await client.query('BEGIN');
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [chatSessionId]);
+      // Bind this session id to the onboarding row so resume reuses it.
+      if (isOnboardingScreen) {
+        await client.query(
+          `UPDATE onboarding_states SET chat_session_id = $1
+             WHERE anon_id = $2 AND chat_session_id IS NULL`,
+          [chatSessionId, user.anonId],
+        );
+      }
       if (includeAssistant && mode === 'chat' && userTurnId) {
         const dup = await client.query('SELECT 1 FROM chat_messages WHERE id = $1', [userTurnId]);
         if (dup.rowCount) {
@@ -451,9 +466,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   };
 
-  let currentInput: ResponseInputItem[] = [
-    { type: 'message', role: 'user', content: scrubbedMessage },
-  ];
+  const userTurnItems: ResponseInputItem[] =
+    mode === 'opener' ? [] : [{ type: 'message', role: 'user', content: scrubbedMessage }];
+
+  // No response chain → replay the transcript so memory isn't cold-restarted.
+  let replayInput: ResponseInputItem[] = [];
+  if (isOnboardingScreen && !previousResponseId && persistChat && chatSessionId) {
+    try {
+      replayInput = await loadTranscriptForReplay(user.anonId, chatSessionId);
+    } catch {
+      replayInput = [];
+    }
+  }
+  const hasPriorContext = previousResponseId !== null || replayInput.length > 0;
+  if (hasPriorContext) {
+    systemPrompt = `${systemPrompt}\n${RESUME_CONTINUATION_RULE}`;
+  }
+
+  let currentInput: ResponseInputItem[] = [...replayInput, ...userTurnItems];
+  // Opener with no prior context → keep the synthetic placeholder; the Responses
+  // API rejects an empty input array when there's no previous_response_id.
+  if (currentInput.length === 0) {
+    currentInput = [{ type: 'message', role: 'user', content: scrubbedMessage }];
+  }
   let currentPreviousId: string | null = previousResponseId;
 
   // On ONBOARD-* screens expose ONLY the onboarding tools (avoids LLM
@@ -483,6 +518,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   await writeStartRow();
 
+  let rateLimitRetried = false;
+  let hadRejectedAdvance = false;
   try {
     let finished = false;
     for (let round = 0; round < MAX_ROUNDS && !finished; round++) {
@@ -514,8 +551,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!stream && openErr && currentPreviousId && isExpiredPreviousResponse(openErr)) {
         currentPreviousId = null;
+        // Chain expired → replay the transcript so memory isn't lost.
+        if (isOnboardingScreen && round === 0 && persistChat && chatSessionId) {
+          try {
+            const replay = await loadTranscriptForReplay(user.anonId, chatSessionId);
+            if (replay.length > 0) currentInput = [...replay, ...userTurnItems];
+          } catch {
+            // keep current input
+          }
+        }
         try {
-          stream = await openResponsesStream({ ...baseStreamOpts, previousResponseId: undefined });
+          stream = await openResponsesStream({
+            ...baseStreamOpts,
+            input: currentInput,
+            previousResponseId: undefined,
+          });
+          openErr = null;
+        } catch (retryErr) {
+          openErr = retryErr;
+        }
+      }
+
+      // One backoff retry on an upstream 429 (separate from MAX_ROUNDS).
+      if (!stream && openErr && isRateLimit(openErr) && !rateLimitRetried) {
+        rateLimitRetried = true;
+        const waitMs =
+          openErr instanceof OpenAIError && openErr.retryAfterMs ? openErr.retryAfterMs : 2000;
+        await sleep(waitMs);
+        if (clientClosed) return;
+        try {
+          stream = await openResponsesStream({
+            ...baseStreamOpts,
+            previousResponseId: currentPreviousId ?? undefined,
+          });
           openErr = null;
         } catch (retryErr) {
           openErr = retryErr;
@@ -523,10 +591,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (!stream) {
-        const err = openErr as Error;
+        const code: SafeErrorCode = isRateLimit(openErr) ? 'rate_limited' : 'openai_error';
         endStatus = 'error';
-        endCode = 'openai_error';
-        send({ type: 'error', code: 'openai_error', message: err?.message ?? 'Unknown error' });
+        endCode = code;
+        send(safeErrorFrame(code, openErr));
         await persistChatTurn({ includeAssistant: false });
         await finalize();
         res.end();
@@ -562,27 +630,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             case 'error': {
               streamFailed = true;
               endStatus = clientClosed ? 'cancelled' : 'error';
-              endCode = evt.code;
-              send({ type: 'error', code: evt.code, message: evt.message });
+              const rl = isRateLimit({ code: evt.code, message: evt.message });
+              const code: SafeErrorCode = rl ? 'rate_limited' : 'stream_error';
+              endCode = code;
+              send(safeErrorFrame(code));
               break;
             }
           }
           if (streamFailed) break;
         }
       } catch (err) {
-        const status = (err as { status?: number }).status;
-        const code = err instanceof OpenAIError ? `openai_${status ?? 'error'}` : 'stream_error';
+        const code: SafeErrorCode = isRateLimit(err) ? 'rate_limited' : 'stream_error';
         endStatus = clientClosed ? 'cancelled' : 'error';
         endCode = code;
-        send({ type: 'error', code, message: (err as Error).message });
-        await persistChatTurn({ includeAssistant: false });
+        send(safeErrorFrame(code, err));
+        // If a response completed before the error, persist it so the chain links.
+        if (thisResponseId) {
+          finalAssistantContent = assistantContent;
+          finalResponseId = thisResponseId;
+        }
+        await persistChatTurn({ includeAssistant: thisResponseId !== null });
         await finalize();
         res.end();
         return;
       }
 
       if (streamFailed) {
-        await persistChatTurn({ includeAssistant: false });
+        if (thisResponseId) {
+          finalAssistantContent = assistantContent;
+          finalResponseId = thisResponseId;
+        }
+        await persistChatTurn({ includeAssistant: thisResponseId !== null });
         await finalize();
         res.end();
         return;
@@ -604,6 +682,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }));
 
       const nextInput: ResponseInputItem[] = [];
+      // Reset per tool-round so the floor reflects only the last round's advance.
+      hadRejectedAdvance = false;
       for (const tc of roundToolCalls) {
         let args: Record<string, unknown> = {};
         try {
@@ -631,6 +711,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             result = await dispatchOnboardingToolCall(tc.name, args, {
               anon_id: user.anonId,
               screen_id: screenId,
+              tool_call_id: tc.callId,
+              dedupLookup,
             });
           } catch (err) {
             reportToolFailure({
@@ -701,6 +783,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             args,
           });
         }
+        if (!result.ok && tc.name === 'advance_step') hadRejectedAdvance = true;
         const resultJson = JSON.stringify(result);
         send({ type: 'tool_result', id: tc.callId, ok: result.ok, result });
         persistedToolRows.push({
@@ -723,11 +806,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!finished) {
       endStatus = 'tool_cap';
       endCode = 'tool_cap_reached';
-      send({ type: 'error', code: 'tool_cap_reached', message: 'Exceeded max tool rounds (5)' });
+      send(safeErrorFrame('tool_cap_reached'));
       await persistChatTurn({ includeAssistant: false });
       await finalize();
       res.end();
       return;
+    }
+
+    // Floor: a rejected advance + empty model text would silently stall the user.
+    if (hadRejectedAdvance && finalAssistantContent.trim() === '') {
+      finalAssistantContent = "Let's finish this step first — what would you like to do?";
+      send({ type: 'delta', content: finalAssistantContent });
     }
 
     await persistChatTurn();
@@ -742,11 +831,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await finalize();
     res.end();
   } catch (err) {
-    const status = (err as { status?: number }).status;
-    const code = err instanceof OpenAIError ? `openai_${status ?? 'error'}` : 'internal_error';
+    const code: SafeErrorCode = isRateLimit(err) ? 'rate_limited' : 'internal_error';
     endStatus = clientClosed ? 'cancelled' : 'error';
     endCode = code;
-    send({ type: 'error', code, message: (err as Error).message });
+    send(safeErrorFrame(code, err));
     await persistChatTurn({ includeAssistant: false });
     await finalize();
     res.end();

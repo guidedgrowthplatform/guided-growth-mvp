@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { getOpenAIKey, OpenAIError } from './openai.js';
+import { getOpenAIKey, OpenAIError, parseRetryAfterMs } from './openai.js';
 
 export type ResponseInputItem =
   | { type: 'message'; role: 'user' | 'assistant'; content: string }
@@ -54,7 +54,8 @@ function rethrowUpstream(err: unknown, context: string): never {
       code: err.code,
       body: typeof err.message === 'string' ? err.message.slice(0, 500) : undefined,
     });
-    throw new OpenAIError(err.message || 'openai api error', err.status ?? 502);
+    const retryAfterMs = err.status === 429 ? parseRetryAfterMs(err.message) : undefined;
+    throw new OpenAIError(err.message || 'openai api error', err.status ?? 502, retryAfterMs);
   }
   throw err;
 }

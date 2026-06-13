@@ -36,4 +36,16 @@ describe('applyStartThread', () => {
     const initial = [msg('i1', 'init')];
     expect(applyStartThread([], initial, 'append')).toEqual(initial);
   });
+
+  it('append-if-absent skips an id already present (no duplicate key on reopen)', () => {
+    const prev = [msg('opener-x', 'hi')];
+    const initial = [msg('opener-x', 'hi')];
+    expect(applyStartThread(prev, initial, 'append-if-absent')).toBe(prev);
+  });
+
+  it('append-if-absent appends only the fresh ids', () => {
+    const prev = [msg('opener-x', 'hi')];
+    const initial = [msg('opener-x', 'hi'), msg('opener-y', 'yo')];
+    expect(applyStartThread(prev, initial, 'append-if-absent')).toEqual([prev[0], initial[1]]);
+  });
 });
