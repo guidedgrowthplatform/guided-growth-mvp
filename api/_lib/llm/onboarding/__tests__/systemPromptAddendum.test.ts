@@ -48,8 +48,9 @@ describe('ONBOARDING_TOOL_ADDENDUM', () => {
   });
 
   it('forbids reading on-screen options aloud and re-listing them', () => {
-    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/ON-SCREEN OPTIONS ARE BUTTONS/);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/DON'T RECITE THE OPTION LIST/);
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/do NOT read the option list aloud/i);
+    expect(ONBOARDING_TOOL_ADDENDUM).not.toMatch(/cards on your screen/i);
   });
 
   it('generalizes same-turn advance to no-data screens and forbids "ready to move on?"', () => {

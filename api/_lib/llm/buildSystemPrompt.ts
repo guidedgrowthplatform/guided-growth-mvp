@@ -8,6 +8,7 @@ import { ONBOARDING_TOOL_ADDENDUM } from './onboarding/systemPromptAddendum.js';
 import { stripForwardPointers } from './stripForwardPointers.js';
 import { NO_PRENARRATION_RULE } from './noPrenarrationRule.js';
 import { NO_INTERNAL_NARRATION_RULE } from './noInternalNarrationRule.js';
+import { CONVERSATIONAL_SURFACE_RULE } from './conversationalSurfaceRule.js';
 import { CHECKIN_TOOL_ADDENDUM } from './checkin/systemPromptAddendum.js';
 import { isCheckinScreen } from './checkin/registry.js';
 
@@ -120,7 +121,7 @@ export async function buildSystemPromptForRequest(
     : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${optionsBlock}${openerNudge}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}\n\n${CONVERSATIONAL_SURFACE_RULE}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${optionsBlock}${openerNudge}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };

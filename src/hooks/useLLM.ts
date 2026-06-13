@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { streamLLM } from '@/api/llm';
 import { isOnboardingScreen, logDebugEvent } from '@/lib/debug/onboardingDebug';
+import { sanitizeCoachText } from '@/lib/text/sanitizeCoachText';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import type {
   CoachingStyle,
@@ -13,7 +14,7 @@ import { useSessionLog } from './useSessionLog';
 export type LLMStatus = 'idle' | 'streaming' | 'done' | 'error';
 
 // Shown when a turn yields neither text nor a tool action — else the UI looks frozen.
-const EMPTY_TURN_FALLBACK = "Sorry, I didn't quite get that — could you say it another way?";
+const EMPTY_TURN_FALLBACK = "Sorry, I didn't quite get that. Could you say it another way?";
 
 // Batches incoming token deltas into one setState per ~40ms window. OpenAI
 // streams 1-3 tokens per delta which fragmented lists/sentences visually
@@ -190,7 +191,9 @@ export function useLLM(
             // Skip a blank assistant turn (tool-only). Truly empty (no text, no
             // tools) → fallback line so the turn never renders as silence.
             const display =
-              acc.trim() === '' && localTools.length === 0 ? EMPTY_TURN_FALLBACK : acc;
+              acc.trim() === '' && localTools.length === 0
+                ? EMPTY_TURN_FALLBACK
+                : sanitizeCoachText(acc);
             if (display.trim() !== '') {
               const assistant: LLMChatMessage = {
                 id: makeId(idCounterRef.current),
@@ -224,11 +227,12 @@ export function useLLM(
             sawTerminal = true;
             flushDeltaBuffer();
             // Salvage any streamed partial so it isn't orphaned in `response`.
-            if (acc.trim() !== '') {
+            const salvaged = sanitizeCoachText(acc);
+            if (salvaged.trim() !== '') {
               const partial: LLMChatMessage = {
                 id: makeId(idCounterRef.current),
                 role: 'assistant',
-                content: acc,
+                content: salvaged,
                 toolEvents: localTools.length > 0 ? [...localTools] : undefined,
               };
               setMessages((prev) => [...prev, partial]);
@@ -345,7 +349,12 @@ export function useLLM(
     if (!chatSessionId) return;
     if (seededFor === chatSessionId) return;
     setSeededFor(chatSessionId);
-    setMessages(initialMessages ?? []);
+    // Sanitize resumed history so replayed bubbles match live (dash-free) copy.
+    setMessages(
+      (initialMessages ?? []).map((m) =>
+        m.role === 'assistant' && m.content ? { ...m, content: sanitizeCoachText(m.content) } : m,
+      ),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatSessionId]);
 
