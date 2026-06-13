@@ -19,11 +19,14 @@ export async function submitPathChoice(
     return invalid(`path must be one of ${PATH_OPTIONS.join(', ')}`);
   }
 
-  const result = await pool.query<{ data: Record<string, unknown>; current_step: number; path: string }>(
+  const result = await pool.query<{
+    data: Record<string, unknown>;
+    current_step: number;
+    path: string;
+  }>(
     `INSERT INTO onboarding_states (anon_id, current_step, path, status, data, updated_at)
-     VALUES ($1, 3, $2, 'in_progress', '{}'::jsonb, now())
+     VALUES ($1, 2, $2, 'in_progress', '{}'::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET
-       current_step = GREATEST(onboarding_states.current_step, 3),
        path = $2,
        status = 'in_progress',
        updated_at = now()
@@ -34,7 +37,7 @@ export async function submitPathChoice(
   const row = result.rows[0];
   return ok({
     data: row?.data ?? {},
-    current_step: row?.current_step ?? 3,
+    current_step: row?.current_step ?? 2,
     path: row?.path ?? path,
   });
 }

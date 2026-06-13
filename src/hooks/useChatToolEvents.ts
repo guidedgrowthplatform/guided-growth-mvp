@@ -61,12 +61,21 @@ export function useChatToolEvents({
           void qc.invalidateQueries({ queryKey: queryKeys.onboarding.state });
           break;
         }
-        case 'confirm_step_complete': {
-          const cp = evt.result?.payload as { result?: { advance?: boolean } } | undefined;
-          if (cp?.result?.advance === true) {
+        case 'advance_step': {
+          const payload = evt.result?.payload as
+            | { ok?: boolean; result?: { current_step?: unknown } }
+            | undefined;
+          const step =
+            payload?.ok && typeof payload.result?.current_step === 'number'
+              ? payload.result.current_step
+              : undefined;
+          if (step !== undefined) {
+            // Bare set (not Math.max) — back-nav walk-forward can lower the step,
+            // which useAgentNavigation's leading-edge detector needs to re-fire.
+            qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, (prev) =>
+              prev ? { ...prev, current_step: step } : prev,
+            );
             willAdvance = true;
-            // Real or server-synthetic confirm bumps current_step → useAgentNavigation advances.
-            mergeOnboardingState(qc, evt);
           }
           break;
         }

@@ -82,10 +82,26 @@ describe('dispatchOnboardingToolCall', () => {
     expect(sql).not.toMatch(/current_step = GREATEST/);
   });
 
-  it('routes confirm_step_complete without touching the DB', async () => {
-    const result = await dispatchOnboardingToolCall('confirm_step_complete', {}, { anon_id: ANON });
-    expect(result).toEqual({ ok: true, result: { advance: true } });
-    expect(pool.query).not.toHaveBeenCalled();
+  it('routes advance_step through to the handler', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            current_step: 3,
+            data: { category: 'Sleep better' },
+            path: 'simple',
+            brain_dump_raw: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ current_step: 4 }] });
+    const result = await dispatchOnboardingToolCall(
+      'advance_step',
+      { target_step: 4 },
+      { anon_id: ANON },
+    );
+    expect(result).toMatchObject({ ok: true, result: { current_step: 4 } });
   });
 
   it('routes ask_clarification without touching the DB and echoes the message', async () => {

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { deriveOrbRing } from '@/components/ui/orbRing';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
@@ -135,15 +136,13 @@ export function CoachChatView({
       : 'idle';
 
   const gradient = visualState === 'listening' ? LISTENING_GRADIENT : IDLE_GRADIENT;
-  // Speaking wins over listening — both-on is half-duplex, never simultaneous.
-  const dualActiveRings: 'left' | 'right' | 'ready' | 'idle' | null =
-    voiceChosen && speaking
-      ? 'left'
-      : micLive && isListening
-        ? micSpeaking
-          ? 'right'
-          : 'ready'
-        : null;
+  const dualActiveRings = deriveOrbRing({
+    voiceOn: voiceChosen,
+    micOn: micRuntimeOn,
+    speaking,
+    listening: micLive && isListening,
+    micSpeaking,
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex animate-slide-up flex-col">

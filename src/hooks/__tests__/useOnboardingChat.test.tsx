@@ -205,10 +205,15 @@ describe('useOnboardingChat', () => {
   });
 });
 
-function confirmStepCompleteStream(): Response {
+function advanceStepStream(): Response {
   return mockSSE([
-    { type: 'tool_call', id: 'tc-1', name: 'confirm_step_complete', args: {} },
-    { type: 'tool_result', id: 'tc-1', ok: true, result: { ok: true, result: { advance: true } } },
+    { type: 'tool_call', id: 'tc-1', name: 'advance_step', args: { target_step: 2 } },
+    {
+      type: 'tool_result',
+      id: 'tc-1',
+      ok: true,
+      result: { ok: true, result: { current_step: 2 } },
+    },
     { type: 'delta', content: 'great, all set' },
     { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 1 },
   ]);
@@ -217,12 +222,9 @@ function confirmStepCompleteStream(): Response {
 function advanceEvt(id = 'tc-1', currentStep = 2): LLMToolEvent {
   return {
     id,
-    name: 'confirm_step_complete',
-    args: {},
-    result: {
-      ok: true,
-      payload: { ok: true, result: { advance: true, current_step: currentStep } },
-    },
+    name: 'advance_step',
+    args: { target_step: currentStep },
+    result: { ok: true, payload: { ok: true, result: { current_step: currentStep } } },
   };
 }
 
@@ -256,7 +258,7 @@ describe('useChatToolEvents — latch keeps advance alive when enabled is false 
     (qc.getQueryData(queryKeys.onboarding.state) as { current_step?: number } | undefined)
       ?.current_step;
 
-  it('confirm advance bumps current_step when active stays true though enabled is false', () => {
+  it('advance bumps current_step when active stays true though enabled is false', () => {
     seed(1);
     renderTool({ events: [advanceEvt('tc-1', 2)], active: true, resetKey: 'ONBOARD-FORK--FORM' });
     expect(step()).toBe(2);
@@ -277,7 +279,7 @@ describe('useChatToolEvents — latch keeps advance alive when enabled is false 
 
 describe('useOnboardingChat — final message mirrors after enabled flips false (Bug 2)', () => {
   it('final assistant message still appends after enabled flips false post-send', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(confirmStepCompleteStream()));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(advanceStepStream()));
     const appended: VoiceMessage[] = [];
     const appendMessage = (m: VoiceMessage) => appended.push(m);
 
@@ -576,7 +578,7 @@ describe('suppresses a prior screen trailing coach line after navigation', () =>
 });
 
 describe('advance dispatch survives mid-stream mic-off end-to-end (Bug 2)', () => {
-  it('confirm_step_complete still bumps current_step when the mic drops mid-stream', async () => {
+  it('advance_step still bumps current_step when the mic drops mid-stream', async () => {
     let releaseToolResult!: () => void;
     const gate = new Promise<void>((r) => (releaseToolResult = r));
     const encoder = new TextEncoder();
@@ -585,13 +587,13 @@ describe('advance dispatch survives mid-stream mic-off end-to-end (Bug 2)', () =
         async start(controller) {
           const send = (e: LLMStreamEvent) =>
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
-          send({ type: 'tool_call', id: 'tc-1', name: 'confirm_step_complete', args: {} });
+          send({ type: 'tool_call', id: 'tc-1', name: 'advance_step', args: { target_step: 3 } });
           await gate;
           send({
             type: 'tool_result',
             id: 'tc-1',
             ok: true,
-            result: { ok: true, result: { advance: true, current_step: 3 } },
+            result: { ok: true, result: { current_step: 3 } },
           });
           controller.close();
         },

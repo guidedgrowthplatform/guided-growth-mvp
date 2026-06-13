@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { deriveOrbRing } from '@/components/ui/orbRing';
 import { useCoachVoice } from '@/contexts/useCoachVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
@@ -129,13 +130,13 @@ export function BottomNav({ hidden = false }: { hidden?: boolean }) {
     return location.pathname === path;
   };
 
-  const activeRings: 'left' | 'right' | 'ready' | null = isSpeaking
-    ? 'left'
-    : isListening
-      ? micSpeaking
-        ? 'right'
-        : 'ready'
-      : null;
+  const activeRings = deriveOrbRing({
+    voiceOn: ttsEnabled,
+    micOn: micEnabled,
+    speaking: isSpeaking,
+    listening: isListening,
+    micSpeaking,
+  });
   const intensity = activeRings === 'right' ? micIntensity : undefined;
 
   const handleLeftToggle = () => {

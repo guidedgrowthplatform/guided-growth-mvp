@@ -1,8 +1,8 @@
 import type { ToolResult } from '../tools.js';
 import { addHabit } from './handlers/addHabit.js';
+import { advanceStep } from './handlers/advanceStep.js';
 import { askClarification } from './handlers/askClarification.js';
 import { confirmPlan } from './handlers/confirmPlan.js';
-import { confirmStepComplete } from './handlers/confirmStepComplete.js';
 import { removeHabit } from './handlers/removeHabit.js';
 import { submitBrainDump } from './handlers/submitBrainDump.js';
 import { submitCategory } from './handlers/submitCategory.js';
@@ -28,7 +28,7 @@ const HANDLERS: Record<OnboardingToolName, Handler> = {
   submit_reflection_config: submitReflectionConfig,
   submit_custom_prompts: submitCustomPrompts,
   submit_brain_dump: submitBrainDump,
-  confirm_step_complete: confirmStepComplete,
+  advance_step: advanceStep,
   confirm_plan: confirmPlan,
   ask_clarification: askClarification,
 };
