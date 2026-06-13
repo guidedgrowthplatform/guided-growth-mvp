@@ -665,11 +665,10 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     (
       screenId: string,
       initial: VoiceMessage[],
-      mode: 'replace' | 'append-if-empty' | 'append' | 'append-if-absent' = 'replace',
+      mode: 'replace' | 'append-if-empty' | 'append' | 'sole-opener' = 'replace',
     ) => {
-      // append-if-absent re-seeds the same screen on overlay reopen; let it
-      // through and rely on id-dedup instead of the per-screen early-return.
-      if (mode !== 'append-if-absent' && threadScreenIdRef.current === screenId) return;
+      // sole-opener bypasses the per-screen early-return to re-seed.
+      if (mode !== 'sole-opener' && threadScreenIdRef.current === screenId) return;
       threadScreenIdRef.current = screenId;
       setMessages((prev) => applyStartThread(prev, initial, mode));
     },

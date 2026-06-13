@@ -26,7 +26,7 @@ export interface UseOnboardingChatArgs {
   startThread: (
     screenId: string,
     initial: VoiceMessage[],
-    mode?: 'replace' | 'append-if-empty' | 'append' | 'append-if-absent',
+    mode?: 'replace' | 'append-if-empty' | 'append' | 'sole-opener',
   ) => void;
   // Push assistant text onto the transcript bus (subtitle bar + overlay render).
   emitAssistant: (text: string, kind: 'partial' | 'final') => void;
@@ -124,14 +124,12 @@ export function useOnboardingChat({
     const revisit = getOnboardingRevisitOpener(screenId, onboardingState);
     landedCompleteRef.current = revisit?.complete === true;
     const opener = revisit?.text ?? getOnboardingOpener(screenId);
-    // Deterministic id (survives hook remount on overlay close/reopen) so the
-    // append-if-absent guard de-dups instead of colliding React keys.
     const openerId = `opener-${screenId}-${revisit ? 'revisit' : 'first'}`;
     if (stable) {
       startThread(
         screenId,
         opener ? [{ id: openerId, role: 'ai', text: opener }] : [],
-        'append-if-absent',
+        'sole-opener',
       );
     } else {
       startThread(screenId, opener ? [{ id: openerId, role: 'ai', text: opener }] : []);
@@ -217,7 +215,7 @@ export function useOnboardingChat({
         isStreaming: llmRef.current.isStreaming,
       });
       if (action === 'noop' || action === 'vapi') return;
-      // Revisit "move on" shortcut: affirm on an already-complete screen advances.
+      // Affirm on an already-complete screen advances directly.
       if (
         action === 'onboarding' &&
         landedCompleteRef.current &&
@@ -225,8 +223,8 @@ export function useOnboardingChat({
       ) {
         const now = Date.now();
         appendMessage({ id: `user-${now}`, role: 'user', text });
-        appendMessage({ id: `ai-${now}`, role: 'ai', text: 'Great — moving on.' });
-        if (orbStateRef.current === 'voice_out_only') void speak('Great — moving on.');
+        appendMessage({ id: `ai-${now}`, role: 'ai', text: 'Got it.' });
+        if (orbStateRef.current === 'voice_out_only') void speak('Got it.');
         // Already-complete revisit: no current_step transition for useAgentNavigation,
         // so advance the page directly (synchronous, this screen only — no timer race).
         onAdvanceRef.current?.();

@@ -46,7 +46,7 @@ export interface OnboardingVoiceContextValue {
   startThread: (
     screenId: string,
     initial: VoiceMessage[],
-    mode?: 'replace' | 'append-if-empty' | 'append' | 'append-if-absent',
+    mode?: 'replace' | 'append-if-empty' | 'append' | 'sole-opener',
   ) => void;
   // Unified send for the Direct-LLM path (text composer + voice-in final).
   sendUserTurn: (text: string) => void;

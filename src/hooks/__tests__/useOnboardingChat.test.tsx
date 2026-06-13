@@ -433,13 +433,13 @@ describe('continuous thread (Phase 2, stable ON)', () => {
     expect(startThread).toHaveBeenCalledTimes(2);
     const a = startThreadCall(startThread, 0);
     const b = startThreadCall(startThread, 1);
-    expect(a.mode).toBe('append-if-absent');
-    expect(b.mode).toBe('append-if-absent');
+    expect(a.mode).toBe('sole-opener');
+    expect(b.mode).toBe('sole-opener');
     expect(a.openerId).toBe('opener-ONBOARD-FORK--FORM-first');
     expect(b.openerId).toBe('opener-ONBOARD-BEGINNER-01-first');
   });
 
-  it('back-nav reuses a deterministic revisit opener id (deduped, no key collision)', async () => {
+  it('back-nav seeds the revisit opener via sole-opener (only current opener stays)', async () => {
     qc.setQueryData(queryKeys.onboarding.state, { path: 'simple', data: {} } as never);
     const startThread = vi.fn();
     const render = (screenId: string) =>
@@ -462,8 +462,7 @@ describe('continuous thread (Phase 2, stable ON)', () => {
     const firstA = startThreadCall(startThread, 0);
     const revisitA = startThreadCall(startThread, 2);
     expect(revisitA.screenId).toBe('ONBOARD-FORK--FORM');
-    expect(revisitA.mode).toBe('append-if-absent');
-    // Deterministic id (survives remount) — append-if-absent dedupes on re-seed.
+    expect(revisitA.mode).toBe('sole-opener');
     expect(revisitA.openerId).toBe(firstA.openerId);
     expect(revisitA.openerId).toBe('opener-ONBOARD-FORK--FORM-revisit');
   });

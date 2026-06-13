@@ -86,14 +86,14 @@ export function getOnboardingRevisitOpener(
       if (!state.path) return null;
       const choice = state.path === 'braindump' ? 'advanced' : 'beginner';
       return {
-        text: `You picked the ${choice} path. Want to keep it and move on, or switch?`,
+        text: `You picked the ${choice} path. Keep it, or switch?`,
         complete: true,
       };
     }
     case 'ONBOARD-BEGINNER-01': {
       if (!d.category) return null;
       return {
-        text: `You chose ${d.category}. Want to stick with that and move on, or pick another?`,
+        text: `You chose ${d.category}. Keep that, or pick another?`,
         complete: true,
       };
     }
@@ -114,7 +114,7 @@ export function getOnboardingRevisitOpener(
   const summary = humanJoin(filled);
   if (missing.length === 0) {
     return {
-      text: `Last time you told me ${summary}. Want to keep that and move on, or change something?`,
+      text: `Last time you told me ${summary}. Keep that, or change something?`,
       complete: true,
     };
   }

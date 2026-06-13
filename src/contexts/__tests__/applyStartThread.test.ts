@@ -37,15 +37,15 @@ describe('applyStartThread', () => {
     expect(applyStartThread([], initial, 'append')).toEqual(initial);
   });
 
-  it('append-if-absent skips an id already present (no duplicate key on reopen)', () => {
-    const prev = [msg('opener-x', 'hi')];
-    const initial = [msg('opener-x', 'hi')];
-    expect(applyStartThread(prev, initial, 'append-if-absent')).toBe(prev);
+  it('sole-opener drops other screens openers, keeps only the current one', () => {
+    const prev = [msg('opener-FORK-revisit', 'fork'), msg('llm-1', 'real turn')];
+    const initial = [msg('opener-PROFILE-revisit', 'profile')];
+    expect(applyStartThread(prev, initial, 'sole-opener')).toEqual([prev[1], initial[0]]);
   });
 
-  it('append-if-absent appends only the fresh ids', () => {
-    const prev = [msg('opener-x', 'hi')];
-    const initial = [msg('opener-x', 'hi'), msg('opener-y', 'yo')];
-    expect(applyStartThread(prev, initial, 'append-if-absent')).toEqual([prev[0], initial[1]]);
+  it('sole-opener preserves non-opener turns', () => {
+    const prev = [msg('user-1', 'hi'), msg('llm-1', 'hey'), msg('opener-A-first', 'old')];
+    const initial = [msg('opener-B-first', 'new')];
+    expect(applyStartThread(prev, initial, 'sole-opener')).toEqual([prev[0], prev[1], initial[0]]);
   });
 });

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { streamLLM } from '@/api/llm';
 import { isOnboardingScreen, logDebugEvent } from '@/lib/debug/onboardingDebug';
-import { sanitizeCoachText } from '@/lib/text/sanitizeCoachText';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import type {
   CoachingStyle,
@@ -191,9 +190,7 @@ export function useLLM(
             // Skip a blank assistant turn (tool-only). Truly empty (no text, no
             // tools) → fallback line so the turn never renders as silence.
             const display =
-              acc.trim() === '' && localTools.length === 0
-                ? EMPTY_TURN_FALLBACK
-                : sanitizeCoachText(acc);
+              acc.trim() === '' && localTools.length === 0 ? EMPTY_TURN_FALLBACK : acc;
             if (display.trim() !== '') {
               const assistant: LLMChatMessage = {
                 id: makeId(idCounterRef.current),
@@ -227,12 +224,11 @@ export function useLLM(
             sawTerminal = true;
             flushDeltaBuffer();
             // Salvage any streamed partial so it isn't orphaned in `response`.
-            const salvaged = sanitizeCoachText(acc);
-            if (salvaged.trim() !== '') {
+            if (acc.trim() !== '') {
               const partial: LLMChatMessage = {
                 id: makeId(idCounterRef.current),
                 role: 'assistant',
-                content: salvaged,
+                content: acc,
                 toolEvents: localTools.length > 0 ? [...localTools] : undefined,
               };
               setMessages((prev) => [...prev, partial]);
@@ -349,12 +345,7 @@ export function useLLM(
     if (!chatSessionId) return;
     if (seededFor === chatSessionId) return;
     setSeededFor(chatSessionId);
-    // Sanitize resumed history so replayed bubbles match live (dash-free) copy.
-    setMessages(
-      (initialMessages ?? []).map((m) =>
-        m.role === 'assistant' && m.content ? { ...m, content: sanitizeCoachText(m.content) } : m,
-      ),
-    );
+    setMessages(initialMessages ?? []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatSessionId]);
 

@@ -15,6 +15,9 @@ describe('opener copy guard (applies to every screen)', () => {
   it.each(entries)('%s does not direct the user to on-screen controls', (_id, text) => {
     expect(text).not.toMatch(/on screen|fill it in|tap |form field|the form/i);
   });
+  it.each(entries)('%s has no "move on" filler', (_id, text) => {
+    expect(text).not.toMatch(/move on|moving on/i);
+  });
 });
 
 describe('revisit opener copy guard', () => {
@@ -25,6 +28,7 @@ describe('revisit opener copy guard', () => {
   ];
   it.each(cases)('%s revisit opener is dash-free and UI-free', (id, state) => {
     const text = getOnboardingRevisitOpener(id, state)?.text ?? '';
+    expect(text).not.toMatch(/move on|moving on/i);
     expect(text).not.toMatch(/[—–]/);
     expect(text).not.toMatch(/ - /);
     expect(text).not.toMatch(/on screen|fill it in|tap |form field|the form/i);
@@ -73,7 +77,7 @@ describe('getOnboardingRevisitOpener', () => {
     expect(opener?.text).toContain('41');
     expect(opener?.text).toContain('Male');
     expect(opener?.text).toContain('Pondering White');
-    expect(opener?.text).toContain('move on');
+    expect(opener?.text).toContain('change something');
   });
 
   it('partial ONBOARD-01 → incomplete recap that names the gaps and omits "move on"', () => {
