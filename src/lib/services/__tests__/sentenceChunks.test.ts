@@ -39,9 +39,64 @@ describe('nextSentenceChunks', () => {
     expect(nextSentenceChunks('Dr. Lee said hello to me today. ', 0).chunks).toEqual([
       'Dr. Lee said hello to me today.',
     ]);
-    expect(nextSentenceChunks('Use mornings, e.g. before work each day. ', 0).chunks).toEqual([
-      'Use mornings, e.g. before work each day.',
+    // first-chunk clause split applies; sub-minChars remainder stays buffered
+    const r = nextSentenceChunks('Use mornings, e.g. before work each day. ', 0);
+    expect(r.chunks).toEqual(['Use mornings,']);
+    expect(flushSentenceTail('Use mornings, e.g. before work each day. ', r.nextOffset)).toBe(
+      'e.g. before work each day.',
+    );
+  });
+
+  it('splits the FIRST chunk at a clause boundary for low latency', () => {
+    const r = nextSentenceChunks('Good morning Jonah, let us look at your habits for today. ', 0);
+    expect(r.chunks[0]).toBe('Good morning Jonah,');
+  });
+
+  it('does not clause-split before FIRST_CLAUSE_MIN_CHARS', () => {
+    const r = nextSentenceChunks('Hi Jonah, welcome back to your morning check-in today. ', 0);
+    expect(r.chunks).toEqual(['Hi Jonah, welcome back to your morning check-in today.']);
+  });
+
+  it('does not clause-split inside numbers like 1,000', () => {
+    const r = nextSentenceChunks('You walked over 1,000 steps before noon today. ', 0);
+    expect(r.chunks).toEqual(['You walked over 1,000 steps before noon today.']);
+  });
+
+  it('only clause-splits the first chunk, not later ones', () => {
+    const text = 'Nice work today friend. Tomorrow, we will go further with the plan. ';
+    const r = nextSentenceChunks(text, 0);
+    expect(r.chunks).toEqual([
+      'Nice work today friend.',
+      'Tomorrow, we will go further with the plan.',
     ]);
+  });
+
+  it('does not clause-split when no whitespace follows the break', () => {
+    const r = nextSentenceChunks('Good morning friend,today we begin the plan here. ', 0);
+    expect(r.chunks).toEqual(['Good morning friend,today we begin the plan here.']);
+  });
+
+  it('clause-splits the first chunk on a colon', () => {
+    const r = nextSentenceChunks('Here is the plan: we start with one small habit today. ', 0);
+    expect(r.chunks[0]).toBe('Here is the plan:');
+  });
+
+  it('clause-splits the first chunk on an em-dash', () => {
+    const r = nextSentenceChunks('One thing first — we set a single habit for today. ', 0);
+    expect(r.chunks[0]).toBe('One thing first —');
+  });
+
+  it('does not clause-split an em-dash range between digits', () => {
+    const r = nextSentenceChunks('Aim for 5—10 minutes of focus this morning friend. ', 0);
+    expect(r.chunks).toEqual(['Aim for 5—10 minutes of focus this morning friend.']);
+  });
+
+  it('does not clause-split on a later streaming call (offset past first chunk)', () => {
+    const r1 = nextSentenceChunks('First sentence here is plenty long. Then', 0);
+    expect(r1.chunks).toEqual(['First sentence here is plenty long.']);
+    const full = 'First sentence here is plenty long. Then, more follows after that. ';
+    const r2 = nextSentenceChunks(full, r1.nextOffset);
+    expect(r2.chunks).toEqual(['Then, more follows after that.']);
   });
 
   it('treats an ellipsis as a single boundary (no empty chunks)', () => {
