@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchScreenRoutes } from '@/api/context';
 import {
   getOnboardingOpener,
@@ -82,6 +82,10 @@ export function useOnboardingChat({
   const openerSeededRef = useRef<string | null>(null);
   const streamActiveRef = useRef(false);
   const landedCompleteRef = useRef(false);
+  // Coach turns render only on a screen the user actually spoke on — blocks a
+  // prior screen's in-flight reply from leaking onto the next opener.
+  const userTurnActiveRef = useRef(false);
+  const [userTurnActive, setUserTurnActive] = useState(false);
   // First voice-in final can arrive before the chat session lands — hold it.
   const pendingTurnRef = useRef<string | null>(null);
   // Stable read inside the screen-change effect (kept out of its dep array).
@@ -100,6 +104,8 @@ export function useOnboardingChat({
 
   const startStream = useCallback((text: string) => {
     streamActiveRef.current = true;
+    userTurnActiveRef.current = true;
+    setUserTurnActive(true);
     void llmRef.current.sendMessage(text);
   }, []);
 
@@ -114,6 +120,8 @@ export function useOnboardingChat({
     lastLlmErrorRef.current = '';
     pendingTurnRef.current = null;
     streamActiveRef.current = false;
+    userTurnActiveRef.current = false;
+    setUserTurnActive(false);
     // Abort any in-flight stream from the previous screen so a late final can't
     // interleave after this screen's opener.
     llmRef.current.cancel();
@@ -165,6 +173,12 @@ export function useOnboardingChat({
       if (m.role !== 'assistant' && m.role !== 'user') continue;
       if (mirroredIdsRef.current.has(m.id)) continue;
       if (!m.content) continue;
+      // Drop a coach turn resolving on a screen the user never spoke on
+      // (prior screen's reply landing after navigation).
+      if (m.role === 'assistant' && !userTurnActiveRef.current) {
+        mirroredIdsRef.current.add(m.id);
+        continue;
+      }
       mirroredIdsRef.current.add(m.id);
       appendMessage({
         id: `llm-${m.id}`,
@@ -182,6 +196,7 @@ export function useOnboardingChat({
   // Live streaming partial → transcript bus (overlay + subtitle render it).
   useEffect(() => {
     if (!toolActive || !llm.isStreaming || llm.response.length === 0) return;
+    if (!userTurnActiveRef.current) return;
     emitAssistant(llm.response, 'partial');
   }, [toolActive, llm.isStreaming, llm.response, emitAssistant]);
 
@@ -243,5 +258,5 @@ export function useOnboardingChat({
     [isOnboardingScreen, appendMessage, startStream],
   );
 
-  return { sendUserTurn, chatBusy: llm.isStreaming };
+  return { sendUserTurn, chatBusy: llm.isStreaming && userTurnActive };
 }

@@ -815,7 +815,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Floor: a rejected advance + empty model text would silently stall the user.
     if (hadRejectedAdvance && finalAssistantContent.trim() === '') {
-      finalAssistantContent = "Let's finish this step first — what would you like to do?";
+      finalAssistantContent = "Let's finish this step first. What would you like to do?";
       send({ type: 'delta', content: finalAssistantContent });
     }
 
