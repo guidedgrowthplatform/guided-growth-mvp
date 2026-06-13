@@ -56,15 +56,11 @@ export function shouldAdvanceToNextScreen(input: AgentAdvanceInput): boolean {
  *
  * Architecture
  * ------------
- * current_step is bumped two ways, both surfaced here via the cached
+ * current_step is written by the nav tool, surfaced here via the cached
  * onboarding state:
  *   - Voice (Vapi): `navigate_next` writes current_step.
- *   - Text/async (Direct-LLM): `submit_*`/`add_habit` handlers GREATEST-bump
- *     current_step to the next step when a single-choice screen is satisfied
- *     (category→4, goals→5, path→3). Multi-item screens (habits/reflection)
- *     bump to their OWN step, so they don't auto-advance — the user taps
- *     Continue. This is the deterministic advance: the Direct-LLM model
- *     reliably calls submit_*, but will NOT call confirm_step_complete.
+ *   - Text/async (Direct-LLM): `advance_step` writes current_step (data tools
+ *     are data-only — the model must call advance_step to move).
  *
  * Tap mode can't trigger this: Continue does `saveStep(); navigate()`
  * synchronously, so the page unmounts before the cache transition lands.

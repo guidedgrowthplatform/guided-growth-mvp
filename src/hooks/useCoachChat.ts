@@ -23,6 +23,10 @@ import {
 import { useVoiceStore } from '@/stores/voiceStore';
 import type { CoachingStyle } from '@gg/shared/types/llm';
 
+// Breath window before the mic goes hot (post-TTS and on first arm).
+// Mirrors VAD_SILENCE_CLOSE_MS in soniox-stream.ts.
+const MIC_GRACE_MS = 2500;
+
 const LLM_ERROR_TEXT = "Something didn't work on my end. Mind trying that again?";
 const SESSION_ERROR_TEXT = "Can't connect right now — try reopening the chat.";
 
@@ -176,16 +180,16 @@ export function useCoachChat(
   // window — else immediate user replies get swallowed.
   const micMutedForTts = voiceModeOn && isSpeaking;
 
-  // Post-speech HOLD: keep the mic muted ~400ms after playback ends so the
-  // audio tail / room echo can't trip VAD and open a paid socket on the
-  // coach's own voice. Falling edge only; rising edge releases immediately.
-  const [micMutedHeld, setMicMutedHeld] = useState(false);
+  // Post-speech HOLD: mic stays muted MIC_GRACE_MS after playback ends —
+  // covers echo tail + Siri-style breath before listening resumes.
+  // Initial true: same grace on first arm, so the session doesn't open hot.
+  const [micMutedHeld, setMicMutedHeld] = useState(true);
   useEffect(() => {
     if (micMutedForTts) {
       setMicMutedHeld(true);
       return;
     }
-    const t = setTimeout(() => setMicMutedHeld(false), 400);
+    const t = setTimeout(() => setMicMutedHeld(false), MIC_GRACE_MS);
     return () => clearTimeout(t);
   }, [micMutedForTts]);
 

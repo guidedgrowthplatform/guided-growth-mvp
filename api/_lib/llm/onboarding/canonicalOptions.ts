@@ -21,7 +21,7 @@ export function buildCanonicalOptionsBlock(
       `\n\n## Profile Fields\n` +
       `Collect ALL four: nickname, age, gender (Male | Female | Other), referral source.\n` +
       `Call submit_profile as fields come in — always include the nickname plus every field gathered so far (it requires the nickname each call).\n` +
-      `Do NOT call confirm_step_complete (do not advance) until all four are provided.`
+      `Do NOT call advance_step (do not advance) until all four are provided.`
     );
   }
 

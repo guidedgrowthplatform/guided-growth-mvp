@@ -8,6 +8,10 @@ export interface ChunkResult {
 }
 
 const DEFAULT_MIN_CHARS = 30;
+// First chunk may break at a clause boundary once this long — TTS starts
+// before the first full sentence finishes streaming.
+const FIRST_CLAUSE_MIN_CHARS = 12;
+const CLAUSE_BREAKS = new Set([',', ';', ':', '—']);
 
 // Normalized (lowercased, dots removed) — a `.` after one of these is not a boundary.
 const ABBREVIATIONS = new Set(['eg', 'ie', 'etc', 'dr', 'mr', 'mrs', 'ms', 'vs', 'am', 'pm']);
@@ -53,15 +57,22 @@ export function nextSentenceChunks(
   let i = consumedOffset;
   while (i < text.length) {
     const ch = text[i];
-    if (!TERMINATORS.has(ch)) {
+    const clauseBreak =
+      firstOfMessage && CLAUSE_BREAKS.has(ch) && i - accStart >= FIRST_CLAUSE_MIN_CHARS;
+    if (!TERMINATORS.has(ch) && !clauseBreak) {
       i++;
       continue;
     }
     let j = i;
-    while (j < text.length && TERMINATORS.has(text[j])) j++;
+    while (j < text.length && (TERMINATORS.has(text[j]) || (clauseBreak && text[j] === ch))) j++;
     while (j < text.length && CLOSERS.has(text[j])) j++;
     const followedByWhitespace = j < text.length && /\s/.test(text[j]);
-    if (!followedByWhitespace || (ch === '.' && isFalseDot(text, i))) {
+    if (
+      !followedByWhitespace ||
+      (ch === '.' && isFalseDot(text, i)) ||
+      // 1,000 / 9:30 — not clause breaks
+      (clauseBreak && isDigit(text[i - 1]) && isDigit(text[i + 1]))
+    ) {
       i = j;
       continue;
     }

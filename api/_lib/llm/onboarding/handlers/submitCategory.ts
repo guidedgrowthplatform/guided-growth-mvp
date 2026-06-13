@@ -23,9 +23,8 @@ export async function submitCategory(
 
   const result = await pool.query<{ data: Record<string, unknown>; current_step: number }>(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
-     VALUES ($1, 4, 'in_progress', $2::jsonb, now())
+     VALUES ($1, 3, 'in_progress', $2::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET
-       current_step = GREATEST(onboarding_states.current_step, 4),
        status = 'in_progress',
        data = onboarding_states.data || $2::jsonb,
        updated_at = now()
@@ -34,5 +33,5 @@ export async function submitCategory(
   );
 
   const row = result.rows[0];
-  return ok({ data: row?.data ?? { category }, current_step: row?.current_step ?? 4 });
+  return ok({ data: row?.data ?? { category }, current_step: row?.current_step ?? 3 });
 }

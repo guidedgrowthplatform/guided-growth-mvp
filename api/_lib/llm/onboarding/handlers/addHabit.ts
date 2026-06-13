@@ -87,7 +87,6 @@ export async function addHabit(
       `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
        VALUES ($1, 5, 'in_progress', $2::jsonb, now())
        ON CONFLICT (anon_id) DO UPDATE SET
-         current_step = GREATEST(onboarding_states.current_step, 5),
          status = 'in_progress',
          data = jsonb_set(
            COALESCE(onboarding_states.data, '{}'::jsonb),

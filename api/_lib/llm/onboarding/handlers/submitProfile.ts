@@ -53,8 +53,8 @@ export async function submitProfile(
   if (gender !== undefined) data.gender = gender;
   if (referralSource !== undefined) data.referralSource = referralSource;
 
-  // DATA ONLY — current_step is not touched on UPDATE. Advancement happens via
-  // confirm_step_complete / advanceStepIfReady. INSERT seeds step-1 (this screen's own step).
+  // DATA ONLY — current_step not touched on UPDATE; advance_step moves the screen.
+  // INSERT seeds step-1 (this screen's own step).
   const result = await pool.query<{ data: Record<string, unknown>; current_step: number }>(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
      VALUES ($1, 1, 'in_progress', $2::jsonb, now())

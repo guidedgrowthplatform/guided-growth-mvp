@@ -151,7 +151,7 @@ export function OnboardingLayout({
   };
 
   // Register this page's screen_id + advance handler so the provider-owned LLM
-  // keys context correctly and confirm_step_complete advances the right page.
+  // keys context correctly and the revisit-affirm shortcut advances the right page.
   const handleNextRef = useRef(handleNext);
   handleNextRef.current = handleNext;
   const registerScreen = onboardingVoice?.registerScreen;
