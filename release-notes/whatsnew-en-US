@@ -1,6 +1,6 @@
-v2.10.0 — Smoother voice onboarding.
+v2.11.0 — Post-onboarding coach voice.
 Test:
-- Run voice onboarding; coach lists choices briefly, then advances right after you pick.
-- Coach shouldn't recite scripts or say "saving that" / "one moment".
-- On the goals/habits screens, the coach knows the exact on-screen options.
-- Reach plan review and confirm; no skipped steps, no crash or blank screen.
+- Finish onboarding and reach the coach; it replies with low-latency streaming voice.
+- Toggle voice and text together; the orb shows a ring when both are on.
+- Brain-dump a few sentences; the coach parses your goals and habits correctly.
+- Onboarding step 6 routes to plan review with no skipped steps, blank screen, or crash.
