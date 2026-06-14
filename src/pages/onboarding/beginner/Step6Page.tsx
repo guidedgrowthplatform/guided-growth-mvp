@@ -16,10 +16,12 @@ import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { Sentry } from '@/lib/sentry';
 import { useCtaLoading } from '../shared/useCtaLoading';
+import { useOnboardingAdvance } from '../shared/useOnboardingAdvance';
 import { useStepTiming } from '../shared/useStepTiming';
 
 export function Step6Page() {
   const navigate = useNavigate();
+  const goNext = useOnboardingAdvance();
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
 
@@ -138,7 +140,7 @@ export function Step6Page() {
       );
       await saveStepAsync(6, { reflectionConfig: { time, days: [...days], reminder, schedule } });
       trackStepComplete();
-      navigate('/onboarding/step-7', {
+      goNext(7, '/onboarding/step-7', {
         state: {
           habitConfigs: serializedConfigs,
           goals: resolvedGoals,
@@ -165,7 +167,7 @@ export function Step6Page() {
     days,
     reminder,
     schedule,
-    navigate,
+    goNext,
     saveStepAsync,
     trackStepComplete,
   ]);
@@ -175,6 +177,7 @@ export function Step6Page() {
   return (
     <OnboardingLayout
       screenId="ONBOARD-BEGINNER-07"
+      step={6}
       formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"

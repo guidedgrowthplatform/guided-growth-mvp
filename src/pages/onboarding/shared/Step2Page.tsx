@@ -13,10 +13,12 @@ import { queryKeys } from '@/lib/query';
 import type { OnboardingState } from '@gg/shared/types';
 import { pathToSpec } from './pathToSpec';
 import { useCtaLoading } from './useCtaLoading';
+import { useOnboardingAdvance } from './useOnboardingAdvance';
 import { useStepTiming } from './useStepTiming';
 
 export function Step2Page() {
   const navigate = useNavigate();
+  const goNext = useOnboardingAdvance();
   const qc = useQueryClient();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [plan, setPlan] = useState<'simple' | 'braindump' | null>(null);
@@ -76,17 +78,18 @@ export function Step2Page() {
     });
     trackStepComplete();
     if (plan === 'braindump') {
-      navigate('/onboarding/advanced-input');
+      goNext(3, '/onboarding/advanced-input');
     } else {
-      navigate('/onboarding/step-3');
+      goNext(3, '/onboarding/step-3');
     }
-  }, [plan, navigate, saveStepAsync, trackStepComplete]);
+  }, [plan, goNext, saveStepAsync, trackStepComplete]);
 
   const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleNext);
 
   return (
     <OnboardingLayout
       screenId="ONBOARD-FORK--FORM"
+      step={2}
       formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"

@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchScreenRoutes } from '@/api/context';
+import { advanceOnboardingStep } from '@/api/onboarding';
 import {
   getOnboardingOpener,
   getOnboardingRevisitOpener,
@@ -32,6 +33,7 @@ export interface UseOnboardingChatArgs {
   emitAssistant: (text: string, kind: 'partial' | 'final') => void;
   onVoiceAction: (result: OnboardingVoiceResult) => void;
   onAdvance: () => void;
+  getCurrentStep: () => number | null;
 }
 
 export interface UseOnboardingChatReturn {
@@ -41,6 +43,7 @@ export interface UseOnboardingChatReturn {
 }
 
 const LLM_ERROR_TEXT = "Something didn't work on my end. Mind trying that again?";
+const PLAN_REVIEW_STEP = 7;
 
 // Owns the Direct-LLM onboarding chat (Path 3) lifted out of the overlay so a
 // voice-in final reaches the LLM whether the overlay is open or closed.
@@ -54,6 +57,7 @@ export function useOnboardingChat({
   emitAssistant,
   onVoiceAction,
   onAdvance,
+  getCurrentStep,
 }: UseOnboardingChatArgs): UseOnboardingChatReturn {
   const qc = useQueryClient();
   const isOnboardingScreen = (screenId ?? '').startsWith('ONBOARD-');
@@ -96,6 +100,8 @@ export function useOnboardingChat({
   // Latest values via refs so sendUserTurn stays stable (no context-value churn).
   const onAdvanceRef = useRef(onAdvance);
   onAdvanceRef.current = onAdvance;
+  const getCurrentStepRef = useRef(getCurrentStep);
+  getCurrentStepRef.current = getCurrentStep;
   const orbStateRef = useRef(orbState);
   orbStateRef.current = orbState;
   const llmRef = useRef(llm);
@@ -244,8 +250,26 @@ export function useOnboardingChat({
         appendMessage({ id: `user-${now}`, role: 'user', text });
         appendMessage({ id: `ai-${now}`, role: 'ai', text: 'Got it.' });
         if (orbStateRef.current === 'voice_out_only') void speak('Got it.');
-        // Already-complete revisit: no current_step transition for useAgentNavigation,
-        // so advance the page directly (synchronous, this screen only — no timer race).
+        // Correct a stale high-water current_step BEFORE navigating so the
+        // destination doesn't cascade. Beginner-only: its steps are linear
+        // (dest = thisStep+1); the braindump path is non-linear so skip it.
+        const thisStep = getCurrentStepRef.current?.();
+        const cached = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null;
+        if (
+          thisStep != null &&
+          thisStep < PLAN_REVIEW_STEP &&
+          cached &&
+          cached.path !== 'braindump' &&
+          cached.current_step > thisStep
+        ) {
+          qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, {
+            ...cached,
+            current_step: thisStep + 1,
+          });
+          void advanceOnboardingStep(thisStep + 1)
+            .then((row) => qc.setQueryData(queryKeys.onboarding.state, row))
+            .catch(() => {});
+        }
         onAdvanceRef.current?.();
         return;
       }

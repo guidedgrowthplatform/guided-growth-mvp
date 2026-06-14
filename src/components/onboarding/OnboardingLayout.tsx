@@ -40,6 +40,7 @@ interface OnboardingLayoutProps {
   showTooltip?: boolean;
   bgVariant?: 'default' | 'secondary';
   screenId?: string;
+  step?: number;
   // Snapshot of filled form fields (persisted + in-flight) — typically
   // produced by useOnboardingFormSnapshot({...overrides}). Pushed to Vapi via
   // the provider's setFormSnapshot so the LLM sees what's already known.
@@ -65,6 +66,7 @@ export function OnboardingLayout({
   showTooltip = false,
   bgVariant = 'default',
   screenId,
+  step,
   formSnapshot,
 }: OnboardingLayoutProps) {
   const { isListening, transcript, interim, error, resetTranscript } = useVoiceInput();
@@ -156,6 +158,7 @@ export function OnboardingLayout({
   handleNextRef.current = handleNext;
   const registerScreen = onboardingVoice?.registerScreen;
   const registerAdvance = onboardingVoice?.registerAdvance;
+  const registerStep = onboardingVoice?.registerStep;
   useEffect(() => {
     if (!registerScreen) return;
     registerScreen(screenId ?? null);
@@ -166,6 +169,11 @@ export function OnboardingLayout({
     registerAdvance(() => handleNextRef.current());
     return () => registerAdvance(null);
   }, [registerAdvance]);
+  useEffect(() => {
+    if (!registerStep) return;
+    registerStep(step ?? null);
+    return () => registerStep(null);
+  }, [registerStep, step]);
 
   const handleTooltipDismiss = () => {
     setTooltipVisible(false);

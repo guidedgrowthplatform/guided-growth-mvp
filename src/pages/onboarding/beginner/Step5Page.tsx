@@ -18,6 +18,7 @@ import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useCtaLoading } from '../shared/useCtaLoading';
+import { useOnboardingAdvance } from '../shared/useOnboardingAdvance';
 import { useStepTiming } from '../shared/useStepTiming';
 import { deriveHabitVoiceUpdate } from './deriveHabitVoiceUpdate';
 
@@ -29,6 +30,7 @@ const SHEET_SCREEN_IDS = ['ONBOARD-BEGINNER-04', 'ONBOARD-BEGINNER-05'] as const
 
 export function Step5Page() {
   const navigate = useNavigate();
+  const goNext = useOnboardingAdvance();
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const onboardingVoice = useOnboardingVoice();
@@ -316,7 +318,7 @@ export function Step5Page() {
       );
       await saveStepAsync(5, { habitConfigs: serializedConfigs });
       trackStepComplete();
-      navigate('/onboarding/step-6', {
+      goNext(6, '/onboarding/step-6', {
         state: {
           habitConfigs: serializedConfigs,
           goals,
@@ -333,7 +335,7 @@ export function Step5Page() {
     goals,
     resolvedCategory,
     state,
-    navigate,
+    goNext,
     handleContinue,
     saveStepAsync,
     trackStepComplete,
@@ -350,6 +352,7 @@ export function Step5Page() {
     <>
       <OnboardingLayout
         screenId="ONBOARD-BEGINNER-03"
+        step={5}
         formSnapshot={snapshot}
         ctaLabel="Continue"
         ctaVariant="inline"

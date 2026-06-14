@@ -10,6 +10,7 @@ import { type OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { useOnboardingAdvance } from './useOnboardingAdvance';
 import { useStepTiming } from './useStepTiming';
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
@@ -18,6 +19,7 @@ const REFERRAL_OPTIONS = ['Founder Invite', 'Webinar', 'Friend', 'Other'];
 
 export function Step1Page() {
   const navigate = useNavigate();
+  const goNext = useOnboardingAdvance();
   const { state: onboardingState, saveStep } = useOnboarding();
   const [nickname, setNickname] = useState('');
   const [age, setAge] = useState<number | ''>('');
@@ -97,14 +99,14 @@ export function Step1Page() {
       referralOtherText,
     });
     trackStepComplete();
-    navigate('/onboarding/step-2');
+    goNext(2, '/onboarding/step-2');
   }, [
     nickname,
     age,
     gender,
     referralSource,
     referralOtherText,
-    navigate,
+    goNext,
     saveStep,
     trackStepComplete,
   ]);
@@ -120,6 +122,7 @@ export function Step1Page() {
   return (
     <OnboardingLayout
       screenId="ONBOARD-01--FORM"
+      step={1}
       formSnapshot={formSnapshot}
       ctaLabel="Continue"
       onBack={() => navigate('/onboarding/mic-permission')}

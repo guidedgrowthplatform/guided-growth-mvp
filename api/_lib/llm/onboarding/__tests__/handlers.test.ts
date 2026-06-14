@@ -785,6 +785,18 @@ describe('advance_step', () => {
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.result.current_step).toBe(3);
   });
+
+  it('stale high-water: current=7, target=4 bare-sets to 4 (no precondition)', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ current_step: 7, data: {}, path: 'simple', brain_dump_raw: null }],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ current_step: 4 }] });
+    const r = await advanceStep(CTX, { target_step: 4 });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.current_step).toBe(4);
+  });
 });
 
 // ─── confirm_plan ────────────────────────────────────────────────────

@@ -61,6 +61,7 @@ interface BridgeProps {
   appendMessage?: (m: VoiceMessage) => void;
   onAdvance?: () => void;
   startThread?: UseOnboardingChatArgs['startThread'];
+  getCurrentStep?: () => number | null;
 }
 function Bridge({
   screenId = 'ONBOARD-FORK--FORM',
@@ -68,6 +69,7 @@ function Bridge({
   appendMessage = vi.fn(),
   onAdvance = vi.fn(),
   startThread = noopStartThread,
+  getCurrentStep = () => null,
 }: BridgeProps) {
   const v = useOnboardingChat({
     screenId,
@@ -79,6 +81,7 @@ function Bridge({
     emitAssistant: vi.fn(),
     onVoiceAction: vi.fn(),
     onAdvance,
+    getCurrentStep,
   });
   useEffect(() => {
     hookRef = v;
@@ -621,5 +624,45 @@ describe('revisit "move on" shortcut (already-complete screen)', () => {
     expect(onAdvance).toHaveBeenCalledTimes(1);
     // No LLM round-trip for the revisit shortcut.
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/llm'))).toBe(false);
+  });
+
+  it('back-navved affirm bumps stale current_step to thisStep+1 before advancing', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('no network'));
+    vi.stubGlobal('fetch', fetchMock);
+    // Stale high-water: on the FORK screen (step 2) but current_step is 7.
+    qc.setQueryData(queryKeys.onboarding.state, {
+      current_step: 7,
+      data: {},
+      path: 'simple',
+    } as never);
+    const onAdvance = vi.fn();
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge
+            enabled
+            screenId="ONBOARD-FORK--FORM"
+            onAdvance={onAdvance}
+            getCurrentStep={() => 2}
+          />
+        </Wrapper>,
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      hookRef!.sendUserTurn('yes');
+    });
+    await flush();
+
+    expect(onAdvance).toHaveBeenCalledTimes(1);
+    expect(
+      (qc.getQueryData(queryKeys.onboarding.state) as { current_step?: number } | undefined)
+        ?.current_step,
+    ).toBe(3);
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/onboarding/advance'))).toBe(
+      true,
+    );
   });
 });

@@ -698,6 +698,12 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   }, []);
   const fireAdvance = useCallback(() => onAdvanceRef.current?.(), []);
 
+  const registeredStepRef = useRef<number | null>(null);
+  const registerStep = useCallback((step: number | null) => {
+    registeredStepRef.current = step;
+  }, []);
+  const getCurrentStep = useCallback(() => registeredStepRef.current, []);
+
   const orbState = orbStateFrom(voiceOn, micOn);
   const voiceInShouldBeLive =
     VOICE_IN_ENABLED && inOnboarding && micOn && !voiceOn && !!currentScreenId;
@@ -729,6 +735,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     emitAssistant,
     onVoiceAction: notifyVoiceActions,
     onAdvance: fireAdvance,
+    getCurrentStep,
   });
 
   const emitVoiceInInterim = useCallback(
@@ -977,6 +984,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       subscribeVoiceActions,
       registerScreen,
       registerAdvance,
+      registerStep,
       endCall,
       restartCall,
       pushSubScreen,
@@ -1004,6 +1012,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       subscribeVoiceActions,
       registerScreen,
       registerAdvance,
+      registerStep,
       endCall,
       restartCall,
       pushSubScreen,
