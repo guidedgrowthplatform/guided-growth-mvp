@@ -86,6 +86,7 @@ export function useOnboardingChat({
   // prior screen's in-flight reply from leaking onto the next opener.
   const userTurnActiveRef = useRef(false);
   const [userTurnActive, setUserTurnActive] = useState(false);
+  const salvagedPartialRef = useRef(false);
   // First voice-in final can arrive before the chat session lands — hold it.
   const pendingTurnRef = useRef<string | null>(null);
   // Stable read inside the screen-change effect (kept out of its dep array).
@@ -105,6 +106,7 @@ export function useOnboardingChat({
   const startStream = useCallback((text: string) => {
     streamActiveRef.current = true;
     userTurnActiveRef.current = true;
+    salvagedPartialRef.current = false;
     setUserTurnActive(true);
     void llmRef.current.sendMessage(text);
   }, []);
@@ -186,6 +188,7 @@ export function useOnboardingChat({
         text: m.content,
       });
       if (m.role === 'assistant') {
+        salvagedPartialRef.current = true;
         lastLlmErrorRef.current = '';
         emitAssistant(m.content, 'final');
         if (orbStateRef.current === 'voice_out_only') void speak(m.content);
@@ -207,6 +210,7 @@ export function useOnboardingChat({
     const msg = llm.error.message;
     if (msg === lastLlmErrorRef.current) return;
     lastLlmErrorRef.current = msg;
+    if (salvagedPartialRef.current) return;
     appendMessage({ id: `llm-error-${Date.now()}`, role: 'ai', text: LLM_ERROR_TEXT });
     if (orbStateRef.current === 'voice_out_only') void speak(LLM_ERROR_TEXT);
   }, [enabled, llm.error, appendMessage]);

@@ -356,18 +356,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const includeAssistant = opts.includeAssistant ?? true;
     if (!persistChat) return;
     if (!includeAssistant && persistedToolRows.length === 0) return; // nothing to write
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [chatSessionId]);
-      // Bind this session id to the onboarding row so resume reuses it.
-      if (isOnboardingScreen) {
-        await client.query(
+    // Outside the turn txn: missing column (42703, un-migrated env) must not
+    // roll back the chat_messages writes that back prev_response_id.
+    if (isOnboardingScreen) {
+      try {
+        await pool.query(
           `UPDATE onboarding_states SET chat_session_id = $1
              WHERE anon_id = $2 AND chat_session_id IS NULL`,
           [chatSessionId, user.anonId],
         );
+      } catch (err) {
+        if ((err as { code?: string }).code !== '42703') {
+          console.error('[/api/llm] onboarding session bind failed', err);
+        }
       }
+    }
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [chatSessionId]);
       if (includeAssistant && mode === 'chat' && userTurnId) {
         const dup = await client.query('SELECT 1 FROM chat_messages WHERE id = $1', [userTurnId]);
         if (dup.rowCount) {

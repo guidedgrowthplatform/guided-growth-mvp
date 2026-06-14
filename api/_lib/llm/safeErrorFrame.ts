@@ -27,7 +27,7 @@ export function isRateLimit(err: unknown): boolean {
   const status = (err as { status?: number })?.status;
   const code = (err as { code?: string })?.code ?? '';
   const message = (err as { message?: string })?.message ?? '';
-  return status === 429 || /rate.?limit/i.test(code) || /rate limit/i.test(message);
+  return status === 429 || code === 'rate_limit_exceeded' || /\brate limit\b/i.test(message);
 }
 
 // Maps an upstream code/error to a client-safe frame. Raw detail stays in logs only.
