@@ -268,7 +268,7 @@ export function CoachChatView({
             leftIcon={voiceChosen ? <IconChatVoice size={28} /> : <IconChatText size={28} />}
             rightIcon={micRuntimeOn ? <IconMic size={26} /> : <IconMicMuted size={26} />}
             onLeftClick={toggleVoice}
-            onRightClick={micAllowed ? handleToggleMic : handleRequestMic}
+            onRightClick={micRuntimeOn ? handleToggleMic : handleRequestMic}
             leftAriaLabel={voiceChosen ? 'Switch to screen mode' : 'Switch to voice mode'}
             rightAriaLabel={
               !micAllowed ? 'Allow microphone' : micRuntimeOn ? 'Turn mic off' : 'Turn mic on'
