@@ -47,6 +47,25 @@ describe('ONBOARDING_TOOL_ADDENDUM', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/verbatim/i);
   });
 
+  it('forbids reading on-screen options aloud and re-listing them', () => {
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/DON'T RECITE THE OPTION LIST/);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/do NOT read the option list aloud/i);
+    expect(ONBOARDING_TOOL_ADDENDUM).not.toMatch(/cards on your screen/i);
+  });
+
+  it('generalizes same-turn advance to no-data screens and forbids "ready to move on?"', () => {
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/screens with NO data tool/i);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/FORBIDDEN on every screen/);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(
+      /target_step is ALWAYS the current screen's step \+ 1/,
+    );
+  });
+
+  it('keeps an ambiguity guard that calls ask_clarification before advancing', () => {
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/AMBIGUITY GUARD/);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/ask_clarification/);
+  });
+
   it('forbids pre-narrating the next screen after a change', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).toContain('STAY ON THIS SCREEN AFTER A CHANGE');
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/begin the NEXT screen's task|start the next one/i);

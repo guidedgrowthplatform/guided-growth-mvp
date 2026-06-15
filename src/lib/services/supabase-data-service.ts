@@ -845,6 +845,7 @@ export class SupabaseDataService implements DataService {
       completed_at: data.completed_at,
       created_at: data.created_at,
       updated_at: data.updated_at,
+      chat_session_id: data.chat_session_id ?? null,
     };
   }
 
