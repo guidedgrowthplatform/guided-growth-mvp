@@ -3,10 +3,14 @@ import { apiPost } from './client';
 
 export function createOrResumeChatSession(
   screenId: string,
-  opts?: { resume?: boolean },
+  opts?: { resume?: boolean; signal?: AbortSignal },
 ): Promise<ChatSessionResponse> {
-  return apiPost<ChatSessionResponse>('/api/chat/session', {
-    screen_id: screenId,
-    ...(opts?.resume === false ? { resume: false } : {}),
-  });
+  return apiPost<ChatSessionResponse>(
+    '/api/chat/session',
+    {
+      screen_id: screenId,
+      ...(opts?.resume === false ? { resume: false } : {}),
+    },
+    opts?.signal,
+  );
 }
