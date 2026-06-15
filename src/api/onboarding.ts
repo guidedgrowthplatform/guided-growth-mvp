@@ -21,6 +21,10 @@ export async function saveOnboardingStep(
   });
 }
 
+export async function advanceOnboardingStep(targetStep: number): Promise<OnboardingState> {
+  return apiPost<OnboardingState>('/api/onboarding/advance', { targetStep });
+}
+
 export async function completeOnboarding(finalData?: Partial<OnboardingStepData>): Promise<void> {
   await apiPost<{ message: string }>('/api/onboarding/complete', { finalData });
 }

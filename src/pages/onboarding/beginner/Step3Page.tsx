@@ -9,6 +9,7 @@ import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { useCtaLoading } from '../shared/useCtaLoading';
+import { useOnboardingAdvance } from '../shared/useOnboardingAdvance';
 import { useStepTiming } from '../shared/useStepTiming';
 
 const categories = [
@@ -26,6 +27,7 @@ const CATEGORY_LABELS = categories.map((c) => c.label);
 
 export function Step3Page() {
   const navigate = useNavigate();
+  const goNext = useOnboardingAdvance();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -56,14 +58,15 @@ export function Step3Page() {
       area_count: 1,
     });
     trackStepComplete();
-    navigate('/onboarding/step-4', { state: { category: selected } });
-  }, [selected, navigate, saveStepAsync, trackStepComplete]);
+    void goNext(4, '/onboarding/step-4', { state: { category: selected } });
+  }, [selected, goNext, saveStepAsync, trackStepComplete]);
 
   const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleNext);
 
   return (
     <OnboardingLayout
       screenId="ONBOARD-BEGINNER-01"
+      step={3}
       formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"

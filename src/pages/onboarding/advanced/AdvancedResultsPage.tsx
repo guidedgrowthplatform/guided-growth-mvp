@@ -11,6 +11,7 @@ import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { useCtaLoading } from '../shared/useCtaLoading';
+import { useOnboardingAdvance } from '../shared/useOnboardingAdvance';
 import { useStepTiming } from '../shared/useStepTiming';
 
 interface HabitItem {
@@ -72,6 +73,7 @@ function applyLocationState(base: HabitItem[], state: ResultsLocationState | nul
 
 export function AdvancedResultsPage() {
   const navigate = useNavigate();
+  const goNext = useOnboardingAdvance();
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const locationState = location.state as ResultsLocationState | null;
@@ -175,8 +177,8 @@ export function AdvancedResultsPage() {
     });
     await saveStepAsync(4, { goals, habitConfigs: habitConfigsRecord });
     trackStepComplete();
-    navigate('/onboarding/advanced-step-6', { state: { habitConfigs: habitConfigsArray } });
-  }, [habits, navigate, saveStepAsync, trackStepComplete]);
+    void goNext(5, '/onboarding/advanced-step-6', { state: { habitConfigs: habitConfigsArray } });
+  }, [habits, goNext, saveStepAsync, trackStepComplete]);
 
   const { loading: ctaLoading, run: handleConfirmCta } = useCtaLoading(handleConfirm);
 
@@ -184,6 +186,7 @@ export function AdvancedResultsPage() {
     return (
       <OnboardingLayout
         screenId="ONBOARD-ADVANCED-02"
+        step={4}
         formSnapshot={snapshot}
         ctaLabel="Looks Good!"
         onBack={() => navigate('/onboarding/advanced-input')}

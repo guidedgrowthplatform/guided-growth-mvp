@@ -11,10 +11,12 @@ import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { useCtaLoading } from '../shared/useCtaLoading';
+import { useOnboardingAdvance } from '../shared/useOnboardingAdvance';
 import { useStepTiming } from '../shared/useStepTiming';
 
 export function Step4Page() {
   const navigate = useNavigate();
+  const goNext = useOnboardingAdvance();
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   // Two paths land users on this page: the manual Continue button passes
@@ -82,8 +84,8 @@ export function Step4Page() {
       goals: Array.from(selected),
     });
     trackStepComplete();
-    navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
-  }, [selected, category, navigate, saveStepAsync, trackStepComplete]);
+    void goNext(5, '/onboarding/step-5', { state: { goals: Array.from(selected), category } });
+  }, [selected, category, goNext, saveStepAsync, trackStepComplete]);
 
   const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleNext);
 
@@ -96,6 +98,7 @@ export function Step4Page() {
   return (
     <OnboardingLayout
       screenId="ONBOARD-BEGINNER-02"
+      step={4}
       formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"

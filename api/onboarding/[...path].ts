@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { supabaseAdmin } from '../_lib/supabase.js';
+import { advanceStep } from '../_lib/llm/onboarding/handlers/advanceStep.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
@@ -43,6 +44,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     return res.json(result.rows[0]);
+  }
+
+  // Bare-set current_step (position), unlike the GREATEST PUT — corrects a stale
+  // high-water on a back-navved screen so forward nav advances one step.
+  if (route === 'advance' && req.method === 'POST') {
+    const targetStep = req.body?.targetStep;
+    const result = await advanceStep({ anon_id: user.anonId }, { target_step: targetStep });
+    if (!result.ok) {
+      const status = result.error === 'invalid_args' ? 400 : 409;
+      return res.status(status).json({ error: result.message ?? result.error });
+    }
+    const row = await pool.query(
+      `SELECT id, anon_id, path, current_step, status, data, brain_dump_raw, brain_dump_parsed, completed_at
+         FROM onboarding_states WHERE anon_id = $1`,
+      [user.anonId],
+    );
+    return res.json(row.rows[0]);
   }
 
   if (route === 'complete' && req.method === 'POST') {

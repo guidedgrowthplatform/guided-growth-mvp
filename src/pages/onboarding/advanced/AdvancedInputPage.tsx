@@ -10,10 +10,12 @@ import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { useParseHabits } from '@/hooks/useParseHabits';
 import { useCtaLoading } from '../shared/useCtaLoading';
+import { useOnboardingAdvance } from '../shared/useOnboardingAdvance';
 import { useStepTiming } from '../shared/useStepTiming';
 
 export function AdvancedInputPage() {
   const navigate = useNavigate();
+  const goNext = useOnboardingAdvance();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null!);
@@ -57,20 +59,21 @@ export function AdvancedInputPage() {
       brainDumpHabits: persistHabits,
       brainDumpParseSource: source,
     });
-    navigate('/onboarding/advanced-results', {
+    void goNext(4, '/onboarding/advanced-results', {
       state: {
         text,
         habits: persistHabits,
         parseSource: source,
       },
     });
-  }, [text, navigate, saveStepAsync, trackStepComplete, parse]);
+  }, [text, goNext, saveStepAsync, trackStepComplete, parse]);
 
   const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleNext);
 
   return (
     <OnboardingLayout
       screenId="ONBOARD-ADVANCED"
+      step={3}
       formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"

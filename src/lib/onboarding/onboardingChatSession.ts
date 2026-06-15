@@ -1,17 +1,16 @@
-// One chat_session_id for the whole onboarding journey.
-// sessionStorage: survives in-tab refresh, clears on tab close.
+// Bootstrap cache only — onboarding_states.chat_session_id is authoritative on
+// resume. localStorage (not sessionStorage) so it survives tab close.
 
 const ONBOARDING_CHAT_SESSION_KEY = 'gg_onboarding_chat_session_id';
 
-// In-memory fallback for private-browsing / storage-throw.
 let memoryFallbackId: string | null = null;
 
 export function getOrCreateOnboardingChatSessionId(): string {
   try {
-    const existing = sessionStorage.getItem(ONBOARDING_CHAT_SESSION_KEY);
+    const existing = localStorage.getItem(ONBOARDING_CHAT_SESSION_KEY);
     if (existing) return existing;
     const fresh = crypto.randomUUID();
-    sessionStorage.setItem(ONBOARDING_CHAT_SESSION_KEY, fresh);
+    localStorage.setItem(ONBOARDING_CHAT_SESSION_KEY, fresh);
     return fresh;
   } catch {
     if (!memoryFallbackId) memoryFallbackId = crypto.randomUUID();
@@ -19,10 +18,20 @@ export function getOrCreateOnboardingChatSessionId(): string {
   }
 }
 
+// Seed the cache from the server-authoritative id (read on resume).
+export function setOnboardingChatSessionId(id: string): void {
+  memoryFallbackId = id;
+  try {
+    localStorage.setItem(ONBOARDING_CHAT_SESSION_KEY, id);
+  } catch {
+    // best-effort
+  }
+}
+
 export function clearOnboardingChatSessionId(): void {
   memoryFallbackId = null;
   try {
-    sessionStorage.removeItem(ONBOARDING_CHAT_SESSION_KEY);
+    localStorage.removeItem(ONBOARDING_CHAT_SESSION_KEY);
   } catch {
     // best-effort
   }

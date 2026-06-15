@@ -121,6 +121,23 @@ export function PlanReviewPage() {
 
   // Voice "let's go" mirrors the tap flow once the agent bumps current_step past 7.
   const autoCompletedRef = useRef(false);
+
+  // Single guarded completion funnel — tap, voice, and the auto current_step>7
+  // effect all route here so two triggers in one turn can't double-fire complete().
+  const requestComplete = useCallback(
+    (reason: 'tap' | 'voice' | 'auto') => {
+      // Explicit user actions get one retry after a prior failure; auto never does
+      // (a redundant Realtime push of current_step=8 must not retry-storm a 500).
+      if (reason !== 'auto' && completeError && autoCompletedRef.current) {
+        autoCompletedRef.current = false;
+      }
+      if (autoCompletedRef.current || isCompleting) return;
+      if (!state?.habitConfigs || !state?.reflectionConfig) return;
+      autoCompletedRef.current = true;
+      handleStartPlan();
+    },
+    [completeError, isCompleting, state, handleStartPlan],
+  );
   // Wait ~700ms after Vapi stops speaking before tearing the call down. The
   // BEGINNER-06 context tells the model to speak a send-off ("Good luck —
   // you've got this.") right before firing confirm_plan; without this wait,
@@ -139,20 +156,17 @@ export function PlanReviewPage() {
     // fire on next quiet window.
     if (isAssistantSpeaking) return;
     const timer = setTimeout(() => {
-      if (autoCompletedRef.current) return;
-      autoCompletedRef.current = true;
-      handleStartPlan();
+      requestComplete('auto');
     }, POST_SPEECH_QUIET_MS);
     return () => clearTimeout(timer);
-  }, [onboardingState, state, isCompleting, handleStartPlan, isAssistantSpeaking]);
+  }, [onboardingState, state, isCompleting, requestComplete, isAssistantSpeaking]);
   // NOTE on the failed-complete() retry path:
   // After complete() fails, autoCompletedRef intentionally STAYS true. That
   // blocks the auto-complete effect above from re-firing on a redundant
   // Realtime push of current_step=8 (which would otherwise retry-storm against
-  // a persistently-500ing backend). Voice retry is unblocked manually inside
-  // handleVoiceAction: receiving confirm_plan while a completeError is present
-  // clears the latch for that single attempt. Tap retry bypasses the gate
-  // entirely (calls handleStartPlan directly).
+  // a persistently-500ing backend). Explicit user actions (voice confirm_plan
+  // or tap) route through requestComplete, which clears the latch for one
+  // attempt on a prior error; 'auto' never clears it.
 
   // Voice "let's go" / "start" / "looks good" — direct confirm path that
   // doesn't depend on the current_step bump above. Both paths share
@@ -173,19 +187,9 @@ export function PlanReviewPage() {
         return;
       }
       if (result.action !== 'confirm_plan') return;
-      // One-shot voice retry on prior failure: clear the single-fire latch the
-      // auto-complete effect set so the rest of the gate proceeds. Does NOT
-      // re-enable the auto-complete effect (Realtime hiccup → retry storm);
-      // each voice "let's go" after an error is its own explicit attempt.
-      if (completeError && autoCompletedRef.current) {
-        autoCompletedRef.current = false;
-      }
-      if (autoCompletedRef.current || isCompleting) return;
-      if (!state?.habitConfigs || !state?.reflectionConfig) return;
-      autoCompletedRef.current = true;
-      handleStartPlan();
+      requestComplete('voice');
     },
-    [state, isCompleting, handleStartPlan, completeError],
+    [requestComplete],
   );
 
   if (!state?.habitConfigs || !state?.reflectionConfig) {
@@ -218,7 +222,7 @@ export function PlanReviewPage() {
       screenId={source === 'advanced' ? 'ONBOARD-ADVANCED-05' : 'ONBOARD-BEGINNER-06'}
       formSnapshot={snapshot}
       ctaLabel="Start plan"
-      onNext={handleStartPlan}
+      onNext={() => requestComplete('tap')}
       ctaLoading={isCompleting}
       showVoiceButton
       onVoiceAction={handleVoiceAction}

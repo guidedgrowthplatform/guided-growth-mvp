@@ -46,7 +46,7 @@ export interface OnboardingVoiceContextValue {
   startThread: (
     screenId: string,
     initial: VoiceMessage[],
-    mode?: 'replace' | 'append-if-empty' | 'append',
+    mode?: 'replace' | 'append-if-empty' | 'append' | 'sole-opener',
   ) => void;
   // Unified send for the Direct-LLM path (text composer + voice-in final).
   sendUserTurn: (text: string) => void;
@@ -62,6 +62,7 @@ export interface OnboardingVoiceContextValue {
   // Page registers its canonical screen_id + advance handler with the provider.
   registerScreen: (screenId: string | null) => void;
   registerAdvance: (cb: (() => void) | null) => void;
+  registerStep: (step: number | null) => void;
   endCall: () => void;
   restartCall: () => Promise<void>;
   pushSubScreen: (screenId: string | null) => void;

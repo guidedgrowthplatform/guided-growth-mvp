@@ -18,6 +18,7 @@ import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { useCtaLoading } from '../shared/useCtaLoading';
+import { useOnboardingAdvance } from '../shared/useOnboardingAdvance';
 import { useStepTiming } from '../shared/useStepTiming';
 
 const DEFAULT_QUESTIONS = [
@@ -43,6 +44,7 @@ interface LocationState {
 
 export function AdvancedStep6Page() {
   const navigate = useNavigate();
+  const goNext = useOnboardingAdvance();
   const location = useLocation();
   const { state: onboardingState, saveStepAsync } = useOnboarding();
   const onboardingVoice = useOnboardingVoice();
@@ -129,20 +131,21 @@ export function AdvancedStep6Page() {
     };
     await saveStepAsync(5, { habitConfigs: configRecord, reflectionConfig });
     trackStepComplete();
-    navigate('/onboarding/step-7', {
+    void goNext(7, '/onboarding/step-7', {
       state: {
         habitConfigs: configRecord,
         reflectionConfig,
         source: 'advanced',
       },
     });
-  }, [habitConfigs, selectedDays, navigate, saveStepAsync, trackStepComplete]);
+  }, [habitConfigs, selectedDays, goNext, saveStepAsync, trackStepComplete]);
 
   const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleReviewPlan);
 
   return (
     <OnboardingLayout
       screenId="ONBOARD-ADVANCED-04"
+      step={5}
       formSnapshot={snapshot}
       ctaLabel="Continue"
       onBack={() => navigate('/onboarding/advanced-results')}

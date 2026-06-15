@@ -36,4 +36,16 @@ describe('applyStartThread', () => {
     const initial = [msg('i1', 'init')];
     expect(applyStartThread([], initial, 'append')).toEqual(initial);
   });
+
+  it('sole-opener drops other screens openers, keeps only the current one', () => {
+    const prev = [msg('opener-FORK-revisit', 'fork'), msg('llm-1', 'real turn')];
+    const initial = [msg('opener-PROFILE-revisit', 'profile')];
+    expect(applyStartThread(prev, initial, 'sole-opener')).toEqual([prev[1], initial[0]]);
+  });
+
+  it('sole-opener preserves non-opener turns', () => {
+    const prev = [msg('user-1', 'hi'), msg('llm-1', 'hey'), msg('opener-A-first', 'old')];
+    const initial = [msg('opener-B-first', 'new')];
+    expect(applyStartThread(prev, initial, 'sole-opener')).toEqual([prev[0], prev[1], initial[0]]);
+  });
 });

@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchScreenRoutes } from '@/api/context';
+import { advanceOnboardingStep } from '@/api/onboarding';
 import {
   getOnboardingOpener,
   getOnboardingRevisitOpener,
@@ -26,12 +27,13 @@ export interface UseOnboardingChatArgs {
   startThread: (
     screenId: string,
     initial: VoiceMessage[],
-    mode?: 'replace' | 'append-if-empty' | 'append',
+    mode?: 'replace' | 'append-if-empty' | 'append' | 'sole-opener',
   ) => void;
   // Push assistant text onto the transcript bus (subtitle bar + overlay render).
   emitAssistant: (text: string, kind: 'partial' | 'final') => void;
   onVoiceAction: (result: OnboardingVoiceResult) => void;
   onAdvance: () => void;
+  getCurrentStep: () => number | null;
 }
 
 export interface UseOnboardingChatReturn {
@@ -39,6 +41,9 @@ export interface UseOnboardingChatReturn {
   // Low-frequency: flips at most twice per turn (start/end) — safe in context value.
   chatBusy: boolean;
 }
+
+const LLM_ERROR_TEXT = "Something didn't work on my end. Mind trying that again?";
+const PLAN_REVIEW_STEP = 7;
 
 // Owns the Direct-LLM onboarding chat (Path 3) lifted out of the overlay so a
 // voice-in final reaches the LLM whether the overlay is open or closed.
@@ -52,6 +57,7 @@ export function useOnboardingChat({
   emitAssistant,
   onVoiceAction,
   onAdvance,
+  getCurrentStep,
 }: UseOnboardingChatArgs): UseOnboardingChatReturn {
   const qc = useQueryClient();
   const isOnboardingScreen = (screenId ?? '').startsWith('ONBOARD-');
@@ -80,28 +86,34 @@ export function useOnboardingChat({
   const openerSeededRef = useRef<string | null>(null);
   const streamActiveRef = useRef(false);
   const landedCompleteRef = useRef(false);
+  // Coach turns render only on a screen the user actually spoke on — blocks a
+  // prior screen's in-flight reply from leaking onto the next opener.
+  const userTurnActiveRef = useRef(false);
+  const [userTurnActive, setUserTurnActive] = useState(false);
+  const salvagedPartialRef = useRef(false);
   // First voice-in final can arrive before the chat session lands — hold it.
   const pendingTurnRef = useRef<string | null>(null);
   // Stable read inside the screen-change effect (kept out of its dep array).
   const useStableSessionRef = useRef(useStableSession);
   useStableSessionRef.current = useStableSession;
-  // Monotonic — globally-unique opener ids so revisits never collide React keys.
-  const visitCounterRef = useRef(0);
 
   // Latest values via refs so sendUserTurn stays stable (no context-value churn).
   const onAdvanceRef = useRef(onAdvance);
   onAdvanceRef.current = onAdvance;
+  const getCurrentStepRef = useRef(getCurrentStep);
+  getCurrentStepRef.current = getCurrentStep;
   const orbStateRef = useRef(orbState);
   orbStateRef.current = orbState;
   const llmRef = useRef(llm);
   llmRef.current = llm;
   const chatSessionIdRef = useRef(chatSessionId);
   chatSessionIdRef.current = chatSessionId;
-  const suppressTrailingRef = useRef(false);
 
   const startStream = useCallback((text: string) => {
-    suppressTrailingRef.current = false;
     streamActiveRef.current = true;
+    userTurnActiveRef.current = true;
+    salvagedPartialRef.current = false;
+    setUserTurnActive(true);
     void llmRef.current.sendMessage(text);
   }, []);
 
@@ -116,7 +128,11 @@ export function useOnboardingChat({
     lastLlmErrorRef.current = '';
     pendingTurnRef.current = null;
     streamActiveRef.current = false;
-    suppressTrailingRef.current = true;
+    userTurnActiveRef.current = false;
+    setUserTurnActive(false);
+    // Abort any in-flight stream from the previous screen so a late final can't
+    // interleave after this screen's opener.
+    llmRef.current.cancel();
     if (!stable) llm.reset();
 
     const onboardingState =
@@ -124,11 +140,15 @@ export function useOnboardingChat({
     const revisit = getOnboardingRevisitOpener(screenId, onboardingState);
     landedCompleteRef.current = revisit?.complete === true;
     const opener = revisit?.text ?? getOnboardingOpener(screenId);
+    const openerId = `opener-${screenId}-${revisit ? 'revisit' : 'first'}`;
     if (stable) {
-      const openerId = `opener-${screenId}-${visitCounterRef.current++}`;
-      startThread(screenId, opener ? [{ id: openerId, role: 'ai', text: opener }] : [], 'append');
+      startThread(
+        screenId,
+        opener ? [{ id: openerId, role: 'ai', text: opener }] : [],
+        'sole-opener',
+      );
     } else {
-      startThread(screenId, opener ? [{ id: `opener-${screenId}`, role: 'ai', text: opener }] : []);
+      startThread(screenId, opener ? [{ id: openerId, role: 'ai', text: opener }] : []);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, screenId, isOnboardingScreen, startThread, qc]);
@@ -161,8 +181,9 @@ export function useOnboardingChat({
       if (m.role !== 'assistant' && m.role !== 'user') continue;
       if (mirroredIdsRef.current.has(m.id)) continue;
       if (!m.content) continue;
-      if (suppressTrailingRef.current && m.role === 'assistant') {
-        suppressTrailingRef.current = false;
+      // Drop a coach turn resolving on a screen the user never spoke on
+      // (prior screen's reply landing after navigation).
+      if (m.role === 'assistant' && !userTurnActiveRef.current) {
         mirroredIdsRef.current.add(m.id);
         continue;
       }
@@ -173,6 +194,8 @@ export function useOnboardingChat({
         text: m.content,
       });
       if (m.role === 'assistant') {
+        salvagedPartialRef.current = true;
+        lastLlmErrorRef.current = '';
         emitAssistant(m.content, 'final');
         if (orbStateRef.current === 'voice_out_only') void speak(m.content);
       }
@@ -182,16 +205,20 @@ export function useOnboardingChat({
   // Live streaming partial → transcript bus (overlay + subtitle render it).
   useEffect(() => {
     if (!toolActive || !llm.isStreaming || llm.response.length === 0) return;
+    if (!userTurnActiveRef.current) return;
     emitAssistant(llm.response, 'partial');
   }, [toolActive, llm.isStreaming, llm.response, emitAssistant]);
 
-  // Surface LLM errors as a coach bubble (dedup identical consecutive messages).
+  // Surface LLM errors as a friendly coach bubble. Dedup on the RAW message so
+  // distinct underlying errors still re-surface; render generic copy + speak it.
   useEffect(() => {
     if (!enabled || !llm.error) return;
     const msg = llm.error.message;
     if (msg === lastLlmErrorRef.current) return;
     lastLlmErrorRef.current = msg;
-    appendMessage({ id: `llm-error-${Date.now()}`, role: 'ai', text: msg });
+    if (salvagedPartialRef.current) return;
+    appendMessage({ id: `llm-error-${Date.now()}`, role: 'ai', text: LLM_ERROR_TEXT });
+    if (orbStateRef.current === 'voice_out_only') void speak(LLM_ERROR_TEXT);
   }, [enabled, llm.error, appendMessage]);
 
   useChatToolEvents({
@@ -199,9 +226,6 @@ export function useOnboardingChat({
     active: toolActive,
     routes: routesData?.routes,
     onVoiceAction,
-    onWillAdvance: () => {
-      suppressTrailingRef.current = true;
-    },
     // Stable session → session-scoped dedup (call_ids are globally unique);
     // legacy → per-screen reset, unchanged.
     resetKey: useStableSession ? (chatSessionId ?? screenId) : screenId,
@@ -216,7 +240,7 @@ export function useOnboardingChat({
         isStreaming: llmRef.current.isStreaming,
       });
       if (action === 'noop' || action === 'vapi') return;
-      // Revisit "move on" shortcut: affirm on an already-complete screen advances.
+      // Affirm on an already-complete screen advances directly.
       if (
         action === 'onboarding' &&
         landedCompleteRef.current &&
@@ -224,16 +248,34 @@ export function useOnboardingChat({
       ) {
         const now = Date.now();
         appendMessage({ id: `user-${now}`, role: 'user', text });
-        appendMessage({ id: `ai-${now}`, role: 'ai', text: 'Great — moving on.' });
-        if (orbStateRef.current === 'voice_out_only') void speak('Great — moving on.');
-        // Already-complete revisit: no current_step transition for useAgentNavigation,
-        // so advance the page directly (synchronous, this screen only — no timer race).
-        onAdvanceRef.current?.();
+        appendMessage({ id: `ai-${now}`, role: 'ai', text: 'Got it.' });
+        if (orbStateRef.current === 'voice_out_only') void speak('Got it.');
+        // Lower a stale high-water before onAdvance's saveStep can re-raise it.
+        // Beginner-only: linear steps; braindump is non-linear.
+        const thisStep = getCurrentStepRef.current?.();
+        const cached = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null;
+        if (
+          thisStep != null &&
+          thisStep < PLAN_REVIEW_STEP &&
+          cached &&
+          cached.path !== 'braindump' &&
+          cached.current_step > thisStep
+        ) {
+          void advanceOnboardingStep(thisStep + 1)
+            .then((row) => qc.setQueryData(queryKeys.onboarding.state, row))
+            .catch(() => {})
+            .finally(() => onAdvanceRef.current?.());
+        } else {
+          onAdvanceRef.current?.();
+        }
         return;
       }
       // Session not minted yet (cold voice-in entry) — hold; flushed on ready.
+      // Concat so a second utterance before the session lands isn't dropped.
       if (!chatSessionIdRef.current) {
-        pendingTurnRef.current = text;
+        pendingTurnRef.current = pendingTurnRef.current
+          ? `${pendingTurnRef.current} ${text}`
+          : text;
         return;
       }
       startStream(text);
@@ -241,5 +283,5 @@ export function useOnboardingChat({
     [isOnboardingScreen, appendMessage, startStream],
   );
 
-  return { sendUserTurn, chatBusy: llm.isStreaming };
+  return { sendUserTurn, chatBusy: llm.isStreaming && userTurnActive };
 }

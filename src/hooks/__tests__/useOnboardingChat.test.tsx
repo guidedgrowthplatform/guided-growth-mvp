@@ -61,6 +61,7 @@ interface BridgeProps {
   appendMessage?: (m: VoiceMessage) => void;
   onAdvance?: () => void;
   startThread?: UseOnboardingChatArgs['startThread'];
+  getCurrentStep?: () => number | null;
 }
 function Bridge({
   screenId = 'ONBOARD-FORK--FORM',
@@ -68,6 +69,7 @@ function Bridge({
   appendMessage = vi.fn(),
   onAdvance = vi.fn(),
   startThread = noopStartThread,
+  getCurrentStep = () => null,
 }: BridgeProps) {
   const v = useOnboardingChat({
     screenId,
@@ -79,6 +81,7 @@ function Bridge({
     emitAssistant: vi.fn(),
     onVoiceAction: vi.fn(),
     onAdvance,
+    getCurrentStep,
   });
   useEffect(() => {
     hookRef = v;
@@ -433,13 +436,13 @@ describe('continuous thread (Phase 2, stable ON)', () => {
     expect(startThread).toHaveBeenCalledTimes(2);
     const a = startThreadCall(startThread, 0);
     const b = startThreadCall(startThread, 1);
-    expect(a.mode).toBe('append');
-    expect(b.mode).toBe('append');
-    expect(a.openerId).toBe('opener-ONBOARD-FORK--FORM-0');
-    expect(b.openerId).toBe('opener-ONBOARD-BEGINNER-01-1');
+    expect(a.mode).toBe('sole-opener');
+    expect(b.mode).toBe('sole-opener');
+    expect(a.openerId).toBe('opener-ONBOARD-FORK--FORM-first');
+    expect(b.openerId).toBe('opener-ONBOARD-BEGINNER-01-first');
   });
 
-  it('back-nav appends a distinct revisit opener (no React key collision)', async () => {
+  it('back-nav seeds the revisit opener via sole-opener (only current opener stays)', async () => {
     qc.setQueryData(queryKeys.onboarding.state, { path: 'simple', data: {} } as never);
     const startThread = vi.fn();
     const render = (screenId: string) =>
@@ -462,9 +465,9 @@ describe('continuous thread (Phase 2, stable ON)', () => {
     const firstA = startThreadCall(startThread, 0);
     const revisitA = startThreadCall(startThread, 2);
     expect(revisitA.screenId).toBe('ONBOARD-FORK--FORM');
-    expect(revisitA.mode).toBe('append');
-    expect(revisitA.openerId).not.toBe(firstA.openerId);
-    expect(revisitA.openerId).toBe('opener-ONBOARD-FORK--FORM-2');
+    expect(revisitA.mode).toBe('sole-opener');
+    expect(revisitA.openerId).toBe(firstA.openerId);
+    expect(revisitA.openerId).toBe('opener-ONBOARD-FORK--FORM-revisit');
   });
 });
 
@@ -484,68 +487,16 @@ describe('legacy thread (unauthed)', () => {
 
     const call = startThreadCall(startThread, 0);
     expect(call.mode).toBeUndefined();
-    expect(call.openerId).toBe('opener-ONBOARD-FORK--FORM');
+    expect(call.openerId).toBe('opener-ONBOARD-FORK--FORM-first');
   });
 });
 
-describe('suppresses a prior screen trailing coach line after navigation', () => {
+describe('renders coach lines without client-side suppression', () => {
   beforeEach(() => {
     (getOrCreateOnboardingChatSessionId as ReturnType<typeof vi.fn>).mockReturnValue(STABLE_ID);
   });
 
-  it('drops the fork turn trailing line that lands after advancing to category', async () => {
-    let release!: () => void;
-    const gate = new Promise<void>((r) => (release = r));
-    const encoder = new TextEncoder();
-    const gated = new Response(
-      new ReadableStream<Uint8Array>({
-        async start(controller) {
-          const send = (e: LLMStreamEvent) =>
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
-          send({ type: 'delta', content: 'The fact that you are here means something.' });
-          await gate;
-          send({ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 });
-          controller.close();
-        },
-      }),
-      { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
-    );
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(gated));
-    const appended: VoiceMessage[] = [];
-    const appendMessage = (m: VoiceMessage) => appended.push(m);
-
-    act(() => {
-      root.render(
-        <Wrapper>
-          <Bridge screenId="ONBOARD-FORK--FORM" appendMessage={appendMessage} />
-        </Wrapper>,
-      );
-    });
-    await flush();
-    await act(async () => {
-      hookRef!.sendUserTurn('No I have not');
-    });
-    await flush();
-
-    act(() => {
-      root.render(
-        <Wrapper>
-          <Bridge screenId="ONBOARD-BEGINNER-01" appendMessage={appendMessage} />
-        </Wrapper>,
-      );
-    });
-    await flush();
-
-    await act(async () => {
-      release();
-      await flush();
-    });
-    await flush();
-
-    expect(appended.some((m) => m.text.includes('The fact that you are here'))).toBe(false);
-  });
-
-  it('renders the next coach reply after a suppression (one-shot, no leak)', async () => {
+  it('renders a same-turn coach reply (suppression retired — no dropped bubble)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -673,5 +624,52 @@ describe('revisit "move on" shortcut (already-complete screen)', () => {
     expect(onAdvance).toHaveBeenCalledTimes(1);
     // No LLM round-trip for the revisit shortcut.
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/llm'))).toBe(false);
+  });
+
+  it('back-navved affirm bumps stale current_step to thisStep+1 before advancing', async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      String(url).includes('/api/onboarding/advance')
+        ? new Response(JSON.stringify({ current_step: 3, data: {}, path: 'simple' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        : new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    // Stale high-water: on the FORK screen (step 2) but current_step is 7.
+    qc.setQueryData(queryKeys.onboarding.state, {
+      current_step: 7,
+      data: {},
+      path: 'simple',
+    } as never);
+    const onAdvance = vi.fn();
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge
+            enabled
+            screenId="ONBOARD-FORK--FORM"
+            onAdvance={onAdvance}
+            getCurrentStep={() => 2}
+          />
+        </Wrapper>,
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      hookRef!.sendUserTurn('yes');
+    });
+    await flush();
+
+    expect(onAdvance).toHaveBeenCalledTimes(1);
+    expect(
+      (qc.getQueryData(queryKeys.onboarding.state) as { current_step?: number } | undefined)
+        ?.current_step,
+    ).toBe(3);
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/onboarding/advance'))).toBe(
+      true,
+    );
   });
 });

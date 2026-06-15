@@ -665,9 +665,10 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     (
       screenId: string,
       initial: VoiceMessage[],
-      mode: 'replace' | 'append-if-empty' | 'append' = 'replace',
+      mode: 'replace' | 'append-if-empty' | 'append' | 'sole-opener' = 'replace',
     ) => {
-      if (threadScreenIdRef.current === screenId) return;
+      // sole-opener bypasses the per-screen early-return to re-seed.
+      if (mode !== 'sole-opener' && threadScreenIdRef.current === screenId) return;
       threadScreenIdRef.current = screenId;
       setMessages((prev) => applyStartThread(prev, initial, mode));
     },
@@ -696,6 +697,12 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     onAdvanceRef.current = cb;
   }, []);
   const fireAdvance = useCallback(() => onAdvanceRef.current?.(), []);
+
+  const registeredStepRef = useRef<number | null>(null);
+  const registerStep = useCallback((step: number | null) => {
+    registeredStepRef.current = step;
+  }, []);
+  const getCurrentStep = useCallback(() => registeredStepRef.current, []);
 
   const orbState = orbStateFrom(voiceOn, micOn);
   const voiceInShouldBeLive =
@@ -728,6 +735,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     emitAssistant,
     onVoiceAction: notifyVoiceActions,
     onAdvance: fireAdvance,
+    getCurrentStep,
   });
 
   const emitVoiceInInterim = useCallback(
@@ -976,6 +984,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       subscribeVoiceActions,
       registerScreen,
       registerAdvance,
+      registerStep,
       endCall,
       restartCall,
       pushSubScreen,
@@ -1003,6 +1012,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       subscribeVoiceActions,
       registerScreen,
       registerAdvance,
+      registerStep,
       endCall,
       restartCall,
       pushSubScreen,

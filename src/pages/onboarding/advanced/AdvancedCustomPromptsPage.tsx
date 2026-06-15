@@ -10,6 +10,7 @@ import {
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { useOnboardingAdvance } from '../shared/useOnboardingAdvance';
 import { useStepTiming } from '../shared/useStepTiming';
 
 type JournalMode = 'freeform' | 'custom';
@@ -33,6 +34,7 @@ function deserializePrompts(value: unknown): string[] {
 
 export function AdvancedCustomPromptsPage() {
   const navigate = useNavigate();
+  const goNext = useOnboardingAdvance();
   const location = useLocation();
   const { state: onboardingState } = useOnboarding();
   const onboardingVoice = useOnboardingVoice();
@@ -96,18 +98,19 @@ export function AdvancedCustomPromptsPage() {
 
   const handleDone = useCallback(() => {
     trackStepComplete();
-    navigate('/onboarding/advanced-step-6', {
+    void goNext(5, '/onboarding/advanced-step-6', {
       state: {
         habitConfigs: state?.habitConfigs,
         customPrompts: journalMode === 'custom' ? filledPrompts : undefined,
         journalMode,
       },
     });
-  }, [navigate, state?.habitConfigs, journalMode, filledPrompts, trackStepComplete]);
+  }, [goNext, state?.habitConfigs, journalMode, filledPrompts, trackStepComplete]);
 
   return (
     <OnboardingLayout
       screenId="ONBOARD-ADV-CUSTOM"
+      step={5}
       formSnapshot={snapshot}
       ctaLabel="Continue"
       onBack={() =>

@@ -509,7 +509,7 @@ describe('LLM route — onboarding model + fork tool-choice forcing', () => {
   it('forces required choice over {submit_path_choice, ask_clarification} on the fork before a path is set', async () => {
     await runFork({ path: null });
     const o = firstStreamOpts();
-    expect(o.model).toBe('gpt-4o');
+    expect(o.model).toBe('gpt-4o-mini');
     expect(o.toolChoice).toBe('required');
     expect(o.tools?.map((t) => t.name).sort()).toEqual(['ask_clarification', 'submit_path_choice']);
   });
@@ -517,9 +517,38 @@ describe('LLM route — onboarding model + fork tool-choice forcing', () => {
   it('does NOT force once a path is already saved (so the confirm turn can advance)', async () => {
     await runFork({ path: 'simple' });
     const o = firstStreamOpts();
-    expect(o.model).toBe('gpt-4o');
+    expect(o.model).toBe('gpt-4o-mini');
     expect(o.toolChoice).toBeUndefined();
     expect(o.tools?.length ?? 0).toBeGreaterThan(2);
+  });
+
+  it('opener with no prior context sends a non-empty input (no empty-array request)', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ foreign_owned: false, prev_response_id: null }],
+      })
+      .mockResolvedValue({ rowCount: 1, rows: [] });
+    (openResponsesStream as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      completedOnly(),
+    );
+    const { client } = makeClient();
+    pool.connect.mockResolvedValue(client);
+
+    await handler(
+      mockReq({
+        session_id: 'sess-abcd1234',
+        screen_id: 'CHAT',
+        mode: 'opener',
+        chat_session_id: CHAT_SESSION_ID,
+      }),
+      mockRes(),
+    );
+
+    const o = (openResponsesStream as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as {
+      input?: unknown[];
+    };
+    expect(o.input?.length ?? 0).toBeGreaterThan(0);
   });
 
   it('check-in / non-onboarding screens keep the default model and never force', async () => {
