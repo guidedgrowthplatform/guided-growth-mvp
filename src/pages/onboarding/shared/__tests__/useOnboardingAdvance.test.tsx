@@ -13,7 +13,8 @@ const navigate = vi.fn();
 vi.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
 
 const advanceOnboardingStep = vi.fn(
-  async (n: number) => ({ current_step: n }) as unknown as OnboardingState,
+  async (n: number) =>
+    ({ current_step: n, updated_at: '2026-06-15T00:00:00Z' }) as unknown as OnboardingState,
 );
 vi.mock('@/api/onboarding', () => ({
   advanceOnboardingStep: (n: number) => advanceOnboardingStep(n),
@@ -66,17 +67,21 @@ describe('useOnboardingAdvance', () => {
   it('back-navved (current_step > destStep): bumps cache, persists, navigates', async () => {
     seedStep(7);
     await act(async () => {
-      goNext(4, '/onboarding/step-4');
+      await goNext(4, '/onboarding/step-4');
     });
     expect(cachedStep()).toBe(4);
     expect(advanceOnboardingStep).toHaveBeenCalledWith(4);
+    expect(
+      (qc.getQueryData(queryKeys.onboarding.state) as { updated_at?: string } | undefined)
+        ?.updated_at,
+    ).toBe('2026-06-15T00:00:00Z');
     expect(navigate).toHaveBeenCalledWith('/onboarding/step-4', undefined);
   });
 
   it('normal forward edge (current_step <= destStep): no bump, no persist, just navigates', async () => {
     seedStep(3);
     await act(async () => {
-      goNext(4, '/onboarding/step-4');
+      await goNext(4, '/onboarding/step-4');
     });
     expect(cachedStep()).toBe(3);
     expect(advanceOnboardingStep).not.toHaveBeenCalled();
@@ -86,7 +91,7 @@ describe('useOnboardingAdvance', () => {
   it('passes NavigateOptions (state payload) through unchanged', async () => {
     seedStep(7);
     await act(async () => {
-      goNext(4, '/onboarding/step-4', { state: { category: 'Sleep better' } });
+      await goNext(4, '/onboarding/step-4', { state: { category: 'Sleep better' } });
     });
     expect(navigate).toHaveBeenCalledWith('/onboarding/step-4', {
       state: { category: 'Sleep better' },
@@ -96,7 +101,7 @@ describe('useOnboardingAdvance', () => {
   it('no cached state: plain navigate, no bump or persist', async () => {
     qc.setQueryData(queryKeys.onboarding.state, null);
     await act(async () => {
-      goNext(4, '/onboarding/step-4');
+      await goNext(4, '/onboarding/step-4');
     });
     expect(advanceOnboardingStep).not.toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith('/onboarding/step-4', undefined);

@@ -627,7 +627,14 @@ describe('revisit "move on" shortcut (already-complete screen)', () => {
   });
 
   it('back-navved affirm bumps stale current_step to thisStep+1 before advancing', async () => {
-    const fetchMock = vi.fn().mockRejectedValue(new Error('no network'));
+    const fetchMock = vi.fn(async (url: string) =>
+      String(url).includes('/api/onboarding/advance')
+        ? new Response(JSON.stringify({ current_step: 3, data: {}, path: 'simple' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        : new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    );
     vi.stubGlobal('fetch', fetchMock);
     // Stale high-water: on the FORK screen (step 2) but current_step is 7.
     qc.setQueryData(queryKeys.onboarding.state, {

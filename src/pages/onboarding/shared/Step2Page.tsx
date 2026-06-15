@@ -78,9 +78,9 @@ export function Step2Page() {
     });
     trackStepComplete();
     if (plan === 'braindump') {
-      goNext(3, '/onboarding/advanced-input');
+      void goNext(3, '/onboarding/advanced-input');
     } else {
-      goNext(3, '/onboarding/step-3');
+      void goNext(3, '/onboarding/step-3');
     }
   }, [plan, goNext, saveStepAsync, trackStepComplete]);
 

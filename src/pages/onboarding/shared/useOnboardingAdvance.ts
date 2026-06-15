@@ -5,23 +5,24 @@ import { advanceOnboardingStep } from '@/api/onboarding';
 import { queryKeys } from '@/lib/query';
 import type { OnboardingState } from '@gg/shared/types';
 
-// Forward nav. When a stale high-water current_step sits past the destination
-// (back-nav), bare-set it down to destStep so the destination screen doesn't
-// cascade. Optimistic cache write BEFORE navigate; persist in the background.
+// Bare-set current_step down to destStep on a back-navved forward move; awaited
+// so the server row's updated_at wins over saveStep's stale GREATEST broadcast.
 export function useOnboardingAdvance() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   return useCallback(
-    (destStep: number, to: string, options?: NavigateOptions) => {
+    async (destStep: number, to: string, options?: NavigateOptions) => {
       const cached = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null;
       if (cached && cached.current_step > destStep) {
-        qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, {
-          ...cached,
-          current_step: destStep,
-        });
-        void advanceOnboardingStep(destStep)
-          .then((row) => qc.setQueryData(queryKeys.onboarding.state, row))
-          .catch(() => {});
+        try {
+          const row = await advanceOnboardingStep(destStep);
+          qc.setQueryData(queryKeys.onboarding.state, row);
+        } catch {
+          qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, {
+            ...cached,
+            current_step: destStep,
+          });
+        }
       }
       navigate(to, options);
     },

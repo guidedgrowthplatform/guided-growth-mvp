@@ -99,7 +99,7 @@ export function Step1Page() {
       referralOtherText,
     });
     trackStepComplete();
-    goNext(2, '/onboarding/step-2');
+    void goNext(2, '/onboarding/step-2');
   }, [
     nickname,
     age,

@@ -84,7 +84,7 @@ export function Step4Page() {
       goals: Array.from(selected),
     });
     trackStepComplete();
-    goNext(5, '/onboarding/step-5', { state: { goals: Array.from(selected), category } });
+    void goNext(5, '/onboarding/step-5', { state: { goals: Array.from(selected), category } });
   }, [selected, category, goNext, saveStepAsync, trackStepComplete]);
 
   const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleNext);

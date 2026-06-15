@@ -59,7 +59,7 @@ export function AdvancedInputPage() {
       brainDumpHabits: persistHabits,
       brainDumpParseSource: source,
     });
-    goNext(4, '/onboarding/advanced-results', {
+    void goNext(4, '/onboarding/advanced-results', {
       state: {
         text,
         habits: persistHabits,

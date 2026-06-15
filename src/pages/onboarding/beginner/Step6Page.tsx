@@ -140,7 +140,7 @@ export function Step6Page() {
       );
       await saveStepAsync(6, { reflectionConfig: { time, days: [...days], reminder, schedule } });
       trackStepComplete();
-      goNext(7, '/onboarding/step-7', {
+      void goNext(7, '/onboarding/step-7', {
         state: {
           habitConfigs: serializedConfigs,
           goals: resolvedGoals,

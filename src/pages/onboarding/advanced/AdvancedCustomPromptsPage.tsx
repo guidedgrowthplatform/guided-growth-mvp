@@ -98,7 +98,7 @@ export function AdvancedCustomPromptsPage() {
 
   const handleDone = useCallback(() => {
     trackStepComplete();
-    goNext(5, '/onboarding/advanced-step-6', {
+    void goNext(5, '/onboarding/advanced-step-6', {
       state: {
         habitConfigs: state?.habitConfigs,
         customPrompts: journalMode === 'custom' ? filledPrompts : undefined,

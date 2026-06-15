@@ -58,7 +58,7 @@ export function Step3Page() {
       area_count: 1,
     });
     trackStepComplete();
-    goNext(4, '/onboarding/step-4', { state: { category: selected } });
+    void goNext(4, '/onboarding/step-4', { state: { category: selected } });
   }, [selected, goNext, saveStepAsync, trackStepComplete]);
 
   const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleNext);

@@ -250,9 +250,8 @@ export function useOnboardingChat({
         appendMessage({ id: `user-${now}`, role: 'user', text });
         appendMessage({ id: `ai-${now}`, role: 'ai', text: 'Got it.' });
         if (orbStateRef.current === 'voice_out_only') void speak('Got it.');
-        // Correct a stale high-water current_step BEFORE navigating so the
-        // destination doesn't cascade. Beginner-only: its steps are linear
-        // (dest = thisStep+1); the braindump path is non-linear so skip it.
+        // Lower a stale high-water before onAdvance's saveStep can re-raise it.
+        // Beginner-only: linear steps; braindump is non-linear.
         const thisStep = getCurrentStepRef.current?.();
         const cached = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null;
         if (
@@ -262,15 +261,13 @@ export function useOnboardingChat({
           cached.path !== 'braindump' &&
           cached.current_step > thisStep
         ) {
-          qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, {
-            ...cached,
-            current_step: thisStep + 1,
-          });
           void advanceOnboardingStep(thisStep + 1)
             .then((row) => qc.setQueryData(queryKeys.onboarding.state, row))
-            .catch(() => {});
+            .catch(() => {})
+            .finally(() => onAdvanceRef.current?.());
+        } else {
+          onAdvanceRef.current?.();
         }
-        onAdvanceRef.current?.();
         return;
       }
       // Session not minted yet (cold voice-in entry) — hold; flushed on ready.

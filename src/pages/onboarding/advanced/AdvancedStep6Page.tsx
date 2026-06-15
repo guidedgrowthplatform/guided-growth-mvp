@@ -131,7 +131,7 @@ export function AdvancedStep6Page() {
     };
     await saveStepAsync(5, { habitConfigs: configRecord, reflectionConfig });
     trackStepComplete();
-    goNext(7, '/onboarding/step-7', {
+    void goNext(7, '/onboarding/step-7', {
       state: {
         habitConfigs: configRecord,
         reflectionConfig,

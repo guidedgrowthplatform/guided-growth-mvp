@@ -318,7 +318,7 @@ export function Step5Page() {
       );
       await saveStepAsync(5, { habitConfigs: serializedConfigs });
       trackStepComplete();
-      goNext(6, '/onboarding/step-6', {
+      void goNext(6, '/onboarding/step-6', {
         state: {
           habitConfigs: serializedConfigs,
           goals,

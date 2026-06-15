@@ -177,7 +177,7 @@ export function AdvancedResultsPage() {
     });
     await saveStepAsync(4, { goals, habitConfigs: habitConfigsRecord });
     trackStepComplete();
-    goNext(5, '/onboarding/advanced-step-6', { state: { habitConfigs: habitConfigsArray } });
+    void goNext(5, '/onboarding/advanced-step-6', { state: { habitConfigs: habitConfigsArray } });
   }, [habits, goNext, saveStepAsync, trackStepComplete]);
 
   const { loading: ctaLoading, run: handleConfirmCta } = useCtaLoading(handleConfirm);
