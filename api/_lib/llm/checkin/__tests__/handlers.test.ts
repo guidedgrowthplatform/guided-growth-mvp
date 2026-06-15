@@ -420,12 +420,12 @@ describe('query_habits', () => {
   it('lists all active habits scoped to anon_id', async () => {
     route([
       [
-        /SELECT name, cadence FROM user_habits/,
+        /SELECT name, cadence, habit_type FROM user_habits/,
         {
           rowCount: 2,
           rows: [
-            { name: 'pushups', cadence: 'daily' },
-            { name: 'reading', cadence: 'weekdays' },
+            { name: 'pushups', cadence: 'daily', habit_type: 'binary_do' },
+            { name: 'no news', cadence: 'weekdays', habit_type: 'binary_avoid' },
           ],
         },
       ],
@@ -434,9 +434,11 @@ describe('query_habits', () => {
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.result.count).toBe(2);
-      expect((r.result.habits as unknown[]).length).toBe(2);
+      const habits = r.result.habits as Array<{ name: string; type: string }>;
+      expect(habits.length).toBe(2);
+      expect(habits.map((h) => h.type)).toEqual(['do', 'avoid']);
     }
-    const [, params] = lastCall(/SELECT name, cadence FROM user_habits/);
+    const [, params] = lastCall(/SELECT name, cadence, habit_type FROM user_habits/);
     expect(params[0]).toBe(CTX.anon_id);
   });
 

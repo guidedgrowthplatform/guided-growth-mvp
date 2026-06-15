@@ -14,7 +14,7 @@ export function HabitSuggestionCard({
   onEdit,
 }: HabitSuggestionCardProps) {
   return (
-    <div className="mb-3 ml-0 mr-auto max-w-[260px] animate-bubble-in overflow-hidden rounded-2xl border-2 border-primary bg-white shadow-[0px_8px_30px_rgba(0,0,0,0.04)]">
+    <div className="mb-3 mt-2 w-full max-w-[290px] animate-bubble-in overflow-hidden rounded-2xl border-2 border-primary bg-white shadow-[0px_8px_30px_rgba(0,0,0,0.04)]">
       <div className="px-4 py-3">
         <h4 className="text-[14px] font-bold text-[#111318]">{name}</h4>
       </div>

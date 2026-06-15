@@ -1,5 +1,6 @@
 import { Trash2, FileText, Plus, Check } from 'lucide-react';
 import { useRef, useState } from 'react';
+import type { HabitType } from '@/lib/services/data-service.interface';
 import { IconCircleButton } from './IconCircleButton';
 
 interface HabitListItemProps {
@@ -8,10 +9,13 @@ interface HabitListItemProps {
   streak: number;
   isCompleted: boolean;
   hasNote?: boolean;
+  habitType?: HabitType;
   onToggleComplete: () => void;
   onAddNote?: () => void;
   onClick?: () => void;
   onDelete?: () => void;
+  // Overlay/report rendering: state only — no action buttons, no row swipe/nav.
+  readOnly?: boolean;
 }
 
 const OPEN_OFFSET = 88;
@@ -23,11 +27,21 @@ export function HabitListItem({
   streak,
   isCompleted,
   hasNote = false,
+  habitType = 'binary_do',
   onToggleComplete,
   onAddNote,
   onClick,
   onDelete,
+  readOnly = false,
 }: HabitListItemProps) {
+  const isAvoid = habitType === 'binary_avoid';
+  const completeLabel = isAvoid
+    ? isCompleted
+      ? 'Stayed clean — tap to undo'
+      : 'Mark as avoided'
+    : isCompleted
+      ? 'Completed — tap to undo'
+      : 'Mark as done';
   const [isOpen, setIsOpen] = useState(false);
   const [dragX, setDragX] = useState<number | null>(null);
   const startX = useRef(0);
@@ -36,7 +50,7 @@ export function HabitListItem({
   const swiped = useRef(false);
   const offset = useRef(0);
 
-  const swipeable = !!onDelete;
+  const swipeable = !readOnly && !!onDelete;
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!swipeable) return;
@@ -105,14 +119,14 @@ export function HabitListItem({
       )}
 
       <div
-        className={`relative flex cursor-pointer items-center gap-3 rounded-2xl border border-border-light bg-surface p-4 shadow-sm ${
-          dragging ? '' : 'transition-transform duration-200 ease-out'
-        }`}
+        className={`relative flex items-center gap-3 rounded-2xl border border-border-light bg-surface p-4 shadow-sm ${
+          readOnly ? '' : 'cursor-pointer'
+        } ${dragging ? '' : 'transition-transform duration-200 ease-out'}`}
         style={{
           transform: `translateX(${translateX}px)`,
           touchAction: swipeable ? 'pan-y' : undefined,
         }}
-        onClick={handleRowClick}
+        onClick={readOnly ? undefined : handleRowClick}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -128,29 +142,36 @@ export function HabitListItem({
 
         {streak > 0 && (
           <div className="flex shrink-0 items-center">
-            <span className="text-lg">🔥</span>
-            <span className="ml-0.5 text-sm font-bold text-danger">{streak}</span>
+            <span className={`text-lg ${isCompleted ? '' : 'grayscale'}`}>🔥</span>
+            <span
+              className={`ml-0.5 text-sm font-bold ${isCompleted ? 'text-danger' : 'text-content-tertiary'}`}
+            >
+              {streak}
+            </span>
           </div>
         )}
 
-        <div className="flex shrink-0 items-center gap-2">
-          <IconCircleButton
-            icon={FileText}
-            active={hasNote}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddNote?.();
-            }}
-          />
-          <IconCircleButton
-            icon={isCompleted ? Check : Plus}
-            active={isCompleted}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleComplete();
-            }}
-          />
-        </div>
+        {!readOnly && (
+          <div className="flex shrink-0 items-center gap-2">
+            <IconCircleButton
+              icon={FileText}
+              active={hasNote}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddNote?.();
+              }}
+            />
+            <IconCircleButton
+              icon={isCompleted ? Check : Plus}
+              active={isCompleted}
+              ariaLabel={completeLabel}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleComplete();
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

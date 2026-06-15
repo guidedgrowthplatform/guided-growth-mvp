@@ -171,6 +171,7 @@ export function HabitsSection({ selectedDate, screenId }: HabitsSectionProps) {
             subtitle={item.habit.frequency}
             streak={item.streak}
             isCompleted={item.completed}
+            habitType={item.habit.habitType}
             onToggleComplete={() => handleToggle(item.habit.id, item.completed)}
             onAddNote={() => handleAddNote(item.habit.name)}
             onClick={() => navigate('/habit/' + item.habit.id)}

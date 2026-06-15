@@ -40,5 +40,13 @@ export async function completeHabit(
     completed.push(date);
   }
 
-  return ok({ completed: true, habit: { id: habit.id, name: habit.name }, dates: completed });
+  return ok({
+    completed: true,
+    habit: {
+      id: habit.id,
+      name: habit.name,
+      type: habit.habit_type === 'binary_avoid' ? 'avoid' : 'do',
+    },
+    dates: completed,
+  });
 }

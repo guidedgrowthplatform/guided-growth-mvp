@@ -1,8 +1,13 @@
+import type { HabitType } from '@gg/shared/types';
+
+export type { HabitType };
+
 export interface Habit {
   id: string;
   name: string;
   frequency: string; // 'daily' | '3x/week' | 'weekly' etc
   scheduleDays: number[] | null; // 0=Sun … 6=Sat; null means cadence-driven defaults
+  habitType: HabitType; // 'binary_do' (default) | 'binary_avoid'
   createdAt: string;
   active: boolean;
 }
@@ -86,7 +91,12 @@ export interface ActionResult {
 
 export interface DataService {
   // Habits
-  createHabit(name: string, frequency?: string, scheduleDays?: number[]): Promise<Habit>;
+  createHabit(
+    name: string,
+    frequency?: string,
+    scheduleDays?: number[],
+    habitType?: HabitType,
+  ): Promise<Habit>;
   getHabits(): Promise<Habit[]>;
   getAllHabits(): Promise<Habit[]>;
   getHabitById(id: string): Promise<Habit | null>;

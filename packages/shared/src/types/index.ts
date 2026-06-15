@@ -30,6 +30,10 @@ export interface AuthenticatedUser {
 export type InputType = 'binary' | 'numeric' | 'short_text' | 'text';
 export type Frequency = 'daily' | 'weekdays' | 'weekends' | 'weekly';
 
+// Habit polarity. 'binary_do' = success when done (gym). 'binary_avoid' =
+// success when abstained (no news). Same win/miss calendar; only framing differs.
+export type HabitType = 'binary_do' | 'binary_avoid';
+
 export interface Metric {
   id: string;
   anon_id: string;
@@ -198,7 +202,13 @@ export interface OnboardingStepData {
   goals?: string[] | null;
   habitConfigs?: Record<
     string,
-    { days: number[] | Set<number>; time: string; reminder: boolean; schedule?: string }
+    {
+      days: number[] | Set<number>;
+      time: string;
+      reminder: boolean;
+      schedule?: string;
+      habitType?: HabitType;
+    }
   > | null;
   reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string } | null;
   brainDumpText?: string | null;
@@ -208,7 +218,13 @@ export interface OnboardingStepData {
   customPrompts?: string[] | null;
   advancedHabitConfigs?: Record<
     string,
-    { days: number[] | Set<number>; time: string; reminder: boolean; schedule?: string }
+    {
+      days: number[] | Set<number>;
+      time: string;
+      reminder: boolean;
+      schedule?: string;
+      habitType?: HabitType;
+    }
   > | null;
   reflectionSchedule?: string | null;
 }
@@ -230,6 +246,7 @@ export interface ParsedHabit {
   frequency: string;
   days?: number[];
   time?: string;
+  habitType?: HabitType;
 }
 
 export interface ParseBrainDumpRequest {

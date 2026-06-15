@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
+import { HabitReportCard } from '@/components/coach/HabitReportCard';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { deriveOrbRing } from '@/components/ui/orbRing';
@@ -205,6 +206,7 @@ export function CoachChatView({
                 date={msg.checkinCard.date}
               />
             )}
+            {msg.habitReport && <HabitReportCard />}
           </div>
         ))}
         {displayedAssistant.length > 0 && (

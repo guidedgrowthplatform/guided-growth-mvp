@@ -21,6 +21,8 @@ export interface ChatMessage {
   text: string;
   habitCards?: HabitCard[];
   checkinCard?: CheckInCardData;
+  // True when this turn completed a habit — renders the read-only Today's Habits report.
+  habitReport?: boolean;
 }
 
 export type VoiceChatState = 'idle' | 'listening' | 'processing';

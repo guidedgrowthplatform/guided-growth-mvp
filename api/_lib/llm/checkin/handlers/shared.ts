@@ -1,5 +1,6 @@
 import pool from '../../../db.js';
 import { validateDate } from '../../../validation.js';
+import type { HabitType } from '@gg/shared/types';
 import type { ToolResult } from '../../tools.js';
 import { invalid, notFound } from '../../toolArgs.js';
 import { FREQUENCY_OPTIONS } from '../schemas.js';
@@ -114,11 +115,12 @@ export interface HabitRow {
   name: string;
   cadence: string;
   schedule_days: number[] | null;
+  habit_type: HabitType;
 }
 
 export async function findHabitByName(anonId: string, name: string): Promise<HabitRow | null> {
   const res = await pool.query<HabitRow>(
-    `SELECT id, name, cadence, schedule_days
+    `SELECT id, name, cadence, schedule_days, habit_type
        FROM user_habits
       WHERE anon_id = $1 AND name ILIKE $2 AND is_active = true AND archived_at IS NULL
       LIMIT 1`,

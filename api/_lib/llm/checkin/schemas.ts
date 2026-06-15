@@ -48,6 +48,12 @@ export const CHECKIN_TOOLS: readonly CheckinToolDefinition[] = [
           description: 'Optional explicit days as 0-6 ints, 0=Sunday.',
           items: { type: 'number' },
         },
+        habit_type: {
+          type: 'string',
+          description:
+            'Polarity. Set "binary_avoid" when the habit is about NOT doing / quitting / stopping / reducing / avoiding something (e.g. "no screens after 10pm", "stop smoking", "don\'t watch the news", "cut back on coffee"). Otherwise "binary_do" (default).',
+          enum: ['binary_do', 'binary_avoid'],
+        },
       },
       required: ['name'],
       additionalProperties: false,

@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { HabitCompletion } from '@/lib/services/data-service.interface';
-import { calcCurrentStreak, isHabitVisibleOnDate } from '../useHabitsForDate';
+import { calcCurrentStreak, calcDisplayStreak, isHabitVisibleOnDate } from '../useHabitsForDate';
 
 function completion(date: string): HabitCompletion {
   return { id: date, habitId: 'h', date, completedAt: `${date}T08:00:00Z` };
@@ -35,6 +35,26 @@ describe('calcCurrentStreak', () => {
   it('deduplicates multiple completions on the same day', () => {
     const dates = [completion('2026-05-01'), completion('2026-05-01'), completion('2026-04-30')];
     expect(calcCurrentStreak(dates, '2026-05-01')).toBe(2);
+  });
+});
+
+describe('calcDisplayStreak', () => {
+  it('counts through today when today is completed', () => {
+    const dates = ['2026-04-29', '2026-04-30', '2026-05-01'].map(completion);
+    expect(calcDisplayStreak(dates, '2026-05-01')).toBe(3);
+  });
+
+  it('stays alive through yesterday when today is pending', () => {
+    const dates = ['2026-04-29', '2026-04-30'].map(completion);
+    expect(calcDisplayStreak(dates, '2026-05-01')).toBe(2);
+  });
+
+  it('returns 0 when neither today nor yesterday is completed', () => {
+    expect(calcDisplayStreak([completion('2026-04-28')], '2026-05-01')).toBe(0);
+  });
+
+  it('returns 0 with no completions', () => {
+    expect(calcDisplayStreak([], '2026-05-01')).toBe(0);
   });
 });
 
