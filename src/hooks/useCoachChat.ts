@@ -102,6 +102,7 @@ export function useCoachChat(
   const ttsBumpedRef = useRef(false);
   const prevStreamingRef = useRef(false);
   const turnFinalizedRef = useRef(true);
+  const turnSeqRef = useRef(0);
   // Stable identity for the streaming Soniox session callbacks so
   // useVoiceInCapture's WebSocket lifecycle doesn't churn each render.
   const submitTurnRef = useRef<(text: string) => void>(() => undefined);
@@ -318,6 +319,7 @@ export function useCoachChat(
     const { chunks, nextOffset } = nextSentenceChunks(llmResponse, lastSpokenOffsetRef.current);
     if (chunks.length === 0) return;
     if (!streamTurnActiveRef.current) {
+      turnSeqRef.current += 1;
       beginSpeechTurn({ onReveal: (t) => onTranscriptStream?.('assistant', t, 'partial') });
       streamTurnActiveRef.current = true;
       turnFinalizedRef.current = false;
@@ -337,16 +339,26 @@ export function useCoachChat(
       if (m.role !== 'assistant' || !m.content) continue;
       if (spokenIdsRef.current.has(m.id)) continue;
       spokenIdsRef.current.add(m.id);
-      onTranscriptStream?.('assistant', m.content, 'final');
       // screen/text mode: mark seen but stay silent — no backlog when voice re-enables
-      if (!voiceModeOn) continue;
+      if (!voiceModeOn) {
+        onTranscriptStream?.('assistant', m.content, 'final');
+        continue;
+      }
       if (streamedSomethingRef.current) {
         streamedSomethingRef.current = false;
         turnFinalizedRef.current = true;
         const tail = flushSentenceTail(m.content, lastSpokenOffsetRef.current);
         if (tail) pushSpeechChunk(tail);
-        void endSpeechTurn().finally(endCoachSpeechTurn);
+        const content = m.content;
+        const seq = turnSeqRef.current;
+        void endSpeechTurn().finally(() => {
+          endCoachSpeechTurn();
+          if (turnSeqRef.current === seq) {
+            onTranscriptStreamRef.current?.('assistant', content, 'final');
+          }
+        });
       } else {
+        onTranscriptStream?.('assistant', m.content, 'final');
         setTtsActive((c) => c + 1);
         void speak(m.content).finally(() => setTtsActive((c) => Math.max(0, c - 1)));
       }

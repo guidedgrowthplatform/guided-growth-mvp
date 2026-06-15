@@ -62,6 +62,17 @@ export function CoachChatView({
   const displayedAssistant = useSmoothReveal(partialAssistant);
   const displayedUser = useSmoothReveal(interim);
 
+  let revealingId: string | null = null;
+  if (displayedAssistant.length > 0) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'ai') {
+        revealingId = messages[i].id;
+        break;
+      }
+    }
+  }
+  const renderedMessages = revealingId ? messages.filter((m) => m.id !== revealingId) : messages;
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pinnedToBottomRef = useRef(true);
   const touchStartY = useRef<number | null>(null);
@@ -177,7 +188,7 @@ export function CoachChatView({
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {messages.map((msg) => (
+        {renderedMessages.map((msg) => (
           <div key={msg.id} className="flex flex-col">
             <ChatBubble
               role={msg.role}
