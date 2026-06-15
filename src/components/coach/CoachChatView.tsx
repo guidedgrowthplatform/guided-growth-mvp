@@ -8,6 +8,7 @@ import { ChatBubble } from '@/components/voice/ChatBubble';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
+import { useToast } from '@/contexts/ToastContext';
 import { useCoachTranscripts } from '@/contexts/useCoachVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
@@ -108,9 +109,16 @@ export function CoachChatView({
     toggleMic();
   }, [micAllowed, toggleMic]);
 
-  const handleRequestMic = useCallback(() => {
-    void requestMicPermission();
-  }, [requestMicPermission]);
+  const { addToast } = useToast();
+  const handleRequestMic = useCallback(async () => {
+    const granted = await requestMicPermission();
+    if (!granted) {
+      addToast(
+        'error',
+        'Microphone is blocked. Enable it in your browser settings, then tap the mic again.',
+      );
+    }
+  }, [requestMicPermission, addToast]);
 
   const handleSendText = useCallback(
     (text: string) => {
