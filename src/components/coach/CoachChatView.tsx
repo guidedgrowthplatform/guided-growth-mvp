@@ -111,12 +111,14 @@ export function CoachChatView({
 
   const { addToast } = useToast();
   const handleRequestMic = useCallback(async () => {
-    const granted = await requestMicPermission();
-    if (!granted) {
+    const result = await requestMicPermission();
+    if (result === 'denied') {
       addToast(
         'error',
         'Microphone is blocked. Enable it in your browser settings, then tap the mic again.',
       );
+    } else if (result === 'unavailable') {
+      addToast('error', "Couldn't reach the mic — it may be in use. Try again.");
     }
   }, [requestMicPermission, addToast]);
 

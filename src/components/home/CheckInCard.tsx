@@ -124,7 +124,7 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
     unlockTTS();
     // "Talk instead" implies State 3 (voice off, mic on). Request permission if
     // needed, set the orb state so the chat opens with the mic already armed.
-    const granted = micAllowed || (await requestMicPermission());
+    const granted = micAllowed || (await requestMicPermission()) === 'granted';
     await updatePreferences({
       voiceMode: 'screen',
       micEnabled: granted,

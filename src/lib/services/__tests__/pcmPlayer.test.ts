@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { s16leToFloat32 } from '../pcmPlayer';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { pcmBegin, pcmEnqueue, pcmFinish, s16leToFloat32 } from '../pcmPlayer';
 
 function le(...samples: number[]): Uint8Array {
   const u = new Uint8Array(samples.length * 2);
@@ -41,5 +41,54 @@ describe('s16leToFloat32', () => {
     const out = s16leToFloat32(view);
     expect(out.length).toBe(1);
     expect(out[0]).toBeCloseTo(0.5, 3);
+  });
+});
+
+// Suspended/interrupted AudioContext never fires src.onended — the drain
+// watchdog must still release the speaking gate so the mic re-opens.
+describe('drain watchdog (suspended-context latch)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    const ctx = {
+      state: 'running',
+      currentTime: 0,
+      destination: {},
+      resume: () => Promise.resolve(),
+      createGain: () => ({ gain: { value: 0 }, connect: () => undefined }),
+      createBuffer: (_ch: number, len: number, sr: number) => ({
+        duration: len / sr,
+        getChannelData: () => new Float32Array(len),
+      }),
+      // start()/stop() no-op; onended is NEVER invoked (suspended context).
+      createBufferSource: () => ({
+        buffer: null,
+        connect: () => undefined,
+        start: () => undefined,
+        stop: () => undefined,
+        onended: null,
+      }),
+    };
+    vi.stubGlobal('window', { AudioContext: vi.fn(() => ctx) });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('drives onSpeakingChange(false) + onDrain even when onended never fires', () => {
+    const onSpeakingChange = vi.fn();
+    const onDrain = vi.fn();
+    pcmBegin({ onSpeakingChange, onDrain });
+
+    pcmEnqueue(new Uint8Array([0, 0, 0, 0]));
+    expect(onSpeakingChange).toHaveBeenLastCalledWith(true);
+
+    pcmFinish();
+    expect(onDrain).not.toHaveBeenCalled(); // still waiting on the (dead) tail
+
+    vi.advanceTimersByTime(2000);
+    expect(onSpeakingChange).toHaveBeenLastCalledWith(false);
+    expect(onDrain).toHaveBeenCalledTimes(1);
   });
 });

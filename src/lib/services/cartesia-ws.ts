@@ -134,6 +134,9 @@ function handleMessage(raw: string): void {
 
 async function ensureSocket(): Promise<WebSocket> {
   if (socket && socket.readyState === WebSocket.OPEN) return socket;
+  // Socket past OPEN (CLOSING/CLOSED) but onclose hasn't cleaned up yet — drop it
+  // so we don't hand back a dead socket via the stale socketReady promise.
+  if (socket && socket.readyState !== WebSocket.CONNECTING) teardownSocket();
   if (socketReady) return socketReady;
 
   socketReady = (async () => {
@@ -161,6 +164,9 @@ async function ensureSocket(): Promise<WebSocket> {
     ws.onmessage = (ev) => handleMessage(typeof ev.data === 'string' ? ev.data : '');
     ws.onclose = () => {
       if (socket === ws) teardownSocket();
+      // A clean close fires onclose (not onerror); if a turn is live, route to
+      // fallback so it isn't silent / stuck on the done watchdog.
+      if (currentContextId) callbacks.onError?.('cartesia ws closed');
     };
     ws.onerror = () => {
       callbacks.onError?.('cartesia ws error');
@@ -227,8 +233,12 @@ export function wsBegin(cb: TurnCallbacks): void {
 export async function wsPush(text: string): Promise<void> {
   const t = text.trim();
   if (!t || !currentContextId) return;
-  const ws = await ensureSocket();
-  sendChunk(ws, t, true);
+  try {
+    const ws = await ensureSocket();
+    sendChunk(ws, t, true);
+  } catch (err) {
+    callbacks.onError?.(String(err));
+  }
 }
 
 export async function wsFinish(): Promise<void> {

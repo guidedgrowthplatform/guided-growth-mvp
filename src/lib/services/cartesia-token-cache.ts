@@ -42,8 +42,14 @@ function freshToken(now: number): CachedToken | null {
   return cached && now - cached.mintedAt < TOKEN_TTL_MS ? cached : null;
 }
 
+// Proactively re-mint at REWARM age even while still under TTL, so the warm loop
+// never leaves a stale window between TTL expiry and the next tick.
+function needsRewarm(now: number): boolean {
+  return !cached || now - cached.mintedAt >= TOKEN_REWARM_MS;
+}
+
 function prefetchAccessToken(): void {
-  if (freshToken(Date.now()) || inFlight) return;
+  if (inFlight || !needsRewarm(Date.now())) return;
   inFlight = fetchAccessToken()
     .then((accessToken) => {
       cached = { accessToken, mintedAt: Date.now() };

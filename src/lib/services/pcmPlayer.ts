@@ -11,6 +11,9 @@ declare global {
 // frames don't underrun the output.
 const SCHED_LEAD_S = 0.08;
 const DEFAULT_VOLUME = 0.85;
+// Wall-clock slack past the scheduled tail before force-draining a turn whose
+// onended never fired (suspended/interrupted AudioContext — iOS backgrounding).
+const DRAIN_WATCHDOG_MARGIN_MS = 600;
 
 let ctx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
@@ -22,6 +25,7 @@ interface StreamState {
   finalized: boolean;
   sampleRate: number;
   firstAudioTimer: ReturnType<typeof setTimeout> | null;
+  drainTimer: ReturnType<typeof setTimeout> | null;
   onFirstAudio?: () => void;
   onDrain?: () => void;
   onSpeakingChange?: (speaking: boolean) => void;
@@ -73,6 +77,7 @@ export function pcmBegin(opts?: {
     finalized: false,
     sampleRate: opts?.sampleRate ?? 24000,
     firstAudioTimer: null,
+    drainTimer: null,
     onFirstAudio: opts?.onFirstAudio,
     onDrain: opts?.onDrain,
     onSpeakingChange: opts?.onSpeakingChange,
@@ -170,11 +175,48 @@ export function pcmFinish(): void {
   if (!stream) return;
   stream.finalized = true;
   maybeDrain(stream);
+  // onended may never fire on a suspended ctx — bound the wait so the mic re-opens.
+  if (stream) armDrainWatchdog(stream);
+}
+
+function armDrainWatchdog(s: StreamState): void {
+  if (!ctx || s.drainTimer) return;
+  const ms = Math.max(0, (s.nextStartTime - ctx.currentTime) * 1000) + DRAIN_WATCHDOG_MARGIN_MS;
+  s.drainTimer = setTimeout(() => {
+    s.drainTimer = null;
+    forceDrain(s);
+  }, ms);
+}
+
+// Watchdog fallback: release the turn even though sources never reported onended.
+function forceDrain(s: StreamState): void {
+  if (s !== stream) return;
+  for (const src of s.sources) {
+    try {
+      src.onended = null;
+      src.stop();
+    } catch {
+      /* already stopped */
+    }
+  }
+  s.sources.clear();
+  finishDrain(s);
 }
 
 function maybeDrain(s: StreamState): void {
   if (s !== stream) return;
   if (!s.finalized || s.sources.size > 0) return;
+  finishDrain(s);
+}
+
+function finishDrain(s: StreamState): void {
+  if (s.drainTimer) {
+    clearTimeout(s.drainTimer);
+    s.drainTimer = null;
+  }
+  if (s.rafId !== null && typeof cancelAnimationFrame !== 'undefined')
+    cancelAnimationFrame(s.rafId);
+  s.rafId = null;
   s.onSpeakingChange?.(false);
   s.onDrain?.();
   stream = null;
@@ -185,6 +227,7 @@ export function pcmStop(): void {
   stream = null;
   if (!s) return;
   if (s.firstAudioTimer) clearTimeout(s.firstAudioTimer);
+  if (s.drainTimer) clearTimeout(s.drainTimer);
   if (s.rafId !== null && typeof cancelAnimationFrame !== 'undefined')
     cancelAnimationFrame(s.rafId);
   for (const src of s.sources) {
