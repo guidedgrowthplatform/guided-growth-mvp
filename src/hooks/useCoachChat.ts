@@ -46,6 +46,7 @@ export function useCoachChat(
   opts?: {
     surface?: Surface;
     coachingStyle?: CoachingStyle;
+    enabled?: boolean;
     onTranscriptStream?: (
       role: 'user' | 'assistant',
       text: string,
@@ -55,6 +56,7 @@ export function useCoachChat(
 ): CoachChatApi {
   const surface = opts?.surface ?? 'chat';
   const coachingStyle = opts?.coachingStyle ?? 'warm';
+  const enabled = opts?.enabled ?? true;
   const onTranscriptStream = opts?.onTranscriptStream;
 
   const { preferences } = useUserPreferences();
@@ -66,7 +68,7 @@ export function useCoachChat(
     chatSessionId,
     initialMessages,
     status: sessionStatus,
-  } = useChatSession(screenId, { enabled: true, resume: true });
+  } = useChatSession(screenId, { enabled, resume: true });
   const {
     sendMessage,
     sendOpener,
