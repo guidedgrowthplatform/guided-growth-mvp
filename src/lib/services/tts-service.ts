@@ -2,12 +2,12 @@ import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { COACH_VOICE_ID, type VoiceGender } from '@/config/voiceConfig';
 import { supabase, sessionReady } from '@/lib/supabase';
-import { wsBegin, wsCancel, wsFinish, wsPush, wsTtsAvailable } from './cartesia-ws';
+import { wsBegin, wsCancel, wsFinish, wsPush, wsTtsAvailable, wsWarm } from './cartesia-ws';
 import { unlockPcmAudio } from './pcmPlayer';
 import { isVoiceOutEnabled } from './voiceGate';
 
 // Streaming WebSocket transport (low-latency) vs HTTP /tts/bytes batch (fallback).
-const TTS_TRANSPORT = (import.meta.env.VITE_TTS_TRANSPORT as string | undefined) ?? 'http';
+const TTS_TRANSPORT = (import.meta.env.VITE_TTS_TRANSPORT as string | undefined) ?? 'ws';
 
 export const useTtsPlaybackStore = create<{ isSpeaking: boolean }>(() => ({
   isSpeaking: false,
@@ -80,6 +80,19 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return {};
 }
 
+// Per-turn auth-header cache — avoids a getSession() round-trip per chunk.
+let authHeaderGen = -1;
+let authHeaderCache: Record<string, string> = {};
+async function getTurnAuthHeaders(generation: number): Promise<Record<string, string>> {
+  if (authHeaderGen === generation) return authHeaderCache;
+  const h = await getAuthHeaders();
+  if (generation === speakGeneration) {
+    authHeaderGen = generation;
+    authHeaderCache = h;
+  }
+  return h;
+}
+
 // Track provider availability (disabled on quota exceeded / auth failure)
 let cartesiaTtsAvailable = true;
 
@@ -125,6 +138,34 @@ function useWs(): boolean {
   return TTS_TRANSPORT === 'ws' && wsHealthy && wsTtsAvailable() && isVoiceOutEnabled();
 }
 
+export function isWsTransport(): boolean {
+  return TTS_TRANSPORT === 'ws';
+}
+
+// True when this turn will stream over ws with word-reveal timestamps.
+export function ttsKaraokeActive(): boolean {
+  return useWs();
+}
+
+// Pre-open the ws socket when voice-out arms, so turn 1 pays no connect cost.
+export function ttsWarm(): void {
+  if (TTS_TRANSPORT === 'ws') wsWarm();
+}
+
+let wsOnReveal: ((text: string) => void) | null = null;
+
+// First (wordIdx+1) whitespace tokens of text → the karaoke reveal prefix.
+export function prefixUpToWord(text: string, wordIdx: number): string {
+  const re = /\S+/g;
+  let m: RegExpExecArray | null;
+  let count = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (count === wordIdx) return text.slice(0, m.index + m[0].length);
+    count++;
+  }
+  return text;
+}
+
 function resolveWsDrainers(): void {
   const rs = wsDrainResolvers;
   wsDrainResolvers = [];
@@ -134,6 +175,7 @@ function resolveWsDrainers(): void {
 function resolveWsTurn(): void {
   wsTurnActive = false;
   turnActive = false;
+  wsOnReveal = null;
   setSpeaking(false);
   resolveWsDrainers();
   flushDeferredOneShot();
@@ -146,6 +188,8 @@ function handleWsError(_msg: string): void {
   wsHealthy = false;
   const text = wsTurnChunks.join(' ').trim();
   const hadAudio = wsFirstAudio;
+  // Unfreeze the karaoke bubble: jump to full spoken text before tearing down.
+  if (text) wsOnReveal?.(text);
   wsCancel();
   wsTurnActive = false;
   wsTurnChunks = [];
@@ -238,12 +282,13 @@ async function runDrain(): Promise<void> {
   if (turnSealed) finishTurn();
 }
 
-export function beginSpeechTurn(): number {
+export function beginSpeechTurn(opts?: { onReveal?: (text: string) => void }): number {
   stopTTS();
   speechQueue = [];
   playCursor = 0;
   turnSealed = false;
   turnActive = true;
+  wsOnReveal = opts?.onReveal ?? null;
   const gen = ++speakGeneration;
   if (useWs()) {
     wsTurnActive = true;
@@ -254,6 +299,7 @@ export function beginSpeechTurn(): number {
       onFirstAudio: () => {
         wsFirstAudio = true;
       },
+      onWord: (idx) => wsOnReveal?.(prefixUpToWord(wsTurnChunks.join(' '), idx)),
       onDrain: () => resolveWsTurn(),
       onError: (m) => handleWsError(m),
     });
@@ -418,7 +464,7 @@ async function synthChunk(
   if (!clean) return null;
   try {
     const voiceId = getCartesiaVoiceId();
-    const authHeaders = await getAuthHeaders();
+    const authHeaders = await getTurnAuthHeaders(generation);
     if (generation !== speakGeneration) return null;
 
     const res = await fetch(`${getApiBase()}/api/cartesia-tts`, {

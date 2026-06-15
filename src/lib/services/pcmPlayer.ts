@@ -25,6 +25,12 @@ interface StreamState {
   onFirstAudio?: () => void;
   onDrain?: () => void;
   onSpeakingChange?: (speaking: boolean) => void;
+  // Word-reveal scheduling (karaoke): context-relative word onset times.
+  audioOrigin: number | null;
+  words: Array<{ idx: number; at: number }>;
+  wordCursor: number;
+  rafId: number | null;
+  onWord?: (idx: number) => void;
 }
 
 let stream: StreamState | null = null;
@@ -55,6 +61,7 @@ export function pcmBegin(opts?: {
   onFirstAudio?: () => void;
   onDrain?: () => void;
   onSpeakingChange?: (speaking: boolean) => void;
+  onWord?: (idx: number) => void;
   sampleRate?: number;
 }): void {
   pcmStop();
@@ -69,7 +76,42 @@ export function pcmBegin(opts?: {
     onFirstAudio: opts?.onFirstAudio,
     onDrain: opts?.onDrain,
     onSpeakingChange: opts?.onSpeakingChange,
+    audioOrigin: null,
+    words: [],
+    wordCursor: 0,
+    rafId: null,
+    onWord: opts?.onWord,
   };
+}
+
+// Context-relative word onset (seconds) → revealed when its audio plays.
+export function pcmScheduleWord(idx: number, at: number): void {
+  const s = stream;
+  if (!s || !s.onWord) return;
+  s.words.push({ idx, at });
+  if (s.audioOrigin !== null && s.rafId === null) startWordPump(s);
+}
+
+function startWordPump(s: StreamState): void {
+  if (typeof requestAnimationFrame === 'undefined') return;
+  const tick = () => {
+    if (s !== stream || !ctx || s.audioOrigin === null) {
+      s.rafId = null;
+      return;
+    }
+    const elapsed = ctx.currentTime - s.audioOrigin;
+    while (s.wordCursor < s.words.length && elapsed >= s.words[s.wordCursor].at) {
+      s.onWord?.(s.words[s.wordCursor].idx);
+      s.wordCursor++;
+    }
+    // Stop once all words fired, or audio fully drained (words may outlast audio).
+    if ((s.finalized && s.sources.size === 0) || s.wordCursor >= s.words.length) {
+      s.rafId = null;
+    } else {
+      s.rafId = requestAnimationFrame(tick);
+    }
+  };
+  s.rafId = requestAnimationFrame(tick);
 }
 
 export function s16leToFloat32(bytes: Uint8Array): Float32Array {
@@ -105,6 +147,8 @@ export function pcmEnqueue(bytes: Uint8Array): void {
 
   if (!s.started) {
     s.started = true;
+    s.audioOrigin = startAt;
+    if (s.onWord && s.rafId === null) startWordPump(s);
     s.onSpeakingChange?.(true);
     s.firstAudioTimer = setTimeout(
       () => {
@@ -141,6 +185,8 @@ export function pcmStop(): void {
   stream = null;
   if (!s) return;
   if (s.firstAudioTimer) clearTimeout(s.firstAudioTimer);
+  if (s.rafId !== null && typeof cancelAnimationFrame !== 'undefined')
+    cancelAnimationFrame(s.rafId);
   for (const src of s.sources) {
     try {
       src.onended = null;

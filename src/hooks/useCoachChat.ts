@@ -16,9 +16,12 @@ import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-ke
 import {
   beginSpeechTurn,
   endSpeechTurn,
+  isWsTransport,
   pushSpeechChunk,
   speak,
   stopTTS,
+  ttsKaraokeActive,
+  ttsWarm,
   useTtsPlaybackStore,
 } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
@@ -213,11 +216,12 @@ export function useCoachChat(
     return () => stopKeyWarmLoop();
   }, [voiceInActive]);
 
-  // Warm a Cartesia access token while voice-out is on (ws TTS transport only),
-  // so the first coach reply's WebSocket pays no token-mint latency.
+  // Warm the Cartesia token + open the ws socket while voice-out is on, so the
+  // first coach reply pays no token-mint or connect latency.
   useEffect(() => {
-    if (!voiceModeOn || import.meta.env.VITE_TTS_TRANSPORT !== 'ws') return;
+    if (!voiceModeOn || !isWsTransport()) return;
     startTokenWarmLoop();
+    ttsWarm();
     return () => stopTokenWarmLoop();
   }, [voiceModeOn]);
 
@@ -314,7 +318,7 @@ export function useCoachChat(
     const { chunks, nextOffset } = nextSentenceChunks(llmResponse, lastSpokenOffsetRef.current);
     if (chunks.length === 0) return;
     if (!streamTurnActiveRef.current) {
-      beginSpeechTurn();
+      beginSpeechTurn({ onReveal: (t) => onTranscriptStream?.('assistant', t, 'partial') });
       streamTurnActiveRef.current = true;
       turnFinalizedRef.current = false;
       ttsBumpedRef.current = true;
@@ -323,7 +327,7 @@ export function useCoachChat(
     for (const c of chunks) pushSpeechChunk(c);
     lastSpokenOffsetRef.current = nextOffset;
     streamedSomethingRef.current = true;
-  }, [isStreaming, llmResponse, voiceModeOn]);
+  }, [isStreaming, llmResponse, voiceModeOn, onTranscriptStream]);
 
   // ─── Final message: emit to bus; speak the tail (chunked) or whole (one-shot) ─
   // State-4 "opening line only" is applied in CoachSubtitleBar, not here —
@@ -359,11 +363,14 @@ export function useCoachChat(
   }, [isStreaming, llmMessages, endCoachSpeechTurn]);
 
   // Live partial stream → transcript bus (subtitle renders typing in real time).
+  // Karaoke turns drive the partial off audio timing (beginSpeechTurn onReveal),
+  // so skip the full-text push to keep text paced with speech.
   useEffect(() => {
     if (!onTranscriptStream) return;
     if (!isStreaming || llmResponse.length === 0) return;
+    if (voiceModeOn && ttsKaraokeActive()) return;
     onTranscriptStream('assistant', llmResponse, 'partial');
-  }, [isStreaming, llmResponse, onTranscriptStream]);
+  }, [isStreaming, llmResponse, onTranscriptStream, voiceModeOn]);
 
   // ─── Transcript → LLM (queued while busy, flushed when free) ──────────
   // Streaming Soniox can land multiple finals during a single LLM turn. The

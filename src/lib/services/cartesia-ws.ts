@@ -6,6 +6,7 @@ import {
   pcmBegin,
   pcmEnqueue,
   pcmFinish,
+  pcmScheduleWord,
   pcmStop,
   pcmSupported,
   unlockPcmAudio,
@@ -23,7 +24,14 @@ interface TurnCallbacks {
   onFirstAudio?: () => void;
   onDrain?: () => void;
   onSpeakingChange?: (speaking: boolean) => void;
+  onWord?: (idx: number) => void;
   onError?: (msg: string) => void;
+}
+
+interface WordTimestamps {
+  words: string[];
+  start: number[];
+  end: number[];
 }
 
 interface ServerMsg {
@@ -33,6 +41,7 @@ interface ServerMsg {
   done?: boolean;
   error_code?: string;
   message?: string;
+  word_timestamps?: WordTimestamps;
 }
 
 let socket: WebSocket | null = null;
@@ -40,6 +49,13 @@ let socketReady: Promise<WebSocket> | null = null;
 let currentContextId: string | null = null;
 let callbacks: TurnCallbacks = {};
 let doneWatchdog: ReturnType<typeof setTimeout> | null = null;
+// Cumulative word index across a turn's continued generations.
+let turnWordCount = 0;
+// Word-onset timeline base — adapts whether Cartesia reports start/end per
+// context (cumulative) or per generation (reset). tsLastEnd tracks the running
+// context-relative end; a backwards start[] means a per-generation reset.
+let tsFrameBase = 0;
+let tsLastEnd = 0;
 
 export function wsTtsAvailable(): boolean {
   return typeof WebSocket !== 'undefined' && pcmSupported();
@@ -89,6 +105,18 @@ function handleMessage(raw: string): void {
 
   if (msg.type === 'chunk' && msg.data) {
     pcmEnqueue(base64ToBytes(msg.data));
+    return;
+  }
+  if (msg.type === 'timestamps' && msg.word_timestamps) {
+    if (!currentContextId) return;
+    const { words, start, end } = msg.word_timestamps;
+    if (start.length && start[0] + 1e-3 < tsLastEnd) tsFrameBase = tsLastEnd;
+    for (let i = 0; i < words.length; i++) {
+      pcmScheduleWord(turnWordCount + i, tsFrameBase + start[i]);
+      const e = tsFrameBase + end[i];
+      if (e > tsLastEnd) tsLastEnd = e;
+    }
+    turnWordCount += words.length;
     return;
   }
   if (msg.type === 'error') {
@@ -165,15 +193,25 @@ function sendChunk(ws: WebSocket, transcript: string, cont: boolean): void {
       voice: { mode: 'id', id: COACH_VOICE_ID },
       output_format: { container: 'raw', encoding: 'pcm_s16le', sample_rate: SAMPLE_RATE },
       language: 'en',
+      add_timestamps: true,
       continue: cont,
     }),
   );
+}
+
+// Open the socket ahead of the first turn so it pays no connect cost.
+export function wsWarm(): void {
+  if (!wsTtsAvailable()) return;
+  void ensureSocket().catch(() => undefined);
 }
 
 // Open a new turn. Pre-warms the socket so the first chunk pays no connect cost.
 export function wsBegin(cb: TurnCallbacks): void {
   callbacks = cb;
   currentContextId = newContextId();
+  turnWordCount = 0;
+  tsFrameBase = 0;
+  tsLastEnd = 0;
   clearDoneWatchdog();
   unlockPcmAudio();
   pcmBegin({
@@ -181,6 +219,7 @@ export function wsBegin(cb: TurnCallbacks): void {
     onFirstAudio: () => cb.onFirstAudio?.(),
     onDrain: () => cb.onDrain?.(),
     onSpeakingChange: (s) => cb.onSpeakingChange?.(s),
+    onWord: (idx) => cb.onWord?.(idx),
   });
   void ensureSocket().catch((err) => cb.onError?.(String(err)));
 }
