@@ -71,6 +71,15 @@ const ReflectionsListPage = lazyWithRetry(() =>
 const ReflectionDetailPage = lazyWithRetry(() =>
   import('@/pages/ReflectionDetailPage').then((m) => ({ default: m.ReflectionDetailPage })),
 );
+const EnablePermissionsPage = lazyWithRetry(() =>
+  import('@/pages/EnablePermissionsPage').then((m) => ({ default: m.EnablePermissionsPage })),
+);
+const NotificationsPage = lazyWithRetry(() =>
+  import('@/pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })),
+);
+const NotificationDetailPage = lazyWithRetry(() =>
+  import('@/pages/NotificationDetailPage').then((m) => ({ default: m.NotificationDetailPage })),
+);
 const lazyOnboarding = (name: string) =>
   lazyWithRetry(() =>
     import('@/pages/onboarding').then((m) => ({
@@ -308,15 +317,6 @@ export function AppRoutes() {
           }
         />
 
-        <Route
-          path="/add-habit"
-          element={
-            <AppGate allow="app">
-              <AddHabitPage />
-            </AppGate>
-          }
-        />
-
         {/* Main app (protected, with Layout) */}
         <Route
           element={
@@ -331,10 +331,14 @@ export function AppRoutes() {
           <Route path="report" element={<InsightsPage />} />
           <Route path="report/calendar" element={<CalendarPage />} />
           <Route path="habits" element={<HabitsPage />} />
+          <Route path="add-habit" element={<AddHabitPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="journal" element={<JournalFlowPage />} />
           <Route path="reflections" element={<ReflectionsListPage />} />
           <Route path="reflections/:id" element={<ReflectionDetailPage />} />
+          <Route path="enable-permissions" element={<EnablePermissionsPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="notifications/:id" element={<NotificationDetailPage />} />
           <Route path="habit/:habitId/reflection" element={<HabitReflectionPage />} />
           <Route path="habit/:habitId" element={<HomePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

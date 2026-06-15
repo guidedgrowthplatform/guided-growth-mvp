@@ -2,9 +2,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as onboardingApi from '@/api/onboarding';
+import { useToast } from '@/contexts/ToastContext';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { clearOnboardingChatSessionId } from '@/lib/onboarding/onboardingChatSession';
 import { queryKeys } from '@/lib/query';
+import { Sentry } from '@/lib/sentry';
 import { useAuthStore } from '@/stores/authStore';
 import type {
   OnboardingPath,
@@ -30,6 +32,7 @@ export function useOnboarding() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { logEvent } = useSessionLog();
+  const { addToast } = useToast();
   // Lazy state init keeps Date.now() out of the render path (purity rule).
   const [startTime] = useState(() => Date.now());
 
@@ -81,12 +84,21 @@ export function useOnboarding() {
   const completeMutation = useMutation({
     mutationFn: (finalData?: Partial<OnboardingStepData>) =>
       onboardingApi.completeOnboarding(finalData),
-    onSuccess: async (_result, finalData) => {
+    // Synchronous body, no await. Cache flip + clearSession + navigate fire
+    // before React can spin a re-render cascade between PlanReviewPage and
+    // AppGate — both subscribe to the same onboarding-state query, and a
+    // pre-this-fix async gap caused "Maximum update depth exceeded" when
+    // they both reacted to status='completed' simultaneously.
+    onSuccess: (_result, finalData) => {
       qc.setQueryData(queryKeys.onboarding.state, (old: OnboardingState | null | undefined) =>
         old
           ? { ...old, status: 'completed' as const, completed_at: new Date().toISOString() }
           : old,
       );
+      clearOnboardingChatSessionId();
+      navigate('/home', { replace: true, state: { fromOnboarding: true } });
+
+      // Fire-and-forget side effects — PlanReviewPage has already unmounted.
       const durationSec = Math.round((Date.now() - startTime) / 1000);
       const habitConfigs = finalData?.habitConfigs ?? finalData?.advancedHabitConfigs ?? null;
       const habitCount = habitConfigs ? Object.keys(habitConfigs).length : 0;
@@ -99,9 +111,17 @@ export function useOnboarding() {
         },
         'STARTING-PLAN',
       );
-      await useAuthStore.getState().updateProfile();
-      clearOnboardingChatSessionId();
-      navigate('/home', { replace: true, state: { fromOnboarding: true } });
+      void useAuthStore.getState().updateProfile();
+    },
+    // Previously had no onError. A failed completeOnboarding() call left the
+    // user staring at a spinner with no signal — the cache never flipped, so
+    // PlanReviewPage didn't navigate to /home and the overlay stayed up. Now
+    // we surface the error so they can retry by tapping Start plan again.
+    onError: (err) => {
+      Sentry.captureException(err, {
+        tags: { flow: 'onboarding', step: '7-complete' },
+      });
+      addToast('error', "Couldn't finish setup — please try again.");
     },
   });
 
@@ -175,6 +195,11 @@ export function useOnboarding() {
     isCompleted,
     isSaving: saveMutation.isPending,
     isCompleting: completeMutation.isPending,
+    // Exposed so PlanReviewPage can reset its single-fire autoCompletedRef
+    // when completion fails — otherwise voice-retry ("let's go" again) is
+    // silently ignored after the first attempt and the user can only retry
+    // by tap.
+    completeError: completeMutation.error,
     saveStep,
     saveStepAsync,
     complete,

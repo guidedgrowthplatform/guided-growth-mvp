@@ -14,7 +14,7 @@ export type OnboardingToolName =
   | 'submit_reflection_config'
   | 'submit_custom_prompts'
   | 'submit_brain_dump'
-  | 'confirm_step_complete'
+  | 'advance_step'
   | 'confirm_plan'
   | 'ask_clarification';
 
@@ -114,13 +114,13 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'submit_goals',
     description:
-      "Persist the user's COMPLETE goal selection (1–2 goals) on ONBOARD-BEGINNER-02. This REPLACES the prior save, so EVERY call MUST include ALL goals the user currently wants — not just the newest one. Do not wait for both — 1 is enough to call. Each string MUST be copied verbatim from the GOAL OPTIONS BY CATEGORY list for the user's chosen category (shown in the screen context). Never paraphrase, rename, or invent a goal label — non-matching strings are rejected.",
+      "Persist the user's COMPLETE subcategory selection (1–2 subcategories) on ONBOARD-BEGINNER-02. This REPLACES the prior save, so EVERY call MUST include ALL subcategories the user currently wants — not just the newest one. Do not wait for both — 1 is enough to call. Each string MUST be copied verbatim from the Subcategory Options list for the user's chosen category (shown in the screen context). Never paraphrase, rename, or invent a subcategory label — non-matching strings are rejected.",
     parameters: {
       type: 'object',
       properties: {
         goals: {
           type: 'array',
-          description: 'Array of 1-2 goal labels.',
+          description: 'Array of 1-2 subcategory labels.',
           items: { type: 'string' },
         },
       },
@@ -131,7 +131,11 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'add_habit',
     description:
-      'Add or edit a habit on ONBOARD-BEGINNER-03. Only `name` is required — omit any field the user did not specify and the server fills sensible defaults (schedule="Weekday"/days=[1,2,3,4,5], time="09:00", reminder=true). Call again with same name to edit. Server enforces max 2 habits — if you try a 3rd new habit the tool returns max_habits_reached.',
+      'Add or edit a habit on ONBOARD-BEGINNER-03. ' +
+      'ONE HABIT AT A TIME — STRICT (habits-ACROSS, not fields-WITHIN): even if the user names two habits in one breath ("walking and meditation"), capture and FULLY configure habit #1 (pick + days + time + reminder) BEFORE you call add_habit for habit #2. Do not batch picks with defaults and then come back to configure them. ' +
+      'WITHIN a single habit, batch-parsing a full sentence is fine — "walking every day at 9:30 PM with a reminder" → add_habit(name="Walking", days=[0,1,2,3,4,5,6], time="21:30", reminder=true, schedule="Every day") in one call. ' +
+      'TWO-CALL CONFIGURATION PATTERN per habit (when the user did NOT pre-state the schedule): (1) call add_habit(name=<exact label>) — records the pick with server defaults. (2) Ask the user for days, time, reminder — one short question at a time, waiting for each answer. (3) Call add_habit AGAIN with the same name plus the full schedule. Server merges by name. (4) THEN move to habit #2 if any. ' +
+      'Only `name` is required by the tool, but a habit is not "configured" until you have asked the user for days + time + reminder. Server enforces max 2 habits.',
     parameters: {
       type: 'object',
       properties: {
@@ -215,7 +219,10 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
   {
     name: 'submit_reflection_config',
     description:
-      'Persist the evening reflection schedule on ONBOARD-BEGINNER-07. Fill missing fields with defaults: schedule="Weekday" (days=[1,2,3,4,5]), time="21:45", reminder=true.',
+      "Persist the user's evening reflection schedule on ONBOARD-BEGINNER-07. " +
+      'PRECONDITION: do NOT call this until the user has actually answered when they want their reflection. The reflection schedule is the user\'s choice — do NOT pre-fill defaults silently just to advance. If the user has not given you a time yet, ASK FIRST (e.g. "When would you like to do your daily reflection?"). ' +
+      'ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). Once the user gives a time, infer the remaining fields from natural defaults (Weekday + reminder on) and call. ' +
+      'If the user says "whatever you think" / "default is fine", first ask once more ("What time works for you usually?"). If they still decline, pick 21:00 BUT tell them explicitly ("I\'ll set 9 PM — you can change it later in Settings") before calling — do NOT silently default.',
     parameters: {
       type: 'object',
       properties: {
@@ -261,23 +268,6 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
     },
   },
   {
-    name: 'confirm_step_complete',
-    description:
-      'Signal that the user has explicitly affirmed they are done with the current step and want to move on (e.g. "yes", "move on", "next", "looks good"). The frontend uses this to advance. May be called in the same turn as a submit_*/add_habit/remove_habit tool. Never call if required fields for this screen are still missing.',
-    parameters: {
-      type: 'object',
-      properties: {
-        reason: {
-          type: 'string',
-          description:
-            'Short telemetry-only note about why advance was called (e.g. "user affirmed recap").',
-        },
-      },
-      required: [],
-      additionalProperties: false,
-    },
-  },
-  {
     name: 'submit_brain_dump',
     description:
       "Persist the user's verbatim brain-dump text on ONBOARD-ADVANCED. Pass the FULL transcript — never summarize or rephrase.",
@@ -294,9 +284,33 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
     },
   },
   {
+    name: 'advance_step',
+    description:
+      'Advance the user to the next onboarding screen. This is the ONLY tool that moves between screens — the submit_*/add_habit tools just save data, they do NOT navigate. ' +
+      'ABSOLUTE LAW: call advance_step in the SAME TURN as the data tool, chained right after it. After you call submit_profile / submit_path_choice / submit_category / submit_goals / submit_reflection_config / submit_custom_prompts / submit_brain_dump, you MUST also call advance_step. The data tool firing IS the confirmation — do NOT ask "ready?" / "anything else?" first. ' +
+      'target_step = the NEXT screen step: step-1 (profile) → 2, step-2 (path) → 3, step-3 (category/braindump) → 4, step-4 (goals) → 5, step-5 (habits) → 6, step-6 (reflection) → 7. Never skip multiple steps at once. ' +
+      'HABITS CARVE-OUT (step 5): do NOT call advance_step(6) until EVERY picked habit has its days + time + reminder configured (see add_habit two-call pattern). ' +
+      "The backend rejects advances that skip steps or that fire before the source screen's data is saved — if rejected, call the screen's data tool first, then advance_step again.",
+    parameters: {
+      type: 'object',
+      properties: {
+        target_step: {
+          type: 'number',
+          description:
+            'The step number of the NEXT screen (integer 1–10). Usually currentScreenStep + 1.',
+        },
+      },
+      required: ['target_step'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'confirm_plan',
     description:
-      'Complete onboarding from the plan-review screen (ONBOARD-BEGINNER-06 beginner / ONBOARD-ADVANCED-05 advanced). Call the moment the user confirms their starting plan and wants to begin ("looks good", "let\'s go", "start", "I\'m ready"). The frontend finishes onboarding and enters the app in response. Do not call before the plan-review screen.',
+      'Complete onboarding from the FINAL plan-review screen (ONBOARD-BEGINNER-06 beginner / ONBOARD-ADVANCED-05 advanced). ' +
+      'STRICT PRECONDITION: only call when the user is ON the plan-review screen AND habits + reflection are BOTH already saved. If the screen context says step 5 (habits) or step 6 (reflection), you have NOT finished setup — finish that screen first. ' +
+      'Call the moment the user, ON THE PLAN-REVIEW SCREEN, confirms ("looks good", "let\'s go", "start", "I\'m ready"). The frontend finishes onboarding and enters the app in response. ' +
+      "If the backend returns confirm_plan_too_early, do NOT retry — call the suggested advance_step (or the screen's primary data tool) instead and let the user walk through the remaining screen.",
     parameters: {
       type: 'object',
       properties: {

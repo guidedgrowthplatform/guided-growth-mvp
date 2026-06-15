@@ -1,5 +1,6 @@
-v2.9.3 — Voice coach + onboarding reliability.
+v2.11.0 — Post-onboarding coach voice.
 Test:
-- Speak in a check-in; words appear live, receipt card after.
-- Run onboarding; each reply advances to the next step.
-- Reopen after updating; no blank screen or load error.
+- Finish onboarding and reach the coach; it replies with low-latency streaming voice.
+- Toggle voice and text together; the orb shows a ring when both are on.
+- Brain-dump a few sentences; the coach parses your goals and habits correctly.
+- Onboarding step 6 routes to plan review with no skipped steps, blank screen, or crash.

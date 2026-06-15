@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { buildCanonicalOptionsBlock } from '../canonicalOptions.js';
 
 describe('buildCanonicalOptionsBlock', () => {
-  it('scopes goal options to the chosen category (BEGINNER-02)', () => {
+  it('scopes subcategory options to the chosen category (BEGINNER-02)', () => {
     const out = buildCanonicalOptionsBlock('ONBOARD-BEGINNER-02', { category: 'Sleep better' });
-    expect(out).toContain('Goal Options (category: Sleep better)');
+    expect(out).toContain('Subcategory Options (category: Sleep better)');
     expect(out).toContain(
       'Fall asleep earlier | Wake up earlier | Sleep more consistently | Sleep more deeply',
     );
@@ -18,12 +18,12 @@ describe('buildCanonicalOptionsBlock', () => {
     expect(out).toContain('Move more:');
   });
 
-  it('scopes habit options to the chosen goals (BEGINNER-03)', () => {
+  it('scopes habit options to the chosen subcategories (BEGINNER-03)', () => {
     const out = buildCanonicalOptionsBlock('ONBOARD-BEGINNER-03', {
       category: 'Sleep better',
       goals: ['Fall asleep earlier'],
     });
-    expect(out).toContain('Habit Options by Goal');
+    expect(out).toContain('Habit Options by Subcategory');
     expect(out).toContain('Fall asleep earlier: No caffeine after 2 PM');
     expect(out).not.toContain('Wake up earlier:');
   });
@@ -42,7 +42,7 @@ describe('buildCanonicalOptionsBlock', () => {
     expect(out).toContain('Profile Fields');
     expect(out).toContain('nickname, age, gender');
     expect(out).toContain('referral source');
-    expect(out).toContain('Do NOT call confirm_step_complete');
+    expect(out).toContain('Do NOT call advance_step');
   });
 
   it('returns empty for unrelated screens', () => {

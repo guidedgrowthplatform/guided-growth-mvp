@@ -93,7 +93,7 @@ describe('buildSystemPromptForRequest', () => {
     expect(on.systemPrompt).not.toContain('Founding User Context');
   });
 
-  it('wires the canonical goal options into the final onboarding prompt', async () => {
+  it('wires the canonical subcategory options into the final onboarding prompt', async () => {
     pool.query.mockReset();
     pool.query
       .mockResolvedValueOnce({
@@ -112,7 +112,7 @@ describe('buildSystemPromptForRequest', () => {
       coaching_style: 'warm',
       recent_events,
     });
-    expect(systemPrompt).toContain('Goal Options (category: Sleep better)');
+    expect(systemPrompt).toContain('Subcategory Options (category: Sleep better)');
     expect(systemPrompt).toContain('Fall asleep earlier | Wake up earlier');
   });
 

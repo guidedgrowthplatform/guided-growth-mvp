@@ -31,10 +31,10 @@ function cartesiaTtsPlugin(apiKey: string): Plugin {
           for await (const chunk of req) body += chunk;
 
           try {
-            const { text, voice_id } = JSON.parse(body);
+            const { text, voice_id, format } = JSON.parse(body);
 
-            // Default to Katie (warm female) if no voice ID provided
-            const resolvedVoiceId = voice_id || 'f786b574-daa5-4673-aa0c-cbe3e8534c02';
+            // Coach Yair cloned voice fallback
+            const resolvedVoiceId = voice_id || '0a974815-0e4d-4dfc-b478-37a7b943da70';
 
             console.log(
               `[vite-tts] Cartesia TTS: "${text.substring(0, 50)}..." → voice ${resolvedVoiceId}`,
@@ -62,6 +62,14 @@ function cartesiaTtsPlugin(apiKey: string): Plugin {
               console.error('[vite-tts] Cartesia error:', cartesiaRes.status, errText);
               res.writeHead(cartesiaRes.status, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ error: 'Cartesia TTS error', fallback: true }));
+              return;
+            }
+
+            // native lane: CapacitorHttp corrupts binary, base64-in-JSON survives
+            if (format === 'base64') {
+              const buf = Buffer.from(await cartesiaRes.arrayBuffer());
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ audio: buf.toString('base64') }));
               return;
             }
 

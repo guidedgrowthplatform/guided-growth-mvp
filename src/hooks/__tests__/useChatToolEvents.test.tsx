@@ -12,17 +12,14 @@ import type { OnboardingState } from '@gg/shared/types';
 import type { LLMToolEvent } from '@gg/shared/types/llm';
 import { useChatToolEvents } from '../useChatToolEvents';
 
-// confirm_step_complete shape after useLLM wraps the server result under .payload;
-// current_step drives the optimistic cache bump (real + server-synthetic events).
-function advanceEvt(id: string, currentStep: number): LLMToolEvent {
+// advance_step shape after useLLM wraps the server result under .payload;
+// current_step drives the optimistic cache set that useAgentNavigation routes on.
+function advanceStepEvt(id: string, currentStep: number): LLMToolEvent {
   return {
     id,
-    name: 'confirm_step_complete',
-    args: {},
-    result: {
-      ok: true,
-      payload: { ok: true, result: { advance: true, current_step: currentStep } },
-    },
+    name: 'advance_step',
+    args: { target_step: currentStep },
+    result: { ok: true, payload: { ok: true, result: { current_step: currentStep } } },
   };
 }
 
@@ -83,11 +80,32 @@ afterEach(() => {
   container.remove();
 });
 
-describe('useChatToolEvents — confirm advance bumps the cache', () => {
-  it('merges current_step from a confirm_step_complete advance event', () => {
-    seedState(1);
-    render({ toolEvents: [advanceEvt('tc-1', 2)], resetKey: 'sess' });
-    expect(cachedStep()).toBe(2);
+describe('useChatToolEvents — advance_step sets the cache', () => {
+  it('sets current_step from an advance_step result', () => {
+    seedState(3);
+    render({ toolEvents: [advanceStepEvt('as-1', 4)], resetKey: 'sess' });
+    expect(cachedStep()).toBe(4);
+  });
+
+  it('allows a DOWNWARD set for back-nav walk-forward (not Math.max clamped)', () => {
+    seedState(5);
+    render({ toolEvents: [advanceStepEvt('as-2', 3)], resetKey: 'sess' });
+    expect(cachedStep()).toBe(3);
+  });
+
+  it('ignores an advance_step result with ok:false (no cache touch)', () => {
+    seedState(3);
+    const rejected: LLMToolEvent = {
+      id: 'as-x',
+      name: 'advance_step',
+      args: { target_step: 4 },
+      result: {
+        ok: true,
+        payload: { ok: false, error: 'handler_error', message: 'cannot_skip_steps' },
+      },
+    };
+    render({ toolEvents: [rejected], resetKey: 'sess' });
+    expect(cachedStep()).toBe(3);
   });
 });
 
@@ -95,27 +113,27 @@ describe('useChatToolEvents — dedup scope (Phase 2 resetKey)', () => {
   // Stable session passes one resetKey across screens → session-scoped dedup.
   it('dedups a fired call_id across re-renders while resetKey is unchanged', () => {
     seedState(1);
-    render({ toolEvents: [advanceEvt('tc-1', 2)], resetKey: 'sess' });
+    render({ toolEvents: [advanceStepEvt('tc-1', 2)], resetKey: 'sess' });
     expect(cachedStep()).toBe(2);
     // Same id re-presented with a higher step → skipped, no further merge.
-    render({ toolEvents: [advanceEvt('tc-1', 3)], resetKey: 'sess' });
+    render({ toolEvents: [advanceStepEvt('tc-1', 3)], resetKey: 'sess' });
     expect(cachedStep()).toBe(2);
   });
 
   // A new screen's tool call has a globally-unique id → still merges.
   it('fires a NEW call_id even when resetKey is unchanged (session-scoped is not a block)', () => {
     seedState(1);
-    render({ toolEvents: [advanceEvt('tc-1', 2)], resetKey: 'sess' });
-    render({ toolEvents: [advanceEvt('tc-2', 3)], resetKey: 'sess' });
+    render({ toolEvents: [advanceStepEvt('tc-1', 2)], resetKey: 'sess' });
+    render({ toolEvents: [advanceStepEvt('tc-2', 3)], resetKey: 'sess' });
     expect(cachedStep()).toBe(3);
   });
 
   // Legacy passes screenId → a screen change re-arms dedup for the same id.
   it('re-arms dedup when resetKey changes (legacy per-screen behavior)', () => {
     seedState(1);
-    render({ toolEvents: [advanceEvt('tc-1', 2)], resetKey: 'screen-A' });
+    render({ toolEvents: [advanceStepEvt('tc-1', 2)], resetKey: 'screen-A' });
     expect(cachedStep()).toBe(2);
-    render({ toolEvents: [advanceEvt('tc-1', 3)], resetKey: 'screen-B' });
+    render({ toolEvents: [advanceStepEvt('tc-1', 3)], resetKey: 'screen-B' });
     expect(cachedStep()).toBe(3);
   });
 });

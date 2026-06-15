@@ -1,3 +1,4 @@
+import { waitUntil } from '@vercel/functions';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
@@ -13,15 +14,14 @@ import {
 import { dispatchOnboardingToolCall } from '../_lib/llm/onboarding/dispatch.js';
 import { getOnboardingTools } from '../_lib/llm/onboarding/registry.js';
 import { isOnboardingToolName } from '../_lib/llm/onboarding/schemas.js';
-import { detectAffirmation } from '@gg/shared/onboarding/detectAffirmation';
-import { screenKind } from '@gg/shared/onboarding/screenKind';
-import { advanceStepIfReady } from '../_lib/llm/onboarding/handlers/confirmStepComplete.js';
 import { dispatchCheckinToolCall } from '../_lib/llm/checkin/dispatch.js';
-import { getCheckinTools } from '../_lib/llm/checkin/registry.js';
+import { getCheckinTools, getReadOnlyCheckinTools } from '../_lib/llm/checkin/registry.js';
 import { isCheckinToolName } from '../_lib/llm/checkin/schemas.js';
 import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
 import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
+import { handleParseBrainDump } from '../_lib/llm/parseBrainDump.js';
 import { buildSystemPromptForRequest } from '../_lib/llm/buildSystemPrompt.js';
+import { reportToolFailure, reportRequestFailure, flushSentry } from '../_lib/sentry.js';
 import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 
 type CoachingStyle = 'warm' | 'direct' | 'reflective';
@@ -61,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] === '__index' ? '' : segments[0] || '';
-  if (route !== '') {
+  if (route !== '' && route !== 'parse-brain-dump') {
     return res.status(404).json({ error: 'Not found' });
   }
 
@@ -102,6 +102,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (userRl.limited || userDailyRl.limited) {
     const retryAfter = userRl.retryAfter || userDailyRl.retryAfter;
     return res.status(429).json({ error: 'Too many requests', retryAfter });
+  }
+
+  if (route === 'parse-brain-dump') {
+    return handleParseBrainDump(req, res, { anonId: user.anonId });
   }
 
   const body = (req.body ?? {}) as Record<string, unknown>;
@@ -331,6 +335,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (finalized) return;
     finalized = true;
     await writeEndRow();
+    // Single chokepoint for hard request-level failures (cancelled excluded).
+    if (endStatus === 'error') {
+      reportRequestFailure('llm', endCode ?? 'internal_error', user.anonId);
+    }
+    // Deferred — don't block the (error) response on the Sentry flush.
+    waitUntil(flushSentry());
   };
 
   // Server-owned turn_index. Dedicated client + advisory xact-lock so base=MAX+1
@@ -451,6 +461,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // sink). Matches path-1 Vapi assistant scope.
   const onboardingTools = getOnboardingTools(screenId);
   const checkinTools = getCheckinTools(screenId);
+  // Dashboard / chat / wrap-up screens get TOOL_DEFINITIONS + read-only check-in tools
+  // (query_habits, get_summary) so the coach can answer "what are my habits?" / "how was my week?".
+  const readOnlyCheckinTools = getReadOnlyCheckinTools(screenId);
   const requestTools =
     mode === 'opener'
       ? undefined
@@ -458,7 +471,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? onboardingTools
         : checkinTools !== undefined
           ? checkinTools
-          : TOOL_DEFINITIONS;
+          : readOnlyCheckinTools !== undefined
+            ? [...TOOL_DEFINITIONS, ...readOnlyCheckinTools]
+            : TOOL_DEFINITIONS;
   const allowedToolNames = new Set<string>(requestTools ? requestTools.map((t) => t.name) : []);
 
   const forceForkChoice = isForkScreen && !pathAlreadySet && mode !== 'opener';
@@ -574,24 +589,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (roundToolCalls.length === 0) {
-        // No tool call this turn — deterministic onboarding advance on bare affirmation.
-        // toolRounds === 0 → no tools across the whole request (no double-fire after a real tool).
-        if (isOnboardingScreen && mode === 'chat' && toolRounds === 0) {
-          const aff = detectAffirmation(userMessage, screenKind(screenId));
-          if (aff.affirmed) {
-            const bump = await advanceStepIfReady(user.anonId, screenId);
-            if (bump.advanced) {
-              const synthId = `srv-confirm-${user.anonId}-${screenId}`;
-              send({ type: 'tool_call', id: synthId, name: 'confirm_step_complete', args: {} });
-              send({
-                type: 'tool_result',
-                id: synthId,
-                ok: true,
-                result: { ok: true, result: { advance: true, current_step: bump.current_step } },
-              });
-            }
-          }
-        }
         finalAssistantContent = assistantContent;
         finalResponseId = thisResponseId;
         finished = true;
@@ -636,11 +633,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               screen_id: screenId,
             });
           } catch (err) {
+            reportToolFailure({
+              tool: tc.name,
+              anonId: user.anonId,
+              errorCode: 'handler_error',
+              args,
+              error: err,
+            });
             result = { ok: false, error: 'handler_error', message: (err as Error).message };
           }
-        } else if (checkinTools !== undefined && isCheckinToolName(tc.name)) {
-          // Check-in screen — dispatch to check-in handler regardless of
-          // whether the tool name also appears in the onboarding registry.
+        } else if (
+          (checkinTools !== undefined || readOnlyCheckinTools !== undefined) &&
+          isCheckinToolName(tc.name)
+        ) {
+          // Check-in screen OR dashboard/chat screen with the read-only subset —
+          // dispatch to check-in handler regardless of whether the tool name
+          // also appears in the onboarding registry.
           try {
             result = await dispatchCheckinToolCall(tc.name, args, {
               anon_id: user.anonId,
@@ -649,6 +657,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               timezone,
             });
           } catch (err) {
+            reportToolFailure({
+              tool: tc.name,
+              anonId: user.anonId,
+              errorCode: 'handler_error',
+              args,
+              error: err,
+            });
             result = { ok: false, error: 'handler_error', message: (err as Error).message };
           }
         } else if (!TOOL_NAMES.has(tc.name)) {
@@ -668,8 +683,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               args,
             );
           } catch (err) {
+            reportToolFailure({
+              tool: tc.name,
+              anonId: user.anonId,
+              errorCode: 'handler_error',
+              args,
+              error: err,
+            });
             result = { ok: false, error: 'handler_error', message: (err as Error).message };
           }
+        }
+        if (!result.ok && result.error !== 'handler_error') {
+          reportToolFailure({
+            tool: tc.name,
+            anonId: user.anonId,
+            errorCode: result.error,
+            args,
+          });
         }
         const resultJson = JSON.stringify(result);
         send({ type: 'tool_result', id: tc.callId, ok: result.ok, result });

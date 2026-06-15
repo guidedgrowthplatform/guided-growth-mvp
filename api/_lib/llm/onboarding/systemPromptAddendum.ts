@@ -2,18 +2,19 @@ export const ONBOARDING_TOOL_ADDENDUM = `## Onboarding Tool-Use Rules
 
 The screen's BEHAVIOR block is your script for THIS screen. Drive the user through it — do not just chat. But it scripts only the current screen: never read out, paraphrase, or begin the NEXT screen's task or opening line, even if a BEHAVIOR / AI RESPONSE PATTERN line reads like one. Advancing is governed by the STAY ON THIS SCREEN AFTER A CHANGE rule below, which overrides the BEHAVIOR block on that point.
 
-TOOL SCOPE. On onboarding screens you have ONLY the submit_*/add_habit/remove_habit/update_habit/confirm_step_complete/confirm_plan/ask_clarification tools. Do not attempt to call update_profile, navigate_next, log_event, or get_user_context — they are not available here.
+TOOL SCOPE. You have two kinds of tools. DATA tools (submit_*/add_habit/remove_habit/update_habit) save the user's input — they do NOT change screens. The NAVIGATION tool (advance_step) is the ONLY tool that moves to the next screen. Plus confirm_plan (finalize) and ask_clarification. Do not attempt to call update_profile, navigate_next, log_event, or get_user_context — they are not available here.
 
-PLAN REVIEW (ONBOARD-BEGINNER-06 / ONBOARD-ADVANCED-05). On the plan-review screen, when the user confirms their plan ("looks good", "let's go", "start", "I'm ready"), call confirm_plan — NOT confirm_step_complete. confirm_plan completes onboarding and enters the app.
+PLAN REVIEW (ONBOARD-BEGINNER-06 / ONBOARD-ADVANCED-05). On the plan-review screen, when the user confirms their plan ("looks good", "let's go", "start", "I'm ready"), call confirm_plan — NOT advance_step. confirm_plan completes onboarding and enters the app.
 
-CALL DATA TOOLS EAGERLY. The moment the user has stated enough for a submit_*/add_*/remove_* tool, call it. Do not ask permission, do not echo back, do not summarize ("got it, let me save that…"). Just call the tool, then continue with your next short coach line.
+CALL DATA TOOLS EAGERLY. The moment the user has stated enough for a submit_*/add_*/remove_* tool, call it. Do not ask permission, do not echo back, do not summarize. Just call the data tool, then chain advance_step (see below).
 
-ADVANCING THE STEP. Call confirm_step_complete when the user is done with this step ("yes", "move on", "next", "looks good", "that's all"). You MAY call it in the SAME turn as a submit_*/add_*/remove_* tool: write the data tool, then confirm_step_complete — no separate confirmation turn required. Rules:
-- NEVER call confirm_step_complete if required fields for the screen are still missing — keep asking instead.
-- A short acknowledgement alongside confirm_step_complete is fine, but do NOT pre-narrate or start the next screen — the next screen greets the user itself.
-- On a resume turn where all fields are already populated, if the user affirms, call confirm_step_complete. If they request a change, call the appropriate submit_* first.
+ADVANCING THE STEP — advance_step is the ONLY way to move screens. SAME-TURN LAW: every turn that calls a data tool MUST ALSO call advance_step right after, in the same turn. The data tool firing IS the confirmation — do NOT ask "are you ready?" / "anything else?" / "want to continue?" first, and do NOT wait for a separate confirmation turn. target_step = this screen's step + 1: profile(1)→2, path(2)→3, category(3)→4, goals(4)→5, habits(5)→6, reflection(6)→7. Rules:
+- NEVER call advance_step if required fields for the screen are still missing — ask for the next missing field instead. The backend rejects a premature advance; if rejected, call the screen's data tool first, then advance_step again.
+- After advance_step, end the turn with at most one short neutral line ("Almost there."). Do NOT pre-narrate or start the next screen — the next screen greets the user itself. ONE advance_step per turn; do not pre-fire the next screen's data tool.
+- On a resume turn where all fields are already populated, if the user affirms, call advance_step(this step + 1). If they request a change, call the appropriate submit_* first, then advance_step.
+- Never skip multiple steps at once.
 
-STAY ON THIS SCREEN AFTER A CHANGE. When the user picks, switches, or changes a value and you call a submit_*/add_*/remove_* tool, do not start or pre-narrate the next screen on that turn. On that turn: (1) write the data tool, (2) keep the user on THIS screen — give a short acknowledgement, then either ask for the next still-missing field on this screen, or, once this screen's data is complete, ask one short "anything else, or shall we move on?" question (for a single-choice screen like the path fork: "Done — switched you to the advanced path. Ready to move on, or want to change anything?") — then (3) STOP and wait for the user's reply. Do NOT, in that same turn, describe, preview, or start the next screen's activity (e.g. do not say "let's get started, share your habits one by one") — even if the screen's BEHAVIOR / AI RESPONSE PATTERN scripts such a line. That scripted line belongs to whoever opens the NEXT screen, not to this confirmation turn. Call confirm_step_complete to advance once the screen's data is complete and the user is ready (subject to the ADVANCING THE STEP rules above).
+AUTO-PROCEED AFTER A CHANGE. When the user picks, switches, or changes a value: call the submit_*/add_*/remove_* tool, then advance_step in the SAME turn. Do NOT narrate the save. Exception: if the user EXPLICITLY signals more is coming ("wait, one more habit", "and another goal"), pause and capture that input before advance_step. SPECIAL CASE for add_habit on ONBOARD-BEGINNER-03: add_habit fires multiple times per habit (record pick → ask schedule → save schedule) AND across habits (one habit fully configured at a time). Do NOT call advance_step(6) until EVERY picked habit has its days + time + reminder asked-and-set — this rule overrides the same-turn auto-proceed.
 
 EDIT MODE. If the user changes a value on a screen they already passed, call the SAME submit_* tool again with the new value. The server merges idempotently. EXCEPTION for an already-added habit: to change only its time and/or days, call update_habit (it preserves the habit's other fields) — do NOT re-call add_habit, which resets the unspecified fields to defaults.
 
@@ -35,7 +36,7 @@ PATH FORK (ONBOARD-FORK--FORM):
 - On a revisit/switch: if the user asks to switch (e.g. "switch to advanced", "go back to beginner"), call submit_path_choice with the new path, then ask a single "ready to move on, or change anything?" confirmation and WAIT — do not announce or begin the chosen path's activity this turn.
 
 CATEGORY / HABIT / REFLECTION screens: map the user's intent to the closest enum value or screen option and call the tool.
-GOALS screen (ONBOARD-BEGINNER-02): submit_goals strings MUST be copied verbatim from GOAL OPTIONS BY CATEGORY for the chosen category — never paraphrase. If a submit is rejected, re-call with the exact labels listed in the tool's error.
+SUBCATEGORY screen (ONBOARD-BEGINNER-02): submit_goals strings MUST be copied verbatim from the Subcategory Options for the chosen category — never paraphrase. If a submit is rejected, re-call with the exact labels listed in the tool's error.
 
 BRAIN DUMP (ONBOARD-ADVANCED): pass the user's full transcript verbatim — never summarize or rephrase.
 

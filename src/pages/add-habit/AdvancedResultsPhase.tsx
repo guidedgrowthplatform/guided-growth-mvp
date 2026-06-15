@@ -7,7 +7,6 @@ interface AdvancedResultsPhaseProps {
   onEditHabit: (index: number) => void;
   onConfirm: () => void;
   saving: boolean;
-  onStartOver: () => void;
   onBack: () => void;
 }
 
@@ -16,7 +15,6 @@ export function AdvancedResultsPhase({
   onEditHabit,
   onConfirm,
   saving,
-  onStartOver,
   onBack,
 }: AdvancedResultsPhaseProps) {
   if (advancedHabits.length === 0) {
@@ -54,8 +52,7 @@ export function AdvancedResultsPhase({
             habitName={habit.name}
             selectedDays={habit.days}
             onEdit={() => onEditHabit(i)}
-            showCheckmark
-            showAiIcon
+            showEditIcon
           />
         ))}
       </div>
@@ -66,14 +63,7 @@ export function AdvancedResultsPhase({
           onClick={onConfirm}
           className="w-full rounded-full bg-primary py-4 text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25)] disabled:opacity-50"
         >
-          {saving ? 'Saving...' : 'Confirm & Add'}
-        </button>
-        <button
-          type="button"
-          onClick={onStartOver}
-          className="text-[16px] font-semibold text-content-secondary"
-        >
-          Start Over
+          {saving ? 'Saving...' : 'Continue'}
         </button>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { buildCanonicalOptionsBlock } from './onboarding/canonicalOptions.js';
 import { ONBOARDING_TOOL_ADDENDUM } from './onboarding/systemPromptAddendum.js';
 import { stripForwardPointers } from './stripForwardPointers.js';
 import { NO_PRENARRATION_RULE } from './noPrenarrationRule.js';
+import { NO_INTERNAL_NARRATION_RULE } from './noInternalNarrationRule.js';
 import { CHECKIN_TOOL_ADDENDUM } from './checkin/systemPromptAddendum.js';
 import { isCheckinScreen } from './checkin/registry.js';
 
@@ -95,7 +96,11 @@ export async function buildSystemPromptForRequest(
 
   const coachingPreamble = buildSystemPrompt({ coachingStyle: args.coaching_style });
   // Direct-LLM only — Vapi keeps raw context elsewhere (it drives navigation).
-  const contextBlock = stripForwardPointers(screen.context_block);
+  // advance_step is the Direct-LLM nav tool; the shared bundle says navigate_next (Vapi's name).
+  const contextBlock = stripForwardPointers(screen.context_block).replace(
+    /navigate_next/g,
+    'advance_step',
+  );
   const contextMessage = buildContextMessage({
     screen_id: args.screen_id,
     context_block: contextBlock,
@@ -115,7 +120,7 @@ export async function buildSystemPromptForRequest(
     : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${optionsBlock}${openerNudge}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${optionsBlock}${openerNudge}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };

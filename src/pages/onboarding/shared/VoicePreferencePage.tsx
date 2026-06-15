@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
@@ -13,15 +14,15 @@ export function VoicePreferencePage() {
   const { preferences, updatePreferences } = useUserPreferences();
   const { logEvent } = useSessionLog();
   const onboardingVoice = useOnboardingVoice();
-  const [saving, setSaving] = useState(false);
+  const [savingChoice, setSavingChoice] = useState<'voice' | 'screen' | null>(null);
   const trackStepComplete = useStepTiming(2, 'voice_preference', null);
 
   const voiceChosen = preferences.voiceMode === 'voice';
   const micGranted = preferences.micPermission === true;
 
   const choose = async (voiceEnabled: boolean) => {
-    if (saving) return;
-    setSaving(true);
+    if (savingChoice) return;
+    setSavingChoice(voiceEnabled ? 'voice' : 'screen');
     track('set_voice_preference', {
       preference: voiceEnabled ? 'voice' : 'text',
       screen: 'pref_01',
@@ -65,18 +66,18 @@ export function VoicePreferencePage() {
           <button
             type="button"
             onClick={() => choose(true)}
-            disabled={saving}
+            disabled={savingChoice !== null}
             className="flex h-[56px] items-center justify-center rounded-full bg-primary text-[18px] font-bold text-white shadow-[0px_10px_15px_-3px_rgba(19,91,236,0.25),0px_4px_6px_-4px_rgba(19,91,236,0.25)] transition-opacity disabled:opacity-50"
           >
-            Talk to me
+            {savingChoice === 'voice' ? <LoadingSpinner color="text-white" /> : 'Talk to me'}
           </button>
           <button
             type="button"
             onClick={() => choose(false)}
-            disabled={saving}
+            disabled={savingChoice !== null}
             className="flex h-[56px] items-center justify-center rounded-full border-2 border-primary bg-surface text-[18px] font-bold text-primary transition-opacity disabled:opacity-50"
           >
-            Screen is fine
+            {savingChoice === 'screen' ? <LoadingSpinner /> : 'Screen is fine'}
           </button>
         </div>
 

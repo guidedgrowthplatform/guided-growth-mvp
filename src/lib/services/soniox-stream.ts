@@ -603,11 +603,13 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
       onStateChange: (st) => {
         if (st === 'connecting' && connectingAt === 0) connectingAt = performance.now();
         if (st === 'error') clearSessionWatchdog();
+        // Re-arm on every 'listening' (incl. reconnect) and before draining,
+        // else prebuffered echo feeds through while muted.
+        if (st === 'listening' && responding) s.setResponding(true);
         if (st === 'listening' && !sessionListening) {
           sessionListening = true;
           clearSessionWatchdog();
           for (const f of prebuf.drain()) s.feedAudio(f);
-          if (responding) s.setResponding(true);
           if (isFirst && !connectMetricsSent) {
             connectMetricsSent = true;
             const tListen = performance.now();
@@ -663,7 +665,8 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
     useAudioMetricsStore.getState().pushChunkRms(rms);
     vadRmsEma = vadRmsEma * (1 - VAD_RMS_EMA_ALPHA) + rms * VAD_RMS_EMA_ALPHA;
     vad = updateVad(vad, vadRmsEma, now);
-    if (armed && shouldOpenSocket(vad, now, session !== null)) openSocket();
+    // !responding: don't open a fresh socket on TTS echo while the coach speaks.
+    if (armed && !responding && shouldOpenSocket(vad, now, session !== null)) openSocket();
     // Only finalize a session that's actually reached 'listening' — closing it
     // mid-handshake aborts the WS upgrade and the user sees
     // "WebSocket closed before connection established". On slow links (high

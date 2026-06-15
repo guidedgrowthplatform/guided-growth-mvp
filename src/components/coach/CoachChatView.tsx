@@ -3,16 +3,17 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { deriveOrbRing } from '@/components/ui/orbRing';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
+import { useToast } from '@/contexts/ToastContext';
 import { useCoachTranscripts } from '@/contexts/useCoachVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
 import type { CoachChatApi } from '@/lib/chat/coachChatTypes';
-import { orbStateFrom } from '@/lib/orb/orbState';
 import { stopTTS } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 
@@ -51,7 +52,8 @@ export function CoachChatView({
   // Soniox interim (set by useCoachChat's onInterim). Shows the user typing-by-voice.
   const interim = useVoiceStore((s) => s.interim);
 
-  const isVoiceInOnly = orbStateFrom(voiceChosen, micRuntimeOn) === 'voice_in_only';
+  // Capture runs whenever the right half is on (incl. both-on half-duplex).
+  const micLive = micRuntimeOn;
   const isListening = voiceState === 'listening';
   const isProcessing = voiceState === 'processing';
 
@@ -60,6 +62,17 @@ export function CoachChatView({
 
   const displayedAssistant = useSmoothReveal(partialAssistant);
   const displayedUser = useSmoothReveal(interim);
+
+  let revealingId: string | null = null;
+  if (displayedAssistant.length > 0) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'ai') {
+        revealingId = messages[i].id;
+        break;
+      }
+    }
+  }
+  const renderedMessages = revealingId ? messages.filter((m) => m.id !== revealingId) : messages;
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pinnedToBottomRef = useRef(true);
@@ -83,7 +96,7 @@ export function CoachChatView({
   });
 
   const { intensity: micRingIntensity, speaking: micSpeaking } = useMicVoiceActivity(
-    isVoiceInOnly && isListening,
+    micLive && isListening,
   );
 
   const handleClose = useCallback(() => {
@@ -96,9 +109,18 @@ export function CoachChatView({
     toggleMic();
   }, [micAllowed, toggleMic]);
 
-  const handleRequestMic = useCallback(() => {
-    void requestMicPermission();
-  }, [requestMicPermission]);
+  const { addToast } = useToast();
+  const handleRequestMic = useCallback(async () => {
+    const result = await requestMicPermission();
+    if (result === 'denied') {
+      addToast(
+        'error',
+        'Microphone is blocked. Enable it in your browser settings, then tap the mic again.',
+      );
+    } else if (result === 'unavailable') {
+      addToast('error', "Couldn't reach the mic — it may be in use. Try again.");
+    }
+  }, [requestMicPermission, addToast]);
 
   const handleSendText = useCallback(
     (text: string) => {
@@ -135,14 +157,13 @@ export function CoachChatView({
       : 'idle';
 
   const gradient = visualState === 'listening' ? LISTENING_GRADIENT : IDLE_GRADIENT;
-  const dualActiveRings: 'left' | 'right' | 'ready' | 'idle' | null =
-    isVoiceInOnly && isListening
-      ? micSpeaking
-        ? 'right'
-        : 'ready'
-      : voiceChosen && speaking
-        ? 'left'
-        : null;
+  const dualActiveRings = deriveOrbRing({
+    voiceOn: voiceChosen,
+    micOn: micRuntimeOn,
+    speaking,
+    listening: micLive && isListening,
+    micSpeaking,
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex animate-slide-up flex-col">
@@ -177,7 +198,7 @@ export function CoachChatView({
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {messages.map((msg) => (
+        {renderedMessages.map((msg) => (
           <div key={msg.id} className="flex flex-col">
             <ChatBubble
               role={msg.role}
@@ -219,7 +240,7 @@ export function CoachChatView({
             markdown
           />
         )}
-        {isVoiceInOnly && displayedUser.length > 0 && (
+        {micLive && displayedUser.length > 0 && (
           <ChatBubble
             role="user"
             text={displayedUser}
@@ -249,7 +270,7 @@ export function CoachChatView({
             leftIcon={voiceChosen ? <IconChatVoice size={28} /> : <IconChatText size={28} />}
             rightIcon={micRuntimeOn ? <IconMic size={26} /> : <IconMicMuted size={26} />}
             onLeftClick={toggleVoice}
-            onRightClick={micAllowed ? handleToggleMic : handleRequestMic}
+            onRightClick={micRuntimeOn ? handleToggleMic : handleRequestMic}
             leftAriaLabel={voiceChosen ? 'Switch to screen mode' : 'Switch to voice mode'}
             rightAriaLabel={
               !micAllowed ? 'Allow microphone' : micRuntimeOn ? 'Turn mic off' : 'Turn mic on'

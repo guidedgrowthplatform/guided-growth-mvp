@@ -23,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Semver marketing version (e.g. 2.9.2). REQUIRED for a real iOS version on tagless dispatch — the Fastfile only bumps iOS when this matches X.Y.Z; otherwise iOS ships its project default (1.0.0). Android accepts the qa-<run_number> fallback.'
+        description: 'Semver marketing version (e.g. 2.9.2). REQUIRED on tagless dispatch — resolve-version fails on non-semver so iOS and Android always ship the same version.'
         type: string
         required: false
         default: ''
@@ -49,9 +49,11 @@ jobs:
             v="qa-${{ github.run_number }}"
           fi
           echo "Resolved QA version: $v"
-          # Fastfile only bumps iOS on a semver match; warn loudly when it won't.
+          # Fastfile only bumps iOS on a semver match; non-semver would ship
+          # iOS 1.0.0 while Android ships "$v" — fail before any build starts.
           if [[ ! "$v" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            echo "::warning::Version '$v' is not semver — iOS will ship its project default (1.0.0). Pass a semver 'version' on dispatch, or use a qa-v* tag. Android is unaffected."
+            echo "::error::Version '$v' is not semver — iOS would ship 1.0.0 while Android ships '$v'. Pass a semver 'version' on dispatch, or use a qa-v* tag."
+            exit 1
           fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
 

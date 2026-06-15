@@ -5,6 +5,7 @@ interface HomeHeaderProps {
   userName: string;
   isFirstVisit?: boolean;
   onPlusClick?: () => void;
+  onBellClick?: () => void;
 }
 
 function getGreeting(): string {
@@ -14,7 +15,12 @@ function getGreeting(): string {
   return 'Good Evening';
 }
 
-export function HomeHeader({ userName, isFirstVisit = false, onPlusClick }: HomeHeaderProps) {
+export function HomeHeader({
+  userName,
+  isFirstVisit = false,
+  onPlusClick,
+  onBellClick,
+}: HomeHeaderProps) {
   const headline = isFirstVisit ? 'Welcome to Guided Growth' : `Welcome back, ${userName}`;
 
   return (
@@ -28,13 +34,24 @@ export function HomeHeader({ userName, isFirstVisit = false, onPlusClick }: Home
           <span className="text-sm font-medium text-content-secondary">{getGreeting()} ☀️</span>
         )}
       </div>
-      <button
-        aria-label="Add"
-        onClick={onPlusClick}
-        className="mt-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary shadow-sm"
-      >
-        <Icon icon="mdi:plus" width={22} height={22} className="text-white" />
-      </button>
+      <div className="mt-3 flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          aria-label="Add"
+          onClick={onPlusClick}
+          className="flex h-9 w-9 items-center justify-center rounded-md bg-primary shadow-sm"
+        >
+          <Icon icon="mdi:plus" width={22} height={22} className="text-white" />
+        </button>
+        <button
+          type="button"
+          aria-label="Notifications"
+          onClick={onBellClick}
+          className="flex h-11 w-11 items-center justify-center"
+        >
+          <Icon icon="mdi:bell" width={24} height={24} className="text-primary" />
+        </button>
+      </div>
     </div>
   );
 }

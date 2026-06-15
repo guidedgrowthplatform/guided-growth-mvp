@@ -171,8 +171,37 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
     : null;
 
   const resumed = recent?.rows[0]?.chat_session_id ?? null;
-  const chatSessionId = resumed ?? globalThis.crypto.randomUUID();
-  const messages = resumed ? await loadMessages(user.anonId, chatSessionId, DEFAULT_LIMIT) : [];
+  if (resumed) {
+    const messages = await loadMessages(user.anonId, resumed, DEFAULT_LIMIT);
+    return res.status(200).json({ chat_session_id: resumed, messages });
+  }
 
-  return res.status(200).json({ chat_session_id: chatSessionId, messages });
+  // Idempotent cold mint: concurrent first-opens collapse to one session.
+  const candidate = globalThis.crypto.randomUUID();
+  let chatSessionId = candidate;
+  try {
+    const minted = await pool.query<{ chat_session_id: string }>(
+      `INSERT INTO chat_sessions (anon_id, screen_id, chat_session_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (anon_id, screen_id) DO UPDATE
+           SET chat_session_id = CASE
+                 WHEN $5 AND chat_sessions.last_activity > now() - make_interval(mins => $4)
+                   THEN chat_sessions.chat_session_id
+                 ELSE EXCLUDED.chat_session_id
+               END,
+               last_activity = now()
+         RETURNING chat_session_id`,
+      [user.anonId, screenId, candidate, SESSION_RECENCY_MINUTES, resume],
+    );
+    chatSessionId = minted.rows[0]?.chat_session_id ?? candidate;
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === '42P01') {
+      console.warn('[chat/session] chat_sessions missing — run migration 044; using plain mint');
+    } else {
+      console.error('[chat/session] cold-mint upsert failed', err);
+    }
+  }
+
+  return res.status(200).json({ chat_session_id: chatSessionId, messages: [] });
 }

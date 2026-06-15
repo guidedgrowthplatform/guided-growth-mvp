@@ -135,6 +135,32 @@ describe('useChatSession', () => {
     await flush();
   });
 
+  it('dep change aborts the prior fetch — stale result is ignored', async () => {
+    let resolveA!: (v: { chat_session_id: string; messages: [] }) => void;
+    createOrResumeChatSession
+      .mockReturnValueOnce(
+        new Promise((r) => {
+          resolveA = r;
+        }),
+      )
+      .mockResolvedValueOnce({ chat_session_id: 'sess-B', messages: [] });
+
+    act(() => {
+      root.render(<Bridge screenId="SCREEN-A" />);
+    });
+    await flush();
+
+    act(() => {
+      root.render(<Bridge screenId="SCREEN-B" />);
+    });
+    await flush();
+
+    resolveA({ chat_session_id: 'sess-A', messages: [] });
+    await flush();
+
+    expect(hookRef!.chatSessionId).toBe('sess-B');
+  });
+
   it('surfaces error status when the request fails', async () => {
     createOrResumeChatSession.mockRejectedValue(new Error('boom'));
 

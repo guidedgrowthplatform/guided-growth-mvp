@@ -26,6 +26,7 @@ export const KNOWN_PREFIXES = new Set([
   'icon-park-outline',
   'hugeicons',
   'boxicons',
+  'fa6-solid',
 ]);
 
 export function walkSourceFiles(dir = SRC, files = []) {

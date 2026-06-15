@@ -12,6 +12,7 @@ import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { queryKeys } from '@/lib/query';
 import type { OnboardingState } from '@gg/shared/types';
 import { pathToSpec } from './pathToSpec';
+import { useCtaLoading } from './useCtaLoading';
 import { useStepTiming } from './useStepTiming';
 
 export function Step2Page() {
@@ -81,6 +82,8 @@ export function Step2Page() {
     }
   }, [plan, navigate, saveStepAsync, trackStepComplete]);
 
+  const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleNext);
+
   return (
     <OnboardingLayout
       screenId="ONBOARD-FORK--FORM"
@@ -88,8 +91,9 @@ export function Step2Page() {
       ctaLabel="Continue"
       ctaVariant="inline"
       ctaDisabled={!plan}
+      ctaLoading={ctaLoading}
       showVoiceButton
-      onNext={handleNext}
+      onNext={handleNextCta}
       onBack={() => navigate('/onboarding/step-1')}
       onVoiceAction={handleVoiceAction}
     >
