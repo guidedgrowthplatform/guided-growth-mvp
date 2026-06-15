@@ -2,7 +2,12 @@ import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { COACH_VOICE_ID, type VoiceGender } from '@/config/voiceConfig';
 import { supabase, sessionReady } from '@/lib/supabase';
+import { wsBegin, wsCancel, wsFinish, wsPush, wsTtsAvailable } from './cartesia-ws';
+import { unlockPcmAudio } from './pcmPlayer';
 import { isVoiceOutEnabled } from './voiceGate';
+
+// Streaming WebSocket transport (low-latency) vs HTTP /tts/bytes batch (fallback).
+const TTS_TRANSPORT = (import.meta.env.VITE_TTS_TRANSPORT as string | undefined) ?? 'http';
 
 export const useTtsPlaybackStore = create<{ isSpeaking: boolean }>(() => ({
   isSpeaking: false,
@@ -109,6 +114,45 @@ let prefetch: Prefetch | null = null;
 let drainResolvers: Array<() => void> = [];
 let deferredOneShot: { text: string; volume: number } | null = null;
 
+// ─── WebSocket streaming turn state ──────────────────────────────────────────
+let wsTurnActive = false;
+let wsFirstAudio = false;
+let wsHealthy = true; // flips false on a ws/token failure → fall back to HTTP
+let wsTurnChunks: string[] = [];
+let wsDrainResolvers: Array<() => void> = [];
+
+function useWs(): boolean {
+  return TTS_TRANSPORT === 'ws' && wsHealthy && wsTtsAvailable() && isVoiceOutEnabled();
+}
+
+function resolveWsDrainers(): void {
+  const rs = wsDrainResolvers;
+  wsDrainResolvers = [];
+  rs.forEach((r) => r());
+}
+
+function resolveWsTurn(): void {
+  wsTurnActive = false;
+  turnActive = false;
+  setSpeaking(false);
+  resolveWsDrainers();
+  flushDeferredOneShot();
+}
+
+// ws/token failure: stop future ws turns; speak the buffered reply over HTTP if
+// nothing was heard yet, so a connect failure never means silence.
+function handleWsError(_msg: string): void {
+  if (!wsTurnActive) return;
+  wsHealthy = false;
+  const text = wsTurnChunks.join(' ').trim();
+  const hadAudio = wsFirstAudio;
+  wsCancel();
+  wsTurnActive = false;
+  wsTurnChunks = [];
+  resolveWsTurn();
+  if (!hadAudio && text) void speak(text);
+}
+
 function resolveDrainers(): void {
   const rs = drainResolvers;
   drainResolvers = [];
@@ -200,12 +244,31 @@ export function beginSpeechTurn(): number {
   playCursor = 0;
   turnSealed = false;
   turnActive = true;
-  return ++speakGeneration;
+  const gen = ++speakGeneration;
+  if (useWs()) {
+    wsTurnActive = true;
+    wsFirstAudio = false;
+    wsTurnChunks = [];
+    wsBegin({
+      onSpeakingChange: (s) => setSpeaking(s),
+      onFirstAudio: () => {
+        wsFirstAudio = true;
+      },
+      onDrain: () => resolveWsTurn(),
+      onError: (m) => handleWsError(m),
+    });
+  }
+  return gen;
 }
 
 export function pushSpeechChunk(text: string, opts?: { volume?: number }): void {
   if (!turnActive || !isVoiceOutEnabled()) return;
   if (!text.trim()) return;
+  if (wsTurnActive) {
+    wsTurnChunks.push(text);
+    void wsPush(text);
+    return;
+  }
   speechQueue.push({ text, volume: opts?.volume ?? 0.85 });
   if (!drainRunning) {
     drainRunning = true;
@@ -217,6 +280,19 @@ export function pushSpeechChunk(text: string, opts?: { volume?: number }): void 
 }
 
 export function endSpeechTurn(): Promise<void> {
+  if (wsTurnActive) {
+    // Nothing was spoken (tool-only turn) — close immediately, don't wait on `done`.
+    if (wsTurnChunks.length === 0) {
+      wsCancel();
+      resolveWsTurn();
+      return Promise.resolve();
+    }
+    void wsFinish();
+    return new Promise<void>((resolve) => {
+      if (!wsTurnActive) resolve();
+      else wsDrainResolvers.push(resolve);
+    });
+  }
   turnSealed = true;
   if (!drainRunning && playCursor >= speechQueue.length) finishTurn();
   return new Promise<void>((resolve) => {
@@ -226,6 +302,12 @@ export function endSpeechTurn(): Promise<void> {
 }
 
 export function stopTTS(): void {
+  if (wsTurnActive) {
+    wsCancel();
+    wsTurnActive = false;
+    wsTurnChunks = [];
+    resolveWsDrainers();
+  }
   ++speakGeneration;
   if (currentTtsAbort) {
     currentTtsAbort.abort();
@@ -403,6 +485,8 @@ const SILENT_WAV =
 export function unlockTTS(): void {
   // Re-arm after transient 429/401/500 even when already unlocked.
   cartesiaTtsAvailable = true;
+  wsHealthy = true;
+  unlockPcmAudio();
   if (ttsUnlocked) return;
   try {
     const a = new Audio(SILENT_WAV);

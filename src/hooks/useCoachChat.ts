@@ -10,6 +10,7 @@ import { useVoice } from '@/hooks/useVoice';
 import { useVoiceInCapture } from '@/hooks/useVoiceInCapture';
 import { buildCheckinCard, buildHabitCards } from '@/lib/chat/coachChatCards';
 import type { ChatMessage, CoachChatApi, VoiceChatState } from '@/lib/chat/coachChatTypes';
+import { startTokenWarmLoop, stopTokenWarmLoop } from '@/lib/services/cartesia-token-cache';
 import { nextSentenceChunks, flushSentenceTail } from '@/lib/services/sentenceChunks';
 import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
 import {
@@ -28,7 +29,7 @@ import type { CoachingStyle } from '@gg/shared/types/llm';
 const MIC_GRACE_MS = 2500;
 
 const LLM_ERROR_TEXT = "Something didn't work on my end. Mind trying that again?";
-const SESSION_ERROR_TEXT = "Can't connect right now — try reopening the chat.";
+const SESSION_ERROR_TEXT = "Can't connect right now. Try reopening the chat.";
 
 // Reusable post-onboarding coach conversation. Screen-parameterized so it can
 // mount on any screen; the tools the LLM gets are decided server-side per screenId.
@@ -211,6 +212,14 @@ export function useCoachChat(
     startKeyWarmLoop();
     return () => stopKeyWarmLoop();
   }, [voiceInActive]);
+
+  // Warm a Cartesia access token while voice-out is on (ws TTS transport only),
+  // so the first coach reply's WebSocket pays no token-mint latency.
+  useEffect(() => {
+    if (!voiceModeOn || import.meta.env.VITE_TTS_TRANSPORT !== 'ws') return;
+    startTokenWarmLoop();
+    return () => stopTokenWarmLoop();
+  }, [voiceModeOn]);
 
   // Clear interim immediately when Soniox finalizes the turn (inside
   // handleSonioxFinal) — NOT reactively on `isListening` flipping, which
