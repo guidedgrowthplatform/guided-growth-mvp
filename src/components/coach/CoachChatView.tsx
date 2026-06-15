@@ -8,6 +8,7 @@ import { ChatBubble } from '@/components/voice/ChatBubble';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
+import { useToast } from '@/contexts/ToastContext';
 import { useCoachTranscripts } from '@/contexts/useCoachVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
@@ -62,6 +63,17 @@ export function CoachChatView({
   const displayedAssistant = useSmoothReveal(partialAssistant);
   const displayedUser = useSmoothReveal(interim);
 
+  let revealingId: string | null = null;
+  if (displayedAssistant.length > 0) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'ai') {
+        revealingId = messages[i].id;
+        break;
+      }
+    }
+  }
+  const renderedMessages = revealingId ? messages.filter((m) => m.id !== revealingId) : messages;
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pinnedToBottomRef = useRef(true);
   const touchStartY = useRef<number | null>(null);
@@ -97,9 +109,18 @@ export function CoachChatView({
     toggleMic();
   }, [micAllowed, toggleMic]);
 
-  const handleRequestMic = useCallback(() => {
-    void requestMicPermission();
-  }, [requestMicPermission]);
+  const { addToast } = useToast();
+  const handleRequestMic = useCallback(async () => {
+    const result = await requestMicPermission();
+    if (result === 'denied') {
+      addToast(
+        'error',
+        'Microphone is blocked. Enable it in your browser settings, then tap the mic again.',
+      );
+    } else if (result === 'unavailable') {
+      addToast('error', "Couldn't reach the mic — it may be in use. Try again.");
+    }
+  }, [requestMicPermission, addToast]);
 
   const handleSendText = useCallback(
     (text: string) => {
@@ -177,7 +198,7 @@ export function CoachChatView({
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {messages.map((msg) => (
+        {renderedMessages.map((msg) => (
           <div key={msg.id} className="flex flex-col">
             <ChatBubble
               role={msg.role}
@@ -249,7 +270,7 @@ export function CoachChatView({
             leftIcon={voiceChosen ? <IconChatVoice size={28} /> : <IconChatText size={28} />}
             rightIcon={micRuntimeOn ? <IconMic size={26} /> : <IconMicMuted size={26} />}
             onLeftClick={toggleVoice}
-            onRightClick={micAllowed ? handleToggleMic : handleRequestMic}
+            onRightClick={micRuntimeOn ? handleToggleMic : handleRequestMic}
             leftAriaLabel={voiceChosen ? 'Switch to screen mode' : 'Switch to voice mode'}
             rightAriaLabel={
               !micAllowed ? 'Allow microphone' : micRuntimeOn ? 'Turn mic off' : 'Turn mic on'

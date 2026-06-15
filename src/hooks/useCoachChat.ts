@@ -10,14 +10,18 @@ import { useVoice } from '@/hooks/useVoice';
 import { useVoiceInCapture } from '@/hooks/useVoiceInCapture';
 import { buildCheckinCard, buildHabitCards } from '@/lib/chat/coachChatCards';
 import type { ChatMessage, CoachChatApi, VoiceChatState } from '@/lib/chat/coachChatTypes';
+import { startTokenWarmLoop, stopTokenWarmLoop } from '@/lib/services/cartesia-token-cache';
 import { nextSentenceChunks, flushSentenceTail } from '@/lib/services/sentenceChunks';
 import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
 import {
   beginSpeechTurn,
   endSpeechTurn,
+  isWsTransport,
   pushSpeechChunk,
   speak,
   stopTTS,
+  ttsKaraokeActive,
+  ttsWarm,
   useTtsPlaybackStore,
 } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
@@ -28,7 +32,7 @@ import type { CoachingStyle } from '@gg/shared/types/llm';
 const MIC_GRACE_MS = 2500;
 
 const LLM_ERROR_TEXT = "Something didn't work on my end. Mind trying that again?";
-const SESSION_ERROR_TEXT = "Can't connect right now — try reopening the chat.";
+const SESSION_ERROR_TEXT = "Can't connect right now. Try reopening the chat.";
 
 // Reusable post-onboarding coach conversation. Screen-parameterized so it can
 // mount on any screen; the tools the LLM gets are decided server-side per screenId.
@@ -42,6 +46,7 @@ export function useCoachChat(
   opts?: {
     surface?: Surface;
     coachingStyle?: CoachingStyle;
+    enabled?: boolean;
     onTranscriptStream?: (
       role: 'user' | 'assistant',
       text: string,
@@ -51,6 +56,7 @@ export function useCoachChat(
 ): CoachChatApi {
   const surface = opts?.surface ?? 'chat';
   const coachingStyle = opts?.coachingStyle ?? 'warm';
+  const enabled = opts?.enabled ?? true;
   const onTranscriptStream = opts?.onTranscriptStream;
 
   const { preferences } = useUserPreferences();
@@ -62,7 +68,7 @@ export function useCoachChat(
     chatSessionId,
     initialMessages,
     status: sessionStatus,
-  } = useChatSession(screenId, { enabled: true, resume: true });
+  } = useChatSession(screenId, { enabled, resume: true });
   const {
     sendMessage,
     sendOpener,
@@ -98,6 +104,7 @@ export function useCoachChat(
   const ttsBumpedRef = useRef(false);
   const prevStreamingRef = useRef(false);
   const turnFinalizedRef = useRef(true);
+  const turnSeqRef = useRef(0);
   // Stable identity for the streaming Soniox session callbacks so
   // useVoiceInCapture's WebSocket lifecycle doesn't churn each render.
   const submitTurnRef = useRef<(text: string) => void>(() => undefined);
@@ -212,6 +219,15 @@ export function useCoachChat(
     return () => stopKeyWarmLoop();
   }, [voiceInActive]);
 
+  // Warm the Cartesia token + open the ws socket while voice-out is on, so the
+  // first coach reply pays no token-mint or connect latency.
+  useEffect(() => {
+    if (!voiceModeOn || !isWsTransport()) return;
+    startTokenWarmLoop();
+    ttsWarm();
+    return () => stopTokenWarmLoop();
+  }, [voiceModeOn]);
+
   // Clear interim immediately when Soniox finalizes the turn (inside
   // handleSonioxFinal) — NOT reactively on `isListening` flipping, which
   // caused user text to flash-disappear before the final reached the LLM.
@@ -305,7 +321,8 @@ export function useCoachChat(
     const { chunks, nextOffset } = nextSentenceChunks(llmResponse, lastSpokenOffsetRef.current);
     if (chunks.length === 0) return;
     if (!streamTurnActiveRef.current) {
-      beginSpeechTurn();
+      turnSeqRef.current += 1;
+      beginSpeechTurn({ onReveal: (t) => onTranscriptStream?.('assistant', t, 'partial') });
       streamTurnActiveRef.current = true;
       turnFinalizedRef.current = false;
       ttsBumpedRef.current = true;
@@ -314,7 +331,7 @@ export function useCoachChat(
     for (const c of chunks) pushSpeechChunk(c);
     lastSpokenOffsetRef.current = nextOffset;
     streamedSomethingRef.current = true;
-  }, [isStreaming, llmResponse, voiceModeOn]);
+  }, [isStreaming, llmResponse, voiceModeOn, onTranscriptStream]);
 
   // ─── Final message: emit to bus; speak the tail (chunked) or whole (one-shot) ─
   // State-4 "opening line only" is applied in CoachSubtitleBar, not here —
@@ -324,16 +341,26 @@ export function useCoachChat(
       if (m.role !== 'assistant' || !m.content) continue;
       if (spokenIdsRef.current.has(m.id)) continue;
       spokenIdsRef.current.add(m.id);
-      onTranscriptStream?.('assistant', m.content, 'final');
       // screen/text mode: mark seen but stay silent — no backlog when voice re-enables
-      if (!voiceModeOn) continue;
+      if (!voiceModeOn) {
+        onTranscriptStream?.('assistant', m.content, 'final');
+        continue;
+      }
       if (streamedSomethingRef.current) {
         streamedSomethingRef.current = false;
         turnFinalizedRef.current = true;
         const tail = flushSentenceTail(m.content, lastSpokenOffsetRef.current);
         if (tail) pushSpeechChunk(tail);
-        void endSpeechTurn().finally(endCoachSpeechTurn);
+        const content = m.content;
+        const seq = turnSeqRef.current;
+        void endSpeechTurn().finally(() => {
+          endCoachSpeechTurn();
+          if (turnSeqRef.current === seq) {
+            onTranscriptStreamRef.current?.('assistant', content, 'final');
+          }
+        });
       } else {
+        onTranscriptStream?.('assistant', m.content, 'final');
         setTtsActive((c) => c + 1);
         void speak(m.content).finally(() => setTtsActive((c) => Math.max(0, c - 1)));
       }
@@ -350,11 +377,14 @@ export function useCoachChat(
   }, [isStreaming, llmMessages, endCoachSpeechTurn]);
 
   // Live partial stream → transcript bus (subtitle renders typing in real time).
+  // Karaoke turns drive the partial off audio timing (beginSpeechTurn onReveal),
+  // so skip the full-text push to keep text paced with speech.
   useEffect(() => {
     if (!onTranscriptStream) return;
     if (!isStreaming || llmResponse.length === 0) return;
+    if (voiceModeOn && ttsKaraokeActive()) return;
     onTranscriptStream('assistant', llmResponse, 'partial');
-  }, [isStreaming, llmResponse, onTranscriptStream]);
+  }, [isStreaming, llmResponse, onTranscriptStream, voiceModeOn]);
 
   // ─── Transcript → LLM (queued while busy, flushed when free) ──────────
   // Streaming Soniox can land multiple finals during a single LLM turn. The

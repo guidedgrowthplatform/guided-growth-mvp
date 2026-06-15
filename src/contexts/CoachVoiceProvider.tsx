@@ -55,6 +55,7 @@ export function CoachVoiceProvider({ children }: { children: ReactNode }) {
   );
 
   const api = useCoachChat(currentScreenId, {
+    enabled: activeScreenId !== null,
     onTranscriptStream: handleTranscriptStream,
   });
 
