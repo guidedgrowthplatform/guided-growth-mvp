@@ -69,7 +69,7 @@ export function SettingsPage() {
       try {
         if (next) {
           // Enabling: trigger the OS prompt via the same hook the nav uses.
-          const granted = await requestMicPermission();
+          const granted = (await requestMicPermission()) === 'granted';
           track('grant_mic_permission', { granted, dismissed: false, source: 'settings' });
           logEvent(
             granted ? 'mic_permission_granted' : 'mic_permission_denied',

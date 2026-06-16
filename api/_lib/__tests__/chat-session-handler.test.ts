@@ -79,7 +79,11 @@ describe('POST /api/chat/session', () => {
   });
 
   it('mints a fresh UUID when no recent session exists', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [] });
+    pool.query
+      .mockResolvedValueOnce({ rows: [] }) // recency lookup
+      .mockResolvedValueOnce({
+        rows: [{ chat_session_id: '550e8400-e29b-41d4-a716-446655440000' }],
+      }); // cold-mint upsert
 
     const res = mockRes();
     await handler(mockReq({}), res);
@@ -88,13 +92,27 @@ describe('POST /api/chat/session', () => {
     const body = res._body as { chat_session_id: string; messages: unknown[] };
     expect(body.chat_session_id).toMatch(UUID_RE);
     expect(body.messages).toEqual([]);
-    // no history load for a freshly minted id
-    expect(pool.query).toHaveBeenCalledTimes(1);
+    // recency lookup + idempotent upsert; no history load
+    expect(pool.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns the anchored id when a concurrent cold open already minted one', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [] }) // no recent messages
+      .mockResolvedValueOnce({ rows: [{ chat_session_id: 'sess-anchored' }] }); // upsert reused existing
+
+    const res = mockRes();
+    await handler(mockReq({}), res);
+
+    const body = res._body as { chat_session_id: string; messages: unknown[] };
+    expect(body.chat_session_id).toBe('sess-anchored');
+    expect(body.messages).toEqual([]);
   });
 
   it('mints fresh when the only session is stale (outside the window)', async () => {
-    // The SQL filters by created_at; a stale row simply isn't returned.
-    pool.query.mockResolvedValueOnce({ rows: [] });
+    pool.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({
+      rows: [{ chat_session_id: '550e8400-e29b-41d4-a716-446655440000' }],
+    });
 
     const res = mockRes();
     await handler(mockReq({}), res);
