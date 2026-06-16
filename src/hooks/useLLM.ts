@@ -23,6 +23,7 @@ const DELTA_COALESCE_MS = 40;
 export interface UseLLMReturn {
   sendMessage: (text: string) => Promise<void>;
   sendOpener: () => Promise<void>;
+  prependMessages: (older: LLMChatMessage[]) => void;
   messages: LLMChatMessage[];
   response: string;
   toolEvents: LLMToolEvent[];
@@ -47,12 +48,17 @@ export function useLLM(
     coachingStyle?: CoachingStyle;
     chatSessionId?: string;
     initialMessages?: LLMChatMessage[];
+    inputMode?: 'voice' | 'text';
   },
 ): UseLLMReturn {
   const { sessionId, logEvent } = useSessionLog();
   const coachingStyle = opts?.coachingStyle ?? 'warm';
   const chatSessionId = opts?.chatSessionId;
   const initialMessages = opts?.initialMessages;
+
+  // Read fresh at send time — a voice/text toggle mustn't restale runStream.
+  const inputModeRef = useRef(opts?.inputMode);
+  inputModeRef.current = opts?.inputMode;
 
   const [messages, setMessages] = useState<LLMChatMessage[]>([]);
   const [response, setResponse] = useState('');
@@ -94,6 +100,17 @@ export function useLLM(
     setToolEvents([]);
     setStatus('idle');
     setError(null);
+  }, []);
+
+  // Infinite-scroll-up: prepend an older page, deduped by id (a turn already
+  // in state from a live send must not double-render).
+  const prependMessages = useCallback((older: LLMChatMessage[]) => {
+    if (older.length === 0) return;
+    setMessages((prev) => {
+      const seen = new Set(prev.map((m) => m.id));
+      const fresh = older.filter((m) => !seen.has(m.id));
+      return fresh.length === 0 ? prev : [...fresh, ...prev];
+    });
   }, []);
 
   const cancel = useCallback(() => {
@@ -256,6 +273,7 @@ export function useLLM(
             chat_session_id: chatSessionId,
             user_turn_id: userTurnId ?? undefined,
             recent_events,
+            ...(inputModeRef.current ? { input_mode: inputModeRef.current } : {}),
             ...(opts.mode === 'chat'
               ? { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }
               : {}),
@@ -340,6 +358,7 @@ export function useLLM(
   return {
     sendMessage,
     sendOpener,
+    prependMessages,
     messages,
     response,
     toolEvents,

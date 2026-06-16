@@ -7,6 +7,7 @@ import {
   type CoachVoiceContextValue,
 } from '@/contexts/useCoachVoiceSession';
 import { useCoachChat } from '@/hooks/useCoachChat';
+import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { createListenerBus, type ListenerBus } from '@/lib/util/listenerBus';
 
 // Lifts useCoachChat above the overlay so the chat session, Soniox stream,
@@ -17,7 +18,8 @@ import { createListenerBus, type ListenerBus } from '@/lib/util/listenerBus';
 // overlay closes (openScreenId → null), we keep that screenId so the chat
 // session stays bound to the same conversation.
 export function CoachVoiceProvider({ children }: { children: ReactNode }) {
-  const { openScreenId } = useCoachChatLauncher();
+  const { openScreenId, initiateCheckinNonce } = useCoachChatLauncher();
+  const { micOn } = useDualButtonControls();
   const [activeScreenId, setActiveScreenId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,9 +56,12 @@ export function CoachVoiceProvider({ children }: { children: ReactNode }) {
     [transcriptBus],
   );
 
+  // micOn arms capture on Home before the overlay is ever opened (#88) —
+  // currentScreenId falls back to HOME-CHECKIN so the session has context.
   const api = useCoachChat(currentScreenId, {
-    enabled: activeScreenId !== null,
+    enabled: activeScreenId !== null || micOn,
     onTranscriptStream: handleTranscriptStream,
+    initiateCheckinNonce,
   });
 
   // Pull specific stable fields from `api` instead of spreading the whole
@@ -66,11 +71,15 @@ export function CoachVoiceProvider({ children }: { children: ReactNode }) {
     messages,
     voiceState,
     speaking,
+    micListening,
     startListening,
     stopListening,
     sendText,
     updateHabitDays,
     lastCreatedItem,
+    loadOlder,
+    hasMore,
+    loadingOlder,
   } = api;
 
   const value = useMemo<CoachVoiceContextValue>(
@@ -78,11 +87,15 @@ export function CoachVoiceProvider({ children }: { children: ReactNode }) {
       messages,
       voiceState,
       speaking,
+      micListening,
       startListening,
       stopListening,
       sendText,
       updateHabitDays,
       lastCreatedItem,
+      loadOlder,
+      hasMore,
+      loadingOlder,
       currentScreenId,
       subscribeTranscripts,
     }),
@@ -90,11 +103,15 @@ export function CoachVoiceProvider({ children }: { children: ReactNode }) {
       messages,
       voiceState,
       speaking,
+      micListening,
       startListening,
       stopListening,
       sendText,
       updateHabitDays,
       lastCreatedItem,
+      loadOlder,
+      hasMore,
+      loadingOlder,
       currentScreenId,
       subscribeTranscripts,
     ],

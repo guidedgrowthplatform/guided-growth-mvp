@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isCheckinScreen, trackCheckinStarted } from '@/analytics/coachFunnel';
 import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
+import { useChatHistory } from '@/hooks/useChatHistory';
 import { useChatSession } from '@/hooks/useChatSession';
 import { useCoachChatToolEvents } from '@/hooks/useCoachChatToolEvents';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
@@ -35,8 +36,16 @@ import type { CoachingStyle } from '@gg/shared/types/llm';
 // Mirrors VAD_SILENCE_CLOSE_MS in soniox-stream.ts.
 const MIC_GRACE_MS = 2500;
 
+// Quiet gap after the last Soniox final before the buffered utterance is sent
+// as ONE turn — neutralizes mid-sentence endpointing finals (GitLab #209).
+const TURN_AGGREGATION_MS = 1000;
+
 const LLM_ERROR_TEXT = "Something didn't work on my end. Mind trying that again?";
 const SESSION_ERROR_TEXT = "Can't connect right now. Try reopening the chat.";
+
+// One write session per user — anchors the coach's continuous memory across all
+// screens. The per-turn screen_id stays real (sent on each /api/llm request).
+const UNIFIED_SESSION_ID = 'COACH';
 
 // Reusable post-onboarding coach conversation. Screen-parameterized so it can
 // mount on any screen; the tools the LLM gets are decided server-side per screenId.
@@ -56,26 +65,45 @@ export function useCoachChat(
       text: string,
       kind: 'partial' | 'final',
     ) => void;
+    initiateCheckinNonce?: number;
   },
 ): CoachChatApi {
   const surface = opts?.surface ?? 'chat';
   const coachingStyle = opts?.coachingStyle ?? 'warm';
   const enabled = opts?.enabled ?? true;
   const onTranscriptStream = opts?.onTranscriptStream;
+  const initiateCheckinNonce = opts?.initiateCheckinNonce ?? 0;
 
   const { preferences } = useUserPreferences();
   const voiceModeOn = preferences.voiceMode === 'voice';
   const { micOn } = useDualButtonControls();
   const setInterim = useVoiceStore((s) => s.setInterim);
 
+  const { chatSessionId: writeSessionId, status: sessionStatus } = useChatSession(
+    UNIFIED_SESSION_ID,
+    { enabled, resume: true },
+  );
+
+  // Display = linear per-user timeline (first page seeds useLLM; older pages
+  // prepend on scroll-up). Decoupled from the write session's anchor history.
   const {
-    chatSessionId,
     initialMessages,
-    status: sessionStatus,
-  } = useChatSession(screenId, { enabled, resume: true });
+    loadOlder: loadOlderPage,
+    hasMore,
+    loadingOlder,
+    status: historyStatus,
+  } = useChatHistory({ enabled });
+
+  // Effective session id: gate everything (seed + sends + opener) until the
+  // first history page lands — write session and history load independently, so
+  // acting before history resolves would seed empty and never recover.
+  const historyReady = historyStatus === 'ready' || historyStatus === 'error';
+  const chatSessionId = historyReady ? writeSessionId : null;
+
   const {
     sendMessage,
     sendOpener,
+    prependMessages,
     messages: llmMessages,
     response: llmResponse,
     isStreaming,
@@ -84,17 +112,27 @@ export function useCoachChat(
     coachingStyle,
     chatSessionId: chatSessionId ?? undefined,
     initialMessages,
+    inputMode: voiceModeOn ? 'voice' : 'text',
   });
+
+  const loadOlder = useCallback(() => {
+    void loadOlderPage().then(prependMessages);
+  }, [loadOlderPage, prependMessages]);
 
   const { acquireRealtime, releaseToken, setStatus } = useVoice();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
 
-  const lastCreatedItem = useCoachChatToolEvents(llmMessages, chatSessionId, initialMessages);
+  const lastCreatedItem = useCoachChatToolEvents(
+    llmMessages,
+    chatSessionId,
+    initialMessages,
+    screenId,
+  );
 
   const tokenRef = useRef<ReleaseToken | null>(null);
   const pendingTurnRef = useRef<string | null>(null);
   const openerSentRef = useRef<string | null>(null);
-  const startCheckinFiredRef = useRef<string | null>(null);
+  const initiateNonceRef = useRef(0);
   const spokenSeededForRef = useRef<string | null>(null);
   const spokenIdsRef = useRef<Set<string>>(new Set());
   const lastLlmErrorRef = useRef('');
@@ -112,6 +150,10 @@ export function useCoachChat(
   // Stable identity for the streaming Soniox session callbacks so
   // useVoiceInCapture's WebSocket lifecycle doesn't churn each render.
   const submitTurnRef = useRef<(text: string) => void>(() => undefined);
+  // End-of-turn aggregation: buffer consecutive finals, flush as one turn
+  // after a TURN_AGGREGATION_MS quiet gap (GitLab #209).
+  const utteranceBufferRef = useRef('');
+  const aggregationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [dayOverrides, setDayOverrides] = useState<Map<string, boolean[]>>(() => new Map());
   const [errorBubbles, setErrorBubbles] = useState<ChatMessage[]>([]);
@@ -156,6 +198,25 @@ export function useCoachChat(
   // Stable callback identities so useVoiceInCapture's ref-update effects
   // don't churn every render of useCoachChat. The handlers read fresh state
   // via the refs declared above.
+  // Barge-in: stop the coach's TTS the instant the user starts a turn — NOT
+  // debounced, else the coach talks over the user for TURN_AGGREGATION_MS.
+  const interruptTts = useCallback(() => {
+    stopTTS();
+    endCoachSpeechTurn();
+  }, [endCoachSpeechTurn]);
+
+  // Flush the aggregated utterance as ONE turn once the quiet gap elapses.
+  const flushUtterance = useCallback(() => {
+    if (aggregationTimerRef.current) {
+      clearTimeout(aggregationTimerRef.current);
+      aggregationTimerRef.current = null;
+    }
+    const text = utteranceBufferRef.current.trim();
+    utteranceBufferRef.current = '';
+    if (!text) return;
+    submitTurnRef.current(text);
+  }, []);
+
   const handleSonioxFinal = useCallback(
     (t: string) => {
       // Clear interim AT THE MOMENT we route the final, so the user bubble
@@ -163,17 +224,30 @@ export function useCoachChat(
       // bubble landing.
       setInterim('');
       onTranscriptStreamRef.current?.('user', t, 'final');
-      submitTurnRef.current(t);
+      interruptTts();
+      utteranceBufferRef.current = utteranceBufferRef.current
+        ? `${utteranceBufferRef.current} ${t}`
+        : t;
+      if (aggregationTimerRef.current) clearTimeout(aggregationTimerRef.current);
+      aggregationTimerRef.current = setTimeout(flushUtterance, TURN_AGGREGATION_MS);
     },
-    [setInterim],
+    [setInterim, interruptTts, flushUtterance],
   );
 
   const handleSonioxInterim = useCallback(
     (t: string) => {
       setInterim(t);
       onTranscriptStreamRef.current?.('user', t, 'partial');
+      // User still talking after a buffered final → restart the quiet timer so
+      // we don't flush mid-thought. Always interrupt TTS immediately (barge-in).
+      interruptTts();
+      // Empty interims must not defer the flush forever — only real speech resets it.
+      if (t.trim() && aggregationTimerRef.current) {
+        clearTimeout(aggregationTimerRef.current);
+        aggregationTimerRef.current = setTimeout(flushUtterance, TURN_AGGREGATION_MS);
+      }
     },
-    [setInterim],
+    [setInterim, interruptTts, flushUtterance],
   );
 
   // Match onboarding's voice-in setup EXACTLY:
@@ -283,23 +357,28 @@ export function useCoachChat(
     };
   }, [releaseToken]);
 
-  // ─── Server opener on a fresh session (no resumed history) ───────────
+  // ─── Explicit check-in initiation: coach leads the next turn regardless of
+  // existing history. Fires exactly once per nonce bump (guard ref) and marks
+  // this session's opener sent so the empty-welcome below never double-fires. ─
+  useEffect(() => {
+    if (!chatSessionId || initiateCheckinNonce <= 0) return;
+    if (initiateNonceRef.current === initiateCheckinNonce) return;
+    initiateNonceRef.current = initiateCheckinNonce;
+    openerSentRef.current = chatSessionId;
+    if (isCheckinScreen(screenId)) trackCheckinStarted(screenId);
+    void sendOpener();
+  }, [chatSessionId, initiateCheckinNonce, screenId, sendOpener]);
+
+  // ─── First-ever open with a truly empty timeline → one welcome opener.
+  // Returning users with history get NO auto-opener unless they explicitly
+  // initiate a check-in (handled above). ───────────────────────────────
   useEffect(() => {
     if (!chatSessionId) return;
     if (openerSentRef.current === chatSessionId) return;
+    if (initialMessages.length > 0) return;
     openerSentRef.current = chatSessionId;
-    if (initialMessages.length > 0) return; // resumed thread already populated
     void sendOpener();
   }, [chatSessionId, initialMessages, sendOpener]);
-
-  // ─── Funnel: opening the coach chat on a check-in screen = start_checkin ──
-  useEffect(() => {
-    if (!chatSessionId || !isCheckinScreen(screenId)) return;
-    if (startCheckinFiredRef.current === chatSessionId) return;
-    startCheckinFiredRef.current = chatSessionId;
-    if (initialMessages.length > 0) return; // resumed thread — already started earlier
-    trackCheckinStarted(screenId);
-  }, [chatSessionId, screenId, initialMessages]);
 
   // ─── Pre-seed spoken ids from resumed history (declared BEFORE the speak
   // effect so it runs first in-commit) — prevents replaying old turns ──
@@ -420,6 +499,23 @@ export function useCoachChat(
     void sendMessage(text);
   }, [chatSessionId, isStreaming, sendMessage]);
 
+  // Drop the aggregation timer on unmount / session end — no leaked timer, no
+  // flush-after-unmount.
+  useEffect(() => {
+    if (voiceInActive) return;
+    if (aggregationTimerRef.current) {
+      clearTimeout(aggregationTimerRef.current);
+      aggregationTimerRef.current = null;
+    }
+    utteranceBufferRef.current = '';
+  }, [voiceInActive]);
+  useEffect(
+    () => () => {
+      if (aggregationTimerRef.current) clearTimeout(aggregationTimerRef.current);
+    },
+    [],
+  );
+
   // ─── Error bubbles (no offline-parse fallback) ───────────────────────
   useEffect(() => {
     if (!llmError) return;
@@ -502,10 +598,14 @@ export function useCoachChat(
     messages,
     voiceState,
     speaking: isSpeaking || ttsActive > 0,
+    micListening: isListening,
     startListening,
     stopListening,
     sendText,
     updateHabitDays,
     lastCreatedItem,
+    loadOlder,
+    hasMore,
+    loadingOlder,
   };
 }

@@ -22,6 +22,37 @@ interface ChatRow {
   tool_name: string | null;
 }
 
+interface LinearRow extends ChatRow {
+  created_at: string | Date;
+}
+
+interface LinearCursor {
+  ts: string;
+  id: string;
+}
+
+function encodeCursor(c: LinearCursor): string {
+  return Buffer.from(JSON.stringify(c), 'utf8').toString('base64url');
+}
+
+function decodeCursor(raw: string): LinearCursor | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof parsed.ts === 'string' &&
+      typeof parsed.id === 'string' &&
+      UUID_REGEX.test(parsed.id)
+    ) {
+      return { ts: parsed.ts, id: parsed.id };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 function buildHistory(rows: ChatRow[]): LLMChatMessage[] {
   const messages: LLMChatMessage[] = [];
   const assistantById = new Map<string, LLMChatMessage>();
@@ -112,8 +143,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const route = segments[0] === '__index' ? '' : segments[0] || '';
 
   if (route === 'history') return handleHistory(req, res);
+  if (route === 'linear') return handleLinearHistory(req, res);
   if (route === 'session') return handleSession(req, res);
   return res.status(404).json({ error: 'Not found' });
+}
+
+async function handleLinearHistory(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  const user = await requireUser(req, res);
+  if (!user) return;
+  await setUserContext(user.anonId);
+
+  let limit = DEFAULT_LIMIT;
+  if (typeof req.query.limit === 'string') {
+    const parsed = parseInt(req.query.limit, 10);
+    if (!Number.isFinite(parsed) || parsed < 1 || parsed > MAX_LIMIT) {
+      return res.status(400).json({ error: `limit must be 1-${MAX_LIMIT}` });
+    }
+    limit = parsed;
+  }
+
+  let cursor: LinearCursor | null = null;
+  if (typeof req.query.before === 'string' && req.query.before.length > 0) {
+    cursor = decodeCursor(req.query.before);
+    if (!cursor) return res.status(400).json({ error: 'invalid before cursor' });
+  }
+
+  // created_at::text keeps full microsecond precision in the cursor — Date
+  // round-tripping truncates to ms and can skip a same-ms row at a page boundary.
+  const cols = `id, turn_index, role, content, tool_calls, tool_call_id, tool_name, created_at::text AS created_at`;
+  // Fetch limit+1 to detect older rows; keyset on (created_at, id) DESC.
+  const result = cursor
+    ? await pool.query<LinearRow>(
+        `SELECT ${cols}
+           FROM chat_messages
+          WHERE anon_id = $1 AND (created_at, id) < ($2, $3)
+          ORDER BY created_at DESC, id DESC
+          LIMIT $4`,
+        [user.anonId, cursor.ts, cursor.id, limit + 1],
+      )
+    : await pool.query<LinearRow>(
+        `SELECT ${cols}
+           FROM chat_messages
+          WHERE anon_id = $1
+          ORDER BY created_at DESC, id DESC
+          LIMIT $2`,
+        [user.anonId, limit + 1],
+      );
+
+  const hasMore = result.rows.length > limit;
+  const page = hasMore ? result.rows.slice(0, limit) : result.rows;
+  const oldest = page[page.length - 1];
+  const nextCursor =
+    hasMore && oldest ? encodeCursor({ ts: String(oldest.created_at), id: oldest.id }) : null;
+
+  // buildHistory wants chronological order; DB returned newest→oldest.
+  const messages = buildHistory(page.slice().reverse());
+  return res.status(200).json({ messages, next_cursor: nextCursor, has_more: hasMore });
 }
 
 async function handleHistory(req: VercelRequest, res: VercelResponse) {

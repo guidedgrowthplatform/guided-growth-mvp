@@ -1,9 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { trackCoachToolEvent } from '@/analytics/coachFunnel';
+import { useSessionLog } from '@/hooks/useSessionLog';
 import type { LastCreatedItem } from '@/lib/chat/coachChatTypes';
 import { queryKeys } from '@/lib/query';
 import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
+
+// Tools that mark the evening check-in as concluded (day summary / reflection log).
+const EVENING_DONE_TOOLS: ReadonlySet<string> = new Set(['get_summary', 'log_reflection']);
 
 // Write tools — read-only (query_habits, get_summary, suggest_habit) skip refresh.
 const MUTATION_TOOLS: ReadonlySet<string> = new Set([
@@ -51,15 +55,19 @@ export function useCoachChatToolEvents(
   messages: LLMChatMessage[],
   resetKey: string | null,
   initialMessages: LLMChatMessage[],
+  screenId: string,
 ): LastCreatedItem | undefined {
   const qc = useQueryClient();
+  const { logEvent } = useSessionLog();
   const firedIdsRef = useRef<Set<string>>(new Set());
+  const eveningDoneEmittedRef = useRef(false);
   const [lastCreatedItem, setLastCreatedItem] = useState<LastCreatedItem | undefined>(undefined);
 
   // Reset on session change; pre-seed with resumed-history ids so a
   // time-windowed resume doesn't re-invalidate old writes on mount.
   useEffect(() => {
     firedIdsRef.current = new Set(toolEventIds(initialMessages));
+    eveningDoneEmittedRef.current = false;
     setLastCreatedItem(undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
@@ -67,6 +75,7 @@ export function useCoachChatToolEvents(
   useEffect(() => {
     let mutated = false;
     let newlyCreated: LastCreatedItem | null = null;
+    const onEvening = screenId.startsWith('ECHECK');
     for (const m of messages) {
       for (const evt of m.toolEvents ?? []) {
         if (!evt.result?.ok) continue;
@@ -74,6 +83,11 @@ export function useCoachChatToolEvents(
         firedIdsRef.current.add(evt.id);
         trackCoachToolEvent(evt);
         if (MUTATION_TOOLS.has(evt.name)) mutated = true;
+        // Evening conclusion signal — gates the once-per-day skip. Once per session.
+        if (onEvening && EVENING_DONE_TOOLS.has(evt.name) && !eveningDoneEmittedRef.current) {
+          eveningDoneEmittedRef.current = true;
+          logEvent('checkin_completed', { type: 'evening', via: evt.name }, screenId);
+        }
         const created = extractCreatedItem(evt);
         if (created) newlyCreated = created;
       }
@@ -89,7 +103,7 @@ export function useCoachChatToolEvents(
     qc.invalidateQueries({ queryKey: queryKeys.focusSessions.all });
     // Non-React-Query consumers (HabitsSection / useHabitsForDate) listen for this.
     window.dispatchEvent(new CustomEvent('habits-changed'));
-  }, [messages, qc]);
+  }, [messages, qc, screenId, logEvent]);
 
   return lastCreatedItem;
 }
