@@ -505,6 +505,31 @@ describe('add_habit', () => {
     expect(merge.Walk.days).toEqual([1, 2, 3]);
   });
 
+  it('persists an explicit binary_avoid habit_type', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, { ...validHabit, habit_type: 'binary_avoid' });
+    expect(persistedHabit(client).habitType).toBe('binary_avoid');
+  });
+
+  // Two-call pattern: a prior add_habit staged habitType; the schedule call
+  // omits it and must NOT wipe the avoid polarity back to do.
+  it('preserves a prior habitType when the schedule call omits it', async () => {
+    const client = habitClient({
+      hc: { Walk: { days: [1], time: '07:00', schedule: 'Weekday', habitType: 'binary_avoid' } },
+    });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, { name: 'Walk', schedule: 'Every day' });
+    expect(persistedHabit(client).habitType).toBe('binary_avoid');
+  });
+
+  it('omits habitType entirely when neither the call nor a prior entry set it', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, validHabit);
+    expect(persistedHabit(client).habitType).toBeUndefined();
+  });
+
   // Mint round-2: days is authoritative — when LLM supplies stale schedule
   // label vs days, the schedule field is overwritten so PlanReviewPage's
   // formatCadence(days) is faithful and the persisted shape is self-consistent.

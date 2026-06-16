@@ -111,7 +111,11 @@ export async function buildSystemPromptForRequest(
   // feature/cap/founding info mid-onboarding.
   const productBlock = isOnboardingScreen ? '' : `\n\n${PRODUCT_CONTEXT}`;
   const onboardingNudge = isOnboardingScreen ? `\n\n${ONBOARDING_TOOL_ADDENDUM}` : '';
-  const checkinNudge = isCheckinScreen(args.screen_id) ? `\n\n${CHECKIN_TOOL_ADDENDUM}` : '';
+  const isCheckin = isCheckinScreen(args.screen_id);
+  const checkinNudge = isCheckin ? `\n\n${CHECKIN_TOOL_ADDENDUM}` : '';
+  // Habit polarity must be known BEFORE the first tool call so a cold
+  // single-turn slip ("I caved on no-news") isn't recorded as a win.
+  const checkinHabitsBlock = isCheckin ? await buildCheckinHabitsBlock(args.anon_id) : '';
   const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
   const onboardingRow = isOnboardingScreen ? await fetchOnboardingRow(args.anon_id) : null;
   const alreadyFilledBlock = onboardingRow ? buildAlreadyFilledBlock(onboardingRow) : '';
@@ -120,7 +124,7 @@ export async function buildSystemPromptForRequest(
     : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${optionsBlock}${openerNudge}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${checkinHabitsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
@@ -138,6 +142,29 @@ async function fetchOnboardingRow(anonId: string): Promise<OnboardingRow | null>
     [anonId],
   );
   return res.rows[0] ?? null;
+}
+
+// Active habits + polarity, so the coach knows do-vs-avoid before any tool
+// call. An avoid habit succeeds when ABSTAINED — a slip is an unmarked day,
+// never a complete_habit win.
+async function buildCheckinHabitsBlock(anonId: string): Promise<string> {
+  const res = await pool.query<{ name: string; habit_type: string }>(
+    `SELECT name, habit_type FROM user_habits
+      WHERE anon_id = $1 AND is_active = true AND archived_at IS NULL
+      ORDER BY sort_order ASC`,
+    [anonId],
+  );
+  if (res.rowCount === 0) return '';
+  const lines = res.rows
+    .map((r) => `- ${r.name} — ${r.habit_type === 'binary_avoid' ? 'avoid' : 'do'}`)
+    .join('\n');
+  return (
+    `\n\n## Active Habits (polarity)\n` +
+    `${lines}\n` +
+    `A "do" habit succeeds when the user DID it; an "avoid" habit succeeds when they ABSTAINED. ` +
+    `Before calling complete_habit for an avoid habit, confirm the user actually abstained. ` +
+    `If they slipped ("I caved", "I watched the news"), do NOT complete it — that day is simply left unmarked.`
+  );
 }
 
 function buildAlreadyFilledBlock(row: OnboardingRow): string {

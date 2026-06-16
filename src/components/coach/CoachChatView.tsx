@@ -178,7 +178,7 @@ export function CoachChatView({
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {messages.map((msg) => (
+        {messages.map((msg, idx) => (
           <div key={msg.id} className="flex flex-col">
             <ChatBubble
               role={msg.role}
@@ -206,7 +206,7 @@ export function CoachChatView({
                 date={msg.checkinCard.date}
               />
             )}
-            {msg.habitReport && <HabitReportCard />}
+            {msg.habitReport && idx === messages.length - 1 && <HabitReportCard />}
           </div>
         ))}
         {displayedAssistant.length > 0 && (

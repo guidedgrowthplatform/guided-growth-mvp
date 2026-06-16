@@ -140,22 +140,21 @@ export function HabitListItem({
           {subtitle && <p className="text-xs font-normal text-content-tertiary">{subtitle}</p>}
         </div>
 
-        {streak > 0 && (
-          <div className="flex shrink-0 items-center">
-            <span className={`text-lg ${isCompleted ? '' : 'grayscale'}`}>🔥</span>
-            <span
-              className={`ml-0.5 text-sm font-bold ${isCompleted ? 'text-danger' : 'text-content-tertiary'}`}
-            >
-              {streak}
-            </span>
-          </div>
-        )}
+        <div className="flex shrink-0 items-center">
+          <span className={`text-lg ${isCompleted ? '' : 'grayscale'}`}>🔥</span>
+          <span
+            className={`ml-0.5 text-sm font-bold ${isCompleted ? 'text-danger' : 'text-content-tertiary'}`}
+          >
+            {streak}
+          </span>
+        </div>
 
         {!readOnly && (
           <div className="flex shrink-0 items-center gap-2">
             <IconCircleButton
               icon={FileText}
               active={hasNote}
+              ariaLabel={hasNote ? 'Edit note' : 'Add note'}
               onClick={(e) => {
                 e.stopPropagation();
                 onAddNote?.();

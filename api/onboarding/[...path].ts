@@ -71,18 +71,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         | Record<string, { days: number[]; time: string; reminder: boolean; habitType?: HabitType }>
         | undefined;
 
-      // "Break bad habits" category is the only avoid-leaning signal at this layer.
-      const categoryAvoid = data?.category === 'Break bad habits';
-
       if (habitConfigs) {
         let sortOrder = 0;
         for (const [name, config] of Object.entries(habitConfigs)) {
+          // Trust the explicit per-habit signal only. A category heuristic
+          // ("Break bad habits") mislabels positive replacement habits (e.g.
+          // "10-minute walk") as avoid; default to binary_do instead.
           const habitType: HabitType =
-            config.habitType === 'binary_avoid' || config.habitType === 'binary_do'
-              ? config.habitType
-              : categoryAvoid
-                ? 'binary_avoid'
-                : 'binary_do';
+            config.habitType === 'binary_avoid' ? 'binary_avoid' : 'binary_do';
           await client.query(
             `INSERT INTO user_habits (anon_id, name, habit_type, cadence, schedule_days, reminder_time, reminder_enabled, sort_order)
              VALUES ($1, $2, $3, 'daily', $4, $5, $6, $7)
