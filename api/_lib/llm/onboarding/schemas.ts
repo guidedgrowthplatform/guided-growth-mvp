@@ -161,6 +161,12 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
           description: 'Preset matching the days array.',
           enum: [...SCHEDULE_OPTIONS],
         },
+        habit_type: {
+          type: 'string',
+          description:
+            'Polarity. Set "binary_avoid" for habits about NOT doing / quitting / reducing / avoiding something (e.g. "No caffeine after 2 PM", "No screens after 10 PM", "stop smoking"). Otherwise "binary_do" (default). Include it on EVERY add_habit call for the same habit (alongside name) so it persists across the two-call config pattern.',
+          enum: ['binary_do', 'binary_avoid'],
+        },
       },
       required: ['name'],
       additionalProperties: false,

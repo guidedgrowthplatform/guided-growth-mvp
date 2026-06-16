@@ -110,11 +110,9 @@ describe('POST /api/chat/session', () => {
   });
 
   it('mints fresh when the only session is stale (outside the window)', async () => {
-    pool.query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{ chat_session_id: '550e8400-e29b-41d4-a716-446655440000' }],
-      });
+    pool.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({
+      rows: [{ chat_session_id: '550e8400-e29b-41d4-a716-446655440000' }],
+    });
 
     const res = mockRes();
     await handler(mockReq({}), res);

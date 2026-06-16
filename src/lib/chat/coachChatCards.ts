@@ -43,6 +43,14 @@ export function buildHabitCards(
   return cards.length ? cards : undefined;
 }
 
+// True when this assistant turn successfully completed a habit — drives the
+// read-only Today's Habits report card in the overlay.
+export function messageHasHabitCompletion(m: LLMChatMessage): boolean {
+  return (m.toolEvents ?? []).some(
+    (evt) => evt.name === 'complete_habit' && evt.result?.ok === true,
+  );
+}
+
 // Pull the merged DB-side check-in row out of a successful record_checkin
 // tool event (the handler returns `{recorded, date, checkin: {sleep, mood,
 // energy, stress}}` after the UPSERT, so partial check-ins show the right

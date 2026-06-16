@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { HabitType } from '@gg/shared/types';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { supabaseAdmin } from '../_lib/supabase.js';
@@ -67,15 +68,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const { path: onboardingPath, data } = stateResult.rows[0];
       const habitConfigs = data?.habitConfigs as
-        | Record<string, { days: number[]; time: string; reminder: boolean }>
+        | Record<string, { days: number[]; time: string; reminder: boolean; habitType?: HabitType }>
         | undefined;
 
       if (habitConfigs) {
         let sortOrder = 0;
         for (const [name, config] of Object.entries(habitConfigs)) {
+          // Trust the explicit per-habit signal only. A category heuristic
+          // ("Break bad habits") mislabels positive replacement habits (e.g.
+          // "10-minute walk") as avoid; default to binary_do instead.
+          const habitType: HabitType =
+            config.habitType === 'binary_avoid' ? 'binary_avoid' : 'binary_do';
           await client.query(
             `INSERT INTO user_habits (anon_id, name, habit_type, cadence, schedule_days, reminder_time, reminder_enabled, sort_order)
-             VALUES ($1, $2, 'binary_do', 'daily', $3, $4, $5, $6)
+             VALUES ($1, $2, $3, 'daily', $4, $5, $6, $7)
              ON CONFLICT (anon_id, name) DO UPDATE SET
                schedule_days = EXCLUDED.schedule_days,
                reminder_time = EXCLUDED.reminder_time,
@@ -84,6 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             [
               user.anonId,
               name,
+              habitType,
               config.days || null,
               config.time || null,
               config.reminder || false,

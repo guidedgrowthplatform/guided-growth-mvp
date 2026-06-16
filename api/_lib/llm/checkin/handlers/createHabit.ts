@@ -1,3 +1,4 @@
+import type { HabitType } from '@gg/shared/types';
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
 import { HABIT_NAME_MAX_LEN } from '../schemas.js';
@@ -45,15 +46,18 @@ export async function createHabit(
     }
   }
 
+  const habitTypeRaw = getString(args, 'habit_type');
+  const habitType: HabitType = habitTypeRaw === 'binary_avoid' ? 'binary_avoid' : 'binary_do';
+
   const existing = await findHabitByName(ctx.anon_id, name);
   if (existing) return invalid(`You already have a habit called "${existing.name}".`);
 
   const cadence = cadenceFromFrequency(frequency);
   const res = await pool.query<InsertedHabit>(
     `INSERT INTO user_habits (anon_id, name, habit_type, cadence, schedule_days, is_active, sort_order)
-     VALUES ($1, $2, 'binary_do', $3, $4, true, 9999)
+     VALUES ($1, $2, $3, $4, $5, true, 9999)
      RETURNING id, name, cadence, schedule_days`,
-    [ctx.anon_id, name, cadence, scheduleDays ?? null],
+    [ctx.anon_id, name, habitType, cadence, scheduleDays ?? null],
   );
   const row = res.rows[0];
 

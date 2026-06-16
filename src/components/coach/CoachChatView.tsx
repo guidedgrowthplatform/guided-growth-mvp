@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
+import { HabitReportCard } from '@/components/coach/HabitReportCard';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { deriveOrbRing } from '@/components/ui/orbRing';
@@ -198,7 +199,7 @@ export function CoachChatView({
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {renderedMessages.map((msg) => (
+        {renderedMessages.map((msg, idx) => (
           <div key={msg.id} className="flex flex-col">
             <ChatBubble
               role={msg.role}
@@ -226,6 +227,7 @@ export function CoachChatView({
                 date={msg.checkinCard.date}
               />
             )}
+            {msg.habitReport && idx === renderedMessages.length - 1 && <HabitReportCard />}
           </div>
         ))}
         {displayedAssistant.length > 0 && (

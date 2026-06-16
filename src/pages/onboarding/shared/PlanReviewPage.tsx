@@ -122,8 +122,8 @@ export function PlanReviewPage() {
   // Voice "let's go" mirrors the tap flow once the agent bumps current_step past 7.
   const autoCompletedRef = useRef(false);
   // Wait ~700ms after Vapi stops speaking before tearing the call down. The
-  // BEGINNER-06 context tells the model to speak a send-off ("Good luck —
-  // you've got this.") right before firing confirm_plan; without this wait,
+  // BEGINNER-06 context tells the model to speak a send-off ("You're in,
+  // [Name]…") right before firing confirm_plan; without this wait,
   // endCall() in handleStartPlan would stop() the WebRTC mid-word. Resets
   // whenever the model starts speaking again, so a brief silence between
   // tool fire and the send-off doesn't trigger premature teardown.

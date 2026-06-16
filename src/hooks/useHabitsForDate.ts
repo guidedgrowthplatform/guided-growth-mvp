@@ -54,6 +54,17 @@ export function calcCurrentStreak(completions: HabitCompletion[], fromDate: stri
   return streak;
 }
 
+// Streak shown in the UI: stays "alive" through yesterday while today is still
+// pending — so an unbroken run displays a (grey) flame + count before the user
+// completes today, then turns colored + increments on completion. When `date`
+// isn't completed, count the run ending the day before instead.
+export function calcDisplayStreak(completions: HabitCompletion[], date: string): number {
+  if (completions.some((c) => c.date === date)) return calcCurrentStreak(completions, date);
+  const prev = new Date(date + 'T00:00:00');
+  prev.setDate(prev.getDate() - 1);
+  return calcCurrentStreak(completions, fmtLocal(prev));
+}
+
 async function loadHabitsForDate(date: string): Promise<HabitWithStatus[]> {
   const ds = await getDataService();
   const allHabits = await ds.getHabits();
@@ -80,7 +91,7 @@ async function loadHabitsForDate(date: string): Promise<HabitWithStatus[]> {
     return {
       habit,
       completed: habitCompletions.some((c) => c.date === date),
-      streak: calcCurrentStreak(habitCompletions, date),
+      streak: calcDisplayStreak(habitCompletions, date),
     };
   });
 }

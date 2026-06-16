@@ -8,7 +8,11 @@ import { useLLM } from '@/hooks/useLLM';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoice } from '@/hooks/useVoice';
 import { useVoiceInCapture } from '@/hooks/useVoiceInCapture';
-import { buildCheckinCard, buildHabitCards } from '@/lib/chat/coachChatCards';
+import {
+  buildCheckinCard,
+  buildHabitCards,
+  messageHasHabitCompletion,
+} from '@/lib/chat/coachChatCards';
 import type { ChatMessage, CoachChatApi, VoiceChatState } from '@/lib/chat/coachChatTypes';
 import { startTokenWarmLoop, stopTokenWarmLoop } from '@/lib/services/cartesia-token-cache';
 import { nextSentenceChunks, flushSentenceTail } from '@/lib/services/sentenceChunks';
@@ -459,6 +463,7 @@ export function useCoachChat(
         text: m.content,
         habitCards: role === 'ai' ? buildHabitCards(m, dayOverrides) : undefined,
         checkinCard: role === 'ai' ? buildCheckinCard(m) : undefined,
+        habitReport: role === 'ai' ? messageHasHabitCompletion(m) : undefined,
       });
     }
     return [...out, ...errorBubbles];

@@ -125,6 +125,7 @@ describe('ONBOARDING_TOOLS', () => {
           "name": "add_habit",
           "properties": [
             "days",
+            "habit_type",
             "name",
             "reminder",
             "schedule",

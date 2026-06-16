@@ -94,6 +94,33 @@ describe('vapi addHabit — reconciliation', () => {
   });
 });
 
+// The two-call pattern: call 1 names the habit + polarity, call 2 sets the
+// schedule with no habit_type. The DB-side per-name deep-merge must keep the
+// prior habitType instead of wiping it back to binary_do.
+describe('vapi addHabit — polarity preservation', () => {
+  it('call 1 stages habitType under the name key ($4)', async () => {
+    await addHabit({ anon_id: ANON, name: 'no news', habit_type: 'binary_avoid' });
+    const params = pool.query.mock.calls[0][1] as unknown[];
+    const merge = JSON.parse(params[2] as string);
+    expect(merge['no news'].habitType).toBe('binary_avoid');
+    expect(params[3]).toBe('no news'); // $4 == name key
+  });
+
+  it('schedule-only call omits habitType and uses the per-name deep-merge', async () => {
+    await addHabit({ anon_id: ANON, name: 'no news', schedule: 'Every day' });
+    const params = pool.query.mock.calls[0][1] as unknown[];
+    const sql = pool.query.mock.calls[0][0] as string;
+    const merge = JSON.parse(params[2] as string);
+    // No habitType in this payload → it can't overwrite the staged value.
+    expect(merge['no news'].habitType).toBeUndefined();
+    // Per-name merge (not flat `|| $3`) is what preserves the prior habitType.
+    expect(sql).toMatch(/jsonb_build_object/);
+    expect(sql).toMatch(/->'habitConfigs'->\$4/);
+    expect(sql).toMatch(/\(\$3::jsonb -> \$4\)/);
+    expect(params[3]).toBe('no news');
+  });
+});
+
 describe('vapi submitReflectionConfig — reconciliation', () => {
   it('reconciles stale schedule label against days (Every day -> Weekday)', async () => {
     await submitReflectionConfig({

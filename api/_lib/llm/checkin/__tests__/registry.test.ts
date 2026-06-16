@@ -65,6 +65,7 @@ describe('CHECKIN_TOOLS', () => {
           "name": "create_habit",
           "properties": [
             "frequency",
+            "habit_type",
             "name",
             "schedule_days",
           ],

@@ -90,6 +90,33 @@ describe('create_habit', () => {
     const r = await createHabit(CTX, { name: 'x', frequency: 'hourly' });
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
   });
+
+  it('persists binary_avoid when habit_type is avoid', async () => {
+    route([
+      [/FROM user_habits[\s\S]*ILIKE/, { rows: [] }],
+      [
+        /INSERT INTO user_habits/,
+        { rows: [{ id: 'h1', name: 'no news', cadence: 'daily', schedule_days: null }] },
+      ],
+    ]);
+    const r = await createHabit(CTX, { name: 'no news', habit_type: 'binary_avoid' });
+    expect(r.ok).toBe(true);
+    const [, params] = lastCall(/INSERT INTO user_habits/);
+    expect(params[2]).toBe('binary_avoid');
+  });
+
+  it('defaults to binary_do when habit_type is omitted', async () => {
+    route([
+      [/FROM user_habits[\s\S]*ILIKE/, { rows: [] }],
+      [
+        /INSERT INTO user_habits/,
+        { rows: [{ id: 'h1', name: 'gym', cadence: 'daily', schedule_days: null }] },
+      ],
+    ]);
+    await createHabit(CTX, { name: 'gym' });
+    const [, params] = lastCall(/INSERT INTO user_habits/);
+    expect(params[2]).toBe('binary_do');
+  });
 });
 
 describe('complete_habit', () => {
@@ -121,6 +148,29 @@ describe('complete_habit', () => {
     const r = await completeHabit(CTX, { name: 'pushups' });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.result.dates).toEqual([todayStr()]);
+  });
+
+  it('echoes type:avoid for an avoid habit', async () => {
+    route([
+      [
+        /FROM user_habits[\s\S]*ILIKE/,
+        {
+          rows: [
+            {
+              id: 'h1',
+              name: 'no news',
+              cadence: 'daily',
+              schedule_days: null,
+              habit_type: 'binary_avoid',
+            },
+          ],
+        },
+      ],
+      [/INSERT INTO habit_completions/, { rows: [] }],
+    ]);
+    const r = await completeHabit(CTX, { name: 'no news' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.habit).toMatchObject({ name: 'no news', type: 'avoid' });
   });
 
   it('completes every date in a dates[] array', async () => {
@@ -420,12 +470,12 @@ describe('query_habits', () => {
   it('lists all active habits scoped to anon_id', async () => {
     route([
       [
-        /SELECT name, cadence FROM user_habits/,
+        /SELECT name, cadence, habit_type FROM user_habits/,
         {
           rowCount: 2,
           rows: [
-            { name: 'pushups', cadence: 'daily' },
-            { name: 'reading', cadence: 'weekdays' },
+            { name: 'pushups', cadence: 'daily', habit_type: 'binary_do' },
+            { name: 'no news', cadence: 'weekdays', habit_type: 'binary_avoid' },
           ],
         },
       ],
@@ -434,9 +484,11 @@ describe('query_habits', () => {
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.result.count).toBe(2);
-      expect((r.result.habits as unknown[]).length).toBe(2);
+      const habits = r.result.habits as Array<{ name: string; type: string }>;
+      expect(habits.length).toBe(2);
+      expect(habits.map((h) => h.type)).toEqual(['do', 'avoid']);
     }
-    const [, params] = lastCall(/SELECT name, cadence FROM user_habits/);
+    const [, params] = lastCall(/SELECT name, cadence, habit_type FROM user_habits/);
     expect(params[0]).toBe(CTX.anon_id);
   });
 
@@ -490,6 +542,30 @@ describe('get_summary', () => {
     expect(r.ok).toBe(true);
     if (r.ok)
       expect(r.result).toMatchObject({ active_habits: 0, habit_completions: 0, checkins: 0 });
+  });
+
+  it('tags each habit do/avoid in the habits[] array', async () => {
+    route([
+      [/active_habits/, { rows: [{ active_habits: 2, completions: 4, checkins: 1, journals: 0 }] }],
+      [
+        /SELECT name, habit_type FROM user_habits/,
+        {
+          rows: [
+            { name: 'gym', habit_type: 'binary_do' },
+            { name: 'no news', habit_type: 'binary_avoid' },
+          ],
+        },
+      ],
+    ]);
+    const r = await getSummary(CTX);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const habits = r.result.habits as Array<{ name: string; type: string }>;
+      expect(habits).toEqual([
+        { name: 'gym', type: 'do' },
+        { name: 'no news', type: 'avoid' },
+      ]);
+    }
   });
 });
 

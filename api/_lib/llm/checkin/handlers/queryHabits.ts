@@ -27,20 +27,25 @@ export async function queryHabits(
       habit: {
         name: habit.name,
         frequency: habit.cadence,
+        type: habit.habit_type === 'binary_avoid' ? 'avoid' : 'do',
         completed_today: row?.completed_today ?? false,
         completions_last_30_days: row?.last_30 ?? 0,
       },
     });
   }
 
-  const res = await pool.query<{ name: string; cadence: string }>(
-    `SELECT name, cadence FROM user_habits
+  const res = await pool.query<{ name: string; cadence: string; habit_type: string }>(
+    `SELECT name, cadence, habit_type FROM user_habits
       WHERE anon_id = $1 AND is_active = true AND archived_at IS NULL
       ORDER BY sort_order ASC`,
     [ctx.anon_id],
   );
   return ok({
-    habits: res.rows.map((r) => ({ name: r.name, frequency: r.cadence })),
+    habits: res.rows.map((r) => ({
+      name: r.name,
+      frequency: r.cadence,
+      type: r.habit_type === 'binary_avoid' ? 'avoid' : 'do',
+    })),
     count: res.rowCount ?? 0,
   });
 }

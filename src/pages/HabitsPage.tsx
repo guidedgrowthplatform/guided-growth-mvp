@@ -75,6 +75,7 @@ export function HabitsPage() {
                 subtitle={habit.frequency}
                 streak={streak}
                 isCompleted={completed}
+                habitType={habit.habitType}
                 onToggleComplete={() => handleToggle(habit.id, completed)}
                 onAddNote={() => navigate(`/habit/${habit.id}/reflection`)}
                 onClick={() => navigate(`/habit/${habit.id}`)}
