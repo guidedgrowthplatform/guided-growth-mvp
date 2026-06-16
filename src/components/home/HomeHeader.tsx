@@ -34,7 +34,7 @@ export function HomeHeader({
           <span className="text-sm font-medium text-content-secondary">{getGreeting()} ☀️</span>
         )}
       </div>
-      <div className="mt-3 flex shrink-0 items-center gap-1">
+      <div className="-mr-1 mt-3 flex shrink-0 items-center gap-1">
         <button
           type="button"
           aria-label="Add"
