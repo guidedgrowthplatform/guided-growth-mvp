@@ -37,12 +37,14 @@ import { getScreenContext } from '@/lib/context/getScreenContext';
 import { getBundledRoutes } from '@/lib/context/screenContextsBundle';
 import { screenIdForRoute } from '@/lib/context/screenIdForRoute';
 import { orbStateFrom } from '@/lib/orb/orbState';
+import { queryKeys } from '@/lib/query';
 import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
 import { createListenerBus } from '@/lib/util/listenerBus';
 import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+import type { OnboardingState } from '@gg/shared/types';
 import { shouldWipeOnAnonIdChange } from './onboardingThreadWipe';
 
 function isOnboardingPath(pathname: string): boolean {
@@ -213,11 +215,17 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       lastPushedScreenIdRef.current = screenId;
       try {
         const ctx = await getScreenContext(qc, screenId, sinceTs);
+        // Merge persisted data UNDER the in-flight snapshot: the ref can lag the
+        // realtime cache (e.g. nickname not yet propagated at FORK mount), so
+        // already-persisted fields must never be dropped. In-flight overrides win.
+        const persisted =
+          qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data ?? {};
+        const filled = { ...persisted, ...formSnapshotRef.current };
         const body = buildContextMessage({
           screen_id: ctx.screen_id,
           context_block: ctx.context_block,
           state_delta: ctx.state_delta,
-          filled_form_state: formSnapshotRef.current,
+          filled_form_state: filled,
         });
         client.send({
           type: 'add-message',
