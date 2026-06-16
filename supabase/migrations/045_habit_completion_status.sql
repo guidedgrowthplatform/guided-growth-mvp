@@ -8,8 +8,6 @@
 -- pg_enum migration dance. DEFAULT 'done' backfills every existing row to 'done',
 -- which is correct: each pre-existing row was a completion. Small table, so the
 -- inline CHECK validates clean without NOT VALID + VALIDATE.
---
--- NOT YET APPLIED — pending review/approval.
 
 BEGIN;
 

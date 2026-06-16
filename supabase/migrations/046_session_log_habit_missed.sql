@@ -6,8 +6,6 @@
 -- session_log.event_type rejects unknown types, so this must land before any
 -- 'habit_missed' row is written. Source of truth also updated in
 -- api/_lib/session-log-events.ts + packages/shared/src/types/session-events.ts.
---
--- NOT YET APPLIED — pending review/approval.
 
 INSERT INTO session_log_event_types (event_type) VALUES ('habit_missed')
 ON CONFLICT (event_type) DO NOTHING;
