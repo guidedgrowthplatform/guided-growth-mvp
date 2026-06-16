@@ -1,16 +1,16 @@
-import { Trash2, FileText, Plus, Check } from 'lucide-react';
+import { Trash2, FileText, X, Check } from 'lucide-react';
 import { useRef, useState } from 'react';
-import type { HabitType } from '@/lib/services/data-service.interface';
+import type { HabitType, HabitDayStatus } from '@/lib/services/data-service.interface';
 import { IconCircleButton } from './IconCircleButton';
 
 interface HabitListItemProps {
   name: string;
   subtitle?: string;
   streak: number;
-  isCompleted: boolean;
+  status: HabitDayStatus;
   hasNote?: boolean;
   habitType?: HabitType;
-  onToggleComplete: () => void;
+  onSetStatus: (next: HabitDayStatus) => void;
   onAddNote?: () => void;
   onClick?: () => void;
   onDelete?: () => void;
@@ -18,30 +18,27 @@ interface HabitListItemProps {
   readOnly?: boolean;
 }
 
-const OPEN_OFFSET = 88;
-const SWIPE_THRESHOLD = 70;
+const OPEN_OFFSET = 68;
+const SWIPE_THRESHOLD = 54;
 
 export function HabitListItem({
   name,
   subtitle,
   streak,
-  isCompleted,
+  status,
   hasNote = false,
   habitType = 'binary_do',
-  onToggleComplete,
+  onSetStatus,
   onAddNote,
   onClick,
   onDelete,
   readOnly = false,
 }: HabitListItemProps) {
   const isAvoid = habitType === 'binary_avoid';
-  const completeLabel = isAvoid
-    ? isCompleted
-      ? 'Stayed clean — tap to undo'
-      : 'Mark as avoided'
-    : isCompleted
-      ? 'Completed — tap to undo'
-      : 'Mark as done';
+  const isDone = status === 'done';
+  const isMissed = status === 'missed';
+  const doneLabel = isAvoid ? 'Mark as stayed clean' : 'Mark as done';
+  const missedLabel = isAvoid ? 'Mark as slipped' : 'Mark as missed';
   const [isOpen, setIsOpen] = useState(false);
   const [dragX, setDragX] = useState<number | null>(null);
   const startX = useRef(0);
@@ -100,22 +97,22 @@ export function HabitListItem({
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
-      {swipeable && (
-        <div className="absolute inset-y-0 right-0 flex w-[88px] items-stretch">
-          <button
-            type="button"
-            aria-label="Delete habit"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsOpen(false);
-              onDelete?.();
-            }}
-            className="flex w-full flex-col items-center justify-center gap-1 rounded-r-2xl bg-danger text-white"
-          >
+      {swipeable && (dragging || isOpen) && (
+        <button
+          type="button"
+          aria-label="Delete habit"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsOpen(false);
+            onDelete?.();
+          }}
+          className="absolute inset-0 flex items-center justify-end gap-1 rounded-2xl bg-danger pr-5 text-white"
+        >
+          <span className="flex flex-col items-center gap-1">
             <Trash2 size={20} />
             <span className="text-xs font-semibold">Delete</span>
-          </button>
-        </div>
+          </span>
+        </button>
       )}
 
       <div
@@ -132,18 +129,14 @@ export function HabitListItem({
         onTouchEnd={handleTouchEnd}
       >
         <div className="min-w-0 flex-1">
-          <p
-            className={`truncate text-base font-bold text-content ${isCompleted ? 'line-through' : ''}`}
-          >
-            {name}
-          </p>
+          <p className="truncate text-base font-bold text-content">{name}</p>
           {subtitle && <p className="text-xs font-normal text-content-tertiary">{subtitle}</p>}
         </div>
 
         <div className="flex shrink-0 items-center">
-          <span className={`text-lg ${isCompleted ? '' : 'grayscale'}`}>🔥</span>
+          <span className={`text-lg ${isDone ? '' : 'grayscale'}`}>🔥</span>
           <span
-            className={`ml-0.5 text-sm font-bold ${isCompleted ? 'text-danger' : 'text-content-tertiary'}`}
+            className={`ml-0.5 text-sm font-bold ${isDone ? 'text-danger' : 'text-content-tertiary'}`}
           >
             {streak}
           </span>
@@ -151,24 +144,49 @@ export function HabitListItem({
 
         {!readOnly && (
           <div className="flex shrink-0 items-center gap-2">
-            <IconCircleButton
-              icon={FileText}
-              active={hasNote}
-              ariaLabel={hasNote ? 'Edit note' : 'Add note'}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddNote?.();
-              }}
-            />
-            <IconCircleButton
-              icon={isCompleted ? Check : Plus}
-              active={isCompleted}
-              ariaLabel={completeLabel}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleComplete();
-              }}
-            />
+            {status === 'pending' ? (
+              <>
+                <IconCircleButton
+                  icon={X}
+                  variant="danger"
+                  ariaLabel={missedLabel}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSetStatus('missed');
+                  }}
+                />
+                <IconCircleButton
+                  icon={Check}
+                  ariaLabel={doneLabel}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSetStatus('done');
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                <IconCircleButton
+                  icon={FileText}
+                  active={hasNote}
+                  ariaLabel={hasNote ? 'Edit note' : 'Add note'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddNote?.();
+                  }}
+                />
+                <IconCircleButton
+                  icon={isDone ? Check : X}
+                  variant={isMissed ? 'danger' : 'success'}
+                  active
+                  ariaLabel={isDone ? 'Completed — tap to undo' : 'Missed — tap to undo'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSetStatus('pending');
+                  }}
+                />
+              </>
+            )}
           </div>
         )}
       </div>

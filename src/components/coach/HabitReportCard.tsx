@@ -1,6 +1,7 @@
 import { DailyProgressCard } from '@/components/habits/DailyProgressCard';
 import { HabitListItem } from '@/components/home/HabitListItem';
 import { useHabitsForDate } from '@/hooks/useHabitsForDate';
+import { formatFrequency } from '@/lib/utils/formatFrequency';
 
 function localToday(): string {
   const d = new Date();
@@ -27,12 +28,12 @@ export function HabitReportCard() {
         <HabitListItem
           key={item.habit.id}
           name={item.habit.name}
-          subtitle={item.habit.frequency}
+          subtitle={formatFrequency(item.habit.frequency)}
           streak={item.streak}
-          isCompleted={item.completed}
+          status={item.status}
           habitType={item.habit.habitType}
           readOnly
-          onToggleComplete={() => undefined}
+          onSetStatus={() => undefined}
         />
       ))}
     </div>

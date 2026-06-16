@@ -34,6 +34,9 @@ export type Frequency = 'daily' | 'weekdays' | 'weekends' | 'weekly';
 // success when abstained (no news). Same win/miss calendar; only framing differs.
 export type HabitType = 'binary_do' | 'binary_avoid';
 
+// 'pending' = no completion row; stored rows are 'done' | 'missed'.
+export type HabitDayStatus = 'pending' | 'done' | 'missed';
+
 export interface Metric {
   id: string;
   anon_id: string;

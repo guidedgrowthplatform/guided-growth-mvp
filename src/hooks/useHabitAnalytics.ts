@@ -186,14 +186,19 @@ export function useHabitAnalytics() {
     enabled: !!habitsQuery.data,
   });
 
+  const doneCompletions = useMemo(
+    () => (completionsQuery.data ?? []).filter((c) => c.status === 'done'),
+    [completionsQuery.data],
+  );
+
   const completionByRange = useMemo(
-    () => computeCompletionByRange(habitsQuery.data ?? [], completionsQuery.data ?? []),
-    [habitsQuery.data, completionsQuery.data],
+    () => computeCompletionByRange(habitsQuery.data ?? [], doneCompletions),
+    [habitsQuery.data, doneCompletions],
   );
 
   const habitStats = useMemo(
-    () => computeHabitPerformance(summariesQuery.data ?? [], completionsQuery.data ?? []),
-    [summariesQuery.data, completionsQuery.data],
+    () => computeHabitPerformance(summariesQuery.data ?? [], doneCompletions),
+    [summariesQuery.data, doneCompletions],
   );
 
   const isLoading = habitsQuery.isLoading || completionsQuery.isLoading || summariesQuery.isLoading;

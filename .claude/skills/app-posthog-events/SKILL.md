@@ -94,6 +94,7 @@ PostHog = **product analytics**. `session_log` = **LLM state delta**. Some user 
 |---|---|---|---|
 | `create_habit` | New habit created | `habit_name`, `category`, `subcategory`, `frequency_days`, `has_reminder`, `reminder_time`, `input_method`, `source` (onboarding \| home \| voice_conversation), `is_suggested` | ONBOARD-BEGINNER-03, HABIT-CREATE-FORK, CHAT |
 | `complete_habit` | User marks habit as done | `habit_name`, `category`, `current_streak`, `is_on_time`, `day_of_week`, `time_of_day` | HOME-MORNING, HOME-EVENING, ECHECK-02, ECHECK-03, FOCUS-TIMER |
+| `miss_habit` | User marks habit as missed (streak breaks) | `habit_name`, `current_streak` | HOME-MORNING, HOME-EVENING, HABIT-LIST |
 | `skip_habit` | User skips a habit | `habit_name`, `category`, `current_streak` | HOME-MORNING, HOME-EVENING, ECHECK-02, ECHECK-03 |
 | `snooze_habit` | User snoozes a habit | `habit_name`, `snooze_duration` | HOME-MORNING, HOME-EVENING |
 | `edit_habit` | User edits a habit | `habit_name`, `fields_changed` (list), `input_method` | HABIT-EDIT, CHAT |

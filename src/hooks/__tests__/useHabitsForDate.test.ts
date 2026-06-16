@@ -5,8 +5,12 @@ import { describe, it, expect } from 'vitest';
 import type { HabitCompletion } from '@/lib/services/data-service.interface';
 import { calcCurrentStreak, calcDisplayStreak, isHabitVisibleOnDate } from '../useHabitsForDate';
 
-function completion(date: string): HabitCompletion {
-  return { id: date, habitId: 'h', date, completedAt: `${date}T08:00:00Z` };
+function completion(date: string, status: 'done' | 'missed' = 'done'): HabitCompletion {
+  return { id: date, habitId: 'h', date, completedAt: `${date}T08:00:00Z`, status };
+}
+
+function missed(date: string): HabitCompletion {
+  return completion(date, 'missed');
 }
 
 describe('calcCurrentStreak', () => {
@@ -19,12 +23,12 @@ describe('calcCurrentStreak', () => {
   });
 
   it('counts consecutive days back from today', () => {
-    const dates = ['2026-04-29', '2026-04-30', '2026-05-01'].map(completion);
+    const dates = ['2026-04-29', '2026-04-30', '2026-05-01'].map((d) => completion(d));
     expect(calcCurrentStreak(dates, '2026-05-01')).toBe(3);
   });
 
   it('breaks the streak on a missing day', () => {
-    const dates = ['2026-04-28', '2026-04-30', '2026-05-01'].map(completion);
+    const dates = ['2026-04-28', '2026-04-30', '2026-05-01'].map((d) => completion(d));
     expect(calcCurrentStreak(dates, '2026-05-01')).toBe(2);
   });
 
@@ -36,16 +40,26 @@ describe('calcCurrentStreak', () => {
     const dates = [completion('2026-05-01'), completion('2026-05-01'), completion('2026-04-30')];
     expect(calcCurrentStreak(dates, '2026-05-01')).toBe(2);
   });
+
+  it('ignores missed rows', () => {
+    const rows = [completion('2026-05-01'), missed('2026-04-30'), completion('2026-04-29')];
+    expect(calcCurrentStreak(rows, '2026-05-01')).toBe(1);
+  });
+
+  it('breaks the run on a missed day', () => {
+    const rows = [completion('2026-04-29'), missed('2026-04-30'), completion('2026-05-01')];
+    expect(calcCurrentStreak(rows, '2026-05-01')).toBe(1);
+  });
 });
 
 describe('calcDisplayStreak', () => {
   it('counts through today when today is completed', () => {
-    const dates = ['2026-04-29', '2026-04-30', '2026-05-01'].map(completion);
+    const dates = ['2026-04-29', '2026-04-30', '2026-05-01'].map((d) => completion(d));
     expect(calcDisplayStreak(dates, '2026-05-01')).toBe(3);
   });
 
   it('stays alive through yesterday when today is pending', () => {
-    const dates = ['2026-04-29', '2026-04-30'].map(completion);
+    const dates = ['2026-04-29', '2026-04-30'].map((d) => completion(d));
     expect(calcDisplayStreak(dates, '2026-05-01')).toBe(2);
   });
 
@@ -55,6 +69,11 @@ describe('calcDisplayStreak', () => {
 
   it('returns 0 with no completions', () => {
     expect(calcDisplayStreak([], '2026-05-01')).toBe(0);
+  });
+
+  it('falls back to yesterday when today is missed', () => {
+    const rows = [completion('2026-04-29'), completion('2026-04-30'), missed('2026-05-01')];
+    expect(calcDisplayStreak(rows, '2026-05-01')).toBe(2);
   });
 });
 

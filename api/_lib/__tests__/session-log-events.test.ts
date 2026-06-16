@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { SESSION_LOG_EVENTS, isSessionLogEvent } from '../session-log-events';
 
 describe('session_log event whitelist', () => {
-  it('has exactly 25 events', () => {
-    expect(SESSION_LOG_EVENTS).toHaveLength(25);
+  it('has exactly 26 events', () => {
+    expect(SESSION_LOG_EVENTS).toHaveLength(26);
   });
 
   it('contains the v6.0 core taxonomy', () => {
@@ -19,6 +19,7 @@ describe('session_log event whitelist', () => {
       'habit_edited',
       'habit_deleted',
       'habit_completed',
+      'habit_missed',
       'checkin_started',
       'checkin_completed',
       'goal_set',

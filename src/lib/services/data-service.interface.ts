@@ -1,6 +1,6 @@
-import type { HabitType } from '@gg/shared/types';
+import type { HabitType, HabitDayStatus } from '@gg/shared/types';
 
-export type { HabitType };
+export type { HabitType, HabitDayStatus };
 
 export interface Habit {
   id: string;
@@ -17,6 +17,7 @@ export interface HabitCompletion {
   habitId: string;
   date: string; // yyyy-MM-dd
   completedAt: string;
+  status: Exclude<HabitDayStatus, 'pending'>;
 }
 
 export interface TrackedMetric {
@@ -109,7 +110,8 @@ export interface DataService {
 
   // Habit completions
   completeHabit(habitId: string, date: string): Promise<HabitCompletion>;
-  uncompleteHabit(habitId: string, date: string): Promise<void>;
+  missHabit(habitId: string, date: string): Promise<HabitCompletion>;
+  clearHabit(habitId: string, date: string): Promise<void>;
   getCompletions(habitId: string, startDate?: string, endDate?: string): Promise<HabitCompletion[]>;
 
   // Metrics
