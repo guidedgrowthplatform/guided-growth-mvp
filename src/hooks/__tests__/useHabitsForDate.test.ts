@@ -3,7 +3,12 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { HabitCompletion } from '@/lib/services/data-service.interface';
-import { calcCurrentStreak, calcDisplayStreak, isHabitVisibleOnDate } from '../useHabitsForDate';
+import {
+  calcCurrentStreak,
+  calcDisplayStreak,
+  isHabitScheduledOnDate,
+  isHabitVisibleOnDate,
+} from '../useHabitsForDate';
 
 function completion(date: string, status: 'done' | 'missed' = 'done'): HabitCompletion {
   return { id: date, habitId: 'h', date, completedAt: `${date}T08:00:00Z`, status };
@@ -74,6 +79,34 @@ describe('calcDisplayStreak', () => {
   it('falls back to yesterday when today is missed', () => {
     const rows = [completion('2026-04-29'), completion('2026-04-30'), missed('2026-05-01')];
     expect(calcDisplayStreak(rows, '2026-05-01')).toBe(2);
+  });
+});
+
+describe('isHabitScheduledOnDate', () => {
+  // 2026-06-09 is a Tuesday; 2026-06-10 is a Wednesday (verified by getDay).
+  const MON_WED_FRI = [1, 3, 5];
+
+  it('hides a Mon/Wed/Fri habit on a Tuesday', () => {
+    expect(isHabitScheduledOnDate(MON_WED_FRI, '2026-06-09')).toBe(false);
+  });
+
+  it('shows a Mon/Wed/Fri habit on a Wednesday', () => {
+    expect(isHabitScheduledOnDate(MON_WED_FRI, '2026-06-10')).toBe(true);
+  });
+
+  it('always shows when scheduleDays is null (cadence-default)', () => {
+    expect(isHabitScheduledOnDate(null, '2026-06-09')).toBe(true);
+    expect(isHabitScheduledOnDate(undefined, '2026-06-09')).toBe(true);
+  });
+
+  it('always shows when scheduleDays is empty', () => {
+    expect(isHabitScheduledOnDate([], '2026-06-09')).toBe(true);
+  });
+
+  it('reads the weekday at local midnight (not UTC drift)', () => {
+    // Sunday 2026-06-14 must count as dow 0 regardless of CI timezone.
+    expect(isHabitScheduledOnDate([0], '2026-06-14')).toBe(true);
+    expect(isHabitScheduledOnDate([0], '2026-06-15')).toBe(false);
   });
 });
 

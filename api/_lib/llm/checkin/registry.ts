@@ -20,15 +20,19 @@ export function getCheckinTools(
   return isCheckinScreen(screenId) ? CHECKIN_TOOLS : undefined;
 }
 
-// Returns the read-only check-in tools (query_habits, get_summary) for screens
-// where the user is chatting but not checking-in: dashboard, free chat, wrap-up.
-// Returns undefined on onboarding (which owns its own surface) and on dedicated
+// True on screens where the user is chatting but not checking-in: dashboard,
+// free chat, wrap-up. False on onboarding (owns its own surface) and dedicated
 // check-in screens (already get the full CHECKIN_TOOLS via getCheckinTools).
+export function isReadOnlyCheckinScreen(screenId: string | null | undefined): boolean {
+  if (typeof screenId !== 'string' || screenId === '') return false;
+  if (screenId.startsWith('ONBOARD-')) return false;
+  return !CHECKIN_SCREEN_IDS.has(screenId);
+}
+
+// Returns the read-only check-in tools (query_habits, get_summary) for the
+// screens isReadOnlyCheckinScreen accepts.
 export function getReadOnlyCheckinTools(
   screenId: string | null | undefined,
 ): readonly CheckinToolDefinition[] | undefined {
-  if (typeof screenId !== 'string' || screenId === '') return undefined;
-  if (screenId.startsWith('ONBOARD-')) return undefined;
-  if (CHECKIN_SCREEN_IDS.has(screenId)) return undefined;
-  return READONLY_CHECKIN_TOOLS;
+  return isReadOnlyCheckinScreen(screenId) ? READONLY_CHECKIN_TOOLS : undefined;
 }

@@ -154,6 +154,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const timezone = validateTimezone(body.timezone) ?? 'UTC';
 
+  // Default 'text' when absent/invalid — text phrasing reads fine aloud, but
+  // voice phrasing ("tap the orb") misleads a typer (GitLab #217).
+  const inputMode: 'voice' | 'text' = body.input_mode === 'voice' ? 'voice' : 'text';
+
   let chatSessionId: string | null = null;
   let userTurnId: string | null = null;
   if (body.chat_session_id !== undefined) {
@@ -190,6 +194,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         coaching_style: coachingStyle,
         recent_events: recentEvents,
         mode,
+        timezone,
+        input_mode: inputMode,
       }),
       persistChat
         ? pool

@@ -8,8 +8,13 @@ import { ONBOARDING_TOOL_ADDENDUM } from './onboarding/systemPromptAddendum.js';
 import { stripForwardPointers } from './stripForwardPointers.js';
 import { NO_PRENARRATION_RULE } from './noPrenarrationRule.js';
 import { NO_INTERNAL_NARRATION_RULE } from './noInternalNarrationRule.js';
-import { CHECKIN_TOOL_ADDENDUM } from './checkin/systemPromptAddendum.js';
-import { isCheckinScreen } from './checkin/registry.js';
+import {
+  CHECKIN_TOOL_ADDENDUM,
+  CHECKIN_READONLY_ADDENDUM,
+  CHECKIN_WALKTHROUGH,
+} from './checkin/systemPromptAddendum.js';
+import { isCheckinScreen, isReadOnlyCheckinScreen } from './checkin/registry.js';
+import { bucketTimeOfDay, localHour } from '@gg/shared/time/bucketTimeOfDay';
 
 export interface BuildSystemPromptArgs {
   anon_id: string;
@@ -20,6 +25,10 @@ export interface BuildSystemPromptArgs {
   // landed before the LLM call.
   recent_events?: SessionStateDeltaEntry[];
   mode?: 'chat' | 'opener';
+  timezone?: string;
+  // Absent → treated as 'text' (text phrasing is channel-safe; voice phrasing
+  // wrongly tells a typer to tap/speak — GitLab #217).
+  input_mode?: 'voice' | 'text';
 }
 
 export interface BuildSystemPromptResult {
@@ -113,10 +122,18 @@ export async function buildSystemPromptForRequest(
   const onboardingNudge = isOnboardingScreen ? `\n\n${ONBOARDING_TOOL_ADDENDUM}` : '';
   const isCheckin = isCheckinScreen(args.screen_id);
   const checkinNudge = isCheckin ? `\n\n${CHECKIN_TOOL_ADDENDUM}` : '';
+  // Read-only screens excludes the dedicated 3, so this never co-emits with checkinNudge.
+  const readonlyNudge = isReadOnlyCheckinScreen(args.screen_id)
+    ? `\n\n${CHECKIN_READONLY_ADDENDUM}`
+    : '';
+  const timeBlock = isCheckin ? buildCurrentTimeBlock(args.timezone) : '';
+  // Walkthrough is evening-only — morning/home check-ins must NOT lead a habit recap.
+  const walkthroughBlock = args.screen_id === 'ECHECK-01' ? `\n\n${CHECKIN_WALKTHROUGH}` : '';
   // Habit polarity must be known BEFORE the first tool call so a cold
   // single-turn slip ("I caved on no-news") isn't recorded as a win.
   const checkinHabitsBlock = isCheckin ? await buildCheckinHabitsBlock(args.anon_id) : '';
   const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
+  const inputModeBlock = args.input_mode === 'voice' ? '' : `\n\n${TEXT_INPUT_RULE}`;
   const onboardingRow = isOnboardingScreen ? await fetchOnboardingRow(args.anon_id) : null;
   const alreadyFilledBlock = onboardingRow ? buildAlreadyFilledBlock(onboardingRow) : '';
   const optionsBlock = isOnboardingScreen
@@ -124,7 +141,7 @@ export async function buildSystemPromptForRequest(
     : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${checkinHabitsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${checkinHabitsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${inputModeBlock}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
@@ -167,6 +184,26 @@ async function buildCheckinHabitsBlock(anonId: string): Promise<string> {
   );
 }
 
+// Invalid/missing tz → no line, never throw; greeting just stays time-agnostic.
+function buildCurrentTimeBlock(timezone?: string): string {
+  if (!timezone) return '';
+  let bucket: string;
+  let hour: number;
+  try {
+    const now = new Date();
+    hour = localHour(now, timezone);
+    bucket = bucketTimeOfDay(now, timezone);
+  } catch {
+    return '';
+  }
+  const clock = hour % 12 === 0 ? 12 : hour % 12;
+  const ampm = hour < 12 ? 'am' : 'pm';
+  return (
+    `\n\n## Current Time\n` +
+    `Current local time: ${bucket} (around ${clock}${ampm}). Greet and frame the check-in accordingly — do not assume morning if it is afternoon, evening, or night.`
+  );
+}
+
 function buildAlreadyFilledBlock(row: OnboardingRow): string {
   const data = row.data ?? {};
   const hasData = Object.keys(data).length > 0;
@@ -179,6 +216,9 @@ function buildAlreadyFilledBlock(row: OnboardingRow): string {
     `Do NOT re-ask for any field that already has a value here. Acknowledge briefly if the user re-states it, then move to the next still-missing field per the screen's BEHAVIOR.`
   );
 }
+
+const TEXT_INPUT_RULE = `## Text Mode
+The user is TYPING, not speaking. Don't tell them to tap, touch the orb, or say things aloud — phrase guidance for a keyboard/text user.`;
 
 const FALLBACK_CONTEXT_BLOCK = `## Screen
 No screen-specific guidance is configured for this screen. Respond helpfully and briefly in your coaching voice, using the recent activity below for continuity. Do not invent screen-specific instructions or pre-announce features.`;

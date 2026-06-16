@@ -159,6 +159,7 @@ describe('CHECKIN_TOOLS', () => {
           "name": "query_habits",
           "properties": [
             "name",
+            "scope",
           ],
           "required": [],
         },
