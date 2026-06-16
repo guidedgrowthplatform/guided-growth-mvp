@@ -9,6 +9,7 @@ async function buildEntriesFromDataService(start: string, end: string): Promise<
   for (const habit of habits) {
     const completions = await ds.getCompletions(habit.id, start, end);
     for (const c of completions) {
+      if (c.status !== 'done') continue;
       if (!entries[c.date]) entries[c.date] = {};
       entries[c.date][habit.id] = 'yes';
     }

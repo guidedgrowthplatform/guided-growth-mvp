@@ -15,7 +15,8 @@ export async function getSummary(ctx: CheckinHandlerCtx): Promise<ToolResult> {
        (SELECT count(*) FROM user_habits
           WHERE anon_id = $1 AND is_active = true AND archived_at IS NULL)::int AS active_habits,
        (SELECT count(*) FROM habit_completions
-          WHERE anon_id = $1 AND date > ($2::date - INTERVAL '7 days'))::int AS completions,
+          WHERE anon_id = $1 AND status = 'done'
+            AND date > ($2::date - INTERVAL '7 days'))::int AS completions,
        (SELECT count(*) FROM daily_checkins
           WHERE anon_id = $1 AND date > ($2::date - INTERVAL '7 days'))::int AS checkins,
        (SELECT count(*) FROM journal_entries

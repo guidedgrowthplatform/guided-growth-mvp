@@ -167,24 +167,41 @@ export class MockDataService implements DataService {
   }
 
   // ─── Completions ───
-  async completeHabit(habitId: string, date: string): Promise<HabitCompletion> {
+  private setHabitDayStatus(
+    habitId: string,
+    date: string,
+    status: 'done' | 'missed',
+  ): HabitCompletion {
     const completions = getStore<HabitCompletion>(STORAGE_KEYS.completions);
-    // Prevent duplicate completion for same day
     const existing = completions.find((c) => c.habitId === habitId && c.date === date);
-    if (existing) return existing;
+    if (existing) {
+      existing.status = status;
+      existing.completedAt = new Date().toISOString();
+      setStore(STORAGE_KEYS.completions, completions);
+      return existing;
+    }
 
     const completion: HabitCompletion = {
       id: generateId(),
       habitId,
       date,
       completedAt: new Date().toISOString(),
+      status,
     };
     completions.push(completion);
     setStore(STORAGE_KEYS.completions, completions);
     return completion;
   }
 
-  async uncompleteHabit(habitId: string, date: string): Promise<void> {
+  async completeHabit(habitId: string, date: string): Promise<HabitCompletion> {
+    return this.setHabitDayStatus(habitId, date, 'done');
+  }
+
+  async missHabit(habitId: string, date: string): Promise<HabitCompletion> {
+    return this.setHabitDayStatus(habitId, date, 'missed');
+  }
+
+  async clearHabit(habitId: string, date: string): Promise<void> {
     const completions = getStore<HabitCompletion>(STORAGE_KEYS.completions);
     const filtered = completions.filter((c) => !(c.habitId === habitId && c.date === date));
     setStore(STORAGE_KEYS.completions, filtered);
@@ -195,9 +212,9 @@ export class MockDataService implements DataService {
     startDate?: string,
     endDate?: string,
   ): Promise<HabitCompletion[]> {
-    let completions = getStore<HabitCompletion>(STORAGE_KEYS.completions).filter(
-      (c) => c.habitId === habitId,
-    );
+    let completions = getStore<HabitCompletion>(STORAGE_KEYS.completions)
+      .filter((c) => c.habitId === habitId)
+      .map((c) => ({ ...c, status: c.status ?? 'done' }));
     if (startDate) completions = completions.filter((c) => c.date >= startDate);
     if (endDate) completions = completions.filter((c) => c.date <= endDate);
     return completions;
@@ -310,7 +327,9 @@ export class MockDataService implements DataService {
     const totalDays = period === 'week' ? 7 : 30;
     startDate.setDate(startDate.getDate() - totalDays);
 
-    const completions = await this.getCompletions(habitId, fmtLocalDate(startDate), todayStr());
+    const completions = (
+      await this.getCompletions(habitId, fmtLocalDate(startDate), todayStr())
+    ).filter((c) => c.status === 'done');
     const uniqueDays = new Set(completions.map((c) => c.date)).size;
     const { current, longest } = calcStreaks(completions);
 
@@ -419,9 +438,9 @@ export class MockDataService implements DataService {
 
   // ─── All Completions ───
   async getAllCompletions(startDate: string, endDate: string): Promise<HabitCompletion[]> {
-    return getStore<HabitCompletion>(STORAGE_KEYS.completions).filter(
-      (c) => c.date >= startDate && c.date <= endDate,
-    );
+    return getStore<HabitCompletion>(STORAGE_KEYS.completions)
+      .filter((c) => c.date >= startDate && c.date <= endDate)
+      .map((c) => ({ ...c, status: c.status ?? 'done' }));
   }
 
   async clearData(): Promise<void> {

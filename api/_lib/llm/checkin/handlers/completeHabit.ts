@@ -32,9 +32,9 @@ export async function completeHabit(
     if (date > today)
       return invalid(`Cannot complete "${habit.name}" for a future date (${date}).`);
     await pool.query(
-      `INSERT INTO habit_completions (anon_id, habit_id, date)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (habit_id, date) DO UPDATE SET completed_at = now()`,
+      `INSERT INTO habit_completions (anon_id, habit_id, date, status)
+       VALUES ($1, $2, $3, 'done')
+       ON CONFLICT (habit_id, date) DO UPDATE SET completed_at = now(), status = 'done'`,
       [ctx.anon_id, habit.id, date],
     );
     completed.push(date);
