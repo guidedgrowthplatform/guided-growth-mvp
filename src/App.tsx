@@ -12,6 +12,7 @@ import {
   consumePendingAuthHandoff,
 } from '@/lib/auth/authHandoff';
 import { queryClient } from '@/lib/query';
+import { reacquireIfActive, suspendWakeLock } from '@/lib/services/keepAwake';
 import { AppRoutes } from '@/routes';
 import { useAuthStore } from '@/stores/authStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
@@ -80,7 +81,14 @@ export default function App() {
       useVoiceSettingsStore.getState().reactivateIfSystemPaused();
     };
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') onInteraction();
+      if (document.visibilityState === 'visible') {
+        onInteraction();
+        // #208: web wake-lock auto-released on hide — reacquire if still active.
+        void reacquireIfActive();
+      } else {
+        // Release on background for battery; reacquired above on return.
+        void suspendWakeLock();
+      }
     };
     document.addEventListener('pointerdown', onInteraction, { passive: true });
     document.addEventListener('keydown', onInteraction);

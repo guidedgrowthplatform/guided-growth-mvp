@@ -551,6 +551,18 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
   let sessionWatchdog: ReturnType<typeof setTimeout> | null = null;
   let armWatchdog: ReturnType<typeof setTimeout> | null = null;
   let visibilityHandler: (() => void) | null = null;
+  // Latches so a track-end / dead-context recovery fires once per boot.
+  let recovering = false;
+
+  // iOS background ends the mic track + suspends the context; a resumed context
+  // fed by a dead track emits zero frames. Re-route through onError so #206's
+  // auto-restart boots a fresh getUserMedia + AudioContext + worklet.
+  function triggerRecovery(reason: string): void {
+    if (stopped || !armed || recovering) return;
+    recovering = true;
+    opts.onError(reason);
+    stop();
+  }
 
   function clearSessionWatchdog(): void {
     if (sessionWatchdog !== null) {
@@ -770,6 +782,10 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
       });
       micMs = performance.now() - micStart;
       if (stopped) return cleanup();
+      // OS-ended track (background, device steal) — recover via #206 restart.
+      for (const t of mediaStream.getAudioTracks()) {
+        t.onended = () => triggerRecovery('microphone track ended');
+      }
       const audioStart = performance.now();
       // Browsers may ignore the requested rate; read back the actual one.
       try {
@@ -815,9 +831,14 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
       // iOS suspends the AudioContext on background; resume on return.
       visibilityHandler = () => {
         if (stopped || !armed) return;
-        if (document.visibilityState === 'visible' && audioContext?.state === 'suspended') {
-          void audioContext.resume();
+        if (document.visibilityState !== 'visible') return;
+        // A track ended in the background; resuming the context alone yields zero
+        // frames (false "listening"). Re-acquire via the #206 restart instead.
+        if (mediaStream?.getAudioTracks().some((t) => t.readyState === 'ended')) {
+          triggerRecovery('voice connection lost');
+          return;
         }
+        if (audioContext?.state === 'suspended') void audioContext.resume();
       };
       document.addEventListener('visibilitychange', visibilityHandler);
       // Armed: graph runs + ripple is live; the socket opens on first speech.
