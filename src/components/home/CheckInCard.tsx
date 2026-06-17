@@ -23,9 +23,12 @@ const emptyValues: CheckInValues = { sleep: null, mood: null, energy: null, stre
 interface CheckInCardProps {
   selectedDate: string;
   onClose?: () => void;
+  // Rendered inside the coach overlay: drop the "Talk through…" button and the
+  // navigate-away success state (the overlay already owns those).
+  embedded?: boolean;
 }
 
-export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
+export function CheckInCard({ selectedDate, onClose, embedded }: CheckInCardProps) {
   // captured at mount; card is CSS-collapsed, not remounted.
   // 'morning' bucket only (<12 local); afternoon/evening/night → evening check-in.
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -111,9 +114,9 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
         is_update: Boolean(checkIn),
       });
       // GitLab #171: show the in-place success confirmation instead of
-      // closing silently. The user dismisses via the CTA (navigates to
-      // history) or by collapsing the card from HomePage's QuickActionCards.
-      setShowSuccess(true);
+      // closing silently. In the overlay we stay on the editable card (button
+      // flips to "Update Check-In") rather than navigating away.
+      if (!embedded) setShowSuccess(true);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to save check-in';
       addToast('error', msg);
@@ -205,13 +208,15 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
         {saving ? 'Saving...' : checkIn ? 'Update Check-In' : 'Check In'}
       </button>
 
-      <button
-        onClick={handleTalk}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-border-light py-2.5 text-sm font-semibold text-content-secondary transition-colors hover:bg-surface-secondary"
-      >
-        <IconMic className="h-4 w-4" />
-        {isMorning ? 'Talk through your morning' : 'Talk through your day'}
-      </button>
+      {!embedded && (
+        <button
+          onClick={handleTalk}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-border-light py-2.5 text-sm font-semibold text-content-secondary transition-colors hover:bg-surface-secondary"
+        >
+          <IconMic className="h-4 w-4" />
+          {isMorning ? 'Talk through your morning' : 'Talk through your day'}
+        </button>
+      )}
     </div>
   );
 }

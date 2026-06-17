@@ -1,24 +1,22 @@
 import { X } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { HabitReportCard } from '@/components/coach/HabitReportCard';
+import { CheckInCard } from '@/components/home/CheckInCard';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { deriveOrbRing } from '@/components/ui/orbRing';
 import { ChatBubble } from '@/components/voice/ChatBubble';
-import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { useToast } from '@/contexts/ToastContext';
 import { useCoachTranscripts } from '@/contexts/useCoachVoiceSession';
-import { useCheckIn } from '@/hooks/useCheckIn';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
 import type { CoachChatApi } from '@/lib/chat/coachChatTypes';
 import { stopTTS } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
-import { formatDate } from '@/utils/dates';
 
 interface CoachChatViewProps extends CoachChatApi {
   currentScreenId: string;
@@ -45,7 +43,6 @@ export function CoachChatView({
   loadOlder,
   hasMore,
   loadingOlder,
-  currentScreenId,
   displayName,
   onClose,
 }: CoachChatViewProps) {
@@ -73,25 +70,6 @@ export function CoachChatView({
   const displayedAssistant = useSmoothReveal(partialAssistant);
   const displayedUser = useSmoothReveal(interim);
 
-  // Morning check-in context (any MCHECK-* screen): show the dimension scales
-  // read-only as a live guide, hydrating from the saved row + record_checkin.
-  const showDimensions = currentScreenId.startsWith('MCHECK');
-  const today = formatDate(new Date());
-  const { checkIn } = useCheckIn(today);
-  const latestCheckinCard = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].checkinCard) return messages[i].checkinCard ?? null;
-    }
-    return null;
-  }, [messages]);
-  const dimensionValues = latestCheckinCard ?? {
-    sleep: checkIn?.sleep ?? null,
-    mood: checkIn?.mood ?? null,
-    energy: checkIn?.energy ?? null,
-    stress: checkIn?.stress ?? null,
-    date: today,
-  };
-
   let revealingId: string | null = null;
   if (displayedAssistant.length > 0) {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -102,6 +80,15 @@ export function CoachChatView({
     }
   }
   const renderedMessages = revealingId ? messages.filter((m) => m.id !== revealingId) : messages;
+  // Render the habit report once, after the LATEST habit-completion turn — not
+  // only when it's the absolute last message (the user often chats after).
+  let lastHabitReportId: string | null = null;
+  for (let i = renderedMessages.length - 1; i >= 0; i--) {
+    if (renderedMessages[i].habitReport) {
+      lastHabitReportId = renderedMessages[i].id;
+      break;
+    }
+  }
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pinnedToBottomRef = useRef(true);
@@ -256,7 +243,7 @@ export function CoachChatView({
             Loading older messages…
           </div>
         )}
-        {renderedMessages.map((msg, idx) => (
+        {renderedMessages.map((msg) => (
           <div key={msg.id} className="flex flex-col">
             <ChatBubble
               role={msg.role}
@@ -275,16 +262,12 @@ export function CoachChatView({
                 onDaysChange={(days) => updateHabitDays(msg.id, i, days)}
               />
             ))}
-            {!showDimensions && msg.checkinCard && (
-              <CheckInResultCard
-                sleep={msg.checkinCard.sleep}
-                mood={msg.checkinCard.mood}
-                energy={msg.checkinCard.energy}
-                stress={msg.checkinCard.stress}
-                date={msg.checkinCard.date}
-              />
+            {msg.checkinCard && (
+              <div className="mb-3 mt-2 w-full max-w-[360px]">
+                <CheckInCard selectedDate={msg.checkinCard.date} embedded onClose={handleClose} />
+              </div>
             )}
-            {msg.habitReport && idx === renderedMessages.length - 1 && <HabitReportCard />}
+            {msg.habitReport && msg.id === lastHabitReportId && <HabitReportCard />}
           </div>
         ))}
         {displayedAssistant.length > 0 && (
@@ -311,15 +294,6 @@ export function CoachChatView({
           />
         )}
         {isProcessing && partialAssistant.length === 0 && <TypingIndicator />}
-        {showDimensions && (
-          <CheckInResultCard
-            sleep={dimensionValues.sleep}
-            mood={dimensionValues.mood}
-            energy={dimensionValues.energy}
-            stress={dimensionValues.stress}
-            date={dimensionValues.date}
-          />
-        )}
       </div>
 
       <div

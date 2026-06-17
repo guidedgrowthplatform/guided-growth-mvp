@@ -48,7 +48,7 @@ export function HabitReportCard() {
   };
 
   return (
-    <div className="mb-3 mt-2 flex w-full max-w-[290px] flex-col gap-3">
+    <div className="mb-3 mt-2 flex w-full max-w-[340px] flex-col gap-3">
       <DailyProgressCard completed={completed} total={habits.length} />
       {habits.map((item) => (
         <HabitListItem
