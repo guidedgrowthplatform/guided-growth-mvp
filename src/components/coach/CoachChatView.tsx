@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { HabitReportCard } from '@/components/coach/HabitReportCard';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
@@ -11,14 +11,17 @@ import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { useToast } from '@/contexts/ToastContext';
 import { useCoachTranscripts } from '@/contexts/useCoachVoiceSession';
+import { useCheckIn } from '@/hooks/useCheckIn';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
 import type { CoachChatApi } from '@/lib/chat/coachChatTypes';
 import { stopTTS } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
+import { formatDate } from '@/utils/dates';
 
 interface CoachChatViewProps extends CoachChatApi {
+  currentScreenId: string;
   displayName?: string;
   onClose: () => void;
 }
@@ -36,8 +39,13 @@ export function CoachChatView({
   messages,
   voiceState,
   speaking,
+  micListening,
   sendText,
   updateHabitDays,
+  loadOlder,
+  hasMore,
+  loadingOlder,
+  currentScreenId,
   displayName,
   onClose,
 }: CoachChatViewProps) {
@@ -53,8 +61,9 @@ export function CoachChatView({
   // Soniox interim (set by useCoachChat's onInterim). Shows the user typing-by-voice.
   const interim = useVoiceStore((s) => s.interim);
 
-  // Capture runs whenever the right half is on (incl. both-on half-duplex).
-  const micLive = micRuntimeOn;
+  // Orb liveness = mic toggle AND a live Soniox stream. A dead/restarting mic
+  // (track ended on resume) reads as preparing, not a false blue "listening".
+  const micLive = micRuntimeOn && micListening;
   const isListening = voiceState === 'listening';
   const isProcessing = voiceState === 'processing';
 
@@ -63,6 +72,25 @@ export function CoachChatView({
 
   const displayedAssistant = useSmoothReveal(partialAssistant);
   const displayedUser = useSmoothReveal(interim);
+
+  // Morning check-in context (any MCHECK-* screen): show the dimension scales
+  // read-only as a live guide, hydrating from the saved row + record_checkin.
+  const showDimensions = currentScreenId.startsWith('MCHECK');
+  const today = formatDate(new Date());
+  const { checkIn } = useCheckIn(today);
+  const latestCheckinCard = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].checkinCard) return messages[i].checkinCard ?? null;
+    }
+    return null;
+  }, [messages]);
+  const dimensionValues = latestCheckinCard ?? {
+    sleep: checkIn?.sleep ?? null,
+    mood: checkIn?.mood ?? null,
+    energy: checkIn?.energy ?? null,
+    stress: checkIn?.stress ?? null,
+    date: today,
+  };
 
   let revealingId: string | null = null;
   if (displayedAssistant.length > 0) {
@@ -78,17 +106,41 @@ export function CoachChatView({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pinnedToBottomRef = useRef(true);
   const touchStartY = useRef<number | null>(null);
+  // Captured just before loadOlder(): scrollHeight + the current top message id.
+  // Keying on the top id means an appended live turn mid-fetch is NOT mistaken
+  // for a prepend (only a real prepend changes the top id).
+  const prependAnchorRef = useRef<{ scrollHeight: number; topId: string | null } | null>(null);
+  const firstMessageId = messages[0]?.id ?? null;
 
-  const handleScrollPin = useCallback(() => {
+  const handleScroll = useCallback(() => {
     const el = scrollContainerRef.current;
-    if (el) pinnedToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-  }, []);
+    if (!el) return;
+    pinnedToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    if (el.scrollTop < 80 && hasMore && !loadingOlder && prependAnchorRef.current === null) {
+      prependAnchorRef.current = { scrollHeight: el.scrollHeight, topId: firstMessageId };
+      // Release the anchor only when the page added NOTHING new (empty/all-dup) —
+      // no blind timeout, so a genuinely slow prepend never loses its anchor (MR#8).
+      void loadOlder().then((added) => {
+        if (added === 0) prependAnchorRef.current = null;
+      });
+    }
+  }, [hasMore, loadingOlder, loadOlder, firstMessageId]);
 
+  // Restore the prior viewport offset ONLY on a real prepend (top id changed),
+  // so older pages don't jump the view; otherwise pin to bottom for live turns.
   useLayoutEffect(() => {
     const el = scrollContainerRef.current;
-    if (!el || !pinnedToBottomRef.current) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages.length, isProcessing, displayedAssistant, displayedUser]);
+    if (!el) return;
+    const anchor = prependAnchorRef.current;
+    if (anchor !== null) {
+      if (firstMessageId !== anchor.topId) {
+        el.scrollTop += el.scrollHeight - anchor.scrollHeight;
+        prependAnchorRef.current = null;
+      }
+      return;
+    }
+    if (pinnedToBottomRef.current) el.scrollTop = el.scrollHeight;
+  }, [messages.length, firstMessageId, isProcessing, displayedAssistant, displayedUser]);
 
   useCoachTranscripts((evt) => {
     if (evt.role !== 'assistant') return;
@@ -195,10 +247,15 @@ export function CoachChatView({
           WebkitMaskImage:
             'linear-gradient(to top, transparent 0px, transparent 120px, black 240px, black 100%)',
         }}
-        onScroll={handleScrollPin}
+        onScroll={handleScroll}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
+        {loadingOlder && (
+          <div className="py-2 text-center text-[12px] font-medium text-slate-500">
+            Loading older messages…
+          </div>
+        )}
         {renderedMessages.map((msg, idx) => (
           <div key={msg.id} className="flex flex-col">
             <ChatBubble
@@ -218,7 +275,7 @@ export function CoachChatView({
                 onDaysChange={(days) => updateHabitDays(msg.id, i, days)}
               />
             ))}
-            {msg.checkinCard && (
+            {!showDimensions && msg.checkinCard && (
               <CheckInResultCard
                 sleep={msg.checkinCard.sleep}
                 mood={msg.checkinCard.mood}
@@ -254,6 +311,15 @@ export function CoachChatView({
           />
         )}
         {isProcessing && partialAssistant.length === 0 && <TypingIndicator />}
+        {showDimensions && (
+          <CheckInResultCard
+            sleep={dimensionValues.sleep}
+            mood={dimensionValues.mood}
+            energy={dimensionValues.energy}
+            stress={dimensionValues.stress}
+            date={dimensionValues.date}
+          />
+        )}
       </div>
 
       <div
@@ -264,7 +330,7 @@ export function CoachChatView({
           <DualButton
             size={91}
             leftActive={voiceChosen}
-            rightActive={micRuntimeOn}
+            rightActive={micLive}
             activeRings={dualActiveRings}
             ringCount={3}
             ringStep={4}

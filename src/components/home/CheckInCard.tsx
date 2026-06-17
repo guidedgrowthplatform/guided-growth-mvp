@@ -7,9 +7,11 @@ import { Button } from '@/components/ui/Button';
 import { useCoachChatLauncher } from '@/contexts/CoachChatContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
+import { useCheckinDoneToday } from '@/hooks/useCheckinDoneToday';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { unlockTTS } from '@/lib/services/tts-service';
+import { bucketTimeOfDay } from '@gg/shared/time/bucketTimeOfDay';
 import type { CheckInDimension } from '@gg/shared/types';
 import { checkInDimensions } from './checkInConfig';
 import { EmojiOptionButton } from './EmojiOptionButton';
@@ -25,7 +27,9 @@ interface CheckInCardProps {
 
 export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   // captured at mount; card is CSS-collapsed, not remounted.
-  const isMorning = new Date().getHours() < 15;
+  // 'morning' bucket only (<12 local); afternoon/evening/night → evening check-in.
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const isMorning = bucketTimeOfDay(new Date(), tz) === 'morning';
   const { checkIn, loading, saving, save } = useCheckIn(selectedDate, {
     type: isMorning ? 'morning' : 'evening',
     screenId: isMorning ? 'MCHECK-01' : 'ECHECK-01',
@@ -35,6 +39,7 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   const { openCoachChat } = useCoachChatLauncher();
   const { micAllowed, requestMicPermission } = useDualButtonControls();
   const { updatePreferences } = useUserPreferences();
+  const doneToday = useCheckinDoneToday(isMorning ? 'morning' : 'evening');
   const [values, setValues] = useState<CheckInValues>(emptyValues);
   // GitLab #171: post-save confirmation state so the user gets a visible
   // acknowledgement + a way to jump straight to their check-in history.
@@ -129,7 +134,8 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
       voiceMode: 'screen',
       micEnabled: granted,
     });
-    openCoachChat(isMorning ? 'MCHECK-01' : 'ECHECK-01');
+    // Once-per-day: a done bucket just opens the timeline, no proactive re-ask.
+    openCoachChat(isMorning ? 'MCHECK-01' : 'ECHECK-01', { initiateCheckin: !doneToday });
   };
 
   if (loading) {

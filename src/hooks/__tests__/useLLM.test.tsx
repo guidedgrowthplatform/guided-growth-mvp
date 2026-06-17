@@ -22,8 +22,16 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 let hookRef: UseLLMReturn | null = null;
-function Bridge({ screenId, chatSessionId }: { screenId: string; chatSessionId?: string }) {
-  const v = useLLM(screenId, { chatSessionId });
+function Bridge({
+  screenId,
+  chatSessionId,
+  inputMode,
+}: {
+  screenId: string;
+  chatSessionId?: string;
+  inputMode?: 'voice' | 'text';
+}) {
+  const v = useLLM(screenId, { chatSessionId, inputMode });
   useEffect(() => {
     hookRef = v;
   });
@@ -446,6 +454,46 @@ describe('useLLM', () => {
 
     expect(hookRef!.status).not.toBe('streaming');
     expect(hookRef!.isStreaming).toBe(false);
+  });
+
+  it('threads input_mode into the request body (text), omits it when unset', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        mockSSE([{ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 }]),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge screenId="CHAT-DEBUG" chatSessionId="sess-im" inputMode="text" />
+        </Wrapper>,
+      );
+    });
+    await act(async () => {
+      await hookRef!.sendMessage('hi');
+    });
+    await flush();
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.input_mode).toBe('text');
+
+    fetchMock.mockClear();
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge screenId="CHAT-DEBUG" chatSessionId="sess-im2" />
+        </Wrapper>,
+      );
+    });
+    await act(async () => {
+      await hookRef!.sendMessage('hi');
+    });
+    await flush();
+
+    const bare = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(bare.input_mode).toBeUndefined();
   });
 
   it('sendMessage with no chatSessionId no-ops and warns in dev', async () => {

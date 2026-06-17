@@ -470,12 +470,17 @@ describe('query_habits', () => {
   it('lists all active habits scoped to anon_id', async () => {
     route([
       [
-        /SELECT name, cadence, habit_type FROM user_habits/,
+        /SELECT name, cadence, habit_type, schedule_days FROM user_habits/,
         {
           rowCount: 2,
           rows: [
-            { name: 'pushups', cadence: 'daily', habit_type: 'binary_do' },
-            { name: 'no news', cadence: 'weekdays', habit_type: 'binary_avoid' },
+            { name: 'pushups', cadence: 'daily', habit_type: 'binary_do', schedule_days: null },
+            {
+              name: 'no news',
+              cadence: 'weekdays',
+              habit_type: 'binary_avoid',
+              schedule_days: null,
+            },
           ],
         },
       ],
@@ -488,8 +493,51 @@ describe('query_habits', () => {
       expect(habits.length).toBe(2);
       expect(habits.map((h) => h.type)).toEqual(['do', 'avoid']);
     }
-    const [, params] = lastCall(/SELECT name, cadence, habit_type FROM user_habits/);
+    const [, params] = lastCall(/SELECT name, cadence, habit_type, schedule_days FROM user_habits/);
     expect(params[0]).toBe(CTX.anon_id);
+  });
+
+  it('scope:today filters to habits scheduled for the local weekday; null = always', async () => {
+    // 2026-06-10 is a Wednesday (dow 3) in UTC.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00Z'));
+    route([
+      [
+        /SELECT name, cadence, habit_type, schedule_days FROM user_habits/,
+        {
+          rows: [
+            { name: 'daily one', cadence: 'daily', habit_type: 'binary_do', schedule_days: null },
+            { name: 'wed only', cadence: '3x/week', habit_type: 'binary_do', schedule_days: [3] },
+            { name: 'tue only', cadence: '3x/week', habit_type: 'binary_do', schedule_days: [2] },
+          ],
+        },
+      ],
+    ]);
+    const r = await queryHabits({ anon_id: CTX.anon_id, timezone: 'UTC' }, { scope: 'today' });
+    vi.useRealTimers();
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const names = (r.result.habits as Array<{ name: string }>).map((h) => h.name);
+      expect(names).toEqual(['daily one', 'wed only']);
+      expect(r.result.count).toBe(2);
+    }
+  });
+
+  it('scope absent returns every habit unchanged (default all)', async () => {
+    route([
+      [
+        /SELECT name, cadence, habit_type, schedule_days FROM user_habits/,
+        {
+          rows: [
+            { name: 'daily one', cadence: 'daily', habit_type: 'binary_do', schedule_days: null },
+            { name: 'tue only', cadence: '3x/week', habit_type: 'binary_do', schedule_days: [2] },
+          ],
+        },
+      ],
+    ]);
+    const r = await queryHabits({ anon_id: CTX.anon_id, timezone: 'UTC' }, {});
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.count).toBe(2);
   });
 
   it('returns stats for a single named habit scoped to habit_id + anon_id', async () => {

@@ -23,6 +23,7 @@ const DELTA_COALESCE_MS = 40;
 export interface UseLLMReturn {
   sendMessage: (text: string) => Promise<void>;
   sendOpener: () => Promise<void>;
+  prependMessages: (older: LLMChatMessage[]) => number;
   messages: LLMChatMessage[];
   response: string;
   toolEvents: LLMToolEvent[];
@@ -47,6 +48,7 @@ export function useLLM(
     coachingStyle?: CoachingStyle;
     chatSessionId?: string;
     initialMessages?: LLMChatMessage[];
+    inputMode?: 'voice' | 'text';
   },
 ): UseLLMReturn {
   const { sessionId, logEvent } = useSessionLog();
@@ -54,7 +56,15 @@ export function useLLM(
   const chatSessionId = opts?.chatSessionId;
   const initialMessages = opts?.initialMessages;
 
+  // Read fresh at send time — a voice/text toggle mustn't restale runStream.
+  const inputModeRef = useRef(opts?.inputMode);
+  inputModeRef.current = opts?.inputMode;
+
   const [messages, setMessages] = useState<LLMChatMessage[]>([]);
+  // Current messages for synchronous dedup in prependMessages (returns the
+  // number of genuinely-new rows so callers know if a prepend will commit).
+  const messagesRef = useRef<LLMChatMessage[]>([]);
+  messagesRef.current = messages;
   const [response, setResponse] = useState('');
   const [toolEvents, setToolEvents] = useState<LLMToolEvent[]>([]);
   const [status, setStatus] = useState<LLMStatus>('idle');
@@ -94,6 +104,21 @@ export function useLLM(
     setToolEvents([]);
     setStatus('idle');
     setError(null);
+  }, []);
+
+  // Infinite-scroll-up: prepend an older page, deduped by id (a turn already
+  // in state from a live send must not double-render).
+  const prependMessages = useCallback((older: LLMChatMessage[]): number => {
+    if (older.length === 0) return 0;
+    const seen = new Set(messagesRef.current.map((m) => m.id));
+    const fresh = older.filter((m) => !seen.has(m.id));
+    if (fresh.length === 0) return 0;
+    setMessages((prev) => {
+      const seenPrev = new Set(prev.map((m) => m.id));
+      const f = older.filter((m) => !seenPrev.has(m.id));
+      return f.length === 0 ? prev : [...f, ...prev];
+    });
+    return fresh.length;
   }, []);
 
   const cancel = useCallback(() => {
@@ -256,6 +281,7 @@ export function useLLM(
             chat_session_id: chatSessionId,
             user_turn_id: userTurnId ?? undefined,
             recent_events,
+            ...(inputModeRef.current ? { input_mode: inputModeRef.current } : {}),
             ...(opts.mode === 'chat'
               ? { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }
               : {}),
@@ -340,6 +366,7 @@ export function useLLM(
   return {
     sendMessage,
     sendOpener,
+    prependMessages,
     messages,
     response,
     toolEvents,

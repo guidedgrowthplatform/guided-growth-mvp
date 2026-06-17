@@ -152,7 +152,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     recentEvents = body.recent_events as SessionStateDeltaEntry[];
   }
 
-  const timezone = validateTimezone(body.timezone) ?? 'UTC';
+  // Un-defaulted for the prompt's time block — omit it rather than assert a
+  // confidently-wrong UTC time when the client sent no tz (MR#3). The UTC
+  // fallback below is fine for tool/habit local-day computation.
+  const rawTimezone = validateTimezone(body.timezone);
+  const timezone = rawTimezone ?? 'UTC';
+
+  // Default 'text' when absent/invalid — text phrasing reads fine aloud, but
+  // voice phrasing ("tap the orb") misleads a typer (GitLab #217).
+  const inputMode: 'voice' | 'text' = body.input_mode === 'voice' ? 'voice' : 'text';
 
   let chatSessionId: string | null = null;
   let userTurnId: string | null = null;
@@ -190,6 +198,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         coaching_style: coachingStyle,
         recent_events: recentEvents,
         mode,
+        timezone: rawTimezone,
+        input_mode: inputMode,
       }),
       persistChat
         ? pool

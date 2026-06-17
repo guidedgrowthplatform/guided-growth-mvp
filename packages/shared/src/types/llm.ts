@@ -17,6 +17,10 @@ export interface LLMRequest {
   // Client IANA timezone; server validates, falls back to UTC. Used for check-in
   // date math so "today"/"yesterday" resolve to the user's local day, not server UTC.
   timezone?: string;
+  // Input modality of this turn. Server defaults to 'text' when absent — text
+  // phrasing ("type") is harmless aloud, but voice phrasing ("tap the orb")
+  // misleads a typer (GitLab #217).
+  input_mode?: 'voice' | 'text';
 }
 
 export interface ChatHistoryResponse {
@@ -27,6 +31,12 @@ export interface ChatHistoryResponse {
 export interface ChatSessionResponse {
   chat_session_id: string;
   messages: LLMChatMessage[];
+}
+
+export interface LinearHistoryResponse {
+  messages: LLMChatMessage[];
+  next_cursor: string | null;
+  has_more: boolean;
 }
 
 export type LLMStreamEvent =
@@ -49,4 +59,3 @@ export interface LLMChatMessage {
   content: string;
   toolEvents?: LLMToolEvent[];
 }
-

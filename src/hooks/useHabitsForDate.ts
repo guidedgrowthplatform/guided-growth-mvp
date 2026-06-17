@@ -43,6 +43,17 @@ export function isHabitVisibleOnDate(createdAtIso: string, selectedDate: string)
   return createdLocal <= selectedDate;
 }
 
+// scheduleDays null/empty = cadence-default (show daily). date's weekday read
+// as a LOCAL day so the schedule matches the user's calendar, not UTC.
+export function isHabitScheduledOnDate(
+  scheduleDays: number[] | null | undefined,
+  date: string,
+): boolean {
+  if (!scheduleDays || scheduleDays.length === 0) return true;
+  const dow = new Date(date + 'T00:00:00').getDay();
+  return scheduleDays.includes(dow);
+}
+
 export function calcCurrentStreak(completions: HabitCompletion[], fromDate: string): number {
   const done = completions.filter((c) => c.status === 'done');
   if (done.length === 0) return 0;
@@ -75,7 +86,11 @@ async function loadHabitsForDate(date: string): Promise<HabitWithStatus[]> {
   // Hide habits that didn't exist yet on `date` (issue #173). Prevents the
   // newly-created habit from appearing on prior dates and skewing
   // completion analytics.
-  const visibleHabits = allHabits.filter((habit) => isHabitVisibleOnDate(habit.createdAt, date));
+  const visibleHabits = allHabits.filter(
+    (habit) =>
+      isHabitVisibleOnDate(habit.createdAt, date) &&
+      isHabitScheduledOnDate(habit.scheduleDays, date),
+  );
 
   const streakStart = new Date(date + 'T00:00:00');
   streakStart.setDate(streakStart.getDate() - 30);

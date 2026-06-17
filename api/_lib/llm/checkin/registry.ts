@@ -20,15 +20,23 @@ export function getCheckinTools(
   return isCheckinScreen(screenId) ? CHECKIN_TOOLS : undefined;
 }
 
-// Returns the read-only check-in tools (query_habits, get_summary) for screens
-// where the user is chatting but not checking-in: dashboard, free chat, wrap-up.
-// Returns undefined on onboarding (which owns its own surface) and on dedicated
-// check-in screens (already get the full CHECKIN_TOOLS via getCheckinTools).
+// True on home/dashboard + check-in-family screens where the user is chatting
+// but not on a dedicated check-in screen. Scoped to HOME/MCHECK/ECHECK so the
+// "always call query_habits/get_summary" nudge does NOT leak onto unrelated
+// screens (splash, auth, settings, insights) and trigger spurious tool calls
+// (MR#6). Dedicated check-in screens get the full CHECKIN_TOOLS instead.
+export function isReadOnlyCheckinScreen(screenId: string | null | undefined): boolean {
+  if (typeof screenId !== 'string' || screenId === '') return false;
+  if (CHECKIN_SCREEN_IDS.has(screenId)) return false;
+  return (
+    screenId.startsWith('HOME') || screenId.startsWith('MCHECK') || screenId.startsWith('ECHECK')
+  );
+}
+
+// Returns the read-only check-in tools (query_habits, get_summary) for the
+// screens isReadOnlyCheckinScreen accepts.
 export function getReadOnlyCheckinTools(
   screenId: string | null | undefined,
 ): readonly CheckinToolDefinition[] | undefined {
-  if (typeof screenId !== 'string' || screenId === '') return undefined;
-  if (screenId.startsWith('ONBOARD-')) return undefined;
-  if (CHECKIN_SCREEN_IDS.has(screenId)) return undefined;
-  return READONLY_CHECKIN_TOOLS;
+  return isReadOnlyCheckinScreen(screenId) ? READONLY_CHECKIN_TOOLS : undefined;
 }

@@ -201,6 +201,12 @@ export const CHECKIN_TOOLS: readonly CheckinToolDefinition[] = [
       type: 'object',
       properties: {
         name: { type: 'string', description: 'Optional specific habit name to report on.' },
+        scope: {
+          type: 'string',
+          description:
+            'Which habits to list. "all" (default) = every active habit. "today" = only those scheduled for the user\'s local today.',
+          enum: ['today', 'all'],
+        },
       },
       required: [],
       additionalProperties: false,
