@@ -85,3 +85,5 @@ A Firebase project already exists — CI uses it for Android App Distribution
 
 - The cron handler runs under `vercel dev` — set all three env vars (real service-account JSON; the handler returns `{skipped: true}` without it) and curl the endpoint.
 - iOS simulator cannot receive APNs pushes; use a real device via TestFlight. Android emulators with Play services work.
+
+<!-- deploy check: public-repo auto-deploy verification -->
