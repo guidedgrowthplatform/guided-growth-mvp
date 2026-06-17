@@ -1,16 +1,7 @@
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import { categories, categoryImage } from '@/lib/onboarding/categoryTiles';
 import { AddHabitHeader } from './AddHabitHeader';
-
-const CATEGORY_OPTIONS: ReadonlyArray<{ label: string; image: string }> = [
-  { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
-  { label: 'Move more', image: '/images/onboarding/move-more.jpg' },
-  { label: 'Eat better', image: '/images/onboarding/eat-better.png' },
-  { label: 'Feel more energized', image: '/images/onboarding/feel-more-energized.png' },
-  { label: 'Reduce stress', image: '/images/onboarding/reduce-stress.png' },
-  { label: 'Improve focus', image: '/images/onboarding/improve-focus.jpg' },
-  { label: 'Break bad habits', image: '/images/onboarding/break-bad-habits.png' },
-  { label: 'Get more organized', image: '/images/onboarding/get-more-organized.png' },
-];
 
 interface BeginnerCategoryPhaseProps {
   selectedCategory: string | null;
@@ -25,6 +16,7 @@ export function BeginnerCategoryPhase({
   onContinue,
   onBack,
 }: BeginnerCategoryPhaseProps) {
+  const { state: onboardingState } = useOnboarding();
   return (
     <div className="flex min-h-dvh flex-col bg-primary-bg px-5 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-[max(16px,env(safe-area-inset-top))]">
       <AddHabitHeader onBack={onBack} />
@@ -37,10 +29,10 @@ export function BeginnerCategoryPhase({
         </p>
       </div>
       <div className="mb-8 grid grid-cols-2 gap-[16px]">
-        {CATEGORY_OPTIONS.map((c) => (
+        {categories.map((c, i) => (
           <CategoryCard
             key={c.label}
-            image={c.image}
+            image={categoryImage(c, i, onboardingState?.data?.gender)}
             label={c.label}
             selected={selectedCategory === c.label}
             onSelect={() => onSelectCategory(c.label)}
