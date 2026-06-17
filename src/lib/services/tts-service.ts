@@ -22,28 +22,6 @@ function setSpeaking(value: boolean) {
 // User selects Male or Female on splash screen
 export type { VoiceGender };
 
-const VOICE_GENDER_KEY = 'guided_growth_voice_gender';
-
-/** Get the user's selected voice gender (defaults to female) */
-export function getVoiceGender(): VoiceGender {
-  try {
-    const saved = localStorage.getItem(VOICE_GENDER_KEY);
-    if (saved === 'male') return 'male';
-  } catch {
-    /* ignore */
-  }
-  return 'female';
-}
-
-/** Set the user's voice gender preference */
-export function setVoiceGender(gender: VoiceGender): void {
-  try {
-    localStorage.setItem(VOICE_GENDER_KEY, gender);
-  } catch {
-    /* ignore */
-  }
-}
-
 // Gender selection unused post-onboarding; coach always speaks as Yair
 function getCartesiaVoiceId(): string {
   return COACH_VOICE_ID;
@@ -579,61 +557,4 @@ export function speak(
       console.warn('[tts] Cartesia failed; audio skipped');
     }
   })();
-}
-
-/** Pre-acknowledgment messages — warm, concise, coaching-style */
-const PRE_ACK_MESSAGES: Record<string, (params: Record<string, unknown>) => string> = {
-  complete: () => `Got it.`,
-  create: (p) => `Setting up ${p.name || 'that'}.`,
-  delete: () => `On it.`,
-  log: () => `Got it.`,
-  query: () => `Let me check.`,
-  reflect: () => `I hear you.`,
-  suggest: () => `Let me think.`,
-  update: () => `Updating now.`,
-  checkin: () => `Got it.`,
-  focus: () => `Let's go.`,
-};
-
-/**
- * Speak text, deferring to the next user gesture if the browser hasn't
- * unlocked autoplay yet. Use this for auto-greetings on page mount —
- * `speak()` directly will be silently blocked on iOS WKWebView and Safari
- * until the user has interacted with the page.
- *
- * If a gesture has already happened anywhere in the session, plays
- * immediately. Otherwise registers a one-shot listener that fires on the
- * first pointerdown/touchstart and is auto-removed.
- *
- * Returns a cleanup function — call it on component unmount to remove the
- * deferred listener if the user navigates away before interacting.
- */
-export function speakWhenReady(
-  text: string,
-  options?: { rate?: number; pitch?: number; volume?: number },
-): () => void {
-  if (ttsUnlocked) {
-    speak(text, options);
-    return () => {};
-  }
-
-  const handler = () => {
-    unlockTTS();
-    speak(text, options);
-  };
-
-  // pointerdown covers both mouse and touch on modern browsers
-  window.addEventListener('pointerdown', handler, { once: true, capture: true });
-
-  return () => {
-    window.removeEventListener('pointerdown', handler, { capture: true });
-  };
-}
-
-/** Speak a short pre-acknowledgment before the actual action runs */
-export function speakPreAck(action: string, params: Record<string, unknown>): void {
-  const generator = PRE_ACK_MESSAGES[action];
-  if (generator) {
-    speak(generator(params), { rate: 1.15, volume: 0.75 });
-  }
 }

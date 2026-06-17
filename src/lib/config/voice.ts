@@ -49,80 +49,6 @@ export function countVapiToday(
   return n;
 }
 
-// ─── STT service (stt-service) ──────────────────────────────────────────────
-/** Commands shorter than this (seconds) keep native sample rate for accuracy. */
-export const STT_SHORT_COMMAND_THRESHOLD_SECONDS = envNumber(
-  import.meta.env.VITE_STT_SHORT_COMMAND_THRESHOLD_SECONDS,
-  5,
-);
-/** Downsample target (Hz) for longer recordings. */
-export const STT_DOWNSAMPLE_RATE = envNumber(import.meta.env.VITE_STT_DOWNSAMPLE_RATE, 16000);
-
-// ─── Onboarding voice (useOnboardingVoice) ──────────────────────────────────
-/**
- * Spoken-number → digit map used as a safety net when the API returns
- * `[AGE]` (PII-scrubbed) for step 1. Covers 13–99 exhaustively — teens,
- * every tens word, every tens+ones compound (both "twenty one" and
- * "twenty-one" spellings). Longer phrases are ordered first so compounds
- * match before standalone tens.
- */
-const TEENS: Record<string, number> = Object.freeze({
-  thirteen: 13,
-  fourteen: 14,
-  fifteen: 15,
-  sixteen: 16,
-  seventeen: 17,
-  eighteen: 18,
-  nineteen: 19,
-});
-
-const TENS: Array<[string, number]> = [
-  ['twenty', 20],
-  ['thirty', 30],
-  ['forty', 40],
-  ['fifty', 50],
-  ['sixty', 60],
-  ['seventy', 70],
-  ['eighty', 80],
-  ['ninety', 90],
-];
-
-const ONES: Array<[string, number]> = [
-  ['one', 1],
-  ['two', 2],
-  ['three', 3],
-  ['four', 4],
-  ['five', 5],
-  ['six', 6],
-  ['seven', 7],
-  ['eight', 8],
-  ['nine', 9],
-];
-
-function buildAgeMap(): Record<string, number> {
-  const map: Record<string, number> = {};
-  for (const [tens, tv] of TENS) {
-    for (const [ones, ov] of ONES) {
-      map[`${tens} ${ones}`] = tv + ov;
-      map[`${tens}-${ones}`] = tv + ov;
-    }
-    map[tens] = tv;
-  }
-  Object.assign(map, TEENS);
-  return map;
-}
-
-export const ONBOARDING_AGE_WORD_TO_NUM: Readonly<Record<string, number>> =
-  Object.freeze(buildAgeMap());
-
-// ─── Audio debug page (AudioDebugPage) ──────────────────────────────────────
-/**
- * Web origin hosting the static MP3 assets used for the remote-MP3 smoke test.
- * Empty string = the remote test is skipped. Set `VITE_AUDIO_DEBUG_WEB_ORIGIN`
- * in the environment to enable. Never hardcode a production URL here.
- */
-export const AUDIO_DEBUG_WEB_ORIGIN = envString(import.meta.env.VITE_AUDIO_DEBUG_WEB_ORIGIN, '');
-
 /**
  * Public Supabase Storage base URL for voice assets. Derived from
  * `VITE_SUPABASE_URL` — this is already required for the app to function,
@@ -130,7 +56,7 @@ export const AUDIO_DEBUG_WEB_ORIGIN = envString(import.meta.env.VITE_AUDIO_DEBUG
  * callers can skip the Supabase smoke test gracefully.
  */
 const SUPABASE_URL = envString(import.meta.env.VITE_SUPABASE_URL, '');
-export const VOICE_ASSETS_BASE_URL = SUPABASE_URL
+const VOICE_ASSETS_BASE_URL = SUPABASE_URL
   ? `${SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/public/voice-assets`
   : '';
 

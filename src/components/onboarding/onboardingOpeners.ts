@@ -2,7 +2,7 @@ import type { OnboardingState, OnboardingStepData } from '@gg/shared/types';
 
 // Curated opening lines per onboarding screen (gg-spec packets). Deterministic —
 // rendered as the first coach bubble so the question never drifts.
-export const ONBOARDING_OPENERS: Record<string, string> = {
+const ONBOARDING_OPENERS: Record<string, string> = {
   'ONBOARD-01':
     'OK, let me get to know you a little. First — what should I call you? You can type it here, or fill it in on screen.',
   'ONBOARD-01--FORM':
