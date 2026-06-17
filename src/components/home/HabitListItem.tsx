@@ -117,7 +117,7 @@ export function HabitListItem({
 
       <div
         className={`relative flex items-center gap-3 rounded-2xl border border-border-light bg-surface p-4 shadow-sm ${
-          readOnly ? '' : 'cursor-pointer'
+          onClick ? 'cursor-pointer' : ''
         } ${dragging ? '' : 'transition-transform duration-200 ease-out'}`}
         style={{
           transform: `translateX(${translateX}px)`,
@@ -166,15 +166,17 @@ export function HabitListItem({
               </>
             ) : (
               <>
-                <IconCircleButton
-                  icon={FileText}
-                  active={hasNote}
-                  ariaLabel={hasNote ? 'Edit note' : 'Add note'}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddNote?.();
-                  }}
-                />
+                {onAddNote && (
+                  <IconCircleButton
+                    icon={FileText}
+                    active={hasNote}
+                    ariaLabel={hasNote ? 'Edit note' : 'Add note'}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddNote();
+                    }}
+                  />
+                )}
                 <IconCircleButton
                   icon={isDone ? Check : X}
                   variant={isMissed ? 'danger' : 'success'}
