@@ -148,11 +148,11 @@ describe('POST /api/chat/session', () => {
   });
 });
 
-function decodeCursor(raw: string): { ts: string; id: string } {
+function decodeCursor(raw: string): { ts: string; turn: number; id: string } {
   return JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
 }
 
-function encodeCursor(c: { ts: string; id: string }): string {
+function encodeCursor(c: { ts: string; turn: number; id: string }): string {
   return Buffer.from(JSON.stringify(c), 'utf8').toString('base64url');
 }
 
@@ -212,7 +212,11 @@ describe('GET /api/chat/linear', () => {
     // page dropped extra row, reversed to oldest→newest
     expect(body.messages.map((m) => m.content)).toEqual(['mid', 'newest']);
     // cursor points at the oldest returned row (m2)
-    expect(decodeCursor(body.next_cursor)).toEqual({ ts: '2026-06-17T11:00:00.000Z', id: 'm2' });
+    expect(decodeCursor(body.next_cursor)).toEqual({
+      ts: '2026-06-17T11:00:00.000Z',
+      turn: 1,
+      id: 'm2',
+    });
     expect(pool.query.mock.calls[0][1]).toEqual(['anon-A', 3]); // limit+1, no cursor
   });
 
@@ -231,7 +235,10 @@ describe('GET /api/chat/linear', () => {
     });
 
     const res = mockRes();
-    await handler(linearReq({ limit: '2', before: encodeCursor({ ts: TS, id: OLDEST_ID }) }), res);
+    await handler(
+      linearReq({ limit: '2', before: encodeCursor({ ts: TS, turn: 0, id: OLDEST_ID }) }),
+      res,
+    );
 
     expect(res._status).toBe(200);
     const body = res._body as {
@@ -241,8 +248,8 @@ describe('GET /api/chat/linear', () => {
     };
     expect(body.has_more).toBe(false);
     expect(body.next_cursor).toBeNull();
-    // keyset params: anon, cursor ts, cursor id, limit+1
-    expect(pool.query.mock.calls[0][1]).toEqual(['anon-A', TS, OLDEST_ID, 3]);
+    // keyset params: anon, cursor ts, cursor turn_index, cursor id, limit+1
+    expect(pool.query.mock.calls[0][1]).toEqual(['anon-A', TS, 0, OLDEST_ID, 3]);
   });
 
   it('returns 400 on an unparseable before cursor', async () => {

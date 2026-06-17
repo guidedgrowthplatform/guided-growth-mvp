@@ -28,6 +28,7 @@ interface LinearRow extends ChatRow {
 
 interface LinearCursor {
   ts: string;
+  turn: number;
   id: string;
 }
 
@@ -42,10 +43,11 @@ function decodeCursor(raw: string): LinearCursor | null {
       parsed &&
       typeof parsed === 'object' &&
       typeof parsed.ts === 'string' &&
+      typeof parsed.turn === 'number' &&
       typeof parsed.id === 'string' &&
       UUID_REGEX.test(parsed.id)
     ) {
-      return { ts: parsed.ts, id: parsed.id };
+      return { ts: parsed.ts, turn: parsed.turn, id: parsed.id };
     }
   } catch {
     return null;
@@ -173,21 +175,23 @@ async function handleLinearHistory(req: VercelRequest, res: VercelResponse) {
   // created_at::text keeps full microsecond precision in the cursor — Date
   // round-tripping truncates to ms and can skip a same-ms row at a page boundary.
   const cols = `id, turn_index, role, content, tool_calls, tool_call_id, tool_name, created_at::text AS created_at`;
-  // Fetch limit+1 to detect older rows; keyset on (created_at, id) DESC.
+  // Fetch limit+1 to detect older rows. Tiebreak by turn_index: a whole turn
+  // (user+assistant+tool) is inserted in ONE txn, so now() gives them the SAME
+  // created_at — ordering by id alone (random UUID) scrambles them within a turn.
   const result = cursor
     ? await pool.query<LinearRow>(
         `SELECT ${cols}
            FROM chat_messages
-          WHERE anon_id = $1 AND (created_at, id) < ($2, $3)
-          ORDER BY created_at DESC, id DESC
-          LIMIT $4`,
-        [user.anonId, cursor.ts, cursor.id, limit + 1],
+          WHERE anon_id = $1 AND (created_at, turn_index, id) < ($2, $3, $4)
+          ORDER BY created_at DESC, turn_index DESC, id DESC
+          LIMIT $5`,
+        [user.anonId, cursor.ts, cursor.turn, cursor.id, limit + 1],
       )
     : await pool.query<LinearRow>(
         `SELECT ${cols}
            FROM chat_messages
           WHERE anon_id = $1
-          ORDER BY created_at DESC, id DESC
+          ORDER BY created_at DESC, turn_index DESC, id DESC
           LIMIT $2`,
         [user.anonId, limit + 1],
       );
@@ -196,7 +200,9 @@ async function handleLinearHistory(req: VercelRequest, res: VercelResponse) {
   const page = hasMore ? result.rows.slice(0, limit) : result.rows;
   const oldest = page[page.length - 1];
   const nextCursor =
-    hasMore && oldest ? encodeCursor({ ts: String(oldest.created_at), id: oldest.id }) : null;
+    hasMore && oldest
+      ? encodeCursor({ ts: String(oldest.created_at), turn: oldest.turn_index, id: oldest.id })
+      : null;
 
   // buildHistory wants chronological order; DB returned newest→oldest.
   const messages = buildHistory(page.slice().reverse());
