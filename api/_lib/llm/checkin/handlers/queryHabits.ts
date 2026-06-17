@@ -18,7 +18,7 @@ export async function queryHabits(
       `SELECT
          bool_or(date = $3 AND status = 'done') AS completed_today,
          count(*) FILTER (WHERE status = 'done'
-           AND date > ($3::date - INTERVAL '30 days'))::int AS last_30
+           AND date >= ($3::date - INTERVAL '30 days'))::int AS last_30
        FROM habit_completions
        WHERE habit_id = $1 AND anon_id = $2`,
       [habit.id, ctx.anon_id, today],

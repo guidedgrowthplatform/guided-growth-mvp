@@ -40,17 +40,26 @@ export function useChatHistory(opts?: { enabled?: boolean }): UseChatHistoryRetu
     }
     setStatus('loading');
     const controller = new AbortController();
+    // One-shot retry: downstream stays gated on 'error' (no blank-timeline seed),
+    // so recover from a transient blip rather than wedging the overlay.
     void (async () => {
-      try {
-        const res = await fetchLinearHistory({ limit: PAGE_SIZE, signal: controller.signal });
-        if (controller.signal.aborted) return;
-        setInitialMessages(res.messages);
-        cursorRef.current = res.next_cursor;
-        setHasMore(res.has_more);
-        setStatus('ready');
-      } catch {
-        if (controller.signal.aborted) return;
-        setStatus('error');
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const res = await fetchLinearHistory({ limit: PAGE_SIZE, signal: controller.signal });
+          if (controller.signal.aborted) return;
+          setInitialMessages(res.messages);
+          cursorRef.current = res.next_cursor;
+          setHasMore(res.has_more);
+          setStatus('ready');
+          return;
+        } catch {
+          if (controller.signal.aborted) return;
+          if (attempt === 0) {
+            await new Promise((r) => setTimeout(r, 800));
+            continue;
+          }
+          setStatus('error');
+        }
       }
     })();
     return () => controller.abort();

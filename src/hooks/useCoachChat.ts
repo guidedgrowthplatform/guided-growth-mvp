@@ -66,6 +66,7 @@ export function useCoachChat(
       kind: 'partial' | 'final',
     ) => void;
     initiateCheckinNonce?: number;
+    overlayOpen?: boolean;
   },
 ): CoachChatApi {
   const surface = opts?.surface ?? 'chat';
@@ -73,6 +74,7 @@ export function useCoachChat(
   const enabled = opts?.enabled ?? true;
   const onTranscriptStream = opts?.onTranscriptStream;
   const initiateCheckinNonce = opts?.initiateCheckinNonce ?? 0;
+  const overlayOpen = opts?.overlayOpen ?? true;
 
   const { preferences } = useUserPreferences();
   const voiceModeOn = preferences.voiceMode === 'voice';
@@ -95,9 +97,10 @@ export function useCoachChat(
   } = useChatHistory({ enabled });
 
   // Effective session id: gate everything (seed + sends + opener) until the
-  // first history page lands — write session and history load independently, so
-  // acting before history resolves would seed empty and never recover.
-  const historyReady = historyStatus === 'ready' || historyStatus === 'error';
+  // first history page genuinely loads. NOT on 'error' — an empty page from a
+  // failed fetch would seed a blank timeline and persist a spurious welcome
+  // over the user's real history (MR#1).
+  const historyReady = historyStatus === 'ready';
   const chatSessionId = historyReady ? writeSessionId : null;
 
   const {
@@ -115,9 +118,12 @@ export function useCoachChat(
     inputMode: voiceModeOn ? 'voice' : 'text',
   });
 
-  const loadOlder = useCallback(() => {
-    void loadOlderPage().then(prependMessages);
-  }, [loadOlderPage, prependMessages]);
+  // Returns the count of genuinely-new rows prepended, so the view can release
+  // the scroll anchor when an older page added nothing (MR#8).
+  const loadOlder = useCallback(
+    () => loadOlderPage().then(prependMessages),
+    [loadOlderPage, prependMessages],
+  );
 
   const { acquireRealtime, releaseToken, setStatus } = useVoice();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
@@ -373,12 +379,14 @@ export function useCoachChat(
   // Returning users with history get NO auto-opener unless they explicitly
   // initiate a check-in (handled above). ───────────────────────────────
   useEffect(() => {
-    if (!chatSessionId) return;
+    // Only when the overlay is actually open — a mic-armed Home (no overlay)
+    // must not silently persist a welcome turn (MR#4).
+    if (!chatSessionId || !overlayOpen) return;
     if (openerSentRef.current === chatSessionId) return;
     if (initialMessages.length > 0) return;
     openerSentRef.current = chatSessionId;
     void sendOpener();
-  }, [chatSessionId, initialMessages, sendOpener]);
+  }, [chatSessionId, initialMessages, sendOpener, overlayOpen]);
 
   // ─── Pre-seed spoken ids from resumed history (declared BEFORE the speak
   // effect so it runs first in-commit) — prevents replaying old turns ──

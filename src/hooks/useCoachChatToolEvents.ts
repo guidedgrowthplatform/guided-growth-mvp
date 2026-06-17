@@ -8,6 +8,10 @@ import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
 
 // Tools that mark the evening check-in as concluded (day summary / reflection log).
 const EVENING_DONE_TOOLS: ReadonlySet<string> = new Set(['get_summary', 'log_reflection']);
+// record_checkin marks a morning check-in concluded (a dimension was recorded).
+// Per-bucket events discriminate morning vs evening, unlike the shared
+// daily_checkins row which an evening save also writes (MR#2).
+const MORNING_DONE_TOOLS: ReadonlySet<string> = new Set(['record_checkin']);
 
 // Write tools — read-only (query_habits, get_summary, suggest_habit) skip refresh.
 const MUTATION_TOOLS: ReadonlySet<string> = new Set([
@@ -61,6 +65,7 @@ export function useCoachChatToolEvents(
   const { logEvent } = useSessionLog();
   const firedIdsRef = useRef<Set<string>>(new Set());
   const eveningDoneEmittedRef = useRef(false);
+  const morningDoneEmittedRef = useRef(false);
   const [lastCreatedItem, setLastCreatedItem] = useState<LastCreatedItem | undefined>(undefined);
 
   // Reset on session change; pre-seed with resumed-history ids so a
@@ -68,6 +73,7 @@ export function useCoachChatToolEvents(
   useEffect(() => {
     firedIdsRef.current = new Set(toolEventIds(initialMessages));
     eveningDoneEmittedRef.current = false;
+    morningDoneEmittedRef.current = false;
     setLastCreatedItem(undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
@@ -76,6 +82,7 @@ export function useCoachChatToolEvents(
     let mutated = false;
     let newlyCreated: LastCreatedItem | null = null;
     const onEvening = screenId.startsWith('ECHECK');
+    const onMorning = screenId.startsWith('MCHECK');
     for (const m of messages) {
       for (const evt of m.toolEvents ?? []) {
         if (!evt.result?.ok) continue;
@@ -83,10 +90,14 @@ export function useCoachChatToolEvents(
         firedIdsRef.current.add(evt.id);
         trackCoachToolEvent(evt);
         if (MUTATION_TOOLS.has(evt.name)) mutated = true;
-        // Evening conclusion signal — gates the once-per-day skip. Once per session.
+        // Per-bucket conclusion signals — gate the once-per-day skip. Once per session.
         if (onEvening && EVENING_DONE_TOOLS.has(evt.name) && !eveningDoneEmittedRef.current) {
           eveningDoneEmittedRef.current = true;
           logEvent('checkin_completed', { type: 'evening', via: evt.name }, screenId);
+        }
+        if (onMorning && MORNING_DONE_TOOLS.has(evt.name) && !morningDoneEmittedRef.current) {
+          morningDoneEmittedRef.current = true;
+          logEvent('checkin_completed', { type: 'morning', via: evt.name }, screenId);
         }
         const created = extractCreatedItem(evt);
         if (created) newlyCreated = created;

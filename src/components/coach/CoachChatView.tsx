@@ -110,7 +110,6 @@ export function CoachChatView({
   // Keying on the top id means an appended live turn mid-fetch is NOT mistaken
   // for a prepend (only a real prepend changes the top id).
   const prependAnchorRef = useRef<{ scrollHeight: number; topId: string | null } | null>(null);
-  const anchorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstMessageId = messages[0]?.id ?? null;
 
   const handleScroll = useCallback(() => {
@@ -119,13 +118,11 @@ export function CoachChatView({
     pinnedToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
     if (el.scrollTop < 80 && hasMore && !loadingOlder && prependAnchorRef.current === null) {
       prependAnchorRef.current = { scrollHeight: el.scrollHeight, topId: firstMessageId };
-      loadOlder();
-      // Safety: release the anchor if no older page ever prepends, so scroll-up
-      // can't wedge on a pathological empty/all-duplicate page.
-      if (anchorTimeoutRef.current) clearTimeout(anchorTimeoutRef.current);
-      anchorTimeoutRef.current = setTimeout(() => {
-        prependAnchorRef.current = null;
-      }, 5000);
+      // Release the anchor only when the page added NOTHING new (empty/all-dup) —
+      // no blind timeout, so a genuinely slow prepend never loses its anchor (MR#8).
+      void loadOlder().then((added) => {
+        if (added === 0) prependAnchorRef.current = null;
+      });
     }
   }, [hasMore, loadingOlder, loadOlder, firstMessageId]);
 
@@ -139,7 +136,6 @@ export function CoachChatView({
       if (firstMessageId !== anchor.topId) {
         el.scrollTop += el.scrollHeight - anchor.scrollHeight;
         prependAnchorRef.current = null;
-        if (anchorTimeoutRef.current) clearTimeout(anchorTimeoutRef.current);
       }
       return;
     }

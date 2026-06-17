@@ -39,7 +39,7 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
   const { openCoachChat } = useCoachChatLauncher();
   const { micAllowed, requestMicPermission } = useDualButtonControls();
   const { updatePreferences } = useUserPreferences();
-  const doneToday = useCheckinDoneToday(isMorning ? 'morning' : 'evening', checkIn !== null);
+  const doneToday = useCheckinDoneToday(isMorning ? 'morning' : 'evening');
   const [values, setValues] = useState<CheckInValues>(emptyValues);
   // GitLab #171: post-save confirmation state so the user gets a visible
   // acknowledgement + a way to jump straight to their check-in history.

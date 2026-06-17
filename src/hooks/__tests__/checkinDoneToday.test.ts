@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isEveningDoneToday } from '@/hooks/useCheckinDoneToday';
+import { isCheckinDoneToday } from '@/hooks/useCheckinDoneToday';
 import type { SessionLogEvent } from '@/stores/sessionLogStore';
 
 function evt(partial: Partial<SessionLogEvent>): SessionLogEvent {
@@ -15,27 +15,40 @@ function evt(partial: Partial<SessionLogEvent>): SessionLogEvent {
   };
 }
 
-describe('isEveningDoneToday', () => {
+describe('isCheckinDoneToday', () => {
   const now = new Date('2026-06-17T20:00:00Z');
 
-  it('true when an evening checkin_completed lands on the local day', () => {
-    expect(isEveningDoneToday([evt({ timestamp: '2026-06-17T19:00:00Z' })], now)).toBe(true);
+  it('true when a matching-bucket checkin_completed lands on the local day', () => {
+    expect(isCheckinDoneToday([evt({ timestamp: '2026-06-17T19:00:00Z' })], 'evening', now)).toBe(
+      true,
+    );
   });
 
-  it('false when the evening event is from yesterday', () => {
-    expect(isEveningDoneToday([evt({ timestamp: '2026-06-16T19:00:00Z' })], now)).toBe(false);
+  it('false when the event is from yesterday', () => {
+    expect(isCheckinDoneToday([evt({ timestamp: '2026-06-16T19:00:00Z' })], 'evening', now)).toBe(
+      false,
+    );
   });
 
-  it('false when only a morning checkin_completed exists today', () => {
-    expect(
-      isEveningDoneToday(
-        [evt({ timestamp: '2026-06-17T08:00:00Z', payload: { type: 'morning' } })],
-        now,
-      ),
-    ).toBe(false);
+  it('discriminates buckets: an evening event does NOT mark morning done (MR#2)', () => {
+    const events = [evt({ timestamp: '2026-06-17T18:00:00Z', payload: { type: 'evening' } })];
+    expect(isCheckinDoneToday(events, 'evening', now)).toBe(true);
+    expect(isCheckinDoneToday(events, 'morning', now)).toBe(false);
+  });
+
+  it('a morning event marks morning done but not evening', () => {
+    const events = [
+      evt({
+        timestamp: '2026-06-17T08:00:00Z',
+        screen_id: 'MCHECK-01',
+        payload: { type: 'morning' },
+      }),
+    ];
+    expect(isCheckinDoneToday(events, 'morning', now)).toBe(true);
+    expect(isCheckinDoneToday(events, 'evening', now)).toBe(false);
   });
 
   it('false on an empty log', () => {
-    expect(isEveningDoneToday([], now)).toBe(false);
+    expect(isCheckinDoneToday([], 'morning', now)).toBe(false);
   });
 });

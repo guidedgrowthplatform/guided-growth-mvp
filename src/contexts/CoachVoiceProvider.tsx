@@ -28,10 +28,10 @@ export function CoachVoiceProvider({ children }: { children: ReactNode }) {
     }
   }, [openScreenId, activeScreenId]);
 
-  // Default until the user opens for the first time — keeps the bound chat
-  // present (resumable on next open) without forcing a screen-context-less
-  // session creation.
-  const currentScreenId = activeScreenId ?? 'HOME-CHECKIN';
+  // Prefer the CURRENTLY-open screen so per-turn context + the dimension-scales
+  // gate reflect the real screen, not a stale activeScreenId left from an earlier
+  // morning check-in (MR#5). Falls back to the last screen when closed.
+  const currentScreenId = openScreenId ?? activeScreenId ?? 'HOME-CHECKIN';
 
   // Lazy-init the bus only once — useRef's argument is evaluated every render
   // but only the first result is stored. This pattern avoids churn while
@@ -62,6 +62,8 @@ export function CoachVoiceProvider({ children }: { children: ReactNode }) {
     enabled: activeScreenId !== null || micOn,
     onTranscriptStream: handleTranscriptStream,
     initiateCheckinNonce,
+    // Welcome opener must not fire when only the mic is armed on Home (MR#4).
+    overlayOpen: openScreenId !== null,
   });
 
   // Pull specific stable fields from `api` instead of spreading the whole

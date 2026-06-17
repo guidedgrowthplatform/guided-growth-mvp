@@ -36,11 +36,24 @@ vi.mock('@/hooks/useLLM', () => ({
     error: null,
     reset: vi.fn(),
     cancel: vi.fn(),
+    prependMessages: vi.fn(() => 0),
   }),
 }));
 
 vi.mock('@/hooks/useChatSession', () => ({
   useChatSession: () => ({ chatSessionId: 'sess-1', initialMessages: [], status: 'ready' }),
+}));
+
+// Linear history must report 'ready' (not the real hook's jsdom error) so
+// chatSessionId unblocks and submitTurn can fire (MR#1 gates error out).
+vi.mock('@/hooks/useChatHistory', () => ({
+  useChatHistory: () => ({
+    initialMessages: [],
+    loadOlder: vi.fn(() => Promise.resolve([])),
+    hasMore: false,
+    loadingOlder: false,
+    status: 'ready',
+  }),
 }));
 
 vi.mock('@/hooks/useVoice', () => ({

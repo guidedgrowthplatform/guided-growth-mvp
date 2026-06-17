@@ -50,8 +50,9 @@ export interface CoachChatApi {
   sendText: (text: string) => void;
   updateHabitDays: (messageId: string, cardIndex: number, days: boolean[]) => void;
   lastCreatedItem?: LastCreatedItem;
-  // Infinite-scroll-up over the linear per-user timeline.
-  loadOlder: () => void;
+  // Infinite-scroll-up over the linear per-user timeline. Resolves with the
+  // number of genuinely-new rows prepended (0 → nothing to anchor).
+  loadOlder: () => Promise<number>;
   hasMore: boolean;
   loadingOlder: boolean;
 }
