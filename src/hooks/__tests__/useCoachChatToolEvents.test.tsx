@@ -276,9 +276,9 @@ describe('useCoachChatToolEvents', () => {
     expect(lastCreatedRef).toBeUndefined();
   });
 
-  it('emits checkin_completed{evening} on get_summary on an ECHECK screen', () => {
+  it('emits checkin_completed{evening} on log_reflection on an ECHECK screen', () => {
     render({
-      messages: [assistant('m1', [toolEvt('e1', 'get_summary')])],
+      messages: [assistant('m1', [toolEvt('e1', 'log_reflection')])],
       resetKey: 'sess-A',
       initialMessages: [],
       screenId: 'ECHECK-01',
@@ -288,9 +288,36 @@ describe('useCoachChatToolEvents', () => {
     expect(logEventMock.mock.calls[0][1]).toMatchObject({ type: 'evening' });
   });
 
-  it('emits the evening event at most once per session', () => {
+  // get_summary fires during the habit recap (before reflection) — must NOT conclude.
+  it('does NOT mark the evening done on get_summary alone', () => {
+    render({
+      messages: [assistant('m1', [toolEvt('e1', 'get_summary')])],
+      resetKey: 'sess-A',
+      initialMessages: [],
+      screenId: 'ECHECK-01',
+    });
+    expect(logEventMock).not.toHaveBeenCalled();
+  });
+
+  // Full evening sequence: a get_summary in the habit recap must NOT conclude;
+  // the later reflection's log_reflection concludes it exactly once.
+  it('completes on the reflection log_reflection even after a habit-recap get_summary', () => {
     render({
       messages: [assistant('m1', [toolEvt('e1', 'get_summary'), toolEvt('e2', 'log_reflection')])],
+      resetKey: 'sess-A',
+      initialMessages: [],
+      screenId: 'ECHECK-01',
+    });
+    expect(logEventMock).toHaveBeenCalledTimes(1);
+    expect(logEventMock.mock.calls[0][0]).toBe('checkin_completed');
+    expect(logEventMock.mock.calls[0][1]).toMatchObject({ type: 'evening', via: 'log_reflection' });
+  });
+
+  it('emits the evening event at most once per session', () => {
+    render({
+      messages: [
+        assistant('m1', [toolEvt('e1', 'log_reflection'), toolEvt('e2', 'log_reflection')]),
+      ],
       resetKey: 'sess-A',
       initialMessages: [],
       screenId: 'ECHECK-01',
@@ -300,7 +327,7 @@ describe('useCoachChatToolEvents', () => {
 
   it('does not emit the evening event on a non-ECHECK screen', () => {
     render({
-      messages: [assistant('m1', [toolEvt('e1', 'get_summary')])],
+      messages: [assistant('m1', [toolEvt('e1', 'log_reflection')])],
       resetKey: 'sess-A',
       initialMessages: [],
       screenId: 'MCHECK-01',

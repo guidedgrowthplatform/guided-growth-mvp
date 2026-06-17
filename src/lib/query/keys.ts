@@ -30,6 +30,9 @@ export const queryKeys = {
     all: ['journal'] as const,
     range: (start: string, end: string) => ['journal', start, end] as const,
   },
+  reflectionSettings: {
+    all: ['reflection-settings'] as const,
+  },
   focusSessions: {
     all: ['focus-sessions'] as const,
   },

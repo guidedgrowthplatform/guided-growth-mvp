@@ -550,3 +550,70 @@ describe('LLM route — onboarding model + fork tool-choice forcing', () => {
     expect(o.toolChoice).toBeUndefined();
   });
 });
+
+describe('LLM route — check-in opener starts a fresh response chain', () => {
+  async function* completedOnly() {
+    yield { type: 'completed', responseId: 'resp-opener', totalTokens: 1 };
+  }
+  function streamPrevId(): string | undefined {
+    return (
+      (openResponsesStream as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as {
+        previousResponseId?: string;
+      }
+    ).previousResponseId;
+  }
+  function streamToolNames(): string[] {
+    const tools = (
+      (openResponsesStream as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as {
+        tools?: ReadonlyArray<{ name: string }>;
+      }
+    ).tools;
+    return tools ? tools.map((t) => t.name) : [];
+  }
+  async function runOpener(screenId: string) {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ foreign_owned: false, prev_response_id: 'resp_STALE_REFLECT' }],
+    });
+    pool.query.mockResolvedValue({ rowCount: 1, rows: [] });
+    (openResponsesStream as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      completedOnly(),
+    );
+    const { client } = makeClient();
+    pool.connect.mockResolvedValue(client);
+    await handler(
+      mockReq({
+        session_id: 'sess-abcd1234',
+        screen_id: screenId,
+        mode: 'opener',
+        chat_session_id: CHAT_SESSION_ID,
+      }),
+      mockRes(),
+    );
+  }
+
+  it('ignores prior session history for an ECHECK-01 opener', async () => {
+    await runOpener('ECHECK-01');
+    expect(streamPrevId()).toBeUndefined();
+  });
+
+  it('ignores prior session history for an MCHECK-01 opener', async () => {
+    await runOpener('MCHECK-01');
+    expect(streamPrevId()).toBeUndefined();
+  });
+
+  it('still chains on prior history for a plain HOME-CHECKIN opener', async () => {
+    await runOpener('HOME-CHECKIN');
+    expect(streamPrevId()).toBe('resp_STALE_REFLECT');
+  });
+
+  it('gives the ECHECK-01 opener ONLY query_habits (to surface the habit card)', async () => {
+    await runOpener('ECHECK-01');
+    expect(streamToolNames()).toEqual(['query_habits']);
+  });
+
+  it('gives MCHECK-01 and HOME-CHECKIN openers no tools', async () => {
+    await runOpener('MCHECK-01');
+    expect(streamToolNames()).toEqual([]);
+  });
+});

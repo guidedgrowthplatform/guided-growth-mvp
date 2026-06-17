@@ -3,6 +3,7 @@ import {
   CHECKIN_TOOL_ADDENDUM,
   CHECKIN_READONLY_ADDENDUM,
   CHECKIN_WALKTHROUGH,
+  CHECKIN_EVENING_OPENER,
 } from '../systemPromptAddendum.js';
 import { isCheckinScreen, isReadOnlyCheckinScreen } from '../registry.js';
 
@@ -54,10 +55,11 @@ describe('CHECKIN_WALKTHROUGH', () => {
     expect(CHECKIN_WALKTHROUGH).toContain('scope:"today"');
   });
 
-  it('records results with complete_habit one-by-one but accepts batch answers', () => {
+  it('surfaces an interactive checklist and records chat-stated completions via complete_habit', () => {
     expect(CHECKIN_WALKTHROUGH).toContain('complete_habit');
-    expect(CHECKIN_WALKTHROUGH).toMatch(/one by one/i);
-    expect(CHECKIN_WALKTHROUGH).toMatch(/batch/i);
+    expect(CHECKIN_WALKTHROUGH).toMatch(/interactive/i);
+    expect(CHECKIN_WALKTHROUGH).toMatch(/checklist/i);
+    expect(CHECKIN_WALKTHROUGH).toMatch(/one at a time/i);
   });
 
   it('handles polarity: avoid abstained = success, slip = unmarked miss', () => {
@@ -66,9 +68,46 @@ describe('CHECKIN_WALKTHROUGH', () => {
     expect(CHECKIN_WALKTHROUGH).toMatch(/unmarked/i);
   });
 
-  it("ends with a polarity-aware did/didn't summary from the conversation", () => {
-    expect(CHECKIN_WALKTHROUGH).toMatch(/summar/i);
-    expect(CHECKIN_WALKTHROUGH).toMatch(/did.?n.?t/i);
+  it('closes the habit phase with a warm acknowledgement, never guilt', () => {
+    expect(CHECKIN_WALKTHROUGH).toMatch(/acknowledge/i);
+    expect(CHECKIN_WALKTHROUGH).toMatch(/never guilt/i);
+  });
+
+  it('sequences all three phases: habits → reflection → wrap-up, in order', () => {
+    const habits = CHECKIN_WALKTHROUGH.search(/Phase 1 — Habits/);
+    const reflection = CHECKIN_WALKTHROUGH.search(/Phase 2 — Reflection/);
+    const wrapUp = CHECKIN_WALKTHROUGH.search(/Phase 3 — Wrap-up/);
+    expect(habits).toBeGreaterThanOrEqual(0);
+    expect(reflection).toBeGreaterThan(habits);
+    expect(wrapUp).toBeGreaterThan(reflection);
+  });
+
+  it('makes reflection mandatory and defers questions to the Reflection Settings block', () => {
+    expect(CHECKIN_WALKTHROUGH).toMatch(/mandatory/i);
+    expect(CHECKIN_WALKTHROUGH).toContain('log_reflection');
+    expect(CHECKIN_WALKTHROUGH).toContain('## Reflection Settings (this user)');
+  });
+
+  it('ends with a warm bedtime wrap-up', () => {
+    expect(CHECKIN_WALKTHROUGH).toMatch(/bedtime|rest well|tomorrow/i);
+  });
+});
+
+describe('CHECKIN_EVENING_OPENER', () => {
+  it('calls query_habits scope:"today" to surface the interactive checklist', () => {
+    expect(CHECKIN_EVENING_OPENER).toContain('query_habits');
+    expect(CHECKIN_EVENING_OPENER).toContain('scope:"today"');
+    expect(CHECKIN_EVENING_OPENER).toMatch(/interactive|checklist/i);
+  });
+
+  it('opens warm and explicitly does NOT lead with a reflection question', () => {
+    expect(CHECKIN_EVENING_OPENER).toMatch(/warm/i);
+    expect(CHECKIN_EVENING_OPENER).toMatch(/do not open with a reflection question/i);
+  });
+
+  it('falls back to reflection only when there are no habits today', () => {
+    expect(CHECKIN_EVENING_OPENER).toMatch(/no habits/i);
+    expect(CHECKIN_EVENING_OPENER).toContain('## Reflection Settings (this user)');
   });
 });
 

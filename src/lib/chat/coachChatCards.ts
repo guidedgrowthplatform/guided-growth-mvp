@@ -44,10 +44,21 @@ export function buildHabitCards(
 }
 
 // True when this assistant turn successfully completed a habit — drives the
-// read-only Today's Habits report card in the overlay.
+// interactive Today's Habits card in the overlay.
 export function messageHasHabitCompletion(m: LLMChatMessage): boolean {
   return (m.toolEvents ?? []).some(
     (evt) => evt.name === 'complete_habit' && evt.result?.ok === true,
+  );
+}
+
+// True when this assistant turn pulled up TODAY's habits (query_habits with an
+// explicit scope:"today") — surfaces the interactive card so the user marks
+// habits in the UI during the evening check-in. A bare query (no scope) defaults
+// to "all" server-side, so only an explicit "today" triggers the checklist;
+// "all" (read-back) never does.
+export function messageHasTodayHabits(m: LLMChatMessage): boolean {
+  return (m.toolEvents ?? []).some(
+    (evt) => evt.name === 'query_habits' && evt.result?.ok === true && evt.args?.scope === 'today',
   );
 }
 

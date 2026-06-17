@@ -14,6 +14,18 @@ export function isCheckinScreen(screenId: string | null | undefined): boolean {
   return typeof screenId === 'string' && CHECKIN_SCREEN_IDS.has(screenId);
 }
 
+// The evening opener is tool-less EXCEPT for read-only query_habits: calling it
+// surfaces the interactive today's-habits checklist inline with the warm opener,
+// so the user marks habits in the UI instead of a one-by-one chat interrogation.
+const QUERY_HABITS_ONLY: readonly CheckinToolDefinition[] = CHECKIN_TOOLS.filter(
+  (t) => t.name === 'query_habits',
+);
+export function getEveningOpenerTools(
+  screenId: string | null | undefined,
+): readonly CheckinToolDefinition[] | undefined {
+  return screenId === 'ECHECK-01' ? QUERY_HABITS_ONLY : undefined;
+}
+
 export function getCheckinTools(
   screenId: string | null | undefined,
 ): readonly CheckinToolDefinition[] | undefined {

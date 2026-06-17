@@ -98,6 +98,9 @@ export interface JournalEntry {
   date: string;
   habit_id?: string | null;
   fields: Record<string, string>;
+  // Prompts the entry was written against (template entries); preserves display
+  // when a user later edits their reflection prompts. Null for freeform.
+  prompts_snapshot?: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -109,7 +112,32 @@ export interface JournalEntryCreate {
   date: string;
   habit_id?: string | null;
   fields: Record<string, string>;
+  prompts_snapshot?: string[] | null;
 }
+
+// ─── Reflection settings (runtime mode + editable prompts) ───
+export type ReflectionMode = 'prompts' | 'freeform';
+
+// Canonical default for NEW reflection settings (matches the onboarding card).
+// Going forward this unifies onboarding + runtime wording. Historical entries
+// keep their own wording via JournalEntry.prompts_snapshot, and the NULL-snapshot
+// fallback in ReflectionDetailPage stays the legacy long-form set on purpose.
+export const DEFAULT_REFLECTION_PROMPTS: string[] = [
+  'What am I proud of today?',
+  'What do I forgive myself for today?',
+  'What am I grateful for today?',
+];
+
+export interface ReflectionSettings {
+  mode: ReflectionMode;
+  prompts: string[]; // used when mode==='prompts'; empty for freeform
+  time: string | null; // 'HH:MM'
+  days: number[]; // 0..6
+  reminder: boolean;
+  schedule: string | null; // 'Weekday' | 'Weekend' | 'Every day'
+}
+
+export type ReflectionSettingsUpdate = Partial<ReflectionSettings>;
 
 // ─── Preferences ────────────────────────────────────
 export type ViewMode = 'spreadsheet' | 'form';
@@ -214,6 +242,7 @@ export interface OnboardingStepData {
     }
   > | null;
   reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string } | null;
+  reflectionMode?: ReflectionMode | null;
   brainDumpText?: string | null;
   // Persisted LLM parse so advanced-results can rehydrate on lost router state (no regex re-invent).
   brainDumpHabits?: Array<{ name: string; days?: number[]; time?: string }> | null;

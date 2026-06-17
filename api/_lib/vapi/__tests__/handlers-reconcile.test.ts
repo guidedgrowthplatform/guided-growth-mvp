@@ -229,6 +229,61 @@ describe('vapi navigateNext — skip + precondition guards', () => {
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
 
+  // tap→voice catch-up: user tapped into the reflection screen (current_step
+  // stays at the habits step) then advanced by voice — a +2 jump.
+  it('allows +2 catch-up when both skipped steps have data (step 5 → 7)', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            current_step: 5,
+            data: { habitConfigs: { Run: {} }, reflectionConfig: { time: '21:00' } },
+            path: 'simple',
+            brain_dump_raw: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    expect(res).toEqual({ result: 'ok' });
+    expect(pool.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects +2 catch-up when an intermediate step is missing data (step 5 → 7, no reflectionConfig)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          current_step: 5,
+          data: { habitConfigs: { Run: {} } },
+          path: 'simple',
+          brain_dump_raw: null,
+        },
+      ],
+    });
+    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    expect(res).toMatchObject({ error: expect.stringContaining('cannot_skip_steps') });
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects +3 jumps outright even with data present (step 4 → 7)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          current_step: 4,
+          data: { goals: ['x'], habitConfigs: { Run: {} }, reflectionConfig: { time: '21:00' } },
+          path: 'simple',
+          brain_dump_raw: null,
+        },
+      ],
+    });
+    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    expect(res).toMatchObject({ error: expect.stringContaining('cannot_skip_steps') });
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects single-step forward when source data missing (step 1 → 2 with no nickname)', async () => {
     pool.query.mockResolvedValueOnce({
       rowCount: 1,

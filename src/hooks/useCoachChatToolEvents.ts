@@ -6,8 +6,9 @@ import type { LastCreatedItem } from '@/lib/chat/coachChatTypes';
 import { queryKeys } from '@/lib/query';
 import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
 
-// Tools that mark the evening check-in as concluded (day summary / reflection log).
-const EVENING_DONE_TOOLS: ReadonlySet<string> = new Set(['get_summary', 'log_reflection']);
+// Only log_reflection (the mandatory final phase) concludes the evening check-in.
+// get_summary can fire during the habit recap — before reflection — so it must NOT count.
+const EVENING_DONE_TOOLS: ReadonlySet<string> = new Set(['log_reflection']);
 // record_checkin marks a morning check-in concluded (a dimension was recorded).
 // Per-bucket events discriminate morning vs evening, unlike the shared
 // daily_checkins row which an evening save also writes (MR#2).

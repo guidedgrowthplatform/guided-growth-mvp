@@ -176,10 +176,63 @@ describe('buildSystemPromptForRequest', () => {
       coaching_style: 'warm',
       recent_events,
     });
-    expect(evening.systemPrompt).toContain('## Evening Habit Walkthrough');
+    expect(evening.systemPrompt).toContain('## Evening Check-in Flow');
     expect(evening.systemPrompt).toContain('scope:"today"');
     expect(evening.systemPrompt).toContain('complete_habit');
     expect(evening.systemPrompt).toMatch(/did.?n.?t/i);
+  });
+
+  it('forces the evening opener to lead with habits ONLY on ECHECK-01 opener turns', async () => {
+    const mockEchack = () => {
+      pool.query.mockReset();
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            { context_block: 'SCREEN_ID: ECHECK-01\nBEHAVIOR: evening check in.', version: 1 },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValue({ rows: [], rowCount: 0 });
+    };
+
+    mockEchack();
+    const opener = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ECHECK-01',
+      coaching_style: 'warm',
+      recent_events,
+      mode: 'opener',
+    });
+    expect(opener.systemPrompt).toContain('## Evening Opener (this turn only)');
+    expect(opener.systemPrompt).toContain('Do NOT open with a reflection question');
+
+    mockEchack();
+    const chat = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ECHECK-01',
+      coaching_style: 'warm',
+      recent_events,
+      mode: 'chat',
+    });
+    expect(chat.systemPrompt).not.toContain('## Evening Opener (this turn only)');
+  });
+
+  it('does NOT emit the evening opener block on MCHECK-01 opener turns', async () => {
+    pool.query.mockReset();
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ context_block: 'SCREEN_ID: MCHECK-01\nBEHAVIOR: morning check in.', version: 1 }],
+        rowCount: 1,
+      })
+      .mockResolvedValue({ rows: [], rowCount: 0 });
+    const { systemPrompt } = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'MCHECK-01',
+      coaching_style: 'warm',
+      recent_events,
+      mode: 'opener',
+    });
+    expect(systemPrompt).not.toContain('## Evening Opener (this turn only)');
   });
 
   it('does NOT emit the walkthrough on MCHECK-01, HOME-CHECKIN, or non-checkin screens', async () => {
@@ -197,7 +250,7 @@ describe('buildSystemPromptForRequest', () => {
         coaching_style: 'warm',
         recent_events,
       });
-      expect(systemPrompt).not.toContain('## Evening Habit Walkthrough');
+      expect(systemPrompt).not.toContain('## Evening Check-in Flow');
     }
   });
 

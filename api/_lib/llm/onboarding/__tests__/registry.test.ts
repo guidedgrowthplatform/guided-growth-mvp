@@ -161,6 +161,7 @@ describe('ONBOARDING_TOOLS', () => {
           "name": "submit_reflection_config",
           "properties": [
             "days",
+            "mode",
             "reminder",
             "schedule",
             "time",

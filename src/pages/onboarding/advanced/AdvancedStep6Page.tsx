@@ -17,14 +17,9 @@ import {
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { DEFAULT_REFLECTION_PROMPTS } from '@gg/shared/types';
 import { useCtaLoading } from '../shared/useCtaLoading';
 import { useStepTiming } from '../shared/useStepTiming';
-
-const DEFAULT_QUESTIONS = [
-  'What am I proud of today?',
-  'What do I forgive myself for today?',
-  'What am I grateful for today?',
-];
 
 // String labels (persisted / voice) → day set
 function daysFromScheduleLabel(label: string): Set<number> | null {
@@ -78,7 +73,7 @@ export function AdvancedStep6Page() {
     }
   }, [onboardingState?.data?.reflectionConfig, onboardingState?.data?.reflectionSchedule]);
 
-  const questions = customPrompts ?? DEFAULT_QUESTIONS;
+  const questions = customPrompts ?? DEFAULT_REFLECTION_PROMPTS;
 
   const snapshot = useOnboardingFormSnapshot({
     reflectionSchedule: formatCadence(selectedDays),

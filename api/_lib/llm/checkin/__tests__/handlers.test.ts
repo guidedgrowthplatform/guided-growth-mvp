@@ -19,6 +19,7 @@ const { queryHabits } = await import('../handlers/queryHabits.js');
 const { getSummary } = await import('../handlers/getSummary.js');
 const { suggestHabit } = await import('../handlers/suggestHabit.js');
 const { logReflection } = await import('../handlers/logReflection.js');
+const { updateReflection } = await import('../handlers/updateReflection.js');
 const { todayStr, HABIT_SUGGESTIONS, DEFAULT_SUGGESTION } = await import('../handlers/shared.js');
 
 const poolConnect = (pool as unknown as { connect: ReturnType<typeof vi.fn> }).connect;
@@ -727,5 +728,114 @@ describe('log_reflection', () => {
     );
     expect(r).toBe(cached);
     expect(poolConnect).not.toHaveBeenCalled();
+  });
+});
+
+describe('update_reflection', () => {
+  const SELECT_RE = /SELECT mode, prompts[\s\S]*FROM reflection_settings/;
+  const UPSERT_RE = /INSERT INTO\s+reflection_settings/;
+
+  it('rejects an empty call without touching the db', async () => {
+    const r = await updateReflection(CTX, {});
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects a malformed prompts array instead of silently ignoring it', async () => {
+    route([[SELECT_RE, { rows: [] }]]);
+    const r = await updateReflection(CTX, { prompts: ['ok', 42] as unknown as string[] });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query.mock.calls.some((c) => UPSERT_RE.test(c[0] as string))).toBe(false);
+  });
+
+  it('rejects an empty prompts list in prompts mode (no silent reset to defaults)', async () => {
+    route([[SELECT_RE, { rows: [] }]]);
+    const r = await updateReflection(CTX, { prompts: [] });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query.mock.calls.some((c) => UPSERT_RE.test(c[0] as string))).toBe(false);
+  });
+
+  it('rejects an invalid mode without upserting', async () => {
+    route([[SELECT_RE, { rows: [] }]]);
+    const r = await updateReflection(CTX, { mode: 'bogus' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query.mock.calls.some((c) => UPSERT_RE.test(c[0] as string))).toBe(false);
+  });
+
+  it('replaces the prompts list (add/remove via full list)', async () => {
+    const next = ['What am I proud of today?', 'What did I learn today?'];
+    route([
+      [
+        SELECT_RE,
+        {
+          rows: [
+            {
+              mode: 'prompts',
+              prompts: ['What am I proud of today?'],
+              reminder_time: '21:00',
+              schedule_days: [1, 2, 3, 4, 5],
+              reminder_enabled: true,
+              schedule_label: 'Weekday',
+            },
+          ],
+        },
+      ],
+      [
+        UPSERT_RE,
+        {
+          rows: [
+            {
+              mode: 'prompts',
+              prompts: next,
+              reminder_time: '21:00',
+              schedule_days: [1, 2, 3, 4, 5],
+              reminder_enabled: true,
+              schedule_label: 'Weekday',
+            },
+          ],
+        },
+      ],
+    ]);
+    const r = await updateReflection(CTX, { prompts: next });
+    expect(r).toMatchObject({ ok: true, result: { mode: 'prompts', prompts: next } });
+    // upsert is scoped to the caller's anon_id
+    expect(lastCall(UPSERT_RE)[1][0]).toBe(CTX.anon_id);
+  });
+
+  it('freeform clears prompts', async () => {
+    route([
+      [
+        SELECT_RE,
+        {
+          rows: [
+            {
+              mode: 'prompts',
+              prompts: ['What am I proud of today?'],
+              reminder_time: null,
+              schedule_days: [],
+              reminder_enabled: true,
+              schedule_label: null,
+            },
+          ],
+        },
+      ],
+      [
+        UPSERT_RE,
+        {
+          rows: [
+            {
+              mode: 'freeform',
+              prompts: [],
+              reminder_time: null,
+              schedule_days: [],
+              reminder_enabled: true,
+              schedule_label: null,
+            },
+          ],
+        },
+      ],
+    ]);
+    const r = await updateReflection(CTX, { mode: 'freeform' });
+    expect(r).toMatchObject({ ok: true, result: { mode: 'freeform', prompts: [] } });
   });
 });

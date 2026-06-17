@@ -97,11 +97,13 @@ export function toolEventToVoiceActions(event: LLMToolEvent): OnboardingVoiceRes
       const days = asNumberArray(args.days);
       const reminder = asBoolean(args.reminder);
       const schedule = asString(args.schedule);
+      const mode = asString(args.mode);
       const params = {
         ...(time !== undefined ? { time } : {}),
         ...(days !== undefined ? { days } : {}),
         ...(reminder !== undefined ? { reminder } : {}),
         ...(schedule !== undefined ? { schedule } : {}),
+        ...(mode === 'prompts' || mode === 'freeform' ? { mode } : {}),
       };
       if (Object.keys(params).length > 0) out.push(r('set_reflection_config', params));
       return out;

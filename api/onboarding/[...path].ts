@@ -1,8 +1,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import type { HabitType } from '@gg/shared/types';
+import {
+  DEFAULT_REFLECTION_PROMPTS,
+  type HabitType,
+  type ReflectionSettings,
+} from '@gg/shared/types';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { supabaseAdmin } from '../_lib/supabase.js';
+import {
+  sanitizeDays,
+  sanitizePrompts,
+  upsertReflectionSettings,
+} from '../_lib/reflection/reflectionSettings.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
@@ -135,6 +144,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           user_metadata: { nickname: data.nickname },
         });
       }
+
+      // Materialize reflection settings into the runtime table (mirrors habits →
+      // user_habits). Without this, the chosen mode/prompts/schedule stay trapped
+      // in onboarding_states.data and the runtime journal never sees them.
+      const rc = data?.reflectionConfig as
+        | { time?: string; days?: number[]; reminder?: boolean; schedule?: string }
+        | undefined;
+      const mode = data?.reflectionMode === 'freeform' ? 'freeform' : 'prompts';
+      const customPrompts = sanitizePrompts(data?.customPrompts);
+      const reflectionSettings: ReflectionSettings = {
+        mode,
+        prompts:
+          mode === 'prompts'
+            ? customPrompts.length
+              ? customPrompts
+              : DEFAULT_REFLECTION_PROMPTS
+            : [],
+        time: typeof rc?.time === 'string' ? rc.time : null,
+        days: sanitizeDays(rc?.days),
+        reminder: typeof rc?.reminder === 'boolean' ? rc.reminder : true,
+        schedule: typeof rc?.schedule === 'string' ? rc.schedule : null,
+      };
+      await upsertReflectionSettings(user.anonId, reflectionSettings, client);
 
       await client.query('COMMIT');
       return res.json({ message: 'Onboarding completed' });

@@ -13,6 +13,7 @@ import {
   buildCheckinCard,
   buildHabitCards,
   messageHasHabitCompletion,
+  messageHasTodayHabits,
 } from '@/lib/chat/coachChatCards';
 import type { ChatMessage, CoachChatApi, VoiceChatState } from '@/lib/chat/coachChatTypes';
 import { startTokenWarmLoop, stopTokenWarmLoop } from '@/lib/services/cartesia-token-cache';
@@ -567,7 +568,8 @@ export function useCoachChat(
         text: m.content,
         habitCards: role === 'ai' ? buildHabitCards(m, dayOverrides) : undefined,
         checkinCard: role === 'ai' ? buildCheckinCard(m) : undefined,
-        habitReport: role === 'ai' ? messageHasHabitCompletion(m) : undefined,
+        habitReport:
+          role === 'ai' ? messageHasHabitCompletion(m) || messageHasTodayHabits(m) : undefined,
       });
     }
     return [...out, ...errorBubbles];

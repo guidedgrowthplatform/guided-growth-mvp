@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
-import { buildHabitCards, cardFromEvent, DEFAULT_WEEK } from '../coachChatCards';
+import {
+  buildHabitCards,
+  cardFromEvent,
+  DEFAULT_WEEK,
+  messageHasHabitCompletion,
+  messageHasTodayHabits,
+} from '../coachChatCards';
 
 function evt(name: string, payload: unknown, ok = true): LLMToolEvent {
   return { id: `t-${name}`, name, args: {}, result: { ok, payload } };
+}
+
+function evtArgs(name: string, args: Record<string, unknown>, ok = true): LLMToolEvent {
+  return { id: `t-${name}`, name, args, result: { ok, payload: { result: {} } } };
 }
 
 describe('cardFromEvent', () => {
@@ -107,5 +117,56 @@ describe('buildHabitCards', () => {
       name: 'b',
       days: [true, false, false, false, false, false, false],
     });
+  });
+});
+
+describe('messageHasTodayHabits — drives the interactive checklist card', () => {
+  const msg = (toolEvents: LLMToolEvent[]): LLMChatMessage => ({
+    id: 'm1',
+    role: 'assistant',
+    content: 'here are your habits',
+    toolEvents,
+  });
+
+  it('is true for a successful query_habits with scope:"today"', () => {
+    expect(messageHasTodayHabits(msg([evtArgs('query_habits', { scope: 'today' })]))).toBe(true);
+  });
+
+  it('is false for a bare query_habits (no scope → defaults to "all" server-side)', () => {
+    expect(messageHasTodayHabits(msg([evtArgs('query_habits', {})]))).toBe(false);
+  });
+
+  it('is false for scope:"all" (read-back, not the check-in checklist)', () => {
+    expect(messageHasTodayHabits(msg([evtArgs('query_habits', { scope: 'all' })]))).toBe(false);
+  });
+
+  it('is false for a failed query_habits', () => {
+    expect(messageHasTodayHabits(msg([evtArgs('query_habits', { scope: 'today' }, false)]))).toBe(
+      false,
+    );
+  });
+
+  it('is false when there is no query_habits event', () => {
+    expect(messageHasTodayHabits(msg([evt('record_checkin', { result: {} })]))).toBe(false);
+    expect(messageHasTodayHabits({ id: 'm', role: 'assistant', content: 'hi' })).toBe(false);
+  });
+});
+
+describe('messageHasHabitCompletion', () => {
+  const msg = (toolEvents: LLMToolEvent[]): LLMChatMessage => ({
+    id: 'm1',
+    role: 'assistant',
+    content: 'nice',
+    toolEvents,
+  });
+
+  it('is true for a successful complete_habit', () => {
+    expect(messageHasHabitCompletion(msg([evt('complete_habit', { result: {} })]))).toBe(true);
+  });
+
+  it('is false for a failed complete_habit', () => {
+    expect(messageHasHabitCompletion(msg([evt('complete_habit', { result: {} }, false)]))).toBe(
+      false,
+    );
   });
 });

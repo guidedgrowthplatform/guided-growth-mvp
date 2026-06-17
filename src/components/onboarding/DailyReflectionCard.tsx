@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
 import { Toggle } from '@/components/ui/Toggle';
+import { DEFAULT_REFLECTION_PROMPTS } from '@gg/shared/types';
 import { SECTION_LABEL_CLASS } from './constants';
 import { SchedulePicker, type ScheduleOption } from './SchedulePicker';
 
@@ -15,13 +16,11 @@ interface DailyReflectionCardProps {
   onToggleReminder: (value: boolean) => void;
   schedule: ScheduleOption;
   onScheduleChange: (value: ScheduleOption) => void;
+  onCreatePrompts?: () => void;
+  prompts?: string[];
+  selectedPrompts?: string[];
+  onTogglePrompt?: (prompt: string) => void;
 }
-
-const QUESTIONS = [
-  'What am I proud of today?',
-  'What do I forgive myself for today?',
-  'What am I grateful for today?',
-];
 
 export function DailyReflectionCard({
   time,
@@ -32,12 +31,19 @@ export function DailyReflectionCard({
   onToggleReminder,
   schedule,
   onScheduleChange,
+  onCreatePrompts,
+  prompts,
+  selectedPrompts,
+  onTogglePrompt,
 }: DailyReflectionCardProps) {
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const questions = prompts ?? DEFAULT_REFLECTION_PROMPTS;
+  const isSelected = (q: string) => !selectedPrompts || selectedPrompts.includes(q);
+  const selectedCount = questions.filter(isSelected).length;
 
   return (
     <>
-      <div className="flex w-full flex-col gap-[24px] rounded-[24px] border border-border-light bg-surface-secondary p-[25px] shadow-[0px_10px_30px_-5px_rgba(19,91,236,0.08),0px_4px_12px_-4px_rgba(0,0,0,0.03)]">
+      <div className="flex w-full flex-col gap-[24px] rounded-[24px] border border-border-light bg-surface p-[25px] shadow-[0px_10px_30px_-5px_rgba(19,91,236,0.08),0px_4px_12px_-4px_rgba(0,0,0,0.03)]">
         {/* Header */}
         <div className="flex items-center gap-[16px]">
           <div className="flex size-[48px] items-center justify-center rounded-[24px] bg-primary/10">
@@ -46,23 +52,43 @@ export function DailyReflectionCard({
           <div className="flex flex-col">
             <span className="text-[18px] font-bold text-content">Daily Reflection</span>
             <span className="text-[14px] font-medium text-content-tertiary">
-              3 quick questions before bed
+              {selectedCount} quick question{selectedCount === 1 ? '' : 's'} before bed
             </span>
           </div>
         </div>
 
-        {/* Questions */}
+        {/* Questions — tappable, selected = solid, deselected = faded */}
         <div className="flex flex-col gap-[12px]">
-          <span className="text-[14px] font-bold uppercase tracking-[0.35px] text-content">
-            You'll answer 3 quick questions:
+          <span className="text-[14px] font-bold uppercase tracking-[0.35px] text-content-secondary">
+            You'll answer {selectedCount} quick question{selectedCount === 1 ? '' : 's'}:
           </span>
-          {QUESTIONS.map((q) => (
-            <div key={q} className="flex items-center gap-[8px]">
-              <Icon icon="ic:outline-check-circle" className="size-[17px] shrink-0 text-primary" />
-              <span className="text-[16px] font-medium text-content-subtle">{q}</span>
-            </div>
-          ))}
+          {questions.map((q) => {
+            const selected = isSelected(q);
+            return (
+              <button
+                key={q}
+                type="button"
+                onClick={() => onTogglePrompt?.(q)}
+                disabled={!onTogglePrompt}
+                className={`w-full rounded-[16px] bg-surface-secondary px-[16px] py-[14px] text-left text-[16px] font-medium transition-opacity ${
+                  selected ? 'text-content' : 'text-content-tertiary opacity-50'
+                }`}
+              >
+                {q}
+              </button>
+            );
+          })}
         </div>
+
+        {onCreatePrompts && (
+          <button
+            type="button"
+            onClick={onCreatePrompts}
+            className="w-full rounded-full border-2 border-primary py-[14px] text-center text-[16px] font-bold text-primary"
+          >
+            Optional: Create My Own Prompts
+          </button>
+        )}
 
         {/* Divider */}
         <div className="h-px w-full bg-border-light" />

@@ -15,7 +15,11 @@ import { dispatchOnboardingToolCall } from '../_lib/llm/onboarding/dispatch.js';
 import { getOnboardingTools } from '../_lib/llm/onboarding/registry.js';
 import { isOnboardingToolName } from '../_lib/llm/onboarding/schemas.js';
 import { dispatchCheckinToolCall } from '../_lib/llm/checkin/dispatch.js';
-import { getCheckinTools, getReadOnlyCheckinTools } from '../_lib/llm/checkin/registry.js';
+import {
+  getCheckinTools,
+  getReadOnlyCheckinTools,
+  getEveningOpenerTools,
+} from '../_lib/llm/checkin/registry.js';
 import { isCheckinToolName } from '../_lib/llm/checkin/schemas.js';
 import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
 import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
@@ -226,7 +230,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : Promise.resolve(null),
     ]);
     systemPrompt = built.systemPrompt;
-    previousResponseId = ownerRow?.prev_response_id ?? null;
+    // A dedicated check-in opener LEADS a fresh structured flow (evening:
+    // habits → reflection → wrap-up). Chaining onto prior chatter in the same
+    // session anchors the model to whatever it said before (e.g. a stale "let's
+    // reflect" opener), overriding the lead-with-habits instruction. Start it
+    // from a clean response chain; the next (chat) turn chains on this opener.
+    const isDedicatedCheckinOpener =
+      mode === 'opener' && (screenId === 'MCHECK-01' || screenId === 'ECHECK-01');
+    previousResponseId = isDedicatedCheckinOpener ? null : (ownerRow?.prev_response_id ?? null);
     foreignOwned = ownerRow?.foreign_owned ?? false;
     pathAlreadySet = typeof forkPathRow?.path === 'string' && forkPathRow.path.length > 0;
     if (process.env.NODE_ENV !== 'production') {
@@ -476,7 +487,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const readOnlyCheckinTools = getReadOnlyCheckinTools(screenId);
   const requestTools =
     mode === 'opener'
-      ? undefined
+      ? getEveningOpenerTools(screenId)
       : onboardingTools !== undefined
         ? onboardingTools
         : checkinTools !== undefined

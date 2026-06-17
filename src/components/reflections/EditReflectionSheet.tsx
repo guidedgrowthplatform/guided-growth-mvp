@@ -1,6 +1,7 @@
 import { Suspense, useState } from 'react';
 import { updateJournalEntry } from '@/api/journal';
 import { GuidedTab } from '@/components/journal/GuidedTab';
+import { guidedPromptsForEntry } from '@/components/reflections/reflectionFormatters';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -88,6 +89,7 @@ export function EditReflectionSheet({ entry, onClose, onSaved }: EditReflectionS
               onSave={() => handleSave(close)}
               saving={saving}
               now={now}
+              prompts={guidedPromptsForEntry(entry)}
             />
           )}
         </div>
