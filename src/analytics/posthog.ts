@@ -56,12 +56,6 @@ export function identify(userId: string, traits?: Record<string, unknown>): void
   posthog.identify(userId, traits);
 }
 
-/** Alias — some call sites use setUserProperty per PostHog doc §2.1. */
-export function setUserProperty(traits: Record<string, unknown>): void {
-  if (!initialized) return;
-  posthog.people.set(traits);
-}
-
 export function resetIdentity(): void {
   if (!initialized) return;
   posthog.reset();

@@ -5,7 +5,7 @@ import { useLocation } from 'react-router-dom';
 // is active. We push a state entry with this marker so the very next
 // `popstate` (hardware back, browser back, iOS swipe-back) lands on our
 // sentinel and we can intercept the intent.
-export const GUARD_STATE_KEY = '__navGuardSentinel';
+const GUARD_STATE_KEY = '__navGuardSentinel';
 
 /**
  * Block in-app navigation away from the current route while `active` is true.
