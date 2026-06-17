@@ -4,7 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { ReminderSheet } from '@/components/home';
 import { SegmentedControl } from '@/components/insights/SegmentedControl';
-import { NotificationCard, WeeklySummaryCard } from '@/components/notifications';
+import {
+  EmptyNotifications,
+  NotificationCard,
+  NotificationSkeleton,
+  WeeklySummaryCard,
+} from '@/components/notifications';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import type { NotificationCategory } from '@/lib/notifications';
@@ -17,7 +22,7 @@ const TAB_ITEMS = [
 export function NotificationsPage() {
   const navigate = useNavigate();
   const { preferences, updatePreferences } = useUserPreferences();
-  const { notifications, markRead, markAllRead } = useNotifications();
+  const { notifications, isLoading, markRead, markAllRead } = useNotifications();
   const [activeTab, setActiveTab] = useState<NotificationCategory>('habit');
   const [showReminders, setShowReminders] = useState(false);
 
@@ -68,24 +73,25 @@ export function NotificationsPage() {
       />
 
       <div className="flex flex-col gap-3">
-        {visible.map((n) => (
-          <NotificationCard
-            key={n.id}
-            notification={n}
-            onPress={() => {
-              track('tap_notification', { id: n.id });
-              navigate(`/notifications/${n.id}`);
-            }}
-            onCtaPress={(to) => {
-              markRead(n.id);
-              navigate(to);
-            }}
-          />
-        ))}
-        {visible.length === 0 && (
-          <div className="rounded-2xl bg-surface px-6 py-8 text-center shadow-sm">
-            <p className="text-sm text-content-secondary">No notifications here yet.</p>
-          </div>
+        {isLoading && visible.length === 0 ? (
+          <NotificationSkeleton />
+        ) : visible.length === 0 ? (
+          <EmptyNotifications category={activeTab} />
+        ) : (
+          visible.map((n) => (
+            <NotificationCard
+              key={n.id}
+              notification={n}
+              onPress={() => {
+                track('tap_notification', { id: n.id });
+                navigate(`/notifications/${n.id}`);
+              }}
+              onCtaPress={(to) => {
+                markRead(n.id);
+                navigate(to);
+              }}
+            />
+          ))
         )}
       </div>
 

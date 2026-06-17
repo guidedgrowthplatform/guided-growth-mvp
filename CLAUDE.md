@@ -115,7 +115,7 @@ This means `/api/metrics` hits the catch-all with `segments[0] === '__index'`, w
 
 ### 2. Serverless Function Limit
 
-Vercel Hobby plan allows **12 serverless functions**. We currently use **8**. Do NOT create new top-level files in `api/` — add sub-routes to existing catch-all handlers instead.
+We're on a **paid Vercel plan** (not Hobby), so the 12-function Hobby cap does **not** apply. We currently ship **14** functions under `api/`. Still prefer adding sub-routes to the existing `[...path].ts` catch-alls over new top-level files — keeps the surface small and cold-starts fewer.
 
 ### 3. Path Aliases + the `@gg/shared` package (THREE resolution lanes)
 

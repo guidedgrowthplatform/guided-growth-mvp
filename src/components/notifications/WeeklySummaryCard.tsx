@@ -1,14 +1,20 @@
+import { useHabitAnalytics } from '@/hooks/useHabitAnalytics';
+import { weeklySummaryCopy } from '@/lib/notifications';
+
 interface WeeklySummaryCardProps {
   onViewReport: () => void;
 }
 
 export function WeeklySummaryCard({ onViewReport }: WeeklySummaryCardProps) {
+  const { completionByRange, isLoading } = useHabitAnalytics();
+  const week = completionByRange.week.percentage;
+  const month = completionByRange.month.percentage;
+
   return (
     <div className="rounded-3xl bg-primary p-5">
       <h2 className="text-xl font-bold text-white">Weekly Summary</h2>
       <p className="mt-2 text-sm leading-relaxed text-white/80">
-        You have completed 92% of your planned rituals this week. You're performing better than 84%
-        of similar users.
+        {isLoading ? 'Crunching your habit data…' : weeklySummaryCopy(week, month)}
       </p>
       <button
         type="button"

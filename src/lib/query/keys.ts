@@ -13,6 +13,9 @@ export const queryKeys = {
   preferences: {
     all: ['preferences'] as const,
   },
+  notifications: {
+    all: ['notifications'] as const,
+  },
   checkins: {
     all: ['checkins'] as const,
     byDate: (date: string) => ['checkins', date] as const,

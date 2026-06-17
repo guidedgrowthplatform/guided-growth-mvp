@@ -6,6 +6,7 @@ import { SessionLogProvider } from '@/contexts/SessionLogProvider';
 import { ToastProvider, useToast } from '@/contexts/ToastContext';
 import { VoiceProvider } from '@/contexts/VoiceContext';
 import { useNavigateLogger } from '@/hooks/useNavigateLogger';
+import { usePushRegistration } from '@/hooks/usePushRegistration';
 import {
   type AuthHandoffKind,
   consumePendingAuthError,
@@ -70,6 +71,11 @@ function NavigateLogger() {
   return null;
 }
 
+function PushRegistrar() {
+  usePushRegistration();
+  return null;
+}
+
 export default function App() {
   useEffect(() => {
     useAuthStore.getState().initialize();
@@ -109,6 +115,7 @@ export default function App() {
               <DeepLinkErrorReporter />
               <AuthHandoffListener />
               <NavigateLogger />
+              <PushRegistrar />
               <OnboardingVoiceProvider>
                 <AppRoutes />
               </OnboardingVoiceProvider>

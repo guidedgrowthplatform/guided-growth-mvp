@@ -1,5 +1,6 @@
-// Frontend-only for now; moves to @gg/shared when the notifications backend lands.
-export type NotificationCategory = 'habit' | 'journal';
+import type { PushNotificationCategory } from '@gg/shared/types';
+
+export type NotificationCategory = PushNotificationCategory;
 
 export interface NotificationDetail {
   eyebrow: string;
