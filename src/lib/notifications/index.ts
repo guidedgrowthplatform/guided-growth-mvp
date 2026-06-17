@@ -1,3 +1,4 @@
 export * from './types';
-export { MOCK_NOTIFICATIONS } from './mockNotifications';
+export { fromRecord } from './fromRecord';
 export { formatTimeAgo } from './timeAgo';
+export { weeklySummaryCopy } from './weeklySummary';

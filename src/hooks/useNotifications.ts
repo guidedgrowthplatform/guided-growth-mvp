@@ -1,52 +1,57 @@
-import { useCallback, useMemo, useState } from 'react';
-import { MOCK_NOTIFICATIONS } from '@/lib/notifications';
-import type { AppNotification } from '@/lib/notifications';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import {
+  fetchNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '@/api/notifications';
+import { useAuth } from '@/hooks/useAuth';
+import { fromRecord, type AppNotification } from '@/lib/notifications';
+import { queryKeys } from '@/lib/query';
 
-const READ_KEY = 'gg_notifications_read';
-
-function loadReadIds(): Set<string> {
-  try {
-    const raw = localStorage.getItem(READ_KEY);
-    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function persistReadIds(ids: Set<string>) {
-  try {
-    localStorage.setItem(READ_KEY, JSON.stringify([...ids]));
-  } catch {
-    // quota / private mode
-  }
-}
-
-// Mock-backed until the notifications backend lands; swap MOCK_NOTIFICATIONS
-// for an API client here, keeping the same surface.
 export function useNotifications() {
-  const [readIds, setReadIds] = useState<Set<string>>(loadReadIds);
+  const { user } = useAuth();
+  const qc = useQueryClient();
 
-  const notifications: AppNotification[] = useMemo(
-    () => MOCK_NOTIFICATIONS.map((n) => ({ ...n, unread: n.unread && !readIds.has(n.id) })),
-    [readIds],
+  const query = useQuery<AppNotification[]>({
+    queryKey: queryKeys.notifications.all,
+    queryFn: async () => {
+      const { notifications } = await fetchNotifications();
+      return notifications.map(fromRecord);
+    },
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
+  const setRead = useCallback(
+    (predicate: (n: AppNotification) => boolean) => {
+      qc.setQueryData<AppNotification[]>(queryKeys.notifications.all, (prev) =>
+        prev?.map((n) => (predicate(n) ? { ...n, unread: false } : n)),
+      );
+    },
+    [qc],
   );
 
-  const markRead = useCallback((id: string) => {
-    setReadIds((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev).add(id);
-      persistReadIds(next);
-      return next;
-    });
-  }, []);
+  // optimistic; server read_at is the durable copy
+  const markRead = useCallback(
+    (id: string) => {
+      setRead((n) => n.id === id);
+      markNotificationRead(id).catch(() => {
+        void qc.invalidateQueries({ queryKey: queryKeys.notifications.all });
+      });
+    },
+    [qc, setRead],
+  );
 
   const markAllRead = useCallback(() => {
-    setReadIds(() => {
-      const next = new Set(MOCK_NOTIFICATIONS.map((n) => n.id));
-      persistReadIds(next);
-      return next;
+    setRead(() => true);
+    markAllNotificationsRead().catch(() => {
+      void qc.invalidateQueries({ queryKey: queryKeys.notifications.all });
     });
-  }, []);
+  }, [qc, setRead]);
 
-  return { notifications, markRead, markAllRead };
+  const notifications = query.data ?? [];
+  const unreadCount = notifications.filter((n) => n.unread).length;
+
+  return { notifications, unreadCount, isLoading: query.isLoading, markRead, markAllRead };
 }

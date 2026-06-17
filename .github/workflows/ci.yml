@@ -352,6 +352,7 @@ jobs:
           # ios/ is gitignored + regenerated here; brand the icon/splash at build time from assets/
           npx @capacitor/assets generate --ios --assetPath assets
           node scripts/patch-ios-plist.mjs
+          node scripts/patch-ios-push.mjs
 
       # Fail loud if tester notes are missing — the Fastfile passes nil
       # changelog when the file is absent, silently shipping a build with a

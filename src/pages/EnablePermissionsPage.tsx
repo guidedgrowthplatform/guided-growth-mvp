@@ -1,8 +1,9 @@
 import { Icon } from '@iconify/react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { PERMISSIONS_SEEN_KEY } from '@/lib/permissions';
+import { isPushSupported, requestPushPermissionAndRegister } from '@/lib/push';
 
 const PERMISSIONS = [
   {
@@ -24,13 +25,20 @@ const PERMISSIONS = [
 
 export function EnablePermissionsPage() {
   const navigate = useNavigate();
+  const [requesting, setRequesting] = useState(false);
 
   useEffect(() => {
     track('view_enable_permissions');
   }, []);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     track('tap_continue_permissions');
+    if (isPushSupported()) {
+      setRequesting(true);
+      const granted = await requestPushPermissionAndRegister();
+      track('grant_notification_permission', { granted });
+      setRequesting(false);
+    }
     localStorage.setItem(PERMISSIONS_SEEN_KEY, 'true');
     navigate('/notifications', { replace: true });
   };
@@ -69,7 +77,8 @@ export function EnablePermissionsPage() {
         <button
           type="button"
           onClick={handleContinue}
-          className="w-full rounded-full bg-primary py-4 text-base font-semibold text-white shadow-sm"
+          disabled={requesting}
+          className="w-full rounded-full bg-primary py-4 text-base font-semibold text-white shadow-sm disabled:opacity-60"
         >
           Continue
         </button>

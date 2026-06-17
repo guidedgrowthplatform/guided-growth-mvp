@@ -132,6 +132,7 @@ export interface UserPreferences {
   morning_time: string;
   night_time: string;
   push_notifications: boolean;
+  timezone: string | null;
 }
 
 // ─── API Types ──────────────────────────────────────
@@ -260,4 +261,22 @@ export interface ParseBrainDumpRequest {
 
 export interface ParseBrainDumpResponse {
   habits: ParsedHabit[];
+}
+
+// ─── Push Notifications ─────────────────────────────
+export type PushNotificationType = 'morning_checkin' | 'evening_checkin';
+
+export type PushNotificationCategory = 'habit' | 'journal';
+
+export type DevicePlatform = 'ios' | 'android';
+
+export interface NotificationRecord {
+  id: string;
+  type: string;
+  category: PushNotificationCategory;
+  title: string;
+  body: string;
+  data: Record<string, string> | null;
+  created_at: string;
+  read_at: string | null;
 }

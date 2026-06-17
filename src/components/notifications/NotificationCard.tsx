@@ -23,15 +23,15 @@ export function NotificationCard({ notification, onPress, onCtaPress }: Notifica
           onPress();
         }
       }}
-      className="flex w-full cursor-pointer items-center gap-4 rounded-2xl bg-surface p-5 text-left shadow-sm"
+      className="flex w-full cursor-pointer items-center gap-4 rounded-2xl bg-surface p-3.5 text-left shadow-sm"
     >
       <div
-        className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full ${iconBg}`}
+        className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full ${iconBg}`}
       >
         {image ? (
-          <img src={image} alt="" className="h-7 w-7 object-contain" />
+          <img src={image} alt="" className="h-8 w-8 object-contain" />
         ) : (
-          <Icon icon={icon} width={24} height={24} className={iconClass} />
+          <Icon icon={icon} width={28} height={28} className={iconClass} />
         )}
       </div>
       <div className="min-w-0 flex-1">
