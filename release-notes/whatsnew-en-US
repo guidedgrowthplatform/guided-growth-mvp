@@ -1,6 +1,7 @@
-v2.11.0 — Post-onboarding coach voice.
+v2.11.3 — On-device check-in reminders.
 Test:
-- Finish onboarding and reach the coach; it replies with low-latency streaming voice.
-- Toggle voice and text together; the orb shows a ring when both are on.
-- Brain-dump a few sentences; the coach parses your goals and habits correctly.
-- Onboarding step 6 routes to plan review with no skipped steps, blank screen, or crash.
+- Finish onboarding and allow notifications when prompted.
+- In Reminders, set a morning or evening time a few minutes ahead; background the app.
+- The reminder fires at the exact minute, even in airplane mode.
+- Tap it: the app opens to Home (morning) or Journal (evening) and it shows in Notifications.
+- Turn Push off and confirm no reminder arrives.
