@@ -131,17 +131,28 @@ export function ttsWarm(): void {
 }
 
 let wsOnReveal: ((text: string) => void) | null = null;
+// Cartesia spoken-form word strings for the active ws turn — drives the reveal.
+let wsRevealedWords: string[] = [];
 
-// First (wordIdx+1) whitespace tokens of text → the karaoke reveal prefix.
-export function prefixUpToWord(text: string, wordIdx: number): string {
-  const re = /\S+/g;
-  let m: RegExpExecArray | null;
-  let count = 0;
-  while ((m = re.exec(text)) !== null) {
-    if (count === wordIdx) return text.slice(0, m.index + m[0].length);
-    count++;
+// No leading space before closing/punctuation/contraction tokens; opening
+// brackets/quotes glue to the next word.
+const NO_LEADING_SPACE = /^[,.!?;:)\]}…%”’]|^n['’]t$|^['’](s|m|d|ll|ve|re)$/i;
+const OPENING_GLUE = /^[([{"“'‘]$/;
+
+export function joinSpoken(words: string[]): string {
+  let out = '';
+  let glue = false;
+  for (const w of words) {
+    if (!out) {
+      out = w;
+    } else if (glue || NO_LEADING_SPACE.test(w)) {
+      out += w;
+    } else {
+      out += ' ' + w;
+    }
+    glue = OPENING_GLUE.test(w);
   }
-  return text;
+  return out;
 }
 
 function resolveWsDrainers(): void {
@@ -272,12 +283,16 @@ export function beginSpeechTurn(opts?: { onReveal?: (text: string) => void }): n
     wsTurnActive = true;
     wsFirstAudio = false;
     wsTurnChunks = [];
+    wsRevealedWords = [];
     wsBegin({
       onSpeakingChange: (s) => setSpeaking(s),
       onFirstAudio: () => {
         wsFirstAudio = true;
       },
-      onWord: (idx) => wsOnReveal?.(prefixUpToWord(wsTurnChunks.join(' '), idx)),
+      onWord: (_idx, word) => {
+        wsRevealedWords.push(word);
+        wsOnReveal?.(joinSpoken(wsRevealedWords));
+      },
       onDrain: () => resolveWsTurn(),
       onError: (m) => handleWsError(m),
     });
