@@ -85,9 +85,13 @@ platform :ios do
 
     # --- Upload to TestFlight -----------------------------------------------
     # Shared tester notes; same file feeds Play release notes in ci.yml.
-    # __dir__-anchored so cwd doesn't matter.
-    notes_path = File.expand_path("../release-notes/whatsnew-en-US", __dir__)
+    # Anchor to repo root: __dir__ resolves to "." under fastlane's eval.
+    repo_root = ENV["GITHUB_WORKSPACE"] ||
+                (FastlaneCore::FastlaneFolder.path && File.expand_path("..", FastlaneCore::FastlaneFolder.path)) ||
+                Dir.pwd
+    notes_path = File.join(repo_root, "release-notes", "whatsnew-en-US")
     changelog = File.exist?(notes_path) ? File.read(notes_path).strip : nil
+    UI.user_error!("Release notes not found at #{notes_path}") if changelog.nil? || changelog.empty?
 
     # Wait for processing so changelog ("What to Test") reliably attaches;
     # bounded timeout fails loud instead of hanging on a slow Apple queue.
