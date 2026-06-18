@@ -213,6 +213,12 @@ jobs:
             echo "::error::Play release notes exceed 500 chars ($len). Trim $f."
             exit 1
           fi
+          # Header version must match the tag, else the release ships stale notes.
+          want="${GITHUB_REF_NAME#v}"
+          head=$(head -1 "$f" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          if [ "$head" != "$want" ]; then
+            echo "::error::Notes header ($head) != tag ($want). Bump $f in the tagged commit."; exit 1
+          fi
 
       - name: Deploy to Google Play (internal track)
         if: >-
@@ -242,7 +248,7 @@ jobs:
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           groups: internal-testers
           file: android/app/build/outputs/apk/prod/release/app-prod-release.apk
-          releaseNotes: ${{ github.ref_name }}
+          releaseNotesFile: release-notes/whatsnew-en-US
 
       - name: Notify Mattermost (AAB ready)
         if: >-
@@ -368,6 +374,14 @@ jobs:
           if [ "$len" -gt 4000 ]; then
             echo "::error::TestFlight What-to-Test exceeds 4000 chars ($len). Trim $f."
             exit 1
+          fi
+          # Header version must match the tag, else the build ships stale notes.
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            want="${GITHUB_REF_NAME#v}"
+            head=$(head -1 "$f" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+            if [ "$head" != "$want" ]; then
+              echo "::error::Notes header ($head) != tag ($want). Bump $f in the tagged commit."; exit 1
+            fi
           fi
 
       - name: Build IPA & upload to TestFlight (fastlane)
