@@ -8,7 +8,7 @@ import {
   buildNotificationContent,
   parseHHMM,
   REMINDER_IDS,
-  type PushNotificationType,
+  type LocalReminderType,
 } from '@gg/shared';
 
 const ARMED_KEY = 'reminders_armed_at';
@@ -22,8 +22,7 @@ export interface ReminderPrefs {
 
 type ReminderTimes = Pick<UserPreferences, 'morningTime' | 'nightTime' | 'pushNotifications'>;
 type TimeKey = 'morningTime' | 'nightTime';
-
-const SLOTS: ReadonlyArray<[PushNotificationType, TimeKey]> = [
+const SLOTS: ReadonlyArray<[LocalReminderType, TimeKey]> = [
   ['morning_checkin', 'morningTime'],
   ['evening_checkin', 'nightTime'],
 ];
@@ -194,9 +193,9 @@ export function remindersFiredSince(
   p: ReminderTimes,
   now: Date,
   armedAt: Date | null,
-): PushNotificationType[] {
+): LocalReminderType[] {
   if (!p.pushNotifications || !armedAt) return [];
-  const fired: PushNotificationType[] = [];
+  const fired: LocalReminderType[] = [];
   for (const [type, key] of SLOTS) {
     const at = parseHHMM(p[key]);
     if (!at) continue;
@@ -209,20 +208,20 @@ export function remindersFiredSince(
 
 export function addLocalReminderListeners(
   onNavigate: (route: string) => void,
-  onFire: (type: PushNotificationType) => void,
+  onFire: (type: LocalReminderType) => void,
 ): () => void {
   if (!isLocalRemindersSupported()) return () => {};
 
   const received = LocalNotifications.addListener('localNotificationReceived', (n) => {
     const type = (n.extra as Record<string, string> | undefined)?.type;
-    if (type) onFire(type as PushNotificationType);
+    if (type) onFire(type as LocalReminderType);
   });
 
   const tapped = LocalNotifications.addListener(
     'localNotificationActionPerformed',
     ({ notification }) => {
       const extra = notification.extra as Record<string, string> | undefined;
-      if (extra?.type) onFire(extra.type as PushNotificationType);
+      if (extra?.type) onFire(extra.type as LocalReminderType);
       onNavigate(extra?.route ?? '/notifications');
     },
   );

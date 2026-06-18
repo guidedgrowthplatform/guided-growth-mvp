@@ -1,6 +1,6 @@
 import { Preferences } from '@capacitor/preferences';
 import type { NotificationRecord } from '@gg/shared/types';
-import { buildNotificationContent, type PushNotificationType } from '@gg/shared';
+import { buildNotificationContent, type LocalReminderType } from '@gg/shared';
 
 const KEY = 'local_notification_feed';
 const CAP = 50;
@@ -35,7 +35,7 @@ export function getLocalFeed(): Promise<NotificationRecord[]> {
 // idempotent per (type, local day) — mirrors the old cron's once-per-day insert,
 // so background fires + taps don't double-add
 export async function ensureLocalFeedEntry(
-  type: PushNotificationType,
+  type: LocalReminderType,
   firstName: string | null,
   nowIso: string,
 ): Promise<boolean> {
