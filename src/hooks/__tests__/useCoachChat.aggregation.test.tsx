@@ -41,6 +41,7 @@ vi.mock('@/hooks/useLLM', () => ({
     error: null,
     reset: vi.fn(),
     cancel: vi.fn(),
+    regenerate: vi.fn(() => Promise.resolve()),
     prependMessages: vi.fn(() => 0),
   }),
 }));
