@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isCheckinScreen, trackCheckinStarted } from '@/analytics/coachFunnel';
 import { track } from '@/analytics/posthog';
-import { TURN_AGGREGATION_MS } from '@/config/voiceConfig';
+import {
+  FULL_DUPLEX_BARGE_IN,
+  TURN_AGGREGATION_MS,
+  TURN_PAUSE_COMPLETE_MS,
+  TURN_PAUSE_INCOMPLETE_MS,
+} from '@/config/voiceConfig';
 import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
 import { useChatHistory } from '@/hooks/useChatHistory';
 import { useChatSession } from '@/hooks/useChatSession';
@@ -32,6 +37,7 @@ import {
   ttsWarm,
   useTtsPlaybackStore,
 } from '@/lib/services/tts-service';
+import { isSemanticEndOfTurn, resolveTurnPauseMs } from '@/lib/voice/turnDecision';
 import { useVoiceStore } from '@/stores/voiceStore';
 import type { CoachingStyle } from '@gg/shared/types/llm';
 
@@ -171,6 +177,8 @@ export function useCoachChat(
   const lastFinalAtRef = useRef(0);
   const awaitingResumeRef = useRef(false);
   const bargeFiredRef = useRef(false);
+  // The adaptive pause the current flush timer was armed with (Phase 1).
+  const lastArmedPauseRef = useRef(TURN_AGGREGATION_MS);
 
   const [dayOverrides, setDayOverrides] = useState<Map<string, boolean[]>>(() => new Map());
   const [errorBubbles, setErrorBubbles] = useState<ChatMessage[]>([]);
@@ -227,10 +235,14 @@ export function useCoachChat(
         was_streaming: isStreamingRef.current,
       });
     }
-    cancelLlm();
+    // Stop the coach's AUDIO immediately, but do NOT abort the LLM here. A stray
+    // interim (cough / echo / half-word in the think window) must never kill a
+    // reply — otherwise the coach goes silent with nothing to replace it. The
+    // abort happens only when a real new turn is committed (submitTurn), which
+    // guarantees a fresh reply takes its place.
     stopTTS();
     endCoachSpeechTurn();
-  }, [cancelLlm, endCoachSpeechTurn]);
+  }, [endCoachSpeechTurn]);
 
   // Flush the aggregated utterance as ONE turn once the quiet gap elapses.
   const flushUtterance = useCallback(() => {
@@ -242,18 +254,35 @@ export function useCoachChat(
     utteranceBufferRef.current = '';
     const finalsMerged = finalsInTurnRef.current;
     const msSinceLastFinal = lastFinalAtRef.current ? Date.now() - lastFinalAtRef.current : 0;
+    const pauseMs = lastArmedPauseRef.current;
     finalsInTurnRef.current = 0;
     awaitingResumeRef.current = false;
     if (!text) return;
+    const verdict = isSemanticEndOfTurn(text);
     track('coach_turn_completed', {
-      pause_ms: TURN_AGGREGATION_MS,
+      pause_ms: pauseMs,
+      verdict,
+      decided_by: verdict === 'unsure' ? 'timeout' : 'semantic',
       finals_merged: finalsMerged,
       ms_since_last_final: msSinceLastFinal,
       text_len: text.length,
-      decided_by: 'timeout',
     });
     submitTurnRef.current(text);
   }, []);
+
+  // Arm (or re-arm) the flush timer with an ADAPTIVE pause: shorter when the
+  // buffered transcript sounds finished, longer when it sounds mid-thought, so a
+  // trailing "and…" isn't cut off and a clear "I'm done." replies promptly.
+  const armFlush = useCallback(() => {
+    if (aggregationTimerRef.current) clearTimeout(aggregationTimerRef.current);
+    const pauseMs = resolveTurnPauseMs(utteranceBufferRef.current, {
+      base: TURN_AGGREGATION_MS,
+      complete: TURN_PAUSE_COMPLETE_MS,
+      incomplete: TURN_PAUSE_INCOMPLETE_MS,
+    });
+    lastArmedPauseRef.current = pauseMs;
+    aggregationTimerRef.current = setTimeout(flushUtterance, pauseMs);
+  }, [flushUtterance]);
 
   const handleSonioxFinal = useCallback(
     (t: string) => {
@@ -269,10 +298,9 @@ export function useCoachChat(
       finalsInTurnRef.current += 1;
       lastFinalAtRef.current = Date.now();
       awaitingResumeRef.current = true;
-      if (aggregationTimerRef.current) clearTimeout(aggregationTimerRef.current);
-      aggregationTimerRef.current = setTimeout(flushUtterance, TURN_AGGREGATION_MS);
+      armFlush();
     },
-    [setInterim, interruptTts, flushUtterance],
+    [setInterim, interruptTts, armFlush],
   );
 
   const handleSonioxInterim = useCallback(
@@ -290,11 +318,10 @@ export function useCoachChat(
           awaitingResumeRef.current = false;
           track('coach_turn_resumed', { buffered_len: utteranceBufferRef.current.length });
         }
-        clearTimeout(aggregationTimerRef.current);
-        aggregationTimerRef.current = setTimeout(flushUtterance, TURN_AGGREGATION_MS);
+        armFlush();
       }
     },
-    [setInterim, interruptTts, flushUtterance],
+    [setInterim, interruptTts, armFlush],
   );
 
   // Match onboarding's voice-in setup EXACTLY:
@@ -308,9 +335,11 @@ export function useCoachChat(
   //   3. `vapiStatus: 'idle'` (coach has no Vapi).
   const voiceInActive = micOn;
 
-  // Half-duplex mute: gate on isSpeaking (actual playback), not the fetch
-  // window — else immediate user replies get swallowed.
-  const micMutedForTts = voiceModeOn && isSpeaking;
+  // Mute the mic during playback ONLY in half-duplex mode. With full-duplex the
+  // mic stays hot so the user can barge in mid-reply; echo is handled by the
+  // browser's AEC (best on headphones). Gates on isSpeaking (actual playback),
+  // not the fetch window — else immediate user replies get swallowed.
+  const micMutedForTts = !FULL_DUPLEX_BARGE_IN && voiceModeOn && isSpeaking;
 
   // Post-speech HOLD: mic stays muted MIC_GRACE_MS after playback ends —
   // covers echo tail + Siri-style breath before listening resumes.
@@ -537,15 +566,26 @@ export function useCoachChat(
       if (!trimmed) return;
       stopTTS();
       endCoachSpeechTurn();
-      if (!chatSessionId || isStreaming) {
+      if (!chatSessionId) {
         pendingTurnRef.current = pendingTurnRef.current
           ? `${pendingTurnRef.current} ${trimmed}`
           : trimmed;
         return;
       }
+      if (isStreaming) {
+        // A real new turn landed mid-reply: queue it, then abort the now-stale
+        // reply so it doesn't linger. The flush effect below fires the queued
+        // turn the instant the LLM goes idle — so a completed turn ALWAYS gets
+        // an answer (clean interrupt, guaranteed response).
+        pendingTurnRef.current = pendingTurnRef.current
+          ? `${pendingTurnRef.current} ${trimmed}`
+          : trimmed;
+        cancelLlm();
+        return;
+      }
       void sendMessage(trimmed);
     },
-    [chatSessionId, isStreaming, sendMessage, endCoachSpeechTurn],
+    [chatSessionId, isStreaming, sendMessage, endCoachSpeechTurn, cancelLlm],
   );
   submitTurnRef.current = submitTurn;
 

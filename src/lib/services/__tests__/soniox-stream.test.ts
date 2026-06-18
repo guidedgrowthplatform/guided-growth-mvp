@@ -487,7 +487,7 @@ describe('BoundedPcmBuffer', () => {
 });
 
 describe('VAD gate (warm graph / paid socket)', () => {
-  // VAD_OPEN_RMS=0.01, VAD_OPEN_SUSTAIN_MS=150, VAD_SILENCE_CLOSE_MS=3000
+  // VAD_OPEN_RMS=0.01, VAD_OPEN_SUSTAIN_MS=150, VAD_SILENCE_CLOSE_MS=3500
   it('latches speech start on the first above-threshold frame', () => {
     let v = emptyVadState();
     v = updateVad(v, 0.005, 1000);
@@ -518,9 +518,9 @@ describe('VAD gate (warm graph / paid socket)', () => {
 
   it('closes the socket only after sustained silence and only when open', () => {
     const spoke = updateVad(emptyVadState(), 0.02, 1000);
-    expect(shouldCloseSocket(spoke, 3900, true)).toBe(false); // 2900ms < 3000ms
-    expect(shouldCloseSocket(spoke, 4000, true)).toBe(true); // 3000ms ≥ 3000ms
-    expect(shouldCloseSocket(spoke, 4000, false)).toBe(false); // no socket to close
+    expect(shouldCloseSocket(spoke, 4400, true)).toBe(false); // 3400ms < 3500ms
+    expect(shouldCloseSocket(spoke, 4500, true)).toBe(true); // 3500ms ≥ 3500ms
+    expect(shouldCloseSocket(spoke, 4500, false)).toBe(false); // no socket to close
     expect(shouldCloseSocket(emptyVadState(), 9999, true)).toBe(false); // never spoke
   });
 });
