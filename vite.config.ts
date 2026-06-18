@@ -138,7 +138,7 @@ export default defineConfig(({ mode }) => {
         manifest: false,
         workbox: {
           maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
-          globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+          globPatterns: ['**/*.{js,css,html,svg,png,webp,ico}'],
           // On version bump (chunk hashes change), wipe stale precache
           // entries. Without this, a prior install's service worker
           // happily serves 404s for the new chunk filenames and crashes
