@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ALL_DAYS,
   formatCadence,
+  inferSchedule,
   toggleSetItem,
   WEEKDAYS,
   WEEKEND,
@@ -120,7 +121,10 @@ export function AdvancedStep6Page() {
       time: '21:45',
       days,
       reminder: true,
-      schedule: formatCadence(selectedDays),
+      // Canonical label ('Weekday' | 'Weekend' | 'Every day' | null) so a later
+      // reflection-settings save validates — formatCadence's 'Weekdays'/'Daily'
+      // are rejected by SCHEDULE_LABELS and 400 the edit.
+      schedule: inferSchedule(selectedDays),
     };
     await saveStepAsync(5, { habitConfigs: configRecord, reflectionConfig });
     trackStepComplete();

@@ -241,7 +241,13 @@ export interface OnboardingStepData {
       habitType?: HabitType;
     }
   > | null;
-  reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string } | null;
+  reflectionConfig?: {
+    time: string;
+    days: number[];
+    reminder: boolean;
+    // null = custom day-set with no canonical preset label (validator accepts null).
+    schedule: string | null;
+  } | null;
   reflectionMode?: ReflectionMode | null;
   brainDumpText?: string | null;
   // Persisted LLM parse so advanced-results can rehydrate on lost router state (no regex re-invent).
