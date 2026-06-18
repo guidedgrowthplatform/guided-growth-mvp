@@ -100,6 +100,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Fail fast before the build if notes are missing or version-mismatched.
+      - name: Validate Android QA release notes
+        env:
+          WANT_VERSION: ${{ needs.resolve-version.outputs.version }}
+        run: |
+          f=release-notes/whatsnew-en-US
+          [ -s "$f" ] || { echo "::error::Missing or empty $f — testers need release notes."; exit 1; }
+          want="${WANT_VERSION#v}"
+          head=$(head -1 "$f" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          if [ "$head" != "$want" ]; then
+            echo "::error::Notes header ($head) != version ($want). Bump $f in the tagged commit."; exit 1
+          fi
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -158,7 +171,7 @@ jobs:
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           groups: internal-testers
           file: android/app/build/outputs/apk/qa/release/app-qa-release.apk
-          releaseNotes: ${{ needs.resolve-version.outputs.version }}
+          releaseNotesFile: release-notes/whatsnew-en-US
 
   ios-qa:
     name: Build QA IPA → TestFlight
@@ -202,6 +215,8 @@ jobs:
       # Fail loud if tester notes are missing — a build with blank "What to
       # Test" defeats the point. TestFlight caps What-to-Test at 4000 chars.
       - name: Validate iOS release notes present
+        env:
+          WANT_VERSION: ${{ needs.resolve-version.outputs.version }}
         run: |
           f=release-notes/whatsnew-en-US
           [ -s "$f" ] || { echo "::error::Missing or empty $f — testers need release notes."; exit 1; }
@@ -210,6 +225,12 @@ jobs:
           if [ "$len" -gt 4000 ]; then
             echo "::error::TestFlight What-to-Test exceeds 4000 chars ($len). Trim $f."
             exit 1
+          fi
+          # Header version must match the release, else the build ships stale notes.
+          want="${WANT_VERSION#v}"
+          head=$(head -1 "$f" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          if [ "$head" != "$want" ]; then
+            echo "::error::Notes header ($head) != version ($want). Bump $f in the tagged commit."; exit 1
           fi
 
       - uses: ./.github/actions/capacitor-build
