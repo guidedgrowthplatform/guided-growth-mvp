@@ -117,7 +117,7 @@ async function handleCron(req: VercelRequest, res: VercelResponse) {
             NULLIF(split_part(trim(COALESCE(p.name, '')), ' ', 1), '') AS first_name,
             dt.last_seen_at, dt.session_expired_notified_at
        FROM device_tokens dt
-       JOIN profiles p ON p.anon_id = dt.anon_id
+       LEFT JOIN profiles p ON p.anon_id = dt.anon_id
       WHERE dt.last_seen_at < now() - ($1 || ' milliseconds')::interval
         AND (dt.session_expired_notified_at IS NULL
              OR dt.session_expired_notified_at < dt.last_seen_at)`,
