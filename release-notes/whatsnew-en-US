@@ -1,4 +1,4 @@
-v2.11.4 — On-device check-in reminders.
+v2.11.5 — On-device check-in reminders.
 Test:
 - Finish onboarding and allow notifications when prompted.
 - In Reminders, set a morning or evening time a few minutes ahead; background the app.
