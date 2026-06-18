@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { Icon } from '@iconify/react';
 import { Bell, Lightbulb } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -81,6 +82,9 @@ export function ReminderSheet({
     void checkLocalNotificationPermission().then(setPermission);
   }, []);
 
+  // no first-party deep-link to iOS settings; only Android can open it
+  const canOpenSettings = Capacitor.getPlatform() === 'android';
+
   // toggle reflects intent; OS permission is what actually delivers
   const handlePushToggle = (next: boolean) => {
     setPushNotifications(next);
@@ -89,7 +93,7 @@ export function ReminderSheet({
       void requestLocalNotificationPermission().then((granted) =>
         setPermission(granted ? 'granted' : 'denied'),
       );
-    } else if (permission === 'denied') {
+    } else if (permission === 'denied' && canOpenSettings) {
       void openSystemNotificationSettings();
     }
   };
@@ -174,15 +178,20 @@ export function ReminderSheet({
               <Toggle checked={pushNotifications} onChange={handlePushToggle} />
             </div>
 
-            {showBlockedHint && (
-              <button
-                type="button"
-                onClick={() => void openSystemNotificationSettings()}
-                className="text-left text-sm font-medium text-amber-600"
-              >
-                Notifications are off in system settings. Tap to enable.
-              </button>
-            )}
+            {showBlockedHint &&
+              (canOpenSettings ? (
+                <button
+                  type="button"
+                  onClick={() => void openSystemNotificationSettings()}
+                  className="text-left text-sm font-medium text-amber-600"
+                >
+                  Notifications are off in system settings. Tap to enable.
+                </button>
+              ) : (
+                <p className="text-sm font-medium text-amber-600">
+                  Notifications are off. Enable them in Settings to get reminders.
+                </p>
+              ))}
           </div>
 
           <button

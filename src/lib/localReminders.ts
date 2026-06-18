@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { Preferences } from '@capacitor/preferences';
 import { loadLocalPreferences, type UserPreferences } from '@/lib/preferences/snapshot';
 import { useAuthStore } from '@/stores/authStore';
 import {
@@ -9,6 +10,8 @@ import {
   REMINDER_IDS,
   type PushNotificationType,
 } from '@gg/shared';
+
+const ARMED_KEY = 'reminders_armed_at';
 
 export interface ReminderPrefs {
   morningTime: string;
@@ -116,7 +119,10 @@ export async function rescheduleReminders(prefs: ReminderPrefs): Promise<void> {
   if (!(await isLocalNotificationsGranted())) return;
 
   await cancelAllReminders();
-  if (!prefs.pushNotifications) return;
+  if (!prefs.pushNotifications) {
+    await setArmedAt(null);
+    return;
+  }
 
   const times: ReminderTimes = prefs;
   const notifications = [];
@@ -134,12 +140,35 @@ export async function rescheduleReminders(prefs: ReminderPrefs): Promise<void> {
     });
   }
 
-  if (notifications.length === 0) return;
+  if (notifications.length === 0) {
+    await setArmedAt(null);
+    return;
+  }
   await ensureReminderChannel();
   try {
     await LocalNotifications.schedule({ notifications });
+    await setArmedAt(new Date().toISOString());
   } catch (err) {
     console.warn('[localReminders] schedule failed', err);
+  }
+}
+
+// timestamp reminders were last armed — backfill only counts fires after this
+async function setArmedAt(iso: string | null): Promise<void> {
+  try {
+    if (iso) await Preferences.set({ key: ARMED_KEY, value: iso });
+    else await Preferences.remove({ key: ARMED_KEY });
+  } catch {
+    // best-effort
+  }
+}
+
+export async function getReminderArmedAt(): Promise<Date | null> {
+  try {
+    const { value } = await Preferences.get({ key: ARMED_KEY });
+    return value ? new Date(value) : null;
+  } catch {
+    return null;
   }
 }
 
@@ -160,15 +189,22 @@ export function rescheduleFromSnapshot(): Promise<void> {
   return rescheduleFromPrefs(loadLocalPreferences());
 }
 
-export function remindersDueAt(p: ReminderTimes, now: Date): PushNotificationType[] {
-  if (!p.pushNotifications) return [];
-  const mins = now.getHours() * 60 + now.getMinutes();
-  const due: PushNotificationType[] = [];
+// reminders whose today fire-time falls in (armedAt, now] — i.e. actually fired
+export function remindersFiredSince(
+  p: ReminderTimes,
+  now: Date,
+  armedAt: Date | null,
+): PushNotificationType[] {
+  if (!p.pushNotifications || !armedAt) return [];
+  const fired: PushNotificationType[] = [];
   for (const [type, key] of SLOTS) {
     const at = parseHHMM(p[key]);
-    if (at && mins >= at.hour * 60 + at.minute) due.push(type);
+    if (!at) continue;
+    const inst = new Date(now);
+    inst.setHours(at.hour, at.minute, 0, 0);
+    if (inst >= armedAt && inst <= now) fired.push(type);
   }
-  return due;
+  return fired;
 }
 
 export function addLocalReminderListeners(

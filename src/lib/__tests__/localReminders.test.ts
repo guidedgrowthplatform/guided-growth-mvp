@@ -20,6 +20,20 @@ vi.mock('@capacitor/local-notifications', () => ({
     changeExactNotificationSetting: async () => ({ exact_alarm: 'granted' }),
   },
 }));
+vi.mock('@capacitor/preferences', () => {
+  let armed: string | undefined;
+  return {
+    Preferences: {
+      get: async () => ({ value: armed ?? null }),
+      set: async ({ value }: { value: string }) => {
+        armed = value;
+      },
+      remove: async () => {
+        armed = undefined;
+      },
+    },
+  };
+});
 vi.mock('@/stores/authStore', () => ({
   useAuthStore: { getState: () => ({ user: { name: 'Sam Smith', nickname: null } }) },
 }));
@@ -91,22 +105,34 @@ describe('currentFirstName', () => {
   });
 });
 
-describe('remindersDueAt', () => {
+describe('remindersFiredSince', () => {
   const times = { morningTime: '07:00', nightTime: '22:30', pushNotifications: true };
+  const armedYesterday = new Date(2026, 5, 17, 9, 0);
 
-  it('returns slots whose time has passed', async () => {
-    const { remindersDueAt } = await load();
+  it('returns slots that fired after armedAt and before now', async () => {
+    const { remindersFiredSince } = await load();
     const at0800 = new Date(2026, 5, 18, 8, 0);
-    expect(remindersDueAt(times, at0800)).toEqual(['morning_checkin']);
+    expect(remindersFiredSince(times, at0800, armedYesterday)).toEqual(['morning_checkin']);
     const at2300 = new Date(2026, 5, 18, 23, 0);
-    expect(remindersDueAt(times, at2300)).toEqual(['morning_checkin', 'evening_checkin']);
+    expect(remindersFiredSince(times, at2300, armedYesterday)).toEqual([
+      'morning_checkin',
+      'evening_checkin',
+    ]);
   });
 
-  it('empty before any time and when push off', async () => {
-    const { remindersDueAt } = await load();
-    expect(remindersDueAt(times, new Date(2026, 5, 18, 6, 0))).toEqual([]);
+  it('excludes a slot armed after its time today (no phantom)', async () => {
+    const { remindersFiredSince } = await load();
+    const armedAt9 = new Date(2026, 5, 18, 9, 0);
+    const now = new Date(2026, 5, 18, 10, 0);
+    expect(remindersFiredSince(times, now, armedAt9)).toEqual([]);
+  });
+
+  it('empty when never armed or push off', async () => {
+    const { remindersFiredSince } = await load();
+    const now = new Date(2026, 5, 18, 23, 0);
+    expect(remindersFiredSince(times, now, null)).toEqual([]);
     expect(
-      remindersDueAt({ ...times, pushNotifications: false }, new Date(2026, 5, 18, 23, 0)),
+      remindersFiredSince({ ...times, pushNotifications: false }, now, armedYesterday),
     ).toEqual([]);
   });
 });
