@@ -15,6 +15,7 @@ import {
   buildEveningOpener,
   buildMorningOpener,
   buildMorningFlow,
+  buildScriptedDiscipline,
 } from './checkin/systemPromptAddendum.js';
 import { isCheckinScreen, isReadOnlyCheckinScreen } from './checkin/registry.js';
 import { todayStr } from './checkin/handlers/shared.js';
@@ -146,14 +147,22 @@ export async function buildSystemPromptForRequest(
     args.screen_id === 'ECHECK-01' ? `\n\n${buildEveningWalkthrough(daySeed)}` : '';
   // Morning flow (are-you-done gate + wrap), scripted; all MCHECK turns.
   const morningFlowBlock = args.screen_id === 'MCHECK-01' ? `\n\n${buildMorningFlow(daySeed)}` : '';
+  // Hard no-improvisation rule on the dedicated scripted screens.
+  const scriptedDisciplineBlock =
+    args.screen_id === 'MCHECK-01' || args.screen_id === 'ECHECK-01'
+      ? `\n\n${buildScriptedDiscipline()}`
+      : '';
   // Habit polarity must be known BEFORE the first tool call so a cold
   // single-turn slip ("I caved on no-news") isn't recorded as a win.
   const checkinHabitsBlock = isCheckin ? await buildCheckinHabitsBlock(args.anon_id) : '';
-  // Plain-chat HOME-CHECKIN keeps the configurable reflection setup (for
-  // free-form journaling + update_reflection edits). The scripted morning/evening
-  // flows use their own fixed prompts, so they do NOT get this block.
+  // The evening reflection uses THIS USER'S configured questions (not hardcoded),
+  // so ECHECK-01 needs the settings block; HOME-CHECKIN keeps it for free-form
+  // journaling + update_reflection edits. Morning has no reflection, so MCHECK
+  // does not get it.
   const reflectionSettingsBlock =
-    args.screen_id === 'HOME-CHECKIN' ? await buildReflectionSettingsBlock(args.anon_id) : '';
+    args.screen_id === 'HOME-CHECKIN' || args.screen_id === 'ECHECK-01'
+      ? await buildReflectionSettingsBlock(args.anon_id)
+      : '';
   const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
   // Scripted opener lines (greeting + state/habit prompt), rotating per day.
   const eveningOpenerBlock =
@@ -172,7 +181,7 @@ export async function buildSystemPromptForRequest(
     : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${scriptedDisciplineBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };

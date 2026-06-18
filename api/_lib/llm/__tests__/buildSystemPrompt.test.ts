@@ -178,7 +178,9 @@ describe('buildSystemPromptForRequest', () => {
     });
     expect(evening.systemPrompt).toContain('## Evening Check-in Flow');
     expect(evening.systemPrompt).toContain('complete_habit');
-    expect(evening.systemPrompt).toContain('What are you proud of today?');
+    // Reflection now defers to the user's configured questions, not hardcoded.
+    expect(evening.systemPrompt).toContain('## Reflection Settings (this user)');
+    expect(evening.systemPrompt).toContain('## Scripted Check-in — STRICT');
   });
 
   it('forces the evening opener to lead with habits ONLY on ECHECK-01 opener turns', async () => {

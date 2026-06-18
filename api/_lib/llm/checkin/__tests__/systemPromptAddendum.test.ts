@@ -6,6 +6,7 @@ import {
   buildEveningOpener,
   buildMorningOpener,
   buildMorningFlow,
+  buildScriptedDiscipline,
 } from '../systemPromptAddendum.js';
 import { CHECKIN_SCRIPTS, pickVariation } from '../scriptVariations.js';
 import { isCheckinScreen, isReadOnlyCheckinScreen } from '../registry.js';
@@ -97,7 +98,7 @@ describe('buildEveningOpener (scripted, rotating)', () => {
   });
 });
 
-describe('buildEveningWalkthrough (scripted flow + fixed reflection)', () => {
+describe('buildEveningWalkthrough (scripted flow + CONFIGURABLE reflection)', () => {
   const block = buildEveningWalkthrough(DAY);
   it('sequences habits → reflection → wrap in order', () => {
     const habits = block.search(/### 1\. Habits/);
@@ -111,11 +112,10 @@ describe('buildEveningWalkthrough (scripted flow + fixed reflection)', () => {
     expect(block).toContain(pickVariation('are_you_done', DAY));
     expect(block).toMatch(/only if partial/i);
   });
-  it('uses the THREE fixed reflection prompts verbatim and calls log_reflection', () => {
-    expect(block).toContain(CHECKIN_SCRIPTS.reflection_proud[0]);
-    expect(block).toContain(CHECKIN_SCRIPTS.reflection_forgive[0]);
-    expect(block).toContain(CHECKIN_SCRIPTS.reflection_grateful[0]);
+  it("defers the reflection to the user's configured questions, NOT hardcoded prompts", () => {
+    expect(block).toContain('## Reflection Settings (this user)');
     expect(block).toContain('log_reflection');
+    expect(block).not.toContain(CHECKIN_SCRIPTS.reflection_proud[0]);
   });
   it('ends with the rotating evening wrap line', () => {
     expect(block).toContain(pickVariation('evening_wrap', DAY));
@@ -126,6 +126,23 @@ describe('buildEveningWalkthrough (scripted flow + fixed reflection)', () => {
   it('still records chat-stated completions via complete_habit with polarity', () => {
     expect(block).toContain('complete_habit');
     expect(block).toMatch(/avoid/i);
+  });
+});
+
+describe('buildScriptedDiscipline (no improvisation)', () => {
+  const block = buildScriptedDiscipline();
+  it('forbids commentary/coaching and overrides the warmth guidance', () => {
+    expect(block).toMatch(/no coaching/i);
+    expect(block).toMatch(/no commentary/i);
+    expect(block).toMatch(/overrides/i);
+  });
+  it('allows only the scripted acknowledgment pool, verbatim', () => {
+    for (const ack of CHECKIN_SCRIPTS.acknowledgment) {
+      expect(block).toContain(ack);
+    }
+  });
+  it('says to call tools silently, never narrating them', () => {
+    expect(block).toMatch(/silently|never narrate/i);
   });
 });
 

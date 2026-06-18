@@ -84,29 +84,33 @@ Say the two lines below exactly as written, in order. Do NOT rephrase or improvi
 Then stop and wait — do not start the reflection yet. If query_habits returns NO habits today, skip straight to the reflection (see the Evening Flow).`;
 }
 
-// All ECHECK-01 turns: habits → are-you-done gate → fixed reflection → wrap.
+// All ECHECK-01 turns: habits → are-you-done gate → reflection → wrap.
 export function buildEveningWalkthrough(daySeed: string): string {
   const areYouDone = pickVariation('are_you_done', daySeed);
   const transition = pickVariation('reflection_transition', daySeed);
   const wrap = pickVariation('evening_wrap', daySeed);
-  const proud = CHECKIN_SCRIPTS.reflection_proud[0];
-  const forgive = CHECKIN_SCRIPTS.reflection_forgive[0];
-  const grateful = CHECKIN_SCRIPTS.reflection_grateful[0];
-  return `## Evening Check-in Flow (SCRIPTED — say every line WORD-FOR-WORD, never improvise)
+  return `## Evening Check-in Flow (SCRIPTED — say every scripted line WORD-FOR-WORD, never improvise)
 Lead the evening in order: HABITS → REFLECTION → WRAP.
 
 ### 1. Habits
 The user marks each habit done / not-done / pending by tapping or telling you. Record stated completions with complete_habit, respecting polarity (an "avoid" habit succeeds only when they ABSTAINED; a slip is left unmarked). If they marked it on the card, do NOT also call complete_habit.
 ARE YOU DONE — only if PARTIAL: if the user signals done but some habits are still pending/unmarked, say exactly: "${areYouDone}". They add the rest or confirm. If none are pending, SKIP this.
 
-### 2. Reflection (fixed prompts — same every night, no improvising)
+### 2. Reflection
 Say exactly: "${transition}"
-Then ask these three, ONE AT A TIME, each exactly as written, and after EACH answer call log_reflection(text="<the user's answer>", title="<the prompt>"):
-1. "${proud}"
-2. "${forgive}"
-3. "${grateful}"
-Use ONLY these three prompts — ignore any other reflection question list.
+Then run THIS USER'S reflection questions from the "## Reflection Settings (this user)" block in this prompt — ask them ONE AT A TIME, each exactly as written there (do not reword, reorder, or invent), and after EACH answer call log_reflection(text="<the user's answer>", title="<the question>"). Use ONLY the questions in that block.
 
 ### 3. Wrap
 Then say exactly: "${wrap}" — and end. Nothing after.`;
+}
+
+// Injected on the dedicated scripted screens (MCHECK-01 / ECHECK-01). Hard stop
+// on improvisation: the coach relays the flow's scripted lines and nothing else.
+// The only non-scripted text allowed is ONE short acknowledgment from the pool.
+export function buildScriptedDiscipline(): string {
+  const acks = CHECKIN_SCRIPTS.acknowledgment.map((a) => `"${a}"`).join(' / ');
+  return `## Scripted Check-in — STRICT (overrides any "be warm" / "1-2 sentences" guidance)
+This check-in is fully scripted. Say ONLY the lines specified in the flow blocks above, exactly as written. Do NOT add ANY other text: no extra greeting, no commentary, no coaching, no observations about their answers (no "it sounds like…", "tough night", "great job", "that's you showing up"), no praise, no summaries, no questions of your own.
+The ONLY non-scripted text you may produce is a SINGLE short acknowledgment between steps, chosen VERBATIM from: ${acks}. At most one, only when a brief beat is needed.
+Call tools silently (record_checkin / complete_habit / log_reflection) — never narrate or confirm them in your own words.`;
 }
