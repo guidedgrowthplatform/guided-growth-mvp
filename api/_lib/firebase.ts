@@ -45,7 +45,10 @@ export async function sendPush(tokens: string[], payload: PushPayload): Promise<
       notification: { title: payload.title, body: payload.body },
       data: payload.data,
       apns: { payload: { aps: { sound: 'default' } } },
-      android: { priority: 'high' },
+      android: {
+        priority: 'high',
+        notification: { channelId: 'reminders', priority: 'high', defaultSound: true },
+      },
     });
 
     delivered ||= response.successCount > 0;

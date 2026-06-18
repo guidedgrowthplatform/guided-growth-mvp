@@ -1,47 +1,81 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { addPushListeners, flushPendingToken, registerIfGranted } from '@/lib/push';
+import {
+  addLocalReminderListeners,
+  currentFirstName,
+  isLocalNotificationsGranted,
+  isLocalRemindersSupported,
+  remindersDueAt,
+  rescheduleFromSnapshot,
+} from '@/lib/localReminders';
+import { ensureLocalFeedEntry } from '@/lib/notifications/localFeed';
+import { loadLocalPreferences } from '@/lib/preferences/snapshot';
+import {
+  addPushListeners,
+  ensureNotificationChannel,
+  flushPendingToken,
+  registerIfGranted,
+} from '@/lib/push';
 import { queryKeys } from '@/lib/query';
-import { supabaseDataService } from '@/lib/services/supabase-data-service';
 import { useAuthStore } from '@/stores/authStore';
-
-// cron skips users with NULL timezone — without this sync nobody gets pushes
-async function syncTimezone(): Promise<void> {
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  if (!timezone) return;
-  try {
-    const prefs = await supabaseDataService.getPreferences();
-    if (prefs?.timezone !== timezone) {
-      await supabaseDataService.upsertPreferences({ timezone });
-    }
-  } catch (err) {
-    console.warn('[push] timezone sync failed', err);
-  }
-}
 
 export function usePushRegistration(): void {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const anonId = useAuthStore((s) => s.anonId);
 
+  const invalidateFeed = useCallback(
+    () => void qc.invalidateQueries({ queryKey: queryKeys.notifications.all, refetchType: 'all' }),
+    [qc],
+  );
+
+  useEffect(
+    () => addPushListeners((route) => navigate(route), invalidateFeed),
+    [navigate, invalidateFeed],
+  );
+
+  useEffect(() => {
+    void ensureNotificationChannel();
+  }, []);
+
   useEffect(
     () =>
-      addPushListeners(
+      addLocalReminderListeners(
         (route) => navigate(route),
-        () =>
-          void qc.invalidateQueries({
-            queryKey: queryKeys.notifications.all,
-            refetchType: 'all',
-          }),
+        (type) =>
+          void ensureLocalFeedEntry(type, currentFirstName(), new Date().toISOString()).then(
+            invalidateFeed,
+          ),
       ),
-    [navigate, qc],
+    [navigate, invalidateFeed],
   );
 
   useEffect(() => {
     if (!anonId) return;
     void flushPendingToken();
     void registerIfGranted();
-    void syncTimezone();
+    void rescheduleFromSnapshot();
   }, [anonId]);
+
+  // recover same-session grants (settings round-trip) + reboot; backfill the feed
+  // for reminders that fired while backgrounded and were never tapped
+  useEffect(() => {
+    if (!isLocalRemindersSupported()) return;
+    const sync = async () => {
+      if (document.visibilityState !== 'visible') return;
+      await rescheduleFromSnapshot();
+      if (!(await isLocalNotificationsGranted())) return;
+      const now = new Date();
+      const due = remindersDueAt(loadLocalPreferences(), now);
+      const wrote = await Promise.all(
+        due.map((type) => ensureLocalFeedEntry(type, currentFirstName(), now.toISOString())),
+      );
+      if (wrote.some(Boolean)) invalidateFeed();
+    };
+    const onVisible = () => void sync();
+    void sync();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [invalidateFeed]);
 }

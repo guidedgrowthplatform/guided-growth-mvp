@@ -7,6 +7,12 @@ import {
 } from '@/api/notifications';
 import { useAuth } from '@/hooks/useAuth';
 import { fromRecord, type AppNotification } from '@/lib/notifications';
+import {
+  getLocalFeed,
+  isLocalFeedId,
+  markAllLocalRead,
+  markLocalRead,
+} from '@/lib/notifications/localFeed';
 import { queryKeys } from '@/lib/query';
 
 export function useNotifications() {
@@ -16,8 +22,10 @@ export function useNotifications() {
   const query = useQuery<AppNotification[]>({
     queryKey: queryKeys.notifications.all,
     queryFn: async () => {
-      const { notifications } = await fetchNotifications();
-      return notifications.map(fromRecord);
+      const [{ notifications }, local] = await Promise.all([fetchNotifications(), getLocalFeed()]);
+      return [...notifications, ...local]
+        .map(fromRecord)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     },
     enabled: !!user,
     staleTime: 60_000,
@@ -32,11 +40,14 @@ export function useNotifications() {
     [qc],
   );
 
-  // optimistic; server read_at is the durable copy
+  // optimistic; durable copy is the local store for local ids, server otherwise
   const markRead = useCallback(
     (id: string) => {
       setRead((n) => n.id === id);
-      markNotificationRead(id).catch(() => {
+      const durable = isLocalFeedId(id)
+        ? markLocalRead(id, new Date().toISOString())
+        : markNotificationRead(id);
+      Promise.resolve(durable).catch(() => {
         void qc.invalidateQueries({ queryKey: queryKeys.notifications.all });
       });
     },
@@ -45,8 +56,13 @@ export function useNotifications() {
 
   const markAllRead = useCallback(() => {
     setRead(() => true);
-    markAllNotificationsRead().catch(() => {
-      void qc.invalidateQueries({ queryKey: queryKeys.notifications.all });
+    void Promise.allSettled([
+      markAllLocalRead(new Date().toISOString()),
+      markAllNotificationsRead(),
+    ]).then((results) => {
+      if (results.some((r) => r.status === 'rejected')) {
+        void qc.invalidateQueries({ queryKey: queryKeys.notifications.all });
+      }
     });
   }, [qc, setRead]);
 

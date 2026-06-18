@@ -1,9 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/analytics';
 import * as onboardingApi from '@/api/onboarding';
 import { useToast } from '@/contexts/ToastContext';
 import { useSessionLog } from '@/hooks/useSessionLog';
+import {
+  ensureExactAlarmPermission,
+  isLocalRemindersSupported,
+  requestLocalNotificationPermission,
+  rescheduleFromSnapshot,
+} from '@/lib/localReminders';
 import { clearOnboardingChatSessionId } from '@/lib/onboarding/onboardingChatSession';
 import { queryKeys } from '@/lib/query';
 import { Sentry } from '@/lib/sentry';
@@ -112,6 +119,16 @@ export function useOnboarding() {
         'STARTING-PLAN',
       );
       void useAuthStore.getState().updateProfile();
+
+      // default-on prefs only deliver once OS permission granted; /enable-permissions isn't in the flow
+      void (async () => {
+        if (!isLocalRemindersSupported()) return;
+        const granted = await requestLocalNotificationPermission();
+        track('grant_notification_permission', { granted });
+        if (!granted) return;
+        await ensureExactAlarmPermission();
+        await rescheduleFromSnapshot();
+      })();
     },
     // Previously had no onError. A failed completeOnboarding() call left the
     // user staring at a spinner with no signal — the cache never flipped, so
