@@ -647,7 +647,7 @@ import { type OnboardingVoiceResult } from '@/hooks/useOnboardingVoice';
 import { useStepTiming } from '../shared/useStepTiming';
 
 const categories = [
-  { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
+  { label: 'Sleep better', image: '/images/onboarding/female/sleep-better.webp' },
   // ...unchanged...
 ];
 const CATEGORY_LABELS = categories.map((c) => c.label);
