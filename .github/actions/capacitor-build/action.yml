@@ -29,3 +29,8 @@ runs:
     - if: inputs.platform == 'ios'
       shell: bash
       run: node scripts/patch-ios-plist.mjs
+
+    # Per-env Firebase plist + APNs; missing plist crashes at launch.
+    - if: inputs.platform == 'ios'
+      shell: bash
+      run: node scripts/patch-ios-push.mjs

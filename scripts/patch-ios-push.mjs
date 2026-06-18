@@ -20,8 +20,15 @@ import { resolve } from 'path';
 const APP_DELEGATE = resolve('ios/App/App/AppDelegate.swift');
 const PBXPROJ = resolve('ios/App/App.xcodeproj/project.pbxproj');
 const ENTITLEMENTS = resolve('ios/App/App/App.entitlements');
-const PLIST_SOURCE = resolve('assets/firebase/GoogleService-Info.plist');
 const PLIST_DEST = resolve('ios/App/App/GoogleService-Info.plist');
+
+// Per-env plist by bundle id; fall back to legacy unsuffixed file.
+const APP_ID = process.env.APP_IDENTIFIER || 'app.guidedgrowth.mvp';
+const VARIANT = APP_ID.split('.').pop();
+const PLIST_SOURCE = [
+  resolve(`assets/firebase/GoogleService-Info.${VARIANT}.plist`),
+  resolve('assets/firebase/GoogleService-Info.plist'),
+].find(existsSync);
 
 if (!existsSync(APP_DELEGATE) || !existsSync(PBXPROJ)) {
   console.log('[patch-ios-push] ios project not found — skipping (run cap sync ios first)');
@@ -54,15 +61,15 @@ if (appDelegate.includes('didRegisterForRemoteNotificationsWithDeviceToken')) {
   console.log('[patch-ios-push] ✚ Added APNs forwarding methods to AppDelegate.swift');
 }
 
-// ── 2. Entitlements + plist (gated on the committed Firebase config) ─────
-// no plist committed yet → leave signing config untouched, so releases keep
-// working until the Apple-portal push capability + match profiles are ready
-if (!existsSync(PLIST_SOURCE)) {
+// ── 2. Entitlements + plist (per-env Firebase config) ─────
+// missing plist → skip entitlements; Firebase still crashes until added
+if (!PLIST_SOURCE) {
   console.warn(
-    '[patch-ios-push] ⚠ assets/firebase/GoogleService-Info.plist missing — skipping entitlements; push disabled this build',
+    `[patch-ios-push] ⚠ no GoogleService-Info plist for ${APP_ID} (looked for GoogleService-Info.${VARIANT}.plist) — Firebase will crash at launch; add it under assets/firebase/`,
   );
   process.exit(0);
 }
+console.log(`[patch-ios-push] using ${PLIST_SOURCE.split('/').slice(-1)[0]} for ${APP_ID}`);
 
 const ENTITLEMENTS_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
