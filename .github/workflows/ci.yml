@@ -168,6 +168,7 @@ jobs:
           [ -d android ] || npx cap add android
           npx cap copy android
           npx cap sync android
+          node scripts/patch-android-manifest.mjs
           npx @capacitor/assets generate --android --assetPath assets
 
       - name: Decode Keystore

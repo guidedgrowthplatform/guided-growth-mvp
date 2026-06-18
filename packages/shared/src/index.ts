@@ -11,3 +11,4 @@ export * from './data/onboardingHabits.js';
 export * from './onboarding/screenKind.js';
 export * from './onboarding/detectAffirmation.js';
 export * from './time/bucketTimeOfDay.js';
+export * from './notifications/templates.js';
