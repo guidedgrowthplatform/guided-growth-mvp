@@ -3,8 +3,15 @@ import type { PushNotificationCategory, PushNotificationType } from '../types/in
 // must stay in sync across push.ts, localReminders.ts + the Android manifest default channel
 export const ANDROID_REMINDER_CHANNEL_ID = 'reminders';
 
+// inactivity window for the session-expired push; keep == Supabase inactivity timeout
+export const SESSION_EXPIRED_WINDOW_DAYS = 14;
+export const SESSION_EXPIRED_WINDOW_MS = SESSION_EXPIRED_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+
+// the two locally-scheduled reminders; session_expired is push-only and excluded
+export type LocalReminderType = 'morning_checkin' | 'evening_checkin';
+
 // integer ids required by @capacitor/local-notifications; fixed → reschedule = cancel+re-add
-export const REMINDER_IDS: Record<PushNotificationType, number> = {
+export const REMINDER_IDS: Record<LocalReminderType, number> = {
   morning_checkin: 1001,
   evening_checkin: 1002,
 };
@@ -20,21 +27,27 @@ export function buildNotificationContent(
   type: PushNotificationType,
   firstName: string | null,
 ): NotificationContent {
-  const title = `Hi ${firstName ?? 'there'}!`;
   switch (type) {
     case 'morning_checkin':
       return {
         category: 'habit',
-        title,
+        title: `Hi ${firstName ?? 'there'}!`,
         body: "Two minutes of morning check-in. Let's set up your day.",
         data: { route: '/home', type },
       };
     case 'evening_checkin':
       return {
         category: 'journal',
-        title,
+        title: `Hi ${firstName ?? 'there'}!`,
         body: "Five minutes of evening reflection. Let's close the day clean.",
         data: { route: '/journal', type },
+      };
+    case 'session_expired':
+      return {
+        category: 'account',
+        title: 'Your session expired',
+        body: 'Sign back in to pick up where you left off.',
+        data: { route: '/login', type },
       };
   }
 }

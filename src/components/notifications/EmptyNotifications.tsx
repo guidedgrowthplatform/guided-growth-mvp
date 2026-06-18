@@ -5,7 +5,8 @@ interface EmptyNotificationsProps {
   category: NotificationCategory;
 }
 
-const COPY: Record<NotificationCategory, { icon: string; title: string; body: string }> = {
+// only the feed's tab categories appear here ('account' is never listed)
+const COPY: Partial<Record<NotificationCategory, { icon: string; title: string; body: string }>> = {
   habit: {
     icon: 'mdi:bell-check-outline',
     title: "You're all caught up",
@@ -19,7 +20,7 @@ const COPY: Record<NotificationCategory, { icon: string; title: string; body: st
 };
 
 export function EmptyNotifications({ category }: EmptyNotificationsProps) {
-  const { icon, title, body } = COPY[category];
+  const { icon, title, body } = COPY[category] ?? COPY.habit!;
 
   return (
     <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface px-6 py-7 text-center shadow-sm">

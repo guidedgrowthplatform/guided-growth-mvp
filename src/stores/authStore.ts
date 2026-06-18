@@ -9,6 +9,17 @@ import { queryClient } from '@/lib/query';
 import { Sentry } from '@/lib/sentry';
 import { supabase } from '@/lib/supabase';
 
+// set before each user-initiated signOut → lets the listener tell an involuntary
+// expiry apart from a deliberate logout
+let intentionalSignOut = false;
+let sessionExpiredPending = false;
+
+// peek (no clear-on-read) so React StrictMode's double-mount can't eat it;
+// cleared on the next sign-in
+export function isSessionExpiredPending(): boolean {
+  return sessionExpiredPending;
+}
+
 export interface AppUser {
   id: string;
   email: string;
@@ -195,6 +206,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
             set({ isRecoveryMode: true });
           }
           if (session?.user) {
+            sessionExpiredPending = false; // signed back in → expiry notice no longer relevant
             const nextUser = mapUser(session.user);
             const prevUser = get().user;
             set({ user: nextUser });
@@ -249,10 +261,13 @@ export const useAuthStore = create<AuthState>((set, get) => {
               }
             }
           } else {
-            if (get().user) {
-              clearUserIdentity(setAnonId);
-            }
+            const hadUser = get().user !== null;
+            const wasIntentional = intentionalSignOut;
+            intentionalSignOut = false;
+            if (hadUser) clearUserIdentity(setAnonId);
             set({ user: null });
+            // a real session lapse: we had a user and it wasn't a deliberate logout
+            if (hadUser && !wasIntentional) sessionExpiredPending = true;
           }
         });
 
@@ -287,6 +302,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       // Reject auto-confirmed sessions — product flow requires email verification.
       // Revert synchronously before awaiting signOut so AppGate can't redirect mid-flow.
       if (data.session) {
+        intentionalSignOut = true;
         set({ user: null });
         await supabase.auth.signOut({ scope: 'global' });
         await clearPkceVerifier();
@@ -368,6 +384,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     },
 
     signOut: async () => {
+      intentionalSignOut = true;
       await supabase.auth.signOut({ scope: 'global' });
       queryClient.clear();
       localStorage.removeItem(SETTINGS_STORAGE_KEY);
@@ -418,6 +435,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (error) return { error: friendlyError(error) };
 
       // Invalidate the recovery session — user must re-login with new password
+      intentionalSignOut = true;
       await supabase.auth.signOut();
       clearUserIdentity(setAnonId);
       set({ user: null, isRecoveryMode: false });
