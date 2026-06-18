@@ -1,8 +1,26 @@
 import { Capacitor } from '@capacitor/core';
-import { FirebaseMessaging } from '@capacitor-firebase/messaging';
+import { FirebaseMessaging, Importance, Visibility } from '@capacitor-firebase/messaging';
 import { registerDeviceToken } from '@/api/notifications';
 import { useAuthStore } from '@/stores/authStore';
 import type { DevicePlatform } from '@gg/shared/types';
+
+// Must match manifest default_notification_channel_id + server channelId.
+const ANDROID_CHANNEL_ID = 'reminders';
+
+export async function ensureNotificationChannel(): Promise<void> {
+  if (Capacitor.getPlatform() !== 'android') return;
+  try {
+    await FirebaseMessaging.createChannel({
+      id: ANDROID_CHANNEL_ID,
+      name: 'Reminders',
+      description: 'Daily check-in and reflection reminders',
+      importance: Importance.High,
+      visibility: Visibility.Private,
+    });
+  } catch (err) {
+    console.warn('[push] channel creation failed', err);
+  }
+}
 
 // token refresh can fire before the Supabase session exists (register-token
 // is auth-gated) — buffer here, flushed by flushPendingToken() once authed

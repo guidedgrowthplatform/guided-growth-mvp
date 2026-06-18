@@ -1,3 +1,4 @@
+import { Icon } from '@iconify/react';
 import { Bell, Lightbulb } from 'lucide-react';
 import { useState } from 'react';
 import { track } from '@/analytics';
@@ -15,8 +16,9 @@ interface ReminderSheetProps {
 }
 
 interface ReminderCardProps {
-  emoji: string;
+  icon: string;
   iconBg: string;
+  iconClass: string;
   label: string;
   time: string;
   onTimeChange: (time24: string) => void;
@@ -25,8 +27,9 @@ interface ReminderCardProps {
 }
 
 function ReminderCard({
-  emoji,
+  icon,
   iconBg,
+  iconClass,
   label,
   time,
   onTimeChange,
@@ -38,7 +41,7 @@ function ReminderCard({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={`flex h-10 w-10 items-center justify-center rounded-full ${iconBg}`}>
-            <span className="text-lg">{emoji}</span>
+            <Icon icon={icon} width={22} height={22} className={iconClass} />
           </div>
           <span className="text-base font-bold text-content">{label}</span>
         </div>
@@ -99,7 +102,7 @@ export function ReminderSheet({
           style={{ paddingBottom: 'calc(150px + env(safe-area-inset-bottom))' }}
         >
           <div>
-            <h2 className="text-[28px] font-semibold leading-tight text-content">
+            <h2 className="text-2xl font-semibold leading-tight text-content">
               When would you like to do your quick check-ins
             </h2>
             <p className="mt-2 text-lg font-medium text-slate-500">
@@ -114,8 +117,9 @@ export function ReminderSheet({
 
           <div className="flex flex-col gap-4 pb-4 pt-2">
             <ReminderCard
-              emoji="🌅"
-              iconBg="bg-[#fef9c3]"
+              icon="mdi:white-balance-sunny"
+              iconBg="bg-primary"
+              iconClass="text-white"
               label="Morning check in"
               time={morningTime}
               onTimeChange={setMorningTime}
@@ -123,9 +127,10 @@ export function ReminderSheet({
               onToggle={setMorningReminder}
             />
             <ReminderCard
-              emoji="🌙"
-              iconBg="bg-[#e0e7ff]"
-              label="Night check in"
+              icon="mdi:moon-waning-crescent"
+              iconBg="bg-evening-bg"
+              iconClass="text-evening-fg"
+              label="Evening Reflection"
               time={nightTime}
               onTimeChange={setNightTime}
               reminderEnabled={nightReminder}

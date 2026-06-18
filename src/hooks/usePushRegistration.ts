@@ -1,7 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { addPushListeners, flushPendingToken, registerIfGranted } from '@/lib/push';
+import {
+  addPushListeners,
+  ensureNotificationChannel,
+  flushPendingToken,
+  registerIfGranted,
+} from '@/lib/push';
 import { queryKeys } from '@/lib/query';
 import { supabaseDataService } from '@/lib/services/supabase-data-service';
 import { useAuthStore } from '@/stores/authStore';
@@ -37,6 +42,10 @@ export function usePushRegistration(): void {
       ),
     [navigate, qc],
   );
+
+  useEffect(() => {
+    void ensureNotificationChannel();
+  }, []);
 
   useEffect(() => {
     if (!anonId) return;
