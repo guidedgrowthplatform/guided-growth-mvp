@@ -24,7 +24,7 @@ interface TurnCallbacks {
   onFirstAudio?: () => void;
   onDrain?: () => void;
   onSpeakingChange?: (speaking: boolean) => void;
-  onWord?: (idx: number) => void;
+  onWord?: (idx: number, word: string) => void;
   onError?: (msg: string) => void;
 }
 
@@ -112,7 +112,7 @@ function handleMessage(raw: string): void {
     const { words, start, end } = msg.word_timestamps;
     if (start.length && start[0] + 1e-3 < tsLastEnd) tsFrameBase = tsLastEnd;
     for (let i = 0; i < words.length; i++) {
-      pcmScheduleWord(turnWordCount + i, tsFrameBase + start[i]);
+      pcmScheduleWord(turnWordCount + i, tsFrameBase + start[i], words[i]);
       const e = tsFrameBase + end[i];
       if (e > tsLastEnd) tsLastEnd = e;
     }
@@ -225,7 +225,7 @@ export function wsBegin(cb: TurnCallbacks): void {
     onFirstAudio: () => cb.onFirstAudio?.(),
     onDrain: () => cb.onDrain?.(),
     onSpeakingChange: (s) => cb.onSpeakingChange?.(s),
-    onWord: (idx) => cb.onWord?.(idx),
+    onWord: (idx, word) => cb.onWord?.(idx, word),
   });
   void ensureSocket().catch((err) => cb.onError?.(String(err)));
 }

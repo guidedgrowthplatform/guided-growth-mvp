@@ -31,10 +31,10 @@ interface StreamState {
   onSpeakingChange?: (speaking: boolean) => void;
   // Word-reveal scheduling (karaoke): context-relative word onset times.
   audioOrigin: number | null;
-  words: Array<{ idx: number; at: number }>;
+  words: Array<{ idx: number; at: number; word: string }>;
   wordCursor: number;
   rafId: number | null;
-  onWord?: (idx: number) => void;
+  onWord?: (idx: number, word: string) => void;
 }
 
 let stream: StreamState | null = null;
@@ -65,7 +65,7 @@ export function pcmBegin(opts?: {
   onFirstAudio?: () => void;
   onDrain?: () => void;
   onSpeakingChange?: (speaking: boolean) => void;
-  onWord?: (idx: number) => void;
+  onWord?: (idx: number, word: string) => void;
   sampleRate?: number;
 }): void {
   pcmStop();
@@ -90,10 +90,10 @@ export function pcmBegin(opts?: {
 }
 
 // Context-relative word onset (seconds) → revealed when its audio plays.
-export function pcmScheduleWord(idx: number, at: number): void {
+export function pcmScheduleWord(idx: number, at: number, word: string): void {
   const s = stream;
   if (!s || !s.onWord) return;
-  s.words.push({ idx, at });
+  s.words.push({ idx, at, word });
   if (s.audioOrigin !== null && s.rafId === null) startWordPump(s);
 }
 
@@ -106,7 +106,7 @@ function startWordPump(s: StreamState): void {
     }
     const elapsed = ctx.currentTime - s.audioOrigin;
     while (s.wordCursor < s.words.length && elapsed >= s.words[s.wordCursor].at) {
-      s.onWord?.(s.words[s.wordCursor].idx);
+      s.onWord?.(s.words[s.wordCursor].idx, s.words[s.wordCursor].word);
       s.wordCursor++;
     }
     // Stop once all words fired, or audio fully drained (words may outlast audio).
