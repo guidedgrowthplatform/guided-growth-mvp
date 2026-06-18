@@ -4,6 +4,11 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  TURN_AGGREGATION_MS,
+  TURN_PAUSE_COMPLETE_MS,
+  TURN_PAUSE_INCOMPLETE_MS,
+} from '@/config/voiceConfig';
 import { useCoachChat } from '../useCoachChat';
 
 // ─── Capture the voice-in callbacks so the test can drive Soniox finals/interims ──
@@ -36,6 +41,7 @@ vi.mock('@/hooks/useLLM', () => ({
     error: null,
     reset: vi.fn(),
     cancel: vi.fn(),
+    regenerate: vi.fn(() => Promise.resolve()),
     prependMessages: vi.fn(() => 0),
   }),
 }));
@@ -152,7 +158,7 @@ describe('useCoachChat — #209 turn aggregation + barge-in', () => {
 
     act(() => captured.onTranscript!('first'));
     act(() => {
-      vi.advanceTimersByTime(500); // < 1000ms quiet
+      vi.advanceTimersByTime(TURN_AGGREGATION_MS - 500); // < quiet gap
     });
     act(() => captured.onTranscript!('second'));
 
@@ -160,7 +166,7 @@ describe('useCoachChat — #209 turn aggregation + barge-in', () => {
     expect(sendMessageMock).not.toHaveBeenCalled();
 
     act(() => {
-      vi.advanceTimersByTime(1000); // past the quiet gap from the 2nd final
+      vi.advanceTimersByTime(TURN_AGGREGATION_MS); // past the quiet gap from the 2nd final
     });
 
     expect(sendMessageMock).toHaveBeenCalledTimes(1);
@@ -172,18 +178,18 @@ describe('useCoachChat — #209 turn aggregation + barge-in', () => {
 
     act(() => captured.onTranscript!('hello'));
     act(() => {
-      vi.advanceTimersByTime(600);
+      vi.advanceTimersByTime(TURN_AGGREGATION_MS - 400);
     });
     act(() => captured.onInterim!('still talking'));
     act(() => {
-      vi.advanceTimersByTime(600); // 1200ms total, but only 600ms since interim reset
+      vi.advanceTimersByTime(TURN_AGGREGATION_MS - 400); // only (gap-400) since interim reset
     });
 
     // Timer was reset by the interim — not flushed yet.
     expect(sendMessageMock).not.toHaveBeenCalled();
 
     act(() => {
-      vi.advanceTimersByTime(1000); // now past the quiet gap since the interim
+      vi.advanceTimersByTime(TURN_AGGREGATION_MS); // now past the quiet gap since the interim
     });
     expect(sendMessageMock).toHaveBeenCalledTimes(1);
     expect(sendMessageMock).toHaveBeenCalledWith('hello');
@@ -192,11 +198,11 @@ describe('useCoachChat — #209 turn aggregation + barge-in', () => {
     sendMessageMock.mockReset();
     act(() => captured.onTranscript!('again'));
     act(() => {
-      vi.advanceTimersByTime(500);
+      vi.advanceTimersByTime(TURN_AGGREGATION_MS - 500);
     });
     act(() => captured.onInterim!('')); // empty — no reset
     act(() => {
-      vi.advanceTimersByTime(500); // 1000ms total since the final → flush fires on schedule
+      vi.advanceTimersByTime(500); // full gap since the final → flush fires on schedule
     });
     expect(sendMessageMock).toHaveBeenCalledTimes(1);
     expect(sendMessageMock).toHaveBeenCalledWith('again');
@@ -215,7 +221,39 @@ describe('useCoachChat — #209 turn aggregation + barge-in', () => {
     expect(stopTTSMock).toHaveBeenCalled();
   });
 
-  it('(d) cleanup: after unmount, advancing timers does NOT flush', () => {
+  it('(d) extends the quiet gap when the utterance sounds unfinished', () => {
+    render();
+
+    act(() => captured.onTranscript!('I want to talk about my goals and'));
+    // Base window elapses, but this is an INCOMPLETE utterance → still waiting.
+    act(() => {
+      vi.advanceTimersByTime(TURN_AGGREGATION_MS);
+    });
+    expect(sendMessageMock).not.toHaveBeenCalled();
+
+    // Past the longer incomplete window → now it flushes.
+    act(() => {
+      vi.advanceTimersByTime(TURN_PAUSE_INCOMPLETE_MS - TURN_AGGREGATION_MS);
+    });
+    expect(sendMessageMock).toHaveBeenCalledTimes(1);
+    expect(sendMessageMock).toHaveBeenCalledWith('I want to talk about my goals and');
+  });
+
+  it('(e) flushes sooner when the utterance sounds finished', () => {
+    render();
+
+    act(() => captured.onTranscript!('Okay I am done.'));
+    // The short "complete" window suffices — no need to wait the full base gap.
+    act(() => {
+      vi.advanceTimersByTime(TURN_PAUSE_COMPLETE_MS);
+    });
+    expect(sendMessageMock).toHaveBeenCalledTimes(1);
+    expect(sendMessageMock).toHaveBeenCalledWith('Okay I am done.');
+  });
+
+  // Keep LAST: the in-test unmount + fake-timer advance leaves React's scheduler
+  // in a state that breaks a subsequent synchronous mount in this file.
+  it('(f) cleanup: after unmount, advancing timers does NOT flush', () => {
     const { unmount } = render();
 
     act(() => captured.onTranscript!('pending turn'));

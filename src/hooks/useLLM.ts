@@ -32,6 +32,7 @@ export interface UseLLMReturn {
   error: Error | null;
   reset: () => void;
   cancel: () => void;
+  regenerate: () => Promise<void>;
 }
 
 function makeId(counter: { n: number }): string {
@@ -73,6 +74,8 @@ export function useLLM(
 
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
+  // Last real user turn (id + text) so we can re-answer it without re-adding it.
+  const lastUserRef = useRef<{ id: string; content: string } | null>(null);
   const idCounterRef = useRef({ n: 0 });
   const deltaBufferRef = useRef('');
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -136,19 +139,31 @@ export function useLLM(
   }, []);
 
   const runStream = useCallback(
-    async (opts: { mode: 'chat' | 'opener'; text: string; surfaceErrors: boolean }) => {
+    async (opts: {
+      mode: 'chat' | 'opener';
+      text: string;
+      surfaceErrors: boolean;
+      reuseTurnId?: string;
+    }) => {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
 
       let userTurnId: string | null = null;
       if (opts.mode === 'chat') {
-        userTurnId = makeId(idCounterRef.current);
-        const userMsg: LLMChatMessage = {
-          id: userTurnId,
-          role: 'user',
-          content: opts.text,
-        };
-        setMessages((prev) => [...prev, userMsg]);
+        if (opts.reuseTurnId) {
+          // Regenerate: the user message is already in history; reuse its id so
+          // the backend dedups (ON CONFLICT) instead of creating a second turn.
+          userTurnId = opts.reuseTurnId;
+        } else {
+          userTurnId = makeId(idCounterRef.current);
+          const userMsg: LLMChatMessage = {
+            id: userTurnId,
+            role: 'user',
+            content: opts.text,
+          };
+          setMessages((prev) => [...prev, userMsg]);
+          lastUserRef.current = { id: userTurnId, content: opts.text };
+        }
       }
       setResponse('');
       setToolEvents([]);
@@ -338,6 +353,16 @@ export function useLLM(
     [runStream],
   );
 
+  // Re-answer the LAST user turn WITHOUT adding a new message — used to guarantee
+  // the coach replies to a turn whose reply got dropped/aborted/interrupted.
+  const regenerate = useCallback(() => {
+    const lu = lastUserRef.current;
+    // No prior user turn (e.g. the coach's opener got interrupted) → re-issue a
+    // coach-led message instead of no-op'ing into silence.
+    if (!lu) return runStream({ mode: 'opener', text: '', surfaceErrors: false });
+    return runStream({ mode: 'chat', text: lu.content, surfaceErrors: true, reuseTurnId: lu.id });
+  }, [runStream]);
+
   useEffect(() => {
     return () => {
       if (abortRef.current) {
@@ -375,5 +400,6 @@ export function useLLM(
     error,
     reset,
     cancel,
+    regenerate,
   };
 }
