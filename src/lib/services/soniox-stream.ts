@@ -491,7 +491,10 @@ const PREBUFFER_MAX_SAMPLES = 24000;
 // Soniox socket opens only on sustained speech and closes after silence.
 const VAD_OPEN_RMS = 0.01;
 const VAD_OPEN_SUSTAIN_MS = 150;
-const VAD_SILENCE_CLOSE_MS = 2500;
+// Kept ABOVE TURN_AGGREGATION_MS (voiceConfig.ts) so the paid socket outlives the
+// app's end-of-turn pause: the aggregation timer decides turn-end, and a late
+// resume still has a live socket to feed interims through (re-arming the pause).
+const VAD_SILENCE_CLOSE_MS = 3000;
 // smooth per-quantum RMS for VAD — raw quanta are too jittery to gate on
 const VAD_RMS_EMA_ALPHA = 0.2;
 

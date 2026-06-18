@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isCheckinScreen, trackCheckinStarted } from '@/analytics/coachFunnel';
+import { track } from '@/analytics/posthog';
+import { TURN_AGGREGATION_MS } from '@/config/voiceConfig';
 import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
 import { useChatHistory } from '@/hooks/useChatHistory';
 import { useChatSession } from '@/hooks/useChatSession';
@@ -33,13 +35,9 @@ import {
 import { useVoiceStore } from '@/stores/voiceStore';
 import type { CoachingStyle } from '@gg/shared/types/llm';
 
-// Breath window before the mic goes hot (post-TTS and on first arm).
-// Mirrors VAD_SILENCE_CLOSE_MS in soniox-stream.ts.
+// Breath window before the mic goes hot (post-TTS and on first arm) — covers the
+// echo tail + a Siri-style pause before listening resumes.
 const MIC_GRACE_MS = 2500;
-
-// Quiet gap after the last Soniox final before the buffered utterance is sent
-// as ONE turn — neutralizes mid-sentence endpointing finals (GitLab #209).
-const TURN_AGGREGATION_MS = 1000;
 
 const LLM_ERROR_TEXT = "Something didn't work on my end. Mind trying that again?";
 const SESSION_ERROR_TEXT = "Can't connect right now. Try reopening the chat.";
@@ -112,6 +110,7 @@ export function useCoachChat(
     response: llmResponse,
     isStreaming,
     error: llmError,
+    cancel: cancelLlm,
   } = useLLM(screenId, {
     coachingStyle,
     chatSessionId: chatSessionId ?? undefined,
@@ -128,6 +127,12 @@ export function useCoachChat(
 
   const { acquireRealtime, releaseToken, setStatus } = useVoice();
   const isSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
+  // Mirror reactive state into refs so the stable Soniox callbacks below can read
+  // it imperatively without churning their identity (which would re-sync the WS).
+  const isStreamingRef = useRef(false);
+  isStreamingRef.current = isStreaming;
+  const isSpeakingRef = useRef(false);
+  isSpeakingRef.current = isSpeaking;
 
   const lastCreatedItem = useCoachChatToolEvents(
     llmMessages,
@@ -161,6 +166,11 @@ export function useCoachChat(
   // after a TURN_AGGREGATION_MS quiet gap (GitLab #209).
   const utteranceBufferRef = useRef('');
   const aggregationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Turn-taking instrumentation + resume detection (Phase 0 metrics).
+  const finalsInTurnRef = useRef(0);
+  const lastFinalAtRef = useRef(0);
+  const awaitingResumeRef = useRef(false);
+  const bargeFiredRef = useRef(false);
 
   const [dayOverrides, setDayOverrides] = useState<Map<string, boolean[]>>(() => new Map());
   const [errorBubbles, setErrorBubbles] = useState<ChatMessage[]>([]);
@@ -205,12 +215,22 @@ export function useCoachChat(
   // Stable callback identities so useVoiceInCapture's ref-update effects
   // don't churn every render of useCoachChat. The handlers read fresh state
   // via the refs declared above.
-  // Barge-in: stop the coach's TTS the instant the user starts a turn — NOT
-  // debounced, else the coach talks over the user for TURN_AGGREGATION_MS.
+  // Barge-in: the instant the user starts a turn, stop the coach's TTS AND abort
+  // the in-flight reply — NOT debounced, else the coach talks/computes over the
+  // user for TURN_AGGREGATION_MS. cancelLlm() is a no-op when nothing is in
+  // flight; aborting here is what the "single reconciliation" comment expects.
   const interruptTts = useCallback(() => {
+    if ((isStreamingRef.current || isSpeakingRef.current) && !bargeFiredRef.current) {
+      bargeFiredRef.current = true;
+      track('coach_barge_in', {
+        during_playback: isSpeakingRef.current,
+        was_streaming: isStreamingRef.current,
+      });
+    }
+    cancelLlm();
     stopTTS();
     endCoachSpeechTurn();
-  }, [endCoachSpeechTurn]);
+  }, [cancelLlm, endCoachSpeechTurn]);
 
   // Flush the aggregated utterance as ONE turn once the quiet gap elapses.
   const flushUtterance = useCallback(() => {
@@ -220,7 +240,18 @@ export function useCoachChat(
     }
     const text = utteranceBufferRef.current.trim();
     utteranceBufferRef.current = '';
+    const finalsMerged = finalsInTurnRef.current;
+    const msSinceLastFinal = lastFinalAtRef.current ? Date.now() - lastFinalAtRef.current : 0;
+    finalsInTurnRef.current = 0;
+    awaitingResumeRef.current = false;
     if (!text) return;
+    track('coach_turn_completed', {
+      pause_ms: TURN_AGGREGATION_MS,
+      finals_merged: finalsMerged,
+      ms_since_last_final: msSinceLastFinal,
+      text_len: text.length,
+      decided_by: 'timeout',
+    });
     submitTurnRef.current(text);
   }, []);
 
@@ -235,6 +266,9 @@ export function useCoachChat(
       utteranceBufferRef.current = utteranceBufferRef.current
         ? `${utteranceBufferRef.current} ${t}`
         : t;
+      finalsInTurnRef.current += 1;
+      lastFinalAtRef.current = Date.now();
+      awaitingResumeRef.current = true;
       if (aggregationTimerRef.current) clearTimeout(aggregationTimerRef.current);
       aggregationTimerRef.current = setTimeout(flushUtterance, TURN_AGGREGATION_MS);
     },
@@ -250,6 +284,12 @@ export function useCoachChat(
       interruptTts();
       // Empty interims must not defer the flush forever — only real speech resets it.
       if (t.trim() && aggregationTimerRef.current) {
+        // A buffered final was about to flush and the user kept going — record
+        // the near-cutoff so we can measure how often the fixed pause is too short.
+        if (awaitingResumeRef.current) {
+          awaitingResumeRef.current = false;
+          track('coach_turn_resumed', { buffered_len: utteranceBufferRef.current.length });
+        }
         clearTimeout(aggregationTimerRef.current);
         aggregationTimerRef.current = setTimeout(flushUtterance, TURN_AGGREGATION_MS);
       }
@@ -413,6 +453,8 @@ export function useCoachChat(
       lastSpokenOffsetRef.current = 0;
       streamTurnActiveRef.current = false;
       streamedSomethingRef.current = false;
+      // New coach turn → allow one barge-in event for it.
+      bargeFiredRef.current = false;
     }
     prevStreamingRef.current = isStreaming;
 
