@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { type CheckinScreenId, useCoachChatLauncher } from '@/contexts/CoachChatContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
+import { useReflectionDoneToday } from '@/hooks/useReflectionDoneToday';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { formatDate } from '@/utils/dates';
 import { localHour } from '@gg/shared/time/bucketTimeOfDay';
@@ -84,10 +85,15 @@ export function useCheckinEntry(): CheckinEntry {
       checkIn.energy != null ||
       checkIn.stress != null);
 
+  // Evening's data signal is a reflection entry today (not the 4-scale row).
+  // Same path-independent guarantee as morning so the evening never re-asks
+  // after it's finished, even if the checkin_completed event didn't stick.
+  const hasReflectionToday = useReflectionDoneToday(type === 'evening');
+
   const eventDone = useCheckinDoneToday(type);
-  // Morning is "done" once the 4-scale row exists; evening's data signal is a
-  // reflection entry, not the checkin row, so it keeps the event signal.
-  const doneToday = eventDone || (isMorning && hasCheckinData);
+  // Morning done = the 4-scale row exists; evening done = a reflection logged.
+  const doneToday =
+    eventDone || (isMorning && hasCheckinData) || (!isMorning && hasReflectionToday);
   const initiatedToday = useCheckinInitiatedToday(type);
   return { isMorning, type, checkinScreenId, doneToday, initiatedToday, proactiveWindow };
 }
