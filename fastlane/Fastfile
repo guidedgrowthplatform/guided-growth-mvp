@@ -95,11 +95,13 @@ platform :ios do
 
     # Wait for processing so changelog ("What to Test") reliably attaches;
     # bounded timeout fails loud instead of hanging on a slow Apple queue.
+    # Explicit en-US localization: bare changelog: only patches existing
+    # localizations, which internal builds lack — shipping blank notes.
     upload_to_testflight(
       api_key: api_key,
       skip_waiting_for_build_processing: false,
       wait_processing_timeout_duration: 1800,
-      changelog: changelog
+      localized_build_info: { "en-US" => { whats_new: changelog } }
     )
   end
 
