@@ -2,8 +2,13 @@ import { Icon } from '@iconify/react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
+import {
+  ensureExactAlarmPermission,
+  isLocalRemindersSupported,
+  requestLocalNotificationPermission,
+  rescheduleFromSnapshot,
+} from '@/lib/localReminders';
 import { PERMISSIONS_SEEN_KEY } from '@/lib/permissions';
-import { isPushSupported, requestPushPermissionAndRegister } from '@/lib/push';
 
 const PERMISSIONS = [
   {
@@ -33,10 +38,14 @@ export function EnablePermissionsPage() {
 
   const handleContinue = async () => {
     track('tap_continue_permissions');
-    if (isPushSupported()) {
+    if (isLocalRemindersSupported()) {
       setRequesting(true);
-      const granted = await requestPushPermissionAndRegister();
+      const granted = await requestLocalNotificationPermission();
       track('grant_notification_permission', { granted });
+      if (granted) {
+        await ensureExactAlarmPermission();
+        await rescheduleFromSnapshot();
+      }
       setRequesting(false);
     }
     localStorage.setItem(PERMISSIONS_SEEN_KEY, 'true');

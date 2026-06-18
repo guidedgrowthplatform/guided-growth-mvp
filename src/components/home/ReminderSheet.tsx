@@ -1,11 +1,17 @@
 import { Icon } from '@iconify/react';
 import { Bell, Lightbulb } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { track } from '@/analytics';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { InfoBox } from '@/components/ui/InfoBox';
 import { TimePicker } from '@/components/ui/TimePicker';
 import { Toggle } from '@/components/ui/Toggle';
+import {
+  checkLocalNotificationPermission,
+  type LocalPermissionState,
+  openSystemNotificationSettings,
+  requestLocalNotificationPermission,
+} from '@/lib/localReminders';
 
 interface ReminderSheetProps {
   onClose: () => void;
@@ -69,6 +75,26 @@ export function ReminderSheet({
   const [morningReminder, setMorningReminder] = useState(true);
   const [nightReminder, setNightReminder] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(initialPushNotifications);
+  const [permission, setPermission] = useState<LocalPermissionState>('unsupported');
+
+  useEffect(() => {
+    void checkLocalNotificationPermission().then(setPermission);
+  }, []);
+
+  // toggle reflects intent; OS permission is what actually delivers
+  const handlePushToggle = (next: boolean) => {
+    setPushNotifications(next);
+    if (!next) return;
+    if (permission === 'prompt') {
+      void requestLocalNotificationPermission().then((granted) =>
+        setPermission(granted ? 'granted' : 'denied'),
+      );
+    } else if (permission === 'denied') {
+      void openSystemNotificationSettings();
+    }
+  };
+
+  const showBlockedHint = pushNotifications && permission === 'denied';
 
   const handleSave = (close: () => void) => {
     // Emit per-time change events so analytics can distinguish morning vs
@@ -145,8 +171,18 @@ export function ReminderSheet({
                 </div>
                 <span className="text-base font-bold text-content">Push Notifications</span>
               </div>
-              <Toggle checked={pushNotifications} onChange={setPushNotifications} />
+              <Toggle checked={pushNotifications} onChange={handlePushToggle} />
             </div>
+
+            {showBlockedHint && (
+              <button
+                type="button"
+                onClick={() => void openSystemNotificationSettings()}
+                className="text-left text-sm font-medium text-amber-600"
+              >
+                Notifications are off in system settings. Tap to enable.
+              </button>
+            )}
           </div>
 
           <button

@@ -3,9 +3,9 @@ import { FirebaseMessaging, Importance, Visibility } from '@capacitor-firebase/m
 import { registerDeviceToken } from '@/api/notifications';
 import { useAuthStore } from '@/stores/authStore';
 import type { DevicePlatform } from '@gg/shared/types';
+import { ANDROID_REMINDER_CHANNEL_ID } from '@gg/shared';
 
-// Must match manifest default_notification_channel_id + server channelId.
-const ANDROID_CHANNEL_ID = 'reminders';
+const ANDROID_CHANNEL_ID = ANDROID_REMINDER_CHANNEL_ID;
 
 export async function ensureNotificationChannel(): Promise<void> {
   if (Capacitor.getPlatform() !== 'android') return;
