@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   addLocalReminderListeners,
   currentFirstName,
+  getReminderArmedAt,
   isLocalNotificationsGranted,
   isLocalRemindersSupported,
-  remindersDueAt,
+  remindersFiredSince,
   rescheduleFromSnapshot,
 } from '@/lib/localReminders';
 import { ensureLocalFeedEntry } from '@/lib/notifications/localFeed';
@@ -67,9 +68,9 @@ export function usePushRegistration(): void {
       await rescheduleFromSnapshot();
       if (!(await isLocalNotificationsGranted())) return;
       const now = new Date();
-      const due = remindersDueAt(loadLocalPreferences(), now);
+      const fired = remindersFiredSince(loadLocalPreferences(), now, await getReminderArmedAt());
       const wrote = await Promise.all(
-        due.map((type) => ensureLocalFeedEntry(type, currentFirstName(), now.toISOString())),
+        fired.map((type) => ensureLocalFeedEntry(type, currentFirstName(), now.toISOString())),
       );
       if (wrote.some(Boolean)) invalidateFeed();
     };
