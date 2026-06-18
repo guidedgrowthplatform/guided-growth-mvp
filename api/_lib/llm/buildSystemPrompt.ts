@@ -11,11 +11,13 @@ import { NO_INTERNAL_NARRATION_RULE } from './noInternalNarrationRule.js';
 import {
   CHECKIN_TOOL_ADDENDUM,
   CHECKIN_READONLY_ADDENDUM,
-  CHECKIN_WALKTHROUGH,
-  CHECKIN_EVENING_OPENER,
-  CHECKIN_MORNING_OPENER,
+  buildEveningWalkthrough,
+  buildEveningOpener,
+  buildMorningOpener,
+  buildMorningFlow,
 } from './checkin/systemPromptAddendum.js';
 import { isCheckinScreen, isReadOnlyCheckinScreen } from './checkin/registry.js';
+import { todayStr } from './checkin/handlers/shared.js';
 import { bucketTimeOfDay, localHour } from '@gg/shared/time/bucketTimeOfDay';
 import { readReflectionSettings } from '../reflection/reflectionSettings.js';
 import { DEFAULT_REFLECTION_PROMPTS } from '@gg/shared/types';
@@ -131,26 +133,37 @@ export async function buildSystemPromptForRequest(
     ? `\n\n${CHECKIN_READONLY_ADDENDUM}`
     : '';
   const timeBlock = isCheckin ? buildCurrentTimeBlock(args.timezone) : '';
-  // Walkthrough is evening-only — morning/home check-ins must NOT lead a habit recap.
-  const walkthroughBlock = args.screen_id === 'ECHECK-01' ? `\n\n${CHECKIN_WALKTHROUGH}` : '';
+  // Scripted lines rotate per local day (stable all day). Invalid/missing tz
+  // falls back to UTC rather than throwing (mirrors buildCurrentTimeBlock).
+  let daySeed: string;
+  try {
+    daySeed = todayStr(args.timezone);
+  } catch {
+    daySeed = todayStr('UTC');
+  }
+  // Evening flow (habits → gate → fixed reflection → wrap), scripted; all ECHECK turns.
+  const walkthroughBlock =
+    args.screen_id === 'ECHECK-01' ? `\n\n${buildEveningWalkthrough(daySeed)}` : '';
+  // Morning flow (are-you-done gate + wrap), scripted; all MCHECK turns.
+  const morningFlowBlock = args.screen_id === 'MCHECK-01' ? `\n\n${buildMorningFlow(daySeed)}` : '';
   // Habit polarity must be known BEFORE the first tool call so a cold
   // single-turn slip ("I caved on no-news") isn't recorded as a win.
   const checkinHabitsBlock = isCheckin ? await buildCheckinHabitsBlock(args.anon_id) : '';
-  // On the check-in chat screens (HOME-CHECKIN / MCHECK-01 / ECHECK-01 — the
-  // ones with the full tool set incl. log_reflection + update_reflection) the
-  // coach needs the user's current reflection setup: to walk the right prompts
-  // during the evening reflection, AND to edit them reliably via update_reflection
-  // (add/remove needs the current list). Not the screen's stale hardcoded default.
-  const reflectionSettingsBlock = isCheckin ? await buildReflectionSettingsBlock(args.anon_id) : '';
+  // Plain-chat HOME-CHECKIN keeps the configurable reflection setup (for
+  // free-form journaling + update_reflection edits). The scripted morning/evening
+  // flows use their own fixed prompts, so they do NOT get this block.
+  const reflectionSettingsBlock =
+    args.screen_id === 'HOME-CHECKIN' ? await buildReflectionSettingsBlock(args.anon_id) : '';
   const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
-  // Evening opener has no tools → without this it skips habits and opens with a
-  // reflection question. Force the opener to lead Phase 1 from the in-prompt list.
+  // Scripted opener lines (greeting + state/habit prompt), rotating per day.
   const eveningOpenerBlock =
-    args.mode === 'opener' && args.screen_id === 'ECHECK-01' ? `\n\n${CHECKIN_EVENING_OPENER}` : '';
-  // Morning has no DB context row + no walkthrough — without a dedicated opener
-  // it latches onto the reflection prompts and asks an evening question.
+    args.mode === 'opener' && args.screen_id === 'ECHECK-01'
+      ? `\n\n${buildEveningOpener(daySeed)}`
+      : '';
   const morningOpenerBlock =
-    args.mode === 'opener' && args.screen_id === 'MCHECK-01' ? `\n\n${CHECKIN_MORNING_OPENER}` : '';
+    args.mode === 'opener' && args.screen_id === 'MCHECK-01'
+      ? `\n\n${buildMorningOpener(daySeed)}`
+      : '';
   const inputModeBlock = args.input_mode === 'voice' ? '' : `\n\n${TEXT_INPUT_RULE}`;
   const onboardingRow = isOnboardingScreen ? await fetchOnboardingRow(args.anon_id) : null;
   const alreadyFilledBlock = onboardingRow ? buildAlreadyFilledBlock(onboardingRow) : '';
@@ -159,7 +172,7 @@ export async function buildSystemPromptForRequest(
     : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };

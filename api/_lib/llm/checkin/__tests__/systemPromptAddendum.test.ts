@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   CHECKIN_TOOL_ADDENDUM,
   CHECKIN_READONLY_ADDENDUM,
-  CHECKIN_WALKTHROUGH,
-  CHECKIN_EVENING_OPENER,
-  CHECKIN_MORNING_OPENER,
+  buildEveningWalkthrough,
+  buildEveningOpener,
+  buildMorningOpener,
+  buildMorningFlow,
 } from '../systemPromptAddendum.js';
+import { CHECKIN_SCRIPTS, pickVariation } from '../scriptVariations.js';
 import { isCheckinScreen, isReadOnlyCheckinScreen } from '../registry.js';
+
+const DAY = '2026-06-18';
 
 describe('CHECKIN_TOOL_ADDENDUM', () => {
   it('names every domain tool so the model knows its scope', () => {
@@ -50,91 +54,78 @@ describe('CHECKIN_READONLY_ADDENDUM', () => {
   });
 });
 
-describe('CHECKIN_WALKTHROUGH', () => {
-  it('starts by enumerating today-scheduled habits via query_habits scope:"today"', () => {
-    expect(CHECKIN_WALKTHROUGH).toContain('query_habits');
-    expect(CHECKIN_WALKTHROUGH).toContain('scope:"today"');
+describe('buildMorningOpener (scripted, rotating)', () => {
+  const block = buildMorningOpener(DAY);
+  it('calls query_checkin to surface the 4-scale card', () => {
+    expect(block).toContain('query_checkin');
   });
-
-  it('surfaces an interactive checklist and records chat-stated completions via complete_habit', () => {
-    expect(CHECKIN_WALKTHROUGH).toContain('complete_habit');
-    expect(CHECKIN_WALKTHROUGH).toMatch(/interactive/i);
-    expect(CHECKIN_WALKTHROUGH).toMatch(/checklist/i);
-    expect(CHECKIN_WALKTHROUGH).toMatch(/one at a time/i);
+  it("injects the day's greeting + state prompt verbatim", () => {
+    expect(block).toContain(pickVariation('morning_greeting', DAY));
+    expect(block).toContain(pickVariation('morning_state_prompt', DAY));
   });
-
-  it('handles polarity: avoid abstained = success, slip = unmarked miss', () => {
-    expect(CHECKIN_WALKTHROUGH).toMatch(/avoid/i);
-    expect(CHECKIN_WALKTHROUGH).toMatch(/abstain/i);
-    expect(CHECKIN_WALKTHROUGH).toMatch(/unmarked/i);
+  it('insists on word-for-word, no improvising', () => {
+    expect(block).toMatch(/word-for-word/i);
   });
-
-  it('closes the habit phase with a warm acknowledgement, never guilt', () => {
-    expect(CHECKIN_WALKTHROUGH).toMatch(/acknowledge/i);
-    expect(CHECKIN_WALKTHROUGH).toMatch(/never guilt/i);
+  it('is deterministic for a given day', () => {
+    expect(buildMorningOpener(DAY)).toBe(block);
   });
+});
 
-  it('sequences all three phases: habits → reflection → wrap-up, in order', () => {
-    const habits = CHECKIN_WALKTHROUGH.search(/Phase 1 — Habits/);
-    const reflection = CHECKIN_WALKTHROUGH.search(/Phase 2 — Reflection/);
-    const wrapUp = CHECKIN_WALKTHROUGH.search(/Phase 3 — Wrap-up/);
+describe('buildMorningFlow (are-you-done gate + wrap)', () => {
+  const block = buildMorningFlow(DAY);
+  it('includes the rotating are-you-done line, only if partial', () => {
+    expect(block).toContain(pickVariation('are_you_done', DAY));
+    expect(block).toMatch(/only if partial/i);
+  });
+  it('wraps with the rotating morning wrap line', () => {
+    expect(block).toContain(pickVariation('morning_wrap', DAY));
+  });
+  it('never starts a reflection — morning is state-only', () => {
+    expect(block).toMatch(/never (coach|start a reflection)/i);
+  });
+});
+
+describe('buildEveningOpener (scripted, rotating)', () => {
+  const block = buildEveningOpener(DAY);
+  it('calls query_habits scope:"today"', () => {
+    expect(block).toContain('query_habits');
+    expect(block).toContain('scope:"today"');
+  });
+  it("injects the day's greeting+habits and habit prompt verbatim", () => {
+    expect(block).toContain(pickVariation('evening_greeting_habits', DAY));
+    expect(block).toContain(pickVariation('evening_habit_prompt', DAY));
+  });
+});
+
+describe('buildEveningWalkthrough (scripted flow + fixed reflection)', () => {
+  const block = buildEveningWalkthrough(DAY);
+  it('sequences habits → reflection → wrap in order', () => {
+    const habits = block.search(/### 1\. Habits/);
+    const reflection = block.search(/### 2\. Reflection/);
+    const wrap = block.search(/### 3\. Wrap/);
     expect(habits).toBeGreaterThanOrEqual(0);
     expect(reflection).toBeGreaterThan(habits);
-    expect(wrapUp).toBeGreaterThan(reflection);
+    expect(wrap).toBeGreaterThan(reflection);
   });
-
-  it('makes reflection mandatory and defers questions to the Reflection Settings block', () => {
-    expect(CHECKIN_WALKTHROUGH).toMatch(/mandatory/i);
-    expect(CHECKIN_WALKTHROUGH).toContain('log_reflection');
-    expect(CHECKIN_WALKTHROUGH).toContain('## Reflection Settings (this user)');
+  it('fires the are-you-done gate only if some habits are pending', () => {
+    expect(block).toContain(pickVariation('are_you_done', DAY));
+    expect(block).toMatch(/only if partial/i);
   });
-
-  it('ends with a warm bedtime wrap-up', () => {
-    expect(CHECKIN_WALKTHROUGH).toMatch(/bedtime|rest well|tomorrow/i);
+  it('uses the THREE fixed reflection prompts verbatim and calls log_reflection', () => {
+    expect(block).toContain(CHECKIN_SCRIPTS.reflection_proud[0]);
+    expect(block).toContain(CHECKIN_SCRIPTS.reflection_forgive[0]);
+    expect(block).toContain(CHECKIN_SCRIPTS.reflection_grateful[0]);
+    expect(block).toContain('log_reflection');
   });
-});
-
-describe('CHECKIN_EVENING_OPENER', () => {
-  it('calls query_habits scope:"today" to surface the interactive checklist', () => {
-    expect(CHECKIN_EVENING_OPENER).toContain('query_habits');
-    expect(CHECKIN_EVENING_OPENER).toContain('scope:"today"');
-    expect(CHECKIN_EVENING_OPENER).toMatch(/interactive|checklist/i);
+  it('ends with the rotating evening wrap line', () => {
+    expect(block).toContain(pickVariation('evening_wrap', DAY));
   });
-
-  it('opens warm and explicitly does NOT lead with a reflection question', () => {
-    expect(CHECKIN_EVENING_OPENER).toMatch(/warm/i);
-    expect(CHECKIN_EVENING_OPENER).toMatch(/do not open with a reflection question/i);
+  it('insists on word-for-word, no improvising', () => {
+    expect(block).toMatch(/word-for-word/i);
   });
-
-  it('falls back to reflection only when there are no habits today', () => {
-    expect(CHECKIN_EVENING_OPENER).toMatch(/no habits/i);
-    expect(CHECKIN_EVENING_OPENER).toContain('## Reflection Settings (this user)');
-  });
-});
-
-describe('CHECKIN_MORNING_OPENER', () => {
-  it('asks the four morning dimensions: sleep, mood, energy, stress', () => {
-    for (const dim of [/sleep/i, /mood/i, /energy/i, /stress/i]) {
-      expect(CHECKIN_MORNING_OPENER).toMatch(dim);
-    }
-  });
-
-  it('calls query_checkin to surface the interactive 4-scale card', () => {
-    expect(CHECKIN_MORNING_OPENER).toContain('query_checkin');
-    expect(CHECKIN_MORNING_OPENER).toMatch(/interactive/i);
-    expect(CHECKIN_MORNING_OPENER).toMatch(/card/i);
-  });
-
-  it('explicitly forbids the evening reflection question on the morning turn', () => {
-    expect(CHECKIN_MORNING_OPENER).toMatch(/how did your day go/i);
-    expect(CHECKIN_MORNING_OPENER).toMatch(
-      /do not ask reflection|IGNORE the "## Reflection Settings"/i,
-    );
-  });
-
-  it('warns against assuming "good morning" since the window runs past noon', () => {
-    expect(CHECKIN_MORNING_OPENER).toMatch(/good morning/i);
-    expect(CHECKIN_MORNING_OPENER).toMatch(/Current Time/);
+  it('still records chat-stated completions via complete_habit with polarity', () => {
+    expect(block).toContain('complete_habit');
+    expect(block).toMatch(/avoid/i);
   });
 });
 

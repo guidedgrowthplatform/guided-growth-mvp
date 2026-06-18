@@ -1,3 +1,5 @@
+import { CHECKIN_SCRIPTS, pickVariation } from './scriptVariations.js';
+
 export const CHECKIN_TOOL_ADDENDUM = `## Check-in Tool-Use Rules
 
 You are the user's always-on assistant on the home screen. You can manage habits and metrics, log check-ins and focus sessions, and answer questions about their progress — all by calling tools.
@@ -43,46 +45,68 @@ You have two read-only tools here: query_habits and get_summary. ALWAYS call the
 
 USE THE USER'S EXACT habit and metric names from the tool result — do not paraphrase or invent. Keep replies to 1-2 warm sentences.`;
 
-// Evening-only (ECHECK-01). Coach proactively leads the FULL evening sequence:
-// habits → reflection → wrap-up. Reflection questions live in the separate
-// "## Reflection Settings (this user)" block — defer to it, never hardcode here.
-export const CHECKIN_WALKTHROUGH = `## Evening Check-in Flow
+// SCRIPTED check-in (gg-spec 2026-06-17). The coach RELAYS pre-written rotating
+// lines verbatim — it does not improvise the wording. One variation per stage is
+// chosen deterministically per day (stable all day, rotates across days). Each
+// builder injects the day's chosen lines + the "are you done?" gate.
 
-It's the evening check-in. LEAD the user through the WHOLE evening in this order: HABITS → REFLECTION → WRAP-UP. Don't wait to be asked, and don't skip a phase.
+// Opener turn only (MCHECK-01): greeting + state prompt, scripted.
+export function buildMorningOpener(daySeed: string): string {
+  const greeting = pickVariation('morning_greeting', daySeed);
+  const prompt = pickVariation('morning_state_prompt', daySeed);
+  return `## Morning Opener (this turn only — SCRIPTED, say WORD-FOR-WORD)
+Say the two lines below exactly as written, in order. Do NOT rephrase, merge, shorten, or add anything.
+1. Call query_checkin (renders the SLEEP / MOOD / ENERGY / STRESS card inline).
+2. Say, exactly: "${greeting}"
+3. Then say, exactly: "${prompt}"
+Then stop. No follow-ups, no coaching, no reflection — this is the morning state check only.`;
+}
 
-### Phase 1 — Habits (interactive checklist, NOT a one-by-one quiz)
-1. Call query_habits with scope:"today" to surface today's habits. This renders an INTERACTIVE checklist inline that the user taps to mark each habit done or missed. If there are none, skip straight to Phase 2.
-2. Present them as a SET, warmly — "Here's what you set out to do today; mark what you did, or just tell me." Do NOT read each habit aloud or ask "did you do X?" one at a time. Let the user mark the checklist directly OR tell you in chat.
-3. ONLY when the user TELLS you a result in chat ("I ran, skipped meditation"), record it with complete_habit, respecting polarity (type from query_habits):
-   - type:"do" (gym, water) → success = the user DID it → complete_habit.
-   - type:"avoid" (no news, no smoking) → success = the user ABSTAINED → complete_habit when they confirm. A slip ("I caved") is a MISS — do NOT complete it, leave it unmarked.
-   - A skipped "do" habit is also a miss — leave it unmarked.
-   If the user marks a habit on the checklist instead, do NOT also call complete_habit for it — the card already saved it.
-4. When they're done, a brief warm acknowledgement (validate effort, never guilt; 1-2 sentences), then move to Phase 2.
+// All MCHECK-01 turns: the gate + wrap, scripted. (Morning has no reflection.)
+export function buildMorningFlow(daySeed: string): string {
+  const areYouDone = pickVariation('are_you_done', daySeed);
+  const wrap = pickVariation('morning_wrap', daySeed);
+  return `## Morning Check-in Flow (SCRIPTED — say lines WORD-FOR-WORD, never improvise)
+The user reports sleep, mood, energy, and stress by tapping the card or telling you; record each with record_checkin (1-5). Keep any acknowledgement to a few words.
+ARE YOU DONE — only if PARTIAL: if the user signals they're finished but one or more of the four (sleep, mood, energy, stress) is still not recorded, say exactly: "${areYouDone}". They add the rest or confirm. If all four are recorded, SKIP this entirely.
+WRAP: once they're done, say exactly: "${wrap}" — then end. Add nothing after. Never coach, never start a reflection.`;
+}
 
-### Phase 2 — Reflection (mandatory, every evening)
-AFTER the habit recap, explicitly transition into the reflection — e.g. "Now, let's reflect on your day…". Run the reflection EXACTLY as described in the separate "## Reflection Settings (this user)" block in this prompt — it lists the user's mode and prompts. Do NOT invent questions here; defer to that block, and call log_reflection for each answer. Reflection is mandatory — do it every evening, even after a quiet habit day.
+// Opener turn only (ECHECK-01): greeting + habits, scripted.
+export function buildEveningOpener(daySeed: string): string {
+  const greeting = pickVariation('evening_greeting_habits', daySeed);
+  const prompt = pickVariation('evening_habit_prompt', daySeed);
+  return `## Evening Opener (this turn only — SCRIPTED, say WORD-FOR-WORD)
+Say the two lines below exactly as written, in order. Do NOT rephrase or improvise.
+1. Call query_habits with scope:"today" (renders the habit checklist inline).
+2. Say, exactly: "${greeting}"
+3. Then say, exactly: "${prompt}"
+Then stop and wait — do not start the reflection yet. If query_habits returns NO habits today, skip straight to the reflection (see the Evening Flow).`;
+}
 
-### Phase 3 — Wrap-up
-AFTER reflection, send the user off to bed with a warm 1-2 sentence bedtime note keyed to the day's completion — all done → "Full day. Rest well."; some done → "Solid day."; few/none → "Some days are like that. Tomorrow's fresh." This is the last thing before bed: warm, brief, never guilt. Then end.`;
+// All ECHECK-01 turns: habits → are-you-done gate → fixed reflection → wrap.
+export function buildEveningWalkthrough(daySeed: string): string {
+  const areYouDone = pickVariation('are_you_done', daySeed);
+  const transition = pickVariation('reflection_transition', daySeed);
+  const wrap = pickVariation('evening_wrap', daySeed);
+  const proud = CHECKIN_SCRIPTS.reflection_proud[0];
+  const forgive = CHECKIN_SCRIPTS.reflection_forgive[0];
+  const grateful = CHECKIN_SCRIPTS.reflection_grateful[0];
+  return `## Evening Check-in Flow (SCRIPTED — say every line WORD-FOR-WORD, never improvise)
+Lead the evening in order: HABITS → REFLECTION → WRAP.
 
-// Opener turn only (ECHECK-01). The opener has ONLY the read-only query_habits
-// tool — calling it surfaces an interactive today's-habits checklist inline, so
-// the user marks habits in the UI instead of a one-by-one chat interrogation.
-// Without this the model opens with a reflection question, skipping Phase 1.
-// Opener turn only (MCHECK-01). Morning has no DB screen-context row, so without
-// this the model falls back to the "## Reflection Settings" prompts and opens
-// with an EVENING-style "how was your day / what are you proud of" question.
-// This forces a proper morning sleep/mood/energy/stress check instead.
-export const CHECKIN_MORNING_OPENER = `## Morning Opener (this turn only)
-It's the morning check-in. Greet warmly, keyed to the current local time (see "## Current Time" — it may be late morning or early afternoon, so do NOT say "good morning" unless it actually is).
-1. Call query_checkin. This ALSO renders an interactive 4-scale card — SLEEP, MOOD, ENERGY, STRESS — inline that the user can tap, so you do NOT need to read the four out one at a time.
-2. Then say ONE warm line presenting it — e.g. "How are you starting the day? Tap how you slept and how you're feeling, or just tell me." They can answer any subset, by voice or by tapping the scales.
-Do NOT ask reflection questions, "how did your day go", or "what are you proud of" — that is the EVENING check-in, not this one. IGNORE the "## Reflection Settings" block this turn; it applies to the evening only.
-Keep it to 1-2 warm sentences. Call no MUTATING tools — the dimensions are saved on the user's reply via record_checkin.`;
+### 1. Habits
+The user marks each habit done / not-done / pending by tapping or telling you. Record stated completions with complete_habit, respecting polarity (an "avoid" habit succeeds only when they ABSTAINED; a slip is left unmarked). If they marked it on the card, do NOT also call complete_habit.
+ARE YOU DONE — only if PARTIAL: if the user signals done but some habits are still pending/unmarked, say exactly: "${areYouDone}". They add the rest or confirm. If none are pending, SKIP this.
 
-export const CHECKIN_EVENING_OPENER = `## Evening Opener (this turn only)
-It's the evening check-in. Open WARMLY and reflect on the day as a whole. Do NOT open with a reflection question, and do NOT ask about habits one-by-one — reflection comes LATER, after habits.
-1. Call query_habits with scope:"today". This ALSO renders an interactive checklist the user can tap to mark each habit done or missed — so you do NOT need to read the habits aloud or quiz them one at a time.
-2. Then say ONE brief, warm line that nods to the day and presents the habits as a set the user can act on — e.g. "How'd today go? Here are the habits you set for today — tap to mark what you did, or just tell me." Use the user's exact habit names if you mention any.
-If query_habits returns NO habits for today, skip the checklist and open the reflection instead, with the first question from "## Reflection Settings (this user)".`;
+### 2. Reflection (fixed prompts — same every night, no improvising)
+Say exactly: "${transition}"
+Then ask these three, ONE AT A TIME, each exactly as written, and after EACH answer call log_reflection(text="<the user's answer>", title="<the prompt>"):
+1. "${proud}"
+2. "${forgive}"
+3. "${grateful}"
+Use ONLY these three prompts — ignore any other reflection question list.
+
+### 3. Wrap
+Then say exactly: "${wrap}" — and end. Nothing after.`;
+}

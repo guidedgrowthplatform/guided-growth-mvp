@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { track } from '@/analytics';
 import { DailyProgressCard } from '@/components/habits/DailyProgressCard';
 import { HabitListItem } from '@/components/home/HabitListItem';
@@ -16,19 +15,10 @@ function localToday(): string {
   return `${y}-${m}-${day}`;
 }
 
-export function HabitReportCard({
-  onProgress,
-}: {
-  // Scripted check-in: report how many habits are still pending (0 → advance).
-  onProgress?: (pending: number) => void;
-} = {}) {
+export function HabitReportCard() {
   const { openScreenId } = useCoachChatLauncher();
   const { addToast } = useToast();
   const { habits, setHabitStatus } = useHabitsForDate(localToday(), openScreenId ?? undefined);
-  const pending = habits.filter((h) => h.status === 'pending').length;
-  useEffect(() => {
-    onProgress?.(pending);
-  }, [pending, onProgress]);
   if (habits.length === 0) return null;
 
   const completed = habits.filter((h) => h.completed).length;

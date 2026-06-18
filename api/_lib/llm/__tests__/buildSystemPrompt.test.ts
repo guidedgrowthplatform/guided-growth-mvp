@@ -177,9 +177,8 @@ describe('buildSystemPromptForRequest', () => {
       recent_events,
     });
     expect(evening.systemPrompt).toContain('## Evening Check-in Flow');
-    expect(evening.systemPrompt).toContain('scope:"today"');
     expect(evening.systemPrompt).toContain('complete_habit');
-    expect(evening.systemPrompt).toMatch(/did.?n.?t/i);
+    expect(evening.systemPrompt).toContain('What are you proud of today?');
   });
 
   it('forces the evening opener to lead with habits ONLY on ECHECK-01 opener turns', async () => {
@@ -203,8 +202,9 @@ describe('buildSystemPromptForRequest', () => {
       recent_events,
       mode: 'opener',
     });
-    expect(opener.systemPrompt).toContain('## Evening Opener (this turn only)');
-    expect(opener.systemPrompt).toContain('Do NOT open with a reflection question');
+    expect(opener.systemPrompt).toContain('## Evening Opener');
+    expect(opener.systemPrompt).toContain('query_habits');
+    expect(opener.systemPrompt).toMatch(/word-for-word/i);
 
     mockEchack();
     const chat = await buildSystemPromptForRequest({
@@ -214,7 +214,7 @@ describe('buildSystemPromptForRequest', () => {
       recent_events,
       mode: 'chat',
     });
-    expect(chat.systemPrompt).not.toContain('## Evening Opener (this turn only)');
+    expect(chat.systemPrompt).not.toContain('## Evening Opener');
   });
 
   it('emits the morning opener (not the evening one) on MCHECK-01 opener turns', async () => {
@@ -238,8 +238,8 @@ describe('buildSystemPromptForRequest', () => {
       recent_events,
       mode: 'opener',
     });
-    expect(opener.systemPrompt).toContain('## Morning Opener (this turn only)');
-    expect(opener.systemPrompt).not.toContain('## Evening Opener (this turn only)');
+    expect(opener.systemPrompt).toContain('## Morning Opener');
+    expect(opener.systemPrompt).not.toContain('## Evening Opener');
 
     mockMcheck();
     const chat = await buildSystemPromptForRequest({
@@ -249,7 +249,7 @@ describe('buildSystemPromptForRequest', () => {
       recent_events,
       mode: 'chat',
     });
-    expect(chat.systemPrompt).not.toContain('## Morning Opener (this turn only)');
+    expect(chat.systemPrompt).not.toContain('## Morning Opener');
   });
 
   it('does NOT emit the morning opener block on ECHECK-01 opener turns', async () => {
@@ -267,7 +267,7 @@ describe('buildSystemPromptForRequest', () => {
       recent_events,
       mode: 'opener',
     });
-    expect(systemPrompt).not.toContain('## Morning Opener (this turn only)');
+    expect(systemPrompt).not.toContain('## Morning Opener');
   });
 
   it('does NOT emit the walkthrough on MCHECK-01, HOME-CHECKIN, or non-checkin screens', async () => {
