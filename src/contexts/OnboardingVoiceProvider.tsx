@@ -823,6 +823,10 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
 
   const vapiShouldBeLive =
     inOnboarding &&
+    // Identity must be loaded before starting — metadata.anon_id is baked into
+    // the call at start(), so a null anonId would ship every tool call with an
+    // empty anon_id and the backend rejects them all (invalid_identity).
+    !!anonId &&
     preferences.voiceMode === 'voice' &&
     preferences.micEnabled === true &&
     preferences.micPermission === true &&

@@ -136,9 +136,13 @@ export async function navigateNext(args: Record<string, unknown>): Promise<Handl
   );
   const row = existing.rows[0];
   const currentStep = row?.current_step ?? 1;
+  const data = (row?.data ?? {}) as Record<string, unknown>;
+  const path = row?.path ?? null;
+  const brainDumpRaw = row?.brain_dump_raw ?? null;
 
-  // Reject multi-step forward jumps. Same step (re-render) and back-nav are fine.
-  if (targetStep > currentStep + 1) {
+  // Jumps beyond +2 are genuine skips → reject. Same step (re-render) and
+  // back-nav are fine.
+  if (targetStep > currentStep + 2) {
     console.log(
       `[vapi/tool] navigate_next rejected reason=cannot_skip_steps current=${currentStep} target=${targetStep}`,
     );
@@ -147,14 +151,26 @@ export async function navigateNext(args: Record<string, unknown>): Promise<Handl
     };
   }
 
+  // +2 is a tap/voice catch-up: tap-navigation into the current screen does NOT
+  // bump current_step (only navigate_next does), so a subsequent voice advance
+  // lands two ahead. Allow it ONLY when BOTH steps being left already have their
+  // data saved; otherwise it's a real skip.
+  if (targetStep === currentStep + 2) {
+    for (let s = currentStep; s < targetStep; s++) {
+      if (checkAdvanceData({ sourceStep: s, data, path, brainDumpRaw })) {
+        console.log(
+          `[vapi/tool] navigate_next rejected reason=cannot_skip_steps current=${currentStep} target=${targetStep}`,
+        );
+        return {
+          error: `cannot_skip_steps: current_step=${currentStep}, target_step=${targetStep}. Advance one step at a time.`,
+        };
+      }
+    }
+  }
+
   // Single-step forward: verify the source step's data has been saved.
   if (targetStep === currentStep + 1) {
-    const missing = checkAdvanceData({
-      sourceStep: currentStep,
-      data: (row?.data ?? {}) as Record<string, unknown>,
-      path: row?.path ?? null,
-      brainDumpRaw: row?.brain_dump_raw ?? null,
-    });
+    const missing = checkAdvanceData({ sourceStep: currentStep, data, path, brainDumpRaw });
     if (missing) {
       console.log(
         `[vapi/tool] navigate_next rejected reason=precondition_not_met current=${currentStep} target=${targetStep} detail=${missing}`,

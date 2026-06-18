@@ -7,11 +7,13 @@ import { createMetric } from './handlers/createMetric.js';
 import { logMetric } from './handlers/logMetric.js';
 import { deleteMetric } from './handlers/deleteMetric.js';
 import { recordCheckin } from './handlers/recordCheckin.js';
+import { queryCheckin } from './handlers/queryCheckin.js';
 import { startFocus } from './handlers/startFocus.js';
 import { queryHabits } from './handlers/queryHabits.js';
 import { getSummary } from './handlers/getSummary.js';
 import { suggestHabit } from './handlers/suggestHabit.js';
 import { logReflection } from './handlers/logReflection.js';
+import { updateReflection } from './handlers/updateReflection.js';
 import type { CheckinHandlerCtx } from './handlers/shared.js';
 import { isCheckinToolName, type CheckinToolName } from './schemas.js';
 
@@ -26,11 +28,13 @@ const HANDLERS: Record<CheckinToolName, Handler> = {
   log_metric: logMetric,
   delete_metric: deleteMetric,
   record_checkin: recordCheckin,
+  query_checkin: queryCheckin,
   start_focus: startFocus,
   query_habits: queryHabits,
   get_summary: getSummary,
   suggest_habit: suggestHabit,
   log_reflection: logReflection,
+  update_reflection: updateReflection,
 };
 
 export async function dispatchCheckinToolCall(

@@ -94,6 +94,7 @@ const Step3Page = lazyOnboarding('Step3Page');
 const Step4Page = lazyOnboarding('Step4Page');
 const Step5Page = lazyOnboarding('Step5Page');
 const Step6Page = lazyOnboarding('Step6Page');
+const Step6PromptsPage = lazyOnboarding('Step6PromptsPage');
 const PlanReviewPage = lazyOnboarding('PlanReviewPage');
 const AdvancedInputPage = lazyOnboarding('AdvancedInputPage');
 const AdvancedResultsPage = lazyOnboarding('AdvancedResultsPage');
@@ -257,6 +258,14 @@ export function AppRoutes() {
           element={
             <AppGate allow="onboarding">
               <Step6Page />
+            </AppGate>
+          }
+        />
+        <Route
+          path="/onboarding/step-6-prompts"
+          element={
+            <AppGate allow="onboarding">
+              <Step6PromptsPage />
             </AppGate>
           }
         />

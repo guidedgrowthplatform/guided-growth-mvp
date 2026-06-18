@@ -6,6 +6,11 @@ import { supabaseAdmin } from '../_lib/supabase-admin.js';
 import { validateDate, validateUUID, sanitizeContent } from '../_lib/validation.js';
 import { createJournalEntry } from '../_lib/journal/createJournalEntry.js';
 import { dispatchFeedbackAlert } from '../_lib/feedback-emailer.js';
+import {
+  readReflectionSettings,
+  upsertReflectionSettings,
+  validateReflectionUpdate,
+} from '../_lib/reflection/reflectionSettings.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
@@ -65,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // POST /api/reflections/journal — create entry
     if (req.method === 'POST' && !journalSub) {
-      const { type, template_id, title, date, fields, habit_id } = req.body ?? {};
+      const { type, template_id, title, date, fields, habit_id, prompts_snapshot } = req.body ?? {};
 
       // Validate type
       if (type !== 'freeform' && type !== 'template') {
@@ -96,6 +101,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'At least one non-empty field required' });
       }
 
+      // Snapshot preserves positions (no empty-filter) so indices stay aligned
+      // with field_key '0'..'n'. Only meaningful for template entries.
+      let promptsSnapshot: string[] | null = null;
+      if (type === 'template' && Array.isArray(prompts_snapshot)) {
+        promptsSnapshot = prompts_snapshot
+          .filter((p: unknown): p is string => typeof p === 'string')
+          .map((p: string) => p.slice(0, 280))
+          .slice(0, 20);
+      }
+
       const entry = await createJournalEntry({
         anon_id: user.anonId,
         type,
@@ -104,6 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         date: validDate,
         habit_id: validHabitId,
         fields: Object.fromEntries(fieldEntries) as Record<string, string>,
+        prompts_snapshot: promptsSnapshot,
       });
       return res.status(201).json(entry);
     }
@@ -124,14 +140,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const sql = habitFilter
         ? `SELECT je.id, je.anon_id, je.type, je.template_id, je.title,
-                  je.date::text, je.habit_id, je.created_at, je.updated_at,
+                  je.date::text, je.habit_id, je.prompts_snapshot, je.created_at, je.updated_at,
                   jf.field_key, jf.content
            FROM journal_entries je
            LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
            WHERE je.anon_id = $1 AND je.date >= $2 AND je.date <= $3 AND je.habit_id = $4
            ORDER BY je.created_at DESC`
         : `SELECT je.id, je.anon_id, je.type, je.template_id, je.title,
-                  je.date::text, je.habit_id, je.created_at, je.updated_at,
+                  je.date::text, je.habit_id, je.prompts_snapshot, je.created_at, je.updated_at,
                   jf.field_key, jf.content
            FROM journal_entries je
            LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
@@ -152,6 +168,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             title: row.title,
             date: row.date,
             habit_id: row.habit_id,
+            prompts_snapshot: row.prompts_snapshot,
             created_at: row.created_at,
             updated_at: row.updated_at,
             fields: {} as Record<string, string>,
@@ -172,7 +189,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (req.method === 'GET') {
         const result = await pool.query(
           `SELECT je.id, je.anon_id, je.type, je.template_id, je.title,
-                  je.date::text, je.habit_id, je.created_at, je.updated_at,
+                  je.date::text, je.habit_id, je.prompts_snapshot, je.created_at, je.updated_at,
                   jf.field_key, jf.content
            FROM journal_entries je
            LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
@@ -193,6 +210,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           title: row0.title,
           date: row0.date,
           habit_id: row0.habit_id,
+          prompts_snapshot: row0.prompts_snapshot,
           created_at: row0.created_at,
           updated_at: row0.updated_at,
           fields,
@@ -240,7 +258,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // Re-fetch
           const updated = await pool.query(
             `SELECT je.id, je.anon_id, je.type, je.template_id, je.title,
-                    je.date::text, je.habit_id, je.created_at, je.updated_at,
+                    je.date::text, je.habit_id, je.prompts_snapshot, je.created_at, je.updated_at,
                     jf.field_key, jf.content
              FROM journal_entries je
              LEFT JOIN journal_entry_fields jf ON jf.entry_id = je.id
@@ -260,6 +278,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             title: r0.title,
             date: r0.date,
             habit_id: r0.habit_id,
+            prompts_snapshot: r0.prompts_snapshot,
             created_at: r0.created_at,
             updated_at: r0.updated_at,
             fields: updatedFields,
@@ -284,6 +303,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // ── Reflection settings (mode + editable prompts + schedule) ──
+  if (route === 'config') {
+    if (req.method === 'GET') {
+      const settings = await readReflectionSettings(user.anonId);
+      return res.json(settings);
+    }
+    if (req.method === 'PUT') {
+      const base = await readReflectionSettings(user.anonId);
+      const validated = validateReflectionUpdate(req.body, base);
+      if (!validated.ok) return res.status(400).json({ error: validated.error });
+      const saved = await upsertReflectionSettings(user.anonId, validated.value);
+      return res.json(saved);
+    }
     return res.status(405).json({ error: 'Method not allowed' });
   }
 

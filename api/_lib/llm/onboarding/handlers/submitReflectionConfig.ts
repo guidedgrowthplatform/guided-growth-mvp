@@ -47,8 +47,14 @@ export async function submitReflectionConfig(
   // days is a custom combination.
   const schedule: ScheduleOption = inferSchedule(days) ?? (scheduleRaw as ScheduleOption);
 
+  const modeRaw = getString(args, 'mode');
+  const reflectionMode =
+    modeRaw === 'freeform' ? 'freeform' : modeRaw === 'prompts' ? 'prompts' : undefined;
+
   const reflectionConfig = { time, days, reminder, schedule };
-  const payload = JSON.stringify({ reflectionConfig });
+  const payload = JSON.stringify(
+    reflectionMode ? { reflectionConfig, reflectionMode } : { reflectionConfig },
+  );
 
   const result = await pool.query<{ data: Record<string, unknown>; current_step: number }>(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)

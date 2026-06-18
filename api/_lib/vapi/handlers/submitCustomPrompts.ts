@@ -55,7 +55,8 @@ export async function submitCustomPrompts(args: Record<string, unknown>): Promis
   }
 
   // Object payload so top-level `||` REPLACES the customPrompts key (never the bare array).
-  const payload = JSON.stringify({ customPrompts });
+  // Defining prompts implies prompts mode.
+  const payload = JSON.stringify({ customPrompts, reflectionMode: 'prompts' });
 
   // DATA ONLY — current_step not touched; navigate_next handles the advance.
   const result = await pool.query(

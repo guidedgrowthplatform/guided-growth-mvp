@@ -105,8 +105,14 @@ export async function submitReflectionConfig(
   // preset (custom combination), fall back to the LLM-supplied label.
   const schedule: ScheduleOption = inferSchedule(days) ?? (scheduleRaw as ScheduleOption);
 
+  const modeRaw = getString(args, 'mode');
+  const reflectionMode =
+    modeRaw === 'freeform' ? 'freeform' : modeRaw === 'prompts' ? 'prompts' : undefined;
+
   const reflectionConfig = { time, days, reminder, schedule };
-  const payload = JSON.stringify({ reflectionConfig });
+  const payload = JSON.stringify(
+    reflectionMode ? { reflectionConfig, reflectionMode } : { reflectionConfig },
+  );
 
   // DATA ONLY — current_step not touched on UPDATE; navigate_next handles
   // the screen advance. INSERT path defaults to step 6 (reflection).

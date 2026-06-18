@@ -11,10 +11,17 @@ import { NO_INTERNAL_NARRATION_RULE } from './noInternalNarrationRule.js';
 import {
   CHECKIN_TOOL_ADDENDUM,
   CHECKIN_READONLY_ADDENDUM,
-  CHECKIN_WALKTHROUGH,
+  buildEveningWalkthrough,
+  buildEveningOpener,
+  buildMorningOpener,
+  buildMorningFlow,
+  buildScriptedDiscipline,
 } from './checkin/systemPromptAddendum.js';
 import { isCheckinScreen, isReadOnlyCheckinScreen } from './checkin/registry.js';
+import { todayStr } from './checkin/handlers/shared.js';
 import { bucketTimeOfDay, localHour } from '@gg/shared/time/bucketTimeOfDay';
+import { readReflectionSettings } from '../reflection/reflectionSettings.js';
+import { DEFAULT_REFLECTION_PROMPTS } from '@gg/shared/types';
 
 export interface BuildSystemPromptArgs {
   anon_id: string;
@@ -127,12 +134,45 @@ export async function buildSystemPromptForRequest(
     ? `\n\n${CHECKIN_READONLY_ADDENDUM}`
     : '';
   const timeBlock = isCheckin ? buildCurrentTimeBlock(args.timezone) : '';
-  // Walkthrough is evening-only — morning/home check-ins must NOT lead a habit recap.
-  const walkthroughBlock = args.screen_id === 'ECHECK-01' ? `\n\n${CHECKIN_WALKTHROUGH}` : '';
+  // Scripted lines rotate per local day (stable all day). Invalid/missing tz
+  // falls back to UTC rather than throwing (mirrors buildCurrentTimeBlock).
+  let daySeed: string;
+  try {
+    daySeed = todayStr(args.timezone);
+  } catch {
+    daySeed = todayStr('UTC');
+  }
+  // Evening flow (habits → gate → fixed reflection → wrap), scripted; all ECHECK turns.
+  const walkthroughBlock =
+    args.screen_id === 'ECHECK-01' ? `\n\n${buildEveningWalkthrough(daySeed)}` : '';
+  // Morning flow (are-you-done gate + wrap), scripted; all MCHECK turns.
+  const morningFlowBlock = args.screen_id === 'MCHECK-01' ? `\n\n${buildMorningFlow(daySeed)}` : '';
+  // Hard no-improvisation rule on the dedicated scripted screens.
+  const scriptedDisciplineBlock =
+    args.screen_id === 'MCHECK-01' || args.screen_id === 'ECHECK-01'
+      ? `\n\n${buildScriptedDiscipline()}`
+      : '';
   // Habit polarity must be known BEFORE the first tool call so a cold
   // single-turn slip ("I caved on no-news") isn't recorded as a win.
   const checkinHabitsBlock = isCheckin ? await buildCheckinHabitsBlock(args.anon_id) : '';
+  // The evening reflection uses THIS USER'S configured questions (not hardcoded),
+  // so ECHECK-01 needs the settings block; HOME-CHECKIN keeps it for free-form
+  // journaling + update_reflection edits. Morning has no reflection, so MCHECK
+  // does not get it.
+  const reflectionSettingsBlock =
+    args.screen_id === 'HOME-CHECKIN' || args.screen_id === 'ECHECK-01'
+      ? await buildReflectionSettingsBlock(args.anon_id)
+      : '';
   const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
+  // Scripted opener lines (greeting + state/habit prompt), rotating per day.
+  const eveningOpenerBlock =
+    args.mode === 'opener' && args.screen_id === 'ECHECK-01'
+      ? `\n\n${buildEveningOpener(daySeed)}`
+      : '';
+  const morningOpenerBlock =
+    args.mode === 'opener' && args.screen_id === 'MCHECK-01'
+      ? `\n\n${buildMorningOpener(daySeed)}`
+      : '';
   const inputModeBlock = args.input_mode === 'voice' ? '' : `\n\n${TEXT_INPUT_RULE}`;
   const onboardingRow = isOnboardingScreen ? await fetchOnboardingRow(args.anon_id) : null;
   const alreadyFilledBlock = onboardingRow ? buildAlreadyFilledBlock(onboardingRow) : '';
@@ -141,7 +181,7 @@ export async function buildSystemPromptForRequest(
     : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${checkinHabitsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${inputModeBlock}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${scriptedDisciplineBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
@@ -181,6 +221,34 @@ async function buildCheckinHabitsBlock(anonId: string): Promise<string> {
     `A "do" habit succeeds when the user DID it; an "avoid" habit succeeds when they ABSTAINED. ` +
     `Before calling complete_habit for an avoid habit, confirm the user actually abstained. ` +
     `If they slipped ("I caved", "I watched the news"), do NOT complete it — that day is simply left unmarked.`
+  );
+}
+
+// The user's current reflection mode + prompts, so the coach (a) walks the right
+// questions during the evening reflection and (b) can edit them via update_reflection
+// (add/remove needs the current list in context).
+async function buildReflectionSettingsBlock(anonId: string): Promise<string> {
+  const settings = await readReflectionSettings(anonId);
+  const editLine =
+    `To change/add/remove a reflection question or switch mode, call update_reflection with the ` +
+    `COMPLETE new prompts list (to add: the list above plus the new one; to remove: the list above ` +
+    `minus that one) — never send only the delta. This edits their setup; it does NOT log an entry.`;
+  if (settings.mode === 'freeform') {
+    return (
+      `\n\n## Reflection Settings (this user)\n` +
+      `Mode: FREEFORM (no set questions). During the evening reflection, do NOT walk a fixed list — ` +
+      `ask ONE open prompt (e.g. "What stood out about today?") and call log_reflection(text='<their words>'). ` +
+      `Ignore any default question list in the screen guidance.\n${editLine}`
+    );
+  }
+  const prompts = settings.prompts.length > 0 ? settings.prompts : DEFAULT_REFLECTION_PROMPTS;
+  const numbered = prompts.map((p, i) => `${i + 1}. ${p}`).join('\n');
+  return (
+    `\n\n## Reflection Settings (this user)\n` +
+    `Mode: GUIDED. The user's current reflection questions are:\n${numbered}\n` +
+    `During the evening reflection, walk EXACTLY these in order, one per turn, and call ` +
+    `log_reflection(text='<the user's words>', title='<the prompt>') for each. Ignore any default ` +
+    `list in the screen guidance.\n${editLine}`
   );
 }
 
@@ -232,4 +300,4 @@ Speak first. Open with the line this screen's BEHAVIOR calls for (often a comple
 Rules:
 - No generic greetings like "How can I help?", "What's up?", or "What can I do for you?".
 - Do NOT mention that the chat was just opened. Just open the conversation naturally.
-- Do NOT call any tools on this turn — no \`update_profile\`, no \`navigate_next\`. Pure text only. Tools resume on the next user-initiated turn.`;
+- Do NOT call any MUTATING tools on this turn — no \`update_profile\`, \`navigate_next\`, \`complete_habit\`, \`record_checkin\`, etc. Those resume on the next user-initiated turn. A read-only tool (\`query_habits\` / \`query_checkin\`) MAY be called if available this turn to ground your opener.`;

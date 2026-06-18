@@ -4,14 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconMic } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
-import { useCoachChatLauncher } from '@/contexts/CoachChatContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
-import { useCheckinDoneToday } from '@/hooks/useCheckinDoneToday';
+import { useCheckinEntry, useOpenCheckinCoach } from '@/hooks/useCheckinEntry';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { unlockTTS } from '@/lib/services/tts-service';
-import { bucketTimeOfDay } from '@gg/shared/time/bucketTimeOfDay';
 import type { CheckInDimension } from '@gg/shared/types';
 import { checkInDimensions } from './checkInConfig';
 import { EmojiOptionButton } from './EmojiOptionButton';
@@ -29,20 +27,19 @@ interface CheckInCardProps {
 }
 
 export function CheckInCard({ selectedDate, onClose, embedded }: CheckInCardProps) {
-  // captured at mount; card is CSS-collapsed, not remounted.
-  // 'morning' bucket only (<12 local); afternoon/evening/night → evening check-in.
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const isMorning = bucketTimeOfDay(new Date(), tz) === 'morning';
+  // 'morning' bucket only (<12 local); afternoon/evening/night → evening.
+  // Shared with the global open-chat button via useCheckinEntry (no drift).
+  const checkinEntry = useCheckinEntry();
+  const { isMorning, type: checkinType, checkinScreenId } = checkinEntry;
   const { checkIn, loading, saving, save } = useCheckIn(selectedDate, {
-    type: isMorning ? 'morning' : 'evening',
-    screenId: isMorning ? 'MCHECK-01' : 'ECHECK-01',
+    type: checkinType,
+    screenId: checkinScreenId,
   });
   const { addToast } = useToast();
   const navigate = useNavigate();
-  const { openCoachChat } = useCoachChatLauncher();
+  const openCheckinCoach = useOpenCheckinCoach();
   const { micAllowed, requestMicPermission } = useDualButtonControls();
   const { updatePreferences } = useUserPreferences();
-  const doneToday = useCheckinDoneToday(isMorning ? 'morning' : 'evening');
   const [values, setValues] = useState<CheckInValues>(emptyValues);
   // GitLab #171: post-save confirmation state so the user gets a visible
   // acknowledgement + a way to jump straight to their check-in history.
@@ -137,8 +134,8 @@ export function CheckInCard({ selectedDate, onClose, embedded }: CheckInCardProp
       voiceMode: 'screen',
       micEnabled: granted,
     });
-    // Once-per-day: a done bucket just opens the timeline, no proactive re-ask.
-    openCoachChat(isMorning ? 'MCHECK-01' : 'ECHECK-01', { initiateCheckin: !doneToday });
+    // Once-per-day: a done or already-started bucket opens without re-asking.
+    openCheckinCoach();
   };
 
   if (loading) {

@@ -250,6 +250,12 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
           description: 'Schedule preset matching the days array.',
           enum: [...SCHEDULE_OPTIONS],
         },
+        mode: {
+          type: 'string',
+          description:
+            "How the user wants to reflect. 'prompts' = answer questions (guided default or custom); 'freeform' = no questions, just talk freely. Include 'freeform' when the user says they want to talk freely / no questions. Omit (defaults to prompts) for guided.",
+          enum: ['prompts', 'freeform'],
+        },
       },
       required: ['time', 'days', 'reminder', 'schedule'],
       additionalProperties: false,

@@ -212,6 +212,19 @@ export function PlanReviewPage() {
     ? (CATEGORY_ICONS[category] ?? 'ic:outline-check-circle')
     : 'ic:outline-check-circle';
   const reflectionDays = new Set(reflectionConfig.days);
+  const reflectionMode =
+    onboardingState?.data?.reflectionMode === 'freeform' ? 'freeform' : 'prompts';
+  const customPrompts = Array.isArray(onboardingState?.data?.customPrompts)
+    ? (onboardingState.data.customPrompts as string[]).filter(
+        (p) => typeof p === 'string' && p.trim(),
+      )
+    : [];
+  const reflectionTitle =
+    reflectionMode === 'freeform'
+      ? 'Freeform reflection'
+      : customPrompts.length > 0
+        ? 'Custom reflection'
+        : 'Daily reflection';
 
   return (
     <OnboardingLayout
@@ -267,7 +280,7 @@ export function PlanReviewPage() {
         <PlanSummaryCard
           icon="ic:outline-menu-book"
           typeLabel="Journal"
-          title="Daily reflection"
+          title={reflectionTitle}
           cadence={formatCadence(reflectionDays)}
           rule={reflectionConfig.time ? `Reminder at ${reflectionConfig.time}` : 'No reminder set'}
         />

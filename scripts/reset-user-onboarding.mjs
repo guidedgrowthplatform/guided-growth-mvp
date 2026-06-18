@@ -55,7 +55,7 @@ try {
     console.log('No anon_id on profile — nothing in anon-keyed tables to delete.');
   } else {
     const counts = {};
-    for (const table of ['onboarding_states', 'user_habits', 'chat_messages', 'session_log']) {
+    for (const table of ['onboarding_states', 'user_habits', 'chat_messages', 'session_log', 'journal_entries', 'reflection_settings']) {
       const { rows: r } = await client.query(
         `SELECT COUNT(*)::int AS n FROM ${table} WHERE anon_id = $1`,
         [anon_id],
@@ -73,7 +73,7 @@ try {
 
   const deleted = {};
   if (anon_id) {
-    for (const table of ['onboarding_states', 'user_habits', 'chat_messages', 'session_log']) {
+    for (const table of ['onboarding_states', 'user_habits', 'chat_messages', 'session_log', 'journal_entries', 'reflection_settings']) {
       const r = await client.query(`DELETE FROM ${table} WHERE anon_id = $1`, [anon_id]);
       deleted[table] = r.rowCount ?? 0;
     }
