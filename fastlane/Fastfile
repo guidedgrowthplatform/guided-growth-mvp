@@ -85,8 +85,10 @@ platform :ios do
 
     # --- Upload to TestFlight -----------------------------------------------
     # Shared tester notes; same file feeds Play release notes in ci.yml.
-    # Anchor to repo root: __dir__ is unreliable under fastlane's instance_eval.
-    repo_root = ENV["GITHUB_WORKSPACE"] || Dir.pwd
+    # Anchor to repo root: __dir__ resolves to "." under fastlane's eval.
+    repo_root = ENV["GITHUB_WORKSPACE"] ||
+                (FastlaneCore::FastlaneFolder.path && File.expand_path("..", FastlaneCore::FastlaneFolder.path)) ||
+                Dir.pwd
     notes_path = File.join(repo_root, "release-notes", "whatsnew-en-US")
     changelog = File.exist?(notes_path) ? File.read(notes_path).strip : nil
     UI.user_error!("Release notes not found at #{notes_path}") if changelog.nil? || changelog.empty?
