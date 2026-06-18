@@ -34,4 +34,12 @@ describe('buildNotificationContent', () => {
     expect(c.data.route).toBe('/journal');
     expect(c.title).toBe('Hi there!');
   });
+
+  it('session_expired → account / /login (no name needed)', () => {
+    const c = buildNotificationContent('session_expired', null);
+    expect(c.category).toBe('account');
+    expect(c.data.route).toBe('/login');
+    expect(c.data.type).toBe('session_expired');
+    expect(c.title).toBe('Your session expired');
+  });
 });

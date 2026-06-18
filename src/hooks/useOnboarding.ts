@@ -12,6 +12,7 @@ import {
   rescheduleFromSnapshot,
 } from '@/lib/localReminders';
 import { clearOnboardingChatSessionId } from '@/lib/onboarding/onboardingChatSession';
+import { requestPushPermissionAndRegister } from '@/lib/push';
 import { queryKeys } from '@/lib/query';
 import { Sentry } from '@/lib/sentry';
 import { useAuthStore } from '@/stores/authStore';
@@ -128,6 +129,9 @@ export function useOnboarding() {
         if (!granted) return;
         await ensureExactAlarmPermission();
         await rescheduleFromSnapshot();
+        // register FCM token (+APNs on iOS) for server pushes — local-notif
+        // permission alone never registers with FirebaseMessaging
+        await requestPushPermissionAndRegister();
       })();
     },
     // Previously had no onError. A failed completeOnboarding() call left the

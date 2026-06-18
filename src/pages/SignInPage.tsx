@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
 import { loginSchema, type LoginForm } from '@/lib/validation';
+import { isSessionExpiredPending } from '@/stores/authStore';
 
 export function SignInPage() {
   const { signIn } = useAuth();
@@ -15,10 +16,12 @@ export function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const successMessage = (location.state as { message?: string } | null)?.message ?? null;
+  const [sessionExpired] = useState(isSessionExpiredPending);
 
   useEffect(() => {
     track('view_login_screen');
-  }, []);
+    if (sessionExpired) track('session_expired_shown');
+  }, [sessionExpired]);
 
   const {
     register,
@@ -89,6 +92,9 @@ export function SignInPage() {
             Log In
           </Button>
         </div>
+        {sessionExpired && (
+          <AuthAlert type="info" message="Your session expired. Please sign back in." />
+        )}
         {successMessage && <AuthAlert type="success" message={successMessage} />}
         {error && <AuthAlert type="error" message={error} />}
       </form>

@@ -1,7 +1,11 @@
+import { timingSafeEqual } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { buildNotificationContent, SESSION_EXPIRED_WINDOW_MS } from '@gg/shared';
 import type { NotificationRecord } from '@gg/shared/types';
-import pool from '../_lib/db.js';
 import { requireUser, handlePreflight } from '../_lib/auth.js';
+import pool from '../_lib/db.js';
+import { getFcm, pruneDeadTokens, sendPush } from '../_lib/firebase.js';
+import { isSessionExpiredEligible } from '../_lib/sessionExpiry.js';
 import { validateUUID } from '../_lib/validation.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -10,6 +14,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] === '__index' ? '' : segments[0] || '';
+
+  // cron authenticates via CRON_SECRET (not a user JWT) → before requireUser
+  if (route === 'cron') return handleCron(req, res);
 
   const user = await requireUser(req, res);
   if (!user) return;
@@ -76,4 +83,75 @@ async function markAllRead(_req: VercelRequest, res: VercelResponse, anonId: str
     [anonId],
   );
   return res.status(200).json({ ok: true });
+}
+
+function secretMatches(token: string, secret: string | undefined): boolean {
+  if (!secret) return false;
+  const a = Buffer.from(token);
+  const b = Buffer.from(secret);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+interface LapsedDevice {
+  id: string;
+  token: string;
+  first_name: string | null;
+  last_seen_at: string;
+  session_expired_notified_at: string | null;
+}
+
+// session-expired push: one per lapse episode per device, re-armed on the user's return
+async function handleCron(req: VercelRequest, res: VercelResponse) {
+  const token = (req.headers['authorization'] ?? '').toString().replace(/^Bearer\s+/i, '');
+  if (!secretMatches(token, process.env.CRON_SECRET)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  // QA shares the prod DB; this gate keeps the QA cron inert
+  if (process.env.PUSH_CRON_ENABLED !== 'true' || !getFcm()) {
+    return res.status(200).json({ skipped: true });
+  }
+
+  const now = new Date();
+  const candidates = await pool.query<LapsedDevice>(
+    `SELECT dt.id, dt.token,
+            NULLIF(split_part(trim(COALESCE(p.name, '')), ' ', 1), '') AS first_name,
+            dt.last_seen_at, dt.session_expired_notified_at
+       FROM device_tokens dt
+       LEFT JOIN profiles p ON p.anon_id = dt.anon_id
+      WHERE dt.last_seen_at < now() - ($1 || ' milliseconds')::interval
+        AND (dt.session_expired_notified_at IS NULL
+             OR dt.session_expired_notified_at < dt.last_seen_at)`,
+    [String(SESSION_EXPIRED_WINDOW_MS)],
+  );
+
+  const eligible = candidates.rows.filter((d) =>
+    isSessionExpiredEligible(
+      {
+        lastSeenAt: new Date(d.last_seen_at),
+        notifiedAt: d.session_expired_notified_at ? new Date(d.session_expired_notified_at) : null,
+      },
+      now,
+      SESSION_EXPIRED_WINDOW_MS,
+    ),
+  );
+
+  let sent = 0;
+  for (const d of eligible) {
+    // one bad token must not abort the batch
+    try {
+      const content = buildNotificationContent('session_expired', d.first_name);
+      const r = await sendPush([d.token], content);
+      await pruneDeadTokens(r.deadTokens);
+      if (r.deadTokens.includes(d.token)) continue; // pruned → nothing to mark
+      await pool.query(
+        'UPDATE device_tokens SET session_expired_notified_at = now() WHERE id = $1',
+        [d.id],
+      );
+      if (r.delivered) sent += 1;
+    } catch (err) {
+      console.error('[cron:session-expired] send failed', d.id, err);
+    }
+  }
+
+  return res.status(200).json({ eligible: eligible.length, sent });
 }

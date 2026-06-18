@@ -34,6 +34,7 @@
       "headers": [{ "key": "Cache-Control", "value": "no-store" }]
     }
   ],
+  "crons": [{ "path": "/api/notifications/cron", "schedule": "0 * * * *" }],
   "rewrites": [
     { "source": "/api/onboarding", "destination": "/api/onboarding/__index" },
     { "source": "/api/notifications", "destination": "/api/notifications/__index" },

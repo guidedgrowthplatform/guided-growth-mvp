@@ -299,9 +299,9 @@ export interface ParseBrainDumpResponse {
 }
 
 // ─── Push Notifications ─────────────────────────────
-export type PushNotificationType = 'morning_checkin' | 'evening_checkin';
+export type PushNotificationType = 'morning_checkin' | 'evening_checkin' | 'session_expired';
 
-export type PushNotificationCategory = 'habit' | 'journal';
+export type PushNotificationCategory = 'habit' | 'journal' | 'account';
 
 export type DevicePlatform = 'ios' | 'android';
 
