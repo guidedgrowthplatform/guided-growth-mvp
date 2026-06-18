@@ -67,7 +67,9 @@ export function messageHasTodayHabits(m: LLMChatMessage): boolean {
 // energy, stress}}` after the UPSERT, so partial check-ins show the right
 // merged values — not just whatever subset the LLM passed in args).
 function checkinFromEvent(evt: LLMToolEvent): CheckInCardData | null {
-  if (evt.name !== 'record_checkin') return null;
+  // record_checkin (post-answer) and query_checkin (morning opener) share the
+  // {date, checkin:{sleep,mood,energy,stress}} payload — either renders the card.
+  if (evt.name !== 'record_checkin' && evt.name !== 'query_checkin') return null;
   if (!evt.result?.ok) return null;
   const payload = evt.result.payload as { result?: Record<string, unknown> } | undefined;
   const r = payload?.result;

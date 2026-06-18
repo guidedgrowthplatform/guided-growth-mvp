@@ -70,6 +70,17 @@ AFTER reflection, send the user off to bed with a warm 1-2 sentence bedtime note
 // tool — calling it surfaces an interactive today's-habits checklist inline, so
 // the user marks habits in the UI instead of a one-by-one chat interrogation.
 // Without this the model opens with a reflection question, skipping Phase 1.
+// Opener turn only (MCHECK-01). Morning has no DB screen-context row, so without
+// this the model falls back to the "## Reflection Settings" prompts and opens
+// with an EVENING-style "how was your day / what are you proud of" question.
+// This forces a proper morning sleep/mood/energy/stress check instead.
+export const CHECKIN_MORNING_OPENER = `## Morning Opener (this turn only)
+It's the morning check-in. Greet warmly, keyed to the current local time (see "## Current Time" — it may be late morning or early afternoon, so do NOT say "good morning" unless it actually is).
+1. Call query_checkin. This ALSO renders an interactive 4-scale card — SLEEP, MOOD, ENERGY, STRESS — inline that the user can tap, so you do NOT need to read the four out one at a time.
+2. Then say ONE warm line presenting it — e.g. "How are you starting the day? Tap how you slept and how you're feeling, or just tell me." They can answer any subset, by voice or by tapping the scales.
+Do NOT ask reflection questions, "how did your day go", or "what are you proud of" — that is the EVENING check-in, not this one. IGNORE the "## Reflection Settings" block this turn; it applies to the evening only.
+Keep it to 1-2 warm sentences. Call no MUTATING tools — the dimensions are saved on the user's reply via record_checkin.`;
+
 export const CHECKIN_EVENING_OPENER = `## Evening Opener (this turn only)
 It's the evening check-in. Open WARMLY and reflect on the day as a whole. Do NOT open with a reflection question, and do NOT ask about habits one-by-one — reflection comes LATER, after habits.
 1. Call query_habits with scope:"today". This ALSO renders an interactive checklist the user can tap to mark each habit done or missed — so you do NOT need to read the habits aloud or quiz them one at a time.

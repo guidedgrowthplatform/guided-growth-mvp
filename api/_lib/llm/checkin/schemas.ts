@@ -11,6 +11,7 @@ export type CheckinToolName =
   | 'log_metric'
   | 'delete_metric'
   | 'record_checkin'
+  | 'query_checkin'
   | 'start_focus'
   | 'query_habits'
   | 'get_summary'
@@ -176,6 +177,17 @@ export const CHECKIN_TOOLS: readonly CheckinToolDefinition[] = [
         energy: { type: 'number', description: 'Energy 1-5.' },
         stress: { type: 'number', description: 'Stress 1-5.' },
       },
+      required: [],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'query_checkin',
+    description:
+      "Read today's check-in (sleep, mood, energy, stress). Call on the morning opener to surface the interactive 4-scale check-in card inline — it does NOT save anything. Read-only.",
+    parameters: {
+      type: 'object',
+      properties: {},
       required: [],
       additionalProperties: false,
     },

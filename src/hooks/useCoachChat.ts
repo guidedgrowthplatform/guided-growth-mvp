@@ -383,11 +383,18 @@ export function useCoachChat(
     // Only when the overlay is actually open — a mic-armed Home (no overlay)
     // must not silently persist a welcome turn (MR#4).
     if (!chatSessionId || !overlayOpen) return;
+    // Dedicated check-in screens drive their opener ONLY through the nonce-gated
+    // initiate path above (which respects once-per-day doneToday/initiatedToday).
+    // This generic empty-timeline welcome is NOT so gated — letting it fire on
+    // MCHECK-01/ECHECK-01 re-asks an already-started check-in on reopen (the
+    // timeline is empty for users with no prior coach history). HOME-CHECKIN
+    // (plain chat) keeps its welcome.
+    if (screenId.startsWith('MCHECK') || screenId.startsWith('ECHECK')) return;
     if (openerSentRef.current === chatSessionId) return;
     if (initialMessages.length > 0) return;
     openerSentRef.current = chatSessionId;
     void sendOpener();
-  }, [chatSessionId, initialMessages, sendOpener, overlayOpen]);
+  }, [chatSessionId, initialMessages, sendOpener, overlayOpen, screenId]);
 
   // ─── Pre-seed spoken ids from resumed history (declared BEFORE the speak
   // effect so it runs first in-commit) — prevents replaying old turns ──

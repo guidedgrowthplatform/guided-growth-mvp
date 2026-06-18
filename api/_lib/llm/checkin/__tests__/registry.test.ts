@@ -3,7 +3,7 @@ import { CHECKIN_TOOLS, CHECKIN_TOOL_NAMES, isCheckinToolName } from '../schemas
 import { getCheckinTools, getReadOnlyCheckinTools, isCheckinScreen } from '../registry.js';
 
 describe('CHECKIN_TOOLS', () => {
-  it('exposes the fourteen canonical tool names', () => {
+  it('exposes the fifteen canonical tool names', () => {
     expect(CHECKIN_TOOLS.map((t) => t.name).sort()).toEqual([
       'complete_habit',
       'create_habit',
@@ -13,6 +13,7 @@ describe('CHECKIN_TOOLS', () => {
       'get_summary',
       'log_metric',
       'log_reflection',
+      'query_checkin',
       'query_habits',
       'record_checkin',
       'start_focus',
@@ -149,6 +150,11 @@ describe('CHECKIN_TOOLS', () => {
           "required": [],
         },
         {
+          "name": "query_checkin",
+          "properties": [],
+          "required": [],
+        },
+        {
           "name": "start_focus",
           "properties": [
             "duration",
@@ -198,8 +204,8 @@ describe('CHECKIN_TOOLS', () => {
 });
 
 describe('CHECKIN_TOOL_NAMES + isCheckinToolName', () => {
-  it('set contains exactly fourteen names', () => {
-    expect(CHECKIN_TOOL_NAMES.size).toBe(14);
+  it('set contains exactly fifteen names', () => {
+    expect(CHECKIN_TOOL_NAMES.size).toBe(15);
   });
 
   it('accepts known names, rejects others', () => {

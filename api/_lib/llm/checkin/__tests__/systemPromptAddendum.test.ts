@@ -4,6 +4,7 @@ import {
   CHECKIN_READONLY_ADDENDUM,
   CHECKIN_WALKTHROUGH,
   CHECKIN_EVENING_OPENER,
+  CHECKIN_MORNING_OPENER,
 } from '../systemPromptAddendum.js';
 import { isCheckinScreen, isReadOnlyCheckinScreen } from '../registry.js';
 
@@ -108,6 +109,32 @@ describe('CHECKIN_EVENING_OPENER', () => {
   it('falls back to reflection only when there are no habits today', () => {
     expect(CHECKIN_EVENING_OPENER).toMatch(/no habits/i);
     expect(CHECKIN_EVENING_OPENER).toContain('## Reflection Settings (this user)');
+  });
+});
+
+describe('CHECKIN_MORNING_OPENER', () => {
+  it('asks the four morning dimensions: sleep, mood, energy, stress', () => {
+    for (const dim of [/sleep/i, /mood/i, /energy/i, /stress/i]) {
+      expect(CHECKIN_MORNING_OPENER).toMatch(dim);
+    }
+  });
+
+  it('calls query_checkin to surface the interactive 4-scale card', () => {
+    expect(CHECKIN_MORNING_OPENER).toContain('query_checkin');
+    expect(CHECKIN_MORNING_OPENER).toMatch(/interactive/i);
+    expect(CHECKIN_MORNING_OPENER).toMatch(/card/i);
+  });
+
+  it('explicitly forbids the evening reflection question on the morning turn', () => {
+    expect(CHECKIN_MORNING_OPENER).toMatch(/how did your day go/i);
+    expect(CHECKIN_MORNING_OPENER).toMatch(
+      /do not ask reflection|IGNORE the "## Reflection Settings"/i,
+    );
+  });
+
+  it('warns against assuming "good morning" since the window runs past noon', () => {
+    expect(CHECKIN_MORNING_OPENER).toMatch(/good morning/i);
+    expect(CHECKIN_MORNING_OPENER).toMatch(/Current Time/);
   });
 });
 

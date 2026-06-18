@@ -6,6 +6,8 @@ const entry = (over: Partial<CheckinEntry>): CheckinEntry => ({
   type: 'morning',
   checkinScreenId: 'MCHECK-01',
   doneToday: false,
+  initiatedToday: false,
+  proactiveWindow: true,
   ...over,
 });
 
@@ -33,6 +35,34 @@ describe('resolveCoachOpen', () => {
     expect(
       resolveCoachOpen(
         entry({ isMorning: false, type: 'evening', checkinScreenId: 'ECHECK-01', doneToday: true }),
+      ),
+    ).toEqual({ screenId: 'HOME-CHECKIN', initiateCheckin: false });
+  });
+
+  it('resumes a started-but-unfinished check-in without re-firing the opener', () => {
+    expect(
+      resolveCoachOpen(
+        entry({
+          isMorning: false,
+          type: 'evening',
+          checkinScreenId: 'ECHECK-01',
+          initiatedToday: true,
+        }),
+      ),
+    ).toEqual({ screenId: 'ECHECK-01', initiateCheckin: false });
+  });
+
+  it('done takes precedence over initiated (plain chat, not the dedicated screen)', () => {
+    expect(resolveCoachOpen(entry({ doneToday: true, initiatedToday: true }))).toEqual({
+      screenId: 'HOME-CHECKIN',
+      initiateCheckin: false,
+    });
+  });
+
+  it('opens plain chat in the afternoon dead zone — never asks before 5 PM', () => {
+    expect(
+      resolveCoachOpen(
+        entry({ type: 'evening', checkinScreenId: 'ECHECK-01', proactiveWindow: false }),
       ),
     ).toEqual({ screenId: 'HOME-CHECKIN', initiateCheckin: false });
   });

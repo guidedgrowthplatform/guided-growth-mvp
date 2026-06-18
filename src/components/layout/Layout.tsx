@@ -5,7 +5,7 @@ import { OpenChatButton } from '@/components/home';
 import { ToastContainer } from '@/components/ui/Toast';
 import { CoachChatProvider, useCoachChatLauncher } from '@/contexts/CoachChatContext';
 import { CoachVoiceProvider } from '@/contexts/CoachVoiceProvider';
-import { resolveCoachOpen, useCheckinEntry } from '@/hooks/useCheckinEntry';
+import { useOpenCheckinCoach } from '@/hooks/useCheckinEntry';
 import type { CoachChatCloseInfo } from '@/lib/chat/coachChatTypes';
 import { BottomNav } from './BottomNav';
 
@@ -26,11 +26,11 @@ export function Layout({ children }: { children: ReactNode }) {
 function LayoutInner({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { openScreenId, openCoachChat, closeCoachChat } = useCoachChatLauncher();
+  const { openScreenId, closeCoachChat } = useCoachChatLauncher();
   const chatOpen = openScreenId !== null;
   // Opening the coach from the global button leads today's check-in if it isn't
   // done yet (morning→MCHECK-01, evening→ECHECK-01), else opens plain chat.
-  const checkinEntry = useCheckinEntry();
+  const openCheckinCoach = useOpenCheckinCoach();
   const isFullWidth =
     location.pathname === '/add-habit' ||
     location.pathname === '/report' ||
@@ -68,12 +68,7 @@ function LayoutInner({ children }: { children: ReactNode }) {
       {!chatOpen && (
         <>
           <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] right-6 z-20">
-            <OpenChatButton
-              onPress={() => {
-                const { screenId, initiateCheckin } = resolveCoachOpen(checkinEntry);
-                openCoachChat(screenId, { initiateCheckin });
-              }}
-            />
+            <OpenChatButton onPress={openCheckinCoach} />
           </div>
           <CoachSubtitleBar />
         </>

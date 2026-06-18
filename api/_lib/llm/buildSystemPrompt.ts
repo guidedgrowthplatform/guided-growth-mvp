@@ -13,6 +13,7 @@ import {
   CHECKIN_READONLY_ADDENDUM,
   CHECKIN_WALKTHROUGH,
   CHECKIN_EVENING_OPENER,
+  CHECKIN_MORNING_OPENER,
 } from './checkin/systemPromptAddendum.js';
 import { isCheckinScreen, isReadOnlyCheckinScreen } from './checkin/registry.js';
 import { bucketTimeOfDay, localHour } from '@gg/shared/time/bucketTimeOfDay';
@@ -146,6 +147,10 @@ export async function buildSystemPromptForRequest(
   // reflection question. Force the opener to lead Phase 1 from the in-prompt list.
   const eveningOpenerBlock =
     args.mode === 'opener' && args.screen_id === 'ECHECK-01' ? `\n\n${CHECKIN_EVENING_OPENER}` : '';
+  // Morning has no DB context row + no walkthrough — without a dedicated opener
+  // it latches onto the reflection prompts and asks an evening question.
+  const morningOpenerBlock =
+    args.mode === 'opener' && args.screen_id === 'MCHECK-01' ? `\n\n${CHECKIN_MORNING_OPENER}` : '';
   const inputModeBlock = args.input_mode === 'voice' ? '' : `\n\n${TEXT_INPUT_RULE}`;
   const onboardingRow = isOnboardingScreen ? await fetchOnboardingRow(args.anon_id) : null;
   const alreadyFilledBlock = onboardingRow ? buildAlreadyFilledBlock(onboardingRow) : '';
@@ -154,7 +159,7 @@ export async function buildSystemPromptForRequest(
     : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${eveningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
@@ -273,4 +278,4 @@ Speak first. Open with the line this screen's BEHAVIOR calls for (often a comple
 Rules:
 - No generic greetings like "How can I help?", "What's up?", or "What can I do for you?".
 - Do NOT mention that the chat was just opened. Just open the conversation naturally.
-- Do NOT call any MUTATING tools on this turn — no \`update_profile\`, \`navigate_next\`, \`complete_habit\`, \`record_checkin\`, etc. Those resume on the next user-initiated turn. A read-only tool (\`query_habits\`) MAY be called if available this turn to ground your opener.`;
+- Do NOT call any MUTATING tools on this turn — no \`update_profile\`, \`navigate_next\`, \`complete_habit\`, \`record_checkin\`, etc. Those resume on the next user-initiated turn. A read-only tool (\`query_habits\` / \`query_checkin\`) MAY be called if available this turn to ground your opener.`;

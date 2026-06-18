@@ -18,7 +18,7 @@ import { dispatchCheckinToolCall } from '../_lib/llm/checkin/dispatch.js';
 import {
   getCheckinTools,
   getReadOnlyCheckinTools,
-  getEveningOpenerTools,
+  getCheckinOpenerTools,
 } from '../_lib/llm/checkin/registry.js';
 import { isCheckinToolName } from '../_lib/llm/checkin/schemas.js';
 import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
@@ -487,7 +487,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const readOnlyCheckinTools = getReadOnlyCheckinTools(screenId);
   const requestTools =
     mode === 'opener'
-      ? getEveningOpenerTools(screenId)
+      ? getCheckinOpenerTools(screenId)
       : onboardingTools !== undefined
         ? onboardingTools
         : checkinTools !== undefined

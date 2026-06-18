@@ -612,8 +612,13 @@ describe('LLM route — check-in opener starts a fresh response chain', () => {
     expect(streamToolNames()).toEqual(['query_habits']);
   });
 
-  it('gives MCHECK-01 and HOME-CHECKIN openers no tools', async () => {
+  it('gives the MCHECK-01 opener ONLY query_checkin (to surface the 4-scale card)', async () => {
     await runOpener('MCHECK-01');
+    expect(streamToolNames()).toEqual(['query_checkin']);
+  });
+
+  it('gives the HOME-CHECKIN opener no tools', async () => {
+    await runOpener('HOME-CHECKIN');
     expect(streamToolNames()).toEqual([]);
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
 import {
+  buildCheckinCard,
   buildHabitCards,
   cardFromEvent,
   DEFAULT_WEEK,
@@ -168,5 +169,43 @@ describe('messageHasHabitCompletion', () => {
     expect(messageHasHabitCompletion(msg([evt('complete_habit', { result: {} }, false)]))).toBe(
       false,
     );
+  });
+});
+
+describe('buildCheckinCard — renders the 4-scale card', () => {
+  const msg = (toolEvents: LLMToolEvent[]): LLMChatMessage => ({
+    id: 'm1',
+    role: 'assistant',
+    content: 'morning',
+    toolEvents,
+  });
+  const payload = (checkin: Record<string, unknown>) => ({
+    result: { date: '2026-06-18', checkin },
+  });
+
+  it('builds from a record_checkin event (post-answer)', () => {
+    const card = buildCheckinCard(
+      msg([evt('record_checkin', payload({ sleep: 4, mood: 3, energy: null, stress: 2 }))]),
+    );
+    expect(card).toEqual({ sleep: 4, mood: 3, energy: null, stress: 2, date: '2026-06-18' });
+  });
+
+  it('builds from a query_checkin event (morning opener) even when all dims are null', () => {
+    const card = buildCheckinCard(
+      msg([evt('query_checkin', payload({ sleep: null, mood: null, energy: null, stress: null }))]),
+    );
+    expect(card).toEqual({
+      sleep: null,
+      mood: null,
+      energy: null,
+      stress: null,
+      date: '2026-06-18',
+    });
+  });
+
+  it('is undefined for a failed query_checkin', () => {
+    expect(
+      buildCheckinCard(msg([evt('query_checkin', payload({ sleep: 1 }), false)])),
+    ).toBeUndefined();
   });
 });

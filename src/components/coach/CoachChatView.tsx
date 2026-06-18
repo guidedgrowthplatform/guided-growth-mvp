@@ -80,15 +80,6 @@ export function CoachChatView({
     }
   }
   const renderedMessages = revealingId ? messages.filter((m) => m.id !== revealingId) : messages;
-  // Render the habit report once, after the LATEST habit-completion turn — not
-  // only when it's the absolute last message (the user often chats after).
-  let lastHabitReportId: string | null = null;
-  for (let i = renderedMessages.length - 1; i >= 0; i--) {
-    if (renderedMessages[i].habitReport) {
-      lastHabitReportId = renderedMessages[i].id;
-      break;
-    }
-  }
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pinnedToBottomRef = useRef(true);
@@ -267,7 +258,7 @@ export function CoachChatView({
                 <CheckInCard selectedDate={msg.checkinCard.date} embedded onClose={handleClose} />
               </div>
             )}
-            {msg.habitReport && msg.id === lastHabitReportId && <HabitReportCard />}
+            {msg.habitReport && <HabitReportCard />}
           </div>
         ))}
         {displayedAssistant.length > 0 && (

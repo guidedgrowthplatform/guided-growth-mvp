@@ -217,22 +217,57 @@ describe('buildSystemPromptForRequest', () => {
     expect(chat.systemPrompt).not.toContain('## Evening Opener (this turn only)');
   });
 
-  it('does NOT emit the evening opener block on MCHECK-01 opener turns', async () => {
-    pool.query.mockReset();
-    pool.query
-      .mockResolvedValueOnce({
-        rows: [{ context_block: 'SCREEN_ID: MCHECK-01\nBEHAVIOR: morning check in.', version: 1 }],
-        rowCount: 1,
-      })
-      .mockResolvedValue({ rows: [], rowCount: 0 });
-    const { systemPrompt } = await buildSystemPromptForRequest({
+  it('emits the morning opener (not the evening one) on MCHECK-01 opener turns', async () => {
+    const mockMcheck = () => {
+      pool.query.mockReset();
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            { context_block: 'SCREEN_ID: MCHECK-01\nBEHAVIOR: morning check in.', version: 1 },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValue({ rows: [], rowCount: 0 });
+    };
+
+    mockMcheck();
+    const opener = await buildSystemPromptForRequest({
       anon_id: 'a',
       screen_id: 'MCHECK-01',
       coaching_style: 'warm',
       recent_events,
       mode: 'opener',
     });
-    expect(systemPrompt).not.toContain('## Evening Opener (this turn only)');
+    expect(opener.systemPrompt).toContain('## Morning Opener (this turn only)');
+    expect(opener.systemPrompt).not.toContain('## Evening Opener (this turn only)');
+
+    mockMcheck();
+    const chat = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'MCHECK-01',
+      coaching_style: 'warm',
+      recent_events,
+      mode: 'chat',
+    });
+    expect(chat.systemPrompt).not.toContain('## Morning Opener (this turn only)');
+  });
+
+  it('does NOT emit the morning opener block on ECHECK-01 opener turns', async () => {
+    pool.query.mockReset();
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ context_block: 'SCREEN_ID: ECHECK-01\nBEHAVIOR: evening check in.', version: 1 }],
+        rowCount: 1,
+      })
+      .mockResolvedValue({ rows: [], rowCount: 0 });
+    const { systemPrompt } = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ECHECK-01',
+      coaching_style: 'warm',
+      recent_events,
+      mode: 'opener',
+    });
+    expect(systemPrompt).not.toContain('## Morning Opener (this turn only)');
   });
 
   it('does NOT emit the walkthrough on MCHECK-01, HOME-CHECKIN, or non-checkin screens', async () => {

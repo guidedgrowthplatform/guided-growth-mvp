@@ -4,10 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconMic } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
-import { useCoachChatLauncher } from '@/contexts/CoachChatContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
-import { resolveCoachOpen, useCheckinEntry } from '@/hooks/useCheckinEntry';
+import { useCheckinEntry, useOpenCheckinCoach } from '@/hooks/useCheckinEntry';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { unlockTTS } from '@/lib/services/tts-service';
@@ -38,7 +37,7 @@ export function CheckInCard({ selectedDate, onClose, embedded }: CheckInCardProp
   });
   const { addToast } = useToast();
   const navigate = useNavigate();
-  const { openCoachChat } = useCoachChatLauncher();
+  const openCheckinCoach = useOpenCheckinCoach();
   const { micAllowed, requestMicPermission } = useDualButtonControls();
   const { updatePreferences } = useUserPreferences();
   const [values, setValues] = useState<CheckInValues>(emptyValues);
@@ -135,9 +134,8 @@ export function CheckInCard({ selectedDate, onClose, embedded }: CheckInCardProp
       voiceMode: 'screen',
       micEnabled: granted,
     });
-    // Once-per-day: a done bucket just opens plain chat, no proactive re-ask.
-    const { screenId, initiateCheckin } = resolveCoachOpen(checkinEntry);
-    openCoachChat(screenId, { initiateCheckin });
+    // Once-per-day: a done or already-started bucket opens without re-asking.
+    openCheckinCoach();
   };
 
   if (loading) {

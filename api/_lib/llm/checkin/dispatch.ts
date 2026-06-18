@@ -7,6 +7,7 @@ import { createMetric } from './handlers/createMetric.js';
 import { logMetric } from './handlers/logMetric.js';
 import { deleteMetric } from './handlers/deleteMetric.js';
 import { recordCheckin } from './handlers/recordCheckin.js';
+import { queryCheckin } from './handlers/queryCheckin.js';
 import { startFocus } from './handlers/startFocus.js';
 import { queryHabits } from './handlers/queryHabits.js';
 import { getSummary } from './handlers/getSummary.js';
@@ -27,6 +28,7 @@ const HANDLERS: Record<CheckinToolName, Handler> = {
   log_metric: logMetric,
   delete_metric: deleteMetric,
   record_checkin: recordCheckin,
+  query_checkin: queryCheckin,
   start_focus: startFocus,
   query_habits: queryHabits,
   get_summary: getSummary,
