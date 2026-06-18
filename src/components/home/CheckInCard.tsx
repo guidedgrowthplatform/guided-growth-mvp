@@ -24,9 +24,11 @@ interface CheckInCardProps {
   // Rendered inside the coach overlay: drop the "Talk through…" button and the
   // navigate-away success state (the overlay already owns those).
   embedded?: boolean;
+  // Scripted check-in: fired after a successful save so the flow can advance.
+  onSaved?: () => void;
 }
 
-export function CheckInCard({ selectedDate, onClose, embedded }: CheckInCardProps) {
+export function CheckInCard({ selectedDate, onClose, embedded, onSaved }: CheckInCardProps) {
   // 'morning' bucket only (<12 local); afternoon/evening/night → evening.
   // Shared with the global open-chat button via useCheckinEntry (no drift).
   const checkinEntry = useCheckinEntry();
@@ -114,6 +116,7 @@ export function CheckInCard({ selectedDate, onClose, embedded }: CheckInCardProp
       // closing silently. In the overlay we stay on the editable card (button
       // flips to "Update Check-In") rather than navigating away.
       if (!embedded) setShowSuccess(true);
+      onSaved?.();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to save check-in';
       addToast('error', msg);

@@ -13,6 +13,8 @@ import { formatDate } from '@/utils/dates';
 export interface CheckinFlowController {
   /** Scripted mode is on AND a check-in is active on this screen. */
   active: boolean;
+  /** Which check-in is running. */
+  mode: CheckinMode;
   /** Scripted coach bubbles (+ inline cards) emitted so far. */
   messages: ChatMessage[];
   /** Which interactive card to keep visible. */
@@ -80,6 +82,7 @@ export function useCheckinFlow(opts: {
   const info = stageInfo(session.flow);
   return {
     active,
+    mode,
     messages,
     card: info.card,
     reflectionPrompt: info.reflectionPrompt,
