@@ -71,6 +71,7 @@ describe('rescheduleReminders', () => {
     checkPermissions.mockResolvedValue({ display: 'granted' });
     schedule.mockClear();
     cancel.mockClear();
+    registerActionTypes.mockClear();
   });
 
   it('web no-ops', async () => {
@@ -95,6 +96,15 @@ describe('rescheduleReminders', () => {
     await rescheduleReminders(prefs);
     const arg = schedule.mock.calls[0][0] as { notifications: { actionTypeId: string }[] };
     expect(arg.notifications.every((n) => n.actionTypeId === 'reminder_actions')).toBe(true);
+  });
+
+  it('registers the action type before scheduling', async () => {
+    const { rescheduleReminders } = await load();
+    await rescheduleReminders(prefs);
+    expect(registerActionTypes).toHaveBeenCalled();
+    expect(registerActionTypes.mock.invocationCallOrder[0]).toBeLessThan(
+      schedule.mock.invocationCallOrder[0],
+    );
   });
 
   it('pushNotifications=false cancels and schedules nothing', async () => {

@@ -170,6 +170,7 @@ export async function rescheduleReminders(prefs: ReminderPrefs): Promise<void> {
     return;
   }
   await ensureReminderChannel();
+  await registerReminderActionTypes();
   try {
     await LocalNotifications.schedule({ notifications });
     await setArmedAt(new Date().toISOString());
