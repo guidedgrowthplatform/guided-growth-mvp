@@ -129,8 +129,8 @@ export function useOnboarding() {
         if (!granted) return;
         await ensureExactAlarmPermission();
         await rescheduleFromSnapshot();
-        // register FCM token (+APNs on iOS) for server pushes — local-notif
-        // permission alone never registers with FirebaseMessaging
+        // register FCM token for server pushes (Android only; iOS no-ops) —
+        // local-notif permission alone never registers with FirebaseMessaging
         await requestPushPermissionAndRegister();
       })();
     },

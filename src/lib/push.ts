@@ -26,8 +26,9 @@ export async function ensureNotificationChannel(): Promise<void> {
 // is auth-gated) — buffer here, flushed by flushPendingToken() once authed
 let pendingToken: string | null = null;
 
+// FCM is Android-only; iOS drops @capacitor-firebase/messaging (no plist → launch crash)
 export function isPushSupported(): boolean {
-  return Capacitor.isNativePlatform();
+  return Capacitor.getPlatform() === 'android';
 }
 
 function devicePlatform(): DevicePlatform {
