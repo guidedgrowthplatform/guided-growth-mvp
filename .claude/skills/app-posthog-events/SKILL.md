@@ -119,6 +119,14 @@ PostHog = **product analytics**. `session_log` = **LLM state delta**. Some user 
 | `abandon_focus_session` | User stops timer early | `linked_habit`, `elapsed_minutes`, `total_duration_minutes`, `completion_percentage` | FOCUS-TIMER |
 | `pause_focus_session` | User pauses timer | `linked_habit`, `elapsed_minutes` | FOCUS-TIMER |
 
+### 4.7 Notifications (P2)
+
+| Event Name | Trigger | Key Properties | Screens |
+|---|---|---|---|
+| `tap_notification` | User taps a notification card in the in-app feed | `id` | NOTIFICATIONS |
+| `tap_notification_continue` | User taps the **Continue** action button on a daily reminder | `reminder_type` (morning_checkin \| evening_checkin \| null) | (system shade — local reminder) |
+| `tap_notification_delete` | User taps the **Delete** action button on a daily reminder | `reminder_type` (morning_checkin \| evening_checkin \| null) | (system shade — local reminder) |
+
 ### 5.1 Settings (P2)
 
 | Event Name | Trigger | Key Properties | Screens |
@@ -152,11 +160,11 @@ PostHog = **product analytics**. `session_log` = **LLM state delta**. Some user 
 | `mental_health_safety_triggered` | Crisis boundary fires (UX-06) | `from_screen`, `trigger_phrase_category` | P0 | CHAT, all LLM-active screens |
 | `voice_cap_reached` | User hit 5 voice conversations/day cap (UX-12) | _(none)_ | P2 | VOICE-CAP |
 
-## Total: ~70 events
+## Total: ~73 events
 
 - P0 (must-have): ~31
 - P1: ~17
-- P2: ~11
+- P2: ~14
 - P3: ~6
 - v6.0 NEW: 3
 
@@ -183,4 +191,4 @@ mcp__google-sheets__get_sheet_data(
 
 Trigger: "refresh app-posthog-events" or "resync the sheet".
 
-_Last refreshed: 2026-05-11_
+_Last refreshed: 2026-06-19_
