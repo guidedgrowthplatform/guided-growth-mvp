@@ -56,3 +56,20 @@ jobs:
           else
             python scripts/voice-sync/seed_contexts.py | tee -a "$GITHUB_STEP_SUMMARY"
           fi
+
+      # Independent of seed_contexts: runs even if the screen_contexts sync above
+      # failed (always()), and the screen_contexts sync never depends on this one.
+      - name: Run seed_voice_scripts
+        if: ${{ always() }}
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ "$DRY_RUN" = "true" ]; then
+            python scripts/voice-sync/seed_voice_scripts.py --dry-run | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            python scripts/voice-sync/seed_voice_scripts.py | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
