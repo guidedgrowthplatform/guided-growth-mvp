@@ -13,7 +13,7 @@ import { useSessionLog } from './useSessionLog';
 export type LLMStatus = 'idle' | 'streaming' | 'done' | 'error';
 
 // Shown when a turn yields neither text nor a tool action — else the UI looks frozen.
-const EMPTY_TURN_FALLBACK = "Sorry, I didn't quite get that — could you say it another way?";
+const EMPTY_TURN_FALLBACK = "Sorry, I didn't quite get that. Could you say it another way?";
 
 // Batches incoming token deltas into one setState per ~40ms window. OpenAI
 // streams 1-3 tokens per delta which fragmented lists/sentences visually
@@ -263,6 +263,18 @@ export function useLLM(
           case 'error': {
             sawTerminal = true;
             flushDeltaBuffer();
+            // Salvage any streamed partial so it isn't orphaned in `response`.
+            if (acc.trim() !== '') {
+              const partial: LLMChatMessage = {
+                id: makeId(idCounterRef.current),
+                role: 'assistant',
+                content: acc,
+                toolEvents: localTools.length > 0 ? [...localTools] : undefined,
+              };
+              setMessages((prev) => [...prev, partial]);
+            }
+            setResponse('');
+            setToolEvents([]);
             if (debugOnb)
               logDebugEvent({
                 source: 'llm',
