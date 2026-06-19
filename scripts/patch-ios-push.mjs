@@ -57,6 +57,8 @@ if (appDelegate.includes('didRegisterForRemoteNotificationsWithDeviceToken')) {
 // ── 2. Entitlements + plist (gated on the committed Firebase config) ─────
 // no plist committed yet → leave signing config untouched, so releases keep
 // working until the Apple-portal push capability + match profiles are ready
+// NOTE: iOS push is also disabled by patch-ios-disable-firebase.mjs — remove
+// its calls (+ flip src/lib/push.ts isPushSupported) when re-enabling FCM.
 if (!existsSync(PLIST_SOURCE)) {
   console.warn(
     '[patch-ios-push] ⚠ assets/firebase/GoogleService-Info.plist missing — skipping entitlements; push disabled this build',
