@@ -29,3 +29,8 @@ runs:
     - if: inputs.platform == 'ios'
       shell: bash
       run: node scripts/patch-ios-plist.mjs
+
+    # FCM has no GoogleService-Info.plist → +[FIRApp configure] crashes on launch
+    - if: inputs.platform == 'ios'
+      shell: bash
+      run: node scripts/patch-ios-disable-firebase.mjs
