@@ -1,6 +1,6 @@
-v2.11.6 - Reminders, notification actions, smoother coach.
+v2.11.7 - Fixes iOS app crashing on launch.
 Test:
-- Set a morning or evening reminder a few minutes ahead, background the app; it fires on time.
-- On the reminder notification, tap Continue or Delete and confirm each works.
-- Start a coach voice check-in, interrupt mid-sentence; it stops, responds, then finishes its turn.
-- Leave a coach session idle until it expires; confirm the push and in-app message appear.
+- iOS: open the app and confirm it launches normally (the previous QA build crashed immediately on open).
+- Sign in and reach Home without issues.
+- Set a morning or evening reminder a few minutes ahead, background the app; it still fires on time.
+- Android: no change expected — quick smoke test that everything still works.
