@@ -173,7 +173,7 @@ describe('useLLM', () => {
     expect(hookRef!.toolEvents).toHaveLength(0);
   });
 
-  it('error frame: status=error, salvages the streamed partial as an assistant message', async () => {
+  it('error frame: status=error, no assistant message appended', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       mockSSE([
         { type: 'delta', content: 'partial' },
@@ -191,11 +191,8 @@ describe('useLLM', () => {
     expect(hookRef!.status).toBe('error');
     expect(hookRef!.error).toBeInstanceOf(Error);
     expect(hookRef!.error!.message).toBe('BAD: broken');
-    // Partial salvaged (not orphaned in `response`): user + partial assistant.
-    expect(hookRef!.messages).toHaveLength(2);
+    expect(hookRef!.messages).toHaveLength(1);
     expect(hookRef!.messages[0].role).toBe('user');
-    expect(hookRef!.messages[1]).toMatchObject({ role: 'assistant', content: 'partial' });
-    expect(hookRef!.response).toBe('');
   });
 
   it('cancel mid-stream: status=idle, no error', async () => {
