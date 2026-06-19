@@ -1,7 +1,6 @@
-v2.11.6 — On-device check-in reminders.
+v2.11.6 - Reminders, notification actions, smoother coach.
 Test:
-- Finish onboarding and allow notifications when prompted.
-- In Reminders, set a morning or evening time a few minutes ahead; background the app.
-- The reminder fires at the exact minute, even in airplane mode.
-- Tap it: the app opens to Home (morning) or Journal (evening) and it shows in Notifications.
-- Turn Push off and confirm no reminder arrives.
+- Set a morning or evening reminder a few minutes ahead, background the app; it fires on time.
+- On the reminder notification, tap Continue or Delete and confirm each works.
+- Start a coach voice check-in, interrupt mid-sentence; it stops, responds, then finishes its turn.
+- Leave a coach session idle until it expires; confirm the push and in-app message appear.
