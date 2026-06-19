@@ -1,12 +1,16 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Preferences } from '@capacitor/preferences';
+import { track } from '@/analytics/posthog';
 import { loadLocalPreferences, type UserPreferences } from '@/lib/preferences/snapshot';
 import { useAuthStore } from '@/stores/authStore';
 import {
   ANDROID_REMINDER_CHANNEL_ID,
   buildNotificationContent,
   parseHHMM,
+  REMINDER_ACTION_CONTINUE,
+  REMINDER_ACTION_DELETE,
+  REMINDER_ACTION_TYPE_ID,
   REMINDER_IDS,
   type LocalReminderType,
 } from '@gg/shared';
@@ -102,6 +106,27 @@ async function ensureReminderChannel(): Promise<void> {
   }
 }
 
+// device-global registry; register once at startup before any reminder is delivered.
+// foreground/destructive are iOS-only — Android ignores them (always foregrounds on tap)
+export async function registerReminderActionTypes(): Promise<void> {
+  if (!isLocalRemindersSupported()) return;
+  try {
+    await LocalNotifications.registerActionTypes({
+      types: [
+        {
+          id: REMINDER_ACTION_TYPE_ID,
+          actions: [
+            { id: REMINDER_ACTION_CONTINUE, title: 'Continue', foreground: true },
+            { id: REMINDER_ACTION_DELETE, title: 'Delete', foreground: false, destructive: true },
+          ],
+        },
+      ],
+    });
+  } catch (err) {
+    console.warn('[localReminders] registerActionTypes failed', err);
+  }
+}
+
 export async function cancelAllReminders(): Promise<void> {
   if (!isLocalRemindersSupported()) return;
   try {
@@ -134,6 +159,7 @@ export async function rescheduleReminders(prefs: ReminderPrefs): Promise<void> {
       title: content.title,
       body: content.body,
       channelId: ANDROID_REMINDER_CHANNEL_ID,
+      actionTypeId: REMINDER_ACTION_TYPE_ID,
       extra: content.data,
       schedule: { on: { hour: at.hour, minute: at.minute }, allowWhileIdle: true },
     });
@@ -144,6 +170,7 @@ export async function rescheduleReminders(prefs: ReminderPrefs): Promise<void> {
     return;
   }
   await ensureReminderChannel();
+  await registerReminderActionTypes();
   try {
     await LocalNotifications.schedule({ notifications });
     await setArmedAt(new Date().toISOString());
@@ -206,6 +233,18 @@ export function remindersFiredSince(
   return fired;
 }
 
+// removeDeliveredNotifications requires id + title + body (not just id); clears
+// the delivered shade entry only — the recurring schedule is untouched
+async function clearDelivered(n: { id: number; title: string; body: string }): Promise<void> {
+  try {
+    await LocalNotifications.removeDeliveredNotifications({
+      notifications: [{ id: n.id, title: n.title, body: n.body }],
+    });
+  } catch (err) {
+    console.warn('[localReminders] removeDelivered failed', err);
+  }
+}
+
 export function addLocalReminderListeners(
   onNavigate: (route: string) => void,
   onFire: (type: LocalReminderType) => void,
@@ -219,9 +258,22 @@ export function addLocalReminderListeners(
 
   const tapped = LocalNotifications.addListener(
     'localNotificationActionPerformed',
-    ({ notification }) => {
+    ({ actionId, notification }) => {
       const extra = notification.extra as Record<string, string> | undefined;
-      if (extra?.type) onFire(extra.type as LocalReminderType);
+      const type = extra?.type as LocalReminderType | undefined;
+
+      if (actionId === REMINDER_ACTION_DELETE) {
+        // Android can't dismiss in background — foregrounds, no-ops, clears shade
+        if (type) onFire(type);
+        track('tap_notification_delete', { reminder_type: type ?? null });
+        void clearDelivered(notification);
+        return;
+      }
+
+      if (type) onFire(type);
+      if (actionId === REMINDER_ACTION_CONTINUE) {
+        track('tap_notification_continue', { reminder_type: type ?? null });
+      }
       onNavigate(extra?.route ?? '/notifications');
     },
   );

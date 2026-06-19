@@ -7,6 +7,7 @@ import {
   getReminderArmedAt,
   isLocalNotificationsGranted,
   isLocalRemindersSupported,
+  registerReminderActionTypes,
   remindersFiredSince,
   rescheduleFromSnapshot,
 } from '@/lib/localReminders';
@@ -38,6 +39,7 @@ export function usePushRegistration(): void {
 
   useEffect(() => {
     void ensureNotificationChannel();
+    void registerReminderActionTypes();
   }, []);
 
   useEffect(

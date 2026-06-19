@@ -16,6 +16,11 @@ export const REMINDER_IDS: Record<LocalReminderType, number> = {
   evening_checkin: 1002,
 };
 
+// action buttons on reminder notifications (Continue / Delete)
+export const REMINDER_ACTION_TYPE_ID = 'reminder_actions';
+export const REMINDER_ACTION_CONTINUE = 'continue';
+export const REMINDER_ACTION_DELETE = 'delete';
+
 export interface NotificationContent {
   category: PushNotificationCategory;
   title: string;

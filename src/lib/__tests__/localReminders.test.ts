@@ -6,6 +6,16 @@ const checkPermissions = vi.fn(async () => ({ display: 'granted' }));
 const requestPermissions = vi.fn(async () => ({ display: 'granted' }));
 const schedule = vi.fn(async (_o: unknown) => undefined);
 const cancel = vi.fn(async (_o: unknown) => undefined);
+const registerActionTypes = vi.fn(async (_o: unknown) => undefined);
+const removeDeliveredNotifications = vi.fn(async (_o: unknown) => undefined);
+const track = vi.fn();
+
+type ActionCb = (p: { actionId: string; notification: unknown }) => void;
+let actionPerformedCb: ActionCb | undefined;
+const addListener = vi.fn(async (event: string, cb: ActionCb) => {
+  if (event === 'localNotificationActionPerformed') actionPerformedCb = cb;
+  return { remove: vi.fn() };
+});
 
 vi.mock('@capacitor/core', () => ({
   Capacitor: { isNativePlatform: () => isNativePlatform(), getPlatform: () => getPlatform() },
@@ -16,10 +26,14 @@ vi.mock('@capacitor/local-notifications', () => ({
     requestPermissions: () => requestPermissions(),
     schedule: (o: unknown) => schedule(o),
     cancel: (o: unknown) => cancel(o),
+    registerActionTypes: (o: unknown) => registerActionTypes(o),
+    removeDeliveredNotifications: (o: unknown) => removeDeliveredNotifications(o),
+    addListener: (e: string, cb: ActionCb) => addListener(e, cb),
     checkExactNotificationSetting: async () => ({ exact_alarm: 'granted' }),
     changeExactNotificationSetting: async () => ({ exact_alarm: 'granted' }),
   },
 }));
+vi.mock('@/analytics/posthog', () => ({ track: (...a: unknown[]) => track(...a) }));
 vi.mock('@capacitor/preferences', () => {
   let armed: string | undefined;
   return {
@@ -57,6 +71,7 @@ describe('rescheduleReminders', () => {
     checkPermissions.mockResolvedValue({ display: 'granted' });
     schedule.mockClear();
     cancel.mockClear();
+    registerActionTypes.mockClear();
   });
 
   it('web no-ops', async () => {
@@ -74,6 +89,22 @@ describe('rescheduleReminders', () => {
     expect(schedule).toHaveBeenCalledTimes(1);
     const arg = schedule.mock.calls[0][0] as { notifications: unknown[] };
     expect(arg.notifications).toHaveLength(2);
+  });
+
+  it('attaches the reminder_actions action type to each notification', async () => {
+    const { rescheduleReminders } = await load();
+    await rescheduleReminders(prefs);
+    const arg = schedule.mock.calls[0][0] as { notifications: { actionTypeId: string }[] };
+    expect(arg.notifications.every((n) => n.actionTypeId === 'reminder_actions')).toBe(true);
+  });
+
+  it('registers the action type before scheduling', async () => {
+    const { rescheduleReminders } = await load();
+    await rescheduleReminders(prefs);
+    expect(registerActionTypes).toHaveBeenCalled();
+    expect(registerActionTypes.mock.invocationCallOrder[0]).toBeLessThan(
+      schedule.mock.invocationCallOrder[0],
+    );
   });
 
   it('pushNotifications=false cancels and schedules nothing', async () => {
@@ -95,6 +126,91 @@ describe('rescheduleReminders', () => {
     await rescheduleReminders({ ...prefs, nightTime: 'nope' });
     const arg = schedule.mock.calls[0][0] as { notifications: unknown[] };
     expect(arg.notifications).toHaveLength(1);
+  });
+});
+
+describe('registerReminderActionTypes', () => {
+  beforeEach(() => {
+    isNativePlatform.mockReturnValue(true);
+    registerActionTypes.mockClear();
+  });
+
+  it('registers continue + delete actions', async () => {
+    const { registerReminderActionTypes } = await load();
+    await registerReminderActionTypes();
+    const arg = registerActionTypes.mock.calls[0][0] as {
+      types: { id: string; actions: { id: string }[] }[];
+    };
+    expect(arg.types[0].id).toBe('reminder_actions');
+    expect(arg.types[0].actions.map((a) => a.id)).toEqual(['continue', 'delete']);
+  });
+
+  it('web no-ops', async () => {
+    isNativePlatform.mockReturnValue(false);
+    const { registerReminderActionTypes } = await load();
+    await registerReminderActionTypes();
+    expect(registerActionTypes).not.toHaveBeenCalled();
+  });
+});
+
+describe('addLocalReminderListeners — action handling', () => {
+  const notif = {
+    id: 1001,
+    title: 'Hi Sam!',
+    body: 'morning',
+    extra: { type: 'morning_checkin', route: '/home' },
+  };
+  let onNavigate: ReturnType<typeof vi.fn>;
+  let onFire: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    isNativePlatform.mockReturnValue(true);
+    track.mockClear();
+    removeDeliveredNotifications.mockClear();
+    actionPerformedCb = undefined;
+    onNavigate = vi.fn();
+    onFire = vi.fn();
+    const { addLocalReminderListeners } = await load();
+    addLocalReminderListeners(onNavigate, onFire);
+  });
+
+  it('delete → records feed, clears shade, no navigate', () => {
+    actionPerformedCb?.({ actionId: 'delete', notification: notif });
+    expect(onFire).toHaveBeenCalledWith('morning_checkin');
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(removeDeliveredNotifications).toHaveBeenCalledWith({
+      notifications: [{ id: 1001, title: 'Hi Sam!', body: 'morning' }],
+    });
+    expect(track).toHaveBeenCalledWith('tap_notification_delete', {
+      reminder_type: 'morning_checkin',
+    });
+  });
+
+  it('continue → records feed + navigates, no shade clear', () => {
+    actionPerformedCb?.({ actionId: 'continue', notification: notif });
+    expect(onFire).toHaveBeenCalledWith('morning_checkin');
+    expect(onNavigate).toHaveBeenCalledWith('/home');
+    expect(removeDeliveredNotifications).not.toHaveBeenCalled();
+    expect(track).toHaveBeenCalledWith('tap_notification_continue', {
+      reminder_type: 'morning_checkin',
+    });
+  });
+
+  it('default body tap → navigates, no tracking, no shade clear', () => {
+    actionPerformedCb?.({ actionId: 'tap', notification: notif });
+    expect(onFire).toHaveBeenCalledWith('morning_checkin');
+    expect(onNavigate).toHaveBeenCalledWith('/home');
+    expect(track).not.toHaveBeenCalled();
+    expect(removeDeliveredNotifications).not.toHaveBeenCalled();
+  });
+
+  it('missing type → navigates to /notifications, no onFire', () => {
+    actionPerformedCb?.({
+      actionId: 'tap',
+      notification: { id: 1001, title: 't', body: 'b', extra: {} },
+    });
+    expect(onFire).not.toHaveBeenCalled();
+    expect(onNavigate).toHaveBeenCalledWith('/notifications');
   });
 });
 
