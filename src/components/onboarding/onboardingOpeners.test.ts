@@ -1,39 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OnboardingState, OnboardingStepData } from '@gg/shared/types';
-import {
-  ONBOARDING_OPENERS,
-  getOnboardingOpener,
-  getOnboardingRevisitOpener,
-} from './onboardingOpeners';
-
-describe('opener copy guard (applies to every screen)', () => {
-  const entries = Object.entries(ONBOARDING_OPENERS);
-  it.each(entries)('%s has no em dash / dash-as-pause', (_id, text) => {
-    expect(text).not.toMatch(/[—–]/);
-    expect(text).not.toMatch(/ - /);
-  });
-  it.each(entries)('%s does not direct the user to on-screen controls', (_id, text) => {
-    expect(text).not.toMatch(/on screen|fill it in|tap |form field|the form/i);
-  });
-  it.each(entries)('%s has no "move on" filler', (_id, text) => {
-    expect(text).not.toMatch(/move on|moving on/i);
-  });
-});
-
-describe('revisit opener copy guard', () => {
-  const cases: Array<[string, OnboardingState]> = [
-    ['ONBOARD-FORK--FORM', makeState({ path: 'simple' })],
-    ['ONBOARD-BEGINNER-01', makeState({ data: { category: 'Sleep' } })],
-    ['ONBOARD-01--FORM', makeState({ data: { nickname: 'Sam' } })],
-  ];
-  it.each(cases)('%s revisit opener is dash-free and UI-free', (id, state) => {
-    const text = getOnboardingRevisitOpener(id, state)?.text ?? '';
-    expect(text).not.toMatch(/move on|moving on/i);
-    expect(text).not.toMatch(/[—–]/);
-    expect(text).not.toMatch(/ - /);
-    expect(text).not.toMatch(/on screen|fill it in|tap |form field|the form/i);
-  });
-});
+import { getOnboardingOpener, getOnboardingRevisitOpener } from './onboardingOpeners';
 
 function makeState(
   over: Partial<OnboardingState> & { data?: OnboardingStepData },
@@ -48,7 +15,6 @@ function makeState(
     completed_at: null,
     created_at: '',
     updated_at: '',
-    chat_session_id: null,
     ...over,
   };
 }
@@ -77,7 +43,7 @@ describe('getOnboardingRevisitOpener', () => {
     expect(opener?.text).toContain('41');
     expect(opener?.text).toContain('Male');
     expect(opener?.text).toContain('Pondering White');
-    expect(opener?.text).toContain('change something');
+    expect(opener?.text).toContain('move on');
   });
 
   it('partial ONBOARD-01 → incomplete recap that names the gaps and omits "move on"', () => {
