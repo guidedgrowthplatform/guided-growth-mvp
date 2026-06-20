@@ -92,6 +92,9 @@ export function PlanReviewPage() {
       onboarding_path: pathToSpec(source === 'advanced' ? 'braindump' : 'simple'),
       total_habits: Object.keys(state.habitConfigs).length,
       has_journal: Boolean(state.reflectionConfig),
+      // current_step is the authoritative count of onboarding steps the user
+      // has reached/completed by the time they confirm the plan (final step).
+      steps_completed: onboardingState?.current_step ?? null,
       total_time_seconds:
         onboardingStartedAt.current > 0
           ? Math.round((Date.now() - onboardingStartedAt.current) / 1000)
@@ -117,7 +120,7 @@ export function PlanReviewPage() {
       category: state.category,
       reflectionConfig: state.reflectionConfig,
     });
-  }, [state, complete, source, onboardingVoice]);
+  }, [state, complete, source, onboardingVoice, onboardingState?.current_step]);
 
   // Voice "let's go" mirrors the tap flow once the agent bumps current_step past 7.
   const autoCompletedRef = useRef(false);

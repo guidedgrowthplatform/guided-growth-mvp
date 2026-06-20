@@ -14,8 +14,8 @@ export function SocialAuthButtons({ disabled }: SocialAuthButtonsProps) {
   const toast = useToast();
   const location = useLocation();
   const [googleLoading, setGoogleLoading] = useState(false);
-  // The component is used on both /login and /signup. Only /signup should
-  // fire `start_signup` per the spec (§3.1 — no `start_login` counterpart).
+  // The component is used on both /login and /signup. Apple is a "coming
+  // soon" toast (no real OAuth), so it stays gated to the /signup flow.
   const isSignupFlow = location.pathname.startsWith('/signup');
 
   const handleApple = () => {
@@ -24,7 +24,11 @@ export function SocialAuthButtons({ disabled }: SocialAuthButtonsProps) {
   };
 
   const handleGoogle = async () => {
-    if (isSignupFlow) track('start_signup', { method: 'google' });
+    // Fire `start_signup` on every Google OAuth tap, not just from /signup:
+    // a first-time tap on /login still creates an account and fires
+    // complete_signup from the authStore listener, so the funnel needs the
+    // matching start regardless of which page initiated the OAuth round-trip.
+    track('start_signup', { method: 'google' });
     setGoogleLoading(true);
     await signInWithGoogle();
     setGoogleLoading(false);

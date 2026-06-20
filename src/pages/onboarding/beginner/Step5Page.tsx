@@ -184,6 +184,14 @@ export function Step5Page() {
       input_method,
       is_suggested: false,
     });
+    // configure_habit_onboarding (ONBOARD-BEGINNER-04): fired alongside
+    // create_habit, not as a replacement. has_reminder / frequency_days are
+    // omitted here — they're set later in HabitCustomizeSheet, so they're not
+    // in scope at custom-habit-add time.
+    track('configure_habit_onboarding', {
+      habit_name: habit,
+      ...(resolvedCategory ? { category: resolvedCategory } : {}),
+    });
     // session_log: past-tense per app-session-events convention. No
     // habit_id yet — the row isn't persisted until step-7 save. LLM
     // state-delta consumers only need the name + the screen here.

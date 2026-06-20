@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { track } from '@/analytics';
 import {
   inferSchedule,
   SCHEDULE_DAYS,
@@ -180,6 +181,13 @@ export function Step6Page() {
             }
           : { reflectionConfig },
       );
+      // configure_journal_onboarding (ONBOARD-BEGINNER-07): the Continue path
+      // commits the prompts-based reflection. journal_type is 'prompts' here;
+      // freeform/custom is configured on the separate -08 screen.
+      track('configure_journal_onboarding', {
+        journal_type: 'prompts',
+        prompt_count: selectedPrompts.length,
+      });
       trackStepComplete();
       navigate('/onboarding/step-7', {
         state: {

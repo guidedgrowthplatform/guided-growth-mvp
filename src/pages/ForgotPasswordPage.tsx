@@ -15,7 +15,7 @@ export function ForgotPasswordPage() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    track('tap_forgot_password');
+    track('view_forgot_password_screen');
   }, []);
 
   const {
@@ -28,6 +28,7 @@ export function ForgotPasswordPage() {
   });
 
   const onSubmit = async (data: ForgotPasswordForm) => {
+    track('tap_forgot_password');
     setError(null);
     setLoading(true);
     const { error: resetError } = await resetPassword(data.email);

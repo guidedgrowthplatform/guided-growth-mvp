@@ -295,6 +295,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
         track('signup_error', {
           method: 'email',
           error_type: categorizeAuthError(error),
+          error_message: (error as Error)?.message ?? 'unknown',
         });
         return { error: friendlyError(error) };
       }
@@ -309,6 +310,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
         track('signup_error', {
           method: 'email',
           error_type: 'auto_confirm_misconfigured',
+          error_message: 'Email verification is not configured for this environment.',
         });
         return {
           error:
@@ -337,7 +339,11 @@ export const useAuthStore = create<AuthState>((set, get) => {
       });
 
       if (error) {
-        track('login_error', { method: 'email', error_type: categorizeAuthError(error) });
+        track('login_error', {
+          method: 'email',
+          error_type: categorizeAuthError(error),
+          error_message: (error as Error)?.message ?? 'unknown',
+        });
         return { error: friendlyError(error) };
       }
 
@@ -371,7 +377,11 @@ export const useAuthStore = create<AuthState>((set, get) => {
       track('start_signup', { method: 'guest' });
       const { data, error } = await supabase.auth.signInAnonymously();
       if (error) {
-        track('signup_error', { method: 'guest', error_type: categorizeAuthError(error) });
+        track('signup_error', {
+          method: 'guest',
+          error_type: categorizeAuthError(error),
+          error_message: (error as Error)?.message ?? 'unknown',
+        });
         return { error: friendlyError(error) };
       }
       if (data?.user) {
