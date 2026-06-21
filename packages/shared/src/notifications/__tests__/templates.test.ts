@@ -21,17 +21,17 @@ describe('parseHHMM', () => {
 });
 
 describe('buildNotificationContent', () => {
-  it('morning → habit / /home', () => {
+  it('morning → habit / /home?checkin=morning', () => {
     const c = buildNotificationContent('morning_checkin', 'Sam');
     expect(c.category).toBe('habit');
-    expect(c.data.route).toBe('/home');
+    expect(c.data.route).toBe('/home?checkin=morning');
     expect(c.title).toBe('Hi Sam!');
   });
 
-  it('evening → journal / /journal', () => {
+  it('evening → journal / /home?checkin=evening', () => {
     const c = buildNotificationContent('evening_checkin', null);
     expect(c.category).toBe('journal');
-    expect(c.data.route).toBe('/journal');
+    expect(c.data.route).toBe('/home?checkin=evening');
     expect(c.title).toBe('Hi there!');
   });
 

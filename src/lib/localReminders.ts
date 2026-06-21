@@ -10,6 +10,7 @@ import {
   parseHHMM,
   REMINDER_ACTION_CONTINUE,
   REMINDER_ACTION_DELETE,
+  REMINDER_ACTION_TAP,
   REMINDER_ACTION_TYPE_ID,
   REMINDER_IDS,
   type LocalReminderType,
@@ -263,8 +264,6 @@ export function addLocalReminderListeners(
       const type = extra?.type as LocalReminderType | undefined;
 
       if (actionId === REMINDER_ACTION_DELETE) {
-        // Android can't dismiss in background — foregrounds, no-ops, clears shade
-        if (type) onFire(type);
         track('tap_notification_delete', { reminder_type: type ?? null });
         void clearDelivered(notification);
         return;
@@ -274,7 +273,10 @@ export function addLocalReminderListeners(
       if (actionId === REMINDER_ACTION_CONTINUE) {
         track('tap_notification_continue', { reminder_type: type ?? null });
       }
-      onNavigate(extra?.route ?? '/notifications');
+      // iOS 'dismiss' records feed but never deep-links
+      if (actionId === REMINDER_ACTION_TAP || actionId === REMINDER_ACTION_CONTINUE) {
+        onNavigate(extra?.route ?? '/notifications');
+      }
     },
   );
 

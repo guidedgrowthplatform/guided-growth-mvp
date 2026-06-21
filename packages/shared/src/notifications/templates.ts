@@ -20,6 +20,7 @@ export const REMINDER_IDS: Record<LocalReminderType, number> = {
 export const REMINDER_ACTION_TYPE_ID = 'reminder_actions';
 export const REMINDER_ACTION_CONTINUE = 'continue';
 export const REMINDER_ACTION_DELETE = 'delete';
+export const REMINDER_ACTION_TAP = 'tap';
 
 export interface NotificationContent {
   category: PushNotificationCategory;
@@ -38,14 +39,14 @@ export function buildNotificationContent(
         category: 'habit',
         title: `Hi ${firstName ?? 'there'}!`,
         body: "Two minutes of morning check-in. Let's set up your day.",
-        data: { route: '/home', type },
+        data: { route: '/home?checkin=morning', type },
       };
     case 'evening_checkin':
       return {
         category: 'journal',
         title: `Hi ${firstName ?? 'there'}!`,
         body: "Five minutes of evening reflection. Let's close the day clean.",
-        data: { route: '/journal', type },
+        data: { route: '/home?checkin=evening', type },
       };
     case 'session_expired':
       return {

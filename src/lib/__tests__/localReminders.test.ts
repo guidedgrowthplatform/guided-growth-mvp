@@ -174,9 +174,9 @@ describe('addLocalReminderListeners — action handling', () => {
     addLocalReminderListeners(onNavigate, onFire);
   });
 
-  it('delete → records feed, clears shade, no navigate', () => {
+  it('delete → clears shade, no feed entry, no navigate', () => {
     actionPerformedCb?.({ actionId: 'delete', notification: notif });
-    expect(onFire).toHaveBeenCalledWith('morning_checkin');
+    expect(onFire).not.toHaveBeenCalled();
     expect(onNavigate).not.toHaveBeenCalled();
     expect(removeDeliveredNotifications).toHaveBeenCalledWith({
       notifications: [{ id: 1001, title: 'Hi Sam!', body: 'morning' }],
