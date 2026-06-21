@@ -21,9 +21,9 @@ describe('parseHHMM', () => {
 });
 
 describe('buildNotificationContent', () => {
-  it('morning → habit / /home?checkin=morning', () => {
+  it('morning → journal / /home?checkin=morning', () => {
     const c = buildNotificationContent('morning_checkin', 'Sam');
-    expect(c.category).toBe('habit');
+    expect(c.category).toBe('journal');
     expect(c.data.route).toBe('/home?checkin=morning');
     expect(c.title).toBe('Hi Sam!');
   });

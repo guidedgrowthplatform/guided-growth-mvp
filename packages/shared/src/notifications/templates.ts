@@ -36,7 +36,7 @@ export function buildNotificationContent(
   switch (type) {
     case 'morning_checkin':
       return {
-        category: 'habit',
+        category: 'journal',
         title: `Hi ${firstName ?? 'there'}!`,
         body: "Two minutes of morning check-in. Let's set up your day.",
         data: { route: '/home?checkin=morning', type },
