@@ -16,6 +16,7 @@ import {
 import { useDisplayName } from '@/hooks/useDisplayName';
 import { useEntries } from '@/hooks/useEntries';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useReminderCheckinDeepLink } from '@/hooks/useReminderCheckinDeepLink';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { PERMISSIONS_SEEN_KEY } from '@/lib/permissions';
@@ -98,6 +99,8 @@ export function HomePage() {
       localStorage.setItem('gg_reminders_shown', 'true');
     }
   }, [fromOnboarding]);
+
+  useReminderCheckinDeepLink();
 
   // Founding User Moment — per Voice Journey Spreadsheet v3 (line 579)
   // One-time voice after 7+ days of use
