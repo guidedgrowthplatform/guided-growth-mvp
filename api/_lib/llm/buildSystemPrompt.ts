@@ -110,12 +110,13 @@ export async function buildSystemPromptForRequest(
   const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
   const onboardingRow = isOnboardingScreen ? await fetchOnboardingRow(args.anon_id) : null;
   const alreadyFilledBlock = onboardingRow ? buildAlreadyFilledBlock(onboardingRow) : '';
+  const knownStatePrefix = alreadyFilledBlock ? `${alreadyFilledBlock}\n\n` : '';
   const optionsBlock = isOnboardingScreen
     ? buildCanonicalOptionsBlock(args.screen_id, onboardingRow?.data ?? {})
     : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}${onboardingNudge}${checkinNudge}${alreadyFilledBlock}${optionsBlock}${openerNudge}\n\n${contextMessage}`,
+    systemPrompt: `${knownStatePrefix}${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}${onboardingNudge}${checkinNudge}${optionsBlock}${openerNudge}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };
@@ -140,7 +141,7 @@ function buildAlreadyFilledBlock(row: OnboardingRow): string {
   const hasData = Object.keys(data).length > 0;
   if (!hasData && !row.path) return '';
   return (
-    `\n\n## Already-Filled Fields\n` +
+    `## What we already know about this user\n` +
     `current_step: ${row.current_step}\n` +
     (row.path ? `path: ${row.path}\n` : '') +
     `data: ${JSON.stringify(data)}\n` +
