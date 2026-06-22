@@ -44,6 +44,15 @@ const config: CapacitorConfig = {
     CapacitorHttp: {
       enabled: true,
     },
+    FirebaseMessaging: {
+      presentationOptions: ['alert', 'badge', 'sound'],
+    },
+    // Android status-bar icon must be white-on-transparent; without it Android
+    // shows its default glyph. iconColor tints the silhouette.
+    LocalNotifications: {
+      smallIcon: 'ic_stat_reminder',
+      iconColor: '#135BEB',
+    },
   },
 };
 

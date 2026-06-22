@@ -206,9 +206,8 @@ interface IdleRingStackProps {
   intensity?: number;
 }
 
-// Full-circle pulsing ring stack used when the Vapi session is connected but
-// neither side is speaking. Each ring is a solid single color; the stack
-// alternates gold and blue across the concentric rings.
+// Full-circle pulse: both halves live (Vapi session, or coach both-on),
+// nothing speaking. Concentric rings alternate gold/blue.
 function IdleRingStack({ dialWidth, dialHeight, step, count, intensity }: IdleRingStackProps) {
   return (
     <>

@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useSessionLog } from '@/hooks/useSessionLog';
-import type { Habit, HabitCompletion } from '@/lib/services/data-service.interface';
+import type { Habit, HabitCompletion, HabitDayStatus } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
 import { useAuthStore } from '@/stores/authStore';
 
 export interface HabitWithStatus {
   habit: Habit;
+  status: HabitDayStatus;
   completed: boolean;
   streak: number;
 }
@@ -42,9 +43,21 @@ export function isHabitVisibleOnDate(createdAtIso: string, selectedDate: string)
   return createdLocal <= selectedDate;
 }
 
+// scheduleDays null/empty = cadence-default (show daily). date's weekday read
+// as a LOCAL day so the schedule matches the user's calendar, not UTC.
+export function isHabitScheduledOnDate(
+  scheduleDays: number[] | null | undefined,
+  date: string,
+): boolean {
+  if (!scheduleDays || scheduleDays.length === 0) return true;
+  const dow = new Date(date + 'T00:00:00').getDay();
+  return scheduleDays.includes(dow);
+}
+
 export function calcCurrentStreak(completions: HabitCompletion[], fromDate: string): number {
-  if (completions.length === 0) return 0;
-  const dates = [...new Set(completions.map((c) => c.date))].sort().reverse();
+  const done = completions.filter((c) => c.status === 'done');
+  if (done.length === 0) return 0;
+  const dates = [...new Set(done.map((c) => c.date))].sort().reverse();
   let streak = 0;
   const checkDate = new Date(fromDate + 'T00:00:00');
   while (dates.includes(fmtLocal(checkDate))) {
@@ -54,6 +67,18 @@ export function calcCurrentStreak(completions: HabitCompletion[], fromDate: stri
   return streak;
 }
 
+// Streak shown in the UI: stays "alive" through yesterday while today is still
+// pending — so an unbroken run displays a (grey) flame + count before the user
+// completes today, then turns colored + increments on completion. When `date`
+// isn't completed, count the run ending the day before instead.
+export function calcDisplayStreak(completions: HabitCompletion[], date: string): number {
+  if (completions.some((c) => c.date === date && c.status === 'done'))
+    return calcCurrentStreak(completions, date);
+  const prev = new Date(date + 'T00:00:00');
+  prev.setDate(prev.getDate() - 1);
+  return calcCurrentStreak(completions, fmtLocal(prev));
+}
+
 async function loadHabitsForDate(date: string): Promise<HabitWithStatus[]> {
   const ds = await getDataService();
   const allHabits = await ds.getHabits();
@@ -61,7 +86,11 @@ async function loadHabitsForDate(date: string): Promise<HabitWithStatus[]> {
   // Hide habits that didn't exist yet on `date` (issue #173). Prevents the
   // newly-created habit from appearing on prior dates and skewing
   // completion analytics.
-  const visibleHabits = allHabits.filter((habit) => isHabitVisibleOnDate(habit.createdAt, date));
+  const visibleHabits = allHabits.filter(
+    (habit) =>
+      isHabitVisibleOnDate(habit.createdAt, date) &&
+      isHabitScheduledOnDate(habit.scheduleDays, date),
+  );
 
   const streakStart = new Date(date + 'T00:00:00');
   streakStart.setDate(streakStart.getDate() - 30);
@@ -77,10 +106,13 @@ async function loadHabitsForDate(date: string): Promise<HabitWithStatus[]> {
 
   return visibleHabits.map((habit) => {
     const habitCompletions = byHabit.get(habit.id) ?? [];
+    const row = habitCompletions.find((c) => c.date === date);
+    const status: HabitDayStatus = row ? row.status : 'pending';
     return {
       habit,
-      completed: habitCompletions.some((c) => c.date === date),
-      streak: calcCurrentStreak(habitCompletions, date),
+      status,
+      completed: status === 'done',
+      streak: calcDisplayStreak(habitCompletions, date),
     };
   });
 }
@@ -103,25 +135,20 @@ export function useHabitsForDate(date: string, screenId?: string) {
     return () => window.removeEventListener('habits-changed', handler);
   }, [qc]);
 
-  const toggleMutation = useMutation({
-    mutationFn: async ({
-      habitId,
-      currentlyCompleted,
-    }: {
-      habitId: string;
-      currentlyCompleted: boolean;
-    }) => {
+  const statusMutation = useMutation({
+    mutationFn: async ({ habitId, next }: { habitId: string; next: HabitDayStatus }) => {
       const ds = await getDataService();
-      if (currentlyCompleted) await ds.uncompleteHabit(habitId, date);
-      else await ds.completeHabit(habitId, date);
-      return { habitId, currentlyCompleted };
+      if (next === 'done') await ds.completeHabit(habitId, date);
+      else if (next === 'missed') await ds.missHabit(habitId, date);
+      else await ds.clearHabit(habitId, date);
+      return { habitId, next };
     },
-    onMutate: async ({ habitId, currentlyCompleted }) => {
+    onMutate: async ({ habitId, next }) => {
       await qc.cancelQueries({ queryKey });
       const prev = qc.getQueryData<HabitWithStatus[]>(queryKey);
       qc.setQueryData<HabitWithStatus[]>(queryKey, (old) =>
         (old ?? []).map((h) =>
-          h.habit.id === habitId ? { ...h, completed: !currentlyCompleted } : h,
+          h.habit.id === habitId ? { ...h, status: next, completed: next === 'done' } : h,
         ),
       );
       return { prev };
@@ -129,15 +156,17 @@ export function useHabitsForDate(date: string, screenId?: string) {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) qc.setQueryData(queryKey, ctx.prev);
     },
-    onSuccess: ({ habitId, currentlyCompleted }) => {
-      if (!currentlyCompleted) {
+    onSuccess: ({ habitId, next }) => {
+      if (next === 'done') {
         logEvent(
           'habit_completed',
-          {
-            habit_id: habitId,
-            completed_at: new Date().toISOString(),
-            via: 'tap',
-          },
+          { habit_id: habitId, completed_at: new Date().toISOString(), via: 'tap' },
+          screenId,
+        );
+      } else if (next === 'missed') {
+        logEvent(
+          'habit_missed',
+          { habit_id: habitId, missed_at: new Date().toISOString(), via: 'tap' },
           screenId,
         );
       }
@@ -147,10 +176,9 @@ export function useHabitsForDate(date: string, screenId?: string) {
     },
   });
 
-  const toggleComplete = useCallback(
-    (habitId: string, currentlyCompleted: boolean) =>
-      toggleMutation.mutateAsync({ habitId, currentlyCompleted }),
-    [toggleMutation],
+  const setHabitStatus = useCallback(
+    (habitId: string, next: HabitDayStatus) => statusMutation.mutateAsync({ habitId, next }),
+    [statusMutation],
   );
 
   const reload = useCallback(() => qc.invalidateQueries({ queryKey }), [qc, queryKey]);
@@ -159,7 +187,7 @@ export function useHabitsForDate(date: string, screenId?: string) {
     habits: query.data ?? [],
     loading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
-    toggleComplete,
+    setHabitStatus,
     reload,
   };
 }

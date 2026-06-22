@@ -30,6 +30,13 @@ export interface AuthenticatedUser {
 export type InputType = 'binary' | 'numeric' | 'short_text' | 'text';
 export type Frequency = 'daily' | 'weekdays' | 'weekends' | 'weekly';
 
+// Habit polarity. 'binary_do' = success when done (gym). 'binary_avoid' =
+// success when abstained (no news). Same win/miss calendar; only framing differs.
+export type HabitType = 'binary_do' | 'binary_avoid';
+
+// 'pending' = no completion row; stored rows are 'done' | 'missed'.
+export type HabitDayStatus = 'pending' | 'done' | 'missed';
+
 export interface Metric {
   id: string;
   anon_id: string;
@@ -91,6 +98,9 @@ export interface JournalEntry {
   date: string;
   habit_id?: string | null;
   fields: Record<string, string>;
+  // Prompts the entry was written against (template entries); preserves display
+  // when a user later edits their reflection prompts. Null for freeform.
+  prompts_snapshot?: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -102,7 +112,32 @@ export interface JournalEntryCreate {
   date: string;
   habit_id?: string | null;
   fields: Record<string, string>;
+  prompts_snapshot?: string[] | null;
 }
+
+// ─── Reflection settings (runtime mode + editable prompts) ───
+export type ReflectionMode = 'prompts' | 'freeform';
+
+// Canonical default for NEW reflection settings (matches the onboarding card).
+// Going forward this unifies onboarding + runtime wording. Historical entries
+// keep their own wording via JournalEntry.prompts_snapshot, and the NULL-snapshot
+// fallback in ReflectionDetailPage stays the legacy long-form set on purpose.
+export const DEFAULT_REFLECTION_PROMPTS: string[] = [
+  'What am I proud of today?',
+  'What do I forgive myself for today?',
+  'What am I grateful for today?',
+];
+
+export interface ReflectionSettings {
+  mode: ReflectionMode;
+  prompts: string[]; // used when mode==='prompts'; empty for freeform
+  time: string | null; // 'HH:MM'
+  days: number[]; // 0..6
+  reminder: boolean;
+  schedule: string | null; // 'Weekday' | 'Weekend' | 'Every day'
+}
+
+export type ReflectionSettingsUpdate = Partial<ReflectionSettings>;
 
 // ─── Preferences ────────────────────────────────────
 export type ViewMode = 'spreadsheet' | 'form';
@@ -125,6 +160,7 @@ export interface UserPreferences {
   morning_time: string;
   night_time: string;
   push_notifications: boolean;
+  timezone: string | null;
 }
 
 // ─── API Types ──────────────────────────────────────
@@ -198,14 +234,36 @@ export interface OnboardingStepData {
   goals?: string[] | null;
   habitConfigs?: Record<
     string,
-    { days: number[] | Set<number>; time: string; reminder: boolean; schedule?: string }
+    {
+      days: number[] | Set<number>;
+      time: string;
+      reminder: boolean;
+      schedule?: string;
+      habitType?: HabitType;
+    }
   > | null;
-  reflectionConfig?: { time: string; days: number[]; reminder: boolean; schedule: string } | null;
+  reflectionConfig?: {
+    time: string;
+    days: number[];
+    reminder: boolean;
+    // null = custom day-set with no canonical preset label (validator accepts null).
+    schedule: string | null;
+  } | null;
+  reflectionMode?: ReflectionMode | null;
   brainDumpText?: string | null;
+  // Persisted LLM parse so advanced-results can rehydrate on lost router state (no regex re-invent).
+  brainDumpHabits?: Array<{ name: string; days?: number[]; time?: string }> | null;
+  brainDumpParseSource?: 'llm' | 'regex_fallback' | null;
   customPrompts?: string[] | null;
   advancedHabitConfigs?: Record<
     string,
-    { days: number[] | Set<number>; time: string; reminder: boolean; schedule?: string }
+    {
+      days: number[] | Set<number>;
+      time: string;
+      reminder: boolean;
+      schedule?: string;
+      habitType?: HabitType;
+    }
   > | null;
   reflectionSchedule?: string | null;
 }
@@ -227,4 +285,33 @@ export interface ParsedHabit {
   frequency: string;
   days?: number[];
   time?: string;
+  habitType?: HabitType;
+}
+
+export interface ParseBrainDumpRequest {
+  text: string;
+  session_id: string;
+  screen_id?: string;
+}
+
+export interface ParseBrainDumpResponse {
+  habits: ParsedHabit[];
+}
+
+// ─── Push Notifications ─────────────────────────────
+export type PushNotificationType = 'morning_checkin' | 'evening_checkin' | 'session_expired';
+
+export type PushNotificationCategory = 'habit' | 'journal' | 'account';
+
+export type DevicePlatform = 'ios' | 'android';
+
+export interface NotificationRecord {
+  id: string;
+  type: string;
+  category: PushNotificationCategory;
+  title: string;
+  body: string;
+  data: Record<string, string> | null;
+  created_at: string;
+  read_at: string | null;
 }

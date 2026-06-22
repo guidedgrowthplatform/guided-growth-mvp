@@ -25,7 +25,6 @@ export function useChatSession(
   const [status, setStatus] = useState<ChatSessionStatus>('loading');
 
   useEffect(() => {
-    let cancelled = false;
     setChatSessionId(null);
     setInitialMessages([]);
     if (!enabled) {
@@ -37,21 +36,24 @@ export function useChatSession(
       return;
     }
     setStatus('loading');
+    const controller = new AbortController();
     void (async () => {
       try {
-        // TODO: thread AbortSignal — fast toggles can mint orphan sessions
-        const res = await createOrResumeChatSession(screenId, { resume });
-        if (cancelled) return;
+        const res = await createOrResumeChatSession(screenId, {
+          resume,
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
         setChatSessionId(res.chat_session_id);
         setInitialMessages(res.messages);
         setStatus('ready');
       } catch {
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         setStatus('error');
       }
     })();
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [screenId, userId, enabled, resume]);
 

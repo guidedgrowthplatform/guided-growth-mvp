@@ -1,3 +1,4 @@
+import type { HabitType } from '@gg/shared/types';
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
 import { inferSchedule, SCHEDULE_DAYS, type ScheduleOption } from '../../tools.onboarding.js';
@@ -60,9 +61,9 @@ export async function addHabit(
 
   const reminder = getBoolean(args, 'reminder') ?? true;
 
-  const habitEntry = { days, time, reminder, schedule };
-  const insertPayload = JSON.stringify({ habitConfigs: { [name]: habitEntry } });
-  const updatePayload = JSON.stringify({ [name]: habitEntry });
+  const habitTypeRaw = getString(args, 'habit_type');
+  const habitTypeArg =
+    habitTypeRaw === 'binary_avoid' || habitTypeRaw === 'binary_do' ? habitTypeRaw : undefined;
   const nameLower = name.toLowerCase();
 
   // Advisory lock so read+cap-check+write is atomic — concurrent calls can't
@@ -83,11 +84,22 @@ export async function addHabit(
       return handlerError('max_habits_reached');
     }
 
+    // Polarity: provided value wins; else preserve what an earlier add_habit call
+    // staged — the per-name merge would otherwise drop it on the schedule call.
+    const priorEntry = Object.entries(existing).find(
+      ([k]) => k.toLowerCase() === nameLower,
+    )?.[1] as { habitType?: HabitType } | undefined;
+    const habitType = habitTypeArg ?? priorEntry?.habitType;
+    const habitEntry = habitType
+      ? { days, time, reminder, schedule, habitType }
+      : { days, time, reminder, schedule };
+    const insertPayload = JSON.stringify({ habitConfigs: { [name]: habitEntry } });
+    const updatePayload = JSON.stringify({ [name]: habitEntry });
+
     const result = await client.query<{ data: Record<string, unknown>; current_step: number }>(
       `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
        VALUES ($1, 5, 'in_progress', $2::jsonb, now())
        ON CONFLICT (anon_id) DO UPDATE SET
-         current_step = GREATEST(onboarding_states.current_step, 5),
          status = 'in_progress',
          data = jsonb_set(
            COALESCE(onboarding_states.data, '{}'::jsonb),

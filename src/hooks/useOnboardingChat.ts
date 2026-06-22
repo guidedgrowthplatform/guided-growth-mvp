@@ -65,6 +65,8 @@ export function useOnboardingChat({
     coachingStyle,
     chatSessionId: chatSessionId ?? undefined,
     initialMessages,
+    // text_only orb = typing; every other orb state speaks the reply aloud.
+    inputMode: orbState === 'text_only' ? 'text' : 'voice',
   });
 
   const { data: routesData } = useQuery({

@@ -8,6 +8,7 @@ import {
   setPendingAuthError,
   setPendingAuthHandoff,
 } from '@/lib/auth/authHandoff';
+import { captureDebugFlag } from '@/lib/debug/debugFlag';
 import { hydratePersistentFlags } from '@/lib/storage/persistentFlags';
 import { supabase } from '@/lib/supabase';
 import App from './App';
@@ -16,6 +17,7 @@ import { trackOpenApp } from './lib/openAppTracking';
 import { initSentry } from './lib/sentry';
 import './index.css';
 
+captureDebugFlag();
 registerBundledIcons();
 initSentry();
 initAnalytics();

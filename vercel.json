@@ -25,7 +25,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'none'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.vapi.ai wss://api.vapi.ai https://*.daily.co wss://*.daily.co https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://*.ingest.sentry.io https://*.sentry.io wss://stt-rt.soniox.com https://stt-rt.soniox.com"
+          "value": "frame-ancestors 'none'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.vapi.ai wss://api.vapi.ai https://*.daily.co wss://*.daily.co https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://*.ingest.sentry.io https://*.sentry.io wss://stt-rt.soniox.com https://stt-rt.soniox.com https://api.cartesia.ai wss://api.cartesia.ai"
         }
       ]
     },
@@ -34,8 +34,10 @@
       "headers": [{ "key": "Cache-Control", "value": "no-store" }]
     }
   ],
+  "crons": [{ "path": "/api/notifications/cron", "schedule": "0 * * * *" }],
   "rewrites": [
     { "source": "/api/onboarding", "destination": "/api/onboarding/__index" },
+    { "source": "/api/notifications", "destination": "/api/notifications/__index" },
     { "source": "/api/reflections", "destination": "/api/reflections/__index" },
     { "source": "/api/admin", "destination": "/api/admin/__index" },
     { "source": "/api/session_log", "destination": "/api/session_log/__index" },

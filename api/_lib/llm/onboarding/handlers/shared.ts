@@ -4,6 +4,7 @@ export {
   handlerError,
   getString,
   getBoolean,
+  getNumber,
   getNumberArray,
   getStringArray,
 } from '../../toolArgs.js';

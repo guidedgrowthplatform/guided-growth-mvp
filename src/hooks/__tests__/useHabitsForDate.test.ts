@@ -3,10 +3,19 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { HabitCompletion } from '@/lib/services/data-service.interface';
-import { calcCurrentStreak, isHabitVisibleOnDate } from '../useHabitsForDate';
+import {
+  calcCurrentStreak,
+  calcDisplayStreak,
+  isHabitScheduledOnDate,
+  isHabitVisibleOnDate,
+} from '../useHabitsForDate';
 
-function completion(date: string): HabitCompletion {
-  return { id: date, habitId: 'h', date, completedAt: `${date}T08:00:00Z` };
+function completion(date: string, status: 'done' | 'missed' = 'done'): HabitCompletion {
+  return { id: date, habitId: 'h', date, completedAt: `${date}T08:00:00Z`, status };
+}
+
+function missed(date: string): HabitCompletion {
+  return completion(date, 'missed');
 }
 
 describe('calcCurrentStreak', () => {
@@ -19,12 +28,12 @@ describe('calcCurrentStreak', () => {
   });
 
   it('counts consecutive days back from today', () => {
-    const dates = ['2026-04-29', '2026-04-30', '2026-05-01'].map(completion);
+    const dates = ['2026-04-29', '2026-04-30', '2026-05-01'].map((d) => completion(d));
     expect(calcCurrentStreak(dates, '2026-05-01')).toBe(3);
   });
 
   it('breaks the streak on a missing day', () => {
-    const dates = ['2026-04-28', '2026-04-30', '2026-05-01'].map(completion);
+    const dates = ['2026-04-28', '2026-04-30', '2026-05-01'].map((d) => completion(d));
     expect(calcCurrentStreak(dates, '2026-05-01')).toBe(2);
   });
 
@@ -35,6 +44,69 @@ describe('calcCurrentStreak', () => {
   it('deduplicates multiple completions on the same day', () => {
     const dates = [completion('2026-05-01'), completion('2026-05-01'), completion('2026-04-30')];
     expect(calcCurrentStreak(dates, '2026-05-01')).toBe(2);
+  });
+
+  it('ignores missed rows', () => {
+    const rows = [completion('2026-05-01'), missed('2026-04-30'), completion('2026-04-29')];
+    expect(calcCurrentStreak(rows, '2026-05-01')).toBe(1);
+  });
+
+  it('breaks the run on a missed day', () => {
+    const rows = [completion('2026-04-29'), missed('2026-04-30'), completion('2026-05-01')];
+    expect(calcCurrentStreak(rows, '2026-05-01')).toBe(1);
+  });
+});
+
+describe('calcDisplayStreak', () => {
+  it('counts through today when today is completed', () => {
+    const dates = ['2026-04-29', '2026-04-30', '2026-05-01'].map((d) => completion(d));
+    expect(calcDisplayStreak(dates, '2026-05-01')).toBe(3);
+  });
+
+  it('stays alive through yesterday when today is pending', () => {
+    const dates = ['2026-04-29', '2026-04-30'].map((d) => completion(d));
+    expect(calcDisplayStreak(dates, '2026-05-01')).toBe(2);
+  });
+
+  it('returns 0 when neither today nor yesterday is completed', () => {
+    expect(calcDisplayStreak([completion('2026-04-28')], '2026-05-01')).toBe(0);
+  });
+
+  it('returns 0 with no completions', () => {
+    expect(calcDisplayStreak([], '2026-05-01')).toBe(0);
+  });
+
+  it('falls back to yesterday when today is missed', () => {
+    const rows = [completion('2026-04-29'), completion('2026-04-30'), missed('2026-05-01')];
+    expect(calcDisplayStreak(rows, '2026-05-01')).toBe(2);
+  });
+});
+
+describe('isHabitScheduledOnDate', () => {
+  // 2026-06-09 is a Tuesday; 2026-06-10 is a Wednesday (verified by getDay).
+  const MON_WED_FRI = [1, 3, 5];
+
+  it('hides a Mon/Wed/Fri habit on a Tuesday', () => {
+    expect(isHabitScheduledOnDate(MON_WED_FRI, '2026-06-09')).toBe(false);
+  });
+
+  it('shows a Mon/Wed/Fri habit on a Wednesday', () => {
+    expect(isHabitScheduledOnDate(MON_WED_FRI, '2026-06-10')).toBe(true);
+  });
+
+  it('always shows when scheduleDays is null (cadence-default)', () => {
+    expect(isHabitScheduledOnDate(null, '2026-06-09')).toBe(true);
+    expect(isHabitScheduledOnDate(undefined, '2026-06-09')).toBe(true);
+  });
+
+  it('always shows when scheduleDays is empty', () => {
+    expect(isHabitScheduledOnDate([], '2026-06-09')).toBe(true);
+  });
+
+  it('reads the weekday at local midnight (not UTC drift)', () => {
+    // Sunday 2026-06-14 must count as dow 0 regardless of CI timezone.
+    expect(isHabitScheduledOnDate([0], '2026-06-14')).toBe(true);
+    expect(isHabitScheduledOnDate([0], '2026-06-15')).toBe(false);
   });
 });
 

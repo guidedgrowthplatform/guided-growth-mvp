@@ -132,7 +132,16 @@ export async function addHabit(args: Record<string, unknown>): Promise<HandlerRe
   const reminderRaw = getBoolean(args, 'reminder');
   const reminder = reminderRaw ?? true;
 
-  const habitEntry = { days, time, reminder, schedule };
+  // Polarity: staged when the model provides it. The schedule call (2nd of the
+  // two-call pattern) omits it; the SET below deep-merges per-name so a prior
+  // call's habitType survives instead of being wiped.
+  const habitTypeRaw = getString(args, 'habit_type');
+  const habitType =
+    habitTypeRaw === 'binary_avoid' || habitTypeRaw === 'binary_do' ? habitTypeRaw : undefined;
+
+  const habitEntry = habitType
+    ? { days, time, reminder, schedule, habitType }
+    : { days, time, reminder, schedule };
 
   // Atomic MAX_HABITS enforcement. INSERT path always allows (new row → 1
   // habit, well under MAX). UPDATE path is gated by a WHERE clause that
@@ -157,7 +166,11 @@ export async function addHabit(args: Record<string, unknown>): Promise<HandlerRe
        data = jsonb_set(
          COALESCE(onboarding_states.data, '{}'::jsonb),
          '{habitConfigs}',
-         COALESCE(onboarding_states.data->'habitConfigs', '{}'::jsonb) || $3::jsonb
+         COALESCE(onboarding_states.data->'habitConfigs', '{}'::jsonb)
+           || jsonb_build_object(
+                $4::text,
+                COALESCE(onboarding_states.data->'habitConfigs'->$4, '{}'::jsonb) || ($3::jsonb -> $4)
+              )
        ),
        updated_at = now()
      WHERE

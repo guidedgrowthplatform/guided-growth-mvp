@@ -19,6 +19,7 @@ const { queryHabits } = await import('../handlers/queryHabits.js');
 const { getSummary } = await import('../handlers/getSummary.js');
 const { suggestHabit } = await import('../handlers/suggestHabit.js');
 const { logReflection } = await import('../handlers/logReflection.js');
+const { updateReflection } = await import('../handlers/updateReflection.js');
 const { todayStr, HABIT_SUGGESTIONS, DEFAULT_SUGGESTION } = await import('../handlers/shared.js');
 
 const poolConnect = (pool as unknown as { connect: ReturnType<typeof vi.fn> }).connect;
@@ -90,6 +91,33 @@ describe('create_habit', () => {
     const r = await createHabit(CTX, { name: 'x', frequency: 'hourly' });
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
   });
+
+  it('persists binary_avoid when habit_type is avoid', async () => {
+    route([
+      [/FROM user_habits[\s\S]*ILIKE/, { rows: [] }],
+      [
+        /INSERT INTO user_habits/,
+        { rows: [{ id: 'h1', name: 'no news', cadence: 'daily', schedule_days: null }] },
+      ],
+    ]);
+    const r = await createHabit(CTX, { name: 'no news', habit_type: 'binary_avoid' });
+    expect(r.ok).toBe(true);
+    const [, params] = lastCall(/INSERT INTO user_habits/);
+    expect(params[2]).toBe('binary_avoid');
+  });
+
+  it('defaults to binary_do when habit_type is omitted', async () => {
+    route([
+      [/FROM user_habits[\s\S]*ILIKE/, { rows: [] }],
+      [
+        /INSERT INTO user_habits/,
+        { rows: [{ id: 'h1', name: 'gym', cadence: 'daily', schedule_days: null }] },
+      ],
+    ]);
+    await createHabit(CTX, { name: 'gym' });
+    const [, params] = lastCall(/INSERT INTO user_habits/);
+    expect(params[2]).toBe('binary_do');
+  });
 });
 
 describe('complete_habit', () => {
@@ -121,6 +149,29 @@ describe('complete_habit', () => {
     const r = await completeHabit(CTX, { name: 'pushups' });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.result.dates).toEqual([todayStr()]);
+  });
+
+  it('echoes type:avoid for an avoid habit', async () => {
+    route([
+      [
+        /FROM user_habits[\s\S]*ILIKE/,
+        {
+          rows: [
+            {
+              id: 'h1',
+              name: 'no news',
+              cadence: 'daily',
+              schedule_days: null,
+              habit_type: 'binary_avoid',
+            },
+          ],
+        },
+      ],
+      [/INSERT INTO habit_completions/, { rows: [] }],
+    ]);
+    const r = await completeHabit(CTX, { name: 'no news' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.habit).toMatchObject({ name: 'no news', type: 'avoid' });
   });
 
   it('completes every date in a dates[] array', async () => {
@@ -420,12 +471,17 @@ describe('query_habits', () => {
   it('lists all active habits scoped to anon_id', async () => {
     route([
       [
-        /SELECT name, cadence FROM user_habits/,
+        /SELECT name, cadence, habit_type, schedule_days FROM user_habits/,
         {
           rowCount: 2,
           rows: [
-            { name: 'pushups', cadence: 'daily' },
-            { name: 'reading', cadence: 'weekdays' },
+            { name: 'pushups', cadence: 'daily', habit_type: 'binary_do', schedule_days: null },
+            {
+              name: 'no news',
+              cadence: 'weekdays',
+              habit_type: 'binary_avoid',
+              schedule_days: null,
+            },
           ],
         },
       ],
@@ -434,10 +490,55 @@ describe('query_habits', () => {
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.result.count).toBe(2);
-      expect((r.result.habits as unknown[]).length).toBe(2);
+      const habits = r.result.habits as Array<{ name: string; type: string }>;
+      expect(habits.length).toBe(2);
+      expect(habits.map((h) => h.type)).toEqual(['do', 'avoid']);
     }
-    const [, params] = lastCall(/SELECT name, cadence FROM user_habits/);
+    const [, params] = lastCall(/SELECT name, cadence, habit_type, schedule_days FROM user_habits/);
     expect(params[0]).toBe(CTX.anon_id);
+  });
+
+  it('scope:today filters to habits scheduled for the local weekday; null = always', async () => {
+    // 2026-06-10 is a Wednesday (dow 3) in UTC.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00Z'));
+    route([
+      [
+        /SELECT name, cadence, habit_type, schedule_days FROM user_habits/,
+        {
+          rows: [
+            { name: 'daily one', cadence: 'daily', habit_type: 'binary_do', schedule_days: null },
+            { name: 'wed only', cadence: '3x/week', habit_type: 'binary_do', schedule_days: [3] },
+            { name: 'tue only', cadence: '3x/week', habit_type: 'binary_do', schedule_days: [2] },
+          ],
+        },
+      ],
+    ]);
+    const r = await queryHabits({ anon_id: CTX.anon_id, timezone: 'UTC' }, { scope: 'today' });
+    vi.useRealTimers();
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const names = (r.result.habits as Array<{ name: string }>).map((h) => h.name);
+      expect(names).toEqual(['daily one', 'wed only']);
+      expect(r.result.count).toBe(2);
+    }
+  });
+
+  it('scope absent returns every habit unchanged (default all)', async () => {
+    route([
+      [
+        /SELECT name, cadence, habit_type, schedule_days FROM user_habits/,
+        {
+          rows: [
+            { name: 'daily one', cadence: 'daily', habit_type: 'binary_do', schedule_days: null },
+            { name: 'tue only', cadence: '3x/week', habit_type: 'binary_do', schedule_days: [2] },
+          ],
+        },
+      ],
+    ]);
+    const r = await queryHabits({ anon_id: CTX.anon_id, timezone: 'UTC' }, {});
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.count).toBe(2);
   });
 
   it('returns stats for a single named habit scoped to habit_id + anon_id', async () => {
@@ -490,6 +591,30 @@ describe('get_summary', () => {
     expect(r.ok).toBe(true);
     if (r.ok)
       expect(r.result).toMatchObject({ active_habits: 0, habit_completions: 0, checkins: 0 });
+  });
+
+  it('tags each habit do/avoid in the habits[] array', async () => {
+    route([
+      [/active_habits/, { rows: [{ active_habits: 2, completions: 4, checkins: 1, journals: 0 }] }],
+      [
+        /SELECT name, habit_type FROM user_habits/,
+        {
+          rows: [
+            { name: 'gym', habit_type: 'binary_do' },
+            { name: 'no news', habit_type: 'binary_avoid' },
+          ],
+        },
+      ],
+    ]);
+    const r = await getSummary(CTX);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const habits = r.result.habits as Array<{ name: string; type: string }>;
+      expect(habits).toEqual([
+        { name: 'gym', type: 'do' },
+        { name: 'no news', type: 'avoid' },
+      ]);
+    }
   });
 });
 
@@ -603,5 +728,114 @@ describe('log_reflection', () => {
     );
     expect(r).toBe(cached);
     expect(poolConnect).not.toHaveBeenCalled();
+  });
+});
+
+describe('update_reflection', () => {
+  const SELECT_RE = /SELECT mode, prompts[\s\S]*FROM reflection_settings/;
+  const UPSERT_RE = /INSERT INTO\s+reflection_settings/;
+
+  it('rejects an empty call without touching the db', async () => {
+    const r = await updateReflection(CTX, {});
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects a malformed prompts array instead of silently ignoring it', async () => {
+    route([[SELECT_RE, { rows: [] }]]);
+    const r = await updateReflection(CTX, { prompts: ['ok', 42] as unknown as string[] });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query.mock.calls.some((c) => UPSERT_RE.test(c[0] as string))).toBe(false);
+  });
+
+  it('rejects an empty prompts list in prompts mode (no silent reset to defaults)', async () => {
+    route([[SELECT_RE, { rows: [] }]]);
+    const r = await updateReflection(CTX, { prompts: [] });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query.mock.calls.some((c) => UPSERT_RE.test(c[0] as string))).toBe(false);
+  });
+
+  it('rejects an invalid mode without upserting', async () => {
+    route([[SELECT_RE, { rows: [] }]]);
+    const r = await updateReflection(CTX, { mode: 'bogus' });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query.mock.calls.some((c) => UPSERT_RE.test(c[0] as string))).toBe(false);
+  });
+
+  it('replaces the prompts list (add/remove via full list)', async () => {
+    const next = ['What am I proud of today?', 'What did I learn today?'];
+    route([
+      [
+        SELECT_RE,
+        {
+          rows: [
+            {
+              mode: 'prompts',
+              prompts: ['What am I proud of today?'],
+              reminder_time: '21:00',
+              schedule_days: [1, 2, 3, 4, 5],
+              reminder_enabled: true,
+              schedule_label: 'Weekday',
+            },
+          ],
+        },
+      ],
+      [
+        UPSERT_RE,
+        {
+          rows: [
+            {
+              mode: 'prompts',
+              prompts: next,
+              reminder_time: '21:00',
+              schedule_days: [1, 2, 3, 4, 5],
+              reminder_enabled: true,
+              schedule_label: 'Weekday',
+            },
+          ],
+        },
+      ],
+    ]);
+    const r = await updateReflection(CTX, { prompts: next });
+    expect(r).toMatchObject({ ok: true, result: { mode: 'prompts', prompts: next } });
+    // upsert is scoped to the caller's anon_id
+    expect(lastCall(UPSERT_RE)[1][0]).toBe(CTX.anon_id);
+  });
+
+  it('freeform clears prompts', async () => {
+    route([
+      [
+        SELECT_RE,
+        {
+          rows: [
+            {
+              mode: 'prompts',
+              prompts: ['What am I proud of today?'],
+              reminder_time: null,
+              schedule_days: [],
+              reminder_enabled: true,
+              schedule_label: null,
+            },
+          ],
+        },
+      ],
+      [
+        UPSERT_RE,
+        {
+          rows: [
+            {
+              mode: 'freeform',
+              prompts: [],
+              reminder_time: null,
+              schedule_days: [],
+              reminder_enabled: true,
+              schedule_label: null,
+            },
+          ],
+        },
+      ],
+    ]);
+    const r = await updateReflection(CTX, { mode: 'freeform' });
+    expect(r).toMatchObject({ ok: true, result: { mode: 'freeform', prompts: [] } });
   });
 });

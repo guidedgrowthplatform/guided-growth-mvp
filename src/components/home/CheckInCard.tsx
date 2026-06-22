@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
 import { IconMic } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
-import { useCoachChatLauncher } from '@/contexts/CoachChatContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useCheckIn } from '@/hooks/useCheckIn';
+import { useCheckinEntry, useOpenCheckinCoach } from '@/hooks/useCheckinEntry';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { unlockTTS } from '@/lib/services/tts-service';
@@ -21,18 +21,23 @@ const emptyValues: CheckInValues = { sleep: null, mood: null, energy: null, stre
 interface CheckInCardProps {
   selectedDate: string;
   onClose?: () => void;
+  // Rendered inside the coach overlay: drop the "Talk through…" button and the
+  // navigate-away success state (the overlay already owns those).
+  embedded?: boolean;
 }
 
-export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
-  // captured at mount; card is CSS-collapsed, not remounted.
-  const isMorning = new Date().getHours() < 15;
+export function CheckInCard({ selectedDate, onClose, embedded }: CheckInCardProps) {
+  // 'morning' bucket only (<12 local); afternoon/evening/night → evening.
+  // Shared with the global open-chat button via useCheckinEntry (no drift).
+  const checkinEntry = useCheckinEntry();
+  const { isMorning, type: checkinType, checkinScreenId } = checkinEntry;
   const { checkIn, loading, saving, save } = useCheckIn(selectedDate, {
-    type: isMorning ? 'morning' : 'evening',
-    screenId: isMorning ? 'MCHECK-01' : 'ECHECK-01',
+    type: checkinType,
+    screenId: checkinScreenId,
   });
   const { addToast } = useToast();
   const navigate = useNavigate();
-  const { openCoachChat } = useCoachChatLauncher();
+  const openCheckinCoach = useOpenCheckinCoach();
   const { micAllowed, requestMicPermission } = useDualButtonControls();
   const { updatePreferences } = useUserPreferences();
   const [values, setValues] = useState<CheckInValues>(emptyValues);
@@ -106,9 +111,9 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
         is_update: Boolean(checkIn),
       });
       // GitLab #171: show the in-place success confirmation instead of
-      // closing silently. The user dismisses via the CTA (navigates to
-      // history) or by collapsing the card from HomePage's QuickActionCards.
-      setShowSuccess(true);
+      // closing silently. In the overlay we stay on the editable card (button
+      // flips to "Update Check-In") rather than navigating away.
+      if (!embedded) setShowSuccess(true);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to save check-in';
       addToast('error', msg);
@@ -124,12 +129,13 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
     unlockTTS();
     // "Talk instead" implies State 3 (voice off, mic on). Request permission if
     // needed, set the orb state so the chat opens with the mic already armed.
-    const granted = micAllowed || (await requestMicPermission());
+    const granted = micAllowed || (await requestMicPermission()) === 'granted';
     await updatePreferences({
       voiceMode: 'screen',
       micEnabled: granted,
     });
-    openCoachChat(isMorning ? 'MCHECK-01' : 'ECHECK-01');
+    // Once-per-day: a done or already-started bucket opens without re-asking.
+    openCheckinCoach();
   };
 
   if (loading) {
@@ -199,13 +205,15 @@ export function CheckInCard({ selectedDate, onClose }: CheckInCardProps) {
         {saving ? 'Saving...' : checkIn ? 'Update Check-In' : 'Check In'}
       </button>
 
-      <button
-        onClick={handleTalk}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-border-light py-2.5 text-sm font-semibold text-content-secondary transition-colors hover:bg-surface-secondary"
-      >
-        <IconMic className="h-4 w-4" />
-        {isMorning ? 'Talk through your morning' : 'Talk through your day'}
-      </button>
+      {!embedded && (
+        <button
+          onClick={handleTalk}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-border-light py-2.5 text-sm font-semibold text-content-secondary transition-colors hover:bg-surface-secondary"
+        >
+          <IconMic className="h-4 w-4" />
+          {isMorning ? 'Talk through your morning' : 'Talk through your day'}
+        </button>
+      )}
     </div>
   );
 }

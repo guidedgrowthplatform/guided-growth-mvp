@@ -21,6 +21,7 @@ const { addHabit } = await import('../handlers/addHabit.js');
 const { submitReflectionConfig } = await import('../handlers/submitReflectionConfig.js');
 const { confirmPlan } = await import('../handlers/confirmPlan.js');
 const { updateHabit } = await import('../handlers/updateHabit.js');
+const { navigateNext } = await import('../handlers/navigateNext.js');
 
 const ANON = '11111111-1111-4111-8111-111111111111';
 
@@ -93,6 +94,33 @@ describe('vapi addHabit — reconciliation', () => {
   });
 });
 
+// The two-call pattern: call 1 names the habit + polarity, call 2 sets the
+// schedule with no habit_type. The DB-side per-name deep-merge must keep the
+// prior habitType instead of wiping it back to binary_do.
+describe('vapi addHabit — polarity preservation', () => {
+  it('call 1 stages habitType under the name key ($4)', async () => {
+    await addHabit({ anon_id: ANON, name: 'no news', habit_type: 'binary_avoid' });
+    const params = pool.query.mock.calls[0][1] as unknown[];
+    const merge = JSON.parse(params[2] as string);
+    expect(merge['no news'].habitType).toBe('binary_avoid');
+    expect(params[3]).toBe('no news'); // $4 == name key
+  });
+
+  it('schedule-only call omits habitType and uses the per-name deep-merge', async () => {
+    await addHabit({ anon_id: ANON, name: 'no news', schedule: 'Every day' });
+    const params = pool.query.mock.calls[0][1] as unknown[];
+    const sql = pool.query.mock.calls[0][0] as string;
+    const merge = JSON.parse(params[2] as string);
+    // No habitType in this payload → it can't overwrite the staged value.
+    expect(merge['no news'].habitType).toBeUndefined();
+    // Per-name merge (not flat `|| $3`) is what preserves the prior habitType.
+    expect(sql).toMatch(/jsonb_build_object/);
+    expect(sql).toMatch(/->'habitConfigs'->\$4/);
+    expect(sql).toMatch(/\(\$3::jsonb -> \$4\)/);
+    expect(params[3]).toBe('no news');
+  });
+});
+
 describe('vapi submitReflectionConfig — reconciliation', () => {
   it('reconciles stale schedule label against days (Every day -> Weekday)', async () => {
     await submitReflectionConfig({
@@ -132,6 +160,259 @@ describe('vapi submitReflectionConfig — reconciliation', () => {
     expect(payload.reflectionConfig.schedule).toBe('Weekend');
     expect(payload.reflectionConfig.days).toEqual([0, 6]);
   });
+
+  // Regression for the rapid-chain-skips-reflection bug (feat/onboarding-voice-cleanup).
+  // The model used to fire submit_reflection_config with NO fields, relying on a
+  // (false) tool-description promise that the server would fill defaults. The
+  // server actually requires all four — these tests pin that down so a future
+  // "let the server fill defaults" patch can't silently re-open the loophole.
+  it('rejects call with no fields (no silent server defaults)', async () => {
+    const res = await submitReflectionConfig({ anon_id: ANON });
+    expect(res).toMatchObject({ error: expect.stringContaining('time') });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects call missing time', async () => {
+    const res = await submitReflectionConfig({
+      anon_id: ANON,
+      days: [1, 2, 3, 4, 5],
+      reminder: true,
+      schedule: 'Weekday',
+    });
+    expect(res).toMatchObject({ error: expect.stringContaining('time') });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects call missing days', async () => {
+    const res = await submitReflectionConfig({
+      anon_id: ANON,
+      time: '21:45',
+      reminder: true,
+      schedule: 'Weekday',
+    });
+    expect(res).toMatchObject({ error: expect.stringContaining('days') });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects call missing reminder', async () => {
+    const res = await submitReflectionConfig({
+      anon_id: ANON,
+      time: '21:45',
+      days: [1, 2, 3, 4, 5],
+      schedule: 'Weekday',
+    });
+    expect(res).toMatchObject({ error: expect.stringContaining('reminder') });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects call missing schedule', async () => {
+    const res = await submitReflectionConfig({
+      anon_id: ANON,
+      time: '21:45',
+      days: [1, 2, 3, 4, 5],
+      reminder: true,
+    });
+    expect(res).toMatchObject({ error: expect.stringContaining('schedule') });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+});
+
+describe('vapi navigateNext — skip + precondition guards', () => {
+  it('rejects multi-step forward jump (step 1 → 3)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ current_step: 1, data: { nickname: 'Yair' }, path: null, brain_dump_raw: null }],
+    });
+    const res = await navigateNext({ anon_id: ANON, target_step: 3 });
+    expect(res).toMatchObject({ error: expect.stringContaining('cannot_skip_steps') });
+    // Only the SELECT ran — no UPSERT.
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  // tap→voice catch-up: user tapped into the reflection screen (current_step
+  // stays at the habits step) then advanced by voice — a +2 jump.
+  it('allows +2 catch-up when both skipped steps have data (step 5 → 7)', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            current_step: 5,
+            data: { habitConfigs: { Run: {} }, reflectionConfig: { time: '21:00' } },
+            path: 'simple',
+            brain_dump_raw: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    expect(res).toEqual({ result: 'ok' });
+    expect(pool.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects +2 catch-up when an intermediate step is missing data (step 5 → 7, no reflectionConfig)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          current_step: 5,
+          data: { habitConfigs: { Run: {} } },
+          path: 'simple',
+          brain_dump_raw: null,
+        },
+      ],
+    });
+    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    expect(res).toMatchObject({ error: expect.stringContaining('cannot_skip_steps') });
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects +3 jumps outright even with data present (step 4 → 7)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          current_step: 4,
+          data: { goals: ['x'], habitConfigs: { Run: {} }, reflectionConfig: { time: '21:00' } },
+          path: 'simple',
+          brain_dump_raw: null,
+        },
+      ],
+    });
+    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    expect(res).toMatchObject({ error: expect.stringContaining('cannot_skip_steps') });
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects single-step forward when source data missing (step 1 → 2 with no nickname)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ current_step: 1, data: {}, path: null, brain_dump_raw: null }],
+    });
+    const res = await navigateNext({ anon_id: ANON, target_step: 2 });
+    expect(res).toMatchObject({ error: expect.stringContaining('profile_missing') });
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects single-step forward at step 2 with no path (the reported bug)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          current_step: 2,
+          data: { nickname: 'Yair' },
+          path: null,
+          brain_dump_raw: null,
+        },
+      ],
+    });
+    const res = await navigateNext({ anon_id: ANON, target_step: 3 });
+    expect(res).toMatchObject({ error: expect.stringContaining('path_missing') });
+  });
+
+  it('allows single-step forward when source data is saved (step 1 → 2 with nickname)', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ current_step: 1, data: { nickname: 'Yair' }, path: null, brain_dump_raw: null }],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+    const res = await navigateNext({ anon_id: ANON, target_step: 2 });
+    expect(res).toEqual({ result: 'ok' });
+    // SELECT then UPSERT.
+    expect(pool.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('allows step 3 → 4 when category is saved (beginner path)', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            current_step: 3,
+            data: { nickname: 'Yair', category: 'Sleep better' },
+            path: 'simple',
+            brain_dump_raw: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+    const res = await navigateNext({ anon_id: ANON, target_step: 4 });
+    expect(res).toEqual({ result: 'ok' });
+  });
+
+  it('allows step 3 → 4 on advanced path when brain_dump_raw is saved', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            current_step: 3,
+            data: { nickname: 'Yair' },
+            path: 'braindump',
+            brain_dump_raw: 'I want to sleep more, walk daily, and meditate every morning.',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+    const res = await navigateNext({ anon_id: ANON, target_step: 4 });
+    expect(res).toEqual({ result: 'ok' });
+  });
+
+  it('allows back-nav without precondition check (step 5 → 3 to re-edit)', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            current_step: 5,
+            data: { nickname: 'Yair', category: 'Sleep better' },
+            path: 'simple',
+            brain_dump_raw: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+    const res = await navigateNext({ anon_id: ANON, target_step: 3 });
+    expect(res).toEqual({ result: 'ok' });
+  });
+
+  it('rejects step 5 → 6 when no habits captured', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          current_step: 5,
+          data: { nickname: 'Yair', category: 'Sleep better', goals: ['Wake up earlier'] },
+          path: 'simple',
+          brain_dump_raw: null,
+        },
+      ],
+    });
+    const res = await navigateNext({ anon_id: ANON, target_step: 6 });
+    expect(res).toMatchObject({ error: expect.stringContaining('habits_missing') });
+  });
+
+  it('rejects step 6 → 7 when reflection not saved', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          current_step: 6,
+          data: {
+            nickname: 'Yair',
+            category: 'Sleep better',
+            goals: ['Wake up earlier'],
+            habitConfigs: { Walk: { days: [1, 2, 3, 4, 5], time: '07:00' } },
+          },
+          path: 'simple',
+          brain_dump_raw: null,
+        },
+      ],
+    });
+    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    expect(res).toMatchObject({ error: expect.stringContaining('reflection_missing') });
+  });
 });
 
 describe('vapi confirmPlan — State-1 completion', () => {
@@ -147,13 +428,80 @@ describe('vapi confirmPlan — State-1 completion', () => {
     expect(pool.query).not.toHaveBeenCalled();
   });
 
-  it('valid anon_id: monotonic GREATEST bump to step 8, returns ok', async () => {
+  it('valid anon_id with habits + reflection: monotonic GREATEST bump to step 8, returns ok', async () => {
+    // Precondition lookup: row has habits + reflection.
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          data: {
+            habitConfigs: { Walk: { days: [1, 2, 3, 4, 5], time: '07:00' } },
+            reflectionConfig: { time: '21:00', days: [1, 2, 3, 4, 5] },
+          },
+          current_step: 7,
+        },
+      ],
+    });
     const res = await confirmPlan({ anon_id: ANON });
     expect(res).toEqual({ result: 'ok' });
-    expect(pool.query).toHaveBeenCalledTimes(1);
-    const [sql, params] = pool.query.mock.calls[0];
+    expect(pool.query).toHaveBeenCalledTimes(2);
+    const [sql, params] = pool.query.mock.calls[1];
     expect(sql).toContain('GREATEST(onboarding_states.current_step, 8)');
     expect(params).toEqual([ANON]);
+  });
+
+  it('valid anon_id with advancedHabitConfigs + reflection: also passes precondition', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          data: {
+            advancedHabitConfigs: { Run: { days: [1, 3, 5], time: '06:00' } },
+            reflectionConfig: { time: '20:00', days: [0, 1, 2, 3, 4, 5, 6] },
+          },
+          current_step: 7,
+        },
+      ],
+    });
+    const res = await confirmPlan({ anon_id: ANON });
+    expect(res).toEqual({ result: 'ok' });
+  });
+
+  it('missing habits: rejects with preconditions_not_met, no step bump', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { reflectionConfig: { time: '21:00' } }, current_step: 5 }],
+    });
+    const res = await confirmPlan({ anon_id: ANON });
+    expect(res).toMatchObject({ error: expect.stringContaining('confirm_plan_too_early') });
+    expect(res).toMatchObject({ error: expect.stringContaining('habits') });
+    // Only the SELECT ran — no UPSERT.
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('missing reflection: rejects with preconditions_not_met, no step bump', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          data: { habitConfigs: { Walk: { days: [1], time: '07:00' } } },
+          current_step: 5,
+        },
+      ],
+    });
+    const res = await confirmPlan({ anon_id: ANON });
+    expect(res).toMatchObject({ error: expect.stringContaining('confirm_plan_too_early') });
+    expect(res).toMatchObject({ error: expect.stringContaining('reflection') });
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('empty habitConfigs object: rejects (zero habits is not a valid plan)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { habitConfigs: {}, reflectionConfig: { time: '21:00' } }, current_step: 5 }],
+    });
+    const res = await confirmPlan({ anon_id: ANON });
+    expect(res).toMatchObject({ error: expect.stringContaining('confirm_plan_too_early') });
   });
 });
 

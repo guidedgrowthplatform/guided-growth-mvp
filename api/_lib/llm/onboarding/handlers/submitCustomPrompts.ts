@@ -21,7 +21,8 @@ export async function submitCustomPrompts(
     return invalid('prompts must contain at least one non-empty string');
 
   // Object payload so top-level `||` REPLACES the customPrompts key (never the bare array).
-  const payload = JSON.stringify({ customPrompts });
+  // Defining prompts implies prompts mode.
+  const payload = JSON.stringify({ customPrompts, reflectionMode: 'prompts' });
 
   await pool.query(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)

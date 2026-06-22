@@ -5,10 +5,7 @@
  * habit descriptions, then extracts a cleaned habit name and a frequency hint.
  */
 
-interface ParsedHabit {
-  name: string;
-  frequency: string;
-}
+import type { ParsedHabit } from '@gg/shared/types';
 
 const DAY_PATTERN = /monday|tuesday|wednesday|thursday|friday|saturday|sunday/i;
 

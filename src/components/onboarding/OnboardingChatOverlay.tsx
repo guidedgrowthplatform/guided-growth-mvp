@@ -12,6 +12,7 @@ import { useDisplayName } from '@/hooks/useDisplayName';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
+import { useStreamingReveal } from '@/hooks/useStreamingReveal';
 import { orbStateFrom } from '@/lib/orb/orbState';
 
 interface OnboardingChatOverlayProps {
@@ -42,6 +43,7 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
   const isUserSpeaking = onboardingVoiceSession?.isUserSpeaking ?? false;
   const voiceInListening = onboardingVoiceSession?.voiceInListening ?? false;
   const chatBusy = onboardingVoiceSession?.chatBusy ?? false;
+  const assistantMergeOpen = onboardingVoiceSession?.assistantMergeOpen ?? false;
   const sessionMessages = onboardingVoiceSession?.messages;
   const messages = useMemo(() => sessionMessages ?? [], [sessionMessages]);
 
@@ -50,9 +52,24 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
   const [draft, setDraft] = useState('');
   const [partialAssistant, setPartialAssistant] = useState('');
   const [partialUser, setPartialUser] = useState('');
+  // Vapi has no client-side tool-call events; this fills the user-stops → assistant-starts gap.
+  const [waitingForAssistant, setWaitingForAssistant] = useState(false);
+  const prevUserSpeakingRef = useRef(false);
 
   const displayedAssistant = useSmoothReveal(partialAssistant);
   const displayedUser = useSmoothReveal(partialUser);
+
+  // Voice (Vapi) assistant turns arrive as sentence-sized chunks that snap into
+  // the bubble. Reveal the whole in-progress turn (committed finals + live
+  // partial) through one continuous, capped stream so it flows instead of pops.
+  const lastMsg = messages[messages.length - 1];
+  const lastIsAi = lastMsg?.role === 'ai';
+  const voiceStreaming = vapiActive && (assistantMergeOpen || partialAssistant.length > 0);
+  const committedActive = lastIsAi && voiceStreaming ? lastMsg.text : '';
+  const activeTurnTarget = voiceStreaming
+    ? `${committedActive} ${partialAssistant}`.replace(/\s+/g, ' ').trim()
+    : '';
+  const revealedTurn = useStreamingReveal(activeTurnTarget);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pinnedToBottomRef = useRef(true);
@@ -67,7 +84,7 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
     const el = scrollContainerRef.current;
     if (!el || !pinnedToBottomRef.current) return;
     el.scrollTop = el.scrollHeight;
-  }, [messages.length, chatBusy, displayedAssistant, displayedUser]);
+  }, [messages.length, chatBusy, displayedAssistant, displayedUser, revealedTurn]);
 
   // Coach text — partials stream from both Vapi and the Direct-LLM path; clears
   // on final (the final lands as a message bubble).
@@ -79,6 +96,22 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
 
   useEffect(() => {
     if (!vapiActive) setPartialAssistant('');
+  }, [vapiActive]);
+
+  useEffect(() => {
+    const userJustStopped = prevUserSpeakingRef.current && !isUserSpeaking;
+    prevUserSpeakingRef.current = isUserSpeaking;
+    if (userJustStopped) setWaitingForAssistant(true);
+  }, [isUserSpeaking]);
+
+  useEffect(() => {
+    if (isAssistantSpeaking || partialAssistant.length > 0 || isUserSpeaking) {
+      setWaitingForAssistant(false);
+    }
+  }, [isAssistantSpeaking, partialAssistant, isUserSpeaking]);
+
+  useEffect(() => {
+    if (!vapiActive) setWaitingForAssistant(false);
   }, [vapiActive]);
 
   useEffect(() => {
@@ -118,6 +151,7 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
   const handleSendText = useCallback(
     (text: string) => {
       onboardingVoiceSession?.sendUserTurn(text);
+      setWaitingForAssistant(true);
     },
     [onboardingVoiceSession],
   );
@@ -189,20 +223,42 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {messages.map((msg) => (
-          <div key={msg.id} className="flex flex-col">
-            <ChatBubble
-              role={msg.role}
-              text={msg.text}
-              userName={displayName}
-              eyebrowVariant="dark"
-              compact
-              animate={false}
-              markdown
-            />
-          </div>
-        ))}
-        {displayedAssistant.length > 0 && (
+        {messages.map((msg, idx) => {
+          const isLast = idx === messages.length - 1;
+          // Voice active turn: the last AI bubble shows the continuously-revealed
+          // turn text (committed finals + live partial) instead of snapping.
+          const voiceActiveBubble = isLast && msg.role === 'ai' && voiceStreaming;
+          const text = voiceActiveBubble ? revealedTurn || msg.text : msg.text;
+          return (
+            <div key={msg.id} className="flex flex-col">
+              <ChatBubble
+                role={msg.role}
+                text={text}
+                userName={displayName}
+                eyebrowVariant="dark"
+                compact
+                animate={false}
+                streaming={voiceActiveBubble}
+                markdown
+              />
+            </div>
+          );
+        })}
+        {/* Voice turn before its first final has committed (no AI bubble yet). */}
+        {voiceStreaming && !lastIsAi && revealedTurn.length > 0 && (
+          <ChatBubble
+            role="ai"
+            text={revealedTurn}
+            userName={displayName}
+            eyebrowVariant="dark"
+            compact
+            animate={false}
+            streaming
+            markdown
+          />
+        )}
+        {/* Typed (Direct-LLM) streaming bubble — voice uses revealedTurn above. */}
+        {!vapiActive && displayedAssistant.length > 0 && (
           <ChatBubble
             role="ai"
             text={displayedAssistant}
@@ -225,7 +281,9 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
             streaming
           />
         )}
-        {chatBusy && partialAssistant.length === 0 && <TypingIndicator />}
+        {(chatBusy || waitingForAssistant) && partialAssistant.length === 0 && !voiceStreaming && (
+          <TypingIndicator />
+        )}
       </div>
 
       <div

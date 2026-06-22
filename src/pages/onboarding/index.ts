@@ -9,6 +9,7 @@ export { Step3Page } from './beginner/Step3Page';
 export { Step4Page } from './beginner/Step4Page';
 export { Step5Page } from './beginner/Step5Page';
 export { Step6Page } from './beginner/Step6Page';
+export { Step6PromptsPage } from './beginner/Step6PromptsPage';
 // Advanced
 export { AdvancedInputPage } from './advanced/AdvancedInputPage';
 export { AdvancedResultsPage } from './advanced/AdvancedResultsPage';

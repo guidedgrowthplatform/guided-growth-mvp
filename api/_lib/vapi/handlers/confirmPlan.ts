@@ -23,6 +23,45 @@ export async function confirmPlan(args: Record<string, unknown>): Promise<Handle
     return { error: 'invalid_identity' };
   }
 
+  // Precondition: the row must already contain habitConfigs (beginner or advanced)
+  // AND reflectionConfig before completion. Otherwise the agent jumped ahead and
+  // PlanReviewPage would crash trying to render a half-built plan. Reject so the
+  // agent (per RULE 6) retries silently and the user is steered back to the
+  // missing screen.
+  const existing = await pool.query<{
+    data: Record<string, unknown> | null;
+    current_step: number | null;
+  }>(`SELECT data, current_step FROM onboarding_states WHERE anon_id = $1`, [anonId]);
+  const row = existing.rows[0];
+  const data = (row?.data ?? {}) as Record<string, unknown>;
+  const habitConfigs = data.habitConfigs as Record<string, unknown> | undefined;
+  const advancedHabitConfigs = data.advancedHabitConfigs as Record<string, unknown> | undefined;
+  const hasHabits =
+    (habitConfigs && Object.keys(habitConfigs).length > 0) ||
+    (advancedHabitConfigs && Object.keys(advancedHabitConfigs).length > 0);
+  const hasReflection = !!data.reflectionConfig;
+  const currentStep = row?.current_step ?? null;
+  if (!hasHabits || !hasReflection) {
+    console.log(
+      `[vapi/tool] confirm_plan rejected reason=preconditions_not_met hasHabits=${!!hasHabits} hasReflection=${hasReflection} current_step=${currentStep ?? 'null'}`,
+    );
+    // Directive error — tell the model the exact tool to call next so it can
+    // recover without spinning rejected confirm_plan retries (which crashes Vapi).
+    let next = '';
+    if (currentStep != null && currentStep < 6) {
+      next = ` Call navigate_next(target_step=${currentStep + 1}) instead. Do NOT retry confirm_plan until current_step is 7.`;
+    } else if (!hasReflection) {
+      next =
+        ' Call submit_reflection_config first, then navigate_next(target_step=7). Do NOT retry confirm_plan until then.';
+    } else if (!hasHabits) {
+      next =
+        ' Call add_habit at least once first, then navigate_next forward. Do NOT retry confirm_plan until current_step is 7.';
+    }
+    return {
+      error: `confirm_plan_too_early: current_step=${currentStep ?? 'unknown'}, ${!hasHabits ? 'habits' : ''}${!hasHabits && !hasReflection ? '+' : ''}${!hasReflection ? 'reflection' : ''} not yet saved.${next}`,
+    };
+  }
+
   const result = await pool.query(
     `INSERT INTO onboarding_states (anon_id, current_step, status, updated_at)
      VALUES ($1, 8, 'in_progress', now())

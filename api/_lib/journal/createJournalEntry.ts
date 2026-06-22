@@ -10,16 +10,21 @@ export interface CreateJournalEntryInput {
   date: string;
   habit_id?: string | null;
   fields: Record<string, string>;
+  prompts_snapshot?: string[] | null;
 }
 
 export async function createJournalEntry(input: CreateJournalEntryInput): Promise<JournalEntry> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    const promptsSnapshot =
+      input.type === 'template' && Array.isArray(input.prompts_snapshot)
+        ? input.prompts_snapshot
+        : null;
     const ins = await client.query(
-      `INSERT INTO journal_entries (anon_id, type, template_id, title, date, habit_id)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, anon_id, type, template_id, title, date::text, habit_id, created_at, updated_at`,
+      `INSERT INTO journal_entries (anon_id, type, template_id, title, date, habit_id, prompts_snapshot)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+       RETURNING id, anon_id, type, template_id, title, date::text, habit_id, prompts_snapshot, created_at, updated_at`,
       [
         input.anon_id,
         input.type,
@@ -27,6 +32,7 @@ export async function createJournalEntry(input: CreateJournalEntryInput): Promis
         input.title?.trim() || null,
         input.date,
         input.habit_id ?? null,
+        promptsSnapshot ? JSON.stringify(promptsSnapshot) : null,
       ],
     );
     const entry = ins.rows[0];

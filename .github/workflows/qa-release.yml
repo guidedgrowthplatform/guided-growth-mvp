@@ -23,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Semver marketing version (e.g. 2.9.2). REQUIRED for a real iOS version on tagless dispatch — the Fastfile only bumps iOS when this matches X.Y.Z; otherwise iOS ships its project default (1.0.0). Android accepts the qa-<run_number> fallback.'
+        description: 'Semver marketing version (e.g. 2.9.2). REQUIRED on tagless dispatch — resolve-version fails on non-semver so iOS and Android always ship the same version.'
         type: string
         required: false
         default: ''
@@ -49,9 +49,11 @@ jobs:
             v="qa-${{ github.run_number }}"
           fi
           echo "Resolved QA version: $v"
-          # Fastfile only bumps iOS on a semver match; warn loudly when it won't.
+          # Fastfile only bumps iOS on a semver match; non-semver would ship
+          # iOS 1.0.0 while Android ships "$v" — fail before any build starts.
           if [[ ! "$v" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            echo "::warning::Version '$v' is not semver — iOS will ship its project default (1.0.0). Pass a semver 'version' on dispatch, or use a qa-v* tag. Android is unaffected."
+            echo "::error::Version '$v' is not semver — iOS would ship 1.0.0 while Android ships '$v'. Pass a semver 'version' on dispatch, or use a qa-v* tag."
+            exit 1
           fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
@@ -97,6 +99,19 @@ jobs:
       FIREBASE_APP_ID_QA: ${{ secrets.FIREBASE_APP_ID_QA }}
     steps:
       - uses: actions/checkout@v4
+
+      # Fail fast before the build if notes are missing or version-mismatched.
+      - name: Validate Android QA release notes
+        env:
+          WANT_VERSION: ${{ needs.resolve-version.outputs.version }}
+        run: |
+          f=release-notes/whatsnew-en-US
+          [ -s "$f" ] || { echo "::error::Missing or empty $f — testers need release notes."; exit 1; }
+          want="${WANT_VERSION#v}"
+          head=$(head -1 "$f" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          if [ "$head" != "$want" ]; then
+            echo "::error::Notes header ($head) != version ($want). Bump $f in the tagged commit."; exit 1
+          fi
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -156,7 +171,7 @@ jobs:
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           groups: internal-testers
           file: android/app/build/outputs/apk/qa/release/app-qa-release.apk
-          releaseNotes: ${{ needs.resolve-version.outputs.version }}
+          releaseNotesFile: release-notes/whatsnew-en-US
 
   ios-qa:
     name: Build QA IPA → TestFlight
@@ -200,6 +215,8 @@ jobs:
       # Fail loud if tester notes are missing — a build with blank "What to
       # Test" defeats the point. TestFlight caps What-to-Test at 4000 chars.
       - name: Validate iOS release notes present
+        env:
+          WANT_VERSION: ${{ needs.resolve-version.outputs.version }}
         run: |
           f=release-notes/whatsnew-en-US
           [ -s "$f" ] || { echo "::error::Missing or empty $f — testers need release notes."; exit 1; }
@@ -208,6 +225,12 @@ jobs:
           if [ "$len" -gt 4000 ]; then
             echo "::error::TestFlight What-to-Test exceeds 4000 chars ($len). Trim $f."
             exit 1
+          fi
+          # Header version must match the release, else the build ships stale notes.
+          want="${WANT_VERSION#v}"
+          head=$(head -1 "$f" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          if [ "$head" != "$want" ]; then
+            echo "::error::Notes header ($head) != version ($want). Bump $f in the tagged commit."; exit 1
           fi
 
       - uses: ./.github/actions/capacitor-build

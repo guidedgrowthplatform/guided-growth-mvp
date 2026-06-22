@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSessionLog } from '@/hooks/useSessionLog';
+import { rescheduleFromPrefs } from '@/lib/localReminders';
 import {
   DEFAULT_PREFERENCES,
   loadLocalPreferences,
@@ -14,6 +15,13 @@ import type { UserPreferences as DbUserPreferences } from '@gg/shared/types';
 
 export type { UserPreferences };
 export { DEFAULT_PREFERENCES };
+
+const REMINDER_KEYS = ['morningTime', 'nightTime', 'pushNotifications'] as const;
+
+// reschedule from resolved `next` (not the snapshot) to avoid a write/read race
+function maybeReschedule(partial: Partial<UserPreferences>, next: UserPreferences): void {
+  if (REMINDER_KEYS.some((k) => k in partial)) void rescheduleFromPrefs(next);
+}
 
 type WirePreferences = Partial<DbUserPreferences>;
 
@@ -97,6 +105,7 @@ export function useUserPreferences() {
       const next = fromWire(wire);
       qc.setQueryData(queryKeys.preferences.all, next);
       saveLocalPreferences(next);
+      maybeReschedule(partial, next);
       for (const key of Object.keys(partial) as (keyof UserPreferences)[]) {
         const oldValue = ctx?.previous?.[key] ?? null;
         const newValue = partial[key] ?? null;
@@ -120,6 +129,7 @@ export function useUserPreferences() {
         const next = { ...(previous ?? DEFAULT_PREFERENCES), [key]: value };
         qc.setQueryData<UserPreferences>(queryKeys.preferences.all, next);
         saveLocalPreferences(next);
+        maybeReschedule({ [key]: value } as Partial<UserPreferences>, next);
         return Promise.resolve();
       }
       return updateMutation.mutateAsync({ [key]: value } as Partial<UserPreferences>);
@@ -134,6 +144,7 @@ export function useUserPreferences() {
         const next = { ...(previous ?? DEFAULT_PREFERENCES), ...partial };
         qc.setQueryData<UserPreferences>(queryKeys.preferences.all, next);
         saveLocalPreferences(next);
+        maybeReschedule(partial, next);
         return Promise.resolve();
       }
       return updateMutation.mutateAsync(partial);

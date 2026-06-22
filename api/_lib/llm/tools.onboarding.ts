@@ -119,8 +119,8 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     description:
       "Save profile fields (nickname, age, gender, referral source) to the database. DATA ONLY — this tool does NOT advance the user to the next screen. Use `navigate_next` for that, AFTER the user confirms they're ready. AUTO-CALL IMMEDIATELY the moment the user states any of these fields. Do not ask for permission. Do not summarize. Edit mode: re-call with only the field(s) the user is updating — never re-send unchanged values. Only include fields the user explicitly stated; never invent values. At least one field is required per call.",
     messages: {
-      requestStart: "I'm saving that — anything else about yourself you want to add?",
-      requestFailed: "Hmm, that didn't save. Want to say it once more?",
+      requestStart: '',
+      requestFailed: '',
     },
     parameters: {
       type: 'object',
@@ -154,8 +154,8 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     description:
       'Save the user\'s chosen onboarding path (simple vs braindump). DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user signals their choice. Phrases like "I\'m new", "this is my first time" → simple. "I already have habits", "I know what I want to work on" → braindump. Do not ask for permission to save — just call.',
     messages: {
-      requestStart: 'Locking your path in — sound right?',
-      requestFailed: 'Let me try that again.',
+      requestStart: '',
+      requestFailed: '',
     },
     parameters: {
       type: 'object',
@@ -176,8 +176,8 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     description:
       'Save the user\'s chosen category. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user names an improvement area, even loosely. Map to the closest of the 8 categories: "sleep more" → Sleep better, "be more active" → Move more, "eat healthier" → Eat better, "less stressed" → Reduce stress, "focus better" → Improve focus, "quit smoking/drinking/phone" → Break bad habits, "more organized/on top of things" → Get more organized, "more energy" → Feel more energized. Do not ask for permission — just call.',
     messages: {
-      requestStart: 'Saving that — does that one feel right?',
-      requestFailed: "Didn't catch that — could you say it once more?",
+      requestStart: '',
+      requestFailed: '',
     },
     parameters: {
       type: 'object',
@@ -198,8 +198,8 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     description:
       "Save the user's COMPLETE goal selection for this screen (1 or 2 goals). This REPLACES whatever was saved before, so EVERY call MUST include ALL goals the user currently wants — never just the newest one. If they pick one goal now and add a second later, call again with BOTH goals in the array. If they change their mind, call again with only the goals they now want. DATA ONLY — does NOT advance to the next screen; use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY when the user names a goal — do not ask permission. Goal labels must match the on-screen options exactly.",
     messages: {
-      requestStart: 'Got it — want to add another goal, or are you good with that?',
-      requestFailed: "Didn't catch all of them — what were they again?",
+      requestStart: '',
+      requestFailed: '',
     },
     parameters: {
       type: 'object',
@@ -219,10 +219,21 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     name: 'add_habit',
     screen: 'ONBOARD-BEGINNER-03',
     description:
-      'Add (or edit) a habit. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms they\'re done adding habits. AUTO-CALL IMMEDIATELY the moment the user names a habit, even if they only say the name (e.g. "I want to walk more" → just call add_habit with name="Walk more" and NOTHING ELSE). Only `name` is required — the server fills sensible defaults for schedule/days/time/reminder when you don\'t pass them. Pass schedule/days/time/reminder only if the user explicitly said something about them. Call again with the same name to update an existing habit (edit mode). Server enforces a max of 2 habits — if you try a 3rd new habit the tool returns max_habits_reached and you should tell the user to remove one first. **Do not ask for permission, do not ask the user about timing or reminders before calling — just call with whatever you know.**',
+      "Add (or edit) a habit. DATA ONLY — does NOT advance to the next screen. Use `navigate_next(target_step=6)` ONLY after every picked habit has been FULLY configured with the user's schedule. " +
+      'ONE HABIT AT A TIME — STRICT (this rule is about habits-ACROSS, not fields-WITHIN): ' +
+      'Even if the user names two habits in the same breath ("walking and meditation"), you process them SEQUENTIALLY. Capture pick #1, fully configure pick #1, THEN move to pick #2. Do NOT call add_habit for pick #2 until pick #1 has its days + time + reminder all asked-and-set. ' +
+      'WITHIN a single habit, batch-parsing a full sentence is fine — "walking every day at 9:30 PM with a reminder" can become add_habit(name="Walking", days=[0,1,2,3,4,5,6], time="21:30", reminder=true, schedule="Every day") in one call. The three-questions pattern below is only for when the user did NOT pre-state the schedule. ' +
+      'TWO-CALL CONFIGURATION PATTERN (per habit): ' +
+      '(1) Call add_habit(name="<exact label>") — records the pick with server defaults (Weekday days, 09:00 time, reminder on). ' +
+      '(2) Then ask the user three short questions, ONE AT A TIME: how often (daily/weekdays/weekends/specific days), what time, and whether they want a reminder. WAIT for each answer before asking the next. ' +
+      '(3) Call add_habit AGAIN with the SAME name plus the configured fields: add_habit(name="<same>", days=[...], time="HH:MM", reminder=<bool>, schedule="Weekday"|"Weekend"|"Every day"). The server merges by name — this second call updates the same habit. ' +
+      '(4) Only NOW move to the next habit pick (if any). Repeat the full two-call sequence for it. ' +
+      'Only after EVERY picked habit has its days + time + reminder asked-and-set should you call navigate_next(target_step=6). ' +
+      'Server enforces a max of 2 habits — if you try a 3rd new habit the tool returns max_habits_reached and you should tell the user to remove one first. ' +
+      'On step 5 (ONBOARD-BEGINNER-03), use add_habit for BOTH create AND edit. Do NOT use update_habit here — update_habit is for the final plan-review screen (step 7) only.',
     messages: {
-      requestStart: 'Adding that habit — anything else you want to track?',
-      requestFailed: "Hmm, that didn't add. Want to try again?",
+      requestStart: '',
+      requestFailed: '',
     },
     parameters: {
       type: 'object',
@@ -254,6 +265,12 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
             'Preset matching the days array. Optional — omit to let server default to Weekday.',
           enum: [...SCHEDULE_OPTIONS],
         },
+        habit_type: {
+          type: 'string',
+          description:
+            'Polarity. Set "binary_avoid" for habits about NOT doing / quitting / reducing / avoiding something (e.g. "No caffeine after 2 PM", "No screens after 10 PM", "stop smoking"). Otherwise "binary_do" (default). Include it on EVERY add_habit call for the same habit (alongside name) so it persists across the two-call config pattern.',
+          enum: ['binary_do', 'binary_avoid'],
+        },
       },
       required: ['name'],
       additionalProperties: false,
@@ -265,8 +282,8 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     description:
       'Remove a previously-added habit. DATA ONLY — does NOT advance to the next screen. AUTO-CALL IMMEDIATELY the moment the user asks to drop a habit ("remove the walking one", "scratch that", "no longer caffeine"). Name match is case-insensitive. Do not ask for permission — just call.',
     messages: {
-      requestStart: 'Taking that one off — want to swap it for something else?',
-      requestFailed: "Didn't catch which one — which habit?",
+      requestStart: '',
+      requestFailed: '',
     },
     parameters: {
       type: 'object',
@@ -286,8 +303,8 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     description:
       'Edit an existing habit\'s schedule on the plan-review/confirm screen. DATA ONLY — does NOT advance the screen. Provide the habit `name` (case-insensitive) and ONLY the field(s) the user wants to change (time and/or days). Unspecified fields are PRESERVED — unlike add_habit, which resets them to defaults. Use when the user tweaks a habit they already added (e.g. "move meditation to 8am", "make running every day"). Fails if the habit isn\'t found — recover by offering to add it. Do not ask for permission — just call.',
     messages: {
-      requestStart: 'Updating that habit — anything else to tweak?',
-      requestFailed: "Hmm, couldn't update that — which habit, and what change?",
+      requestStart: '',
+      requestFailed: '',
     },
     parameters: {
       type: 'object',
@@ -323,35 +340,43 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     name: 'submit_reflection_config',
     screen: 'ONBOARD-BEGINNER-07',
     description:
-      'Save the user\'s evening reflection schedule. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user gives any signal about reflection timing (even just "evenings" or "around 9 PM"). All fields are optional — pass only what the user explicitly said and let the server fill the rest (defaults: schedule="Weekday", days=[1,2,3,4,5], time="21:45", reminder=true). If the user hasn\'t said anything specific yet, you can call with NO fields to lock in the defaults. **Do not ask the user clarifying questions about timing or reminders before calling — just call with whatever you know.**',
+      "Save the user's evening reflection schedule. DATA ONLY — does NOT advance to the next screen. Use `navigate_next(target_step=7)` AFTER this returns. " +
+      'PRECONDITION: do NOT call this until the user has actually answered when they want their reflection. ' +
+      "ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). If the user has not yet said a time, ASK FIRST — do NOT pre-fill defaults silently and fire this tool. The reflection screen is the user's choice; do not bypass it. " +
+      'Once the user gives you a time (e.g. "around 9 PM" → time="21:00", or "9:45 PM" → "21:45"), infer the missing fields from natural defaults (Weekday + reminder on) and call. Then chain navigate_next(target_step=7) in the same turn.',
     messages: {
-      requestStart: 'Setting your reflection time — feel good about that timing?',
-      requestFailed: 'Let me try again — when did you want it?',
+      requestStart: '',
+      requestFailed: '',
     },
     parameters: {
       type: 'object',
       properties: {
         time: {
           type: 'string',
-          description: 'HH:MM 24-hour format. Optional — omit to default to 21:45.',
+          description: 'HH:MM 24-hour format.',
         },
         days: {
           type: 'array',
-          description: 'Days as 0-6 ints, 0=Sunday. Optional — omit to default to weekdays.',
+          description: 'Days as 0-6 ints, 0=Sunday.',
           items: { type: 'number' },
         },
         reminder: {
           type: 'boolean',
-          description: 'Reminder notification toggle. Optional — omit to default to true.',
+          description: 'Reminder notification toggle.',
         },
         schedule: {
           type: 'string',
-          description:
-            'Schedule preset matching the days array. Optional — omit to default to Weekday.',
+          description: 'Schedule preset matching the days array.',
           enum: [...SCHEDULE_OPTIONS],
         },
+        mode: {
+          type: 'string',
+          description:
+            "How the user wants to reflect. 'prompts' = answer questions (guided default or custom); 'freeform' = no questions, just talk freely. Include 'freeform' when the user says they want to talk freely / no questions. Omit (defaults to prompts) for guided.",
+          enum: ['prompts', 'freeform'],
+        },
       },
-      required: [],
+      required: ['time', 'days', 'reminder', 'schedule'],
       additionalProperties: false,
     },
   },
@@ -361,8 +386,8 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     description:
       "Save the user's custom evening-reflection prompts. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user gives one or more prompts. The prompts array REPLACES the saved set — always send the COMPLETE current list the user wants, never just the newest one (if they had two and add a third, send all three). Do not ask for permission — just call.",
     messages: {
-      requestStart: 'Saving your prompts — want to add another, or are you set?',
-      requestFailed: "Didn't catch those — what were the prompts again?",
+      requestStart: '',
+      requestFailed: '',
     },
     parameters: {
       type: 'object',
@@ -384,11 +409,8 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     description:
       "Save the user's verbatim brain-dump text. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user finishes describing what they want to work on (after a natural pause of a sentence or two). Pass the FULL transcript verbatim — never summarize, never rephrase, never paraphrase. Server parses this. Do not ask for permission — just call.",
     messages: {
-      // Longer parse; tell the user we're working so the wait feels active
-      // rather than dead air.
-      requestStart:
-        'Got it. Reading through what you said now — anything else you want me to know?',
-      requestFailed: "Hmm, didn't quite catch all of that. Want to walk me through it again?",
+      requestStart: '',
+      requestFailed: '',
     },
     parameters: {
       type: 'object',
@@ -406,14 +428,17 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     name: 'navigate_next',
     screen: '*',
     description:
-      'Advance the user to the next onboarding screen. This is the ONLY tool that moves the user between screens — the submit_* tools just save data, they do NOT navigate. ' +
-      "When to call: only AFTER the user has explicitly confirmed they're ready to move on. Ask first ('ready to continue?' / 'anything else for this section?' / 'want to head to the next part?'). When they say yes, call this tool. " +
-      'What to pass for target_step: the step number of the NEXT screen. From step-1 (profile) → 2. From step-2 (path choice) → 3. From step-3 (category/braindump) → 4. From step-4 (goals) → 5. From step-5 (habits) → 6. From step-6 (reflection) → 7. ' +
-      "For users who back-navigated to edit an earlier screen: after they confirm 'go forward', call this with target_step = currentScreenStep + 1. They'll walk through the remaining screens one by one — that's intended. Do NOT pass target_step values that skip multiple screens at once. " +
-      "Never call this without an explicit user confirmation. The user must say 'yes' / 'sure' / 'continue' / 'next' / equivalent.",
+      'Advance the user to the next onboarding screen. This is the ONLY tool that moves the user between screens — the submit_* / add_* tools just save data, they do NOT navigate. ' +
+      'ABSOLUTE LAW: navigate_next MUST be called in the SAME TURN as the data tool. Whenever you call submit_profile / submit_path_choice / submit_category / submit_goals / add_habit / submit_reflection_config / submit_custom_prompts / submit_brain_dump, you MUST chain navigate_next right after, in the same response. If you finished a turn that called a data tool but did NOT call navigate_next, you have a critical bug — the user is now stuck and will have to remind you. Do not let this happen. ' +
+      'NEVER ask the user "are you ready?" / "anything else?" / "want to continue?" / "ready to move on?" before navigating. The data tool firing IS the confirmation. The user does not know navigate_next exists; they expect screens to advance based on what they said. ' +
+      "GOOD: User says 'I want walking 3 times a week at 8pm with reminders'. You call: add_habit(name='Walking', days=[1,3,5], time='20:00', reminder=true), THEN navigate_next(target_step=6). One turn, two tool calls. " +
+      "BAD: User says the same thing. You call: add_habit(...), then say 'Walking, three days a week at 8 PM. Anything else?'. This is a BUG. You FAILED to call navigate_next. The user now has to say 'continue' to unstick. " +
+      'What to pass for target_step: the step number of the NEXT screen. From step-1 (profile) → 2. step-2 (path) → 3. step-3 (category/braindump) → 4. step-4 (goals) → 5. step-5 (habits) → 6. step-6 (reflection) → 7. ' +
+      "For users who back-navigated to edit an earlier screen: after they re-confirm the edit, call this with target_step = currentScreenStep + 1. They'll walk through the remaining screens one by one — that's intended. Do NOT pass target_step values that skip multiple screens at once. " +
+      'Only exception: if the user EXPLICITLY signals MORE input is coming BEFORE you call the data tool (e.g. "wait, one more habit", "and another goal"), capture that input first. Once you call the data tool, navigate_next MUST follow in the same turn.',
     messages: {
-      requestStart: 'Heading there now.',
-      requestFailed: "Hmm, couldn't move screens — let me try once more.",
+      requestStart: '',
+      requestFailed: '',
     },
     parameters: {
       type: 'object',
@@ -432,10 +457,14 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     name: 'confirm_plan',
     screen: 'ONBOARD-BEGINNER-06',
     description:
-      'Complete onboarding from the plan-review screen (ONBOARD-BEGINNER-06 beginner / ONBOARD-ADVANCED-05 advanced). Call the moment the user confirms their starting plan and wants to begin ("looks good", "let\'s go", "start", "I\'m ready"). The frontend finishes onboarding and enters the app in response. Do not call before the plan-review screen.',
+      'Complete onboarding from the FINAL plan-review screen. ' +
+      'STRICT PRECONDITION: only call when current_step >= 7. If current_step is 5 or 6, you have NOT finished setup — call navigate_next(target_step = current_step + 1) instead. ' +
+      'The plan-review screen shows the user their final plan after habits AND reflection are both saved. It is NOT the step-5 review-habits sub-phase (which also displays habits but precedes the reflection step). ' +
+      'Call the moment the user, ON THE PLAN-REVIEW SCREEN, confirms they want to begin ("looks good", "let\'s go", "start", "I\'m ready"). The frontend finishes onboarding and enters the app in response. ' +
+      'If the backend returns confirm_plan_too_early, do NOT retry — call the suggested navigate_next instead.',
     messages: {
-      requestStart: 'Locking in your plan — here we go.',
-      requestFailed: 'Hmm, let me try that once more.',
+      requestStart: '',
+      requestFailed: '',
     },
     parameters: {
       type: 'object',

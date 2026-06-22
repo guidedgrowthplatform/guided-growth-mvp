@@ -34,7 +34,7 @@ export function PlanReviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const routerState = location.state as PlanReviewState | null;
-  const { state: onboardingState, complete, isCompleting } = useOnboarding();
+  const { state: onboardingState, complete, isCompleting, completeError } = useOnboarding();
   const onboardingVoice = useOnboardingVoice();
 
   // Voice update_habit edits on this screen, applied over the base state.
@@ -99,25 +99,60 @@ export function PlanReviewPage() {
     });
     // Clean up the persisted timestamp now that the flow is complete.
     localStorage.removeItem('gg_onboarding_started_at');
+    // End the Vapi session so voice doesn't bleed into /home post-onboarding.
+    // endCall is sync void — try/catch only catches sync throws from the
+    // preferences dispatch (extremely unlikely). We still wrap so a future
+    // refactor of endCall doesn't silently break finalization.
+    try {
+      onboardingVoice?.endCall();
+    } catch (err) {
+      Sentry.captureException(err, {
+        tags: { flow: 'onboarding', step: '7-plan-review' },
+        extra: { phase: 'endCall' },
+      });
+    }
     complete({
       habitConfigs: state.habitConfigs,
       goals: state.goals,
       category: state.category,
       reflectionConfig: state.reflectionConfig,
     });
-  }, [state, complete]);
+  }, [state, complete, source, onboardingVoice]);
 
   // Voice "let's go" mirrors the tap flow once the agent bumps current_step past 7.
   const autoCompletedRef = useRef(false);
+  // Wait ~700ms after Vapi stops speaking before tearing the call down. The
+  // BEGINNER-06 context tells the model to speak a send-off ("You're in,
+  // [Name]…") right before firing confirm_plan; without this wait,
+  // endCall() in handleStartPlan would stop() the WebRTC mid-word. Resets
+  // whenever the model starts speaking again, so a brief silence between
+  // tool fire and the send-off doesn't trigger premature teardown.
+  const POST_SPEECH_QUIET_MS = 700;
+  const isAssistantSpeaking = onboardingVoice?.isAssistantSpeaking ?? false;
   useEffect(() => {
     if (autoCompletedRef.current) return;
     if (isCompleting) return;
     if (!state?.habitConfigs || !state?.reflectionConfig) return;
     if (!onboardingState) return;
     if (onboardingState.current_step <= 7) return;
-    autoCompletedRef.current = true;
-    handleStartPlan();
-  }, [onboardingState, state, isCompleting, handleStartPlan]);
+    // Don't tear down while the assistant is mid-utterance. Schedule the
+    // fire on next quiet window.
+    if (isAssistantSpeaking) return;
+    const timer = setTimeout(() => {
+      if (autoCompletedRef.current) return;
+      autoCompletedRef.current = true;
+      handleStartPlan();
+    }, POST_SPEECH_QUIET_MS);
+    return () => clearTimeout(timer);
+  }, [onboardingState, state, isCompleting, handleStartPlan, isAssistantSpeaking]);
+  // NOTE on the failed-complete() retry path:
+  // After complete() fails, autoCompletedRef intentionally STAYS true. That
+  // blocks the auto-complete effect above from re-firing on a redundant
+  // Realtime push of current_step=8 (which would otherwise retry-storm against
+  // a persistently-500ing backend). Voice retry is unblocked manually inside
+  // handleVoiceAction: receiving confirm_plan while a completeError is present
+  // clears the latch for that single attempt. Tap retry bypasses the gate
+  // entirely (calls handleStartPlan directly).
 
   // Voice "let's go" / "start" / "looks good" — direct confirm path that
   // doesn't depend on the current_step bump above. Both paths share
@@ -138,16 +173,28 @@ export function PlanReviewPage() {
         return;
       }
       if (result.action !== 'confirm_plan') return;
+      // One-shot voice retry on prior failure: clear the single-fire latch the
+      // auto-complete effect set so the rest of the gate proceeds. Does NOT
+      // re-enable the auto-complete effect (Realtime hiccup → retry storm);
+      // each voice "let's go" after an error is its own explicit attempt.
+      if (completeError && autoCompletedRef.current) {
+        autoCompletedRef.current = false;
+      }
       if (autoCompletedRef.current || isCompleting) return;
       if (!state?.habitConfigs || !state?.reflectionConfig) return;
       autoCompletedRef.current = true;
       handleStartPlan();
     },
-    [state, isCompleting, handleStartPlan],
+    [state, isCompleting, handleStartPlan, completeError],
   );
 
   if (!state?.habitConfigs || !state?.reflectionConfig) {
-    Sentry.captureMessage('PlanReviewPage: missing state — redirecting to /onboarding', {
+    // Redirect to the earliest plausibly-incomplete step instead of /onboarding —
+    // bare /onboarding triggers OnboardingEntry, which re-routes based on
+    // current_step (still 7), creating a ping-pong loop. step-5 and step-4 have
+    // their own render guards that cascade back if their own data is missing.
+    const fallbackPath = !state?.habitConfigs ? '/onboarding/step-5' : '/onboarding/step-6';
+    Sentry.captureMessage(`PlanReviewPage: missing state — redirecting to ${fallbackPath}`, {
       level: 'error',
       tags: { flow: 'onboarding', step: '7-planreview' },
       extra: {
@@ -157,7 +204,7 @@ export function PlanReviewPage() {
         hasReflectionConfig: !!state?.reflectionConfig,
       },
     });
-    return <Navigate to="/onboarding" replace />;
+    return <Navigate to={fallbackPath} replace />;
   }
 
   const { habitConfigs, goals, category, reflectionConfig } = state;
@@ -165,14 +212,27 @@ export function PlanReviewPage() {
     ? (CATEGORY_ICONS[category] ?? 'ic:outline-check-circle')
     : 'ic:outline-check-circle';
   const reflectionDays = new Set(reflectionConfig.days);
+  const reflectionMode =
+    onboardingState?.data?.reflectionMode === 'freeform' ? 'freeform' : 'prompts';
+  const customPrompts = Array.isArray(onboardingState?.data?.customPrompts)
+    ? (onboardingState.data.customPrompts as string[]).filter(
+        (p) => typeof p === 'string' && p.trim(),
+      )
+    : [];
+  const reflectionTitle =
+    reflectionMode === 'freeform'
+      ? 'Freeform reflection'
+      : customPrompts.length > 0
+        ? 'Custom reflection'
+        : 'Daily reflection';
 
   return (
     <OnboardingLayout
       screenId={source === 'advanced' ? 'ONBOARD-ADVANCED-05' : 'ONBOARD-BEGINNER-06'}
       formSnapshot={snapshot}
-      ctaLabel={isCompleting ? 'Completing...' : 'Start plan'}
+      ctaLabel="Start plan"
       onNext={handleStartPlan}
-      ctaDisabled={isCompleting}
+      ctaLoading={isCompleting}
       showVoiceButton
       onVoiceAction={handleVoiceAction}
       onBack={() =>
@@ -220,7 +280,7 @@ export function PlanReviewPage() {
         <PlanSummaryCard
           icon="ic:outline-menu-book"
           typeLabel="Journal"
-          title="Daily reflection"
+          title={reflectionTitle}
           cadence={formatCadence(reflectionDays)}
           rule={reflectionConfig.time ? `Reminder at ${reflectionConfig.time}` : 'No reminder set'}
         />

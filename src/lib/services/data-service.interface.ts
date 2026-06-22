@@ -1,8 +1,13 @@
+import type { HabitType, HabitDayStatus } from '@gg/shared/types';
+
+export type { HabitType, HabitDayStatus };
+
 export interface Habit {
   id: string;
   name: string;
   frequency: string; // 'daily' | '3x/week' | 'weekly' etc
   scheduleDays: number[] | null; // 0=Sun … 6=Sat; null means cadence-driven defaults
+  habitType: HabitType; // 'binary_do' (default) | 'binary_avoid'
   createdAt: string;
   active: boolean;
 }
@@ -12,6 +17,7 @@ export interface HabitCompletion {
   habitId: string;
   date: string; // yyyy-MM-dd
   completedAt: string;
+  status: Exclude<HabitDayStatus, 'pending'>;
 }
 
 export interface TrackedMetric {
@@ -86,7 +92,12 @@ export interface ActionResult {
 
 export interface DataService {
   // Habits
-  createHabit(name: string, frequency?: string, scheduleDays?: number[]): Promise<Habit>;
+  createHabit(
+    name: string,
+    frequency?: string,
+    scheduleDays?: number[],
+    habitType?: HabitType,
+  ): Promise<Habit>;
   getHabits(): Promise<Habit[]>;
   getAllHabits(): Promise<Habit[]>;
   getHabitById(id: string): Promise<Habit | null>;
@@ -99,7 +110,8 @@ export interface DataService {
 
   // Habit completions
   completeHabit(habitId: string, date: string): Promise<HabitCompletion>;
-  uncompleteHabit(habitId: string, date: string): Promise<void>;
+  missHabit(habitId: string, date: string): Promise<HabitCompletion>;
+  clearHabit(habitId: string, date: string): Promise<void>;
   getCompletions(habitId: string, startDate?: string, endDate?: string): Promise<HabitCompletion[]>;
 
   // Metrics

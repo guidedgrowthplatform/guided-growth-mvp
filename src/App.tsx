@@ -6,12 +6,14 @@ import { SessionLogProvider } from '@/contexts/SessionLogProvider';
 import { ToastProvider, useToast } from '@/contexts/ToastContext';
 import { VoiceProvider } from '@/contexts/VoiceContext';
 import { useNavigateLogger } from '@/hooks/useNavigateLogger';
+import { usePushRegistration } from '@/hooks/usePushRegistration';
 import {
   type AuthHandoffKind,
   consumePendingAuthError,
   consumePendingAuthHandoff,
 } from '@/lib/auth/authHandoff';
 import { queryClient } from '@/lib/query';
+import { reacquireIfActive, suspendWakeLock } from '@/lib/services/keepAwake';
 import { AppRoutes } from '@/routes';
 import { useAuthStore } from '@/stores/authStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
@@ -69,6 +71,11 @@ function NavigateLogger() {
   return null;
 }
 
+function PushRegistrar() {
+  usePushRegistration();
+  return null;
+}
+
 export default function App() {
   useEffect(() => {
     useAuthStore.getState().initialize();
@@ -80,7 +87,14 @@ export default function App() {
       useVoiceSettingsStore.getState().reactivateIfSystemPaused();
     };
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') onInteraction();
+      if (document.visibilityState === 'visible') {
+        onInteraction();
+        // #208: web wake-lock auto-released on hide — reacquire if still active.
+        void reacquireIfActive();
+      } else {
+        // Release on background for battery; reacquired above on return.
+        void suspendWakeLock();
+      }
     };
     document.addEventListener('pointerdown', onInteraction, { passive: true });
     document.addEventListener('keydown', onInteraction);
@@ -101,6 +115,7 @@ export default function App() {
               <DeepLinkErrorReporter />
               <AuthHandoffListener />
               <NavigateLogger />
+              <PushRegistrar />
               <OnboardingVoiceProvider>
                 <AppRoutes />
               </OnboardingVoiceProvider>

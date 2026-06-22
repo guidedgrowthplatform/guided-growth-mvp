@@ -110,7 +110,11 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
       speak("21 days in. You're building something lasting.");
     } else if (reps >= 7) {
       milestoneDays = 7;
-      speak("One week. You showed up seven days in a row. That's not luck \u2014 that's you.");
+      speak(
+        habit?.habitType === 'binary_avoid'
+          ? "One week. You stayed clean seven days in a row. That's not luck \u2014 that's you."
+          : "One week. You showed up seven days in a row. That's not luck \u2014 that's you.",
+      );
     }
     if (milestoneDays > 0) {
       track('streak_milestone_reached', {
@@ -118,7 +122,7 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
         streak_count: milestoneDays,
       });
     }
-  }, [stats, isLoading, habit?.name]);
+  }, [stats, isLoading, habit?.name, habit?.habitType]);
   if (isLoading) {
     return (
       <BottomSheet
@@ -158,6 +162,7 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
   }
 
   const milestones = buildMilestones(stats.totalRepetitions);
+  const isAvoid = habit.habitType === 'binary_avoid';
 
   return (
     <BottomSheet
@@ -182,12 +187,14 @@ export function HabitDetailPage({ habitId, onClose }: HabitDetailPageProps) {
               totalRepetitions={stats.totalRepetitions}
               sinceDate={stats.sinceDate}
               calendarData={calendarData}
+              isAvoid={isAvoid}
             />
             <StatsGrid
               completionRate={stats.completionRate}
               currentStreak={stats.currentStreak}
               longestStreak={stats.longestStreak}
               failedDays={stats.failedDays}
+              isAvoid={isAvoid}
             />
             <ReflectionCard habitName={habit.name} onLogReflection={handleLogReflection} />
             <MilestonesSection milestones={milestones} />

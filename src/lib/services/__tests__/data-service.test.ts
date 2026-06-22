@@ -87,6 +87,35 @@ function createDataServiceTests(name: string, factory: () => DataService) {
         const completions = await svc.getCompletions(habit.id);
         expect(completions.length).toBeGreaterThanOrEqual(3);
       });
+
+      it('should mark a habit as done', async () => {
+        const habit = await svc.createHabit('Test');
+        const c = await svc.completeHabit(habit.id, '2026-03-05');
+        expect(c.status).toBe('done');
+      });
+
+      it('should mark a habit as missed', async () => {
+        const habit = await svc.createHabit('Test');
+        const c = await svc.missHabit(habit.id, '2026-03-05');
+        expect(c.status).toBe('missed');
+      });
+
+      it('should flip missed to done on re-complete (one row per day)', async () => {
+        const habit = await svc.createHabit('Test');
+        await svc.missHabit(habit.id, '2026-03-05');
+        await svc.completeHabit(habit.id, '2026-03-05');
+        const completions = await svc.getCompletions(habit.id, '2026-03-05', '2026-03-05');
+        expect(completions).toHaveLength(1);
+        expect(completions[0].status).toBe('done');
+      });
+
+      it('should clear a habit back to pending (no row)', async () => {
+        const habit = await svc.createHabit('Test');
+        await svc.completeHabit(habit.id, '2026-03-05');
+        await svc.clearHabit(habit.id, '2026-03-05');
+        const completions = await svc.getCompletions(habit.id, '2026-03-05', '2026-03-05');
+        expect(completions).toHaveLength(0);
+      });
     });
 
     // ── Metrics ─────────────────────────────────────────────────────

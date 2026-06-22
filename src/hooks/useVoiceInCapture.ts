@@ -9,6 +9,29 @@ import {
 
 export type VapiStatus = 'idle' | 'connecting' | 'active' | 'ended' | 'error' | null | undefined;
 
+// Bound auto-restart so a hard-down link can't hot-loop the mic boot.
+const MAX_AUTO_RESTARTS = 3;
+const AUTO_RESTART_WINDOW_MS = 60000;
+
+// A denied/missing mic is permanent — restarting just re-prompts forever.
+// Everything else (WS drop, watchdog timeout, dead capture) is transient.
+export function isRecoverableVoiceError(msg: string): boolean {
+  const m = msg.toLowerCase();
+  if (
+    m.includes('permission') ||
+    m.includes('notallowed') ||
+    m.includes('not allowed') ||
+    m.includes('denied') ||
+    m.includes('notfound') ||
+    m.includes('not found') ||
+    m.includes('no device') ||
+    m.includes('requested device')
+  ) {
+    return false;
+  }
+  return true;
+}
+
 // Vapi-released gate. Local mic must not contend with WebRTC track.
 export function shouldStartVoiceIn(active: boolean, vapiStatus: VapiStatus): boolean {
   if (!active) return false;
@@ -35,11 +58,16 @@ export function useVoiceInCapture({
   isListening: boolean;
 } {
   const [isListening, setIsListening] = useState(false);
+  // Bumping this re-runs the session effect to boot a fresh mic after a transient drop.
+  const [restartNonce, setRestartNonce] = useState(0);
   const onTranscriptRef = useRef(onTranscript);
   const onInterimRef = useRef(onInterim);
   const onErrorRef = useRef(onError);
   const respondingRef = useRef(responding);
   const sessionRef = useRef<BrowserSttHandle | null>(null);
+  const restartStampsRef = useRef<number[]>([]);
+  // Suppress the misleading "can't hear you" bubble once we've already transcribed speech this session.
+  const heardAnyFinalRef = useRef(false);
 
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
@@ -59,6 +87,12 @@ export function useVoiceInCapture({
     sessionRef.current?.setResponding(responding === true);
   }, [responding]);
 
+  // A real start/stop (not an auto-restart) gets a fresh restart budget.
+  useEffect(() => {
+    restartStampsRef.current = [];
+    heardAnyFinalRef.current = false;
+  }, [active, vapiStatus]);
+
   useEffect(() => {
     if (!VOICE_IN_ENABLED) return;
     if (!shouldStartVoiceIn(active, vapiStatus)) return;
@@ -71,7 +105,10 @@ export function useVoiceInCapture({
       onFinal: (t) => {
         // forward post-teardown — stop()'s finalize must still deliver the turn
         const trimmed = t.trim();
-        if (trimmed) onTranscriptRef.current(trimmed);
+        if (trimmed) {
+          heardAnyFinalRef.current = true;
+          onTranscriptRef.current(trimmed);
+        }
       },
       onStateChange: (s: SonioxState) => {
         if (!disposed) setIsListening(s === 'listening');
@@ -80,6 +117,23 @@ export function useVoiceInCapture({
       onError: (msg) => {
         if (disposed) return;
         setIsListening(false);
+        // Vapi may have taken over since boot — never restart into a live WebRTC track.
+        if (isRecoverableVoiceError(msg) && shouldStartVoiceIn(active, vapiStatus)) {
+          const now = Date.now();
+          const recent = restartStampsRef.current.filter((t) => now - t < AUTO_RESTART_WINDOW_MS);
+          if (recent.length < MAX_AUTO_RESTARTS) {
+            recent.push(now);
+            restartStampsRef.current = recent;
+            setRestartNonce((n) => n + 1);
+            return;
+          }
+          // Budget spent on a transient error AFTER we already heard speech: don't accuse the user
+          // of being unhearable. Recovery still ran; only the misleading bubble is swallowed.
+          if (heardAnyFinalRef.current) {
+            track('voice_in_recoverable_error_swallowed', { msg });
+            return;
+          }
+        }
         onErrorRef.current?.(msg);
       },
     });
@@ -92,7 +146,7 @@ export function useVoiceInCapture({
       handle.stop();
       setIsListening(false);
     };
-  }, [active, vapiStatus]);
+  }, [active, vapiStatus, restartNonce]);
 
   return { isListening };
 }

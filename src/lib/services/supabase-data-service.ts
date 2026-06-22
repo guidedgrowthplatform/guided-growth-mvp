@@ -5,6 +5,7 @@ import { encryptJournal, decryptJournal } from '../utils/journal-crypto';
 import type {
   DataService,
   Habit,
+  HabitType,
   HabitCompletion,
   TrackedMetric,
   MetricEntry,
@@ -37,7 +38,12 @@ function getCurrentAuthUserId(): string {
 }
 
 export class SupabaseDataService implements DataService {
-  async createHabit(name: string, frequency = 'daily', scheduleDays?: number[]): Promise<Habit> {
+  async createHabit(
+    name: string,
+    frequency = 'daily',
+    scheduleDays?: number[],
+    habitType: HabitType = 'binary_do',
+  ): Promise<Habit> {
     if (name.length > 100) throw new Error('Habit name too long (max 100 characters)');
 
     const existing = await this.getHabitByName(name);
@@ -52,7 +58,7 @@ export class SupabaseDataService implements DataService {
       .insert({
         anon_id: anonId,
         name,
-        habit_type: 'binary_do',
+        habit_type: habitType,
         cadence:
           frequency === 'daily'
             ? 'daily'
@@ -77,6 +83,7 @@ export class SupabaseDataService implements DataService {
       name: data.name,
       frequency: data.cadence,
       scheduleDays: data.schedule_days ?? null,
+      habitType: (data.habit_type as HabitType) ?? 'binary_do',
       createdAt: data.created_at,
       active: data.is_active,
     };
@@ -99,6 +106,7 @@ export class SupabaseDataService implements DataService {
       name: h.name,
       frequency: h.cadence,
       scheduleDays: h.schedule_days ?? null,
+      habitType: (h.habit_type as HabitType) ?? 'binary_do',
       createdAt: h.created_at,
       active: h.is_active,
     }));
@@ -120,6 +128,7 @@ export class SupabaseDataService implements DataService {
       name: h.name,
       frequency: h.cadence,
       scheduleDays: h.schedule_days ?? null,
+      habitType: (h.habit_type as HabitType) ?? 'binary_do',
       createdAt: h.created_at,
       active: h.is_active,
     }));
@@ -142,6 +151,7 @@ export class SupabaseDataService implements DataService {
       name: data.name,
       frequency: data.cadence,
       scheduleDays: data.schedule_days ?? null,
+      habitType: (data.habit_type as HabitType) ?? 'binary_do',
       createdAt: data.created_at,
       active: data.is_active,
     };
@@ -170,6 +180,7 @@ export class SupabaseDataService implements DataService {
       name: row.name,
       frequency: row.cadence,
       scheduleDays: row.schedule_days ?? null,
+      habitType: (row.habit_type as HabitType) ?? 'binary_do',
       createdAt: row.created_at,
       active: row.is_active,
     };
@@ -200,6 +211,7 @@ export class SupabaseDataService implements DataService {
       name: data.name,
       frequency: data.cadence,
       scheduleDays: data.schedule_days ?? null,
+      habitType: (data.habit_type as HabitType) ?? 'binary_do',
       createdAt: data.created_at,
       active: data.is_active,
     };
@@ -217,8 +229,12 @@ export class SupabaseDataService implements DataService {
     if (error) throw new Error(error.message);
   }
 
-  async completeHabit(habitId: string, date: string): Promise<HabitCompletion> {
-    if (date > todayStr()) throw new Error('Cannot complete habit for future dates');
+  private async setHabitDayStatus(
+    habitId: string,
+    date: string,
+    status: 'done' | 'missed',
+  ): Promise<HabitCompletion> {
+    if (date > todayStr()) throw new Error('Cannot mark habit for future dates');
 
     const anonId = getCurrentAnonId();
     const { data: ownerCheck, error: ownerError } = await supabase
@@ -237,6 +253,7 @@ export class SupabaseDataService implements DataService {
           anon_id: anonId,
           habit_id: habitId,
           date,
+          status,
         },
         { onConflict: 'habit_id,date' },
       )
@@ -250,10 +267,19 @@ export class SupabaseDataService implements DataService {
       habitId: data.habit_id,
       date: data.date,
       completedAt: data.completed_at,
+      status: data.status,
     };
   }
 
-  async uncompleteHabit(habitId: string, date: string): Promise<void> {
+  async completeHabit(habitId: string, date: string): Promise<HabitCompletion> {
+    return this.setHabitDayStatus(habitId, date, 'done');
+  }
+
+  async missHabit(habitId: string, date: string): Promise<HabitCompletion> {
+    return this.setHabitDayStatus(habitId, date, 'missed');
+  }
+
+  async clearHabit(habitId: string, date: string): Promise<void> {
     const anonId = getCurrentAnonId();
     const { data: ownerCheck, error: ownerError } = await supabase
       .from('user_habits')
@@ -305,6 +331,7 @@ export class SupabaseDataService implements DataService {
       habitId: c.habit_id,
       date: c.date,
       completedAt: c.completed_at,
+      status: c.status ?? 'done',
     }));
   }
 
@@ -567,7 +594,9 @@ export class SupabaseDataService implements DataService {
     startDate.setDate(startDate.getDate() - daysBack);
     const startStr = startDate.toISOString().split('T')[0];
 
-    const completions = await this.getCompletions(habitId, startStr);
+    const completions = (await this.getCompletions(habitId, startStr)).filter(
+      (c) => c.status === 'done',
+    );
 
     return {
       habit,
@@ -710,6 +739,7 @@ export class SupabaseDataService implements DataService {
       habitId: c.habit_id,
       date: c.date,
       completedAt: c.completed_at,
+      status: c.status ?? 'done',
     }));
   }
 

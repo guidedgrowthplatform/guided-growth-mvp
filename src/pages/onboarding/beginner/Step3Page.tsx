@@ -8,20 +8,9 @@ import { type OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { categories, CATEGORY_LABELS, categoryImage } from '@/lib/onboarding/categoryTiles';
+import { useCtaLoading } from '../shared/useCtaLoading';
 import { useStepTiming } from '../shared/useStepTiming';
-
-const categories = [
-  { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
-  { label: 'Move more', image: '/images/onboarding/move-more.jpg' },
-  { label: 'Eat better', image: '/images/onboarding/eat-better.png' },
-  { label: 'Feel more energized', image: '/images/onboarding/feel-more-energized.png' },
-  { label: 'Reduce stress', image: '/images/onboarding/reduce-stress.png' },
-  { label: 'Improve focus', image: '/images/onboarding/improve-focus.jpg' },
-  { label: 'Break bad habits', image: '/images/onboarding/break-bad-habits.png' },
-  { label: 'Get more organized', image: '/images/onboarding/get-more-organized.png' },
-];
-
-const CATEGORY_LABELS = categories.map((c) => c.label);
 
 export function Step3Page() {
   const navigate = useNavigate();
@@ -58,15 +47,18 @@ export function Step3Page() {
     navigate('/onboarding/step-4', { state: { category: selected } });
   }, [selected, navigate, saveStepAsync, trackStepComplete]);
 
+  const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleNext);
+
   return (
     <OnboardingLayout
       screenId="ONBOARD-BEGINNER-01"
       formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"
-      onNext={handleNext}
+      onNext={handleNextCta}
       onBack={() => navigate('/onboarding/step-2')}
       ctaDisabled={!selected}
+      ctaLoading={ctaLoading}
       showVoiceButton
       aiListeningPrompt='"What is the main category you would like to focus on?"'
       onVoiceAction={handleVoiceAction}
@@ -76,10 +68,10 @@ export function Step3Page() {
         subtitle="Pick one area to start. You can always add more later."
       />
       <div className="grid grid-cols-2 gap-[16px]">
-        {categories.map((c) => (
+        {categories.map((c, i) => (
           <CategoryCard
             key={c.label}
-            image={c.image}
+            image={categoryImage(c, i, onboardingState?.data?.gender)}
             label={c.label}
             selected={selected === c.label}
             onSelect={() => setSelected(c.label)}

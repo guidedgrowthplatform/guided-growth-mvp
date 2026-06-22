@@ -1,12 +1,15 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { track } from '@/analytics';
+import { DailyProgressCard } from '@/components/habits/DailyProgressCard';
 import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { useToast } from '@/contexts/ToastContext';
 import { useHabitsForDate } from '@/hooks/useHabitsForDate';
 import type { HabitWithStatus } from '@/hooks/useHabitsForDate';
 import { useSessionLog } from '@/hooks/useSessionLog';
+import type { HabitDayStatus } from '@/lib/services/data-service.interface';
 import { getDataService } from '@/lib/services/service-provider';
+import { formatFrequency } from '@/lib/utils/formatFrequency';
 import { HabitListItem } from './HabitListItem';
 import { SectionHeader } from './SectionHeader';
 
@@ -25,7 +28,7 @@ export function HabitsSection({ selectedDate, screenId }: HabitsSectionProps) {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const { logEvent } = useSessionLog();
-  const { habits, loading, error, toggleComplete, reload } = useHabitsForDate(
+  const { habits, loading, error, setHabitStatus, reload } = useHabitsForDate(
     selectedDate,
     screenId,
   );
@@ -61,11 +64,11 @@ export function HabitsSection({ selectedDate, screenId }: HabitsSectionProps) {
     navigate('/journal', { state });
   };
 
-  const handleToggle = async (habitId: string, currentlyCompleted: boolean) => {
+  const handleSetStatus = async (habitId: string, next: HabitDayStatus) => {
     const target = habits.find((h) => h.habit.id === habitId);
     try {
-      await toggleComplete(habitId, currentlyCompleted);
-      if (target && !currentlyCompleted) {
+      await setHabitStatus(habitId, next);
+      if (target && next === 'done') {
         const now = new Date();
         const hour = now.getHours();
         const timeOfDay =
@@ -76,9 +79,11 @@ export function HabitsSection({ selectedDate, screenId }: HabitsSectionProps) {
           day_of_week: now.toLocaleDateString('en-US', { weekday: 'long' }),
           time_of_day: timeOfDay,
         });
+      } else if (target && next === 'missed') {
+        track('miss_habit', { habit_name: target.habit.name, current_streak: target.streak });
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to toggle habit';
+      const msg = err instanceof Error ? err.message : 'Failed to update habit';
       addToast('error', msg);
     }
   };
@@ -159,14 +164,19 @@ export function HabitsSection({ selectedDate, screenId }: HabitsSectionProps) {
         onAction={() => navigate('/habits')}
       />
       <div className="flex flex-col gap-3">
+        <DailyProgressCard
+          completed={habits.filter((h) => h.completed).length}
+          total={habits.length}
+        />
         {habits.map((item) => (
           <HabitListItem
             key={item.habit.id}
             name={item.habit.name}
-            subtitle={item.habit.frequency}
+            subtitle={formatFrequency(item.habit.frequency)}
             streak={item.streak}
-            isCompleted={item.completed}
-            onToggleComplete={() => handleToggle(item.habit.id, item.completed)}
+            status={item.status}
+            habitType={item.habit.habitType}
+            onSetStatus={(next) => handleSetStatus(item.habit.id, next)}
             onAddNote={() => handleAddNote(item.habit.name)}
             onClick={() => navigate('/habit/' + item.habit.id)}
             onDelete={() => setPendingDelete(item)}

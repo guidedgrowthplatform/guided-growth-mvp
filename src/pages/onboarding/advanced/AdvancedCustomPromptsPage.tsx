@@ -1,8 +1,8 @@
-import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
+import { ReflectionModeEditor } from '@/components/onboarding/ReflectionModeEditor';
 import {
   useOnboardingVoice,
   type OnboardingVoiceResult,
@@ -34,7 +34,7 @@ function deserializePrompts(value: unknown): string[] {
 export function AdvancedCustomPromptsPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { state: onboardingState } = useOnboarding();
+  const { state: onboardingState, saveStepAsync } = useOnboarding();
   const onboardingVoice = useOnboardingVoice();
   const state = location.state as LocationState | null;
 
@@ -52,7 +52,6 @@ export function AdvancedCustomPromptsPage() {
   const [prompts, setPrompts] = useState<string[]>(
     state?.customPrompts?.length ? state.customPrompts : [],
   );
-  const [newPrompt, setNewPrompt] = useState('');
 
   useEffect(() => {
     const incoming = onboardingState?.data?.customPrompts;
@@ -65,10 +64,6 @@ export function AdvancedCustomPromptsPage() {
 
   const filledPrompts = prompts.filter((p) => p.trim().length > 0);
   const canSubmit = journalMode === 'freeform' || filledPrompts.length >= 1;
-
-  function updatePrompt(index: number, value: string) {
-    setPrompts((prev) => prev.map((p, i) => (i === index ? value : p)));
-  }
 
   const snapshot = useOnboardingFormSnapshot({
     customPrompts: filledPrompts.length > 0 ? filledPrompts : undefined,
@@ -90,11 +85,13 @@ export function AdvancedCustomPromptsPage() {
     setJournalMode('custom');
   }, []);
 
-  function deletePrompt(index: number) {
-    setPrompts((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  const handleDone = useCallback(() => {
+  const handleDone = useCallback(async () => {
+    // Persist the mode choice so onboarding-complete can materialize it.
+    // 'custom' is the prompts mode with a user-defined list.
+    await saveStepAsync(5, {
+      reflectionMode: journalMode === 'freeform' ? 'freeform' : 'prompts',
+      customPrompts: journalMode === 'custom' ? filledPrompts : undefined,
+    });
     trackStepComplete();
     navigate('/onboarding/advanced-step-6', {
       state: {
@@ -103,7 +100,7 @@ export function AdvancedCustomPromptsPage() {
         journalMode,
       },
     });
-  }, [navigate, state?.habitConfigs, journalMode, filledPrompts, trackStepComplete]);
+  }, [navigate, state?.habitConfigs, journalMode, filledPrompts, trackStepComplete, saveStepAsync]);
 
   return (
     <OnboardingLayout
@@ -119,136 +116,16 @@ export function AdvancedCustomPromptsPage() {
       onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
-        title="How do you want to journal?"
-        subtitle="Choose a blank canvas or design your own specific questions."
+        title="How do you want to reflect?"
+        subtitle="Choose guided questions, create your own, or just talk freely."
       />
 
-      <div className="flex flex-col gap-[16px]">
-        <button
-          type="button"
-          onClick={() => setJournalMode('freeform')}
-          className={`rounded-[20px] p-[21px] text-left shadow-[0px_1px_2px_rgba(0,0,0,0.05)] ${
-            journalMode === 'freeform'
-              ? 'border-2 border-primary bg-primary/5'
-              : 'border border-border bg-surface'
-          }`}
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex flex-1">
-              <Icon
-                icon="mdi:pencil"
-                width={18}
-                height={20}
-                className="mt-[2px] shrink-0 text-content"
-              />
-              <div className="flex flex-col pl-[12px]">
-                <span className="text-[18px] font-bold text-content">Freeform Journaling</span>
-                <span className="mt-[4px] text-[14px] leading-[22.75px] text-content-secondary">
-                  No rules, no set questions. Just a blank space to talk or vent about whatever is
-                  on your mind each day.
-                </span>
-              </div>
-            </div>
-            <div
-              className={`ml-[12px] mt-[2px] flex size-[20px] shrink-0 items-center justify-center rounded-full border-2 ${
-                journalMode === 'freeform' ? 'border-primary bg-primary' : 'border-border'
-              }`}
-            >
-              {journalMode === 'freeform' && <div className="size-[8px] rounded-full bg-white" />}
-            </div>
-          </div>
-        </button>
-
-        <div
-          onClick={() => setJournalMode('custom')}
-          className={`cursor-pointer rounded-[20px] p-[22px] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] ${
-            journalMode === 'custom'
-              ? 'border-2 border-primary bg-primary/5'
-              : 'border border-border bg-surface'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Icon
-                icon="material-symbols:format-list-bulleted"
-                width={18}
-                height={15}
-                className="text-content"
-              />
-              <span className="pl-[12px] text-[18px] font-bold text-content">Custom Prompts</span>
-            </div>
-            <div
-              className={`flex size-[20px] items-center justify-center rounded-full border-2 ${
-                journalMode === 'custom' ? 'border-primary bg-primary' : 'border-border'
-              }`}
-            >
-              {journalMode === 'custom' && <div className="size-[8px] rounded-full bg-white" />}
-            </div>
-          </div>
-
-          {journalMode === 'custom' && (
-            <div className="mt-[16px] flex flex-col gap-[16px]">
-              <div className="border-t border-border" />
-              <span className="text-[14px] font-semibold uppercase leading-[20px] tracking-[0.7px] text-content-secondary">
-                Add at least 1 prompt:
-              </span>
-
-              {prompts.map((prompt, i) =>
-                prompt.trim() ? (
-                  <div key={i} className="flex items-center">
-                    <input
-                      type="text"
-                      value={prompt}
-                      onChange={(e) => updatePrompt(i, e.target.value)}
-                      className="flex-1 rounded-[12px] border border-border bg-surface-secondary px-[17px] py-[13px] text-[16px] leading-[24px] text-content shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deletePrompt(i);
-                      }}
-                      className="shrink-0 p-[8px] pl-[8px]"
-                    >
-                      <Icon
-                        icon="ic:round-close"
-                        width={12}
-                        height={12}
-                        className="text-content-secondary"
-                      />
-                    </button>
-                  </div>
-                ) : null,
-              )}
-
-              <div className="flex flex-col gap-[8px]">
-                <input
-                  type="text"
-                  value={newPrompt}
-                  onChange={(e) => setNewPrompt(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newPrompt.trim()) {
-                      setPrompts([...prompts, newPrompt.trim()]);
-                      setNewPrompt('');
-                    }
-                  }}
-                  onBlur={() => {
-                    if (newPrompt.trim()) {
-                      setPrompts([...prompts, newPrompt.trim()]);
-                      setNewPrompt('');
-                    }
-                  }}
-                  placeholder="Type your next prompt here..."
-                  className="w-full rounded-[12px] border border-border bg-surface-secondary px-[17px] py-[11px] text-[14px] text-content shadow-[0px_1px_2px_rgba(0,0,0,0.05)] placeholder:text-content-secondary"
-                />
-                <p className="px-[4px] text-[12px] leading-[16px] text-content-secondary">
-                  Or tap the mic above and say your prompts out loud. We'll list them for you.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <ReflectionModeEditor
+        mode={journalMode === 'freeform' ? 'freeform' : 'prompts'}
+        onModeChange={(m) => setJournalMode(m === 'freeform' ? 'freeform' : 'custom')}
+        prompts={prompts}
+        onPromptsChange={setPrompts}
+      />
     </OnboardingLayout>
   );
 }

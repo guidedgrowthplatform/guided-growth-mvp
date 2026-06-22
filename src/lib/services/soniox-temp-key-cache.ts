@@ -18,7 +18,7 @@ let inFlight: Promise<string> | null = null;
 let warmLoopHandle: ReturnType<typeof setInterval> | null = null;
 let warmLoopActive = false;
 
-export async function fetchTempKey(): Promise<string> {
+async function fetchTempKey(): Promise<string> {
   const headers = await getAuthHeaders();
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), MINT_TIMEOUT_MS);

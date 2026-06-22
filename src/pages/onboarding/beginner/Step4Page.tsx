@@ -1,6 +1,6 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
@@ -10,6 +10,7 @@ import { goalsByCategory } from '@/data/onboardingHabits';
 import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
+import { useCtaLoading } from '../shared/useCtaLoading';
 import { useStepTiming } from '../shared/useStepTiming';
 
 export function Step4Page() {
@@ -23,8 +24,10 @@ export function Step4Page() {
   // user gets here either way) so both paths render the right subcategory.
   const persistedCategory = onboardingState?.data?.category as string | undefined;
   const stateCategory = (location.state as { category?: string })?.category;
-  const category = persistedCategory ?? stateCategory ?? 'Sleep better';
-  const goals = goalsByCategory[category] ?? goalsByCategory['Sleep better'];
+  // No fallback: a missing category means step-3 didn't run / data was wiped.
+  // Don't pretend to know the right subcategory — redirect to step-3 (guard below).
+  const category = persistedCategory ?? stateCategory;
+  const goals = category ? (goalsByCategory[category] ?? []) : [];
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // ONBOARD-04 → step-5 on agent advance.
@@ -82,22 +85,31 @@ export function Step4Page() {
     navigate('/onboarding/step-5', { state: { goals: Array.from(selected), category } });
   }, [selected, category, navigate, saveStepAsync, trackStepComplete]);
 
+  const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleNext);
+
+  // Render guard — declared after all hooks. If we arrived here without a
+  // category captured (browser refresh, agent skipped step-3, OnboardingEntry
+  // redirect with stale current_step), send the user back to step-3 instead of
+  // showing a guessed default.
+  if (!category) return <Navigate to="/onboarding/step-3" replace />;
+
   return (
     <OnboardingLayout
       screenId="ONBOARD-BEGINNER-02"
       formSnapshot={snapshot}
       ctaLabel="Continue"
       ctaVariant="inline"
-      onNext={handleNext}
+      onNext={handleNextCta}
       onBack={() => navigate('/onboarding/step-3')}
       ctaDisabled={selected.size === 0}
+      ctaLoading={ctaLoading}
       showVoiceButton
       aiListeningPrompt='"Within that category, what specific area would you like to improve?"'
       onVoiceAction={handleVoiceAction}
     >
       <OnboardingHeader
         title="Let's narrow it down"
-        subtitle={`Choose 1 or 2 specific goals to help you ${category.toLowerCase()}`}
+        subtitle={`Choose 1 or 2 specific areas to help you ${category.toLowerCase()}`}
       />
       <div className="inline-flex items-center gap-1 rounded-[10px] bg-surface px-2 py-1">
         <Icon icon="iconamoon:category" width={24} height={24} className="text-content" />

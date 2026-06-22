@@ -2,13 +2,15 @@ import { useCallback } from 'react';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { stopTTS, unlockTTS } from '@/lib/services/tts-service';
 
+export type MicRequestResult = 'granted' | 'denied' | 'unavailable';
+
 export interface DualButtonControls {
   voiceOn: boolean;
   micOn: boolean;
   micAllowed: boolean;
   toggleVoice: () => void;
   toggleMic: () => void;
-  requestMicPermission: () => Promise<boolean>;
+  requestMicPermission: () => Promise<MicRequestResult>;
 }
 
 export function useDualButtonControls(): DualButtonControls {
@@ -29,18 +31,29 @@ export function useDualButtonControls(): DualButtonControls {
     void updatePreferences({ micEnabled: next });
   }, [micAllowed, micOn, updatePreferences]);
 
-  const requestMicPermission = useCallback(async () => {
-    let granted = true;
+  const requestMicPermission = useCallback(async (): Promise<MicRequestResult> => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((t) => t.stop());
-    } catch {
-      granted = false;
+      await updatePreferences({ micPermission: true, micEnabled: true });
+      unlockTTS();
+      return 'granted';
+    } catch (err) {
+      const name = err instanceof DOMException ? err.name : '';
+      // True denial — downgrade the stored grant.
+      if (name === 'NotAllowedError' || name === 'SecurityError') {
+        await updatePreferences({ micPermission: false, micEnabled: false });
+        return 'denied';
+      }
+      // Transient (device busy / NotReadableError / AbortError) — keep a prior grant.
+      if (micAllowed) {
+        void updatePreferences({ micEnabled: true });
+        unlockTTS();
+        return 'granted';
+      }
+      return 'unavailable';
     }
-    await updatePreferences({ micPermission: granted, micEnabled: granted });
-    if (granted) unlockTTS();
-    return granted;
-  }, [updatePreferences]);
+  }, [updatePreferences, micAllowed]);
 
   return { voiceOn, micOn, micAllowed, toggleVoice, toggleMic, requestMicPermission };
 }

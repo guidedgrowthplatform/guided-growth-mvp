@@ -15,8 +15,10 @@ import {
 } from '@/components/home';
 import { useDisplayName } from '@/hooks/useDisplayName';
 import { useEntries } from '@/hooks/useEntries';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { PERMISSIONS_SEEN_KEY } from '@/lib/permissions';
 import { speak } from '@/lib/services/tts-service';
 import type { EntriesMap } from '@gg/shared/types';
 
@@ -49,6 +51,7 @@ export function HomePage() {
   }, []);
 
   const { entries, load } = useEntries();
+  const { unreadCount } = useNotifications();
 
   useEffect(() => {
     load(dateRange.start, dateRange.end);
@@ -133,6 +136,12 @@ export function HomePage() {
             track('tap_add_habit', { source: 'home_header' });
             navigate('/add-habit');
           }}
+          unreadCount={unreadCount}
+          onBellClick={() =>
+            navigate(
+              localStorage.getItem(PERMISSIONS_SEEN_KEY) ? '/notifications' : '/enable-permissions',
+            )
+          }
         />
         <DateStrip
           selectedDate={selectedDate}

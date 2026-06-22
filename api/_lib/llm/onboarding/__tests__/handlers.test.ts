@@ -32,6 +32,8 @@ const { removeHabit } = await import('../handlers/removeHabit.js');
 const { updateHabit } = await import('../handlers/updateHabit.js');
 const { submitReflectionConfig } = await import('../handlers/submitReflectionConfig.js');
 const { submitBrainDump } = await import('../handlers/submitBrainDump.js');
+const { advanceStep } = await import('../handlers/advanceStep.js');
+const { confirmPlan } = await import('../handlers/confirmPlan.js');
 
 const CTX = { anon_id: '11111111-1111-4111-8111-111111111111' };
 
@@ -152,16 +154,17 @@ describe('submit_path_choice', () => {
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
   });
 
-  it('accepts simple', async () => {
+  it('accepts simple, seeds step 2, does NOT bump current_step', async () => {
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
-      rows: [{ data: {}, current_step: 3, path: 'simple' }],
+      rows: [{ data: {}, current_step: 2, path: 'simple' }],
     });
     const r = await submitPathChoice(CTX, { path: 'simple' });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.result).toMatchObject({ path: 'simple', current_step: 3 });
+    if (r.ok) expect(r.result).toMatchObject({ path: 'simple', current_step: 2 });
     const [sql] = pool.query.mock.calls[0];
-    expect(sql).toMatch(/GREATEST\(onboarding_states\.current_step, 3\)/);
+    expect(sql).not.toMatch(/current_step = GREATEST/);
+    expect(sql).toMatch(/VALUES \(\$1, 2,/);
   });
 
   it('accepts braindump', async () => {
@@ -187,15 +190,16 @@ describe('submit_category', () => {
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
   });
 
-  it('accepts valid category and bumps to step 4', async () => {
+  it('accepts valid category, seeds step 3, does NOT bump current_step', async () => {
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
-      rows: [{ data: { category: 'Sleep better' }, current_step: 4 }],
+      rows: [{ data: { category: 'Sleep better' }, current_step: 3 }],
     });
     const r = await submitCategory(CTX, { category: 'Sleep better' });
     expect(r.ok).toBe(true);
     const [sql] = pool.query.mock.calls[0];
-    expect(sql).toMatch(/GREATEST\(onboarding_states\.current_step, 4\)/);
+    expect(sql).not.toMatch(/current_step = GREATEST/);
+    expect(sql).toMatch(/VALUES \(\$1, 3,/);
   });
 });
 
@@ -478,7 +482,7 @@ describe('add_habit', () => {
     expect(upsert).toBeDefined();
     const [sql, params] = upsert!;
     expect(sql).toMatch(/jsonb_set/);
-    expect(sql).toMatch(/GREATEST\(onboarding_states\.current_step, 5\)/);
+    expect(sql).not.toMatch(/current_step = GREATEST/);
     // $3 is the merge sub-payload { [name]: habitEntry }
     expect(JSON.parse(params[2] as string)).toEqual({
       Walk: {
@@ -499,6 +503,31 @@ describe('add_habit', () => {
     );
     const merge = JSON.parse(upsert![1][2] as string);
     expect(merge.Walk.days).toEqual([1, 2, 3]);
+  });
+
+  it('persists an explicit binary_avoid habit_type', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, { ...validHabit, habit_type: 'binary_avoid' });
+    expect(persistedHabit(client).habitType).toBe('binary_avoid');
+  });
+
+  // Two-call pattern: a prior add_habit staged habitType; the schedule call
+  // omits it and must NOT wipe the avoid polarity back to do.
+  it('preserves a prior habitType when the schedule call omits it', async () => {
+    const client = habitClient({
+      hc: { Walk: { days: [1], time: '07:00', schedule: 'Weekday', habitType: 'binary_avoid' } },
+    });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, { name: 'Walk', schedule: 'Every day' });
+    expect(persistedHabit(client).habitType).toBe('binary_avoid');
+  });
+
+  it('omits habitType entirely when neither the call nor a prior entry set it', async () => {
+    const client = habitClient({ hc: {} });
+    pool.connect.mockResolvedValue(client);
+    await addHabit(CTX, validHabit);
+    expect(persistedHabit(client).habitType).toBeUndefined();
   });
 
   // Mint round-2: days is authoritative — when LLM supplies stale schedule
@@ -625,15 +654,16 @@ describe('submit_reflection_config', () => {
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
   });
 
-  it('accepts valid config and bumps to step 7', async () => {
+  it('accepts valid config, seeds step 6, does NOT bump current_step', async () => {
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
-      rows: [{ data: { reflectionConfig: valid }, current_step: 7 }],
+      rows: [{ data: { reflectionConfig: valid }, current_step: 6 }],
     });
     const r = await submitReflectionConfig(CTX, valid);
     expect(r.ok).toBe(true);
     const [sql, params] = pool.query.mock.calls[0];
-    expect(sql).toMatch(/GREATEST\(onboarding_states\.current_step, 7\)/);
+    expect(sql).not.toMatch(/current_step = GREATEST/);
+    expect(sql).toMatch(/VALUES \(\$1, 6,/);
     expect(JSON.parse(params[1] as string)).toEqual({ reflectionConfig: valid });
   });
 
@@ -688,7 +718,7 @@ describe('submit_brain_dump', () => {
       rows: [
         {
           data: { brainDumpText: text },
-          current_step: 4,
+          current_step: 3,
           brain_dump_raw: text,
         },
       ],
@@ -697,8 +727,122 @@ describe('submit_brain_dump', () => {
     expect(r.ok).toBe(true);
     const [sql, params] = pool.query.mock.calls[0];
     expect(sql).toMatch(/brain_dump_raw = \$3/);
-    expect(sql).toMatch(/GREATEST\(onboarding_states\.current_step, 4\)/);
+    expect(sql).not.toMatch(/current_step = GREATEST/);
+    expect(sql).toMatch(/VALUES \(\$1, 3,/);
     expect(JSON.parse(params[1] as string)).toEqual({ brainDumpText: text });
     expect(params[2]).toBe(text);
+  });
+});
+
+// ─── advance_step ────────────────────────────────────────────────────
+
+describe('advance_step', () => {
+  it('rejects non-integer target_step', async () => {
+    const r = await advanceStep(CTX, { target_step: 2.5 });
+    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects out-of-range target_step (0 and 11)', async () => {
+    const lo = await advanceStep(CTX, { target_step: 0 });
+    const hi = await advanceStep(CTX, { target_step: 11 });
+    expect(lo).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(hi).toMatchObject({ ok: false, error: 'invalid_args' });
+  });
+
+  it('rejects multi-step skip (current=3, target=5)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          current_step: 3,
+          data: { category: 'Sleep better' },
+          path: 'simple',
+          brain_dump_raw: null,
+        },
+      ],
+    });
+    const r = await advanceStep(CTX, { target_step: 5 });
+    expect(r).toMatchObject({ ok: false, error: 'handler_error' });
+    if (!r.ok) expect(r.message).toMatch(/cannot_skip_steps/);
+  });
+
+  it('rejects forward advance when source data missing (current=3, category absent, target=4)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ current_step: 3, data: {}, path: 'simple', brain_dump_raw: null }],
+    });
+    const r = await advanceStep(CTX, { target_step: 4 });
+    expect(r).toMatchObject({ ok: false, error: 'handler_error' });
+    if (!r.ok) expect(r.message).toMatch(/category_or_braindump_missing/);
+  });
+
+  it('success: current=3 with category set, target=4 → bare current_step set', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            current_step: 3,
+            data: { category: 'Sleep better' },
+            path: 'simple',
+            brain_dump_raw: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ current_step: 4 }] });
+    const r = await advanceStep(CTX, { target_step: 4 });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.current_step).toBe(4);
+    const [sql] = pool.query.mock.calls[1];
+    expect(sql).toMatch(/current_step = \$2/);
+    expect(sql).not.toMatch(/GREATEST/);
+  });
+
+  it('back-nav: target below current_step is allowed and skips the data guard', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ current_step: 5, data: {}, path: 'simple', brain_dump_raw: null }],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ current_step: 3 }] });
+    const r = await advanceStep(CTX, { target_step: 3 });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.current_step).toBe(3);
+  });
+});
+
+// ─── confirm_plan ────────────────────────────────────────────────────
+
+describe('confirm_plan', () => {
+  it('rejects when habits + reflection are not yet saved', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ data: {}, current_step: 5 }] });
+    const r = await confirmPlan(CTX, {});
+    expect(r).toMatchObject({ ok: false, error: 'handler_error' });
+    if (!r.ok) expect(r.message).toMatch(/confirm_plan_too_early/);
+  });
+
+  it('rejects when reflection missing even though habits exist', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { habitConfigs: { Walk: {} } }, current_step: 6 }],
+    });
+    const r = await confirmPlan(CTX, {});
+    expect(r).toMatchObject({ ok: false, error: 'handler_error' });
+  });
+
+  it('confirms when habits + reflection both present', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          data: { habitConfigs: { Walk: {} }, reflectionConfig: { time: '21:00' } },
+          current_step: 7,
+        },
+      ],
+    });
+    const r = await confirmPlan(CTX, {});
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result).toMatchObject({ confirmed: true });
   });
 });

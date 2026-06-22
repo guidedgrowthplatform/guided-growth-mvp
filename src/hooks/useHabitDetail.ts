@@ -222,7 +222,7 @@ export function useHabitDetail(habitId: string | undefined): HabitDetailData {
         ? (queryError as Error).message
         : null;
 
-  const dates = completions.map((c) => c.date);
+  const dates = completions.filter((c) => c.status === 'done').map((c) => c.date);
   const { current: currentStreak, longest: longestStreak } = calcStreaks(dates);
 
   const { activeDays, label: frequencyLabel } = habit

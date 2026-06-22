@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { VoiceContext } from '@/contexts/voiceContextDef';
 import type {
@@ -11,6 +11,7 @@ import type {
   VoiceOwner,
   VoiceState,
 } from '@/contexts/voiceContextDef';
+import { acquireWakeLock, releaseWakeLock } from '@/lib/services/keepAwake';
 
 function mintToken(): ReleaseToken {
   return crypto.randomUUID() as ReleaseToken;
@@ -183,6 +184,18 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   );
 
   const voiceState = voiceStateFromOwner(owner);
+
+  // #208: hold the screen wake-lock while any session owns the channel.
+  const sessionActive = owner.kind !== 'idle';
+  useEffect(() => {
+    if (sessionActive) {
+      void acquireWakeLock();
+      return () => {
+        void releaseWakeLock();
+      };
+    }
+    void releaseWakeLock();
+  }, [sessionActive]);
 
   const value = useMemo(
     () => ({
