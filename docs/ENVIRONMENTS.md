@@ -20,6 +20,8 @@ Distinct bundle ids mean a tester can hold dev, staging, and production side by 
 
 Note on naming: `main` is the production branch. "main" and "production" refer to the same stage in this doc.
 
+> **2026-06-10:** for the **database split**, [`supabase-environments.md`](./supabase-environments.md) is now authoritative. The staging Supabase project exists: ref `ppyouymvnrqxcsllrmsl` (prod: `pmunbflbjpoawicgimyc`). A `dev` Supabase project is still not provisioned.
+
 ---
 
 ## What is wired in this repo
@@ -50,6 +52,8 @@ For each of `app.guidedgrowth.dev` and `app.guidedgrowth.staging`:
 Production (`app.guidedgrowth.mvp`) already has its App ID, App record, and match profile.
 
 ### 2. Supabase (per non-prod stage: dev and staging)
+
+> **2026-06-10:** staging is done — project ref `ppyouymvnrqxcsllrmsl`. See [`supabase-environments.md`](./supabase-environments.md) (authoritative) and [`staging-rollout.md`](./staging-rollout.md) for wiring status.
 
 1. Create a Supabase project for the stage.
 2. Run the migrations (`supabase/migrations/`, order: `000 -> 001 -> 002 -> 003`).
@@ -92,7 +96,7 @@ Production is unchanged: push a `v*` tag to ship via `ci.yml` (iOS builds by def
 
 > The previous per-environment iOS dispatch workflow (`mobile-env-release.yml`) and the standalone `qa-android-release.yml` were consolidated into `qa-release.yml`. A `dev` stage is not currently wired.
 >
-> Both QA platforms now share one web bundle built under the `staging` Environment, so the QA app's baked-in config (`VITE_API_URL`, `VITE_*`) follows that Environment. Keep staging's values equal to prod while the backend is shared; if they ever diverge, QA Android content follows staging, not prod.
+> Both QA platforms now share one web bundle built under the `staging` Environment, so the QA app's baked-in config (`VITE_API_URL`, `VITE_*`) follows that Environment. ~~Keep staging's values equal to prod while the backend is shared~~ **(2026-06-10: superseded — the `staging` Environment's values now point at the staging Supabase `ppyouymvnrqxcsllrmsl`; see [`supabase-environments.md`](./supabase-environments.md))**. If values diverge, QA Android content follows staging, not prod.
 
 ---
 

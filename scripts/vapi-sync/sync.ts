@@ -34,8 +34,13 @@ import { wrapTool, type VapiToolEnvelope } from './wrap.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const IS_DEV = process.argv.includes('--dev');
+// --staging: separate Vapi org + lockfile; same tunnel guard as prod
+const IS_STAGING = process.argv.includes('--staging');
 const IS_DRY = process.argv.includes('--dry-run');
-const LOCKFILE = resolve(__dirname, IS_DEV ? 'vapi.lock.dev.json' : 'vapi.lock.json');
+const LOCKFILE = resolve(
+  __dirname,
+  IS_DEV ? 'vapi.lock.dev.json' : IS_STAGING ? 'vapi.lock.staging.json' : 'vapi.lock.json',
+);
 const VAPI_BASE = 'https://api.vapi.ai';
 
 // Safety: never let a tunnel/localhost URL get baked into the prod lockfile.
@@ -235,7 +240,7 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `Syncing ${ONBOARDING_TOOLS.length} tool(s) to Vapi… (mode: ${IS_DEV ? 'DEV' : 'PROD'}, lockfile: ${LOCKFILE.split('/').pop()})`,
+    `Syncing ${ONBOARDING_TOOLS.length} tool(s) to Vapi… (mode: ${IS_DEV ? 'DEV' : IS_STAGING ? 'STAGING' : 'PROD'}, lockfile: ${LOCKFILE.split('/').pop()})`,
   );
 
   const lock = loadLock();
