@@ -1,6 +1,6 @@
 # Environments — Staging (QA) + Production
 
-How Guided Growth runs two environments: **production** (live users) and **staging/QA** (a safe copy for testing). Each has its own Supabase project and its own app URL. Schema **and reference content are both kept identical via migrations** — the catalog (categories/subcategories/starter_habits) ships as an idempotent seed migration (`043_seed_catalog.sql`), so every env gets it from `db push`. The only env-specific data is what testers create. **No prod→staging data copying.**
+How Guided Growth runs two environments: **production** (live users) and **staging/QA** (a safe copy for testing). Each has its own Supabase project and its own app URL. **Schema is kept identical via migrations** (`db push`). The onboarding **catalog** is **code-side**, not in the DB, so it's identical by construction; the one piece of DB-resident reference content, `screen_contexts`, is kept in sync via voice-sync (see §8). The only env-specific data is what testers create. **No prod→staging data copying.**
 
 - **Production project ref:** `pmunbflbjpoawicgimyc`
 - **Staging project ref:** `ppyouymvnrqxcsllrmsl` (created 2026-06-10)
@@ -34,7 +34,7 @@ Principles:
 - **One Vercel project**, not two. The `staging` branch gets a pinned stable domain so testers always use the same link.
 - **No environment branching in code.** Which database the app uses is decided purely by which branch built it, via per-scope env-var _values_ (§7).
 - **Promotion is a normal merge.** `staging` → `main` ships tested work to production.
-- **Schema and reference content sync continuously** (same migration files pushed to both projects — including the catalog seed migration `043_seed_catalog.sql`). **The only env-specific data is what testers create** — no prod→staging copying.
+- **Schema syncs continuously** (same migration files pushed to both projects). The onboarding **catalog** is code-side, identical across envs by construction; `screen_contexts` (the one DB-resident reference table) syncs via voice-sync. **The only env-specific data is what testers create** — no prod→staging copying.
 
 ---
 
@@ -115,19 +115,11 @@ supabase db diff --linked    # detect drift on the linked ref
 supabase db pull             # roundtrip an unmanaged change into a new migration
 ```
 
-### Catalog — idempotent seed migration
+### Catalog — no DB seed (lives in code)
 
-The catalog (`categories` / `subcategories` / `starter_habits`) is captured as a seed **migration** — `supabase/migrations/043_seed_catalog.sql` — so it ships to every env (staging, prod, new dev) on `db push`. It is **not** in `supabase/seed.sql` (that only auto-applies on local `db reset`, never on `db push` to a remote).
+There is **no catalog seed migration.** The `categories` / `subcategories` / `starter_habits` tables are created by `001_onboarding.sql` but are **empty in prod and read by nothing** — the live onboarding taxonomy is code-side (`src/data/onboardingHabits.ts` → `@gg/shared/data/onboardingGoals` + `onboardingHabits`), bundled into both app builds. So staging needs no catalog data load; it ships the same taxonomy via the same code.
 
-The file is **generated**, not hand-written — run `scripts/export-catalog-seed.mjs` (read-only `pg_dump` against prod):
-
-```bash
-PROD_DATABASE_URL="postgresql://…:5432/postgres" node scripts/export-catalog-seed.mjs
-```
-
-It emits `INSERT … ON CONFLICT DO NOTHING` (`--column-inserts --on-conflict-do-nothing`) with the rows' real prod UUIDs, dumped **per table in FK order** (`categories` → `subcategories` → `starter_habits`). Because prod already holds these rows, re-applying there is a harmless no-op; staging/dev get byte-identical ids. The exporter is read-only — it never writes to prod.
-
-Idempotency is **additive only** (`DO NOTHING` never updates). If the prod catalog changes later, re-run the exporter to regenerate the file before it's applied, or write a **new forward migration** (044+) — never hand-edit `043` once it's been applied anywhere.
+(An earlier `043_seed_catalog.sql` seed + `scripts/export-catalog-seed.mjs` were dropped — they sourced empty rows from empty prod tables to seed vestigial tables. The DB-vs-code catalog split is a separate cleanup question, out of scope here.)
 
 ### Tester data — env-local, never copied
 
@@ -194,7 +186,7 @@ vercel env add DATABASE_URL preview
 Active CI runs on **GitHub Actions** (`.github/workflows/` — `ci.yml`, `voice-sync.yml` hourly, `qa-release.yml`, `match-bootstrap.yml`). The repo + MRs live on **GitLab**, mirrored to GitHub for Actions. The root `.gitlab-ci.yml` voice-sync job is disabled (`rules: when: never`) — add new automation as GitHub workflows, not there.
 
 - **On MR:** `supabase db start` → apply migrations to an ephemeral local DB → optionally regenerate types and fail on uncommitted diff. No remote push.
-- **On push to `staging`:** `supabase link --project-ref $STAGING_PROJECT_REF && supabase db push` (applies migrations, including the catalog seed migration), then staging voice-sync for `screen_contexts`. No data refresh — there is none.
+- **On push to `staging`:** `supabase link --project-ref $STAGING_PROJECT_REF && supabase db push` (applies migrations), then staging voice-sync for `screen_contexts`. No data refresh — there is none.
 - **On `main`:** same `db push` but a **MANUAL `workflow_dispatch` job, never auto-on-push** [APPROVAL REQUIRED].
 
 GitHub Actions secrets (never in repo): `SUPABASE_ACCESS_TOKEN`, `STAGING_PROJECT_REF`, `STAGING_DB_PASSWORD`, plus prod equivalents.
@@ -246,7 +238,7 @@ jobs:
 7. **[dashboard]** On staging: enable Custom Access Token hook; set Site URL + redirect allowlist (include the QA app URL); configure Google OAuth client + redirect URIs; replicate email templates + Resend sender.
 8. **[Vercel]** Add Preview-scope env vars → staging (`DATABASE_URL` = staging **pooler**). Confirm Production scope still → prod.
 9. Add a staging voice-sync CI run; leave the hourly prod job untouched.
-10. Catalog content arrives automatically via `db push` (the `043_seed_catalog.sql` seed migration) — no manual data load, no anonymization. Tester data is created in staging directly.
+10. Onboarding catalog is code-side (not in the DB) — identical across envs by construction, no data load or anonymization. Tester data is created in staging directly.
 11. Add GitHub Actions workflows: auto `db push` on push to `staging`, **manual** (`workflow_dispatch`) `db push` for prod.
 12. Add an "Environments" note to `CLAUDE.md`/`HANDOFF.md` naming both refs + the QA app URL.
 13. Smoke test staging: Google + email sign-in, an onboarding session (JWT hook + realtime isolation), a `/api/llm` call; confirm writes land in **staging**, not prod.
