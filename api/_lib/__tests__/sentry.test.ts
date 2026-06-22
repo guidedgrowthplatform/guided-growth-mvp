@@ -141,6 +141,22 @@ describe('flushSentry', () => {
   });
 });
 
+describe('environment tag', () => {
+  it('prefers SENTRY_ENVIRONMENT over VERCEL_ENV at init', async () => {
+    vi.resetModules();
+    sentry.init.mockClear();
+    const saved = { e: process.env.SENTRY_ENVIRONMENT, v: process.env.VERCEL_ENV };
+    process.env.SENTRY_DSN = 'https://abc@o1.ingest.sentry.io/1';
+    process.env.SENTRY_ENVIRONMENT = 'staging';
+    process.env.VERCEL_ENV = 'preview';
+    await import('../sentry.js');
+    expect(sentry.init.mock.calls[0]?.[0].environment).toBe('staging');
+    process.env.SENTRY_ENVIRONMENT = saved.e;
+    process.env.VERCEL_ENV = saved.v;
+    vi.resetModules();
+  });
+});
+
 describe('no DSN', () => {
   it('skips capture and flush entirely', async () => {
     vi.resetModules();

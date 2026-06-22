@@ -161,23 +161,25 @@ Plus per-project: a **Google OAuth client** for staging (add its callback to the
 
 ## 7. Vercel env wiring
 
-Same variable names, different scopes. Production scope → `main` (prod DB); Preview scope → `staging` branch + all feature previews (staging DB).
+Same variable names, different scopes. Production scope → `main` (prod DB); Preview scope → `staging` branch + all feature previews (staging DB). Two consumers need values, in two different places:
 
-```bash
-# Production scope → prod ref
-vercel env add SUPABASE_URL production
-vercel env add SUPABASE_SERVICE_ROLE_KEY production
-vercel env add DATABASE_URL production
-# + VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY / VITE_PUBLIC_WEB_ORIGIN production
+### (A) Vercel Preview scope — web QA + API runtime
 
-# Preview scope → staging ref
-vercel env add SUPABASE_URL preview
-vercel env add SUPABASE_SERVICE_ROLE_KEY preview
-vercel env add DATABASE_URL preview
-# + staging VITE_* + VITE_PUBLIC_WEB_ORIGIN preview
-```
+Set each `preview`-scoped to staging values (prod-scoped to prod). Without the voice/LLM/email keys, QA's text/Direct-LLM onboarding 500s.
 
-`VITE_*` are baked at build time, so a Preview build must receive staging values, a Production build prod values. One project per build — cannot mix. The stable QA app is just the `staging` branch's deployment, so it inherits the Preview-scope values.
+- **Supabase/DB:** `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` (pooler 6543), `SUPABASE_SSL_CERT` (decide per-env), `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_PUBLIC_WEB_ORIGIN`.
+- **Voice/LLM:** `OPENAI_API_KEY`, `SONIOX_API_KEY`, `CARTESIA_API_KEY`.
+- **Email:** `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `FEEDBACK_ALERT_TO`.
+- **Analytics:** `VITE_POSTHOG_KEY` (separate staging project), `VITE_POSTHOG_HOST`.
+- **Sentry:** separate QA `VITE_SENTRY_DSN`/`SENTRY_DSN`, or `VITE_SENTRY_ENVIRONMENT=staging` + `SENTRY_ENVIRONMENT=staging` to tag a shared DSN.
+- **`QA_RESET_TOKEN`** — `api/qa-reset.ts` deletes rows for a synthetic QA account (regex-locked to `qa-onboarding-*@guidedgrowth.test`) via `DATABASE_URL`. Low blast radius, but a Preview deploy still on prod `DATABASE_URL` would delete that account's rows from prod — only set once Preview `DATABASE_URL` is staging.
+- **Do NOT set in Preview:** `VITE_VAPI_*` (QA voice off), `VAPI_WEBHOOK_SECRET`, `FIREBASE_SERVICE_ACCOUNT`, `PUSH_CRON_ENABLED`, `CRON_SECRET`, `GITLAB_TOKEN`/`GITLAB_PROJECT_ID`. `AUTH_BYPASS_MODE` is inert anyway (gated on `NODE_ENV!=='production'`).
+
+### (B) GitHub `staging` Environment — native QA build-time
+
+`VITE_*` are **baked at build**; Vercel env never reaches the native bundle. The native QA build (`cap sync`/`vite build`) needs them in the GitHub `staging` Environment: all `VITE_*` above + `VITE_API_URL=https://guided-growth-qa.vercel.app` + `CAP_EXTRA_NAV_HOSTS=ppyouymvnrqxcsllrmsl.supabase.co`.
+
+**JWT-issuer rule:** client `VITE_SUPABASE_URL` and server `SUPABASE_URL` must be the same project, or every API call fails JWT verification. **Redeploy after any env change** — existing deployments don't pick up new values.
 
 ---
 
