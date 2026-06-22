@@ -21,6 +21,8 @@ Two installable apps **side by side** on each phone — a **stable** app for dai
 
 **Key architectural decision (locked 2026-06-06):** both apps point at the **same production backend**. There is **no staging database, no separate auth, no replicated services**. Isolation comes from **accounts**, not infrastructure. A true staging platform is a fine post-launch project but is explicitly out of scope.
 
+> **Superseded (2026-06-10):** the shared-prod-backend decision above is no longer current. A **separate staging Supabase project** was approved (staging ref `ppyouymvnrqxcsllrmsl`, prod `pmunbflbjpoawicgimyc`). The QA app (`app.guidedgrowth.staging` + `https://guided-growth-qa.vercel.app`) moves to the **staging** database. See **`docs/supabase-environments.md`** — authoritative for the environment/database split — and `docs/staging-rollout.md` for execution status. The account-isolation guardrail note below still holds within each environment.
+
 **Correctness note on the isolation guardrail:** the per-user data boundary is enforced at the **API layer** — every query carries `WHERE user_id = $1` (the id comes from the verified session in `requireUser()`, `api/_lib/auth.ts`). It is **not** RLS: the API connects with the Supabase **service role**, which bypasses RLS entirely (see `CLAUDE.md` gotcha #5). A QA test account is therefore just an ordinary user row, fully scoped by the API. (The `gg-spec` doc currently says RLS is the guardrail — that wording should be corrected.)
 
 ---
@@ -93,6 +95,7 @@ These are one-time setup steps a human with the right access performs. Nothing i
 - [ ] Create the **GitHub `staging` Environment** (Settings → Environments) with:
   - Variables: `APP_IDENTIFIER=app.guidedgrowth.staging`, `APP_DISPLAY_NAME=Guided Growth QA`, `VITE_API_URL=` the **prod** web origin, `CAP_EXTRA_NAV_HOSTS` empty.
   - Secrets: **copy the production values verbatim** (shared backend) — `VITE_*`, `ASC_*`, `APPLE_TEAM_ID`, `MATCH_*`.
+  - > **Updated 2026-06-10:** with the staging Supabase approved, the `staging` Environment instead gets **staging** values — `VITE_API_URL=https://guided-growth-qa.vercel.app`, `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` from the staging project (`ppyouymvnrqxcsllrmsl`), staging PostHog key. Apple/match secrets stay shared. See `docs/supabase-environments.md`.
 - [ ] Run **`match-bootstrap`** once with `app_identifier=app.guidedgrowth.staging` (grant the match repo deploy key write access for the run, then revoke).
 - [ ] Push a **`qa-v*`** tag (e.g. `qa-v2.9.3`) → `qa-release.yml` builds the QA iOS IPA → QA TestFlight (and the qa Android APK → Firebase in the same run). Production keeps shipping via the existing `v*` tag flow.
 - [ ] Add the team to each app's TestFlight internal group; everyone enables Automatic Updates once.
@@ -107,6 +110,7 @@ These are one-time setup steps a human with the right access performs. Nothing i
 ### 4.3 Guest mode (Yair)
 
 - [ ] **Enable Anonymous sign-ins** in the Supabase dashboard (Auth) on the **prod** project. Until this is on, the QA "Start as Guest" button returns an error. Pair with abuse controls (rate limiting) and a periodic cleanup policy for throwaway guest data.
+  - > **Updated 2026-06-10:** the QA app now points at the **staging** project (`ppyouymvnrqxcsllrmsl`), so enable Anonymous sign-ins **there**, not on prod. See `docs/supabase-environments.md`.
 
 ---
 
@@ -127,4 +131,4 @@ These are one-time setup steps a human with the right access performs. Nothing i
 - **Secrets:** `.env.local` holds live keys (e.g. `SONIOX_API_KEY`). It is git-ignored and not in this branch — keep it that way; never paste its contents into a commit/PR.
 - **`gg-spec` doc edit:** ask Yair to amend the RLS wording (§1 above) so the team's mental model of the guardrail is accurate.
 - **QA OAuth scheme — Supabase allowlist FIRST:** before distributing any QA build, add `guidedgrowthqa://auth/callback` to the Supabase **Redirect URLs** allowlist (prod project). Until then QA Google sign-in is dead on first install (Supabase rejects the redirect). Stable is unaffected (still uses the allowlisted `guidedgrowth://`).
-- **Email-confirm handoff routes to stable on QA (known limitation):** the "Open in app" handoff (`authHandoff.ts`) fires from the shared web origin, which can't tell QA from stable, so it stays `guidedgrowth://` → opens the **stable** app. No data leak (signal only, shared backend), but QA email signup/reset can't return to the QA app. Mitigation: QA testers use **Start-as-Guest**; finish any email confirm on web.
+- **Email-confirm handoff routes to stable on QA (known limitation):** the "Open in app" handoff (`authHandoff.ts`) fires from the shared web origin, which can't tell QA from stable, so it stays `guidedgrowth://` → opens the **stable** app. No data leak (signal only, shared backend), but QA email signup/reset can't return to the QA app. Mitigation: QA testers use **Start-as-Guest**; finish any email confirm on web. _(2026-06-10: with the staging DB split, QA email flows go through the staging project + QA web origin — revisit this limitation once `VITE_PUBLIC_WEB_ORIGIN` for QA is `https://guided-growth-qa.vercel.app`; see `docs/supabase-environments.md`.)_
