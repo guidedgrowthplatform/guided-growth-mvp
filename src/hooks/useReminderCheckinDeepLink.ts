@@ -37,11 +37,13 @@ export function useReminderCheckinDeepLink(): void {
     if (handledRef.current === bucket) return;
     handledRef.current = bucket;
 
-    void updatePreferences({ voiceMode: 'voice', micEnabled: micAllowed });
     const { screenId, initiateCheckin } = resolveReminderCoachOpen(
       bucket,
       useSessionLogStore.getState().events,
     );
+    if (screenId !== 'HOME-CHECKIN') {
+      void updatePreferences({ voiceMode: 'voice', micEnabled: micAllowed });
+    }
     if (initiateCheckin) logEvent('checkin_started', { type: bucket }, screenId);
     openCoachChat(screenId, { initiateCheckin });
 
