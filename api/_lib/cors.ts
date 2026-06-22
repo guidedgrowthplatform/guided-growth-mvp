@@ -20,8 +20,9 @@ export function handleCors(req: VercelRequest, res: VercelResponse): boolean {
   const origin = req.headers.origin || '';
   const vercelOrigin = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '';
 
-  // Vercel previews are project-first; no leading label (credentialed CORS).
-  const isVercelPreview = /^https:\/\/guided-growth-(mvp|qa)(-[a-z0-9-]+)+\.vercel\.app$/.test(origin);
+  // Team slug pinned — bare project names are attacker-registerable on vercel.app.
+  const isVercelPreview =
+    /^https:\/\/guided-growth-(mvp|qa)-[a-z0-9-]+-guided-growths-projects\.vercel\.app$/.test(origin);
 
   if (
     ALLOWED_ORIGINS.includes(origin) ||

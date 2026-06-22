@@ -45,16 +45,17 @@ describe('handleCors origin allowlist', () => {
     expect(allowed('https://localhost')).toBe('https://localhost');
   });
 
-  it('allows preview URLs of both apps', () => {
-    const mvp = 'https://guided-growth-mvp-git-staging-team.vercel.app';
-    const qa = 'https://guided-growth-qa-git-staging-team.vercel.app';
+  it('allows team-scoped preview URLs of both apps', () => {
+    const mvp = 'https://guided-growth-mvp-git-staging-guided-growths-projects.vercel.app';
+    const qa = 'https://guided-growth-qa-git-staging-guided-growths-projects.vercel.app';
     expect(allowed(mvp)).toBe(mvp);
     expect(allowed(qa)).toBe(qa);
   });
 
-  it('rejects unrelated and look-alike *.vercel.app origins', () => {
+  it('rejects attacker-registerable *.vercel.app origins (no team slug)', () => {
     expect(allowed('https://evil-app.vercel.app')).toBeUndefined();
-    // attacker-registerable names that must NOT pass credentialed CORS
+    expect(allowed('https://guided-growth-qa-evil.vercel.app')).toBeUndefined();
+    expect(allowed('https://guided-growth-mvp-x-attackerteam.vercel.app')).toBeUndefined();
     expect(allowed('https://evil-guided-growth-qa.vercel.app')).toBeUndefined();
     expect(allowed('https://guided-growth-mvp.evil.vercel.app')).toBeUndefined();
   });

@@ -172,7 +172,7 @@ Set each `preview`-scoped to staging values (prod-scoped to prod). Without the v
 - **Email:** `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `FEEDBACK_ALERT_TO`.
 - **Analytics:** `VITE_POSTHOG_KEY` (separate staging project), `VITE_POSTHOG_HOST`.
 - **Sentry:** separate QA `VITE_SENTRY_DSN`/`SENTRY_DSN`, or `VITE_SENTRY_ENVIRONMENT=staging` + `SENTRY_ENVIRONMENT=staging` to tag a shared DSN.
-- **`QA_RESET_TOKEN`** — ⚠️ `api/qa-reset.ts` is a destructive reset authed only by this token, writing via `DATABASE_URL`. A Preview deploy still pointed at prod `DATABASE_URL` would **wipe prod** — only set once Preview `DATABASE_URL` is staging.
+- **`QA_RESET_TOKEN`** — `api/qa-reset.ts` deletes rows for a synthetic QA account (regex-locked to `qa-onboarding-*@guidedgrowth.test`) via `DATABASE_URL`. Low blast radius, but a Preview deploy still on prod `DATABASE_URL` would delete that account's rows from prod — only set once Preview `DATABASE_URL` is staging.
 - **Do NOT set in Preview:** `VITE_VAPI_*` (QA voice off), `VAPI_WEBHOOK_SECRET`, `FIREBASE_SERVICE_ACCOUNT`, `PUSH_CRON_ENABLED`, `CRON_SECRET`, `GITLAB_TOKEN`/`GITLAB_PROJECT_ID`. `AUTH_BYPASS_MODE` is inert anyway (gated on `NODE_ENV!=='production'`).
 
 ### (B) GitHub `staging` Environment — native QA build-time
