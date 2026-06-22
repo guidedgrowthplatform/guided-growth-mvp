@@ -52,14 +52,18 @@ describe('handleCors origin allowlist', () => {
     expect(allowed(qa)).toBe(qa);
   });
 
-  it('rejects unrelated *.vercel.app origins', () => {
+  it('rejects unrelated and look-alike *.vercel.app origins', () => {
     expect(allowed('https://evil-app.vercel.app')).toBeUndefined();
+    // attacker-registerable names that must NOT pass credentialed CORS
+    expect(allowed('https://evil-guided-growth-qa.vercel.app')).toBeUndefined();
+    expect(allowed('https://guided-growth-mvp.evil.vercel.app')).toBeUndefined();
   });
 
-  it('short-circuits OPTIONS preflight with 204', () => {
+  it('short-circuits OPTIONS preflight with 204 and sets the origin header', () => {
     const res = mockRes();
     const handled = handleCors(mockReq('https://guided-growth-qa.vercel.app', 'OPTIONS'), res);
     expect(handled).toBe(true);
     expect(res.status).toHaveBeenCalledWith(204);
+    expect(res.headers['Access-Control-Allow-Origin']).toBe('https://guided-growth-qa.vercel.app');
   });
 });
