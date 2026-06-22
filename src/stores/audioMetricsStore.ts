@@ -40,5 +40,3 @@ export const useAudioMetricsStore = create<AudioMetricsState>((set, get) => ({
     set({ ...DEFAULTS });
   },
 }));
-
-export const SPEECH_RMS = SPEECH_RMS_THRESHOLD;

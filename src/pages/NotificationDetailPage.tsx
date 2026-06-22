@@ -10,17 +10,21 @@ export function NotificationDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { preferences, updatePreferences } = useUserPreferences();
-  const { notifications, markRead } = useNotifications();
+  const { notifications, markRead, isLoading } = useNotifications();
   const [showReminders, setShowReminders] = useState(false);
 
   const notification = notifications.find((n) => n.id === id);
-  if (!notification) return <Navigate to="/notifications" replace />;
+  if (!notification) {
+    if (isLoading) return null;
+    return <Navigate to="/notifications" replace />;
+  }
 
   const { icon, iconClass, image, title, body, createdAt, unread } = notification;
   const detail = notification.detail ?? {
     eyebrow: notification.category === 'habit' ? 'Habit' : 'Journal',
     heading: title,
     paragraphs: [body],
+    action: notification.cta,
   };
 
   return (

@@ -92,3 +92,111 @@ describe('drain watchdog (suspended-context latch)', () => {
     expect(onDrain).toHaveBeenCalledTimes(1);
   });
 });
+
+// Karaoke word reveal: words fire as the audio clock crosses each onset.
+describe('word reveal (audio-clock pump)', () => {
+  let clock: { t: number };
+  let rafQueue: FrameRequestCallback[];
+  let srcs: Array<{ onended: (() => void) | null }>;
+
+  function pump() {
+    const q = rafQueue;
+    rafQueue = [];
+    q.forEach((cb) => cb(0));
+  }
+
+  beforeEach(() => {
+    clock = { t: 0 };
+    rafQueue = [];
+    srcs = [];
+    const ctx = {
+      state: 'running',
+      get currentTime() {
+        return clock.t;
+      },
+      destination: {},
+      resume: () => Promise.resolve(),
+      createGain: () => ({ gain: { value: 0 }, connect: () => undefined }),
+      createBuffer: (_ch: number, len: number, sr: number) => ({
+        duration: len / sr,
+        getChannelData: () => new Float32Array(len),
+      }),
+      createBufferSource: () => {
+        const src = {
+          buffer: null,
+          connect: () => undefined,
+          start: () => undefined,
+          stop: () => undefined,
+          onended: null as (() => void) | null,
+        };
+        srcs.push(src);
+        return src;
+      },
+    };
+    vi.stubGlobal('window', { AudioContext: vi.fn(() => ctx) });
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb);
+      return rafQueue.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => undefined);
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('fires words in idx order with their strings as the clock crosses each onset', async () => {
+    const { pcmBegin, pcmEnqueue, pcmScheduleWord } = await import('../pcmPlayer');
+    const onWord = vi.fn();
+    pcmBegin({ onWord });
+    // audioOrigin = startAt = SCHED_LEAD_S (0.08)
+    pcmEnqueue(new Uint8Array([0, 0, 0, 0]));
+    pcmScheduleWord(0, 0, 'It’s');
+    pcmScheduleWord(1, 0.5, 'nine');
+
+    clock.t = 0.08;
+    pump();
+    expect(onWord).toHaveBeenCalledWith(0, 'It’s');
+    expect(onWord).toHaveBeenCalledTimes(1);
+
+    clock.t = 1.0;
+    pump();
+    expect(onWord).toHaveBeenLastCalledWith(1, 'nine');
+    expect(onWord).toHaveBeenCalledTimes(2);
+  });
+
+  it('flushes a word scheduled before first audio once audioOrigin is set', async () => {
+    const { pcmBegin, pcmEnqueue, pcmScheduleWord } = await import('../pcmPlayer');
+    const onWord = vi.fn();
+    pcmBegin({ onWord });
+    pcmScheduleWord(0, 0, 'hi');
+    expect(onWord).not.toHaveBeenCalled();
+
+    pcmEnqueue(new Uint8Array([0, 0, 0, 0]));
+    clock.t = 0.08;
+    pump();
+    expect(onWord).toHaveBeenCalledWith(0, 'hi');
+  });
+
+  it('stops the pump on finalize+drain even with a word still pending', async () => {
+    const { pcmBegin, pcmEnqueue, pcmScheduleWord, pcmFinish } = await import('../pcmPlayer');
+    const onWord = vi.fn();
+    pcmBegin({ onWord });
+    pcmEnqueue(new Uint8Array([0, 0, 0, 0]));
+    pcmScheduleWord(0, 999, 'later');
+
+    // audio finishes (source ends) before the word's onset → pump must stop, not spin.
+    pcmFinish();
+    srcs.forEach((s) => s.onended?.());
+    clock.t = 1.0;
+    pump();
+    expect(onWord).not.toHaveBeenCalled();
+
+    rafQueue = [];
+    clock.t = 1000;
+    pump();
+    expect(rafQueue).toHaveLength(0);
+    expect(onWord).not.toHaveBeenCalled();
+  });
+});

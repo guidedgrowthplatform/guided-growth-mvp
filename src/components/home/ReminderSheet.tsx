@@ -1,10 +1,18 @@
+import { Capacitor } from '@capacitor/core';
+import { Icon } from '@iconify/react';
 import { Bell, Lightbulb } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { track } from '@/analytics';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { InfoBox } from '@/components/ui/InfoBox';
 import { TimePicker } from '@/components/ui/TimePicker';
 import { Toggle } from '@/components/ui/Toggle';
+import {
+  checkLocalNotificationPermission,
+  type LocalPermissionState,
+  openSystemNotificationSettings,
+  requestLocalNotificationPermission,
+} from '@/lib/localReminders';
 
 interface ReminderSheetProps {
   onClose: () => void;
@@ -15,8 +23,9 @@ interface ReminderSheetProps {
 }
 
 interface ReminderCardProps {
-  emoji: string;
+  icon: string;
   iconBg: string;
+  iconClass: string;
   label: string;
   time: string;
   onTimeChange: (time24: string) => void;
@@ -25,8 +34,9 @@ interface ReminderCardProps {
 }
 
 function ReminderCard({
-  emoji,
+  icon,
   iconBg,
+  iconClass,
   label,
   time,
   onTimeChange,
@@ -38,7 +48,7 @@ function ReminderCard({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={`flex h-10 w-10 items-center justify-center rounded-full ${iconBg}`}>
-            <span className="text-lg">{emoji}</span>
+            <Icon icon={icon} width={22} height={22} className={iconClass} />
           </div>
           <span className="text-base font-bold text-content">{label}</span>
         </div>
@@ -66,6 +76,29 @@ export function ReminderSheet({
   const [morningReminder, setMorningReminder] = useState(true);
   const [nightReminder, setNightReminder] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(initialPushNotifications);
+  const [permission, setPermission] = useState<LocalPermissionState>('unsupported');
+
+  useEffect(() => {
+    void checkLocalNotificationPermission().then(setPermission);
+  }, []);
+
+  // no first-party deep-link to iOS settings; only Android can open it
+  const canOpenSettings = Capacitor.getPlatform() === 'android';
+
+  // toggle reflects intent; OS permission is what actually delivers
+  const handlePushToggle = (next: boolean) => {
+    setPushNotifications(next);
+    if (!next) return;
+    if (permission === 'prompt') {
+      void requestLocalNotificationPermission().then((granted) =>
+        setPermission(granted ? 'granted' : 'denied'),
+      );
+    } else if (permission === 'denied' && canOpenSettings) {
+      void openSystemNotificationSettings();
+    }
+  };
+
+  const showBlockedHint = pushNotifications && permission === 'denied';
 
   const handleSave = (close: () => void) => {
     // Emit per-time change events so analytics can distinguish morning vs
@@ -99,7 +132,7 @@ export function ReminderSheet({
           style={{ paddingBottom: 'calc(150px + env(safe-area-inset-bottom))' }}
         >
           <div>
-            <h2 className="text-[28px] font-semibold leading-tight text-content">
+            <h2 className="text-2xl font-semibold leading-tight text-content">
               When would you like to do your quick check-ins
             </h2>
             <p className="mt-2 text-lg font-medium text-slate-500">
@@ -114,8 +147,9 @@ export function ReminderSheet({
 
           <div className="flex flex-col gap-4 pb-4 pt-2">
             <ReminderCard
-              emoji="🌅"
-              iconBg="bg-[#fef9c3]"
+              icon="mdi:white-balance-sunny"
+              iconBg="bg-primary"
+              iconClass="text-white"
               label="Morning check in"
               time={morningTime}
               onTimeChange={setMorningTime}
@@ -123,9 +157,10 @@ export function ReminderSheet({
               onToggle={setMorningReminder}
             />
             <ReminderCard
-              emoji="🌙"
-              iconBg="bg-[#e0e7ff]"
-              label="Night check in"
+              icon="mdi:moon-waning-crescent"
+              iconBg="bg-evening-bg"
+              iconClass="text-evening-fg"
+              label="Evening Reflection"
               time={nightTime}
               onTimeChange={setNightTime}
               reminderEnabled={nightReminder}
@@ -140,8 +175,23 @@ export function ReminderSheet({
                 </div>
                 <span className="text-base font-bold text-content">Push Notifications</span>
               </div>
-              <Toggle checked={pushNotifications} onChange={setPushNotifications} />
+              <Toggle checked={pushNotifications} onChange={handlePushToggle} />
             </div>
+
+            {showBlockedHint &&
+              (canOpenSettings ? (
+                <button
+                  type="button"
+                  onClick={() => void openSystemNotificationSettings()}
+                  className="text-left text-sm font-medium text-amber-600"
+                >
+                  Notifications are off in system settings. Tap to enable.
+                </button>
+              ) : (
+                <p className="text-sm font-medium text-amber-600">
+                  Notifications are off. Enable them in Settings to get reminders.
+                </p>
+              ))}
           </div>
 
           <button

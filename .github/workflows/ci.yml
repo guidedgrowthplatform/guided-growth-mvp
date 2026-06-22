@@ -168,6 +168,7 @@ jobs:
           [ -d android ] || npx cap add android
           npx cap copy android
           npx cap sync android
+          node scripts/patch-android-manifest.mjs
           npx @capacitor/assets generate --android --assetPath assets
 
       - name: Decode Keystore
@@ -212,6 +213,12 @@ jobs:
             echo "::error::Play release notes exceed 500 chars ($len). Trim $f."
             exit 1
           fi
+          # Header version must match the tag, else the release ships stale notes.
+          want="${GITHUB_REF_NAME#v}"
+          head=$(head -1 "$f" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          if [ "$head" != "$want" ]; then
+            echo "::error::Notes header ($head) != tag ($want). Bump $f in the tagged commit."; exit 1
+          fi
 
       - name: Deploy to Google Play (internal track)
         if: >-
@@ -241,7 +248,7 @@ jobs:
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           groups: internal-testers
           file: android/app/build/outputs/apk/prod/release/app-prod-release.apk
-          releaseNotes: ${{ github.ref_name }}
+          releaseNotesFile: release-notes/whatsnew-en-US
 
       - name: Notify Mattermost (AAB ready)
         if: >-
@@ -352,6 +359,8 @@ jobs:
           # ios/ is gitignored + regenerated here; brand the icon/splash at build time from assets/
           npx @capacitor/assets generate --ios --assetPath assets
           node scripts/patch-ios-plist.mjs
+          node scripts/patch-ios-push.mjs
+          node scripts/patch-ios-disable-firebase.mjs
 
       # Fail loud if tester notes are missing — the Fastfile passes nil
       # changelog when the file is absent, silently shipping a build with a
@@ -366,6 +375,14 @@ jobs:
           if [ "$len" -gt 4000 ]; then
             echo "::error::TestFlight What-to-Test exceeds 4000 chars ($len). Trim $f."
             exit 1
+          fi
+          # Header version must match the tag, else the build ships stale notes.
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            want="${GITHUB_REF_NAME#v}"
+            head=$(head -1 "$f" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+            if [ "$head" != "$want" ]; then
+              echo "::error::Notes header ($head) != tag ($want). Bump $f in the tagged commit."; exit 1
+            fi
           fi
 
       - name: Build IPA & upload to TestFlight (fastlane)

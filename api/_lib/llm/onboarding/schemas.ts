@@ -161,6 +161,12 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
           description: 'Preset matching the days array.',
           enum: [...SCHEDULE_OPTIONS],
         },
+        habit_type: {
+          type: 'string',
+          description:
+            'Polarity. Set "binary_avoid" for habits about NOT doing / quitting / reducing / avoiding something (e.g. "No caffeine after 2 PM", "No screens after 10 PM", "stop smoking"). Otherwise "binary_do" (default). Include it on EVERY add_habit call for the same habit (alongside name) so it persists across the two-call config pattern.',
+          enum: ['binary_do', 'binary_avoid'],
+        },
       },
       required: ['name'],
       additionalProperties: false,
@@ -243,6 +249,12 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
           type: 'string',
           description: 'Schedule preset matching the days array.',
           enum: [...SCHEDULE_OPTIONS],
+        },
+        mode: {
+          type: 'string',
+          description:
+            "How the user wants to reflect. 'prompts' = answer questions (guided default or custom); 'freeform' = no questions, just talk freely. Include 'freeform' when the user says they want to talk freely / no questions. Omit (defaults to prompts) for guided.",
+          enum: ['prompts', 'freeform'],
         },
       },
       required: ['time', 'days', 'reminder', 'schedule'],

@@ -7,6 +7,7 @@ import { SegmentedControl } from '@/components/insights';
 import { GuidedTab } from '@/components/journal/GuidedTab';
 import { useAuth } from '@/hooks/useAuth';
 import { useJournalSave } from '@/hooks/useJournalSave';
+import { useReflectionSettings } from '@/hooks/useReflectionSettings';
 import { useSessionLog } from '@/hooks/useSessionLog';
 
 const TAB_TO_SCREEN_ID: Record<'guided' | 'freeform', string> = {
@@ -38,6 +39,7 @@ export function JournalFlowPage() {
   const navState = (location.state as JournalNavState | null) ?? null;
   const { user } = useAuth();
   const { save, saving } = useJournalSave();
+  const { settings, prompts, isLoading: settingsLoading } = useReflectionSettings();
   const { logEvent } = useSessionLog();
   const userName = user?.nickname ?? user?.name ?? 'there';
 
@@ -57,6 +59,7 @@ export function JournalFlowPage() {
   const completedRef = useRef(false);
   const mountTimeRef = useRef<number>(0);
   const activeTabRef = useRef<Tab>(activeTab);
+  const appliedModeDefaultRef = useRef(false);
 
   useEffect(() => {
     activeTabRef.current = activeTab;
@@ -87,6 +90,22 @@ export function JournalFlowPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Default tab follows the user's saved reflection mode (per-night toggle: both
+  // tabs stay available; this only sets the initial one). Skip if nav requested a tab.
+  useEffect(() => {
+    if (appliedModeDefaultRef.current) return;
+    if (navState?.initialTab) {
+      appliedModeDefaultRef.current = true;
+      return;
+    }
+    if (settingsLoading) return;
+    appliedModeDefaultRef.current = true;
+    if (settings.mode === 'freeform') {
+      setActiveTab('freeform');
+      setDisplayTab('freeform');
+    }
+  }, [settingsLoading, settings.mode, navState?.initialTab]);
 
   const handleTabChange = useCallback(
     (next: string) => {
@@ -141,6 +160,7 @@ export function JournalFlowPage() {
       template_id: GUIDED_TEMPLATE_ID,
       date,
       fields: guidedAnswers,
+      prompts_snapshot: prompts,
     });
     if (ok) {
       completedRef.current = true;
@@ -151,7 +171,7 @@ export function JournalFlowPage() {
         duration_seconds: Math.round((Date.now() - mountTimeRef.current) / 1000),
       });
     }
-  }, [now, guidedAnswers, save]);
+  }, [now, guidedAnswers, save, prompts]);
 
   const handleAnswerChange = useCallback((index: number, value: string) => {
     setGuidedAnswers((prev) => ({ ...prev, [String(index)]: value }));
@@ -183,13 +203,22 @@ export function JournalFlowPage() {
           }`}
         >
           {displayTab === 'guided' ? (
-            <GuidedTab
-              answers={guidedAnswers}
-              onAnswerChange={handleAnswerChange}
-              onSave={handleGuidedSave}
-              saving={saving}
-              now={now}
-            />
+            settingsLoading ? (
+              // Don't paint the default prompts before the user's saved ones
+              // have loaded — avoids a flash of the hardcoded questions.
+              <div className="flex items-center justify-center p-8">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-primary" />
+              </div>
+            ) : (
+              <GuidedTab
+                answers={guidedAnswers}
+                onAnswerChange={handleAnswerChange}
+                onSave={handleGuidedSave}
+                saving={saving}
+                now={now}
+                prompts={prompts}
+              />
+            )
           ) : (
             <Suspense
               fallback={

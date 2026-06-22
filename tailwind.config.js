@@ -29,6 +29,10 @@ export default {
         danger: 'rgb(var(--color-danger) / <alpha-value>)',
         warning: 'rgb(var(--color-warning) / <alpha-value>)',
         streak: 'rgb(var(--color-streak) / <alpha-value>)',
+        evening: {
+          bg: 'rgb(var(--color-evening-bg) / <alpha-value>)',
+          fg: 'rgb(var(--color-evening-fg) / <alpha-value>)',
+        },
         border: {
           DEFAULT: 'rgb(var(--color-border) / <alpha-value>)',
           light: 'rgb(var(--color-border-light) / <alpha-value>)',

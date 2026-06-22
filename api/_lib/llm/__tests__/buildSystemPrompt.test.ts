@@ -116,6 +116,210 @@ describe('buildSystemPromptForRequest', () => {
     expect(systemPrompt).toContain('Fall asleep earlier | Wake up earlier');
   });
 
+  it('injects a Current Time line on check-in screens when timezone is given', async () => {
+    pool.query.mockReset();
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ context_block: 'SCREEN_ID: MCHECK-01\nBEHAVIOR: check in.', version: 1 }],
+        rowCount: 1,
+      })
+      .mockResolvedValue({ rows: [], rowCount: 0 });
+    const { systemPrompt } = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'MCHECK-01',
+      coaching_style: 'warm',
+      recent_events,
+      timezone: 'America/New_York',
+    });
+    expect(systemPrompt).toContain('## Current Time');
+    expect(systemPrompt).toMatch(/Current local time: (morning|afternoon|evening|night)/);
+  });
+
+  it('omits the Current Time line off check-in screens and on missing/invalid tz', async () => {
+    const noTz = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'HOME-MORNING',
+      coaching_style: 'warm',
+      recent_events,
+      timezone: 'America/New_York',
+    });
+    expect(noTz.systemPrompt).not.toContain('## Current Time');
+
+    pool.query.mockReset();
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ context_block: 'SCREEN_ID: MCHECK-01\nBEHAVIOR: check in.', version: 1 }],
+        rowCount: 1,
+      })
+      .mockResolvedValue({ rows: [], rowCount: 0 });
+    const badTz = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'MCHECK-01',
+      coaching_style: 'warm',
+      recent_events,
+      timezone: 'Not/AZone',
+    });
+    expect(badTz.systemPrompt).not.toContain('## Current Time');
+  });
+
+  it('emits the evening habit walkthrough ONLY on ECHECK-01', async () => {
+    pool.query.mockReset();
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ context_block: 'SCREEN_ID: ECHECK-01\nBEHAVIOR: evening check in.', version: 1 }],
+        rowCount: 1,
+      })
+      .mockResolvedValue({ rows: [], rowCount: 0 });
+    const evening = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ECHECK-01',
+      coaching_style: 'warm',
+      recent_events,
+    });
+    expect(evening.systemPrompt).toContain('## Evening Check-in Flow');
+    expect(evening.systemPrompt).toContain('complete_habit');
+    // Reflection now defers to the user's configured questions, not hardcoded.
+    expect(evening.systemPrompt).toContain('## Reflection Settings (this user)');
+    expect(evening.systemPrompt).toContain('## Scripted Check-in — STRICT');
+  });
+
+  it('forces the evening opener to lead with habits ONLY on ECHECK-01 opener turns', async () => {
+    const mockEchack = () => {
+      pool.query.mockReset();
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            { context_block: 'SCREEN_ID: ECHECK-01\nBEHAVIOR: evening check in.', version: 1 },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValue({ rows: [], rowCount: 0 });
+    };
+
+    mockEchack();
+    const opener = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ECHECK-01',
+      coaching_style: 'warm',
+      recent_events,
+      mode: 'opener',
+    });
+    expect(opener.systemPrompt).toContain('## Evening Opener');
+    expect(opener.systemPrompt).toContain('query_habits');
+    expect(opener.systemPrompt).toMatch(/word-for-word/i);
+
+    mockEchack();
+    const chat = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ECHECK-01',
+      coaching_style: 'warm',
+      recent_events,
+      mode: 'chat',
+    });
+    expect(chat.systemPrompt).not.toContain('## Evening Opener');
+  });
+
+  it('emits the morning opener (not the evening one) on MCHECK-01 opener turns', async () => {
+    const mockMcheck = () => {
+      pool.query.mockReset();
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            { context_block: 'SCREEN_ID: MCHECK-01\nBEHAVIOR: morning check in.', version: 1 },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValue({ rows: [], rowCount: 0 });
+    };
+
+    mockMcheck();
+    const opener = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'MCHECK-01',
+      coaching_style: 'warm',
+      recent_events,
+      mode: 'opener',
+    });
+    expect(opener.systemPrompt).toContain('## Morning Opener');
+    expect(opener.systemPrompt).not.toContain('## Evening Opener');
+
+    mockMcheck();
+    const chat = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'MCHECK-01',
+      coaching_style: 'warm',
+      recent_events,
+      mode: 'chat',
+    });
+    expect(chat.systemPrompt).not.toContain('## Morning Opener');
+  });
+
+  it('does NOT emit the morning opener block on ECHECK-01 opener turns', async () => {
+    pool.query.mockReset();
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ context_block: 'SCREEN_ID: ECHECK-01\nBEHAVIOR: evening check in.', version: 1 }],
+        rowCount: 1,
+      })
+      .mockResolvedValue({ rows: [], rowCount: 0 });
+    const { systemPrompt } = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ECHECK-01',
+      coaching_style: 'warm',
+      recent_events,
+      mode: 'opener',
+    });
+    expect(systemPrompt).not.toContain('## Morning Opener');
+  });
+
+  it('does NOT emit the walkthrough on MCHECK-01, HOME-CHECKIN, or non-checkin screens', async () => {
+    for (const id of ['MCHECK-01', 'HOME-CHECKIN', 'HOME-MORNING']) {
+      pool.query.mockReset();
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [{ context_block: `SCREEN_ID: ${id}\nBEHAVIOR: check in.`, version: 1 }],
+          rowCount: 1,
+        })
+        .mockResolvedValue({ rows: [], rowCount: 0 });
+      const { systemPrompt } = await buildSystemPromptForRequest({
+        anon_id: 'a',
+        screen_id: id,
+        coaching_style: 'warm',
+        recent_events,
+      });
+      expect(systemPrompt).not.toContain('## Evening Check-in Flow');
+    }
+  });
+
+  it('injects the text-mode rule when input_mode=text or absent, omits it when voice', async () => {
+    const text = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'HOME-MORNING',
+      coaching_style: 'warm',
+      recent_events,
+      input_mode: 'text',
+    });
+    expect(text.systemPrompt).toContain('## Text Mode');
+    expect(text.systemPrompt).toContain('TYPING, not speaking');
+
+    const absent = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'HOME-MORNING',
+      coaching_style: 'warm',
+      recent_events,
+    });
+    expect(absent.systemPrompt).toContain('## Text Mode');
+
+    const voice = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'HOME-MORNING',
+      coaching_style: 'warm',
+      recent_events,
+      input_mode: 'voice',
+    });
+    expect(voice.systemPrompt).not.toContain('## Text Mode');
+  });
+
   it('opener instructions reference BEHAVIOR, not the stripped AI RESPONSE PATTERN', async () => {
     const { systemPrompt } = await buildSystemPromptForRequest({
       anon_id: 'a',

@@ -14,6 +14,9 @@ import { useCoachChatToolEvents } from '../useCoachChatToolEvents';
 vi.mock('@/analytics', () => ({ track: vi.fn() }));
 const trackMock = track as unknown as ReturnType<typeof vi.fn>;
 
+const logEventMock = vi.fn();
+vi.mock('@/hooks/useSessionLog', () => ({ useSessionLog: () => ({ logEvent: logEventMock }) }));
+
 function toolEvt(
   id: string,
   name: string,
@@ -33,8 +36,14 @@ function Bridge(props: {
   messages: LLMChatMessage[];
   resetKey: string | null;
   initialMessages: LLMChatMessage[];
+  screenId?: string;
 }) {
-  lastCreatedRef = useCoachChatToolEvents(props.messages, props.resetKey, props.initialMessages);
+  lastCreatedRef = useCoachChatToolEvents(
+    props.messages,
+    props.resetKey,
+    props.initialMessages,
+    props.screenId ?? 'HOME',
+  );
   return null;
 }
 
@@ -48,6 +57,7 @@ function render(props: {
   messages: LLMChatMessage[];
   resetKey: string | null;
   initialMessages: LLMChatMessage[];
+  screenId?: string;
 }) {
   act(() => {
     root.render(createElement(QueryClientProvider, { client: qc }, createElement(Bridge, props)));
@@ -61,6 +71,7 @@ beforeEach(() => {
   qc = new QueryClient();
   invalidateSpy = vi.spyOn(qc, 'invalidateQueries').mockImplementation(() => Promise.resolve());
   habitsChanged = vi.fn();
+  logEventMock.mockClear();
   lastCreatedRef = undefined;
   window.addEventListener('habits-changed', habitsChanged);
 });
@@ -263,6 +274,65 @@ describe('useCoachChatToolEvents', () => {
       initialMessages: [],
     });
     expect(lastCreatedRef).toBeUndefined();
+  });
+
+  it('emits checkin_completed{evening} on log_reflection on an ECHECK screen', () => {
+    render({
+      messages: [assistant('m1', [toolEvt('e1', 'log_reflection')])],
+      resetKey: 'sess-A',
+      initialMessages: [],
+      screenId: 'ECHECK-01',
+    });
+    expect(logEventMock).toHaveBeenCalledTimes(1);
+    expect(logEventMock.mock.calls[0][0]).toBe('checkin_completed');
+    expect(logEventMock.mock.calls[0][1]).toMatchObject({ type: 'evening' });
+  });
+
+  // get_summary fires during the habit recap (before reflection) — must NOT conclude.
+  it('does NOT mark the evening done on get_summary alone', () => {
+    render({
+      messages: [assistant('m1', [toolEvt('e1', 'get_summary')])],
+      resetKey: 'sess-A',
+      initialMessages: [],
+      screenId: 'ECHECK-01',
+    });
+    expect(logEventMock).not.toHaveBeenCalled();
+  });
+
+  // Full evening sequence: a get_summary in the habit recap must NOT conclude;
+  // the later reflection's log_reflection concludes it exactly once.
+  it('completes on the reflection log_reflection even after a habit-recap get_summary', () => {
+    render({
+      messages: [assistant('m1', [toolEvt('e1', 'get_summary'), toolEvt('e2', 'log_reflection')])],
+      resetKey: 'sess-A',
+      initialMessages: [],
+      screenId: 'ECHECK-01',
+    });
+    expect(logEventMock).toHaveBeenCalledTimes(1);
+    expect(logEventMock.mock.calls[0][0]).toBe('checkin_completed');
+    expect(logEventMock.mock.calls[0][1]).toMatchObject({ type: 'evening', via: 'log_reflection' });
+  });
+
+  it('emits the evening event at most once per session', () => {
+    render({
+      messages: [
+        assistant('m1', [toolEvt('e1', 'log_reflection'), toolEvt('e2', 'log_reflection')]),
+      ],
+      resetKey: 'sess-A',
+      initialMessages: [],
+      screenId: 'ECHECK-01',
+    });
+    expect(logEventMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not emit the evening event on a non-ECHECK screen', () => {
+    render({
+      messages: [assistant('m1', [toolEvt('e1', 'log_reflection')])],
+      resetKey: 'sess-A',
+      initialMessages: [],
+      screenId: 'MCHECK-01',
+    });
+    expect(logEventMock).not.toHaveBeenCalled();
   });
 
   it('fires again for a new session after resetKey changes', () => {

@@ -122,8 +122,8 @@ export function PlanReviewPage() {
   // Voice "let's go" mirrors the tap flow once the agent bumps current_step past 7.
   const autoCompletedRef = useRef(false);
   // Wait ~700ms after Vapi stops speaking before tearing the call down. The
-  // BEGINNER-06 context tells the model to speak a send-off ("Good luck —
-  // you've got this.") right before firing confirm_plan; without this wait,
+  // BEGINNER-06 context tells the model to speak a send-off ("You're in,
+  // [Name]…") right before firing confirm_plan; without this wait,
   // endCall() in handleStartPlan would stop() the WebRTC mid-word. Resets
   // whenever the model starts speaking again, so a brief silence between
   // tool fire and the send-off doesn't trigger premature teardown.
@@ -212,6 +212,19 @@ export function PlanReviewPage() {
     ? (CATEGORY_ICONS[category] ?? 'ic:outline-check-circle')
     : 'ic:outline-check-circle';
   const reflectionDays = new Set(reflectionConfig.days);
+  const reflectionMode =
+    onboardingState?.data?.reflectionMode === 'freeform' ? 'freeform' : 'prompts';
+  const customPrompts = Array.isArray(onboardingState?.data?.customPrompts)
+    ? (onboardingState.data.customPrompts as string[]).filter(
+        (p) => typeof p === 'string' && p.trim(),
+      )
+    : [];
+  const reflectionTitle =
+    reflectionMode === 'freeform'
+      ? 'Freeform reflection'
+      : customPrompts.length > 0
+        ? 'Custom reflection'
+        : 'Daily reflection';
 
   return (
     <OnboardingLayout
@@ -267,7 +280,7 @@ export function PlanReviewPage() {
         <PlanSummaryCard
           icon="ic:outline-menu-book"
           typeLabel="Journal"
-          title="Daily reflection"
+          title={reflectionTitle}
           cadence={formatCadence(reflectionDays)}
           rule={reflectionConfig.time ? `Reminder at ${reflectionConfig.time}` : 'No reminder set'}
         />

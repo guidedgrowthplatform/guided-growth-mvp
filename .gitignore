@@ -134,6 +134,7 @@ gradle_build_log.txt
 
 # Claude scratch dir (one-off intermediate files; never commit)
 .claude/scratch/
+.claude/worktrees/
 knip-report.txt
 
 # Vapi sync — per-developer dev lockfile (never commit; prod lockfile IS committed)

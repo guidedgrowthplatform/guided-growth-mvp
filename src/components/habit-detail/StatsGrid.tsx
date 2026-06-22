@@ -3,6 +3,7 @@ interface StatsGridProps {
   currentStreak: number;
   longestStreak: number;
   failedDays: number;
+  isAvoid?: boolean;
 }
 
 export function StatsGrid({
@@ -10,12 +11,13 @@ export function StatsGrid({
   currentStreak,
   longestStreak,
   failedDays,
+  isAvoid = false,
 }: StatsGridProps) {
   const stats = [
     { label: 'Completion Rate', value: `${completionRate}%` },
     { label: 'Current Streak', value: `${currentStreak} Days` },
     { label: 'Longest Streak', value: `${longestStreak} Days` },
-    { label: 'Failed Days', value: `${failedDays} Days` },
+    { label: isAvoid ? 'Slipped Days' : 'Failed Days', value: `${failedDays} Days` },
   ];
 
   return (

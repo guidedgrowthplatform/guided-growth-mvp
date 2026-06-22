@@ -4,16 +4,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { track } from '@/analytics';
 import { fetchJournalEntry } from '@/api/journal';
 import { EditReflectionSheet } from '@/components/reflections/EditReflectionSheet';
-import { entryHeading, formatDetailHeader } from '@/components/reflections/reflectionFormatters';
+import {
+  entryHeading,
+  formatDetailHeader,
+  guidedPromptsForEntry,
+} from '@/components/reflections/reflectionFormatters';
 import { useToast } from '@/contexts/ToastContext';
 import type { JournalEntry } from '@gg/shared/types';
 import '@/styles/tiptap.css';
-
-const GUIDED_PROMPTS = [
-  'What are the things you are grateful for today?',
-  'What are the things you are proud of today?',
-  'What are the things you forgive yourself for today?',
-];
 
 function FreeformBody({ entry }: { entry: JournalEntry }) {
   const html = entry.fields?.body ?? '';
@@ -30,9 +28,10 @@ function FreeformBody({ entry }: { entry: JournalEntry }) {
 }
 
 function GuidedBody({ entry }: { entry: JournalEntry }) {
+  const prompts = guidedPromptsForEntry(entry);
   return (
     <div className="flex flex-col gap-4">
-      {GUIDED_PROMPTS.map((prompt, i) => {
+      {prompts.map((prompt, i) => {
         const answer = entry.fields?.[String(i)]?.trim();
         if (!answer) return null;
         return (

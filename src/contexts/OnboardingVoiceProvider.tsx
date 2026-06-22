@@ -37,12 +37,14 @@ import { getScreenContext } from '@/lib/context/getScreenContext';
 import { getBundledRoutes } from '@/lib/context/screenContextsBundle';
 import { screenIdForRoute } from '@/lib/context/screenIdForRoute';
 import { orbStateFrom } from '@/lib/orb/orbState';
+import { queryKeys } from '@/lib/query';
 import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
 import { createListenerBus } from '@/lib/util/listenerBus';
 import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
+import type { OnboardingState } from '@gg/shared/types';
 import { shouldWipeOnAnonIdChange } from './onboardingThreadWipe';
 
 function isOnboardingPath(pathname: string): boolean {
@@ -124,14 +126,16 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const threadScreenIdRef = useRef<string | null>(null);
   const lastAssistantFinalRef = useRef<{ text: string; at: number }>({ text: '', at: 0 });
+  const lastUserFinalRef = useRef<{ text: string; at: number }>({ text: '', at: 0 });
   // Vapi splits one model turn into multiple transcript-final events on natural
-  // speech pauses. Consecutive assistant finals within this window merge into
-  // ONE chat bubble so the UI doesn't render N fragments for one reply.
+  // speech pauses — sometimes seconds apart for a long reply. All finals in one
+  // assistant turn merge into ONE bubble; the turn stays "open" until the user
+  // speaks / the screen changes / the call restarts (NOT a wall-clock timer,
+  // which would split a slow reply mid-turn).
+  const assistantTurnOpenRef = useRef<boolean>(false);
+  // assistantMergeOpen mirrors a short visual window so the active bubble keeps
+  // its streaming cursor; it's cosmetic and independent of the merge decision.
   const ASSISTANT_MERGE_WINDOW_MS = 4000;
-  const lastAssistantAppendAtRef = useRef<number>(0);
-  // assistantMergeOpen mirrors the merge window as observable state so the
-  // overlay can render partials INLINE with the last AI bubble while it's open,
-  // instead of as a separate streaming bubble that flickers.
   const [assistantMergeOpen, setAssistantMergeOpen] = useState(false);
   const mergeWindowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const armMergeWindow = useCallback(() => {
@@ -211,11 +215,17 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       lastPushedScreenIdRef.current = screenId;
       try {
         const ctx = await getScreenContext(qc, screenId, sinceTs);
+        // Merge persisted data UNDER the in-flight snapshot: the ref can lag the
+        // realtime cache (e.g. nickname not yet propagated at FORK mount), so
+        // already-persisted fields must never be dropped. In-flight overrides win.
+        const persisted =
+          qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data ?? {};
+        const filled = { ...persisted, ...formSnapshotRef.current };
         const body = buildContextMessage({
           screen_id: ctx.screen_id,
           context_block: ctx.context_block,
           state_delta: ctx.state_delta,
-          filled_form_state: formSnapshotRef.current,
+          filled_form_state: filled,
         });
         client.send({
           type: 'add-message',
@@ -382,6 +392,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     // Thread persists across the Vapi round-trip; turns append in handleTranscript.
     threadScreenIdRef.current = null;
     lastAssistantFinalRef.current = { text: '', at: 0 };
+    assistantTurnOpenRef.current = false;
     const sid =
       activeSubScreenIdRef.current ?? registeredScreenIdRef.current ?? currentScreenIdRef.current;
     // If we already injected the screen context via assistantOverrides at
@@ -458,8 +469,8 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
           if (userActiveTimerRef.current) clearTimeout(userActiveTimerRef.current);
           setIsUserSpeaking(true);
           // User starting to speak = assistant turn is semantically complete.
-          // Close any open assistant merge window so the next AI final starts a
-          // fresh bubble (instead of merging into the previous one).
+          // End the turn so the next AI final starts a fresh bubble.
+          assistantTurnOpenRef.current = false;
           closeMergeWindow();
           userActiveTimerRef.current = setTimeout(() => {
             userActiveTimerRef.current = null;
@@ -487,16 +498,26 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
             } else {
               lastAssistantFinalRef.current = { text, at: now };
             }
+          } else {
+            if (
+              lastUserFinalRef.current.text === text &&
+              now - lastUserFinalRef.current.at < 1500
+            ) {
+              skip = true;
+            } else {
+              lastUserFinalRef.current = { text, at: now };
+            }
           }
           if (!skip) {
             if (evt.role === 'assistant') {
-              const withinMergeWindow =
-                now - lastAssistantAppendAtRef.current < ASSISTANT_MERGE_WINDOW_MS;
-              lastAssistantAppendAtRef.current = now;
+              // Merge into the current turn's bubble as long as the turn is open
+              // (no user turn since). Time between finals is irrelevant.
+              const merge = assistantTurnOpenRef.current;
+              assistantTurnOpenRef.current = true;
               armMergeWindow();
               setMessages((prev) => {
                 const last = prev[prev.length - 1];
-                if (withinMergeWindow && last && last.role === 'ai') {
+                if (merge && last && last.role === 'ai') {
                   // Glue with a space — Vapi already includes punctuation per fragment.
                   const merged: VoiceMessage = {
                     ...last,
@@ -507,9 +528,8 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
                 return [...prev, { id: `vapi-${evt.role}-${now}`, role: 'ai', text }];
               });
             } else {
-              // User transcripts always start a fresh bubble + close any open
-              // assistant merge window (next AI utterance starts a fresh bubble).
-              lastAssistantAppendAtRef.current = 0;
+              // User turn ends the assistant turn; next AI final starts fresh.
+              assistantTurnOpenRef.current = false;
               closeMergeWindow();
               setMessages((prev) => [
                 ...prev,
@@ -803,6 +823,10 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
 
   const vapiShouldBeLive =
     inOnboarding &&
+    // Identity must be loaded before starting — metadata.anon_id is baked into
+    // the call at start(), so a null anonId would ship every tool call with an
+    // empty anon_id and the backend rejects them all (invalid_identity).
+    !!anonId &&
     preferences.voiceMode === 'voice' &&
     preferences.micEnabled === true &&
     preferences.micPermission === true &&
@@ -910,8 +934,20 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     if (lastPushedScreenIdRef.current === screenToFetch) return;
     const priorTs = lastScreenChangeTsRef.current;
     lastScreenChangeTsRef.current = new Date().toISOString();
+    // A screen change triggers a fresh assistant turn (pushScreenContext sends
+    // triggerResponseEnabled). End the current turn so the new screen's opening
+    // line starts its own bubble instead of gluing onto the previous screen's.
+    assistantTurnOpenRef.current = false;
+    closeMergeWindow();
     void pushScreenContext(screenToFetch, priorTs);
-  }, [status, currentScreenId, activeSubScreenId, registeredScreenId, pushScreenContext]);
+  }, [
+    status,
+    currentScreenId,
+    activeSubScreenId,
+    registeredScreenId,
+    pushScreenContext,
+    closeMergeWindow,
+  ]);
 
   const pushSubScreen = useCallback((screenId: string | null) => {
     if (screenId === null) {

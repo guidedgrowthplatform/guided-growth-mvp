@@ -6,6 +6,7 @@ interface HomeHeaderProps {
   isFirstVisit?: boolean;
   onPlusClick?: () => void;
   onBellClick?: () => void;
+  unreadCount?: number;
 }
 
 function getGreeting(): string {
@@ -20,6 +21,7 @@ export function HomeHeader({
   isFirstVisit = false,
   onPlusClick,
   onBellClick,
+  unreadCount = 0,
 }: HomeHeaderProps) {
   const headline = isFirstVisit ? 'Welcome to Guided Growth' : `Welcome back, ${userName}`;
 
@@ -34,7 +36,7 @@ export function HomeHeader({
           <span className="text-sm font-medium text-content-secondary">{getGreeting()} ☀️</span>
         )}
       </div>
-      <div className="mt-3 flex shrink-0 items-center gap-1">
+      <div className="-mr-1 mt-3 flex shrink-0 items-center gap-1">
         <button
           type="button"
           aria-label="Add"
@@ -45,11 +47,16 @@ export function HomeHeader({
         </button>
         <button
           type="button"
-          aria-label="Notifications"
+          aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
           onClick={onBellClick}
-          className="flex h-11 w-11 items-center justify-center"
+          className="relative flex h-11 w-11 items-center justify-center"
         >
           <Icon icon="mdi:bell" width={24} height={24} className="text-primary" />
+          {unreadCount > 0 && (
+            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </button>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   inferSchedule,
@@ -15,6 +15,7 @@ import { useAgentNavigation } from '@/hooks/useAgentNavigation';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingFormSnapshot } from '@/hooks/useOnboardingFormSnapshot';
 import { Sentry } from '@/lib/sentry';
+import { DEFAULT_REFLECTION_PROMPTS } from '@gg/shared/types';
 import { useCtaLoading } from '../shared/useCtaLoading';
 import { useStepTiming } from '../shared/useStepTiming';
 
@@ -58,6 +59,35 @@ export function Step6Page() {
   );
   const [reminder, setReminder] = useState(incoming?.reminder ?? true);
   const [schedule, setSchedule] = useState<ScheduleOption>(incoming?.schedule ?? 'Weekday');
+  const [selectedPrompts, setSelectedPrompts] = useState<string[]>(DEFAULT_REFLECTION_PROMPTS);
+  const userToggledPromptsRef = useRef(false);
+
+  const handleTogglePrompt = useCallback((q: string) => {
+    userToggledPromptsRef.current = true;
+    setSelectedPrompts((prev) => {
+      const has = prev.includes(q);
+      // Keep at least one selected — a 0-question state just falls back to
+      // defaults on the backend, which is confusing.
+      if (has && prev.length === 1) return prev;
+      return DEFAULT_REFLECTION_PROMPTS.filter((p) => (p === q ? !has : prev.includes(p)));
+    });
+  }, []);
+
+  // Reflect a voice/persisted prompt selection on the pills — e.g. saying "keep
+  // proud and forgive" deselects the dropped one, giving visible confirmation of
+  // what was saved. A manual tap wins from then on (don't override the user).
+  useEffect(() => {
+    if (userToggledPromptsRef.current) return;
+    const saved = onboardingState?.data?.customPrompts;
+    if (Array.isArray(saved) && saved.length > 0) {
+      const sel = DEFAULT_REFLECTION_PROMPTS.filter((p) => saved.includes(p));
+      if (sel.length > 0) setSelectedPrompts(sel);
+    }
+  }, [onboardingState?.data?.customPrompts]);
+
+  const isDefaultSelection =
+    selectedPrompts.length === DEFAULT_REFLECTION_PROMPTS.length &&
+    DEFAULT_REFLECTION_PROMPTS.every((p) => selectedPrompts.includes(p));
 
   useEffect(() => {
     if (onboardingState?.data?.reflectionConfig) {
@@ -136,7 +166,20 @@ export function Step6Page() {
           { ...v, days: v.days instanceof Set ? [...v.days] : v.days },
         ]),
       );
-      await saveStepAsync(6, { reflectionConfig: { time, days: [...days], reminder, schedule } });
+      const reflectionConfig = { time, days: [...days], reminder, schedule };
+      // Only assert the prompt selection when the user actually used the pills.
+      // Otherwise preserve a mode/prompts choice made by voice or the -08 screen
+      // (e.g. dictated custom prompts, or freeform) instead of clobbering it.
+      await saveStepAsync(
+        6,
+        userToggledPromptsRef.current
+          ? {
+              reflectionConfig,
+              reflectionMode: 'prompts',
+              customPrompts: isDefaultSelection ? [] : selectedPrompts,
+            }
+          : { reflectionConfig },
+      );
       trackStepComplete();
       navigate('/onboarding/step-7', {
         state: {
@@ -165,12 +208,51 @@ export function Step6Page() {
     days,
     reminder,
     schedule,
+    selectedPrompts,
+    isDefaultSelection,
     navigate,
     saveStepAsync,
     trackStepComplete,
   ]);
 
   const { loading: ctaLoading, run: handleNextCta } = useCtaLoading(handleOnNext);
+
+  const handleCreatePrompts = useCallback(async () => {
+    const reflectionConfig = { time, days: [...days], reminder, schedule };
+    const serializedConfigs = resolvedHabitConfigs
+      ? Object.fromEntries(
+          Object.entries(resolvedHabitConfigs).map(([k, v]) => [
+            k,
+            { ...v, days: v.days instanceof Set ? [...v.days] : v.days },
+          ]),
+        )
+      : undefined;
+    try {
+      // Don't seed the custom-prompt list with the selected classics — the
+      // step-6-prompts screen is only for genuinely custom prompts.
+      await saveStepAsync(6, { reflectionConfig });
+    } catch (err) {
+      Sentry.captureException(err, { tags: { flow: 'onboarding', step: '6-prompts' } });
+    }
+    navigate('/onboarding/step-6-prompts', {
+      state: {
+        habitConfigs: serializedConfigs,
+        goals: resolvedGoals,
+        category: resolvedCategory,
+        reflectionConfig,
+      },
+    });
+  }, [
+    time,
+    days,
+    reminder,
+    schedule,
+    resolvedHabitConfigs,
+    resolvedGoals,
+    resolvedCategory,
+    saveStepAsync,
+    navigate,
+  ]);
 
   return (
     <OnboardingLayout
@@ -208,6 +290,12 @@ export function Step6Page() {
         onToggleReminder={setReminder}
         schedule={schedule}
         onScheduleChange={handleScheduleChange}
+        prompts={DEFAULT_REFLECTION_PROMPTS}
+        selectedPrompts={selectedPrompts}
+        onTogglePrompt={handleTogglePrompt}
+        onCreatePrompts={() => {
+          void handleCreatePrompts();
+        }}
       />
     </OnboardingLayout>
   );

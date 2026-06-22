@@ -11,11 +11,13 @@ export type CheckinToolName =
   | 'log_metric'
   | 'delete_metric'
   | 'record_checkin'
+  | 'query_checkin'
   | 'start_focus'
   | 'query_habits'
   | 'get_summary'
   | 'suggest_habit'
-  | 'log_reflection';
+  | 'log_reflection'
+  | 'update_reflection';
 
 export interface CheckinToolDefinition {
   readonly name: CheckinToolName;
@@ -47,6 +49,12 @@ export const CHECKIN_TOOLS: readonly CheckinToolDefinition[] = [
           type: 'array',
           description: 'Optional explicit days as 0-6 ints, 0=Sunday.',
           items: { type: 'number' },
+        },
+        habit_type: {
+          type: 'string',
+          description:
+            'Polarity. Set "binary_avoid" when the habit is about NOT doing / quitting / stopping / reducing / avoiding something (e.g. "no screens after 10pm", "stop smoking", "don\'t watch the news", "cut back on coffee"). Otherwise "binary_do" (default).',
+          enum: ['binary_do', 'binary_avoid'],
         },
       },
       required: ['name'],
@@ -174,6 +182,17 @@ export const CHECKIN_TOOLS: readonly CheckinToolDefinition[] = [
     },
   },
   {
+    name: 'query_checkin',
+    description:
+      "Read today's check-in (sleep, mood, energy, stress). Call on the morning opener to surface the interactive 4-scale check-in card inline — it does NOT save anything. Read-only.",
+    parameters: {
+      type: 'object',
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'start_focus',
     description:
       'Log a focus session (e.g. "start a 25 minute focus", "focus on reading for 30 minutes"). duration defaults to 25 minutes.',
@@ -195,6 +214,12 @@ export const CHECKIN_TOOLS: readonly CheckinToolDefinition[] = [
       type: 'object',
       properties: {
         name: { type: 'string', description: 'Optional specific habit name to report on.' },
+        scope: {
+          type: 'string',
+          description:
+            'Which habits to list. "all" (default) = every active habit. "today" = only those scheduled for the user\'s local today.',
+          enum: ['today', 'all'],
+        },
       },
       required: [],
       additionalProperties: false,
@@ -236,6 +261,30 @@ export const CHECKIN_TOOLS: readonly CheckinToolDefinition[] = [
         title: { type: 'string', description: 'Optional short title for the entry.' },
       },
       required: ['text'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'update_reflection',
+    description:
+      'Update the user\'s saved evening-reflection setup — their guided questions and/or mode. Call when the user wants to ADD, REMOVE, CHANGE, or REPLACE their reflection questions, or switch between guided prompts and freeform (e.g. "change my reflection questions to…", "add a question about sleep", "drop the gratitude one", "just let me freewrite"). The prompts array REPLACES the saved set, so ALWAYS send the COMPLETE intended list: to add one, send every existing question plus the new one; to remove one, send all except that one. Confirm the resulting list back to the user in one short line. This changes their setup permanently — it does NOT log a journal entry (use log_reflection for that).',
+    parameters: {
+      type: 'object',
+      properties: {
+        mode: {
+          type: 'string',
+          enum: ['prompts', 'freeform'],
+          description:
+            "'prompts' = answer guided questions; 'freeform' = no questions, just talk. Omit to keep the current mode.",
+        },
+        prompts: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'The COMPLETE new list of reflection questions (replaces the saved set). Send when the user is changing/adding/removing questions.',
+        },
+      },
+      required: [],
       additionalProperties: false,
     },
   },

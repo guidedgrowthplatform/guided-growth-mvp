@@ -8,12 +8,14 @@ import { DailyProgressCard } from '@/components/habits/DailyProgressCard';
 import { HabitListItem } from '@/components/home/HabitListItem';
 import { useToast } from '@/contexts/ToastContext';
 import { useHabitsForDate } from '@/hooks/useHabitsForDate';
+import type { HabitDayStatus } from '@/lib/services/data-service.interface';
+import { formatFrequency } from '@/lib/utils/formatFrequency';
 
 export function HabitsPage() {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const today = format(new Date(), 'yyyy-MM-dd');
-  const { habits, loading, error, toggleComplete, reload } = useHabitsForDate(today, 'HABIT-LIST');
+  const { habits, loading, error, setHabitStatus, reload } = useHabitsForDate(today, 'HABIT-LIST');
 
   useEffect(() => {
     track('view_habits');
@@ -21,9 +23,9 @@ export function HabitsPage() {
 
   const completedCount = habits.filter((h) => h.completed).length;
 
-  const handleToggle = async (habitId: string, currentlyCompleted: boolean) => {
+  const handleSetStatus = async (habitId: string, next: HabitDayStatus) => {
     try {
-      await toggleComplete(habitId, currentlyCompleted);
+      await setHabitStatus(habitId, next);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to update habit';
       addToast('error', msg);
@@ -68,14 +70,15 @@ export function HabitsPage() {
         <>
           <DailyProgressCard completed={completedCount} total={habits.length} />
           <div className="flex flex-col gap-3">
-            {habits.map(({ habit, completed, streak }) => (
+            {habits.map(({ habit, status, streak }) => (
               <HabitListItem
                 key={habit.id}
                 name={habit.name}
-                subtitle={habit.frequency}
+                subtitle={formatFrequency(habit.frequency)}
                 streak={streak}
-                isCompleted={completed}
-                onToggleComplete={() => handleToggle(habit.id, completed)}
+                status={status}
+                habitType={habit.habitType}
+                onSetStatus={(next) => handleSetStatus(habit.id, next)}
                 onAddNote={() => navigate(`/habit/${habit.id}/reflection`)}
                 onClick={() => navigate(`/habit/${habit.id}`)}
               />

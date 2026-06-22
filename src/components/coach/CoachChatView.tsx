@@ -1,11 +1,12 @@
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
+import { HabitReportCard } from '@/components/coach/HabitReportCard';
+import { CheckInCard } from '@/components/home/CheckInCard';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { deriveOrbRing } from '@/components/ui/orbRing';
 import { ChatBubble } from '@/components/voice/ChatBubble';
-import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { useToast } from '@/contexts/ToastContext';
@@ -18,6 +19,7 @@ import { stopTTS } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 interface CoachChatViewProps extends CoachChatApi {
+  currentScreenId: string;
   displayName?: string;
   onClose: () => void;
 }
@@ -35,8 +37,12 @@ export function CoachChatView({
   messages,
   voiceState,
   speaking,
+  micListening,
   sendText,
   updateHabitDays,
+  loadOlder,
+  hasMore,
+  loadingOlder,
   displayName,
   onClose,
 }: CoachChatViewProps) {
@@ -52,8 +58,9 @@ export function CoachChatView({
   // Soniox interim (set by useCoachChat's onInterim). Shows the user typing-by-voice.
   const interim = useVoiceStore((s) => s.interim);
 
-  // Capture runs whenever the right half is on (incl. both-on half-duplex).
-  const micLive = micRuntimeOn;
+  // Orb liveness = mic toggle AND a live Soniox stream. A dead/restarting mic
+  // (track ended on resume) reads as preparing, not a false blue "listening".
+  const micLive = micRuntimeOn && micListening;
   const isListening = voiceState === 'listening';
   const isProcessing = voiceState === 'processing';
 
@@ -77,17 +84,41 @@ export function CoachChatView({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pinnedToBottomRef = useRef(true);
   const touchStartY = useRef<number | null>(null);
+  // Captured just before loadOlder(): scrollHeight + the current top message id.
+  // Keying on the top id means an appended live turn mid-fetch is NOT mistaken
+  // for a prepend (only a real prepend changes the top id).
+  const prependAnchorRef = useRef<{ scrollHeight: number; topId: string | null } | null>(null);
+  const firstMessageId = messages[0]?.id ?? null;
 
-  const handleScrollPin = useCallback(() => {
+  const handleScroll = useCallback(() => {
     const el = scrollContainerRef.current;
-    if (el) pinnedToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-  }, []);
+    if (!el) return;
+    pinnedToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    if (el.scrollTop < 80 && hasMore && !loadingOlder && prependAnchorRef.current === null) {
+      prependAnchorRef.current = { scrollHeight: el.scrollHeight, topId: firstMessageId };
+      // Release the anchor only when the page added NOTHING new (empty/all-dup) —
+      // no blind timeout, so a genuinely slow prepend never loses its anchor (MR#8).
+      void loadOlder().then((added) => {
+        if (added === 0) prependAnchorRef.current = null;
+      });
+    }
+  }, [hasMore, loadingOlder, loadOlder, firstMessageId]);
 
+  // Restore the prior viewport offset ONLY on a real prepend (top id changed),
+  // so older pages don't jump the view; otherwise pin to bottom for live turns.
   useLayoutEffect(() => {
     const el = scrollContainerRef.current;
-    if (!el || !pinnedToBottomRef.current) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages.length, isProcessing, displayedAssistant, displayedUser]);
+    if (!el) return;
+    const anchor = prependAnchorRef.current;
+    if (anchor !== null) {
+      if (firstMessageId !== anchor.topId) {
+        el.scrollTop += el.scrollHeight - anchor.scrollHeight;
+        prependAnchorRef.current = null;
+      }
+      return;
+    }
+    if (pinnedToBottomRef.current) el.scrollTop = el.scrollHeight;
+  }, [messages.length, firstMessageId, isProcessing, displayedAssistant, displayedUser]);
 
   useCoachTranscripts((evt) => {
     if (evt.role !== 'assistant') return;
@@ -186,7 +217,7 @@ export function CoachChatView({
 
       <div
         ref={scrollContainerRef}
-        className="relative z-10 flex-1 overflow-y-auto px-6 pt-[64px]"
+        className="relative z-10 flex-1 overflow-y-auto px-4 pt-[64px]"
         style={{
           paddingBottom: 'calc(240px + max(48px, env(safe-area-inset-bottom)))',
           maskImage:
@@ -194,10 +225,15 @@ export function CoachChatView({
           WebkitMaskImage:
             'linear-gradient(to top, transparent 0px, transparent 120px, black 240px, black 100%)',
         }}
-        onScroll={handleScrollPin}
+        onScroll={handleScroll}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
+        {loadingOlder && (
+          <div className="py-2 text-center text-[12px] font-medium text-slate-500">
+            Loading older messages…
+          </div>
+        )}
         {renderedMessages.map((msg) => (
           <div key={msg.id} className="flex flex-col">
             <ChatBubble
@@ -218,14 +254,11 @@ export function CoachChatView({
               />
             ))}
             {msg.checkinCard && (
-              <CheckInResultCard
-                sleep={msg.checkinCard.sleep}
-                mood={msg.checkinCard.mood}
-                energy={msg.checkinCard.energy}
-                stress={msg.checkinCard.stress}
-                date={msg.checkinCard.date}
-              />
+              <div className="mb-3 mt-2 w-full max-w-[360px]">
+                <CheckInCard selectedDate={msg.checkinCard.date} embedded onClose={handleClose} />
+              </div>
             )}
+            {msg.habitReport && <HabitReportCard />}
           </div>
         ))}
         {displayedAssistant.length > 0 && (
@@ -262,7 +295,7 @@ export function CoachChatView({
           <DualButton
             size={91}
             leftActive={voiceChosen}
-            rightActive={micRuntimeOn}
+            rightActive={micLive}
             activeRings={dualActiveRings}
             ringCount={3}
             ringStep={4}

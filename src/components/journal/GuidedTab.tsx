@@ -1,10 +1,5 @@
 import { format } from 'date-fns';
-
-const PROMPTS = [
-  'What are the things you are grateful for today?',
-  'What are the things you are proud of today?',
-  'What are the things you forgive yourself for today?',
-];
+import { DEFAULT_REFLECTION_PROMPTS } from '@gg/shared/types';
 
 interface GuidedTabProps {
   answers: Record<string, string>;
@@ -12,9 +7,18 @@ interface GuidedTabProps {
   onSave: () => void;
   saving: boolean;
   now: Date;
+  prompts?: string[];
 }
 
-export function GuidedTab({ answers, onAnswerChange, onSave, saving, now }: GuidedTabProps) {
+export function GuidedTab({
+  answers,
+  onAnswerChange,
+  onSave,
+  saving,
+  now,
+  prompts,
+}: GuidedTabProps) {
+  const PROMPTS = prompts && prompts.length > 0 ? prompts : DEFAULT_REFLECTION_PROMPTS;
   const hasContent = Object.values(answers).some((v) => v.trim());
 
   return (

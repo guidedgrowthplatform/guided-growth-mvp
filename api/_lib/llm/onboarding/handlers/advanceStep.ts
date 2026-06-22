@@ -29,22 +29,33 @@ export async function advanceStep(
   ]);
   const row = existing.rows[0];
   const currentStep = row?.current_step ?? 1;
+  const data = (row?.data ?? {}) as Record<string, unknown>;
+  const path = row?.path ?? null;
+  const brainDumpRaw = row?.brain_dump_raw ?? null;
 
-  // No multi-step jumps. Same step / back-nav allowed.
-  if (targetStep > currentStep + 1) {
+  // Jumps beyond +2 are genuine skips → reject. Same step / back-nav allowed.
+  if (targetStep > currentStep + 2) {
     return handlerError(
       `cannot_skip_steps: current_step=${currentStep}, target_step=${targetStep}. Advance one step at a time.`,
     );
   }
 
+  // +2 is a tap/voice catch-up: tap-navigation into the current screen does NOT
+  // bump current_step, so a subsequent agent advance lands two ahead. Allow it
+  // ONLY when BOTH steps being left already have their data saved.
+  if (targetStep === currentStep + 2) {
+    for (let s = currentStep; s < targetStep; s++) {
+      if (checkAdvanceData({ sourceStep: s, data, path, brainDumpRaw })) {
+        return handlerError(
+          `cannot_skip_steps: current_step=${currentStep}, target_step=${targetStep}. Advance one step at a time.`,
+        );
+      }
+    }
+  }
+
   // Forward advance — the source screen's data must be saved.
   if (targetStep === currentStep + 1) {
-    const missing = checkAdvanceData({
-      sourceStep: currentStep,
-      data: (row?.data ?? {}) as Record<string, unknown>,
-      path: row?.path ?? null,
-      brainDumpRaw: row?.brain_dump_raw ?? null,
-    });
+    const missing = checkAdvanceData({ sourceStep: currentStep, data, path, brainDumpRaw });
     if (missing) return handlerError(missing);
   }
 

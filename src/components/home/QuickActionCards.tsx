@@ -18,7 +18,7 @@ function ActionCard({
   onPress,
 }: ActionCardProps) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-primary bg-surface px-4 pb-4 pt-5 shadow-sm">
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-gray-200 bg-surface px-4 pb-4 pt-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
       <div className={`flex h-12 w-12 items-center justify-center rounded-full ${iconWrapClass}`}>
         <Icon icon={icon} width={24} height={24} className={iconClass} />
       </div>
@@ -53,8 +53,8 @@ export function QuickActionCards({ onCheckInPress, onJournalPress }: QuickAction
         icon="fa6-solid:cloud-moon"
         iconWrapClass="bg-[#fdf0cd]"
         iconClass="text-[#1e3a8a]"
-        title="Daily Reflection"
-        buttonLabel="Evening Reflection"
+        title="Habits & Reflection"
+        buttonLabel="Evening Check In"
         onPress={onJournalPress}
       />
     </div>

@@ -18,7 +18,7 @@ export function DailyProgressCard({ completed, total }: DailyProgressCardProps) 
         <h2 className="text-base font-bold text-content">Daily Progress</h2>
         <div className="mt-1 flex items-center justify-between">
           <p className="text-sm text-content-secondary">
-            {displayCompleted} of {total} habits completed
+            {displayCompleted} of {total} habits done
           </p>
           <p className="text-sm font-semibold text-content">{percent}%</p>
         </div>

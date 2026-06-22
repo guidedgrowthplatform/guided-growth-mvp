@@ -1,7 +1,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import {
+  DEFAULT_REFLECTION_PROMPTS,
+  type HabitType,
+  type ReflectionSettings,
+} from '@gg/shared/types';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { supabaseAdmin } from '../_lib/supabase.js';
+import {
+  sanitizeDays,
+  sanitizePrompts,
+  upsertReflectionSettings,
+} from '../_lib/reflection/reflectionSettings.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
@@ -67,15 +77,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const { path: onboardingPath, data } = stateResult.rows[0];
       const habitConfigs = data?.habitConfigs as
-        | Record<string, { days: number[]; time: string; reminder: boolean }>
+        | Record<string, { days: number[]; time: string; reminder: boolean; habitType?: HabitType }>
         | undefined;
 
       if (habitConfigs) {
         let sortOrder = 0;
         for (const [name, config] of Object.entries(habitConfigs)) {
+          // Trust the explicit per-habit signal only. A category heuristic
+          // ("Break bad habits") mislabels positive replacement habits (e.g.
+          // "10-minute walk") as avoid; default to binary_do instead.
+          const habitType: HabitType =
+            config.habitType === 'binary_avoid' ? 'binary_avoid' : 'binary_do';
           await client.query(
             `INSERT INTO user_habits (anon_id, name, habit_type, cadence, schedule_days, reminder_time, reminder_enabled, sort_order)
-             VALUES ($1, $2, 'binary_do', 'daily', $3, $4, $5, $6)
+             VALUES ($1, $2, $3, 'daily', $4, $5, $6, $7)
              ON CONFLICT (anon_id, name) DO UPDATE SET
                schedule_days = EXCLUDED.schedule_days,
                reminder_time = EXCLUDED.reminder_time,
@@ -84,6 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             [
               user.anonId,
               name,
+              habitType,
               config.days || null,
               config.time || null,
               config.reminder || false,
@@ -128,6 +144,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           user_metadata: { nickname: data.nickname },
         });
       }
+
+      // Materialize reflection settings into the runtime table (mirrors habits →
+      // user_habits). Without this, the chosen mode/prompts/schedule stay trapped
+      // in onboarding_states.data and the runtime journal never sees them.
+      const rc = data?.reflectionConfig as
+        | { time?: string; days?: number[]; reminder?: boolean; schedule?: string }
+        | undefined;
+      const mode = data?.reflectionMode === 'freeform' ? 'freeform' : 'prompts';
+      const customPrompts = sanitizePrompts(data?.customPrompts);
+      const reflectionSettings: ReflectionSettings = {
+        mode,
+        prompts:
+          mode === 'prompts'
+            ? customPrompts.length
+              ? customPrompts
+              : DEFAULT_REFLECTION_PROMPTS
+            : [],
+        time: typeof rc?.time === 'string' ? rc.time : null,
+        days: sanitizeDays(rc?.days),
+        reminder: typeof rc?.reminder === 'boolean' ? rc.reminder : true,
+        schedule: typeof rc?.schedule === 'string' ? rc.schedule : null,
+      };
+      await upsertReflectionSettings(user.anonId, reflectionSettings, client);
 
       await client.query('COMMIT');
       return res.json({ message: 'Onboarding completed' });

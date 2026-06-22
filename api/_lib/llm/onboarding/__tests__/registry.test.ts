@@ -125,6 +125,7 @@ describe('ONBOARDING_TOOLS', () => {
           "name": "add_habit",
           "properties": [
             "days",
+            "habit_type",
             "name",
             "reminder",
             "schedule",
@@ -160,6 +161,7 @@ describe('ONBOARDING_TOOLS', () => {
           "name": "submit_reflection_config",
           "properties": [
             "days",
+            "mode",
             "reminder",
             "schedule",
             "time",

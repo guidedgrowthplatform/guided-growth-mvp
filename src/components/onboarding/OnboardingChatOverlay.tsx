@@ -12,6 +12,7 @@ import { useDisplayName } from '@/hooks/useDisplayName';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
+import { useStreamingReveal } from '@/hooks/useStreamingReveal';
 import { orbStateFrom } from '@/lib/orb/orbState';
 
 interface OnboardingChatOverlayProps {
@@ -58,6 +59,18 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
   const displayedAssistant = useSmoothReveal(partialAssistant);
   const displayedUser = useSmoothReveal(partialUser);
 
+  // Voice (Vapi) assistant turns arrive as sentence-sized chunks that snap into
+  // the bubble. Reveal the whole in-progress turn (committed finals + live
+  // partial) through one continuous, capped stream so it flows instead of pops.
+  const lastMsg = messages[messages.length - 1];
+  const lastIsAi = lastMsg?.role === 'ai';
+  const voiceStreaming = vapiActive && (assistantMergeOpen || partialAssistant.length > 0);
+  const committedActive = lastIsAi && voiceStreaming ? lastMsg.text : '';
+  const activeTurnTarget = voiceStreaming
+    ? `${committedActive} ${partialAssistant}`.replace(/\s+/g, ' ').trim()
+    : '';
+  const revealedTurn = useStreamingReveal(activeTurnTarget);
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pinnedToBottomRef = useRef(true);
   const touchStartY = useRef<number | null>(null);
@@ -71,7 +84,7 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
     const el = scrollContainerRef.current;
     if (!el || !pinnedToBottomRef.current) return;
     el.scrollTop = el.scrollHeight;
-  }, [messages.length, chatBusy, displayedAssistant, displayedUser]);
+  }, [messages.length, chatBusy, displayedAssistant, displayedUser, revealedTurn]);
 
   // Coach text — partials stream from both Vapi and the Direct-LLM path; clears
   // on final (the final lands as a message bubble).
@@ -211,46 +224,52 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
         onTouchEnd={handleTouchEnd}
       >
         {messages.map((msg, idx) => {
-          // Inline-append assistant partial INTO the last AI bubble while the
-          // merge window is open. The bubble grows continuously instead of
-          // partial-bubble-appears-then-vanishes-as-final-merges-upward.
           const isLast = idx === messages.length - 1;
-          const inlinePartial =
-            isLast && msg.role === 'ai' && assistantMergeOpen && displayedAssistant.length > 0
-              ? `${msg.text} ${displayedAssistant}`.replace(/\s+/g, ' ').trim()
-              : null;
+          // Voice active turn: the last AI bubble shows the continuously-revealed
+          // turn text (committed finals + live partial) instead of snapping.
+          const voiceActiveBubble = isLast && msg.role === 'ai' && voiceStreaming;
+          const text = voiceActiveBubble ? revealedTurn || msg.text : msg.text;
           return (
             <div key={msg.id} className="flex flex-col">
               <ChatBubble
                 role={msg.role}
-                text={inlinePartial ?? msg.text}
+                text={text}
                 userName={displayName}
                 eyebrowVariant="dark"
                 compact
                 animate={false}
-                streaming={inlinePartial != null}
+                streaming={voiceActiveBubble}
                 markdown
               />
             </div>
           );
         })}
-        {displayedAssistant.length > 0 &&
-          !(
-            assistantMergeOpen &&
-            messages.length > 0 &&
-            messages[messages.length - 1].role === 'ai'
-          ) && (
-            <ChatBubble
-              role="ai"
-              text={displayedAssistant}
-              userName={displayName}
-              eyebrowVariant="dark"
-              compact
-              animate={false}
-              streaming
-              markdown
-            />
-          )}
+        {/* Voice turn before its first final has committed (no AI bubble yet). */}
+        {voiceStreaming && !lastIsAi && revealedTurn.length > 0 && (
+          <ChatBubble
+            role="ai"
+            text={revealedTurn}
+            userName={displayName}
+            eyebrowVariant="dark"
+            compact
+            animate={false}
+            streaming
+            markdown
+          />
+        )}
+        {/* Typed (Direct-LLM) streaming bubble — voice uses revealedTurn above. */}
+        {!vapiActive && displayedAssistant.length > 0 && (
+          <ChatBubble
+            role="ai"
+            text={displayedAssistant}
+            userName={displayName}
+            eyebrowVariant="dark"
+            compact
+            animate={false}
+            streaming
+            markdown
+          />
+        )}
         {isVoiceInOnly && displayedUser.length > 0 && (
           <ChatBubble
             role="user"
@@ -262,7 +281,9 @@ export function OnboardingChatOverlay({ onClose }: OnboardingChatOverlayProps) {
             streaming
           />
         )}
-        {(chatBusy || waitingForAssistant) && partialAssistant.length === 0 && <TypingIndicator />}
+        {(chatBusy || waitingForAssistant) && partialAssistant.length === 0 && !voiceStreaming && (
+          <TypingIndicator />
+        )}
       </div>
 
       <div

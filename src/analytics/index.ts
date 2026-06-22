@@ -1,9 +1,2 @@
-export {
-  initAnalytics,
-  identify,
-  setUserProperty,
-  resetIdentity,
-  track,
-  trackPageView,
-} from './posthog';
+export { initAnalytics, identify, resetIdentity, track } from './posthog';
 export { usePageTracking } from './usePageTracking';

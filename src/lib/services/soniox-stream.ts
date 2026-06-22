@@ -491,7 +491,12 @@ const PREBUFFER_MAX_SAMPLES = 24000;
 // Soniox socket opens only on sustained speech and closes after silence.
 const VAD_OPEN_RMS = 0.01;
 const VAD_OPEN_SUSTAIN_MS = 150;
-const VAD_SILENCE_CLOSE_MS = 2500;
+// Kept ABOVE the longest end-of-turn pause (TURN_PAUSE_INCOMPLETE_MS in
+// voiceConfig.ts) PLUS a margin for Soniox final latency, so the paid socket
+// outlives the app's adaptive pause: the aggregation timer decides turn-end, and
+// a late resume still has a live socket to feed interims through (re-arming the
+// pause) rather than the socket finalizing mid-pause and restarting the timer.
+const VAD_SILENCE_CLOSE_MS = 3500;
 // smooth per-quantum RMS for VAD — raw quanta are too jittery to gate on
 const VAD_RMS_EMA_ALPHA = 0.2;
 
@@ -551,6 +556,18 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
   let sessionWatchdog: ReturnType<typeof setTimeout> | null = null;
   let armWatchdog: ReturnType<typeof setTimeout> | null = null;
   let visibilityHandler: (() => void) | null = null;
+  // Latches so a track-end / dead-context recovery fires once per boot.
+  let recovering = false;
+
+  // iOS background ends the mic track + suspends the context; a resumed context
+  // fed by a dead track emits zero frames. Re-route through onError so #206's
+  // auto-restart boots a fresh getUserMedia + AudioContext + worklet.
+  function triggerRecovery(reason: string): void {
+    if (stopped || !armed || recovering) return;
+    recovering = true;
+    opts.onError(reason);
+    stop();
+  }
 
   function clearSessionWatchdog(): void {
     if (sessionWatchdog !== null) {
@@ -770,6 +787,10 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
       });
       micMs = performance.now() - micStart;
       if (stopped) return cleanup();
+      // OS-ended track (background, device steal) — recover via #206 restart.
+      for (const t of mediaStream.getAudioTracks()) {
+        t.onended = () => triggerRecovery('microphone track ended');
+      }
       const audioStart = performance.now();
       // Browsers may ignore the requested rate; read back the actual one.
       try {
@@ -815,9 +836,14 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
       // iOS suspends the AudioContext on background; resume on return.
       visibilityHandler = () => {
         if (stopped || !armed) return;
-        if (document.visibilityState === 'visible' && audioContext?.state === 'suspended') {
-          void audioContext.resume();
+        if (document.visibilityState !== 'visible') return;
+        // A track ended in the background; resuming the context alone yields zero
+        // frames (false "listening"). Re-acquire via the #206 restart instead.
+        if (mediaStream?.getAudioTracks().some((t) => t.readyState === 'ended')) {
+          triggerRecovery('voice connection lost');
+          return;
         }
+        if (audioContext?.state === 'suspended') void audioContext.resume();
       };
       document.addEventListener('visibilitychange', visibilityHandler);
       // Armed: graph runs + ripple is live; the socket opens on first speech.

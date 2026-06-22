@@ -13,6 +13,9 @@ export const queryKeys = {
   preferences: {
     all: ['preferences'] as const,
   },
+  notifications: {
+    all: ['notifications'] as const,
+  },
   checkins: {
     all: ['checkins'] as const,
     byDate: (date: string) => ['checkins', date] as const,
@@ -29,6 +32,9 @@ export const queryKeys = {
   journal: {
     all: ['journal'] as const,
     range: (start: string, end: string) => ['journal', start, end] as const,
+  },
+  reflectionSettings: {
+    all: ['reflection-settings'] as const,
   },
   focusSessions: {
     all: ['focus-sessions'] as const,

@@ -5,6 +5,7 @@ import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { deriveOrbRing } from '@/components/ui/orbRing';
+import { useToast } from '@/contexts/ToastContext';
 import { useCoachVoice } from '@/contexts/useCoachVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
@@ -120,6 +121,7 @@ export function BottomNav({ hidden = false }: { hidden?: boolean }) {
   const { intensity: micIntensity, speaking: micSpeaking } = useMicVoiceActivity(isListening);
   const channelBusy = useVoiceChannelBusy();
   const { logEvent, startVoice, endVoice } = useSessionLog();
+  const { addToast } = useToast();
   const { routeToScreenId } = useScreenMap();
   const voiceAnchorIdRef = useRef<string | null>(null);
   const micRequestPendingRef = useRef<boolean>(false);
@@ -161,7 +163,16 @@ export function BottomNav({ hidden = false }: { hidden?: boolean }) {
       logEvent('mic_tapped', { from_screen: screenId ?? 'UNKNOWN' }, screenId);
       void requestMicPermission()
         .then((granted) => {
-          if (!granted) return;
+          // Returns a STRING — non-empty is always truthy, so guard on the value.
+          if (granted !== 'granted') {
+            addToast(
+              'error',
+              granted === 'denied'
+                ? 'Microphone access is blocked. Enable it in Settings to talk with your coach.'
+                : "Microphone isn't available right now. Try again in a moment.",
+            );
+            return;
+          }
           track('toggle_mic', { new_state: 'on', during_conversation: channelBusy });
         })
         .finally(() => {

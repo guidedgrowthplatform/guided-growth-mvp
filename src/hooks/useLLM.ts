@@ -23,6 +23,7 @@ const DELTA_COALESCE_MS = 40;
 export interface UseLLMReturn {
   sendMessage: (text: string) => Promise<void>;
   sendOpener: () => Promise<void>;
+  prependMessages: (older: LLMChatMessage[]) => number;
   messages: LLMChatMessage[];
   response: string;
   toolEvents: LLMToolEvent[];
@@ -31,6 +32,7 @@ export interface UseLLMReturn {
   error: Error | null;
   reset: () => void;
   cancel: () => void;
+  regenerate: () => Promise<void>;
 }
 
 function makeId(counter: { n: number }): string {
@@ -47,6 +49,7 @@ export function useLLM(
     coachingStyle?: CoachingStyle;
     chatSessionId?: string;
     initialMessages?: LLMChatMessage[];
+    inputMode?: 'voice' | 'text';
   },
 ): UseLLMReturn {
   const { sessionId, logEvent } = useSessionLog();
@@ -54,7 +57,15 @@ export function useLLM(
   const chatSessionId = opts?.chatSessionId;
   const initialMessages = opts?.initialMessages;
 
+  // Read fresh at send time — a voice/text toggle mustn't restale runStream.
+  const inputModeRef = useRef(opts?.inputMode);
+  inputModeRef.current = opts?.inputMode;
+
   const [messages, setMessages] = useState<LLMChatMessage[]>([]);
+  // Current messages for synchronous dedup in prependMessages (returns the
+  // number of genuinely-new rows so callers know if a prepend will commit).
+  const messagesRef = useRef<LLMChatMessage[]>([]);
+  messagesRef.current = messages;
   const [response, setResponse] = useState('');
   const [toolEvents, setToolEvents] = useState<LLMToolEvent[]>([]);
   const [status, setStatus] = useState<LLMStatus>('idle');
@@ -63,6 +74,8 @@ export function useLLM(
 
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
+  // Last real user turn (id + text) so we can re-answer it without re-adding it.
+  const lastUserRef = useRef<{ id: string; content: string } | null>(null);
   const idCounterRef = useRef({ n: 0 });
   const deltaBufferRef = useRef('');
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -96,6 +109,21 @@ export function useLLM(
     setError(null);
   }, []);
 
+  // Infinite-scroll-up: prepend an older page, deduped by id (a turn already
+  // in state from a live send must not double-render).
+  const prependMessages = useCallback((older: LLMChatMessage[]): number => {
+    if (older.length === 0) return 0;
+    const seen = new Set(messagesRef.current.map((m) => m.id));
+    const fresh = older.filter((m) => !seen.has(m.id));
+    if (fresh.length === 0) return 0;
+    setMessages((prev) => {
+      const seenPrev = new Set(prev.map((m) => m.id));
+      const f = older.filter((m) => !seenPrev.has(m.id));
+      return f.length === 0 ? prev : [...f, ...prev];
+    });
+    return fresh.length;
+  }, []);
+
   const cancel = useCallback(() => {
     if (abortRef.current) {
       abortRef.current.abort();
@@ -111,19 +139,31 @@ export function useLLM(
   }, []);
 
   const runStream = useCallback(
-    async (opts: { mode: 'chat' | 'opener'; text: string; surfaceErrors: boolean }) => {
+    async (opts: {
+      mode: 'chat' | 'opener';
+      text: string;
+      surfaceErrors: boolean;
+      reuseTurnId?: string;
+    }) => {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
 
       let userTurnId: string | null = null;
       if (opts.mode === 'chat') {
-        userTurnId = makeId(idCounterRef.current);
-        const userMsg: LLMChatMessage = {
-          id: userTurnId,
-          role: 'user',
-          content: opts.text,
-        };
-        setMessages((prev) => [...prev, userMsg]);
+        if (opts.reuseTurnId) {
+          // Regenerate: the user message is already in history; reuse its id so
+          // the backend dedups (ON CONFLICT) instead of creating a second turn.
+          userTurnId = opts.reuseTurnId;
+        } else {
+          userTurnId = makeId(idCounterRef.current);
+          const userMsg: LLMChatMessage = {
+            id: userTurnId,
+            role: 'user',
+            content: opts.text,
+          };
+          setMessages((prev) => [...prev, userMsg]);
+          lastUserRef.current = { id: userTurnId, content: opts.text };
+        }
       }
       setResponse('');
       setToolEvents([]);
@@ -256,6 +296,7 @@ export function useLLM(
             chat_session_id: chatSessionId,
             user_turn_id: userTurnId ?? undefined,
             recent_events,
+            ...(inputModeRef.current ? { input_mode: inputModeRef.current } : {}),
             ...(opts.mode === 'chat'
               ? { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }
               : {}),
@@ -312,6 +353,16 @@ export function useLLM(
     [runStream],
   );
 
+  // Re-answer the LAST user turn WITHOUT adding a new message — used to guarantee
+  // the coach replies to a turn whose reply got dropped/aborted/interrupted.
+  const regenerate = useCallback(() => {
+    const lu = lastUserRef.current;
+    // No prior user turn (e.g. the coach's opener got interrupted) → re-issue a
+    // coach-led message instead of no-op'ing into silence.
+    if (!lu) return runStream({ mode: 'opener', text: '', surfaceErrors: false });
+    return runStream({ mode: 'chat', text: lu.content, surfaceErrors: true, reuseTurnId: lu.id });
+  }, [runStream]);
+
   useEffect(() => {
     return () => {
       if (abortRef.current) {
@@ -340,6 +391,7 @@ export function useLLM(
   return {
     sendMessage,
     sendOpener,
+    prependMessages,
     messages,
     response,
     toolEvents,
@@ -348,5 +400,6 @@ export function useLLM(
     error,
     reset,
     cancel,
+    regenerate,
   };
 }

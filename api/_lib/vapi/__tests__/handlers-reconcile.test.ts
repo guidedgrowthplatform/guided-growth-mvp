@@ -94,6 +94,33 @@ describe('vapi addHabit — reconciliation', () => {
   });
 });
 
+// The two-call pattern: call 1 names the habit + polarity, call 2 sets the
+// schedule with no habit_type. The DB-side per-name deep-merge must keep the
+// prior habitType instead of wiping it back to binary_do.
+describe('vapi addHabit — polarity preservation', () => {
+  it('call 1 stages habitType under the name key ($4)', async () => {
+    await addHabit({ anon_id: ANON, name: 'no news', habit_type: 'binary_avoid' });
+    const params = pool.query.mock.calls[0][1] as unknown[];
+    const merge = JSON.parse(params[2] as string);
+    expect(merge['no news'].habitType).toBe('binary_avoid');
+    expect(params[3]).toBe('no news'); // $4 == name key
+  });
+
+  it('schedule-only call omits habitType and uses the per-name deep-merge', async () => {
+    await addHabit({ anon_id: ANON, name: 'no news', schedule: 'Every day' });
+    const params = pool.query.mock.calls[0][1] as unknown[];
+    const sql = pool.query.mock.calls[0][0] as string;
+    const merge = JSON.parse(params[2] as string);
+    // No habitType in this payload → it can't overwrite the staged value.
+    expect(merge['no news'].habitType).toBeUndefined();
+    // Per-name merge (not flat `|| $3`) is what preserves the prior habitType.
+    expect(sql).toMatch(/jsonb_build_object/);
+    expect(sql).toMatch(/->'habitConfigs'->\$4/);
+    expect(sql).toMatch(/\(\$3::jsonb -> \$4\)/);
+    expect(params[3]).toBe('no news');
+  });
+});
+
 describe('vapi submitReflectionConfig — reconciliation', () => {
   it('reconciles stale schedule label against days (Every day -> Weekday)', async () => {
     await submitReflectionConfig({
@@ -199,6 +226,61 @@ describe('vapi navigateNext — skip + precondition guards', () => {
     const res = await navigateNext({ anon_id: ANON, target_step: 3 });
     expect(res).toMatchObject({ error: expect.stringContaining('cannot_skip_steps') });
     // Only the SELECT ran — no UPSERT.
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  // tap→voice catch-up: user tapped into the reflection screen (current_step
+  // stays at the habits step) then advanced by voice — a +2 jump.
+  it('allows +2 catch-up when both skipped steps have data (step 5 → 7)', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            current_step: 5,
+            data: { habitConfigs: { Run: {} }, reflectionConfig: { time: '21:00' } },
+            path: 'simple',
+            brain_dump_raw: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    expect(res).toEqual({ result: 'ok' });
+    expect(pool.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects +2 catch-up when an intermediate step is missing data (step 5 → 7, no reflectionConfig)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          current_step: 5,
+          data: { habitConfigs: { Run: {} } },
+          path: 'simple',
+          brain_dump_raw: null,
+        },
+      ],
+    });
+    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    expect(res).toMatchObject({ error: expect.stringContaining('cannot_skip_steps') });
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects +3 jumps outright even with data present (step 4 → 7)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          current_step: 4,
+          data: { goals: ['x'], habitConfigs: { Run: {} }, reflectionConfig: { time: '21:00' } },
+          path: 'simple',
+          brain_dump_raw: null,
+        },
+      ],
+    });
+    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    expect(res).toMatchObject({ error: expect.stringContaining('cannot_skip_steps') });
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
 

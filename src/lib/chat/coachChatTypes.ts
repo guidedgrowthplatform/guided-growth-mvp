@@ -21,6 +21,8 @@ export interface ChatMessage {
   text: string;
   habitCards?: HabitCard[];
   checkinCard?: CheckInCardData;
+  // True when this turn completed a habit — renders the read-only Today's Habits report.
+  habitReport?: boolean;
 }
 
 export type VoiceChatState = 'idle' | 'listening' | 'processing';
@@ -40,9 +42,17 @@ export interface CoachChatApi {
   messages: ChatMessage[];
   voiceState: VoiceChatState;
   speaking: boolean;
+  // True Soniox liveness (armed + 'listening'), not the persisted mic toggle —
+  // drives the orb's active/ring so a dead/restarting mic doesn't read as live.
+  micListening: boolean;
   startListening: () => void;
   stopListening: () => void;
   sendText: (text: string) => void;
   updateHabitDays: (messageId: string, cardIndex: number, days: boolean[]) => void;
   lastCreatedItem?: LastCreatedItem;
+  // Infinite-scroll-up over the linear per-user timeline. Resolves with the
+  // number of genuinely-new rows prepended (0 → nothing to anchor).
+  loadOlder: () => Promise<number>;
+  hasMore: boolean;
+  loadingOlder: boolean;
 }

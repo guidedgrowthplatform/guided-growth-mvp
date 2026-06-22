@@ -3,6 +3,23 @@ import type { JournalEntry } from '@gg/shared/types';
 
 const PREVIEW_MAX_CHARS = 180;
 
+// Prompts for entries written before per-entry snapshots existed. Order
+// grateful/proud/forgive must stay — it's how those entries' answer fields
+// (0/1/2) were keyed, so changing it would mis-label answers.
+export const LEGACY_GUIDED_PROMPTS = [
+  'What are the things you are grateful for today?',
+  'What are the things you are proud of today?',
+  'What are the things you forgive yourself for today?',
+];
+
+// Resolve the prompts a guided entry was written against: its own snapshot, or
+// the legacy set for pre-snapshot entries.
+export function guidedPromptsForEntry(entry: JournalEntry): string[] {
+  return entry.prompts_snapshot && entry.prompts_snapshot.length > 0
+    ? entry.prompts_snapshot
+    : LEGACY_GUIDED_PROMPTS;
+}
+
 function stripHtml(html: string): string {
   return html
     .replace(/<[^>]*>/g, ' ')

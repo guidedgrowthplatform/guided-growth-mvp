@@ -13,6 +13,7 @@ export const SESSION_LOG_EVENTS = [
   'habit_edited',
   'habit_deleted',
   'habit_completed',
+  'habit_missed',
   'checkin_started',
   'checkin_completed',
   'goal_set',
