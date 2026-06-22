@@ -8,6 +8,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 // "Could not connect to server" report on the Android APK in early Apr 2026.
 const ALLOWED_ORIGINS = [
   'https://guided-growth-mvp.vercel.app',
+  'https://guided-growth-qa.vercel.app', // web QA app
   'capacitor://localhost', // iOS WKWebView
   'https://localhost', // Android Capacitor 3+ default
   'http://localhost', // legacy / dev fallback
@@ -19,8 +20,10 @@ export function handleCors(req: VercelRequest, res: VercelResponse): boolean {
   const origin = req.headers.origin || '';
   const vercelOrigin = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '';
 
-  // Allow Vercel preview deployments (the URL is dynamic per branch).
-  const isVercelPreview = /^https:\/\/[a-z0-9-]+-guided-growth-mvp.*\.vercel\.app$/.test(origin);
+  // Allow Vercel preview deployments (dynamic per branch) for both apps' projects.
+  const isVercelPreview = /^https:\/\/([a-z0-9-]+-)?guided-growth-(mvp|qa)(-[a-z0-9-]+)?\.vercel\.app$/.test(
+    origin,
+  );
 
   if (
     ALLOWED_ORIGINS.includes(origin) ||

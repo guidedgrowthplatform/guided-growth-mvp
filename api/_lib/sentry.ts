@@ -8,7 +8,7 @@ const dsn = process.env.SENTRY_DSN;
 if (dsn) {
   Sentry.init({
     dsn,
-    environment: process.env.VERCEL_ENV ?? 'development',
+    environment: process.env.SENTRY_ENVIRONMENT ?? process.env.VERCEL_ENV ?? 'development',
     sendDefaultPii: false,
     // Errors-only: tracesSampleRate omitted (0 wouldn't disable tracing).
     defaultIntegrations: false,

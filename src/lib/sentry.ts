@@ -7,7 +7,7 @@ export function initSentry() {
 
   Sentry.init({
     dsn: DSN,
-    environment: import.meta.env.MODE,
+    environment: (import.meta.env.VITE_SENTRY_ENVIRONMENT as string | undefined) ?? import.meta.env.MODE,
     enabled: import.meta.env.PROD,
     sendDefaultPii: false,
     integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],
