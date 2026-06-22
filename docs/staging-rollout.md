@@ -26,7 +26,7 @@ Living tracker for standing up the separate staging/QA environment. Plan + ratio
 **Owner:** Claude · **Branch:** `feat/staging-supabase-wiring` → `staging` · **Gate:** none
 
 - ☑ `[remotes.staging]` in `supabase/config.toml` (real ref `ppyouymvnrqxcsllrmsl`)
-- ☑ `.github/workflows/staging-db.yml` — `db push` to staging on push to `staging` (paths `supabase/migrations/**`); prod is manual `workflow_dispatch` + `environment: production`. INERT: both jobs no-op until repo vars `STAGING_DB_ENABLED` / `PROD_DB_ENABLED` == `'true'`.
+- ☑ `.github/workflows/staging-db.yml` — push to `staging` runs `db push --dry-run` only (paths `supabase/migrations/**`); a real apply needs `workflow_dispatch` + `dry_run=false`, gated by `environment: staging`. Prod is manual dispatch + `environment: production`. INERT: both jobs no-op until repo vars `STAGING_DB_ENABLED` / `PROD_DB_ENABLED` == `'true'`.
 - ~~Catalog seed migration~~ **DROPPED** — the `categories`/`subcategories`/`starter_habits` tables are empty in prod and read by nothing (live catalog is `src/data/onboardingHabits.ts` → `@gg/shared`). The seed sourced empty rows from empty tables; removed (`export-catalog-seed.mjs` deleted). No catalog seeding needed — staging gets the same code-side taxonomy.
 - ☑ this rollout checklist
 - ☑ `voice-sync.yml` gained a **dispatch-only `sync-staging` job** (`workflow_dispatch` input `target=staging`, gated on `STAGING_DB_ENABLED`) — hourly prod job untouched

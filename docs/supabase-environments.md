@@ -45,7 +45,7 @@ Principles:
 | Staging URL    | Stable, permanent                                              | Churns (preview) / per-branch billing (persistent)  |
 | Schema sync    | Our existing CLI migration flow, verbatim                      | Git-integration driven (GitHub-tuned)               |
 | Edge Functions | N/A — we have none                                             | Auto-deploy per branch (its headline win)           |
-| Data           | Reference content via seed migration; tester data is env-local | Same — content via migration, tester data env-local |
+| Data           | Onboarding catalog is code-side; `screen_contexts` synced via voice-sync; tester data env-local | Same — schema/content via migration, tester data env-local |
 | Git trigger    | Plain `db push` per ref, any host                              | Auto-creates branches from **GitHub** PRs           |
 
 We use **two independent projects** because migrations are already CLI-driven, we have zero Edge Functions, and we want a stable staging URL. Branching's auto-branch-on-PR is keyed to GitHub PRs, but our code + MRs live on **GitLab** (GitHub only hosts the CI workflows), so that trigger wouldn't fire from our flow anyway.
@@ -186,27 +186,37 @@ vercel env add DATABASE_URL preview
 Active CI runs on **GitHub Actions** (`.github/workflows/` — `ci.yml`, `voice-sync.yml` hourly, `qa-release.yml`, `match-bootstrap.yml`). The repo + MRs live on **GitLab**, mirrored to GitHub for Actions. The root `.gitlab-ci.yml` voice-sync job is disabled (`rules: when: never`) — add new automation as GitHub workflows, not there.
 
 - **On MR:** `supabase db start` → apply migrations to an ephemeral local DB → optionally regenerate types and fail on uncommitted diff. No remote push.
-- **On push to `staging`:** `supabase link --project-ref $STAGING_PROJECT_REF && supabase db push` (applies migrations), then staging voice-sync for `screen_contexts`. No data refresh — there is none.
+- **On push to `staging`:** runs `db push --dry-run` only (prints the plan, never applies). A real apply is a deliberate `workflow_dispatch` with `dry_run=false`, gated by the `staging` Environment. Staging voice-sync for `screen_contexts` is separate. No data refresh — there is none.
 - **On `main`:** same `db push` but a **MANUAL `workflow_dispatch` job, never auto-on-push** [APPROVAL REQUIRED].
 
 GitHub Actions secrets (never in repo): `SUPABASE_ACCESS_TOKEN`, `STAGING_PROJECT_REF`, `STAGING_DB_PASSWORD`, plus prod equivalents.
 
 ```yaml
-# .github/workflows/staging-db.yml — apply migrations to staging on push to `staging`
+# .github/workflows/staging-db.yml (illustrative — see the real file for full gating)
+# Push to `staging` runs db push --DRY-RUN only; a real apply is a manual
+# workflow_dispatch (dry_run=false) gated by `environment: staging`.
 on:
   push:
     branches: [staging]
+  workflow_dispatch:
+    inputs: { dry_run: { type: boolean, default: true } }
 jobs:
-  deploy_staging_db:
+  push-staging:
     runs-on: ubuntu-latest
+    environment: staging
+    if: vars.STAGING_DB_ENABLED == 'true'
     steps:
       - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
-      - run: supabase link --project-ref "$STAGING_PROJECT_REF" && supabase db push
+      - uses: supabase/setup-cli@v2
+      - run: |
+          supabase link --project-ref "$STAGING_PROJECT_REF"
+          # push events force dry-run; only an explicit dispatch can apply
+          [ "$DRY_RUN" = "true" ] && supabase db push --dry-run || supabase db push
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           STAGING_PROJECT_REF: ${{ secrets.STAGING_PROJECT_REF }}
           SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          DRY_RUN: ${{ github.event_name == 'push' && 'true' || github.event.inputs.dry_run }}
 # prod: a separate workflow_dispatch (manual) job with prod secrets — never on: push to main
 ```
 
@@ -239,7 +249,7 @@ jobs:
 8. **[Vercel]** Add Preview-scope env vars → staging (`DATABASE_URL` = staging **pooler**). Confirm Production scope still → prod.
 9. Add a staging voice-sync CI run; leave the hourly prod job untouched.
 10. Onboarding catalog is code-side (not in the DB) — identical across envs by construction, no data load or anonymization. Tester data is created in staging directly.
-11. Add GitHub Actions workflows: auto `db push` on push to `staging`, **manual** (`workflow_dispatch`) `db push` for prod.
+11. Add GitHub Actions workflows: `db push --dry-run` on push to `staging` (apply via manual dispatch, `environment: staging`); **manual** (`workflow_dispatch`) `db push` for prod.
 12. Add an "Environments" note to `CLAUDE.md`/`HANDOFF.md` naming both refs + the QA app URL.
 13. Smoke test staging: Google + email sign-in, an onboarding session (JWT hook + realtime isolation), a `/api/llm` call; confirm writes land in **staging**, not prod.
 

@@ -34,6 +34,8 @@ jobs:
     # INERT until repo Actions variable STAGING_DB_ENABLED='true' exists.
     # On a push event inputs.target is '' so the staging default applies;
     # explicit dispatch must target staging (prod handled by its own job).
+    # Approval gate (parity with push-prod) — a real apply needs sign-off.
+    environment: staging
     if: >-
       vars.STAGING_DB_ENABLED == 'true'
       && (
@@ -52,7 +54,9 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
           STAGING_PROJECT_REF: ${{ secrets.STAGING_PROJECT_REF }}
-          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          # Push events never auto-apply — dry-run only. A real apply needs an
+          # explicit dispatch with dry_run=false (never a silent migration).
+          DRY_RUN: ${{ github.event_name == 'push' && 'true' || github.event.inputs.dry_run }}
         run: |
           set -euo pipefail
           supabase link --project-ref "$STAGING_PROJECT_REF"

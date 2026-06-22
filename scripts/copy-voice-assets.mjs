@@ -35,9 +35,17 @@ if (missing.length) {
   process.exit(1);
 }
 
-// Misroute guard: never point "staging" at prod.
+// Misroute guard: writes target staging, reads target prod — assert both ends.
 if (process.env.STAGING_SUPABASE_URL.includes(PROD_REF)) {
   console.error(`Refusing to run: STAGING_SUPABASE_URL contains prod ref ${PROD_REF}.`);
+  process.exit(1);
+}
+if (!process.env.PROD_SUPABASE_URL.includes(PROD_REF)) {
+  console.error(`Refusing to run: PROD_SUPABASE_URL does not contain prod ref ${PROD_REF}.`);
+  process.exit(1);
+}
+if (process.env.STAGING_SUPABASE_URL === process.env.PROD_SUPABASE_URL) {
+  console.error('Refusing to run: STAGING_SUPABASE_URL == PROD_SUPABASE_URL.');
   process.exit(1);
 }
 
@@ -81,7 +89,11 @@ async function listAll(prefix = '') {
 }
 
 async function ensureStagingBucket() {
-  const { error } = await staging.storage.createBucket(BUCKET, { public: true });
+  // Match prod: voice-assets is public, 10 MB object limit.
+  const { error } = await staging.storage.createBucket(BUCKET, {
+    public: true,
+    fileSizeLimit: 10485760,
+  });
   if (error && !/already exists/i.test(error.message)) {
     throw new Error(`createBucket failed: ${error.message}`);
   }
@@ -99,30 +111,39 @@ async function copyOne(path) {
   if (upErr) throw new Error(`upload failed: ${upErr.message}`);
 }
 
-console.log(`Listing prod bucket "${BUCKET}"…`);
-const files = await listAll();
-console.log(`Found ${files.length} object(s).`);
+async function main() {
+  console.log(`Listing prod bucket "${BUCKET}"…`);
+  const files = await listAll();
+  console.log(`Found ${files.length} object(s).`);
 
-if (DRY_RUN) {
-  for (const f of files) console.log(`  [dry-run] would copy ${f} (${contentTypeFor(f)})`);
-  console.log(`\nDry run: ${files.length} object(s) would be copied. No writes performed.`);
-  process.exit(0);
-}
-
-await ensureStagingBucket();
-
-let copied = 0;
-let failed = 0;
-for (const [i, path] of files.entries()) {
-  try {
-    await copyOne(path);
-    copied++;
-    console.log(`  [${i + 1}/${files.length}] copied ${path}`);
-  } catch (err) {
-    failed++;
-    console.error(`  [${i + 1}/${files.length}] FAILED ${path}: ${err.message}`);
+  if (DRY_RUN) {
+    for (const f of files) console.log(`  [dry-run] would copy ${f} (${contentTypeFor(f)})`);
+    console.log(`\nDry run: ${files.length} object(s) would be copied. No writes performed.`);
+    return 0;
   }
+
+  await ensureStagingBucket();
+
+  let copied = 0;
+  let failed = 0;
+  for (const [i, path] of files.entries()) {
+    try {
+      await copyOne(path);
+      copied++;
+      console.log(`  [${i + 1}/${files.length}] copied ${path}`);
+    } catch (err) {
+      failed++;
+      console.error(`  [${i + 1}/${files.length}] FAILED ${path}: ${err.message}`);
+    }
+  }
+
+  console.log(`\nDone. copied=${copied} failed=${failed} total=${files.length}`);
+  return failed > 0 ? 1 : 0;
 }
 
-console.log(`\nDone. copied=${copied} failed=${failed} total=${files.length}`);
-process.exit(failed > 0 ? 1 : 0);
+main()
+  .then((code) => process.exit(code))
+  .catch((err) => {
+    console.error(err.message);
+    process.exit(1);
+  });
