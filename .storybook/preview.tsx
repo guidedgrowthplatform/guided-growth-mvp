@@ -20,22 +20,26 @@ const preview: Preview = {
     },
   },
   // Frame each card in a phone-width, page-background container so it reads in
-  // context rather than floating on raw white.
+  // context rather than floating on raw white. Full-screen stories (the Flow
+  // Designer) opt out of the frame.
   decorators: [
-    (Story) => (
-      <div
-        style={{
-          fontFamily: 'Urbanist, -apple-system, BlinkMacSystemFont, sans-serif',
-          width: 360,
-          maxWidth: '100%',
-          padding: 24,
-          background: '#f9f9f9',
-          borderRadius: 24,
-        }}
-      >
+    (Story, context) =>
+      context.parameters.layout === 'fullscreen' ? (
         <Story />
-      </div>
-    ),
+      ) : (
+        <div
+          style={{
+            fontFamily: 'Urbanist, -apple-system, BlinkMacSystemFont, sans-serif',
+            width: 360,
+            maxWidth: '100%',
+            padding: 24,
+            background: '#f9f9f9',
+            borderRadius: 24,
+          }}
+        >
+          <Story />
+        </div>
+      ),
   ],
 };
 

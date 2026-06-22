@@ -56,6 +56,9 @@ const AddHabitPage = lazyWithRetry(() =>
 const StatusPage = lazyWithRetry(() =>
   import('@/pages/StatusPage').then((m) => ({ default: m.StatusPage })),
 );
+const FlowDesignerPage = lazyWithRetry(() =>
+  import('@/pages/FlowDesignerPage').then((m) => ({ default: m.FlowDesignerPage })),
+);
 const AuthCallbackPage = lazyWithRetry(() =>
   import('@/pages/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage })),
 );
@@ -177,6 +180,9 @@ export function AppRoutes() {
 
         {/* Public status dashboard (no auth required) */}
         <Route path="/status" element={<StatusPage />} />
+
+        {/* Dev-only flow designer: preview the chat-native flow with real components */}
+        {import.meta.env.DEV && <Route path="/flow-designer" element={<FlowDesignerPage />} />}
 
         <Route path="/splash" element={<SplashScreenPage />} />
 
