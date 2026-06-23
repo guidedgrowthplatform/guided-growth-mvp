@@ -1,0 +1,35 @@
+name: env-matrix
+
+# Asserts required env vars present per Vercel scope and forbidden QA-only vars
+# absent from Production. Presence is checked by NAME (vercel env ls) because
+# sensitive vars return empty via `env pull`. Non-blocking until promoted to a
+# required check (see docs/PROMOTION.md).
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Production scope — names list + check
+        run: |
+          npx --yes vercel@latest env ls production --token="${{ secrets.VERCEL_TOKEN }}" \
+            | awk 'NR>1 {print $1}' | grep -E '^[A-Z0-9_]+$' > /tmp/prod.names || true
+          node scripts/env/check-env.mjs production /tmp/prod.names
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Preview scope — names list + check
+        run: |
+          npx --yes vercel@latest env ls preview --token="${{ secrets.VERCEL_TOKEN }}" \
+            | awk 'NR>1 {print $1}' | grep -E '^[A-Z0-9_]+$' > /tmp/preview.names || true
+          node scripts/env/check-env.mjs preview /tmp/preview.names
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

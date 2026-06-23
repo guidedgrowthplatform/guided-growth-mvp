@@ -112,7 +112,12 @@ export default defineConfig(({ mode }) => {
       : 'http://localhost:3000';
   console.log('[vite] API proxy target:', apiTarget);
 
+  const gitSha = env.VERCEL_GIT_COMMIT_SHA || env.VITE_GIT_SHA || '';
+
   return {
+    define: {
+      'import.meta.env.VITE_GIT_SHA': JSON.stringify(gitSha),
+    },
     build: {
       sourcemap: true,
       rollupOptions: {

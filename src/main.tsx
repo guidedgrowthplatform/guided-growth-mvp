@@ -9,6 +9,7 @@ import {
   setPendingAuthHandoff,
 } from '@/lib/auth/authHandoff';
 import { captureDebugFlag } from '@/lib/debug/debugFlag';
+import { initQaEnv } from '@/lib/qaEnv';
 import { hydratePersistentFlags } from '@/lib/storage/persistentFlags';
 import { supabase } from '@/lib/supabase';
 import App from './App';
@@ -21,6 +22,7 @@ captureDebugFlag();
 registerBundledIcons();
 initSentry();
 initAnalytics();
+void initQaEnv();
 trackOpenApp(Capacitor.isNativePlatform() ? Capacitor.getPlatform() : 'web');
 
 // Disable pinch-to-zoom only in native Capacitor shell

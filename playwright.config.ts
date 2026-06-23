@@ -25,8 +25,11 @@ export default defineConfig({
 
   // Artifacts on failure
   use: {
-    // Default to production target for journey tests
-    baseURL: 'https://guided-growth-mvp-six.vercel.app',
+    // Env-overridable; defaults to production target for journey tests
+    baseURL:
+      process.env.E2E_BASE_URL ||
+      process.env.PLAYWRIGHT_TEST_BASE_URL ||
+      'https://guided-growth-mvp-six.vercel.app',
 
     // iPhone viewport (matches Figma design)
     viewport: { width: 390, height: 844 },

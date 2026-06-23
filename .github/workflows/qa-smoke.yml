@@ -1,0 +1,36 @@
+name: qa-smoke
+
+# Runs the login-free QA smoke against the staging QA app after it deploys.
+# NOTE: deployment_status only fires if Vercel's Git integration is connected to
+# THIS GitHub repo. If Vercel is wired to GitLab instead, use workflow_dispatch
+# (or a repository_dispatch from a post-deploy step). See docs pre-flight #1.
+
+on:
+  workflow_dispatch:
+  deployment_status:
+
+jobs:
+  smoke:
+    # Only react to a successful deploy whose URL is the QA app.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       contains(github.event.deployment_status.environment_url, 'guided-growth-qa.vercel.app'))
+    runs-on: ubuntu-latest
+    env:
+      E2E_BASE_URL: https://guided-growth-qa.vercel.app
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test e2e/qa-smoke.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-smoke-report
+          path: playwright-report/
+          retention-days: 7
