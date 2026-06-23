@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { REMINDER_VARIANTS, reminderVariantIndex } from '@gg/shared';
 
 let store: Record<string, string> = {};
 vi.mock('@capacitor/preferences', () => ({
@@ -48,8 +49,8 @@ describe('localFeed', () => {
 
   it('caps at 50 across many days', async () => {
     const { ensureLocalFeedEntry, getLocalFeed } = await load();
-    for (let d = 1; d <= 55; d++) {
-      const day = `2026-08-${String(d).padStart(2, '0')}T08:00:00.000Z`;
+    for (let i = 0; i < 55; i++) {
+      const day = new Date(Date.UTC(2026, 7, 1 + i, 8)).toISOString();
       await ensureLocalFeedEntry('morning_checkin', null, day);
     }
     expect(await getLocalFeed()).toHaveLength(50);
@@ -79,6 +80,15 @@ describe('localFeed', () => {
     ]);
     expect([a, b].filter(Boolean)).toHaveLength(1);
     expect(await getLocalFeed()).toHaveLength(1);
+  });
+
+  it('stored entry matches the rotation variant for that day', async () => {
+    const { ensureLocalFeedEntry, getLocalFeed } = await load();
+    await ensureLocalFeedEntry('morning_checkin', 'Sam', NOW);
+    const variant = REMINDER_VARIANTS.morning_checkin[reminderVariantIndex(new Date(NOW))];
+    const [entry] = await getLocalFeed();
+    expect(entry.title).toBe(variant.title);
+    expect(entry.body).toBe(variant.body);
   });
 
   it('recovers from corrupt stored JSON', async () => {
