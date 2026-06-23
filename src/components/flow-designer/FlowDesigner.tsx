@@ -12,12 +12,13 @@ import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 
 /**
- * FlowDesigner — an interactive preview of the chat-native onboarding flow,
- * built from the REAL app components (not lookalikes). Each beat renders the
- * actual production card with its own live state, framed in a phone preview.
+ * FlowDesigner — the chat-native onboarding flow as one continuous scroll,
+ * built from the REAL app components (not lookalikes) with real onboarding
+ * content (the 8 categories, real goals, real sub-habits, real gender
+ * options, real coach lines).
  *
- * Lives in two places: a Storybook story (Flow / Flow Designer) for fast
- * iteration, and a dev-only /flow-designer route for in-app use.
+ * Lives in three places: a Storybook story (Flow / Flow Designer), a dev-only
+ * /flow-designer route in the app, and a standalone hosted build.
  */
 
 // --- Beat bodies: each holds its own local state and renders real components.
@@ -34,11 +35,11 @@ function ProfileBody() {
         onChange={setName}
       />
       <ChipSelect
-        options={['Male', 'Female', 'Non-binary', 'Prefer not to say']}
+        options={['Male', 'Female', 'Other']}
         value={gender}
         onChange={setGender}
         ariaLabel="How do you identify?"
-        columns={2}
+        columns={3}
       />
     </div>
   );
@@ -46,10 +47,14 @@ function ProfileBody() {
 
 function CategoryBody() {
   const cats = [
-    { emoji: '🌙', label: 'Sleep better' },
-    { emoji: '🏃', label: 'Move more' },
-    { emoji: '🥗', label: 'Eat better' },
-    { emoji: '⚡', label: 'More energy' },
+    { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
+    { label: 'Move more', image: '/images/onboarding/move-more.jpg' },
+    { label: 'Eat better', image: '/images/onboarding/eat-better.png' },
+    { label: 'Feel more energized', image: '/images/onboarding/feel-more-energized.png' },
+    { label: 'Reduce stress', image: '/images/onboarding/reduce-stress.png' },
+    { label: 'Improve focus', image: '/images/onboarding/improve-focus.jpg' },
+    { label: 'Break bad habits', image: '/images/onboarding/break-bad-habits.png' },
+    { label: 'Get more organized', image: '/images/onboarding/get-more-organized.png' },
   ];
   const [sel, setSel] = useState('Sleep better');
   return (
@@ -57,7 +62,7 @@ function CategoryBody() {
       {cats.map((c) => (
         <CategoryCard
           key={c.label}
-          emoji={c.emoji}
+          image={c.image}
           label={c.label}
           selected={sel === c.label}
           onSelect={() => setSel(c.label)}
@@ -68,8 +73,13 @@ function CategoryBody() {
 }
 
 function GoalsBody() {
-  const goals = ['Fall asleep faster', 'Sleep through the night', 'Wake up rested'];
-  const [sel, setSel] = useState<Set<string>>(new Set(['Fall asleep faster']));
+  const goals = [
+    'Fall asleep earlier',
+    'Wake up earlier',
+    'Sleep more consistently',
+    'Sleep more deeply',
+  ];
+  const [sel, setSel] = useState<Set<string>>(new Set(['Fall asleep earlier']));
   return (
     <div className="flex flex-col gap-3">
       {goals.map((g) => (
@@ -93,15 +103,16 @@ function GoalsBody() {
 
 function HabitsBody() {
   const [expanded, setExpanded] = useState(true);
-  const [sel, setSel] = useState<Set<string>>(new Set(['Wind down without a screen']));
+  const [sel, setSel] = useState<Set<string>>(new Set(['No screens after 10 PM']));
   const habits = [
-    'Wind down without a screen',
-    'No caffeine after 2pm',
-    'Same bedtime every night',
+    'No caffeine after 2 PM',
+    'No screens after 10 PM',
+    'Start wind-down by 10 PM',
+    'Be in bed by target bedtime',
   ];
   return (
     <HabitPickerPanel
-      goal="Sleep better"
+      goal="Fall asleep earlier"
       habits={habits}
       expanded={expanded}
       onToggleExpanded={() => setExpanded((v) => !v)}
@@ -151,15 +162,15 @@ function PlanBody() {
       <PlanSummaryCard
         icon="mdi:bed-outline"
         typeLabel="Habit"
-        title="Wind down without a screen"
+        title="No screens after 10 PM"
         cadence="Every day"
-        rule="30 min before bed"
+        rule="10:00 PM"
         onEdit={() => {}}
       />
       <PlanSummaryCard
         icon="mdi:notebook-outline"
         typeLabel="Journal"
-        title="Evening reflection"
+        title="Daily Reflection"
         cadence="Every day"
         rule="3 questions"
         onEdit={() => {}}
@@ -192,13 +203,14 @@ interface Beat {
   name: string;
   coachLine: string;
   Body: () => ReactElement;
+  reply?: string;
 }
 
 const BEATS: Beat[] = [
   {
     id: 'profile',
     name: 'Profile',
-    coachLine: 'First, what should I call you?',
+    coachLine: "Hey, I'm your coach. Before we start, what should I call you?",
     Body: ProfileBody,
   },
   {
@@ -206,106 +218,78 @@ const BEATS: Beat[] = [
     name: 'Focus area',
     coachLine: 'What feels most worth improving right now?',
     Body: CategoryBody,
+    reply: "Sleep, yeah. That's the foundation of everything else.",
   },
-  { id: 'goals', name: 'Goals', coachLine: 'Within sleep, what matters most?', Body: GoalsBody },
+  {
+    id: 'goals',
+    name: 'Goals',
+    coachLine: 'Within sleep, what matters most? Pick one or two.',
+    Body: GoalsBody,
+  },
   {
     id: 'habits',
     name: 'Habits',
-    coachLine: 'Let us pick one or two habits to start with.',
+    coachLine:
+      "Can't fall asleep is so common, and it's fixable. Let's pick a habit or two to start.",
     Body: HabitsBody,
   },
   {
     id: 'reflection',
     name: 'Reflection',
-    coachLine: 'When should we reflect each day?',
+    coachLine: 'Last thing, want a short daily reflection too?',
     Body: ReflectionBody,
   },
-  { id: 'plan', name: 'Plan', coachLine: 'Here is the plan you just built.', Body: PlanBody },
+  {
+    id: 'plan',
+    name: 'Plan',
+    coachLine: "Here's the plan you just built. You can tweak anything.",
+    Body: PlanBody,
+  },
   {
     id: 'checkin',
     name: 'Daily check-in',
-    coachLine: 'How is your mood today?',
+    coachLine: "You're all set. Quick check-in, how's your mood today?",
     Body: CheckinBody,
   },
 ];
 
 export function FlowDesigner() {
-  const [active, setActive] = useState(0);
-  const beat = BEATS[active];
-  const Body = beat.Body;
-
   return (
     <div
-      className="flex min-h-screen gap-6 p-6"
-      style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#f4f6f9' }}
+      className="min-h-screen px-4 py-8"
+      style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#e8ecf1' }}
     >
-      {/* Beats rail */}
-      <div className="w-[220px] shrink-0">
-        <div className="mb-1 text-[15px] font-bold text-content">Flow Designer</div>
-        <div className="mb-3 text-[12px] text-content-tertiary">onboarding · real components</div>
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-content-tertiary">
-          Beats
+      <div className="mx-auto flex w-full max-w-[420px] flex-col overflow-hidden rounded-[32px] border border-border bg-surface shadow-elevated">
+        <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border-light bg-surface px-5 py-4">
+          <Icon icon="ic:round-auto-awesome" className="size-5 text-primary" />
+          <span className="text-[15px] font-bold text-content">Coach</span>
         </div>
-        <div className="flex flex-col gap-1">
-          {BEATS.map((b, i) => (
-            <button
-              key={b.id}
-              type="button"
-              onClick={() => setActive(i)}
-              className={`flex items-center justify-between rounded-xl px-3 py-2 text-left text-[14px] transition-colors ${
-                i === active
-                  ? 'bg-primary/10 font-bold text-primary'
-                  : 'text-content-subtle hover:bg-surface-secondary'
-              }`}
-            >
-              <span>{b.name}</span>
-              <span className="text-[11px] text-content-tertiary">{i + 1}</span>
-            </button>
-          ))}
-        </div>
-        <div className="mt-4 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setActive((i) => Math.max(0, i - 1))}
-            disabled={active === 0}
-            className="flex-1 rounded-xl border border-border bg-surface px-3 py-2 text-[13px] font-semibold text-content-subtle disabled:opacity-40"
-          >
-            Back
-          </button>
-          <button
-            type="button"
-            onClick={() => setActive((i) => Math.min(BEATS.length - 1, i + 1))}
-            disabled={active === BEATS.length - 1}
-            className="flex-1 rounded-xl bg-primary px-3 py-2 text-[13px] font-semibold text-white disabled:opacity-40"
-          >
-            Next
-          </button>
-        </div>
-      </div>
 
-      {/* Phone preview */}
-      <div className="flex flex-1 justify-center">
-        <div className="flex h-[720px] w-[390px] flex-col overflow-hidden rounded-[32px] border border-border bg-surface shadow-elevated">
-          <div className="flex items-center gap-2 border-b border-border-light px-5 py-4">
-            <Icon icon="ic:round-auto-awesome" className="size-5 text-primary" />
-            <span className="text-[15px] font-bold text-content">Coach</span>
+        <div className="flex flex-col gap-6 px-5 py-6" style={{ background: '#f9f9f9' }}>
+          {BEATS.map((b) => {
+            const Body = b.Body;
+            return (
+              <div key={b.id} className="flex flex-col gap-3">
+                <div className="mr-auto max-w-[290px] rounded-2xl rounded-tl-md bg-surface-secondary px-4 py-3 text-[15px] leading-[21px] text-content">
+                  {b.coachLine}
+                </div>
+                <Body />
+                {b.reply && (
+                  <div className="ml-auto max-w-[280px] rounded-2xl rounded-tr-md bg-primary px-4 py-3 text-[15px] font-medium leading-[21px] text-white">
+                    {b.reply}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="sticky bottom-0 flex items-center gap-2 border-t border-border-light bg-surface px-4 py-3">
+          <div className="flex-1 rounded-full bg-surface-secondary px-4 py-2 text-[14px] text-content-tertiary">
+            Type or talk...
           </div>
-          <div
-            className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 py-5"
-            style={{ background: '#f9f9f9' }}
-          >
-            <div className="mr-auto max-w-[280px] rounded-2xl bg-surface-secondary px-4 py-3 text-[15px] leading-[21px] text-content">
-              {beat.coachLine}
-            </div>
-            <Body />
-          </div>
-          <div className="flex items-center gap-2 border-t border-border-light px-4 py-3">
-            <div className="flex-1 rounded-full bg-surface-secondary px-4 py-2 text-[14px] text-content-tertiary">
-              Type or talk...
-            </div>
-            <div className="flex size-10 items-center justify-center rounded-full bg-primary">
-              <Icon icon="ic:round-mic" className="size-5 text-white" />
-            </div>
+          <div className="flex size-10 items-center justify-center rounded-full bg-primary">
+            <Icon icon="ic:round-mic" className="size-5 text-white" />
           </div>
         </div>
       </div>
