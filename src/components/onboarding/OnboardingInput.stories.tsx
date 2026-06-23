@@ -5,6 +5,12 @@ import { OnboardingInput } from './OnboardingInput';
 const meta = {
   title: 'Onboarding/Onboarding Input',
   component: OnboardingInput,
+  args: {
+    icon: 'mdi:account-outline',
+    placeholder: 'What should I call you?',
+    value: '',
+    onChange: () => {},
+  },
 } satisfies Meta<typeof OnboardingInput>;
 export default meta;
 

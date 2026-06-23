@@ -5,6 +5,14 @@ import { HabitPickerPanel } from './HabitPickerPanel';
 const meta = {
   title: 'Onboarding/Habit Picker Panel',
   component: HabitPickerPanel,
+  args: {
+    goal: 'Sleep better',
+    habits: ['Wind down without a screen', 'No caffeine after 2pm', 'Same bedtime every night'],
+    expanded: true,
+    onToggleExpanded: () => {},
+    selectedHabits: new Set(['Wind down without a screen']),
+    onToggleHabit: () => {},
+  },
 } satisfies Meta<typeof HabitPickerPanel>;
 export default meta;
 

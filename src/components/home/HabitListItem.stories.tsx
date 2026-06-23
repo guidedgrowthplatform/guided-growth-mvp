@@ -5,6 +5,7 @@ import { HabitListItem } from './HabitListItem';
 const meta = {
   title: 'Home/Habit List Item',
   component: HabitListItem,
+  args: { name: 'Morning walk', streak: 5, isCompleted: false, onToggleComplete: () => {} },
 } satisfies Meta<typeof HabitListItem>;
 export default meta;
 
