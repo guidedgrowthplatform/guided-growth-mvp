@@ -32,7 +32,7 @@ function SplashIntroPreview() {
           position: 'relative',
         }}
       >
-        <SplashIntro loop autoPlay />
+        <SplashIntro loop autoPlay audioSrc="/voice/onboarding_welcome.mp3" />
       </div>
     </div>
   );

@@ -1,22 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
+import { IconChatVoice, IconMicMuted } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
+import { DualButton } from '@/components/ui/DualButton';
 
 // Phase durations (ms)
 const PHASE_SPLASH_HOLD = 1200;
 const PHASE_SPLASH_FADE = 400;
 const PHASE_ORB_ENTER = 500;
-const PHASE_ORB_HOLD = 1700;
 const PHASE_ORB_SETTLE = 600;
 const PHASE_AUTH_FADE = 500;
 const LOOP_PAUSE = 1800;
 
-// Phases: 'splash' -> 'orb' -> 'auth' -> ('done' | loop back)
+// Speaking phase falls back to a timer when audio is missing or autoplay is
+// blocked. MAX is a hard safety cap so the sequence can never hang on the orb.
+const FALLBACK_SPEAK_MS = 2600;
+const MAX_SPEAK_MS = 12000;
+const REDUCED_HOLD_MS = 280;
+
+// The orb itself (the real DualButton dial). Light splash, so a big calm bloom.
+const ORB_SIZE = 150;
+
+// Phases: 'splash' -> 'orb' (coach speaks) -> 'orb-settle' -> 'auth' -> 'done'
 type Phase = 'splash' | 'splash-out' | 'orb' | 'orb-settle' | 'auth' | 'done';
 
 interface SplashIntroProps {
   onComplete?: () => void;
   loop?: boolean;
   autoPlay?: boolean;
+  /** Coach voice clip played during the speaking phase. MP3 for now, TTS later. */
+  audioSrc?: string;
 }
 
 // Injected once per document lifecycle, not per mount.
@@ -26,67 +38,217 @@ function ensureStyles() {
   stylesInjected = true;
   const style = document.createElement('style');
   style.textContent = `
-    @keyframes splash-intro-ripple-expand {
-      0%   { transform: scale(0.85); opacity: 0.55; }
-      60%  { transform: scale(1.12); opacity: 0.22; }
-      100% { transform: scale(1.35); opacity: 0; }
-    }
-    @keyframes splash-intro-waveform {
-      0%, 100% { transform: scaleY(0.35); }
-      15%       { transform: scaleY(1); }
-      30%       { transform: scaleY(0.55); }
-      45%       { transform: scaleY(0.85); }
-      60%       { transform: scaleY(0.4); }
-      75%       { transform: scaleY(0.95); }
-      90%       { transform: scaleY(0.6); }
-    }
     @keyframes splash-intro-orb-glow {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(19,91,235,0.22), 0 0 0 16px rgba(19,91,235,0.08), 0 24px 48px -4px rgba(19,91,235,0.28); }
-      50%       { box-shadow: 0 0 0 8px rgba(19,91,235,0.14), 0 0 0 28px rgba(19,91,235,0.05), 0 32px 64px -4px rgba(19,91,235,0.38); }
-    }
-    @keyframes splash-intro-caption-in {
-      0%   { opacity: 0; transform: translateY(6px); }
-      100% { opacity: 1; transform: translateY(0); }
+      0%, 100% { opacity: 0.5; transform: scale(1); }
+      50%       { opacity: 0.85; transform: scale(1.06); }
     }
   `;
   document.head.appendChild(style);
 }
 
-export function SplashIntro({ onComplete, loop = false, autoPlay = true }: SplashIntroProps) {
+export function SplashIntro({
+  onComplete,
+  loop = false,
+  autoPlay = true,
+  audioSrc,
+}: SplashIntroProps) {
   ensureStyles();
   const [phase, setPhase] = useState<Phase>(autoPlay ? 'splash' : 'done');
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 0..1 live amplitude of the coach voice, drives the orb ring pulse.
+  const [intensity, setIntensity] = useState(0);
+
   const prefersReducedMotion =
     typeof window !== 'undefined'
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
       : false;
 
-  const schedule = (fn: () => void, delay: number) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(fn, prefersReducedMotion ? 120 : delay);
+  // Sequential phase timer (splash, settle, loop pause).
+  const seqTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Speaking-phase timers: a fallback end + a hard safety cap.
+  const speakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const capTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guards a double finish (audio 'ended' racing the fallback timer).
+  const speakingRef = useRef(false);
+
+  // Web Audio graph, created once and reused across loops.
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const bufRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const seqSchedule = (fn: () => void, delay: number) => {
+    if (seqTimerRef.current) clearTimeout(seqTimerRef.current);
+    seqTimerRef.current = setTimeout(fn, prefersReducedMotion ? 120 : delay);
+  };
+
+  const stopAudioLoop = () => {
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+  };
+
+  const clearSpeakTimers = () => {
+    if (speakTimerRef.current) clearTimeout(speakTimerRef.current);
+    if (capTimerRef.current) clearTimeout(capTimerRef.current);
+    speakTimerRef.current = null;
+    capTimerRef.current = null;
+  };
+
+  // Build the analyser graph lazily, once per audio element. Returns false if
+  // Web Audio is unavailable so the caller can fall back to a simulated pulse.
+  const ensureAudioGraph = (): boolean => {
+    if (analyserRef.current) return true;
+    const el = audioRef.current;
+    if (!el) return false;
+    try {
+      const Ctx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new Ctx();
+      const src = ctx.createMediaElementSource(el);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      src.connect(analyser);
+      analyser.connect(ctx.destination);
+      audioCtxRef.current = ctx;
+      sourceRef.current = src;
+      analyserRef.current = analyser;
+      bufRef.current = new Uint8Array(new ArrayBuffer(analyser.fftSize));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // Live amplitude from the playing clip: RMS of the time-domain signal,
+  // smoothed and bucketed so the orb pulse rides the voice without thrash.
+  const runAnalyser = () => {
+    const analyser = analyserRef.current;
+    const buf = bufRef.current;
+    if (!analyser || !buf) return;
+    let smoothed = 0;
+    const tick = () => {
+      analyser.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) {
+        const v = (buf[i] - 128) / 128;
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / buf.length);
+      const target = Math.min(1, rms * 3.4);
+      smoothed = smoothed * 0.7 + target * 0.3;
+      const bucket = Math.round(smoothed / 0.05) * 0.05;
+      setIntensity((prev) => (prev === bucket ? prev : bucket));
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  // No audio (missing file or autoplay blocked): a gentle speech-like envelope
+  // so the orb still feels alive in the preview.
+  const simulatePulse = () => {
+    const start = performance.now();
+    const tick = () => {
+      const t = (performance.now() - start) / 1000;
+      const v = 0.4 + 0.3 * Math.sin(t * 6.1) + 0.18 * Math.sin(t * 11.7 + 1);
+      const bucket = Math.round(Math.max(0.05, Math.min(1, v)) / 0.05) * 0.05;
+      setIntensity(bucket);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  const finishSpeaking = () => {
+    if (!speakingRef.current) return;
+    speakingRef.current = false;
+    clearSpeakTimers();
+    stopAudioLoop();
+    const el = audioRef.current;
+    if (el) {
+      el.onended = null;
+      el.onerror = null;
+      try {
+        el.pause();
+      } catch {
+        // ignore
+      }
+    }
+    setIntensity(0);
+    setPhase('orb-settle');
+    seqSchedule(() => {
+      setPhase('auth');
+      onComplete?.();
+      if (loop) {
+        seqSchedule(() => runSequence(), LOOP_PAUSE);
+      } else {
+        setPhase('done');
+      }
+    }, PHASE_ORB_SETTLE + 120);
+  };
+
+  const startSpeaking = () => {
+    speakingRef.current = true;
+    setPhase('orb');
+
+    if (prefersReducedMotion) {
+      speakTimerRef.current = setTimeout(finishSpeaking, REDUCED_HOLD_MS);
+      return;
+    }
+
+    const el = audioRef.current;
+    if (!el) {
+      simulatePulse();
+      speakTimerRef.current = setTimeout(finishSpeaking, FALLBACK_SPEAK_MS);
+      return;
+    }
+
+    // Hard cap so a missing 'ended' event can never strand the sequence.
+    capTimerRef.current = setTimeout(finishSpeaking, MAX_SPEAK_MS);
+
+    const graphOk = ensureAudioGraph();
+    if (audioCtxRef.current?.state === 'suspended') {
+      void audioCtxRef.current.resume().catch(() => {});
+    }
+    el.onended = () => finishSpeaking();
+    el.onerror = () => {
+      simulatePulse();
+      speakTimerRef.current = setTimeout(finishSpeaking, FALLBACK_SPEAK_MS);
+    };
+
+    try {
+      el.currentTime = 0;
+    } catch {
+      // ignore
+    }
+    const playPromise = el.play();
+    if (playPromise && typeof playPromise.then === 'function') {
+      playPromise
+        .then(() => {
+          if (graphOk) runAnalyser();
+          else simulatePulse();
+        })
+        .catch(() => {
+          // Autoplay blocked (no user gesture). Show the pulse, time the phase
+          // off the clip length if we know it, else a sensible default.
+          simulatePulse();
+          const durMs =
+            el.duration && Number.isFinite(el.duration) ? el.duration * 1000 : FALLBACK_SPEAK_MS;
+          speakTimerRef.current = setTimeout(finishSpeaking, durMs);
+        });
+    } else if (graphOk) {
+      runAnalyser();
+    } else {
+      simulatePulse();
+    }
   };
 
   const runSequence = () => {
     setPhase('splash');
-    schedule(() => {
+    seqSchedule(() => {
       setPhase('splash-out');
-      schedule(() => {
-        setPhase('orb');
-        schedule(() => {
-          setPhase('orb-settle');
-          schedule(
-            () => {
-              setPhase('auth');
-              onComplete?.();
-              if (loop) {
-                schedule(() => runSequence(), LOOP_PAUSE);
-              } else {
-                setPhase('done');
-              }
-            },
-            PHASE_AUTH_FADE + (prefersReducedMotion ? 0 : 200),
-          );
-        }, PHASE_ORB_HOLD);
+      seqSchedule(() => {
+        startSpeaking();
       }, PHASE_SPLASH_FADE + PHASE_ORB_ENTER);
     }, PHASE_SPLASH_HOLD);
   };
@@ -95,7 +257,19 @@ export function SplashIntro({ onComplete, loop = false, autoPlay = true }: Splas
     if (!autoPlay) return;
     runSequence();
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (seqTimerRef.current) clearTimeout(seqTimerRef.current);
+      clearSpeakTimers();
+      stopAudioLoop();
+      const el = audioRef.current;
+      if (el) {
+        el.onended = null;
+        el.onerror = null;
+        try {
+          el.pause();
+        } catch {
+          // ignore
+        }
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoPlay]);
@@ -110,13 +284,14 @@ export function SplashIntro({ onComplete, loop = false, autoPlay = true }: Splas
 
   const showAuth = phase === 'auth' || phase === 'done';
 
-  const captionText = 'Your coach is ready.';
-
   return (
     <div
       className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-white"
       aria-label="Guided Growth introduction"
     >
+      {/* Coach voice, played during the speaking phase. */}
+      <audio ref={audioRef} src={audioSrc} preload="auto" playsInline className="hidden" />
+
       {/* Phase 1: Wordmark splash */}
       {showSplash && (
         <div
@@ -158,7 +333,7 @@ export function SplashIntro({ onComplete, loop = false, autoPlay = true }: Splas
         </div>
       )}
 
-      {/* Phase 2 + 3: Orb and auth block */}
+      {/* Phase 2 + 3: Orb (the real dual-button dial) and auth block */}
       {showOrb && (
         <div
           style={{
@@ -168,173 +343,61 @@ export function SplashIntro({ onComplete, loop = false, autoPlay = true }: Splas
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '0px',
             transition: prefersReducedMotion ? 'none' : `opacity ${PHASE_ORB_ENTER}ms ease-out`,
-            opacity: showOrb ? 1 : 0,
+            opacity: 1,
             willChange: 'opacity',
           }}
         >
-          {/* Orb area */}
+          {/* Orb area: blooms in, then lifts and shrinks toward the top. */}
           <div
             style={{
+              position: 'relative',
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              gap: '20px',
+              justifyContent: 'center',
               transition: prefersReducedMotion
                 ? 'none'
-                : `transform ${PHASE_ORB_SETTLE}ms cubic-bezier(0.4,0,0.2,1), opacity ${PHASE_ORB_SETTLE}ms ease-out`,
-              transform: orbSettled ? 'translateY(-120px) scale(0.72)' : 'translateY(0) scale(1)',
-              opacity: 1,
+                : `transform ${PHASE_ORB_SETTLE}ms cubic-bezier(0.4,0,0.2,1)`,
+              transform: orbSettled ? 'translateY(-150px) scale(0.62)' : 'translateY(0) scale(1)',
               willChange: 'transform',
             }}
           >
-            {/* Ripple rings container */}
+            {/* Soft ambient glow behind the orb, breathing while it speaks. */}
             <div
+              aria-hidden
               style={{
-                position: 'relative',
-                width: orbSpeaking ? '220px' : '180px',
-                height: orbSpeaking ? '220px' : '180px',
-                transition: prefersReducedMotion
-                  ? 'none'
-                  : `width ${PHASE_ORB_SETTLE}ms ease-out, height ${PHASE_ORB_SETTLE}ms ease-out`,
-                willChange: 'width, height',
-              }}
-            >
-              {/* Expanding ripple rings, only during speaking phase */}
-              {!prefersReducedMotion &&
-                [0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    aria-hidden
-                    style={{
-                      position: 'absolute',
-                      inset: `-${i * 18}px`,
-                      borderRadius: '50%',
-                      border: '1.5px solid rgba(19,91,235,0.18)',
-                      animation: orbSpeaking
-                        ? `splash-intro-ripple-expand 2.4s ease-out ${i * 0.55}s infinite`
-                        : 'none',
-                      opacity: orbSpeaking ? 1 : 0,
-                      transition: `opacity ${PHASE_ORB_SETTLE * 0.5}ms ease-out`,
-                      willChange: 'transform, opacity',
-                      pointerEvents: 'none',
-                    }}
-                  />
-                ))}
-
-              {/* Soft ambient glow behind the orb */}
-              <div
-                aria-hidden
-                style={{
-                  position: 'absolute',
-                  inset: '-12%',
-                  borderRadius: '50%',
-                  background:
-                    'radial-gradient(circle, rgba(19,91,235,0.12) 0%, rgba(19,91,235,0) 70%)',
-                  animation:
-                    orbSpeaking && !prefersReducedMotion
-                      ? 'splash-intro-orb-glow 2s ease-in-out infinite'
-                      : 'none',
-                  pointerEvents: 'none',
-                }}
-              />
-
-              {/* The orb itself */}
-              <div
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: '50%',
-                  background: `radial-gradient(circle at 38% 36%, rgba(255,255,255,0.92) 0%, rgb(19,91,235) 65%, rgb(14,68,177) 100%)`,
-                  boxShadow:
-                    '0 24px 48px -4px rgba(19,91,235,0.32), 0 8px 16px rgba(19,91,235,0.18)',
-                  animation:
-                    orbSpeaking && !prefersReducedMotion
-                      ? 'splash-intro-orb-glow 2s ease-in-out infinite'
-                      : 'none',
-                  willChange: 'box-shadow',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {/* Waveform bars, visible during speaking */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    opacity: orbSpeaking ? 1 : 0,
-                    transition: prefersReducedMotion ? 'none' : `opacity 300ms ease-out`,
-                  }}
-                  aria-hidden
-                >
-                  {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-                    <div
-                      key={i}
-                      style={{
-                        width: '3px',
-                        height: `${[14, 26, 20, 34, 18, 28, 12][i]}px`,
-                        borderRadius: '2px',
-                        background: 'rgba(255,255,255,0.92)',
-                        transformOrigin: 'center',
-                        animation:
-                          orbSpeaking && !prefersReducedMotion
-                            ? `splash-intro-waveform 1.3s ease-in-out ${i * 0.11}s infinite`
-                            : 'none',
-                        willChange: 'transform',
-                      }}
-                    />
-                  ))}
-                </div>
-
-                {/* Settled state: small inner highlight dot */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    width: '28%',
-                    height: '28%',
-                    borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.45)',
-                    top: '18%',
-                    left: '20%',
-                    opacity: orbSettled ? 1 : 0,
-                    transition: prefersReducedMotion ? 'none' : `opacity 400ms ease-out`,
-                    pointerEvents: 'none',
-                  }}
-                  aria-hidden
-                />
-              </div>
-            </div>
-
-            {/* Caption line under orb, fades in during speaking phase */}
-            <p
-              style={{
-                fontFamily: 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                fontSize: '15px',
-                fontWeight: 500,
-                color: 'rgb(100,116,139)',
-                letterSpacing: '0.01em',
-                margin: 0,
-                opacity: orbSpeaking ? 1 : 0,
-                transition: prefersReducedMotion ? 'none' : `opacity 400ms ease-out 0.5s`,
+                position: 'absolute',
+                width: ORB_SIZE * 1.7,
+                height: ORB_SIZE * 1.7,
+                borderRadius: '50%',
+                background:
+                  'radial-gradient(circle, rgba(19,91,235,0.16) 0%, rgba(19,91,235,0) 68%)',
                 animation:
                   orbSpeaking && !prefersReducedMotion
-                    ? 'splash-intro-caption-in 0.5s ease-out 0.55s both'
+                    ? 'splash-intro-orb-glow 2.4s ease-in-out infinite'
                     : 'none',
-                willChange: 'opacity',
-                userSelect: 'none',
-                textAlign: 'center',
+                opacity: orbSpeaking ? 1 : 0,
+                transition: `opacity ${PHASE_ORB_SETTLE}ms ease-out`,
+                pointerEvents: 'none',
               }}
-              aria-live="polite"
-            >
-              {captionText}
-            </p>
+            />
+
+            <DualButton
+              size={ORB_SIZE}
+              leftActive
+              rightActive={false}
+              activeRings={orbSpeaking ? 'left' : null}
+              ringCount={3}
+              ringStep={7}
+              intensity={orbSpeaking ? intensity : 0}
+              leftIcon={<IconChatVoice size={30} />}
+              rightIcon={<IconMicMuted size={26} />}
+              leftAriaLabel="Coach voice"
+              rightAriaLabel="Microphone off"
+            />
           </div>
 
-          {/* Auth block, fades in after orb settles */}
+          {/* Auth block, fades in after the orb settles */}
           <div
             style={{
               position: 'absolute',
