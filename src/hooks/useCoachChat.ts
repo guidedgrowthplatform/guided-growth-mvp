@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isCheckinScreen, trackCheckinStarted } from '@/analytics/coachFunnel';
 import { track } from '@/analytics/posthog';
 import {
+  BARGE_ECHO_GATE,
+  BARGE_MIN_CHARS,
+  BARGE_MIN_RMS,
+  BARGE_REQUIRE_FINAL_FOR_LOW_ENERGY,
   FULL_DUPLEX_BARGE_IN,
   TURN_AGGREGATION_MS,
   TURN_PAUSE_COMPLETE_MS,
@@ -24,21 +28,18 @@ import {
   messageHasTodayHabits,
 } from '@/lib/chat/coachChatCards';
 import type { ChatMessage, CoachChatApi, VoiceChatState } from '@/lib/chat/coachChatTypes';
-import { startTokenWarmLoop, stopTokenWarmLoop } from '@/lib/services/cartesia-token-cache';
 import { nextSentenceChunks, flushSentenceTail } from '@/lib/services/sentenceChunks';
 import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
 import {
   beginSpeechTurn,
   endSpeechTurn,
-  isWsTransport,
   pushSpeechChunk,
   speak,
   stopTTS,
-  ttsKaraokeActive,
-  ttsWarm,
   useTtsPlaybackStore,
 } from '@/lib/services/tts-service';
 import { isSemanticEndOfTurn, resolveTurnPauseMs } from '@/lib/voice/turnDecision';
+import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 import type { CoachingStyle } from '@gg/shared/types/llm';
 
@@ -47,6 +48,7 @@ import type { CoachingStyle } from '@gg/shared/types/llm';
 const MIC_GRACE_MS = 2500;
 
 const LLM_ERROR_TEXT = "Something didn't work on my end. Mind trying that again?";
+const TOOL_FAIL_TEXT = "I couldn't save that just now — want to try again?";
 const SESSION_ERROR_TEXT = "Can't connect right now. Try reopening the chat.";
 
 // One write session per user — anchors the coach's continuous memory across all
@@ -118,6 +120,7 @@ export function useCoachChat(
     response: llmResponse,
     isStreaming,
     error: llmError,
+    toolFailures,
     cancel: cancelLlm,
     regenerate,
   } = useLLM(screenId, {
@@ -159,6 +162,7 @@ export function useCoachChat(
   const lastLlmErrorRef = useRef('');
   const lastVoiceErrorRef = useRef('');
   const errorSeqRef = useRef(0);
+  const firedToolFailIdsRef = useRef<Set<string>>(new Set());
   const lastAssistantIdRef = useRef<string | null>(null);
   // Stream-chunked TTS: offset into the current reply, and per-turn flags.
   const lastSpokenOffsetRef = useRef(0);
@@ -304,6 +308,8 @@ export function useCoachChat(
     // re-answers if the user adds nothing new.
     if (isStreamingRef.current || isSpeakingRef.current) {
       owesResponseRef.current = true;
+      // Fresh debt re-arms exactly one guaranteed reply for this barge.
+      regeneratedRef.current = false;
     }
     cancelLlm();
     stopTTS();
@@ -313,8 +319,23 @@ export function useCoachChat(
     if (!aggregationTimerRef.current) armFlush();
   }, [cancelLlm, endCoachSpeechTurn, armFlush]);
 
+  // Own-voice echo gate: while the coach is audibly speaking, a low-energy
+  // candidate is its own TTS leaking into a hot mic — drop it (don't barge,
+  // buffer, or submit) so it can't self-interrupt. Real speech clears BARGE_MIN_RMS.
+  const passesEchoGate = useCallback((text: string, isFinal: boolean) => {
+    if (!BARGE_ECHO_GATE || !isSpeakingRef.current) return true;
+    const rms = useAudioMetricsStore.getState().currentRms;
+    if (rms >= BARGE_MIN_RMS) return true;
+    if (BARGE_REQUIRE_FINAL_FOR_LOW_ENERGY && isFinal && text.trim().length >= BARGE_MIN_CHARS) {
+      return true;
+    }
+    track('coach_barge_suppressed', { rms, text_len: text.trim().length, had_final: isFinal });
+    return false;
+  }, []);
+
   const handleSonioxFinal = useCallback(
     (t: string) => {
+      if (!passesEchoGate(t, true)) return;
       // Clear interim AT THE MOMENT we route the final, so the user bubble
       // doesn't flicker between Soniox closing the socket and the message
       // bubble landing.
@@ -329,11 +350,12 @@ export function useCoachChat(
       awaitingResumeRef.current = true;
       armFlush();
     },
-    [setInterim, interruptTts, armFlush],
+    [setInterim, interruptTts, armFlush, passesEchoGate],
   );
 
   const handleSonioxInterim = useCallback(
     (t: string) => {
+      if (!passesEchoGate(t, false)) return;
       setInterim(t);
       onTranscriptStreamRef.current?.('user', t, 'partial');
       // User still talking after a buffered final → restart the quiet timer so
@@ -350,7 +372,7 @@ export function useCoachChat(
         armFlush();
       }
     },
-    [setInterim, interruptTts, armFlush],
+    [setInterim, interruptTts, armFlush, passesEchoGate],
   );
 
   // Match onboarding's voice-in setup EXACTLY:
@@ -372,8 +394,9 @@ export function useCoachChat(
 
   // Post-speech HOLD: mic stays muted MIC_GRACE_MS after playback ends —
   // covers echo tail + Siri-style breath before listening resumes.
-  // Initial true: same grace on first arm, so the session doesn't open hot.
-  const [micMutedHeld, setMicMutedHeld] = useState(true);
+  // Full-duplex never mutes for TTS, so skip the cold-start hold that would
+  // otherwise swallow the first ~2.5s of an immediate opener.
+  const [micMutedHeld, setMicMutedHeld] = useState(!FULL_DUPLEX_BARGE_IN);
   useEffect(() => {
     if (micMutedForTts) {
       setMicMutedHeld(true);
@@ -401,15 +424,6 @@ export function useCoachChat(
     startKeyWarmLoop();
     return () => stopKeyWarmLoop();
   }, [voiceInActive]);
-
-  // Warm the Cartesia token + open the ws socket while voice-out is on, so the
-  // first coach reply pays no token-mint or connect latency.
-  useEffect(() => {
-    if (!voiceModeOn || !isWsTransport()) return;
-    startTokenWarmLoop();
-    ttsWarm();
-    return () => stopTokenWarmLoop();
-  }, [voiceModeOn]);
 
   // Clear interim immediately when Soniox finalizes the turn (inside
   // handleSonioxFinal) — NOT reactively on `isListening` flipping, which
@@ -454,6 +468,7 @@ export function useCoachChat(
 
   useEffect(() => {
     return () => {
+      stopTTS();
       const t = tokenRef.current;
       if (t) {
         tokenRef.current = null;
@@ -515,6 +530,8 @@ export function useCoachChat(
       streamedSomethingRef.current = false;
       // New coach turn → allow one barge-in event for it.
       bargeFiredRef.current = false;
+      // Re-open the reply-guarantee in lockstep, else a later empty barge no-ops.
+      regeneratedRef.current = false;
     }
     prevStreamingRef.current = isStreaming;
 
@@ -523,7 +540,7 @@ export function useCoachChat(
     if (chunks.length === 0) return;
     if (!streamTurnActiveRef.current) {
       turnSeqRef.current += 1;
-      beginSpeechTurn({ onReveal: (t) => onTranscriptStream?.('assistant', t, 'partial') });
+      beginSpeechTurn();
       streamTurnActiveRef.current = true;
       turnFinalizedRef.current = false;
       ttsBumpedRef.current = true;
@@ -532,7 +549,7 @@ export function useCoachChat(
     for (const c of chunks) pushSpeechChunk(c);
     lastSpokenOffsetRef.current = nextOffset;
     streamedSomethingRef.current = true;
-  }, [isStreaming, llmResponse, voiceModeOn, onTranscriptStream]);
+  }, [isStreaming, llmResponse, voiceModeOn]);
 
   // ─── Final message: emit to bus; speak the tail (chunked) or whole (one-shot) ─
   // State-4 "opening line only" is applied in CoachSubtitleBar, not here —
@@ -578,14 +595,11 @@ export function useCoachChat(
   }, [isStreaming, llmMessages, endCoachSpeechTurn]);
 
   // Live partial stream → transcript bus (subtitle renders typing in real time).
-  // Karaoke turns drive the partial off audio timing (beginSpeechTurn onReveal),
-  // so skip the full-text push to keep text paced with speech.
   useEffect(() => {
     if (!onTranscriptStream) return;
     if (!isStreaming || llmResponse.length === 0) return;
-    if (voiceModeOn && ttsKaraokeActive()) return;
     onTranscriptStream('assistant', llmResponse, 'partial');
-  }, [isStreaming, llmResponse, onTranscriptStream, voiceModeOn]);
+  }, [isStreaming, llmResponse, onTranscriptStream]);
 
   // ─── Transcript → LLM (queued while busy, flushed when free) ──────────
   // Streaming Soniox can land multiple finals during a single LLM turn. The
@@ -655,6 +669,19 @@ export function useCoachChat(
       { id: `llm-error-${(errorSeqRef.current += 1)}`, role: 'ai', text: LLM_ERROR_TEXT },
     ]);
   }, [llmError]);
+
+  // Failed write tool → deterministic in-thread signal, so a model that doesn't
+  // relay the ok:false can't present a silent failure as success (RC-3).
+  useEffect(() => {
+    if (toolFailures.length === 0) return;
+    const fresh = toolFailures.filter((f) => !firedToolFailIdsRef.current.has(f.id));
+    if (fresh.length === 0) return;
+    fresh.forEach((f) => firedToolFailIdsRef.current.add(f.id));
+    setErrorBubbles((prev) => [
+      ...prev,
+      { id: `tool-fail-${(errorSeqRef.current += 1)}`, role: 'ai', text: TOOL_FAIL_TEXT },
+    ]);
+  }, [toolFailures]);
 
   // Session never landed → sendMessage silently no-ops; surface it so input isn't swallowed.
   useEffect(() => {
