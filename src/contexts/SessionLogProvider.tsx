@@ -230,5 +230,16 @@ export function SessionLogProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('pagehide', onHide);
   }, []);
 
+  // Global reconnect flush — runs on every screen, not just where useEntries
+  // mounts. flushInProgress guard makes it coexist with the useEntries listener.
+  useEffect(() => {
+    const handleOnline = () => {
+      if (offlineQueue.length > 0) offlineQueue.flush().catch(() => {});
+    };
+    window.addEventListener('online', handleOnline);
+    handleOnline();
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
+
   return <SessionLogContext.Provider value={value}>{children}</SessionLogContext.Provider>;
 }
