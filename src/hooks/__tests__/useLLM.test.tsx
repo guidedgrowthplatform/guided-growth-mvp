@@ -496,6 +496,70 @@ describe('useLLM', () => {
     expect(bare.input_mode).toBeUndefined();
   });
 
+  it('tool_failed: captured in toolFailures and survives the done event', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      mockSSE([
+        { type: 'tool_call', id: 'w1', name: 'create_habit', args: { name: 'm' } },
+        { type: 'tool_result', id: 'w1', ok: false, result: { error: 'handler_error' } },
+        {
+          type: 'tool_failed',
+          id: 'w1',
+          name: 'create_habit',
+          error: 'handler_error',
+          message: 'db exploded',
+        },
+        { type: 'delta', content: "couldn't save" },
+        { type: 'done', latency_ms: 10, total_tokens: 5, tool_rounds: 1 },
+      ]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount();
+    await act(async () => {
+      await hookRef!.sendMessage('add m');
+    });
+    await flush();
+
+    expect(hookRef!.status).toBe('done');
+    // toolEvents cleared on done; toolFailures must survive.
+    expect(hookRef!.toolEvents).toHaveLength(0);
+    expect(hookRef!.toolFailures).toHaveLength(1);
+    expect(hookRef!.toolFailures[0]).toMatchObject({
+      id: 'w1',
+      name: 'create_habit',
+      error: 'handler_error',
+      message: 'db exploded',
+    });
+  });
+
+  it('tool_failed: cleared at the next runStream start', async () => {
+    const failing = mockSSE([
+      { type: 'tool_call', id: 'w1', name: 'create_habit', args: {} },
+      { type: 'tool_result', id: 'w1', ok: false, result: {} },
+      { type: 'tool_failed', id: 'w1', name: 'create_habit', error: 'handler_error' },
+      { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 1 },
+    ]);
+    const clean = mockSSE([
+      { type: 'delta', content: 'done' },
+      { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 },
+    ]);
+    const fetchMock = vi.fn().mockResolvedValueOnce(failing).mockResolvedValueOnce(clean);
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount();
+    await act(async () => {
+      await hookRef!.sendMessage('first');
+    });
+    await flush();
+    expect(hookRef!.toolFailures).toHaveLength(1);
+
+    await act(async () => {
+      await hookRef!.sendMessage('second');
+    });
+    await flush();
+    expect(hookRef!.toolFailures).toHaveLength(0);
+  });
+
   it('sendMessage with no chatSessionId no-ops and warns in dev', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);

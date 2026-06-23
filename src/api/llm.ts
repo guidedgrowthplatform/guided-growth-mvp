@@ -12,7 +12,7 @@ function getApiUrl(): string {
   return '';
 }
 
-const VALID_TYPES = new Set(['delta', 'tool_call', 'tool_result', 'done', 'error']);
+const VALID_TYPES = new Set(['delta', 'tool_call', 'tool_result', 'tool_failed', 'done', 'error']);
 
 function parseEventBlock(block: string): LLMStreamEvent | null {
   const lines = block.split('\n');
@@ -70,6 +70,9 @@ export async function streamLLM(
           break;
         case 'tool_result':
           trace.event(`tool_result ← ${evt.id} ok=${evt.ok}`, evt.result);
+          break;
+        case 'tool_failed':
+          trace.event(`tool_failed ← ${evt.name} · ${evt.error}`, evt.message);
           break;
         case 'done':
           trace.event(

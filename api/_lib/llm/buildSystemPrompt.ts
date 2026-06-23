@@ -128,7 +128,9 @@ export async function buildSystemPromptForRequest(
   const productBlock = isOnboardingScreen ? '' : `\n\n${PRODUCT_CONTEXT}`;
   const onboardingNudge = isOnboardingScreen ? `\n\n${ONBOARDING_TOOL_ADDENDUM}` : '';
   const isCheckin = isCheckinScreen(args.screen_id);
-  const checkinNudge = isCheckin ? `\n\n${CHECKIN_TOOL_ADDENDUM}` : '';
+  // Opener turn calls no mutating tools — the tool-usage addendum is noise that
+  // can push the opener toward premature writes.
+  const checkinNudge = isCheckin && args.mode !== 'opener' ? `\n\n${CHECKIN_TOOL_ADDENDUM}` : '';
   // Read-only screens excludes the dedicated 3, so this never co-emits with checkinNudge.
   const readonlyNudge = isReadOnlyCheckinScreen(args.screen_id)
     ? `\n\n${CHECKIN_READONLY_ADDENDUM}`
