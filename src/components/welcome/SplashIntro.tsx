@@ -400,7 +400,7 @@ export function SplashIntro({
             <DualButton
               size={ORB_SIZE}
               leftActive
-              rightActive={false}
+              rightActive
               activeRings={orbSpeaking ? 'left' : null}
               ringCount={3}
               ringStep={7}

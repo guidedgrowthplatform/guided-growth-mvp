@@ -152,7 +152,7 @@ export function SignInScreen({
           <DualButton
             size={150}
             leftActive
-            rightActive={false}
+            rightActive
             activeRings={null}
             ringCount={3}
             ringStep={7}
