@@ -1,16 +1,19 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Navigate, Routes, Route, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { usePageTracking } from '@/analytics';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { SignInScreen } from '@/components/welcome/SignInScreen';
 import { SplashIntro } from '@/components/welcome/SplashIntro';
 import { useAppGate } from '@/hooks/useAppGate';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { AppGate } from './AppGate';
 
-// Dev-only preview wrapper, renders SplashIntro in loop mode inside a phone-sized frame.
-function SplashIntroPreview() {
+const PREVIEW_AUDIO_SRC = '/voice/onboarding_welcome.mp3';
+
+// Dev-only 390x844 phone frame on a gray backdrop.
+function PhoneFrame({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
@@ -32,9 +35,88 @@ function SplashIntroPreview() {
           position: 'relative',
         }}
       >
-        <SplashIntro loop autoPlay audioSrc="/voice/onboarding_welcome.mp3" />
+        {children}
       </div>
     </div>
+  );
+}
+
+// Beat 1 (intro animation) alone, looping.
+function SplashIntroPreview() {
+  return (
+    <PhoneFrame>
+      <SplashIntro loop autoPlay audioSrc={PREVIEW_AUDIO_SRC} />
+    </PhoneFrame>
+  );
+}
+
+// Beat 1 (intro animation) -> crossfade -> Beat 2 (sign-in), looping. Lets us
+// design the beat-to-beat transition in isolation, no flow-builder edits.
+const BEAT_CROSSFADE_MS = 600;
+const BEAT_HOLD_AFTER_READY_MS = 700;
+const BEAT_SIGNIN_HOLD_MS = 3200;
+
+function BeatFlowPreview() {
+  const [runId, setRunId] = useState(0);
+  const [showSignIn, setShowSignIn] = useState(false);
+  const timers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      pending.forEach(clearTimeout);
+    };
+  }, []);
+
+  const handleIntroComplete = () => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    // Hold on the settled orb, then crossfade into sign-in.
+    timers.current.push(
+      setTimeout(() => {
+        setShowSignIn(true);
+        // Hold sign-in, then loop back to a fresh intro.
+        timers.current.push(
+          setTimeout(() => {
+            setShowSignIn(false);
+            setRunId((n) => n + 1);
+          }, BEAT_SIGNIN_HOLD_MS + BEAT_CROSSFADE_MS),
+        );
+      }, BEAT_HOLD_AFTER_READY_MS),
+    );
+  };
+
+  return (
+    <PhoneFrame>
+      {/* Beat 1: intro animation. Re-keyed each loop so it replays from cold. */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          opacity: showSignIn ? 0 : 1,
+          transition: `opacity ${BEAT_CROSSFADE_MS}ms ease-out`,
+        }}
+      >
+        <SplashIntro
+          key={runId}
+          autoPlay
+          audioSrc={PREVIEW_AUDIO_SRC}
+          onComplete={handleIntroComplete}
+        />
+      </div>
+      {/* Beat 2: sign-in, fades in over the settled orb. */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          opacity: showSignIn ? 1 : 0,
+          transition: `opacity ${BEAT_CROSSFADE_MS}ms ease-out`,
+          pointerEvents: showSignIn ? 'auto' : 'none',
+        }}
+      >
+        <SignInScreen />
+      </div>
+    </PhoneFrame>
   );
 }
 
@@ -221,6 +303,18 @@ export function AppRoutes() {
             element={
               <div style={{ width: '100vw', height: '100dvh' }}>
                 <SplashIntroPreview />
+              </div>
+            }
+          />
+        )}
+
+        {/* Dev-only beat-flow preview -- intro animation transitioning to sign-in */}
+        {import.meta.env.DEV && (
+          <Route
+            path="/beat-flow-preview"
+            element={
+              <div style={{ width: '100vw', height: '100dvh' }}>
+                <BeatFlowPreview />
               </div>
             }
           />

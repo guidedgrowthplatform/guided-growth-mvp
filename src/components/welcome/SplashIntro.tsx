@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconChatVoice, IconMicMuted } from '@/components/icons';
-import { Button } from '@/components/ui/Button';
 import { DualButton } from '@/components/ui/DualButton';
 
 // Phase durations (ms)
@@ -8,7 +7,7 @@ const PHASE_SPLASH_HOLD = 1200;
 const PHASE_SPLASH_FADE = 400;
 const PHASE_ORB_ENTER = 500;
 const PHASE_ORB_SETTLE = 600;
-const PHASE_AUTH_FADE = 500;
+const PHASE_READY_HOLD = 500;
 const LOOP_PAUSE = 1800;
 
 // Speaking phase falls back to a timer when audio is missing or autoplay is
@@ -20,10 +19,13 @@ const REDUCED_HOLD_MS = 280;
 // The orb itself (the real DualButton dial). Light splash, so a big calm bloom.
 const ORB_SIZE = 150;
 
-// Phases: 'splash' -> 'orb' (coach speaks) -> 'orb-settle' -> 'auth' -> 'done'
-type Phase = 'splash' | 'splash-out' | 'orb' | 'orb-settle' | 'auth' | 'done';
+// Beat 1 (intro animation only). Sign-in is a separate beat, so this ends on
+// the settled "ready" orb and fires onComplete for the flow to advance.
+// Phases: 'splash' -> 'orb' (coach speaks) -> 'orb-settle' -> 'ready' -> 'done'
+type Phase = 'splash' | 'splash-out' | 'orb' | 'orb-settle' | 'ready' | 'done';
 
 interface SplashIntroProps {
+  /** Fires when the intro animation lands on the settled "ready" orb. */
   onComplete?: () => void;
   loop?: boolean;
   autoPlay?: boolean;
@@ -177,12 +179,12 @@ export function SplashIntro({
     setIntensity(0);
     setPhase('orb-settle');
     seqSchedule(() => {
-      setPhase('auth');
+      setPhase('ready');
       onComplete?.();
       if (loop) {
         seqSchedule(() => runSequence(), LOOP_PAUSE);
       } else {
-        setPhase('done');
+        seqSchedule(() => setPhase('done'), PHASE_READY_HOLD);
       }
     }, PHASE_ORB_SETTLE + 120);
   };
@@ -270,6 +272,18 @@ export function SplashIntro({
           // ignore
         }
       }
+      // Free the AudioContext so remounts (e.g. the beat-flow loop) don't pile
+      // up contexts and hit the browser's hard limit.
+      if (audioCtxRef.current) {
+        try {
+          void audioCtxRef.current.close();
+        } catch {
+          // ignore
+        }
+        audioCtxRef.current = null;
+        analyserRef.current = null;
+        sourceRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoPlay]);
@@ -278,11 +292,10 @@ export function SplashIntro({
   const showSplash = phase === 'splash' || phase === 'splash-out';
   const splashVisible = phase === 'splash';
 
-  const showOrb = phase === 'orb' || phase === 'orb-settle' || phase === 'auth' || phase === 'done';
+  const showOrb =
+    phase === 'orb' || phase === 'orb-settle' || phase === 'ready' || phase === 'done';
   const orbSpeaking = phase === 'orb';
-  const orbSettled = phase === 'orb-settle' || phase === 'auth' || phase === 'done';
-
-  const showAuth = phase === 'auth' || phase === 'done';
+  const orbSettled = phase === 'orb-settle' || phase === 'ready' || phase === 'done';
 
   return (
     <div
@@ -333,7 +346,7 @@ export function SplashIntro({
         </div>
       )}
 
-      {/* Phase 2 + 3: Orb (the real dual-button dial) and auth block */}
+      {/* Phase 2 + 3: Orb (the real dual-button dial) blooms, speaks, settles. */}
       {showOrb && (
         <div
           style={{
@@ -348,7 +361,7 @@ export function SplashIntro({
             willChange: 'opacity',
           }}
         >
-          {/* Orb area: blooms in, then lifts and shrinks toward the top. */}
+          {/* Orb area: blooms in, then settles to a calm, raised "ready" pose. */}
           <div
             style={{
               position: 'relative',
@@ -395,84 +408,6 @@ export function SplashIntro({
               leftAriaLabel="Coach voice"
               rightAriaLabel="Microphone off"
             />
-          </div>
-
-          {/* Auth block, fades in after the orb settles */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              padding: '0 28px 52px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              transition: prefersReducedMotion
-                ? 'none'
-                : `opacity ${PHASE_AUTH_FADE}ms ease-out, transform ${PHASE_AUTH_FADE}ms ease-out`,
-              opacity: showAuth ? 1 : 0,
-              transform: showAuth ? 'translateY(0)' : 'translateY(14px)',
-              willChange: 'opacity, transform',
-              pointerEvents: showAuth ? 'auto' : 'none',
-            }}
-            aria-hidden={!showAuth}
-          >
-            {/* Apple button */}
-            <Button variant="social-dark" size="auth" fullWidth>
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-              </svg>
-              Continue with Apple
-            </Button>
-
-            {/* Google button */}
-            <Button variant="social-light" size="auth" fullWidth>
-              <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-                  fill="#4285F4"
-                />
-                <path
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  fill="#34A853"
-                />
-                <path
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z"
-                  fill="#FBBC05"
-                />
-                <path
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  fill="#EA4335"
-                />
-              </svg>
-              Continue with Google
-            </Button>
-
-            {/* Sign-up text affordance */}
-            <p
-              style={{
-                fontFamily: 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                fontSize: '14px',
-                fontWeight: 500,
-                color: 'rgb(100,116,139)',
-                textAlign: 'center',
-                margin: '4px 0 0',
-                letterSpacing: '0.01em',
-                userSelect: 'none',
-              }}
-            >
-              No account yet?{' '}
-              <span
-                style={{
-                  color: 'rgb(19,91,235)',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Sign up free
-              </span>
-            </p>
           </div>
         </div>
       )}
