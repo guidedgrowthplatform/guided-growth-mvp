@@ -1,3 +1,4 @@
+import { ANDROID_REMINDER_CHANNEL_ID } from '@gg/shared';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getMessaging, type Messaging } from 'firebase-admin/messaging';
 import pool from './db.js';
@@ -47,7 +48,11 @@ export async function sendPush(tokens: string[], payload: PushPayload): Promise<
       apns: { payload: { aps: { sound: 'default' } } },
       android: {
         priority: 'high',
-        notification: { channelId: 'reminders', priority: 'high', defaultSound: true },
+        notification: {
+          channelId: ANDROID_REMINDER_CHANNEL_ID,
+          priority: 'high',
+          defaultSound: true,
+        },
       },
     });
 

@@ -32,9 +32,23 @@ export function getLocalFeed(): Promise<NotificationRecord[]> {
   return read();
 }
 
+// serialized so a near-simultaneous received+tap can't both pass the dedupe
+// read-check-write and double-add
+let ensureChain: Promise<unknown> = Promise.resolve();
+
 // idempotent per (type, local day) — mirrors the old cron's once-per-day insert,
 // so background fires + taps don't double-add
-export async function ensureLocalFeedEntry(
+export function ensureLocalFeedEntry(
+  type: LocalReminderType,
+  firstName: string | null,
+  nowIso: string,
+): Promise<boolean> {
+  const next = ensureChain.then(() => doEnsureLocalFeedEntry(type, firstName, nowIso));
+  ensureChain = next.catch(() => {});
+  return next;
+}
+
+async function doEnsureLocalFeedEntry(
   type: LocalReminderType,
   firstName: string | null,
   nowIso: string,

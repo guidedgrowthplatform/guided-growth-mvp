@@ -71,6 +71,16 @@ describe('localFeed', () => {
     expect((await getLocalFeed()).every((e) => e.read_at === NOW)).toBe(true);
   });
 
+  it('concurrent calls for same (type, day) add exactly one entry', async () => {
+    const { ensureLocalFeedEntry, getLocalFeed } = await load();
+    const [a, b] = await Promise.all([
+      ensureLocalFeedEntry('morning_checkin', 'Sam', NOW),
+      ensureLocalFeedEntry('morning_checkin', 'Sam', NOW),
+    ]);
+    expect([a, b].filter(Boolean)).toHaveLength(1);
+    expect(await getLocalFeed()).toHaveLength(1);
+  });
+
   it('recovers from corrupt stored JSON', async () => {
     const { getLocalFeed } = await load();
     store['local_notification_feed'] = '{not valid';
