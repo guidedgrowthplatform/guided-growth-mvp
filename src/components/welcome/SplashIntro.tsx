@@ -6,7 +6,7 @@ import { DualButton } from '@/components/ui/DualButton';
 const PHASE_SPLASH_HOLD = 1200;
 const PHASE_SPLASH_FADE = 400;
 const PHASE_ORB_ENTER = 500;
-const PHASE_ORB_SETTLE = 600;
+const PHASE_ORB_SETTLE = 700;
 const PHASE_READY_HOLD = 500;
 const LOOP_PAUSE = 1800;
 
@@ -19,8 +19,15 @@ const REDUCED_HOLD_MS = 280;
 // The orb itself (the real DualButton dial). Light splash, so a big calm bloom.
 const ORB_SIZE = 150;
 
+// Resting pose: where the orb travels to when it settles. Small, near the
+// bottom, the spot it lives in once the coach is "ready". Sign-in (beat 2)
+// places its orb at the SAME pose, so the orb reads as one continuous element.
+// Keep in sync with SignInScreen's resting orb.
+export const ORB_REST_TOP = '87%';
+export const ORB_REST_SCALE = 0.46;
+
 // Beat 1 (intro animation only). Sign-in is a separate beat, so this ends on
-// the settled "ready" orb and fires onComplete for the flow to advance.
+// the settled "ready" orb resting at the bottom and fires onComplete.
 // Phases: 'splash' -> 'orb' (coach speaks) -> 'orb-settle' -> 'ready' -> 'done'
 type Phase = 'splash' | 'splash-out' | 'orb' | 'orb-settle' | 'ready' | 'done';
 
@@ -43,6 +50,10 @@ function ensureStyles() {
     @keyframes splash-intro-orb-glow {
       0%, 100% { opacity: 0.5; transform: scale(1); }
       50%       { opacity: 0.85; transform: scale(1.06); }
+    }
+    @keyframes splash-intro-orb-in {
+      from { opacity: 0; }
+      to   { opacity: 1; }
     }
   `;
   document.head.appendChild(style);
@@ -346,33 +357,24 @@ export function SplashIntro({
         </div>
       )}
 
-      {/* Phase 2 + 3: Orb (the real dual-button dial) blooms, speaks, settles. */}
+      {/* Phase 2 + 3: Orb blooms center, speaks, then travels down + shrinks to
+          its resting pose at the bottom (where sign-in picks it up). */}
       {showOrb && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: prefersReducedMotion ? 'none' : `opacity ${PHASE_ORB_ENTER}ms ease-out`,
-            opacity: 1,
-            willChange: 'opacity',
-          }}
-        >
-          {/* Orb area: blooms in, then settles to a calm, raised "ready" pose. */}
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
           <div
             style={{
-              position: 'relative',
+              position: 'absolute',
+              left: '50%',
+              top: orbSettled ? ORB_REST_TOP : '50%',
+              transform: `translate(-50%, -50%) scale(${orbSettled ? ORB_REST_SCALE : 1})`,
+              transition: prefersReducedMotion
+                ? 'none'
+                : `top ${PHASE_ORB_SETTLE}ms cubic-bezier(0.32,0.02,0.18,1), transform ${PHASE_ORB_SETTLE}ms cubic-bezier(0.32,0.02,0.18,1)`,
+              animation: prefersReducedMotion ? 'none' : 'splash-intro-orb-in 450ms ease-out both',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transition: prefersReducedMotion
-                ? 'none'
-                : `transform ${PHASE_ORB_SETTLE}ms cubic-bezier(0.4,0,0.2,1)`,
-              transform: orbSettled ? 'translateY(-150px) scale(0.62)' : 'translateY(0) scale(1)',
-              willChange: 'transform',
+              willChange: 'top, transform',
             }}
           >
             {/* Soft ambient glow behind the orb, breathing while it speaks. */}

@@ -1,6 +1,7 @@
 import { IconChatVoice, IconMicMuted } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 import { DualButton } from '@/components/ui/DualButton';
+import { ORB_REST_SCALE, ORB_REST_TOP } from '@/components/welcome/SplashIntro';
 
 interface SignInScreenProps {
   onApple?: () => void;
@@ -11,8 +12,8 @@ interface SignInScreenProps {
   /** Small line under the heading. */
   subheading?: string;
   /**
-   * Show the resting orb at the top. On by default so this beat can pick up
-   * exactly where the intro animation's settled orb left off (shared element).
+   * Show the resting orb at the bottom. On by default so this beat picks up
+   * exactly where the intro animation's orb settled (shared element).
    */
   showOrb?: boolean;
 }
@@ -29,36 +30,11 @@ export function SignInScreen({
 }: SignInScreenProps) {
   return (
     <div className="relative flex h-full w-full flex-col items-center overflow-hidden bg-white">
-      {/* Resting orb, matches the intro animation's settled pose. */}
-      {showOrb && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 88,
-            left: 0,
-            right: 0,
-            display: 'flex',
-            justifyContent: 'center',
-            pointerEvents: 'none',
-          }}
-        >
-          <DualButton
-            size={93}
-            leftActive
-            rightActive={false}
-            leftIcon={<IconChatVoice size={20} />}
-            rightIcon={<IconMicMuted size={17} />}
-            leftAriaLabel="Coach voice"
-            rightAriaLabel="Microphone off"
-          />
-        </div>
-      )}
-
-      {/* Heading block */}
+      {/* Heading block, near the top */}
       <div
         style={{
           position: 'absolute',
-          top: 210,
+          top: '15%',
           left: 0,
           right: 0,
           padding: '0 28px',
@@ -94,14 +70,14 @@ export function SignInScreen({
         )}
       </div>
 
-      {/* Auth controls, anchored to the bottom */}
+      {/* Auth controls, in the lower middle, above the resting orb */}
       <div
         style={{
           position: 'absolute',
-          bottom: 0,
+          bottom: 175,
           left: 0,
           right: 0,
-          padding: '0 28px 52px',
+          padding: '0 28px',
           display: 'flex',
           flexDirection: 'column',
           gap: '12px',
@@ -157,6 +133,36 @@ export function SignInScreen({
           </span>
         </p>
       </div>
+
+      {/* Resting orb at the bottom, matching the intro animation's settled pose
+          so the orb reads as the same element carried over from beat 1. */}
+      {showOrb && (
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: ORB_REST_TOP,
+            transform: `translate(-50%, -50%) scale(${ORB_REST_SCALE})`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          <DualButton
+            size={150}
+            leftActive
+            rightActive={false}
+            activeRings={null}
+            ringCount={3}
+            ringStep={7}
+            leftIcon={<IconChatVoice size={30} />}
+            rightIcon={<IconMicMuted size={26} />}
+            leftAriaLabel="Coach voice"
+            rightAriaLabel="Microphone off"
+          />
+        </div>
+      )}
     </div>
   );
 }
