@@ -3,8 +3,10 @@ import { create } from 'zustand';
 import { COACH_VOICE_ID, type VoiceGender } from '@/config/voiceConfig';
 import { supabase, sessionReady } from '@/lib/supabase';
 import { wsBegin, wsCancel, wsFinish, wsPush, wsTtsAvailable, wsWarm } from './cartesia-ws';
-import { unlockPcmAudio } from './pcmPlayer';
+import { isPcmAudioRunning, subscribePcmAudioState, unlockPcmAudio } from './pcmPlayer';
 import { isVoiceOutEnabled } from './voiceGate';
+
+export { isPcmAudioRunning as isAudioUnlocked, subscribePcmAudioState as subscribeAudioUnlock };
 
 // Streaming WebSocket transport (low-latency) vs HTTP /tts/bytes batch (fallback).
 const TTS_TRANSPORT = (import.meta.env.VITE_TTS_TRANSPORT as string | undefined) ?? 'ws';
