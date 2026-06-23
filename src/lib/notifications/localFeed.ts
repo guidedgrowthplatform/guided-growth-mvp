@@ -1,6 +1,6 @@
 import { Preferences } from '@capacitor/preferences';
 import type { NotificationRecord } from '@gg/shared/types';
-import { buildNotificationContent, type LocalReminderType } from '@gg/shared';
+import { buildNotificationContent, reminderVariantIndex, type LocalReminderType } from '@gg/shared';
 
 const KEY = 'local_notification_feed';
 const CAP = 50;
@@ -57,7 +57,8 @@ async function doEnsureLocalFeedEntry(
   const existing = await read();
   if (existing.some((e) => e.type === type && e.created_at.slice(0, 10) === day)) return false;
 
-  const content = buildNotificationContent(type, firstName);
+  // reproduce fired variant — deterministic by the entry's day
+  const content = buildNotificationContent(type, firstName, reminderVariantIndex(new Date(nowIso)));
   const entry: NotificationRecord = {
     id: `${LOCAL_PREFIX}${crypto.randomUUID()}`,
     type,

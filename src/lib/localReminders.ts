@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { LocalNotifications } from '@capacitor/local-notifications';
+import { LocalNotifications, type LocalNotificationSchema } from '@capacitor/local-notifications';
 import { Preferences } from '@capacitor/preferences';
 import { track } from '@/analytics/posthog';
 import { loadLocalPreferences, type UserPreferences } from '@/lib/preferences/snapshot';
@@ -13,6 +13,8 @@ import {
   REMINDER_ACTION_TAP,
   REMINDER_ACTION_TYPE_ID,
   REMINDER_IDS,
+  REMINDER_WINDOW_DAYS,
+  reminderVariantIndex,
   type LocalReminderType,
 } from '@gg/shared';
 
@@ -130,13 +132,48 @@ export async function registerReminderActionTypes(): Promise<void> {
 
 export async function cancelAllReminders(): Promise<void> {
   if (!isLocalRemindersSupported()) return;
+  // legacy pre-rotation ids 1001/1002 fall inside morning's range, so covered
+  const notifications: { id: number }[] = [];
+  for (const [type] of SLOTS) {
+    for (let d = 0; d < REMINDER_WINDOW_DAYS; d++)
+      notifications.push({ id: REMINDER_IDS[type] + d });
+  }
   try {
-    await LocalNotifications.cancel({
-      notifications: Object.values(REMINDER_IDS).map((id) => ({ id })),
-    });
+    await LocalNotifications.cancel({ notifications });
   } catch (err) {
     console.warn('[localReminders] cancel failed', err);
   }
+}
+
+// pure (no new Date()) → testable
+export function buildReminderSchedule(prefs: ReminderPrefs, now: Date): LocalNotificationSchema[] {
+  const times: ReminderTimes = prefs;
+  const notifications: LocalNotificationSchema[] = [];
+  for (const [type, key] of SLOTS) {
+    const at = parseHHMM(times[key]);
+    if (!at) continue;
+    for (let d = 0; d < REMINDER_WINDOW_DAYS; d++) {
+      const fireDate = new Date(now);
+      fireDate.setDate(fireDate.getDate() + d);
+      fireDate.setHours(at.hour, at.minute, 0, 0);
+      if (fireDate <= now) continue;
+      const content = buildNotificationContent(
+        type,
+        prefs.firstName,
+        reminderVariantIndex(fireDate),
+      );
+      notifications.push({
+        id: REMINDER_IDS[type] + d,
+        title: content.title,
+        body: content.body,
+        channelId: ANDROID_REMINDER_CHANNEL_ID,
+        actionTypeId: REMINDER_ACTION_TYPE_ID,
+        extra: content.data,
+        schedule: { at: fireDate, allowWhileIdle: true },
+      });
+    }
+  }
+  return notifications;
 }
 
 export async function rescheduleReminders(prefs: ReminderPrefs): Promise<void> {
@@ -149,23 +186,7 @@ export async function rescheduleReminders(prefs: ReminderPrefs): Promise<void> {
     return;
   }
 
-  const times: ReminderTimes = prefs;
-  const notifications = [];
-  for (const [type, key] of SLOTS) {
-    const at = parseHHMM(times[key]);
-    if (!at) continue;
-    const content = buildNotificationContent(type, prefs.firstName);
-    notifications.push({
-      id: REMINDER_IDS[type],
-      title: content.title,
-      body: content.body,
-      channelId: ANDROID_REMINDER_CHANNEL_ID,
-      actionTypeId: REMINDER_ACTION_TYPE_ID,
-      extra: content.data,
-      schedule: { on: { hour: at.hour, minute: at.minute }, allowWhileIdle: true },
-    });
-  }
-
+  const notifications = buildReminderSchedule(prefs, new Date());
   if (notifications.length === 0) {
     await setArmedAt(null);
     return;
