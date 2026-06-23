@@ -8,6 +8,7 @@ import {
   TURN_PAUSE_INCOMPLETE_MS,
 } from '@/config/voiceConfig';
 import type { ReleaseToken, Surface } from '@/contexts/voiceContextDef';
+import { useAudioUnlocked } from '@/hooks/useAudioUnlocked';
 import { useChatHistory } from '@/hooks/useChatHistory';
 import { useChatSession } from '@/hooks/useChatSession';
 import { useCoachChatToolEvents } from '@/hooks/useCoachChatToolEvents';
@@ -83,6 +84,7 @@ export function useCoachChat(
 
   const { preferences } = useUserPreferences();
   const voiceModeOn = preferences.voiceMode === 'voice';
+  const audioReady = useAudioUnlocked();
   const { micOn } = useDualButtonControls();
   const setInterim = useVoiceStore((s) => s.setInterim);
 
@@ -466,11 +468,13 @@ export function useCoachChat(
   useEffect(() => {
     if (!chatSessionId || initiateCheckinNonce <= 0) return;
     if (initiateNonceRef.current === initiateCheckinNonce) return;
+    // defer until audio is unlocked so the spoken opener isn't lost on cold start
+    if (voiceModeOn && !audioReady) return;
     initiateNonceRef.current = initiateCheckinNonce;
     openerSentRef.current = chatSessionId;
     if (isCheckinScreen(screenId)) trackCheckinStarted(screenId);
     void sendOpener();
-  }, [chatSessionId, initiateCheckinNonce, screenId, sendOpener]);
+  }, [chatSessionId, initiateCheckinNonce, screenId, sendOpener, voiceModeOn, audioReady]);
 
   // ─── First-ever open with a truly empty timeline → one welcome opener.
   // Returning users with history get NO auto-opener unless they explicitly

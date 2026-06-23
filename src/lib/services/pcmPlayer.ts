@@ -18,6 +18,20 @@ const DRAIN_WATCHDOG_MARGIN_MS = 600;
 let ctx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 
+// Reactive AudioContext.state — the only reliable "audio actually playable"
+// signal (the ttsUnlocked flag flips true even on a failed cold attempt).
+const stateListeners = new Set<() => void>();
+function notifyAudioState(): void {
+  stateListeners.forEach((fn) => fn());
+}
+export function subscribePcmAudioState(fn: () => void): () => void {
+  stateListeners.add(fn);
+  return () => stateListeners.delete(fn);
+}
+export function isPcmAudioRunning(): boolean {
+  return ctx?.state === 'running';
+}
+
 interface StreamState {
   nextStartTime: number;
   sources: Set<AudioBufferSourceNode>;
@@ -47,9 +61,11 @@ function ensureContext(): AudioContext {
   if (!ctx) {
     const Ctor = window.AudioContext || window.webkitAudioContext;
     ctx = new Ctor();
+    ctx.onstatechange = notifyAudioState;
     masterGain = ctx.createGain();
     masterGain.gain.value = DEFAULT_VOLUME;
     masterGain.connect(ctx.destination);
+    notifyAudioState();
   }
   return ctx;
 }

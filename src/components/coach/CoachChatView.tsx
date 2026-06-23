@@ -11,11 +11,12 @@ import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { useToast } from '@/contexts/ToastContext';
 import { useCoachTranscripts } from '@/contexts/useCoachVoiceSession';
+import { useAudioUnlocked } from '@/hooks/useAudioUnlocked';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
 import type { CoachChatApi } from '@/lib/chat/coachChatTypes';
-import { stopTTS } from '@/lib/services/tts-service';
+import { stopTTS, unlockTTS } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 interface CoachChatViewProps extends CoachChatApi {
@@ -152,6 +153,16 @@ export function CoachChatView({
       addToast('error', "Couldn't reach the mic — it may be in use. Try again.");
     }
   }, [requestMicPermission, addToast]);
+
+  // voice chosen but audio not yet unlocked (cold start) — needs a gesture
+  const audioReady = useAudioUnlocked();
+  const showTapToStart = voiceChosen && !audioReady;
+  const handleTapToStart = useCallback(async () => {
+    unlockTTS();
+    if (micRuntimeOn) return;
+    if (micAllowed) handleToggleMic();
+    else await handleRequestMic();
+  }, [micRuntimeOn, micAllowed, handleToggleMic, handleRequestMic]);
 
   const handleSendText = useCallback(
     (text: string) => {
@@ -291,6 +302,15 @@ export function CoachChatView({
         className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-[20px] px-6 pt-[24px]"
         style={{ paddingBottom: 'max(48px, env(safe-area-inset-bottom))' }}
       >
+        {showTapToStart && (
+          <button
+            type="button"
+            onClick={handleTapToStart}
+            className="pointer-events-auto rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-content-secondary shadow-sm"
+          >
+            Tap to start
+          </button>
+        )}
         <div className="pointer-events-auto">
           <DualButton
             size={91}
@@ -302,8 +322,10 @@ export function CoachChatView({
             intensity={dualActiveRings === 'right' ? micRingIntensity : undefined}
             leftIcon={voiceChosen ? <IconChatVoice size={28} /> : <IconChatText size={28} />}
             rightIcon={micRuntimeOn ? <IconMic size={26} /> : <IconMicMuted size={26} />}
-            onLeftClick={toggleVoice}
-            onRightClick={micRuntimeOn ? handleToggleMic : handleRequestMic}
+            onLeftClick={showTapToStart ? handleTapToStart : toggleVoice}
+            onRightClick={
+              showTapToStart ? handleTapToStart : micRuntimeOn ? handleToggleMic : handleRequestMic
+            }
             leftAriaLabel={voiceChosen ? 'Switch to screen mode' : 'Switch to voice mode'}
             rightAriaLabel={
               !micAllowed ? 'Allow microphone' : micRuntimeOn ? 'Turn mic off' : 'Turn mic on'

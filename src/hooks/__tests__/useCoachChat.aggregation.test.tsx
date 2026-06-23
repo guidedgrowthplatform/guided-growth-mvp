@@ -98,6 +98,9 @@ vi.mock('@/lib/services/tts-service', () => ({
   isWsTransport: () => false,
   ttsKaraokeActive: () => false,
   ttsWarm: vi.fn(),
+  unlockTTS: vi.fn(),
+  isAudioUnlocked: () => true,
+  subscribeAudioUnlock: () => () => {},
   useTtsPlaybackStore: (sel: (s: { isSpeaking: boolean }) => unknown) => sel({ isSpeaking: false }),
 }));
 
