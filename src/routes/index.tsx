@@ -4,9 +4,39 @@ import { usePageTracking } from '@/analytics';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { SplashIntro } from '@/components/welcome/SplashIntro';
 import { useAppGate } from '@/hooks/useAppGate';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { AppGate } from './AppGate';
+
+// Dev-only preview wrapper, renders SplashIntro in loop mode inside a phone-sized frame.
+function SplashIntroPreview() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        height: '100%',
+        background: '#e8e8e8',
+      }}
+    >
+      <div
+        style={{
+          width: '390px',
+          height: '844px',
+          borderRadius: '44px',
+          overflow: 'hidden',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.28)',
+          position: 'relative',
+        }}
+      >
+        <SplashIntro loop autoPlay />
+      </div>
+    </div>
+  );
+}
 
 const HomePage = lazyWithRetry(() =>
   import('@/pages/HomePage').then((m) => ({ default: m.HomePage })),
@@ -183,6 +213,18 @@ export function AppRoutes() {
 
         {/* Dev-only flow designer: preview the chat-native flow with real components */}
         {import.meta.env.DEV && <Route path="/flow-designer" element={<FlowDesignerPage />} />}
+
+        {/* Dev-only SplashIntro preview -- loop mode so it auto-replays */}
+        {import.meta.env.DEV && (
+          <Route
+            path="/splash-intro-preview"
+            element={
+              <div style={{ width: '100vw', height: '100dvh' }}>
+                <SplashIntroPreview />
+              </div>
+            }
+          />
+        )}
 
         <Route path="/splash" element={<SplashScreenPage />} />
 
