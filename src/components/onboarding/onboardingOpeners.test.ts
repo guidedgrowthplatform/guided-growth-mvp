@@ -35,14 +35,13 @@ describe('getOnboardingRevisitOpener', () => {
 
   it('all ONBOARD-01 fields present → complete recap with every value', () => {
     const state = makeState({
-      data: { nickname: 'Alex', age: 41, gender: 'Male', referralSource: 'Pondering White' },
+      data: { nickname: 'Alex', age: 41, gender: 'Male' },
     });
     const opener = getOnboardingRevisitOpener('ONBOARD-01--FORM', state);
     expect(opener?.complete).toBe(true);
     expect(opener?.text).toContain('Alex');
     expect(opener?.text).toContain('41');
     expect(opener?.text).toContain('Male');
-    expect(opener?.text).toContain('Pondering White');
     expect(opener?.text).toContain('move on');
   });
 
@@ -54,7 +53,6 @@ describe('getOnboardingRevisitOpener', () => {
     expect(opener?.text).toContain('41');
     expect(opener?.text).toContain('I still need');
     expect(opener?.text).toContain('how you identify');
-    expect(opener?.text).toContain('how you found us');
     expect(opener?.text).not.toContain('move on');
   });
 

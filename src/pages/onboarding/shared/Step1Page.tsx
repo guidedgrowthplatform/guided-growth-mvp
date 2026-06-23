@@ -16,6 +16,12 @@ const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
 const REFERRAL_OPTIONS = ['Founder Invite', 'Webinar', 'Friend', 'Other'];
 
+// Parked 2026-06-23: referral ("how did you hear about us?") is kept in the data
+// model, the submit_profile tool, and this component's plumbing for future use,
+// but we do not collect it during onboarding right now. Flip to true to re-enable
+// the question and make it required again.
+const REFERRAL_ENABLED: boolean = false;
+
 export function Step1Page() {
   const navigate = useNavigate();
   const { state: onboardingState, saveStep } = useOnboarding();
@@ -84,7 +90,7 @@ export function Step1Page() {
   }, []);
 
   const handleNext = useCallback(() => {
-    if (!nickname.trim() || !age || !gender || !referralSource) return;
+    if (!nickname.trim() || !age || !gender || (REFERRAL_ENABLED && !referralSource)) return;
     const effectiveReferral =
       referralSource === 'Other' && referralOtherText.trim()
         ? `Other: ${referralOtherText.trim()}`
@@ -124,7 +130,7 @@ export function Step1Page() {
       ctaLabel="Continue"
       onBack={() => navigate('/onboarding/mic-permission')}
       onNext={handleNext}
-      ctaDisabled={!nickname.trim() || !age || !gender || !referralSource}
+      ctaDisabled={!nickname.trim() || !age || !gender || (REFERRAL_ENABLED && !referralSource)}
       showVoiceButton
       showTooltip
       onVoiceAction={handleVoiceAction}
@@ -153,25 +159,27 @@ export function Step1Page() {
           ariaLabel="How do you identify?"
         />
       </OnboardingSection>
-      <OnboardingSection label="How did you hear about us?">
-        <ChipSelect
-          options={REFERRAL_OPTIONS}
-          value={referralSource}
-          onChange={setReferralSource}
-          columns={3}
-          ariaLabel="How did you hear about us?"
-        />
-        {referralSource === 'Other' && (
-          <div className="mt-3">
-            <OnboardingInput
-              icon="ic:round-edit"
-              placeholder="Please specify..."
-              value={referralOtherText}
-              onChange={setReferralOtherText}
-            />
-          </div>
-        )}
-      </OnboardingSection>
+      {REFERRAL_ENABLED && (
+        <OnboardingSection label="How did you hear about us?">
+          <ChipSelect
+            options={REFERRAL_OPTIONS}
+            value={referralSource}
+            onChange={setReferralSource}
+            columns={3}
+            ariaLabel="How did you hear about us?"
+          />
+          {referralSource === 'Other' && (
+            <div className="mt-3">
+              <OnboardingInput
+                icon="ic:round-edit"
+                placeholder="Please specify..."
+                value={referralOtherText}
+                onChange={setReferralOtherText}
+              />
+            </div>
+          )}
+        </OnboardingSection>
+      )}
     </OnboardingLayout>
   );
 }

@@ -59,10 +59,9 @@ function onboard01Fields(): FieldSpec[] {
     { label: 'your name', recap: (d) => (d.nickname ? `your name's ${d.nickname}` : null) },
     { label: 'your age', recap: (d) => (d.age ? `you're ${d.age}` : null) },
     { label: 'how you identify', recap: (d) => (d.gender ? `${d.gender}` : null) },
-    {
-      label: 'how you found us',
-      recap: (d) => (d.referralSource ? `found us via ${d.referralSource}` : null),
-    },
+    // Referral ("how you found us") is parked (2026-06-23): not collected during
+    // onboarding right now, so it is no longer a tracked field here. Re-add to
+    // re-enable. The submit_profile tool still accepts it if the user volunteers it.
   ];
 }
 
