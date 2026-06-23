@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { IconChatVoice, IconMicMuted } from '@/components/icons';
+import { IconChatVoice, IconMic } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 
 // Phase durations (ms)
@@ -405,10 +405,10 @@ export function SplashIntro({
               ringCount={3}
               ringStep={7}
               intensity={orbSpeaking ? intensity : 0}
-              leftIcon={<IconChatVoice size={30} />}
-              rightIcon={<IconMicMuted size={26} />}
+              leftIcon={<IconChatVoice size={38} />}
+              rightIcon={<IconMic size={36} />}
               leftAriaLabel="Coach voice"
-              rightAriaLabel="Microphone off"
+              rightAriaLabel="Microphone"
             />
           </div>
         </div>

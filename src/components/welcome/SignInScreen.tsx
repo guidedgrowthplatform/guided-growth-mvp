@@ -1,4 +1,4 @@
-import { IconChatVoice, IconMicMuted } from '@/components/icons';
+import { IconChatVoice, IconMic } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 import { DualButton } from '@/components/ui/DualButton';
 import { ORB_REST_SCALE, ORB_REST_TOP } from '@/components/welcome/SplashIntro';
@@ -156,10 +156,10 @@ export function SignInScreen({
             activeRings={null}
             ringCount={3}
             ringStep={7}
-            leftIcon={<IconChatVoice size={30} />}
-            rightIcon={<IconMicMuted size={26} />}
+            leftIcon={<IconChatVoice size={38} />}
+            rightIcon={<IconMic size={36} />}
             leftAriaLabel="Coach voice"
-            rightAriaLabel="Microphone off"
+            rightAriaLabel="Microphone"
           />
         </div>
       )}
