@@ -20,7 +20,7 @@ const DEFAULT_DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 function StatusCell({ status }: { status: HabitWeekCell }) {
   if (status === 'done') {
     return (
-      <div className="flex aspect-square items-center justify-center rounded-md bg-success">
+      <div className="flex aspect-square items-center justify-center rounded-sm bg-success">
         <Check size={15} className="text-white" />
       </div>
     );
@@ -28,14 +28,14 @@ function StatusCell({ status }: { status: HabitWeekCell }) {
 
   if (status === 'missed') {
     return (
-      <div className="flex aspect-square items-center justify-center rounded-md border-2 border-danger bg-surface">
+      <div className="flex aspect-square items-center justify-center rounded-sm border-2 border-danger bg-surface">
         <X size={13} className="text-danger" />
       </div>
     );
   }
 
   return (
-    <div className="flex aspect-square items-center justify-center rounded-md bg-border-light">
+    <div className="flex aspect-square items-center justify-center rounded-sm bg-border-light">
       <Minus size={13} className="text-content-tertiary" />
     </div>
   );
