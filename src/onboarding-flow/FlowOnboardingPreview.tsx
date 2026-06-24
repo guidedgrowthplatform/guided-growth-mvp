@@ -6,6 +6,7 @@
  * without login or Supabase. Used for QA + the design walkthrough. Mounted at
  * /onboarding-flow-preview (outside the AppGate). Not a user-facing route.
  */
+import { IntroGate } from './IntroGate';
 import { useLocalPersistence } from './persistence';
 import { FlowRenderer } from './renderer/FlowRenderer';
 import { useFlow } from './useFlow';
@@ -18,7 +19,9 @@ export function FlowOnboardingPreview() {
 
   return (
     <div className="bg-background h-screen w-screen">
-      <FlowRenderer orchestrator={orchestrator} />
+      <IntroGate>
+        <FlowRenderer orchestrator={orchestrator} />
+      </IntroGate>
     </div>
   );
 }

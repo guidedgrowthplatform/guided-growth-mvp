@@ -8,6 +8,7 @@
  */
 import { useCallback } from 'react';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { IntroGate } from './IntroGate';
 import { useOnboardingPersistence } from './persistence';
 import { FlowRenderer } from './renderer/FlowRenderer';
 import { useFlow } from './useFlow';
@@ -34,5 +35,9 @@ export function FlowOnboarding() {
 
   const orchestrator = useFlowOrchestrator(flow, persistence, { flowTag: tag, onPin });
 
-  return <FlowRenderer orchestrator={orchestrator} />;
+  return (
+    <IntroGate>
+      <FlowRenderer orchestrator={orchestrator} />
+    </IntroGate>
+  );
 }
