@@ -33,7 +33,8 @@ export const onboardingBeginnerV1: FlowDocument = {
       context: {
         screenId: 'ONBOARD-AUTH--FORM',
         screenName: 'Auth',
-        contextBlock: 'Sign-in beat; captures the user name. Coach stays silent (see beatContexts).',
+        contextBlock:
+          'Sign-in beat; captures the user name. Coach stays silent (see beatContexts).',
       },
       componentType: 'auth',
       componentProps: {},
@@ -60,7 +61,13 @@ export const onboardingBeginnerV1: FlowDocument = {
         genderOptions: ['Male', 'Female', 'Other'],
         ageRange: { min: 13, max: 120 },
       },
-      voice: { openerText: null, expectsInput: true, directLlmAllowed: true },
+      // Display copy; the canonical spoken opener is beatContexts['ONBOARD-01--FORM'].opener.
+      voice: {
+        openerText:
+          'Alright, a couple quick things so I can tailor this to you. How old are you, and how do you identify? You can say it or tap it in.',
+        expectsInput: true,
+        directLlmAllowed: true,
+      },
       tool: {
         toolName: 'submit_profile',
         persistsFields: ['age', 'gender'],
@@ -75,7 +82,12 @@ export const onboardingBeginnerV1: FlowDocument = {
       screenId: 'ONBOARD-FORK--FORM',
       condition: { source: 'answers.path', type: 'enum-match' },
       lanes: [
-        { value: 'simple', label: 'Beginner', entryNodeId: 'category', exitNodeId: 'reflection-setup' },
+        {
+          value: 'simple',
+          label: 'Beginner',
+          entryNodeId: 'category',
+          exitNodeId: 'reflection-setup',
+        },
         {
           value: 'braindump',
           label: 'Advanced',
@@ -230,7 +242,11 @@ export const onboardingBeginnerV1: FlowDocument = {
         expectsInput: true,
         directLlmAllowed: true,
       },
-      tool: { toolName: 'submit_brain_dump', persistsFields: ['brainDumpText'], advancesStep: true },
+      tool: {
+        toolName: 'submit_brain_dump',
+        persistsFields: ['brainDumpText'],
+        advancesStep: true,
+      },
       persist: { step: 3 },
     },
     {

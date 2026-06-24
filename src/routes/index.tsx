@@ -103,6 +103,17 @@ const EditJournalPage = lazyOnboarding('EditJournalPage');
 const AdvancedStep6Page = lazyOnboarding('AdvancedStep6Page');
 const AdvancedCustomPromptsPage = lazyOnboarding('AdvancedCustomPromptsPage');
 
+// Unified chat-native onboarding engine (orchestrator + data-driven renderer).
+// /onboarding/flow = real (authed); /onboarding-flow-preview = auth-free QA render.
+const FlowOnboarding = lazyWithRetry(() =>
+  import('@/onboarding-flow/FlowOnboarding').then((m) => ({ default: m.FlowOnboarding })),
+);
+const FlowOnboardingPreview = lazyWithRetry(() =>
+  import('@/onboarding-flow/FlowOnboardingPreview').then((m) => ({
+    default: m.FlowOnboardingPreview,
+  })),
+);
+
 function PageLoader() {
   return (
     <div className="flex h-full items-center justify-center p-8">
@@ -181,6 +192,9 @@ export function AppRoutes() {
 
         <Route path="/splash" element={<SplashScreenPage />} />
 
+        {/* Auth-free QA render of the unified chat-native onboarding engine */}
+        <Route path="/onboarding-flow-preview" element={<FlowOnboardingPreview />} />
+
         {/* Privacy policy — accessible from any state (onboarding, settings, anon) */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
@@ -210,6 +224,14 @@ export function AppRoutes() {
           element={
             <AppGate allow="onboarding">
               <MicPermissionPage />
+            </AppGate>
+          }
+        />
+        <Route
+          path="/onboarding/flow"
+          element={
+            <AppGate allow="onboarding">
+              <FlowOnboarding />
             </AppGate>
           }
         />
