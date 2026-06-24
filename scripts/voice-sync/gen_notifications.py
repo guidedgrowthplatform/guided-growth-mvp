@@ -2,9 +2,12 @@
 """Generate the committed notification-copy artifact from the Master Sheet.
 
 Reads the voice-script notification rows (morning_notification / evening_notification)
-and emits packages/shared/src/generated/notification_copy.ts — the REMINDER_VARIANTS
-rotation pool the app reads. English-only for now (title_en / text_en); Hebrew columns
-and `status` are ignored. No Supabase: this is a build-time artifact (icon-bundle model).
+and emits two committed artifacts from the same data:
+  - notification_copy.ts   — REMINDER_VARIANTS, what the app imports (must be .ts: the
+                             @gg/shared runtime lane can't resolve a .json from dist/)
+  - notification_copy.json — data-only sibling for external tooling (the app never reads it)
+English-only for now (title_en / text_en); Hebrew columns and `status` are ignored.
+No Supabase: build-time artifacts (icon-bundle model).
 
 Usage:
     python scripts/voice-sync/gen_notifications.py
@@ -28,10 +31,9 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
-# CONFIRM: the Master Sheet tab holding the morning_notification / evening_notification rows.
-# `or` (not get-default) — CI injects an unset repo var as "" (present-but-empty).
 TAB = os.environ.get("NOTIFICATION_TAB") or "Notifications"
 OUTPUT_PATH = PROJECT_ROOT / "packages/shared/src/generated/notification_copy.ts"
+OUTPUT_JSON = PROJECT_ROOT / "packages/shared/src/generated/notification_copy.json"
 
 REQUIRED_HEADERS = ("stage", "n", "title_en", "text_en")
 STAGE_TO_KEY = {
@@ -40,8 +42,6 @@ STAGE_TO_KEY = {
 }
 KEY_ORDER = ("morning_checkin", "evening_checkin")
 
-# must equal REMINDER_WINDOW_DAYS in templates.ts: reminderVariantIndex is `% 7`, so a slot
-# with ≠7 variants silently drops (>7) or unevenly repeats (<7) copy. Enforce the invariant here.
 EXPECTED_VARIANTS = 7
 
 BANNER = (
@@ -60,7 +60,7 @@ def build_variants(rows: list[dict]) -> dict[str, list[dict[str, str]]]:
         key = STAGE_TO_KEY.get(stage)
         if not key:
             if stage:
-                unknown.add(stage)  # likely a typo'd stage — surface it, don't silently drop
+                unknown.add(stage)
             continue
         title = (row.get("title_en") or "").strip()
         body = (row.get("text_en") or "").strip()
@@ -150,10 +150,14 @@ def main() -> int:
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(ts, encoding="utf-8")
+    OUTPUT_JSON.write_text(json.dumps(variants, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     if not args.no_format:
-        # match repo prettier style so the committed file is byte-stable across runs
-        subprocess.run(["npx", "prettier", "--write", str(OUTPUT_PATH)], check=True, cwd=PROJECT_ROOT)
-    print(f"wrote {OUTPUT_PATH.relative_to(PROJECT_ROOT)}", file=sys.stderr)
+        subprocess.run(
+            ["npx", "prettier", "--write", str(OUTPUT_PATH), str(OUTPUT_JSON)],
+            check=True,
+            cwd=PROJECT_ROOT,
+        )
+    print(f"wrote {OUTPUT_PATH.name} + {OUTPUT_JSON.name}", file=sys.stderr)
     return 0
 
 

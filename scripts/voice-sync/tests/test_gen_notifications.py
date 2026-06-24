@@ -12,7 +12,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from gen_notifications import OUTPUT_PATH, build_variants, render_ts
+from gen_notifications import OUTPUT_JSON, OUTPUT_PATH, build_variants, render_ts
 
 
 def row(stage: str, n: int, title: str, body: str) -> dict:
@@ -45,7 +45,7 @@ def test_orders_shuffled_rows():
 def test_ignores_unrelated_stages(capsys):
     out = build_variants(both_slots() + [row("habit_reminder", 1, "X", "y")])
     assert len(out["morning_checkin"]) == 7
-    assert "skipped unknown stage" in capsys.readouterr().err  # #9 diagnostic
+    assert "skipped unknown stage" in capsys.readouterr().err
 
 
 def test_raises_on_empty_copy():
@@ -71,7 +71,6 @@ def test_raises_on_non_contiguous_n():
 
 
 def test_raises_on_wrong_count():
-    # 6 variants — would break the `% 7` rotation; must fail loudly (#1)
     rows = slot("morning_notification", count=6) + slot("evening_notification")
     with pytest.raises(ValueError, match="must be exactly 7"):
         build_variants(rows)
@@ -91,7 +90,17 @@ def test_render_is_valid_ts_with_escaped_quotes():
     assert ts.startswith("// GENERATED — do not edit by hand.")
     assert "export const REMINDER_VARIANTS" in ts
     assert "morning_checkin:" in ts and "evening_checkin:" in ts
-    assert '"Hey, you\'re up"' in ts  # json.dumps escapes into valid double-quoted JS
+    assert '"Hey, you\'re up"' in ts
+
+
+def test_committed_json_sibling_shape():
+    import json
+
+    data = json.loads(OUTPUT_JSON.read_text(encoding="utf-8"))
+    assert set(data) == {"morning_checkin", "evening_checkin"}
+    for items in data.values():
+        assert len(items) == 7
+        assert all(set(v) == {"title", "body"} for v in items)
 
 
 @pytest.mark.skipif(shutil.which("npx") is None, reason="needs npx/prettier")
