@@ -22,6 +22,7 @@ import { Icon } from '@iconify/react';
 import {
   createElement,
   useEffect,
+  useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -749,16 +750,95 @@ const DEFAULT_FLOW: DefaultBeat[] = [
   { type: 'mood-row', beat: '9' },
 ];
 
-const STORAGE_KEY = 'gg-flow-builder-v11';
+const ONBOARDING_FLOW = DEFAULT_FLOW;
 
-const buildDefault = (): Placed[] =>
-  DEFAULT_FLOW.map((b) => ({
+// Additional flows you can design in the builder. Same components, same beat
+// model, just a different starter set. Seeded from the check-in components.
+const MORNING_CHECKIN_FLOW: DefaultBeat[] = [
+  {
+    type: 'coach-bubble',
+    beat: '1',
+    props: { text: 'Good morning. How are you feeling as you start the day?' },
+  },
+  { type: 'mood-row', beat: '2' },
+  {
+    type: 'coach-bubble',
+    beat: '3',
+    props: { text: "What's one thing that would make today feel like a win?" },
+  },
+  {
+    type: 'user-bubble',
+    beat: '4',
+    props: { text: 'Finish the deck and get a walk in.', userName: 'You' },
+  },
+  { type: 'habit-suggestion', beat: '5' },
+];
+
+const EVENING_CHECKIN_FLOW: DefaultBeat[] = [
+  { type: 'coach-bubble', beat: '1', props: { text: 'Welcome back. How did today go?' } },
+  { type: 'mood-row', beat: '2' },
+  {
+    type: 'coach-bubble',
+    beat: '3',
+    props: { text: 'What went well, and what felt hard?' },
+  },
+  {
+    type: 'user-bubble',
+    beat: '4',
+    props: { text: 'Focused all morning, lost steam after lunch.', userName: 'You' },
+  },
+  { type: 'checkin-receipt', beat: '5' },
+];
+
+interface FlowDef {
+  id: string;
+  label: string;
+  beats: DefaultBeat[];
+}
+
+const FLOWS: FlowDef[] = [
+  { id: 'onboarding', label: 'Onboarding', beats: ONBOARDING_FLOW },
+  { id: 'morning-checkin', label: 'Morning check-in', beats: MORNING_CHECKIN_FLOW },
+  { id: 'evening-checkin', label: 'Evening check-in', beats: EVENING_CHECKIN_FLOW },
+];
+const FLOW_MAP: Record<string, FlowDef> = Object.fromEntries(FLOWS.map((f) => [f.id, f]));
+
+const STORAGE_BASE = 'gg-flow-builder-v11';
+const flowKey = (flowId: string) => `${STORAGE_BASE}:${flowId}`;
+const ACTIVE_FLOW_KEY = `${STORAGE_BASE}:active`;
+
+type StoredBeat = {
+  type: string;
+  props?: Record<string, string>;
+  beat?: string;
+  note?: string;
+  sheetStage?: string;
+  transition?: { kind: BeatTransitionKind; durationMs: number };
+};
+
+const hydrate = (stored: StoredBeat[]): Placed[] =>
+  stored.map((b) => ({
     uid: newUid(b.type),
     type: b.type,
-    beat: b.beat,
-    sheetStage: b.sheetStage,
     props: b.props,
+    beat: b.beat,
+    note: b.note,
+    sheetStage: b.sheetStage,
+    transition: b.transition,
   }));
+
+const serialize = (items: Placed[]): StoredBeat[] =>
+  items.map(({ type, props, beat, note, sheetStage, transition }) => ({
+    type,
+    props,
+    beat,
+    note,
+    sheetStage,
+    transition,
+  }));
+
+const buildDefault = (flowId: string): Placed[] =>
+  hydrate((FLOW_MAP[flowId]?.beats ?? ONBOARDING_FLOW) as StoredBeat[]);
 
 interface Lane {
   id: string;
@@ -1505,6 +1585,8 @@ function PlayPanel({ placed, onFullscreen }: { placed: Placed[]; onFullscreen: (
 
 export function FlowBuilder() {
   const [placed, setPlaced] = useState<Placed[]>([]);
+  const [flowId, setFlowId] = useState<string>('onboarding');
+  const hydratedRef = useRef(false);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [activeFromPalette, setActiveFromPalette] = useState(false);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -1516,52 +1598,56 @@ export function FlowBuilder() {
   const paletteDrop = useDroppable({ id: 'palette-zone' });
   const removing = paletteDrop.isOver && !activeFromPalette && activeLabel !== null;
 
+  // On mount, restore the last active flow and its beats.
   useEffect(() => {
+    let fid = 'onboarding';
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const init = raw ? JSON.parse(raw) : DEFAULT_FLOW;
-      setPlaced(
-        (
-          init as Array<{
-            type: string;
-            props?: Record<string, string>;
-            beat?: string;
-            note?: string;
-            sheetStage?: string;
-            transition?: { kind: BeatTransitionKind; durationMs: number };
-          }>
-        ).map((b) => ({
-          uid: newUid(b.type),
-          type: b.type,
-          props: b.props,
-          beat: b.beat,
-          note: b.note,
-          sheetStage: b.sheetStage,
-          transition: b.transition,
-        })),
-      );
+      const a = localStorage.getItem(ACTIVE_FLOW_KEY);
+      if (a && FLOW_MAP[a]) fid = a;
     } catch {
-      setPlaced(buildDefault());
+      /* ignore */
     }
+    setFlowId(fid);
+    try {
+      const raw = localStorage.getItem(flowKey(fid));
+      setPlaced(raw ? hydrate(JSON.parse(raw) as StoredBeat[]) : buildDefault(fid));
+    } catch {
+      setPlaced(buildDefault(fid));
+    }
+    hydratedRef.current = true;
   }, []);
 
+  // Persist the active flow's beats. Skip until hydrated so the mount pass does
+  // not wipe a saved flow before it loads.
   useEffect(() => {
-    if (placed.length)
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(
-          placed.map(({ type, props, beat, note, sheetStage, transition }) => ({
-            type,
-            props,
-            beat,
-            note,
-            sheetStage,
-            transition,
-          })),
-        ),
-      );
-    else localStorage.removeItem(STORAGE_KEY);
-  }, [placed]);
+    if (!hydratedRef.current) return;
+    try {
+      if (placed.length) localStorage.setItem(flowKey(flowId), JSON.stringify(serialize(placed)));
+      else localStorage.removeItem(flowKey(flowId));
+    } catch {
+      /* ignore */
+    }
+  }, [placed, flowId]);
+
+  // Switch flows: save the current one, load the target, remember the choice.
+  const switchFlow = (newId: string) => {
+    if (newId === flowId || !FLOW_MAP[newId]) return;
+    try {
+      if (placed.length) localStorage.setItem(flowKey(flowId), JSON.stringify(serialize(placed)));
+      localStorage.setItem(ACTIVE_FLOW_KEY, newId);
+    } catch {
+      /* ignore */
+    }
+    let next: Placed[];
+    try {
+      const raw = localStorage.getItem(flowKey(newId));
+      next = raw ? hydrate(JSON.parse(raw) as StoredBeat[]) : buildDefault(newId);
+    } catch {
+      next = buildDefault(newId);
+    }
+    setFlowId(newId);
+    setPlaced(next);
+  };
 
   // Auto-load the beats sheet so each beat can connect to its sheet context.
   useEffect(() => {
@@ -1667,7 +1753,7 @@ export function FlowBuilder() {
   const setLaneLabel = (splitUid: string, laneId: string, label: string) =>
     mutateLane(splitUid, laneId, (l) => ({ ...l, label }));
 
-  const reset = () => setPlaced(buildDefault());
+  const reset = () => setPlaced(buildDefault(flowId));
   const clear = () => setPlaced([]);
 
 
@@ -1810,6 +1896,22 @@ export function FlowBuilder() {
 
         {/* Right bucket: the flow */}
         <div className="flex flex-1 flex-col items-start gap-3">
+          <div className="flex w-[400px] max-w-full flex-wrap items-center gap-1.5">
+            {FLOWS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => switchFlow(f.id)}
+                className={`rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                  f.id === flowId
+                    ? 'bg-primary text-white'
+                    : 'border border-border bg-surface text-content-subtle hover:text-content'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
           <div className="flex w-[400px] max-w-full items-center justify-between">
             <div className="text-[15px] font-bold text-content">Flow</div>
             <div className="flex items-center gap-2">
