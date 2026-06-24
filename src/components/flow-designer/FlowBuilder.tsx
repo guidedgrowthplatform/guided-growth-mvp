@@ -164,7 +164,7 @@ function ProfileBeat(props?: Record<string, string>) {
           />
         </div>
       </div>
-      <div className="max-w-[80%] self-end rounded-2xl rounded-tr-sm border border-border bg-surface px-4 py-2.5 text-[14px] font-medium text-content shadow-card">
+      <div className="max-w-[80%] self-end rounded-2xl rounded-tr-sm bg-[rgba(19,91,236,0.9)] px-4 py-2.5 text-[14px] font-medium text-white shadow-card">
         {props?.userReply ?? "I'm 28, and I'm male."}
       </div>
       <div className="self-center text-[12px] font-medium text-content-tertiary">

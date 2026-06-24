@@ -66,8 +66,8 @@ export function ChatBubble({
       : 'leading-[27.5px]';
 
   const textClasses = isUser
-    ? `text-[14px] font-medium ${textLeading} text-[#0f172a]`
-    : `text-[14px] font-semibold ${textLeading} text-white`;
+    ? `text-[14px] font-medium ${textLeading} text-white`
+    : `text-[14px] font-semibold ${textLeading} text-[#0f172a]`;
 
   return (
     <div className={`flex flex-col ${wrapperMargins}`}>
@@ -86,8 +86,8 @@ export function ChatBubble({
         <div
           className={`max-w-[290px] backdrop-blur-[6px] ${
             isUser
-              ? `rounded-bl-[16px] rounded-br-[16px] rounded-tl-[16px] ${bubblePad} ${userBubbleSurface}`
-              : `rounded-bl-[16px] rounded-br-[16px] rounded-tr-[16px] bg-[rgba(19,91,236,0.8)] ${bubblePad}`
+              ? `rounded-bl-[16px] rounded-br-[16px] rounded-tl-[16px] bg-[rgba(19,91,236,0.85)] ${bubblePad}`
+              : `rounded-bl-[16px] rounded-br-[16px] rounded-tr-[16px] ${bubblePad} ${userBubbleSurface}`
           } ${animate ? 'animate-bubble-in' : ''}`}
         >
           {markdown ? (
