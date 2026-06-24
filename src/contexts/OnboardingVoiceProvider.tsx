@@ -46,6 +46,8 @@ import { screenIdForRoute } from '@/lib/context/screenIdForRoute';
 import {
   CHAT_VAPI_BEAT_SCREENS,
   ONBOARDING_CHAT_ROUTE,
+  ONBOARDING_FLOW_PREVIEW_ROUTE,
+  ONBOARDING_FLOW_ROUTE,
 } from '@/lib/onboarding/onboardingStepBeats';
 import { engineForTurn } from '@/lib/orb/engineForTurn';
 import { orbStateFrom, type OrbState } from '@/lib/orb/orbState';
@@ -133,7 +135,10 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // ONBOARDING_CHAT_VAPI flag is on, in which case both-orbs-on arms real Vapi
   // full-duplex on the covered beats (profile → fork; see CHAT_VAPI_BEAT_SCREENS);
   // otherwise the loop is Soniox→LLM (mic only) with no standalone Cartesia.
-  const onChatPage = location.pathname === ONBOARDING_CHAT_ROUTE;
+  const onChatPage =
+    location.pathname === ONBOARDING_CHAT_ROUTE ||
+    location.pathname === ONBOARDING_FLOW_ROUTE ||
+    location.pathname === ONBOARDING_FLOW_PREVIEW_ROUTE;
   const currentScreenId = useMemo(
     () => screenIdForRoute(bundledRoutes, location.pathname),
     [bundledRoutes, location.pathname],

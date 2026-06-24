@@ -4,6 +4,15 @@ import type { OnboardingCard } from './onboardingChatTypes';
 // The chat IS onboarding — it renders at the onboarding root, not a sub-route.
 export const ONBOARDING_CHAT_ROUTE = '/onboarding';
 
+// The new flow-engine design renders the same chat-native surface at /onboarding/flow
+// (orchestrator + data-driven renderer). It gets the same Vapi full-duplex treatment as
+// the chat root, so the voice provider treats both as chat pages.
+export const ONBOARDING_FLOW_ROUTE = '/onboarding/flow';
+
+// Auth-free QA render of the flow-engine design. Same chat-native surface (so the voice
+// engages here too), but with in-memory persistence so it runs without sign-in.
+export const ONBOARDING_FLOW_PREVIEW_ROUTE = '/onboarding-flow-preview';
+
 // Beats covered by Vapi full-duplex on the chat page today: profile → fork. The
 // AUTH beat stays silent (like the routed screens); beats past the fork aren't
 // voice-ready yet, so they fall back to the mic→LLM (Soniox) text loop. Widen

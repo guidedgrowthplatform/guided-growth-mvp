@@ -7,11 +7,12 @@
  * of its own — the orchestrator owns answers, advancing, the fork, and saving.
  */
 import { Icon } from '@iconify/react';
-import { useEffect, useRef } from 'react';
-import { ChatBubble } from '@/components/voice/ChatBubble';
+import { useCallback, useEffect, useRef } from 'react';
 import { getNode } from '../flowMachine';
 import type { FlowOrchestrator } from '../useFlowOrchestrator';
+import { PastBeatBubbles } from './BeatPlayer';
 import { BeatView } from './BeatView';
+import { FlowVoiceControls } from './FlowVoiceControls';
 
 export interface FlowRendererProps {
   orchestrator: FlowOrchestrator;
@@ -21,27 +22,33 @@ export function FlowRenderer({ orchestrator }: FlowRendererProps) {
   const { flow, state, currentNode, answers, capture, back, canGoBack, isComplete } = orchestrator;
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const scrollToBottom = useCallback(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, []);
+
   // Keep the latest beat in view as the conversation grows.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [state.currentNodeId, isComplete]);
+    scrollToBottom();
+  }, [state.currentNodeId, isComplete, scrollToBottom]);
 
   return (
-    <div className="bg-background mx-auto flex h-full w-full max-w-[480px] flex-col">
+    <div className="bg-background relative mx-auto flex h-full w-full max-w-[480px] flex-col">
+      {/* The only gradient is the dynamic voice one painted by FlowVoiceControls at
+          the bottom (blue idle, yellow listening). No static background layer. */}
       {canGoBack && (
-        <div className="px-4 pt-4">
+        <div className="relative z-10 px-4 pt-4">
           <button
             type="button"
             aria-label="Back"
             onClick={back}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-content"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-content shadow-card"
           >
             <Icon icon="ic:round-arrow-back" width={20} height={20} />
           </button>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 pb-8 pt-2">
+      <div className="relative z-10 flex-1 overflow-y-auto px-4 pb-[160px] pt-2">
         <div className="flex flex-col gap-5">
           {state.visited.map((id) => {
             const node = getNode(flow, id);
@@ -53,15 +60,20 @@ export function FlowRenderer({ orchestrator }: FlowRendererProps) {
                 answers={answers}
                 active={!isComplete && id === currentNode?.id}
                 onCapture={capture}
+                onReveal={scrollToBottom}
               />
             );
           })}
 
-          {isComplete && <ChatBubble role="ai" text="You're all set. Let's get started." compact />}
+          {isComplete && (
+            <PastBeatBubbles coach="You're all set. Let's get started." reply={null} />
+          )}
 
           <div ref={bottomRef} />
         </div>
       </div>
+
+      <FlowVoiceControls />
     </div>
   );
 }

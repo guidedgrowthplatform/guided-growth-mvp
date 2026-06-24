@@ -8,7 +8,7 @@
  * Each adapter renders the ACTIVE beat's interactive card. Past beats are shown
  * as a short user-answer summary (see summarizeBeat) by BeatView.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AgeScrollPicker } from '@/components/onboarding/AgeScrollPicker';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import {
@@ -107,6 +107,10 @@ function AuthAdapter({ onCapture }: BeatAdapterProps) {
 function ProfileAdapter({ answers, onCapture }: BeatAdapterProps) {
   const [age, setAge] = useState<number | ''>((answers.age as number) ?? '');
   const [gender, setGender] = useState<string | null>((answers.gender as string) ?? null);
+  // Set when the coach (Direct-LLM) fills a field by voice. Drives the
+  // auto-submit below so a spoken answer saves + advances without a tap. Never
+  // set by a tap or by hydration, so tap stays Continue-driven.
+  const voiceFilledRef = useRef(false);
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
     if (result.action === 'fill_field') {
@@ -114,7 +118,10 @@ function ProfileAdapter({ answers, onCapture }: BeatAdapterProps) {
       if (p.fieldName !== 'age') return;
       const raw = p.value;
       const n = typeof raw === 'number' ? raw : parseInt(String(raw ?? ''), 10);
-      if (!isNaN(n) && n >= 13 && n <= 120) setAge(n);
+      if (!isNaN(n) && n >= 13 && n <= 120) {
+        setAge(n);
+        voiceFilledRef.current = true;
+      }
       return;
     }
     if (result.action === 'select_option') {
@@ -123,16 +130,29 @@ function ProfileAdapter({ answers, onCapture }: BeatAdapterProps) {
         p.fieldName === 'gender' &&
         typeof p.value === 'string' &&
         GENDER_OPTIONS.includes(p.value)
-      )
+      ) {
         setGender(p.value);
+        voiceFilledRef.current = true;
+      }
     }
   });
 
   const valid = !!(age && gender);
+  const submittedRef = useRef(false);
   const submit = () => {
-    if (!valid) return;
+    if (!valid || submittedRef.current) return;
+    submittedRef.current = true;
     onCapture({ data: { age: age as number, gender } });
   };
+
+  // Auto-submit fallback for the Direct-LLM path: once BOTH age and gender have
+  // been filled by voice, save + advance without waiting for a tap (the coach
+  // already collected both). Multi-field beat, so never fire on the first field.
+  // (The Vapi path advances via the orchestrator's server-step watcher instead.)
+  useEffect(() => {
+    if (voiceFilledRef.current && valid) submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [age, gender, valid]);
 
   return (
     <CardShell>
@@ -144,6 +164,11 @@ function ProfileAdapter({ answers, onCapture }: BeatAdapterProps) {
         columns={3}
         ariaLabel="How do you identify?"
       />
+      {/* Affordance hint from the flow builder's profile beat: the user can use
+          the voice orb OR tap the inputs. Reinforces the in-page orb. */}
+      <div className="self-center text-[12px] font-medium text-content-tertiary">
+        You can speak or tap
+      </div>
       <Cta label="Continue" disabled={!valid} onClick={submit} />
     </CardShell>
   );
@@ -162,18 +187,31 @@ function PathSelectionAdapter({ node, onCapture }: BeatAdapterProps) {
   const options = props.options ?? [];
   const bindsToPath = props.bindsTo === 'path';
   const [selected, setSelected] = useState<string | null>(null);
+  const voiceFilledRef = useRef(false);
+  const submittedRef = useRef(false);
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
     if (!bindsToPath || result.action !== 'set_path') return;
     const p = result.params as { value?: string };
-    if (p.value === 'simple' || p.value === 'braindump') setSelected(p.value);
+    if (p.value === 'simple' || p.value === 'braindump') {
+      setSelected(p.value);
+      voiceFilledRef.current = true;
+    }
   });
 
   const submit = () => {
-    if (!selected) return;
+    if (!selected || submittedRef.current) return;
+    submittedRef.current = true;
     if (bindsToPath) onCapture({ data: {}, path: selected as 'simple' | 'braindump' });
     else onCapture({ data: {} });
   };
+
+  // Auto-submit fallback (Direct-LLM): a spoken path choice saves + advances
+  // without a tap. Single-value beat, valid the moment it is set.
+  useEffect(() => {
+    if (voiceFilledRef.current && selected) submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
 
   return (
     <CardShell>
@@ -215,14 +253,32 @@ function PrimaryButtonAdapter({ node, onCapture }: BeatAdapterProps) {
 
 function CategoryAdapter({ onCapture }: BeatAdapterProps) {
   const [selected, setSelected] = useState<string | null>(null);
+  const voiceFilledRef = useRef(false);
+  const submittedRef = useRef(false);
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
     if (result.action !== 'select_option') return;
     const p = result.params as { fieldName?: string; value?: string };
     if (p.fieldName !== 'category' || typeof p.value !== 'string') return;
     const match = FLOW_CATEGORIES.find((c) => c.label.toLowerCase() === p.value!.toLowerCase());
-    if (match) setSelected(match.label);
+    if (match) {
+      setSelected(match.label);
+      voiceFilledRef.current = true;
+    }
   });
+
+  const submit = () => {
+    if (!selected || submittedRef.current) return;
+    submittedRef.current = true;
+    onCapture({ data: { category: selected } });
+  };
+
+  // Auto-submit fallback (Direct-LLM): a spoken category saves + advances without
+  // a tap. Single-value beat, valid the moment it is set.
+  useEffect(() => {
+    if (voiceFilledRef.current && selected) submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
 
   return (
     <CardShell>
@@ -237,11 +293,7 @@ function CategoryAdapter({ onCapture }: BeatAdapterProps) {
           />
         ))}
       </div>
-      <Cta
-        label="Continue"
-        disabled={!selected}
-        onClick={() => selected && onCapture({ data: { category: selected } })}
-      />
+      <Cta label="Continue" disabled={!selected} onClick={submit} />
     </CardShell>
   );
 }
