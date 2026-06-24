@@ -195,7 +195,7 @@ function BeatPlayer({ steps }: { steps: BeatStep[] }) {
         return (
           <div key={s.id} className="flex animate-fade-in flex-col gap-3">
             {s.speaker === 'coach' && s.say && (
-              <div className="px-1 text-[19px] font-bold leading-[1.3] text-content">
+              <div className="max-w-[85%] self-start rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 text-[14px] font-medium leading-[1.45] text-content shadow-[0px_4px_16px_-4px_rgba(15,23,42,0.12)]">
                 <Karaoke text={s.say} active={last} />
               </div>
             )}
