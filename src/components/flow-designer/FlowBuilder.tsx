@@ -1080,8 +1080,13 @@ function BuilderBottomNav() {
   );
 }
 
-const PHONE_W = 300;
-const PHONE_H = 620;
+// The phone renders at the app's real device width so every component keeps its
+// true proportions, then the whole frame is scaled down to fit the canvas.
+const DEVICE_W = 390;
+const DEVICE_H = 844;
+const PHONE_SCALE = 0.77;
+const PHONE_DISPLAY_W = Math.round(DEVICE_W * PHONE_SCALE);
+const PHONE_DISPLAY_H = Math.round(DEVICE_H * PHONE_SCALE);
 
 // Per-beat screen background, a soft gradient chosen by who leads the beat:
 // coach (blue) or user (warm). Plain (white) for a flat full-screen UI.
@@ -1139,11 +1144,21 @@ function PhoneScreenFrame({
   return (
     <div
       className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
-      style={{ width: PHONE_W, height: PHONE_H }}
+      style={{ width: PHONE_DISPLAY_W, height: PHONE_DISPLAY_H }}
     >
-      <PhoneScreenInner checkin={checkin} bg={bg}>
-        {children}
-      </PhoneScreenInner>
+      <div
+        className="relative"
+        style={{
+          width: DEVICE_W,
+          height: DEVICE_H,
+          transform: `scale(${PHONE_SCALE})`,
+          transformOrigin: 'top left',
+        }}
+      >
+        <PhoneScreenInner checkin={checkin} bg={bg}>
+          {children}
+        </PhoneScreenInner>
+      </div>
     </div>
   );
 }
@@ -1688,26 +1703,36 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
     <div className="flex flex-col items-center gap-3">
       <div
         className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
-        style={{ width: PHONE_W, height: PHONE_H }}
+        style={{ width: PHONE_DISPLAY_W, height: PHONE_DISPLAY_H }}
       >
-        {beats.length === 0 ? (
-          <div className="flex h-full items-center justify-center px-6 text-center text-[14px] text-content-tertiary">
-            Nothing in the flow yet. Add beats in the middle.
-          </div>
-        ) : next ? (
-          <BeatTransition
-            key={step}
-            first={screen(current)}
-            second={screen(next)}
-            showSecond={advancing}
-            kind={kind}
-            durationMs={current?.transition?.durationMs ?? 600}
-          />
-        ) : (
-          screen(current)
-        )}
+        <div
+          className="relative"
+          style={{
+            width: DEVICE_W,
+            height: DEVICE_H,
+            transform: `scale(${PHONE_SCALE})`,
+            transformOrigin: 'top left',
+          }}
+        >
+          {beats.length === 0 ? (
+            <div className="flex h-full items-center justify-center px-6 text-center text-[14px] text-content-tertiary">
+              Nothing in the flow yet. Add beats in the middle.
+            </div>
+          ) : next ? (
+            <BeatTransition
+              key={step}
+              first={screen(current)}
+              second={screen(next)}
+              showSecond={advancing}
+              kind={kind}
+              durationMs={current?.transition?.durationMs ?? 600}
+            />
+          ) : (
+            screen(current)
+          )}
+        </div>
       </div>
-      <div className="flex items-center justify-between gap-2" style={{ width: PHONE_W }}>
+      <div className="flex items-center justify-between gap-2" style={{ width: PHONE_DISPLAY_W }}>
         <button
           type="button"
           onClick={goBack}
