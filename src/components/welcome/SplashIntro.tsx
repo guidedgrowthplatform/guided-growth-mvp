@@ -45,6 +45,10 @@ interface SplashIntroProps {
   loop?: boolean;
   autoPlay?: boolean;
   audioSrc?: string;
+  // 'auto' tries to play on its own (and falls back to a tap pill if the browser
+  // blocks it). 'tap' shows the wordmark then waits for an explicit Get Started
+  // before the coach speaks, so the audio reliably plays off that gesture.
+  startMode?: 'auto' | 'tap';
 }
 
 let stylesInjected = false;
@@ -74,12 +78,16 @@ export function SplashIntro({
   loop = false,
   autoPlay = true,
   audioSrc,
+  startMode = 'auto',
 }: SplashIntroProps) {
   ensureStyles();
   const [phase, setPhase] = useState<Phase>(autoPlay ? 'splash' : 'done');
   const [intensity, setIntensity] = useState(0);
   // Shows a tap affordance when the browser blocks audio until a gesture.
   const [needsTap, setNeedsTap] = useState(false);
+  // 'tap' mode: hold on the wordmark with a Get Started button until the user
+  // taps, so the coach audio plays off a real gesture and is never silent.
+  const [awaitingStart, setAwaitingStart] = useState(autoPlay && startMode === 'tap');
 
   const prefersReducedMotion =
     typeof window !== 'undefined'
@@ -282,6 +290,15 @@ export function SplashIntro({
     }, PHASE_SPLASH_HOLD);
   };
 
+  // Get Started tap (tap mode): the gesture unlocks audio, so fade the wordmark
+  // and bring the coach in speaking, never silent.
+  const handleStart = () => {
+    if (!awaitingStart) return;
+    setAwaitingStart(false);
+    setPhase('splash-out');
+    seqSchedule(() => startSpeaking(), PHASE_SPLASH_FADE + PHASE_ORB_ENTER);
+  };
+
   // Any pointer gesture also unlocks audio when we are holding for one.
   useEffect(() => {
     const onGesture = () => {
@@ -295,7 +312,12 @@ export function SplashIntro({
   useEffect(() => {
     if (!autoPlay) return;
     void loadEnvelope();
-    runSequence();
+    if (startMode === 'tap') {
+      // Hold on the wordmark; the Get Started button drives the rest.
+      setPhase('splash');
+    } else {
+      runSequence();
+    }
     return () => {
       if (seqTimerRef.current) clearTimeout(seqTimerRef.current);
       clearSpeakTimers();
@@ -594,6 +616,44 @@ export function SplashIntro({
             }}
           >
             Tap to play
+          </span>
+        </button>
+      )}
+
+      {/* Get Started gate (tap mode): the wordmark stays up and the coach waits
+          to speak until this is tapped, so the audio reliably plays off the
+          gesture instead of being blocked. */}
+      {awaitingStart && (
+        <button
+          type="button"
+          onClick={handleStart}
+          aria-label="Get started"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 20,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            paddingBottom: 96,
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              fontSize: 17,
+              fontWeight: 700,
+              color: '#fff',
+              background: 'rgb(19,91,235)',
+              padding: '15px 56px',
+              borderRadius: 999,
+              boxShadow: '0 10px 30px -8px rgba(19,91,235,0.5)',
+            }}
+          >
+            Get Started
           </span>
         </button>
       )}

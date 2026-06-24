@@ -11,7 +11,13 @@ import { SplashIntro } from '@/components/welcome/SplashIntro';
 export function IntroGate({ children }: { children: React.ReactNode }) {
   const [done, setDone] = useState(false);
   if (!done) {
-    return <SplashIntro audioSrc="/voice/splash_welcome.mp3" onComplete={() => setDone(true)} />;
+    return (
+      <SplashIntro
+        audioSrc="/voice/splash_welcome.mp3"
+        startMode="tap"
+        onComplete={() => setDone(true)}
+      />
+    );
   }
   return <>{children}</>;
 }
