@@ -1204,9 +1204,12 @@ function PhoneScreenInner({
 }) {
   return (
     <div className="absolute inset-0 bg-surface">
+      {/* Full-height gradient so the color reaches the very bottom edge; the orb
+          floats on top of it instead of sitting on a white strip. */}
+      <div className="absolute inset-0" style={{ background: bgColor(bg) }} />
       <div
         className="absolute inset-x-0 top-0 flex flex-col overflow-y-auto px-4 [transform:translateZ(0)]"
-        style={{ bottom: checkin ? 64 : 84, background: bgColor(bg) }}
+        style={{ bottom: checkin ? 64 : 84 }}
       >
         <div className="my-auto w-full py-6">{children}</div>
       </div>
