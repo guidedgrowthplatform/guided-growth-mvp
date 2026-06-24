@@ -62,6 +62,7 @@ import {
   BeatTransition,
   type BeatTransitionKind,
 } from '@/components/welcome/BeatTransition';
+import { COACH_BG, USER_BG } from '@/components/welcome/beatMood';
 import { SplashIntro } from '@/components/welcome/SplashIntro';
 
 /**
@@ -1059,8 +1060,8 @@ const PHONE_H = 620;
 // Per-beat screen background, a soft gradient chosen by who leads the beat:
 // coach (blue) or user (warm). Plain (white) for a flat full-screen UI.
 const BACKGROUNDS: { id: string; label: string; color: string }[] = [
-  { id: 'coach', label: 'Coach', color: 'linear-gradient(180deg, #f6f9ff 0%, #e3ecff 48%, #c7daff 100%)' },
-  { id: 'user', label: 'User', color: 'linear-gradient(180deg, #fdfbf5 0%, #f4ecde 50%, #ebddc3 100%)' },
+  { id: 'coach', label: 'Coach', color: COACH_BG },
+  { id: 'user', label: 'User', color: USER_BG },
   { id: 'plain', label: 'Plain', color: '#ffffff' },
 ];
 const BG_MAP: Record<string, string> = Object.fromEntries(BACKGROUNDS.map((b) => [b.id, b.color]));
