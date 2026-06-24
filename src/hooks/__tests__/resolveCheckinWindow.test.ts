@@ -2,11 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { resolveCheckinWindow } from '../useCheckinEntry';
 
 describe('resolveCheckinWindow — morning until 4 PM, evening from 5 PM', () => {
-  it('treats every hour before 16:00 as the morning window', () => {
-    for (const hour of [0, 6, 11, 12, 14, 15]) {
+  it('treats 05:00–15:59 as the morning window', () => {
+    for (const hour of [5, 6, 11, 12, 14, 15]) {
       expect(resolveCheckinWindow(hour)).toEqual({
         isMorning: true,
         isEvening: false,
+        proactiveWindow: true,
+      });
+    }
+  });
+
+  it('treats late-night (before 05:00) as evening, not morning (#207)', () => {
+    for (const hour of [0, 2, 4]) {
+      expect(resolveCheckinWindow(hour)).toEqual({
+        isMorning: false,
+        isEvening: true,
         proactiveWindow: true,
       });
     }

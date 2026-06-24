@@ -4,14 +4,14 @@ import { useCheckIn } from '@/hooks/useCheckIn';
 import { useReflectionDoneToday } from '@/hooks/useReflectionDoneToday';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { formatDate } from '@/utils/dates';
-import { localHour } from '@gg/shared/time/bucketTimeOfDay';
+import { localHour, MORNING_FROM_HOUR } from '@gg/shared/time/bucketTimeOfDay';
 import { useCheckinDoneToday, useCheckinInitiatedToday } from './useCheckinDoneToday';
 
 export type DedicatedCheckinScreenId = Extract<CheckinScreenId, 'MCHECK-01' | 'ECHECK-01'>;
 
-// Check-in windows by LOCAL hour. Morning runs late — until 4 PM — so a missed
-// morning isn't lost the instant noon hits; evening starts at 5 PM. The 16:00-
-// 16:59 gap is a deliberate buffer (neither check-in is proactively offered).
+// Check-in windows by LOCAL hour. Morning 05:00–15:59 (runs late so a missed
+// morning isn't lost at noon); evening 17:00–04:59, wrapping past midnight so a
+// 2am open is evening, not morning (#207). 16:00-16:59 is a deliberate buffer.
 const MORNING_BEFORE_HOUR = 16; // morning offered while hour < 16:00 (4 PM)
 const EVENING_FROM_HOUR = 17; // evening offered while hour >= 17:00 (5 PM)
 
@@ -23,8 +23,8 @@ export interface CheckinWindow {
 
 // Pure so the 4 PM / 5 PM boundaries are unit-testable without faking the clock.
 export function resolveCheckinWindow(hour: number): CheckinWindow {
-  const isMorning = hour < MORNING_BEFORE_HOUR;
-  const isEvening = hour >= EVENING_FROM_HOUR;
+  const isMorning = hour >= MORNING_FROM_HOUR && hour < MORNING_BEFORE_HOUR;
+  const isEvening = hour >= EVENING_FROM_HOUR || hour < MORNING_FROM_HOUR;
   return { isMorning, isEvening, proactiveWindow: isMorning || isEvening };
 }
 

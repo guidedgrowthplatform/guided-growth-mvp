@@ -21,3 +21,12 @@ export function localHour(date: Date, timeZone: string): number {
 export function bucketTimeOfDay(date: Date, timeZone: string): TimeOfDay {
   return bucketFromHour(localHour(date, timeZone));
 }
+
+// Check-in day boundaries. Morning starts 5 AM; evening wraps past midnight,
+// so late-night (17:00–04:59) is evening — a 2am open is evening, not morning.
+export const MORNING_FROM_HOUR = 5;
+export const EVENING_FROM_HOUR = 17;
+
+export function checkinTypeFromHour(hour: number): 'morning' | 'evening' {
+  return hour >= MORNING_FROM_HOUR && hour < EVENING_FROM_HOUR ? 'morning' : 'evening';
+}
