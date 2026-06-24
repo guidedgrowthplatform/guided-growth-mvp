@@ -29,8 +29,8 @@ export function GoalCard({ label, selected, disabled, onToggle }: GoalCardProps)
       </span>
       {!disabled && (
         <div
-          className={`flex size-[20px] shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-200 ${
-            selected ? 'border-primary bg-primary' : 'border-primary'
+          className={`flex size-[20px] shrink-0 items-center justify-center rounded-md border-2 transition-colors duration-200 ${
+            selected ? 'border-success bg-success' : 'border-content-tertiary'
           }`}
         >
           {selected && <Icon icon="ic:round-check" width={14} height={14} className="text-white" />}
