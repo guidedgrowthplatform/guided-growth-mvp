@@ -481,13 +481,13 @@ function AuthSignup() {
         {mode === 'login' ? 'Welcome back' : 'Create your account'}
       </div>
       <div className="space-y-3">
-        <Button variant="social-dark" size="auth" fullWidth>
+        <Button variant="social-dark" size="auth-slim" fullWidth>
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
           </svg>
           Continue with Apple
         </Button>
-        <Button variant="social-light" size="auth" fullWidth>
+        <Button variant="social-light" size="auth-slim" fullWidth>
           <svg className="h-5 w-5" viewBox="0 0 24 24">
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
@@ -540,7 +540,7 @@ function AuthSignup() {
             value={pw}
             onChange={setPw}
           />
-          <Button variant="primary" size="auth" fullWidth>
+          <Button variant="primary" size="auth-slim" fullWidth>
             Create account
           </Button>
         </div>
@@ -564,13 +564,13 @@ function AuthSignup() {
             value={pw}
             onChange={setPw}
           />
-          <Button variant="primary" size="auth" fullWidth>
+          <Button variant="primary" size="auth-slim" fullWidth>
             Log in
           </Button>
         </div>
       )}
       {mode === 'default' && (
-        <Button variant="primary" size="auth" fullWidth onClick={() => setMode('signup')}>
+        <Button variant="primary" size="auth-slim" fullWidth onClick={() => setMode('signup')}>
           Sign up with email
         </Button>
       )}
@@ -735,7 +735,6 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     type: 'profile-beat',
     beat: '2',
     sheetStage: 'ONBOARD-01--FORM: Profile Setup',
-    background: 'warm',
     props: {
       coachText: "Great to have you here. How old are you and what's your gender?",
       userReply: "I'm 28, and I'm male.",
@@ -805,7 +804,7 @@ const FLOWS: FlowDef[] = [
 ];
 const FLOW_MAP: Record<string, FlowDef> = Object.fromEntries(FLOWS.map((f) => [f.id, f]));
 
-const STORAGE_BASE = 'gg-flow-builder-v12';
+const STORAGE_BASE = 'gg-flow-builder-v13';
 const flowKey = (flowId: string) => `${STORAGE_BASE}:${flowId}`;
 const ACTIVE_FLOW_KEY = `${STORAGE_BASE}:active`;
 
@@ -819,9 +818,7 @@ type StoredBeat = {
   background?: string;
 };
 
-// Chat-bubble beats default to the warm chat background unless set otherwise.
-const CHAT_BG = new Set(['coach-bubble', 'user-bubble']);
-
+// Every beat is coach-led or user-led; default to coach, user bubbles to user.
 const hydrate = (stored: StoredBeat[]): Placed[] =>
   stored.map((b) => ({
     uid: newUid(b.type),
@@ -831,7 +828,7 @@ const hydrate = (stored: StoredBeat[]): Placed[] =>
     note: b.note,
     sheetStage: b.sheetStage,
     transition: b.transition,
-    background: b.background ?? (CHAT_BG.has(b.type) ? 'warm' : undefined),
+    background: b.background ?? (b.type === 'user-bubble' ? 'user' : 'coach'),
   }));
 
 const serialize = (items: Placed[]): StoredBeat[] =>
@@ -1000,6 +997,8 @@ function BeatOrb({ size = 56 }: { size?: number }) {
       size={size}
       leftActive
       rightActive
+      activeRings="idle"
+      intensity={0.45}
       leftIcon={<Icon icon="solar:chat-round-line-bold" className="text-white" width={glyph} />}
       rightIcon={<Icon icon="ic:round-mic-off" className="text-white" width={glyph} />}
       ariaLabel="Voice orb"
@@ -1057,16 +1056,15 @@ function BuilderBottomNav() {
 const PHONE_W = 300;
 const PHONE_H = 620;
 
-// Per-beat screen background, chosen by who leads the beat. 'warm' is the chat
-// background; coach / user tint by who is talking; plain is full-screen UI.
+// Per-beat screen background, a soft gradient chosen by who leads the beat:
+// coach (blue) or user (warm). Plain (white) for a flat full-screen UI.
 const BACKGROUNDS: { id: string; label: string; color: string }[] = [
+  { id: 'coach', label: 'Coach', color: 'linear-gradient(180deg, #f6f9ff 0%, #e3ecff 48%, #c7daff 100%)' },
+  { id: 'user', label: 'User', color: 'linear-gradient(180deg, #fdfbf5 0%, #f4ecde 50%, #ebddc3 100%)' },
   { id: 'plain', label: 'Plain', color: '#ffffff' },
-  { id: 'warm', label: 'Warm chat', color: '#fbf3d9' },
-  { id: 'coach', label: 'Coach', color: '#eef3ff' },
-  { id: 'user', label: 'User', color: '#f3f4f6' },
 ];
 const BG_MAP: Record<string, string> = Object.fromEntries(BACKGROUNDS.map((b) => [b.id, b.color]));
-const bgColor = (id?: string) => BG_MAP[id ?? ''] ?? '#ffffff';
+const bgColor = (id?: string) => BG_MAP[id ?? ''] ?? BG_MAP.coach;
 
 // The inner content + bottom chrome of a phone screen, filling its positioned
 // parent. Content is vertically centered (my-auto) so a short screen like auth
