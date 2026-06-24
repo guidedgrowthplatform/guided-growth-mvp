@@ -86,12 +86,17 @@ function GenderChips() {
 
 // The whole profile beat as one clean card: coach line, then age and gender
 // grouped with labels, then the user's expected answer on the right.
-function ProfileBeat() {
+function ProfileBeat(props?: Record<string, string>) {
   const [age, setAge] = useState<number | ''>(28);
   const [gender, setGender] = useState<string | null>('Male');
   return (
     <div className="flex flex-col gap-4">
-      <ChatBubble role="ai" text="Great to have you here. How old are you and what's your gender?" />
+      <ChatBubble
+        role="ai"
+        text={
+          props?.coachText ?? "Great to have you here. How old are you and what's your gender?"
+        }
+      />
       <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-4">
         <div>
           <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-content-tertiary">
@@ -113,7 +118,7 @@ function ProfileBeat() {
         </div>
       </div>
       <div className="max-w-[80%] self-end rounded-2xl rounded-tr-sm border border-border bg-surface px-4 py-2.5 text-[14px] font-medium text-content shadow-card">
-        I'm 28, and I'm male.
+        {props?.userReply ?? "I'm 28, and I'm male."}
       </div>
     </div>
   );
@@ -616,6 +621,15 @@ const TEXT_FIELDS: Record<string, FieldDef[]> = {
   ],
 };
 
+// Which prop on each beat carries the coach's spoken opening line (the bubble
+// text). This is the beat's openerText in the engine model (voice.openerText).
+// The sidecar edits this prop and the rendered bubble reads the same prop, so
+// the speech bubble and the beat's coach line stay in sync as one value.
+const COACH_LINE_PROP: Record<string, string> = {
+  'coach-bubble': 'text',
+  'profile-beat': 'coachText',
+};
+
 const REGISTRY: PaletteItem[] = [
   { type: 'splash-intro', group: 'Intro', label: 'Splash intro (animated)', Comp: SplashIntroPreview },
   {
@@ -670,7 +684,15 @@ interface DefaultBeat {
 // (profile setup is name + age + gender), so they share a beat number.
 const DEFAULT_FLOW: DefaultBeat[] = [
   { type: 'auth-signup', beat: '1' },
-  { type: 'profile-beat', beat: '2', sheetStage: 'ONBOARD-01--FORM: Profile Setup' },
+  {
+    type: 'profile-beat',
+    beat: '2',
+    sheetStage: 'ONBOARD-01--FORM: Profile Setup',
+    props: {
+      coachText: "Great to have you here. How old are you and what's your gender?",
+      userReply: "I'm 28, and I'm male.",
+    },
+  },
   { type: 'path-selection', beat: '3', sheetStage: 'ONBOARD-FORK--FORM: Experience Fork' },
   { type: 'category-grid', beat: '4', sheetStage: 'ONBOARD-BEGINNER-01: Category Selection' },
   { type: 'goals-list', beat: '5', sheetStage: 'ONBOARD-BEGINNER-02: Subcategory Selection' },
@@ -680,7 +702,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
   { type: 'mood-row', beat: '9' },
 ];
 
-const STORAGE_KEY = 'gg-flow-builder-v9';
+const STORAGE_KEY = 'gg-flow-builder-v10';
 
 const buildDefault = (): Placed[] =>
   DEFAULT_FLOW.map((b) => ({
@@ -799,6 +821,7 @@ function SortableCard({
   });
   const entry = REGISTRY_MAP[item.type];
   const fields = TEXT_FIELDS[item.type];
+  const coachLineKey = COACH_LINE_PROP[item.type];
   const [editing, setEditing] = useState(false);
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -872,7 +895,9 @@ function SortableCard({
         {entry ? entry.Comp(item.props) : null}
       </div>
 
-      {/* Metadata sidecar: beat number, sheet link, context */}
+      {/* Metadata sidecar: beat number, coach line, sheet link, context. The
+          coach line and the context block are this beat's single source of
+          truth (engine: voice.openerText + context.contextBlock). */}
       <div className="flex w-[250px] shrink-0 flex-col gap-2 rounded-xl border border-border bg-surface p-3">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-bold uppercase tracking-wide text-content-tertiary">
@@ -885,6 +910,20 @@ function SortableCard({
             className="w-12 rounded-md border border-border bg-page px-1.5 py-1 text-[12px] text-content"
           />
         </div>
+        {coachLineKey && (
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+              Coach line (spoken)
+            </span>
+            <textarea
+              value={item.props?.[coachLineKey] ?? ''}
+              onChange={(e) => setField(coachLineKey, e.target.value)}
+              placeholder="what the coach says out loud"
+              rows={2}
+              className="w-full resize-none rounded-md border border-primary/40 bg-page px-2 py-1.5 text-[12px] leading-[1.5] text-content"
+            />
+          </label>
+        )}
         <select
           value={item.sheetStage ?? ''}
           onChange={(e) => {
@@ -901,13 +940,18 @@ function SortableCard({
             </option>
           ))}
         </select>
-        <textarea
-          value={item.note ?? ''}
-          onChange={(e) => onUpdate({ note: e.target.value })}
-          placeholder="beat context (what the coach is doing here)"
-          rows={6}
-          className="w-full resize-none rounded-md border border-border bg-page px-2 py-1.5 text-[11px] leading-[1.5] text-content"
-        />
+        <label className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-content-tertiary">
+            Beat context
+          </span>
+          <textarea
+            value={item.note ?? ''}
+            onChange={(e) => onUpdate({ note: e.target.value })}
+            placeholder="what the coach is doing here"
+            rows={5}
+            className="w-full resize-none rounded-md border border-border bg-page px-2 py-1.5 text-[11px] leading-[1.5] text-content"
+          />
+        </label>
       </div>
     </div>
   );
