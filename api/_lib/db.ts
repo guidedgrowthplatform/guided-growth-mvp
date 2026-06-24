@@ -10,4 +10,8 @@ const pool = new pg.Pool({
   idleTimeoutMillis: 60000,
 });
 
+pool.on('error', (err) => {
+  console.warn('[db] idle client error, dropped from pool:', err.message);
+});
+
 export default pool;
