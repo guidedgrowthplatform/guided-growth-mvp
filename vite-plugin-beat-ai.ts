@@ -6,20 +6,31 @@ import type { Plugin } from 'vite';
 /**
  * Dev-only endpoint that lets each beat have its own "Ask AI" box.
  *
- * The builder posts { type, prompt, engine } to /__beat-ai. We resolve the ONE
- * beat file whose BeatDef has that `type`, then run the AI headless (Codex by
- * default, which uses the ChatGPT login and costs no metered credits; Claude
- * optional) on exactly that file. The AI edits the file in place, Vite's HMR
- * picks up the change, and the beat re-renders live in the canvas.
+ * The work runs as a BACKGROUND JOB so it survives the hot-reload that the AI's
+ * own file edit triggers:
+ *   POST /__beat-ai { type, prompt, engine } -> { jobId }   (returns at once)
+ *   GET  /__beat-ai?jobId=<id>              -> { status, summary, error }
+ * The spawned process keeps running regardless of the browser, and the box polls
+ * the job by id, so a reload mid-build just reconnects instead of losing it.
  *
- * Handing the AI the exact path (instead of making it search) keeps a one-line
- * edit at ~20s instead of minutes. Only runs in `serve` (local dev); it never
- * ships in the static build, so the deployed site has no AI endpoint.
+ * The AI is told to BUILD, never to ask questions, because the box is one-shot.
+ *
+ * Opus by default (engine 'claude' / 'claude-opus') on the OAuth Max subscription.
+ * Only runs in `serve`; never ships in the static build.
  */
+type Job = {
+  status: 'running' | 'done' | 'error';
+  summary?: string;
+  error?: string;
+  file: string;
+  startedAt: number;
+};
+
 export function beatAiPlugin(appRoot: string): Plugin {
   const beatsDir = path.join(appRoot, 'src/components/flow-designer/beats');
+  const jobs = new Map<string, Job>();
+  let seq = 0;
 
-  // Find the beat file whose default-exported BeatDef declares this type.
   const resolveFile = (type: string): string | null => {
     let files: string[] = [];
     try {
@@ -38,6 +49,13 @@ export function beatAiPlugin(appRoot: string): Plugin {
     return null;
   };
 
+  // Drop finished jobs after 15 min so the map cannot grow unbounded.
+  const prune = (now: number) => {
+    for (const [id, j] of jobs) {
+      if (j.status !== 'running' && now - j.startedAt > 15 * 60_000) jobs.delete(id);
+    }
+  };
+
   return {
     name: 'beat-ai',
     apply: 'serve',
@@ -48,9 +66,29 @@ export function beatAiPlugin(appRoot: string): Plugin {
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify(body));
         };
+        const now = Date.now();
+        prune(now);
+
+        // Poll a job's status.
+        if (req.method === 'GET') {
+          const q = new URL(req.url ?? '', 'http://localhost').searchParams;
+          const job = jobs.get(q.get('jobId') ?? '');
+          if (!job) {
+            json(404, { ok: false, status: 'gone', error: 'job not found' });
+            return;
+          }
+          json(200, {
+            ok: job.status !== 'error',
+            status: job.status,
+            summary: job.summary,
+            error: job.error,
+            file: job.file,
+          });
+          return;
+        }
 
         if (req.method !== 'POST') {
-          json(405, { ok: false, error: 'POST only' });
+          json(405, { ok: false, error: 'POST or GET only' });
           return;
         }
 
@@ -71,10 +109,7 @@ export function beatAiPlugin(appRoot: string): Plugin {
           }
 
           const found = resolveFile(type);
-          // Relative path keeps the prompt short and the edit scoped.
-          const relPath = found
-            ? `src/components/flow-designer/beats/${found}`
-            : null;
+          const relPath = found ? `src/components/flow-designer/beats/${found}` : null;
 
           const target = relPath
             ? `Edit ONLY this one file: ${relPath} (a beat with type '${type}').`
@@ -83,6 +118,7 @@ export function beatAiPlugin(appRoot: string): Plugin {
           const instruction = [
             'You edit ONE onboarding beat in a React flow builder. Touch only the file below.',
             target,
+            'IMPORTANT: this is a one-shot headless edit. The user CANNOT reply to you. Do NOT ask any questions, do NOT request clarification, do NOT propose options. Make the most natural assumption and just implement it. If something is ambiguous, pick the most sensible choice and add one short note about what you assumed.',
             'A beat returns <BeatPlayer steps={steps} /> from beatKit. Each step is one of:',
             "  { speaker:'coach', say:'...' }            white bubble the coach speaks",
             "  { speaker:'coach', say:'...', render:<X/> } speaks AND reveals a component",
@@ -90,19 +126,14 @@ export function beatAiPlugin(appRoot: string): Plugin {
             "  { speaker:'user', say:'...' }              blue bubble the user answers in",
             'Read editable copy from props (e.g. props?.greeting). To reveal a real component, import it from @/components/... If you need an example, beats/profile.tsx is the worked one.',
             'Keep the default-exported BeatDef valid and the file compiling. No em dashes in any user-facing copy. Do not edit FlowBuilder.tsx, beatKit.tsx, index.ts, or any other beat file.',
+            'End with one or two sentences describing exactly what you changed.',
             '',
             `Change to make: ${prompt}`,
           ].join('\n');
 
-          // Opus is the one engine. Codex stays reachable only if a request
-          // explicitly asks for it; the UI never does.
           const useClaude = engine !== 'codex';
           const cmd = useClaude ? 'claude' : 'codex';
           const claudeModel = 'opus';
-          // --setting-sources project skips the huge user-level CLAUDE.md (the
-          // second brain), which a scoped beat edit does not need and which alone
-          // added ~80s of startup. With MCP off too, claude -p drops from ~110s to
-          // ~20s. The instruction below carries everything the edit needs.
           const args = useClaude
             ? [
                 '-p',
@@ -121,54 +152,55 @@ export function beatAiPlugin(appRoot: string): Plugin {
               ]
             : ['exec', instruction, '--cd', appRoot, '--sandbox', 'workspace-write', '--skip-git-repo-check'];
 
-          let out = '';
-          let done = false;
-          const finish = (code: number | null, errPrefix?: string) => {
-            if (done) return;
-            done = true;
-            // Strip ANSI color codes so the box shows clean text.
-            // eslint-disable-next-line no-control-regex
-            const clean = out.replace(/\u001b\[[0-9;]*m/g, '');
-            const tail = clean.trim().split('\n').slice(-6).join('\n').slice(-700);
-            const ok = code === 0 && !errPrefix;
-            json(200, {
-              ok,
-              engine: cmd,
-              file: relPath ?? '(new file)',
-              summary: ok ? tail || 'Updated. The beat reloads automatically.' : undefined,
-              error: ok ? undefined : `${errPrefix ?? ''}${tail || `exited ${code}`}`,
-            });
-          };
-
           // Strip ANTHROPIC_API_KEY / AUTH_TOKEN so `claude -p` uses the OAuth Max
           // subscription instead of an API key billed to the (empty) metered pool.
-          // Otherwise it fails with "Credit balance is too low".
           const childEnv = { ...process.env };
           delete childEnv.ANTHROPIC_API_KEY;
           delete childEnv.ANTHROPIC_AUTH_TOKEN;
 
-          // stdin: 'ignore' is critical. codex exec reads piped stdin and appends
-          // it as a <stdin> block, so an open stdin pipe makes it hang waiting for
-          // EOF. Giving it no stdin lets it run on the prompt arg alone (~20s).
+          const jobId = `job_${now}_${++seq}`;
+          jobs.set(jobId, { status: 'running', file: relPath ?? '(new file)', startedAt: now });
+          // Return the id immediately; the box polls from here on.
+          json(200, { ok: true, jobId, file: relPath ?? '(new file)' });
+
+          // stdin: 'ignore' so codex exec does not hang waiting for piped stdin.
           const child = spawn(cmd, args, {
             cwd: appRoot,
             env: childEnv,
             stdio: ['ignore', 'pipe', 'pipe'],
           });
+          let out = '';
+          let settled = false;
+          const settle = (code: number | null, errPrefix?: string) => {
+            if (settled) return;
+            settled = true;
+            // eslint-disable-next-line no-control-regex
+            const clean = out.replace(/\u001b\[[0-9;]*m/g, '');
+            const tail = clean.trim().split('\n').slice(-6).join('\n').slice(-900);
+            const job = jobs.get(jobId);
+            if (!job) return;
+            if (code === 0 && !errPrefix) {
+              job.status = 'done';
+              job.summary = tail || 'Updated. The beat reloads automatically.';
+            } else {
+              job.status = 'error';
+              job.error = `${errPrefix ?? ''}${tail || `exited ${code}`}`;
+            }
+          };
+
           const killer = setTimeout(() => {
             child.kill('SIGTERM');
-            finish(null, 'timed out after 4 min. ');
+            settle(null, 'timed out after 4 min. ');
           }, 240_000);
-
           child.stdout.on('data', (d) => (out += d.toString()));
           child.stderr.on('data', (d) => (out += d.toString()));
           child.on('error', (err) => {
             clearTimeout(killer);
-            finish(null, `${cmd} failed to start: ${err.message}. `);
+            settle(null, `${cmd} failed to start: ${err.message}. `);
           });
           child.on('close', (code) => {
             clearTimeout(killer);
-            finish(code);
+            settle(code);
           });
         });
       });

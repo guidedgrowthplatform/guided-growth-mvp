@@ -1340,20 +1340,94 @@ function SortableCard({
   );
 }
 
-// Per-beat AI box: type a prompt, it runs the AI headless on this beat's file
-// (Codex by default, free via the ChatGPT login), the file edits, HMR reloads
-// the beat. Dev-only; the /__beat-ai endpoint exists only when serving locally.
+// Per-beat AI box: type a prompt, it runs Opus headless on this beat's file, the
+// file edits, HMR reloads the beat. The edit runs as a background JOB and the box
+// persists its state to localStorage, so the hot-reload that the edit triggers
+// reconnects to the job instead of losing it. Dev-only.
+type BeatAiSaved = {
+  prompt?: string;
+  status?: 'idle' | 'running' | 'done' | 'error';
+  log?: string;
+  jobId?: string;
+};
+
 function BeatAiBox({ type }: { type: string }) {
+  const storeKey = `gg-beat-ai:${type}`;
   const [prompt, setPrompt] = useState('');
   const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
   const [log, setLog] = useState('');
+  const pollRef = useRef<number | null>(null);
+
+  const persist = (patch: BeatAiSaved) => {
+    try {
+      const prev = JSON.parse(localStorage.getItem(storeKey) || '{}');
+      localStorage.setItem(storeKey, JSON.stringify({ ...prev, ...patch }));
+    } catch {
+      /* ignore */
+    }
+  };
+  const stopPoll = () => {
+    if (pollRef.current) {
+      window.clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  };
+  const poll = (jobId: string) => {
+    stopPoll();
+    pollRef.current = window.setInterval(async () => {
+      try {
+        const res = await fetch(`/__beat-ai?jobId=${encodeURIComponent(jobId)}`);
+        const data = await res.json();
+        if (data.status === 'running') return;
+        stopPoll();
+        if (data.status === 'done') {
+          const msg = data.summary || 'Done. The beat reloaded with the change.';
+          setStatus('done');
+          setLog(msg);
+          persist({ status: 'done', log: msg });
+        } else if (data.status === 'gone') {
+          const msg = 'Lost the job (the dev server restarted). Just send it again.';
+          setStatus('error');
+          setLog(msg);
+          persist({ status: 'error', log: msg });
+        } else {
+          const msg = data.error || 'The edit failed. Try rephrasing and send again.';
+          setStatus('error');
+          setLog(msg);
+          persist({ status: 'error', log: msg });
+        }
+      } catch {
+        /* transient network blip during HMR reload; keep polling */
+      }
+    }, 1500);
+  };
+
+  // Restore on mount and reconnect to an in-flight job after a reload.
+  useEffect(() => {
+    let saved: BeatAiSaved | null = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(storeKey) || 'null');
+    } catch {
+      saved = null;
+    }
+    if (saved) {
+      setPrompt(saved.prompt || '');
+      setStatus(saved.status || 'idle');
+      setLog(saved.log || '');
+      if (saved.status === 'running' && saved.jobId) poll(saved.jobId);
+    }
+    return stopPoll;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type]);
+
   if (!import.meta.env.DEV) return null;
 
   const send = async () => {
     const p = prompt.trim();
     if (!p || status === 'running') return;
     setStatus('running');
-    setLog('');
+    setLog('Opus is editing this beat...');
+    persist({ prompt: p, status: 'running', log: 'Opus is editing this beat...', jobId: undefined });
     try {
       const res = await fetch('/__beat-ai', {
         method: 'POST',
@@ -1361,17 +1435,31 @@ function BeatAiBox({ type }: { type: string }) {
         body: JSON.stringify({ type, prompt: p, engine: 'claude-opus' }),
       });
       const data = await res.json();
-      if (data.ok) {
-        setStatus('done');
-        setLog(data.summary || 'Updated. The beat reloads automatically.');
-        setPrompt('');
+      if (data.ok && data.jobId) {
+        persist({ jobId: data.jobId });
+        poll(data.jobId);
       } else {
+        const msg = data.error || 'Failed to start.';
         setStatus('error');
-        setLog(data.error || 'Failed.');
+        setLog(msg);
+        persist({ status: 'error', log: msg });
       }
     } catch (e) {
       setStatus('error');
       setLog(String(e));
+      persist({ status: 'error', log: String(e) });
+    }
+  };
+
+  const reset = () => {
+    stopPoll();
+    setPrompt('');
+    setStatus('idle');
+    setLog('');
+    try {
+      localStorage.removeItem(storeKey);
+    } catch {
+      /* ignore */
     }
   };
 
@@ -1379,16 +1467,19 @@ function BeatAiBox({ type }: { type: string }) {
     status === 'running'
       ? 'Opus is editing this beat...'
       : status === 'done'
-        ? 'Done, reloading'
+        ? 'Done'
         : status === 'error'
-          ? 'Error'
-          : 'Opus';
+          ? 'Needs another try'
+          : 'Ready';
 
   return (
     <div className="mt-1 flex flex-col gap-1.5 rounded-lg border border-primary/30 bg-primary/5 p-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <Icon icon="ic:round-auto-awesome" className="size-3.5 text-primary" />
+          <Icon
+            icon={status === 'running' ? 'svg-spinners:90-ring-with-bg' : 'ic:round-auto-awesome'}
+            className="size-3.5 text-primary"
+          />
           <span className="text-[10px] font-bold uppercase tracking-wide text-primary">
             Ask AI to edit this beat
           </span>
@@ -1399,7 +1490,10 @@ function BeatAiBox({ type }: { type: string }) {
       </div>
       <textarea
         value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
+        onChange={(e) => {
+          setPrompt(e.target.value);
+          persist({ prompt: e.target.value });
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send();
         }}
@@ -1415,22 +1509,41 @@ function BeatAiBox({ type }: { type: string }) {
               ? 'text-danger'
               : status === 'done'
                 ? 'text-emerald-600'
-                : 'text-content-tertiary'
+                : status === 'running'
+                  ? 'text-primary'
+                  : 'text-content-tertiary'
           }`}
         >
           {statusText}
         </span>
-        <button
-          type="button"
-          onClick={send}
-          disabled={status === 'running' || !prompt.trim()}
-          className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
-        >
-          {status === 'running' ? 'Working...' : 'Send'}
-        </button>
+        <div className="flex items-center gap-1.5">
+          {(status === 'done' || status === 'error') && (
+            <button
+              type="button"
+              onClick={reset}
+              className="rounded-md border border-border px-2 py-1 text-[11px] font-medium text-content-tertiary"
+            >
+              Clear
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={send}
+            disabled={status === 'running' || !prompt.trim()}
+            className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
+          >
+            {status === 'running' ? 'Working...' : status === 'done' ? 'Edit again' : 'Send'}
+          </button>
+        </div>
       </div>
       {log && (
-        <div className="max-h-20 overflow-auto whitespace-pre-wrap rounded bg-page/70 px-2 py-1 text-[10px] leading-snug text-content-tertiary">
+        <div
+          className={`max-h-40 overflow-auto whitespace-pre-wrap rounded px-2 py-1.5 text-[10px] leading-snug ${
+            status === 'error'
+              ? 'bg-danger/5 text-danger'
+              : 'bg-page/80 text-content-secondary'
+          }`}
+        >
           {log}
         </div>
       )}
