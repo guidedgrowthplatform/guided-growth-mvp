@@ -44,6 +44,8 @@ import { DayPicker } from '@/components/ui/DayPicker';
 import { DualButton } from '@/components/ui/DualButton';
 import { Toggle } from '@/components/ui/Toggle';
 import { ChatBubble } from '@/components/voice/ChatBubble';
+
+import { EXTRA_REGISTRY, EXTRA_GROUPS } from './paletteExtras';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
@@ -630,6 +632,11 @@ const COACH_LINE_PROP: Record<string, string> = {
   'profile-beat': 'coachText',
 };
 
+// Imported components that are full-screen modals/overlays. They cannot preview
+// as a palette tile (they render fixed, escaping the tile box), so keep them out
+// of the palette. The tile/flow previews are also transform-contained as a net.
+const PALETTE_DROP = new Set(['confirm-dialog', 'voice-cap-modal']);
+
 const REGISTRY: PaletteItem[] = [
   { type: 'splash-intro', group: 'Intro', label: 'Splash intro (animated)', Comp: SplashIntroPreview },
   {
@@ -667,10 +674,21 @@ const REGISTRY: PaletteItem[] = [
   { type: 'primary-button', group: 'UI', label: 'Primary button', Comp: PrimaryButton },
   { type: 'toggle-row', group: 'UI', label: 'Toggle', Comp: ToggleRow },
   { type: 'daypicker-row', group: 'UI', label: 'Day picker', Comp: DayPickerRow },
+  ...EXTRA_REGISTRY.filter((e) => !PALETTE_DROP.has(e.type)),
 ];
 
 const REGISTRY_MAP = Object.fromEntries(REGISTRY.map((r) => [r.type, r]));
-const GROUPS = ['Intro', 'Auth', 'Chat', 'Onboarding', 'Check-in', 'Home', 'Orb', 'UI'];
+const GROUPS = [
+  'Intro',
+  'Auth',
+  'Chat',
+  'Onboarding',
+  'Check-in',
+  'Home',
+  'Orb',
+  'UI',
+  ...EXTRA_GROUPS,
+];
 
 interface DefaultBeat {
   type: string;
@@ -799,7 +817,9 @@ function PaletteCard({
         <Icon icon="ic:round-drag-indicator" className="size-3.5" />
         {item.label}
       </div>
-      <div className="pointer-events-none">{item.Comp()}</div>
+      <div className="pointer-events-none overflow-hidden [transform:translateZ(0)]">
+        {item.Comp()}
+      </div>
       <SendButtons onSend={(where) => onSend(item.type, where)} />
     </div>
   );
@@ -892,7 +912,9 @@ function SortableCard({
           </div>
         )}
 
-        {entry ? entry.Comp(item.props) : null}
+        <div className="overflow-hidden [transform:translateZ(0)]">
+          {entry ? entry.Comp(item.props) : null}
+        </div>
       </div>
 
       {/* Metadata sidecar: beat number, coach line, sheet link, context. The
@@ -1051,7 +1073,9 @@ function LaneItem({
           )}
         </div>
       )}
-      {entry ? entry.Comp(item.props) : null}
+      <div className="overflow-hidden [transform:translateZ(0)]">
+        {entry ? entry.Comp(item.props) : null}
+      </div>
     </div>
   );
 }
@@ -1214,7 +1238,10 @@ function SplitBlock({
 function FlowPhone({ placed }: { placed: Placed[] }) {
   const renderComp = (item: Placed) => {
     const entry = REGISTRY_MAP[item.type];
-    return entry ? entry.Comp(item.props) : null;
+    if (!entry) return null;
+    return (
+      <div className="overflow-hidden [transform:translateZ(0)]">{entry.Comp(item.props)}</div>
+    );
   };
   return (
     <div className="flex w-[390px] max-w-full flex-col overflow-hidden rounded-[32px] border border-border bg-surface shadow-elevated">
