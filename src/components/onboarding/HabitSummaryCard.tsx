@@ -25,7 +25,9 @@ export function HabitSummaryCard({
         {(showCheckmark || showAiIcon) && (
           <div className="flex items-center gap-[6px]">
             {showCheckmark && (
-              <Icon icon="ic:round-check-circle" className="size-[28px] text-primary" />
+              <div className="flex size-[24px] items-center justify-center rounded-md bg-success">
+                <Icon icon="ic:round-check" className="size-[18px] text-white" />
+              </div>
             )}
             {showAiIcon && (
               <Icon icon="ic:round-auto-awesome" className="size-[24px] text-warning" />

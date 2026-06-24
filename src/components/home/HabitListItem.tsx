@@ -1,4 +1,4 @@
-import { Trash2, FileText, Plus, Check } from 'lucide-react';
+import { Trash2, FileText, Check, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { IconCircleButton } from './IconCircleButton';
 
@@ -7,8 +7,10 @@ interface HabitListItemProps {
   subtitle?: string;
   streak: number;
   isCompleted: boolean;
+  status?: 'done' | 'missed' | 'none';
   hasNote?: boolean;
   onToggleComplete: () => void;
+  onMarkMissed?: () => void;
   onAddNote?: () => void;
   onClick?: () => void;
   onDelete?: () => void;
@@ -22,8 +24,10 @@ export function HabitListItem({
   subtitle,
   streak,
   isCompleted,
+  status,
   hasNote = false,
   onToggleComplete,
+  onMarkMissed,
   onAddNote,
   onClick,
   onDelete,
@@ -83,6 +87,7 @@ export function HabitListItem({
 
   const dragging = dragX !== null;
   const translateX = dragging ? dragX : isOpen ? -OPEN_OFFSET : 0;
+  const markStatus = status ?? (isCompleted ? 'done' : 'none');
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
@@ -142,14 +147,38 @@ export function HabitListItem({
               onAddNote?.();
             }}
           />
-          <IconCircleButton
-            icon={isCompleted ? Check : Plus}
-            active={isCompleted}
+          <button
+            type="button"
+            aria-label="Mark missed"
+            aria-pressed={markStatus === 'missed'}
+            onClick={(e) => {
+              e.stopPropagation();
+              onMarkMissed?.();
+            }}
+            className={`flex h-8 w-8 items-center justify-center rounded-md border-2 transition-colors ${
+              markStatus === 'missed'
+                ? 'border-danger bg-surface text-danger'
+                : 'border-transparent bg-content-tertiary/20 text-content-tertiary'
+            }`}
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="Mark done"
+            aria-pressed={markStatus === 'done'}
             onClick={(e) => {
               e.stopPropagation();
               onToggleComplete();
             }}
-          />
+            className={`flex h-8 w-8 items-center justify-center rounded-md border-2 transition-colors ${
+              markStatus === 'done'
+                ? 'border-success bg-success text-white'
+                : 'border-transparent bg-content-tertiary/20 text-content-tertiary'
+            }`}
+          >
+            <Check className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </div>
