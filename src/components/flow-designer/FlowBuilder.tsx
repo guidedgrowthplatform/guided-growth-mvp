@@ -648,13 +648,9 @@ const COACH_LINE_PROP: Record<string, string> = {
 const PALETTE_DROP = new Set(['confirm-dialog', 'voice-cap-modal']);
 
 const REGISTRY: PaletteItem[] = [
-  { type: 'splash-intro', group: 'Intro', label: 'Splash intro (animated)', Comp: SplashIntroPreview },
-  {
-    type: 'auth-signup',
-    group: 'Auth',
-    label: 'Sign up (Apple / Google / email)',
-    Comp: AuthSignup,
-  },
+  // splash-intro and auth-signup are now editable beat files in beats/ (they
+  // override here via BEAT_DEFS). Kept out of this inline list to avoid palette
+  // duplicates.
   { type: 'age-picker', group: 'Onboarding', label: 'Age picker', Comp: AgePicker },
   { type: 'coach-bubble', group: 'Chat', label: 'Coach message', Comp: CoachBubble },
   { type: 'user-bubble', group: 'Chat', label: 'User message', Comp: UserBubble },
@@ -662,14 +658,12 @@ const REGISTRY: PaletteItem[] = [
   { type: 'onboarding-header', group: 'Onboarding', label: 'Screen header', Comp: OnboardingTitle },
   { type: 'profile-input', group: 'Onboarding', label: 'Name input', Comp: ProfileInput },
   { type: 'gender-chips', group: 'Onboarding', label: 'Gender chips', Comp: GenderChips },
-  { type: 'path-selection', group: 'Onboarding', label: 'Path choice', Comp: PathSelection },
-  { type: 'category-grid', group: 'Onboarding', label: 'Category tiles', Comp: CategoryGrid },
-  { type: 'goals-list', group: 'Onboarding', label: 'Goal cards', Comp: GoalsList },
-  { type: 'habit-picker', group: 'Onboarding', label: 'Habit picker', Comp: HabitPicker },
+  // path-selection, category-grid, goals-list, habit-picker are now editable
+  // beat files in beats/ (they override here via BEAT_DEFS).
   { type: 'habit-summary', group: 'Onboarding', label: 'Habit summary', Comp: HabitSummary },
   { type: 'schedule-picker', group: 'Onboarding', label: 'Schedule picker', Comp: SchedulePick },
-  { type: 'reflection-card', group: 'Onboarding', label: 'Daily reflection', Comp: ReflectionCard },
-  { type: 'plan-cards', group: 'Onboarding', label: 'Plan summary', Comp: PlanCards },
+  // reflection-card and plan-cards are now editable beat files in beats/ (they
+  // override here via BEAT_DEFS).
   { type: 'mood-row', group: 'Check-in', label: 'Mood row', Comp: MoodRow },
   { type: 'checkin-receipt', group: 'Check-in', label: 'Check-in receipt', Comp: CheckinReceipt },
   { type: 'habit-suggestion', group: 'Check-in', label: 'Habit suggestion', Comp: HabitSuggestion },
