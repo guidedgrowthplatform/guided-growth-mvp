@@ -20,7 +20,9 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Icon } from '@iconify/react';
 import {
+  createContext,
   createElement,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -101,6 +103,26 @@ function GenderChips() {
 
 // The whole profile beat as one clean card: coach line, then age and gender
 // grouped with labels, then the user's expected answer on the right.
+// The current user's name, set once for the whole flow via a meta input above
+// the canvas. Any text with {name} is substituted at render time.
+const UserNameCtx = createContext('Yair');
+
+const applyName = (
+  props: Record<string, string> | undefined,
+  name: string,
+): Record<string, string> | undefined => {
+  if (!props) return props;
+  const safe = name.trim() || 'there';
+  let changed = false;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(props)) {
+    const nv = typeof v === 'string' && v.includes('{name}') ? v.split('{name}').join(safe) : v;
+    if (nv !== v) changed = true;
+    out[k] = nv;
+  }
+  return changed ? out : props;
+};
+
 function ProfileBeat(props?: Record<string, string>) {
   // Age + gender defaults come from the beat's props so they are editable from
   // the builder sidecar; local state keeps the preview interactive.
@@ -144,6 +166,9 @@ function ProfileBeat(props?: Record<string, string>) {
       </div>
       <div className="max-w-[80%] self-end rounded-2xl rounded-tr-sm border border-border bg-surface px-4 py-2.5 text-[14px] font-medium text-content shadow-card">
         {props?.userReply ?? "I'm 28, and I'm male."}
+      </div>
+      <div className="self-center text-[12px] font-medium text-content-tertiary">
+        You can speak or tap
       </div>
     </div>
   );
@@ -737,7 +762,8 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     beat: '2',
     sheetStage: 'ONBOARD-01--FORM: Profile Setup',
     props: {
-      coachText: "Great to have you here. How old are you and what's your gender?",
+      coachText:
+        "Awesome {name}, two quick things so I can tailor this to you. How old are you, and what's your gender?",
       userReply: "I'm 28, and I'm male.",
       age: '28',
       gender: 'Male',
@@ -805,7 +831,7 @@ const FLOWS: FlowDef[] = [
 ];
 const FLOW_MAP: Record<string, FlowDef> = Object.fromEntries(FLOWS.map((f) => [f.id, f]));
 
-const STORAGE_BASE = 'gg-flow-builder-v13';
+const STORAGE_BASE = 'gg-flow-builder-v14';
 const flowKey = (flowId: string) => `${STORAGE_BASE}:${flowId}`;
 const ACTIVE_FLOW_KEY = `${STORAGE_BASE}:active`;
 
@@ -1141,6 +1167,7 @@ function SortableCard({
   const entry = REGISTRY_MAP[item.type];
   const fields = TEXT_FIELDS[item.type];
   const coachLineKey = COACH_LINE_PROP[item.type];
+  const uname = useContext(UserNameCtx);
   const [editing, setEditing] = useState(false);
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -1212,7 +1239,7 @@ function SortableCard({
         )}
 
         <PhoneScreenFrame checkin={checkin} bg={item.background}>
-          {entry ? createElement(entry.Comp, item.props) : null}
+          {entry ? createElement(entry.Comp, applyName(item.props, uname)) : null}
         </PhoneScreenFrame>
       </div>
 
@@ -1349,6 +1376,7 @@ function LaneItem({
 }) {
   const entry = REGISTRY_MAP[item.type];
   const fields = TEXT_FIELDS[item.type];
+  const uname = useContext(UserNameCtx);
   const [editing, setEditing] = useState(false);
   const tbtn =
     'flex size-7 items-center justify-center rounded-full border border-border bg-surface text-content-tertiary shadow-card';
@@ -1424,7 +1452,7 @@ function LaneItem({
         </div>
       )}
       <div className="overflow-hidden [transform:translateZ(0)]">
-        {entry ? createElement(entry.Comp, item.props) : null}
+        {entry ? createElement(entry.Comp, applyName(item.props, uname)) : null}
       </div>
     </div>
   );
@@ -1590,6 +1618,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
   // advancing. Uses the same phone frame + chrome (orb / menu bar) as the build
   // canvas so the preview and the editor read as the same screen.
   const checkin = flowId.includes('checkin');
+  const uname = useContext(UserNameCtx);
   const [step, setStep] = useState(0);
   const [advancing, setAdvancing] = useState(false);
 
@@ -1598,7 +1627,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
     if (!entry) return null;
     return (
       <div className="overflow-hidden [transform:translateZ(0)]">
-        {createElement(entry.Comp, item.props)}
+        {createElement(entry.Comp, applyName(item.props, uname))}
       </div>
     );
   };
@@ -1776,6 +1805,7 @@ function PlayPanel({
 export function FlowBuilder() {
   const [placed, setPlaced] = useState<Placed[]>([]);
   const [flowId, setFlowId] = useState<string>('onboarding');
+  const [userName, setUserName] = useState('Yair');
   const hydratedRef = useRef(false);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [activeFromPalette, setActiveFromPalette] = useState(false);
@@ -1804,8 +1834,23 @@ export function FlowBuilder() {
     } catch {
       setPlaced(buildDefault(fid));
     }
+    try {
+      const n = localStorage.getItem(`${STORAGE_BASE}:username`);
+      if (n) setUserName(n);
+    } catch {
+      /* ignore */
+    }
     hydratedRef.current = true;
   }, []);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    try {
+      localStorage.setItem(`${STORAGE_BASE}:username`, userName);
+    } catch {
+      /* ignore */
+    }
+  }, [userName]);
 
   // Persist the active flow's beats. Skip until hydrated so the mount pass does
   // not wipe a saved flow before it loads.
@@ -2034,10 +2079,15 @@ export function FlowBuilder() {
   };
 
   if (play) {
-    return <PlayView placed={placed} flowId={flowId} onExit={() => setPlay(false)} />;
+    return (
+      <UserNameCtx.Provider value={userName}>
+        <PlayView placed={placed} flowId={flowId} onExit={() => setPlay(false)} />
+      </UserNameCtx.Provider>
+    );
   }
 
   return (
+    <UserNameCtx.Provider value={userName}>
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
@@ -2086,6 +2136,19 @@ export function FlowBuilder() {
 
         {/* Right bucket: the flow */}
         <div className="flex flex-1 flex-col items-start gap-3">
+          <div className="flex w-[400px] max-w-full items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2">
+            <Icon icon="ic:round-person" className="size-4 text-primary" />
+            <span className="text-[11px] font-bold uppercase tracking-wide text-content-tertiary">
+              User's name
+            </span>
+            <input
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              placeholder="e.g. Yair"
+              className="min-w-0 flex-1 rounded-md border border-border bg-page px-2 py-1 text-[13px] text-content"
+            />
+            <span className="shrink-0 text-[10px] text-content-tertiary">fills {'{name}'}</span>
+          </div>
           <div className="flex w-[400px] max-w-full flex-wrap items-center gap-1.5">
             {FLOWS.map((f) => (
               <button
@@ -2212,5 +2275,6 @@ export function FlowBuilder() {
         ) : null}
       </DragOverlay>
     </DndContext>
+    </UserNameCtx.Provider>
   );
 }
