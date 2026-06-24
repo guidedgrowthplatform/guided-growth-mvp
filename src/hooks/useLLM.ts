@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { track } from '@/analytics';
 import { streamLLM } from '@/api/llm';
 import { isOnboardingScreen, logDebugEvent } from '@/lib/debug/onboardingDebug';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
@@ -263,6 +264,11 @@ export function useLLM(
             setResponse('');
             setToolEvents([]);
             setStatus('done');
+            track('coach_first_token', {
+              screen_id: screenId,
+              mode: opts.mode,
+              latency_ms: e.latency_ms,
+            });
             try {
               logEvent(
                 'llm_call',
