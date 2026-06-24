@@ -11,7 +11,7 @@ const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 function cellClass(status: CalendarCell['status']): string {
   switch (status) {
     case 'done':
-      return 'bg-primary';
+      return 'bg-success';
     case 'missed':
       return 'border-2 border-danger bg-surface';
     case 'today':
