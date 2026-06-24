@@ -45,6 +45,7 @@ import { Button } from '@/components/ui/Button';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { DualButton } from '@/components/ui/DualButton';
+import { BeatOrb, orbStateForType, type OrbState } from './BeatOrb';
 import { Toggle } from '@/components/ui/Toggle';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 
@@ -666,23 +667,8 @@ function BeatConnector({
   );
 }
 
-// The voice orb that sits on the bottom of every beat screen. Static here (both
-// halves blue, the locked unified-dial look); the real DualButton drives it.
-function BeatOrb({ size = 56 }: { size?: number }) {
-  const glyph = Math.round(size * 0.3);
-  return (
-    <DualButton
-      size={size}
-      leftActive
-      rightActive
-      activeRings="idle"
-      intensity={0.45}
-      leftIcon={<Icon icon="solar:chat-round-line-bold" className="text-white" width={glyph} />}
-      rightIcon={<Icon icon="ic:round-mic-off" className="text-white" width={glyph} />}
-      ariaLabel="Voice orb"
-    />
-  );
-}
+// BeatOrb now lives in ./BeatOrb and renders the real app orb (OrbControls), so
+// the orb on a beat is exactly what ships. Imported at the top of this file.
 
 // Presentation-only replica of the app's bottom nav (the real one is router +
 // context bound and would crash standalone). The orb sits in the center notch.
@@ -756,10 +742,12 @@ function PhoneScreenInner({
   children,
   checkin,
   bg,
+  orbState = 'idle',
 }: {
   children: ReactNode;
   checkin: boolean;
   bg?: string;
+  orbState?: OrbState;
 }) {
   return (
     <div className="absolute inset-0 bg-surface">
@@ -777,7 +765,7 @@ function PhoneScreenInner({
           <BuilderBottomNav />
         ) : (
           <div className="flex justify-center pb-5 pt-2">
-            <BeatOrb size={58} />
+            <BeatOrb state={orbState} size={58} />
           </div>
         )}
       </div>
@@ -790,10 +778,12 @@ function PhoneScreenFrame({
   children,
   checkin,
   bg,
+  orbState = 'idle',
 }: {
   children: ReactNode;
   checkin: boolean;
   bg?: string;
+  orbState?: OrbState;
 }) {
   return (
     <div
@@ -809,7 +799,7 @@ function PhoneScreenFrame({
           transformOrigin: 'top left',
         }}
       >
-        <PhoneScreenInner checkin={checkin} bg={bg}>
+        <PhoneScreenInner checkin={checkin} bg={bg} orbState={orbState}>
           {children}
         </PhoneScreenInner>
       </div>
@@ -907,7 +897,7 @@ function SortableCard({
           </div>
         )}
 
-        <PhoneScreenFrame checkin={checkin} bg={item.background}>
+        <PhoneScreenFrame checkin={checkin} bg={item.background} orbState={orbStateForType(item.type)}>
           {entry ? createElement(entry.Comp, applyName(item.props, uname)) : null}
         </PhoneScreenFrame>
       </div>
@@ -1569,7 +1559,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
     );
 
   const screen = (item: Placed) => (
-    <PhoneScreenInner checkin={checkin} bg={item.background}>
+    <PhoneScreenInner checkin={checkin} bg={item.background} orbState={orbStateForType(item.type)}>
       {beatBody(item)}
     </PhoneScreenInner>
   );
