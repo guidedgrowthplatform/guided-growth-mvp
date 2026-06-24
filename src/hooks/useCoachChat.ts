@@ -191,6 +191,8 @@ export function useCoachChat(
   // once per barge so it can't loop.
   const owesResponseRef = useRef(false);
   const regeneratedRef = useRef(false);
+  // Turn-aggregation window: utterance-end (flush → submit) → reply-start (stream begins).
+  const turnSubmittedAtRef = useRef(0);
 
   const [dayOverrides, setDayOverrides] = useState<Map<string, boolean[]>>(() => new Map());
   const [errorBubbles, setErrorBubbles] = useState<ChatMessage[]>([]);
@@ -274,6 +276,7 @@ export function useCoachChat(
       ms_since_last_final: msSinceLastFinal,
       text_len: text.length,
     });
+    turnSubmittedAtRef.current = Date.now();
     submitTurnRef.current(text);
   }, [regenerate]);
 
@@ -525,6 +528,13 @@ export function useCoachChat(
   // ─── Stream-chunked TTS: speak each completed sentence as it streams ──
   useEffect(() => {
     if (isStreaming && !prevStreamingRef.current) {
+      if (turnSubmittedAtRef.current) {
+        track('coach_turn_latency', {
+          screen_id: screenId,
+          aggregation_ms: Date.now() - turnSubmittedAtRef.current,
+        });
+        turnSubmittedAtRef.current = 0;
+      }
       lastSpokenOffsetRef.current = 0;
       streamTurnActiveRef.current = false;
       streamedSomethingRef.current = false;
@@ -549,7 +559,7 @@ export function useCoachChat(
     for (const c of chunks) pushSpeechChunk(c);
     lastSpokenOffsetRef.current = nextOffset;
     streamedSomethingRef.current = true;
-  }, [isStreaming, llmResponse, voiceModeOn]);
+  }, [isStreaming, llmResponse, voiceModeOn, screenId]);
 
   // ─── Final message: emit to bus; speak the tail (chunked) or whole (one-shot) ─
   // State-4 "opening line only" is applied in CoachSubtitleBar, not here —
