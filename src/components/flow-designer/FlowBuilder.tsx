@@ -723,6 +723,7 @@ interface DefaultBeat {
   beat?: string;
   sheetStage?: string;
   props?: Record<string, string>;
+  background?: string;
 }
 
 // The default onboarding flow, pre-connected to the beats sheet so each beat
@@ -734,6 +735,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     type: 'profile-beat',
     beat: '2',
     sheetStage: 'ONBOARD-01--FORM: Profile Setup',
+    background: 'warm',
     props: {
       coachText: "Great to have you here. How old are you and what's your gender?",
       userReply: "I'm 28, and I'm male.",
@@ -803,7 +805,7 @@ const FLOWS: FlowDef[] = [
 ];
 const FLOW_MAP: Record<string, FlowDef> = Object.fromEntries(FLOWS.map((f) => [f.id, f]));
 
-const STORAGE_BASE = 'gg-flow-builder-v11';
+const STORAGE_BASE = 'gg-flow-builder-v12';
 const flowKey = (flowId: string) => `${STORAGE_BASE}:${flowId}`;
 const ACTIVE_FLOW_KEY = `${STORAGE_BASE}:active`;
 
@@ -814,7 +816,11 @@ type StoredBeat = {
   note?: string;
   sheetStage?: string;
   transition?: { kind: BeatTransitionKind; durationMs: number };
+  background?: string;
 };
+
+// Chat-bubble beats default to the warm chat background unless set otherwise.
+const CHAT_BG = new Set(['coach-bubble', 'user-bubble']);
 
 const hydrate = (stored: StoredBeat[]): Placed[] =>
   stored.map((b) => ({
@@ -825,16 +831,18 @@ const hydrate = (stored: StoredBeat[]): Placed[] =>
     note: b.note,
     sheetStage: b.sheetStage,
     transition: b.transition,
+    background: b.background ?? (CHAT_BG.has(b.type) ? 'warm' : undefined),
   }));
 
 const serialize = (items: Placed[]): StoredBeat[] =>
-  items.map(({ type, props, beat, note, sheetStage, transition }) => ({
+  items.map(({ type, props, beat, note, sheetStage, transition, background }) => ({
     type,
     props,
     beat,
     note,
     sheetStage,
     transition,
+    background,
   }));
 
 const buildDefault = (flowId: string): Placed[] =>
@@ -856,6 +864,9 @@ interface Placed {
   // The transition played when advancing FROM this beat to the next one
   // (the edge to the next beat). Presentation only, no AI data.
   transition?: { kind: BeatTransitionKind; durationMs: number };
+  // The screen background for this beat, by who leads it (coach / user / a warm
+  // chat) or plain for full-screen UI. Presentation only. See BACKGROUNDS.
+  background?: string;
   lanes?: Lane[];
 }
 
@@ -1046,15 +1057,34 @@ function BuilderBottomNav() {
 const PHONE_W = 300;
 const PHONE_H = 620;
 
+// Per-beat screen background, chosen by who leads the beat. 'warm' is the chat
+// background; coach / user tint by who is talking; plain is full-screen UI.
+const BACKGROUNDS: { id: string; label: string; color: string }[] = [
+  { id: 'plain', label: 'Plain', color: '#ffffff' },
+  { id: 'warm', label: 'Warm chat', color: '#fbf3d9' },
+  { id: 'coach', label: 'Coach', color: '#eef3ff' },
+  { id: 'user', label: 'User', color: '#f3f4f6' },
+];
+const BG_MAP: Record<string, string> = Object.fromEntries(BACKGROUNDS.map((b) => [b.id, b.color]));
+const bgColor = (id?: string) => BG_MAP[id ?? ''] ?? '#ffffff';
+
 // The inner content + bottom chrome of a phone screen, filling its positioned
 // parent. Content is vertically centered (my-auto) so a short screen like auth
 // does not float at the top, and still scrolls from the top when it overflows.
-function PhoneScreenInner({ children, checkin }: { children: ReactNode; checkin: boolean }) {
+function PhoneScreenInner({
+  children,
+  checkin,
+  bg,
+}: {
+  children: ReactNode;
+  checkin: boolean;
+  bg?: string;
+}) {
   return (
     <div className="absolute inset-0 bg-surface">
       <div
         className="absolute inset-x-0 top-0 flex flex-col overflow-y-auto px-4 [transform:translateZ(0)]"
-        style={{ bottom: checkin ? 64 : 84 }}
+        style={{ bottom: checkin ? 64 : 84, background: bgColor(bg) }}
       >
         <div className="my-auto w-full py-6">{children}</div>
       </div>
@@ -1072,13 +1102,23 @@ function PhoneScreenInner({ children, checkin }: { children: ReactNode; checkin:
 }
 
 // The bordered phone frame around one beat in the build canvas.
-function PhoneScreenFrame({ children, checkin }: { children: ReactNode; checkin: boolean }) {
+function PhoneScreenFrame({
+  children,
+  checkin,
+  bg,
+}: {
+  children: ReactNode;
+  checkin: boolean;
+  bg?: string;
+}) {
   return (
     <div
       className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
       style={{ width: PHONE_W, height: PHONE_H }}
     >
-      <PhoneScreenInner checkin={checkin}>{children}</PhoneScreenInner>
+      <PhoneScreenInner checkin={checkin} bg={bg}>
+        {children}
+      </PhoneScreenInner>
     </div>
   );
 }
@@ -1172,7 +1212,7 @@ function SortableCard({
           </div>
         )}
 
-        <PhoneScreenFrame checkin={checkin}>
+        <PhoneScreenFrame checkin={checkin} bg={item.background}>
           {entry ? createElement(entry.Comp, item.props) : null}
         </PhoneScreenFrame>
       </div>
@@ -1231,6 +1271,32 @@ function SortableCard({
               )}
             </label>
           ))}
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-content-tertiary">
+            Background (who leads)
+          </span>
+          <div className="flex items-center gap-1">
+            {BACKGROUNDS.map((b) => {
+              const active = (item.background ?? 'plain') === b.id;
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  title={b.label}
+                  onClick={() => onUpdate({ background: b.id })}
+                  className={`flex h-7 flex-1 items-center justify-center rounded-md border text-[9px] font-bold ${
+                    active
+                      ? 'border-primary text-content ring-1 ring-primary'
+                      : 'border-border text-content-tertiary'
+                  }`}
+                  style={{ background: b.color }}
+                >
+                  {b.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <select
           value={item.sheetStage ?? ''}
           onChange={(e) => {
@@ -1557,7 +1623,9 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
     );
 
   const screen = (item: Placed) => (
-    <PhoneScreenInner checkin={checkin}>{beatBody(item)}</PhoneScreenInner>
+    <PhoneScreenInner checkin={checkin} bg={item.background}>
+      {beatBody(item)}
+    </PhoneScreenInner>
   );
 
   const beats = placed;
