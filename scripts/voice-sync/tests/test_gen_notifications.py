@@ -104,6 +104,20 @@ def test_committed_json_sibling_shape():
 
 
 @pytest.mark.skipif(shutil.which("npx") is None, reason="needs npx/prettier")
+def test_json_and_ts_siblings_agree():
+    import json
+
+    data = json.loads(OUTPUT_JSON.read_text(encoding="utf-8"))
+    probe = OUTPUT_PATH.parent / "_sibling_probe.ts"
+    probe.write_text(render_ts(data), encoding="utf-8")
+    try:
+        subprocess.run(["npx", "prettier", "--write", str(probe)], check=True, cwd=ROOT.parent.parent)
+        assert probe.read_text(encoding="utf-8") == OUTPUT_PATH.read_text(encoding="utf-8")
+    finally:
+        probe.unlink(missing_ok=True)
+
+
+@pytest.mark.skipif(shutil.which("npx") is None, reason="needs npx/prettier")
 def test_committed_artifact_is_canonical_prettier():
     """The committed file must be in the exact prettier form the generator emits (guards #6):
     a prettier pass leaves it byte-unchanged, and it carries the generator banner.
