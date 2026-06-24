@@ -1,6 +1,6 @@
-v2.11.7 - Fixes iOS app crashing on launch.
+v2.11.8 - Fewer surprise logouts, and reminder taps now open the voice check-in.
 Test:
-- iOS: open the app and confirm it launches normally (the previous QA build crashed immediately on open).
-- Sign in and reach Home without issues.
-- Set a morning or evening reminder a few minutes ahead, background the app; it still fires on time.
-- Android: no change expected — quick smoke test that everything still works.
+- Sign in, use the app, then lock/reopen and come back later; you should stay signed in (no unexpected kick to login).
+- Use voice/coach during a session and confirm no sudden "auth" error interrupts you mid-use.
+- Tap a scheduled reminder; it should open straight into the voice check-in (coach audio plays even from a fully closed app).
+- Android: quick smoke test, no regressions expected.
