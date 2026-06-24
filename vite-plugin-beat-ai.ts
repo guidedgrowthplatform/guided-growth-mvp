@@ -94,12 +94,11 @@ export function beatAiPlugin(appRoot: string): Plugin {
             `Change to make: ${prompt}`,
           ].join('\n');
 
-          const useClaude = engine === 'claude' || engine === 'claude-opus';
+          // Opus is the one engine. Codex stays reachable only if a request
+          // explicitly asks for it; the UI never does.
+          const useClaude = engine !== 'codex';
           const cmd = useClaude ? 'claude' : 'codex';
-          // Sonnet on the claude path: a one-beat edit is small and well-specified,
-          // so Sonnet matches Opus quality here and runs much faster. (engine:
-          // 'claude-opus' bumps to Opus if a beat ever needs heavier reasoning.)
-          const claudeModel = engine === 'claude-opus' ? 'opus' : 'sonnet';
+          const claudeModel = 'opus';
           // --setting-sources project skips the huge user-level CLAUDE.md (the
           // second brain), which a scoped beat edit does not need and which alone
           // added ~80s of startup. With MCP off too, claude -p drops from ~110s to

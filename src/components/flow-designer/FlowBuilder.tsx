@@ -1345,7 +1345,6 @@ function SortableCard({
 // the beat. Dev-only; the /__beat-ai endpoint exists only when serving locally.
 function BeatAiBox({ type }: { type: string }) {
   const [prompt, setPrompt] = useState('');
-  const [engine, setEngine] = useState<'codex' | 'claude'>('claude');
   const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
   const [log, setLog] = useState('');
   if (!import.meta.env.DEV) return null;
@@ -1359,7 +1358,7 @@ function BeatAiBox({ type }: { type: string }) {
       const res = await fetch('/__beat-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, prompt: p, engine }),
+        body: JSON.stringify({ type, prompt: p, engine: 'claude-opus' }),
       });
       const data = await res.json();
       if (data.ok) {
@@ -1378,14 +1377,12 @@ function BeatAiBox({ type }: { type: string }) {
 
   const statusText =
     status === 'running'
-      ? `${engine} is editing this beat...`
+      ? 'Opus is editing this beat...'
       : status === 'done'
         ? 'Done, reloading'
         : status === 'error'
           ? 'Error'
-          : engine === 'codex'
-            ? 'Codex, free'
-            : 'Claude';
+          : 'Opus';
 
   return (
     <div className="mt-1 flex flex-col gap-1.5 rounded-lg border border-primary/30 bg-primary/5 p-2">
@@ -1396,14 +1393,9 @@ function BeatAiBox({ type }: { type: string }) {
             Ask AI to edit this beat
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => setEngine((e) => (e === 'codex' ? 'claude' : 'codex'))}
-          title="Switch engine"
-          className="rounded border border-border bg-page px-1.5 py-0.5 text-[9px] font-semibold uppercase text-content-tertiary"
-        >
-          {engine}
-        </button>
+        <span className="rounded border border-primary/40 bg-page px-1.5 py-0.5 text-[9px] font-semibold uppercase text-primary">
+          Opus
+        </span>
       </div>
       <textarea
         value={prompt}
