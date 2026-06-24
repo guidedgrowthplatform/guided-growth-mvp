@@ -48,6 +48,7 @@ import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { AIPulseVisual } from '@/components/welcome/AIPulseVisual';
+import { SplashIntro } from '@/components/welcome/SplashIntro';
 
 /**
  * FlowBuilder — two buckets. Left: every real component. Right: the flow.
@@ -80,6 +81,41 @@ function GenderChips() {
       ariaLabel="How do you identify?"
       columns={3}
     />
+  );
+}
+
+// The whole profile beat as one clean card: coach line, then age and gender
+// grouped with labels, then the user's expected answer on the right.
+function ProfileBeat() {
+  const [age, setAge] = useState<number | ''>(28);
+  const [gender, setGender] = useState<string | null>('Male');
+  return (
+    <div className="flex flex-col gap-4">
+      <ChatBubble role="ai" text="Welcome, Yair! How old are you, and what's your gender?" />
+      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-4">
+        <div>
+          <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-content-tertiary">
+            Age
+          </div>
+          <AgeScrollPicker value={age} onChange={setAge} />
+        </div>
+        <div>
+          <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-content-tertiary">
+            Gender
+          </div>
+          <ChipSelect
+            options={['Male', 'Female', 'Other']}
+            value={gender}
+            onChange={setGender}
+            ariaLabel="Gender"
+            columns={3}
+          />
+        </div>
+      </div>
+      <div className="max-w-[80%] self-end rounded-2xl rounded-tr-sm border border-border bg-surface px-4 py-2.5 text-[14px] font-medium text-content shadow-card">
+        I'm 28, and I'm male.
+      </div>
+    </div>
   );
 }
 
@@ -405,12 +441,16 @@ function TypingDots() {
 }
 
 function AuthSignup() {
+  const [mode, setMode] = useState<'default' | 'signup' | 'login'>('default');
+  const [first, setFirst] = useState('');
+  const [last, setLast] = useState('');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-[26px] font-bold text-primary">Create an Account</div>
-      <div className="text-[15px] text-content-secondary">Your AI coach is ready</div>
+      <div className="text-[26px] font-bold text-primary">
+        {mode === 'login' ? 'Welcome back' : 'Create your account'}
+      </div>
       <div className="space-y-3">
         <Button variant="social-dark" size="auth" fullWidth>
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
@@ -440,23 +480,95 @@ function AuthSignup() {
           Continue with Google
         </Button>
       </div>
-      <div className="flex items-center gap-2 text-[13px] text-content-tertiary">
-        <span className="h-px flex-1 bg-border" />
-        or continue with email
-        <span className="h-px flex-1 bg-border" />
-      </div>
-      <OnboardingInput
-        icon="mdi:email-outline"
-        placeholder="Email Address"
-        value={email}
-        onChange={setEmail}
-      />
-      <OnboardingInput icon="mdi:lock-outline" placeholder="Password" value={pw} onChange={setPw} />
-      <Button variant="primary" size="lg" fullWidth>
-        Sign Up
-      </Button>
+      {mode === 'signup' && (
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2 text-[13px] text-content-tertiary">
+            <span className="h-px flex-1 bg-border" />
+            sign up with email
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <OnboardingInput
+            icon="mdi:account-outline"
+            placeholder="First name"
+            value={first}
+            onChange={setFirst}
+          />
+          <OnboardingInput
+            icon="mdi:account-outline"
+            placeholder="Last name"
+            value={last}
+            onChange={setLast}
+          />
+          <OnboardingInput
+            icon="mdi:email-outline"
+            placeholder="Email"
+            value={email}
+            onChange={setEmail}
+          />
+          <OnboardingInput
+            icon="mdi:lock-outline"
+            placeholder="Password"
+            value={pw}
+            onChange={setPw}
+          />
+          <Button variant="primary" size="lg" fullWidth>
+            Create account
+          </Button>
+        </div>
+      )}
+      {mode === 'login' && (
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2 text-[13px] text-content-tertiary">
+            <span className="h-px flex-1 bg-border" />
+            log in with email
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <OnboardingInput
+            icon="mdi:email-outline"
+            placeholder="Email"
+            value={email}
+            onChange={setEmail}
+          />
+          <OnboardingInput
+            icon="mdi:lock-outline"
+            placeholder="Password"
+            value={pw}
+            onChange={setPw}
+          />
+          <Button variant="primary" size="lg" fullWidth>
+            Log in
+          </Button>
+        </div>
+      )}
+      {mode === 'default' && (
+        <Button variant="primary" size="lg" fullWidth onClick={() => setMode('signup')}>
+          Sign up with email
+        </Button>
+      )}
       <div className="text-center text-[13px] text-content-secondary">
-        Already have an account? <span className="font-semibold text-primary">Log In</span>
+        {mode === 'login' ? (
+          <>
+            New here?{' '}
+            <button
+              type="button"
+              onClick={() => setMode('signup')}
+              className="font-semibold text-primary"
+            >
+              Sign up
+            </button>
+          </>
+        ) : (
+          <>
+            Already have an account?{' '}
+            <button
+              type="button"
+              onClick={() => setMode('login')}
+              className="font-semibold text-primary"
+            >
+              Log in
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -465,6 +577,16 @@ function AuthSignup() {
 function AgePicker() {
   const [age, setAge] = useState<number | ''>(28);
   return <AgeScrollPicker value={age} onChange={setAge} />;
+}
+
+function SplashIntroPreview() {
+  return (
+    <div
+      style={{ position: 'relative', width: '100%', height: 560, overflow: 'hidden', borderRadius: 24 }}
+    >
+      <SplashIntro loop />
+    </div>
+  );
 }
 
 // --- Registry ---
@@ -495,6 +617,7 @@ const TEXT_FIELDS: Record<string, FieldDef[]> = {
 };
 
 const REGISTRY: PaletteItem[] = [
+  { type: 'splash-intro', group: 'Intro', label: 'Splash intro (animated)', Comp: SplashIntroPreview },
   {
     type: 'auth-signup',
     group: 'Auth',
@@ -508,6 +631,7 @@ const REGISTRY: PaletteItem[] = [
   { type: 'onboarding-header', group: 'Onboarding', label: 'Screen header', Comp: OnboardingTitle },
   { type: 'profile-input', group: 'Onboarding', label: 'Name input', Comp: ProfileInput },
   { type: 'gender-chips', group: 'Onboarding', label: 'Gender chips', Comp: GenderChips },
+  { type: 'profile-beat', group: 'Onboarding', label: 'Profile (age + gender)', Comp: ProfileBeat },
   { type: 'path-selection', group: 'Onboarding', label: 'Path choice', Comp: PathSelection },
   { type: 'category-grid', group: 'Onboarding', label: 'Category tiles', Comp: CategoryGrid },
   { type: 'goals-list', group: 'Onboarding', label: 'Goal cards', Comp: GoalsList },
@@ -532,24 +656,40 @@ const REGISTRY: PaletteItem[] = [
 ];
 
 const REGISTRY_MAP = Object.fromEntries(REGISTRY.map((r) => [r.type, r]));
-const GROUPS = ['Auth', 'Chat', 'Onboarding', 'Check-in', 'Home', 'Orb', 'UI'];
+const GROUPS = ['Intro', 'Auth', 'Chat', 'Onboarding', 'Check-in', 'Home', 'Orb', 'UI'];
 
-const DEFAULT_FLOW = [
-  'auth-signup',
-  'coach-bubble',
-  'profile-input',
-  'age-picker',
-  'gender-chips',
-  'path-selection',
-  'category-grid',
-  'goals-list',
-  'habit-picker',
-  'reflection-card',
-  'plan-cards',
-  'mood-row',
+interface DefaultBeat {
+  type: string;
+  beat?: string;
+  sheetStage?: string;
+  props?: Record<string, string>;
+}
+
+// The default onboarding flow, pre-connected to the beats sheet so each beat
+// opens with its real context. Several components can share one sheet stage
+// (profile setup is name + age + gender), so they share a beat number.
+const DEFAULT_FLOW: DefaultBeat[] = [
+  { type: 'auth-signup', beat: '1' },
+  { type: 'profile-beat', beat: '2', sheetStage: 'ONBOARD-01--FORM: Profile Setup' },
+  { type: 'path-selection', beat: '3', sheetStage: 'ONBOARD-FORK--FORM: Experience Fork' },
+  { type: 'category-grid', beat: '4', sheetStage: 'ONBOARD-BEGINNER-01: Category Selection' },
+  { type: 'goals-list', beat: '5', sheetStage: 'ONBOARD-BEGINNER-02: Subcategory Selection' },
+  { type: 'habit-picker', beat: '6', sheetStage: 'ONBOARD-BEGINNER-03: Habit Selection' },
+  { type: 'reflection-card', beat: '7', sheetStage: 'ONBOARD-BEGINNER-07: Journal Setup' },
+  { type: 'plan-cards', beat: '8' },
+  { type: 'mood-row', beat: '9' },
 ];
 
-const STORAGE_KEY = 'gg-flow-builder-v4';
+const STORAGE_KEY = 'gg-flow-builder-v8';
+
+const buildDefault = (): Placed[] =>
+  DEFAULT_FLOW.map((b) => ({
+    uid: newUid(b.type),
+    type: b.type,
+    beat: b.beat,
+    sheetStage: b.sheetStage,
+    props: b.props,
+  }));
 
 interface Lane {
   id: string;
@@ -563,6 +703,7 @@ interface Placed {
   props?: Record<string, string>;
   beat?: string;
   note?: string;
+  sheetStage?: string;
   lanes?: Lane[];
 }
 
@@ -646,10 +787,12 @@ function SortableCard({
   item,
   onRemove,
   onUpdate,
+  sheetBeats,
 }: {
   item: Placed;
   onRemove: () => void;
   onUpdate: (patch: Partial<Placed>) => void;
+  sheetBeats: { stage: string; suggested: string }[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.uid,
@@ -666,86 +809,106 @@ function SortableCard({
     onUpdate({ props: { ...item.props, [key]: value } });
 
   return (
-    <div ref={setNodeRef} style={style} className="group relative">
-      {/* Beat strip */}
-      <div className="mb-1.5 flex items-center gap-2">
-        <span className="text-[10px] font-bold uppercase tracking-wide text-content-tertiary">
-          Beat
-        </span>
-        <input
-          value={item.beat ?? ''}
-          onChange={(e) => onUpdate({ beat: e.target.value })}
-          placeholder="#"
-          className="w-10 rounded-md border border-border bg-surface px-1.5 py-1 text-[12px] text-content"
-        />
-        <input
+    <div ref={setNodeRef} style={style} className="group flex items-start gap-3">
+      {/* The beat card: component plus optional text editor */}
+      <div className="relative w-[380px] shrink-0">
+        <div className="absolute -top-2 right-1 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          {fields && (
+            <button
+              type="button"
+              onClick={() => setEditing((v) => !v)}
+              aria-label="Edit text"
+              className={`flex size-7 items-center justify-center rounded-full border border-border bg-surface shadow-card ${
+                editing ? 'text-primary' : 'text-content-tertiary'
+              }`}
+            >
+              <Icon icon="ic:round-edit" className="size-4" />
+            </button>
+          )}
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            aria-label="Drag to reorder"
+            className="flex size-7 cursor-grab items-center justify-center rounded-full border border-border bg-surface text-content-tertiary shadow-card"
+          >
+            <Icon icon="ic:round-drag-indicator" className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label="Remove"
+            className="flex size-7 items-center justify-center rounded-full border border-border bg-surface text-danger shadow-card"
+          >
+            <Icon icon="ic:round-close" className="size-4" />
+          </button>
+        </div>
+
+        {fields && editing && (
+          <div className="mb-2 flex flex-col gap-1.5 rounded-xl border border-primary/40 bg-surface p-2.5">
+            {fields.map((f) =>
+              f.multiline ? (
+                <textarea
+                  key={f.key}
+                  value={item.props?.[f.key] ?? ''}
+                  placeholder={f.label}
+                  rows={2}
+                  onChange={(e) => setField(f.key, e.target.value)}
+                  className="w-full resize-none rounded-md border border-border bg-page px-2 py-1.5 text-[13px] text-content"
+                />
+              ) : (
+                <input
+                  key={f.key}
+                  value={item.props?.[f.key] ?? ''}
+                  placeholder={f.label}
+                  onChange={(e) => setField(f.key, e.target.value)}
+                  className="w-full rounded-md border border-border bg-page px-2 py-1.5 text-[13px] text-content"
+                />
+              ),
+            )}
+          </div>
+        )}
+
+        {entry ? entry.Comp(item.props) : null}
+      </div>
+
+      {/* Metadata sidecar: beat number, sheet link, context */}
+      <div className="flex w-[250px] shrink-0 flex-col gap-2 rounded-xl border border-border bg-surface p-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-content-tertiary">
+            Beat
+          </span>
+          <input
+            value={item.beat ?? ''}
+            onChange={(e) => onUpdate({ beat: e.target.value })}
+            placeholder="#"
+            className="w-12 rounded-md border border-border bg-page px-1.5 py-1 text-[12px] text-content"
+          />
+        </div>
+        <select
+          value={item.sheetStage ?? ''}
+          onChange={(e) => {
+            const stage = e.target.value;
+            const match = sheetBeats.find((b) => b.stage === stage);
+            onUpdate({ sheetStage: stage, note: match ? match.suggested : item.note });
+          }}
+          className="w-full rounded-md border border-border bg-page px-2 py-1.5 text-[12px] text-content"
+        >
+          <option value="">Connect to a sheet beat...</option>
+          {sheetBeats.map((b) => (
+            <option key={b.stage} value={b.stage}>
+              {b.stage}
+            </option>
+          ))}
+        </select>
+        <textarea
           value={item.note ?? ''}
           onChange={(e) => onUpdate({ note: e.target.value })}
           placeholder="beat context (what the coach is doing here)"
-          className="min-w-0 flex-1 rounded-md border border-border bg-surface px-2 py-1 text-[12px] text-content"
+          rows={6}
+          className="w-full resize-none rounded-md border border-border bg-page px-2 py-1.5 text-[11px] leading-[1.5] text-content"
         />
       </div>
-
-      {/* Hover toolbar */}
-      <div className="absolute right-1 top-9 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-        {fields && (
-          <button
-            type="button"
-            onClick={() => setEditing((v) => !v)}
-            aria-label="Edit text"
-            className={`flex size-7 items-center justify-center rounded-full border border-border bg-surface shadow-card ${
-              editing ? 'text-primary' : 'text-content-tertiary'
-            }`}
-          >
-            <Icon icon="ic:round-edit" className="size-4" />
-          </button>
-        )}
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          aria-label="Drag to reorder"
-          className="flex size-7 cursor-grab items-center justify-center rounded-full border border-border bg-surface text-content-tertiary shadow-card"
-        >
-          <Icon icon="ic:round-drag-indicator" className="size-4" />
-        </button>
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label="Remove"
-          className="flex size-7 items-center justify-center rounded-full border border-border bg-surface text-danger shadow-card"
-        >
-          <Icon icon="ic:round-close" className="size-4" />
-        </button>
-      </div>
-
-      {/* Inline text editor */}
-      {fields && editing && (
-        <div className="mb-2 flex flex-col gap-1.5 rounded-xl border border-primary/40 bg-surface p-2.5">
-          {fields.map((f) =>
-            f.multiline ? (
-              <textarea
-                key={f.key}
-                value={item.props?.[f.key] ?? ''}
-                placeholder={f.label}
-                rows={2}
-                onChange={(e) => setField(f.key, e.target.value)}
-                className="w-full resize-none rounded-md border border-border bg-page px-2 py-1.5 text-[13px] text-content"
-              />
-            ) : (
-              <input
-                key={f.key}
-                value={item.props?.[f.key] ?? ''}
-                placeholder={f.label}
-                onChange={(e) => setField(f.key, e.target.value)}
-                className="w-full rounded-md border border-border bg-page px-2 py-1.5 text-[13px] text-content"
-              />
-            ),
-          )}
-        </div>
-      )}
-
-      {entry ? entry.Comp(item.props) : null}
     </div>
   );
 }
@@ -1002,15 +1165,112 @@ function SplitBlock({
   );
 }
 
+// --- Play: the flow as a clean, interactive onboarding demo ---
+
+function FlowPhone({ placed }: { placed: Placed[] }) {
+  const renderComp = (item: Placed) => {
+    const entry = REGISTRY_MAP[item.type];
+    return entry ? entry.Comp(item.props) : null;
+  };
+  return (
+    <div className="flex w-[390px] max-w-full flex-col overflow-hidden rounded-[32px] border border-border bg-surface shadow-elevated">
+      <div className="flex items-center gap-2 border-b border-border-light px-5 py-4">
+        <Icon icon="ic:round-auto-awesome" className="size-5 text-primary" />
+        <span className="text-[15px] font-bold text-content">Coach</span>
+      </div>
+      <div className="flex flex-col gap-5 px-5 py-6" style={{ background: '#f9f9f9' }}>
+        {placed.length === 0 && (
+          <div className="py-16 text-center text-[14px] text-content-tertiary">
+            Nothing in the flow yet. Add beats in the middle.
+          </div>
+        )}
+        {placed.map((item) =>
+          item.type === 'split' ? (
+            <div key={item.uid} className="flex flex-col gap-5">
+              {(item.lanes ?? []).map((lane) => (
+                <div key={lane.id} className="flex flex-col gap-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-content-tertiary">
+                    {lane.label}
+                  </div>
+                  {lane.items.map((it) => (
+                    <div key={it.uid}>{renderComp(it)}</div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div key={item.uid}>{renderComp(item)}</div>
+          ),
+        )}
+      </div>
+      <div className="flex items-center gap-3 border-t border-border-light px-4 py-3">
+        <div className="flex-1 rounded-full bg-surface-secondary px-4 py-2 text-[14px] text-content-tertiary">
+          Type or talk...
+        </div>
+        <DualButton
+          size={44}
+          rings
+          leftIcon={<Icon icon="ic:round-mic" className="size-5 text-white" />}
+          rightIcon={<Icon icon="ic:round-graphic-eq" className="size-5 text-white" />}
+          ariaLabel="Voice orb"
+        />
+      </div>
+    </div>
+  );
+}
+
+function PlayView({ placed, onExit }: { placed: Placed[]; onExit: () => void }) {
+  return (
+    <div
+      className="flex min-h-screen flex-col items-center gap-4 p-6"
+      style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#e8ecf1' }}
+    >
+      <div className="flex w-[390px] max-w-full items-center justify-between">
+        <div className="text-[14px] font-bold text-content">Onboarding preview</div>
+        <button
+          type="button"
+          onClick={onExit}
+          className="flex items-center gap-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-content-subtle"
+        >
+          <Icon icon="ic:round-edit" className="size-4" /> Edit
+        </button>
+      </div>
+      <FlowPhone placed={placed} />
+    </div>
+  );
+}
+
+function PlayPanel({ placed, onFullscreen }: { placed: Placed[]; onFullscreen: () => void }) {
+  return (
+    <div className="sticky top-5 flex h-[calc(100vh-2.5rem)] w-[420px] shrink-0 flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-[15px] font-bold text-content">
+          <Icon icon="ic:round-play-circle" className="size-5 text-primary" /> Play (live)
+        </div>
+        <button
+          type="button"
+          onClick={onFullscreen}
+          className="flex items-center gap-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-content-subtle"
+        >
+          <Icon icon="ic:round-fullscreen" className="size-4" /> Fullscreen
+        </button>
+      </div>
+      <div className="flex flex-1 justify-center overflow-y-auto rounded-2xl border border-border bg-page p-4">
+        <FlowPhone placed={placed} />
+      </div>
+    </div>
+  );
+}
+
 export function FlowBuilder() {
   const [placed, setPlaced] = useState<Placed[]>([]);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [activeFromPalette, setActiveFromPalette] = useState(false);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [showJson, setShowJson] = useState(false);
-  const [showBeats, setShowBeats] = useState(false);
   const [beats, setBeats] = useState<{ stage: string; suggested: string }[] | null>(null);
   const [beatsErr, setBeatsErr] = useState<string | null>(null);
+  const [play, setPlay] = useState(false);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const paletteDrop = useDroppable({ id: 'palette-zone' });
   const removing = paletteDrop.isOver && !activeFromPalette && activeLabel !== null;
@@ -1018,7 +1278,7 @@ export function FlowBuilder() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      const init = raw ? JSON.parse(raw) : DEFAULT_FLOW.map((type) => ({ type }));
+      const init = raw ? JSON.parse(raw) : DEFAULT_FLOW;
       setPlaced(
         (
           init as Array<{
@@ -1026,6 +1286,7 @@ export function FlowBuilder() {
             props?: Record<string, string>;
             beat?: string;
             note?: string;
+            sheetStage?: string;
           }>
         ).map((b) => ({
           uid: newUid(b.type),
@@ -1033,10 +1294,11 @@ export function FlowBuilder() {
           props: b.props,
           beat: b.beat,
           note: b.note,
+          sheetStage: b.sheetStage,
         })),
       );
     } catch {
-      setPlaced(DEFAULT_FLOW.map((type) => ({ uid: newUid(type), type })));
+      setPlaced(buildDefault());
     }
   }, []);
 
@@ -1044,10 +1306,41 @@ export function FlowBuilder() {
     if (placed.length)
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify(placed.map(({ type, props, beat, note }) => ({ type, props, beat, note }))),
+        JSON.stringify(
+          placed.map(({ type, props, beat, note, sheetStage }) => ({
+            type,
+            props,
+            beat,
+            note,
+            sheetStage,
+          })),
+        ),
       );
     else localStorage.removeItem(STORAGE_KEY);
   }, [placed]);
+
+  // Auto-load the beats sheet so each beat can connect to its sheet context.
+  useEffect(() => {
+    fetch('https://guidedgrowthos.com/internal/flow/beats')
+      .then((r) => r.json())
+      .then((d) => (d.error ? setBeatsErr(d.error) : setBeats(d.beats || [])))
+      .catch((e) => setBeatsErr(String(e)));
+  }, []);
+
+  // When the sheet loads, fill any beat that is linked to a stage but has no
+  // context yet (the pre-connected defaults), without overwriting edits.
+  useEffect(() => {
+    if (!beats || !beats.length) return;
+    setPlaced((p) =>
+      p.map((it) => {
+        if (it.sheetStage && !it.note) {
+          const m = beats.find((b) => b.stage === it.sheetStage);
+          if (m) return { ...it, note: m.suggested };
+        }
+        return it;
+      }),
+    );
+  }, [beats]);
 
   const insertAt = (type: string, index: number) =>
     setPlaced((p) => {
@@ -1113,21 +1406,9 @@ export function FlowBuilder() {
   const setLaneLabel = (splitUid: string, laneId: string, label: string) =>
     mutateLane(splitUid, laneId, (l) => ({ ...l, label }));
 
-  const reset = () => setPlaced(DEFAULT_FLOW.map((type) => ({ uid: newUid(type), type })));
+  const reset = () => setPlaced(buildDefault());
   const clear = () => setPlaced([]);
 
-  const loadBeats = async () => {
-    setShowBeats((v) => !v);
-    if (beats || beatsErr) return;
-    try {
-      const r = await fetch('https://guidedgrowthos.com/internal/flow/beats');
-      const d = await r.json();
-      if (d.error) setBeatsErr(d.error);
-      else setBeats(d.beats || []);
-    } catch (e) {
-      setBeatsErr(String(e));
-    }
-  };
 
   const serializeBeat = (p: Placed, i: number) => ({
     beat: p.beat || String(i + 1),
@@ -1215,6 +1496,10 @@ export function FlowBuilder() {
     setDropIndex(null);
   };
 
+  if (play) {
+    return <PlayView placed={placed} onExit={() => setPlay(false)} />;
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -1277,13 +1562,6 @@ export function FlowBuilder() {
               </button>
               <button
                 type="button"
-                onClick={loadBeats}
-                className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-content-subtle"
-              >
-                {showBeats ? 'Hide beats' : 'Beats sheet'}
-              </button>
-              <button
-                type="button"
                 onClick={() => setShowJson((v) => !v)}
                 className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-content-subtle"
               >
@@ -1306,36 +1584,6 @@ export function FlowBuilder() {
             </div>
           </div>
 
-          {showBeats && (
-            <div className="w-[400px] max-w-full rounded-xl border border-border bg-surface p-3">
-              <div className="mb-2 text-[12px] font-bold text-content">
-                Beats from the sheet (live)
-              </div>
-              {!beats && !beatsErr && (
-                <div className="text-[12px] text-content-tertiary">Loading...</div>
-              )}
-              {beatsErr && (
-                <div className="text-[12px] text-danger">
-                  {beatsErr.includes('Share it')
-                    ? 'Share the beats sheet (Viewer) with voice-sync-reader@guided-growth-voice.iam.gserviceaccount.com, then reopen.'
-                    : beatsErr}
-                </div>
-              )}
-              {beats && (
-                <div className="flex max-h-72 flex-col gap-2 overflow-y-auto">
-                  {beats.map((b, i) => (
-                    <div key={i} className="rounded-lg bg-page p-2">
-                      <div className="text-[12px] font-semibold text-primary">{b.stage}</div>
-                      <div className="mt-0.5 whitespace-pre-wrap text-[11px] leading-[1.5] text-content-secondary">
-                        {b.suggested}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
           {showJson && (
             <textarea
               readOnly
@@ -1345,13 +1593,8 @@ export function FlowBuilder() {
             />
           )}
 
-          <div className="flex w-[400px] max-w-full flex-col overflow-hidden rounded-[32px] border border-border bg-surface shadow-elevated">
-            <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border-light bg-surface px-5 py-4">
-              <Icon icon="ic:round-auto-awesome" className="size-5 text-primary" />
-              <span className="text-[15px] font-bold text-content">Coach</span>
-            </div>
-
-            <div className="min-h-[200px] px-5 py-6" style={{ background: '#f9f9f9' }}>
+          <div className="w-full">
+            <div className="min-h-[200px]">
               {placed.length === 0 && dropIndex === null && (
                 <div className="py-16 text-center text-[14px] text-content-tertiary">
                   Drag a component here, or hover one on the left and pick top / middle / bottom.
@@ -1385,6 +1628,7 @@ export function FlowBuilder() {
                           item={item}
                           onRemove={() => remove(item.uid)}
                           onUpdate={(patch) => update(item.uid, patch)}
+                          sheetBeats={beats ?? []}
                         />
                       )}
                     </div>
@@ -1394,22 +1638,10 @@ export function FlowBuilder() {
                 </div>
               </SortableContext>
             </div>
-
-            {/* Footer: the real orb instead of the old mic */}
-            <div className="sticky bottom-0 flex items-center gap-3 border-t border-border-light bg-surface px-4 py-3">
-              <div className="flex-1 rounded-full bg-surface-secondary px-4 py-2 text-[14px] text-content-tertiary">
-                Type or talk...
-              </div>
-              <DualButton
-                size={44}
-                rings
-                leftIcon={<Icon icon="ic:round-mic" className="size-5 text-white" />}
-                rightIcon={<Icon icon="ic:round-graphic-eq" className="size-5 text-white" />}
-                ariaLabel="Voice orb"
-              />
-            </div>
           </div>
         </div>
+
+        <PlayPanel placed={placed} onFullscreen={() => setPlay(true)} />
       </div>
 
       <DragOverlay>
