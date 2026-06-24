@@ -50,7 +50,7 @@ export function HabitPickerPanel({
   }
 
   return (
-    <div className="rounded-[20px] border-2 border-success bg-success/5 px-[22px] py-[26px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
+    <div className="rounded-[20px] border-2 border-primary bg-primary/5 px-[22px] py-[26px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
       <button
         type="button"
         onClick={onToggleExpanded}
@@ -117,7 +117,7 @@ export function HabitPickerPanel({
                 <span className="text-[16px] font-bold leading-[24px] text-content">
                   Create your own habit!
                 </span>
-                <div className="flex size-[28px] shrink-0 items-center justify-center rounded-md bg-warning">
+                <div className="flex size-[28px] shrink-0 items-center justify-center rounded-full bg-warning">
                   <Icon icon="mdi:plus" width={18} height={18} className="text-white" />
                 </div>
               </button>

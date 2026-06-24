@@ -11,7 +11,7 @@ export function IconCircleButton({ icon: Icon, active = false, onClick }: IconCi
   return (
     <button
       onClick={onClick}
-      className={`flex h-8 w-8 items-center justify-center rounded-md border-2 transition-colors ${
+      className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors ${
         active ? 'border-success bg-success' : 'border-content-tertiary bg-transparent'
       }`}
     >

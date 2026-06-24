@@ -12,8 +12,8 @@ export function DailyProgressCard({ completed, total }: DailyProgressCardProps) 
   const displayCompleted = Math.max(0, Math.min(completed, total));
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-success bg-surface">
-      <div className="h-1.5 bg-success" aria-hidden="true" />
+    <div className="overflow-hidden rounded-2xl border border-primary bg-surface">
+      <div className="h-1.5 bg-primary" aria-hidden="true" />
       <div className="px-5 py-4">
         <h2 className="text-base font-bold text-content">Daily Progress</h2>
         <div className="mt-1 flex items-center justify-between">
@@ -27,7 +27,7 @@ export function DailyProgressCard({ completed, total }: DailyProgressCardProps) 
             <div
               key={i}
               className={`h-1.5 flex-1 rounded-full ${
-                i < filledSegments ? 'bg-success' : 'bg-border'
+                i < filledSegments ? 'bg-primary' : 'bg-border'
               }`}
             />
           ))}
