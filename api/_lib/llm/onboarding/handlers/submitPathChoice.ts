@@ -28,6 +28,7 @@ export async function submitPathChoice(
      VALUES ($1, 2, $2, 'in_progress', '{}'::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET
        path = $2,
+       current_step = GREATEST(onboarding_states.current_step, 2),
        status = 'in_progress',
        updated_at = now()
      RETURNING data, current_step, path`,

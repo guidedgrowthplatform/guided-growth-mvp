@@ -55,7 +55,7 @@ export function WelcomePage() {
         <div className="flex w-full flex-col items-center pt-8">
           <button
             type="button"
-            onClick={() => navigate('/signup')}
+            onClick={() => navigate('/onboarding')}
             className="flex h-[60px] w-full max-w-[320px] items-center justify-center rounded-[90px] bg-primary px-8 text-[18px] font-bold leading-7 text-white transition-colors hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             Get Started

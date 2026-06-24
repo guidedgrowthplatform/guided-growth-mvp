@@ -22,6 +22,13 @@ const envString = (raw: string | undefined, fallback: string): string => {
 // Env-backed kill-switch; voice-in only. Remove once stable in prod.
 export const VOICE_IN_ENABLED = import.meta.env.VITE_STATE3_ENABLED === 'true';
 
+// ─── Vapi (Path 1) on the chat-native beat surface ──────────────────────────
+// Off → chat page stays on the legacy Cartesia+Soniox Direct-LLM loop. On →
+// both-orbs-on arms REAL Vapi full-duplex per beat (post-auth), reusing the
+// routed-screens machinery (assistant/tools/handlers unchanged). The beat page
+// just renders current_step in place instead of routing.
+export const ONBOARDING_CHAT_VAPI = import.meta.env.VITE_ONBOARDING_CHAT_VAPI === 'true';
+
 // ─── Vapi (Path 1) daily cap ────────────────────────────────────────────────
 // Test override; gg-spec UX-12 says 5. Revert before launch.
 export const VAPI_DAILY_CAP = envNumber(import.meta.env.VITE_VAPI_DAILY_CAP, 25);

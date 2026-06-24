@@ -20,6 +20,7 @@ interface ChatRow {
   tool_calls: unknown;
   tool_call_id: string | null;
   tool_name: string | null;
+  screen_id: string | null;
 }
 
 interface LinearRow extends ChatRow {
@@ -62,7 +63,12 @@ function buildHistory(rows: ChatRow[]): LLMChatMessage[] {
 
   for (const row of rows) {
     if (row.role === 'user') {
-      messages.push({ id: row.id, role: 'user', content: row.content ?? '' });
+      messages.push({
+        id: row.id,
+        role: 'user',
+        content: row.content ?? '',
+        ...(row.screen_id ? { screenId: row.screen_id } : {}),
+      });
       continue;
     }
     if (row.role === 'assistant') {
@@ -92,6 +98,7 @@ function buildHistory(rows: ChatRow[]): LLMChatMessage[] {
         role: 'assistant',
         content: row.content ?? '',
         toolEvents: toolEvents.length > 0 ? toolEvents : undefined,
+        ...(row.screen_id ? { screenId: row.screen_id } : {}),
       };
       assistantById.set(row.id, msg);
       messages.push(msg);
@@ -127,7 +134,7 @@ async function loadMessages(
   limit: number,
 ): Promise<LLMChatMessage[]> {
   const result = await pool.query<ChatRow>(
-    `SELECT id, turn_index, role, content, tool_calls, tool_call_id, tool_name
+    `SELECT id, turn_index, role, content, tool_calls, tool_call_id, tool_name, screen_id
        FROM chat_messages
       WHERE anon_id = $1 AND chat_session_id = $2
       ORDER BY turn_index DESC
@@ -174,7 +181,7 @@ async function handleLinearHistory(req: VercelRequest, res: VercelResponse) {
 
   // created_at::text keeps full microsecond precision in the cursor — Date
   // round-tripping truncates to ms and can skip a same-ms row at a page boundary.
-  const cols = `id, turn_index, role, content, tool_calls, tool_call_id, tool_name, created_at::text AS created_at`;
+  const cols = `id, turn_index, role, content, tool_calls, tool_call_id, tool_name, screen_id, created_at::text AS created_at`;
   // Fetch limit+1 to detect older rows. Tiebreak by turn_index: a whole turn
   // (user+assistant+tool) is inserted in ONE txn, so now() gives them the SAME
   // created_at — ordering by id alone (random UUID) scrambles them within a turn.

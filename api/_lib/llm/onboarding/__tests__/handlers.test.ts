@@ -61,24 +61,35 @@ describe('submit_profile', () => {
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
   });
 
-  it('rejects non-numeric age', async () => {
+  // A malformed OPTIONAL field must not discard the whole save (dropping a valid
+  // nickname). The bad field is skipped, nickname still saves, coach gets a note.
+  it('skips non-numeric age but still saves nickname', async () => {
     const r = await submitProfile(CTX, { nickname: 'alice', age: 'abc' });
-    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.result.data).not.toHaveProperty('age');
+      expect(r.result.notes).toBeDefined();
+    }
+    const params = pool.query.mock.calls[0][1] as unknown[];
+    expect(JSON.parse(params[1] as string)).toEqual({ nickname: 'alice' });
   });
 
-  it('rejects age below 13', async () => {
+  it('skips age below 13 but still saves nickname', async () => {
     const r = await submitProfile(CTX, { nickname: 'alice', age: '12' });
-    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.data).not.toHaveProperty('age');
   });
 
-  it('rejects age above 120', async () => {
+  it('skips age above 120 but still saves nickname', async () => {
     const r = await submitProfile(CTX, { nickname: 'alice', age: '121' });
-    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.data).not.toHaveProperty('age');
   });
 
-  it('rejects negative age', async () => {
+  it('skips negative age but still saves nickname', async () => {
     const r = await submitProfile(CTX, { nickname: 'alice', age: '-5' });
-    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.result.data).not.toHaveProperty('age');
   });
 
   it('accepts boundary ages 13 and 120', async () => {
@@ -89,9 +100,13 @@ describe('submit_profile', () => {
     expect(hi.ok).toBe(true);
   });
 
-  it('rejects gender outside enum', async () => {
+  it('skips gender outside enum but still saves nickname', async () => {
     const r = await submitProfile(CTX, { nickname: 'alice', gender: 'unknown' });
-    expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.result.data).not.toHaveProperty('gender');
+      expect(r.result.notes).toBeDefined();
+    }
   });
 
   it('accepts nickname-only, seeds step 1, does NOT bump current_step', async () => {
@@ -154,7 +169,7 @@ describe('submit_path_choice', () => {
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
   });
 
-  it('accepts simple, seeds step 2, does NOT bump current_step', async () => {
+  it('accepts simple, seeds step 2, raises current_step via GREATEST', async () => {
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
       rows: [{ data: {}, current_step: 2, path: 'simple' }],
@@ -163,7 +178,7 @@ describe('submit_path_choice', () => {
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.result).toMatchObject({ path: 'simple', current_step: 2 });
     const [sql] = pool.query.mock.calls[0];
-    expect(sql).not.toMatch(/current_step = GREATEST/);
+    expect(sql).toMatch(/current_step = GREATEST\(onboarding_states\.current_step, 2\)/);
     expect(sql).toMatch(/VALUES \(\$1, 2,/);
   });
 
@@ -777,7 +792,7 @@ describe('advance_step', () => {
     if (!r.ok) expect(r.message).toMatch(/category_or_braindump_missing/);
   });
 
-  it('success: current=3 with category set, target=4 → bare current_step set', async () => {
+  it('success: current=3 with category set, target=4 → current_step raised via GREATEST', async () => {
     pool.query
       .mockResolvedValueOnce({
         rowCount: 1,
@@ -795,20 +810,19 @@ describe('advance_step', () => {
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.result.current_step).toBe(4);
     const [sql] = pool.query.mock.calls[1];
-    expect(sql).toMatch(/current_step = \$2/);
-    expect(sql).not.toMatch(/GREATEST/);
+    expect(sql).toMatch(/current_step = GREATEST\(onboarding_states\.current_step, \$2\)/);
   });
 
-  it('back-nav: target below current_step is allowed and skips the data guard', async () => {
+  it('back-nav: target below current_step skips the data guard; DB clamps via GREATEST', async () => {
     pool.query
       .mockResolvedValueOnce({
         rowCount: 1,
         rows: [{ current_step: 5, data: {}, path: 'simple', brain_dump_raw: null }],
       })
-      .mockResolvedValueOnce({ rowCount: 1, rows: [{ current_step: 3 }] });
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ current_step: 5 }] });
     const r = await advanceStep(CTX, { target_step: 3 });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.result.current_step).toBe(3);
+    if (r.ok) expect(r.result.current_step).toBe(5);
   });
 });
 

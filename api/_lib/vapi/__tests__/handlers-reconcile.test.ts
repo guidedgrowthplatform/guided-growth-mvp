@@ -310,17 +310,36 @@ describe('vapi navigateNext — skip + precondition guards', () => {
     expect(res).toMatchObject({ error: expect.stringContaining('path_missing') });
   });
 
-  it('allows single-step forward when source data is saved (step 1 → 2 with nickname)', async () => {
+  it('allows single-step forward when source data is saved (step 1 → 2 with full profile)', async () => {
+    // Shared checkAdvanceData (parity with Direct-LLM) requires nickname + age + gender.
     pool.query
       .mockResolvedValueOnce({
         rowCount: 1,
-        rows: [{ current_step: 1, data: { nickname: 'Yair' }, path: null, brain_dump_raw: null }],
+        rows: [
+          {
+            current_step: 1,
+            data: { nickname: 'Yair', age: 26, gender: 'Male' },
+            path: null,
+            brain_dump_raw: null,
+          },
+        ],
       })
       .mockResolvedValueOnce({ rowCount: 1, rows: [] });
     const res = await navigateNext({ anon_id: ANON, target_step: 2 });
     expect(res).toEqual({ result: 'ok' });
     // SELECT then UPSERT.
     expect(pool.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects step 1 → 2 when only nickname is saved (age/gender required)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ current_step: 1, data: { nickname: 'Yair' }, path: null, brain_dump_raw: null }],
+    });
+    const res = await navigateNext({ anon_id: ANON, target_step: 2 });
+    expect(res).toMatchObject({ error: expect.stringContaining('profile_missing') });
+    // SELECT only — rejected before the UPSERT.
+    expect(pool.query).toHaveBeenCalledTimes(1);
   });
 
   it('allows step 3 → 4 when category is saved (beginner path)', async () => {

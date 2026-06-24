@@ -6,6 +6,12 @@ import { useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { OnboardingChatOverlay } from '@/components/onboarding/OnboardingChatOverlay';
 import { VoiceCapModal } from '@/components/voice/VoiceCapModal';
+import {
+  FULL_DUPLEX_BARGE_IN,
+  TURN_AGGREGATION_MS,
+  TURN_PAUSE_COMPLETE_MS,
+  TURN_PAUSE_INCOMPLETE_MS,
+} from '@/config/voiceConfig';
 import { applyStartThread } from '@/contexts/applyStartThread';
 import {
   OnboardingVoiceContext,
@@ -31,16 +37,24 @@ import {
   VOICE_IN_ENABLED,
   VAPI_CAP_DISABLED,
   VAPI_DAILY_CAP,
+  ONBOARDING_CHAT_VAPI,
 } from '@/lib/config/voice';
 import { buildContextMessage } from '@/lib/context/buildContextMessage';
 import { getScreenContext } from '@/lib/context/getScreenContext';
 import { getBundledRoutes } from '@/lib/context/screenContextsBundle';
 import { screenIdForRoute } from '@/lib/context/screenIdForRoute';
-import { orbStateFrom } from '@/lib/orb/orbState';
+import {
+  CHAT_VAPI_BEAT_SCREENS,
+  ONBOARDING_CHAT_ROUTE,
+} from '@/lib/onboarding/onboardingStepBeats';
+import { engineForTurn } from '@/lib/orb/engineForTurn';
+import { orbStateFrom, type OrbState } from '@/lib/orb/orbState';
 import { queryKeys } from '@/lib/query';
 import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
+import { useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { createListenerBus } from '@/lib/util/listenerBus';
 import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
+import { resolveTurnPauseMs } from '@/lib/voice/turnDecision';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
@@ -52,6 +66,9 @@ function isOnboardingPath(pathname: string): boolean {
 }
 
 const MAX_AUTO_RETRIES = 2;
+// Breath window before the mic goes hot (first arm + post-TTS) — covers the echo
+// tail + a Siri-style pause. Mirrors useCoachChat's MIC_GRACE_MS.
+const MIC_GRACE_MS = 2500;
 const RETRY_BACKOFFS_MS = [2000, 5000];
 const IDLE_TIMEOUT_MS = 8000;
 const REMOTE_END_COOLDOWN_MS = 3000;
@@ -110,6 +127,13 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const bundledRoutes = useMemo(() => getBundledRoutes(), []);
 
   const inOnboarding = isOnboardingPath(location.pathname);
+  // Chat-native onboarding renders at the onboarding root (the chat IS the
+  // surface). The page renders the chat body itself, so the provider must NOT
+  // also pop the floating overlay. Vapi (Path 1) is dormant here UNLESS the
+  // ONBOARDING_CHAT_VAPI flag is on, in which case both-orbs-on arms real Vapi
+  // full-duplex on the covered beats (profile → fork; see CHAT_VAPI_BEAT_SCREENS);
+  // otherwise the loop is Soniox→LLM (mic only) with no standalone Cartesia.
+  const onChatPage = location.pathname === ONBOARDING_CHAT_ROUTE;
   const currentScreenId = useMemo(
     () => screenIdForRoute(bundledRoutes, location.pathname),
     [bundledRoutes, location.pathname],
@@ -133,6 +157,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // speaks / the screen changes / the call restarts (NOT a wall-clock timer,
   // which would split a slow reply mid-turn).
   const assistantTurnOpenRef = useRef<boolean>(false);
+  // Role of the last committed transcript turn. One bubble per speaker-turn:
+  // consecutive finals of the same role (within the same beat) merge; a role
+  // change or beat change starts a fresh bubble. Keyed off FINALS (not partials)
+  // so echo/noise partials can't fragment a turn.
+  const lastTurnRoleRef = useRef<'ai' | 'user' | null>(null);
   // assistantMergeOpen mirrors a short visual window so the active bubble keeps
   // its streaming cursor; it's cosmetic and independent of the merge decision.
   const ASSISTANT_MERGE_WINDOW_MS = 4000;
@@ -393,6 +422,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     threadScreenIdRef.current = null;
     lastAssistantFinalRef.current = { text: '', at: 0 };
     assistantTurnOpenRef.current = false;
+    lastTurnRoleRef.current = null;
     const sid =
       activeSubScreenIdRef.current ?? registeredScreenIdRef.current ?? currentScreenIdRef.current;
     // If we already injected the screen context via assistantOverrides at
@@ -509,33 +539,39 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
             }
           }
           if (!skip) {
-            if (evt.role === 'assistant') {
-              // Merge into the current turn's bubble as long as the turn is open
-              // (no user turn since). Time between finals is irrelevant.
-              const merge = assistantTurnOpenRef.current;
+            // Tag the turn with the active beat (registered screen id on the chat
+            // page) so the chat-native feed groups dialogue under its beat instead
+            // of dumping it as an orphan under whatever beat is active. Mirrors the
+            // Direct-LLM message tagging.
+            const sid =
+              activeSubScreenIdRef.current ??
+              registeredScreenIdRef.current ??
+              currentScreenIdRef.current ??
+              undefined;
+            const role: 'ai' | 'user' = evt.role === 'assistant' ? 'ai' : 'user';
+            // One bubble per speaker-turn: merge consecutive same-role finals (same
+            // beat) into one bubble; a role change or beat change starts fresh.
+            const merge = lastTurnRoleRef.current === role;
+            lastTurnRoleRef.current = role;
+            if (role === 'ai') {
               assistantTurnOpenRef.current = true;
               armMergeWindow();
-              setMessages((prev) => {
-                const last = prev[prev.length - 1];
-                if (merge && last && last.role === 'ai') {
-                  // Glue with a space — Vapi already includes punctuation per fragment.
-                  const merged: VoiceMessage = {
-                    ...last,
-                    text: `${last.text} ${text}`.replace(/\s+/g, ' ').trim(),
-                  };
-                  return [...prev.slice(0, -1), merged];
-                }
-                return [...prev, { id: `vapi-${evt.role}-${now}`, role: 'ai', text }];
-              });
             } else {
-              // User turn ends the assistant turn; next AI final starts fresh.
               assistantTurnOpenRef.current = false;
               closeMergeWindow();
-              setMessages((prev) => [
-                ...prev,
-                { id: `vapi-${evt.role}-${now}`, role: 'user', text },
-              ]);
             }
+            setMessages((prev) => {
+              const last = prev[prev.length - 1];
+              if (merge && last && last.role === role && last.screenId === sid) {
+                // Glue with a space — Vapi already includes punctuation per fragment.
+                const merged: VoiceMessage = {
+                  ...last,
+                  text: `${last.text} ${text}`.replace(/\s+/g, ' ').trim(),
+                };
+                return [...prev.slice(0, -1), merged];
+              }
+              return [...prev, { id: `vapi-${evt.role}-${now}`, role, text, screenId: sid }];
+            });
           }
         }
       }
@@ -571,11 +607,18 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
           ctx.state_delta.length,
         );
       }
+      // Merge persisted onboarding data UNDER the in-flight snapshot — mirrors
+      // pushScreenContext. The chat page never calls setFormSnapshot, so without
+      // this the cold-start opener ships with NO known-state and the coach
+      // re-asks fields already captured (e.g. the nickname when rearming at fork).
+      const persisted =
+        qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data ?? {};
+      const filled = { ...persisted, ...formSnapshotRef.current };
       const overrides = buildAssistantOverrides({
         screenId: ctx.screen_id,
         contextBlock: ctx.context_block,
         stateDelta: ctx.state_delta,
-        filledFormState: formSnapshotRef.current,
+        filledFormState: filled,
       });
       lastPushedScreenIdRef.current = sid;
       lastScreenChangeTsRef.current = new Date().toISOString();
@@ -717,9 +760,34 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   }, []);
   const fireAdvance = useCallback(() => onAdvanceRef.current?.(), []);
 
-  const orbState = orbStateFrom(voiceOn, micOn);
-  const voiceInShouldBeLive =
-    VOICE_IN_ENABLED && inOnboarding && micOn && !voiceOn && !!currentScreenId;
+  // Single engine selector — Vapi / Direct-LLM / Soniox are all derived from ONE
+  // decision so they can never overlap (no dual-init, no Vapi+Soniox mic contention).
+  // The selector decides INTENT (orbs + beat + surface); Vapi health gates are
+  // applied below when turning intent into vapiShouldBeLive.
+  const rawOrbState = orbStateFrom(voiceOn, micOn);
+  const vapiCapableBeat = !!registeredScreenId && CHAT_VAPI_BEAT_SCREENS.has(registeredScreenId);
+  const engine = engineForTurn({
+    inOnboarding,
+    onChatPage,
+    rawOrbState,
+    voiceOn,
+    micOn,
+    chatVapiFlag: ONBOARDING_CHAT_VAPI,
+    vapiCapableBeat,
+    beatResolved: registeredScreenId !== null,
+    hasScreen: !!currentScreenId,
+  });
+  // orbState for downstream consumers (useOnboardingChat inputMode + internal
+  // guards + routeOrbSend): if the engine isn't Vapi, the dead chat-page 'vapi'
+  // combo reads as voice_in_only (mic active, Direct-LLM owns the turn).
+  const orbState: OrbState =
+    engine.engine === 'vapi'
+      ? 'vapi'
+      : onChatPage && rawOrbState === 'vapi'
+        ? 'voice_in_only'
+        : rawOrbState;
+  // Soniox runs iff the decision hands it the mic — never while Vapi owns it.
+  const voiceInShouldBeLive = VOICE_IN_ENABLED && engine.micSource === 'soniox';
 
   const emitAssistant = useCallback(
     (text: string, kind: 'partial' | 'final') => {
@@ -729,16 +797,29 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   );
 
   const chatScreenId = activeSubScreenId ?? registeredScreenId ?? currentScreenId;
-  // Exclude Vapi (state 1) — it owns its own turns; minting a Direct-LLM session
-  // there would orphan one per screen.
+  // Direct-LLM runs only when the selector hands it the turn — mutually exclusive
+  // with Vapi by construction (the selector never returns 'direct_llm' when Vapi owns it).
   const chatEnabled =
-    inOnboarding &&
-    orbState !== 'vapi' &&
+    engine.engine === 'direct_llm' &&
     !!chatScreenId &&
     chatScreenId.startsWith('ONBOARD-') &&
     (overlayOpen || voiceInShouldBeLive);
 
-  const { sendUserTurn, chatBusy } = useOnboardingChat({
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  // A beat already has dialogue in the shared feed (e.g. Vapi spoke its opener) →
+  // Direct-LLM must not re-stream that opener when it takes over (no duplicate bubble).
+  const hasExistingTurn = useCallback(
+    (sid: string) => messagesRef.current.some((m) => m.screenId === sid && !!m.text),
+    [],
+  );
+
+  const {
+    sendUserTurn,
+    chatBusy,
+    interrupt: interruptCoach,
+    regenerate: regenerateCoach,
+  } = useOnboardingChat({
     screenId: chatScreenId,
     enabled: chatEnabled,
     orbState,
@@ -748,25 +829,96 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     emitAssistant,
     onVoiceAction: notifyVoiceActions,
     onAdvance: fireAdvance,
+    chatNative: onChatPage,
+    // Cartesia gate from the engine selector — always false on the chat page
+    // (Vapi speaks itself); off the chat page the voice-out button drives TTS.
+    speakReplies: engine.speakReplies,
+    hasExistingTurn,
   });
+
+  // End-of-turn aggregation (mirrors useCoachChat): Soniox streams a long
+  // utterance as MULTIPLE finals ("my name is Jonas." / "my age is 26."). Sending
+  // each immediately makes the 2nd final cancel the 1st turn mid-reply — dropping
+  // its tool call (submit_profile). Buffer consecutive finals and flush as ONE
+  // turn after an adaptive quiet gap.
+  const utteranceBufferRef = useRef('');
+  const aggregationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Reply-guarantee (mirrors useCoachChat): a barge-in that cuts the coach
+  // mid-reply sets `owesResponse`; if the user then adds NOTHING real (it was
+  // echo/noise), the settle check regenerates the interrupted reply so Soniox
+  // hearing the coach's own voice can never strand the coach in silence.
+  const owesResponseRef = useRef(false);
+  const regeneratedRef = useRef(false);
+  const chatBusyRef = useRef(chatBusy);
+  chatBusyRef.current = chatBusy;
+  const flushUtterance = useCallback(() => {
+    if (aggregationTimerRef.current) {
+      clearTimeout(aggregationTimerRef.current);
+      aggregationTimerRef.current = null;
+    }
+    const text = utteranceBufferRef.current.trim();
+    utteranceBufferRef.current = '';
+    if (!text) {
+      // Barge-in produced no real user turn → re-answer the interrupted reply.
+      if (owesResponseRef.current && !regeneratedRef.current) {
+        owesResponseRef.current = false;
+        regeneratedRef.current = true;
+        regenerateCoach();
+      }
+      return;
+    }
+    owesResponseRef.current = false;
+    regeneratedRef.current = false;
+    sendUserTurn(text);
+  }, [sendUserTurn, regenerateCoach]);
+  const armFlush = useCallback(() => {
+    if (aggregationTimerRef.current) clearTimeout(aggregationTimerRef.current);
+    const pauseMs = resolveTurnPauseMs(utteranceBufferRef.current, {
+      base: TURN_AGGREGATION_MS,
+      complete: TURN_PAUSE_COMPLETE_MS,
+      incomplete: TURN_PAUSE_INCOMPLETE_MS,
+    });
+    aggregationTimerRef.current = setTimeout(flushUtterance, pauseMs);
+  }, [flushUtterance]);
+
+  // Barge-in that records whether a reply was actually cut (so the settle check
+  // can re-answer it) and ALWAYS arms a settle timer — even if no further speech
+  // arrives, the guarantee still fires instead of leaving the coach silent.
+  const bargeInterrupt = useCallback(() => {
+    if (chatBusyRef.current || useTtsPlaybackStore.getState().isSpeaking) {
+      owesResponseRef.current = true;
+    }
+    interruptCoach();
+    if (!aggregationTimerRef.current) armFlush();
+  }, [interruptCoach, armFlush]);
 
   const emitVoiceInInterim = useCallback(
     (text: string) => {
+      // Barge-in on the first partial — cut the coach's audio/reply immediately
+      // so it doesn't talk over the user (full-duplex, mirrors useCoachChat).
+      bargeInterrupt();
       notifyTranscriptListeners({ role: 'user', kind: 'partial', text });
+      // User still talking after a buffered final → defer the flush so we don't
+      // cut the turn mid-thought.
+      if (text.trim() && aggregationTimerRef.current) armFlush();
     },
-    [notifyTranscriptListeners],
+    [notifyTranscriptListeners, bargeInterrupt, armFlush],
   );
 
-  // Final voice turn → clear the live partial, then route to the LLM (the user
-  // bubble is added by the LLM message mirror, same as typed input).
+  // Final voice turn → clear the live partial, barge-in, then BUFFER it; the
+  // aggregation timer flushes the whole utterance to the LLM as one turn.
   const emitVoiceInFinal = useCallback(
     (text: string) => {
       const trimmed = text.trim();
       if (!trimmed) return;
       notifyTranscriptListeners({ role: 'user', kind: 'final', text: trimmed });
-      sendUserTurn(trimmed);
+      bargeInterrupt();
+      utteranceBufferRef.current = utteranceBufferRef.current
+        ? `${utteranceBufferRef.current} ${trimmed}`
+        : trimmed;
+      armFlush();
     },
-    [notifyTranscriptListeners, sendUserTurn],
+    [notifyTranscriptListeners, bargeInterrupt, armFlush],
   );
 
   const handleVoiceInError = useCallback(
@@ -786,12 +938,27 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     [micOn, toggleMic],
   );
 
+  // Full-duplex (mirrors useCoachChat): the mic stays hot during playback so the
+  // user can barge in mid-reply — echo is handled by the browser's AEC, not by
+  // muting. Mute only in half-duplex mode, plus a post-speech breath window to
+  // cover the echo tail. Gates on actual playback (isSpeaking), not the fetch.
+  const ttsSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
+  const micMutedForTts = !FULL_DUPLEX_BARGE_IN && voiceOn && ttsSpeaking;
+  const [micMutedHeld, setMicMutedHeld] = useState(true);
+  useEffect(() => {
+    if (micMutedForTts) {
+      setMicMutedHeld(true);
+      return;
+    }
+    const t = setTimeout(() => setMicMutedHeld(false), MIC_GRACE_MS);
+    return () => clearTimeout(t);
+  }, [micMutedForTts]);
   const { isListening: voiceInListening } = useVoiceInCapture({
     active: voiceInShouldBeLive,
     vapiStatus: status,
     onTranscript: emitVoiceInFinal,
     onInterim: emitVoiceInInterim,
-    responding: false,
+    responding: micMutedForTts || micMutedHeld,
     onError: handleVoiceInError,
   });
 
@@ -800,6 +967,22 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     startKeyWarmLoop();
     return () => stopKeyWarmLoop();
   }, [voiceInShouldBeLive]);
+
+  // Drop the aggregation buffer/timer when voice-in disarms or on unmount.
+  useEffect(() => {
+    if (voiceInShouldBeLive) return;
+    if (aggregationTimerRef.current) {
+      clearTimeout(aggregationTimerRef.current);
+      aggregationTimerRef.current = null;
+    }
+    utteranceBufferRef.current = '';
+  }, [voiceInShouldBeLive]);
+  useEffect(
+    () => () => {
+      if (aggregationTimerRef.current) clearTimeout(aggregationTimerRef.current);
+    },
+    [],
+  );
 
   const [vapiToday, setVapiToday] = useState(() =>
     countVapiToday(useSessionLogStore.getState().events),
@@ -821,16 +1004,17 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     track('voice_cap_reached', { count: vapiToday, limit: VAPI_DAILY_CAP });
   }, [voiceCapReached, vapiToday, logEvent]);
 
+  // The selector decides Vapi INTENT (voice on, covered beat). Vapi only STARTS
+  // once the mic is actually granted — until then the beat is Vapi-pending (the
+  // opener waits for Vapi, Direct-LLM never fills it). Plus the transient health
+  // gates: identity loaded, no fatal/cooldown, under the daily cap.
   const vapiShouldBeLive =
-    inOnboarding &&
-    // Identity must be loaded before starting — metadata.anon_id is baked into
-    // the call at start(), so a null anonId would ship every tool call with an
-    // empty anon_id and the backend rejects them all (invalid_identity).
-    !!anonId &&
-    preferences.voiceMode === 'voice' &&
-    preferences.micEnabled === true &&
+    engine.engine === 'vapi' &&
     preferences.micPermission === true &&
-    !!currentScreenId &&
+    preferences.micEnabled === true &&
+    // metadata.anon_id is baked in at start(); a null anonId would ship every tool
+    // call with an empty anon_id and the backend rejects them all (invalid_identity).
+    !!anonId &&
     !fatalErrorRef.current &&
     !remoteEndCooldown &&
     !voiceCapReached;
@@ -938,6 +1122,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     // triggerResponseEnabled). End the current turn so the new screen's opening
     // line starts its own bubble instead of gluing onto the previous screen's.
     assistantTurnOpenRef.current = false;
+    lastTurnRoleRef.current = null;
     closeMergeWindow();
     void pushScreenContext(screenToFetch, priorTs);
   }, [
@@ -1055,7 +1240,9 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   return (
     <OnboardingVoiceContext.Provider value={value}>
       {children}
-      {inOnboarding && overlayOpen && <OnboardingChatOverlay onClose={closeOverlay} />}
+      {inOnboarding && overlayOpen && !onChatPage && (
+        <OnboardingChatOverlay onClose={closeOverlay} />
+      )}
       <VoiceCapModal />
     </OnboardingVoiceContext.Provider>
   );

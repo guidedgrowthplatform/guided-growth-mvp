@@ -4,6 +4,11 @@ import type { CoachingStyle } from '@gg/shared/coaching/styles';
 import { buildContextMessage } from '@gg/shared/context/buildContextMessage';
 import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 import { buildCanonicalOptionsBlock } from './onboarding/canonicalOptions.js';
+import {
+  getBeatContext,
+  BEAT_CONTEXT_VERSION,
+  type BeatContext,
+} from './onboarding/beatContexts.js';
 import { ONBOARDING_TOOL_ADDENDUM } from './onboarding/systemPromptAddendum.js';
 import { stripForwardPointers } from './stripForwardPointers.js';
 import { NO_PRENARRATION_RULE } from './noPrenarrationRule.js';
@@ -61,19 +66,45 @@ interface SessionLogRow {
 export async function buildSystemPromptForRequest(
   args: BuildSystemPromptArgs,
 ): Promise<BuildSystemPromptResult> {
-  const screenRes = await pool.query<ScreenRow>(
-    `SELECT context_block, version FROM screen_contexts WHERE screen_id = $1`,
-    [args.screen_id],
-  );
-  // Missing row (un-seeded env) → generic block, not a 404 that breaks every chat user.
-  let screen: ScreenRow;
-  if (screenRes.rowCount === 0) {
-    console.warn(
-      `[buildSystemPrompt] no screen_contexts row for "${args.screen_id}" — using generic fallback`,
-    );
-    screen = { context_block: FALLBACK_CONTEXT_BLOCK, version: 0 };
+  const isOnboardingScreen = args.screen_id.startsWith('ONBOARD-');
+
+  // Direct-LLM onboarding reads its block from the in-repo beat-context file
+  // (beatContexts.ts), NOT Supabase. A later automation will sync that file →
+  // screen_contexts; until then the Supabase onboarding rows are unused here.
+  // Non-onboarding screens (check-ins, app) keep reading screen_contexts.
+  const beat: BeatContext | undefined = isOnboardingScreen
+    ? getBeatContext(args.screen_id)
+    : undefined;
+
+  // Direct-LLM only — Vapi keeps raw context elsewhere (it drives navigation).
+  // advance_step is the Direct-LLM nav tool; the shared bundle says navigate_next.
+  let contextBlock: string;
+  let contextVersion: number;
+  if (beat) {
+    // Beat text is already clean (no forward pointers / tool prose) — strip is a
+    // no-op safety pass; no navigate_next rename needed (beat copy names no tools).
+    contextBlock = beat.context;
+    contextVersion = BEAT_CONTEXT_VERSION;
   } else {
-    screen = screenRes.rows[0];
+    const screenRes = await pool.query<ScreenRow>(
+      `SELECT context_block, version FROM screen_contexts WHERE screen_id = $1`,
+      [args.screen_id],
+    );
+    // Missing row (un-seeded env) → generic block, not a 404 that breaks every chat user.
+    const screen: ScreenRow =
+      screenRes.rowCount === 0
+        ? { context_block: FALLBACK_CONTEXT_BLOCK, version: 0 }
+        : screenRes.rows[0];
+    if (screenRes.rowCount === 0) {
+      console.warn(
+        `[buildSystemPrompt] no screen_contexts row for "${args.screen_id}" — using generic fallback`,
+      );
+    }
+    contextBlock = stripForwardPointers(screen.context_block).replace(
+      /navigate_next/g,
+      'advance_step',
+    );
+    contextVersion = screen.version;
   }
 
   let state_delta: SessionStateDeltaEntry[];
@@ -108,15 +139,7 @@ export async function buildSystemPromptForRequest(
   // Do NOT hydrate UserContext.name / email / last_name from profiles —
   // the LLM gets first_name only via the AI Context Block on screens
   // where it's already part of the prompt.
-  const isOnboardingScreen = args.screen_id.startsWith('ONBOARD-');
-
   const coachingPreamble = buildSystemPrompt({ coachingStyle: args.coaching_style });
-  // Direct-LLM only — Vapi keeps raw context elsewhere (it drives navigation).
-  // advance_step is the Direct-LLM nav tool; the shared bundle says navigate_next (Vapi's name).
-  const contextBlock = stripForwardPointers(screen.context_block).replace(
-    /navigate_next/g,
-    'advance_step',
-  );
   const contextMessage = buildContextMessage({
     screen_id: args.screen_id,
     context_block: contextBlock,
@@ -164,6 +187,12 @@ export async function buildSystemPromptForRequest(
       ? await buildReflectionSettingsBlock(args.anon_id)
       : '';
   const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
+  // Onboarding opener turns: the coach RENDERS the authored beat line verbatim
+  // (it's the renderer, not the author). Mirrors the check-in scripted opener.
+  const onboardingOpenerBlock =
+    args.mode === 'opener' && beat?.opener
+      ? `\n\n${buildOnboardingScriptedOpener(beat.opener)}`
+      : '';
   // Scripted opener lines (greeting + state/habit prompt), rotating per day.
   const eveningOpenerBlock =
     args.mode === 'opener' && args.screen_id === 'ECHECK-01'
@@ -179,10 +208,14 @@ export async function buildSystemPromptForRequest(
   const optionsBlock = isOnboardingScreen
     ? buildCanonicalOptionsBlock(args.screen_id, onboardingRow?.data ?? {})
     : '';
+  // Per-beat tool steering — replaces the ALLOWED/FORBIDDEN TOOLS block the legacy
+  // screen prose carried inline. Sourced from the beat file's structured
+  // allowedTools (Stage 2 will additionally filter the OpenAI tools array).
+  const beatToolsBlock = beat ? `\n\n${renderBeatToolsBlock(beat.allowedTools)}` : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${scriptedDisciplineBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
-    contextVersion: screen.version,
+    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${scriptedDisciplineBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${beatToolsBlock}${openerNudge}${onboardingOpenerBlock}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
+    contextVersion,
     deltaCount: state_delta.length,
   };
 }
@@ -285,6 +318,36 @@ function buildAlreadyFilledBlock(row: OnboardingRow): string {
   );
 }
 
+// Onboarding opener turn: the authored beat line is the source of truth; the LLM
+// renders it verbatim (no improvisation). Mirrors the check-in scripted opener
+// (buildEveningOpener / buildScriptedDiscipline).
+function buildOnboardingScriptedOpener(line: string): string {
+  return (
+    `## Onboarding Opener (this turn only — SCRIPTED, say WORD-FOR-WORD)\n` +
+    `Say the line below exactly as written. Do NOT rephrase, merge, shorten, add to, ` +
+    `translate, or improvise on it, and do NOT call any tool this turn. After saying it, ` +
+    `stop and wait for the user.\n` +
+    `Say, exactly: "${line}"`
+  );
+}
+
+// Renders the per-beat allow-list that the legacy screen prose used to carry as
+// "ALLOWED TOOLS ON THIS SCREEN". Server preconditions still fail-closed; this is
+// steering, not enforcement (Stage 2 filters the tools array in the registry).
+function renderBeatToolsBlock(tools: readonly string[]): string {
+  if (tools.length === 0) {
+    return `## Tools For This Beat\nDo NOT call any tool on this beat — stay silent unless the user asks a direct question.`;
+  }
+  return (
+    `## Tools For This Beat\n` +
+    `On this beat you may ONLY call: ${tools.join(', ')}. Do NOT call any other onboarding tool. ` +
+    `After a data tool returns, chain advance_step in the SAME turn ONLY when every required field for this beat ` +
+    `is captured (unless the only allowed tool is confirm_plan). ` +
+    `If a tool returns an error (e.g. a missing or unparseable required field like age), do NOT call it again — ` +
+    `ask the user for exactly what's missing in one short line and wait for their answer. Never retry a failing tool.`
+  );
+}
+
 const TEXT_INPUT_RULE = `## Text Mode
 The user is TYPING, not speaking. Don't tell them to tap, touch the orb, or say things aloud — phrase guidance for a keyboard/text user.`;
 
@@ -300,4 +363,4 @@ Speak first. Open with the line this screen's BEHAVIOR calls for (often a comple
 Rules:
 - No generic greetings like "How can I help?", "What's up?", or "What can I do for you?".
 - Do NOT mention that the chat was just opened. Just open the conversation naturally.
-- Do NOT call any MUTATING tools on this turn — no \`update_profile\`, \`navigate_next\`, \`complete_habit\`, \`record_checkin\`, etc. Those resume on the next user-initiated turn. A read-only tool (\`query_habits\` / \`query_checkin\`) MAY be called if available this turn to ground your opener.`;
+- Do NOT call any MUTATING tools on this turn — no \`update_profile\`, \`navigate_next\`, \`advance_step\`, \`submit_profile\`, \`submit_path_choice\`, \`submit_category\`, \`submit_goals\`, \`submit_brain_dump\`, \`submit_reflection_config\`, \`add_habit\`, \`remove_habit\`, \`update_habit\`, \`confirm_plan\`, \`complete_habit\`, \`record_checkin\`, etc. Those resume on the next user-initiated turn. A read-only tool (\`query_habits\` / \`query_checkin\`) MAY be called if available this turn to ground your opener.`;

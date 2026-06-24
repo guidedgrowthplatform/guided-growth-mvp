@@ -86,6 +86,7 @@ const lazyOnboarding = (name: string) =>
       default: (m as Record<string, React.ComponentType>)[name],
     })),
   );
+const OnboardingChatPage = lazyOnboarding('OnboardingChatPage');
 const Step1Page = lazyOnboarding('Step1Page');
 const VoicePreferencePage = lazyOnboarding('VoicePreferencePage');
 const MicPermissionPage = lazyOnboarding('MicPermissionPage');
@@ -115,9 +116,10 @@ function OnboardingEntry() {
   const gate = useAppGate();
   if (gate.status === 'loading') return <LoadingScreen />;
   if (gate.status === 'ready') return <Navigate to="/" replace />;
-  if (gate.status === 'onboarding_in_progress')
-    return <Navigate to={`/onboarding/step-${gate.step}`} replace />;
-  return <Navigate to="/onboarding/voice-preference" replace />;
+  // Chat-native (single-screen) onboarding — the chat IS onboarding, rendered
+  // at the root for everyone. The legacy routed pages remain as direct-URL
+  // fallbacks but nothing navigates to them.
+  return <OnboardingChatPage />;
 }
 
 function AppLayout() {
@@ -197,6 +199,8 @@ export function AppRoutes() {
             </AppGate>
           }
         />
+        {/* Legacy alias — the chat now lives at /onboarding itself. */}
+        <Route path="/onboarding/chat" element={<Navigate to="/onboarding" replace />} />
         <Route
           path="/onboarding/voice-preference"
           element={

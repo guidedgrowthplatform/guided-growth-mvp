@@ -12,8 +12,8 @@ export type DedicatedCheckinScreenId = Extract<CheckinScreenId, 'MCHECK-01' | 'E
 // Check-in windows by LOCAL hour. Morning runs late — until 4 PM — so a missed
 // morning isn't lost the instant noon hits; evening starts at 5 PM. The 16:00-
 // 16:59 gap is a deliberate buffer (neither check-in is proactively offered).
-const MORNING_BEFORE_HOUR = 16; // morning offered while hour < 16:00 (4 PM)
-const EVENING_FROM_HOUR = 17; // evening offered while hour >= 17:00 (5 PM)
+const MORNING_BEFORE_HOUR = 0; // TEMP(force-evening): revert to 16
+const EVENING_FROM_HOUR = 0; // TEMP(force-evening): revert to 17
 
 export interface CheckinWindow {
   isMorning: boolean;

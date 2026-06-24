@@ -27,12 +27,12 @@ import type {
 // advanced flow and aren't keyed by integer — they fall through to the format
 // string fallback in the handler below.
 const STEP_TO_SCREEN_ID: Record<number, string> = {
-  1: 'ONBOARD-01',
-  2: 'ONBOARD-FORK',
+  1: 'ONBOARD-01--FORM',
+  2: 'ONBOARD-FORK--FORM',
   3: 'ONBOARD-BEGINNER-01',
   4: 'ONBOARD-BEGINNER-02',
   5: 'ONBOARD-BEGINNER-03',
-  6: 'ONBOARD-BEGINNER-04',
+  6: 'ONBOARD-BEGINNER-07',
   7: 'STARTING-PLAN',
 };
 
@@ -80,12 +80,24 @@ export function useOnboarding() {
       brainDump?: { raw?: string; parsed?: ParsedHabit[] };
     }) => onboardingApi.saveOnboardingStep(step, path, data, brainDump),
     onSuccess: (updated) => {
-      qc.setQueryData(queryKeys.onboarding.state, updated);
+      // Preserve an optimistic (client-advanced) current_step — the chat-native
+      // flow bumps it ahead of the server, and the server's GREATEST upsert
+      // guarantees it never legitimately decreases, so never let the round-trip
+      // rewind the beat.
+      qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, (prev) =>
+        prev && prev.current_step > updated.current_step
+          ? { ...updated, current_step: prev.current_step }
+          : updated,
+      );
       // form_submit is logged SYNCHRONOUSLY in saveStep / saveStepAsync below
       // (BEFORE the mutation kicks off) so the optimistic session_log store
       // contains it before the page navigates. Logging here would race the
       // navigate(), so by the time the next screen's pushScreenContext reads
       // state_delta, form_submit wouldn't be there yet.
+    },
+    onError: (err) => {
+      Sentry.captureException(err, { tags: { flow: 'onboarding', step: 'save' } });
+      addToast('error', "Couldn't save that — check your connection and try again.");
     },
   });
 

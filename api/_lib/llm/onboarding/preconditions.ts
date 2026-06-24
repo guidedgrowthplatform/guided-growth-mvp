@@ -1,5 +1,6 @@
-// Direct-LLM onboarding advance/finalize guards, shared by advance_step + confirm_plan.
-// (Vapi's navigate_next/confirm_plan keep their own copies — that path is left untouched.)
+// Per-step onboarding advance/finalize guards. Shared by the Direct-LLM
+// advance_step/confirm_plan path AND Vapi's navigate_next (which imports
+// checkAdvanceData) so a beat advances IDENTICALLY whichever engine drives it.
 
 // Per-step data preconditions for a FORWARD advance (sourceStep → sourceStep+1).
 // Returns the missing-field message, or null if the precondition passes. Back-nav
@@ -12,8 +13,15 @@ export function checkAdvanceData(args: {
 }): string | null {
   const { sourceStep, data, path, brainDumpRaw } = args;
   switch (sourceStep) {
+    case 0:
+      // Beat-0 preference is client-only — no server data lands at step 0.
+      // The real opener-turn ban on advance_step lives in buildSystemPrompt
+      // OPENER_INSTRUCTIONS (out of scope here).
+      return null;
     case 1:
-      if (!data.nickname) return 'profile_missing: call submit_profile (nickname required) first';
+      if (!data.nickname || data.age == null || !data.gender) {
+        return 'profile_missing: call submit_profile (nickname, age, gender required) first';
+      }
       return null;
     case 2:
       if (!path) return 'path_missing: call submit_path_choice first';
@@ -24,6 +32,14 @@ export function checkAdvanceData(args: {
       }
       return null;
     case 4:
+      // Advanced (braindump) path has no goals — it captured a brain dump at
+      // step 3 and configures habits at step 5. Gate it on the brain dump
+      // instead so coach-driven advance isn't hard-blocked on a key it never
+      // writes. Beginner path still requires goals.
+      if (path === 'braindump') {
+        if (typeof brainDumpRaw === 'string' && brainDumpRaw.length > 0) return null;
+        return 'braindump_missing: call submit_brain_dump first';
+      }
       if (!Array.isArray(data.goals) || data.goals.length === 0) {
         return 'goals_missing: call submit_goals first (with the chosen goals)';
       }

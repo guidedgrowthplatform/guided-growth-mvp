@@ -6,7 +6,7 @@ import { getNumber, handlerError, invalid, ok, type OnboardingHandlerCtx } from 
 const MIN_STEP = 1;
 const MAX_STEP = 10;
 
-// Only tool that writes current_step. Bare-set (no GREATEST) so back-nav forward re-fires useAgentNavigation.
+// GREATEST guards against a stale LLM tool call rewinding the column behind the client.
 export async function advanceStep(
   ctx: OnboardingHandlerCtx,
   args: Record<string, unknown>,
@@ -63,7 +63,7 @@ export async function advanceStep(
     `INSERT INTO onboarding_states (anon_id, current_step, status, updated_at)
      VALUES ($1, $2, 'in_progress', now())
      ON CONFLICT (anon_id) DO UPDATE SET
-       current_step = $2,
+       current_step = GREATEST(onboarding_states.current_step, $2),
        status = 'in_progress',
        updated_at = now()
      RETURNING current_step`,

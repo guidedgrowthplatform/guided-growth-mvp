@@ -61,6 +61,8 @@ If the user is on screen X and they say something matching column 3, you fire th
 
 **Multi-value screens (goals):** \`submit_goals\` SAVES THE COMPLETE SELECTION and REPLACES the previous save. Always pass EVERY goal the user currently wants in the \`goals\` array — not just the newest one. If they name two goals in one breath, send both in ONE call. If they add a second goal later, call again with BOTH. Never send a partial array: a call with only the latest goal will wipe the others.
 
+**Profile (ONBOARD-01--FORM):** send EVERY field the user gives in ONE \`submit_profile\` call. If they say "I'm Sarah, 32, female, found you on Instagram", call \`submit_profile(nickname='Sarah', age='32', gender='Female', referral_source='Instagram')\` ALL AT ONCE, then navigate. NEVER fire a nickname-only call and navigate away — age, gender and referral would be lost. Pass \`age\` as the raw number ("32"), never a range or bucket.
+
 ---
 
 ## RULE 3 — Data tools save only. \`navigate_next\` is what moves screens.

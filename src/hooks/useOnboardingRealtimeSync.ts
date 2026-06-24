@@ -70,7 +70,22 @@ export function useOnboardingRealtimeSync(): RealtimeSyncStatus {
             }
             return;
           }
-          qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, next);
+          // Never let a Realtime row REWIND the optimistically-advanced beat.
+          // A data-only write (e.g. coach submit_profile) bumps updated_at while
+          // current_step / path still lag the client's optimistic advance, so a
+          // wholesale replace would rewind current_step (and null out path),
+          // snapping the chat back a beat and re-firing the opener mid-turn. The
+          // server's GREATEST upsert guarantees current_step never legitimately
+          // decreases and path only goes null→value, so clamping is safe.
+          qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, (prev) =>
+            prev
+              ? {
+                  ...next,
+                  current_step: Math.max(prev.current_step, next.current_step),
+                  path: next.path ?? prev.path,
+                }
+              : next,
+          );
           if (import.meta.env.DEV) {
             console.log('[realtime] cache updated → data:', next.data);
           }

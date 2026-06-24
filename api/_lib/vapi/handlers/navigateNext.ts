@@ -28,6 +28,10 @@
  * to walk forward; LLM calls navigate_next(2) which sets step to 2).
  */
 import pool from '../../db.js';
+// Shared with the Direct-LLM advance_step path so a beat advances IDENTICALLY
+// whether driven by Vapi navigate_next or Direct-LLM (step-1 needs nickname+age+
+// gender; step-4 braindump gates on the brain dump, not goals).
+import { checkAdvanceData } from '../../llm/onboarding/preconditions.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MIN_STEP = 1;
@@ -49,52 +53,6 @@ function getInteger(args: Record<string, unknown>, key: string): number | undefi
     return Number.isInteger(n) ? n : undefined;
   }
   return undefined;
-}
-
-// Per-step data preconditions. Each entry: "if the user is leaving step N to
-// advance to N+1, this field must exist". Returns the missing-field message,
-// or null if the precondition passes. Back-nav (target_step <= current_step)
-// is always allowed — we only check FORWARD advances.
-function checkAdvanceData(args: {
-  sourceStep: number;
-  data: Record<string, unknown>;
-  path: string | null;
-  brainDumpRaw: string | null;
-}): string | null {
-  const { sourceStep, data, path, brainDumpRaw } = args;
-  switch (sourceStep) {
-    case 1:
-      if (!data.nickname) return 'profile_missing: call submit_profile (nickname required) first';
-      return null;
-    case 2:
-      if (!path) return 'path_missing: call submit_path_choice first';
-      return null;
-    case 3:
-      // Beginner path uses category; advanced (braindump) path uses brain_dump_raw.
-      if (!data.category && !(typeof brainDumpRaw === 'string' && brainDumpRaw.length > 0)) {
-        return 'category_or_braindump_missing: call submit_category (beginner) or submit_brain_dump (advanced) first';
-      }
-      return null;
-    case 4:
-      if (!Array.isArray(data.goals) || data.goals.length === 0) {
-        return 'goals_missing: call submit_goals first (with the chosen goals)';
-      }
-      return null;
-    case 5: {
-      const habits = data.habitConfigs as Record<string, unknown> | undefined;
-      if (!habits || Object.keys(habits).length === 0) {
-        return 'habits_missing: call add_habit at least once first';
-      }
-      return null;
-    }
-    case 6:
-      if (!data.reflectionConfig) {
-        return 'reflection_missing: call submit_reflection_config first';
-      }
-      return null;
-    default:
-      return null;
-  }
 }
 
 export async function navigateNext(args: Record<string, unknown>): Promise<HandlerResult> {

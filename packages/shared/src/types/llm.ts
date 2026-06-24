@@ -58,4 +58,8 @@ export interface LLMChatMessage {
   role: 'user' | 'assistant';
   content: string;
   toolEvents?: LLMToolEvent[];
+  // The screen/beat this turn was captured on. Populated by history rehydration
+  // (chat_messages.screen_id) so the chat-native onboarding feed can place each
+  // restored turn under its beat. Absent for live turns (tagged client-side).
+  screenId?: string;
 }

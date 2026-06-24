@@ -94,18 +94,13 @@ describe('buildSystemPromptForRequest', () => {
   });
 
   it('wires the canonical subcategory options into the final onboarding prompt', async () => {
+    // Onboarding screens read their block from the beat-context file, NOT
+    // screen_contexts — so only the onboarding_states query fires here.
     pool.query.mockReset();
-    pool.query
-      .mockResolvedValueOnce({
-        rows: [
-          { context_block: 'SCREEN_ID: ONBOARD-BEGINNER-02\nBEHAVIOR: pick goals.', version: 1 },
-        ],
-        rowCount: 1,
-      })
-      .mockResolvedValueOnce({
-        rows: [{ data: { category: 'Sleep better' }, current_step: 4, path: 'simple' }],
-        rowCount: 1,
-      });
+    pool.query.mockResolvedValue({
+      rows: [{ data: { category: 'Sleep better' }, current_step: 4, path: 'simple' }],
+      rowCount: 1,
+    });
     const { systemPrompt } = await buildSystemPromptForRequest({
       anon_id: 'a',
       screen_id: 'ONBOARD-BEGINNER-02',
@@ -114,6 +109,72 @@ describe('buildSystemPromptForRequest', () => {
     });
     expect(systemPrompt).toContain('Subcategory Options (category: Sleep better)');
     expect(systemPrompt).toContain('Fall asleep earlier | Wake up earlier');
+  });
+
+  it('uses the beat-context file for onboarding screens (not screen_contexts) and renders per-beat tools', async () => {
+    pool.query.mockReset();
+    // Only the onboarding_states lookup fires; no screen_contexts SELECT.
+    pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+    const { systemPrompt, contextVersion } = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ONBOARD-01--FORM',
+      coaching_style: 'warm',
+      recent_events,
+    });
+    // Beat copy is present; legacy screen prose is not.
+    expect(systemPrompt).toContain('BEAT: Profile setup.');
+    expect(systemPrompt).not.toContain('ALLOWED TOOLS ON THIS SCREEN');
+    expect(systemPrompt).not.toContain('SYSTEM ACTION');
+    // Per-beat tool steering replaces the inline prose allow-list.
+    expect(systemPrompt).toContain('## Tools For This Beat');
+    expect(systemPrompt).toContain('submit_profile, advance_step');
+    expect(contextVersion).toBe(1);
+    // No screen_contexts SELECT was issued for an onboarding screen.
+    const sqls = pool.query.mock.calls.map((c) => String(c[0]));
+    expect(sqls.some((s) => s.includes('FROM screen_contexts'))).toBe(false);
+    expect(sqls.some((s) => s.includes('FROM onboarding_states'))).toBe(true);
+  });
+
+  it('renders the onboarding opener verbatim on opener turns (scripted, word-for-word)', async () => {
+    pool.query.mockReset();
+    pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+    const opener = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ONBOARD-01--FORM',
+      coaching_style: 'warm',
+      recent_events,
+      mode: 'opener',
+    });
+    expect(opener.systemPrompt).toContain('## Onboarding Opener');
+    expect(opener.systemPrompt).toMatch(/word-for-word/i);
+    expect(opener.systemPrompt).toContain(
+      'Say, exactly: "OK, let me get to know you a little. First — what should I call you? You can fill it in on screen."',
+    );
+
+    // No scripted-opener block on a normal chat turn.
+    pool.query.mockReset();
+    pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+    const chat = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ONBOARD-01--FORM',
+      coaching_style: 'warm',
+      recent_events,
+      mode: 'chat',
+    });
+    expect(chat.systemPrompt).not.toContain('## Onboarding Opener');
+  });
+
+  it('omits the scripted onboarding opener for a beat with no authored line (auth)', async () => {
+    pool.query.mockReset();
+    pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+    const { systemPrompt } = await buildSystemPromptForRequest({
+      anon_id: 'a',
+      screen_id: 'ONBOARD-AUTH--FORM',
+      coaching_style: 'warm',
+      recent_events,
+      mode: 'opener',
+    });
+    expect(systemPrompt).not.toContain('## Onboarding Opener');
   });
 
   it('injects a Current Time line on check-in screens when timezone is given', async () => {

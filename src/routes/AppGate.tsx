@@ -50,15 +50,19 @@ export function AppGate({
     return <Navigate to="/" replace />;
   }
 
-  // Unauthenticated: first open shows splash → welcome intro, then straight to login.
-  if (gate.status === 'unauthenticated') {
-    return <Navigate to={getFlag(FIRST_OPEN) ? '/login' : '/splash'} replace />;
-  }
-
-  // Onboarding routes: only allow if not completed
+  // Onboarding routes: the chat page IS the signup/login entry, so
+  // unauthenticated users render it (Beat 0 = AuthSignupCard). Completed users
+  // go home; everyone mid-onboarding renders. This is the ONLY protected surface
+  // reachable while logged out — app routes below still bounce the unauthed.
   if (allow === 'onboarding') {
     if (gate.status === 'ready') return <Navigate to="/" replace />;
     return <>{children}</>;
+  }
+
+  // Unauthenticated (app routes): first open shows splash → welcome intro, then
+  // straight to login.
+  if (gate.status === 'unauthenticated') {
+    return <Navigate to={getFlag(FIRST_OPEN) ? '/login' : '/splash'} replace />;
   }
 
   if (gate.status === 'onboarding_needed' || gate.status === 'onboarding_in_progress') {

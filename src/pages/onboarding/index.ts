@@ -1,3 +1,5 @@
+// Chat-native (single-screen)
+export { OnboardingChatPage } from './OnboardingChatPage';
 // Shared
 export { Step1Page } from './shared/Step1Page';
 export { VoicePreferencePage } from './shared/VoicePreferencePage';
