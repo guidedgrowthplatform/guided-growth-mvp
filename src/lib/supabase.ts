@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { setSession } from '@/lib/auth/tokenStore';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -49,13 +50,24 @@ export const supabase: SupabaseClient = createClient(
   },
 );
 
+// Single writer to tokenStore + the only realtime.setAuth caller.
+supabase.auth.onAuthStateChange((_event, session) => {
+  setSession(session);
+  void supabase.realtime.setAuth(session?.access_token ?? null);
+});
+
 let resolveSessionReady: () => void;
 export const sessionReady: Promise<void> = new Promise((resolve) => {
   resolveSessionReady = resolve;
 });
 supabase.auth
   .getSession()
-  .then(() => resolveSessionReady())
+  .then(({ data: { session } }) => {
+    // warm before the async INITIAL_SESSION so the first request has a token
+    setSession(session);
+    void supabase.realtime.setAuth(session?.access_token ?? null);
+    resolveSessionReady();
+  })
   .catch(() => resolveSessionReady());
 
 // Dev-only: expose the client on window for quick console debugging

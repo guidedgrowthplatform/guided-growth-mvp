@@ -1,4 +1,6 @@
+import type { Session } from '@supabase/supabase-js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { setSession, __resetTokenStoreForTest } from '@/lib/auth/tokenStore';
 import { supabase } from '@/lib/supabase';
 import { offlineQueue } from '../offlineQueue';
 
@@ -8,7 +10,8 @@ vi.mock('@capacitor/core', () => ({
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
-    auth: { getSession: vi.fn() },
+    auth: { getSession: vi.fn(), refreshSession: vi.fn() },
+    realtime: { setAuth: vi.fn() },
   },
   sessionReady: Promise.resolve(),
 }));
@@ -26,14 +29,21 @@ const localStorageMock = {
 };
 vi.stubGlobal('localStorage', localStorageMock);
 
-const getSessionMock = supabase.auth.getSession as unknown as ReturnType<typeof vi.fn>;
+const refreshSessionMock = supabase.auth.refreshSession as unknown as ReturnType<typeof vi.fn>;
+
+const FAR_FUTURE = 9_999_999_999;
+function seedToken(access_token: string): void {
+  setSession({ access_token, expires_at: FAR_FUTURE } as unknown as Session);
+}
 
 beforeEach(() => {
   Object.keys(store).forEach((k) => delete store[k]);
   vi.restoreAllMocks();
   vi.stubGlobal('localStorage', localStorageMock);
-  getSessionMock.mockReset();
-  getSessionMock.mockResolvedValue({ data: { session: null } });
+  refreshSessionMock.mockReset();
+  refreshSessionMock.mockResolvedValue({ data: { session: null }, error: null });
+  __resetTokenStoreForTest();
+  seedToken('tok-default');
 });
 
 describe('offlineQueue', () => {
@@ -71,12 +81,28 @@ describe('offlineQueue', () => {
     expect(offlineQueue.length).toBe(1);
   });
 
-  it('flush drops on 4xx client error (no infinite retry)', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }));
+  it('flush drops on genuine 4xx client error (no infinite retry)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 400 }));
 
     offlineQueue.enqueue('/api/entries/2026-03-15', 'PUT', { m1: 'yes' });
     await offlineQueue.flush();
     expect(offlineQueue.length).toBe(0);
+  });
+
+  it('flush requeues on 401 — never drops user writes on an auth blip', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }));
+
+    offlineQueue.enqueue('/api/entries/2026-03-15', 'PUT', { m1: 'yes' });
+    await offlineQueue.flush();
+    expect(offlineQueue.length).toBe(1);
+  });
+
+  it('flush requeues on 403 — never drops user writes on an auth blip', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403 }));
+
+    offlineQueue.enqueue('/api/entries/2026-03-15', 'PUT', { m1: 'yes' });
+    await offlineQueue.flush();
+    expect(offlineQueue.length).toBe(1);
   });
 
   it('clear removes all entries', () => {
@@ -88,10 +114,8 @@ describe('offlineQueue', () => {
     expect(offlineQueue.length).toBe(0);
   });
 
-  it('flush attaches Authorization header from the active Supabase session', async () => {
-    getSessionMock.mockResolvedValue({
-      data: { session: { access_token: 'tok-abc' } },
-    });
+  it('flush attaches Authorization header from the active session token', async () => {
+    seedToken('tok-abc');
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -104,7 +128,7 @@ describe('offlineQueue', () => {
   });
 
   it('flush omits Authorization header when no session is available', async () => {
-    getSessionMock.mockResolvedValue({ data: { session: null } });
+    __resetTokenStoreForTest();
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -130,9 +154,8 @@ describe('offlineQueue', () => {
     offlineQueue.enqueue('/api/entries/2026-03-15', 'PUT', { m1: 'yes' });
     const flushPromise = offlineQueue.flush();
 
-    // Yield so flush can call fetch and start awaiting.
-    await Promise.resolve();
-    await Promise.resolve();
+    // Drain microtasks so flush reaches and parks on fetch before we enqueue.
+    await new Promise((r) => setTimeout(r, 0));
 
     // Concurrent enqueue mid-flush — must not be lost.
     offlineQueue.enqueue('/api/entries/2026-03-16', 'PUT', { m2: 'no' });
