@@ -56,6 +56,11 @@ import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { AIPulseVisual } from '@/components/welcome/AIPulseVisual';
+import {
+  BEAT_TRANSITION_KINDS,
+  BeatTransition,
+  type BeatTransitionKind,
+} from '@/components/welcome/BeatTransition';
 import { SplashIntro } from '@/components/welcome/SplashIntro';
 
 /**
@@ -768,6 +773,9 @@ interface Placed {
   beat?: string;
   note?: string;
   sheetStage?: string;
+  // The transition played when advancing FROM this beat to the next one
+  // (the edge to the next beat). Presentation only, no AI data.
+  transition?: { kind: BeatTransitionKind; durationMs: number };
   lanes?: Lane[];
 }
 
@@ -845,6 +853,49 @@ function PaletteCard({
         {createElement(item.Comp)}
       </div>
       <SendButtons onSend={(where) => onSend(item.type, where)} />
+    </div>
+  );
+}
+
+// The connector between two consecutive beats: a line plus a transition picker
+// (kind + duration). Edits the transition on the edge to the next beat.
+function BeatConnector({
+  transition,
+  onChange,
+}: {
+  transition?: { kind: BeatTransitionKind; durationMs: number };
+  onChange: (t: { kind: BeatTransitionKind; durationMs: number }) => void;
+}) {
+  const kind = transition?.kind ?? 'dissolve';
+  const durationMs = transition?.durationMs ?? 600;
+  return (
+    <div className="ml-[150px] flex flex-col items-center gap-1">
+      <div className="h-3 w-px bg-border" />
+      <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 shadow-card">
+        <Icon icon="ic:round-bolt" className="size-3.5 text-primary" />
+        <select
+          value={kind}
+          onChange={(e) => onChange({ kind: e.target.value as BeatTransitionKind, durationMs })}
+          className="bg-transparent text-[11px] font-semibold text-content focus:outline-none"
+        >
+          {BEAT_TRANSITION_KINDS.map((k) => (
+            <option key={k} value={k}>
+              {k}
+            </option>
+          ))}
+        </select>
+        <input
+          type="number"
+          min={100}
+          max={3000}
+          step={50}
+          value={durationMs}
+          onChange={(e) => onChange({ kind, durationMs: Number(e.target.value) || 600 })}
+          className="w-14 rounded border border-border bg-page px-1 py-0.5 text-[11px] text-content"
+        />
+        <span className="text-[10px] text-content-tertiary">ms</span>
+      </div>
+      <div className="h-3 w-px bg-border" />
     </div>
   );
 }
@@ -1285,6 +1336,12 @@ function SplitBlock({
 // --- Play: the flow as a clean, interactive onboarding demo ---
 
 function FlowPhone({ placed }: { placed: Placed[] }) {
+  // Stepped player: shows one beat at a time and plays the edge transition when
+  // advancing, so the flow's transitions are visible. Stepping is the right
+  // preview for a sequence of full-screen onboarding beats.
+  const [step, setStep] = useState(0);
+  const [advancing, setAdvancing] = useState(false);
+
   const renderComp = (item: Placed) => {
     const entry = REGISTRY_MAP[item.type];
     if (!entry) return null;
@@ -1294,48 +1351,110 @@ function FlowPhone({ placed }: { placed: Placed[] }) {
       </div>
     );
   };
+
+  const renderBeat = (item: Placed): ReactNode => (
+    <div
+      className="flex h-full flex-col gap-5 overflow-y-auto px-5 py-6"
+      style={{ background: '#f9f9f9' }}
+    >
+      {item.type === 'split'
+        ? (item.lanes ?? []).map((lane) => (
+            <div key={lane.id} className="flex flex-col gap-4">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-content-tertiary">
+                {lane.label}
+              </div>
+              {lane.items.map((it) => (
+                <div key={it.uid}>{renderComp(it)}</div>
+              ))}
+            </div>
+          ))
+        : renderComp(item)}
+    </div>
+  );
+
+  const beats = placed;
+  const current = beats[step] ?? beats[0];
+  const next = beats[step + 1];
+
+  useEffect(() => {
+    if (step > beats.length - 1) setStep(Math.max(0, beats.length - 1));
+  }, [beats.length, step]);
+
+  const advance = () => {
+    if (!next || advancing) return;
+    setAdvancing(true);
+    const dur = current?.transition?.durationMs ?? 600;
+    window.setTimeout(() => {
+      setStep((s) => s + 1);
+      setAdvancing(false);
+    }, dur);
+  };
+  const goBack = () => {
+    setAdvancing(false);
+    setStep((s) => Math.max(0, s - 1));
+  };
+  const restart = () => {
+    setAdvancing(false);
+    setStep(0);
+  };
+
+  const kind = current?.transition?.kind ?? 'dissolve';
+
   return (
     <div className="flex w-[390px] max-w-full flex-col overflow-hidden rounded-[32px] border border-border bg-surface shadow-elevated">
       <div className="flex items-center gap-2 border-b border-border-light px-5 py-4">
         <Icon icon="ic:round-auto-awesome" className="size-5 text-primary" />
         <span className="text-[15px] font-bold text-content">Coach</span>
       </div>
-      <div className="flex flex-col gap-5 px-5 py-6" style={{ background: '#f9f9f9' }}>
-        {placed.length === 0 && (
-          <div className="py-16 text-center text-[14px] text-content-tertiary">
+      <div className="relative overflow-hidden" style={{ height: 520 }}>
+        {beats.length === 0 ? (
+          <div className="flex h-full items-center justify-center px-6 text-center text-[14px] text-content-tertiary">
             Nothing in the flow yet. Add beats in the middle.
           </div>
-        )}
-        {placed.map((item) =>
-          item.type === 'split' ? (
-            <div key={item.uid} className="flex flex-col gap-5">
-              {(item.lanes ?? []).map((lane) => (
-                <div key={lane.id} className="flex flex-col gap-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-content-tertiary">
-                    {lane.label}
-                  </div>
-                  {lane.items.map((it) => (
-                    <div key={it.uid}>{renderComp(it)}</div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div key={item.uid}>{renderComp(item)}</div>
-          ),
+        ) : next ? (
+          <BeatTransition
+            key={step}
+            first={renderBeat(current)}
+            second={renderBeat(next)}
+            showSecond={advancing}
+            kind={kind}
+            durationMs={current?.transition?.durationMs ?? 600}
+          />
+        ) : (
+          <div className="absolute inset-0">{renderBeat(current)}</div>
         )}
       </div>
-      <div className="flex items-center gap-3 border-t border-border-light px-4 py-3">
-        <div className="flex-1 rounded-full bg-surface-secondary px-4 py-2 text-[14px] text-content-tertiary">
-          Type or talk...
-        </div>
-        <DualButton
-          size={44}
-          rings
-          leftIcon={<Icon icon="ic:round-mic" className="size-5 text-white" />}
-          rightIcon={<Icon icon="ic:round-graphic-eq" className="size-5 text-white" />}
-          ariaLabel="Voice orb"
-        />
+      <div className="flex items-center justify-between gap-2 border-t border-border-light px-4 py-2.5">
+        <button
+          type="button"
+          onClick={goBack}
+          disabled={step === 0}
+          className="flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[12px] font-semibold text-content-subtle disabled:opacity-40"
+        >
+          <Icon icon="ic:round-arrow-back" className="size-4" /> Back
+        </button>
+        <span className="text-[11px] font-medium text-content-tertiary">
+          Beat {Math.min(step + 1, beats.length || 1)} / {beats.length || 0}
+          {next ? ` · ${kind}` : ''}
+        </span>
+        {next ? (
+          <button
+            type="button"
+            onClick={advance}
+            disabled={advancing}
+            className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+          >
+            Next <Icon icon="ic:round-arrow-forward" className="size-4" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={restart}
+            className="flex items-center gap-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-content-subtle"
+          >
+            <Icon icon="ic:round-replay" className="size-4" /> Restart
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1409,6 +1528,7 @@ export function FlowBuilder() {
             beat?: string;
             note?: string;
             sheetStage?: string;
+            transition?: { kind: BeatTransitionKind; durationMs: number };
           }>
         ).map((b) => ({
           uid: newUid(b.type),
@@ -1417,6 +1537,7 @@ export function FlowBuilder() {
           beat: b.beat,
           note: b.note,
           sheetStage: b.sheetStage,
+          transition: b.transition,
         })),
       );
     } catch {
@@ -1429,12 +1550,13 @@ export function FlowBuilder() {
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify(
-          placed.map(({ type, props, beat, note, sheetStage }) => ({
+          placed.map(({ type, props, beat, note, sheetStage, transition }) => ({
             type,
             props,
             beat,
             note,
             sheetStage,
+            transition,
           })),
         ),
       );
@@ -1768,6 +1890,12 @@ export function FlowBuilder() {
                           onRemove={() => remove(item.uid)}
                           onUpdate={(patch) => update(item.uid, patch)}
                           sheetBeats={beats ?? []}
+                        />
+                      )}
+                      {i < placed.length - 1 && (
+                        <BeatConnector
+                          transition={item.transition}
+                          onChange={(t) => update(item.uid, { transition: t })}
                         />
                       )}
                     </div>
