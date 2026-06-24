@@ -12,6 +12,7 @@ import {
   consumePendingAuthError,
   consumePendingAuthHandoff,
 } from '@/lib/auth/authHandoff';
+import { getFreshToken } from '@/lib/auth/tokenStore';
 import { queryClient } from '@/lib/query';
 import { reacquireIfActive, suspendWakeLock } from '@/lib/services/keepAwake';
 import { AppRoutes } from '@/routes';
@@ -91,6 +92,8 @@ export default function App() {
         onInteraction();
         // #208: web wake-lock auto-released on hide — reacquire if still active.
         void reacquireIfActive();
+        // Warm a fresh token in parallel so the next request isn't stale.
+        void getFreshToken();
       } else {
         // Release on background for battery; reacquired above on return.
         void suspendWakeLock();

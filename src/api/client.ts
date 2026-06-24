@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
+import { authedFetch } from '@/api/authedFetch';
 import { Sentry } from '@/lib/sentry';
-import { supabase, sessionReady } from '@/lib/supabase';
 
 const getApiUrl = (): string => {
   if (Capacitor.isNativePlatform()) {
@@ -29,26 +29,7 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     ...((options.headers as Record<string, string>) || {}),
   };
 
-  // On native, wait for session to be restored from Capacitor Preferences
-  if (Capacitor.isNativePlatform()) {
-    await sessionReady;
-  }
-
-  try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      headers['Authorization'] = `Bearer ${session.access_token}`;
-    }
-  } catch {
-    // Continue without auth if session unavailable
-  }
-
-  const response = await fetch(url, {
-    headers,
-    ...options,
-  });
+  const response = await authedFetch(url, { ...options, headers });
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({ error: 'Request failed' }));

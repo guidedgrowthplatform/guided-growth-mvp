@@ -8,6 +8,7 @@ import {
   setPendingAuthError,
   setPendingAuthHandoff,
 } from '@/lib/auth/authHandoff';
+import { getFreshToken } from '@/lib/auth/tokenStore';
 import { captureDebugFlag } from '@/lib/debug/debugFlag';
 import { hydratePersistentFlags } from '@/lib/storage/persistentFlags';
 import { supabase } from '@/lib/supabase';
@@ -112,6 +113,17 @@ if (Capacitor.isNativePlatform()) {
     // Warm start: app brought to foreground via deep link
     CapApp.addListener('appUrlOpen', ({ url }) => {
       handleDeepLink(url);
+    });
+
+    // Pause refresh in background; on resume refresh the lapsed token
+    // before React's resume refetch burst fires.
+    CapApp.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive) {
+        void supabase.auth.stopAutoRefresh();
+        return;
+      }
+      void supabase.auth.startAutoRefresh();
+      void getFreshToken();
     });
   });
 }

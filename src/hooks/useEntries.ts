@@ -3,6 +3,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import * as entriesApi from '@/api/entries';
 import { offlineQueue, registerReplayHandler } from '@/cache/offlineQueue';
 import { useToast } from '@/contexts/ToastContext';
+import { getFreshToken } from '@/lib/auth/tokenStore';
 import { queryKeys } from '@/lib/query';
 import type { EntriesMap, DayEntries } from '@gg/shared/types';
 
@@ -66,8 +67,10 @@ export function useEntries() {
   );
 
   useEffect(() => {
-    const handleOnline = () => {
+    const handleOnline = async () => {
       if (offlineQueue.length > 0) {
+        // Refresh lapsed token before replaying queued saves.
+        await getFreshToken();
         offlineQueue
           .flush()
           .then((result) => {
