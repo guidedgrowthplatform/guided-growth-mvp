@@ -540,7 +540,7 @@ function AuthSignup() {
             value={pw}
             onChange={setPw}
           />
-          <Button variant="primary" size="lg" fullWidth>
+          <Button variant="primary" size="auth" fullWidth>
             Create account
           </Button>
         </div>
@@ -564,13 +564,13 @@ function AuthSignup() {
             value={pw}
             onChange={setPw}
           />
-          <Button variant="primary" size="lg" fullWidth>
+          <Button variant="primary" size="auth" fullWidth>
             Log in
           </Button>
         </div>
       )}
       {mode === 'default' && (
-        <Button variant="primary" size="lg" fullWidth onClick={() => setMode('signup')}>
+        <Button variant="primary" size="auth" fullWidth onClick={() => setMode('signup')}>
           Sign up with email
         </Button>
       )}
@@ -1043,19 +1043,20 @@ function BuilderBottomNav() {
   );
 }
 
-// A phone-screen-sized frame for one beat. The beat content scrolls in the top
-// area; the bottom is the orb (every flow) or the full menu bar (check-in flows).
-function PhoneScreenFrame({ children, checkin }: { children: ReactNode; checkin: boolean }) {
+const PHONE_W = 300;
+const PHONE_H = 620;
+
+// The inner content + bottom chrome of a phone screen, filling its positioned
+// parent. Content is vertically centered (my-auto) so a short screen like auth
+// does not float at the top, and still scrolls from the top when it overflows.
+function PhoneScreenInner({ children, checkin }: { children: ReactNode; checkin: boolean }) {
   return (
-    <div
-      className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
-      style={{ width: 300, height: 620 }}
-    >
+    <div className="absolute inset-0 bg-surface">
       <div
-        className="absolute inset-x-0 top-0 overflow-y-auto px-4 pt-6 [transform:translateZ(0)]"
+        className="absolute inset-x-0 top-0 flex flex-col overflow-y-auto px-4 [transform:translateZ(0)]"
         style={{ bottom: checkin ? 64 : 84 }}
       >
-        {children}
+        <div className="my-auto w-full py-6">{children}</div>
       </div>
       <div className="absolute inset-x-0 bottom-0">
         {checkin ? (
@@ -1066,6 +1067,18 @@ function PhoneScreenFrame({ children, checkin }: { children: ReactNode; checkin:
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// The bordered phone frame around one beat in the build canvas.
+function PhoneScreenFrame({ children, checkin }: { children: ReactNode; checkin: boolean }) {
+  return (
+    <div
+      className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
+      style={{ width: PHONE_W, height: PHONE_H }}
+    >
+      <PhoneScreenInner checkin={checkin}>{children}</PhoneScreenInner>
     </div>
   );
 }
@@ -1507,10 +1520,11 @@ function SplitBlock({
 
 // --- Play: the flow as a clean, interactive onboarding demo ---
 
-function FlowPhone({ placed }: { placed: Placed[] }) {
+function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
   // Stepped player: shows one beat at a time and plays the edge transition when
-  // advancing, so the flow's transitions are visible. Stepping is the right
-  // preview for a sequence of full-screen onboarding beats.
+  // advancing. Uses the same phone frame + chrome (orb / menu bar) as the build
+  // canvas so the preview and the editor read as the same screen.
+  const checkin = flowId.includes('checkin');
   const [step, setStep] = useState(0);
   const [advancing, setAdvancing] = useState(false);
 
@@ -1524,24 +1538,26 @@ function FlowPhone({ placed }: { placed: Placed[] }) {
     );
   };
 
-  const renderBeat = (item: Placed): ReactNode => (
-    <div
-      className="flex h-full flex-col gap-5 overflow-y-auto px-5 py-6"
-      style={{ background: '#f9f9f9' }}
-    >
-      {item.type === 'split'
-        ? (item.lanes ?? []).map((lane) => (
-            <div key={lane.id} className="flex flex-col gap-4">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-content-tertiary">
-                {lane.label}
-              </div>
-              {lane.items.map((it) => (
-                <div key={it.uid}>{renderComp(it)}</div>
-              ))}
+  const beatBody = (item: Placed): ReactNode =>
+    item.type === 'split' ? (
+      <div className="flex flex-col gap-5">
+        {(item.lanes ?? []).map((lane) => (
+          <div key={lane.id} className="flex flex-col gap-4">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-content-tertiary">
+              {lane.label}
             </div>
-          ))
-        : renderComp(item)}
-    </div>
+            {lane.items.map((it) => (
+              <div key={it.uid}>{renderComp(it)}</div>
+            ))}
+          </div>
+        ))}
+      </div>
+    ) : (
+      renderComp(item)
+    );
+
+  const screen = (item: Placed) => (
+    <PhoneScreenInner checkin={checkin}>{beatBody(item)}</PhoneScreenInner>
   );
 
   const beats = placed;
@@ -1573,12 +1589,11 @@ function FlowPhone({ placed }: { placed: Placed[] }) {
   const kind = current?.transition?.kind ?? 'dissolve';
 
   return (
-    <div className="flex w-[390px] max-w-full flex-col overflow-hidden rounded-[32px] border border-border bg-surface shadow-elevated">
-      <div className="flex items-center gap-2 border-b border-border-light px-5 py-4">
-        <Icon icon="ic:round-auto-awesome" className="size-5 text-primary" />
-        <span className="text-[15px] font-bold text-content">Coach</span>
-      </div>
-      <div className="relative overflow-hidden" style={{ height: 520 }}>
+    <div className="flex flex-col items-center gap-3">
+      <div
+        className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
+        style={{ width: PHONE_W, height: PHONE_H }}
+      >
         {beats.length === 0 ? (
           <div className="flex h-full items-center justify-center px-6 text-center text-[14px] text-content-tertiary">
             Nothing in the flow yet. Add beats in the middle.
@@ -1586,17 +1601,17 @@ function FlowPhone({ placed }: { placed: Placed[] }) {
         ) : next ? (
           <BeatTransition
             key={step}
-            first={renderBeat(current)}
-            second={renderBeat(next)}
+            first={screen(current)}
+            second={screen(next)}
             showSecond={advancing}
             kind={kind}
             durationMs={current?.transition?.durationMs ?? 600}
           />
         ) : (
-          <div className="absolute inset-0">{renderBeat(current)}</div>
+          screen(current)
         )}
       </div>
-      <div className="flex items-center justify-between gap-2 border-t border-border-light px-4 py-2.5">
+      <div className="flex items-center justify-between gap-2" style={{ width: PHONE_W }}>
         <button
           type="button"
           onClick={goBack}
@@ -1632,7 +1647,15 @@ function FlowPhone({ placed }: { placed: Placed[] }) {
   );
 }
 
-function PlayView({ placed, onExit }: { placed: Placed[]; onExit: () => void }) {
+function PlayView({
+  placed,
+  flowId,
+  onExit,
+}: {
+  placed: Placed[];
+  flowId: string;
+  onExit: () => void;
+}) {
   return (
     <div
       className="flex min-h-screen flex-col items-center gap-4 p-6"
@@ -1648,12 +1671,20 @@ function PlayView({ placed, onExit }: { placed: Placed[]; onExit: () => void }) 
           <Icon icon="ic:round-edit" className="size-4" /> Edit
         </button>
       </div>
-      <FlowPhone placed={placed} />
+      <FlowPhone placed={placed} flowId={flowId} />
     </div>
   );
 }
 
-function PlayPanel({ placed, onFullscreen }: { placed: Placed[]; onFullscreen: () => void }) {
+function PlayPanel({
+  placed,
+  flowId,
+  onFullscreen,
+}: {
+  placed: Placed[];
+  flowId: string;
+  onFullscreen: () => void;
+}) {
   return (
     <div className="sticky top-5 flex h-[calc(100vh-2.5rem)] w-[420px] shrink-0 flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -1669,7 +1700,7 @@ function PlayPanel({ placed, onFullscreen }: { placed: Placed[]; onFullscreen: (
         </button>
       </div>
       <div className="flex flex-1 justify-center overflow-y-auto rounded-2xl border border-border bg-page p-4">
-        <FlowPhone placed={placed} />
+        <FlowPhone placed={placed} flowId={flowId} />
       </div>
     </div>
   );
@@ -1936,7 +1967,7 @@ export function FlowBuilder() {
   };
 
   if (play) {
-    return <PlayView placed={placed} onExit={() => setPlay(false)} />;
+    return <PlayView placed={placed} flowId={flowId} onExit={() => setPlay(false)} />;
   }
 
   return (
@@ -2103,7 +2134,7 @@ export function FlowBuilder() {
           </div>
         </div>
 
-        <PlayPanel placed={placed} onFullscreen={() => setPlay(true)} />
+        <PlayPanel placed={placed} flowId={flowId} onFullscreen={() => setPlay(true)} />
       </div>
 
       <DragOverlay>
