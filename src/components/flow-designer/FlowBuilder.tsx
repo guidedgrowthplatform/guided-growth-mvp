@@ -680,7 +680,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
   { type: 'mood-row', beat: '9' },
 ];
 
-const STORAGE_KEY = 'gg-flow-builder-v8';
+const STORAGE_KEY = 'gg-flow-builder-v9';
 
 const buildDefault = (): Placed[] =>
   DEFAULT_FLOW.map((b) => ({
