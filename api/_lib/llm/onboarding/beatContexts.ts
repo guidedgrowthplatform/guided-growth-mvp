@@ -1,4 +1,7 @@
 import type { OnboardingToolName } from './schemas.js';
+// Synced content from Supabase (the synced-file model). Committed empty until the
+// first sync; sync_beat_contexts.py overwrites it. Overlaid onto the defaults below.
+import generatedBeatContent from './beatContexts.generated.json';
 
 // Beat-context store — the Direct-LLM source of truth for what the coach sees on
 // each onboarding beat. Two layers, both sent fresh every request (the LLM never
@@ -24,7 +27,7 @@ import type { OnboardingToolName } from './schemas.js';
  * Global onboarding context. Prepended to every onboarding request, above the
  * current beat's context. Keep it sharp; per-beat context overrides for the moment.
  */
-export const GLOBAL_ONBOARDING_CONTEXT = `You are the user's coach inside Guided Growth. This is the onboarding conversation: one continuous chat where you speak and interactive cards appear. Get the user set up while making them feel met, not processed.
+const DEFAULT_GLOBAL_ONBOARDING_CONTEXT = `You are the user's coach inside Guided Growth. This is the onboarding conversation: one continuous chat where you speak and interactive cards appear. Get the user set up while making them feel met, not processed.
 
 ## How this works
 - The conversation is a sequence of beats. Each beat gives you one thing to collect and how to behave right then. Follow the current beat. Do not do a later beat's work.
@@ -47,6 +50,11 @@ You are told which path is active. Match it.
 
 ## Privacy
 - The user is about to share real, sometimes vulnerable things. Protect that. Never read their email or account details back to them. Never say you are saving anything, and never narrate the system.`;
+
+// The Global Context the coach receives: the Supabase-synced value if the synced
+// file has one, else the hand-authored default above.
+export const GLOBAL_ONBOARDING_CONTEXT =
+  (generatedBeatContent as { global?: string | null }).global ?? DEFAULT_GLOBAL_ONBOARDING_CONTEXT;
 
 export interface BeatContext {
   // Cleaned, coach-voice beat copy. No forward pointers, no tool/route prose.
@@ -79,7 +87,7 @@ The user signs up or logs in by tapping (Apple, Google, or email). This is also 
 You already know the user's name from sign-in, so do not ask for it. Collect two things: their age and how they identify (gender). Accept voice or taps. If they give one, ask only for the other. Use their name once, warmly, early in this beat. Do not push on gender if they would rather not say. Do not ask how they heard about us.`,
     allowedTools: ['submit_profile', 'advance_step'],
     opener:
-      "Alright, a couple quick things so I can tailor this to you. How old are you, and how do you identify? You can say it or tap it in.",
+      'Alright, a couple quick things so I can tailor this to you. How old are you, and how do you identify? You can say it or tap it in.',
   },
 
   'ONBOARD-FORK--FORM': {
@@ -88,7 +96,7 @@ You already know the user's name from sign-in, so do not ask for it. Collect two
 Collect whether the user is new to habit tracking or already has habits they want to bring in. Route first-timers, people who tried and dropped off, or people who want guidance to beginner. Route users with an existing habit list or tracking system to advanced. If unclear, ask one short clarifying question.`,
     allowedTools: ['submit_path_choice', 'ask_clarification', 'advance_step'],
     opener:
-      "Quick question. Have you tracked habits before, or is this new for you? Either way is great. I just want to know the best way to guide you.",
+      'Quick question. Have you tracked habits before, or is this new for you? Either way is great. I just want to know the best way to guide you.',
   },
 
   'ONBOARD-BEGINNER-01': {
@@ -167,7 +175,7 @@ Collect the user's existing habits one at a time. For each habit, capture name, 
 Review the captured habits briefly and ask what needs changing before the plan is created. Suggest only small practical tweaks when something is clearly overloaded or vague. Accept confirmations, edits, and additions. Do not make the user defend habits they already use.`,
     allowedTools: ['update_habit', 'remove_habit', 'add_habit', 'advance_step'],
     opener:
-      "Here are the habits I pulled from what you shared. Take a look, keep them as they are, or want to change anything?",
+      'Here are the habits I pulled from what you shared. Take a look, keep them as they are, or want to change anything?',
   },
 
   'ONBOARD-ADVANCED-04': {
@@ -198,6 +206,25 @@ Show the final plan summary in plain language: habits, reflection setup, and sch
       "Here's what I put together from everything you shared. Want to start with this, or tweak anything first?",
   },
 };
+
+// Overlay Supabase-synced content (the synced file) onto the hand-authored beat
+// defaults: context + opener per beat. allowedTools stays code-owned. An empty
+// generated file (before the first sync) leaves the defaults unchanged.
+{
+  const generatedBeats =
+    (generatedBeatContent as { beats?: Record<string, { context?: string; opener?: string }> })
+      .beats ?? {};
+  for (const [screenId, gen] of Object.entries(generatedBeats)) {
+    const base = BEAT_CONTEXTS[screenId];
+    if (base && typeof gen.context === 'string') {
+      BEAT_CONTEXTS[screenId] = {
+        ...base,
+        context: gen.context,
+        ...(gen.opener !== undefined ? { opener: gen.opener } : {}),
+      };
+    }
+  }
+}
 
 export function getBeatContext(screenId: string): BeatContext | undefined {
   return BEAT_CONTEXTS[screenId];
@@ -236,5 +263,8 @@ export interface BeatContextMeta {
 export function getBeatContextMeta(screenId: string): BeatContextMeta | undefined {
   const b = BEAT_CONTEXTS[screenId];
   if (!b) return undefined;
-  return { bundleVersion: BEAT_CONTEXT_VERSION, contentHash: fnv1a(`${b.context}\n${b.opener ?? ''}`) };
+  return {
+    bundleVersion: BEAT_CONTEXT_VERSION,
+    contentHash: fnv1a(`${b.context}\n${b.opener ?? ''}`),
+  };
 }

@@ -1,0 +1,6 @@
+{
+  "_comment": "Auto-generated placeholder, overwritten by scripts/voice-sync/sync_beat_contexts.py. Empty until the first sync runs; beatContexts.ts overlays this (context + opener per beat, and the global) onto the hand-authored defaults. allowedTools is NOT here (code-owned).",
+  "bundleVersion": 2,
+  "global": null,
+  "beats": {}
+}
