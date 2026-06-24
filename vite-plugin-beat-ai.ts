@@ -94,10 +94,32 @@ export function beatAiPlugin(appRoot: string): Plugin {
             `Change to make: ${prompt}`,
           ].join('\n');
 
-          const useClaude = engine === 'claude';
+          const useClaude = engine === 'claude' || engine === 'claude-opus';
           const cmd = useClaude ? 'claude' : 'codex';
+          // Sonnet on the claude path: a one-beat edit is small and well-specified,
+          // so Sonnet matches Opus quality here and runs much faster. (engine:
+          // 'claude-opus' bumps to Opus if a beat ever needs heavier reasoning.)
+          const claudeModel = engine === 'claude-opus' ? 'opus' : 'sonnet';
+          // --setting-sources project skips the huge user-level CLAUDE.md (the
+          // second brain), which a scoped beat edit does not need and which alone
+          // added ~80s of startup. With MCP off too, claude -p drops from ~110s to
+          // ~20s. The instruction below carries everything the edit needs.
           const args = useClaude
-            ? ['-p', instruction, '--permission-mode', 'acceptEdits', '--add-dir', appRoot]
+            ? [
+                '-p',
+                instruction,
+                '--permission-mode',
+                'acceptEdits',
+                '--model',
+                claudeModel,
+                '--setting-sources',
+                'project',
+                '--strict-mcp-config',
+                '--mcp-config',
+                '{"mcpServers":{}}',
+                '--add-dir',
+                appRoot,
+              ]
             : ['exec', instruction, '--cd', appRoot, '--sandbox', 'workspace-write', '--skip-git-repo-check'];
 
           let out = '';
@@ -119,12 +141,19 @@ export function beatAiPlugin(appRoot: string): Plugin {
             });
           };
 
+          // Strip ANTHROPIC_API_KEY / AUTH_TOKEN so `claude -p` uses the OAuth Max
+          // subscription instead of an API key billed to the (empty) metered pool.
+          // Otherwise it fails with "Credit balance is too low".
+          const childEnv = { ...process.env };
+          delete childEnv.ANTHROPIC_API_KEY;
+          delete childEnv.ANTHROPIC_AUTH_TOKEN;
+
           // stdin: 'ignore' is critical. codex exec reads piped stdin and appends
           // it as a <stdin> block, so an open stdin pipe makes it hang waiting for
           // EOF. Giving it no stdin lets it run on the prompt arg alone (~20s).
           const child = spawn(cmd, args, {
             cwd: appRoot,
-            env: process.env,
+            env: childEnv,
             stdio: ['ignore', 'pipe', 'pipe'],
           });
           const killer = setTimeout(() => {

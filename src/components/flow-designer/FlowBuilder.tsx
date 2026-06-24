@@ -1345,7 +1345,7 @@ function SortableCard({
 // the beat. Dev-only; the /__beat-ai endpoint exists only when serving locally.
 function BeatAiBox({ type }: { type: string }) {
   const [prompt, setPrompt] = useState('');
-  const [engine, setEngine] = useState<'codex' | 'claude'>('codex');
+  const [engine, setEngine] = useState<'codex' | 'claude'>('claude');
   const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
   const [log, setLog] = useState('');
   if (!import.meta.env.DEV) return null;
@@ -1385,7 +1385,7 @@ function BeatAiBox({ type }: { type: string }) {
           ? 'Error'
           : engine === 'codex'
             ? 'Codex, free'
-            : 'Claude, metered';
+            : 'Claude';
 
   return (
     <div className="mt-1 flex flex-col gap-1.5 rounded-lg border border-primary/30 bg-primary/5 p-2">
