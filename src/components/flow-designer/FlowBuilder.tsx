@@ -91,7 +91,7 @@ function ProfileBeat() {
   const [gender, setGender] = useState<string | null>('Male');
   return (
     <div className="flex flex-col gap-4">
-      <ChatBubble role="ai" text="Welcome, Yair! How old are you, and what's your gender?" />
+      <ChatBubble role="ai" text="Great to have you here. How old are you and what's your gender?" />
       <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-4">
         <div>
           <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-content-tertiary">
