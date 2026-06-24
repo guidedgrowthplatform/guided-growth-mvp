@@ -1334,7 +1334,114 @@ function SortableCard({
             className="w-full resize-none rounded-md border border-border bg-page px-2 py-1.5 text-[11px] leading-[1.5] text-content"
           />
         </label>
+        <BeatAiBox type={item.type} />
       </div>
+    </div>
+  );
+}
+
+// Per-beat AI box: type a prompt, it runs the AI headless on this beat's file
+// (Codex by default, free via the ChatGPT login), the file edits, HMR reloads
+// the beat. Dev-only; the /__beat-ai endpoint exists only when serving locally.
+function BeatAiBox({ type }: { type: string }) {
+  const [prompt, setPrompt] = useState('');
+  const [engine, setEngine] = useState<'codex' | 'claude'>('codex');
+  const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
+  const [log, setLog] = useState('');
+  if (!import.meta.env.DEV) return null;
+
+  const send = async () => {
+    const p = prompt.trim();
+    if (!p || status === 'running') return;
+    setStatus('running');
+    setLog('');
+    try {
+      const res = await fetch('/__beat-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, prompt: p, engine }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setStatus('done');
+        setLog(data.summary || 'Updated. The beat reloads automatically.');
+        setPrompt('');
+      } else {
+        setStatus('error');
+        setLog(data.error || 'Failed.');
+      }
+    } catch (e) {
+      setStatus('error');
+      setLog(String(e));
+    }
+  };
+
+  const statusText =
+    status === 'running'
+      ? `${engine} is editing this beat...`
+      : status === 'done'
+        ? 'Done, reloading'
+        : status === 'error'
+          ? 'Error'
+          : engine === 'codex'
+            ? 'Codex, free'
+            : 'Claude, metered';
+
+  return (
+    <div className="mt-1 flex flex-col gap-1.5 rounded-lg border border-primary/30 bg-primary/5 p-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Icon icon="ic:round-auto-awesome" className="size-3.5 text-primary" />
+          <span className="text-[10px] font-bold uppercase tracking-wide text-primary">
+            Ask AI to edit this beat
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setEngine((e) => (e === 'codex' ? 'claude' : 'codex'))}
+          title="Switch engine"
+          className="rounded border border-border bg-page px-1.5 py-0.5 text-[9px] font-semibold uppercase text-content-tertiary"
+        >
+          {engine}
+        </button>
+      </div>
+      <textarea
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send();
+        }}
+        placeholder={'e.g. add a "great, thanks" coach line after the age picker'}
+        rows={2}
+        disabled={status === 'running'}
+        className="w-full resize-none rounded-md border border-border bg-page px-2 py-1.5 text-[11px] leading-[1.5] text-content disabled:opacity-60"
+      />
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className={`text-[10px] ${
+            status === 'error'
+              ? 'text-danger'
+              : status === 'done'
+                ? 'text-emerald-600'
+                : 'text-content-tertiary'
+          }`}
+        >
+          {statusText}
+        </span>
+        <button
+          type="button"
+          onClick={send}
+          disabled={status === 'running' || !prompt.trim()}
+          className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
+        >
+          {status === 'running' ? 'Working...' : 'Send'}
+        </button>
+      </div>
+      {log && (
+        <div className="max-h-20 overflow-auto whitespace-pre-wrap rounded bg-page/70 px-2 py-1 text-[10px] leading-snug text-content-tertiary">
+          {log}
+        </div>
+      )}
     </div>
   );
 }

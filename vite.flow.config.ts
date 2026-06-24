@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
+import { beatAiPlugin } from './vite-plugin-beat-ai';
 
 /**
  * Standalone build for the chat-native onboarding FlowDesigner.
@@ -18,7 +19,7 @@ const APP = __dirname;
 export default defineConfig(({ command }) => ({
   base: '/onboarding-flow/',
   publicDir: command === 'serve' ? path.resolve(APP, 'public') : false,
-  plugins: [react()],
+  plugins: [react(), beatAiPlugin(APP)],
   resolve: {
     alias: {
       '@': path.resolve(APP, 'src'),
