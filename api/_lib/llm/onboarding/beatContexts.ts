@@ -207,3 +207,34 @@ export function getBeatContext(screenId: string): BeatContext | undefined {
 export function getBeatAllowedTools(screenId: string): readonly OnboardingToolName[] | undefined {
   return BEAT_CONTEXTS[screenId]?.allowedTools;
 }
+
+// --- Versioning -------------------------------------------------------------
+// Per-beat content hash + one bundle version (BEAT_CONTEXT_VERSION). Surfaced to
+// the client for cache-busting + telemetry, the way screen_contexts.version was.
+// A user is pinned to the version they started on (snapshot at session start),
+// so a mid-flow content edit never yanks them. When this file is synced from
+// Supabase, the hash/version travel with each row; for hand-authored content the
+// hash is computed here so it is always correct.
+
+/** Stable FNV-1a hash (deterministic, no crypto dep) of a beat's editable copy. */
+function fnv1a(input: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+export interface BeatContextMeta {
+  /** The whole-bundle version, bumped on any meaningful change. */
+  bundleVersion: number;
+  /** Hash of this beat's editable content (context + opener) — changes when copy changes. */
+  contentHash: string;
+}
+
+export function getBeatContextMeta(screenId: string): BeatContextMeta | undefined {
+  const b = BEAT_CONTEXTS[screenId];
+  if (!b) return undefined;
+  return { bundleVersion: BEAT_CONTEXT_VERSION, contentHash: fnv1a(`${b.context}\n${b.opener ?? ''}`) };
+}
