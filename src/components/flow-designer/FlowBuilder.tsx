@@ -37,16 +37,10 @@ import { HabitListItem } from '@/components/home/HabitListItem';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { QuickActionCards } from '@/components/home/QuickActionCards';
 import { AgeScrollPicker } from '@/components/onboarding/AgeScrollPicker';
-import { CategoryCard } from '@/components/onboarding/CategoryCard';
-import { DailyReflectionCard } from '@/components/onboarding/DailyReflectionCard';
-import { GoalCard } from '@/components/onboarding/GoalCard';
-import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
-import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { SchedulePicker, type ScheduleOption } from '@/components/onboarding/SchedulePicker';
-import { SelectionCard } from '@/components/onboarding/SelectionCard';
 import { Button } from '@/components/ui/Button';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { DayPicker } from '@/components/ui/DayPicker';
@@ -66,7 +60,6 @@ import {
   type BeatTransitionKind,
 } from '@/components/welcome/BeatTransition';
 import { COACH_BG, USER_BG } from '@/components/welcome/beatMood';
-import { SplashIntro } from '@/components/welcome/SplashIntro';
 
 /**
  * FlowBuilder — two buckets. Left: every real component. Right: the flow.
@@ -128,141 +121,6 @@ const applyName = (
 // The step kit (BeatStep, BeatPlayer, Karaoke) is in ./beatKit. The registry below
 // merges in everything from ./beats automatically. See beats/README.md.
 
-const CATS = [
-  { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
-  { label: 'Move more', image: '/images/onboarding/move-more.jpg' },
-  { label: 'Eat better', image: '/images/onboarding/eat-better.png' },
-  { label: 'Feel more energized', image: '/images/onboarding/feel-more-energized.png' },
-  { label: 'Reduce stress', image: '/images/onboarding/reduce-stress.png' },
-  { label: 'Improve focus', image: '/images/onboarding/improve-focus.jpg' },
-  { label: 'Break bad habits', image: '/images/onboarding/break-bad-habits.png' },
-  { label: 'Get more organized', image: '/images/onboarding/get-more-organized.png' },
-];
-
-function CategoryGrid() {
-  const [sel, setSel] = useState('Sleep better');
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {CATS.map((c) => (
-        <CategoryCard
-          key={c.label}
-          image={c.image}
-          label={c.label}
-          selected={sel === c.label}
-          onSelect={() => setSel(c.label)}
-        />
-      ))}
-    </div>
-  );
-}
-
-function GoalsList() {
-  const goals = [
-    'Fall asleep earlier',
-    'Wake up earlier',
-    'Sleep more consistently',
-    'Sleep more deeply',
-  ];
-  const [sel, setSel] = useState<Set<string>>(new Set(['Fall asleep earlier']));
-  return (
-    <div className="flex flex-col gap-3">
-      {goals.map((g) => (
-        <GoalCard
-          key={g}
-          label={g}
-          selected={sel.has(g)}
-          onToggle={() =>
-            setSel((p) => {
-              const n = new Set(p);
-              if (n.has(g)) n.delete(g);
-              else n.add(g);
-              return n;
-            })
-          }
-        />
-      ))}
-    </div>
-  );
-}
-
-function HabitPicker() {
-  const [expanded, setExpanded] = useState(true);
-  const [sel, setSel] = useState<Set<string>>(new Set(['No screens after 10 PM']));
-  const habits = [
-    'No caffeine after 2 PM',
-    'No screens after 10 PM',
-    'Start wind-down by 10 PM',
-    'Be in bed by target bedtime',
-  ];
-  return (
-    <HabitPickerPanel
-      goal="Fall asleep earlier"
-      habits={habits}
-      expanded={expanded}
-      onToggleExpanded={() => setExpanded((v) => !v)}
-      selectedHabits={sel}
-      onToggleHabit={(h) =>
-        setSel((p) => {
-          const n = new Set(p);
-          if (n.has(h)) n.delete(h);
-          else n.add(h);
-          return n;
-        })
-      }
-      onAddCustomHabit={(h) => setSel((p) => new Set(p).add(h))}
-    />
-  );
-}
-
-function ReflectionCard() {
-  const [time, setTime] = useState('21:30');
-  const [days, setDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
-  const [reminder, setReminder] = useState(true);
-  const [schedule, setSchedule] = useState<ScheduleOption>('Every day');
-  return (
-    <DailyReflectionCard
-      time={time}
-      onTimeChange={setTime}
-      days={days}
-      onToggleDay={(d) =>
-        setDays((p) => {
-          const n = new Set(p);
-          if (n.has(d)) n.delete(d);
-          else n.add(d);
-          return n;
-        })
-      }
-      reminder={reminder}
-      onToggleReminder={setReminder}
-      schedule={schedule}
-      onScheduleChange={setSchedule}
-    />
-  );
-}
-
-function PlanCards() {
-  return (
-    <div className="flex flex-col gap-3">
-      <PlanSummaryCard
-        icon="mdi:bed-outline"
-        typeLabel="Habit"
-        title="No screens after 10 PM"
-        cadence="Every day"
-        rule="10:00 PM"
-        onEdit={() => {}}
-      />
-      <PlanSummaryCard
-        icon="mdi:notebook-outline"
-        typeLabel="Journal"
-        title="Daily Reflection"
-        cadence="Every day"
-        rule="3 questions"
-        onEdit={() => {}}
-      />
-    </div>
-  );
-}
-
 function MoodRow() {
   const mood = checkInDimensions.find((d) => d.key === 'mood')!;
   const [sel, setSel] = useState<number | null>(4);
@@ -278,28 +136,6 @@ function MoodRow() {
           onClick={() => setSel(o.value)}
         />
       ))}
-    </div>
-  );
-}
-
-function PathSelection() {
-  const [sel, setSel] = useState('new');
-  return (
-    <div className="flex flex-col gap-3">
-      <SelectionCard
-        icon="mdi:sparkles"
-        title="I'm new to habit tracking"
-        description="I'll help you step by step"
-        selected={sel === 'new'}
-        onSelect={() => setSel('new')}
-      />
-      <SelectionCard
-        icon="mdi:lightning-bolt"
-        title="I already track habits"
-        description="Tell me your habits and I'll organize them"
-        selected={sel === 'exp'}
-        onSelect={() => setSel('exp')}
-      />
     </div>
   );
 }
@@ -449,153 +285,9 @@ function TypingDots() {
   return <TypingIndicator />;
 }
 
-function AuthSignup() {
-  const [mode, setMode] = useState<'default' | 'signup' | 'login'>('default');
-  const [first, setFirst] = useState('');
-  const [last, setLast] = useState('');
-  const [email, setEmail] = useState('');
-  const [pw, setPw] = useState('');
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="text-[26px] font-bold text-primary">
-        {mode === 'login' ? 'Welcome back' : 'Create your account'}
-      </div>
-      <div className="space-y-3">
-        <Button variant="social-dark" size="auth-slim" fullWidth>
-          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-          </svg>
-          Continue with Apple
-        </Button>
-        <Button variant="social-light" size="auth-slim" fullWidth>
-          <svg className="h-5 w-5" viewBox="0 0 24 24">
-            <path
-              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-              fill="#4285F4"
-            />
-            <path
-              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              fill="#34A853"
-            />
-            <path
-              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z"
-              fill="#FBBC05"
-            />
-            <path
-              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-              fill="#EA4335"
-            />
-          </svg>
-          Continue with Google
-        </Button>
-      </div>
-      {mode === 'signup' && (
-        <div className="flex flex-col gap-2.5">
-          <div className="flex items-center gap-2 text-[13px] text-content-tertiary">
-            <span className="h-px flex-1 bg-border" />
-            sign up with email
-            <span className="h-px flex-1 bg-border" />
-          </div>
-          <OnboardingInput
-            icon="mdi:account-outline"
-            placeholder="First name"
-            value={first}
-            onChange={setFirst}
-          />
-          <OnboardingInput
-            icon="mdi:account-outline"
-            placeholder="Last name"
-            value={last}
-            onChange={setLast}
-          />
-          <OnboardingInput
-            icon="mdi:email-outline"
-            placeholder="Email"
-            value={email}
-            onChange={setEmail}
-          />
-          <OnboardingInput
-            icon="mdi:lock-outline"
-            placeholder="Password"
-            value={pw}
-            onChange={setPw}
-          />
-          <Button variant="primary" size="auth-slim" fullWidth>
-            Create account
-          </Button>
-        </div>
-      )}
-      {mode === 'login' && (
-        <div className="flex flex-col gap-2.5">
-          <div className="flex items-center gap-2 text-[13px] text-content-tertiary">
-            <span className="h-px flex-1 bg-border" />
-            log in with email
-            <span className="h-px flex-1 bg-border" />
-          </div>
-          <OnboardingInput
-            icon="mdi:email-outline"
-            placeholder="Email"
-            value={email}
-            onChange={setEmail}
-          />
-          <OnboardingInput
-            icon="mdi:lock-outline"
-            placeholder="Password"
-            value={pw}
-            onChange={setPw}
-          />
-          <Button variant="primary" size="auth-slim" fullWidth>
-            Log in
-          </Button>
-        </div>
-      )}
-      {mode === 'default' && (
-        <Button variant="primary" size="auth-slim" fullWidth onClick={() => setMode('signup')}>
-          Sign up with email
-        </Button>
-      )}
-      <div className="text-center text-[13px] text-content-secondary">
-        {mode === 'login' ? (
-          <>
-            New here?{' '}
-            <button
-              type="button"
-              onClick={() => setMode('signup')}
-              className="font-semibold text-primary"
-            >
-              Sign up
-            </button>
-          </>
-        ) : (
-          <>
-            Already have an account?{' '}
-            <button
-              type="button"
-              onClick={() => setMode('login')}
-              className="font-semibold text-primary"
-            >
-              Log in
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function AgePicker() {
   const [age, setAge] = useState<number | ''>(28);
   return <AgeScrollPicker value={age} onChange={setAge} />;
-}
-
-function SplashIntroPreview() {
-  return (
-    <div
-      style={{ position: 'relative', width: '100%', height: 560, overflow: 'hidden', borderRadius: 24 }}
-    >
-      <SplashIntro loop />
-    </div>
-  );
 }
 
 // --- Registry ---
