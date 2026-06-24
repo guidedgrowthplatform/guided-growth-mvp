@@ -59,7 +59,7 @@ export function StreakCalendarGrid({ data }: StreakCalendarGridProps) {
           {row.map((cell, ci) => (
             <div
               key={`c-${wi}-${ci}`}
-              className={`flex aspect-square items-center justify-center rounded-md ${cellClass(cell.status)}`}
+              className={`flex aspect-square items-center justify-center rounded-sm ${cellClass(cell.status)}`}
             >
               {(cell.status === 'done' || cell.status === 'today-done') && (
                 <Check size={14} className="text-white" />
