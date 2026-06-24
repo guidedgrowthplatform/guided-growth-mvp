@@ -11,7 +11,7 @@ vi.mock('../rate-limit.js', () => ({
 
 const auth = await import('../auth.js');
 const rateLimit = await import('../rate-limit.js');
-const handler = (await import('../../soniox-temp-key.js')).default;
+const handler = (await import('../../cartesia-token.js')).default;
 
 function mockRes() {
   const res: Partial<VercelResponse> & { _status: number; _body: unknown } = {
@@ -52,7 +52,7 @@ beforeEach(() => {
   });
   vi.stubEnv('NODE_ENV', 'test');
   vi.stubEnv('AUTH_BYPASS_MODE', '');
-  vi.stubEnv('SONIOX_API_KEY', 'real-secret-key');
+  vi.stubEnv('CARTESIA_API_KEY', 'real-secret-key');
 });
 
 afterEach(() => {
@@ -61,7 +61,7 @@ afterEach(() => {
   process.env = { ...ORIG_ENV };
 });
 
-describe('POST /api/soniox-temp-key', () => {
+describe('POST /api/cartesia-token', () => {
   it('returns 405 on GET and never checks rate limit', async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
@@ -126,10 +126,10 @@ describe('POST /api/soniox-temp-key', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('mints a temp key and returns { apiKey, expiresAt }', async () => {
+  it('mints an access token and returns { accessToken, expiresIn }', async () => {
     const fetchSpy = vi.fn(async () => ({
       ok: true,
-      json: async () => ({ api_key: 'temp:abc', expires_at: '2026-05-29T00:00:00Z' }),
+      json: async () => ({ token: 'ct_abc' }),
     }));
     vi.stubGlobal('fetch', fetchSpy);
     const req = mockReq();
@@ -137,20 +137,32 @@ describe('POST /api/soniox-temp-key', () => {
     await handler(req, res);
 
     expect(res._status).toBe(200);
-    expect(res._body).toEqual({ apiKey: 'temp:abc', expiresAt: '2026-05-29T00:00:00Z' });
+    expect(res._body).toEqual({ accessToken: 'ct_abc', expiresIn: 60 });
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     const sentBody = JSON.parse(init.body as string);
-    expect(sentBody.usage_type).toBe('transcribe_websocket');
-    expect(sentBody.single_use).toBe(true);
-    expect(sentBody.client_reference_id).toBeUndefined();
+    expect(sentBody.grants).toEqual({ tts: true });
   });
 
-  it('returns 502 when Soniox responds ok but without an api_key', async () => {
+  it('falls back to access_token when the mint names the field that way', async () => {
     const fetchSpy = vi.fn(async () => ({
       ok: true,
-      json: async () => ({ expires_at: '2026-05-29T00:00:00Z' }),
+      json: async () => ({ access_token: 'ct_xyz' }),
+    }));
+    vi.stubGlobal('fetch', fetchSpy);
+    const req = mockReq();
+    const res = mockRes();
+    await handler(req, res);
+
+    expect(res._status).toBe(200);
+    expect(res._body).toEqual({ accessToken: 'ct_xyz', expiresIn: 60 });
+  });
+
+  it('returns 502 when Cartesia responds ok but without a token', async () => {
+    const fetchSpy = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({}),
     }));
     vi.stubGlobal('fetch', fetchSpy);
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -159,15 +171,15 @@ describe('POST /api/soniox-temp-key', () => {
     await handler(req, res);
 
     expect(res._status).toBe(502);
-    expect(res._body).toEqual({ error: 'STT temp key failed' });
+    expect(res._body).toEqual({ error: 'TTS token failed' });
     errSpy.mockRestore();
   });
 
-  it('returns 502 on Soniox non-OK and does not leak the raw body', async () => {
+  it('returns 502 on Cartesia non-OK and does not leak the raw body', async () => {
     const fetchSpy = vi.fn(async () => ({
       ok: false,
       status: 401,
-      text: async () => 'soniox-secret-error-detail',
+      text: async () => 'cartesia-secret-error-detail',
     }));
     vi.stubGlobal('fetch', fetchSpy);
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -176,8 +188,8 @@ describe('POST /api/soniox-temp-key', () => {
     await handler(req, res);
 
     expect(res._status).toBe(502);
-    expect(res._body).toEqual({ error: 'STT temp key failed' });
-    expect(JSON.stringify(res._body)).not.toContain('soniox-secret-error-detail');
+    expect(res._body).toEqual({ error: 'TTS token failed' });
+    expect(JSON.stringify(res._body)).not.toContain('cartesia-secret-error-detail');
     errSpy.mockRestore();
   });
 });
