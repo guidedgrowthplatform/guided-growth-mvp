@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAuthUserNoDb, handlePreflight } from './_lib/auth.js';
+import { requireUserNoDb, handlePreflight } from './_lib/auth.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
 
 const CARTESIA_TOKEN_URL = 'https://api.cartesia.ai/access-token';
@@ -18,9 +18,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     process.env.AUTH_BYPASS_MODE === 'true' && process.env.NODE_ENV !== 'production';
   let rateLimitKey = 'anonymous';
   if (!bypassAuth) {
-    const user = await getAuthUserNoDb(req);
-    if (!user) return res.status(401).json({ error: 'Authentication required' });
-    if (user.status === 'disabled') return res.status(403).json({ error: 'Account disabled' });
+    const user = await requireUserNoDb(req, res);
+    if (!user) return;
     rateLimitKey = user.authUserId;
   }
 

@@ -11,7 +11,7 @@ vi.mock('../db.js', () => ({
   default: { query: (...args: unknown[]) => queryMock(...args) },
 }));
 
-const { requireUser } = await import('../auth.js');
+const { requireUser, requireUserNoDb } = await import('../auth.js');
 
 // base64url JWT with given exp (seconds); signature unused (only payload decoded)
 function makeToken(exp: number): string {
@@ -208,5 +208,111 @@ describe('requireUser auth classification', () => {
         status: 'active',
       }),
     );
+  });
+});
+
+describe('requireUserNoDb auth classification (no profiles query)', () => {
+  afterEach(() => {
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
+  it('missing Authorization header -> 401 no_token', async () => {
+    const res = mockRes();
+    const out = await requireUserNoDb(mockReq(), res);
+
+    expect(out).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'no_token' }));
+    expect(getUserMock).not.toHaveBeenCalled();
+  });
+
+  it('expired JWT (exp in past, getUser rejects) -> 401 token_expired', async () => {
+    getUserMock.mockResolvedValue({ data: { user: null }, error: new AuthApiError() });
+
+    const res = mockRes();
+    const out = await requireUserNoDb(authedReq(PAST_EXP), res);
+
+    expect(out).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'token_expired' }));
+  });
+
+  it('malformed/invalid token (AuthApiError, exp in future) -> 401 invalid_token', async () => {
+    getUserMock.mockResolvedValue({ data: { user: null }, error: new AuthApiError() });
+
+    const res = mockRes();
+    const out = await requireUserNoDb(authedReq(FUTURE_EXP), res);
+
+    expect(out).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'invalid_token' }));
+  });
+
+  it('AuthRetryableFetchError -> 503 auth_unavailable', async () => {
+    getUserMock.mockResolvedValue({
+      data: { user: null },
+      error: new AuthRetryableFetchError(),
+    });
+
+    const res = mockRes();
+    const out = await requireUserNoDb(authedReq(FUTURE_EXP), res);
+
+    expect(out).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'auth_unavailable' }));
+  });
+
+  it('getUser throws (network) -> 503 auth_unavailable', async () => {
+    getUserMock.mockRejectedValue(new Error('socket hang up'));
+
+    const res = mockRes();
+    const out = await requireUserNoDb(authedReq(FUTURE_EXP), res);
+
+    expect(out).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'auth_unavailable' }));
+  });
+
+  it('error with no http status -> 503 auth_unavailable', async () => {
+    getUserMock.mockResolvedValue({
+      data: { user: null },
+      error: { name: 'WeirdError', message: 'no status' },
+    });
+
+    const res = mockRes();
+    const out = await requireUserNoDb(authedReq(FUTURE_EXP), res);
+
+    expect(out).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'auth_unavailable' }));
+  });
+
+  it('disabled status -> 403 (still no profiles query)', async () => {
+    getUserMock.mockResolvedValue({
+      data: { user: { id: 'u1', email: 'a@b.co', app_metadata: { status: 'disabled' } } },
+      error: null,
+    });
+
+    const res = mockRes();
+    const out = await requireUserNoDb(authedReq(FUTURE_EXP), res);
+
+    expect(out).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Account disabled' });
+  });
+
+  it('happy path -> returns { authUserId, status } without touching the DB', async () => {
+    getUserMock.mockResolvedValue({
+      data: {
+        user: { id: 'u1', email: 'a@b.co', app_metadata: { role: 'user', status: 'active' } },
+      },
+      error: null,
+    });
+
+    const res = mockRes();
+    const out = await requireUserNoDb(authedReq(FUTURE_EXP), res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    expect(out).toEqual({ authUserId: 'u1', status: 'active' });
   });
 });
