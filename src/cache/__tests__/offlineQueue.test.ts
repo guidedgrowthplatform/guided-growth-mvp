@@ -89,8 +89,16 @@ describe('offlineQueue', () => {
     expect(offlineQueue.length).toBe(0);
   });
 
-  it('flush requeues on 401/403 — never drops user writes on an auth blip', async () => {
+  it('flush requeues on 401 — never drops user writes on an auth blip', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }));
+
+    offlineQueue.enqueue('/api/entries/2026-03-15', 'PUT', { m1: 'yes' });
+    await offlineQueue.flush();
+    expect(offlineQueue.length).toBe(1);
+  });
+
+  it('flush requeues on 403 — never drops user writes on an auth blip', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403 }));
 
     offlineQueue.enqueue('/api/entries/2026-03-15', 'PUT', { m1: 'yes' });
     await offlineQueue.flush();

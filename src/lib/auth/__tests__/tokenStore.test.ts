@@ -118,10 +118,31 @@ describe('tokenStore', () => {
     await expect(getFreshToken()).resolves.toBe('stale');
   });
 
-  it('refreshSession throws (network) → keeps current token, not terminal', async () => {
+  it('refreshSession throws (network) → transient; getFreshToken keeps current token', async () => {
     setSession(sessionWithExpiry('stale', 10) as never);
     refreshSessionMock.mockRejectedValue(new Error('network'));
 
-    await expect(refreshOnce()).resolves.toBe('stale');
+    await expect(refreshOnce()).resolves.toEqual({ status: 'transient' });
+    await expect(getFreshToken()).resolves.toBe('stale');
+  });
+
+  it('refreshOnce → refreshed result carrying the new token', async () => {
+    setSession(sessionWithExpiry('stale', 10) as never);
+    refreshSessionMock.mockResolvedValue({
+      data: { session: { access_token: 'fresh' } },
+      error: null,
+    });
+
+    await expect(refreshOnce()).resolves.toEqual({ status: 'refreshed', token: 'fresh' });
+  });
+
+  it('refreshOnce → terminal on a rejected refresh token (4xx)', async () => {
+    setSession(sessionWithExpiry('stale', 10) as never);
+    refreshSessionMock.mockResolvedValue({
+      data: { session: null },
+      error: { name: 'AuthApiError', status: 401 },
+    });
+
+    await expect(refreshOnce()).resolves.toEqual({ status: 'terminal' });
   });
 });
