@@ -22,6 +22,10 @@ const envString = (raw: string | undefined, fallback: string): string => {
 // Env-backed kill-switch; voice-in only. Remove once stable in prod.
 export const VOICE_IN_ENABLED = import.meta.env.VITE_STATE3_ENABLED === 'true';
 
+// ─── Onboarding chat-native Vapi (full-duplex) ──────────────────────────────
+// Gates Vapi full-duplex on the single-page chat onboarding. Off unless set.
+export const ONBOARDING_CHAT_VAPI = import.meta.env.VITE_ONBOARDING_CHAT_VAPI === 'true';
+
 // ─── Vapi (Path 1) daily cap ────────────────────────────────────────────────
 // Test override; gg-spec UX-12 says 5. Revert before launch.
 export const VAPI_DAILY_CAP = envNumber(import.meta.env.VITE_VAPI_DAILY_CAP, 25);
