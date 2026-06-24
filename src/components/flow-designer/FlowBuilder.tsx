@@ -949,7 +949,7 @@ function BeatConnector({
   const kind = transition?.kind ?? 'dissolve';
   const durationMs = transition?.durationMs ?? 600;
   return (
-    <div className="ml-[150px] flex flex-col items-center gap-1">
+    <div className="ml-[85px] flex flex-col items-center gap-1">
       <div className="h-3 w-px bg-border" />
       <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 shadow-card">
         <Icon icon="ic:round-bolt" className="size-3.5 text-primary" />
@@ -980,16 +980,108 @@ function BeatConnector({
   );
 }
 
+// The voice orb that sits on the bottom of every beat screen. Static here (both
+// halves blue, the locked unified-dial look); the real DualButton drives it.
+function BeatOrb({ size = 56 }: { size?: number }) {
+  const glyph = Math.round(size * 0.3);
+  return (
+    <DualButton
+      size={size}
+      leftActive
+      rightActive
+      leftIcon={<Icon icon="solar:chat-round-line-bold" className="text-white" width={glyph} />}
+      rightIcon={<Icon icon="ic:round-mic-off" className="text-white" width={glyph} />}
+      ariaLabel="Voice orb"
+    />
+  );
+}
+
+// Presentation-only replica of the app's bottom nav (the real one is router +
+// context bound and would crash standalone). The orb sits in the center notch.
+// This is the menu bar on the bottom of every check-in screen.
+function BuilderBottomNav() {
+  const tab = (icon: string, label: string, active = false) => (
+    <div
+      className={`flex flex-col items-center justify-end ${active ? 'text-primary' : 'text-content-tertiary'}`}
+    >
+      <Icon icon={icon} width={22} />
+      <span className="mt-0.5 text-[10px] font-bold">{label}</span>
+    </div>
+  );
+  return (
+    <div className="relative" style={{ height: 64 }}>
+      <div
+        className="absolute inset-0 flex"
+        style={{ filter: 'drop-shadow(0px -4px 12px rgba(0,0,0,0.06))' }}
+      >
+        <div className="h-full flex-1 bg-surface" />
+        <svg
+          className="block h-full shrink-0 text-surface"
+          width="120"
+          height="64"
+          viewBox="0 0 140 72"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0 L14 0 C17 0, 19 1, 20 4 C20 28, 42 50, 70 50 C98 50, 120 28, 120 4 C121 1, 123 0, 126 0 L140 0 L140 72 L0 72 Z"
+            fill="currentColor"
+          />
+        </svg>
+        <div className="h-full flex-1 bg-surface" />
+      </div>
+      <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2">
+        <BeatOrb size={52} />
+      </div>
+      <div className="relative grid h-full grid-cols-5 items-end px-4 pb-2">
+        {tab('ic:round-home', 'Home', true)}
+        {tab('ic:round-leaderboard', 'Progress')}
+        <div />
+        {tab('mingcute:stopwatch-fill', 'Focus')}
+        {tab('ic:round-person', 'Profile')}
+      </div>
+    </div>
+  );
+}
+
+// A phone-screen-sized frame for one beat. The beat content scrolls in the top
+// area; the bottom is the orb (every flow) or the full menu bar (check-in flows).
+function PhoneScreenFrame({ children, checkin }: { children: ReactNode; checkin: boolean }) {
+  return (
+    <div
+      className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
+      style={{ width: 300, height: 620 }}
+    >
+      <div
+        className="absolute inset-x-0 top-0 overflow-y-auto px-4 pt-6 [transform:translateZ(0)]"
+        style={{ bottom: checkin ? 64 : 84 }}
+      >
+        {children}
+      </div>
+      <div className="absolute inset-x-0 bottom-0">
+        {checkin ? (
+          <BuilderBottomNav />
+        ) : (
+          <div className="flex justify-center pb-5 pt-2">
+            <BeatOrb size={58} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SortableCard({
   item,
   onRemove,
   onUpdate,
   sheetBeats,
+  checkin,
 }: {
   item: Placed;
   onRemove: () => void;
   onUpdate: (patch: Partial<Placed>) => void;
   sheetBeats: { stage: string; suggested: string }[];
+  checkin: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.uid,
@@ -1008,8 +1100,8 @@ function SortableCard({
 
   return (
     <div ref={setNodeRef} style={style} className="group flex items-start gap-3">
-      {/* The beat card: component plus optional text editor */}
-      <div className="relative w-[380px] shrink-0">
+      {/* The beat card: a phone-screen frame plus optional text editor */}
+      <div className="relative w-[300px] shrink-0">
         <div className="absolute -top-2 right-1 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
           {fields && (
             <button
@@ -1067,9 +1159,9 @@ function SortableCard({
           </div>
         )}
 
-        <div className="overflow-hidden [transform:translateZ(0)]">
+        <PhoneScreenFrame checkin={checkin}>
           {entry ? createElement(entry.Comp, item.props) : null}
-        </div>
+        </PhoneScreenFrame>
       </div>
 
       {/* Metadata sidecar: beat number, coach line, sheet link, context. The
@@ -1992,6 +2084,7 @@ export function FlowBuilder() {
                           onRemove={() => remove(item.uid)}
                           onUpdate={(patch) => update(item.uid, patch)}
                           sheetBeats={beats ?? []}
+                          checkin={flowId.includes('checkin')}
                         />
                       )}
                       {i < placed.length - 1 && (
