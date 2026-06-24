@@ -54,7 +54,7 @@ export function VoiceCapModal() {
             <Icon
               icon="material-symbols:check-circle-outline"
               width={18}
-              className="mt-[2px] shrink-0 text-success"
+              className="mt-[2px] shrink-0 text-primary"
             />
             <span>
               <strong className="font-semibold">Check-ins</strong> — morning and evening still use voice.

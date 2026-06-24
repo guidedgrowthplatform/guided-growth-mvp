@@ -58,7 +58,7 @@ export function DailyReflectionCard({
           </span>
           {QUESTIONS.map((q) => (
             <div key={q} className="flex items-center gap-[8px]">
-              <Icon icon="ic:outline-check-circle" className="size-[17px] shrink-0 text-success" />
+              <Icon icon="ic:outline-check-circle" className="size-[17px] shrink-0 text-primary" />
               <span className="text-[16px] font-medium text-content-subtle">{q}</span>
             </div>
           ))}

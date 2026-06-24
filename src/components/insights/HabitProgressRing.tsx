@@ -47,7 +47,7 @@ export function HabitProgressRing({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="rgb(var(--color-success))"
+          stroke="rgb(var(--color-primary))"
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
