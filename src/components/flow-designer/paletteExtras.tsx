@@ -20,6 +20,7 @@ import { ReflectionCard as HabitDetailReflectionCard } from '@/components/habit-
 import { StatsGrid } from '@/components/habit-detail/StatsGrid';
 import { StreakCalendarGrid } from '@/components/habit-detail/StreakCalendarGrid';
 import { StreakCard } from '@/components/habit-detail/StreakCard';
+import { WeeklyHabitsSummary } from '@/components/habit-detail/WeeklyHabitsSummary';
 import { checkInDimensions } from '@/components/home/checkInConfig';
 import { EmojiOptionButton } from '@/components/home/EmojiOptionButton';
 import { FeedbackButton } from '@/components/home/FeedbackButton';
@@ -237,6 +238,23 @@ function HabitDetailReflectionPreview() {
 
 function StatsGridPreview() {
   return <StatsGrid completionRate={82} currentStreak={6} longestStreak={14} failedDays={3} />;
+}
+
+function WeeklyHabitsSummaryPreview() {
+  return (
+    <WeeklyHabitsSummary
+      overallPercent={76}
+      overallDone={26}
+      overallScheduled={34}
+      rows={[
+        { name: 'Morning walk', cells: ['done', 'done', 'missed', 'done', 'done', 'off', 'done'], done: 5, scheduled: 6 },
+        { name: 'No screens after 10 PM', cells: ['done', 'missed', 'done', 'done', 'done', 'done', 'done'], done: 6, scheduled: 7 },
+        { name: 'Drink water', cells: ['done', 'done', 'done', 'missed', 'done', 'done', 'missed'], done: 5, scheduled: 7 },
+        { name: '10 minute stretch', cells: ['off', 'done', 'off', 'done', 'off', 'done', 'off'], done: 3, scheduled: 3 },
+        { name: 'Read before bed', cells: ['done', 'missed', 'missed', 'done', 'done', 'off', 'off'], done: 3, scheduled: 5 },
+      ]}
+    />
+  );
 }
 
 const STATIC_CAL: CalendarCell[][] = (() => {
@@ -668,6 +686,7 @@ export const EXTRA_REGISTRY: PaletteEntry[] = [
   { type: 'streak-calendar-grid', group: 'Habit', label: 'Streak calendar', Comp: StreakCalendarGridPreview },
   { type: 'streak-card', group: 'Habit', label: 'Streak card', Comp: StreakCardPreview },
   { type: 'day-schedule-pills', group: 'Habit', label: 'Day schedule pills', Comp: DaySchedulePillsPreview },
+  { type: 'weekly-habits-summary', group: 'Habit', label: 'Weekly habits (squares)', Comp: WeeklyHabitsSummaryPreview },
   { type: 'milestone-badge', group: 'Habit', label: 'Milestone badge', Comp: MilestoneBadgePreview },
   { type: 'milestones-section', group: 'Habit', label: 'Milestones', Comp: MilestonesSectionPreview },
 
