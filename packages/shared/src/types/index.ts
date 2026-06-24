@@ -26,6 +26,15 @@ export interface AuthenticatedUser {
   status: UserStatus;
 }
 
+// 401 codes let the client distinguish refresh-and-retry from real logout;
+// auth_unavailable is a 503 (Supabase outage) and must NOT log users out.
+export type AuthErrorCode = 'token_expired' | 'invalid_token' | 'no_token' | 'auth_unavailable';
+
+export interface AuthErrorBody {
+  error: string;
+  code: AuthErrorCode;
+}
+
 // ─── Metric ─────────────────────────────────────────
 export type InputType = 'binary' | 'numeric' | 'short_text' | 'text';
 export type Frequency = 'daily' | 'weekdays' | 'weekends' | 'weekly';

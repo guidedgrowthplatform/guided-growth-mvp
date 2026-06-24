@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { isTraceOn, startTurnTrace } from '@/lib/debug/traceConsole';
-import { sessionReady, supabase } from '@/lib/supabase';
+import { getAuthHeaders } from '@/lib/services/api-auth';
 import type { LLMRequest, LLMStreamEvent } from '@gg/shared/types/llm';
 
 export type { LLMRequest, LLMStreamEvent } from '@gg/shared/types/llm';
@@ -95,19 +95,7 @@ export async function streamLLM(
     Accept: 'text/event-stream',
   };
 
-  if (Capacitor.isNativePlatform()) {
-    await sessionReady;
-  }
-  try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      headers['Authorization'] = `Bearer ${session.access_token}`;
-    }
-  } catch {
-    // continue without auth — server will 401
-  }
+  Object.assign(headers, await getAuthHeaders());
 
   const response = await fetch(`${getApiUrl()}/api/llm`, {
     method: 'POST',

@@ -1,5 +1,5 @@
-import { Capacitor } from '@capacitor/core';
-import { supabase, sessionReady } from '@/lib/supabase';
+import { getFreshToken } from '@/lib/auth/tokenStore';
+import { getAuthHeaders } from '@/lib/services/api-auth';
 
 const QUEUE_KEY = 'lgt_offline_queue';
 const PROCESSED_IDS_KEY = 'lgt_offline_queue_processed_ids';
@@ -33,24 +33,6 @@ export function registerReplayHandler(kind: QueuedItemKind, fn: ReplayHandler): 
   replayHandlers[kind] = fn;
 }
 
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  try {
-    // native session is async; 'online' may fire pre-hydration
-    if (Capacitor.isNativePlatform()) {
-      await sessionReady;
-    }
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      return { Authorization: `Bearer ${session.access_token}` };
-    }
-  } catch {
-    // no session — caller sees 401
-  }
-  return {};
-}
-
 // quota → drop oldest 50% + retry once; Safari private mode → returns false
 function safeSetQueue(queue: QueuedMutation[]): boolean {
   try {
@@ -70,7 +52,12 @@ function safeSetQueue(queue: QueuedMutation[]): boolean {
 }
 
 export const offlineQueue = {
-  enqueue(endpoint: string, method: string, body: unknown, kind: QueuedItemKind = 'unknown'): boolean {
+  enqueue(
+    endpoint: string,
+    method: string,
+    body: unknown,
+    kind: QueuedItemKind = 'unknown',
+  ): boolean {
     const queue = this.getQueue();
     const trimmed = queue.length >= MAX_QUEUE ? queue.slice(queue.length - (MAX_QUEUE - 1)) : queue;
     trimmed.push({
@@ -114,7 +101,8 @@ export const offlineQueue = {
         return { succeeded: 0, retried: 0, dropped: 0, droppedDetails: [] };
       }
 
-      const authHeaders = await getAuthHeaders();
+      // Single refresh up front; 401/403 during replay requeue, never dropped.
+      await getFreshToken();
       const succeededIds = new Set<string>();
       const droppedIds = new Set<string>();
       const droppedDetails: Array<{ endpoint: string; status: number }> = [];
@@ -131,6 +119,7 @@ export const offlineQueue = {
           continue;
         }
         try {
+          const authHeaders = await getAuthHeaders();
           const response = await fetch(mutation.endpoint, {
             method: mutation.method,
             credentials: 'include',
@@ -139,12 +128,17 @@ export const offlineQueue = {
           });
           if (response.ok) {
             succeededIds.add(mutation.id);
-          } else if (response.status >= 400 && response.status < 500) {
-            // 4xx is unrecoverable — drop + report
+          } else if (
+            response.status >= 400 &&
+            response.status < 500 &&
+            response.status !== 401 &&
+            response.status !== 403
+          ) {
+            // genuine client error (bad payload) — drop + report
             droppedIds.add(mutation.id);
             droppedDetails.push({ endpoint: mutation.endpoint, status: response.status });
           }
-          // 5xx / network → leave in queue
+          // 5xx / network / auth (401/403) → leave in queue, retry after refresh/login
         } catch {
           // network failure → leave in queue
         }

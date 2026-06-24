@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { COACH_VOICE_ID, type VoiceGender } from '@/config/voiceConfig';
-import { supabase, sessionReady } from '@/lib/supabase';
+import { getAuthHeaders } from '@/lib/services/api-auth';
 import { wsBegin, wsCancel, wsFinish, wsPush, wsTtsAvailable, wsWarm } from './cartesia-ws';
 import { isPcmAudioRunning, subscribePcmAudioState, unlockPcmAudio } from './pcmPlayer';
 import { isVoiceOutEnabled } from './voiceGate';
@@ -39,28 +39,7 @@ function getApiBase(): string {
   return '';
 }
 
-/** Get auth headers for the TTS proxy */
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  try {
-    // Await native session hydration — see stt-service.ts for the
-    // race-condition rationale. TL;DR: voice fired right after app launch
-    // races the Capacitor Preferences loader and gets a null session.
-    if (Capacitor.isNativePlatform()) {
-      await sessionReady;
-    }
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      return { Authorization: `Bearer ${session.access_token}` };
-    }
-  } catch {
-    // Continue without auth
-  }
-  return {};
-}
-
-// Per-turn auth-header cache — avoids a getSession() round-trip per chunk.
+// Per-turn auth-header cache — avoids a token read per chunk.
 let authHeaderGen = -1;
 let authHeaderCache: Record<string, string> = {};
 async function getTurnAuthHeaders(generation: number): Promise<Record<string, string>> {
