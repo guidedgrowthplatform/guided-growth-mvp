@@ -123,9 +123,96 @@ const applyName = (
   return changed ? out : props;
 };
 
+// A beat is an ordered list of steps. A coach step speaks a caption on top
+// (karaoke word-reveal, no bubble); a user step is a blue bubble; either can
+// also reveal a component. The player fades each step in on its own cue.
+interface BeatStep {
+  id: string;
+  speaker: 'coach' | 'user';
+  say?: string;
+  render?: ReactNode;
+}
+
+// Reveals words one at a time while `active`, dimming the not-yet-spoken ones,
+// so the line reads like it is being spoken. Renders all words when inactive.
+function Karaoke({ text, active }: { text: string; active: boolean }) {
+  const parts = text.split(/(\s+)/);
+  const total = parts.filter((p) => /\S/.test(p)).length;
+  const [n, setN] = useState(active ? 0 : total);
+  useEffect(() => {
+    if (!active) {
+      setN(total);
+      return;
+    }
+    setN(0);
+    let i = 0;
+    const id = window.setInterval(() => {
+      i += 1;
+      setN(i);
+      if (i >= total) window.clearInterval(id);
+    }, 110);
+    return () => window.clearInterval(id);
+  }, [text, active, total]);
+  let seen = 0;
+  return (
+    <>
+      {parts.map((p, i) => {
+        if (!/\S/.test(p)) return <span key={i}>{p}</span>;
+        seen += 1;
+        const shown = seen <= n;
+        return (
+          <span
+            key={i}
+            style={{ opacity: shown ? 1 : 0.25, transition: 'opacity 160ms ease-out' }}
+          >
+            {p}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
+// Plays a beat's steps in order: each fades in, coach captions karaoke and the
+// next step waits for the line to finish speaking.
+function BeatPlayer({ steps }: { steps: BeatStep[] }) {
+  const sig = steps.map((s) => `${s.speaker}:${s.say ?? ''}`).join('|');
+  const [revealed, setRevealed] = useState(1);
+  useEffect(() => {
+    setRevealed(1);
+  }, [sig]);
+  useEffect(() => {
+    if (revealed >= steps.length) return;
+    const cur = steps[revealed - 1];
+    const dwell = cur?.say ? 650 + cur.say.split(/\s+/).length * 110 : 450;
+    const t = window.setTimeout(() => setRevealed((r) => Math.min(steps.length, r + 1)), dwell);
+    return () => window.clearTimeout(t);
+  }, [revealed, steps.length]);
+  return (
+    <div className="flex flex-col gap-4">
+      {steps.slice(0, revealed).map((s, i) => {
+        const last = i === revealed - 1;
+        return (
+          <div key={s.id} className="flex animate-fade-in flex-col gap-3">
+            {s.speaker === 'coach' && s.say && (
+              <div className="px-1 text-[19px] font-bold leading-[1.3] text-content">
+                <Karaoke text={s.say} active={last} />
+              </div>
+            )}
+            {s.render}
+            {s.speaker === 'user' && s.say && (
+              <div className="max-w-[80%] self-end rounded-2xl rounded-tr-sm bg-[rgba(19,91,236,0.9)] px-4 py-2.5 text-[14px] font-medium text-white shadow-card">
+                <Karaoke text={s.say} active={last} />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function ProfileBeat(props?: Record<string, string>) {
-  // Age + gender defaults come from the beat's props so they are editable from
-  // the builder sidecar; local state keeps the preview interactive.
   const propAge = props?.age && props.age !== '' ? Number(props.age) : 28;
   const propGender = props?.gender ?? 'Male';
   const [age, setAge] = useState<number | ''>(propAge);
@@ -136,37 +223,39 @@ function ProfileBeat(props?: Record<string, string>) {
   useEffect(() => {
     setGender(propGender);
   }, [propGender]);
+
+  const steps: BeatStep[] = [
+    {
+      id: 'greet',
+      speaker: 'coach',
+      say: props?.greeting ?? 'Awesome, two quick things so I can tailor this to you.',
+    },
+    {
+      id: 'age',
+      speaker: 'coach',
+      say: props?.askAge ?? 'How old are you?',
+      render: <AgeScrollPicker key={propAge} value={age} onChange={setAge} />,
+    },
+    {
+      id: 'gender',
+      speaker: 'coach',
+      say: props?.askGender ?? "And what's your gender?",
+      render: (
+        <ChipSelect
+          options={['Male', 'Female', 'Other']}
+          value={gender}
+          onChange={setGender}
+          ariaLabel="Gender"
+          columns={3}
+        />
+      ),
+    },
+    { id: 'reply', speaker: 'user', say: props?.userReply ?? "I'm 28, and I'm male." },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
-      <ChatBubble
-        role="ai"
-        text={
-          props?.coachText ?? "Great to have you here. How old are you and what's your gender?"
-        }
-      />
-      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-4">
-        <div>
-          <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-content-tertiary">
-            Age
-          </div>
-          <AgeScrollPicker key={propAge} value={age} onChange={setAge} />
-        </div>
-        <div>
-          <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-content-tertiary">
-            Gender
-          </div>
-          <ChipSelect
-            options={['Male', 'Female', 'Other']}
-            value={gender}
-            onChange={setGender}
-            ariaLabel="Gender"
-            columns={3}
-          />
-        </div>
-      </div>
-      <div className="max-w-[80%] self-end rounded-2xl rounded-tr-sm bg-[rgba(19,91,236,0.9)] px-4 py-2.5 text-[14px] font-medium text-white shadow-card">
-        {props?.userReply ?? "I'm 28, and I'm male."}
-      </div>
+      <BeatPlayer steps={steps} />
       <div className="self-center text-[12px] font-medium text-content-tertiary">
         You can speak or tap
       </div>
@@ -662,10 +751,12 @@ interface FieldDef {
 const TEXT_FIELDS: Record<string, FieldDef[]> = {
   'coach-bubble': [{ key: 'text', label: 'Coach says', multiline: true }],
   'profile-beat': [
-    { key: 'coachText', label: 'Coach line', multiline: true },
+    { key: 'greeting', label: 'Coach: greeting', multiline: true },
+    { key: 'askAge', label: 'Coach: ask age' },
+    { key: 'askGender', label: 'Coach: ask gender' },
     { key: 'userReply', label: 'User reply', multiline: true },
-    { key: 'age', label: 'Age' },
-    { key: 'gender', label: 'Gender' },
+    { key: 'age', label: 'Age (default)' },
+    { key: 'gender', label: 'Gender (default)' },
   ],
   'user-bubble': [
     { key: 'text', label: 'User says', multiline: true },
@@ -683,7 +774,7 @@ const TEXT_FIELDS: Record<string, FieldDef[]> = {
 // the speech bubble and the beat's coach line stay in sync as one value.
 const COACH_LINE_PROP: Record<string, string> = {
   'coach-bubble': 'text',
-  'profile-beat': 'coachText',
+  'profile-beat': 'greeting',
 };
 
 // Imported components that are full-screen modals/overlays. They cannot preview
@@ -762,8 +853,9 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     beat: '2',
     sheetStage: 'ONBOARD-01--FORM: Profile Setup',
     props: {
-      coachText:
-        "Awesome {name}, two quick things so I can tailor this to you. How old are you, and what's your gender?",
+      greeting: 'Awesome {name}, two quick things so I can tailor this to you.',
+      askAge: 'How old are you?',
+      askGender: "And what's your gender?",
       userReply: "I'm 28, and I'm male.",
       age: '28',
       gender: 'Male',
@@ -831,7 +923,7 @@ const FLOWS: FlowDef[] = [
 ];
 const FLOW_MAP: Record<string, FlowDef> = Object.fromEntries(FLOWS.map((f) => [f.id, f]));
 
-const STORAGE_BASE = 'gg-flow-builder-v14';
+const STORAGE_BASE = 'gg-flow-builder-v15';
 const flowKey = (flowId: string) => `${STORAGE_BASE}:${flowId}`;
 const ACTIVE_FLOW_KEY = `${STORAGE_BASE}:active`;
 
