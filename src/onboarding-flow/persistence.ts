@@ -31,15 +31,15 @@ export function useOnboardingPersistence(): FlowPersistence {
  * Preview adapter: keeps everything in memory and logs. Used by the public
  * preview route so the chat-native flow is runnable without auth.
  */
-export function useLocalPersistence(onComplete?: (finalData?: Partial<OnboardingStepData>) => void): FlowPersistence {
+export function useLocalPersistence(
+  onComplete?: (finalData?: Partial<OnboardingStepData>) => void,
+): FlowPersistence {
   return useMemo<FlowPersistence>(
     () => ({
       saveStep: (step, data, options) => {
-        // eslint-disable-next-line no-console
         console.info('[flow-preview] saveStep', step, data, options ?? {});
       },
       complete: (finalData) => {
-        // eslint-disable-next-line no-console
         console.info('[flow-preview] complete', finalData ?? {});
         onComplete?.(finalData);
       },
