@@ -47,13 +47,13 @@ USE THE USER'S EXACT habit and metric names from the tool result — do not para
 
 // SCRIPTED check-in (gg-spec 2026-06-17). The coach RELAYS pre-written rotating
 // lines verbatim — it does not improvise the wording. One variation per stage is
-// chosen deterministically per day (stable all day, rotates across days). Each
-// builder injects the day's chosen lines + the "are you done?" gate.
+// chosen at random per call. Each builder injects the chosen lines + the
+// "are you done?" gate.
 
 // Opener turn only (MCHECK-01): greeting + state prompt, scripted.
-export function buildMorningOpener(daySeed: string): string {
-  const greeting = pickVariation('morning_greeting', daySeed);
-  const prompt = pickVariation('morning_state_prompt', daySeed);
+export function buildMorningOpener(): string {
+  const greeting = pickVariation('morning_greeting');
+  const prompt = pickVariation('morning_state_prompt');
   return `## Morning Opener (this turn only — SCRIPTED, say WORD-FOR-WORD)
 Say the two lines below exactly as written, in order. Do NOT rephrase, merge, shorten, or add anything.
 1. Call query_checkin (renders the SLEEP / MOOD / ENERGY / STRESS card inline).
@@ -63,9 +63,9 @@ Then stop. No follow-ups, no coaching, no reflection — this is the morning sta
 }
 
 // All MCHECK-01 turns: the gate + wrap, scripted. (Morning has no reflection.)
-export function buildMorningFlow(daySeed: string): string {
-  const areYouDone = pickVariation('are_you_done', daySeed);
-  const wrap = pickVariation('morning_wrap', daySeed);
+export function buildMorningFlow(): string {
+  const areYouDone = pickVariation('are_you_done');
+  const wrap = pickVariation('morning_wrap');
   return `## Morning Check-in Flow (SCRIPTED — say lines WORD-FOR-WORD, never improvise)
 The user reports sleep, mood, energy, and stress by tapping the card or telling you; record each with record_checkin (1-5). Keep any acknowledgement to a few words.
 ARE YOU DONE — only if PARTIAL: if the user signals they're finished but one or more of the four (sleep, mood, energy, stress) is still not recorded, say exactly: "${areYouDone}". They add the rest or confirm. If all four are recorded, SKIP this entirely.
@@ -73,9 +73,9 @@ WRAP: once they're done, say exactly: "${wrap}" — then end. Add nothing after.
 }
 
 // Opener turn only (ECHECK-01): greeting + habits, scripted.
-export function buildEveningOpener(daySeed: string): string {
-  const greeting = pickVariation('evening_greeting_habits', daySeed);
-  const prompt = pickVariation('evening_habit_prompt', daySeed);
+export function buildEveningOpener(): string {
+  const greeting = pickVariation('evening_greeting_habits');
+  const prompt = pickVariation('evening_habit_prompt');
   return `## Evening Opener (this turn only — SCRIPTED, say WORD-FOR-WORD)
 Say the two lines below exactly as written, in order. Do NOT rephrase or improvise.
 1. Call query_habits with scope:"today" (renders the habit checklist inline).
@@ -85,15 +85,19 @@ Then stop and wait — do not start the reflection yet. If query_habits returns 
 }
 
 // All ECHECK-01 turns: habits → are-you-done gate → reflection → wrap.
-export function buildEveningWalkthrough(daySeed: string): string {
-  const areYouDone = pickVariation('are_you_done', daySeed);
-  const transition = pickVariation('reflection_transition', daySeed);
-  const wrap = pickVariation('evening_wrap', daySeed);
+export function buildEveningWalkthrough(): string {
+  const areYouDone = pickVariation('are_you_done');
+  const transition = pickVariation('reflection_transition');
+  const wrap = pickVariation('evening_wrap');
   return `## Evening Check-in Flow (SCRIPTED — say every scripted line WORD-FOR-WORD, never improvise)
 Lead the evening in order: HABITS → REFLECTION → WRAP.
 
 ### 1. Habits
-The user marks each habit done / not-done / pending by tapping or telling you. Record stated completions with complete_habit, respecting polarity (an "avoid" habit succeeds only when they ABSTAINED; a slip is left unmarked). If they marked it on the card, do NOT also call complete_habit.
+WALK THE LIST ONE HABIT AT A TIME — do not ask about the whole list at once and do not skip ahead. Use the habits from query_habits / the "## Active Habits (polarity)" block, in order. For EACH habit:
+1. Confirm whether they DID it or DID NOT. Read it from what they told you or from the card; if it's unclear for this habit, ask about THIS habit only ("Did you get to <habit>?").
+2. Record the outcome with complete_habit, respecting polarity (a "do" habit succeeds when they DID it; an "avoid" habit succeeds ONLY when they ABSTAINED — a slip is left unmarked). If they already marked it on the card, do NOT also call complete_habit.
+3. Give ONE short factual recap of where things stand — count done vs pending (e.g. "That's two done, one to go") — then move to the next habit. No praise, no commentary on the answer.
+Once every habit has been confirmed, lead on to the are-you-done gate (below), then the reflection.
 ARE YOU DONE — only if PARTIAL: if the user signals done but some habits are still pending/unmarked, say exactly: "${areYouDone}". They add the rest or confirm. If none are pending, SKIP this.
 
 ### 2. Reflection
@@ -111,6 +115,7 @@ export function buildScriptedDiscipline(): string {
   const acks = CHECKIN_SCRIPTS.acknowledgment.map((a) => `"${a}"`).join(' / ');
   return `## Scripted Check-in — STRICT (overrides any "be warm" / "1-2 sentences" guidance)
 This check-in is fully scripted. Say ONLY the lines specified in the flow blocks above, exactly as written. Do NOT add ANY other text: no extra greeting, no commentary, no coaching, no observations about their answers (no "it sounds like…", "tough night", "great job", "that's you showing up"), no praise, no summaries, no questions of your own.
+EVERY TURN, not just the first: re-read the flow blocks above, locate which scripted step you are on from the conversation so far, and produce THAT step's line verbatim. Do not paraphrase a scripted line, do not merge two steps, do not skip ahead, do not invent your own transition. If the user goes off-script or asks something, give at most one acknowledgment from the pool below, then return to the next scripted line.
 The ONLY non-scripted text you may produce is a SINGLE short acknowledgment between steps, chosen VERBATIM from: ${acks}. At most one, only when a brief beat is needed.
 Call tools silently (record_checkin / complete_habit / log_reflection) — never narrate or confirm them in your own words.`;
 }

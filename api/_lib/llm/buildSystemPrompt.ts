@@ -18,7 +18,6 @@ import {
   buildScriptedDiscipline,
 } from './checkin/systemPromptAddendum.js';
 import { isCheckinScreen, isReadOnlyCheckinScreen } from './checkin/registry.js';
-import { todayStr } from './checkin/handlers/shared.js';
 import { bucketTimeOfDay, localHour } from '@gg/shared/time/bucketTimeOfDay';
 import { readReflectionSettings } from '../reflection/reflectionSettings.js';
 import { DEFAULT_REFLECTION_PROMPTS } from '@gg/shared/types';
@@ -136,19 +135,10 @@ export async function buildSystemPromptForRequest(
     ? `\n\n${CHECKIN_READONLY_ADDENDUM}`
     : '';
   const timeBlock = isCheckin ? buildCurrentTimeBlock(args.timezone) : '';
-  // Scripted lines rotate per local day (stable all day). Invalid/missing tz
-  // falls back to UTC rather than throwing (mirrors buildCurrentTimeBlock).
-  let daySeed: string;
-  try {
-    daySeed = todayStr(args.timezone);
-  } catch {
-    daySeed = todayStr('UTC');
-  }
   // Evening flow (habits → gate → fixed reflection → wrap), scripted; all ECHECK turns.
-  const walkthroughBlock =
-    args.screen_id === 'ECHECK-01' ? `\n\n${buildEveningWalkthrough(daySeed)}` : '';
+  const walkthroughBlock = args.screen_id === 'ECHECK-01' ? `\n\n${buildEveningWalkthrough()}` : '';
   // Morning flow (are-you-done gate + wrap), scripted; all MCHECK turns.
-  const morningFlowBlock = args.screen_id === 'MCHECK-01' ? `\n\n${buildMorningFlow(daySeed)}` : '';
+  const morningFlowBlock = args.screen_id === 'MCHECK-01' ? `\n\n${buildMorningFlow()}` : '';
   // Hard no-improvisation rule on the dedicated scripted screens.
   const scriptedDisciplineBlock =
     args.screen_id === 'MCHECK-01' || args.screen_id === 'ECHECK-01'
@@ -168,13 +158,9 @@ export async function buildSystemPromptForRequest(
   const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
   // Scripted opener lines (greeting + state/habit prompt), rotating per day.
   const eveningOpenerBlock =
-    args.mode === 'opener' && args.screen_id === 'ECHECK-01'
-      ? `\n\n${buildEveningOpener(daySeed)}`
-      : '';
+    args.mode === 'opener' && args.screen_id === 'ECHECK-01' ? `\n\n${buildEveningOpener()}` : '';
   const morningOpenerBlock =
-    args.mode === 'opener' && args.screen_id === 'MCHECK-01'
-      ? `\n\n${buildMorningOpener(daySeed)}`
-      : '';
+    args.mode === 'opener' && args.screen_id === 'MCHECK-01' ? `\n\n${buildMorningOpener()}` : '';
   const inputModeBlock = args.input_mode === 'voice' ? '' : `\n\n${TEXT_INPUT_RULE}`;
   const onboardingRow = isOnboardingScreen ? await fetchOnboardingRow(args.anon_id) : null;
   const alreadyFilledBlock = onboardingRow ? buildAlreadyFilledBlock(onboardingRow) : '';
