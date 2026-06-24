@@ -77,7 +77,40 @@ let turnSealed = false;
 let speakingHeld = false;
 let playSynthAbort: AbortController | null = null;
 let prefetch: Prefetch | null = null;
+// Pre-built + preloaded element for the next sentence — decoded during current playback.
+let preloadedNext: { gen: number; text: string; audio: HTMLAudioElement; url: string } | null =
+  null;
 let drainResolvers: Array<() => void> = [];
+
+function teardownPreloadedNext(): void {
+  if (!preloadedNext) return;
+  const { audio, url } = preloadedNext;
+  preloadedNext = null;
+  audio.pause();
+  audio.src = '';
+  URL.revokeObjectURL(url);
+}
+
+// Build + preload an element so it decodes while the current sentence plays.
+function buildPreloadElement(blob: Blob): { audio: HTMLAudioElement; url: string } {
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio();
+  audio.preload = 'auto';
+  audio.src = url;
+  audio.load();
+  return { audio, url };
+}
+
+// During current playback: resolve the in-flight prefetch blob and pre-build
+// the next element, under the gen guard. Abandons if superseded.
+async function preloadNextElement(gen: number): Promise<void> {
+  if (gen !== speakGeneration || preloadedNext || !prefetch || prefetch.gen !== gen) return;
+  const { text } = prefetch;
+  const blob = await prefetch.blob;
+  if (gen !== speakGeneration || preloadedNext) return;
+  if (!blob) return;
+  preloadedNext = { gen, text, ...buildPreloadElement(blob) };
+}
 let deferredOneShot: { text: string; volume: number } | null = null;
 
 function resolveDrainers(): void {
@@ -91,6 +124,7 @@ function finishTurn(): void {
   if (!turnActive) return;
   turnActive = false;
   prefetch = null;
+  teardownPreloadedNext();
   if (speakingHeld) {
     speakingHeld = false;
     setSpeaking(false);
@@ -125,34 +159,57 @@ async function runDrain(): Promise<void> {
       return;
     }
     const item = speechQueue[playCursor];
-    let blob: Blob | null;
-    if (prefetch && prefetch.gen === gen && prefetch.text === item.text) {
-      blob = await prefetch.blob;
-      prefetch = null;
+    // Pre-built element from the previous iteration's preload — already decoded.
+    let ready: { audio: HTMLAudioElement; url: string } | null = null;
+    if (preloadedNext && preloadedNext.gen === gen && preloadedNext.text === item.text) {
+      ready = { audio: preloadedNext.audio, url: preloadedNext.url };
+      preloadedNext = null;
+      if (prefetch && prefetch.text === item.text) prefetch = null;
     } else {
-      // Stale/non-matching prefetch — abort before synthesizing fresh.
-      if (prefetch) {
-        prefetch.abort.abort();
+      // No matching preload — drop any stale one, then resolve a blob and build.
+      teardownPreloadedNext();
+      let blob: Blob | null;
+      if (prefetch && prefetch.gen === gen && prefetch.text === item.text) {
+        blob = await prefetch.blob;
         prefetch = null;
+      } else {
+        // Stale/non-matching prefetch — abort before synthesizing fresh.
+        if (prefetch) {
+          prefetch.abort.abort();
+          prefetch = null;
+        }
+        const abort = new AbortController();
+        playSynthAbort = abort;
+        blob = await synthChunk(item.text, gen, abort);
       }
-      const abort = new AbortController();
-      playSynthAbort = abort;
-      blob = await synthChunk(item.text, gen, abort);
+      if (gen !== speakGeneration) {
+        drainRunning = false;
+        if (turnSealed) finishTurn();
+        return;
+      }
+      if (blob) ready = buildPreloadElement(blob);
     }
     // Next chunk may have arrived during synth — prefetch it before play.
     maybePrefetchNext(gen);
     if (gen !== speakGeneration) {
+      if (ready) {
+        ready.audio.pause();
+        ready.audio.src = '';
+        URL.revokeObjectURL(ready.url);
+      }
       drainRunning = false;
       if (turnSealed) finishTurn();
       return;
     }
-    if (blob) {
+    if (ready) {
       if (!speakingHeld) {
         speakingHeld = true;
         setSpeaking(true);
       }
       maybePrefetchNext(gen);
-      await playChunkBlob(blob, item.volume, gen);
+      // Pre-build the next element while this one plays (closes per-sentence gap).
+      void preloadNextElement(gen);
+      await playChunkElement(ready.audio, ready.url, item.volume, gen);
       if (gen !== speakGeneration) {
         drainRunning = false;
         if (turnSealed) finishTurn();
@@ -210,6 +267,7 @@ export function stopTTS(): void {
     prefetch.abort.abort();
     prefetch = null;
   }
+  teardownPreloadedNext();
   speechQueue = [];
   playCursor = 0;
   turnSealed = true;
@@ -241,13 +299,30 @@ function base64ToBlob(base64: string, mime: string): Blob {
 // (incl. iOS NotAllowedError) resolves false so the queue skips, not wedges.
 async function playChunkBlob(blob: Blob, volume: number, generation: number): Promise<boolean> {
   if (generation !== speakGeneration) return false;
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  audio.preload = 'auto';
+  return playChunkElement(audio, url, volume, generation);
+}
+
+// Plays one pre-built+preloaded element. Caller owns setSpeaking. Never rejects.
+async function playChunkElement(
+  audio: HTMLAudioElement,
+  audioUrl: string,
+  volume: number,
+  generation: number,
+): Promise<boolean> {
+  if (generation !== speakGeneration) {
+    audio.pause();
+    audio.src = '';
+    URL.revokeObjectURL(audioUrl);
+    return false;
+  }
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.src = '';
     currentAudio = null;
   }
-  const audioUrl = URL.createObjectURL(blob);
-  const audio = new Audio(audioUrl);
   audio.volume = volume;
   currentAudio = audio;
 
