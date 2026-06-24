@@ -54,6 +54,7 @@ import { DualButton } from '@/components/ui/DualButton';
 import { Toggle } from '@/components/ui/Toggle';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 
+import { BEAT_DEFS } from './beats';
 import { EXTRA_REGISTRY, EXTRA_GROUPS } from './paletteExtras';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
@@ -123,145 +124,9 @@ const applyName = (
   return changed ? out : props;
 };
 
-// A beat is an ordered list of steps. A coach step speaks a caption on top
-// (karaoke word-reveal, no bubble); a user step is a blue bubble; either can
-// also reveal a component. The player fades each step in on its own cue.
-interface BeatStep {
-  id: string;
-  speaker: 'coach' | 'user';
-  say?: string;
-  render?: ReactNode;
-}
-
-// Reveals words one at a time while `active`, dimming the not-yet-spoken ones,
-// so the line reads like it is being spoken. Renders all words when inactive.
-function Karaoke({ text, active }: { text: string; active: boolean }) {
-  const parts = text.split(/(\s+)/);
-  const total = parts.filter((p) => /\S/.test(p)).length;
-  const [n, setN] = useState(active ? 0 : total);
-  useEffect(() => {
-    if (!active) {
-      setN(total);
-      return;
-    }
-    setN(0);
-    let i = 0;
-    const id = window.setInterval(() => {
-      i += 1;
-      setN(i);
-      if (i >= total) window.clearInterval(id);
-    }, 110);
-    return () => window.clearInterval(id);
-  }, [text, active, total]);
-  let seen = 0;
-  return (
-    <>
-      {parts.map((p, i) => {
-        if (!/\S/.test(p)) return <span key={i}>{p}</span>;
-        seen += 1;
-        const shown = seen <= n;
-        return (
-          <span
-            key={i}
-            style={{ opacity: shown ? 1 : 0.25, transition: 'opacity 160ms ease-out' }}
-          >
-            {p}
-          </span>
-        );
-      })}
-    </>
-  );
-}
-
-// Plays a beat's steps in order: each fades in, coach captions karaoke and the
-// next step waits for the line to finish speaking.
-function BeatPlayer({ steps }: { steps: BeatStep[] }) {
-  const sig = steps.map((s) => `${s.speaker}:${s.say ?? ''}`).join('|');
-  const [revealed, setRevealed] = useState(1);
-  useEffect(() => {
-    setRevealed(1);
-  }, [sig]);
-  useEffect(() => {
-    if (revealed >= steps.length) return;
-    const cur = steps[revealed - 1];
-    const dwell = cur?.say ? 650 + cur.say.split(/\s+/).length * 110 : 450;
-    const t = window.setTimeout(() => setRevealed((r) => Math.min(steps.length, r + 1)), dwell);
-    return () => window.clearTimeout(t);
-  }, [revealed, steps.length]);
-  return (
-    <div className="flex flex-col gap-4">
-      {steps.slice(0, revealed).map((s, i) => {
-        const last = i === revealed - 1;
-        return (
-          <div key={s.id} className="flex animate-fade-in flex-col gap-3">
-            {s.speaker === 'coach' && s.say && (
-              <div className="max-w-[85%] self-start rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 text-[14px] font-medium leading-[1.45] text-content shadow-[0px_4px_16px_-4px_rgba(15,23,42,0.12)]">
-                <Karaoke text={s.say} active={last} />
-              </div>
-            )}
-            {s.render}
-            {s.speaker === 'user' && s.say && (
-              <div className="max-w-[80%] self-end rounded-2xl rounded-tr-sm bg-[rgba(19,91,236,0.9)] px-4 py-2.5 text-[14px] font-medium text-white shadow-card">
-                <Karaoke text={s.say} active={last} />
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function ProfileBeat(props?: Record<string, string>) {
-  const propAge = props?.age && props.age !== '' ? Number(props.age) : 28;
-  const propGender = props?.gender ?? 'Male';
-  const [age, setAge] = useState<number | ''>(propAge);
-  const [gender, setGender] = useState<string | null>(propGender);
-  useEffect(() => {
-    setAge(propAge);
-  }, [propAge]);
-  useEffect(() => {
-    setGender(propGender);
-  }, [propGender]);
-
-  const steps: BeatStep[] = [
-    {
-      id: 'greet',
-      speaker: 'coach',
-      say: props?.greeting ?? 'Awesome, two quick things so I can tailor this to you.',
-    },
-    {
-      id: 'age',
-      speaker: 'coach',
-      say: props?.askAge ?? 'How old are you?',
-      render: <AgeScrollPicker key={propAge} value={age} onChange={setAge} />,
-    },
-    {
-      id: 'gender',
-      speaker: 'coach',
-      say: props?.askGender ?? "And what's your gender?",
-      render: (
-        <ChipSelect
-          options={['Male', 'Female', 'Other']}
-          value={gender}
-          onChange={setGender}
-          ariaLabel="Gender"
-          columns={3}
-        />
-      ),
-    },
-    { id: 'reply', speaker: 'user', say: props?.userReply ?? "I'm 28, and I'm male." },
-  ];
-
-  return (
-    <div className="flex flex-col gap-4">
-      <BeatPlayer steps={steps} />
-      <div className="self-center text-[12px] font-medium text-content-tertiary">
-        You can speak or tap
-      </div>
-    </div>
-  );
-}
+// Beats live in their own files under ./beats (one per file, design in parallel).
+// The step kit (BeatStep, BeatPlayer, Karaoke) is in ./beatKit. The registry below
+// merges in everything from ./beats automatically. See beats/README.md.
 
 const CATS = [
   { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
@@ -797,7 +662,6 @@ const REGISTRY: PaletteItem[] = [
   { type: 'onboarding-header', group: 'Onboarding', label: 'Screen header', Comp: OnboardingTitle },
   { type: 'profile-input', group: 'Onboarding', label: 'Name input', Comp: ProfileInput },
   { type: 'gender-chips', group: 'Onboarding', label: 'Gender chips', Comp: GenderChips },
-  { type: 'profile-beat', group: 'Onboarding', label: 'Profile (age + gender)', Comp: ProfileBeat },
   { type: 'path-selection', group: 'Onboarding', label: 'Path choice', Comp: PathSelection },
   { type: 'category-grid', group: 'Onboarding', label: 'Category tiles', Comp: CategoryGrid },
   { type: 'goals-list', group: 'Onboarding', label: 'Goal cards', Comp: GoalsList },
@@ -820,6 +684,7 @@ const REGISTRY: PaletteItem[] = [
   { type: 'toggle-row', group: 'UI', label: 'Toggle', Comp: ToggleRow },
   { type: 'daypicker-row', group: 'UI', label: 'Day picker', Comp: DayPickerRow },
   ...EXTRA_REGISTRY.filter((e) => !PALETTE_DROP.has(e.type)),
+  ...BEAT_DEFS,
 ];
 
 const REGISTRY_MAP = Object.fromEntries(REGISTRY.map((r) => [r.type, r]));
@@ -847,10 +712,19 @@ interface DefaultBeat {
 // opens with its real context. Several components can share one sheet stage
 // (profile setup is name + age + gender), so they share a beat number.
 const DEFAULT_FLOW: DefaultBeat[] = [
-  { type: 'auth-signup', beat: '1' },
+  { type: 'splash-intro', beat: '1' },
+  { type: 'auth-signup', beat: '2' },
+  {
+    type: 'mic-permission',
+    beat: '3',
+    props: {
+      ask: 'Can I turn on your mic so we can talk out loud?',
+      note: 'Tap the orb to allow it.',
+    },
+  },
   {
     type: 'profile-beat',
-    beat: '2',
+    beat: '4',
     sheetStage: 'ONBOARD-01--FORM: Profile Setup',
     props: {
       greeting: 'Awesome {name}, two quick things so I can tailor this to you.',
@@ -861,13 +735,12 @@ const DEFAULT_FLOW: DefaultBeat[] = [
       gender: 'Male',
     },
   },
-  { type: 'path-selection', beat: '3', sheetStage: 'ONBOARD-FORK--FORM: Experience Fork' },
-  { type: 'category-grid', beat: '4', sheetStage: 'ONBOARD-BEGINNER-01: Category Selection' },
-  { type: 'goals-list', beat: '5', sheetStage: 'ONBOARD-BEGINNER-02: Subcategory Selection' },
-  { type: 'habit-picker', beat: '6', sheetStage: 'ONBOARD-BEGINNER-03: Habit Selection' },
-  { type: 'reflection-card', beat: '7', sheetStage: 'ONBOARD-BEGINNER-07: Journal Setup' },
-  { type: 'plan-cards', beat: '8' },
-  { type: 'mood-row', beat: '9' },
+  { type: 'path-selection', beat: '5', sheetStage: 'ONBOARD-FORK--FORM: Experience Fork' },
+  { type: 'category-grid', beat: '6', sheetStage: 'ONBOARD-BEGINNER-01: Category Selection' },
+  { type: 'goals-list', beat: '7', sheetStage: 'ONBOARD-BEGINNER-02: Subcategory Selection' },
+  { type: 'habit-picker', beat: '8', sheetStage: 'ONBOARD-BEGINNER-03: Habit Selection' },
+  { type: 'reflection-card', beat: '9', sheetStage: 'ONBOARD-BEGINNER-07: Journal Setup' },
+  { type: 'plan-cards', beat: '10' },
 ];
 
 const ONBOARDING_FLOW = DEFAULT_FLOW;
@@ -923,7 +796,7 @@ const FLOWS: FlowDef[] = [
 ];
 const FLOW_MAP: Record<string, FlowDef> = Object.fromEntries(FLOWS.map((f) => [f.id, f]));
 
-const STORAGE_BASE = 'gg-flow-builder-v15';
+const STORAGE_BASE = 'gg-flow-builder-v16';
 const flowKey = (flowId: string) => `${STORAGE_BASE}:${flowId}`;
 const ACTIVE_FLOW_KEY = `${STORAGE_BASE}:active`;
 
