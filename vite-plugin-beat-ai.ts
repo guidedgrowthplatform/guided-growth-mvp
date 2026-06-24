@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Plugin } from 'vite';
 
@@ -29,6 +29,9 @@ type Job = {
 export function beatAiPlugin(appRoot: string): Plugin {
   const beatsDir = path.join(appRoot, 'src/components/flow-designer/beats');
   const jobs = new Map<string, Job>();
+  // Per-type snapshot of a beat file's content taken right before each edit, so
+  // a bad edit can be reverted in one click (Undo).
+  const snapshots = new Map<string, { absPath: string; content: string }>();
   let seq = 0;
 
   const resolveFile = (type: string): string | null => {
@@ -95,14 +98,31 @@ export function beatAiPlugin(appRoot: string): Plugin {
         let raw = '';
         req.on('data', (c) => (raw += c));
         req.on('end', () => {
-          let parsed: { type?: string; prompt?: string; engine?: string } = {};
+          let parsed: { type?: string; prompt?: string; engine?: string; action?: string } = {};
           try {
             parsed = JSON.parse(raw || '{}');
           } catch {
             json(400, { ok: false, error: 'bad json' });
             return;
           }
-          const { type, prompt, engine } = parsed;
+          const { type, prompt, engine, action } = parsed;
+
+          // Undo: restore the snapshot taken before the last edit on this beat.
+          if (action === 'undo') {
+            const snap = type ? snapshots.get(type) : undefined;
+            if (!snap) {
+              json(200, { ok: false, error: 'nothing to undo for this beat' });
+              return;
+            }
+            try {
+              writeFileSync(snap.absPath, snap.content, 'utf8');
+              json(200, { ok: true, reverted: true });
+            } catch (e) {
+              json(200, { ok: false, error: `undo failed: ${(e as Error).message}` });
+            }
+            return;
+          }
+
           if (!type || !prompt) {
             json(400, { ok: false, error: 'type and prompt required' });
             return;
@@ -111,21 +131,52 @@ export function beatAiPlugin(appRoot: string): Plugin {
           const found = resolveFile(type);
           const relPath = found ? `src/components/flow-designer/beats/${found}` : null;
 
-          const target = relPath
-            ? `Edit ONLY this one file: ${relPath} (a beat with type '${type}').`
-            : `No beat file has type '${type}' yet. Copy src/components/flow-designer/beats/_TEMPLATE.tsx to a new beat file in that folder, set its BeatDef type to '${type}', and build it. Edit only that one new file.`;
+          // No beat file for this type means it is a shared app-component preview,
+          // not a standalone beat. Refuse, do NOT create a shadow file (that was
+          // what made the real component "disappear"). Nothing is touched.
+          if (!relPath) {
+            json(200, {
+              ok: false,
+              error:
+                'This beat is a shared app component, not an editable beat file yet, so nothing was changed. To shape it by prompt, convert it into its own beat first (ask in chat).',
+            });
+            return;
+          }
+
+          // Read the current file, snapshot it for Undo, and inline it so the
+          // model edits the real code instead of guessing.
+          const absPath = path.join(appRoot, relPath);
+          let currentContent = '';
+          try {
+            currentContent = readFileSync(absPath, 'utf8');
+            snapshots.set(type, { absPath, content: currentContent });
+          } catch {
+            /* file unreadable; proceed without snapshot/inline */
+          }
+
+          const target = `Edit ONLY this one file: ${relPath} (a beat with type '${type}').`;
 
           const instruction = [
             'You edit ONE onboarding beat in a React flow builder. Touch only the file below.',
             target,
-            'IMPORTANT: this is a one-shot headless edit. The user CANNOT reply to you. Do NOT ask any questions, do NOT request clarification, do NOT propose options. Make the most natural assumption and just implement it. If something is ambiguous, pick the most sensible choice and add one short note about what you assumed.',
+            'HOW TO EDIT, STRICTLY:',
+            '- Make the SMALLEST change that satisfies the request. Preserve every other step, import, prop, component, and piece of copy exactly as it is.',
+            '- NEVER delete or replace a component or a step unless the request literally says to remove or replace it. A request like "remove the background" means change a background STYLE (a color or className), it does NOT mean delete the component.',
+            '- Interpret the request narrowly and literally. If it is about a style, change only the style. If it is about copy, change only the copy.',
+            '- The beat must still render the same components after your edit. Do not blank it out.',
+            '- Keep the file compiling and the default-exported BeatDef valid. No em dashes in user-facing copy.',
+            '- Do not edit FlowBuilder.tsx, beatKit.tsx, index.ts, or any other beat file.',
+            'IMPORTANT: this is a one-shot headless edit. The user CANNOT reply. Do NOT ask questions or propose options. Make the safest minimal interpretation and implement it.',
+            'After editing, re-read the file and confirm no step, import, or component was accidentally dropped and that it still compiles.',
             'A beat returns <BeatPlayer steps={steps} /> from beatKit. Each step is one of:',
             "  { speaker:'coach', say:'...' }            white bubble the coach speaks",
             "  { speaker:'coach', say:'...', render:<X/> } speaks AND reveals a component",
             "  { speaker:'coach', render:<X/> }           a component only, no voice",
             "  { speaker:'user', say:'...' }              blue bubble the user answers in",
-            'Read editable copy from props (e.g. props?.greeting). To reveal a real component, import it from @/components/... If you need an example, beats/profile.tsx is the worked one.',
-            'Keep the default-exported BeatDef valid and the file compiling. No em dashes in any user-facing copy. Do not edit FlowBuilder.tsx, beatKit.tsx, index.ts, or any other beat file.',
+            'Editable copy comes from props (e.g. props?.greeting). Real components are imported from @/components/...',
+            currentContent
+              ? `\nHere is the CURRENT content of ${relPath}. Edit it in place:\n----- BEGIN FILE -----\n${currentContent}\n----- END FILE -----`
+              : '',
             'End with one or two sentences describing exactly what you changed.',
             '',
             `Change to make: ${prompt}`,

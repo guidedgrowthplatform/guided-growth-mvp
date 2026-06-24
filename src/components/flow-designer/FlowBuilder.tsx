@@ -1463,6 +1463,32 @@ function BeatAiBox({ type }: { type: string }) {
     }
   };
 
+  // Restore the beat file to its state right before the last edit. Optimistic:
+  // on success the file reverts and HMR reloads into the persisted message; only
+  // a real failure (no snapshot) leaves no reload, so the correction shows then.
+  const undo = async () => {
+    if (status === 'running') return;
+    setStatus('done');
+    setLog('Reverted to before the last edit.');
+    persist({ status: 'done', log: 'Reverted to before the last edit.', jobId: undefined });
+    try {
+      const res = await fetch('/__beat-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, action: 'undo' }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        const msg = data.error || 'Nothing to undo.';
+        setStatus('error');
+        setLog(msg);
+        persist({ status: 'error', log: msg });
+      }
+    } catch {
+      /* the file write is what matters; ignore a response blip */
+    }
+  };
+
   const statusText =
     status === 'running'
       ? 'Opus is editing this beat...'
@@ -1517,6 +1543,17 @@ function BeatAiBox({ type }: { type: string }) {
           {statusText}
         </span>
         <div className="flex items-center gap-1.5">
+          {(status === 'done' || status === 'error') && (
+            <button
+              type="button"
+              onClick={undo}
+              title="Restore this beat to before the last edit"
+              className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-content-tertiary"
+            >
+              <Icon icon="ic:round-undo" className="size-3.5" />
+              Undo
+            </button>
+          )}
           {(status === 'done' || status === 'error') && (
             <button
               type="button"
