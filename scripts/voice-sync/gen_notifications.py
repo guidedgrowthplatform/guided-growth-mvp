@@ -29,15 +29,20 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # CONFIRM: the Master Sheet tab holding the morning_notification / evening_notification rows.
-TAB = os.environ.get("NOTIFICATION_TAB", "Notifications")
+# `or` (not get-default) — CI injects an unset repo var as "" (present-but-empty).
+TAB = os.environ.get("NOTIFICATION_TAB") or "Notifications"
 OUTPUT_PATH = PROJECT_ROOT / "packages/shared/src/generated/notification_copy.ts"
 
-REQUIRED_HEADERS = ("surface", "stage", "n", "title_en", "text_en")
+REQUIRED_HEADERS = ("stage", "n", "title_en", "text_en")
 STAGE_TO_KEY = {
     "morning_notification": "morning_checkin",
     "evening_notification": "evening_checkin",
 }
 KEY_ORDER = ("morning_checkin", "evening_checkin")
+
+# must equal REMINDER_WINDOW_DAYS in templates.ts: reminderVariantIndex is `% 7`, so a slot
+# with ≠7 variants silently drops (>7) or unevenly repeats (<7) copy. Enforce the invariant here.
+EXPECTED_VARIANTS = 7
 
 BANNER = (
     "// GENERATED — do not edit by hand.\n"
@@ -49,9 +54,13 @@ BANNER = (
 def build_variants(rows: list[dict]) -> dict[str, list[dict[str, str]]]:
     """Group notification rows by slot, ordered by `n`. Raises on a malformed tab."""
     grouped: dict[str, list[tuple[int, dict[str, str]]]] = {k: [] for k in KEY_ORDER}
+    unknown: set[str] = set()
     for row in rows:
-        key = STAGE_TO_KEY.get((row.get("stage") or "").strip())
+        stage = (row.get("stage") or "").strip()
+        key = STAGE_TO_KEY.get(stage)
         if not key:
+            if stage:
+                unknown.add(stage)  # likely a typo'd stage — surface it, don't silently drop
             continue
         title = (row.get("title_en") or "").strip()
         body = (row.get("text_en") or "").strip()
@@ -64,13 +73,24 @@ def build_variants(rows: list[dict]) -> dict[str, list[dict[str, str]]]:
             raise ValueError(f"non-integer n={n_raw!r} for {key}") from exc
         grouped[key].append((n, {"title": title, "body": body}))
 
+    if unknown:
+        print(f"[warn] skipped unknown stage(s): {sorted(unknown)}", file=sys.stderr)
+
     out: dict[str, list[dict[str, str]]] = {}
     for key in KEY_ORDER:
         items = sorted(grouped[key], key=lambda t: t[0])
+        ns = [n for n, _ in items]
         if not items:
-            raise ValueError(f"no rows found for {key} (stage not in tab?)")
-        if [n for n, _ in items] != list(range(1, len(items) + 1)):
-            raise ValueError(f"{key} n values are not contiguous from 1: {[n for n, _ in items]}")
+            raise ValueError(f"no rows found for {key} (check the `stage` column)")
+        if len(set(ns)) != len(ns):
+            raise ValueError(f"{key} has duplicate n values: {ns}")
+        if ns != list(range(1, len(ns) + 1)):
+            raise ValueError(f"{key} n values are not contiguous from 1: {ns}")
+        if len(items) != EXPECTED_VARIANTS:
+            raise ValueError(
+                f"{key} has {len(items)} variants; must be exactly {EXPECTED_VARIANTS} "
+                f"(== REMINDER_WINDOW_DAYS) for even daily rotation"
+            )
         out[key] = [v for _, v in items]
     return out
 
