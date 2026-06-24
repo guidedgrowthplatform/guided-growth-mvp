@@ -19,7 +19,13 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Icon } from '@iconify/react';
-import { useEffect, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import {
+  createElement,
+  useEffect,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import { DailyProgressCard } from '@/components/habits/DailyProgressCard';
 import { checkInDimensions } from '@/components/home/checkInConfig';
 import { DateStrip } from '@/components/home/DateStrip';
@@ -89,8 +95,18 @@ function GenderChips() {
 // The whole profile beat as one clean card: coach line, then age and gender
 // grouped with labels, then the user's expected answer on the right.
 function ProfileBeat(props?: Record<string, string>) {
-  const [age, setAge] = useState<number | ''>(28);
-  const [gender, setGender] = useState<string | null>('Male');
+  // Age + gender defaults come from the beat's props so they are editable from
+  // the builder sidecar; local state keeps the preview interactive.
+  const propAge = props?.age && props.age !== '' ? Number(props.age) : 28;
+  const propGender = props?.gender ?? 'Male';
+  const [age, setAge] = useState<number | ''>(propAge);
+  const [gender, setGender] = useState<string | null>(propGender);
+  useEffect(() => {
+    setAge(propAge);
+  }, [propAge]);
+  useEffect(() => {
+    setGender(propGender);
+  }, [propGender]);
   return (
     <div className="flex flex-col gap-4">
       <ChatBubble
@@ -104,7 +120,7 @@ function ProfileBeat(props?: Record<string, string>) {
           <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-content-tertiary">
             Age
           </div>
-          <AgeScrollPicker value={age} onChange={setAge} />
+          <AgeScrollPicker key={propAge} value={age} onChange={setAge} />
         </div>
         <div>
           <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-content-tertiary">
@@ -613,6 +629,12 @@ interface FieldDef {
 
 const TEXT_FIELDS: Record<string, FieldDef[]> = {
   'coach-bubble': [{ key: 'text', label: 'Coach says', multiline: true }],
+  'profile-beat': [
+    { key: 'coachText', label: 'Coach line', multiline: true },
+    { key: 'userReply', label: 'User reply', multiline: true },
+    { key: 'age', label: 'Age' },
+    { key: 'gender', label: 'Gender' },
+  ],
   'user-bubble': [
     { key: 'text', label: 'User says', multiline: true },
     { key: 'userName', label: 'Name' },
@@ -709,6 +731,8 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     props: {
       coachText: "Great to have you here. How old are you and what's your gender?",
       userReply: "I'm 28, and I'm male.",
+      age: '28',
+      gender: 'Male',
     },
   },
   { type: 'path-selection', beat: '3', sheetStage: 'ONBOARD-FORK--FORM: Experience Fork' },
@@ -720,7 +744,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
   { type: 'mood-row', beat: '9' },
 ];
 
-const STORAGE_KEY = 'gg-flow-builder-v10';
+const STORAGE_KEY = 'gg-flow-builder-v11';
 
 const buildDefault = (): Placed[] =>
   DEFAULT_FLOW.map((b) => ({
@@ -818,7 +842,7 @@ function PaletteCard({
         {item.label}
       </div>
       <div className="pointer-events-none overflow-hidden [transform:translateZ(0)]">
-        {item.Comp()}
+        {createElement(item.Comp)}
       </div>
       <SendButtons onSend={(where) => onSend(item.type, where)} />
     </div>
@@ -913,7 +937,7 @@ function SortableCard({
         )}
 
         <div className="overflow-hidden [transform:translateZ(0)]">
-          {entry ? entry.Comp(item.props) : null}
+          {entry ? createElement(entry.Comp, item.props) : null}
         </div>
       </div>
 
@@ -946,6 +970,31 @@ function SortableCard({
             />
           </label>
         )}
+        {fields
+          ?.filter((f) => f.key !== coachLineKey)
+          .map((f) => (
+            <label key={f.key} className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-content-tertiary">
+                {f.label}
+              </span>
+              {f.multiline ? (
+                <textarea
+                  value={item.props?.[f.key] ?? ''}
+                  onChange={(e) => setField(f.key, e.target.value)}
+                  placeholder={f.label}
+                  rows={2}
+                  className="w-full resize-none rounded-md border border-border bg-page px-2 py-1.5 text-[12px] leading-[1.5] text-content"
+                />
+              ) : (
+                <input
+                  value={item.props?.[f.key] ?? ''}
+                  onChange={(e) => setField(f.key, e.target.value)}
+                  placeholder={f.label}
+                  className="w-full rounded-md border border-border bg-page px-2 py-1.5 text-[12px] text-content"
+                />
+              )}
+            </label>
+          ))}
         <select
           value={item.sheetStage ?? ''}
           onChange={(e) => {
@@ -1074,7 +1123,7 @@ function LaneItem({
         </div>
       )}
       <div className="overflow-hidden [transform:translateZ(0)]">
-        {entry ? entry.Comp(item.props) : null}
+        {entry ? createElement(entry.Comp, item.props) : null}
       </div>
     </div>
   );
@@ -1240,7 +1289,9 @@ function FlowPhone({ placed }: { placed: Placed[] }) {
     const entry = REGISTRY_MAP[item.type];
     if (!entry) return null;
     return (
-      <div className="overflow-hidden [transform:translateZ(0)]">{entry.Comp(item.props)}</div>
+      <div className="overflow-hidden [transform:translateZ(0)]">
+        {createElement(entry.Comp, item.props)}
+      </div>
     );
   };
   return (
@@ -1427,7 +1478,24 @@ export function FlowBuilder() {
 
   const remove = (uid: string) => setPlaced((p) => p.filter((x) => x.uid !== uid));
   const update = (uid: string, patch: Partial<Placed>) =>
-    setPlaced((p) => p.map((x) => (x.uid === uid ? { ...x, ...patch } : x)));
+    setPlaced((p) => {
+      const target = p.find((x) => x.uid === uid);
+      // A beat's context (note) and sheet connection are shared by every
+      // component in that beat, so editing one applies to all of its siblings.
+      const sharedKeys: (keyof Placed)[] = (['note', 'sheetStage'] as const).filter(
+        (k) => k in patch,
+      );
+      const shareAcrossBeat = target?.beat && sharedKeys.length > 0;
+      return p.map((x) => {
+        if (x.uid === uid) return { ...x, ...patch };
+        if (shareAcrossBeat && x.beat === target!.beat) {
+          const shared: Partial<Placed> = {};
+          for (const k of sharedKeys) (shared as Record<string, unknown>)[k] = patch[k];
+          return { ...x, ...shared };
+        }
+        return x;
+      });
+    });
 
   const addSplit = () =>
     setPlaced((p) => [
