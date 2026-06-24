@@ -264,7 +264,8 @@ export function useLLM(
             setResponse('');
             setToolEvents([]);
             setStatus('done');
-            track('coach_first_token', {
+            // Backend-reported total LLM round-trip (end-of-stream), not TTFT.
+            track('coach_llm_latency', {
               screen_id: screenId,
               mode: opts.mode,
               latency_ms: e.latency_ms,

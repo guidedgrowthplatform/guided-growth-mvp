@@ -82,13 +82,17 @@ let preloadedNext: { gen: number; text: string; audio: HTMLAudioElement; url: st
   null;
 let drainResolvers: Array<() => void> = [];
 
+function disposeElement(audio: HTMLAudioElement, url: string): void {
+  audio.pause();
+  audio.src = '';
+  URL.revokeObjectURL(url);
+}
+
 function teardownPreloadedNext(): void {
   if (!preloadedNext) return;
   const { audio, url } = preloadedNext;
   preloadedNext = null;
-  audio.pause();
-  audio.src = '';
-  URL.revokeObjectURL(url);
+  disposeElement(audio, url);
 }
 
 // Build + preload an element so it decodes while the current sentence plays.
@@ -192,11 +196,7 @@ async function runDrain(): Promise<void> {
     // Next chunk may have arrived during synth — prefetch it before play.
     maybePrefetchNext(gen);
     if (gen !== speakGeneration) {
-      if (ready) {
-        ready.audio.pause();
-        ready.audio.src = '';
-        URL.revokeObjectURL(ready.url);
-      }
+      if (ready) disposeElement(ready.audio, ready.url);
       drainRunning = false;
       if (turnSealed) finishTurn();
       return;
@@ -313,9 +313,7 @@ async function playChunkElement(
   generation: number,
 ): Promise<boolean> {
   if (generation !== speakGeneration) {
-    audio.pause();
-    audio.src = '';
-    URL.revokeObjectURL(audioUrl);
+    disposeElement(audio, audioUrl);
     return false;
   }
   if (currentAudio) {

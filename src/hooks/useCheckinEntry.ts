@@ -4,7 +4,12 @@ import { useCheckIn } from '@/hooks/useCheckIn';
 import { useReflectionDoneToday } from '@/hooks/useReflectionDoneToday';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { formatDate } from '@/utils/dates';
-import { localHour, MORNING_FROM_HOUR } from '@gg/shared/time/bucketTimeOfDay';
+import {
+  localHour,
+  MORNING_FROM_HOUR,
+  MORNING_UNTIL_HOUR,
+  EVENING_FROM_HOUR,
+} from '@gg/shared/time/bucketTimeOfDay';
 import { useCheckinDoneToday, useCheckinInitiatedToday } from './useCheckinDoneToday';
 
 export type DedicatedCheckinScreenId = Extract<CheckinScreenId, 'MCHECK-01' | 'ECHECK-01'>;
@@ -12,9 +17,6 @@ export type DedicatedCheckinScreenId = Extract<CheckinScreenId, 'MCHECK-01' | 'E
 // Check-in windows by LOCAL hour. Morning 05:00–15:59 (runs late so a missed
 // morning isn't lost at noon); evening 17:00–04:59, wrapping past midnight so a
 // 2am open is evening, not morning (#207). 16:00-16:59 is a deliberate buffer.
-const MORNING_BEFORE_HOUR = 16; // morning offered while hour < 16:00 (4 PM)
-const EVENING_FROM_HOUR = 17; // evening offered while hour >= 17:00 (5 PM)
-
 export interface CheckinWindow {
   isMorning: boolean;
   isEvening: boolean;
@@ -23,7 +25,7 @@ export interface CheckinWindow {
 
 // Pure so the 4 PM / 5 PM boundaries are unit-testable without faking the clock.
 export function resolveCheckinWindow(hour: number): CheckinWindow {
-  const isMorning = hour >= MORNING_FROM_HOUR && hour < MORNING_BEFORE_HOUR;
+  const isMorning = hour >= MORNING_FROM_HOUR && hour < MORNING_UNTIL_HOUR;
   const isEvening = hour >= EVENING_FROM_HOUR || hour < MORNING_FROM_HOUR;
   return { isMorning, isEvening, proactiveWindow: isMorning || isEvening };
 }
@@ -63,8 +65,7 @@ export function resolveCoachOpen(entry: CheckinEntry): {
 }
 
 // Shared time-of-day + done-today routing so the home check-in card and the
-// global open-chat button can't drift on which check-in to open. 'morning'
-// bucket only (<12 local) → morning; afternoon/evening/night → evening.
+// global open-chat button can't drift on which check-in to open.
 export function useCheckinEntry(): CheckinEntry {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const { isMorning, proactiveWindow } = resolveCheckinWindow(localHour(new Date(), tz));
