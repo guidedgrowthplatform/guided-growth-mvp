@@ -115,6 +115,8 @@ describe('authedFetch', () => {
 
     expect(out.status).toBe(401);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    const retryHeaders = (fetchMock.mock.calls[1][1].headers ?? {}) as Record<string, string>;
+    expect(retryHeaders.Authorization).toBe('Bearer new');
     expect(signOutMock).toHaveBeenCalledTimes(1);
   });
 

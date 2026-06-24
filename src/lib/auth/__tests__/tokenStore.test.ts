@@ -145,4 +145,20 @@ describe('tokenStore', () => {
 
     await expect(refreshOnce()).resolves.toEqual({ status: 'terminal' });
   });
+
+  it.each([
+    [408, 'transient'],
+    [429, 'transient'],
+    [500, 'transient'],
+    [400, 'terminal'],
+    [403, 'terminal'],
+  ])('refreshOnce classifies HTTP %i as %s', async (status, expected) => {
+    setSession(sessionWithExpiry('stale', 10) as never);
+    refreshSessionMock.mockResolvedValue({
+      data: { session: null },
+      error: { name: 'AuthApiError', status },
+    });
+
+    await expect(refreshOnce()).resolves.toEqual({ status: expected });
+  });
 });
