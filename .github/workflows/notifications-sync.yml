@@ -1,0 +1,71 @@
+# Regenerates packages/shared/src/generated/notification_copy.ts from the Master Sheet and
+# opens a PR when it changes, so the client edits the Sheet (not code) and a human reviews
+# before the copy ships. Build-time artifact — change lands on the next deploy + app reschedule.
+#
+# PREREQUISITES (one-time setup before enabling):
+#   - secrets: GOOGLE_SERVICE_ACCOUNT_JSON, GOOGLE_SHEET_ID (already used by voice-sync)
+#   - repo variable NOTIFICATION_TAB = the exact tab name holding the *_notification rows
+#   - confirm the PR target: this opens a PR on whichever remote runs Actions (the GitHub
+#     mirror). If review must happen on GitLab, swap create-pull-request for a glab MR step.
+name: notifications-sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * *' # daily 06:00 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: notifications-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci # provides prettier for the generator's format pass
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scripts/voice-sync/requirements.txt
+      - run: pip install -r scripts/voice-sync/requirements.txt
+
+      - name: Unit tests
+        working-directory: scripts/voice-sync
+        run: pytest tests/test_gen_notifications.py
+
+      - name: Stage GCP service-account file
+        env:
+          SA_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          printf '%s' "$SA_JSON" > "$RUNNER_TEMP/sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+
+      - name: Regenerate notification copy
+        env:
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          NOTIFICATION_TAB: ${{ vars.NOTIFICATION_TAB }}
+        run: npm run notifications:bundle
+
+      - name: Open PR if the copy changed
+        uses: peter-evans/create-pull-request@v6
+        with:
+          add-paths: packages/shared/src/generated/notification_copy.ts
+          branch: chore/sync-notification-copy
+          commit-message: 'chore(notifications): sync copy from Master Sheet'
+          title: 'chore(notifications): sync copy from Master Sheet'
+          body: |
+            Auto-generated from the Master Sheet notification tab.
+            Review the copy, then merge to ship (next deploy + app reschedule).
