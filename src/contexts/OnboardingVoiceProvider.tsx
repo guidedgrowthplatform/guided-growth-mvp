@@ -22,6 +22,7 @@ import {
   type OnboardingVoiceStatus,
   type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
+import { vapiLiveGate } from '@/contexts/vapiLiveGate';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useOnboardingChat } from '@/hooks/useOnboardingChat';
 import {
@@ -1155,20 +1156,31 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     track('voice_cap_reached', { count: vapiToday, limit: VAPI_DAILY_CAP });
   }, [voiceCapReached, vapiToday, logEvent]);
 
+  // Idle auto-pause: after IDLE_TIMEOUT_MS of silence the idle timer calls
+  // systemPauseMic(), which sets micPausedReason='system'. The Soniox path
+  // already drops the mic off this flag via micEnabledFrom(); Vapi (mic + WebRTC)
+  // must too, or the call stays fully live and keeps burning voice minutes. Read
+  // the flag reactively so the vapiShouldBeLive derivation re-runs when it flips,
+  // which tears the call down through the existing stop branch. A user gesture or
+  // tab-visible event clears it (reactivateIfSystemPaused in App.tsx), flipping
+  // this back to null so Vapi re-arms through the same start branch.
+  const micPausedReason = useVoiceSettingsStore((s) => s.micPausedReason);
+
   // The selector decides Vapi INTENT (voice on, covered beat). Vapi only STARTS
   // once the mic is actually granted — until then the beat is Vapi-pending (the
   // opener waits for Vapi, Direct-LLM never fills it). Plus the transient health
-  // gates: identity loaded, no fatal/cooldown, under the daily cap.
-  const vapiShouldBeLive =
-    engine.engine === 'vapi' &&
-    preferences.micPermission === true &&
-    preferences.micEnabled === true &&
-    // metadata.anon_id is baked in at start(); a null anonId would ship every tool
-    // call with an empty anon_id and the backend rejects them all (invalid_identity).
-    !!anonId &&
-    !fatalErrorRef.current &&
-    !remoteEndCooldown &&
-    !voiceCapReached;
+  // gates: identity loaded, no fatal/cooldown, under the daily cap, not idle-paused.
+  // The gate is a pure helper (vapiLiveGate) so it can be unit-tested.
+  const vapiShouldBeLive = vapiLiveGate({
+    engineIsVapi: engine.engine === 'vapi',
+    micPermission: preferences.micPermission === true,
+    micEnabled: preferences.micEnabled === true,
+    hasAnonId: !!anonId,
+    fatalError: fatalErrorRef.current,
+    remoteEndCooldown,
+    voiceCapReached,
+    micPausedReason,
+  });
 
   useEffect(() => {
     vapiShouldBeLiveRef.current = vapiShouldBeLive;

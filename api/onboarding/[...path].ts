@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          brain_dump_raw = COALESCE($5, onboarding_states.brain_dump_raw),
          brain_dump_parsed = COALESCE($6::jsonb, onboarding_states.brain_dump_parsed),
          updated_at = now()
-       RETURNING id, anon_id, path, current_step, status, data, brain_dump_raw, brain_dump_parsed, completed_at`,
+       RETURNING id, anon_id, path, current_step, status, data, brain_dump_raw, brain_dump_parsed, completed_at, updated_at, created_at`,
       [
         user.anonId,
         step,

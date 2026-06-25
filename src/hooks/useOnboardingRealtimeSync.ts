@@ -8,6 +8,25 @@ import type { OnboardingState } from '@gg/shared/types';
 export type RealtimeSyncStatus = 'idle' | 'subscribing' | 'subscribed' | 'error';
 
 /**
+ * Out-of-order Realtime delivery can echo an OLDER row after a fresh save.
+ * Drop the incoming row only when we can PROVE it is older: both sides carry a
+ * comparable `updated_at` and the current one is strictly newer.
+ *
+ * This guard only works if every saved row actually carries `updated_at`. The
+ * PUT save handler must include `updated_at` (and `created_at`) in its RETURNING
+ * clause; otherwise the just-saved cache row has `updated_at === undefined`, the
+ * comparison short-circuits to "not stale", and a late echo of the pre-save row
+ * silently clobbers fresh state. Tested against both shapes below.
+ */
+export function isStaleRealtimeRow(
+  current: { updated_at?: string | null } | null | undefined,
+  next: { updated_at?: string | null },
+): boolean {
+  if (!current?.updated_at || !next.updated_at) return false;
+  return current.updated_at > next.updated_at;
+}
+
+/**
  * Subscribe to the authenticated user's `onboarding_states` row via
  * Supabase Realtime and mirror changes into the React Query cache.
  *
@@ -64,9 +83,9 @@ export function useOnboardingRealtimeSync(): RealtimeSyncStatus {
           // by the API on every write (Alembic trigger) so strict `>` is
           // safe.
           const current = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state);
-          if (current?.updated_at && next.updated_at && current.updated_at > next.updated_at) {
+          if (isStaleRealtimeRow(current, next)) {
             if (import.meta.env.DEV) {
-              console.log('[realtime] dropped (stale)', next.updated_at, '<', current.updated_at);
+              console.log('[realtime] dropped (stale)', next.updated_at, '<', current?.updated_at);
             }
             return;
           }
