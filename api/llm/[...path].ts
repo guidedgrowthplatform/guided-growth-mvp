@@ -25,7 +25,7 @@ import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
 import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
 import { handleParseBrainDump } from '../_lib/llm/parseBrainDump.js';
 import { buildSystemPromptForRequest } from '../_lib/llm/buildSystemPrompt.js';
-import { WRITE_TOOLS } from '../_lib/llm/writeTools.js';
+import { MUTATING_TOOLS } from '@gg/shared/checkin/mutatingTools';
 import { reportToolFailure, reportRequestFailure, flushSentry } from '../_lib/sentry.js';
 import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 
@@ -733,7 +733,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         send({ type: 'tool_result', id: tc.callId, ok: result.ok, result });
         // Surface a WRITE-tool crash so the client doesn't silently claim success.
         // Read-only / invalid_args / unknown_tool stay tool_result-only.
-        if (!result.ok && result.error === 'handler_error' && WRITE_TOOLS.has(tc.name)) {
+        if (!result.ok && result.error === 'handler_error' && MUTATING_TOOLS.has(tc.name)) {
           send({
             type: 'tool_failed',
             id: tc.callId,

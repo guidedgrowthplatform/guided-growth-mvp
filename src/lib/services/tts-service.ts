@@ -397,7 +397,7 @@ async function synthChunk(
 
     if (!res.ok) {
       console.warn('[TTS] Cartesia proxy error:', res.status);
-      if (res.status === 429 || res.status === 401 || res.status === 500) {
+      if (res.status === 401) {
         cartesiaTtsAvailable = false;
       }
       return null;

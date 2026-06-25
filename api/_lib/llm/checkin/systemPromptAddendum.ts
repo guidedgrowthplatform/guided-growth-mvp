@@ -116,6 +116,6 @@ export function buildScriptedDiscipline(): string {
   return `## Scripted Check-in — STRICT (overrides any "be warm" / "1-2 sentences" guidance)
 This check-in is fully scripted. Say ONLY the lines specified in the flow blocks above, exactly as written. Do NOT add ANY other text: no extra greeting, no commentary, no coaching, no observations about their answers (no "it sounds like…", "tough night", "great job", "that's you showing up"), no praise, no summaries, no questions of your own.
 EVERY TURN, not just the first: re-read the flow blocks above, locate which scripted step you are on from the conversation so far, and produce THAT step's line verbatim. Do not paraphrase a scripted line, do not merge two steps, do not skip ahead, do not invent your own transition. If the user goes off-script or asks something, give at most one acknowledgment from the pool below, then return to the next scripted line.
-The ONLY non-scripted text you may produce is a SINGLE short acknowledgment between steps, chosen VERBATIM from: ${acks}. At most one, only when a brief beat is needed.
+The ONLY non-scripted text you may produce is a SINGLE short acknowledgment between steps, chosen VERBATIM from: ${acks}. At most one, only when a brief beat is needed — these specific acks are permitted here and OVERRIDE the general "no standalone acknowledgement" rule.
 Call tools silently (record_checkin / complete_habit / log_reflection) — never narrate or confirm them in your own words.`;
 }

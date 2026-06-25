@@ -177,6 +177,62 @@ describe('LLM route — tool_failed emit for WRITE tools', () => {
     });
   });
 
+  it('emits tool_failed when update_reflection throws (regression: was missing from MUTATING_TOOLS)', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ foreign_owned: false, prev_response_id: null }],
+    });
+    pool.query.mockResolvedValue({ rowCount: 1, rows: [] });
+
+    async function* gen1() {
+      yield {
+        type: 'tool_call',
+        callId: 'call-upd-refl-1',
+        name: 'update_reflection',
+        argumentsRaw: JSON.stringify({ mode: 'freeform' }),
+      };
+      yield { type: 'completed', responseId: 'resp-1', totalTokens: 5 };
+    }
+    async function* gen2() {
+      yield { type: 'delta', content: 'ok' };
+      yield { type: 'completed', responseId: 'resp-2', totalTokens: 1 };
+    }
+    (openResponsesStream as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(gen1())
+      .mockResolvedValueOnce(gen2());
+
+    (dispatchCheckinToolCall as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('reflection save failed'),
+    );
+
+    const { client } = makeClient();
+    pool.connect.mockResolvedValue(client);
+
+    const res = mockRes();
+    await handler(
+      mockReq({
+        session_id: 'sess-abcd1234',
+        screen_id: 'HOME-CHECKIN',
+        user_message: 'switch me to freeform journaling',
+        chat_session_id: CHAT_SESSION_ID,
+        user_turn_id: USER_TURN_ID,
+      }),
+      res,
+    );
+
+    const frames = (res as unknown as { _writes: string[] })._writes
+      .join('')
+      .split('\n\n')
+      .filter((b) => b.startsWith('data:'))
+      .map((b) => JSON.parse(b.slice(5).trim()));
+
+    expect(frames.find((f) => f.type === 'tool_failed')).toMatchObject({
+      id: 'call-upd-refl-1',
+      name: 'update_reflection',
+      error: 'handler_error',
+    });
+  });
+
   it('does NOT emit tool_failed for a read-only tool failure (query_habits)', async () => {
     pool.query.mockResolvedValueOnce({
       rowCount: 1,

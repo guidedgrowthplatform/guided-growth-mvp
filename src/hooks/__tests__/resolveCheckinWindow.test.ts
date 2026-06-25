@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { localHour } from '@gg/shared/time/bucketTimeOfDay';
 import { resolveCheckinWindow } from '../useCheckinEntry';
 
 describe('resolveCheckinWindow — morning until 4 PM, evening from 5 PM', () => {
@@ -42,5 +43,27 @@ describe('resolveCheckinWindow — morning until 4 PM, evening from 5 PM', () =>
         proactiveWindow: true,
       });
     }
+  });
+});
+
+describe('localHour → resolveCheckinWindow (Intl tz extraction, #207)', () => {
+  const instant = new Date('2026-06-25T07:00:00Z');
+
+  it('07:00Z resolves to evening in America/New_York (03:00 local)', () => {
+    const h = localHour(instant, 'America/New_York');
+    expect(h).toBe(3);
+    expect(resolveCheckinWindow(h).isEvening).toBe(true);
+  });
+
+  it('07:00Z resolves to the buffer in Asia/Tokyo (16:00 local)', () => {
+    const h = localHour(instant, 'Asia/Tokyo');
+    expect(h).toBe(16);
+    expect(resolveCheckinWindow(h).proactiveWindow).toBe(false);
+  });
+
+  it('07:00Z resolves to morning in Europe/London (08:00 local)', () => {
+    const h = localHour(instant, 'Europe/London');
+    expect(h).toBe(8);
+    expect(resolveCheckinWindow(h).isMorning).toBe(true);
   });
 });
