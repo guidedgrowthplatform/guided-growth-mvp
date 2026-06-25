@@ -19,9 +19,9 @@ export function buildCanonicalOptionsBlock(
   if (screenId === 'ONBOARD-01--FORM') {
     return (
       `\n\n## Profile Fields\n` +
-      `Collect ALL four: nickname, age, gender (Male | Female | Other), referral source.\n` +
-      `Call submit_profile as fields come in — always include the nickname plus every field gathered so far (it requires the nickname each call).\n` +
-      `Do NOT call advance_step (do not advance) until all four are provided.`
+      `The user's name is already known from sign-in, so do NOT ask for it, and do NOT ask how they heard about us (no referral source). Collect only two things: age and gender (Male | Female | Other). Do not push on gender if they would rather not say.\n` +
+      `Call submit_profile as fields come in. The tool requires the nickname on every call, so always pass the already-known nickname plus every field gathered so far.\n` +
+      `Call advance_step once age and gender are in (or gender is declined). Do not block advance on a referral source.`
     );
   }
 
