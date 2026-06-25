@@ -8,6 +8,8 @@
   ],
   "scripts": {
     "dev": "vite",
+    "env:staging": "node scripts/env/switch-env.mjs staging",
+    "env:prod": "node scripts/env/switch-env.mjs prod",
     "dev:api": "set -a && . ./.env.local && set +a && vercel dev --listen 3000",
     "predev:api": "npm run build:shared",
     "icons:bundle": "node scripts/build-icon-bundle.mjs",
