@@ -71,26 +71,40 @@ export function Karaoke({ text, active }: { text: string; active: boolean }) {
 }
 
 // Plays a beat's steps in order: each fades in, coach lines karaoke, and the
-// next step waits for the spoken line to finish.
+// next step waits for the spoken line to finish. When the beat finishes it holds,
+// then replays from the top, so the motion loops on the builder canvas (in Play
+// you normally advance before it cycles).
 export function BeatPlayer({ steps }: { steps: BeatStep[] }) {
   const sig = steps.map((s) => `${s.speaker}:${s.say ?? ''}`).join('|');
   const [revealed, setRevealed] = useState(1);
+  const [cycle, setCycle] = useState(0);
   useEffect(() => {
     setRevealed(1);
+    setCycle(0);
   }, [sig]);
   useEffect(() => {
-    if (revealed >= steps.length) return;
+    if (revealed >= steps.length) {
+      // Beat fully revealed: hold on it, then loop back to the top. Bumping cycle
+      // remounts the steps so the karaoke replays from empty.
+      const lastSay = steps[steps.length - 1]?.say;
+      const revealMs = lastSay ? lastSay.split(/\s+/).length * 110 : 0;
+      const t = window.setTimeout(() => {
+        setRevealed(1);
+        setCycle((c) => c + 1);
+      }, revealMs + 1800);
+      return () => window.clearTimeout(t);
+    }
     const cur = steps[revealed - 1];
     const dwell = cur?.say ? 650 + cur.say.split(/\s+/).length * 110 : 450;
     const t = window.setTimeout(() => setRevealed((r) => Math.min(steps.length, r + 1)), dwell);
     return () => window.clearTimeout(t);
-  }, [revealed, steps.length]);
+  }, [revealed, steps.length, cycle]);
   return (
     <div className="flex flex-col gap-4">
       {steps.slice(0, revealed).map((s, i) => {
         const last = i === revealed - 1;
         return (
-          <div key={s.id} className="flex animate-fade-in flex-col gap-3">
+          <div key={`${s.id}-${cycle}`} className="flex animate-fade-in flex-col gap-3">
             {s.speaker === 'coach' && s.say && (
               <div className="max-w-[85%] self-start rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 text-[14px] font-medium leading-[1.45] text-content shadow-[0px_4px_16px_-4px_rgba(15,23,42,0.12)]">
                 <Karaoke text={s.say} active={last} />
