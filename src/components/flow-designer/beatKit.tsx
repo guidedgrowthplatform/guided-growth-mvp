@@ -32,10 +32,42 @@ export interface BeatDef {
   Comp: (props?: Record<string, string>) => ReactNode;
 }
 
-// Renders the spoken line whole. The reveal (a clean fade) is handled by the
-// player, so there is no word-by-word typing, which reflowed and read jumpy.
-export function Karaoke({ text }: { text: string; active?: boolean }) {
-  return <>{text}</>;
+// Types the line in word by word while `active`. Once the player moves on, the
+// line shows whole.
+export function Karaoke({ text, active }: { text: string; active: boolean }) {
+  const parts = text.split(/(\s+)/);
+  const total = parts.filter((p) => /\S/.test(p)).length;
+  const [n, setN] = useState(active ? 0 : total);
+  useEffect(() => {
+    if (!active) {
+      setN(total);
+      return;
+    }
+    setN(0);
+    let i = 0;
+    const id = window.setInterval(() => {
+      i += 1;
+      setN(i);
+      if (i >= total) window.clearInterval(id);
+    }, 110);
+    return () => window.clearInterval(id);
+  }, [text, active, total]);
+  const words = parts.filter((p) => /\S/.test(p));
+  const shown = words.slice(0, n);
+  const head = shown.slice(0, -1).join(' ');
+  const last = shown.length ? shown[shown.length - 1] : null;
+  return (
+    <>
+      {head}
+      {head && last != null ? ' ' : ''}
+      {last != null ? (
+        <span key={n} style={{ animation: 'ggWordIn 220ms ease-out' }}>
+          {last}
+        </span>
+      ) : null}
+      <style>{`@keyframes ggWordIn{from{opacity:0}to{opacity:1}}`}</style>
+    </>
+  );
 }
 
 // Plays a beat's steps in order. Every step is laid out from the start (its space
@@ -61,7 +93,7 @@ export function BeatPlayer({ steps }: { steps: BeatStep[] }) {
     }
     const justShown = revealed > 0 ? steps[revealed - 1] : null;
     const dwell =
-      revealed === 0 ? 180 : justShown?.say ? 600 + justShown.say.split(/\s+/).length * 90 : 480;
+      revealed === 0 ? 180 : justShown?.say ? 650 + justShown.say.split(/\s+/).length * 110 : 480;
     const t = window.setTimeout(() => setRevealed((r) => r + 1), dwell);
     return () => window.clearTimeout(t);
   }, [revealed, steps.length, playing]);
@@ -69,25 +101,34 @@ export function BeatPlayer({ steps }: { steps: BeatStep[] }) {
     <div className="flex flex-col gap-4">
       {steps.map((s, i) => {
         const shown = i < revealed;
+        // A render step (cards, picker) reserves its space from the start and just
+        // fades in, so nothing jumps when it appears. A spoken line mounts only
+        // when reached, so it still types in from empty (the words, unchanged).
+        const reserve = !s.say && !!s.render;
+        if (!reserve && !shown) return null;
         return (
           <div
             key={s.id}
-            className="flex flex-col gap-3"
-            style={{
-              opacity: shown ? 1 : 0,
-              transition: 'opacity 520ms ease-out',
-              pointerEvents: shown ? 'auto' : 'none',
-            }}
+            className={reserve ? 'flex flex-col gap-3' : 'flex animate-fade-in flex-col gap-3'}
+            style={
+              reserve
+                ? {
+                    opacity: shown ? 1 : 0,
+                    transition: 'opacity 520ms ease-out',
+                    pointerEvents: shown ? 'auto' : 'none',
+                  }
+                : undefined
+            }
           >
             {s.speaker === 'coach' && s.say && (
               <div className="max-w-[85%] self-start rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 text-[14px] font-medium leading-[1.45] text-content shadow-[0px_4px_16px_-4px_rgba(15,23,42,0.12)]">
-                <Karaoke text={s.say} />
+                <Karaoke text={s.say} active={i === revealed - 1} />
               </div>
             )}
             {s.render}
             {s.speaker === 'user' && s.say && (
               <div className="max-w-[80%] self-end rounded-2xl rounded-tr-sm bg-[rgba(19,91,236,0.9)] px-4 py-2.5 text-[14px] font-medium text-white shadow-card">
-                <Karaoke text={s.say} />
+                <Karaoke text={s.say} active={i === revealed - 1} />
               </div>
             )}
           </div>
