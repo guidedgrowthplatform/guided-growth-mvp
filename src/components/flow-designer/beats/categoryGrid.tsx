@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
-import { type BeatDef } from '../beatKit';
+import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 
 const CATS = [
   { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
@@ -15,19 +15,33 @@ const CATS = [
 
 function CategoryGrid(props?: Record<string, string>) {
   const [sel, setSel] = useState('Sleep better');
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {CATS.map((c) => (
-        <CategoryCard
-          key={c.label}
-          image={c.image}
-          label={c.label}
-          selected={sel === c.label}
-          onSelect={() => setSel(c.label)}
-        />
-      ))}
-    </div>
-  );
+
+  const steps: BeatStep[] = [
+    {
+      id: 'ask',
+      speaker: 'coach',
+      say: props?.coachLine ?? 'What part of your life do you most want to grow right now?',
+    },
+    {
+      id: 'show',
+      speaker: 'coach',
+      render: (
+        <div className="grid grid-cols-2 gap-3">
+          {CATS.map((c) => (
+            <CategoryCard
+              key={c.label}
+              image={c.image}
+              label={c.label}
+              selected={sel === c.label}
+              onSelect={() => setSel(c.label)}
+            />
+          ))}
+        </div>
+      ),
+    },
+  ];
+
+  return <BeatPlayer steps={steps} />;
 }
 
 const categoryGridBeat: BeatDef = {

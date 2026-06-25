@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
-import { type BeatDef } from '../beatKit';
+import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 
-function HabitPickerBeat(_props?: Record<string, string>) {
+function HabitPickerBeat(props?: Record<string, string>) {
   const [expanded, setExpanded] = useState(true);
   const [sel, setSel] = useState<Set<string>>(new Set(['No screens after 10 PM']));
   const habits = [
@@ -11,24 +11,38 @@ function HabitPickerBeat(_props?: Record<string, string>) {
     'Start wind-down by 10 PM',
     'Be in bed by target bedtime',
   ];
-  return (
-    <HabitPickerPanel
-      goal="Fall asleep earlier"
-      habits={habits}
-      expanded={expanded}
-      onToggleExpanded={() => setExpanded((v) => !v)}
-      selectedHabits={sel}
-      onToggleHabit={(h) =>
-        setSel((p) => {
-          const n = new Set(p);
-          if (n.has(h)) n.delete(h);
-          else n.add(h);
-          return n;
-        })
-      }
-      onAddCustomHabit={(h) => setSel((p) => new Set(p).add(h))}
-    />
-  );
+
+  const steps: BeatStep[] = [
+    {
+      id: 'ask',
+      speaker: 'coach',
+      say: props?.coachLine ?? "Here are a few habits that fit. Pick the ones you'll actually do.",
+    },
+    {
+      id: 'show',
+      speaker: 'coach',
+      render: (
+        <HabitPickerPanel
+          goal="Fall asleep earlier"
+          habits={habits}
+          expanded={expanded}
+          onToggleExpanded={() => setExpanded((v) => !v)}
+          selectedHabits={sel}
+          onToggleHabit={(h) =>
+            setSel((p) => {
+              const n = new Set(p);
+              if (n.has(h)) n.delete(h);
+              else n.add(h);
+              return n;
+            })
+          }
+          onAddCustomHabit={(h) => setSel((p) => new Set(p).add(h))}
+        />
+      ),
+    },
+  ];
+
+  return <BeatPlayer steps={steps} />;
 }
 
 const habitPickerBeat: BeatDef = {

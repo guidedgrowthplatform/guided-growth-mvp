@@ -54,9 +54,20 @@ export function BeatOrb({ state = 'idle', size = 91 }: { state?: OrbState; size?
   );
 }
 
-// Default orb state per beat type. A per-beat override can be added later.
+// Orb state per beat type across the onboarding flow. mic-permission pulses the
+// mic side; coach-led beats show talking; user-action and summary beats rest idle.
+const TALKING_BEATS = new Set([
+  'splash-intro',
+  'profile-beat',
+  'path-selection',
+  'category-grid',
+  'goals-list',
+  'habit-picker',
+  'reflection-card',
+]);
+
 export function orbStateForType(type: string): OrbState {
   if (type === 'mic-permission') return 'mic-request';
-  if (type === 'splash-intro') return 'talking';
+  if (TALKING_BEATS.has(type)) return 'talking';
   return 'idle';
 }

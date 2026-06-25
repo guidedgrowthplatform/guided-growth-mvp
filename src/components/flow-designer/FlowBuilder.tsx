@@ -333,6 +333,12 @@ const TEXT_FIELDS: Record<string, FieldDef[]> = {
 const COACH_LINE_PROP: Record<string, string> = {
   'coach-bubble': 'text',
   'profile-beat': 'greeting',
+  'path-selection': 'coachLine',
+  'category-grid': 'coachLine',
+  'goals-list': 'coachLine',
+  'habit-picker': 'coachLine',
+  'reflection-card': 'coachLine',
+  'plan-cards': 'coachLine',
 };
 
 // Imported components that are full-screen modals/overlays. They cannot preview
@@ -399,19 +405,28 @@ interface DefaultBeat {
 // opens with its real context. Several components can share one sheet stage
 // (profile setup is name + age + gender), so they share a beat number.
 const DEFAULT_FLOW: DefaultBeat[] = [
-  { type: 'splash-intro', beat: '1' },
-  { type: 'auth-signup', beat: '2' },
+  // The full onboarding, start to finish. background = who leads (coach blue when
+  // the coach speaks, user yellow when you act). The orb state per beat lives in
+  // orbStateForType (BeatOrb.tsx). coachLine is the spoken line that carries you
+  // to the next beat.
+  { type: 'get-started', beat: '1', background: 'coach' },
+  { type: 'splash-intro', beat: '2', background: 'coach' },
+  { type: 'auth-signup', beat: '3', background: 'user' },
   {
     type: 'mic-permission',
-    beat: '3',
+    beat: '4',
+    background: 'coach',
     props: {
-      ask: 'Can I turn on your mic so we can talk out loud?',
-      note: 'Tap the orb to allow it.',
+      heading: 'Allow your microphone',
+      sub: 'So you can talk with your coach out loud.',
+      allowLabel: 'Allow microphone',
+      skipLabel: 'Not now',
     },
   },
   {
     type: 'profile-beat',
-    beat: '4',
+    beat: '5',
+    background: 'coach',
     sheetStage: 'ONBOARD-01--FORM: Profile Setup',
     props: {
       greeting: 'Awesome {name}, two quick things so I can tailor this to you.',
@@ -422,12 +437,47 @@ const DEFAULT_FLOW: DefaultBeat[] = [
       gender: 'Male',
     },
   },
-  { type: 'path-selection', beat: '5', sheetStage: 'ONBOARD-FORK--FORM: Experience Fork' },
-  { type: 'category-grid', beat: '6', sheetStage: 'ONBOARD-BEGINNER-01: Category Selection' },
-  { type: 'goals-list', beat: '7', sheetStage: 'ONBOARD-BEGINNER-02: Subcategory Selection' },
-  { type: 'habit-picker', beat: '8', sheetStage: 'ONBOARD-BEGINNER-03: Habit Selection' },
-  { type: 'reflection-card', beat: '9', sheetStage: 'ONBOARD-BEGINNER-07: Journal Setup' },
-  { type: 'plan-cards', beat: '10' },
+  {
+    type: 'path-selection',
+    beat: '6',
+    background: 'user',
+    sheetStage: 'ONBOARD-FORK--FORM: Experience Fork',
+    props: { coachLine: 'Have you tracked habits before, or is this new for you?' },
+  },
+  {
+    type: 'category-grid',
+    beat: '7',
+    background: 'user',
+    sheetStage: 'ONBOARD-BEGINNER-01: Category Selection',
+    props: { coachLine: 'What part of your life do you most want to grow right now?' },
+  },
+  {
+    type: 'goals-list',
+    beat: '8',
+    background: 'user',
+    sheetStage: 'ONBOARD-BEGINNER-02: Subcategory Selection',
+    props: { coachLine: 'Which of these feels most true for you?' },
+  },
+  {
+    type: 'habit-picker',
+    beat: '9',
+    background: 'user',
+    sheetStage: 'ONBOARD-BEGINNER-03: Habit Selection',
+    props: { coachLine: "Here are a few habits that fit. Pick the ones you'll actually do." },
+  },
+  {
+    type: 'reflection-card',
+    beat: '10',
+    background: 'user',
+    sheetStage: 'ONBOARD-BEGINNER-07: Journal Setup',
+    props: { coachLine: "Let's set a daily moment to reflect. When works for you?" },
+  },
+  {
+    type: 'plan-cards',
+    beat: '11',
+    background: 'coach',
+    props: { coachLine: "Here's your starting plan. We'll adjust as we go." },
+  },
 ];
 
 const ONBOARDING_FLOW = DEFAULT_FLOW;
@@ -483,7 +533,7 @@ const FLOWS: FlowDef[] = [
 ];
 const FLOW_MAP: Record<string, FlowDef> = Object.fromEntries(FLOWS.map((f) => [f.id, f]));
 
-const STORAGE_BASE = 'gg-flow-builder-v16';
+const STORAGE_BASE = 'gg-flow-builder-v17';
 const flowKey = (flowId: string) => `${STORAGE_BASE}:${flowId}`;
 const ACTIVE_FLOW_KEY = `${STORAGE_BASE}:active`;
 
