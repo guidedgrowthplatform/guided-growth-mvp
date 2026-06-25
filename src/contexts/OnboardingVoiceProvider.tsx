@@ -138,7 +138,13 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
 
   const bundledRoutes = useMemo(() => getBundledRoutes(), []);
 
-  const inOnboarding = isOnboardingPath(location.pathname);
+  // The auth-free preview route (/onboarding-flow-preview) is a real chat
+  // onboarding surface (see onChatPage), it just lives outside the /onboarding/*
+  // namespace. Count it as in-onboarding so the "!inOnboarding -> stop()" guard
+  // below does not tear its own voice down, letting the no-login walk run the
+  // full Cartesia opener + Vapi path.
+  const inOnboarding =
+    isOnboardingPath(location.pathname) || location.pathname === ONBOARDING_FLOW_PREVIEW_ROUTE;
   // Chat-native onboarding renders at the onboarding root (the chat IS the
   // surface). The page renders the chat body itself, so the provider must NOT
   // also pop the floating overlay. Vapi (Path 1) is dormant here UNLESS the
