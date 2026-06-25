@@ -1,6 +1,6 @@
-v2.11.8 - Fewer surprise logouts, and reminder taps now open the voice check-in.
+v2.11.9 - Smoother, faster voice check-in coach.
 Test:
-- Sign in, use the app, then lock/reopen and come back later; you should stay signed in (no unexpected kick to login).
-- Use voice/coach during a session and confirm no sudden "auth" error interrupts you mid-use.
-- Tap a scheduled reminder; it should open straight into the voice check-in (coach audio plays even from a fully closed app).
+- Start a fresh daily check-in and talk to the coach; replies should come faster and text should type in smoothly (no jumpy scroll).
+- Speak normally with a TV or background noise on; the coach should keep listening and not stop itself mid-sentence.
+- Add or complete a habit by voice during the check-in and confirm it saves.
 - Android: quick smoke test, no regressions expected.
