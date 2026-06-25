@@ -3,6 +3,35 @@
 A beat is a list of **steps** played in order. This folder lets several sessions
 build different beats at the same time without touching the same file.
 
+## Editing one beat from any session
+
+Find the beat in the table, open its file, edit it. Nothing else: the registry
+(`index.ts`) auto-collects every file in this folder, and `DEFAULT_FLOW` in
+`FlowBuilder.tsx` references beats by `type`, so a content edit needs no other
+change. After editing, run `npx vite build --config vite.flow.config.ts` (and
+`npx tsc --noEmit -p tsconfig.json`) to confirm it compiles.
+
+### Beats in the onboarding flow (in order)
+
+| # | Beat | File | type |
+|---|------|------|------|
+| 1 | Splash | `splash.tsx` | `splash` |
+| 2 | Get Started | `getStarted.tsx` | `get-started` |
+| 3 | Coach greeting ("Hey, I might have startled you...") | `splashIntro.tsx` | `splash-intro` |
+| 4 | Sign up (Apple / Google / email) | `authSignup.tsx` | `auth-signup` |
+| 5 | Mic permission | `micPermission.tsx` | `mic-permission` |
+| 6 | Profile (age + gender) | `profile.tsx` | `profile-beat` |
+| 7 | Path choice | `pathSelection.tsx` | `path-selection` |
+| 8 | Category tiles | `categoryGrid.tsx` | `category-grid` |
+| 9 | Goal cards | `goalsList.tsx` | `goals-list` |
+| 10 | Habit picker | `habitPicker.tsx` | `habit-picker` |
+| 11 | Daily reflection | `reflectionCard.tsx` | `reflection-card` |
+| 12 | Plan summary | `planCards.tsx` | `plan-cards` |
+
+Note: `splashIntro.tsx` is the **Coach greeting** beat (legacy file/type name).
+The orb state and the who-leads gradient per beat live in `BeatOrb.tsx`
+(`orbConfigForType`) and `DEFAULT_FLOW`, not in the beat file.
+
 ## The model
 
 A step is one part of a beat:
