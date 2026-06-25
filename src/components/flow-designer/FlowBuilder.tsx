@@ -653,6 +653,22 @@ function migrateStorage() {
   }
 }
 
+// One-time: drop the OLD cached check-in flows so the rebuilt morning/evening
+// defaults load (redesigned 2026-06-25: the 4-row state card, habit review, the
+// single reflection beat, and sheet-fed audio). Onboarding is untouched.
+// Idempotent via a flag.
+function refreshCheckinFlows() {
+  try {
+    const FLAG = `${STORAGE_BASE}:checkin-refresh-2026-06-25`;
+    if (localStorage.getItem(FLAG)) return;
+    localStorage.removeItem(flowKey('morning-checkin'));
+    localStorage.removeItem(flowKey('evening-checkin'));
+    localStorage.setItem(FLAG, '1');
+  } catch {
+    /* ignore */
+  }
+}
+
 type StoredBeat = {
   type: string;
   props?: Record<string, string>;
@@ -2154,6 +2170,7 @@ export function FlowBuilder() {
   // On mount, restore the last active flow and its beats.
   useEffect(() => {
     migrateStorage();
+    refreshCheckinFlows();
     let fid = 'onboarding';
     try {
       const a = localStorage.getItem(ACTIVE_FLOW_KEY);
