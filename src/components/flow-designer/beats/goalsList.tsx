@@ -1,15 +1,26 @@
 import { useState } from 'react';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { useFlowState } from '../flowStateCtx';
+import { goalsByCategory } from '@/data/onboardingHabits';
+
+const MAX_GOALS = 2;
 
 function GoalsListBeat(props?: Record<string, string>) {
-  const goals = [
-    'Fall asleep earlier',
-    'Wake up earlier',
-    'Sleep more consistently',
-    'Sleep more deeply',
-  ];
-  const [sel, setSel] = useState<Set<string>>(new Set(['Fall asleep earlier']));
+  // The list is the real subcategories of the category picked upstream. In Play
+  // that comes from shared flow state; on the canvas it defaults to Sleep better
+  // so the tile still shows real data.
+  const flow = useFlowState();
+  const category = flow?.category ?? 'Sleep better';
+  const goals = goalsByCategory[category] ?? goalsByCategory['Sleep better'] ?? [];
+  const [localSel, setLocalSel] = useState<string[]>([]);
+  const selected = flow ? flow.goals : localSel;
+  const toggle = (g: string) =>
+    flow
+      ? flow.toggleGoal(g, MAX_GOALS)
+      : setLocalSel((p) =>
+          p.includes(g) ? p.filter((x) => x !== g) : p.length < MAX_GOALS ? [...p, g] : p,
+        );
 
   const steps: BeatStep[] = [
     {
@@ -22,21 +33,18 @@ function GoalsListBeat(props?: Record<string, string>) {
       speaker: 'coach',
       render: (
         <div className="flex flex-col gap-3">
-          {goals.map((g) => (
-            <GoalCard
-              key={g}
-              label={g}
-              selected={sel.has(g)}
-              onToggle={() =>
-                setSel((p) => {
-                  const n = new Set(p);
-                  if (n.has(g)) n.delete(g);
-                  else n.add(g);
-                  return n;
-                })
-              }
-            />
-          ))}
+          {goals.map((g) => {
+            const on = selected.includes(g);
+            return (
+              <GoalCard
+                key={g}
+                label={g}
+                selected={on}
+                disabled={!on && selected.length >= MAX_GOALS}
+                onToggle={() => toggle(g)}
+              />
+            );
+          })}
         </div>
       ),
     },

@@ -1,16 +1,30 @@
 import { useState } from 'react';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { useFlowState } from '../flowStateCtx';
+import { habitsByGoal, MAX_HABITS_ONBOARDING } from '@/data/onboardingHabits';
 
 function HabitPickerBeat(props?: Record<string, string>) {
-  const [expanded, setExpanded] = useState(true);
-  const [sel, setSel] = useState<Set<string>>(new Set(['No screens after 10 PM']));
-  const habits = [
-    'No caffeine after 2 PM',
-    'No screens after 10 PM',
-    'Start wind-down by 10 PM',
-    'Be in bed by target bedtime',
-  ];
+  // One panel per goal picked upstream, each showing that goal's real habits.
+  // Selection is the shared, capped habit set so the plan beat reads it.
+  const flow = useFlowState();
+  const goals = flow?.goals.length ? flow.goals : ['Fall asleep earlier'];
+  const [localSel, setLocalSel] = useState<string[]>([]);
+  const selected = flow ? flow.habits : localSel;
+  const selectedSet = new Set(selected);
+  const atCap = selected.length >= MAX_HABITS_ONBOARDING;
+  const toggle = (h: string) =>
+    flow
+      ? flow.toggleHabit(h, MAX_HABITS_ONBOARDING)
+      : setLocalSel((p) =>
+          p.includes(h)
+            ? p.filter((x) => x !== h)
+            : p.length < MAX_HABITS_ONBOARDING
+              ? [...p, h]
+              : p,
+        );
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const isOpen = (g: string) => expanded[g] ?? true;
 
   const steps: BeatStep[] = [
     {
@@ -22,22 +36,21 @@ function HabitPickerBeat(props?: Record<string, string>) {
       id: 'show',
       speaker: 'coach',
       render: (
-        <HabitPickerPanel
-          goal="Fall asleep earlier"
-          habits={habits}
-          expanded={expanded}
-          onToggleExpanded={() => setExpanded((v) => !v)}
-          selectedHabits={sel}
-          onToggleHabit={(h) =>
-            setSel((p) => {
-              const n = new Set(p);
-              if (n.has(h)) n.delete(h);
-              else n.add(h);
-              return n;
-            })
-          }
-          onAddCustomHabit={(h) => setSel((p) => new Set(p).add(h))}
-        />
+        <div className="flex flex-col gap-3">
+          {goals.map((g) => (
+            <HabitPickerPanel
+              key={g}
+              goal={g}
+              habits={habitsByGoal[g] ?? []}
+              expanded={isOpen(g)}
+              onToggleExpanded={() => setExpanded((e) => ({ ...e, [g]: !isOpen(g) }))}
+              selectedHabits={selectedSet}
+              maxReached={atCap}
+              onToggleHabit={(h) => toggle(h)}
+              onAddCustomHabit={(h) => toggle(h)}
+            />
+          ))}
+        </div>
       ),
     },
   ];

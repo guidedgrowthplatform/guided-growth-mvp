@@ -46,11 +46,13 @@ import { ChipSelect } from '@/components/ui/ChipSelect';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { DualButton } from '@/components/ui/DualButton';
 import { BeatOrb, orbConfigForType, type OrbConfig } from './BeatOrb';
+import { clipsForStage } from './beatAudio';
 import { Toggle } from '@/components/ui/Toggle';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 
 import { BEAT_DEFS } from './beats';
 import { PlayingCtx } from './beatKit';
+import { FlowStateCtx, type FlowState } from './flowStateCtx';
 import { EXTRA_REGISTRY, EXTRA_GROUPS } from './paletteExtras';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
@@ -527,9 +529,10 @@ const MORNING_CHECKIN_FLOW: DefaultBeat[] = [
   {
     type: 'coach-bubble',
     beat: '1',
+    sheetStage: 'morning_greeting',
     props: { text: 'Good morning. How are you feeling as you start the day?' },
   },
-  { type: 'mood-row', beat: '2' },
+  { type: 'mood-row', beat: '2', sheetStage: 'morning_state_prompt' },
   {
     type: 'coach-bubble',
     beat: '3',
@@ -544,7 +547,12 @@ const MORNING_CHECKIN_FLOW: DefaultBeat[] = [
 ];
 
 const EVENING_CHECKIN_FLOW: DefaultBeat[] = [
-  { type: 'coach-bubble', beat: '1', props: { text: 'Welcome back. How did today go?' } },
+  {
+    type: 'coach-bubble',
+    beat: '1',
+    sheetStage: 'evening_greeting_habits',
+    props: { text: 'Welcome back. How did today go?' },
+  },
   { type: 'mood-row', beat: '2' },
   {
     type: 'coach-bubble',
@@ -636,6 +644,27 @@ type StoredBeat = {
   meta?: BeatMeta;
 };
 
+// Auto-fill a beat's MP3 clips from the Voice Scripts map (by its sheet stage) unless
+// clips were already authored by hand. This is how the builder "takes which MP3s are
+// where and puts them in each beat's metadata": match the beat's stage to the sheet's
+// mp3_en column. Sets the voice engine to MP3 when clips are attached. Beats whose stage
+// has no clips (the onboarding openers, which use live voice) are left untouched.
+function withSheetAudio(meta: BeatMeta | undefined, sheetStage?: string): BeatMeta | undefined {
+  if (meta?.mp3Assets?.length) return meta; // never clobber manual edits
+  const clips = clipsForStage(sheetStage);
+  if (!clips.length) return meta;
+  return {
+    ...(meta ?? {}),
+    voiceEngine: meta?.voiceEngine ?? 'MP3',
+    mp3Assets: clips.map((c, i) => ({
+      label: `${sheetStage} ${i + 1}`,
+      file: c.file,
+      transcript: c.text,
+      opener: '',
+    })),
+  };
+}
+
 // Every beat is coach-led or user-led; default to coach, user bubbles to user.
 const hydrate = (stored: StoredBeat[]): Placed[] =>
   stored.map((b) => ({
@@ -649,7 +678,7 @@ const hydrate = (stored: StoredBeat[]): Placed[] =>
     background: b.background ?? (b.type === 'user-bubble' ? 'user' : 'coach'),
     variant: b.variant ?? 'shared',
     lanes: b.lanes?.map((l) => ({ id: newUid('lane'), label: l.label, items: hydrate(l.items) })),
-    meta: b.meta,
+    meta: withSheetAudio(b.meta, b.sheetStage),
   }));
 
 const serialize = (items: Placed[]): StoredBeat[] =>
@@ -1800,6 +1829,31 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
   const [step, setStep] = useState(0);
   const [advancing, setAdvancing] = useState(false);
 
+  // Shared selection state for this run, read and written by the onboarding
+  // beats so a pick in one beat drives the next (category -> goals -> habits ->
+  // plan). Resets on restart.
+  const [path, setPath] = useState<'new' | 'exp' | null>(null);
+  const [category, setCategoryState] = useState<string | null>(null);
+  const [goals, setGoals] = useState<string[]>([]);
+  const [habits, setHabits] = useState<string[]>([]);
+  const toggleIn = (v: string, max: number, set: (fn: (p: string[]) => string[]) => void) =>
+    set((p) => (p.includes(v) ? p.filter((x) => x !== v) : p.length < max ? [...p, v] : p));
+  const flowState: FlowState = {
+    path,
+    category,
+    goals,
+    habits,
+    setPath,
+    // A new category clears the downstream goal and habit choices.
+    setCategory: (v) => {
+      setCategoryState(v);
+      setGoals([]);
+      setHabits([]);
+    },
+    toggleGoal: (v, max = 2) => toggleIn(v, max, setGoals),
+    toggleHabit: (v, max = 2) => toggleIn(v, max, setHabits),
+  };
+
   const renderComp = (item: Placed) => {
     const entry = REGISTRY_MAP[item.type];
     if (!entry) return null;
@@ -1858,12 +1912,17 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
   const restart = () => {
     setAdvancing(false);
     setStep(0);
+    setPath(null);
+    setCategoryState(null);
+    setGoals([]);
+    setHabits([]);
   };
 
   const kind = current?.transition?.kind ?? 'dissolve';
 
   return (
     <PlayingCtx.Provider value={true}>
+    <FlowStateCtx.Provider value={flowState}>
     <div className="flex flex-col items-center gap-3">
       <div
         className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
@@ -1952,6 +2011,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
         )}
       </div>
     </div>
+    </FlowStateCtx.Provider>
     </PlayingCtx.Provider>
   );
 }

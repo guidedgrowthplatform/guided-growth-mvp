@@ -1,7 +1,13 @@
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { useFlowState } from '../flowStateCtx';
 
 function PlanCardsBeat(props?: Record<string, string>) {
+  // The plan reflects the habits picked upstream, one card each, plus the daily
+  // reflection. On the canvas it falls back to a sample habit.
+  const flow = useFlowState();
+  const habits = flow?.habits.length ? flow.habits : ['No screens after 10 PM'];
+
   const steps: BeatStep[] = [
     {
       id: 'ask',
@@ -13,14 +19,17 @@ function PlanCardsBeat(props?: Record<string, string>) {
       speaker: 'coach',
       render: (
         <div className="flex flex-col gap-3">
-          <PlanSummaryCard
-            icon="mdi:bed-outline"
-            typeLabel="Habit"
-            title="No screens after 10 PM"
-            cadence="Every day"
-            rule="10:00 PM"
-            onEdit={() => {}}
-          />
+          {habits.map((h) => (
+            <PlanSummaryCard
+              key={h}
+              icon="mdi:checkbox-marked-circle-outline"
+              typeLabel="Habit"
+              title={h}
+              cadence="Every day"
+              rule=""
+              onEdit={() => {}}
+            />
+          ))}
           <PlanSummaryCard
             icon="mdi:notebook-outline"
             typeLabel="Journal"

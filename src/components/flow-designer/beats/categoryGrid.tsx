@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { useFlowState } from '../flowStateCtx';
 
 const CATS = [
   { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
@@ -14,7 +15,12 @@ const CATS = [
 ];
 
 function CategoryGrid(props?: Record<string, string>) {
-  const [sel, setSel] = useState('Sleep better');
+  // In Play the pick writes to shared flow state so the goals beat reads it; on
+  // the static canvas there is no provider, so fall back to local state.
+  const flow = useFlowState();
+  const [localSel, setLocalSel] = useState<string | null>('Sleep better');
+  const sel = flow ? flow.category : localSel;
+  const pick = (label: string) => (flow ? flow.setCategory(label) : setLocalSel(label));
 
   const steps: BeatStep[] = [
     {
@@ -33,7 +39,7 @@ function CategoryGrid(props?: Record<string, string>) {
               image={c.image}
               label={c.label}
               selected={sel === c.label}
-              onSelect={() => setSel(c.label)}
+              onSelect={() => pick(c.label)}
             />
           ))}
         </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Icon } from '@iconify/react';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { useFlowState } from '../flowStateCtx';
 
 const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 const BLUE = 'rgb(19, 91, 235)';
@@ -94,8 +95,12 @@ function ChoiceCard({
 }
 
 function PathSelectionBeat(props?: Record<string, string>) {
-  // No default pick: the cards reveal one by one and the user chooses.
-  const [sel, setSel] = useState<'new' | 'exp' | null>(null);
+  // No default pick: the cards reveal one by one and the user chooses. In Play
+  // the choice writes to shared flow state; on the canvas it stays local.
+  const flow = useFlowState();
+  const [localSel, setLocalSel] = useState<'new' | 'exp' | null>(null);
+  const sel = flow ? flow.path : localSel;
+  const setSel = (v: 'new' | 'exp') => (flow ? flow.setPath(v) : setLocalSel(v));
 
   // Each card is its own step, so the coach line lands first, then "I already
   // track habits" fades in, then "I'm new to this" fades in after it.
