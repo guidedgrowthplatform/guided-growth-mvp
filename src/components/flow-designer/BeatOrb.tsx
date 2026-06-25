@@ -116,7 +116,9 @@ const ORB_BY_TYPE: Record<string, OrbConfig> = {
   // The mic beat renders the full MicPermission sequence with its own orb, so the
   // shared canvas orb is hidden here.
   'mic-permission': { hidden: true },
-  'splash-intro': { bloomed: true },
+  // The coach greeting renders the full SplashIntro sequence with its own orb, so
+  // the shared canvas orb is hidden here too.
+  'splash-intro': { hidden: true },
   // QA control is a utility screen, not a coach turn: no orb.
   'qa-control': { hidden: true },
 };
