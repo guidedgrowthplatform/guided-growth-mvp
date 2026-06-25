@@ -15,7 +15,9 @@ function CoachGreetingBeat() {
       <SplashIntro
         autoPlay
         loop={!playing}
-        audioSrc={playing ? '/voice/splash_welcome.mp3' : undefined}
+        audioSrc="/voice/splash_welcome.mp3"
+        muted={!playing}
+        skipSplash
       />
     </div>
   );

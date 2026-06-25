@@ -45,6 +45,12 @@ interface SplashIntroProps {
   loop?: boolean;
   autoPlay?: boolean;
   audioSrc?: string;
+  // Mute the clip (the silent builder thumbnail): it still plays so the words
+  // fill and the orb rides the envelope, just without sound.
+  muted?: boolean;
+  // Skip the wordmark splash and start straight at the coach speaking (used when
+  // an earlier beat already showed the wordmark).
+  skipSplash?: boolean;
 }
 
 let stylesInjected = false;
@@ -74,9 +80,13 @@ export function SplashIntro({
   loop = false,
   autoPlay = true,
   audioSrc,
+  muted = false,
+  skipSplash = false,
 }: SplashIntroProps) {
   ensureStyles();
-  const [phase, setPhase] = useState<Phase>(autoPlay ? 'splash' : 'done');
+  const [phase, setPhase] = useState<Phase>(
+    autoPlay ? (skipSplash ? 'orb' : 'splash') : 'done',
+  );
   const [intensity, setIntensity] = useState(0);
   // Shows a tap affordance when the browser blocks audio until a gesture.
   const [needsTap, setNeedsTap] = useState(false);
@@ -273,6 +283,10 @@ export function SplashIntro({
   };
 
   const runSequence = () => {
+    if (skipSplash) {
+      startSpeaking();
+      return;
+    }
     setPhase('splash');
     seqSchedule(() => {
       setPhase('splash-out');
@@ -328,7 +342,7 @@ export function SplashIntro({
       style={{ backgroundImage: COACH_BG }}
       aria-label="Guided Growth introduction"
     >
-      <audio ref={audioRef} src={audioSrc} preload="auto" playsInline className="hidden" />
+      <audio ref={audioRef} src={audioSrc} preload="auto" playsInline muted={muted} className="hidden" />
 
       {/* Soft blue glow around the screen edge, breathing with the voice
           (a calm take on the new Siri look). */}
