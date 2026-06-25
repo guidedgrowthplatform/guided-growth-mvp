@@ -34,7 +34,8 @@
     "cap:open": "npx cap open ios",
     "cap:open:android": "npx cap open android",
     "db:push": "npx supabase db push",
-    "vapi:sync": "tsx --env-file=.env.local scripts/vapi-sync/sync.ts"
+    "vapi:sync": "tsx --env-file=.env.local scripts/vapi-sync/sync.ts",
+    "vapi:sync:ci": "tsx scripts/vapi-sync/sync.ts"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

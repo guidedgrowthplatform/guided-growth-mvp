@@ -1,0 +1,93 @@
+name: vapi-sync
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pushes the onboarding tool definitions (api/_lib/llm/tools.onboarding.ts) to a
+# Vapi org and attaches them to that org's assistant. Idempotent: each tool is
+# skipped if unchanged, PATCHed if mutated, adopted-by-name if it already exists.
+#
+# Manual-only (workflow_dispatch). dry_run defaults TRUE — you opt IN to writes.
+#   target=staging → QA Vapi org   (staging GitHub Environment: VAPI_PRIVATE_KEY = QA key)
+#   target=prod    → prod Vapi org (production Environment; gated by repo var)
+#
+# Webhook base is whatever VAPI_WEBHOOK_BASE_URL the Environment provides. Today
+# BOTH point at the prod Vercel origin (guided-growth-mvp.vercel.app) — flipping
+# staging to the QA origin later is a one-line Environment edit + re-dispatch.
+#
+# DATA-DRIVEN by the GitHub Environment (Settings → Environments → secrets):
+#   VAPI_PRIVATE_KEY, VAPI_WEBHOOK_SECRET, VAPI_WEBHOOK_BASE_URL, VITE_VAPI_ASSISTANT_ID
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        type: choice
+        default: staging
+        options: [staging, prod]
+        description: 'Which Vapi org to sync (staging = QA org, prod = prod org)'
+      dry_run:
+        type: boolean
+        default: true
+        description: 'Compute the diff, skip all Vapi writes'
+
+permissions: {}
+
+jobs:
+  sync-staging:
+    if: github.event.inputs.target == 'staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: staging
+    concurrency:
+      group: vapi-sync-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-js-deps
+        with:
+          rebuild-sharp: 'false'
+
+      - name: Sync tools to QA Vapi org
+        env:
+          VAPI_PRIVATE_KEY: ${{ secrets.VAPI_PRIVATE_KEY }}
+          VAPI_WEBHOOK_SECRET: ${{ secrets.VAPI_WEBHOOK_SECRET }}
+          VAPI_WEBHOOK_BASE_URL: ${{ secrets.VAPI_WEBHOOK_BASE_URL }}
+          VITE_VAPI_ASSISTANT_ID: ${{ secrets.VITE_VAPI_ASSISTANT_ID }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          args=(--staging)
+          [ "$DRY_RUN" = "true" ] && args+=(--dry-run)
+          npm run vapi:sync:ci -- "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  sync-prod:
+    # Gated: inert until repo var VAPI_SYNC_PROD_ENABLED='true' guards prod writes.
+    if: >-
+      github.event.inputs.target == 'prod'
+      && vars.VAPI_SYNC_PROD_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    concurrency:
+      group: vapi-sync-prod
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-js-deps
+        with:
+          rebuild-sharp: 'false'
+
+      - name: Sync tools to prod Vapi org
+        env:
+          VAPI_PRIVATE_KEY: ${{ secrets.VAPI_PRIVATE_KEY }}
+          VAPI_WEBHOOK_SECRET: ${{ secrets.VAPI_WEBHOOK_SECRET }}
+          VAPI_WEBHOOK_BASE_URL: ${{ secrets.VAPI_WEBHOOK_BASE_URL }}
+          VITE_VAPI_ASSISTANT_ID: ${{ secrets.VITE_VAPI_ASSISTANT_ID }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          args=()
+          [ "$DRY_RUN" = "true" ] && args+=(--dry-run)
+          npm run vapi:sync:ci -- "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"

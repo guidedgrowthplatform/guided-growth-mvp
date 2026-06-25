@@ -78,6 +78,9 @@ Secrets (same names as `ci.yml`, but each scoped to the stage):
 
 - Web: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPI_PUBLIC_KEY`, `VITE_VAPI_ASSISTANT_ID`, `VITE_CARTESIA_AGENT_ID`, `VITE_STATE3_ENABLED`, `VITE_POSTHOG_KEY`, `VITE_SENTRY_DSN`
 - iOS: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_CONTENT`, `APPLE_TEAM_ID`, `MATCH_GIT_URL`, `MATCH_PASSWORD`, `MATCH_DEPLOY_KEY`
+- Vapi sync (server-side, no `VITE_` prefix — used only by `vapi-sync.yml`): `VAPI_PRIVATE_KEY`, `VAPI_WEBHOOK_SECRET`, `VAPI_WEBHOOK_BASE_URL`
+
+The `VITE_VAPI_*` pair is per-stage: `staging` holds the **QA** Vapi org's public key + assistant id, `production` holds the **prod** org's. Same variable name, different value per Environment — no code branch. `VAPI_PRIVATE_KEY` is likewise the QA org's key under `staging` and the prod org's under `production`.
 
 The Apple signing secrets are the same across stages (one team, one match repo, one ASC API key); only the per-stage Variables and the Supabase/Vapi secrets differ.
 
@@ -93,6 +96,29 @@ Production is unchanged: push a `v*` tag to ship via `ci.yml` (iOS builds by def
 > The previous per-environment iOS dispatch workflow (`mobile-env-release.yml`) and the standalone `qa-android-release.yml` were consolidated into `qa-release.yml`. A `dev` stage is not currently wired.
 >
 > Both QA platforms now share one web bundle built under the `staging` Environment, so the QA app's baked-in config (`VITE_API_URL`, `VITE_*`) follows that Environment. Keep staging's values equal to prod while the backend is shared; if they ever diverge, QA Android content follows staging, not prod.
+
+---
+
+## Vapi tool sync (per org)
+
+The onboarding tool definitions (`api/_lib/llm/tools.onboarding.ts`) live in code; Vapi needs them
+registered against each org's assistant. `.github/workflows/vapi-sync.yml` does this — manual dispatch,
+`dry_run` defaults **true**.
+
+- **QA org:** dispatch with `target=staging`. Pulls `VAPI_PRIVATE_KEY` (= QA key) + `VITE_VAPI_ASSISTANT_ID`
+  (= QA assistant) from the `staging` Environment, runs `vapi:sync:ci --staging` against `vapi.lock.staging.json`.
+- **Prod org:** dispatch with `target=prod`. Inert unless repo var `VAPI_SYNC_PROD_ENABLED='true'` — a guard
+  so an accidental dispatch can't write the live org. Uses the `production` Environment, `vapi.lock.json`.
+
+Always dry-run first (the step summary lists what would create/update), then re-dispatch with `dry_run=false`.
+The sync is idempotent and adopts existing tools by name, so a re-run never duplicates.
+
+**Webhook base — temporary state:** both orgs' `VAPI_WEBHOOK_BASE_URL` currently point at the prod Vercel
+origin (`https://guided-growth-mvp.vercel.app`). This means QA onboarding **voice tool-calls write to the
+prod Supabase**, while the staging app's REST calls write to the staging Supabase — an accepted, temporary
+split. To isolate later: set `staging`'s `VAPI_WEBHOOK_BASE_URL` to `https://guided-growth-qa.vercel.app`,
+ensure the staging Vercel Preview scope carries a matching `VAPI_WEBHOOK_SECRET` + `VAPI_PRIVATE_KEY`,
+confirm `/api/vapi/tool` answers there, then re-dispatch `vapi-sync.yml` with `target=staging`.
 
 ---
 
