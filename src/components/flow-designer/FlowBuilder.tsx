@@ -525,46 +525,70 @@ const ONBOARDING_FLOW = DEFAULT_FLOW;
 
 // Additional flows you can design in the builder. Same components, same beat
 // model, just a different starter set. Seeded from the check-in components.
+// Morning check-in (gg-spec morning-evening-checkin-flow.md): greeting -> state
+// check (the four-row card) -> are you done (only if partial) -> wrap. Each beat's
+// sheetStage maps to a Voice Scripts stage, so the MP3 clips auto-fill its metadata
+// (the coach-bubble text shows one representative line; the audio rotates the set).
 const MORNING_CHECKIN_FLOW: DefaultBeat[] = [
   {
     type: 'coach-bubble',
     beat: '1',
     sheetStage: 'morning_greeting',
-    props: { text: 'Good morning. How are you feeling as you start the day?' },
+    props: { text: 'Good morning. Ready to check in?' },
   },
-  { type: 'mood-row', beat: '2', sheetStage: 'morning_state_prompt' },
+  {
+    type: 'state-check',
+    beat: '2',
+    background: 'user',
+    sheetStage: 'morning_state_prompt',
+    props: {
+      coachLine:
+        'How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Tap what fits or just tell me.',
+    },
+  },
   {
     type: 'coach-bubble',
     beat: '3',
-    props: { text: "What's one thing that would make today feel like a win?" },
+    sheetStage: 'are_you_done',
+    props: { text: 'Looks like there are a few items left. Want to add anything, or should we move on?' },
   },
   {
-    type: 'user-bubble',
+    type: 'coach-bubble',
     beat: '4',
-    props: { text: 'Finish the deck and get a walk in.', userName: 'You' },
+    sheetStage: 'morning_wrap',
+    props: { text: "That's a good start. Go make it a good one." },
   },
-  { type: 'habit-suggestion', beat: '5' },
 ];
 
+// Evening check-in: greeting + habits -> habit review (done / not done / pending) ->
+// are you done (only if partial) -> reflection (one beat: transition, then proud /
+// forgive / grateful as steps) -> wrap. Each spoken beat carries its MP3 clips; the
+// reflection beat lists all its stages so it gets every line's audio.
 const EVENING_CHECKIN_FLOW: DefaultBeat[] = [
   {
     type: 'coach-bubble',
     beat: '1',
     sheetStage: 'evening_greeting_habits',
-    props: { text: 'Welcome back. How did today go?' },
+    props: { text: 'Hey, good evening. Here are your habits for today. How did the day go?' },
   },
-  { type: 'mood-row', beat: '2' },
+  { type: 'habit-review', beat: '2', background: 'user' },
   {
     type: 'coach-bubble',
     beat: '3',
-    props: { text: 'What went well, and what felt hard?' },
+    sheetStage: 'are_you_done',
+    props: { text: 'Looks like there are a few items left. Want to add anything, or should we move on?' },
   },
   {
-    type: 'user-bubble',
+    type: 'reflection',
     beat: '4',
-    props: { text: 'Focused all morning, lost steam after lunch.', userName: 'You' },
+    sheetStage: 'reflection_transition,reflection_proud,reflection_forgive,reflection_grateful',
   },
-  { type: 'checkin-receipt', beat: '5' },
+  {
+    type: 'coach-bubble',
+    beat: '5',
+    sheetStage: 'evening_wrap',
+    props: { text: "That's it for tonight. Sleep well." },
+  },
 ];
 
 interface FlowDef {
@@ -647,22 +671,26 @@ type StoredBeat = {
 // Auto-fill a beat's MP3 clips from the Voice Scripts map (by its sheet stage) unless
 // clips were already authored by hand. This is how the builder "takes which MP3s are
 // where and puts them in each beat's metadata": match the beat's stage to the sheet's
-// mp3_en column. Sets the voice engine to MP3 when clips are attached. Beats whose stage
-// has no clips (the onboarding openers, which use live voice) are left untouched.
+// mp3_en column. Sets the voice engine to MP3 when clips are attached. A beat that
+// speaks several stages (the reflection beat: transition + proud + forgive + grateful)
+// lists them comma-separated and gets every stage's clips. Beats whose stage has no
+// clips (the onboarding openers, which use live voice) are left untouched.
 function withSheetAudio(meta: BeatMeta | undefined, sheetStage?: string): BeatMeta | undefined {
   if (meta?.mp3Assets?.length) return meta; // never clobber manual edits
-  const clips = clipsForStage(sheetStage);
-  if (!clips.length) return meta;
-  return {
-    ...(meta ?? {}),
-    voiceEngine: meta?.voiceEngine ?? 'MP3',
-    mp3Assets: clips.map((c, i) => ({
-      label: `${sheetStage} ${i + 1}`,
+  const stages = (sheetStage ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const mp3Assets = stages.flatMap((st) =>
+    clipsForStage(st).map((c, i) => ({
+      label: `${st} ${i + 1}`,
       file: c.file,
       transcript: c.text,
       opener: '',
     })),
-  };
+  );
+  if (!mp3Assets.length) return meta;
+  return { ...(meta ?? {}), voiceEngine: meta?.voiceEngine ?? 'MP3', mp3Assets };
 }
 
 // Every beat is coach-led or user-led; default to coach, user bubbles to user.
