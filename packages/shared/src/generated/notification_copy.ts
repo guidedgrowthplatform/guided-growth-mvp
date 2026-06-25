@@ -1,0 +1,33 @@
+// GENERATED — do not edit by hand.
+// Source: Master Sheet "Notifications" tab (morning_notification / evening_notification rows).
+// Regenerate: npm run notifications:bundle
+
+export const REMINDER_VARIANTS: Record<
+  'morning_checkin' | 'evening_checkin',
+  ReadonlyArray<{ title: string; body: string }>
+> = {
+  morning_checkin: [
+    { title: 'Good morning', body: 'Take a minute to check in before the day gets going.' },
+    { title: 'Morning check-in', body: "How are you landing today? Let's take a quick read." },
+    { title: "Hey, you're up", body: 'A quick check-in to start the day grounded.' },
+    {
+      title: 'Start with you',
+      body: 'A minute on your mood, energy, and sleep before everything else.',
+    },
+    { title: 'Morning', body: "Let's see where you're starting from today." },
+    { title: 'Good morning', body: 'One short check-in, then the day is yours.' },
+    { title: 'Time to check in', body: "How'd you sleep? Let's take a look at the morning." },
+  ],
+  evening_checkin: [
+    { title: 'Evening check-in', body: "How did the day go? Let's close it out together." },
+    { title: 'You made it', body: 'Take a minute to look back at today before you wind down.' },
+    { title: 'Good evening', body: 'Your habits are waiting. How did today treat you?' },
+    { title: 'End of the day', body: 'A quick check-in on your habits and a moment to reflect.' },
+    { title: 'Hey', body: "Let's wrap the day. How are you feeling about how it went?" },
+    { title: 'Evening', body: 'A few minutes to review the day and reflect before bed.' },
+    {
+      title: 'Wind down',
+      body: 'Check in on your habits, then close the day with three questions.',
+    },
+  ],
+};

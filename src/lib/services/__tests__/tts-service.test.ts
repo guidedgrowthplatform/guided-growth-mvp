@@ -4,18 +4,6 @@ import { isVoiceOutEnabled } from '../voiceGate';
 
 vi.mock('../voiceGate', () => ({ isVoiceOutEnabled: vi.fn(() => true) }));
 
-let wsOnWord: ((idx: number, word: string) => void) | null = null;
-vi.mock('../cartesia-ws', () => ({
-  wsTtsAvailable: vi.fn(() => true),
-  wsWarm: vi.fn(),
-  wsBegin: vi.fn((cb: { onWord?: (idx: number, word: string) => void }) => {
-    wsOnWord = cb.onWord ?? null;
-  }),
-  wsPush: vi.fn(),
-  wsFinish: vi.fn(),
-  wsCancel: vi.fn(),
-}));
-
 // Short-circuit Supabase auth — keeps getAuthHeaders() off a real client.
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -253,36 +241,5 @@ describe('tts-service: speak() Promise lifecycle (PR-0b)', () => {
     await flush();
     expect(resolved).toBe(true);
     expect(audioInstances).toHaveLength(0);
-  });
-});
-
-describe('tts-service: ws karaoke reveal (spoken-form accumulation)', () => {
-  beforeEach(() => {
-    vi.mocked(isVoiceOutEnabled).mockReturnValue(true);
-    wsOnWord = null;
-  });
-
-  it('emits progressive onReveal from Cartesia word strings', async () => {
-    const { beginSpeechTurn } = await import('../tts-service');
-    const reveals: string[] = [];
-    beginSpeechTurn({ onReveal: (t) => reveals.push(t) });
-    expect(wsOnWord).toBeTypeOf('function');
-
-    wsOnWord?.(0, "It's");
-    wsOnWord?.(1, 'nine');
-    wsOnWord?.(2, 'a');
-    wsOnWord?.(3, 'm');
-    expect(reveals).toEqual(["It's", "It's nine", "It's nine a", "It's nine a m"]);
-  });
-
-  it('resets the accumulator on a new turn (barge-in)', async () => {
-    const { beginSpeechTurn } = await import('../tts-service');
-    const reveals: string[] = [];
-    beginSpeechTurn({ onReveal: (t) => reveals.push(t) });
-    wsOnWord?.(0, 'hello');
-
-    beginSpeechTurn({ onReveal: (t) => reveals.push(t) });
-    wsOnWord?.(0, 'fresh');
-    expect(reveals).toEqual(['hello', 'fresh']);
   });
 });

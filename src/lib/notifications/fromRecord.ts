@@ -3,7 +3,7 @@ import type { AppNotification } from './types';
 
 const TYPE_PRESENTATION: Record<string, { icon: string; ctaLabel: string }> = {
   morning_checkin: { icon: 'mdi:weather-sunny', ctaLabel: 'Start check-in' },
-  evening_checkin: { icon: 'mdi:weather-night', ctaLabel: 'Open Journal' },
+  evening_checkin: { icon: 'mdi:weather-night', ctaLabel: 'Start reflection' },
 };
 
 export function fromRecord(record: NotificationRecord): AppNotification {

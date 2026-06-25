@@ -1,7 +1,4 @@
-// Scripted check-in TTS lines (gg-spec/docs/checkin-tts-variations.md). The coach
-// says these WORD-FOR-WORD — one variation per stage, picked deterministically
-// per day so the line is stable all day but rotates across days. Reflection
-// prompts are single fixed lines on purpose (same ritual each night).
+// Scripted check-in lines said verbatim; one variation picked at random per call.
 export type CheckinStageKey =
   | 'morning_greeting'
   | 'morning_state_prompt'
@@ -101,19 +98,7 @@ export const CHECKIN_SCRIPTS: Record<CheckinStageKey, readonly string[]> = {
   ],
 };
 
-function hashString(input: string): number {
-  // FNV-1a 32-bit
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return hash >>> 0;
-}
-
-// Deterministic per (stage, daySeed): stable all day, rotates across days.
-export function pickVariation(stage: CheckinStageKey, daySeed: string): string {
+export function pickVariation(stage: CheckinStageKey): string {
   const variations = CHECKIN_SCRIPTS[stage];
-  const index = hashString(`${stage}:${daySeed}`) % variations.length;
-  return variations[index];
+  return variations[Math.floor(Math.random() * variations.length)];
 }

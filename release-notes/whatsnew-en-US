@@ -1,6 +1,6 @@
-v2.11.7 - Fixes iOS app crashing on launch.
+v2.11.9 - Smoother, faster voice check-in coach.
 Test:
-- iOS: open the app and confirm it launches normally (the previous QA build crashed immediately on open).
-- Sign in and reach Home without issues.
-- Set a morning or evening reminder a few minutes ahead, background the app; it still fires on time.
-- Android: no change expected — quick smoke test that everything still works.
+- Start a fresh daily check-in and talk to the coach; replies should come faster and text should type in smoothly (no jumpy scroll).
+- Speak normally with a TV or background noise on; the coach should keep listening and not stop itself mid-sentence.
+- Add or complete a habit by voice during the check-in and confirm it saves.
+- Android: quick smoke test, no regressions expected.

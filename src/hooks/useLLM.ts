@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { track } from '@/analytics';
 import { streamLLM } from '@/api/llm';
 import { isOnboardingScreen, logDebugEvent } from '@/lib/debug/onboardingDebug';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
@@ -20,13 +21,24 @@ const EMPTY_TURN_FALLBACK = "Sorry, I didn't quite get that — could you say it
 // when each delta triggered its own React render + smooth-reveal animation.
 const DELTA_COALESCE_MS = 40;
 
+export interface LLMToolFailure {
+  id: string;
+  name: string;
+  error: string;
+  message?: string;
+}
+
 export interface UseLLMReturn {
   sendMessage: (text: string) => Promise<void>;
   sendOpener: () => Promise<void>;
+  seedOpener: (content: string, toolEvent: LLMToolEvent) => void;
   prependMessages: (older: LLMChatMessage[]) => number;
   messages: LLMChatMessage[];
   response: string;
   toolEvents: LLMToolEvent[];
+  // Write-tool crashes for the current turn. Survives `done` (unlike toolEvents);
+  // cleared at the next runStream start.
+  toolFailures: LLMToolFailure[];
   status: LLMStatus;
   isStreaming: boolean;
   error: Error | null;
@@ -68,6 +80,7 @@ export function useLLM(
   messagesRef.current = messages;
   const [response, setResponse] = useState('');
   const [toolEvents, setToolEvents] = useState<LLMToolEvent[]>([]);
+  const [toolFailures, setToolFailures] = useState<LLMToolFailure[]>([]);
   const [status, setStatus] = useState<LLMStatus>('idle');
   const [error, setError] = useState<Error | null>(null);
   const [seededFor, setSeededFor] = useState<string | null>(null);
@@ -76,6 +89,7 @@ export function useLLM(
   const inFlightRef = useRef(false);
   // Last real user turn (id + text) so we can re-answer it without re-adding it.
   const lastUserRef = useRef<{ id: string; content: string } | null>(null);
+  const priorOpenerRef = useRef<string | null>(null);
   const idCounterRef = useRef({ n: 0 });
   const deltaBufferRef = useRef('');
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -102,9 +116,12 @@ export function useLLM(
     }
     deltaBufferRef.current = '';
     inFlightRef.current = false;
+    priorOpenerRef.current = null;
+    lastUserRef.current = null;
     setMessages([]);
     setResponse('');
     setToolEvents([]);
+    setToolFailures([]);
     setStatus('idle');
     setError(null);
   }, []);
@@ -122,6 +139,12 @@ export function useLLM(
       return f.length === 0 ? prev : [...f, ...prev];
     });
     return fresh.length;
+  }, []);
+
+  const seedOpener = useCallback((content: string, toolEvent: LLMToolEvent) => {
+    const id = makeId(idCounterRef.current);
+    setMessages((prev) => [...prev, { id, role: 'assistant', content, toolEvents: [toolEvent] }]);
+    priorOpenerRef.current = content;
   }, []);
 
   const cancel = useCallback(() => {
@@ -167,6 +190,7 @@ export function useLLM(
       }
       setResponse('');
       setToolEvents([]);
+      setToolFailures([]);
       setError(null);
       setStatus('streaming');
 
@@ -224,6 +248,13 @@ export function useLLM(
             );
             break;
           }
+          case 'tool_failed': {
+            setToolFailures((prev) => [
+              ...prev,
+              { id: e.id, name: e.name, error: e.error, message: e.message },
+            ]);
+            break;
+          }
           case 'done': {
             sawTerminal = true;
             flushDeltaBuffer();
@@ -243,6 +274,12 @@ export function useLLM(
             setResponse('');
             setToolEvents([]);
             setStatus('done');
+            // Backend-reported total LLM round-trip (end-of-stream), not TTFT.
+            track('coach_llm_latency', {
+              screen_id: screenId,
+              mode: opts.mode,
+              latency_ms: e.latency_ms,
+            });
             try {
               logEvent(
                 'llm_call',
@@ -286,6 +323,9 @@ export function useLLM(
       try {
         const recent_events = useSessionLogStore.getState().getDeltaSince(null);
 
+        const priorOpener = opts.mode === 'chat' ? priorOpenerRef.current : null;
+        if (priorOpener) priorOpenerRef.current = null;
+
         await streamLLM(
           {
             session_id: sessionId,
@@ -296,6 +336,7 @@ export function useLLM(
             chat_session_id: chatSessionId,
             user_turn_id: userTurnId ?? undefined,
             recent_events,
+            ...(priorOpener ? { prior_opener: priorOpener } : {}),
             ...(inputModeRef.current ? { input_mode: inputModeRef.current } : {}),
             ...(opts.mode === 'chat'
               ? { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }
@@ -391,10 +432,12 @@ export function useLLM(
   return {
     sendMessage,
     sendOpener,
+    seedOpener,
     prependMessages,
     messages,
     response,
     toolEvents,
+    toolFailures,
     status,
     isStreaming: status === 'streaming',
     error,

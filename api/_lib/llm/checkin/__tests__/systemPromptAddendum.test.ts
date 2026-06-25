@@ -8,10 +8,11 @@ import {
   buildMorningFlow,
   buildScriptedDiscipline,
 } from '../systemPromptAddendum.js';
-import { CHECKIN_SCRIPTS, pickVariation } from '../scriptVariations.js';
+import { CHECKIN_SCRIPTS } from '@gg/shared/checkin/scriptVariations';
 import { isCheckinScreen, isReadOnlyCheckinScreen } from '../registry.js';
 
-const DAY = '2026-06-18';
+const containsOneOf = (block: string, pool: readonly string[]): boolean =>
+  pool.some((line) => block.includes(line));
 
 describe('CHECKIN_TOOL_ADDENDUM', () => {
   it('names every domain tool so the model knows its scope', () => {
@@ -56,30 +57,27 @@ describe('CHECKIN_READONLY_ADDENDUM', () => {
 });
 
 describe('buildMorningOpener (scripted, rotating)', () => {
-  const block = buildMorningOpener(DAY);
+  const block = buildMorningOpener();
   it('calls query_checkin to surface the 4-scale card', () => {
     expect(block).toContain('query_checkin');
   });
-  it("injects the day's greeting + state prompt verbatim", () => {
-    expect(block).toContain(pickVariation('morning_greeting', DAY));
-    expect(block).toContain(pickVariation('morning_state_prompt', DAY));
+  it('injects a greeting + state prompt from the pools verbatim', () => {
+    expect(containsOneOf(block, CHECKIN_SCRIPTS.morning_greeting)).toBe(true);
+    expect(containsOneOf(block, CHECKIN_SCRIPTS.morning_state_prompt)).toBe(true);
   });
   it('insists on word-for-word, no improvising', () => {
     expect(block).toMatch(/word-for-word/i);
   });
-  it('is deterministic for a given day', () => {
-    expect(buildMorningOpener(DAY)).toBe(block);
-  });
 });
 
 describe('buildMorningFlow (are-you-done gate + wrap)', () => {
-  const block = buildMorningFlow(DAY);
-  it('includes the rotating are-you-done line, only if partial', () => {
-    expect(block).toContain(pickVariation('are_you_done', DAY));
+  const block = buildMorningFlow();
+  it('includes a rotating are-you-done line, only if partial', () => {
+    expect(containsOneOf(block, CHECKIN_SCRIPTS.are_you_done)).toBe(true);
     expect(block).toMatch(/only if partial/i);
   });
-  it('wraps with the rotating morning wrap line', () => {
-    expect(block).toContain(pickVariation('morning_wrap', DAY));
+  it('wraps with a rotating morning wrap line', () => {
+    expect(containsOneOf(block, CHECKIN_SCRIPTS.morning_wrap)).toBe(true);
   });
   it('never starts a reflection — morning is state-only', () => {
     expect(block).toMatch(/never (coach|start a reflection)/i);
@@ -87,19 +85,19 @@ describe('buildMorningFlow (are-you-done gate + wrap)', () => {
 });
 
 describe('buildEveningOpener (scripted, rotating)', () => {
-  const block = buildEveningOpener(DAY);
+  const block = buildEveningOpener();
   it('calls query_habits scope:"today"', () => {
     expect(block).toContain('query_habits');
     expect(block).toContain('scope:"today"');
   });
-  it("injects the day's greeting+habits and habit prompt verbatim", () => {
-    expect(block).toContain(pickVariation('evening_greeting_habits', DAY));
-    expect(block).toContain(pickVariation('evening_habit_prompt', DAY));
+  it('injects a greeting+habits and habit prompt from the pools verbatim', () => {
+    expect(containsOneOf(block, CHECKIN_SCRIPTS.evening_greeting_habits)).toBe(true);
+    expect(containsOneOf(block, CHECKIN_SCRIPTS.evening_habit_prompt)).toBe(true);
   });
 });
 
 describe('buildEveningWalkthrough (scripted flow + CONFIGURABLE reflection)', () => {
-  const block = buildEveningWalkthrough(DAY);
+  const block = buildEveningWalkthrough();
   it('sequences habits → reflection → wrap in order', () => {
     const habits = block.search(/### 1\. Habits/);
     const reflection = block.search(/### 2\. Reflection/);
@@ -109,7 +107,7 @@ describe('buildEveningWalkthrough (scripted flow + CONFIGURABLE reflection)', ()
     expect(wrap).toBeGreaterThan(reflection);
   });
   it('fires the are-you-done gate only if some habits are pending', () => {
-    expect(block).toContain(pickVariation('are_you_done', DAY));
+    expect(containsOneOf(block, CHECKIN_SCRIPTS.are_you_done)).toBe(true);
     expect(block).toMatch(/only if partial/i);
   });
   it("defers the reflection to the user's configured questions, NOT hardcoded prompts", () => {
@@ -117,8 +115,8 @@ describe('buildEveningWalkthrough (scripted flow + CONFIGURABLE reflection)', ()
     expect(block).toContain('log_reflection');
     expect(block).not.toContain(CHECKIN_SCRIPTS.reflection_proud[0]);
   });
-  it('ends with the rotating evening wrap line', () => {
-    expect(block).toContain(pickVariation('evening_wrap', DAY));
+  it('ends with a rotating evening wrap line', () => {
+    expect(containsOneOf(block, CHECKIN_SCRIPTS.evening_wrap)).toBe(true);
   });
   it('insists on word-for-word, no improvising', () => {
     expect(block).toMatch(/word-for-word/i);
@@ -126,6 +124,12 @@ describe('buildEveningWalkthrough (scripted flow + CONFIGURABLE reflection)', ()
   it('still records chat-stated completions via complete_habit with polarity', () => {
     expect(block).toContain('complete_habit');
     expect(block).toMatch(/avoid/i);
+  });
+  it('enforces an explicit per-habit walk: one at a time, confirm did/did-not, factual recap', () => {
+    expect(block).toMatch(/one habit at a time|one at a time/i);
+    expect(block).toMatch(/for each habit/i);
+    expect(block).toMatch(/did it or did not|did.+did not/i);
+    expect(block).toMatch(/done.+pending|done vs pending/i);
   });
 });
 
@@ -143,6 +147,10 @@ describe('buildScriptedDiscipline (no improvisation)', () => {
   });
   it('says to call tools silently, never narrating them', () => {
     expect(block).toMatch(/silently|never narrate/i);
+  });
+  it('requires self-locating the current scripted step every turn (#241)', () => {
+    expect(block).toMatch(/every turn/i);
+    expect(block).toMatch(/locate which scripted step|skip ahead/i);
   });
 });
 

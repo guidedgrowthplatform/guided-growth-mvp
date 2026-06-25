@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { isTraceOn, startTurnTrace } from '@/lib/debug/traceConsole';
-import { sessionReady, supabase } from '@/lib/supabase';
+import { getAuthHeaders } from '@/lib/services/api-auth';
 import type { LLMRequest, LLMStreamEvent } from '@gg/shared/types/llm';
 
 export type { LLMRequest, LLMStreamEvent } from '@gg/shared/types/llm';
@@ -12,7 +12,7 @@ function getApiUrl(): string {
   return '';
 }
 
-const VALID_TYPES = new Set(['delta', 'tool_call', 'tool_result', 'done', 'error']);
+const VALID_TYPES = new Set(['delta', 'tool_call', 'tool_result', 'tool_failed', 'done', 'error']);
 
 function parseEventBlock(block: string): LLMStreamEvent | null {
   const lines = block.split('\n');
@@ -71,6 +71,9 @@ export async function streamLLM(
         case 'tool_result':
           trace.event(`tool_result ← ${evt.id} ok=${evt.ok}`, evt.result);
           break;
+        case 'tool_failed':
+          trace.event(`tool_failed ← ${evt.name} · ${evt.error}`, evt.message);
+          break;
         case 'done':
           trace.event(
             `assistant text (${deltaCount} chunk${deltaCount === 1 ? '' : 's'})`,
@@ -95,19 +98,7 @@ export async function streamLLM(
     Accept: 'text/event-stream',
   };
 
-  if (Capacitor.isNativePlatform()) {
-    await sessionReady;
-  }
-  try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      headers['Authorization'] = `Bearer ${session.access_token}`;
-    }
-  } catch {
-    // continue without auth — server will 401
-  }
+  Object.assign(headers, await getAuthHeaders());
 
   const response = await fetch(`${getApiUrl()}/api/llm`, {
     method: 'POST',

@@ -59,13 +59,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const route = segments[0] === '__index' ? '' : segments[0] || '';
 
   if (route === 'routes' && req.method === 'GET') {
-    const result = await pool.query<{ screen_id: string; route: string }>(
-      `SELECT screen_id, route FROM screen_contexts WHERE route IS NOT NULL ORDER BY screen_id`,
-    );
-    // Overrides the global /api/(.*) no-store header so the route map can be
-    // cached. Map only changes when the voice-sync cron upserts from the sheet.
-    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
-    return res.status(200).json({ routes: result.rows });
+    try {
+      const result = await pool.query<{ screen_id: string; route: string }>(
+        `SELECT screen_id, route FROM screen_contexts WHERE route IS NOT NULL ORDER BY screen_id`,
+      );
+      // Overrides the global /api/(.*) no-store header so the route map can be
+      // cached. Map only changes when the voice-sync cron upserts from the sheet.
+      res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
+      return res.status(200).json({ routes: result.rows });
+    } catch (e) {
+      console.error('[context/routes] query failed', e);
+      return res.status(503).json({ error: 'Route map temporarily unavailable' });
+    }
   }
 
   if (route === '' && req.method === 'GET') {

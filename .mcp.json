@@ -12,6 +12,10 @@
       "type": "http",
       "url": "https://mcp.sentry.dev/mcp"
     },
+    "posthog": {
+      "type": "http",
+      "url": "https://mcp.posthog.com/mcp"
+    },
     "google-sheets": {
       "command": "uvx",
       "args": ["mcp-google-sheets@latest"],

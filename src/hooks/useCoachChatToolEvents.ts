@@ -4,6 +4,7 @@ import { trackCoachToolEvent } from '@/analytics/coachFunnel';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import type { LastCreatedItem } from '@/lib/chat/coachChatTypes';
 import { queryKeys } from '@/lib/query';
+import { MUTATING_TOOLS } from '@gg/shared/checkin/mutatingTools';
 import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
 
 // Only log_reflection (the mandatory final phase) concludes the evening check-in.
@@ -13,20 +14,6 @@ const EVENING_DONE_TOOLS: ReadonlySet<string> = new Set(['log_reflection']);
 // Per-bucket events discriminate morning vs evening, unlike the shared
 // daily_checkins row which an evening save also writes (MR#2).
 const MORNING_DONE_TOOLS: ReadonlySet<string> = new Set(['record_checkin']);
-
-// Write tools — read-only (query_habits, get_summary, suggest_habit) skip refresh.
-const MUTATION_TOOLS: ReadonlySet<string> = new Set([
-  'create_habit',
-  'complete_habit',
-  'update_habit',
-  'delete_habit',
-  'create_metric',
-  'log_metric',
-  'delete_metric',
-  'record_checkin',
-  'start_focus',
-  'log_reflection',
-]);
 
 function toolEventIds(messages: LLMChatMessage[]): string[] {
   const ids: string[] = [];
@@ -90,7 +77,7 @@ export function useCoachChatToolEvents(
         if (firedIdsRef.current.has(evt.id)) continue;
         firedIdsRef.current.add(evt.id);
         trackCoachToolEvent(evt);
-        if (MUTATION_TOOLS.has(evt.name)) mutated = true;
+        if (MUTATING_TOOLS.has(evt.name)) mutated = true;
         // Per-bucket conclusion signals — gate the once-per-day skip. Once per session.
         if (onEvening && EVENING_DONE_TOOLS.has(evt.name) && !eveningDoneEmittedRef.current) {
           eveningDoneEmittedRef.current = true;

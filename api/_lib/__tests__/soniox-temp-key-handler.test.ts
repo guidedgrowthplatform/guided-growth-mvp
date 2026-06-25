@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../auth.js', () => ({
-  getAuthUserNoDb: vi.fn(),
+  requireUserNoDb: vi.fn(),
   handlePreflight: vi.fn(() => false),
 }));
 vi.mock('../rate-limit.js', () => ({
@@ -46,7 +46,7 @@ beforeEach(() => {
   (rateLimit.checkRateLimit as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     limited: false,
   });
-  (auth.getAuthUserNoDb as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+  (auth.requireUserNoDb as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
     authUserId: 'user-A',
     status: 'active',
   });
@@ -73,8 +73,13 @@ describe('POST /api/soniox-temp-key', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('returns 401 when auth fails (no fetch, no rate-limit)', async () => {
-    (auth.getAuthUserNoDb as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
+  it('returns 401 when the token is rejected (no fetch, no rate-limit)', async () => {
+    (auth.requireUserNoDb as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      (_req: VercelRequest, res: VercelResponse) => {
+        res.status(401).json({ error: 'Authentication required', code: 'invalid_token' });
+        return null;
+      },
+    );
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
     const req = mockReq();
@@ -85,11 +90,32 @@ describe('POST /api/soniox-temp-key', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it('returns 503 when auth is unavailable (no fetch, no rate-limit)', async () => {
+    (auth.requireUserNoDb as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      (_req: VercelRequest, res: VercelResponse) => {
+        res
+          .status(503)
+          .json({ error: 'Authentication temporarily unavailable', code: 'auth_unavailable' });
+        return null;
+      },
+    );
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const req = mockReq();
+    const res = mockRes();
+    await handler(req, res);
+    expect(res._status).toBe(503);
+    expect(rateLimit.checkRateLimit).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('returns 403 when the account is disabled (no fetch, no rate-limit)', async () => {
-    (auth.getAuthUserNoDb as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      authUserId: 'user-A',
-      status: 'disabled',
-    });
+    (auth.requireUserNoDb as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      (_req: VercelRequest, res: VercelResponse) => {
+        res.status(403).json({ error: 'Account disabled' });
+        return null;
+      },
+    );
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
     const req = mockReq();

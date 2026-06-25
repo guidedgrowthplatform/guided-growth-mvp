@@ -16,10 +16,12 @@ import {
 import { useDisplayName } from '@/hooks/useDisplayName';
 import { useEntries } from '@/hooks/useEntries';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useReminderCheckinDeepLink } from '@/hooks/useReminderCheckinDeepLink';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { PERMISSIONS_SEEN_KEY } from '@/lib/permissions';
 import { speak } from '@/lib/services/tts-service';
+import { currentCheckinType } from '@/utils/dates';
 import type { EntriesMap } from '@gg/shared/types';
 
 // Pick the HOME-* variant the user is currently looking at. The auto-emitter
@@ -27,7 +29,7 @@ import type { EntriesMap } from '@gg/shared/types';
 // HomePage emits the correct sub-screen explicitly via useSessionLog.
 function deriveHomeScreenId(fromOnboarding: boolean): string {
   if (fromOnboarding) return 'HOME-FIRST';
-  return new Date().getHours() < 15 ? 'HOME-MORNING' : 'HOME-EVENING';
+  return currentCheckinType() === 'morning' ? 'HOME-MORNING' : 'HOME-EVENING';
 }
 
 export function HomePage() {
@@ -80,7 +82,7 @@ export function HomePage() {
         { from_screen: homeScreenId, to_screen: 'HOME-MORNING-CHECKIN-EXPANDED', trigger: 'tap' },
         'HOME-MORNING-CHECKIN-EXPANDED',
       );
-      const isMorning = new Date().getHours() < 15;
+      const isMorning = currentCheckinType() === 'morning';
       logEvent(
         'checkin_started',
         { type: isMorning ? 'morning' : 'evening' },
@@ -98,6 +100,8 @@ export function HomePage() {
       localStorage.setItem('gg_reminders_shown', 'true');
     }
   }, [fromOnboarding]);
+
+  useReminderCheckinDeepLink();
 
   // Founding User Moment — per Voice Journey Spreadsheet v3 (line 579)
   // One-time voice after 7+ days of use
@@ -153,9 +157,8 @@ export function HomePage() {
             onCheckInPress={() => {
               const next = !showCheckIn;
               if (next) {
-                const hour = new Date().getHours();
                 track('start_checkin', {
-                  checkin_type: hour < 15 ? 'morning' : 'evening',
+                  checkin_type: currentCheckinType(),
                   trigger: 'home_card',
                 });
               }

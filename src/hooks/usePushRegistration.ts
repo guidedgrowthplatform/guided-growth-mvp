@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAppGate } from '@/hooks/useAppGate';
 import {
   addLocalReminderListeners,
   currentFirstName,
@@ -26,6 +27,7 @@ export function usePushRegistration(): void {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const anonId = useAuthStore((s) => s.anonId);
+  const gateReady = useAppGate().status === 'ready';
 
   const invalidateFeed = useCallback(
     () => void qc.invalidateQueries({ queryKey: queryKeys.notifications.all, refetchType: 'all' }),
@@ -42,17 +44,17 @@ export function usePushRegistration(): void {
     void registerReminderActionTypes();
   }, []);
 
-  useEffect(
-    () =>
-      addLocalReminderListeners(
-        (route) => navigate(route),
-        (type) =>
-          void ensureLocalFeedEntry(type, currentFirstName(), new Date().toISOString()).then(
-            invalidateFeed,
-          ),
-      ),
-    [navigate, invalidateFeed],
-  );
+  useEffect(() => {
+    // pre-ready, a retained cold-start tap would hit AppGate's /login redirect
+    if (!gateReady) return;
+    return addLocalReminderListeners(
+      (route) => navigate(route),
+      (type) =>
+        void ensureLocalFeedEntry(type, currentFirstName(), new Date().toISOString()).then(
+          invalidateFeed,
+        ),
+    );
+  }, [gateReady, navigate, invalidateFeed]);
 
   useEffect(() => {
     if (!anonId) return;

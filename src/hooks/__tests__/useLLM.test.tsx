@@ -496,6 +496,70 @@ describe('useLLM', () => {
     expect(bare.input_mode).toBeUndefined();
   });
 
+  it('tool_failed: captured in toolFailures and survives the done event', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      mockSSE([
+        { type: 'tool_call', id: 'w1', name: 'create_habit', args: { name: 'm' } },
+        { type: 'tool_result', id: 'w1', ok: false, result: { error: 'handler_error' } },
+        {
+          type: 'tool_failed',
+          id: 'w1',
+          name: 'create_habit',
+          error: 'handler_error',
+          message: 'db exploded',
+        },
+        { type: 'delta', content: "couldn't save" },
+        { type: 'done', latency_ms: 10, total_tokens: 5, tool_rounds: 1 },
+      ]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount();
+    await act(async () => {
+      await hookRef!.sendMessage('add m');
+    });
+    await flush();
+
+    expect(hookRef!.status).toBe('done');
+    // toolEvents cleared on done; toolFailures must survive.
+    expect(hookRef!.toolEvents).toHaveLength(0);
+    expect(hookRef!.toolFailures).toHaveLength(1);
+    expect(hookRef!.toolFailures[0]).toMatchObject({
+      id: 'w1',
+      name: 'create_habit',
+      error: 'handler_error',
+      message: 'db exploded',
+    });
+  });
+
+  it('tool_failed: cleared at the next runStream start', async () => {
+    const failing = mockSSE([
+      { type: 'tool_call', id: 'w1', name: 'create_habit', args: {} },
+      { type: 'tool_result', id: 'w1', ok: false, result: {} },
+      { type: 'tool_failed', id: 'w1', name: 'create_habit', error: 'handler_error' },
+      { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 1 },
+    ]);
+    const clean = mockSSE([
+      { type: 'delta', content: 'done' },
+      { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 },
+    ]);
+    const fetchMock = vi.fn().mockResolvedValueOnce(failing).mockResolvedValueOnce(clean);
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount();
+    await act(async () => {
+      await hookRef!.sendMessage('first');
+    });
+    await flush();
+    expect(hookRef!.toolFailures).toHaveLength(1);
+
+    await act(async () => {
+      await hookRef!.sendMessage('second');
+    });
+    await flush();
+    expect(hookRef!.toolFailures).toHaveLength(0);
+  });
+
   it('sendMessage with no chatSessionId no-ops and warns in dev', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
@@ -516,5 +580,44 @@ describe('useLLM', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(hookRef!.messages).toHaveLength(0);
     expect(warnSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('seedOpener sends prior_opener on the next chat send, once, then clears it', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        mockSSE([{ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 }]),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount();
+    act(() => {
+      hookRef!.seedOpener('Good morning. Ready to check in?', {
+        id: 'op-1',
+        name: 'query_checkin',
+        args: {},
+        result: { ok: true, payload: { result: {} } },
+      });
+    });
+
+    await act(async () => {
+      await hookRef!.sendMessage('slept ok');
+    });
+    await flush();
+    const body1 = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body);
+    expect(body1.prior_opener).toBe('Good morning. Ready to check in?');
+
+    await act(async () => {
+      await hookRef!.sendMessage('mood good');
+    });
+    await flush();
+    const body2 = JSON.parse((fetchMock.mock.calls[1][1] as { body: string }).body);
+    expect(body2.prior_opener).toBeUndefined();
+
+    expect(
+      hookRef!.messages.some(
+        (m) => m.role === 'assistant' && m.content === 'Good morning. Ready to check in?',
+      ),
+    ).toBe(true);
   });
 });

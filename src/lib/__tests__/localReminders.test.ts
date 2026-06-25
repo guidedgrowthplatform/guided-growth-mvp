@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { REMINDER_VARIANTS, reminderVariantIndex } from '@gg/shared';
 
 const isNativePlatform = vi.fn(() => true);
 const getPlatform = vi.fn(() => 'ios');
@@ -82,13 +83,13 @@ describe('rescheduleReminders', () => {
     expect(cancel).not.toHaveBeenCalled();
   });
 
-  it('cancels then schedules both when granted', async () => {
+  it('cancels then schedules when granted', async () => {
     const { rescheduleReminders } = await load();
     await rescheduleReminders(prefs);
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(schedule).toHaveBeenCalledTimes(1);
     const arg = schedule.mock.calls[0][0] as { notifications: unknown[] };
-    expect(arg.notifications).toHaveLength(2);
+    expect(arg.notifications.length).toBeGreaterThan(0);
   });
 
   it('attaches the reminder_actions action type to each notification', async () => {
@@ -121,11 +122,72 @@ describe('rescheduleReminders', () => {
     expect(schedule).not.toHaveBeenCalled();
   });
 
-  it('skips slots with unparseable times', async () => {
+  it('cancels the full id range', async () => {
     const { rescheduleReminders } = await load();
-    await rescheduleReminders({ ...prefs, nightTime: 'nope' });
-    const arg = schedule.mock.calls[0][0] as { notifications: unknown[] };
-    expect(arg.notifications).toHaveLength(1);
+    await rescheduleReminders(prefs);
+    const arg = cancel.mock.calls[0][0] as { notifications: { id: number }[] };
+    expect(arg.notifications.map((n) => n.id)).toEqual([
+      1001, 1002, 1003, 1004, 1005, 1006, 1007, 1011, 1012, 1013, 1014, 1015, 1016, 1017,
+    ]);
+  });
+});
+
+describe('buildReminderSchedule', () => {
+  // Thu 06:00 local — past today's 05:00? no; before morning 07:00 + evening 22:30
+  const now = new Date('2026-06-18T06:00:00');
+
+  it('schedules the rolling window per slot, skipping past slots', async () => {
+    const { buildReminderSchedule } = await load();
+    const out = buildReminderSchedule(prefs, now);
+    // both today slots still future (07:00, 22:30) → 7 + 7
+    expect(out).toHaveLength(14);
+    expect(out.map((n) => n.id)).toEqual([
+      1001, 1002, 1003, 1004, 1005, 1006, 1007, 1011, 1012, 1013, 1014, 1015, 1016, 1017,
+    ]);
+  });
+
+  it('skips a slot whose fire-time today already passed', async () => {
+    const { buildReminderSchedule } = await load();
+    const afterMorning = new Date('2026-06-18T08:00:00');
+    const out = buildReminderSchedule(prefs, afterMorning);
+    // morning today (07:00) passed → only days 1..6 for morning + full 7 evenings
+    const morningIds = out.filter((n) => n.id < 1011).map((n) => n.id);
+    expect(morningIds).toEqual([1002, 1003, 1004, 1005, 1006, 1007]);
+    expect(out.filter((n) => n.id >= 1011)).toHaveLength(7);
+  });
+
+  it('skips slots with unparseable times', async () => {
+    const { buildReminderSchedule } = await load();
+    const out = buildReminderSchedule({ ...prefs, nightTime: 'nope' }, now);
+    expect(out.every((n) => n.id < 1011)).toBe(true);
+    expect(out).toHaveLength(7);
+  });
+
+  it('fire dates land on the slot hour/minute', async () => {
+    const { buildReminderSchedule } = await load();
+    const out = buildReminderSchedule(prefs, now);
+    const firstMorning = out.find((n) => n.id === 1001)!;
+    const at = firstMorning.schedule!.at as Date;
+    expect(at.getHours()).toBe(7);
+    expect(at.getMinutes()).toBe(0);
+    expect(at.getDate()).toBe(18);
+    const lastEvening = out.find((n) => n.id === 1017)!;
+    const atE = lastEvening.schedule!.at as Date;
+    expect(atE.getHours()).toBe(22);
+    expect(atE.getMinutes()).toBe(30);
+    expect(atE.getDate()).toBe(24);
+  });
+
+  it('copy matches the rotation variant for each fire date', async () => {
+    const { buildReminderSchedule } = await load();
+    const out = buildReminderSchedule(prefs, now);
+    for (const n of out) {
+      const type = n.id < 1011 ? 'morning_checkin' : 'evening_checkin';
+      const idx = reminderVariantIndex(n.schedule!.at as Date);
+      const v = REMINDER_VARIANTS[type][idx];
+      expect(n.title).toBe(v.title);
+      expect(n.body).toBe(v.body);
+    }
   });
 });
 
@@ -174,9 +236,9 @@ describe('addLocalReminderListeners — action handling', () => {
     addLocalReminderListeners(onNavigate, onFire);
   });
 
-  it('delete → records feed, clears shade, no navigate', () => {
+  it('delete → clears shade, no feed entry, no navigate', () => {
     actionPerformedCb?.({ actionId: 'delete', notification: notif });
-    expect(onFire).toHaveBeenCalledWith('morning_checkin');
+    expect(onFire).not.toHaveBeenCalled();
     expect(onNavigate).not.toHaveBeenCalled();
     expect(removeDeliveredNotifications).toHaveBeenCalledWith({
       notifications: [{ id: 1001, title: 'Hi Sam!', body: 'morning' }],

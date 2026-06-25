@@ -25,3 +25,20 @@ export const TURN_PAUSE_INCOMPLETE_MS = 2800;
 // headphones; on loud speakers without good AEC the coach's own voice can leak
 // into the mic and self-interrupt. Flip to false to restore strict half-duplex.
 export const FULL_DUPLEX_BARGE_IN = true;
+
+// Own-voice echo gate (full-duplex): while the coach is audibly speaking, ignore
+// mic input below BARGE_MIN_RMS as the coach's own leaked TTS, so it can't
+// self-interrupt. Real user speech sits well above this. Set BARGE_ECHO_GATE
+// false to restore unconditional barge-in.
+export const BARGE_ECHO_GATE = true;
+// Just above SPEECH_RMS_THRESHOLD (0.005) — AEC-attenuated echo falls under it.
+export const BARGE_MIN_RMS = 0.006;
+export const BARGE_MIN_CHARS = 2;
+// Let a low-energy final through if long enough — off by default (would reopen
+// the long-echo hole on weak-AEC devices).
+export const BARGE_REQUIRE_FINAL_FOR_LOW_ENERGY = false;
+export const BARGE_SUSTAIN_FRAMES = 2;
+
+// Render + speak the MCHECK/ECHECK opener client-side (no LLM round-trip).
+// Off until device-verified; flip on to enable the instant opener.
+export const CHECKIN_LOCAL_OPENER = false;

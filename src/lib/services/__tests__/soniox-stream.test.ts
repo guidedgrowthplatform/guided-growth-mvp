@@ -423,6 +423,57 @@ describe('createSonioxSession', () => {
     expect(h.error).toHaveBeenCalledWith('voice connection lost');
     expect(h.session.getState()).toBe('error');
   });
+
+  it('15. offline drop: no reconnect scheduled, budgets untouched, parks via onError', async () => {
+    const h = makeHarness({ maxReconnects: 2, isOnline: () => false });
+    h.session.start();
+    await h.flush();
+    h.sockets[0].emitOpen();
+
+    h.sockets[0].emitMessage({ tokens: [{ text: 'half said', is_final: true }] });
+    h.sockets[0].emitClose(1006);
+
+    // No reconnect timer scheduled, no fresh key minted.
+    expect(h.timers.filter((t) => !t.cleared && t.ms >= 500)).toHaveLength(0);
+    expect(h.keyCount()).toBe(1);
+    expect(h.sockets).toHaveLength(1);
+    // Trailing text preserved, parked via onError + error state.
+    expect(h.final).toHaveBeenCalledWith('half said');
+    expect(h.error).toHaveBeenCalledWith('voice connection lost');
+    expect(h.session.getState()).toBe('error');
+  });
+
+  it('15b. offline does not consume the lifetime budget (back online reconnects normally)', async () => {
+    const online = false;
+    const h = makeHarness({ maxReconnects: 2, isOnline: () => online });
+    h.session.start();
+    await h.flush();
+    h.sockets[0].emitOpen();
+
+    // Offline drop parks without spending budget.
+    h.sockets[0].emitClose(1006);
+    expect(h.timers.filter((t) => !t.cleared && t.ms >= 500)).toHaveLength(0);
+    expect(h.keyCount()).toBe(1);
+  });
+
+  it('16. online backoff grows 500/1000/2000... capped at 8000', async () => {
+    const h = makeHarness({ maxReconnects: 50, maxLifetimeReconnects: 50 });
+    h.session.start();
+    await h.flush();
+    h.sockets[0].emitOpen();
+
+    const expected = [500, 1000, 2000, 4000, 8000, 8000];
+    for (let i = 0; i < expected.length; i++) {
+      h.sockets[i].emitClose(1006);
+      const live = h.timers.filter((t) => !t.cleared);
+      const reconnect = live[live.length - 1];
+      expect(reconnect.ms).toBe(expected[i]);
+      reconnect.fn();
+      await h.flush();
+      h.sockets[i + 1].emitOpen();
+      // Healthy open resets the consecutive budget; lifetime count still climbs the delay.
+    }
+  });
 });
 
 describe('createPrimedKeyGetter', () => {

@@ -1,4 +1,5 @@
 import { track } from '@/analytics';
+import { currentCheckinType } from '@/utils/dates';
 import type { LLMToolEvent } from '@gg/shared/types/llm';
 
 const COACH_SOURCE = 'coach_chat';
@@ -10,7 +11,7 @@ export const isCheckinScreen = (screenId: string): boolean =>
 function checkinType(screenId: string): 'morning' | 'evening' {
   if (screenId.startsWith('MCHECK')) return 'morning';
   if (screenId.startsWith('ECHECK')) return 'evening';
-  return new Date().getHours() < 15 ? 'morning' : 'evening';
+  return currentCheckinType();
 }
 
 export function trackCoachToolEvent(evt: LLMToolEvent): void {

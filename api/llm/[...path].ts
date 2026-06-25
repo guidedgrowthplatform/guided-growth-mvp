@@ -25,6 +25,7 @@ import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
 import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
 import { handleParseBrainDump } from '../_lib/llm/parseBrainDump.js';
 import { buildSystemPromptForRequest } from '../_lib/llm/buildSystemPrompt.js';
+import { MUTATING_TOOLS } from '@gg/shared/checkin/mutatingTools';
 import { reportToolFailure, reportRequestFailure, flushSentry } from '../_lib/sentry.js';
 import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 
@@ -36,6 +37,7 @@ type LLMStreamEvent =
   | { type: 'delta'; content: string }
   | { type: 'tool_call'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool_result'; id: string; ok: boolean; result: unknown }
+  | { type: 'tool_failed'; id: string; name: string; error: string; message?: string }
   | { type: 'done'; latency_ms: number; total_tokens: number; tool_rounds: number }
   | { type: 'error'; code: string; message: string };
 
@@ -165,6 +167,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Default 'text' when absent/invalid — text phrasing reads fine aloud, but
   // voice phrasing ("tap the orb") misleads a typer (GitLab #217).
   const inputMode: 'voice' | 'text' = body.input_mode === 'voice' ? 'voice' : 'text';
+
+  const priorOpener =
+    typeof body.prior_opener === 'string' && body.prior_opener.length <= 2000
+      ? body.prior_opener
+      : undefined;
 
   let chatSessionId: string | null = null;
   let userTurnId: string | null = null;
@@ -475,6 +482,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let currentInput: ResponseInputItem[] = [
     { type: 'message', role: 'user', content: scrubbedMessage },
   ];
+  // Local opener never hit the LLM — replay it so the flow chains.
+  if (mode === 'chat' && priorOpener && previousResponseId === null) {
+    currentInput.unshift({ type: 'message', role: 'assistant', content: priorOpener });
+  }
   let currentPreviousId: string | null = previousResponseId;
 
   // On ONBOARD-* screens expose ONLY the onboarding tools (avoids LLM
@@ -502,12 +513,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? requestTools?.filter((t) => t.name === 'submit_path_choice' || t.name === 'ask_clarification')
     : undefined;
 
-  await writeStartRow();
+  waitUntil(writeStartRow());
 
   try {
     let finished = false;
     for (let round = 0; round < MAX_ROUNDS && !finished; round++) {
-      if (clientClosed) return;
+      if (clientClosed) {
+        // finalize() (outer finally) logs 'cancelled' + skips reportRequestFailure.
+        endStatus = 'cancelled';
+        endCode = null;
+        return;
+      }
 
       const forcingThisRound = forceForkChoice && round === 0;
       const baseStreamOpts = {
@@ -724,6 +740,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         const resultJson = JSON.stringify(result);
         send({ type: 'tool_result', id: tc.callId, ok: result.ok, result });
+        // Surface a WRITE-tool crash so the client doesn't silently claim success.
+        // Read-only / invalid_args / unknown_tool stay tool_result-only.
+        if (!result.ok && result.error === 'handler_error' && MUTATING_TOOLS.has(tc.name)) {
+          send({
+            type: 'tool_failed',
+            id: tc.callId,
+            name: tc.name,
+            error: result.error,
+            message: result.message,
+          });
+        }
         persistedToolRows.push({
           toolCallId: tc.callId,
           toolName: tc.name,
@@ -746,12 +773,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       endCode = 'tool_cap_reached';
       send({ type: 'error', code: 'tool_cap_reached', message: 'Exceeded max tool rounds (5)' });
       await persistChatTurn({ includeAssistant: false });
-      await finalize();
       res.end();
+      waitUntil(finalize());
       return;
     }
 
-    await persistChatTurn();
     const latencyMs = Math.round(performance.now() - startedAt);
     endStatus = 'ok';
     send({
@@ -760,8 +786,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       total_tokens: totalTokens,
       tool_rounds: toolRounds,
     });
-    await finalize();
+    await persistChatTurn();
     res.end();
+    waitUntil(finalize());
   } catch (err) {
     const status = (err as { status?: number }).status;
     const code = err instanceof OpenAIError ? `openai_${status ?? 'error'}` : 'internal_error';

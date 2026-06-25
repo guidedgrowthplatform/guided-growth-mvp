@@ -12,6 +12,14 @@ const trackCheckinStartedMock = vi.fn();
 
 // useChatHistory drives initialMessages + ready status (the empty-welcome gate).
 let historyMessages: LLMChatMessage[] = [];
+// Controllable voiceMode + reactive audio-unlock for the opener-gate tests.
+let voiceMode = 'text';
+let audioUnlocked = true;
+const audioListeners = new Set<() => void>();
+function setAudioUnlocked(v: boolean) {
+  audioUnlocked = v;
+  audioListeners.forEach((fn) => fn());
+}
 vi.mock('@/hooks/useChatHistory', () => ({
   useChatHistory: () => ({
     initialMessages: historyMessages,
@@ -39,6 +47,7 @@ vi.mock('@/hooks/useLLM', () => ({
     messages: opts?.initialMessages ?? [],
     response: '',
     toolEvents: [],
+    toolFailures: [],
     status: 'idle',
     isStreaming: false,
     error: null,
@@ -64,7 +73,7 @@ vi.mock('@/hooks/useDualButtonControls', () => ({
 }));
 
 vi.mock('@/hooks/useUserPreferences', () => ({
-  useUserPreferences: () => ({ preferences: { voiceMode: 'text', micEnabled: false } }),
+  useUserPreferences: () => ({ preferences: { voiceMode, micEnabled: false } }),
 }));
 
 vi.mock('@/hooks/useCoachChatToolEvents', () => ({ useCoachChatToolEvents: () => null }));
@@ -79,16 +88,14 @@ vi.mock('@/lib/services/tts-service', () => ({
   beginSpeechTurn: vi.fn(),
   endSpeechTurn: vi.fn(() => Promise.resolve()),
   pushSpeechChunk: vi.fn(),
-  isWsTransport: () => false,
-  ttsKaraokeActive: () => false,
-  ttsWarm: vi.fn(),
+  isAudioUnlocked: () => audioUnlocked,
+  subscribeAudioUnlock: (fn: () => void) => {
+    audioListeners.add(fn);
+    return () => audioListeners.delete(fn);
+  },
   useTtsPlaybackStore: (sel: (s: { isSpeaking: boolean }) => unknown) => sel({ isSpeaking: false }),
 }));
 
-vi.mock('@/lib/services/cartesia-token-cache', () => ({
-  startTokenWarmLoop: vi.fn(),
-  stopTokenWarmLoop: vi.fn(),
-}));
 vi.mock('@/lib/services/soniox-temp-key-cache', () => ({
   startKeyWarmLoop: vi.fn(),
   stopKeyWarmLoop: vi.fn(),
@@ -116,6 +123,9 @@ function render(screenId: string, nonce: number) {
 
 beforeEach(() => {
   historyMessages = [];
+  voiceMode = 'text';
+  audioUnlocked = true;
+  audioListeners.clear();
   sendOpenerMock.mockReset();
   trackCheckinStartedMock.mockReset();
   container = document.createElement('div');
@@ -164,5 +174,21 @@ describe('useCoachChat — explicit check-in initiation + empty welcome', () => 
     expect(sendOpenerMock).toHaveBeenCalledTimes(1);
     rerender('MCHECK-01', 2);
     expect(sendOpenerMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('voice mode + audio locked → opener deferred (not fired)', () => {
+    voiceMode = 'voice';
+    audioUnlocked = false;
+    render('MCHECK-01', 1);
+    expect(sendOpenerMock).not.toHaveBeenCalled();
+  });
+
+  it('voice mode → opener fires once audio unlocks (and only once)', () => {
+    voiceMode = 'voice';
+    audioUnlocked = false;
+    render('MCHECK-01', 1);
+    expect(sendOpenerMock).not.toHaveBeenCalled();
+    act(() => setAudioUnlocked(true));
+    expect(sendOpenerMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -21,6 +21,9 @@ export interface LLMRequest {
   // phrasing ("type") is harmless aloud, but voice phrasing ("tap the orb")
   // misleads a typer (GitLab #217).
   input_mode?: 'voice' | 'text';
+  // Client-spoken scripted opener; replayed as a synthetic assistant turn when
+  // no previous_response_id exists yet.
+  prior_opener?: string;
 }
 
 export interface ChatHistoryResponse {
@@ -43,6 +46,9 @@ export type LLMStreamEvent =
   | { type: 'delta'; content: string }
   | { type: 'tool_call'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool_result'; id: string; ok: boolean; result: unknown }
+  // Emitted alongside tool_result for a mutating (write) tool that threw — lets
+  // the client surface a write failure the user must know about.
+  | { type: 'tool_failed'; id: string; name: string; error: string; message?: string }
   | { type: 'done'; latency_ms: number; total_tokens: number; tool_rounds: number }
   | { type: 'error'; code: string; message: string };
 
