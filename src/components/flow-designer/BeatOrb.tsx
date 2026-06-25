@@ -1,85 +1,70 @@
+import { useState } from 'react';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 
-// The shared canvas orb. Each half mirrors the real app orb: blue when on, grey
-// when off, with the matching icon. Configure it per beat:
-//   voiceOn  - left half: true = voice (blue), false = screen mode (grey)
-//   micOn    - right half: true = mic on (blue), false = muted (grey)
-//   micAsking - the mic-permission look: mic forced off + the pulsing grey half
-//   hidden   - no orb on this beat at all
-// Real app icons at the app's 0.25 glyph proportion.
+// The shared canvas orb, interactive like the real app orb. Each half is the real
+// DualButton half: blue when on, slate-grey when off, with a WHITE icon either way.
+// Click the left half to toggle the coach voice on/off, the right half to toggle
+// the mic on/off. The rings pulse when the voice side is on (the "talking" look),
+// or invite on the mic side for the permission beat.
+//
+// The per-beat config sets the STARTING state; clicking toggles from there (a live
+// preview, not saved).
 export interface OrbConfig {
   voiceOn?: boolean;
   micOn?: boolean;
+  // micAsking = the permission beat: mic starts off and the mic side pulses to invite.
   micAsking?: boolean;
-  // bloomed = the grown, speaking pose (the coach greeting). Same orb, larger, so
-  // a dissolve from the docked splash orb reads as the orb blooming open.
+  // bloomed = the grown, speaking pose (the coach greeting), larger so a dissolve
+  // from the docked splash orb reads as the orb blooming open.
   bloomed?: boolean;
   hidden?: boolean;
 }
 
 export function BeatOrb({
   size: baseSize = 56,
-  voiceOn = true,
-  micOn = true,
+  voiceOn: voiceOn0 = true,
+  micOn: micOn0 = true,
   micAsking = false,
   bloomed = false,
   hidden = false,
 }: { size?: number } & OrbConfig) {
+  const [voiceOn, setVoiceOn] = useState(voiceOn0);
+  const [micOn, setMicOn] = useState(micOn0);
   if (hidden) return null;
+
   const size = bloomed ? Math.round(baseSize * 1.7) : baseSize;
   const glyph = Math.round(size * 0.25);
-  const gap = Math.max(5, Math.round(size * 0.06));
-  const halfW = size / 2 - gap / 2;
-  const innerR = (size * 9.24) / 187;
-  const rightOn = micAsking ? false : micOn;
-  const orb = (
+
+  // Rings: invite the mic (right side) while the permission beat's mic is still
+  // off; otherwise the gentle live pulse when the voice side is on; quiet when off.
+  const activeRings = micAsking && !micOn ? 'right' : voiceOn ? 'idle' : null;
+
+  return (
     <DualButton
       size={size}
       leftActive={voiceOn}
-      rightActive={rightOn}
-      activeRings={micAsking ? undefined : 'idle'}
+      rightActive={micOn}
+      activeRings={activeRings}
+      ringCount={3}
+      ringStep={4}
       intensity={0.45}
       leftIcon={voiceOn ? <IconChatVoice size={glyph} /> : <IconChatText size={glyph} />}
-      rightIcon={rightOn ? <IconMic size={glyph} /> : <IconMicMuted size={glyph} />}
+      rightIcon={micOn ? <IconMic size={glyph} /> : <IconMicMuted size={glyph} />}
+      onLeftClick={() => setVoiceOn((v) => !v)}
+      onRightClick={() => setMicOn((m) => !m)}
       ariaLabel="Voice orb"
+      leftAriaLabel={voiceOn ? 'Coach voice on' : 'Coach voice off'}
+      rightAriaLabel={micOn ? 'Mic on' : 'Mic off'}
     />
-  );
-  if (!micAsking) return orb;
-  return (
-    <div style={{ position: 'relative', width: size, height: size }}>
-      {orb}
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          width: halfW,
-          height: size,
-          background: '#94a3b8',
-          borderRadius: `${innerR}px ${size / 2}px ${size / 2}px ${innerR}px`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transformOrigin: '0% 50%',
-          animation: 'ggMicPulse 1.9s ease-in-out infinite',
-        }}
-      >
-        <IconMicMuted size={glyph} />
-      </div>
-      <style>{`@keyframes ggMicPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}`}</style>
-    </div>
   );
 }
 
-// Per-beat orb config. Default is the resting orb (both halves blue). Only the
-// mic-permission beat asks for the mic. Set more here as beats need them
-// (e.g. voice off on a screen-only beat, or hidden where a beat draws its own orb).
+// Per-beat starting state. Default is voice on + mic on (both blue). Only the
+// mic-permission beat starts with the mic off and inviting. Every orb is clickable
+// to toggle from there.
 const ORB_BY_TYPE: Record<string, OrbConfig> = {
-  'mic-permission': { micAsking: true },
-  // The coach greeting: the orb has bloomed open and is speaking. A dissolve from
-  // the docked splash orb into this larger one reads as the bloom, seamlessly.
+  'mic-permission': { micOn: false, micAsking: true },
   'splash-intro': { bloomed: true },
 };
 
