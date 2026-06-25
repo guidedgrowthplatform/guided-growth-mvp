@@ -1,26 +1,42 @@
-import { IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
+import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 
-// The shared canvas orb. Uses the real app icons at the app's ~0.25 glyph
-// proportion. It rests on every beat; only the mic-permission beat shows the
-// "asking for the mic" look (muted mic + the pulsing grey right half).
-export type OrbMode = 'rest' | 'mic-asking';
+// The shared canvas orb. Each half mirrors the real app orb: blue when on, grey
+// when off, with the matching icon. Configure it per beat:
+//   voiceOn  - left half: true = voice (blue), false = screen mode (grey)
+//   micOn    - right half: true = mic on (blue), false = muted (grey)
+//   micAsking - the mic-permission look: mic forced off + the pulsing grey half
+//   hidden   - no orb on this beat at all
+// Real app icons at the app's 0.25 glyph proportion.
+export interface OrbConfig {
+  voiceOn?: boolean;
+  micOn?: boolean;
+  micAsking?: boolean;
+  hidden?: boolean;
+}
 
-export function BeatOrb({ size = 56, mode = 'rest' }: { size?: number; mode?: OrbMode }) {
+export function BeatOrb({
+  size = 56,
+  voiceOn = true,
+  micOn = true,
+  micAsking = false,
+  hidden = false,
+}: { size?: number } & OrbConfig) {
+  if (hidden) return null;
   const glyph = Math.round(size * 0.25);
   const gap = Math.max(5, Math.round(size * 0.06));
   const halfW = size / 2 - gap / 2;
   const innerR = (size * 9.24) / 187;
-  const micAsking = mode === 'mic-asking';
+  const rightOn = micAsking ? false : micOn;
   const orb = (
     <DualButton
       size={size}
-      leftActive
-      rightActive={!micAsking}
+      leftActive={voiceOn}
+      rightActive={rightOn}
       activeRings={micAsking ? undefined : 'idle'}
       intensity={0.45}
-      leftIcon={<IconChatVoice size={glyph} />}
-      rightIcon={micAsking ? <IconMicMuted size={glyph} /> : <IconMic size={glyph} />}
+      leftIcon={voiceOn ? <IconChatVoice size={glyph} /> : <IconChatText size={glyph} />}
+      rightIcon={rightOn ? <IconMic size={glyph} /> : <IconMicMuted size={glyph} />}
       ariaLabel="Voice orb"
     />
   );
@@ -52,7 +68,13 @@ export function BeatOrb({ size = 56, mode = 'rest' }: { size?: number; mode?: Or
   );
 }
 
-// Only the mic-permission beat asks for the mic; every other beat rests.
-export function orbModeForType(type: string): OrbMode {
-  return type === 'mic-permission' ? 'mic-asking' : 'rest';
+// Per-beat orb config. Default is the resting orb (both halves blue). Only the
+// mic-permission beat asks for the mic. Set more here as beats need them
+// (e.g. voice off on a screen-only beat, or hidden where a beat draws its own orb).
+const ORB_BY_TYPE: Record<string, OrbConfig> = {
+  'mic-permission': { micAsking: true },
+};
+
+export function orbConfigForType(type: string): OrbConfig {
+  return ORB_BY_TYPE[type] ?? {};
 }

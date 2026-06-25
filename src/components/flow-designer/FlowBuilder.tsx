@@ -45,7 +45,7 @@ import { Button } from '@/components/ui/Button';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { DualButton } from '@/components/ui/DualButton';
-import { BeatOrb, orbModeForType, type OrbMode } from './BeatOrb';
+import { BeatOrb, orbConfigForType, type OrbConfig } from './BeatOrb';
 import { Toggle } from '@/components/ui/Toggle';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 
@@ -407,7 +407,7 @@ interface DefaultBeat {
 const DEFAULT_FLOW: DefaultBeat[] = [
   // The full onboarding, start to finish. background = who leads (coach blue when
   // the coach speaks, user yellow when you act). The orb state per beat lives in
-  // orbModeForType (BeatOrb.tsx). coachLine is the spoken line that carries you
+  // orbConfigForType (BeatOrb.tsx). coachLine is the spoken line that carries you
   // to the next beat.
   { type: 'get-started', beat: '1', background: 'coach' },
   { type: 'splash-intro', beat: '2', background: 'coach' },
@@ -792,12 +792,12 @@ function PhoneScreenInner({
   children,
   checkin,
   bg,
-  orbMode = 'rest',
+  orb,
 }: {
   children: ReactNode;
   checkin: boolean;
   bg?: string;
-  orbMode?: OrbMode;
+  orb?: OrbConfig;
 }) {
   return (
     <div className="absolute inset-0 bg-surface">
@@ -815,7 +815,7 @@ function PhoneScreenInner({
           <BuilderBottomNav />
         ) : (
           <div className="flex justify-center pb-5 pt-2">
-            <BeatOrb mode={orbMode} size={58} />
+            <BeatOrb size={58} {...orb} />
           </div>
         )}
       </div>
@@ -828,12 +828,12 @@ function PhoneScreenFrame({
   children,
   checkin,
   bg,
-  orbMode = 'rest',
+  orb,
 }: {
   children: ReactNode;
   checkin: boolean;
   bg?: string;
-  orbMode?: OrbMode;
+  orb?: OrbConfig;
 }) {
   return (
     <div
@@ -849,7 +849,7 @@ function PhoneScreenFrame({
           transformOrigin: 'top left',
         }}
       >
-        <PhoneScreenInner checkin={checkin} bg={bg} orbMode={orbMode}>
+        <PhoneScreenInner checkin={checkin} bg={bg} orb={orb}>
           {children}
         </PhoneScreenInner>
       </div>
@@ -947,7 +947,7 @@ function SortableCard({
           </div>
         )}
 
-        <PhoneScreenFrame checkin={checkin} bg={item.background} orbMode={orbModeForType(item.type)}>
+        <PhoneScreenFrame checkin={checkin} bg={item.background} orb={orbConfigForType(item.type)}>
           {entry ? createElement(entry.Comp, applyName(item.props, uname)) : null}
         </PhoneScreenFrame>
       </div>
@@ -1609,7 +1609,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
     );
 
   const screen = (item: Placed) => (
-    <PhoneScreenInner checkin={checkin} bg={item.background} orbMode={orbModeForType(item.type)}>
+    <PhoneScreenInner checkin={checkin} bg={item.background} orb={orbConfigForType(item.type)}>
       {beatBody(item)}
     </PhoneScreenInner>
   );
