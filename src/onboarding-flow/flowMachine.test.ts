@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { onboardingBeginnerV1 } from './flows/onboarding-beginner-v1';
 import {
   applyCapture,
   canGoBack,
@@ -9,6 +8,7 @@ import {
   resolveNextNodeId,
   validateFlow,
 } from './flowMachine';
+import { onboardingBeginnerV1 } from './flows/onboarding-beginner-v1';
 import type { BeatCapture, FlowDocument } from './types';
 
 const flow = onboardingBeginnerV1;
@@ -44,10 +44,14 @@ describe('flowMachine — linear advance', () => {
     expect(state.status).toBe('running');
   });
 
-  it('advances auth -> profile -> path-fork', () => {
-    const state = run(flow, [{ data: {} }, { data: { age: 38, gender: 'Male' } }]);
+  it('advances auth -> mic -> profile -> path-fork', () => {
+    const state = run(flow, [
+      { data: {} }, // auth
+      { data: {} }, // mic permission
+      { data: { age: 38, gender: 'Male' } }, // profile
+    ]);
     expect(state.currentNodeId).toBe('path-fork');
-    expect(state.visited).toEqual(['auth', 'profile', 'path-fork']);
+    expect(state.visited).toEqual(['auth', 'mic', 'profile', 'path-fork']);
   });
 });
 
@@ -55,6 +59,7 @@ describe('flowMachine — answers held across beats (the original bug)', () => {
   it('accumulates every answer; nothing resets per beat', () => {
     const state = run(flow, [
       { data: {} }, // auth
+      { data: {} }, // mic permission
       { data: { age: 38, gender: 'Male' } }, // profile (age + gender only; name from auth)
       { data: {}, path: 'simple' }, // path-fork
       { data: { category: 'Reduce stress' } }, // category
@@ -90,12 +95,26 @@ describe('flowMachine — the fork', () => {
   it('beginner lane rejoins at plan-review and completes', () => {
     const state = run(flow, [
       { data: {} }, // auth
+      { data: {} }, // mic permission
       { data: { age: 30, gender: 'Other' } }, // profile
       { data: {}, path: 'simple' },
       { data: { category: 'Sleep better' } },
       { data: { goals: ['Fall asleep earlier'] } },
-      { data: { habitConfigs: { 'No screens after 10 PM': { days: [1], time: '21:00', reminder: true } } } },
-      { data: { reflectionConfig: { time: '21:45', days: [1, 2, 3, 4, 5], reminder: true, schedule: 'Weekday' } } },
+      {
+        data: {
+          habitConfigs: { 'No screens after 10 PM': { days: [1], time: '21:00', reminder: true } },
+        },
+      },
+      {
+        data: {
+          reflectionConfig: {
+            time: '21:45',
+            days: [1, 2, 3, 4, 5],
+            reminder: true,
+            schedule: 'Weekday',
+          },
+        },
+      },
       { data: {} }, // plan-review confirm
     ]);
     expect(state.status).toBe('complete');
@@ -107,6 +126,7 @@ describe('flowMachine — the fork', () => {
   it('advanced lane reaches plan-review via the brain-dump beat', () => {
     const state = run(flow, [
       { data: {} }, // auth
+      { data: {} }, // mic permission
       { data: { age: 22, gender: 'Female' } }, // profile
       { data: {}, path: 'braindump' },
       { data: { brainDumpText: 'I want to sleep earlier and stop doomscrolling' } },
@@ -120,21 +140,22 @@ describe('flowMachine — the fork', () => {
 
 describe('flowMachine — back navigation', () => {
   it('goBack returns to a visited backId and trims history', () => {
-    // auth -> profile -> fork -> category; category.backId = path-fork (visited).
+    // auth -> mic -> profile -> fork -> category; category.backId = path-fork (visited).
     let state = run(flow, [
-      { data: {} },
-      { data: { age: 40, gender: 'Male' } },
-      { data: {}, path: 'simple' },
+      { data: {} }, // auth
+      { data: {} }, // mic permission
+      { data: { age: 40, gender: 'Male' } }, // profile
+      { data: {}, path: 'simple' }, // path-fork
     ]);
     expect(state.currentNodeId).toBe('category');
     expect(canGoBack(state, flow)).toBe(true);
     state = goBack(flow, state);
     expect(state.currentNodeId).toBe('path-fork');
-    expect(state.visited).toEqual(['auth', 'profile', 'path-fork']);
+    expect(state.visited).toEqual(['auth', 'mic', 'profile', 'path-fork']);
   });
 
   it('cannot go back from the entry beat (backId not visited)', () => {
-    const state = initFlowMachine(flow); // at profile, backId null
+    const state = initFlowMachine(flow); // at auth (entry), backId null
     expect(canGoBack(state, flow)).toBe(false);
     expect(goBack(flow, state)).toEqual(state);
   });

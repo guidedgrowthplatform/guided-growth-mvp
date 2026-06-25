@@ -9,6 +9,8 @@
  * as a short user-answer summary (see summarizeBeat) by BeatView.
  */
 import { useEffect, useRef, useState } from 'react';
+import { track } from '@/analytics';
+import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { AgeScrollPicker } from '@/components/onboarding/AgeScrollPicker';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import {
@@ -26,10 +28,13 @@ import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
 import { Button } from '@/components/ui/Button';
 import { ChipSelect } from '@/components/ui/ChipSelect';
+import { DualButton } from '@/components/ui/DualButton';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import {
   type OnboardingVoiceResult,
   useOnboardingVoiceActions,
 } from '@/contexts/useOnboardingVoiceSession';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 import {
   FLOW_CATEGORIES,
   GENDER_OPTIONS,
@@ -97,6 +102,96 @@ function AuthAdapter({ onCapture }: BeatAdapterProps) {
       <Button variant="ghost" size="lg" fullWidth onClick={() => onCapture({ data: {} })}>
         Use email instead
       </Button>
+    </CardShell>
+  );
+}
+
+/* ----------------------------------------------------------- mic permission */
+
+// Mic-permission beat (designer beat 5). A coach-led permission gate, not a save
+// step: it requests the mic and records the result through the real preferences
+// path (useUserPreferences.updatePreferences -> Supabase, local-only when signed
+// out), then captures {} to advance. The copy is the designer's (props on the
+// flow node); the dual-button dial reuses the real MicPermissionPage visual.
+function MicPermissionAdapter({ node, onCapture }: BeatAdapterProps) {
+  const props = node.componentProps as {
+    heading?: string;
+    sub?: string;
+    allowLabel?: string;
+    skipLabel?: string;
+  };
+  const { preferences, updatePreferences } = useUserPreferences();
+  const [requesting, setRequesting] = useState<'allow' | 'skip' | null>(null);
+  const voiceEnabled = preferences.voiceMode === 'voice';
+  const micGranted = preferences.micPermission === true;
+  const submittedRef = useRef(false);
+
+  const advance = () => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    onCapture({ data: {} });
+  };
+
+  const handleAllow = async () => {
+    if (requesting) return;
+    setRequesting('allow');
+    let granted = true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch {
+      granted = false;
+    }
+    track('grant_mic_permission', { granted, dismissed: false });
+    await updatePreferences({ micPermission: granted, micEnabled: granted });
+    advance();
+  };
+
+  const handleSkip = async () => {
+    if (requesting) return;
+    setRequesting('skip');
+    track('grant_mic_permission', { granted: false, dismissed: true });
+    await updatePreferences({ micPermission: false, micEnabled: false });
+    advance();
+  };
+
+  return (
+    <CardShell>
+      <div className="flex items-center justify-center py-2">
+        <DualButton
+          size={150}
+          width={160}
+          leftActive={voiceEnabled}
+          rightActive={false}
+          leftIcon={voiceEnabled ? <IconChatVoice size={52} /> : <IconChatText size={52} />}
+          rightIcon={micGranted ? <IconMic size={44} /> : <IconMicMuted size={44} />}
+          leftAriaLabel="Coach voice indicator"
+          rightAriaLabel="Microphone indicator"
+        />
+      </div>
+      <div className="flex flex-col items-center gap-3">
+        <Button
+          variant="primary"
+          size="lg"
+          fullWidth
+          disabled={requesting !== null}
+          onClick={handleAllow}
+        >
+          {requesting === 'allow' ? (
+            <LoadingSpinner color="text-white" />
+          ) : (
+            (props.allowLabel ?? 'Allow microphone')
+          )}
+        </Button>
+        <button
+          type="button"
+          onClick={handleSkip}
+          disabled={requesting !== null}
+          className="py-2 text-[15px] font-semibold text-content-secondary disabled:opacity-50"
+        >
+          {requesting === 'skip' ? <LoadingSpinner size="sm" /> : (props.skipLabel ?? 'Not now')}
+        </button>
+      </div>
     </CardShell>
   );
 }
@@ -545,6 +640,7 @@ type AdapterComponent = (props: BeatAdapterProps) => React.ReactNode;
 
 export const ADAPTER_REGISTRY: Record<string, AdapterComponent> = {
   auth: AuthAdapter,
+  'mic-permission': MicPermissionAdapter,
   'profile-input': ProfileAdapter,
   'path-selection': PathSelectionAdapter,
   'primary-button': PrimaryButtonAdapter,
@@ -567,6 +663,9 @@ export function summarizeBeat(node: FlowNode, answers: FlowAnswers): string | nu
   switch (node.componentType) {
     case 'auth':
       return 'Signed in.';
+    case 'mic-permission':
+      // Mic result is saved to preferences, not flow answers; keep a neutral line.
+      return 'Microphone set.';
     case 'profile-input':
       return answers.age || answers.gender
         ? [answers.age ? `${answers.age}` : null, answers.gender as string | undefined]

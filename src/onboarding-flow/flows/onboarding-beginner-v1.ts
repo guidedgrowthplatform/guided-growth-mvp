@@ -28,7 +28,7 @@ export const onboardingBeginnerV1: FlowDocument = {
       beatNumber: 0,
       name: 'Auth',
       screenId: 'ONBOARD-AUTH--FORM',
-      nextId: 'profile',
+      nextId: 'mic',
       backId: null,
       context: {
         screenId: 'ONBOARD-AUTH--FORM',
@@ -43,13 +43,47 @@ export const onboardingBeginnerV1: FlowDocument = {
       persist: null,
     },
     {
+      // Designer beat 5 — mic permission. A coach-led permission gate, NOT a save
+      // step: the result is written to preferences (mic_permission/mic_enabled),
+      // not onboarding_states, so persist + tool are null and there is no server
+      // step (stepForScreenId('MIC-PERMISSION') is undefined). Vapi-only path
+      // (directLlmAllowed false), like the routed MicPermissionPage.
+      id: 'mic',
+      type: 'beat',
+      beatNumber: 0,
+      name: 'Mic Permission',
+      screenId: 'MIC-PERMISSION',
+      nextId: 'profile',
+      backId: null,
+      context: {
+        screenId: 'MIC-PERMISSION',
+        screenName: 'Mic Permission',
+        contextBlock:
+          'Ask permission to use the microphone so the user can talk out loud. If they allow, continue warmly. If not now, continue without pushing.',
+      },
+      componentType: 'mic-permission',
+      componentProps: {
+        heading: 'Allow your microphone',
+        sub: 'So you can talk with your coach out loud.',
+        allowLabel: 'Allow microphone',
+        skipLabel: 'Not now',
+      },
+      voice: {
+        openerText: 'Allow your microphone so you can talk with your coach out loud.',
+        expectsInput: false,
+        directLlmAllowed: false,
+      },
+      tool: null,
+      persist: null,
+    },
+    {
       id: 'profile',
       type: 'beat',
       beatNumber: 1,
       name: 'Profile',
       screenId: 'ONBOARD-01--FORM',
       nextId: 'path-fork',
-      backId: null,
+      backId: 'mic',
       context: {
         screenId: 'ONBOARD-01--FORM',
         screenName: 'Profile',
@@ -62,9 +96,10 @@ export const onboardingBeginnerV1: FlowDocument = {
         ageRange: { min: 13, max: 120 },
       },
       // Display copy; the canonical spoken opener is beatContexts['ONBOARD-01--FORM'].opener.
+      // {name} is substituted from answers.nickname by applyName at render time.
       voice: {
         openerText:
-          'Alright, a couple quick things so I can tailor this to you. How old are you, and how do you identify? You can say it or tap it in.',
+          "Awesome {name}, two quick things so I can tailor this to you. How old are you? And what's your gender?",
         expectsInput: true,
         directLlmAllowed: true,
       },
@@ -119,8 +154,7 @@ export const onboardingBeginnerV1: FlowDocument = {
         ],
       },
       voice: {
-        openerText:
-          'How do you like to work? I can guide you step by step, or you can just tell me everything on your mind.',
+        openerText: 'Have you tracked habits before, or is this new for you?',
         expectsInput: true,
         directLlmAllowed: true,
       },
@@ -144,7 +178,7 @@ export const onboardingBeginnerV1: FlowDocument = {
       componentType: 'category-grid',
       componentProps: { maxSelections: 1, optionSource: 'categories' },
       voice: {
-        openerText: 'What feels most worth improving right now?',
+        openerText: 'What part of your life do you most want to grow right now?',
         expectsInput: true,
         directLlmAllowed: true,
       },
@@ -167,7 +201,11 @@ export const onboardingBeginnerV1: FlowDocument = {
       },
       componentType: 'goals-list',
       componentProps: { maxSelections: 2, optionSource: 'goalsByCategory' },
-      voice: { openerText: null, expectsInput: true, directLlmAllowed: true },
+      voice: {
+        openerText: 'Which of these feels most true for you?',
+        expectsInput: true,
+        directLlmAllowed: true,
+      },
       tool: { toolName: 'submit_goals', persistsFields: ['goals'], advancesStep: true },
       persist: { step: 4 },
     },
@@ -187,7 +225,11 @@ export const onboardingBeginnerV1: FlowDocument = {
       },
       componentType: 'habit-picker',
       componentProps: { maxPerGoal: 2, optionSource: 'habitsByGoal' },
-      voice: { openerText: null, expectsInput: true, directLlmAllowed: true },
+      voice: {
+        openerText: "Here are a few habits that fit. Pick the ones you'll actually do.",
+        expectsInput: true,
+        directLlmAllowed: true,
+      },
       tool: { toolName: 'add_habit', persistsFields: ['habits'], advancesStep: false },
       persist: { step: 5 },
     },
@@ -207,7 +249,11 @@ export const onboardingBeginnerV1: FlowDocument = {
       },
       componentType: 'reflection-card',
       componentProps: { showDayPicker: true, showReminderToggle: true },
-      voice: { openerText: null, expectsInput: true, directLlmAllowed: true },
+      voice: {
+        openerText: "Let's set a daily moment to reflect. When works for you?",
+        expectsInput: true,
+        directLlmAllowed: true,
+      },
       tool: {
         toolName: 'submit_reflection_config',
         persistsFields: ['reflectionConfig'],
@@ -266,7 +312,7 @@ export const onboardingBeginnerV1: FlowDocument = {
       componentType: 'plan-cards',
       componentProps: { showJournalCard: true },
       voice: {
-        openerText: "Here's your plan. Want to change anything before we start?",
+        openerText: "Here's your starting plan. We'll adjust as we go.",
         expectsInput: true,
         directLlmAllowed: true,
       },

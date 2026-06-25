@@ -56,6 +56,7 @@ export interface PersistConfig {
 /** All componentType keys the renderer registry knows how to mount. */
 export type FlowComponentType =
   | 'auth'
+  | 'mic-permission'
   | 'profile-input'
   | 'path-selection'
   | 'primary-button'
