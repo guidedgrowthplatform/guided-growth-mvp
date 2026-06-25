@@ -9,6 +9,7 @@ import pg from 'pg';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { config } from 'dotenv';
+import { assertSafeTarget } from './env/targets.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: resolve(__dirname, '../.env.local') });
@@ -19,6 +20,8 @@ if (!email) {
   console.error('Usage: node scripts/reset-user-onboarding.mjs <email> [--apply]');
   process.exit(1);
 }
+
+if (apply) assertSafeTarget(`reset of ${email}`);
 
 const { DATABASE_URL } = process.env;
 if (!DATABASE_URL) {
