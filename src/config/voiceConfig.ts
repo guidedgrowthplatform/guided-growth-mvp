@@ -1,7 +1,10 @@
 export type VoiceGender = 'male' | 'female';
 
-// Coach Yair cloned voice — post-onboarding coach TTS
-export const COACH_VOICE_ID = '0a974815-0e4d-4dfc-b478-37a7b943da70';
+// Coach Yair cloned voice. "Yair English, Pro Voice Clone, V1". This is the ONE
+// voice across the app: it must match the Vapi assistant's voice exactly so the
+// onboarding hand-off (Cartesia opener -> Vapi conversation) is seamless. Pair it
+// with model sonic-3.5-2026-05-04 on the HTTP TTS path.
+export const COACH_VOICE_ID = '104635f9-8991-403c-9988-bc5b70b39939';
 
 // End-of-turn "think pause": quiet gap after the last Soniox final before the
 // buffered utterance is sent as ONE turn (GitLab #209). Longer = more room to
