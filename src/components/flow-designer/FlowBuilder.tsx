@@ -807,7 +807,7 @@ function PhoneScreenInner({
       <div className="absolute inset-0" style={{ background: bgColor(bg) }} />
       <div
         className="absolute inset-x-0 top-0 flex flex-col overflow-y-auto px-4 [transform:translateZ(0)]"
-        style={{ bottom: checkin ? 64 : 84 }}
+        style={{ bottom: checkin ? 64 : 116 }}
       >
         <div className="my-auto w-full py-6">{children}</div>
       </div>
@@ -815,8 +815,8 @@ function PhoneScreenInner({
         {checkin ? (
           <BuilderBottomNav />
         ) : (
-          <div className="flex justify-center pb-5 pt-2">
-            <BeatOrb size={58} {...orb} />
+          <div className="flex justify-center pb-6 pt-2">
+            <BeatOrb size={92} {...orb} />
           </div>
         )}
       </div>

@@ -33,7 +33,7 @@ export function BeatOrb({
   const [micOn, setMicOn] = useState(micOn0);
   if (hidden) return null;
 
-  const size = bloomed ? Math.round(baseSize * 1.7) : baseSize;
+  const size = bloomed ? Math.round(baseSize * 1.15) : baseSize;
   const glyph = Math.round(size * 0.25);
   // The mic permission beat asks until the user turns the mic on.
   const asking = micAsking && !micOn;
