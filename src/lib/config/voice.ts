@@ -22,6 +22,20 @@ const envString = (raw: string | undefined, fallback: string): string => {
 // Env-backed kill-switch; voice-in only. Remove once stable in prod.
 export const VOICE_IN_ENABLED = import.meta.env.VITE_STATE3_ENABLED === 'true';
 
+// ─── Onboarding chat-native Vapi (full-duplex) ──────────────────────────────
+// Gates Vapi full-duplex on the single-page chat onboarding. Off unless set.
+export const ONBOARDING_CHAT_VAPI = import.meta.env.VITE_ONBOARDING_CHAT_VAPI === 'true';
+
+// ─── Onboarding instant personalized opener ─────────────────────────────────
+// Hides the Vapi cold-start latency (vapi_first_audio_ms 7-18s) on the FIRST
+// Vapi-covered voice beat. When on, the coach's opener is spoken instantly by
+// Cartesia (with the user's name) while Vapi connects silently in the
+// background, and the mic opens only once BOTH the opener audio has finished
+// AND Vapi is connected. DEFAULT OFF: with the flag off the current voice path
+// is byte-for-byte unchanged (Vapi speaks first, as today). Only affects the
+// first cold-start beat; later beats are already warm and unaffected.
+export const ONBOARDING_INSTANT_OPENER = import.meta.env.VITE_ONBOARDING_INSTANT_OPENER === 'true';
+
 // ─── Vapi (Path 1) daily cap ────────────────────────────────────────────────
 // Test override; gg-spec UX-12 says 5. Revert before launch.
 export const VAPI_DAILY_CAP = envNumber(import.meta.env.VITE_VAPI_DAILY_CAP, 25);

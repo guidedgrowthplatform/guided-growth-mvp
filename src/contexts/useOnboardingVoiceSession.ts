@@ -6,6 +6,7 @@
  */
 import { createContext, useContext, useEffect, useRef } from 'react';
 import type { RealtimeTranscriptEvent } from '@/hooks/useRealtimeVoice';
+import type { OnboardingCard } from '@/lib/onboarding/onboardingChatTypes';
 
 export interface OnboardingVoiceResult {
   success: boolean;
@@ -25,6 +26,11 @@ export interface VoiceMessage {
   id: string;
   role: 'user' | 'ai';
   text: string;
+  // Inline chat-native onboarding cards (reserved for per-message card history).
+  cards?: OnboardingCard[];
+  // The beat (screen_id) this turn belongs to, so the chat-native feed can group
+  // dialogue under its beat and keep every prior beat scrollable.
+  screenId?: string;
 }
 
 export const USER_SPEAKING_IDLE_MS = 600;

@@ -3,6 +3,7 @@ import { buildSystemPrompt, PRODUCT_CONTEXT } from '@gg/shared/coaching/systemPr
 import type { CoachingStyle } from '@gg/shared/coaching/styles';
 import { buildContextMessage } from '@gg/shared/context/buildContextMessage';
 import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
+import { GLOBAL_ONBOARDING_CONTEXT, getBeatContext } from './onboarding/beatContexts.js';
 import { buildCanonicalOptionsBlock } from './onboarding/canonicalOptions.js';
 import { ONBOARDING_TOOL_ADDENDUM } from './onboarding/systemPromptAddendum.js';
 import { stripForwardPointers } from './stripForwardPointers.js';
@@ -110,9 +111,15 @@ export async function buildSystemPromptForRequest(
   const isOnboardingScreen = args.screen_id.startsWith('ONBOARD-');
 
   const coachingPreamble = buildSystemPrompt({ coachingStyle: args.coaching_style });
+  // Onboarding reads its per-beat coach copy from beatContexts (the in-repo file
+  // synced one-way from Supabase, which is the editable source). The GLOBAL block
+  // sits above every beat. Beats not yet in beatContexts fall back to the
+  // screen_contexts row, so legacy screens keep working.
+  const beat = isOnboardingScreen ? getBeatContext(args.screen_id) : undefined;
+  const onboardingGlobalBlock = isOnboardingScreen ? `\n\n${GLOBAL_ONBOARDING_CONTEXT}` : '';
   // Direct-LLM only — Vapi keeps raw context elsewhere (it drives navigation).
   // advance_step is the Direct-LLM nav tool; the shared bundle says navigate_next (Vapi's name).
-  const contextBlock = stripForwardPointers(screen.context_block).replace(
+  const contextBlock = stripForwardPointers(beat ? beat.context : screen.context_block).replace(
     /navigate_next/g,
     'advance_step',
   );
@@ -169,7 +176,7 @@ export async function buildSystemPromptForRequest(
     : '';
 
   return {
-    systemPrompt: `${coachingPreamble}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${scriptedDisciplineBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
+    systemPrompt: `${coachingPreamble}${onboardingGlobalBlock}${productBlock}\n\n${NO_PRENARRATION_RULE}\n\n${NO_INTERNAL_NARRATION_RULE}${onboardingNudge}${checkinNudge}${readonlyNudge}${timeBlock}${walkthroughBlock}${morningFlowBlock}${scriptedDisciplineBlock}${checkinHabitsBlock}${reflectionSettingsBlock}${alreadyFilledBlock}${optionsBlock}${openerNudge}${eveningOpenerBlock}${morningOpenerBlock}${inputModeBlock}\n\n${contextMessage}`,
     contextVersion: screen.version,
     deltaCount: state_delta.length,
   };

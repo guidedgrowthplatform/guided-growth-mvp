@@ -27,6 +27,7 @@
     "type-check": "tsc --noEmit",
     "knip": "knip",
     "knip:report": "knip --reporter compact > knip-report.txt || true",
+    "flow:sync": "tsx scripts/flow-sync/generate-flow.ts",
     "prepare": "husky",
     "cap:local": "VITE_API_URL=http://$(ipconfig getifaddr en0):3000 npm run build && npx cap sync ios && node scripts/patch-ios-disable-firebase.mjs",
     "cap:live": "CAP_LIVE_RELOAD_URL=http://localhost:5173 npx cap sync ios && node scripts/patch-ios-disable-firebase.mjs && xattr -cr ios/App && CAP_LIVE_RELOAD_URL=http://localhost:5173 npx cap run ios",

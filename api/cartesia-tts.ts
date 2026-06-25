@@ -3,8 +3,9 @@ import { requireUser, setUserContext, handlePreflight } from './_lib/auth.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
 import { getClientIp } from './_lib/validation.js';
 
-// Coach Yair cloned voice
-const DEFAULT_VOICE_ID = '0a974815-0e4d-4dfc-b478-37a7b943da70';
+// Coach Yair cloned voice: "Yair English, Pro Voice Clone, V1". Must match the
+// Vapi assistant voice exactly so the onboarding opener hands off seamlessly.
+const DEFAULT_VOICE_ID = '104635f9-8991-403c-9988-bc5b70b39939';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
@@ -68,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'Cartesia-Version': '2026-03-01',
       },
       body: JSON.stringify({
-        model_id: 'sonic-3',
+        model_id: 'sonic-3.5-2026-05-04',
         transcript: text.trim(),
         voice: { mode: 'id', id: resolvedVoiceId },
         output_format: { container: 'mp3', encoding: 'mp3', sample_rate: 24000 },

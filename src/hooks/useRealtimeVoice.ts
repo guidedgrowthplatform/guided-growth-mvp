@@ -36,6 +36,28 @@ function errorToMessage(err: unknown, fallback: string): string {
 
 export type CoachingStyle = 'warm' | 'direct' | 'reflective';
 
+/**
+ * Once-per-teardown latch for onEnd. A local stop() tears the call down through
+ * two paths that BOTH try to fire onEnd: dropToken() -> releaseToken() runs the
+ * token's onCleanup synchronously (fires once), and stop() then calls onEnd
+ * directly (would fire again). The second fire reads to the provider as a REMOTE
+ * end and arms a ~3s cooldown that blocks toggling voice off then on. `fire()`
+ * runs the callback at most once until `arm()` is called for the next call.
+ */
+export function createOnEndLatch(onEnd: () => void): { fire: () => void; arm: () => void } {
+  let fired = false;
+  return {
+    fire: () => {
+      if (fired) return;
+      fired = true;
+      onEnd();
+    },
+    arm: () => {
+      fired = false;
+    },
+  };
+}
+
 export type RealtimeTranscriptRole = 'user' | 'assistant';
 export type RealtimeTranscriptKind = 'partial' | 'final';
 
@@ -195,6 +217,16 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     metadataRef.current = metadata;
   });
 
+  // onEnd must fire exactly once per teardown. A local stop() runs cleanup() then
+  // dropToken() -> releaseToken() which SYNCHRONOUSLY re-invokes the token's
+  // onCleanup (calling onEnd), and stop() then calls onEnd AGAIN directly. The
+  // second call looks like a REMOTE end to the provider (didCallStopRef was
+  // already consumed by the first), which arms a ~3s remote-end cooldown that
+  // blocks toggling voice off then on. Latch onEnd so the second invocation in
+  // the same teardown is a no-op; arm() re-enables it for each new start().
+  const onEndLatchRef = useRef(createOnEndLatch(() => onEndRef.current?.()));
+  const fireOnEndOnce = useCallback(() => onEndLatchRef.current.fire(), []);
+
   const dropToken = useCallback(() => {
     const t = tokenRef.current;
     if (!t) return;
@@ -278,9 +310,12 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     if (tearingDownRef.current) return;
     cleanup();
     setStateSynced('idle');
+    // dropToken() runs the token's onCleanup synchronously, which already fires
+    // onEnd (latched). This second call is the no-op guarded by fireOnEndOnce:
+    // it only does real work when no token was held (dropToken early-returned).
     dropToken();
-    onEnd?.();
-  }, [cleanup, dropToken, onEnd, setStateSynced]);
+    fireOnEndOnce();
+  }, [cleanup, dropToken, fireOnEndOnce, setStateSynced]);
 
   const fail = useCallback(
     (message: string) => {
@@ -352,7 +387,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
         if (!mountedRef.current || tearingDownRef.current) return;
         cleanup();
         setStateSynced('idle');
-        onEndRef.current?.();
+        fireOnEndOnce();
       },
     });
     if (!ownerToken) {
@@ -362,6 +397,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       return;
     }
     tokenRef.current = ownerToken;
+    // Re-arm the once-per-teardown latch: this is a fresh call, so its eventual
+    // teardown is allowed to fire onEnd again.
+    onEndLatchRef.current.arm();
     setError(null);
     setStateSynced('connecting');
     startInvokedAtRef.current = performance.now();
@@ -522,6 +560,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
     acquireRealtime,
     cleanup,
     fail,
+    fireOnEndOnce,
     metadata,
     setOwnerPhase,
     setStateSynced,

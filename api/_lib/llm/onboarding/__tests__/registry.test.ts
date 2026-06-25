@@ -240,11 +240,26 @@ describe('ONBOARDING_TOOL_NAMES + isOnboardingToolName', () => {
   });
 });
 
+const names = (tools: readonly { name: string }[] | undefined) =>
+  (tools ?? []).map((t) => t.name).sort();
+
 describe('getOnboardingTools / isOnboardingScreen', () => {
-  it('returns tools for ONBOARD- prefixed screen ids', () => {
-    expect(getOnboardingTools('ONBOARD-01--FORM')).toBe(ONBOARDING_TOOLS);
-    expect(getOnboardingTools('ONBOARD-BEGINNER-03')).toBe(ONBOARDING_TOOLS);
-    expect(getOnboardingTools('ONBOARD-ADVANCED')).toBe(ONBOARDING_TOOLS);
+  it('gates to each beat\'s allowed tools (per-beat tool gating)', () => {
+    expect(names(getOnboardingTools('ONBOARD-01--FORM'))).toEqual(['advance_step', 'submit_profile']);
+    expect(names(getOnboardingTools('ONBOARD-BEGINNER-03'))).toEqual([
+      'add_habit',
+      'advance_step',
+      'remove_habit',
+    ]);
+    expect(names(getOnboardingTools('ONBOARD-ADVANCED'))).toEqual(['advance_step', 'submit_brain_dump']);
+  });
+
+  it('exposes no tools on the silent auth beat', () => {
+    expect(getOnboardingTools('ONBOARD-AUTH--FORM')).toEqual([]);
+  });
+
+  it('falls back to all tools for an ONBOARD- beat not in beatContexts', () => {
+    expect(getOnboardingTools('ONBOARD-NOT-A-BEAT-99')).toBe(ONBOARDING_TOOLS);
   });
 
   it('returns undefined for non-onboarding screens', () => {

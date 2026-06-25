@@ -3,14 +3,14 @@ import type { OnboardingState, OnboardingStepData } from '@gg/shared/types';
 // Curated opening lines per onboarding screen (gg-spec packets). Deterministic —
 // rendered as the first coach bubble so the question never drifts.
 const ONBOARDING_OPENERS: Record<string, string> = {
+  'ONBOARD-00--PREFS':
+    "Hey, I'm your coach. We can do this by voice or just typing — whatever's easier for you right now. How do you want to start?",
   'ONBOARD-01':
-    'OK, let me get to know you a little. First — what should I call you? You can type it here, or fill it in on screen.',
+    "Awesome {name}, two quick things so I can tailor this to you. How old are you? And what's your gender?",
   'ONBOARD-01--FORM':
-    'OK, let me get to know you a little. First — what should I call you? You can type it here, or fill it in on screen.',
-  'ONBOARD-FORK':
-    'Quick question — have you tracked habits before, or is this new for you? Either way is great. I just want to know the best way to guide you.',
-  'ONBOARD-FORK--FORM':
-    'Quick question — have you tracked habits before, or is this new for you? Either way is great. I just want to know the best way to guide you.',
+    "Awesome {name}, two quick things so I can tailor this to you. How old are you? And what's your gender?",
+  'ONBOARD-FORK': 'Have you tracked habits before, or is this new for you?',
+  'ONBOARD-FORK--FORM': 'Have you tracked habits before, or is this new for you?',
   'ONBOARD-BEGINNER-01':
     "So — what feels most worth improving right now? Don't overthink it. There's no wrong answer. Pick the one that pulls you. You can always add more later.",
   'ONBOARD-BEGINNER-02':

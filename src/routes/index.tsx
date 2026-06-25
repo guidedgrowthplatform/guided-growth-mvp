@@ -103,6 +103,17 @@ const EditJournalPage = lazyOnboarding('EditJournalPage');
 const AdvancedStep6Page = lazyOnboarding('AdvancedStep6Page');
 const AdvancedCustomPromptsPage = lazyOnboarding('AdvancedCustomPromptsPage');
 
+// Unified chat-native onboarding engine (orchestrator + data-driven renderer).
+// /onboarding/flow = real (authed); /onboarding-flow-preview = auth-free QA render.
+const FlowOnboarding = lazyWithRetry(() =>
+  import('@/onboarding-flow/FlowOnboarding').then((m) => ({ default: m.FlowOnboarding })),
+);
+const FlowOnboardingPreview = lazyWithRetry(() =>
+  import('@/onboarding-flow/FlowOnboardingPreview').then((m) => ({
+    default: m.FlowOnboardingPreview,
+  })),
+);
+
 function PageLoader() {
   return (
     <div className="flex h-full items-center justify-center p-8">
@@ -111,12 +122,21 @@ function PageLoader() {
   );
 }
 
+// Cutover flag: when on, FRESH onboarding users get the new chat-native engine
+// (/onboarding/flow) instead of the old page flow. Default off (unset) = old flow.
+// In-progress users always finish on the flow they started (the engine has no old
+// step state), so flipping this only affects new signups. Flip to go live.
+const USE_FLOW_ENGINE = import.meta.env.VITE_ONBOARDING_USE_ENGINE === 'true';
+
 function OnboardingEntry() {
   const gate = useAppGate();
   if (gate.status === 'loading') return <LoadingScreen />;
   if (gate.status === 'ready') return <Navigate to="/" replace />;
+  // Version pinning: anyone mid old-flow finishes on the old step pages.
   if (gate.status === 'onboarding_in_progress')
     return <Navigate to={`/onboarding/step-${gate.step}`} replace />;
+  // Fresh user: the new engine if the cutover flag is on, else the old flow.
+  if (USE_FLOW_ENGINE) return <Navigate to="/onboarding/flow" replace />;
   return <Navigate to="/onboarding/voice-preference" replace />;
 }
 
@@ -181,6 +201,9 @@ export function AppRoutes() {
 
         <Route path="/splash" element={<SplashScreenPage />} />
 
+        {/* Auth-free QA render of the unified chat-native onboarding engine */}
+        <Route path="/onboarding-flow-preview" element={<FlowOnboardingPreview />} />
+
         {/* Privacy policy — accessible from any state (onboarding, settings, anon) */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
@@ -210,6 +233,16 @@ export function AppRoutes() {
           element={
             <AppGate allow="onboarding">
               <MicPermissionPage />
+            </AppGate>
+          }
+        />
+        <Route
+          path="/onboarding/flow"
+          element={
+            // Auth lives INSIDE the flow now (beat 0 is the sign-up/login step),
+            // so a logged-out user renders the flow instead of bouncing to /login.
+            <AppGate allow="onboarding-or-public">
+              <FlowOnboarding />
             </AppGate>
           }
         />

@@ -1,5 +1,20 @@
-import type { ChatSessionResponse, LinearHistoryResponse } from '@gg/shared/types/llm';
+import type {
+  ChatHistoryResponse,
+  ChatSessionResponse,
+  LinearHistoryResponse,
+} from '@gg/shared/types/llm';
 import { apiGet, apiPost } from './client';
+
+// Full message history for a known chat_session_id (cross-screen). Used to
+// rehydrate the chat-native onboarding thread, whose stable session spans beats.
+export function fetchChatHistory(
+  chatSessionId: string,
+  opts?: { limit?: number },
+): Promise<ChatHistoryResponse> {
+  const params = new URLSearchParams({ chat_session_id: chatSessionId });
+  if (opts?.limit != null) params.set('limit', String(opts.limit));
+  return apiGet<ChatHistoryResponse>(`/api/chat/history?${params.toString()}`);
+}
 
 export function createOrResumeChatSession(
   screenId: string,
