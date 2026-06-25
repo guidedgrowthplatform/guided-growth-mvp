@@ -1,4 +1,4 @@
-import { CHECKIN_SCRIPTS, pickVariation } from './scriptVariations.js';
+import { CHECKIN_SCRIPTS, pickVariation } from '@gg/shared/checkin/scriptVariations';
 
 export const CHECKIN_TOOL_ADDENDUM = `## Check-in Tool-Use Rules
 

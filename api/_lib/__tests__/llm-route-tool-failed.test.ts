@@ -349,3 +349,76 @@ describe('LLM route — cancelled status at round boundary (F2)', () => {
     expect(endRow.error_code).toBeNull();
   });
 });
+
+describe('LLM route — prior_opener (client-spoken opener)', () => {
+  it('prepends the opener as a synthetic assistant turn when no prev_response_id', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ foreign_owned: false, prev_response_id: null }],
+    });
+    pool.query.mockResolvedValue({ rowCount: 1, rows: [] });
+
+    async function* gen() {
+      yield { type: 'output_text_delta', delta: 'ok' };
+      yield { type: 'completed', responseId: 'resp-1', totalTokens: 1 };
+    }
+    const streamFn = openResponsesStream as unknown as ReturnType<typeof vi.fn>;
+    streamFn.mockResolvedValueOnce(gen());
+
+    const { client } = makeClient();
+    pool.connect.mockResolvedValue(client);
+
+    await handler(
+      mockReq({
+        session_id: 'sess-abcd1234',
+        screen_id: 'MCHECK-01',
+        user_message: 'slept ok',
+        chat_session_id: CHAT_SESSION_ID,
+        user_turn_id: USER_TURN_ID,
+        prior_opener: 'Good morning. Ready to check in?',
+      }),
+      mockRes(),
+    );
+
+    const input = streamFn.mock.calls[0][0].input as Array<{ role: string; content: string }>;
+    expect(input[0]).toEqual({
+      type: 'message',
+      role: 'assistant',
+      content: 'Good morning. Ready to check in?',
+    });
+    expect(input[input.length - 1].role).toBe('user');
+  });
+
+  it('does NOT prepend when a prev_response_id exists', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ foreign_owned: false, prev_response_id: 'resp-prev' }],
+    });
+    pool.query.mockResolvedValue({ rowCount: 1, rows: [] });
+
+    async function* gen() {
+      yield { type: 'output_text_delta', delta: 'ok' };
+      yield { type: 'completed', responseId: 'resp-2', totalTokens: 1 };
+    }
+    const streamFn = openResponsesStream as unknown as ReturnType<typeof vi.fn>;
+    streamFn.mockResolvedValueOnce(gen());
+
+    const { client } = makeClient();
+    pool.connect.mockResolvedValue(client);
+
+    await handler(
+      mockReq({
+        session_id: 'sess-abcd1234',
+        screen_id: 'HOME-CHECKIN',
+        user_message: 'hi',
+        chat_session_id: CHAT_SESSION_ID,
+        user_turn_id: USER_TURN_ID,
+        prior_opener: 'Good morning. Ready to check in?',
+      }),
+      mockRes(),
+    );
+
+    const input = streamFn.mock.calls[0][0].input as Array<{ role: string }>;
+    expect(input.every((m) => m.role !== 'assistant')).toBe(true);
+  });
+});

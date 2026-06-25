@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { HabitReportCard } from '@/components/coach/HabitReportCard';
 import { CheckInCard } from '@/components/home/CheckInCard';
@@ -14,7 +14,6 @@ import { useCoachTranscripts } from '@/contexts/useCoachVoiceSession';
 import { useAudioUnlocked } from '@/hooks/useAudioUnlocked';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
-import { useSmoothReveal } from '@/hooks/useSmoothReveal';
 import type { CoachChatApi } from '@/lib/chat/coachChatTypes';
 import { stopTTS, unlockTTS } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
@@ -25,15 +24,53 @@ interface CoachChatViewProps extends CoachChatApi {
   onClose: () => void;
 }
 
+const CoachMessageRow = memo(function CoachMessageRow({
+  msg,
+  displayName,
+  updateHabitDays,
+  onClose,
+}: {
+  msg: CoachChatApi['messages'][number];
+  displayName?: string;
+  updateHabitDays: CoachChatApi['updateHabitDays'];
+  onClose: () => void;
+}) {
+  return (
+    <div className="flex flex-col">
+      <ChatBubble
+        role={msg.role}
+        text={msg.text}
+        userName={displayName}
+        eyebrowVariant="dark"
+        compact
+        animate={false}
+        markdown
+      />
+      {msg.habitCards?.map((card, i) => (
+        <HabitSuggestionCard
+          key={i}
+          name={card.name}
+          days={card.days}
+          onDaysChange={(days) => updateHabitDays(msg.id, i, days)}
+        />
+      ))}
+      {msg.checkinCard && (
+        <div className="mb-3 mt-2 w-full max-w-[360px]">
+          <CheckInCard selectedDate={msg.checkinCard.date} embedded onClose={onClose} />
+        </div>
+      )}
+      {msg.habitReport && <HabitReportCard />}
+    </div>
+  );
+});
+
 const IDLE_GRADIENT =
   'linear-gradient(to top, rgba(19,91,236,0.7) 0%, rgba(255,255,255,0.7) 54%, rgba(255,255,255,0.7) 81%, rgba(246,246,246,0.7) 100%)';
 
 const LISTENING_GRADIENT =
   'linear-gradient(to top, rgba(253,208,23,0.7) 5%, rgba(255,255,255,0.001) 68%, rgba(255,255,255,0.7) 88%, rgba(246,246,246,0.7) 100%)';
 
-// Coach chat overlay UI — mirrors OnboardingChatOverlay's orb-first shape
-// (DualButton + gradients + smooth-reveal partials), driven by CoachChatApi
-// from CoachVoiceProvider. Used for HOME-CHECKIN, MCHECK-*, ECHECK-*.
+// Coach chat overlay for HOME-CHECKIN, MCHECK-*, ECHECK-*.
 export function CoachChatView({
   messages,
   voiceState,
@@ -68,8 +105,8 @@ export function CoachChatView({
   const [draft, setDraft] = useState('');
   const [partialAssistant, setPartialAssistant] = useState('');
 
-  const displayedAssistant = useSmoothReveal(partialAssistant);
-  const displayedUser = useSmoothReveal(interim);
+  const displayedAssistant = partialAssistant;
+  const displayedUser = interim;
 
   let revealingId: string | null = null;
   if (displayedAssistant.length > 0) {
@@ -198,7 +235,6 @@ export function CoachChatView({
       ? 'listening'
       : 'idle';
 
-  const gradient = visualState === 'listening' ? LISTENING_GRADIENT : IDLE_GRADIENT;
   const dualActiveRings = deriveOrbRing({
     voiceOn: voiceChosen,
     micOn: micRuntimeOn,
@@ -210,9 +246,14 @@ export function CoachChatView({
   return (
     <div className="fixed inset-0 z-50 flex animate-slide-up flex-col">
       <div className="absolute inset-0 bg-white" />
+      <div className="absolute inset-0 backdrop-blur-[50px]" />
+      <div className="absolute inset-0" style={{ backgroundImage: IDLE_GRADIENT }} />
       <div
-        className="absolute inset-0 backdrop-blur-[50px]"
-        style={{ backgroundImage: gradient, transition: 'background-image 300ms ease-out' }}
+        className="absolute inset-0 transition-opacity duration-300 ease-out"
+        style={{
+          backgroundImage: LISTENING_GRADIENT,
+          opacity: visualState === 'listening' ? 1 : 0,
+        }}
       />
 
       <button
@@ -230,6 +271,7 @@ export function CoachChatView({
         ref={scrollContainerRef}
         className="relative z-10 flex-1 overflow-y-auto px-4 pt-[64px]"
         style={{
+          overflowAnchor: 'none',
           paddingBottom: 'calc(300px + max(48px, env(safe-area-inset-bottom)))',
           maskImage:
             'linear-gradient(to top, transparent 0px, transparent 120px, black 240px, black 100%)',
@@ -246,31 +288,13 @@ export function CoachChatView({
           </div>
         )}
         {renderedMessages.map((msg) => (
-          <div key={msg.id} className="flex flex-col">
-            <ChatBubble
-              role={msg.role}
-              text={msg.text}
-              userName={displayName}
-              eyebrowVariant="dark"
-              compact
-              animate={false}
-              markdown
-            />
-            {msg.habitCards?.map((card, i) => (
-              <HabitSuggestionCard
-                key={i}
-                name={card.name}
-                days={card.days}
-                onDaysChange={(days) => updateHabitDays(msg.id, i, days)}
-              />
-            ))}
-            {msg.checkinCard && (
-              <div className="mb-3 mt-2 w-full max-w-[360px]">
-                <CheckInCard selectedDate={msg.checkinCard.date} embedded onClose={handleClose} />
-              </div>
-            )}
-            {msg.habitReport && <HabitReportCard />}
-          </div>
+          <CoachMessageRow
+            key={msg.id}
+            msg={msg}
+            displayName={displayName}
+            updateHabitDays={updateHabitDays}
+            onClose={handleClose}
+          />
         ))}
         {displayedAssistant.length > 0 && (
           <ChatBubble
