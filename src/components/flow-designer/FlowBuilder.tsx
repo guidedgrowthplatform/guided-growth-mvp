@@ -438,7 +438,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     props: {
       title: 'QA Control',
       subtitle: 'Pick a test user, then choose how to start.',
-      users: 'Test User A,Test User B,Test User C',
+      users: 'Yair,Alejandro,Yonas,Mintesnot,Timothy',
       loginLabel: 'Log in',
       loginDesc: 'Sign in and go to where this user left off.',
       restartLabel: 'Restart onboarding (fresh)',
@@ -631,6 +631,15 @@ const serialize = (items: Placed[]): StoredBeat[] =>
 
 const buildDefault = (flowId: string): Placed[] =>
   hydrate((FLOW_MAP[flowId]?.beats ?? ONBOARDING_FLOW) as StoredBeat[]);
+
+// Flows saved before the QA control beat existed won't contain it. Prepend it to
+// the onboarding flow on load when missing, so the QA variant always has its
+// launcher without forcing a Reset (which would drop any authored beats).
+const ensureQaControl = (flowId: string, items: Placed[]): Placed[] => {
+  if (flowId !== 'onboarding' || items.some((b) => b.type === 'qa-control')) return items;
+  const seed = (ONBOARDING_FLOW as StoredBeat[]).find((b) => b.type === 'qa-control');
+  return seed ? [...hydrate([seed]), ...items] : items;
+};
 
 interface Lane {
   id: string;
@@ -1666,7 +1675,7 @@ export function FlowBuilder() {
     setFlowId(fid);
     try {
       const raw = localStorage.getItem(flowKey(fid));
-      setPlaced(raw ? hydrate(JSON.parse(raw) as StoredBeat[]) : buildDefault(fid));
+      setPlaced(raw ? ensureQaControl(fid, hydrate(JSON.parse(raw) as StoredBeat[])) : buildDefault(fid));
     } catch {
       setPlaced(buildDefault(fid));
     }
@@ -1712,7 +1721,7 @@ export function FlowBuilder() {
     let next: Placed[];
     try {
       const raw = localStorage.getItem(flowKey(newId));
-      next = raw ? hydrate(JSON.parse(raw) as StoredBeat[]) : buildDefault(newId);
+      next = raw ? ensureQaControl(newId, hydrate(JSON.parse(raw) as StoredBeat[])) : buildDefault(newId);
     } catch {
       next = buildDefault(newId);
     }
