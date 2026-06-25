@@ -122,12 +122,21 @@ function PageLoader() {
   );
 }
 
+// Cutover flag: when on, FRESH onboarding users get the new chat-native engine
+// (/onboarding/flow) instead of the old page flow. Default off (unset) = old flow.
+// In-progress users always finish on the flow they started (the engine has no old
+// step state), so flipping this only affects new signups. Flip to go live.
+const USE_FLOW_ENGINE = import.meta.env.VITE_ONBOARDING_USE_ENGINE === 'true';
+
 function OnboardingEntry() {
   const gate = useAppGate();
   if (gate.status === 'loading') return <LoadingScreen />;
   if (gate.status === 'ready') return <Navigate to="/" replace />;
+  // Version pinning: anyone mid old-flow finishes on the old step pages.
   if (gate.status === 'onboarding_in_progress')
     return <Navigate to={`/onboarding/step-${gate.step}`} replace />;
+  // Fresh user: the new engine if the cutover flag is on, else the old flow.
+  if (USE_FLOW_ENGINE) return <Navigate to="/onboarding/flow" replace />;
   return <Navigate to="/onboarding/voice-preference" replace />;
 }
 
