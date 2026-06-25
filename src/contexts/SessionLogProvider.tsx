@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { ApiError } from '@/api/client';
 import { fetchSessionStateDelta } from '@/api/context';
+import { fetchReflectionSettings } from '@/api/reflectionSettings';
 import { logSessionEvent } from '@/api/sessionLog';
 import { offlineQueue } from '@/cache/offlineQueue';
 import { clearOnboardingChatSessionId } from '@/lib/onboarding/onboardingChatSession';
+import { queryClient, queryKeys } from '@/lib/query';
+import { getDataService } from '@/lib/services/service-provider';
 import { supabase } from '@/lib/supabase';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { isSessionLogEvent, type SessionLogEvent } from '@gg/shared/types/session-events';
@@ -100,6 +103,19 @@ export function SessionLogProvider({ children }: { children: ReactNode }) {
                 console.warn('[session-log] hydration failed', err);
               }
             });
+          // Warm check-in caches so the first habit/reflection render is instant.
+          queryClient
+            .prefetchQuery({
+              queryKey: queryKeys.habits.all,
+              queryFn: async () => (await getDataService()).getHabits(),
+            })
+            .catch(() => {});
+          queryClient
+            .prefetchQuery({
+              queryKey: queryKeys.reflectionSettings.all,
+              queryFn: fetchReflectionSettings,
+            })
+            .catch(() => {});
         }
       }
       lastUserId = next;
@@ -228,6 +244,17 @@ export function SessionLogProvider({ children }: { children: ReactNode }) {
     const onHide = () => persistVoiceAnchors(voiceAnchorsRef.current);
     window.addEventListener('pagehide', onHide);
     return () => window.removeEventListener('pagehide', onHide);
+  }, []);
+
+  // Global reconnect flush — runs on every screen, not just where useEntries
+  // mounts. flushInProgress guard makes it coexist with the useEntries listener.
+  useEffect(() => {
+    const handleOnline = () => {
+      if (offlineQueue.length > 0) offlineQueue.flush().catch(() => {});
+    };
+    window.addEventListener('online', handleOnline);
+    handleOnline();
+    return () => window.removeEventListener('online', handleOnline);
   }, []);
 
   return <SessionLogContext.Provider value={value}>{children}</SessionLogContext.Provider>;

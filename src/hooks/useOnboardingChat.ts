@@ -79,6 +79,7 @@ export function useOnboardingChat({
   // Per-screen dedup/seed state — reset on screen change (no key= remount here).
   const mirroredIdsRef = useRef<Set<string>>(new Set());
   const lastLlmErrorRef = useRef<string>('');
+  const firedToolFailIdsRef = useRef<Set<string>>(new Set());
   const openerSeededRef = useRef<string | null>(null);
   const streamActiveRef = useRef(false);
   const landedCompleteRef = useRef(false);
@@ -195,6 +196,19 @@ export function useOnboardingChat({
     lastLlmErrorRef.current = msg;
     appendMessage({ id: `llm-error-${Date.now()}`, role: 'ai', text: msg });
   }, [enabled, llm.error, appendMessage]);
+
+  // Failed write tool → soft retry bubble; never advance (useChatToolEvents is ok-gated).
+  useEffect(() => {
+    if (!enabled || llm.toolFailures.length === 0) return;
+    const fresh = llm.toolFailures.filter((f) => !firedToolFailIdsRef.current.has(f.id));
+    if (fresh.length === 0) return;
+    fresh.forEach((f) => firedToolFailIdsRef.current.add(f.id));
+    appendMessage({
+      id: `tool-fail-${fresh[0].id}`,
+      role: 'ai',
+      text: "I couldn't save that just now — want to try again?",
+    });
+  }, [enabled, llm.toolFailures, appendMessage]);
 
   useChatToolEvents({
     toolEvents: llm.toolEvents,

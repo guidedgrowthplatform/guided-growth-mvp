@@ -47,6 +47,7 @@ vi.mock('@/hooks/useLLM', () => ({
     messages: opts?.initialMessages ?? [],
     response: '',
     toolEvents: [],
+    toolFailures: [],
     status: 'idle',
     isStreaming: false,
     error: null,
@@ -87,10 +88,6 @@ vi.mock('@/lib/services/tts-service', () => ({
   beginSpeechTurn: vi.fn(),
   endSpeechTurn: vi.fn(() => Promise.resolve()),
   pushSpeechChunk: vi.fn(),
-  isWsTransport: () => false,
-  ttsKaraokeActive: () => false,
-  ttsWarm: vi.fn(),
-  unlockTTS: vi.fn(),
   isAudioUnlocked: () => audioUnlocked,
   subscribeAudioUnlock: (fn: () => void) => {
     audioListeners.add(fn);
@@ -99,10 +96,6 @@ vi.mock('@/lib/services/tts-service', () => ({
   useTtsPlaybackStore: (sel: (s: { isSpeaking: boolean }) => unknown) => sel({ isSpeaking: false }),
 }));
 
-vi.mock('@/lib/services/cartesia-token-cache', () => ({
-  startTokenWarmLoop: vi.fn(),
-  stopTokenWarmLoop: vi.fn(),
-}));
 vi.mock('@/lib/services/soniox-temp-key-cache', () => ({
   startKeyWarmLoop: vi.fn(),
   stopKeyWarmLoop: vi.fn(),

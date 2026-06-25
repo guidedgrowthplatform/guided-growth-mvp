@@ -230,7 +230,7 @@ export function CoachChatView({
         ref={scrollContainerRef}
         className="relative z-10 flex-1 overflow-y-auto px-4 pt-[64px]"
         style={{
-          paddingBottom: 'calc(240px + max(48px, env(safe-area-inset-bottom)))',
+          paddingBottom: 'calc(300px + max(48px, env(safe-area-inset-bottom)))',
           maskImage:
             'linear-gradient(to top, transparent 0px, transparent 120px, black 240px, black 100%)',
           WebkitMaskImage:
