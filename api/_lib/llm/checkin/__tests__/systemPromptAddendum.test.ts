@@ -8,7 +8,7 @@ import {
   buildMorningFlow,
   buildScriptedDiscipline,
 } from '../systemPromptAddendum.js';
-import { CHECKIN_SCRIPTS } from '../scriptVariations.js';
+import { CHECKIN_SCRIPTS } from '@gg/shared/checkin/scriptVariations';
 import { isCheckinScreen, isReadOnlyCheckinScreen } from '../registry.js';
 
 const containsOneOf = (block: string, pool: readonly string[]): boolean =>

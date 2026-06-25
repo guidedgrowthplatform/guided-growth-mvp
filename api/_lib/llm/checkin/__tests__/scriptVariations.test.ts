@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { CHECKIN_SCRIPTS, type CheckinStageKey, pickVariation } from '../scriptVariations.js';
+import {
+  CHECKIN_SCRIPTS,
+  type CheckinStageKey,
+  pickVariation,
+} from '@gg/shared/checkin/scriptVariations';
 
 const STAGES = Object.keys(CHECKIN_SCRIPTS) as CheckinStageKey[];
 

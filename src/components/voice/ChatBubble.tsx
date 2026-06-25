@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { MarkdownMessage } from '@/components/chat/MarkdownMessage';
 import { safeStreamPrefix } from '@/lib/markdown/parse';
 
@@ -24,7 +25,7 @@ function StreamingText({ text }: { text: string }) {
   );
 }
 
-export function ChatBubble({
+export const ChatBubble = memo(function ChatBubble({
   role,
   text,
   userName,
@@ -35,6 +36,10 @@ export function ChatBubble({
   markdown = false,
 }: ChatBubbleProps) {
   const isUser = role === 'user';
+  const markdownText = useMemo(
+    () => (streaming ? safeStreamPrefix(text) : text),
+    [streaming, text],
+  );
   const isLightBackdrop = eyebrowVariant === 'dark';
   const coachEyebrowColor = isLightBackdrop ? 'text-[#616f89]' : 'text-[rgba(255,255,255,0.4)]';
   const whiteBubbleSurface = isLightBackdrop
@@ -93,7 +98,7 @@ export function ChatBubble({
         >
           {markdown ? (
             <div className={textClasses}>
-              <MarkdownMessage text={streaming ? safeStreamPrefix(text) : text} />
+              <MarkdownMessage text={markdownText} />
             </div>
           ) : (
             <p className={textClasses}>{streaming ? <StreamingText text={text} /> : text}</p>
@@ -102,4 +107,4 @@ export function ChatBubble({
       </div>
     </div>
   );
-}
+});

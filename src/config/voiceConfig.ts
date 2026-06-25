@@ -37,3 +37,8 @@ export const BARGE_MIN_CHARS = 2;
 // Let a low-energy final through if long enough — off by default (would reopen
 // the long-echo hole on weak-AEC devices).
 export const BARGE_REQUIRE_FINAL_FOR_LOW_ENERGY = false;
+export const BARGE_SUSTAIN_FRAMES = 2;
+
+// Render + speak the MCHECK/ECHECK opener client-side (no LLM round-trip).
+// Off until device-verified; flip on to enable the instant opener.
+export const CHECKIN_LOCAL_OPENER = false;

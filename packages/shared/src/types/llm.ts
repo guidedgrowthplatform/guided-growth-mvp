@@ -21,6 +21,9 @@ export interface LLMRequest {
   // phrasing ("type") is harmless aloud, but voice phrasing ("tap the orb")
   // misleads a typer (GitLab #217).
   input_mode?: 'voice' | 'text';
+  // Client-spoken scripted opener; replayed as a synthetic assistant turn when
+  // no previous_response_id exists yet.
+  prior_opener?: string;
 }
 
 export interface ChatHistoryResponse {

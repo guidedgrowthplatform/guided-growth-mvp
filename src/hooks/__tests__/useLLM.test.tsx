@@ -581,4 +581,43 @@ describe('useLLM', () => {
     expect(hookRef!.messages).toHaveLength(0);
     expect(warnSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('seedOpener sends prior_opener on the next chat send, once, then clears it', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        mockSSE([{ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 }]),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    mount();
+    act(() => {
+      hookRef!.seedOpener('Good morning. Ready to check in?', {
+        id: 'op-1',
+        name: 'query_checkin',
+        args: {},
+        result: { ok: true, payload: { result: {} } },
+      });
+    });
+
+    await act(async () => {
+      await hookRef!.sendMessage('slept ok');
+    });
+    await flush();
+    const body1 = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body);
+    expect(body1.prior_opener).toBe('Good morning. Ready to check in?');
+
+    await act(async () => {
+      await hookRef!.sendMessage('mood good');
+    });
+    await flush();
+    const body2 = JSON.parse((fetchMock.mock.calls[1][1] as { body: string }).body);
+    expect(body2.prior_opener).toBeUndefined();
+
+    expect(
+      hookRef!.messages.some(
+        (m) => m.role === 'assistant' && m.content === 'Good morning. Ready to check in?',
+      ),
+    ).toBe(true);
+  });
 });

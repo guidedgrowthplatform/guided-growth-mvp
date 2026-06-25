@@ -31,6 +31,7 @@ export interface LLMToolFailure {
 export interface UseLLMReturn {
   sendMessage: (text: string) => Promise<void>;
   sendOpener: () => Promise<void>;
+  seedOpener: (content: string, toolEvent: LLMToolEvent) => void;
   prependMessages: (older: LLMChatMessage[]) => number;
   messages: LLMChatMessage[];
   response: string;
@@ -88,6 +89,7 @@ export function useLLM(
   const inFlightRef = useRef(false);
   // Last real user turn (id + text) so we can re-answer it without re-adding it.
   const lastUserRef = useRef<{ id: string; content: string } | null>(null);
+  const priorOpenerRef = useRef<string | null>(null);
   const idCounterRef = useRef({ n: 0 });
   const deltaBufferRef = useRef('');
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -114,6 +116,8 @@ export function useLLM(
     }
     deltaBufferRef.current = '';
     inFlightRef.current = false;
+    priorOpenerRef.current = null;
+    lastUserRef.current = null;
     setMessages([]);
     setResponse('');
     setToolEvents([]);
@@ -135,6 +139,12 @@ export function useLLM(
       return f.length === 0 ? prev : [...f, ...prev];
     });
     return fresh.length;
+  }, []);
+
+  const seedOpener = useCallback((content: string, toolEvent: LLMToolEvent) => {
+    const id = makeId(idCounterRef.current);
+    setMessages((prev) => [...prev, { id, role: 'assistant', content, toolEvents: [toolEvent] }]);
+    priorOpenerRef.current = content;
   }, []);
 
   const cancel = useCallback(() => {
@@ -313,6 +323,9 @@ export function useLLM(
       try {
         const recent_events = useSessionLogStore.getState().getDeltaSince(null);
 
+        const priorOpener = opts.mode === 'chat' ? priorOpenerRef.current : null;
+        if (priorOpener) priorOpenerRef.current = null;
+
         await streamLLM(
           {
             session_id: sessionId,
@@ -323,6 +336,7 @@ export function useLLM(
             chat_session_id: chatSessionId,
             user_turn_id: userTurnId ?? undefined,
             recent_events,
+            ...(priorOpener ? { prior_opener: priorOpener } : {}),
             ...(inputModeRef.current ? { input_mode: inputModeRef.current } : {}),
             ...(opts.mode === 'chat'
               ? { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }
@@ -418,6 +432,7 @@ export function useLLM(
   return {
     sendMessage,
     sendOpener,
+    seedOpener,
     prependMessages,
     messages,
     response,

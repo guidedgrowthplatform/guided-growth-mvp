@@ -37,6 +37,16 @@ vi.mock('../llm/buildSystemPrompt.js', () => ({
   }),
 }));
 
+const deferred: Promise<unknown>[] = [];
+vi.mock('@vercel/functions', () => ({
+  waitUntil: (p: Promise<unknown>) => {
+    deferred.push(p);
+  },
+}));
+const flushDeferred = async () => {
+  await Promise.allSettled(deferred.splice(0));
+};
+
 const pool = (await import('../db.js')).default as {
   query: ReturnType<typeof vi.fn>;
   connect: ReturnType<typeof vi.fn>;
@@ -128,6 +138,7 @@ function assertToolRowPersisted(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  deferred.length = 0;
   (auth.requireUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
     authUserId: 'user-A',
     anonId: 'anon-A',
@@ -266,6 +277,7 @@ describe('LLM route — error-path tool persistence', () => {
       }),
       res,
     );
+    await flushDeferred();
 
     // All 5 tool rows persisted (one INSERT each).
     const toolInserts = queries.filter(
@@ -426,6 +438,7 @@ describe('LLM route — dedupLookup short-circuit', () => {
       }),
       res,
     );
+    await flushDeferred();
 
     const writes = (res as unknown as { _writes: string[] })._writes.join('');
     expect(writes).toContain('"type":"tool_result"');
