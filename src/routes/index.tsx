@@ -239,7 +239,9 @@ export function AppRoutes() {
         <Route
           path="/onboarding/flow"
           element={
-            <AppGate allow="onboarding">
+            // Auth lives INSIDE the flow now (beat 0 is the sign-up/login step),
+            // so a logged-out user renders the flow instead of bouncing to /login.
+            <AppGate allow="onboarding-or-public">
               <FlowOnboarding />
             </AppGate>
           }

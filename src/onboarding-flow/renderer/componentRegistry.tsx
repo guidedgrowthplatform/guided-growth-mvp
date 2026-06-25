@@ -23,6 +23,7 @@ import {
 import { DailyReflectionCard } from '@/components/onboarding/DailyReflectionCard';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
+import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
@@ -30,10 +31,12 @@ import { Button } from '@/components/ui/Button';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { DualButton } from '@/components/ui/DualButton';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useToast } from '@/contexts/ToastContext';
 import {
   type OnboardingVoiceResult,
   useOnboardingVoiceActions,
 } from '@/contexts/useOnboardingVoiceSession';
+import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import {
   FLOW_CATEGORIES,
@@ -88,21 +91,308 @@ function CardShell({ children }: { children: React.ReactNode }) {
 
 /* --------------------------------------------------------------------- auth */
 
-// Auth beat 0. In the real app this hosts Google/Apple/email sign-in and captures
-// the name. In the preview it advances on tap so the flow runs without real auth.
-function AuthAdapter({ onCapture }: BeatAdapterProps) {
+// Auth beat 0. Ported from the flow-builder's authSignup designer beat
+// (ggmvp-flow-builder/.../beats/authSignup.tsx) and wired to the REAL Supabase
+// auth from the standalone sign-in/up pages (authStore: signInWithGoogle /
+// signUp / signIn). The designer beat was a static mock; this is the live card.
+//
+// Advance rules (call onCapture to move past the beat):
+//   - Already signed in (user present)  -> auto-advance ("Signed in.").
+//   - Email LOGIN succeeds              -> session set, user becomes truthy ->
+//     auto-advance via the same effect.
+//   - Email SIGNUP                      -> requires email verification (the store
+//     rejects auto-confirmed sessions), so we show a "check your email" notice;
+//     the user is NOT advanced here, they verify then sign in.
+//   - Google OAuth                      -> redirects away and returns to
+//     /onboarding/flow authenticated; the auto-advance branch then fires.
+function AppleGlyph() {
   return (
-    <CardShell>
-      <Button variant="primary" size="lg" fullWidth onClick={() => onCapture({ data: {} })}>
-        Continue with Google
-      </Button>
-      <Button variant="secondary" size="lg" fullWidth onClick={() => onCapture({ data: {} })}>
-        Continue with Apple
-      </Button>
-      <Button variant="ghost" size="lg" fullWidth onClick={() => onCapture({ data: {} })}>
-        Use email instead
-      </Button>
-    </CardShell>
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+    </svg>
+  );
+}
+
+function GoogleGlyph() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24">
+      <path
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        fill="#34A853"
+      />
+      <path
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
+
+function AuthAdapter({ onCapture }: BeatAdapterProps) {
+  const { user, signInWithGoogle, signUp, signIn } = useAuth();
+  const toast = useToast();
+  const [mode, setMode] = useState<'default' | 'signup' | 'login'>('default');
+  const [first, setFirst] = useState('');
+  const [last, setLast] = useState('');
+  const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
+  const [busy, setBusy] = useState<null | 'google' | 'email'>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmationPending, setConfirmationPending] = useState(false);
+
+  // Auto-advance the moment a real session exists: a logged-in user landing on
+  // the beat (or returning from the Google OAuth round-trip, or an email login
+  // that just set the session) skips the form. Guarded so it fires once.
+  const advancedRef = useRef(false);
+  const advance = () => {
+    if (advancedRef.current) return;
+    advancedRef.current = true;
+    onCapture({ data: {} });
+  };
+  useEffect(() => {
+    if (user) advance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  const handleGoogle = async () => {
+    if (busy) return;
+    setError(null);
+    setBusy('google');
+    // Real OAuth. signInWithGoogle redirects to {webOrigin}/auth/callback; the
+    // callback then routes a needs-onboarding user back to /onboarding/flow,
+    // where this beat auto-advances (user is now present). The Supabase project's
+    // allowed redirect URLs must include the dev origin for this to round-trip
+    // locally (flagged for Yair).
+    const { error: oauthError } = await signInWithGoogle();
+    if (oauthError) {
+      setError(oauthError);
+      setBusy(null);
+    }
+    // On success the page navigates away; no need to clear busy.
+  };
+
+  const handleApple = () => {
+    // Matches the standalone pages: Apple sign-in is not wired yet.
+    toast.addToast('info', 'Apple sign-in coming soon');
+  };
+
+  const handleEmail = async () => {
+    if (busy) return;
+    setError(null);
+    setBusy('email');
+    if (mode === 'login') {
+      const { error: signInError } = await signIn(email.trim(), pw);
+      if (signInError) {
+        setError(signInError);
+        setBusy(null);
+        return;
+      }
+      // Success: the store set the session + user; the auto-advance effect fires.
+      return;
+    }
+    // signup
+    const result = await signUp(email.trim(), pw);
+    setBusy(null);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    if (result.confirmationPending) {
+      // Email verification required: the store signed the user back out, so we
+      // cannot advance. Show the check-your-email notice and let them switch to
+      // login after verifying.
+      setConfirmationPending(true);
+    }
+  };
+
+  if (confirmationPending) {
+    return (
+      <CardShell>
+        <div className="text-[22px] font-bold text-content">Check your email</div>
+        <div className="text-[14px] leading-[1.5] text-content-secondary">
+          We sent a verification link to <strong>{email.trim()}</strong>. Click the link to verify
+          your account, then log in to continue.
+        </div>
+        <Button
+          variant="primary"
+          size="auth"
+          fullWidth
+          onClick={() => {
+            setConfirmationPending(false);
+            setMode('login');
+            setPw('');
+            setError(null);
+          }}
+        >
+          I verified, log in
+        </Button>
+      </CardShell>
+    );
+  }
+
+  return (
+    <div className="mt-3 flex flex-col gap-3">
+      <div className="text-[26px] font-bold text-primary">
+        {mode === 'login' ? 'Welcome back' : 'Create your account'}
+      </div>
+      <div className="space-y-3">
+        <Button
+          variant="social-dark"
+          size="auth"
+          fullWidth
+          disabled={busy !== null}
+          onClick={handleApple}
+        >
+          <AppleGlyph />
+          Continue with Apple
+        </Button>
+        <Button
+          variant="social-light"
+          size="auth"
+          fullWidth
+          disabled={busy !== null}
+          onClick={handleGoogle}
+        >
+          {busy === 'google' ? <LoadingSpinner /> : <GoogleGlyph />}
+          {busy === 'google' ? 'Connecting...' : 'Continue with Google'}
+        </Button>
+      </div>
+      {mode === 'signup' && (
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2 text-[13px] text-content-tertiary">
+            <span className="h-px flex-1 bg-border" />
+            sign up with email
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <OnboardingInput
+            icon="mdi:account-outline"
+            placeholder="First name"
+            value={first}
+            onChange={setFirst}
+            disabled={busy !== null}
+          />
+          <OnboardingInput
+            icon="mdi:account-outline"
+            placeholder="Last name"
+            value={last}
+            onChange={setLast}
+            disabled={busy !== null}
+          />
+          <OnboardingInput
+            icon="mdi:email-outline"
+            placeholder="Email"
+            type="email"
+            value={email}
+            onChange={setEmail}
+            disabled={busy !== null}
+          />
+          <OnboardingInput
+            icon="mdi:lock-outline"
+            placeholder="Password"
+            type="password"
+            value={pw}
+            onChange={setPw}
+            disabled={busy !== null}
+            onEnter={handleEmail}
+          />
+          <Button
+            variant="primary"
+            size="auth"
+            fullWidth
+            disabled={busy !== null || !email.trim() || !pw}
+            onClick={handleEmail}
+          >
+            {busy === 'email' ? <LoadingSpinner color="text-white" /> : 'Create account'}
+          </Button>
+        </div>
+      )}
+      {mode === 'login' && (
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2 text-[13px] text-content-tertiary">
+            <span className="h-px flex-1 bg-border" />
+            log in with email
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <OnboardingInput
+            icon="mdi:email-outline"
+            placeholder="Email"
+            type="email"
+            value={email}
+            onChange={setEmail}
+            disabled={busy !== null}
+          />
+          <OnboardingInput
+            icon="mdi:lock-outline"
+            placeholder="Password"
+            type="password"
+            value={pw}
+            onChange={setPw}
+            disabled={busy !== null}
+            onEnter={handleEmail}
+          />
+          <Button
+            variant="primary"
+            size="auth"
+            fullWidth
+            disabled={busy !== null || !email.trim() || !pw}
+            onClick={handleEmail}
+          >
+            {busy === 'email' ? <LoadingSpinner color="text-white" /> : 'Log in'}
+          </Button>
+        </div>
+      )}
+      {mode === 'default' && (
+        <Button
+          variant="primary"
+          size="auth"
+          fullWidth
+          disabled={busy !== null}
+          onClick={() => setMode('signup')}
+        >
+          Sign up with email
+        </Button>
+      )}
+      {error && <div className="text-center text-[13px] font-medium text-red-600">{error}</div>}
+      <div className="text-center text-[13px] text-content-secondary">
+        {mode === 'login' ? (
+          <>
+            New here?{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setMode('signup');
+                setError(null);
+              }}
+              className="font-semibold text-primary"
+            >
+              Sign up
+            </button>
+          </>
+        ) : (
+          <>
+            Already have an account?{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setMode('login');
+                setError(null);
+              }}
+              className="font-semibold text-primary"
+            >
+              Log in
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
