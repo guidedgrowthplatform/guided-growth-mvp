@@ -1924,6 +1924,25 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
     if (step > beats.length - 1) setStep(Math.max(0, beats.length - 1));
   }, [beats.length, step]);
 
+  // Play the active beat's MP3 clip when you land on it (Play mode). Beats with no
+  // clips (user-action beats like the habit review) stay silent. The runtime rotates
+  // variations; the preview plays the first as a representative of the beat's voice.
+  const activeClip = current?.meta?.mp3Assets?.[0]?.file;
+  const beatAudioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    if (beatAudioRef.current) {
+      beatAudioRef.current.pause();
+      beatAudioRef.current = null;
+    }
+    if (!activeClip) return;
+    const a = new Audio(activeClip);
+    beatAudioRef.current = a;
+    void a.play().catch(() => {});
+    return () => {
+      a.pause();
+    };
+  }, [activeClip]);
+
   const advance = () => {
     if (!next || advancing) return;
     setAdvancing(true);
