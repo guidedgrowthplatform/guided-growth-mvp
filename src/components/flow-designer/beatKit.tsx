@@ -1,4 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+
+// True only while a beat is rendered inside Play (live), so a beat can autoplay
+// audio or run a timed animation in Play but stay quiet as a static design tile.
+export const PlayingCtx = createContext(false);
+export const useIsPlaying = () => useContext(PlayingCtx);
 
 // The shared kit every beat is built from. Import these in a beat file, never
 // copy them. A beat is an ordered list of STEPS played in sequence.

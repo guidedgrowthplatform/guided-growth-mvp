@@ -50,6 +50,7 @@ import { Toggle } from '@/components/ui/Toggle';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 
 import { BEAT_DEFS } from './beats';
+import { PlayingCtx } from './beatKit';
 import { EXTRA_REGISTRY, EXTRA_GROUPS } from './paletteExtras';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
@@ -426,8 +427,28 @@ const DEFAULT_FLOW: DefaultBeat[] = [
   // to the next beat.
   // QA-only entry screen: pick a test user, then choose how to start (log in /
   // restart fresh / re-run keeping data / reset only). Tagged 'qa' so the
-  // Production variant skips it and real users never see it.
-  { type: 'qa-control', beat: '0', background: 'plain', variant: 'qa' },
+  // Production variant skips it and real users never see it. Copy lives in props
+  // so the export carries it intact to the engine (each action maps to a real
+  // auth/reset call on the app side: login, qa-reset+onboard, re-onboard, qa-reset).
+  {
+    type: 'qa-control',
+    beat: '0',
+    background: 'plain',
+    variant: 'qa',
+    props: {
+      title: 'QA Control',
+      subtitle: 'Pick a test user, then choose how to start.',
+      users: 'Test User A,Test User B,Test User C',
+      loginLabel: 'Log in',
+      loginDesc: 'Sign in and go to where this user left off.',
+      restartLabel: 'Restart onboarding (fresh)',
+      restartDesc: 'Delete this user data, keep the account, run onboarding from the top.',
+      reonboardLabel: 'Re-run onboarding (keep data)',
+      reonboardDesc: 'Go through onboarding again with the data already saved.',
+      resetLabel: 'Reset data only',
+      resetDesc: 'Wipe this user data, keep the account. No onboarding.',
+    },
+  },
   { type: 'splash', beat: '1', background: 'coach' },
   { type: 'get-started', beat: '2', background: 'coach' },
   { type: 'splash-intro', beat: '3', background: 'coach' },
@@ -1459,6 +1480,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
   const kind = current?.transition?.kind ?? 'dissolve';
 
   return (
+    <PlayingCtx.Provider value={true}>
     <div className="flex flex-col items-center gap-3">
       <div
         className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
@@ -1540,6 +1562,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
         )}
       </div>
     </div>
+    </PlayingCtx.Provider>
   );
 }
 
