@@ -24,6 +24,29 @@ Note on naming: `main` is the production branch. "main" and "production" refer t
 
 ---
 
+## Local development: which backend
+
+Local dev (`npm run dev`, `vercel dev`, and every `node scripts/*.mjs`) reads `.env.local`. To keep prod and staging cleanly separated, the active `.env.local` is **switched between two stored templates** rather than hand-edited:
+
+| File                 | Holds                       | Loaded by Vite/scripts |
+| -------------------- | --------------------------- | ---------------------- |
+| `.env.staging.local` | staging Supabase + QA flags | no (template)          |
+| `.env.prod.local`    | prod Supabase               | no (template)          |
+| `.env.local`         | a copy of one of the above  | **yes (active)**       |
+
+All three are gitignored. First-time setup: copy `.env.local.example` to `.env.staging.local` and `.env.prod.local`, fill each with that environment's Supabase URL / anon key / service-role key / `DATABASE_URL`. The shared keys (OpenAI, Cartesia, Soniox, Vapi, Resend) are the same in both.
+
+Switch the active backend:
+
+```bash
+npm run env:staging          # safe default for day-to-day work
+npm run env:prod -- --yes-prod   # deliberate; pointing local at prod is rare
+```
+
+`scripts/env/targets.mjs` resolves which project the live env points at (by Supabase ref) and exposes `assertSafeTarget()`. Destructive scripts (e.g. `reset-user-onboarding.mjs`) call it and **refuse to run against prod unless `ALLOW_PROD=1`** is set. Default local backend is **staging**, so local mistakes never touch production data.
+
+---
+
 ## What is wired in this repo
 
 These changes make a single codebase build any of the three stages from one set of inputs. With the env vars unset, behaviour is identical to the old single-env build.
