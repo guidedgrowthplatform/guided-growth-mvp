@@ -12,6 +12,7 @@
     "predev:api": "npm run build:shared",
     "icons:bundle": "node scripts/build-icon-bundle.mjs",
     "notifications:bundle": "python3 scripts/voice-sync/gen_notifications.py",
+    "checkin:bundle": "python3 scripts/voice-sync/gen_checkin_scripts.py",
     "build:shared": "tsc -b packages/shared",
     "postinstall": "tsc -b packages/shared",
     "build": "vite build",
