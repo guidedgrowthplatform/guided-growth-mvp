@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, useNavigate } from 'react-router-dom';
+import { QaToolbar } from '@/components/qa/QaToolbar';
 import { OnboardingVoiceProvider } from '@/contexts/OnboardingVoiceProvider';
 import { SessionLogProvider } from '@/contexts/SessionLogProvider';
 import { ToastProvider, useToast } from '@/contexts/ToastContext';
@@ -119,6 +120,7 @@ export default function App() {
               <AuthHandoffListener />
               <NavigateLogger />
               <PushRegistrar />
+              <QaToolbar />
               <OnboardingVoiceProvider>
                 <AppRoutes />
               </OnboardingVoiceProvider>

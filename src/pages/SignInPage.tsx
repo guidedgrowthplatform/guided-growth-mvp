@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { Link, useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { SocialAuthButtons, AuthDivider, AuthFooter, AuthAlert } from '@/components/auth';
+import { QaQuickLogin } from '@/components/qa/QaQuickLogin';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
@@ -98,6 +99,8 @@ export function SignInPage() {
         {successMessage && <AuthAlert type="success" message={successMessage} />}
         {error && <AuthAlert type="error" message={error} />}
       </form>
+
+      <QaQuickLogin />
 
       <div className="flex-1" />
 

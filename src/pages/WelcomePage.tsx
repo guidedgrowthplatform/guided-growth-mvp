@@ -1,33 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthFooter } from '@/components/auth';
 import { AIPulseVisual } from '@/components/welcome/AIPulseVisual';
 import { useVoicePlayer } from '@/hooks/useVoicePlayer';
-import { isQaBuild } from '@/lib/appVariant';
 import { FIRST_OPEN, getFlag, setFlag } from '@/lib/storage/persistentFlags';
-import { useAuthStore } from '@/stores/authStore';
 
 export function WelcomePage() {
   const navigate = useNavigate();
   const { play, stop } = useVoicePlayer();
-  const signInAsGuest = useAuthStore((s) => s.signInAsGuest);
-  const [showGuest, setShowGuest] = useState(false);
-  const [guestPending, setGuestPending] = useState(false);
-  const [guestError, setGuestError] = useState<string | null>(null);
-
-  useEffect(() => {
-    void isQaBuild().then(setShowGuest);
-  }, []);
-
-  const handleGuest = async () => {
-    setGuestPending(true);
-    setGuestError(null);
-    const { error } = await signInAsGuest();
-    if (error) {
-      setGuestError(error);
-      setGuestPending(false);
-    }
-  };
 
   useEffect(() => {
     if (getFlag(FIRST_OPEN)) return;
@@ -60,17 +40,6 @@ export function WelcomePage() {
           >
             Get Started
           </button>
-          {showGuest && (
-            <button
-              type="button"
-              onClick={handleGuest}
-              disabled={guestPending}
-              className="mt-4 flex h-[60px] w-full max-w-[320px] items-center justify-center rounded-[90px] border border-primary px-8 text-[18px] font-bold leading-7 text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60"
-            >
-              {guestPending ? 'Starting…' : 'Start as Guest'}
-            </button>
-          )}
-          {guestError && <p className="mt-2 text-center text-sm text-danger">{guestError}</p>}
           <div className="mt-6">
             <AuthFooter text="Already have an account?" linkText="Log In" to="/login" />
           </div>

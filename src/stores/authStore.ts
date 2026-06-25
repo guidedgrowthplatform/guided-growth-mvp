@@ -158,7 +158,6 @@ export interface AuthState {
     password: string,
   ) => Promise<{ error: string | null; confirmationPending?: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signInAsGuest: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
@@ -352,22 +351,6 @@ export const useAuthStore = create<AuthState>((set, get) => {
           { method: 'email', is_returning_user: isReturningUser },
           { send_instantly: true },
         );
-      }
-      return { error: null };
-    },
-
-    signInAsGuest: async () => {
-      track('start_signup', { method: 'guest' });
-      const { data, error } = await supabase.auth.signInAnonymously();
-      if (error) {
-        track('signup_error', { method: 'guest', error_type: categorizeAuthError(error) });
-        return { error: friendlyError(error) };
-      }
-      if (data?.user) {
-        const user = mapUser(data.user);
-        set({ user });
-        identifyUser(user, get().anonId, setAnonId);
-        track('complete_signup', { method: 'guest' }, { send_instantly: true });
       }
       return { error: null };
     },

@@ -9,7 +9,7 @@
  * Defaults to "qa-onboarding-fresh@guidedgrowth.test" when omitted.
  *
  * SAFETY: the email is guarded by a strict regex — only addresses matching
- *   ^qa-onboarding-[a-z0-9-]+@guidedgrowth\.test$
+ *   ^qa-[a-z0-9-]+@guidedgrowth\.test$
  * are accepted. ANY other email (real users, admin users, etc.) is rejected
  * with 400. The guard is the security boundary, not the default value.
  *
@@ -20,16 +20,21 @@
  *   - DELETE FROM session_log       WHERE anon_id = <qa user>
  *   - UPDATE profiles SET onboarding-related fields = NULL WHERE id = <qa user>
  *
- * Auth: bearer token via Authorization header, value = process.env.QA_RESET_TOKEN.
+ * Auth, two paths:
+ *   - token: bearer = process.env.QA_RESET_TOKEN; email from body (automation).
+ *   - self:  any QA user's Supabase JWT (requireUser); email forced from the
+ *            verified JWT so a caller can only reset themselves. Gated behind
+ *            QA_SURFACE_ENABLED so it 404s in production.
  * Rate-limited at 10 requests/hour per source IP.
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { handlePreflight, requireUser } from './_lib/auth.js';
 import pool from './_lib/db.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
 import { getClientIp } from './_lib/validation.js';
 
-const QA_EMAIL_PATTERN = /^qa-onboarding-[a-z0-9-]+@guidedgrowth\.test$/;
+const QA_EMAIL_PATTERN = /^qa-[a-z0-9-]+@guidedgrowth\.test$/;
 const DEFAULT_QA_EMAIL = 'qa-onboarding-fresh@guidedgrowth.test';
 
 type DeletedCounts = {
@@ -40,6 +45,7 @@ type DeletedCounts = {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (handlePreflight(req, res)) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const sourceIp = getClientIp(req.headers);
@@ -66,20 +72,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const token = (req.headers['authorization'] ?? '').toString().replace(/^Bearer\s+/i, '');
-  if (!token || token !== process.env.QA_RESET_TOKEN) {
-    console.info(
-      JSON.stringify({
-        event: 'qa_reset',
-        source_ip: sourceIp,
-        success: false,
-        reason: 'unauthorized',
-        timestamp: new Date().toISOString(),
-      }),
-    );
-    return res.status(401).json({ error: 'Unauthorized' });
+  let email: string;
+  let authMode: 'token' | 'self';
+
+  if (token && token === process.env.QA_RESET_TOKEN) {
+    authMode = 'token';
+    email = (req.body?.email ?? DEFAULT_QA_EMAIL).toString().toLowerCase().trim();
+  } else {
+    if (process.env.QA_SURFACE_ENABLED !== 'true') {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    const user = await requireUser(req, res);
+    if (!user) return;
+    authMode = 'self';
+    email = user.email.toLowerCase().trim();
   }
 
-  const email = (req.body?.email ?? DEFAULT_QA_EMAIL).toString().toLowerCase().trim();
   if (!QA_EMAIL_PATTERN.test(email)) {
     console.info(
       JSON.stringify({
@@ -87,12 +95,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         source_ip: sourceIp,
         success: false,
         reason: 'invalid_email',
+        auth_mode: authMode,
         timestamp: new Date().toISOString(),
       }),
     );
     return res
       .status(400)
-      .json({ error: 'Email is not a QA account (must match qa-onboarding-*@guidedgrowth.test)' });
+      .json({ error: 'Email is not a QA account (must match qa-*@guidedgrowth.test)' });
   }
 
   const client = await pool.connect();
@@ -120,6 +129,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           source_ip: sourceIp,
           success: false,
           reason: 'user_not_found',
+          auth_mode: authMode,
           email,
           timestamp: new Date().toISOString(),
         }),
@@ -162,6 +172,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         event: 'qa_reset',
         source_ip: sourceIp,
         success: true,
+        auth_mode: authMode,
         email,
         anon_id_seen: anonId !== null,
         deleted,
@@ -190,6 +201,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         source_ip: sourceIp,
         success: false,
         reason: 'exception',
+        auth_mode: authMode,
         error_code: e.code,
         error_message: e.message,
         timestamp: new Date().toISOString(),

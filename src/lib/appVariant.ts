@@ -37,3 +37,9 @@ export async function isQaBuild(): Promise<boolean> {
 export async function authScheme(): Promise<string> {
   return schemeForAppId((await appId()) ?? '');
 }
+
+// QA surface = staging web (build flag) OR native qa build. Gates QA-only UI.
+export async function isQaSurface(): Promise<boolean> {
+  if (import.meta.env.VITE_IS_QA_SURFACE === 'true') return true;
+  return isQaBuild();
+}
