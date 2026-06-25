@@ -25,6 +25,7 @@ import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
 import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
 import { handleParseBrainDump } from '../_lib/llm/parseBrainDump.js';
 import { buildSystemPromptForRequest } from '../_lib/llm/buildSystemPrompt.js';
+import { MUTATING_TOOLS } from '@gg/shared/checkin/mutatingTools';
 import { reportToolFailure, reportRequestFailure, flushSentry } from '../_lib/sentry.js';
 import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 
@@ -36,6 +37,7 @@ type LLMStreamEvent =
   | { type: 'delta'; content: string }
   | { type: 'tool_call'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool_result'; id: string; ok: boolean; result: unknown }
+  | { type: 'tool_failed'; id: string; name: string; error: string; message?: string }
   | { type: 'done'; latency_ms: number; total_tokens: number; tool_rounds: number }
   | { type: 'error'; code: string; message: string };
 
@@ -507,7 +509,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     let finished = false;
     for (let round = 0; round < MAX_ROUNDS && !finished; round++) {
-      if (clientClosed) return;
+      if (clientClosed) {
+        // finalize() (outer finally) logs 'cancelled' + skips reportRequestFailure.
+        endStatus = 'cancelled';
+        endCode = null;
+        return;
+      }
 
       const forcingThisRound = forceForkChoice && round === 0;
       const baseStreamOpts = {
@@ -724,6 +731,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         const resultJson = JSON.stringify(result);
         send({ type: 'tool_result', id: tc.callId, ok: result.ok, result });
+        // Surface a WRITE-tool crash so the client doesn't silently claim success.
+        // Read-only / invalid_args / unknown_tool stay tool_result-only.
+        if (!result.ok && result.error === 'handler_error' && MUTATING_TOOLS.has(tc.name)) {
+          send({
+            type: 'tool_failed',
+            id: tc.callId,
+            name: tc.name,
+            error: result.error,
+            message: result.message,
+          });
+        }
         persistedToolRows.push({
           toolCallId: tc.callId,
           toolName: tc.name,

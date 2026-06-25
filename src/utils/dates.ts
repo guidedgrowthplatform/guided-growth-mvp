@@ -8,6 +8,13 @@ import {
   startOfWeek,
   endOfWeek,
 } from 'date-fns';
+import { checkinTypeFromHour, localHour } from '@gg/shared/time/bucketTimeOfDay';
+
+// tz-aware morning/evening for the current moment (2am → evening, #207).
+export function currentCheckinType(): 'morning' | 'evening' {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return checkinTypeFromHour(localHour(new Date(), tz));
+}
 
 export function formatDate(date: Date | string, fmt = 'yyyy-MM-dd'): string {
   const d = typeof date === 'string' ? parseISO(date) : date;

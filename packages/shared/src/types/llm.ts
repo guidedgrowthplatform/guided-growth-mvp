@@ -43,6 +43,9 @@ export type LLMStreamEvent =
   | { type: 'delta'; content: string }
   | { type: 'tool_call'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool_result'; id: string; ok: boolean; result: unknown }
+  // Emitted alongside tool_result for a mutating (write) tool that threw — lets
+  // the client surface a write failure the user must know about.
+  | { type: 'tool_failed'; id: string; name: string; error: string; message?: string }
   | { type: 'done'; latency_ms: number; total_tokens: number; tool_rounds: number }
   | { type: 'error'; code: string; message: string };
 

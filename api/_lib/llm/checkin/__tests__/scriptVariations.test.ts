@@ -18,26 +18,25 @@ describe('CHECKIN_SCRIPTS', () => {
 });
 
 describe('pickVariation', () => {
-  it('is deterministic for a given (stage, day)', () => {
+  it('always returns a member of the stage pool', () => {
     for (const stage of STAGES) {
-      const a = pickVariation(stage, '2026-06-18');
-      const b = pickVariation(stage, '2026-06-18');
-      expect(a).toBe(b);
-      expect(CHECKIN_SCRIPTS[stage]).toContain(a);
+      for (let i = 0; i < 50; i++) {
+        expect(CHECKIN_SCRIPTS[stage]).toContain(pickVariation(stage));
+      }
     }
   });
 
-  it('rotates across days for a multi-variation stage', () => {
+  it('covers every variation of a multi-variation stage across many draws', () => {
     const picks = new Set<string>();
-    for (let d = 1; d <= 14; d++) {
-      picks.add(pickVariation('morning_greeting', `2026-06-${String(d).padStart(2, '0')}`));
+    for (let i = 0; i < 500; i++) {
+      picks.add(pickVariation('morning_greeting'));
     }
-    expect(picks.size).toBeGreaterThan(1);
+    expect(picks.size).toBe(CHECKIN_SCRIPTS.morning_greeting.length);
   });
 
   it('single-variation stages always return their one line', () => {
-    for (const day of ['2026-01-01', '2026-07-04', '2026-12-31']) {
-      expect(pickVariation('reflection_proud', day)).toBe('What are you proud of today?');
+    for (let i = 0; i < 20; i++) {
+      expect(pickVariation('reflection_proud')).toBe('What are you proud of today?');
     }
   });
 });

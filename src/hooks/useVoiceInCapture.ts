@@ -68,6 +68,8 @@ export function useVoiceInCapture({
   const restartStampsRef = useRef<number[]>([]);
   // Suppress the misleading "can't hear you" bubble once we've already transcribed speech this session.
   const heardAnyFinalRef = useRef(false);
+  // Set when an offline drop parks a dead-but-not-torn-down handle.
+  const parkedOfflineRef = useRef(false);
 
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
@@ -91,6 +93,20 @@ export function useVoiceInCapture({
   useEffect(() => {
     restartStampsRef.current = [];
     heardAnyFinalRef.current = false;
+    parkedOfflineRef.current = false;
+  }, [active, vapiStatus]);
+
+  // Connectivity restored: reboot a parked session, never a healthy live one.
+  useEffect(() => {
+    const handleOnline = () => {
+      if (!shouldStartVoiceIn(active, vapiStatus)) return;
+      if (!parkedOfflineRef.current && sessionRef.current) return;
+      parkedOfflineRef.current = false;
+      restartStampsRef.current = [];
+      setRestartNonce((n) => n + 1);
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
   }, [active, vapiStatus]);
 
   useEffect(() => {
@@ -111,7 +127,9 @@ export function useVoiceInCapture({
         }
       },
       onStateChange: (s: SonioxState) => {
-        if (!disposed) setIsListening(s === 'listening');
+        if (disposed) return;
+        if (s === 'listening') parkedOfflineRef.current = false;
+        setIsListening(s === 'listening');
       },
       onConnected: (m) => track('stt_connect_ms', { ...m }),
       onError: (msg) => {
@@ -119,6 +137,16 @@ export function useVoiceInCapture({
         setIsListening(false);
         // Vapi may have taken over since boot — never restart into a live WebRTC track.
         if (isRecoverableVoiceError(msg) && shouldStartVoiceIn(active, vapiStatus)) {
+          // Offline: don't spend budget or reboot here — the 'online' listener drives recovery.
+          if (navigator.onLine === false) {
+            parkedOfflineRef.current = true;
+            if (heardAnyFinalRef.current) {
+              track('voice_in_recoverable_error_swallowed', { msg });
+              return;
+            }
+            onErrorRef.current?.(msg);
+            return;
+          }
           const now = Date.now();
           const recent = restartStampsRef.current.filter((t) => now - t < AUTO_RESTART_WINDOW_MS);
           if (recent.length < MAX_AUTO_RESTARTS) {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { track } from '@/analytics';
 import { streamLLM } from '@/api/llm';
 import { isOnboardingScreen, logDebugEvent } from '@/lib/debug/onboardingDebug';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
@@ -20,6 +21,13 @@ const EMPTY_TURN_FALLBACK = "Sorry, I didn't quite get that — could you say it
 // when each delta triggered its own React render + smooth-reveal animation.
 const DELTA_COALESCE_MS = 40;
 
+export interface LLMToolFailure {
+  id: string;
+  name: string;
+  error: string;
+  message?: string;
+}
+
 export interface UseLLMReturn {
   sendMessage: (text: string) => Promise<void>;
   sendOpener: () => Promise<void>;
@@ -27,6 +35,9 @@ export interface UseLLMReturn {
   messages: LLMChatMessage[];
   response: string;
   toolEvents: LLMToolEvent[];
+  // Write-tool crashes for the current turn. Survives `done` (unlike toolEvents);
+  // cleared at the next runStream start.
+  toolFailures: LLMToolFailure[];
   status: LLMStatus;
   isStreaming: boolean;
   error: Error | null;
@@ -68,6 +79,7 @@ export function useLLM(
   messagesRef.current = messages;
   const [response, setResponse] = useState('');
   const [toolEvents, setToolEvents] = useState<LLMToolEvent[]>([]);
+  const [toolFailures, setToolFailures] = useState<LLMToolFailure[]>([]);
   const [status, setStatus] = useState<LLMStatus>('idle');
   const [error, setError] = useState<Error | null>(null);
   const [seededFor, setSeededFor] = useState<string | null>(null);
@@ -105,6 +117,7 @@ export function useLLM(
     setMessages([]);
     setResponse('');
     setToolEvents([]);
+    setToolFailures([]);
     setStatus('idle');
     setError(null);
   }, []);
@@ -167,6 +180,7 @@ export function useLLM(
       }
       setResponse('');
       setToolEvents([]);
+      setToolFailures([]);
       setError(null);
       setStatus('streaming');
 
@@ -224,6 +238,13 @@ export function useLLM(
             );
             break;
           }
+          case 'tool_failed': {
+            setToolFailures((prev) => [
+              ...prev,
+              { id: e.id, name: e.name, error: e.error, message: e.message },
+            ]);
+            break;
+          }
           case 'done': {
             sawTerminal = true;
             flushDeltaBuffer();
@@ -243,6 +264,12 @@ export function useLLM(
             setResponse('');
             setToolEvents([]);
             setStatus('done');
+            // Backend-reported total LLM round-trip (end-of-stream), not TTFT.
+            track('coach_llm_latency', {
+              screen_id: screenId,
+              mode: opts.mode,
+              latency_ms: e.latency_ms,
+            });
             try {
               logEvent(
                 'llm_call',
@@ -395,6 +422,7 @@ export function useLLM(
     messages,
     response,
     toolEvents,
+    toolFailures,
     status,
     isStreaming: status === 'streaming',
     error,

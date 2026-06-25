@@ -2,14 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { COACH_VOICE_ID, type VoiceGender } from '@/config/voiceConfig';
 import { getAuthHeaders } from '@/lib/services/api-auth';
-import { wsBegin, wsCancel, wsFinish, wsPush, wsTtsAvailable, wsWarm } from './cartesia-ws';
-import { isPcmAudioRunning, subscribePcmAudioState, unlockPcmAudio } from './pcmPlayer';
 import { isVoiceOutEnabled } from './voiceGate';
-
-export { isPcmAudioRunning as isAudioUnlocked, subscribePcmAudioState as subscribeAudioUnlock };
-
-// Streaming WebSocket transport (low-latency) vs HTTP /tts/bytes batch (fallback).
-const TTS_TRANSPORT = (import.meta.env.VITE_TTS_TRANSPORT as string | undefined) ?? 'ws';
 
 export const useTtsPlaybackStore = create<{ isSpeaking: boolean }>(() => ({
   isSpeaking: false,
@@ -61,6 +54,7 @@ let currentTtsAbort: AbortController | null = null;
 let currentAudioResolver: (() => void) | null = null;
 // iOS Safari first-play rule — set by unlockTTS inside a gesture.
 let ttsUnlocked = false;
+const unlockListeners = new Set<() => void>();
 // Bumped per speak()/turn; stale callers bail at each await boundary.
 let speakGeneration = 0;
 
@@ -83,89 +77,45 @@ let turnSealed = false;
 let speakingHeld = false;
 let playSynthAbort: AbortController | null = null;
 let prefetch: Prefetch | null = null;
+// Pre-built + preloaded element for the next sentence — decoded during current playback.
+let preloadedNext: { gen: number; text: string; audio: HTMLAudioElement; url: string } | null =
+  null;
 let drainResolvers: Array<() => void> = [];
+
+function disposeElement(audio: HTMLAudioElement, url: string): void {
+  audio.pause();
+  audio.src = '';
+  URL.revokeObjectURL(url);
+}
+
+function teardownPreloadedNext(): void {
+  if (!preloadedNext) return;
+  const { audio, url } = preloadedNext;
+  preloadedNext = null;
+  disposeElement(audio, url);
+}
+
+// Build + preload an element so it decodes while the current sentence plays.
+function buildPreloadElement(blob: Blob): { audio: HTMLAudioElement; url: string } {
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio();
+  audio.preload = 'auto';
+  audio.src = url;
+  audio.load();
+  return { audio, url };
+}
+
+// During current playback: resolve the in-flight prefetch blob and pre-build
+// the next element, under the gen guard. Abandons if superseded.
+async function preloadNextElement(gen: number): Promise<void> {
+  if (gen !== speakGeneration || preloadedNext || !prefetch || prefetch.gen !== gen) return;
+  const { text } = prefetch;
+  const blob = await prefetch.blob;
+  if (gen !== speakGeneration || preloadedNext) return;
+  if (!blob) return;
+  preloadedNext = { gen, text, ...buildPreloadElement(blob) };
+}
 let deferredOneShot: { text: string; volume: number } | null = null;
-
-// ─── WebSocket streaming turn state ──────────────────────────────────────────
-let wsTurnActive = false;
-let wsFirstAudio = false;
-let wsHealthy = true; // flips false on a ws/token failure → fall back to HTTP
-let wsTurnChunks: string[] = [];
-let wsDrainResolvers: Array<() => void> = [];
-
-function useWs(): boolean {
-  return TTS_TRANSPORT === 'ws' && wsHealthy && wsTtsAvailable() && isVoiceOutEnabled();
-}
-
-export function isWsTransport(): boolean {
-  return TTS_TRANSPORT === 'ws';
-}
-
-// True when this turn will stream over ws with word-reveal timestamps.
-export function ttsKaraokeActive(): boolean {
-  return useWs();
-}
-
-// Pre-open the ws socket when voice-out arms, so turn 1 pays no connect cost.
-export function ttsWarm(): void {
-  if (TTS_TRANSPORT === 'ws') wsWarm();
-}
-
-let wsOnReveal: ((text: string) => void) | null = null;
-// Cartesia spoken-form word strings for the active ws turn — drives the reveal.
-let wsRevealedWords: string[] = [];
-
-// No leading space before closing/punctuation/contraction tokens; opening
-// brackets/quotes glue to the next word.
-const NO_LEADING_SPACE = /^[,.!?;:)\]}…%”’]|^n['’]t$|^['’](s|m|d|ll|ve|re)$/i;
-const OPENING_GLUE = /^[([{"“'‘]$/;
-
-export function joinSpoken(words: string[]): string {
-  let out = '';
-  let glue = false;
-  for (const w of words) {
-    if (!out) {
-      out = w;
-    } else if (glue || NO_LEADING_SPACE.test(w)) {
-      out += w;
-    } else {
-      out += ' ' + w;
-    }
-    glue = OPENING_GLUE.test(w);
-  }
-  return out;
-}
-
-function resolveWsDrainers(): void {
-  const rs = wsDrainResolvers;
-  wsDrainResolvers = [];
-  rs.forEach((r) => r());
-}
-
-function resolveWsTurn(): void {
-  wsTurnActive = false;
-  turnActive = false;
-  wsOnReveal = null;
-  setSpeaking(false);
-  resolveWsDrainers();
-  flushDeferredOneShot();
-}
-
-// ws/token failure: stop future ws turns; speak the buffered reply over HTTP if
-// nothing was heard yet, so a connect failure never means silence.
-function handleWsError(_msg: string): void {
-  if (!wsTurnActive) return;
-  wsHealthy = false;
-  const text = wsTurnChunks.join(' ').trim();
-  const hadAudio = wsFirstAudio;
-  // Unfreeze the karaoke bubble: jump to full spoken text before tearing down.
-  if (text) wsOnReveal?.(text);
-  wsCancel();
-  wsTurnActive = false;
-  wsTurnChunks = [];
-  resolveWsTurn();
-  if (!hadAudio && text) void speak(text);
-}
 
 function resolveDrainers(): void {
   const rs = drainResolvers;
@@ -178,6 +128,7 @@ function finishTurn(): void {
   if (!turnActive) return;
   turnActive = false;
   prefetch = null;
+  teardownPreloadedNext();
   if (speakingHeld) {
     speakingHeld = false;
     setSpeaking(false);
@@ -212,34 +163,53 @@ async function runDrain(): Promise<void> {
       return;
     }
     const item = speechQueue[playCursor];
-    let blob: Blob | null;
-    if (prefetch && prefetch.gen === gen && prefetch.text === item.text) {
-      blob = await prefetch.blob;
-      prefetch = null;
+    // Pre-built element from the previous iteration's preload — already decoded.
+    let ready: { audio: HTMLAudioElement; url: string } | null = null;
+    if (preloadedNext && preloadedNext.gen === gen && preloadedNext.text === item.text) {
+      ready = { audio: preloadedNext.audio, url: preloadedNext.url };
+      preloadedNext = null;
+      if (prefetch && prefetch.text === item.text) prefetch = null;
     } else {
-      // Stale/non-matching prefetch — abort before synthesizing fresh.
-      if (prefetch) {
-        prefetch.abort.abort();
+      // No matching preload — drop any stale one, then resolve a blob and build.
+      teardownPreloadedNext();
+      let blob: Blob | null;
+      if (prefetch && prefetch.gen === gen && prefetch.text === item.text) {
+        blob = await prefetch.blob;
         prefetch = null;
+      } else {
+        // Stale/non-matching prefetch — abort before synthesizing fresh.
+        if (prefetch) {
+          prefetch.abort.abort();
+          prefetch = null;
+        }
+        const abort = new AbortController();
+        playSynthAbort = abort;
+        blob = await synthChunk(item.text, gen, abort);
       }
-      const abort = new AbortController();
-      playSynthAbort = abort;
-      blob = await synthChunk(item.text, gen, abort);
+      if (gen !== speakGeneration) {
+        drainRunning = false;
+        if (turnSealed) finishTurn();
+        return;
+      }
+      if (blob) ready = buildPreloadElement(blob);
     }
     // Next chunk may have arrived during synth — prefetch it before play.
     maybePrefetchNext(gen);
     if (gen !== speakGeneration) {
+      if (ready) disposeElement(ready.audio, ready.url);
       drainRunning = false;
       if (turnSealed) finishTurn();
       return;
     }
-    if (blob) {
+    if (ready) {
       if (!speakingHeld) {
         speakingHeld = true;
         setSpeaking(true);
       }
       maybePrefetchNext(gen);
-      await playChunkBlob(blob, item.volume, gen);
+      // Pre-build the next element while this one plays (closes per-sentence gap).
+      void preloadNextElement(gen);
+      await playChunkElement(ready.audio, ready.url, item.volume, gen);
       if (gen !== speakGeneration) {
         drainRunning = false;
         if (turnSealed) finishTurn();
@@ -252,43 +222,18 @@ async function runDrain(): Promise<void> {
   if (turnSealed) finishTurn();
 }
 
-export function beginSpeechTurn(opts?: { onReveal?: (text: string) => void }): number {
+export function beginSpeechTurn(): number {
   stopTTS();
   speechQueue = [];
   playCursor = 0;
   turnSealed = false;
   turnActive = true;
-  wsOnReveal = opts?.onReveal ?? null;
-  const gen = ++speakGeneration;
-  if (useWs()) {
-    wsTurnActive = true;
-    wsFirstAudio = false;
-    wsTurnChunks = [];
-    wsRevealedWords = [];
-    wsBegin({
-      onSpeakingChange: (s) => setSpeaking(s),
-      onFirstAudio: () => {
-        wsFirstAudio = true;
-      },
-      onWord: (_idx, word) => {
-        wsRevealedWords.push(word);
-        wsOnReveal?.(joinSpoken(wsRevealedWords));
-      },
-      onDrain: () => resolveWsTurn(),
-      onError: (m) => handleWsError(m),
-    });
-  }
-  return gen;
+  return ++speakGeneration;
 }
 
 export function pushSpeechChunk(text: string, opts?: { volume?: number }): void {
   if (!turnActive || !isVoiceOutEnabled()) return;
   if (!text.trim()) return;
-  if (wsTurnActive) {
-    wsTurnChunks.push(text);
-    void wsPush(text);
-    return;
-  }
   speechQueue.push({ text, volume: opts?.volume ?? 0.85 });
   if (!drainRunning) {
     drainRunning = true;
@@ -300,19 +245,6 @@ export function pushSpeechChunk(text: string, opts?: { volume?: number }): void 
 }
 
 export function endSpeechTurn(): Promise<void> {
-  if (wsTurnActive) {
-    // Nothing was spoken (tool-only turn) — close immediately, don't wait on `done`.
-    if (wsTurnChunks.length === 0) {
-      wsCancel();
-      resolveWsTurn();
-      return Promise.resolve();
-    }
-    void wsFinish();
-    return new Promise<void>((resolve) => {
-      if (!wsTurnActive) resolve();
-      else wsDrainResolvers.push(resolve);
-    });
-  }
   turnSealed = true;
   if (!drainRunning && playCursor >= speechQueue.length) finishTurn();
   return new Promise<void>((resolve) => {
@@ -322,12 +254,6 @@ export function endSpeechTurn(): Promise<void> {
 }
 
 export function stopTTS(): void {
-  if (wsTurnActive) {
-    wsCancel();
-    wsTurnActive = false;
-    wsTurnChunks = [];
-    resolveWsDrainers();
-  }
   ++speakGeneration;
   if (currentTtsAbort) {
     currentTtsAbort.abort();
@@ -341,6 +267,7 @@ export function stopTTS(): void {
     prefetch.abort.abort();
     prefetch = null;
   }
+  teardownPreloadedNext();
   speechQueue = [];
   playCursor = 0;
   turnSealed = true;
@@ -372,13 +299,28 @@ function base64ToBlob(base64: string, mime: string): Blob {
 // (incl. iOS NotAllowedError) resolves false so the queue skips, not wedges.
 async function playChunkBlob(blob: Blob, volume: number, generation: number): Promise<boolean> {
   if (generation !== speakGeneration) return false;
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  audio.preload = 'auto';
+  return playChunkElement(audio, url, volume, generation);
+}
+
+// Plays one pre-built+preloaded element. Caller owns setSpeaking. Never rejects.
+async function playChunkElement(
+  audio: HTMLAudioElement,
+  audioUrl: string,
+  volume: number,
+  generation: number,
+): Promise<boolean> {
+  if (generation !== speakGeneration) {
+    disposeElement(audio, audioUrl);
+    return false;
+  }
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.src = '';
     currentAudio = null;
   }
-  const audioUrl = URL.createObjectURL(blob);
-  const audio = new Audio(audioUrl);
   audio.volume = volume;
   currentAudio = audio;
 
@@ -455,7 +397,7 @@ async function synthChunk(
 
     if (!res.ok) {
       console.warn('[TTS] Cartesia proxy error:', res.status);
-      if (res.status === 429 || res.status === 401 || res.status === 500) {
+      if (res.status === 401) {
         cartesiaTtsAvailable = false;
       }
       return null;
@@ -505,8 +447,6 @@ const SILENT_WAV =
 export function unlockTTS(): void {
   // Re-arm after transient 429/401/500 even when already unlocked.
   cartesiaTtsAvailable = true;
-  wsHealthy = true;
-  unlockPcmAudio();
   if (ttsUnlocked) return;
   try {
     const a = new Audio(SILENT_WAV);
@@ -518,6 +458,16 @@ export function unlockTTS(): void {
     /* ignore */
   }
   ttsUnlocked = true;
+  unlockListeners.forEach((fn) => fn());
+}
+
+export function isAudioUnlocked(): boolean {
+  return ttsUnlocked;
+}
+
+export function subscribeAudioUnlock(fn: () => void): () => void {
+  unlockListeners.add(fn);
+  return () => unlockListeners.delete(fn);
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────

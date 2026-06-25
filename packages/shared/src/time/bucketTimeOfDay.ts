@@ -21,3 +21,15 @@ export function localHour(date: Date, timeZone: string): number {
 export function bucketTimeOfDay(date: Date, timeZone: string): TimeOfDay {
   return bucketFromHour(localHour(date, timeZone));
 }
+
+// Check-in day boundaries (single source for both the proactive window and the
+// binary type). Morning 05:00–15:59; evening 17:00–04:59, wrapping past midnight
+// so a 2am open is evening, not morning. 16:00–16:59 is the proactive buffer.
+export const MORNING_FROM_HOUR = 5;
+export const MORNING_UNTIL_HOUR = 16;
+export const EVENING_FROM_HOUR = 17;
+
+// Binary type — the buffer hour resolves to evening (morning window has closed).
+export function checkinTypeFromHour(hour: number): 'morning' | 'evening' {
+  return hour >= MORNING_FROM_HOUR && hour < MORNING_UNTIL_HOUR ? 'morning' : 'evening';
+}

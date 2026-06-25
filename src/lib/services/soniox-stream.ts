@@ -42,6 +42,7 @@ export interface SonioxCoreDeps {
   keepAliveMs?: number;
   maxReconnects?: number;
   maxLifetimeReconnects?: number;
+  isOnline?: () => boolean;
 }
 
 export interface SonioxSession {
@@ -65,6 +66,7 @@ const DEFAULT_KEEPALIVE_MS = 15000;
 const DEFAULT_MAX_RECONNECTS = 2;
 const DEFAULT_MAX_LIFETIME_RECONNECTS = 6;
 const RECONNECT_DELAY_MS = 500;
+const RECONNECT_MAX_DELAY_MS = 8000;
 const FINALIZE_TIMEOUT_MS = 3000;
 
 // <end> = endpoint detection; <fin> = manual-finalize response. Both terminal.
@@ -89,6 +91,7 @@ export function createSonioxSession(deps: SonioxCoreDeps): SonioxSession {
   const keepAliveMs = deps.keepAliveMs ?? DEFAULT_KEEPALIVE_MS;
   const maxReconnects = deps.maxReconnects ?? DEFAULT_MAX_RECONNECTS;
   const maxLifetimeReconnects = deps.maxLifetimeReconnects ?? DEFAULT_MAX_LIFETIME_RECONNECTS;
+  const isOnline = deps.isOnline ?? (() => true);
 
   let socket: SonioxSocket | null = null;
   let state: SonioxState = 'idle';
@@ -218,15 +221,28 @@ export function createSonioxSession(deps: SonioxCoreDeps): SonioxSession {
     if (disposed || closingIntentionally || pendingFinalize) return;
     clearKeepAlive();
     socket = null;
+    // Offline: reconnecting would just mint+burn temp keys against a dead link.
+    // Park and surface; the browser 'online' listener reboots when connectivity returns.
+    if (!isOnline()) {
+      flushFinal();
+      if (!disposed) deps.onError('voice connection lost');
+      setState('error');
+      return;
+    }
     if (reconnectsLeft > 0 && totalReconnects < maxLifetimeReconnects) {
       reconnectsLeft -= 1;
       totalReconnects += 1;
       // Mint a fresh single-use key on each reconnect; old key dies with its socket.
       clearReconnect();
+      // Exponential backoff off the lifetime count; capped.
+      const delay = Math.min(
+        RECONNECT_DELAY_MS * 2 ** (totalReconnects - 1),
+        RECONNECT_MAX_DELAY_MS,
+      );
       reconnectHandle = deps.setTimer(() => {
         if (disposed) return;
         start();
-      }, RECONNECT_DELAY_MS);
+      }, delay);
       return;
     }
     // preserve trailing final before erroring out
@@ -649,6 +665,7 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
       now: () => performance.now(),
       setTimer: (fn, ms) => setTimeout(fn, ms),
       clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
+      isOnline: () => navigator.onLine,
       config: opts.config,
     });
     session = s;
