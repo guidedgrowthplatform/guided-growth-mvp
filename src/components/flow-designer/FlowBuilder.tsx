@@ -592,6 +592,37 @@ const flowKey = (flowId: string) => `${STORAGE_BASE}:${flowId}`;
 const ACTIVE_FLOW_KEY = `${STORAGE_BASE}:active`;
 const VARIANT_KEY = `${STORAGE_BASE}:variant`;
 
+// Legacy storage bases, newest first. When STORAGE_BASE is bumped for a schema
+// change, add the previous base here so the next load carries old flows forward
+// instead of silently dropping every authored flow.
+const LEGACY_BASES = ['gg-flow-builder-v17', 'gg-flow-builder-v16', 'gg-flow-builder-v15'];
+
+// One-time forward migration: if nothing is saved under the current base yet but
+// a prior version's data is present, copy every prior key into the current base.
+// A raw copy is safe because hydrate tolerates missing fields. No-op once migrated.
+function migrateStorage() {
+  try {
+    // Only the per-flow saves matter. The meta keys (variant / active / username)
+    // are written on mount before this runs, so ignore them when deciding whether
+    // the current base already holds real data, otherwise migration never fires.
+    const META = new Set(['variant', 'active', 'username']);
+    const flowKeys = (base: string) =>
+      Object.keys(localStorage).filter(
+        (k) => k.startsWith(`${base}:`) && !META.has(k.slice(base.length + 1)),
+      );
+    if (flowKeys(STORAGE_BASE).length) return;
+    const prior = LEGACY_BASES.find((b) => flowKeys(b).length);
+    if (!prior) return;
+    for (const k of Object.keys(localStorage)) {
+      if (!k.startsWith(`${prior}:`)) continue;
+      const val = localStorage.getItem(k);
+      if (val != null) localStorage.setItem(`${STORAGE_BASE}${k.slice(prior.length)}`, val);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 type StoredBeat = {
   type: string;
   props?: Record<string, string>;
@@ -601,6 +632,9 @@ type StoredBeat = {
   transition?: { kind: BeatTransitionKind; durationMs: number };
   background?: string;
   variant?: FlowVariant;
+  // Split blocks keep their parallel lanes here. The runtime lane id is dropped
+  // on save and regenerated on hydrate; only the label and lane items persist.
+  lanes?: { label: string; items: StoredBeat[] }[];
 };
 
 // Every beat is coach-led or user-led; default to coach, user bubbles to user.
@@ -615,10 +649,11 @@ const hydrate = (stored: StoredBeat[]): Placed[] =>
     transition: b.transition,
     background: b.background ?? (b.type === 'user-bubble' ? 'user' : 'coach'),
     variant: b.variant ?? 'shared',
+    lanes: b.lanes?.map((l) => ({ id: newUid('lane'), label: l.label, items: hydrate(l.items) })),
   }));
 
 const serialize = (items: Placed[]): StoredBeat[] =>
-  items.map(({ type, props, beat, note, sheetStage, transition, background, variant }) => ({
+  items.map(({ type, props, beat, note, sheetStage, transition, background, variant, lanes }) => ({
     type,
     props,
     beat,
@@ -627,6 +662,7 @@ const serialize = (items: Placed[]): StoredBeat[] =>
     transition,
     background,
     variant,
+    lanes: lanes?.map((l) => ({ label: l.label, items: serialize(l.items) })),
   }));
 
 const buildDefault = (flowId: string): Placed[] =>
@@ -1665,6 +1701,7 @@ export function FlowBuilder() {
 
   // On mount, restore the last active flow and its beats.
   useEffect(() => {
+    migrateStorage();
     let fid = 'onboarding';
     try {
       const a = localStorage.getItem(ACTIVE_FLOW_KEY);
@@ -1833,8 +1870,15 @@ export function FlowBuilder() {
   const setLaneLabel = (splitUid: string, laneId: string, label: string) =>
     mutateLane(splitUid, laneId, (l) => ({ ...l, label }));
 
-  const reset = () => setPlaced(buildDefault(flowId));
-  const clear = () => setPlaced([]);
+  const reset = () => {
+    if (!window.confirm('Reset this flow to the default? The beats you authored in this flow will be replaced.'))
+      return;
+    setPlaced(buildDefault(flowId));
+  };
+  const clear = () => {
+    if (!window.confirm('Clear every beat from this flow? This cannot be undone.')) return;
+    setPlaced([]);
+  };
 
 
   const serializeBeat = (p: Placed, i: number) => ({
