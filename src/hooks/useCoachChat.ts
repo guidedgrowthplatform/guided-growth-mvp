@@ -177,6 +177,8 @@ export function useCoachChat(
   const lastArmedPauseRef = useRef(TURN_AGGREGATION_MS);
   // Turn-aggregation window: utterance-end (flush → submit) → reply-start (stream begins).
   const turnSubmittedAtRef = useRef(0);
+  const coachStoppedAtRef = useRef(0);
+  const prevMicMutedForTtsRef = useRef(false);
 
   const [dayOverrides, setDayOverrides] = useState<Map<string, boolean[]>>(() => new Map());
   const [errorBubbles, setErrorBubbles] = useState<ChatMessage[]>([]);
@@ -210,6 +212,11 @@ export function useCoachChat(
       { id: `voice-error-${(errorSeqRef.current += 1)}`, role: 'ai', text: msg },
     ]);
   }, []);
+
+  const screenIdRef = useRef(screenId);
+  useEffect(() => {
+    screenIdRef.current = screenId;
+  }, [screenId]);
 
   // Sync the latest onTranscriptStream into a ref via effect (NOT during
   // render — render-phase mutations are unsafe and can race with effect-phase
@@ -269,6 +276,14 @@ export function useCoachChat(
       // bubble landing.
       setInterim('');
       onTranscriptStreamRef.current?.('user', t, 'final');
+      if (finalsInTurnRef.current === 0 && coachStoppedAtRef.current) {
+        track('coach_turn_handoff_ms', {
+          screen_id: screenIdRef.current,
+          handoff_ms: Date.now() - coachStoppedAtRef.current,
+          grace_ms: MIC_GRACE_MS,
+        });
+        coachStoppedAtRef.current = 0;
+      }
       utteranceBufferRef.current = utteranceBufferRef.current
         ? `${utteranceBufferRef.current} ${t}`
         : t;
@@ -309,9 +324,8 @@ export function useCoachChat(
   //   3. `vapiStatus: 'idle'` (coach has no Vapi).
   const voiceInActive = micOn;
 
-  // Half-duplex: mic stays closed from turn-submit through the whole reply
-  // (stream + synth + playback), so the coach can never leak into a hot mic and
-  // self-interrupt. Union of all "coach busy" signals — no gap between them.
+  // Half-duplex: mic closed through the whole reply (union covers the
+  // stream→synth→playback gaps) so coach TTS can't leak into a hot mic.
   const micMutedForTts = voiceModeOn && (isStreaming || ttsActive > 0 || isSpeaking);
 
   // Post-speech HOLD: mic stays muted MIC_GRACE_MS after playback ends —
@@ -319,6 +333,10 @@ export function useCoachChat(
   // held so the opener plays muted.
   const [micMutedHeld, setMicMutedHeld] = useState(true);
   useEffect(() => {
+    if (!micMutedForTts && prevMicMutedForTtsRef.current) {
+      coachStoppedAtRef.current = Date.now();
+    }
+    prevMicMutedForTtsRef.current = micMutedForTts;
     if (micMutedForTts) {
       setMicMutedHeld(true);
       return;
