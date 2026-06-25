@@ -15,6 +15,11 @@ import {
 } from '@/config/voiceConfig';
 import { applyStartThread } from '@/contexts/applyStartThread';
 import {
+  idleSilenceRemainingMs,
+  isUserSilenceElapsed,
+  shouldArmIdleTimer,
+} from '@/contexts/idleTimerGate';
+import {
   OnboardingVoiceContext,
   USER_SPEAKING_IDLE_MS,
   type OnboardingVoiceContextValue,
@@ -133,7 +138,13 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
 
   const bundledRoutes = useMemo(() => getBundledRoutes(), []);
 
-  const inOnboarding = isOnboardingPath(location.pathname);
+  // The auth-free preview route (/onboarding-flow-preview) is a real chat
+  // onboarding surface (see onChatPage), it just lives outside the /onboarding/*
+  // namespace. Count it as in-onboarding so the "!inOnboarding -> stop()" guard
+  // below does not tear its own voice down, letting the no-login walk run the
+  // full Cartesia opener + Vapi path.
+  const inOnboarding =
+    isOnboardingPath(location.pathname) || location.pathname === ONBOARDING_FLOW_PREVIEW_ROUTE;
   // Chat-native onboarding renders at the onboarding root (the chat IS the
   // surface). The page renders the chat body itself, so the provider must NOT
   // also pop the floating overlay. Vapi (Path 1) is dormant here UNLESS the
@@ -202,8 +213,36 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fatalErrorRef = useRef(false);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Wall-clock of the last REAL user activity (user STT partial/final, or call
+  // start / opener completion). The idle auto-pause measures silence from THIS,
+  // never from when the listening window (re)opened — so the assistant's own
+  // silence re-prompt (Vapi nudging a quiet user, which bounces state
+  // speaking→listening) can't reset the clock and keep the call alive forever.
+  // Genuine continuous user silence accumulates to IDLE_TIMEOUT_MS even across
+  // assistant re-prompts, and only then do we systemPauseMic().
+  const lastUserActivityAtRef = useRef<number>(0);
   const remoteEndCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasAssistantSpokenRef = useRef(false);
+  // True once the coach has spoken on the current call — gates the idle
+  // auto-pause timer (don't pause a call before the coach has even greeted).
+  // Reactive STATE, not just a ref, so the arm effect re-runs the moment it
+  // flips. Two sources flip it: Vapi's own TTS (speech-start) on warm beats,
+  // AND the instant Cartesia opener finishing on the cold-start beat, where
+  // Vapi joins silent and its speech-start never fires. Without the opener
+  // source the first chat-native Vapi beat never armed the timer, so an idle
+  // user left the live call burning voice minutes.
+  const [assistantHasSpoken, setAssistantHasSpoken] = useState(false);
+  // Ref mirror for the imperative opener-done callback (fires outside render).
+  const assistantHasSpokenRef = useRef(false);
+  const markAssistantSpoke = useCallback(() => {
+    if (assistantHasSpokenRef.current) return;
+    assistantHasSpokenRef.current = true;
+    setAssistantHasSpoken(true);
+  }, []);
+  const clearAssistantSpoke = useCallback(() => {
+    if (!assistantHasSpokenRef.current) return;
+    assistantHasSpokenRef.current = false;
+    setAssistantHasSpoken(false);
+  }, []);
   const transcriptBus = useRef(
     createListenerBus<RealtimeTranscriptEvent>('onboarding-voice/transcript'),
   ).current;
@@ -485,6 +524,9 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     retryCountRef.current = 0;
     fatalErrorRef.current = false;
     clearRetryTimer();
+    // Seed the idle window so a user who never speaks still auto-pauses
+    // IDLE_TIMEOUT_MS after the assistant's opening settles into listening.
+    lastUserActivityAtRef.current = Date.now();
     // Thread persists across the Vapi round-trip; turns append in handleTranscript.
     threadScreenIdRef.current = null;
     lastAssistantFinalRef.current = { text: '', at: 0 };
@@ -598,10 +640,12 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     [anonId, coachingStyle],
   );
 
-  const armIdleTimerRef = useRef<() => void>(() => {});
-
+  // Only USER STT activity pushes the silence deadline forward. An assistant
+  // speaking or re-prompting must NOT touch this, so a Vapi idle re-prompt at
+  // ~7.5s can't pre-empt the pause — continuous user silence still reaches the
+  // threshold. armIdleTimer reads this ref directly, so no indirection needed.
   const handleUserActivity = useCallback(() => {
-    if (idleTimerRef.current !== null) armIdleTimerRef.current();
+    lastUserActivityAtRef.current = Date.now();
   }, []);
 
   const handleTranscript = useCallback(
@@ -763,6 +807,16 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         void handle.done.then(() => {
           openerDoneRef.current = true;
           if (openerHandleRef.current === handle) openerHandleRef.current = null;
+          // The coach has now spoken (via Cartesia, since Vapi joined silent on
+          // this beat). Mark it so the idle auto-pause timer arms — Vapi's
+          // speech-start never fires on the silent-first path, so without this
+          // the timer would never start and the live call would never pause.
+          markAssistantSpoke();
+          // Re-anchor the user-silence window to when the coach STOPPED
+          // speaking. onCallStart seeded it at the silent Vapi join, but the
+          // Cartesia opener kept playing after that; the 8s of "continuous user
+          // silence" should be counted from the end of the opener, not the join.
+          lastUserActivityAtRef.current = Date.now();
           maybeOpenMic();
         });
       }
@@ -783,7 +837,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       );
       return undefined;
     }
-  }, [qc, stopOpener, maybeOpenMic]);
+  }, [qc, stopOpener, maybeOpenMic, markAssistantSpoke]);
 
   const {
     state,
@@ -1243,36 +1297,61 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   }, [inOnboarding, clearRetryTimer, clearRemoteEndCooldownTimer, stop]);
 
   useEffect(() => {
-    if (isSpeaking) hasAssistantSpokenRef.current = true;
-  }, [isSpeaking]);
+    if (isSpeaking) markAssistantSpoke();
+  }, [isSpeaking, markAssistantSpoke]);
 
   useEffect(() => {
     if (status !== 'active' && status !== 'connecting') {
-      hasAssistantSpokenRef.current = false;
+      clearAssistantSpoke();
     }
-  }, [status]);
+  }, [status, clearAssistantSpoke]);
 
+  // Arms (or re-arms) the idle timer to fire when IDLE_TIMEOUT_MS of CONTINUOUS
+  // USER silence has elapsed. The delay is computed from lastUserActivityAtRef,
+  // not from "now", so re-arming after an assistant re-prompt (state
+  // speaking→listening) does NOT restart the full window — it schedules for the
+  // remaining time. When the timer fires it re-checks the elapsed user silence:
+  // if the user spoke in the meantime it reschedules for the leftover, otherwise
+  // it tears Vapi down. This is the core of the "measure from last user turn,
+  // survive the assistant nudge" fix — a Vapi re-prompt at ~7.5s no longer
+  // pre-empts the pause at 8s of genuine user silence.
   const armIdleTimer = useCallback(() => {
     clearIdleTimer();
-    idleTimerRef.current = setTimeout(() => {
+    // Defensive: no user activity recorded yet this call (onCallStart and the
+    // opener-done callback both seed it, but anchor to now if neither ran).
+    if (lastUserActivityAtRef.current === 0) {
+      lastUserActivityAtRef.current = Date.now();
+    }
+    const fire = () => {
       idleTimerRef.current = null;
       if (pendingRef.current !== null) return;
+      if (!isUserSilenceElapsed(lastUserActivityAtRef.current, Date.now(), IDLE_TIMEOUT_MS)) {
+        // The user spoke since this timer was armed — not actually idle yet.
+        // Reschedule for the remaining silence instead of pausing.
+        idleTimerRef.current = setTimeout(
+          fire,
+          idleSilenceRemainingMs(lastUserActivityAtRef.current, Date.now(), IDLE_TIMEOUT_MS),
+        );
+        return;
+      }
       useVoiceSettingsStore.getState().systemPauseMic();
-    }, IDLE_TIMEOUT_MS);
+    };
+    const remaining = idleSilenceRemainingMs(
+      lastUserActivityAtRef.current,
+      Date.now(),
+      IDLE_TIMEOUT_MS,
+    );
+    idleTimerRef.current = setTimeout(fire, remaining);
   }, [clearIdleTimer]);
 
   useEffect(() => {
-    armIdleTimerRef.current = armIdleTimer;
-  }, [armIdleTimer]);
-
-  useEffect(() => {
-    if (status !== 'active' || state !== 'listening' || !hasAssistantSpokenRef.current) {
+    if (!shouldArmIdleTimer({ status, state, assistantHasSpoken })) {
       clearIdleTimer();
       return;
     }
     armIdleTimer();
     return clearIdleTimer;
-  }, [status, state, clearIdleTimer, armIdleTimer]);
+  }, [status, state, assistantHasSpoken, clearIdleTimer, armIdleTimer]);
 
   useEffect(() => {
     if (status !== 'active') return;
