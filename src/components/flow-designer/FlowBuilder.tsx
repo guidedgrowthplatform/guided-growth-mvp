@@ -633,6 +633,7 @@ type StoredBeat = {
   // Split blocks keep their parallel lanes here. The runtime lane id is dropped
   // on save and regenerated on hydrate; only the label and lane items persist.
   lanes?: { label: string; items: StoredBeat[] }[];
+  meta?: BeatMeta;
 };
 
 // Every beat is coach-led or user-led; default to coach, user bubbles to user.
@@ -648,20 +649,24 @@ const hydrate = (stored: StoredBeat[]): Placed[] =>
     background: b.background ?? (b.type === 'user-bubble' ? 'user' : 'coach'),
     variant: b.variant ?? 'shared',
     lanes: b.lanes?.map((l) => ({ id: newUid('lane'), label: l.label, items: hydrate(l.items) })),
+    meta: b.meta,
   }));
 
 const serialize = (items: Placed[]): StoredBeat[] =>
-  items.map(({ type, props, beat, note, sheetStage, transition, background, variant, lanes }) => ({
-    type,
-    props,
-    beat,
-    note,
-    sheetStage,
-    transition,
-    background,
-    variant,
-    lanes: lanes?.map((l) => ({ label: l.label, items: serialize(l.items) })),
-  }));
+  items.map(
+    ({ type, props, beat, note, sheetStage, transition, background, variant, lanes, meta }) => ({
+      type,
+      props,
+      beat,
+      note,
+      sheetStage,
+      transition,
+      background,
+      variant,
+      lanes: lanes?.map((l) => ({ label: l.label, items: serialize(l.items) })),
+      meta,
+    }),
+  );
 
 const buildDefault = (flowId: string): Placed[] =>
   hydrate((FLOW_MAP[flowId]?.beats ?? ONBOARDING_FLOW) as StoredBeat[]);
@@ -698,6 +703,34 @@ interface Placed {
   // QA), production only, or qa only. Default shared.
   variant?: FlowVariant;
   lanes?: Lane[];
+  // Per-beat spec metadata: voice engine, MP3 clips, AI path, animation, etc.
+  // Authored in the sidecar Metadata section, carried into the export, and named
+  // to match the Master Sheet voice schema so the builder and Sheet stay in sync.
+  meta?: BeatMeta;
+}
+
+interface Mp3Clip {
+  label: string;
+  file: string;
+  transcript: string;
+  opener: string;
+}
+
+interface BeatMeta {
+  voiceEngine?: string; // Vapi | Cartesia | MP3 | None     (Sheet: voice_engine)
+  voiceMode?: string; // Verbatim | Generative              (Sheet: voice_mode)
+  voiceId?: string;
+  mp3Assets?: Mp3Clip[];
+  spokenContent?: string; //                                (Sheet: voice_content)
+  path?: string; // Path 1 (Vapi) | Path 2 (Async) | Path 3 (Direct-LLM)
+  llmActive?: boolean;
+  allowedTools?: string;
+  feedbackConfig?: string; //                               (Sheet: feedback_config)
+  animation?: string;
+  orb?: { voiceOn?: boolean; micOn?: boolean; micAsking?: boolean; bloomed?: boolean };
+  figmaNode?: string;
+  status?: string; // draft | ready | locked
+  voiceNotes?: string; //                                   (Sheet: voice_notes)
 }
 
 let UID = 0;
@@ -970,6 +1003,303 @@ function PhoneScreenFrame({
   );
 }
 
+const VOICE_ENGINES = ['Vapi', 'Cartesia', 'MP3', 'None'];
+const VOICE_MODES = ['Verbatim', 'Generative'];
+const BEAT_PATHS = ['Path 1 (Vapi)', 'Path 2 (Async)', 'Path 3 (Direct-LLM)'];
+const BEAT_ANIMATIONS = ['None', 'Orb bloom', 'Dissolve', 'Fade', 'Slide'];
+const BEAT_STATUSES = ['draft', 'ready', 'locked'];
+
+const META_INPUT =
+  'w-full rounded-md border border-border bg-page px-2 py-1.5 text-[12px] text-content';
+const META_LABEL = 'text-[10px] font-semibold uppercase tracking-wide text-content-tertiary';
+
+function MetaField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className={META_LABEL}>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function MetaSelect({
+  label,
+  value,
+  options,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value?: string;
+  options: string[];
+  placeholder: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <MetaField label={label}>
+      <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} className={META_INPUT}>
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+    </MetaField>
+  );
+}
+
+// The per-beat metadata editor: the full voice / AI / screen / authoring spec,
+// collapsed by default. Field names match the Master Sheet voice schema so the
+// builder and the Sheet stay in sync, and everything here rides into the export.
+function MetaSection({
+  item,
+  onUpdate,
+}: {
+  item: Placed;
+  onUpdate: (patch: Partial<Placed>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const meta: BeatMeta = item.meta ?? {};
+  const setMeta = (patch: Partial<BeatMeta>) => onUpdate({ meta: { ...meta, ...patch } });
+  const clips = meta.mp3Assets ?? [];
+  const setClip = (i: number, patch: Partial<Mp3Clip>) =>
+    setMeta({ mp3Assets: clips.map((c, j) => (j === i ? { ...c, ...patch } : c)) });
+  const addClip = () =>
+    setMeta({ mp3Assets: [...clips, { label: '', file: '', transcript: '', opener: '' }] });
+  const removeClip = (i: number) => setMeta({ mp3Assets: clips.filter((_, j) => j !== i) });
+  const orb = meta.orb ?? {};
+  const setOrb = (patch: Partial<NonNullable<BeatMeta['orb']>>) => setMeta({ orb: { ...orb, ...patch } });
+  const groupLabel = 'text-[9px] font-bold uppercase tracking-[0.08em] text-content-subtle';
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-page p-2">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center justify-between"
+      >
+        <span className="text-[10px] font-bold uppercase tracking-wide text-content-subtle">
+          Metadata
+        </span>
+        <Icon
+          icon={open ? 'ic:round-expand-less' : 'ic:round-expand-more'}
+          className="size-4 text-content-tertiary"
+        />
+      </button>
+
+      {open && (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <span className={groupLabel}>Voice and audio</span>
+            <MetaSelect
+              label="Engine"
+              value={meta.voiceEngine}
+              options={VOICE_ENGINES}
+              placeholder="engine..."
+              onChange={(v) => setMeta({ voiceEngine: v })}
+            />
+            <MetaSelect
+              label="Mode"
+              value={meta.voiceMode}
+              options={VOICE_MODES}
+              placeholder="mode..."
+              onChange={(v) => setMeta({ voiceMode: v })}
+            />
+            <MetaField label="Voice">
+              <input
+                value={meta.voiceId ?? ''}
+                onChange={(e) => setMeta({ voiceId: e.target.value })}
+                placeholder="Yair Pro Clone, Katie..."
+                className={META_INPUT}
+              />
+            </MetaField>
+            <MetaField label="Spoken content">
+              <textarea
+                value={meta.spokenContent ?? ''}
+                onChange={(e) => setMeta({ spokenContent: e.target.value })}
+                placeholder="verbatim line, or opener seed"
+                rows={2}
+                className={`${META_INPUT} resize-none leading-[1.5]`}
+              />
+            </MetaField>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <span className={META_LABEL}>MP3 clips</span>
+                <button
+                  type="button"
+                  onClick={addClip}
+                  className="rounded-md border border-border px-1.5 py-0.5 text-[10px] font-semibold text-primary"
+                >
+                  + clip
+                </button>
+              </div>
+              {clips.length === 0 && (
+                <span className="text-[11px] text-content-tertiary">No clips yet.</span>
+              )}
+              {clips.map((c, i) => (
+                <div key={i} className="flex flex-col gap-1 rounded-md border border-border p-1.5">
+                  <div className="flex items-center gap-1">
+                    <input
+                      value={c.label}
+                      onChange={(e) => setClip(i, { label: e.target.value })}
+                      placeholder="label"
+                      className={`${META_INPUT} flex-1`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeClip(i)}
+                      aria-label="Remove clip"
+                      className="flex size-6 shrink-0 items-center justify-center rounded-md border border-border text-danger"
+                    >
+                      <Icon icon="ic:round-close" className="size-3.5" />
+                    </button>
+                  </div>
+                  <input
+                    value={c.file}
+                    onChange={(e) => setClip(i, { file: e.target.value })}
+                    placeholder="file path or url"
+                    className={META_INPUT}
+                  />
+                  <input
+                    value={c.opener}
+                    onChange={(e) => setClip(i, { opener: e.target.value })}
+                    placeholder="which opener / when it plays"
+                    className={META_INPUT}
+                  />
+                  <textarea
+                    value={c.transcript}
+                    onChange={(e) => setClip(i, { transcript: e.target.value })}
+                    placeholder="transcript"
+                    rows={2}
+                    className={`${META_INPUT} resize-none leading-[1.5]`}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className={groupLabel}>AI and LLM</span>
+            <MetaSelect
+              label="Path"
+              value={meta.path}
+              options={BEAT_PATHS}
+              placeholder="path..."
+              onChange={(v) => setMeta({ path: v })}
+            />
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={!!meta.llmActive}
+                onChange={(e) => setMeta({ llmActive: e.target.checked })}
+                className="size-3.5"
+              />
+              <span className={META_LABEL}>LLM active on this beat</span>
+            </label>
+            <MetaField label="Allowed tools">
+              <input
+                value={meta.allowedTools ?? ''}
+                onChange={(e) => setMeta({ allowedTools: e.target.value })}
+                placeholder="comma separated tool names"
+                className={META_INPUT}
+              />
+            </MetaField>
+            <MetaField label="Session config">
+              <input
+                value={meta.feedbackConfig ?? ''}
+                onChange={(e) => setMeta({ feedbackConfig: e.target.value })}
+                placeholder="limits, drift redirect"
+                className={META_INPUT}
+              />
+            </MetaField>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className={groupLabel}>Screen and animation</span>
+            <MetaSelect
+              label="Animation"
+              value={meta.animation}
+              options={BEAT_ANIMATIONS}
+              placeholder="animation..."
+              onChange={(v) => setMeta({ animation: v })}
+            />
+            <div className="flex flex-col gap-1">
+              <span className={META_LABEL}>Orb state</span>
+              <div className="grid grid-cols-2 gap-1">
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={!!orb.voiceOn}
+                    onChange={(e) => setOrb({ voiceOn: e.target.checked })}
+                    className="size-3.5"
+                  />
+                  <span className="text-[11px] text-content-subtle">Voice on</span>
+                </label>
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={!!orb.micOn}
+                    onChange={(e) => setOrb({ micOn: e.target.checked })}
+                    className="size-3.5"
+                  />
+                  <span className="text-[11px] text-content-subtle">Mic on</span>
+                </label>
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={!!orb.micAsking}
+                    onChange={(e) => setOrb({ micAsking: e.target.checked })}
+                    className="size-3.5"
+                  />
+                  <span className="text-[11px] text-content-subtle">Asking</span>
+                </label>
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={!!orb.bloomed}
+                    onChange={(e) => setOrb({ bloomed: e.target.checked })}
+                    className="size-3.5"
+                  />
+                  <span className="text-[11px] text-content-subtle">Bloomed</span>
+                </label>
+              </div>
+            </div>
+            <MetaField label="Figma / screen link">
+              <input
+                value={meta.figmaNode ?? ''}
+                onChange={(e) => setMeta({ figmaNode: e.target.value })}
+                placeholder="figma link or screen id"
+                className={META_INPUT}
+              />
+            </MetaField>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className={groupLabel}>Authoring</span>
+            <MetaSelect
+              label="Status"
+              value={meta.status}
+              options={BEAT_STATUSES}
+              placeholder="status..."
+              onChange={(v) => setMeta({ status: v })}
+            />
+            <MetaField label="Notes">
+              <textarea
+                value={meta.voiceNotes ?? ''}
+                onChange={(e) => setMeta({ voiceNotes: e.target.value })}
+                placeholder="authoring notes"
+                rows={2}
+                className={`${META_INPUT} resize-none leading-[1.5]`}
+              />
+            </MetaField>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SortableCard({
   item,
   onRemove,
@@ -1198,6 +1528,7 @@ function SortableCard({
             className="w-full resize-none rounded-md border border-border bg-page px-2 py-1.5 text-[11px] leading-[1.5] text-content"
           />
         </label>
+        <MetaSection item={item} onUpdate={onUpdate} />
       </div>
     </div>
   );
@@ -1905,6 +2236,7 @@ export function FlowBuilder() {
     transition: p.transition ?? null,
     context: p.note ?? '',
     props: p.props ?? {},
+    meta: p.meta ?? {},
   });
   const exportJson = JSON.stringify(
     placed.map((p, i) =>
