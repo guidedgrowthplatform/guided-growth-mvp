@@ -27,8 +27,10 @@ export interface BeatDef {
   Comp: (props?: Record<string, string>) => ReactNode;
 }
 
-// Reveals words one at a time while `active`, dimming the not-yet-spoken ones so
-// the line reads like it is being spoken. Shows the whole line when inactive.
+// Reveals words one at a time while `active`, building up like a chat message
+// being typed and sent: only the words spoken so far are on screen, the newest
+// fading in. Words not yet reached are not rendered (no faint preview). Shows
+// the whole line when inactive.
 export function Karaoke({ text, active }: { text: string; active: boolean }) {
   const parts = text.split(/(\s+)/);
   const total = parts.filter((p) => /\S/.test(p)).length;
@@ -47,19 +49,23 @@ export function Karaoke({ text, active }: { text: string; active: boolean }) {
     }, 110);
     return () => window.clearInterval(id);
   }, [text, active, total]);
-  let seen = 0;
+  // Typing / fill-up: only the words spoken so far are on screen, building up
+  // like a chat message being typed. Words not yet reached are not rendered.
+  // The newest word fades in as it lands.
+  const words = parts.filter((p) => /\S/.test(p));
+  const shown = words.slice(0, n);
+  const head = shown.slice(0, -1).join(' ');
+  const last = shown.length ? shown[shown.length - 1] : null;
   return (
     <>
-      {parts.map((p, i) => {
-        if (!/\S/.test(p)) return <span key={i}>{p}</span>;
-        seen += 1;
-        const shown = seen <= n;
-        return (
-          <span key={i} style={{ opacity: shown ? 1 : 0.25, transition: 'opacity 160ms ease-out' }}>
-            {p}
-          </span>
-        );
-      })}
+      {head}
+      {head && last != null ? ' ' : ''}
+      {last != null ? (
+        <span key={n} style={{ animation: 'ggWordIn 220ms ease-out' }}>
+          {last}
+        </span>
+      ) : null}
+      <style>{`@keyframes ggWordIn{from{opacity:0}to{opacity:1}}`}</style>
     </>
   );
 }
