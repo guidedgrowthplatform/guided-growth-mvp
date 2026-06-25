@@ -33,11 +33,7 @@ export function CheckInResultCard({
       // (16px). No border, no shadow — the soft blue tint alone says "this
       // came from the coach." Normal mt/mb gaps so it sits as its own
       // beat under the bubble, not glued to it.
-      className="mb-3 ml-0 mr-auto mt-2 max-w-[290px] animate-bubble-in overflow-hidden rounded-[16px]"
-      style={{
-        backgroundImage:
-          'linear-gradient(to bottom, rgba(19,91,236,0.10), rgba(19,91,236,0.04) 40%, rgba(255,255,255,0) 100%)',
-      }}
+      className="mb-3 ml-0 mr-auto mt-2 max-w-[290px] animate-bubble-in overflow-hidden rounded-[16px] border border-border-light bg-surface shadow-sm"
     >
       <div className="flex items-baseline justify-between px-4 pb-2 pt-3">
         <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-primary/80">
