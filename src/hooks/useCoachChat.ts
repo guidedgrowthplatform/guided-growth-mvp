@@ -6,6 +6,8 @@ import {
   BARGE_MIN_CHARS,
   BARGE_MIN_RMS,
   BARGE_REQUIRE_FINAL_FOR_LOW_ENERGY,
+  BARGE_SUSTAIN_FRAMES,
+  CHECKIN_LOCAL_OPENER,
   FULL_DUPLEX_BARGE_IN,
   TURN_AGGREGATION_MS,
   TURN_PAUSE_COMPLETE_MS,
@@ -38,9 +40,11 @@ import {
   stopTTS,
   useTtsPlaybackStore,
 } from '@/lib/services/tts-service';
+import { evaluateEchoGate } from '@/lib/voice/echoGate';
 import { isSemanticEndOfTurn, resolveTurnPauseMs } from '@/lib/voice/turnDecision';
 import { useAudioMetricsStore } from '@/stores/audioMetricsStore';
 import { useVoiceStore } from '@/stores/voiceStore';
+import { pickVariation } from '@gg/shared/checkin/scriptVariations';
 import type { CoachingStyle } from '@gg/shared/types/llm';
 
 // Breath window before the mic goes hot (post-TTS and on first arm) — covers the
@@ -115,6 +119,7 @@ export function useCoachChat(
   const {
     sendMessage,
     sendOpener,
+    seedOpener,
     prependMessages,
     messages: llmMessages,
     response: llmResponse,
@@ -184,6 +189,7 @@ export function useCoachChat(
   const lastFinalAtRef = useRef(0);
   const awaitingResumeRef = useRef(false);
   const bargeFiredRef = useRef(false);
+  const bargeSustainRef = useRef(0);
   // The adaptive pause the current flush timer was armed with (Phase 1).
   const lastArmedPauseRef = useRef(TURN_AGGREGATION_MS);
   // Reply-guarantee: owesResponseRef is set when we abort a reply mid-generation
@@ -317,6 +323,8 @@ export function useCoachChat(
     cancelLlm();
     stopTTS();
     endCoachSpeechTurn();
+    bargeSustainRef.current = 0;
+    onTranscriptStreamRef.current?.('assistant', '', 'final');
     // Always schedule a settle check after a barge so the guarantee fires even if
     // no further speech arrives (rather than leaving the coach silent).
     if (!aggregationTimerRef.current) armFlush();
@@ -326,14 +334,30 @@ export function useCoachChat(
   // candidate is its own TTS leaking into a hot mic — drop it (don't barge,
   // buffer, or submit) so it can't self-interrupt. Real speech clears BARGE_MIN_RMS.
   const passesEchoGate = useCallback((text: string, isFinal: boolean) => {
-    if (!BARGE_ECHO_GATE || !isSpeakingRef.current) return true;
     const rms = useAudioMetricsStore.getState().currentRms;
-    if (rms >= BARGE_MIN_RMS) return true;
-    if (BARGE_REQUIRE_FINAL_FOR_LOW_ENERGY && isFinal && text.trim().length >= BARGE_MIN_CHARS) {
-      return true;
+    const { pass, sustainCount } = evaluateEchoGate({
+      echoGateOn: BARGE_ECHO_GATE,
+      speaking: isSpeakingRef.current,
+      rms,
+      minRms: BARGE_MIN_RMS,
+      isFinal,
+      textLen: text.trim().length,
+      minChars: BARGE_MIN_CHARS,
+      requireFinalForLowEnergy: BARGE_REQUIRE_FINAL_FOR_LOW_ENERGY,
+      sustainCount: bargeSustainRef.current,
+      sustainFrames: BARGE_SUSTAIN_FRAMES,
+    });
+    bargeSustainRef.current = sustainCount;
+    if (!pass) {
+      const reason = rms >= BARGE_MIN_RMS ? 'unsustained' : 'echo';
+      track('coach_barge_suppressed', {
+        rms,
+        text_len: text.trim().length,
+        had_final: isFinal,
+        reason,
+      });
     }
-    track('coach_barge_suppressed', { rms, text_len: text.trim().length, had_final: isFinal });
-    return false;
+    return pass;
   }, []);
 
   const handleSonioxFinal = useCallback(
@@ -480,6 +504,39 @@ export function useCoachChat(
     };
   }, [releaseToken]);
 
+  const localCheckinOpener = useCallback(() => {
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+      d.getDate(),
+    ).padStart(2, '0')}`;
+    const id =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `local-opener-${today}`;
+    if (screenId.startsWith('MCHECK')) {
+      const text = `${pickVariation('morning_greeting')}\n\n${pickVariation('morning_state_prompt')}`;
+      seedOpener(text, {
+        id,
+        name: 'query_checkin',
+        args: {},
+        result: {
+          ok: true,
+          payload: { result: { date: today, checkin: {} } },
+        },
+      });
+    } else {
+      const text = `${pickVariation('evening_greeting_habits')}\n\n${pickVariation(
+        'evening_habit_prompt',
+      )}`;
+      seedOpener(text, {
+        id,
+        name: 'query_habits',
+        args: { scope: 'today' },
+        result: { ok: true, payload: { result: {} } },
+      });
+    }
+  }, [screenId, seedOpener]);
+
   // ─── Explicit check-in initiation: coach leads the next turn regardless of
   // existing history. Fires exactly once per nonce bump (guard ref) and marks
   // this session's opener sent so the empty-welcome below never double-fires. ─
@@ -491,8 +548,20 @@ export function useCoachChat(
     initiateNonceRef.current = initiateCheckinNonce;
     openerSentRef.current = chatSessionId;
     if (isCheckinScreen(screenId)) trackCheckinStarted(screenId);
-    void sendOpener();
-  }, [chatSessionId, initiateCheckinNonce, screenId, sendOpener, voiceModeOn, audioReady]);
+    if (CHECKIN_LOCAL_OPENER && (screenId.startsWith('MCHECK') || screenId.startsWith('ECHECK'))) {
+      localCheckinOpener();
+    } else {
+      void sendOpener();
+    }
+  }, [
+    chatSessionId,
+    initiateCheckinNonce,
+    screenId,
+    sendOpener,
+    localCheckinOpener,
+    voiceModeOn,
+    audioReady,
+  ]);
 
   // ─── First-ever open with a truly empty timeline → one welcome opener.
   // Returning users with history get NO auto-opener unless they explicitly

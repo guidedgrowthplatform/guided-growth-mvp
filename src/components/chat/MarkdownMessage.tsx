@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, memo, useMemo } from 'react';
 import { parseBlocks, parseInline, type InlineNode } from '@/lib/markdown/parse';
 
 function Inline({ nodes }: { nodes: InlineNode[] }) {
@@ -53,8 +53,8 @@ function MultilineInline({ lines }: { lines: string[] }) {
   );
 }
 
-export function MarkdownMessage({ text }: { text: string }) {
-  const blocks = parseBlocks(text);
+export const MarkdownMessage = memo(function MarkdownMessage({ text }: { text: string }) {
+  const blocks = useMemo(() => parseBlocks(text), [text]);
   return (
     <>
       {blocks.map((block, i) => {
@@ -89,4 +89,4 @@ export function MarkdownMessage({ text }: { text: string }) {
       })}
     </>
   );
-}
+});
