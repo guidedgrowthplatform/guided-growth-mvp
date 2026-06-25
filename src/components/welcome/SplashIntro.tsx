@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconChatVoice, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
-import { COACH_BG } from '@/components/welcome/beatMood';
 import { CoachIntroBubble } from '@/components/welcome/CoachIntroBubble';
 import { SPLASH_CAPTIONS } from '@/components/welcome/splashCaptions';
 import { VoiceCone } from '@/components/welcome/VoiceCone';
@@ -338,8 +337,7 @@ export function SplashIntro({
 
   return (
     <div
-      className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-white"
-      style={{ backgroundImage: COACH_BG }}
+      className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden"
       aria-label="Guided Growth introduction"
     >
       <audio ref={audioRef} src={audioSrc} preload="auto" playsInline muted={muted} className="hidden" />

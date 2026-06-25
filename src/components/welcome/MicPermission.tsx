@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 import { DualButton } from '@/components/ui/DualButton';
-import { COACH_BG } from '@/components/welcome/beatMood';
 import { ORB_REST_SCALE, ORB_REST_TOP } from '@/components/welcome/SplashIntro';
 
 const ORB_SIZE = 150;
@@ -88,8 +87,7 @@ export function MicPermission({
 
   return (
     <div
-      className="relative flex h-full w-full flex-col items-center overflow-hidden bg-white"
-      style={{ backgroundImage: COACH_BG }}
+      className="relative flex h-full w-full flex-col items-center overflow-hidden"
       aria-label="Microphone permission"
     >
       {/* The shared orb. Rests at the dock, grows to the top to ask, settles
