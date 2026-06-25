@@ -10,4 +10,12 @@ const pool = new pg.Pool({
   idleTimeoutMillis: 60000,
 });
 
+// Either the pool (autocommit) or a checked-out client inside a transaction.
+// Handlers accept this so the Vapi webhook can run a whole tool-call batch in
+// ONE transaction (so multiple writes to the same onboarding_states row
+// coalesce into a single Realtime event), while standalone callers keep the
+// default pool. NOTE: the pool is max:1 — inside a transaction every query MUST
+// use the checked-out client, never the default pool, or it self-deadlocks.
+export type Queryable = Pick<pg.Pool, 'query'>;
+
 export default pool;

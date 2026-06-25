@@ -9,7 +9,7 @@
  *
  * Length: 10-5000 chars.
  */
-import pool from '../../db.js';
+import pool, { type Queryable } from '../../db.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BRAIN_DUMP_MIN_LEN = 10;
@@ -22,7 +22,10 @@ function getString(args: Record<string, unknown>, key: string): string | undefin
   return typeof v === 'string' ? v : undefined;
 }
 
-export async function submitBrainDump(args: Record<string, unknown>): Promise<HandlerResult> {
+export async function submitBrainDump(
+  args: Record<string, unknown>,
+  db: Queryable = pool,
+): Promise<HandlerResult> {
   console.log('[vapi/tool] received name=submit_brain_dump anon_id=' + getString(args, 'anon_id'));
 
   const anonId = getString(args, 'anon_id');
@@ -54,7 +57,7 @@ export async function submitBrainDump(args: Record<string, unknown>): Promise<Ha
   // DATA ONLY — writes data + brain_dump_raw column. current_step not
   // touched on UPDATE; navigate_next handles the screen advance. INSERT
   // path defaults to step 3 (where the advanced brain-dump screen lives).
-  const result = await pool.query(
+  const result = await db.query(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, brain_dump_raw, updated_at)
      VALUES ($1, 3, 'in_progress', $2::jsonb, $3, now())
      ON CONFLICT (anon_id) DO UPDATE SET

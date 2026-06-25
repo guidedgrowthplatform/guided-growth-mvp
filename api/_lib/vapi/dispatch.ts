@@ -23,38 +23,40 @@ import { submitCustomPrompts } from './handlers/submitCustomPrompts.js';
 import { submitBrainDump } from './handlers/submitBrainDump.js';
 import { navigateNext } from './handlers/navigateNext.js';
 import { confirmPlan } from './handlers/confirmPlan.js';
+import pool, { type Queryable } from '../db.js';
 
 export type DispatchResult = { result: string } | { error: string };
 
 export async function dispatchVapiToolCall(
   name: string,
   args: Record<string, unknown>,
+  db: Queryable = pool,
 ): Promise<DispatchResult> {
   switch (name) {
     case 'submit_profile':
-      return submitProfile(args);
+      return submitProfile(args, db);
     case 'submit_path_choice':
-      return submitPathChoice(args);
+      return submitPathChoice(args, db);
     case 'submit_category':
-      return submitCategory(args);
+      return submitCategory(args, db);
     case 'submit_goals':
-      return submitGoals(args);
+      return submitGoals(args, db);
     case 'add_habit':
-      return addHabit(args);
+      return addHabit(args, db);
     case 'remove_habit':
-      return removeHabit(args);
+      return removeHabit(args, db);
     case 'update_habit':
-      return updateHabit(args);
+      return updateHabit(args, db);
     case 'submit_reflection_config':
-      return submitReflectionConfig(args);
+      return submitReflectionConfig(args, db);
     case 'submit_custom_prompts':
-      return submitCustomPrompts(args);
+      return submitCustomPrompts(args, db);
     case 'submit_brain_dump':
-      return submitBrainDump(args);
+      return submitBrainDump(args, db);
     case 'navigate_next':
-      return navigateNext(args);
+      return navigateNext(args, db);
     case 'confirm_plan':
-      return confirmPlan(args);
+      return confirmPlan(args, db);
     default:
       console.log(`[vapi/tool] unknown_tool name=${name}`);
       return { error: `unknown_tool: ${name}` };

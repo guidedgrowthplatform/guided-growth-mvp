@@ -8,7 +8,7 @@
  * Drift note: CATEGORY_OPTIONS is the single source of truth; mirrors the
  * manual category-picker UI.
  */
-import pool from '../../db.js';
+import pool, { type Queryable } from '../../db.js';
 import { CATEGORY_OPTIONS } from '../../llm/tools.onboarding.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -24,7 +24,10 @@ function isCategoryOption(v: string): boolean {
   return (CATEGORY_OPTIONS as readonly string[]).includes(v);
 }
 
-export async function submitCategory(args: Record<string, unknown>): Promise<HandlerResult> {
+export async function submitCategory(
+  args: Record<string, unknown>,
+  db: Queryable = pool,
+): Promise<HandlerResult> {
   console.log('[vapi/tool] received name=submit_category anon_id=' + getString(args, 'anon_id'));
 
   const anonId = getString(args, 'anon_id');
@@ -47,7 +50,7 @@ export async function submitCategory(args: Record<string, unknown>): Promise<Han
 
   // DATA ONLY — current_step not touched on UPDATE; navigate_next handles
   // the screen advance. INSERT path defaults to step 3 (beginner category).
-  const result = await pool.query(
+  const result = await db.query(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
      VALUES ($1, 3, 'in_progress', $2::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET
