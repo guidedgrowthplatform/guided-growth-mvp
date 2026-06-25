@@ -40,6 +40,12 @@ if (!apply) {
   process.exit(0);
 }
 
+// Never seed prod test accounts unless deliberately overridden.
+if (SUPABASE_URL.includes('pmunbflbjpoawicgimyc') && process.env.ALLOW_PROD !== '1') {
+  console.error('\n✗ Refusing to seed PRODUCTION. Set ALLOW_PROD=1 to override.');
+  process.exit(1);
+}
+
 let created = 0;
 let existed = 0;
 for (const { name, email } of QA_USERS) {
