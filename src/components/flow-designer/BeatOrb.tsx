@@ -113,8 +113,12 @@ export function BeatOrb({
 // mic-permission beat starts with the mic off and pulsing. Every orb is clickable
 // to toggle from there.
 const ORB_BY_TYPE: Record<string, OrbConfig> = {
-  'mic-permission': { micOn: false, micAsking: true },
+  // The mic beat renders the full MicPermission sequence with its own orb, so the
+  // shared canvas orb is hidden here.
+  'mic-permission': { hidden: true },
   'splash-intro': { bloomed: true },
+  // QA control is a utility screen, not a coach turn: no orb.
+  'qa-control': { hidden: true },
 };
 
 export function orbConfigForType(type: string): OrbConfig {
