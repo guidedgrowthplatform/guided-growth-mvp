@@ -1655,7 +1655,13 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
             height: DEVICE_H,
             transform: `scale(${PHONE_SCALE})`,
             transformOrigin: 'top left',
+            // On the splash beat, tapping anywhere (Get Started) advances into the
+            // greeting; the dissolve grows the orb open, the seamless connection.
+            cursor: current?.type === 'get-started' && next && !advancing ? 'pointer' : undefined,
           }}
+          onClick={
+            current?.type === 'get-started' && next && !advancing ? advance : undefined
+          }
         >
           {beats.length === 0 ? (
             <div className="flex h-full items-center justify-center px-6 text-center text-[14px] text-content-tertiary">

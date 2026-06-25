@@ -32,7 +32,7 @@ function GetStarted(props?: Record<string, string>) {
 const getStartedBeat: BeatDef = {
   type: 'get-started',
   group: 'Onboarding',
-  label: 'Get started',
+  label: 'Splash + Get Started',
   Comp: GetStarted,
 };
 

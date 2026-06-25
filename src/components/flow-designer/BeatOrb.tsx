@@ -12,17 +12,22 @@ export interface OrbConfig {
   voiceOn?: boolean;
   micOn?: boolean;
   micAsking?: boolean;
+  // bloomed = the grown, speaking pose (the coach greeting). Same orb, larger, so
+  // a dissolve from the docked splash orb reads as the orb blooming open.
+  bloomed?: boolean;
   hidden?: boolean;
 }
 
 export function BeatOrb({
-  size = 56,
+  size: baseSize = 56,
   voiceOn = true,
   micOn = true,
   micAsking = false,
+  bloomed = false,
   hidden = false,
 }: { size?: number } & OrbConfig) {
   if (hidden) return null;
+  const size = bloomed ? Math.round(baseSize * 1.7) : baseSize;
   const glyph = Math.round(size * 0.25);
   const gap = Math.max(5, Math.round(size * 0.06));
   const halfW = size / 2 - gap / 2;
@@ -73,6 +78,9 @@ export function BeatOrb({
 // (e.g. voice off on a screen-only beat, or hidden where a beat draws its own orb).
 const ORB_BY_TYPE: Record<string, OrbConfig> = {
   'mic-permission': { micAsking: true },
+  // The coach greeting: the orb has bloomed open and is speaking. A dissolve from
+  // the docked splash orb into this larger one reads as the bloom, seamlessly.
+  'splash-intro': { bloomed: true },
 };
 
 export function orbConfigForType(type: string): OrbConfig {
