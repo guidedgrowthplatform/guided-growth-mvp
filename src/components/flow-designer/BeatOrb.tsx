@@ -7,19 +7,27 @@ import { DualButton } from '@/components/ui/DualButton';
 // Click the left half to toggle the coach voice on/off, the right half to toggle
 // the mic on/off.
 //
+// Two animations live here, and they stack:
+//   - The general ring pulse: full rings gently pulsing around the whole orb
+//     whenever the voice side is on. This stays on every beat (the "alive" look).
+//   - The mic-ask variation: on the permission beat, the grey mic (right) half
+//     itself scales in and out, as one group with its icon, ON TOP of the rings.
+//
 // The per-beat config sets the STARTING state; clicking toggles from there (a live
 // preview, not saved).
 export interface OrbConfig {
   voiceOn?: boolean;
   micOn?: boolean;
-  // micAsking = the permission beat: mic starts off and the mic (right) half itself
-  // pulses, scaling in and out as one group with its icon (no rings).
+  // micAsking = the permission beat: mic starts off and the mic half pulses.
   micAsking?: boolean;
   // bloomed = the grown, speaking pose (the coach greeting), larger so a dissolve
   // from the docked splash orb reads as the orb blooming open.
   bloomed?: boolean;
   hidden?: boolean;
 }
+
+const RING_COUNT = 3;
+const RING_STEP = 4;
 
 export function BeatOrb({
   size: baseSize = 56,
@@ -38,10 +46,9 @@ export function BeatOrb({
   // The mic permission beat asks until the user turns the mic on.
   const asking = micAsking && !micOn;
 
-  // No rings on the mic-permission beat: the mic half pulses instead. Otherwise the
-  // gentle live pulse when the voice side is on, quiet when off. undefined = plain
-  // dial (no ring padding) so the mic-half pulse overlay aligns to the dial.
-  const activeRings = asking ? undefined : voiceOn ? 'idle' : null;
+  // The general ring pulse stays on whenever the voice side is on (every beat,
+  // including the mic-permission beat), quiet when off.
+  const activeRings = voiceOn ? 'idle' : null;
 
   const orb = (
     <DualButton
@@ -49,8 +56,8 @@ export function BeatOrb({
       leftActive={voiceOn}
       rightActive={micOn}
       activeRings={activeRings}
-      ringCount={3}
-      ringStep={4}
+      ringCount={RING_COUNT}
+      ringStep={RING_STEP}
       intensity={0.45}
       leftIcon={voiceOn ? <IconChatVoice size={glyph} /> : <IconChatText size={glyph} />}
       rightIcon={micOn ? <IconMic size={glyph} /> : <IconMicMuted size={glyph} />}
@@ -64,21 +71,24 @@ export function BeatOrb({
 
   if (!asking) return orb;
 
-  // Mic-asking: the grey mic (right) half and its icon scale in and out together as
-  // one group, the approved pulse. The overlay is grey-on-grey so it sits flush at
-  // rest and only the swell shows. pointer-events off so the dial half stays clickable.
+  // Mic-ask variation, on top of the rings: the grey mic (right) half and its icon
+  // scale in and out together as one group. DualButton wraps the dial in a
+  // ring-padded box (RING_STEP * RING_COUNT per side), so inset the overlay by that
+  // amount to land exactly on the dial's right half. Grey-on-grey, so it sits flush
+  // at rest and only the swell shows. pointer-events off so the dial stays clickable.
+  const inset = RING_STEP * RING_COUNT;
   const gap = Math.max(5, Math.round(size * 0.06));
   const halfW = size / 2 - gap / 2;
   const innerR = (size * 9.24) / 187;
   return (
-    <div style={{ position: 'relative', width: size, height: size }}>
+    <div style={{ position: 'relative', display: 'inline-flex' }}>
       {orb}
       <div
         aria-hidden
         style={{
           position: 'absolute',
-          top: 0,
-          right: 0,
+          top: inset,
+          right: inset,
           width: halfW,
           height: size,
           background: '#94a3b8',
