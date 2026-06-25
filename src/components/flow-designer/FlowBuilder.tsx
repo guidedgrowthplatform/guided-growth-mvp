@@ -46,7 +46,6 @@ import { ChipSelect } from '@/components/ui/ChipSelect';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { DualButton } from '@/components/ui/DualButton';
 import { BeatOrb, orbConfigForType, type OrbConfig } from './BeatOrb';
-import { SplashIntro } from '@/components/welcome/SplashIntro';
 import { Toggle } from '@/components/ui/Toggle';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 
@@ -1661,21 +1660,6 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
           {beats.length === 0 ? (
             <div className="flex h-full items-center justify-center px-6 text-center text-[14px] text-content-tertiary">
               Nothing in the flow yet. Add beats in the middle.
-            </div>
-          ) : current?.type === 'get-started' ? (
-            // The opening runs the real designed SplashIntro: wordmark + Get
-            // Started, then the orb blooms on the press and the coach speaks the
-            // greeting (audio-synced karaoke). When it finishes, jump past the
-            // static greeting tile to sign-up. This is the live home of the bloom.
-            <div className="relative h-full w-full">
-              <SplashIntro
-                autoPlay
-                audioSrc="/voice/onboarding_welcome.mp3"
-                onComplete={() => {
-                  const authIdx = beats.findIndex((b) => b.type === 'auth-signup');
-                  setStep(authIdx >= 0 ? authIdx : Math.min(step + 1, beats.length - 1));
-                }}
-              />
             </div>
           ) : next ? (
             <BeatTransition
