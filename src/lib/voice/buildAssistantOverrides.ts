@@ -21,8 +21,20 @@ import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 // "model.provider must be one of …"). variableValues already works today
 // for anon_id/screen/coaching_style; adding one more variable is the
 // minimal-blast-radius change.
+// firstMessageMode options we use:
+//   - 'assistant-speaks-first-with-model-generated-message' (default): Vapi
+//     generates and speaks turn 0 from the system prompt. This is the live
+//     behavior and carries the 7-18s cold-start latency.
+//   - 'assistant-waits-for-user': Vapi connects silently and does NOT speak
+//     first. Used by the ONBOARDING_INSTANT_OPENER path so Cartesia speaks the
+//     opener instantly while Vapi connects in the background, and Vapi only
+//     joins the conversation once the user replies.
+export type VapiFirstMessageMode =
+  | 'assistant-speaks-first-with-model-generated-message'
+  | 'assistant-waits-for-user';
+
 export interface VapiContextOverrides {
-  firstMessageMode: 'assistant-speaks-first-with-model-generated-message';
+  firstMessageMode: VapiFirstMessageMode;
   variableValues: {
     initial_screen_context: string;
   };
@@ -36,6 +48,11 @@ export interface BuildAssistantOverridesInput {
   // in-flight). Renders into the same initial_screen_context message so
   // Vapi sees it in turn 0 — no race with the opening greeting.
   filledFormState?: Record<string, unknown>;
+  // When true, override firstMessageMode to 'assistant-waits-for-user' so Vapi
+  // stays silent on connect (the instant-opener path speaks the opener via
+  // Cartesia instead). Defaults to the model-generated speaks-first behavior so
+  // the standard path is unchanged.
+  silentFirstMessage?: boolean;
 }
 
 // Builds the per-call Vapi override payload so the assistant's first
@@ -49,7 +66,9 @@ export function buildAssistantOverrides(input: BuildAssistantOverridesInput): Va
     filled_form_state: input.filledFormState,
   });
   return {
-    firstMessageMode: 'assistant-speaks-first-with-model-generated-message',
+    firstMessageMode: input.silentFirstMessage
+      ? 'assistant-waits-for-user'
+      : 'assistant-speaks-first-with-model-generated-message',
     variableValues: { initial_screen_context: initialScreenContext },
   };
 }

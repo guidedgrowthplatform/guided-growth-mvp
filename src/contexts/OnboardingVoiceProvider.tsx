@@ -5,6 +5,7 @@ import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 're
 import { useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { OnboardingChatOverlay } from '@/components/onboarding/OnboardingChatOverlay';
+import { getOnboardingOpener } from '@/components/onboarding/onboardingOpeners';
 import { VoiceCapModal } from '@/components/voice/VoiceCapModal';
 import {
   FULL_DUPLEX_BARGE_IN,
@@ -38,6 +39,7 @@ import {
   VAPI_CAP_DISABLED,
   VAPI_DAILY_CAP,
   ONBOARDING_CHAT_VAPI,
+  ONBOARDING_INSTANT_OPENER,
 } from '@/lib/config/voice';
 import { buildContextMessage } from '@/lib/context/buildContextMessage';
 import { getScreenContext } from '@/lib/context/getScreenContext';
@@ -56,7 +58,9 @@ import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-ke
 import { useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { createListenerBus } from '@/lib/util/listenerBus';
 import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
+import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
 import { resolveTurnPauseMs } from '@/lib/voice/turnDecision';
+import { applyName } from '@/onboarding-flow/renderer/applyName';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
@@ -242,6 +246,13 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const formSnapshotPushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const FORM_SNAPSHOT_DEBOUNCE_MS = 1200;
 
+  // A screen-context add-message that couldn't be delivered because the Vapi
+  // call hadn't joined yet (client.send → Daily sendAppMessage throws
+  // "sendAppMessage() only supported after join." pre-join). We stash the
+  // rendered body here and flush it from onCallStart (which fires on join), so
+  // the context still reaches Vapi instead of throwing and being lost.
+  const pendingScreenContextRef = useRef<{ screenId: string; body: string } | null>(null);
+
   const pushScreenContext = useCallback(
     async (screenId: string, sinceTs: string | null) => {
       const client = getClientRef.current();
@@ -261,11 +272,22 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
           state_delta: ctx.state_delta,
           filled_form_state: filled,
         });
-        client.send({
-          type: 'add-message',
-          message: { role: 'system', content: body },
-          triggerResponseEnabled: true,
-        });
+        try {
+          client.send({
+            type: 'add-message',
+            message: { role: 'system', content: body },
+            triggerResponseEnabled: true,
+          });
+        } catch (sendErr) {
+          // Vapi/Daily throws synchronously if send() runs before the call has
+          // joined ("sendAppMessage() only supported after join."). Don't surface
+          // it as a provider error. Queue the body and flush it on call-start.
+          pendingScreenContextRef.current = { screenId, body };
+          if (import.meta.env.DEV) {
+            console.debug('[onboarding-voice] screen-context queued (pre-join)', sendErr);
+          }
+          return;
+        }
         logEvent('screen_context_pushed', { screen_id: screenId, since_ts: sinceTs });
         track('push_screen_context', { screen_id: screenId, since_ts: sinceTs });
       } catch (err) {
@@ -417,6 +439,45 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // ─── Instant personalized opener (ONBOARDING_INSTANT_OPENER) ──────────────
+  // Hides the Vapi cold-start latency on the FIRST Vapi-covered beat: Cartesia
+  // speaks the opener instantly while Vapi connects silent (assistant-waits-for-
+  // user), and the Vapi mic is held muted until BOTH the opener audio ended AND
+  // Vapi is connected. All refs are inert unless the flag is on, so the standard
+  // path is byte-for-byte unchanged.
+  //
+  // openerUsedRef: the cold-start beat fires the instant opener once per session
+  // (later beats are warm, no latency to hide). instantOpenerActiveRef: this
+  // specific call took the silent-first path, so its mic must be gated.
+  const openerUsedRef = useRef(false);
+  const instantOpenerActiveRef = useRef(false);
+  const openerHandleRef = useRef<SpeakOpenerHandle | null>(null);
+  const openerDoneRef = useRef(false);
+  const vapiJoinedRef = useRef(false);
+
+  const stopOpener = useCallback(() => {
+    if (openerHandleRef.current) {
+      openerHandleRef.current.stop();
+      openerHandleRef.current = null;
+    }
+  }, []);
+
+  // Unmute the Vapi mic once BOTH gates pass (opener audio ended AND Vapi
+  // joined). Order-independent: whichever finishes last triggers the unmute.
+  const maybeOpenMic = useCallback(() => {
+    if (!instantOpenerActiveRef.current) return;
+    if (!openerDoneRef.current || !vapiJoinedRef.current) return;
+    const client = getClientRef.current();
+    if (!client) return;
+    try {
+      client.setMuted(false);
+    } catch (err) {
+      if (import.meta.env.DEV) console.debug('[onboarding-voice] opener unmute skipped', err);
+    }
+    // One-shot: the gate is satisfied, the call now runs as a normal warm call.
+    instantOpenerActiveRef.current = false;
+  }, []);
+
   const onCallStart = useCallback(() => {
     setEndedFlag(false);
     setProviderError(null);
@@ -428,6 +489,44 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     lastAssistantFinalRef.current = { text: '', at: 0 };
     assistantTurnOpenRef.current = false;
     lastTurnRoleRef.current = null;
+
+    // Vapi has joined the call. Flush any screen-context that was queued because
+    // a send() ran pre-join (the sendAppMessage-before-join guard).
+    vapiJoinedRef.current = true;
+    const pending = pendingScreenContextRef.current;
+    if (pending) {
+      pendingScreenContextRef.current = null;
+      const client = getClientRef.current();
+      if (client) {
+        try {
+          client.send({
+            type: 'add-message',
+            message: { role: 'system', content: pending.body },
+            triggerResponseEnabled: true,
+          });
+        } catch (err) {
+          if (import.meta.env.DEV) {
+            console.debug('[onboarding-voice] queued screen-context flush failed', err);
+          }
+        }
+      }
+    }
+
+    // Instant-opener call: mute the Vapi mic on join so the user can't talk into
+    // Vapi (and Vapi STT can't hear the Cartesia opener) until both gates pass.
+    if (instantOpenerActiveRef.current) {
+      const client = getClientRef.current();
+      if (client) {
+        try {
+          client.setMuted(true);
+        } catch (err) {
+          if (import.meta.env.DEV) console.debug('[onboarding-voice] opener mute skipped', err);
+        }
+      }
+      // If the opener already finished while Vapi was connecting, open now.
+      maybeOpenMic();
+    }
+
     const sid =
       activeSubScreenIdRef.current ?? registeredScreenIdRef.current ?? currentScreenIdRef.current;
     // If we already injected the screen context via assistantOverrides at
@@ -444,7 +543,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     } else if (sid) {
       pushFormSnapshotMessage(sid);
     }
-  }, [pushScreenContext, clearRetryTimer, pushFormSnapshotMessage]);
+  }, [pushScreenContext, clearRetryTimer, pushFormSnapshotMessage, maybeOpenMic]);
 
   const onEnd = useCallback(() => {
     const userInitiated = didCallStopRef.current;
@@ -452,6 +551,13 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     didCallStopRef.current = false;
     lastPushedScreenIdRef.current = null;
     lastScreenChangeTsRef.current = null;
+    // Reset per-call instant-opener gates so a fresh call re-evaluates cleanly.
+    // The opener audio (if still playing) is stopped; openerUsedRef intentionally
+    // persists across the call so the cold-start opener only ever fires once.
+    vapiJoinedRef.current = false;
+    instantOpenerActiveRef.current = false;
+    pendingScreenContextRef.current = null;
+    stopOpener();
     if (!userInitiated) {
       setRemoteEndCooldown(true);
       clearRemoteEndCooldownTimer();
@@ -460,7 +566,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         setRemoteEndCooldown(false);
       }, REMOTE_END_COOLDOWN_MS);
     }
-  }, [clearRemoteEndCooldownTimer]);
+  }, [clearRemoteEndCooldownTimer, stopOpener]);
 
   const onError = useCallback(
     (msg: string) => {
@@ -619,12 +725,47 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       const persisted =
         qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data ?? {};
       const filled = { ...persisted, ...formSnapshotRef.current };
+
+      // Instant-opener decision: only the FIRST Vapi-covered beat of the session
+      // carries the cold-start latency, so only that call takes the silent-first
+      // path (Cartesia speaks the opener, Vapi waits). Default OFF → this whole
+      // block is dead and the standard speaks-first overrides ship unchanged.
+      const isFirstColdStartBeat =
+        ONBOARDING_INSTANT_OPENER && !openerUsedRef.current && CHAT_VAPI_BEAT_SCREENS.has(sid);
+
       const overrides = buildAssistantOverrides({
         screenId: ctx.screen_id,
         contextBlock: ctx.context_block,
         stateDelta: ctx.state_delta,
         filledFormState: filled,
+        silentFirstMessage: isFirstColdStartBeat,
       });
+
+      if (isFirstColdStartBeat) {
+        // Mark the call so onCallStart mutes the Vapi mic on join and the mic
+        // gate (opener ended AND Vapi joined) governs the unmute.
+        openerUsedRef.current = true;
+        instantOpenerActiveRef.current = true;
+        openerDoneRef.current = false;
+        vapiJoinedRef.current = false;
+        // Speak the beat's opener instantly via Cartesia, with the user's name
+        // substituted. Falls back cleanly (resolves done) on any TTS failure so
+        // the mic gate can never strand the call mic-closed.
+        const openerBase = getOnboardingOpener(sid) ?? '';
+        const nickname =
+          typeof filled.nickname === 'string' ? (filled.nickname as string) : undefined;
+        const openerText = applyName(openerBase, nickname);
+        stopOpener();
+        const handle = speakOpener(openerText);
+        openerHandleRef.current = handle;
+        track('instant_opener_started', { screen_id: sid });
+        void handle.done.then(() => {
+          openerDoneRef.current = true;
+          if (openerHandleRef.current === handle) openerHandleRef.current = null;
+          maybeOpenMic();
+        });
+      }
+
       lastPushedScreenIdRef.current = sid;
       lastScreenChangeTsRef.current = new Date().toISOString();
       // session_log event types are enum-gated; PostHog handles the
@@ -641,7 +782,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       );
       return undefined;
     }
-  }, [qc]);
+  }, [qc, stopOpener, maybeOpenMic]);
 
   const {
     state,
@@ -679,6 +820,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       if (remoteEndCooldownTimerRef.current !== null)
         clearTimeout(remoteEndCooldownTimerRef.current);
       if (userActiveTimerRef.current !== null) clearTimeout(userActiveTimerRef.current);
+      // Stop any in-flight instant-opener audio so it can't outlive the provider.
+      if (openerHandleRef.current) {
+        openerHandleRef.current.stop();
+        openerHandleRef.current = null;
+      }
     };
   }, []);
 
