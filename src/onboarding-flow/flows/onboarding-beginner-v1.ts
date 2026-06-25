@@ -1,5 +1,5 @@
 /**
- * Onboarding flow v1 — authored to the flow-builder export spec
+ * Onboarding flow v1, authored to the flow-builder export spec
  * (gg-spec/docs/flow-builder-export-spec.md). This is the static, committed
  * source of truth for the engine today; see ../useFlow.ts for the Supabase
  * swap seam.
@@ -43,7 +43,7 @@ export const onboardingBeginnerV1: FlowDocument = {
       persist: null,
     },
     {
-      // Designer beat 5 — mic permission. A coach-led permission gate, NOT a save
+      // Designer beat 5, mic permission. A coach-led permission gate, NOT a save
       // step: the result is written to preferences (mic_permission/mic_enabled),
       // not onboarding_states, so persist + tool are null and there is no server
       // step (stepForScreenId('MIC-PERMISSION') is undefined). Vapi-only path
@@ -281,7 +281,7 @@ export const onboardingBeginnerV1: FlowDocument = {
       componentType: 'coach-bubble',
       componentProps: {
         brainDump: true,
-        placeholder: 'Tell me everything on your mind — what you want to build, drop, or change.',
+        placeholder: 'Tell me everything on your mind, what you want to build, drop, or change.',
       },
       voice: {
         openerText: 'Go ahead, tell me everything on your mind. I will organize it.',
