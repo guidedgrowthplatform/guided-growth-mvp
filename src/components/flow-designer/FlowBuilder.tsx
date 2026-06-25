@@ -460,8 +460,6 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     props: {
       heading: 'Allow your microphone',
       sub: 'So you can talk with your coach out loud.',
-      allowLabel: 'Allow microphone',
-      skipLabel: 'Not now',
     },
   },
   {
@@ -704,6 +702,15 @@ interface Placed {
 
 let UID = 0;
 const newUid = (type: string) => `${type}-${++UID}`;
+
+// A freshly dropped beat. Gives it the same default background hydrate assigns on
+// load (coach, or user for a user bubble) so a new beat looks identical before and
+// after a reload instead of flipping from plain to coach.
+const freshBeat = (type: string): Placed => ({
+  uid: newUid(type),
+  type,
+  background: type === 'user-bubble' ? 'user' : 'coach',
+});
 
 function DropLine() {
   return <div className="h-[3px] rounded-full bg-primary" />;
@@ -1564,7 +1571,14 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
             <BeatTransition
               key={step}
               first={screen(current)}
-              second={screen(next)}
+              second={
+                // Remount the next beat the moment it becomes visible so any beat
+                // animation starts fresh on screen, instead of having run silently
+                // while it was the hidden waiting slot.
+                <div key={advancing ? 'enter' : 'wait'} className="absolute inset-0">
+                  {screen(next)}
+                </div>
+              }
               showSecond={advancing}
               kind={kind}
               durationMs={current?.transition?.durationMs ?? 600}
@@ -1584,7 +1598,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
           <Icon icon="ic:round-arrow-back" className="size-4" /> Back
         </button>
         <span className="text-[11px] font-medium text-content-tertiary">
-          Beat {Math.min(step + 1, beats.length || 1)} / {beats.length || 0}
+          {beats.length === 0 ? 'No beats' : `Beat ${Math.min(step + 1, beats.length)} / ${beats.length}`}
           {next ? ` · ${kind}` : ''}
         </span>
         {next ? (
@@ -1792,13 +1806,13 @@ export function FlowBuilder() {
   const insertAt = (type: string, index: number) =>
     setPlaced((p) => {
       const i = Math.max(0, Math.min(index, p.length));
-      return [...p.slice(0, i), { uid: newUid(type), type }, ...p.slice(i)];
+      return [...p.slice(0, i), freshBeat(type), ...p.slice(i)];
     });
 
   const insertWhere = (type: string, where: 'top' | 'middle' | 'bottom') =>
     setPlaced((p) => {
       const i = where === 'top' ? 0 : where === 'bottom' ? p.length : Math.floor(p.length / 2);
-      return [...p.slice(0, i), { uid: newUid(type), type }, ...p.slice(i)];
+      return [...p.slice(0, i), freshBeat(type), ...p.slice(i)];
     });
 
   const remove = (uid: string) => setPlaced((p) => p.filter((x) => x.uid !== uid));
@@ -1841,7 +1855,7 @@ export function FlowBuilder() {
   const addToLane = (splitUid: string, laneId: string, type: string) =>
     mutateLane(splitUid, laneId, (l) => ({
       ...l,
-      items: [...l.items, { uid: newUid(type), type }],
+      items: [...l.items, freshBeat(type)],
     }));
   const updateLaneItem = (splitUid: string, laneId: string, uid: string, patch: Partial<Placed>) =>
     mutateLane(splitUid, laneId, (l) => ({
@@ -1886,6 +1900,9 @@ export function FlowBuilder() {
     name: REGISTRY_MAP[p.type]?.label ?? p.type,
     componentType: p.type,
     variant: p.variant ?? 'shared',
+    background: p.background ?? 'coach',
+    sheetStage: p.sheetStage ?? '',
+    transition: p.transition ?? null,
     context: p.note ?? '',
     props: p.props ?? {},
   });
@@ -1931,8 +1948,12 @@ export function FlowBuilder() {
       setDropIndex(null);
       return;
     }
-    const idx = indexFromOver(e.over.id);
-    setDropIndex(idx < 0 ? placed.length : idx);
+    // The DropLine renders against the visible (variant-filtered) list, so the
+    // indicator index must be a visible index, not a full-array index, or it
+    // misaligns whenever hidden beats precede the hovered target.
+    const overId = e.over.id;
+    const vi = overId === 'end-zone' ? visible.length : visible.findIndex((x) => x.uid === overId);
+    setDropIndex(vi < 0 ? visible.length : vi);
   };
 
   const onDragEnd = (e: DragEndEvent) => {
@@ -2122,7 +2143,7 @@ export function FlowBuilder() {
 
           <div className="w-full">
             <div className="min-h-[200px]">
-              {placed.length === 0 && dropIndex === null && (
+              {visible.length === 0 && dropIndex === null && (
                 <div className="py-16 text-center text-[14px] text-content-tertiary">
                   Drag a component here, or hover one on the left and pick top / middle / bottom.
                 </div>

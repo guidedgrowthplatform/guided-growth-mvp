@@ -691,7 +691,6 @@ export const EXTRA_REGISTRY: PaletteEntry[] = [
   { type: 'milestones-section', group: 'Habit', label: 'Milestones', Comp: MilestonesSectionPreview },
 
   // Home extras
-  { type: 'mood-emoji-row', group: 'Check-in', label: 'Mood emoji row', Comp: MoodRow },
   { type: 'feedback-button', group: 'Home', label: 'Feedback button', Comp: FeedbackButtonPreview },
   { type: 'icon-circle-button', group: 'Home', label: 'Icon circle', Comp: IconCircleButtonPreview },
   { type: 'open-chat-button', group: 'Home', label: 'Open chat', Comp: OpenChatButtonPreview },
@@ -759,7 +758,5 @@ export const EXTRA_GROUPS: string[] = [
   'Insights',
   'Journal',
   'Notifications',
-  'Reflections',
   'Settings',
-  'Welcome',
 ];
