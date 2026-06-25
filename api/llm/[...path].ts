@@ -772,8 +772,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       endStatus = 'tool_cap';
       endCode = 'tool_cap_reached';
       send({ type: 'error', code: 'tool_cap_reached', message: 'Exceeded max tool rounds (5)' });
+      await persistChatTurn({ includeAssistant: false });
       res.end();
-      waitUntil(persistChatTurn({ includeAssistant: false }));
       waitUntil(finalize());
       return;
     }
@@ -786,8 +786,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       total_tokens: totalTokens,
       tool_rounds: toolRounds,
     });
+    await persistChatTurn();
     res.end();
-    waitUntil(persistChatTurn());
     waitUntil(finalize());
   } catch (err) {
     const status = (err as { status?: number }).status;

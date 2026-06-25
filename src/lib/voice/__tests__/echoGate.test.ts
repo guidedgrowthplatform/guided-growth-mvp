@@ -48,11 +48,18 @@ describe('evaluateEchoGate', () => {
     expect(r.pass).toBe(true);
   });
 
-  it('single loud interim does not barge; second does', () => {
+  it('single loud interim does not barge; second does and self-resets the count', () => {
     const first = evaluateEchoGate({ ...base, rms: 0.02, sustainCount: 0 });
     expect(first).toEqual({ pass: false, sustainCount: 1 });
     const second = evaluateEchoGate({ ...base, rms: 0.02, sustainCount: first.sustainCount });
-    expect(second).toEqual({ pass: true, sustainCount: 2 });
+    expect(second).toEqual({ pass: true, sustainCount: 0 });
+  });
+
+  it('a passing final self-resets the count', () => {
+    expect(evaluateEchoGate({ ...base, isFinal: true, rms: 0.02, sustainCount: 1 })).toEqual({
+      pass: true,
+      sustainCount: 0,
+    });
   });
 
   it('quiet interim resets the sustain count', () => {

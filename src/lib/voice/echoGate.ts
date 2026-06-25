@@ -22,14 +22,16 @@ export function evaluateEchoGate(i: EchoGateInput): EchoGateResult {
   const loud = i.rms >= i.minRms;
 
   if (i.isFinal) {
-    if (loud) return { pass: true, sustainCount: i.sustainCount };
+    if (loud) return { pass: true, sustainCount: 0 };
     if (i.requireFinalForLowEnergy && i.textLen >= i.minChars) {
-      return { pass: true, sustainCount: i.sustainCount };
+      return { pass: true, sustainCount: 0 };
     }
     return { pass: false, sustainCount: i.sustainCount };
   }
 
   if (!loud) return { pass: false, sustainCount: 0 };
   const next = i.sustainCount + 1;
-  return { pass: next >= i.sustainFrames, sustainCount: next };
+  return next >= i.sustainFrames
+    ? { pass: true, sustainCount: 0 }
+    : { pass: false, sustainCount: next };
 }

@@ -116,6 +116,8 @@ export function useLLM(
     }
     deltaBufferRef.current = '';
     inFlightRef.current = false;
+    priorOpenerRef.current = null;
+    lastUserRef.current = null;
     setMessages([]);
     setResponse('');
     setToolEvents([]);

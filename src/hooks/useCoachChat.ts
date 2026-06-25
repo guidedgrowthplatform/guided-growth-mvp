@@ -323,7 +323,6 @@ export function useCoachChat(
     cancelLlm();
     stopTTS();
     endCoachSpeechTurn();
-    bargeSustainRef.current = 0;
     onTranscriptStreamRef.current?.('assistant', '', 'final');
     // Always schedule a settle check after a barge so the guarantee fires even if
     // no further speech arrives (rather than leaving the coach silent).
