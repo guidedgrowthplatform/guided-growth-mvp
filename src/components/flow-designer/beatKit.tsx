@@ -32,93 +32,62 @@ export interface BeatDef {
   Comp: (props?: Record<string, string>) => ReactNode;
 }
 
-// Reveals words one at a time while `active`, building up like a chat message
-// being typed and sent: only the words spoken so far are on screen, the newest
-// fading in. Words not yet reached are not rendered (no faint preview). Shows
-// the whole line when inactive.
-export function Karaoke({ text, active }: { text: string; active: boolean }) {
-  const parts = text.split(/(\s+)/);
-  const total = parts.filter((p) => /\S/.test(p)).length;
-  const [n, setN] = useState(active ? 0 : total);
-  useEffect(() => {
-    if (!active) {
-      setN(total);
-      return;
-    }
-    setN(0);
-    let i = 0;
-    const id = window.setInterval(() => {
-      i += 1;
-      setN(i);
-      if (i >= total) window.clearInterval(id);
-    }, 110);
-    return () => window.clearInterval(id);
-  }, [text, active, total]);
-  // Typing / fill-up: only the words spoken so far are on screen, building up
-  // like a chat message being typed. Words not yet reached are not rendered.
-  // The newest word fades in as it lands.
-  const words = parts.filter((p) => /\S/.test(p));
-  const shown = words.slice(0, n);
-  const head = shown.slice(0, -1).join(' ');
-  const last = shown.length ? shown[shown.length - 1] : null;
-  return (
-    <>
-      {head}
-      {head && last != null ? ' ' : ''}
-      {last != null ? (
-        <span key={n} style={{ animation: 'ggWordIn 220ms ease-out' }}>
-          {last}
-        </span>
-      ) : null}
-      <style>{`@keyframes ggWordIn{from{opacity:0}to{opacity:1}}`}</style>
-    </>
-  );
+// Renders the spoken line whole. The reveal (a clean fade) is handled by the
+// player, so there is no word-by-word typing, which reflowed and read jumpy.
+export function Karaoke({ text }: { text: string; active?: boolean }) {
+  return <>{text}</>;
 }
 
-// Plays a beat's steps in order: each fades in, coach lines karaoke, and the
-// next step waits for the spoken line to finish. When the beat finishes it holds,
-// then replays from the top, so the motion loops on the builder canvas (in Play
-// you normally advance before it cycles).
+// Plays a beat's steps in order. Every step is laid out from the start (its space
+// is reserved) and starts invisible, then fades in on its turn, so the layout
+// never jumps and each part just fades in. A spoken line gets a read-length pause
+// before the next step; a plain step gets a short even beat. When the last step
+// has held, it fades back to the top and replays, so the motion loops on the
+// builder canvas (in Play you normally advance before it cycles).
 export function BeatPlayer({ steps }: { steps: BeatStep[] }) {
+  const playing = useIsPlaying();
   const sig = steps.map((s) => `${s.speaker}:${s.say ?? ''}`).join('|');
-  const [revealed, setRevealed] = useState(1);
-  const [cycle, setCycle] = useState(0);
+  const [revealed, setRevealed] = useState(0);
   useEffect(() => {
-    setRevealed(1);
-    setCycle(0);
+    setRevealed(0);
   }, [sig]);
   useEffect(() => {
     if (revealed >= steps.length) {
-      // Beat fully revealed: hold on it, then loop back to the top. Bumping cycle
-      // remounts the steps so the karaoke replays from empty.
-      const lastSay = steps[steps.length - 1]?.say;
-      const revealMs = lastSay ? lastSay.split(/\s+/).length * 110 : 0;
-      const t = window.setTimeout(() => {
-        setRevealed(1);
-        setCycle((c) => c + 1);
-      }, revealMs + 1800);
+      // In Play, hold the fully revealed beat so the user can act on it. On the
+      // static canvas, fade back to the top and replay so the motion loops.
+      if (playing) return;
+      const t = window.setTimeout(() => setRevealed(0), 2400);
       return () => window.clearTimeout(t);
     }
-    const cur = steps[revealed - 1];
-    const dwell = cur?.say ? 650 + cur.say.split(/\s+/).length * 110 : 450;
-    const t = window.setTimeout(() => setRevealed((r) => Math.min(steps.length, r + 1)), dwell);
+    const justShown = revealed > 0 ? steps[revealed - 1] : null;
+    const dwell =
+      revealed === 0 ? 180 : justShown?.say ? 600 + justShown.say.split(/\s+/).length * 90 : 480;
+    const t = window.setTimeout(() => setRevealed((r) => r + 1), dwell);
     return () => window.clearTimeout(t);
-  }, [revealed, steps.length, cycle]);
+  }, [revealed, steps.length, playing]);
   return (
     <div className="flex flex-col gap-4">
-      {steps.slice(0, revealed).map((s, i) => {
-        const last = i === revealed - 1;
+      {steps.map((s, i) => {
+        const shown = i < revealed;
         return (
-          <div key={`${s.id}-${cycle}`} className="flex animate-fade-in flex-col gap-3">
+          <div
+            key={s.id}
+            className="flex flex-col gap-3"
+            style={{
+              opacity: shown ? 1 : 0,
+              transition: 'opacity 520ms ease-out',
+              pointerEvents: shown ? 'auto' : 'none',
+            }}
+          >
             {s.speaker === 'coach' && s.say && (
               <div className="max-w-[85%] self-start rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 text-[14px] font-medium leading-[1.45] text-content shadow-[0px_4px_16px_-4px_rgba(15,23,42,0.12)]">
-                <Karaoke text={s.say} active={last} />
+                <Karaoke text={s.say} />
               </div>
             )}
             {s.render}
             {s.speaker === 'user' && s.say && (
               <div className="max-w-[80%] self-end rounded-2xl rounded-tr-sm bg-[rgba(19,91,236,0.9)] px-4 py-2.5 text-[14px] font-medium text-white shadow-card">
-                <Karaoke text={s.say} active={last} />
+                <Karaoke text={s.say} />
               </div>
             )}
           </div>
