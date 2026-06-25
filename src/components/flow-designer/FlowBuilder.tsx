@@ -324,6 +324,19 @@ const TEXT_FIELDS: Record<string, FieldDef[]> = {
     { key: 'title', label: 'Title' },
     { key: 'subtitle', label: 'Subtitle' },
   ],
+  'qa-control': [
+    { key: 'title', label: 'Title' },
+    { key: 'subtitle', label: 'Subtitle', multiline: true },
+    { key: 'users', label: 'Test users (comma separated)', multiline: true },
+    { key: 'loginLabel', label: 'Log in: label' },
+    { key: 'loginDesc', label: 'Log in: description', multiline: true },
+    { key: 'restartLabel', label: 'Restart fresh: label' },
+    { key: 'restartDesc', label: 'Restart fresh: description', multiline: true },
+    { key: 'reonboardLabel', label: 'Re-run (keep data): label' },
+    { key: 'reonboardDesc', label: 'Re-run (keep data): description', multiline: true },
+    { key: 'resetLabel', label: 'Reset only: label' },
+    { key: 'resetDesc', label: 'Reset only: description', multiline: true },
+  ],
 };
 
 // Which prop on each beat carries the coach's spoken opening line (the bubble
@@ -390,6 +403,7 @@ const GROUPS = [
   'Home',
   'Orb',
   'UI',
+  'QA',
   ...EXTRA_GROUPS,
 ];
 
@@ -399,6 +413,7 @@ interface DefaultBeat {
   sheetStage?: string;
   props?: Record<string, string>;
   background?: string;
+  variant?: FlowVariant;
 }
 
 // The default onboarding flow, pre-connected to the beats sheet so each beat
@@ -534,9 +549,23 @@ const FLOWS: FlowDef[] = [
 ];
 const FLOW_MAP: Record<string, FlowDef> = Object.fromEntries(FLOWS.map((f) => [f.id, f]));
 
+// Production vs QA. Most beats are 'shared' (in both), so the two flows mirror
+// each other automatically; a few are tagged 'production' or 'qa' only.
+type FlowVariant = 'shared' | 'production' | 'qa';
+type ActiveVariant = 'production' | 'qa';
+const VARIANT_OPTIONS: { id: FlowVariant; label: string }[] = [
+  { id: 'shared', label: 'Shared' },
+  { id: 'production', label: 'Production' },
+  { id: 'qa', label: 'QA' },
+];
+// A beat is shown in the active variant if it is shared or tagged for that variant.
+const inVariant = (v: FlowVariant | undefined, active: ActiveVariant) =>
+  (v ?? 'shared') === 'shared' || v === active;
+
 const STORAGE_BASE = 'gg-flow-builder-v18';
 const flowKey = (flowId: string) => `${STORAGE_BASE}:${flowId}`;
 const ACTIVE_FLOW_KEY = `${STORAGE_BASE}:active`;
+const VARIANT_KEY = `${STORAGE_BASE}:variant`;
 
 type StoredBeat = {
   type: string;
@@ -546,6 +575,7 @@ type StoredBeat = {
   sheetStage?: string;
   transition?: { kind: BeatTransitionKind; durationMs: number };
   background?: string;
+  variant?: FlowVariant;
 };
 
 // Every beat is coach-led or user-led; default to coach, user bubbles to user.
@@ -559,10 +589,11 @@ const hydrate = (stored: StoredBeat[]): Placed[] =>
     sheetStage: b.sheetStage,
     transition: b.transition,
     background: b.background ?? (b.type === 'user-bubble' ? 'user' : 'coach'),
+    variant: b.variant ?? 'shared',
   }));
 
 const serialize = (items: Placed[]): StoredBeat[] =>
-  items.map(({ type, props, beat, note, sheetStage, transition, background }) => ({
+  items.map(({ type, props, beat, note, sheetStage, transition, background, variant }) => ({
     type,
     props,
     beat,
@@ -570,6 +601,7 @@ const serialize = (items: Placed[]): StoredBeat[] =>
     sheetStage,
     transition,
     background,
+    variant,
   }));
 
 const buildDefault = (flowId: string): Placed[] =>
@@ -594,6 +626,9 @@ interface Placed {
   // The screen background for this beat, by who leads it (coach / user / a warm
   // chat) or plain for full-screen UI. Presentation only. See BACKGROUNDS.
   background?: string;
+  // Which variant of the flow this beat appears in: shared (both production and
+  // QA), production only, or qa only. Default shared.
+  variant?: FlowVariant;
   lanes?: Lane[];
 }
 
@@ -1028,6 +1063,31 @@ function SortableCard({
                   style={{ background: b.color }}
                 >
                   {b.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-content-tertiary">
+            Shown in
+          </span>
+          <div className="flex items-center gap-1">
+            {VARIANT_OPTIONS.map((v) => {
+              const active = (item.variant ?? 'shared') === v.id;
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  title={`Show this beat in ${v.label}`}
+                  onClick={() => onUpdate({ variant: v.id })}
+                  className={`flex h-7 flex-1 items-center justify-center rounded-md border text-[9px] font-bold ${
+                    active
+                      ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary'
+                      : 'border-border text-content-tertiary'
+                  }`}
+                >
+                  {v.label}
                 </button>
               );
             })}
@@ -1791,6 +1851,19 @@ export function FlowBuilder() {
   const [placed, setPlaced] = useState<Placed[]>([]);
   const [flowId, setFlowId] = useState<string>('onboarding');
   const [userName, setUserName] = useState('Yair');
+  // Production vs QA view. Beats tagged shared show in both; production/qa-only
+  // beats show in just that view, so the two flows mirror with a few differences.
+  const [variant, setVariant] = useState<ActiveVariant>(() => {
+    if (typeof localStorage === 'undefined') return 'production';
+    return localStorage.getItem(VARIANT_KEY) === 'qa' ? 'qa' : 'production';
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(VARIANT_KEY, variant);
+    } catch {
+      /* ignore */
+    }
+  }, [variant]);
   const hydratedRef = useRef(false);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [activeFromPalette, setActiveFromPalette] = useState(false);
@@ -1981,6 +2054,7 @@ export function FlowBuilder() {
     beat: p.beat || String(i + 1),
     name: REGISTRY_MAP[p.type]?.label ?? p.type,
     componentType: p.type,
+    variant: p.variant ?? 'shared',
     context: p.note ?? '',
     props: p.props ?? {},
   });
@@ -2063,10 +2137,14 @@ export function FlowBuilder() {
     setDropIndex(null);
   };
 
+  // The beats shown in the active variant (shared + production-only or qa-only).
+  // Editing and reorder run on the full `placed` by uid, so this is display only.
+  const visible = placed.filter((p) => inVariant(p.variant, variant));
+
   if (play) {
     return (
       <UserNameCtx.Provider value={userName}>
-        <PlayView placed={placed} flowId={flowId} onExit={() => setPlay(false)} />
+        <PlayView placed={visible} flowId={flowId} onExit={() => setPlay(false)} />
       </UserNameCtx.Provider>
     );
   }
@@ -2151,9 +2229,26 @@ export function FlowBuilder() {
             ))}
           </div>
           <div className="flex w-[400px] max-w-full items-center justify-between">
-            <div className="text-[15px] font-bold text-content">Flow</div>
+            <div className="flex items-center gap-3">
+              <div className="text-[15px] font-bold text-content">Flow</div>
+              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
+                {(['production', 'qa'] as ActiveVariant[]).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setVariant(v)}
+                    title={v === 'qa' ? 'QA flow' : 'Production flow'}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${
+                      variant === v ? 'bg-primary text-white' : 'text-content-subtle hover:text-content'
+                    }`}
+                  >
+                    {v === 'qa' ? 'QA' : 'Production'}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex items-center gap-2">
-              <span className="text-[12px] text-content-tertiary">{placed.length} components</span>
+              <span className="text-[12px] text-content-tertiary">{visible.length} components</span>
               <button
                 type="button"
                 onClick={addSplit}
@@ -2202,11 +2297,11 @@ export function FlowBuilder() {
                 </div>
               )}
               <SortableContext
-                items={placed.map((p) => p.uid)}
+                items={visible.map((p) => p.uid)}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="flex flex-col gap-5">
-                  {placed.map((item, i) => (
+                  {visible.map((item, i) => (
                     <div key={item.uid} className="flex flex-col gap-5">
                       {dropIndex === i && <DropLine />}
                       {item.type === 'split' ? (
@@ -2233,7 +2328,7 @@ export function FlowBuilder() {
                           checkin={flowId.includes('checkin')}
                         />
                       )}
-                      {i < placed.length - 1 && (
+                      {i < visible.length - 1 && (
                         <BeatConnector
                           transition={item.transition}
                           onChange={(t) => update(item.uid, { transition: t })}
@@ -2241,7 +2336,7 @@ export function FlowBuilder() {
                       )}
                     </div>
                   ))}
-                  {dropIndex === placed.length && <DropLine />}
+                  {dropIndex === visible.length && <DropLine />}
                   <EndZone />
                 </div>
               </SortableContext>
@@ -2249,7 +2344,7 @@ export function FlowBuilder() {
           </div>
         </div>
 
-        <PlayPanel placed={placed} flowId={flowId} onFullscreen={() => setPlay(true)} />
+        <PlayPanel placed={visible} flowId={flowId} onFullscreen={() => setPlay(true)} />
       </div>
 
       <DragOverlay>
