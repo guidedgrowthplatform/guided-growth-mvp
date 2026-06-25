@@ -94,8 +94,11 @@ function ChoiceCard({
 }
 
 function PathSelectionBeat(props?: Record<string, string>) {
-  const [sel, setSel] = useState<'new' | 'exp'>('new');
+  // No default pick: the cards reveal one by one and the user chooses.
+  const [sel, setSel] = useState<'new' | 'exp' | null>(null);
 
+  // Each card is its own step, so the coach line lands first, then "I already
+  // track habits" fades in, then "I'm new to this" fades in after it.
   const steps: BeatStep[] = [
     {
       id: 'ask',
@@ -103,25 +106,29 @@ function PathSelectionBeat(props?: Record<string, string>) {
       say: props?.coachLine ?? 'Have you tracked habits before, or is this new for you?',
     },
     {
-      id: 'show',
+      id: 'exp',
       speaker: 'coach',
       render: (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <ChoiceCard
-            icon="mdi:sprout-outline"
-            title={props?.newTitle ?? "I'm new to this"}
-            sub={props?.newSub ?? "We'll start fresh and build your first habits together."}
-            selected={sel === 'new'}
-            onSelect={() => setSel('new')}
-          />
-          <ChoiceCard
-            icon="mdi:format-list-checks"
-            title={props?.expTitle ?? 'I already track habits'}
-            sub={props?.expSub ?? "Read me your list and we'll get it organized."}
-            selected={sel === 'exp'}
-            onSelect={() => setSel('exp')}
-          />
-        </div>
+        <ChoiceCard
+          icon="mdi:format-list-checks"
+          title={props?.expTitle ?? 'I already track habits'}
+          sub={props?.expSub ?? "Read me your list and we'll get it organized."}
+          selected={sel === 'exp'}
+          onSelect={() => setSel('exp')}
+        />
+      ),
+    },
+    {
+      id: 'new',
+      speaker: 'coach',
+      render: (
+        <ChoiceCard
+          icon="mdi:sprout-outline"
+          title={props?.newTitle ?? "I'm new to this"}
+          sub={props?.newSub ?? "We'll start fresh and build your first habits together."}
+          selected={sel === 'new'}
+          onSelect={() => setSel('new')}
+        />
       ),
     },
   ];
