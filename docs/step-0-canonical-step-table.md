@@ -122,9 +122,22 @@ confirm with a live instrumented run before flipping it.
 
 ## How to run STEP-0 (the live trace)
 
-`VITE_ONBOARDING_USE_ENGINE=true`, `/onboarding/flow`, a fresh `qa-onboarding` reset, drive
-a full **Direct-LLM** (`advance_step`) walk through COMPLETE on both beginner and advanced
-lanes, and log per beat: entry `current_step`, emitted `target_step`, `sourceStep` passed to
-`checkAdvanceData`, and the data precondition present. Reconcile against this table; the
-beginner spine should match exactly. Then implement B1+C2 atomically and re-run on both paths
-and both engines.
+Set **`ONBOARDING_STEP_TRACE=1`** on the API runtime (Vercel env / local `vercel dev`) —
+this enables the env-gated `traceAdvanceStep0` instrumentation in `preconditions.ts`
+(wired into both `navigateNext.ts` (Vapi) and `advanceStep.ts` (Direct-LLM); silent and
+zero-overhead when unset). Then with `VITE_ONBOARDING_USE_ENGINE=true`, `/onboarding/flow`,
+and a fresh `qa-onboarding` reset, drive a full walk through COMPLETE on both beginner and
+advanced lanes.
+
+Each accepted advance emits one line:
+
+```
+[step0] src=vapi|direct current=<N> target=<M> has={nickname,path,category,goals,habitConfigs,morningCheckin,reflectionConfig,brainDump}
+```
+
+Collect them with `grep '\[step0\]'` over the function logs. The `current=…target=…` pairs
+are the actual climb; the `has={…}` snapshot is the data present at each step. Reconcile
+against the beginner table above (it should match `current: 1→2→…→10` exactly). Rejections
+still surface via the handlers' existing `rejected reason=…` / `precondition_not_met` lines.
+Once confirmed (esp. the advanced lane + the two-navigate step-5 cascade), implement B1+C2
+atomically and re-run on both paths and both engines.

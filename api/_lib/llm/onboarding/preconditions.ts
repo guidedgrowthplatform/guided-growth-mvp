@@ -45,6 +45,38 @@ export function checkAdvanceData(args: {
   }
 }
 
+// STEP-0 instrumentation: when ONBOARDING_STEP_TRACE=1, emit one parseable line per
+// ACCEPTED advance so a single onboarding run reconstructs the current_step climb +
+// the data present at each step (see docs/step-0-canonical-step-table.md). Silent
+// (zero overhead) otherwise. Rejections already log via the handlers' reject lines.
+export function traceAdvanceStep0(
+  source: 'vapi' | 'direct',
+  args: {
+    currentStep: number;
+    targetStep: number;
+    data: Record<string, unknown>;
+    path: string | null;
+    brainDumpRaw: string | null;
+  },
+): void {
+  if (process.env.ONBOARDING_STEP_TRACE !== '1') return;
+  const { currentStep, targetStep, data, path, brainDumpRaw } = args;
+  const habits = data.habitConfigs as Record<string, unknown> | undefined;
+  const has = {
+    nickname: !!data.nickname,
+    path: !!path,
+    category: !!data.category,
+    goals: Array.isArray(data.goals) && data.goals.length > 0,
+    habitConfigs: !!habits && Object.keys(habits).length > 0,
+    morningCheckin: !!data.morningCheckin,
+    reflectionConfig: !!data.reflectionConfig,
+    brainDump: typeof brainDumpRaw === 'string' && brainDumpRaw.length > 0,
+  };
+  console.log(
+    `[step0] src=${source} current=${currentStep} target=${targetStep} has=${JSON.stringify(has)}`,
+  );
+}
+
 // Plan-review finalize precondition: habits (beginner or advanced) + reflection saved.
 export function checkPlanReady(data: Record<string, unknown>): {
   hasHabits: boolean;

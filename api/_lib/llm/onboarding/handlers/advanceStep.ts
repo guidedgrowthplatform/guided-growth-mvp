@@ -1,6 +1,6 @@
 import pool from '../../../db.js';
 import type { ToolResult } from '../../tools.js';
-import { checkAdvanceData } from '../preconditions.js';
+import { checkAdvanceData, traceAdvanceStep0 } from '../preconditions.js';
 import { getNumber, handlerError, invalid, ok, type OnboardingHandlerCtx } from './shared.js';
 
 const MIN_STEP = 1;
@@ -58,6 +58,8 @@ export async function advanceStep(
     const missing = checkAdvanceData({ sourceStep: currentStep, data, path, brainDumpRaw });
     if (missing) return handlerError(missing);
   }
+
+  traceAdvanceStep0('direct', { currentStep, targetStep, data, path, brainDumpRaw });
 
   const result = await pool.query<{ current_step: number }>(
     `INSERT INTO onboarding_states (anon_id, current_step, status, updated_at)

@@ -31,7 +31,7 @@ import pool, { type Queryable } from '../../db.js';
 // Shared with the Direct-LLM advance_step path so a beat advances IDENTICALLY
 // whether driven by Vapi navigate_next or Direct-LLM (step-1 needs nickname+age+
 // gender; step-4 braindump gates on the brain dump, not goals).
-import { checkAdvanceData } from '../../llm/onboarding/preconditions.js';
+import { checkAdvanceData, traceAdvanceStep0 } from '../../llm/onboarding/preconditions.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MIN_STEP = 1;
@@ -139,6 +139,8 @@ export async function navigateNext(
       return { error: missing };
     }
   }
+
+  traceAdvanceStep0('vapi', { currentStep, targetStep, data, path, brainDumpRaw });
 
   // No GREATEST — explicitly set step to the LLM-supplied target. INSERT
   // path is defensive (onboarding_states row should already exist by the
