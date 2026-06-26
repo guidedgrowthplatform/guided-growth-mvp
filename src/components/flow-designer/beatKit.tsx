@@ -5,6 +5,11 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 export const PlayingCtx = createContext(false);
 export const useIsPlaying = () => useContext(PlayingCtx);
 
+// When false, beats render instantly with no karaoke or step-reveal animation,
+// for fast QA of the final state. Provided by the player; defaults to on.
+export const AnimationsCtx = createContext(true);
+export const useAnimations = () => useContext(AnimationsCtx);
+
 // The shared kit every beat is built from. Import these in a beat file, never
 // copy them. A beat is an ordered list of STEPS played in sequence.
 //
@@ -78,12 +83,15 @@ export function Karaoke({ text, active }: { text: string; active: boolean }) {
 // builder canvas (in Play you normally advance before it cycles).
 export function BeatPlayer({ steps }: { steps: BeatStep[] }) {
   const playing = useIsPlaying();
+  const anims = useAnimations();
   const sig = steps.map((s) => `${s.speaker}:${s.say ?? ''}`).join('|');
   const [revealed, setRevealed] = useState(0);
   useEffect(() => {
-    setRevealed(0);
-  }, [sig]);
+    // Animations off: show every step at once. On: start empty and reveal in turn.
+    setRevealed(anims ? 0 : steps.length);
+  }, [sig, anims, steps.length]);
   useEffect(() => {
+    if (!anims) return;
     if (revealed >= steps.length) {
       // In Play, hold the fully revealed beat so the user can act on it. On the
       // static canvas, fade back to the top and replay so the motion loops.
@@ -96,7 +104,7 @@ export function BeatPlayer({ steps }: { steps: BeatStep[] }) {
       revealed === 0 ? 180 : justShown?.say ? 650 + justShown.say.split(/\s+/).length * 110 : 480;
     const t = window.setTimeout(() => setRevealed((r) => r + 1), dwell);
     return () => window.clearTimeout(t);
-  }, [revealed, steps.length, playing]);
+  }, [revealed, steps.length, playing, anims]);
   return (
     <div className="flex flex-col gap-4">
       {steps.map((s, i) => {
@@ -122,13 +130,13 @@ export function BeatPlayer({ steps }: { steps: BeatStep[] }) {
           >
             {s.speaker === 'coach' && s.say && (
               <div className="max-w-[85%] self-start rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 text-[14px] font-medium leading-[1.45] text-content shadow-[0px_4px_16px_-4px_rgba(15,23,42,0.12)]">
-                <Karaoke text={s.say} active={i === revealed - 1} />
+                <Karaoke text={s.say} active={anims && i === revealed - 1} />
               </div>
             )}
             {s.render}
             {s.speaker === 'user' && s.say && (
               <div className="max-w-[80%] self-end rounded-2xl rounded-tr-sm bg-[rgba(19,91,236,0.9)] px-4 py-2.5 text-[14px] font-medium text-white shadow-card">
-                <Karaoke text={s.say} active={i === revealed - 1} />
+                <Karaoke text={s.say} active={anims && i === revealed - 1} />
               </div>
             )}
           </div>

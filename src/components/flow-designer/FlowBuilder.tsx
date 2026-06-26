@@ -51,7 +51,7 @@ import { Toggle } from '@/components/ui/Toggle';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 
 import { BEAT_DEFS } from './beats';
-import { PlayingCtx } from './beatKit';
+import { PlayingCtx, AnimationsCtx } from './beatKit';
 import { FlowStateCtx, type FlowState } from './flowStateCtx';
 import { EXTRA_REGISTRY, EXTRA_GROUPS } from './paletteExtras';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
@@ -1941,6 +1941,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
   const uname = useContext(UserNameCtx);
   const [step, setStep] = useState(0);
   const [advancing, setAdvancing] = useState(false);
+  const [animationsOn, setAnimationsOn] = useState(true);
 
   // Shared selection state for this run, read and written by the onboarding
   // beats so a pick in one beat drives the next (category -> goals -> habits ->
@@ -2034,7 +2035,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
   const advance = () => {
     if (!next || advancing) return;
     setAdvancing(true);
-    const dur = current?.transition?.durationMs ?? 600;
+    const dur = animationsOn ? (current?.transition?.durationMs ?? 600) : 0;
     window.setTimeout(() => {
       setStep((s) => s + 1);
       setAdvancing(false);
@@ -2058,6 +2059,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
   return (
     <PlayingCtx.Provider value={true}>
     <FlowStateCtx.Provider value={flowState}>
+    <AnimationsCtx.Provider value={animationsOn}>
     <div className="flex flex-col items-center gap-3">
       <div
         className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
@@ -2106,7 +2108,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
               }
               showSecond={advancing}
               kind={kind}
-              durationMs={current?.transition?.durationMs ?? 600}
+              durationMs={animationsOn ? (current?.transition?.durationMs ?? 600) : 0}
             />
           ) : (
             screen(current)
@@ -2122,10 +2124,28 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
         >
           <Icon icon="ic:round-arrow-back" className="size-4" /> Back
         </button>
-        <span className="text-[11px] font-medium text-content-tertiary">
-          {beats.length === 0 ? 'No beats' : `Beat ${Math.min(step + 1, beats.length)} / ${beats.length}`}
-          {next ? ` · ${kind}` : ''}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-medium text-content-tertiary">
+            {beats.length === 0 ? 'No beats' : `Beat ${Math.min(step + 1, beats.length)} / ${beats.length}`}
+            {next ? ` · ${kind}` : ''}
+          </span>
+          <button
+            type="button"
+            onClick={() => setAnimationsOn((a) => !a)}
+            title={animationsOn ? 'Animations on, click to turn off' : 'Animations off, click to turn on'}
+            className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold ${
+              animationsOn
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border text-content-tertiary'
+            }`}
+          >
+            <Icon
+              icon={animationsOn ? 'ic:round-animation' : 'ic:round-motion-photos-off'}
+              className="size-3.5"
+            />
+            {animationsOn ? 'Anim' : 'Anim off'}
+          </button>
+        </div>
         {next ? (
           <button
             type="button"
@@ -2146,6 +2166,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
         )}
       </div>
     </div>
+    </AnimationsCtx.Provider>
     </FlowStateCtx.Provider>
     </PlayingCtx.Provider>
   );
