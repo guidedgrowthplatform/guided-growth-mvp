@@ -107,6 +107,35 @@ export function serverCaptureForBeat(
   return out;
 }
 
+/**
+ * Fast-forward a fresh machine to the saved server step so a page refresh lands
+ * on the beat the user was on, not back at the entry node. Walks from `fromState`,
+ * replaying each passed beat's server capture (so answers populate + the fork
+ * resolves), and stops at the first beat whose step is >= `serverStep` (the
+ * resume target). Pre-step beats (auth/mic, undefined beatStep) are walked
+ * through — on resume the user is already authed and mic-granted. Guarded against
+ * non-progress and the terminal node. Pure → unit-testable.
+ */
+export function resumeToServerStep(
+  flow: FlowDocument,
+  fromState: FlowMachineState,
+  serverStep: number,
+  data: OnboardingStepData,
+): FlowMachineState {
+  let st = fromState;
+  for (let guard = 0; guard < 50; guard++) {
+    if (st.status === 'complete') break;
+    const node = getNode(flow, st.currentNodeId);
+    if (!node) break;
+    const bStep = beatStep(node);
+    if (bStep !== undefined && bStep >= serverStep) break; // reached the saved beat
+    const next = applyCapture(flow, st, serverCaptureForBeat(node, data));
+    if (next.currentNodeId === st.currentNodeId) break; // no progress → stop
+    st = next;
+  }
+  return st;
+}
+
 export interface FlowOrchestrator {
   flow: FlowDocument;
   state: FlowMachineState;
@@ -238,6 +267,28 @@ export function useFlowOrchestrator(
   const activeNodeId = state.currentNodeId;
   const baselineStepRef = useRef<number | null>(null);
   const advancedNodeRef = useRef<string | null>(null);
+
+  // One-time resume: on the first load with a server row ahead of the entry,
+  // fast-forward the local engine to the saved current_step so a refresh lands on
+  // the beat the user was on (not back at AUTH). Runs once; afterwards the
+  // leading-edge effect below owns live advances + back-nav semantics.
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current) return;
+    if (typeof serverStep !== 'number') return; // no server row (preview / not loaded yet)
+    resumedRef.current = true;
+    const resumed = resumeToServerStep(
+      flow,
+      stateRef.current,
+      serverStep,
+      (serverData ?? {}) as OnboardingStepData,
+    );
+    if (resumed.currentNodeId !== stateRef.current.currentNodeId) {
+      stateRef.current = resumed;
+      setState(resumed);
+    }
+  }, [serverStep, serverData, flow]);
+
   // Reset the per-beat baseline + fired-flag whenever the active beat changes, so
   // each beat judges advancement against the step seen on entry (not a prior
   // beat's) and a re-entered beat can advance again.
