@@ -1764,6 +1764,10 @@ function SortableCard({
   const coachLineKey = COACH_LINE_PROP[item.type];
   const uname = useContext(UserNameCtx);
   const [editing, setEditing] = useState(false);
+  // Per-tile animation freeze: pause just this beat (so you can click into it)
+  // while the rest of the flow keeps moving. Folds in with the global switch.
+  const tileAnims = useAnimations();
+  const [tilePaused, setTilePaused] = useState(false);
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -1777,6 +1781,17 @@ function SortableCard({
       {/* The beat card: a phone-screen frame plus optional text editor */}
       <div className="relative w-[300px] shrink-0">
         <div className="absolute -top-2 right-1 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={() => setTilePaused((v) => !v)}
+            aria-label={tilePaused ? 'Play this beat' : 'Pause this beat'}
+            title={tilePaused ? 'Play this beat' : 'Pause this beat'}
+            className={`flex size-7 items-center justify-center rounded-full border border-border bg-surface shadow-card ${
+              tilePaused ? 'text-primary' : 'text-content-tertiary'
+            }`}
+          >
+            <Icon icon={tilePaused ? 'ic:round-play-arrow' : 'ic:round-pause'} className="size-4" />
+          </button>
           {fields && (
             <button
               type="button"
@@ -1834,7 +1849,9 @@ function SortableCard({
         )}
 
         <PhoneScreenFrame checkin={checkin} bg={item.background} orb={orbConfigForType(item.type)}>
-          {entry ? createElement(entry.Comp, applyName(item.props, uname)) : null}
+          <AnimationsCtx.Provider value={tileAnims && !tilePaused}>
+            {entry ? createElement(entry.Comp, applyName(item.props, uname)) : null}
+          </AnimationsCtx.Provider>
         </PhoneScreenFrame>
       </div>
 
