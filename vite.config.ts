@@ -155,6 +155,112 @@ function sonioxTempKeyPlugin(apiKey: string): Plugin {
   };
 }
 
+/**
+ * Vite plugin: live brain-dump habit parse (dev only).
+ * POST /api/sim-parse-habits { text } -> { habits: [{name, frequency, days?, time?}] }
+ * via gpt-4o-mini forced function-calling. Mirrors api/_lib/llm/parseBrainDump.ts
+ * so the sim can parse a spoken dump into structured habits per sentence.
+ */
+function simParseHabitsPlugin(openaiKey: string): Plugin {
+  const INSTRUCTIONS = `Convert the user's free-text or voice "brain dump" into a list of concrete, trackable habits.
+Rules:
+- One habit per distinct intention the user expressed.
+- NEVER invent habits the user did not mention. If nothing concrete is present, return an empty list.
+- Infer frequency, days, and time ONLY when the user stated them ("three times a week", "every weekday", "on Mondays", "at 8 PM"). Otherwise omit days/time.
+- Keep habit names short and positive where natural.
+Return the result by calling submit_parsed_habits.`;
+  const TOOL = {
+    type: 'function' as const,
+    function: {
+      name: 'submit_parsed_habits',
+      description: 'Return the habits extracted from the user brain dump.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          habits: {
+            type: 'array',
+            maxItems: 50,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                name: { type: 'string' },
+                frequency: {
+                  type: 'string',
+                  enum: ['daily', 'weekdays', 'weekends', 'weekly', '3x/week'],
+                },
+                days: { type: 'array', items: { type: 'integer' } },
+                time: { type: 'string' },
+              },
+              required: ['name', 'frequency'],
+            },
+          },
+        },
+        required: ['habits'],
+      },
+    },
+  };
+  return {
+    name: 'sim-parse-habits',
+    configureServer(server) {
+      server.middlewares.use(
+        async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+          if (req.url !== '/api/sim-parse-habits' || req.method !== 'POST') {
+            next();
+            return;
+          }
+          if (!openaiKey) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'OPENAI_API_KEY not set' }));
+            return;
+          }
+          let body = '';
+          for await (const chunk of req) body += chunk;
+          let text = '';
+          try {
+            text = String((JSON.parse(body) as { text?: string }).text ?? '').slice(0, 5000);
+          } catch {
+            text = '';
+          }
+          if (!text.trim()) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ habits: [] }));
+            return;
+          }
+          try {
+            const r = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                temperature: 0.2,
+                messages: [
+                  { role: 'system', content: INSTRUCTIONS },
+                  { role: 'user', content: text },
+                ],
+                tools: [TOOL],
+                tool_choice: { type: 'function', function: { name: 'submit_parsed_habits' } },
+              }),
+            });
+            const d = (await r.json()) as {
+              choices?: { message?: { tool_calls?: { function?: { arguments?: string } }[] } }[];
+            };
+            const args = d.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+            const habits = args ? (JSON.parse(args).habits ?? []) : [];
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ habits }));
+          } catch (err) {
+            console.error('[vite-parse-habits]', err);
+            res.writeHead(502, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'parse failed', habits: [] }));
+          }
+        },
+      );
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   // Ignore VITE_API_URL when playing around locally with vercel dev running
@@ -186,6 +292,8 @@ export default defineConfig(({ mode }) => {
       cartesiaTtsPlugin(env.CARTESIA_API_KEY || ''),
       // Soniox temp-key mint (dev only) so voice-in runs on `npm run dev`
       sonioxTempKeyPlugin(env.SONIOX_API_KEY || ''),
+      // Live brain-dump habit parse (dev only) for the sim
+      simParseHabitsPlugin(env.OPENAI_API_KEY || ''),
       react(),
       VitePWA({
         registerType: 'autoUpdate',

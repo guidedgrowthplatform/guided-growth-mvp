@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { useVoiceInCapture } from '@/hooks/useVoiceInCapture';
 import { VOICE_IN_ENABLED } from '@/lib/config/voice';
+import { resolveHabitPolarity } from './curatedHabitPolarity';
 import { IntroGate } from './IntroGate';
 import { useLocalPersistence } from './persistence';
 import { FlowRenderer } from './renderer/FlowRenderer';
@@ -20,13 +21,79 @@ import { skimAndPublish } from './useLiveSkimmer';
 import { useFlow } from './useFlow';
 import { useFlowOrchestrator, type FlowOrchestrator } from './useFlowOrchestrator';
 
+interface ParsedHabit {
+  name: string;
+  frequency: string;
+  days?: number[];
+  time?: string;
+  polarity: 'positive' | 'negative' | null;
+}
+
+// The brain-dump beat: free-text/voice dump that a fast model parses into habits.
+function isBrainDumpBeat(componentType?: string): boolean {
+  return componentType === 'coach-bubble';
+}
+
+function HabitChips({ habits, parsing }: { habits: ParsedHabit[]; parsing: boolean }) {
+  if (!habits.length && !parsing) return null;
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>
+        Habits I'm hearing{parsing ? ' …' : ''}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {habits.map((h, i) => {
+          const neg = h.polarity === 'negative';
+          const unknown = h.polarity == null;
+          return (
+            <div
+              key={`${h.name}-${i}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 10px',
+                borderRadius: 10,
+                border: '1px solid rgba(0,0,0,0.12)',
+                background: '#f5f6f8',
+                fontSize: 13,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: unknown ? '#6b7280' : neg ? '#92400e' : '#166534',
+                }}
+              >
+                {unknown ? '?' : neg ? '↓ break' : '↑ do'}
+              </span>
+              <span style={{ fontWeight: 500 }}>{h.name}</span>
+              <span style={{ opacity: 0.6 }}>· {h.frequency}</span>
+              {h.time && <span style={{ opacity: 0.6 }}>· {h.time}</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
   const [text, setText] = useState('');
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState('');
   const [err, setErr] = useState<string | null>(null);
+  const [habits, setHabits] = useState<ParsedHabit[]>([]);
+  const [parsing, setParsing] = useState(false);
   const node = orchestrator.currentNode;
   const nodeId = node?.id ?? null;
+  const onBrainDump = isBrainDumpBeat(node?.componentType);
+
+  // Accumulated dump text + parse coalescing (one in-flight call, latest queued).
+  const dumpRef = useRef('');
+  const parseInFlight = useRef(false);
+  const pendingText = useRef<string | null>(null);
 
   // Clear inputs when the beat advances so each beat starts fresh.
   const lastNodeRef = useRef<string | null>(null);
@@ -35,6 +102,8 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
       lastNodeRef.current = nodeId;
       setText('');
       setInterim('');
+      setHabits([]);
+      dumpRef.current = '';
     }
   }, [nodeId]);
 
@@ -43,6 +112,37 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
     (t: string) => skimAndPublish(orchestrator.currentNode ?? null, orchestrator.answers, t),
     [orchestrator],
   );
+
+  // Fast-model brain-dump parse: one call per completed sentence, coalesced.
+  const parseDump = useCallback(async (full: string) => {
+    if (parseInFlight.current) {
+      pendingText.current = full;
+      return;
+    }
+    parseInFlight.current = true;
+    setParsing(true);
+    try {
+      const r = await fetch('/api/sim-parse-habits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: full }),
+      });
+      const d = (await r.json()) as { habits?: Omit<ParsedHabit, 'polarity'>[] };
+      if (Array.isArray(d.habits)) {
+        setHabits(d.habits.map((h) => ({ ...h, polarity: resolveHabitPolarity(h.name).polarity })));
+      }
+    } catch {
+      // best-effort; leave prior habits up
+    } finally {
+      parseInFlight.current = false;
+      setParsing(false);
+      if (pendingText.current) {
+        const next = pendingText.current;
+        pendingText.current = null;
+        void parseDump(next);
+      }
+    }
+  }, []);
 
   // Real Soniox voice-in: while listening, the partial transcript streams here
   // (onInterim) and drives the skimmer as it comes in, just like the app.
@@ -56,14 +156,27 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
     },
     onTranscript: (t) => {
       setInterim(t);
-      drive(t);
+      if (onBrainDump) {
+        const tt = t.trim();
+        if (tt && !dumpRef.current.endsWith(tt)) {
+          dumpRef.current = (dumpRef.current + ' ' + tt).trim();
+        }
+        void parseDump(dumpRef.current);
+      } else {
+        drive(t);
+      }
     },
     onError: (m) => setErr(m),
   });
 
   const onChange = (v: string) => {
     setText(v);
-    drive(v);
+    if (onBrainDump) {
+      dumpRef.current = v;
+      void parseDump(v);
+    } else {
+      drive(v);
+    }
   };
 
   return (
@@ -86,6 +199,8 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
           {!VOICE_IN_ENABLED && '  ·  voice-in disabled (set VITE_STATE3_ENABLED=true)'}
           {err && `  ·  ${err}`}
         </div>
+
+        {onBrainDump && <HabitChips habits={habits} parsing={parsing} />}
 
         {(listening || interim) && (
           <div
