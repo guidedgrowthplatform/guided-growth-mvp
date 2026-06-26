@@ -4,7 +4,7 @@ import { ONBOARDING_TOOL_ADDENDUM } from '../systemPromptAddendum.js';
 import { CATEGORY_OPTIONS, ONBOARDING_TOOLS } from '../schemas.js';
 
 describe('onboarding tool registry', () => {
-  it('exposes exactly the thirteen expected tools', () => {
+  it('exposes exactly the fourteen expected tools', () => {
     expect(ONBOARDING_TOOLS.map((t) => t.name).sort()).toEqual(
       [
         'add_habit',
@@ -16,6 +16,7 @@ describe('onboarding tool registry', () => {
         'submit_category',
         'submit_custom_prompts',
         'submit_goals',
+        'submit_morning_checkin',
         'submit_path_choice',
         'submit_profile',
         'submit_reflection_config',

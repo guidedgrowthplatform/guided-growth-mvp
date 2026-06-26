@@ -45,8 +45,14 @@ const TYPE_TO_COMPONENT: Record<string, FlowComponentType | null> = {
   'category-grid': 'category-grid',
   'goals-list': 'goals-list',
   'habit-picker': 'habit-picker',
-  'reflection-card': 'reflection-card',
+  'habit-schedule': 'habit-schedule',
+  // The advanced (braindump) lane's single capture beat. Maps to its own engine
+  // component now (was a synthesized coach-bubble lane before the resync).
+  'advanced-capture': 'advanced-capture',
   'plan-cards': 'plan-cards',
+  'morning-checkin-setup': 'morning-checkin-setup',
+  'reflection-card': 'reflection-card',
+  'into-app': 'into-app',
 };
 
 /**
@@ -221,47 +227,27 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
     contextBlock:
       'Help them pick up to two small daily habits to start with. Small and doable beats ambitious. They can always add more later.',
   },
-  'reflection-card': {
-    nodeId: 'reflection-setup',
+  'habit-schedule': {
+    nodeId: 'habit-schedule',
     beatNumber: 7,
     backId: 'habit-select',
-    screenId: 'ONBOARD-BEGINNER-07',
+    screenId: 'ONBOARD-BEGINNER-04',
     componentProps: { showDayPicker: true, showReminderToggle: true },
     voice: {
-      openerText: "Let's set a daily moment to reflect. When works for you?",
+      openerText: 'When will you do these? Set a time and how often.',
       expectsInput: true,
       directLlmAllowed: true,
     },
-    tool: {
-      toolName: 'submit_reflection_config',
-      persistsFields: ['reflectionConfig'],
-      advancesStep: true,
-    },
-    persist: { step: 6 },
-    screenName: 'Reflection Setup',
+    tool: { toolName: 'update_habit', persistsFields: ['habitConfigs'], advancesStep: true },
+    persist: { step: 5 },
+    screenName: 'Habit Schedule',
     contextBlock:
-      'Set up a short daily reflection: when, which days, and whether they want a reminder. Frame it as a moment for their mind, not a chore.',
+      'For each habit they chose, set when they will do it: a time, which days, and whether they want a reminder. Parse combined answers when you can. Ask only for the piece that is missing.',
   },
-  'plan-cards': {
-    nodeId: 'plan-review',
-    beatNumber: 8,
-    backId: 'reflection-setup',
-    screenId: 'ONBOARD-BEGINNER-06',
-    componentProps: { showJournalCard: true },
-    voice: {
-      openerText: "Here's your starting plan. We'll adjust as we go.",
-      expectsInput: true,
-      directLlmAllowed: true,
-    },
-    tool: { toolName: 'confirm_plan', persistsFields: [], advancesStep: true },
-    persist: null,
-    screenName: 'Plan Review',
-    contextBlock:
-      'Show them the plan you built together and ask if they want to change anything before starting. If they are happy, take them in.',
-  },
-  // coach-bubble has no designer DEFAULT_FLOW counterpart in the beginner path;
-  // it backs the synthesized advanced-input lane beat (built in SYNTHESIZED_NODES).
-  'coach-bubble': {
+  // The advanced (braindump) lane's single capture beat. A real designer beat now
+  // (was synthesized as coach-bubble before the resync). Routes only on the
+  // braindump lane and rejoins at plan-review.
+  'advanced-capture': {
     nodeId: 'advanced-input',
     beatNumber: 4,
     backId: 'path-fork',
@@ -271,7 +257,7 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
       placeholder: 'Tell me everything on your mind, what you want to build, drop, or change.',
     },
     voice: {
-      openerText: 'Go ahead, tell me everything on your mind. I will organize it.',
+      openerText: "Perfect. Read me the habits you already track and I'll get them organized.",
       expectsInput: true,
       directLlmAllowed: true,
     },
@@ -281,15 +267,93 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
     contextBlock:
       'The user wants to tell you everything on their mind at once. Let them. Listen for the habits and goals inside it; do not interrupt with structure yet.',
   },
+  'plan-cards': {
+    nodeId: 'plan-review',
+    beatNumber: 8,
+    backId: 'habit-schedule',
+    screenId: 'ONBOARD-BEGINNER-06',
+    componentProps: { showJournalCard: true },
+    voice: {
+      openerText: 'Here are your habits. Do these look right, or want to change anything?',
+      expectsInput: true,
+      directLlmAllowed: true,
+    },
+    tool: { toolName: 'update_habit', persistsFields: [], advancesStep: true },
+    persist: null,
+    screenName: 'Plan Review',
+    contextBlock:
+      'Show them the habits you built together and ask if they want to change anything before moving on. Handle one edit at a time, then continue.',
+  },
+  'morning-checkin-setup': {
+    nodeId: 'morning-checkin-setup',
+    beatNumber: 9,
+    backId: 'plan-review',
+    screenId: 'ONBOARD-MORNING-SETUP',
+    componentProps: { showDayPicker: true, showReminderToggle: true },
+    voice: {
+      openerText: "When do you want your morning check-in? I'll nudge you then.",
+      expectsInput: true,
+      directLlmAllowed: true,
+    },
+    tool: {
+      toolName: 'submit_morning_checkin',
+      persistsFields: ['morningCheckin'],
+      advancesStep: true,
+    },
+    persist: { step: 7 },
+    screenName: 'Morning Check-in',
+    contextBlock:
+      'Set up a short morning check-in: when they want the nudge, which days, and whether they want a reminder. Keep it light, a quick way to start the day with intention.',
+  },
+  'reflection-card': {
+    nodeId: 'reflection-setup',
+    beatNumber: 10,
+    backId: 'morning-checkin-setup',
+    screenId: 'ONBOARD-BEGINNER-07',
+    componentProps: { showDayPicker: true, showReminderToggle: true, showModePicker: true },
+    voice: {
+      openerText: 'Now your evening reflection. When works for you?',
+      expectsInput: true,
+      directLlmAllowed: true,
+    },
+    tool: {
+      toolName: 'submit_reflection_config',
+      persistsFields: ['reflectionConfig'],
+      advancesStep: true,
+    },
+    persist: { step: 8 },
+    screenName: 'Reflection Setup',
+    contextBlock:
+      'Set up a short evening reflection: when, which days, whether they want a reminder, and the style (guided prompts, custom prompts, or freeform). Frame it as a moment for their mind, not a chore.',
+  },
+  'into-app': {
+    nodeId: 'into-app',
+    beatNumber: 11,
+    backId: null,
+    screenId: 'ONBOARD-COMPLETE',
+    componentProps: {},
+    voice: {
+      openerText: "You're all set. Let's get started.",
+      expectsInput: false,
+      directLlmAllowed: true,
+    },
+    tool: { toolName: 'confirm_plan', persistsFields: [], advancesStep: true },
+    persist: null,
+    screenName: 'Into the App',
+    contextBlock:
+      "Onboarding is done. Warmly tell the user they are all set and take them in. Do not collect anything else.",
+  },
 };
 
 /**
  * The fork's lanes and the merge target. The flat designer array has no fork; the
- * engine forks at the path-selection beat into a beginner lane (category onward)
- * and a synthesized advanced lane (brain-dump), both rejoining at plan-review.
+ * engine forks at the path-selection beat into a beginner lane (category through
+ * habit-schedule) and the advanced lane (the single advanced-capture brain-dump
+ * beat), both rejoining at plan-review. From plan-review the spine continues
+ * shared: morning-checkin-setup -> reflection-setup -> into-app.
  */
 const FORK_LANES = [
-  { value: 'simple', label: 'Beginner', entryNodeId: 'category', exitNodeId: 'reflection-setup' },
+  { value: 'simple', label: 'Beginner', entryNodeId: 'category', exitNodeId: 'habit-schedule' },
   {
     value: 'braindump',
     label: 'Advanced',
@@ -299,6 +363,10 @@ const FORK_LANES = [
 ] as const;
 const FORK_MERGE_NODE_ID = 'plan-review';
 const FORK_CONDITION_SOURCE = 'answers.path';
+// The designer component type that backs the advanced (braindump) lane node. It
+// is pulled out of the linear beginner spine and inserted as a lane node, the way
+// the synthesized coach-bubble beat used to be, but now it is a real designer beat.
+const ADVANCED_LANE_COMPONENT: FlowComponentType = 'advanced-capture';
 
 export interface TransformOptions {
   flowId?: string;
@@ -359,27 +427,30 @@ export function designerToFlowDocument(
   const opts = { ...DEFAULTS, ...options };
 
   // Pass 1: designer beats -> engine component types, in spine order. Intro beats
-  // (no mapping), coach-bubble (synthesized, not in DEFAULT_FLOW), and any type
-  // without an engine spec are skipped, so every entry here has a spec.
+  // (no mapping), the advanced-lane beat (routed only on the braindump lane, added
+  // in pass 2), and any type without an engine spec are skipped, so every entry
+  // here has a spec.
   const mappedTypes: FlowComponentType[] = [];
   for (const beat of designerFlow) {
     const component = TYPE_TO_COMPONENT[beat.type];
     if (component == null) continue; // intro beat, not an engine node
-    if (component === 'coach-bubble') continue; // synthesized advanced lane, added in pass 2
+    if (component === ADVANCED_LANE_COMPONENT) continue; // advanced lane, added in pass 2
     if (!ENGINE_BEAT_SPECS[component]) continue; // registry type with no onboarding spec
     mappedTypes.push(component);
   }
 
   // The designer beat for each mapped component (for opener + screenId overrides).
+  // The advanced-lane beat is kept too, so pass 2 can read its designer opener.
   const designerByComponent = new Map<FlowComponentType, DesignerBeat>();
   for (const beat of designerFlow) {
     const component = TYPE_TO_COMPONENT[beat.type];
-    if (component && component !== 'coach-bubble') designerByComponent.set(component, beat);
+    if (component) designerByComponent.set(component, beat);
   }
 
   // The spine order of node ids, in the BEGINNER path, as authored.
   // auth -> mic -> profile -> path-fork -> category -> goals -> habit-select ->
-  // reflection-setup -> [advanced-input synthesized] -> plan-review.
+  // habit-schedule -> [advanced-input lane node] -> plan-review ->
+  // morning-checkin-setup -> reflection-setup -> into-app.
   const spineIds = mappedTypes.map((c) => specFor(c).nodeId);
 
   // The beginner-spine successor of each node id (for nextId/backId chaining). The
@@ -423,16 +494,17 @@ export function designerToFlowDocument(
       return;
     }
 
-    // nextId chains linearly down the spine; plan-review (the merge) terminates
-    // with null. backId is the engine spec's value (the graph back target, which
-    // is not always the spine predecessor: category goes back to the fork).
+    // nextId chains linearly down the spine. The last spine node (into-app, the
+    // shared terminal) ends with null. backId is the engine spec's value (the
+    // graph back target, which is not always the spine predecessor: category goes
+    // back to the fork).
     const node: BeatNode = {
       id: spec.nodeId,
       type: 'beat',
       beatNumber,
       name: spec.screenName,
       screenId,
-      nextId: spec.nodeId === FORK_MERGE_NODE_ID ? null : nextId,
+      nextId,
       backId: spec.backId,
       context,
       componentType: component,
@@ -444,24 +516,28 @@ export function designerToFlowDocument(
     nodeById.set(spec.nodeId, node);
   });
 
-  // Pass 2: the synthesized advanced-input lane beat (no designer counterpart).
-  const advSpec = specFor('coach-bubble');
+  // Pass 2: the advanced-input lane beat. A real designer beat now (advance-capture),
+  // pulled out of the linear beginner spine and inserted as the braindump lane node
+  // that rejoins at plan-review. Its opener comes from the designer beat.
+  const advSpec = specFor(ADVANCED_LANE_COMPONENT);
+  const advDesigner = designerByComponent.get(ADVANCED_LANE_COMPONENT);
+  const advScreenId = screenIdFromSheetStage(advDesigner?.sheetStage) ?? advSpec.screenId;
   const advNode: BeatNode = {
     id: advSpec.nodeId,
     type: 'beat',
     beatNumber: advSpec.beatNumber,
     name: 'Brain Dump (Advanced)',
-    screenId: advSpec.screenId,
+    screenId: advScreenId,
     nextId: FORK_MERGE_NODE_ID,
     backId: advSpec.backId,
     context: {
-      screenId: advSpec.screenId,
+      screenId: advScreenId,
       screenName: advSpec.screenName,
       contextBlock: advSpec.contextBlock,
     },
-    componentType: 'coach-bubble',
+    componentType: ADVANCED_LANE_COMPONENT,
     componentProps: { ...advSpec.componentProps },
-    voice: { ...advSpec.voice },
+    voice: { ...advSpec.voice, openerText: resolveOpener(advDesigner, advSpec) },
     tool: advSpec.tool,
     persist: advSpec.persist,
   };

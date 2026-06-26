@@ -28,7 +28,14 @@ export interface DesignerBeat {
 
 /**
  * Mirror of ggmvp-flow-builder DEFAULT_FLOW (the onboarding starter set).
- * Keep this in lockstep with the builder source. Last synced: 2026-06-25.
+ * Keep this in lockstep with the builder source. Last synced: 2026-06-26.
+ *
+ * Differences from the builder array, by design:
+ *   - The builder's beat-0 `qa-control` launcher is OMITTED here. It is a QA-only
+ *     design beat (the engine already ships QAControlScreen.tsx); it is not part
+ *     of the engine onboarding flow.
+ *   - `showOnPath` / `variant` are not mirrored: the transform derives the fork
+ *     lanes from the path-selection beat, and the engine has no QA variant.
  */
 export const DESIGNER_ONBOARDING_FLOW: DesignerBeat[] = [
   { type: 'splash', beat: '1', background: 'coach' },
@@ -89,16 +96,47 @@ export const DESIGNER_ONBOARDING_FLOW: DesignerBeat[] = [
     props: { coachLine: "Here are a few habits that fit. Pick the ones you'll actually do." },
   },
   {
-    type: 'reflection-card',
+    type: 'habit-schedule',
     beat: '11',
     background: 'user',
-    sheetStage: 'ONBOARD-BEGINNER-07: Journal Setup',
-    props: { coachLine: "Let's set a daily moment to reflect. When works for you?" },
+    sheetStage: 'ONBOARD-BEGINNER-04: Habit Schedule',
+    props: { coachLine: 'When will you do these? Set a time and how often.' },
+  },
+  {
+    type: 'advanced-capture',
+    beat: '8',
+    background: 'user',
+    sheetStage: 'ONBOARD-ADVANCED: Brain Dump',
+    props: {
+      coachLine: "Perfect. Read me the habits you already track and I'll get them organized.",
+    },
   },
   {
     type: 'plan-cards',
     beat: '12',
     background: 'coach',
-    props: { coachLine: "Here's your starting plan. We'll adjust as we go." },
+    sheetStage: 'ONBOARD-BEGINNER-06: Confirm Habits',
+    props: { coachLine: 'Here are your habits. Do these look right, or want to change anything?' },
+  },
+  {
+    type: 'morning-checkin-setup',
+    beat: '13',
+    background: 'user',
+    sheetStage: 'ONBOARD-MORNING-SETUP: Morning Check-in',
+    props: { coachLine: "When do you want your morning check-in? I'll nudge you then." },
+  },
+  {
+    type: 'reflection-card',
+    beat: '14',
+    background: 'user',
+    sheetStage: 'ONBOARD-BEGINNER-07: Evening Reflection Setup',
+    props: { coachLine: 'Now your evening reflection. When works for you?' },
+  },
+  {
+    type: 'into-app',
+    beat: '15',
+    background: 'coach',
+    sheetStage: 'ONBOARD-COMPLETE: Into the App',
+    props: { coachLine: "You're all set. Let's get started." },
   },
 ];

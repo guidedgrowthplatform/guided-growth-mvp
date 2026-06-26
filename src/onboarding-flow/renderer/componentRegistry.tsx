@@ -25,6 +25,7 @@ import { GoalCard } from '@/components/onboarding/GoalCard';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
+import { ReflectionModeEditor } from '@/components/onboarding/ReflectionModeEditor';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { SelectionCard } from '@/components/onboarding/SelectionCard';
 import { Button } from '@/components/ui/Button';
@@ -38,6 +39,7 @@ import {
 } from '@/contexts/useOnboardingVoiceSession';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import type { ReflectionMode } from '@gg/shared/types';
 import {
   FLOW_CATEGORIES,
   GENDER_OPTIONS,
@@ -790,10 +792,33 @@ function HabitsAdapter({ answers, onCapture }: BeatAdapterProps) {
   );
 }
 
-/* ------------------------------------------------------------- reflection */
+/* --------------------------------------------------------- schedule card */
 
-function ReflectionAdapter({ onCapture }: BeatAdapterProps) {
-  const [time, setTime] = useState('21:45');
+// A reusable time + days + reminder schedule editor, wrapping the real
+// DailyReflectionCard chrome. Used by both the habit-schedule and the
+// morning-checkin-setup beats. Returns the chosen schedule to the caller, which
+// decides which answer key it lands under.
+interface ScheduleState {
+  time: string;
+  days: number[];
+  reminder: boolean;
+  schedule: ScheduleOption;
+}
+
+function ScheduleCard({
+  initialTime,
+  voiceAction,
+  ctaLabel,
+  onSubmit,
+}: {
+  initialTime: string;
+  // The voice action this beat listens for (e.g. set_reflection_config). When the
+  // coach (Direct-LLM) fills the schedule by voice, it lands here.
+  voiceAction: string;
+  ctaLabel: string;
+  onSubmit: (value: ScheduleState) => void;
+}) {
+  const [time, setTime] = useState(initialTime);
   const [days, setDays] = useState<Set<number>>(new Set(WEEKDAYS));
   const [reminder, setReminder] = useState(true);
   const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');
@@ -810,7 +835,7 @@ function ReflectionAdapter({ onCapture }: BeatAdapterProps) {
     });
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
-    if (result.action !== 'set_reflection_config') return;
+    if (result.action !== voiceAction) return;
     const p = result.params as {
       time?: string;
       days?: number[];
@@ -844,11 +869,157 @@ function ReflectionAdapter({ onCapture }: BeatAdapterProps) {
         onScheduleChange={changeSchedule}
       />
       <Cta
-        label="Continue"
-        onClick={() =>
-          onCapture({ data: { reflectionConfig: { time, days: [...days], reminder, schedule } } })
-        }
+        label={ctaLabel}
+        onClick={() => onSubmit({ time, days: [...days], reminder, schedule })}
       />
+    </CardShell>
+  );
+}
+
+/* ------------------------------------------------------- habit schedule */
+
+// Habit schedule beat: pick when the chosen habits happen. The captured schedule
+// is applied to every selected habit's config (one shared schedule for the start
+// plan; per-habit tweaks happen later on plan-review).
+function HabitScheduleAdapter({ answers, onCapture }: BeatAdapterProps) {
+  const existing = (answers.habitConfigs ?? {}) as Record<string, HabitConfigSerialized>;
+  const names = Object.keys(existing);
+  const submit = (s: ScheduleState) => {
+    const base = { days: s.days, time: s.time, reminder: s.reminder, schedule: s.schedule };
+    const habitConfigs: Record<string, HabitConfigSerialized> =
+      names.length > 0
+        ? Object.fromEntries(names.map((n) => [n, { ...existing[n], ...base }]))
+        : { ...existing };
+    onCapture({ data: { habitConfigs } });
+  };
+  return (
+    <ScheduleCard
+      initialTime="09:00"
+      voiceAction="set_habit_schedule"
+      ctaLabel="Continue"
+      onSubmit={submit}
+    />
+  );
+}
+
+/* --------------------------------------------------- morning check-in setup */
+
+// Morning check-in setup beat: pick when the morning nudge fires. Lands under the
+// morningCheckin answer key (submit_morning_checkin server-side).
+function MorningCheckinAdapter({ onCapture }: BeatAdapterProps) {
+  const submit = (s: ScheduleState) =>
+    onCapture({
+      data: {
+        morningCheckin: { time: s.time, days: s.days, reminder: s.reminder, schedule: s.schedule },
+      },
+    });
+  return (
+    <ScheduleCard
+      initialTime="08:00"
+      voiceAction="set_morning_checkin"
+      ctaLabel="Continue"
+      onSubmit={submit}
+    />
+  );
+}
+
+/* ------------------------------------------------------------- reflection */
+
+// Evening reflection beat: schedule (time + days + reminder) PLUS the style
+// (guided prompts, custom prompts, or freeform) via the real ReflectionModeEditor.
+// The mode + custom prompts ride into the submit_reflection_config payload (the
+// tool already accepts a `mode` param and the handler already reads it).
+function ReflectionAdapter({ node, onCapture }: BeatAdapterProps) {
+  const props = node.componentProps as { showModePicker?: boolean };
+  const [time, setTime] = useState('21:45');
+  const [days, setDays] = useState<Set<number>>(new Set(WEEKDAYS));
+  const [reminder, setReminder] = useState(true);
+  const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');
+  const [mode, setMode] = useState<ReflectionMode>('prompts');
+  const [prompts, setPrompts] = useState<string[]>([]);
+
+  const changeSchedule = (value: ScheduleOption) => {
+    setSchedule(value);
+    setDays(new Set(SCHEDULE_DAYS[value]));
+  };
+  const toggleDay = (day: number) =>
+    setDays((prev) => {
+      const next = toggleSetItem(prev, day);
+      setSchedule(inferSchedule(next) ?? 'Weekday');
+      return next;
+    });
+
+  useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
+    if (result.action !== 'set_reflection_config') return;
+    const p = result.params as {
+      time?: string;
+      days?: number[];
+      reminder?: boolean;
+      schedule?: string;
+      mode?: string;
+    };
+    if (typeof p.time === 'string' && /^\d{1,2}:\d{2}$/.test(p.time)) setTime(p.time);
+    if (Array.isArray(p.days)) {
+      const ds = p.days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+      if (ds.length > 0) {
+        setDays(new Set(ds));
+        const matched = inferSchedule(new Set(ds));
+        if (matched) setSchedule(matched);
+      }
+    }
+    if (typeof p.reminder === 'boolean') setReminder(p.reminder);
+    if (p.schedule === 'Weekday' || p.schedule === 'Weekend' || p.schedule === 'Every day')
+      changeSchedule(p.schedule);
+    if (p.mode === 'prompts' || p.mode === 'freeform') setMode(p.mode);
+  });
+
+  const submit = () => {
+    // Custom prompts only carry when the user chose prompts mode and authored some.
+    const customPrompts = mode === 'prompts' ? prompts.filter((p) => p.trim()) : [];
+    onCapture({
+      data: {
+        reflectionConfig: { time, days: [...days], reminder, schedule },
+        reflectionMode: mode,
+        ...(customPrompts.length > 0 ? { customPrompts } : {}),
+      },
+    });
+  };
+
+  return (
+    <CardShell>
+      <DailyReflectionCard
+        time={time}
+        onTimeChange={setTime}
+        days={days}
+        onToggleDay={toggleDay}
+        reminder={reminder}
+        onToggleReminder={setReminder}
+        schedule={schedule}
+        onScheduleChange={changeSchedule}
+      />
+      {props.showModePicker && (
+        <ReflectionModeEditor
+          mode={mode}
+          onModeChange={setMode}
+          prompts={prompts}
+          onPromptsChange={setPrompts}
+        />
+      )}
+      <Cta label="Continue" onClick={submit} />
+    </CardShell>
+  );
+}
+
+/* ------------------------------------------------------------- into the app */
+
+// Terminal completion beat. A real node now (replaces the hardcoded "You're all
+// set" line in FlowRenderer): the coach line plays as the beat opener and the
+// user taps in. Captures {} to complete the flow.
+function IntoAppAdapter({ node, onCapture }: BeatAdapterProps) {
+  const props = node.componentProps as { ctaLabel?: string };
+  return (
+    <CardShell>
+      <Cta label={props.ctaLabel ?? "Let's go"} onClick={() => onCapture({ data: {} })} />
     </CardShell>
   );
 }
@@ -937,8 +1108,14 @@ export const ADAPTER_REGISTRY: Record<string, AdapterComponent> = {
   'category-grid': CategoryAdapter,
   'goals-list': GoalsAdapter,
   'habit-picker': HabitsAdapter,
+  'habit-schedule': HabitScheduleAdapter,
+  'morning-checkin-setup': MorningCheckinAdapter,
   'reflection-card': ReflectionAdapter,
   'plan-cards': PlanAdapter,
+  'into-app': IntoAppAdapter,
+  // The advanced (braindump) lane renders the brain-dump card. coach-bubble keeps
+  // the same adapter for any generic brain-dump usage outside onboarding.
+  'advanced-capture': BrainDumpAdapter,
   'coach-bubble': BrainDumpAdapter,
 };
 
@@ -974,8 +1151,20 @@ export function summarizeBeat(node: FlowNode, answers: FlowAnswers): string | nu
       return answers.habitConfigs
         ? `${Object.keys(answers.habitConfigs).length} habit(s) to start.`
         : null;
+    case 'habit-schedule': {
+      // The shared schedule applied across habits: read the first habit's time.
+      const cfgs = answers.habitConfigs ?? {};
+      const first = Object.values(cfgs)[0];
+      return first ? `Scheduled for ${first.time}.` : null;
+    }
+    case 'morning-checkin-setup':
+      return answers.morningCheckin ? `Morning check-in at ${answers.morningCheckin.time}.` : null;
     case 'reflection-card':
       return answers.reflectionConfig ? `Reflect at ${answers.reflectionConfig.time}.` : null;
+    case 'into-app':
+      // Terminal beat; no captured answer to echo back.
+      return null;
+    case 'advanced-capture':
     case 'coach-bubble':
       return answers.brainDumpText ? String(answers.brainDumpText) : null;
     default:

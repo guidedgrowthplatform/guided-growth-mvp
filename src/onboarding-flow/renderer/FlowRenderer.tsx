@@ -10,7 +10,6 @@ import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useRef } from 'react';
 import { getNode } from '../flowMachine';
 import type { FlowOrchestrator } from '../useFlowOrchestrator';
-import { PastBeatBubbles } from './BeatPlayer';
 import { BeatView } from './BeatView';
 import { FlowVoiceControls } from './FlowVoiceControls';
 
@@ -65,9 +64,8 @@ export function FlowRenderer({ orchestrator }: FlowRendererProps) {
             );
           })}
 
-          {isComplete && (
-            <PastBeatBubbles coach="You're all set. Let's get started." reply={null} />
-          )}
+          {/* The completion line is now the into-app terminal beat (rendered above
+              as the last visited node), not a hardcoded bubble here. */}
 
           <div ref={bottomRef} />
         </div>
