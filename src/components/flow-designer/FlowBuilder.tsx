@@ -1181,6 +1181,14 @@ function MetaSection({
   const addClip = () =>
     setMeta({ mp3Assets: [...clips, { label: '', file: '', transcript: '', opener: '' }] });
   const removeClip = (i: number) => setMeta({ mp3Assets: clips.filter((_, j) => j !== i) });
+  const clipAudioRef = useRef<HTMLAudioElement | null>(null);
+  const playClip = (url: string) => {
+    if (!url) return;
+    if (clipAudioRef.current) clipAudioRef.current.pause();
+    const a = new Audio(url);
+    clipAudioRef.current = a;
+    void a.play().catch(() => {});
+  };
   const orb = meta.orb ?? {};
   const setOrb = (patch: Partial<NonNullable<BeatMeta['orb']>>) => setMeta({ orb: { ...orb, ...patch } });
   const groupLabel = 'text-[9px] font-bold uppercase tracking-[0.08em] text-content-subtle';
@@ -1238,7 +1246,7 @@ function MetaSection({
             </MetaField>
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
-                <span className={META_LABEL}>MP3 clips</span>
+                <span className={META_LABEL}>MP3 clips{clips.length ? ` (${clips.length} variations)` : ''}</span>
                 <button
                   type="button"
                   onClick={addClip}
@@ -1259,6 +1267,15 @@ function MetaSection({
                       placeholder="label"
                       className={`${META_INPUT} flex-1`}
                     />
+                    <button
+                      type="button"
+                      onClick={() => playClip(c.file)}
+                      disabled={!c.file}
+                      aria-label="Play clip"
+                      className="flex size-6 shrink-0 items-center justify-center rounded-md border border-border text-primary disabled:opacity-40"
+                    >
+                      <Icon icon="ic:round-play-arrow" className="size-3.5" />
+                    </button>
                     <button
                       type="button"
                       onClick={() => removeClip(i)}
