@@ -102,6 +102,15 @@ const EditHabitPage = lazyOnboarding('EditHabitPage');
 const EditJournalPage = lazyOnboarding('EditJournalPage');
 const AdvancedStep6Page = lazyOnboarding('AdvancedStep6Page');
 const AdvancedCustomPromptsPage = lazyOnboarding('AdvancedCustomPromptsPage');
+const QAControlScreen = lazyWithRetry(() =>
+  import('@/onboarding-flow/QAControlScreen').then((m) => ({ default: m.QAControlScreen })),
+);
+
+// QA control launcher: gated to QA/dev builds only. Off in production by default,
+// so real users never see it. The QA build flips VITE_QA_SCREEN_ENABLED=true to
+// expose /onboarding/qa. Same code, two builds, one flag.
+const QA_SCREEN_ENABLED =
+  import.meta.env.VITE_QA_SCREEN_ENABLED === 'true' || import.meta.env.DEV;
 
 function PageLoader() {
   return (
@@ -183,6 +192,18 @@ export function AppRoutes() {
 
         {/* Privacy policy — accessible from any state (onboarding, settings, anon) */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+
+        {/* QA control launcher (QA/dev builds only): pick a test user, log in / reset / re-onboard */}
+        {QA_SCREEN_ENABLED && (
+          <Route
+            path="/onboarding/qa"
+            element={
+              <AppGate allow="public">
+                <QAControlScreen />
+              </AppGate>
+            }
+          />
+        )}
 
         {/* Auth callbacks (no auth guard) */}
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
