@@ -371,6 +371,9 @@ const COACH_LINE_PROP: Record<string, string> = {
   'habit-picker': 'coachLine',
   'reflection-card': 'coachLine',
   'plan-cards': 'coachLine',
+  'habit-schedule': 'coachLine',
+  'morning-checkin-setup': 'coachLine',
+  'into-app': 'coachLine',
 };
 
 // Imported components that are full-screen modals/overlays. They cannot preview
@@ -531,6 +534,14 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     props: { coachLine: "Here are a few habits that fit. Pick the ones you'll actually do." },
   },
   {
+    type: 'habit-schedule',
+    beat: '11',
+    background: 'user',
+    showOnPath: 'new',
+    sheetStage: 'ONBOARD-BEGINNER-04: Habit Schedule',
+    props: { coachLine: 'When will you do these? Set a time and how often.' },
+  },
+  {
     type: 'advanced-capture',
     beat: '8',
     background: 'user',
@@ -538,18 +549,34 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     sheetStage: 'ONBOARD-ADVANCED: Brain Dump',
     props: { coachLine: "Perfect. Read me the habits you already track and I'll get them organized." },
   },
-  {
-    type: 'reflection-card',
-    beat: '11',
-    background: 'user',
-    sheetStage: 'ONBOARD-BEGINNER-07: Journal Setup',
-    props: { coachLine: "Let's set a daily moment to reflect. When works for you?" },
-  },
+  // Both paths converge from here.
   {
     type: 'plan-cards',
     beat: '12',
     background: 'coach',
-    props: { coachLine: "Here's your starting plan. We'll adjust as we go." },
+    sheetStage: 'ONBOARD-BEGINNER-06: Confirm Habits',
+    props: { coachLine: 'Here are your habits. Do these look right, or want to change anything?' },
+  },
+  {
+    type: 'morning-checkin-setup',
+    beat: '13',
+    background: 'user',
+    sheetStage: 'ONBOARD-MORNING-SETUP: Morning Check-in',
+    props: { coachLine: "When do you want your morning check-in? I'll nudge you then." },
+  },
+  {
+    type: 'reflection-card',
+    beat: '14',
+    background: 'user',
+    sheetStage: 'ONBOARD-BEGINNER-07: Evening Reflection Setup',
+    props: { coachLine: 'Now your evening reflection. When works for you?' },
+  },
+  {
+    type: 'into-app',
+    beat: '15',
+    background: 'coach',
+    sheetStage: 'ONBOARD-COMPLETE: Into the App',
+    props: { coachLine: "You're all set. Let's get started." },
   },
 ];
 
