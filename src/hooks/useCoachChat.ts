@@ -46,6 +46,10 @@ const MIC_GRACE_MS = 2500;
 const LLM_ERROR_TEXT = "Something didn't work on my end. Mind trying that again?";
 const TOOL_FAIL_TEXT = "I couldn't save that just now — want to try again?";
 const SESSION_ERROR_TEXT = "Can't connect right now. Try reopening the chat.";
+const OPENER_ERROR_TEXT = "I'm having trouble getting started — say something and I'll jump in.";
+const HISTORY_ERROR_TEXT = "Can't load your history right now. Try reopening the chat.";
+
+const OPENER_TIMEOUT_MS = 15000;
 
 // One write session per user — anchors the coach's continuous memory across all
 // screens. The per-turn screen_id stays real (sent on each /api/llm request).
@@ -146,6 +150,7 @@ export function useCoachChat(
   const tokenRef = useRef<ReleaseToken | null>(null);
   const pendingTurnRef = useRef<string | null>(null);
   const openerSentRef = useRef<string | null>(null);
+  const openerRetriedRef = useRef<string | null>(null);
   const initiateNonceRef = useRef(0);
   const spokenSeededForRef = useRef<string | null>(null);
   const spokenIdsRef = useRef<Set<string>>(new Set());
@@ -449,6 +454,21 @@ export function useCoachChat(
     }
   }, [screenId, seedOpener]);
 
+  // Opener with timeout + one bounded retry per session; surfaces a visible
+  // bubble on persistent failure so the overlay can't sit silently empty.
+  const runOpener = useCallback(async () => {
+    if (await sendOpener(OPENER_TIMEOUT_MS)) return;
+    if (openerRetriedRef.current !== chatSessionId) {
+      openerRetriedRef.current = chatSessionId;
+      if (await sendOpener(OPENER_TIMEOUT_MS)) return;
+    }
+    setErrorBubbles((prev) =>
+      prev.some((b) => b.id === 'opener-error')
+        ? prev
+        : [...prev, { id: 'opener-error', role: 'ai', text: OPENER_ERROR_TEXT }],
+    );
+  }, [sendOpener, chatSessionId]);
+
   // ─── Explicit check-in initiation: coach leads the next turn regardless of
   // existing history. Fires exactly once per nonce bump (guard ref) and marks
   // this session's opener sent so the empty-welcome below never double-fires. ─
@@ -463,13 +483,13 @@ export function useCoachChat(
     if (CHECKIN_LOCAL_OPENER && (screenId.startsWith('MCHECK') || screenId.startsWith('ECHECK'))) {
       localCheckinOpener();
     } else {
-      void sendOpener();
+      void runOpener();
     }
   }, [
     chatSessionId,
     initiateCheckinNonce,
     screenId,
-    sendOpener,
+    runOpener,
     localCheckinOpener,
     voiceModeOn,
     audioReady,
@@ -492,8 +512,8 @@ export function useCoachChat(
     if (openerSentRef.current === chatSessionId) return;
     if (initialMessages.length > 0) return;
     openerSentRef.current = chatSessionId;
-    void sendOpener();
-  }, [chatSessionId, initialMessages, sendOpener, overlayOpen, screenId]);
+    void runOpener();
+  }, [chatSessionId, initialMessages, runOpener, overlayOpen, screenId]);
 
   // ─── Pre-seed spoken ids from resumed history (declared BEFORE the speak
   // effect so it runs first in-commit) — prevents replaying old turns ──
@@ -679,6 +699,16 @@ export function useCoachChat(
         : [...prev, { id: 'session-error', role: 'ai', text: SESSION_ERROR_TEXT }],
     );
   }, [sessionStatus]);
+
+  // History fetch failed → chatSessionId stays null, wedging opener + sends. Surface it.
+  useEffect(() => {
+    if (historyStatus !== 'error') return;
+    setErrorBubbles((prev) =>
+      prev.some((b) => b.id === 'history-error')
+        ? prev
+        : [...prev, { id: 'history-error', role: 'ai', text: HISTORY_ERROR_TEXT }],
+    );
+  }, [historyStatus]);
 
   useEffect(() => {
     let latestId: string | null = null;

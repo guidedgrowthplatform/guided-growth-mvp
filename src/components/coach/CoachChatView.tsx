@@ -340,6 +340,7 @@ export function CoachChatView({
             size={91}
             leftActive={voiceChosen}
             rightActive={micLive}
+            rightMuted={micRuntimeOn && !micLive}
             activeRings={dualActiveRings}
             ringCount={3}
             ringStep={4}
