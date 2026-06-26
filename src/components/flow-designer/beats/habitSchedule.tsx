@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Icon } from '@iconify/react';
 import { type ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { Toggle } from '@/components/ui/Toggle';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
@@ -91,6 +92,7 @@ function TimePill({ value, onChange }: { value: string; onChange: (v: string) =>
         userSelect: 'none',
       }}
     >
+      <Icon icon="mdi:clock-outline" width={14} height={14} style={{ marginRight: -1 }} />
       {fmt(value)}
       <input
         type="time"
@@ -115,8 +117,35 @@ interface HabitRow {
   reminder: boolean;
 }
 
-// One card per habit: name left, time pill right, then freq chips left and
-// "Remind me" + toggle right on a second row.
+// A small, non-editable streak chip. A freshly added habit starts at zero, shown
+// in gray so it reads as "your streak starts here," not an active streak.
+function StreakChip() {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        background: 'rgba(15,23,42,0.05)',
+        borderRadius: 999,
+        padding: '3px 9px',
+        fontFamily: FONT,
+        fontSize: 12,
+        fontWeight: 700,
+        color: 'rgb(148,163,184)',
+        flexShrink: 0,
+      }}
+    >
+      <Icon icon="mdi:fire" width={14} height={14} style={{ color: 'rgb(148,163,184)' }} />
+      0
+    </span>
+  );
+}
+
+// One card per habit. This is the shared element for both paths: the beginner
+// picks habits and lands here, the advanced user reads theirs in and lands here
+// too. Top row is the habit and its starting streak, then the schedule controls
+// (how often + an estimated time), then an opt-in reminder that is off by default.
 function HabitCard({
   name,
   row,
@@ -138,7 +167,7 @@ function HabitCard({
         gap: 12,
       }}
     >
-      {/* Row 1: habit name + time pill */}
+      {/* Row 1: habit name + its starting streak */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
         <span
           style={{
@@ -152,33 +181,42 @@ function HabitCard({
         >
           {name}
         </span>
-        <TimePill value={row.time} onChange={(t) => onChange({ time: t })} />
+        <StreakChip />
       </div>
 
       {/* Divider */}
       <div style={{ height: 1, background: 'rgba(15,23,42,0.06)', margin: '0 -2px' }} />
 
-      {/* Row 2: frequency chips left + remind me + toggle right */}
+      {/* Row 2: how often (frequency) + when (estimated time) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
         <FreqPicker value={row.freq} onChange={(f) => onChange({ freq: f })} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
-          <span
-            style={{
-              fontFamily: FONT,
-              fontSize: 13,
-              fontWeight: 600,
-              color: row.reminder ? 'rgb(15,23,42)' : 'rgb(148,163,184)',
-              transition: 'color 140ms ease-out',
-            }}
-          >
-            Remind me
-          </span>
-          <Toggle
-            checked={row.reminder}
-            onChange={(v) => onChange({ reminder: v })}
-            ariaLabel={`Reminder for ${name}`}
-          />
-        </div>
+        <TimePill value={row.time} onChange={(t) => onChange({ time: t })} />
+      </div>
+
+      {/* Row 3: opt-in reminder, off by default and de-emphasized */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 7 }}>
+        <Icon
+          icon="mdi:bell-outline"
+          width={14}
+          height={14}
+          style={{ color: row.reminder ? BLUE : 'rgb(148,163,184)' }}
+        />
+        <span
+          style={{
+            fontFamily: FONT,
+            fontSize: 13,
+            fontWeight: 600,
+            color: row.reminder ? 'rgb(15,23,42)' : 'rgb(148,163,184)',
+            transition: 'color 140ms ease-out',
+          }}
+        >
+          Remind me
+        </span>
+        <Toggle
+          checked={row.reminder}
+          onChange={(v) => onChange({ reminder: v })}
+          ariaLabel={`Reminder for ${name}`}
+        />
       </div>
     </div>
   );

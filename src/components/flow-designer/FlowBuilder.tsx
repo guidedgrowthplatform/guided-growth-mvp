@@ -549,6 +549,17 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     sheetStage: 'ONBOARD-ADVANCED: Brain Dump',
     props: { coachLine: "Perfect. Read me the habits you already track and I'll get them organized." },
   },
+  {
+    // Advanced users schedule their captured habits with the same card the
+    // beginner path uses, so both paths share one component. Reads the captured
+    // habits from shared flow state.
+    type: 'habit-schedule',
+    beat: '8b',
+    background: 'user',
+    showOnPath: 'exp',
+    sheetStage: 'ONBOARD-ADVANCED-SCHEDULE: Schedule Captured Habits',
+    props: { coachLine: 'Now, how often and roughly when for each one?' },
+  },
   // Both paths converge from here.
   {
     type: 'plan-cards',
