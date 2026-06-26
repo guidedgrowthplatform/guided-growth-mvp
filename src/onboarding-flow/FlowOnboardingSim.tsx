@@ -23,17 +23,35 @@ import { useFlowOrchestrator, type FlowOrchestrator } from './useFlowOrchestrato
 
 interface ParsedHabit {
   name: string;
-  frequency: string;
-  days?: number[];
-  time?: string;
+  // Only set when the user explicitly stated it. Blank => ask at review.
+  frequency?: string;
   polarity: 'positive' | 'negative' | null;
 }
+
+const FREQUENCY_OPTIONS = ['daily', 'weekdays', 'weekends', '3x/week', 'weekly'];
 
 // The brain-dump beat: free-text/voice dump that a fast model parses into habits.
 function isBrainDumpBeat(componentType?: string): boolean {
   return componentType === 'coach-bubble';
 }
 
+function PolarityTag({ polarity }: { polarity: ParsedHabit['polarity'] }) {
+  const neg = polarity === 'negative';
+  const unknown = polarity == null;
+  return (
+    <span
+      style={{
+        fontSize: 11,
+        fontWeight: 500,
+        color: unknown ? '#6b7280' : neg ? '#92400e' : '#166534',
+      }}
+    >
+      {unknown ? '?' : neg ? '↓ break' : '↑ do'}
+    </span>
+  );
+}
+
+// As the user dumps: show the habits, with frequency ONLY when they said it.
 function HabitChips({ habits, parsing }: { habits: ParsedHabit[]; parsing: boolean }) {
   if (!habits.length && !parsing) return null;
   return (
@@ -42,39 +60,110 @@ function HabitChips({ habits, parsing }: { habits: ParsedHabit[]; parsing: boole
         Habits I'm hearing{parsing ? ' …' : ''}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {habits.map((h, i) => {
-          const neg = h.polarity === 'negative';
-          const unknown = h.polarity == null;
-          return (
-            <div
-              key={`${h.name}-${i}`}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 10px',
-                borderRadius: 10,
-                border: '1px solid rgba(0,0,0,0.12)',
-                background: '#f5f6f8',
-                fontSize: 13,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: unknown ? '#6b7280' : neg ? '#92400e' : '#166534',
-                }}
-              >
-                {unknown ? '?' : neg ? '↓ break' : '↑ do'}
-              </span>
-              <span style={{ fontWeight: 500 }}>{h.name}</span>
+        {habits.map((h, i) => (
+          <div
+            key={`${h.name}-${i}`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 10px',
+              borderRadius: 10,
+              border: '1px solid rgba(0,0,0,0.12)',
+              background: '#f5f6f8',
+              fontSize: 13,
+            }}
+          >
+            <PolarityTag polarity={h.polarity} />
+            <span style={{ fontWeight: 500 }}>{h.name}</span>
+            {h.frequency ? (
               <span style={{ opacity: 0.6 }}>· {h.frequency}</span>
-              {h.time && <span style={{ opacity: 0.6 }}>· {h.time}</span>}
-            </div>
-          );
-        })}
+            ) : (
+              <span style={{ color: '#b45309', fontSize: 11 }}>· needs frequency</span>
+            )}
+          </div>
+        ))}
       </div>
+    </div>
+  );
+}
+
+// When the user is done: confirm the habits and fill the missing frequencies.
+function HabitReview({
+  habits,
+  onChangeFrequency,
+  onConfirm,
+  confirmed,
+}: {
+  habits: ParsedHabit[];
+  onChangeFrequency: (index: number, frequency: string) => void;
+  onConfirm: () => void;
+  confirmed: boolean;
+}) {
+  const missing = habits.filter((h) => !h.frequency).length;
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 6 }}>
+        {confirmed
+          ? `Saved ${habits.length} habits`
+          : `Do these look right? ${missing ? `Set how often for ${missing}.` : ''}`}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {habits.map((h, i) => (
+          <div
+            key={`${h.name}-${i}`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '6px 10px',
+              borderRadius: 10,
+              border: `1px solid ${!h.frequency ? '#f59e0b' : 'rgba(0,0,0,0.12)'}`,
+              background: '#fff',
+              fontSize: 13,
+            }}
+          >
+            <PolarityTag polarity={h.polarity} />
+            <span style={{ fontWeight: 500, flex: 1 }}>{h.name}</span>
+            <select
+              value={h.frequency ?? ''}
+              onChange={(e) => onChangeFrequency(i, e.target.value)}
+              disabled={confirmed}
+              style={{ fontSize: 13, padding: '4px 6px', borderRadius: 8 }}
+            >
+              <option value="" disabled>
+                how often?
+              </option>
+              {FREQUENCY_OPTIONS.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+      {!confirmed && (
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={habits.some((h) => !h.frequency)}
+          style={{
+            marginTop: 8,
+            height: 40,
+            width: '100%',
+            borderRadius: 12,
+            border: 'none',
+            cursor: habits.some((h) => !h.frequency) ? 'default' : 'pointer',
+            fontSize: 15,
+            fontWeight: 500,
+            color: '#fff',
+            background: habits.some((h) => !h.frequency) ? '#9aa6e6' : '#2447e6',
+          }}
+        >
+          These look right
+        </button>
+      )}
     </div>
   );
 }
@@ -86,6 +175,9 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
   const [err, setErr] = useState<string | null>(null);
   const [habits, setHabits] = useState<ParsedHabit[]>([]);
   const [parsing, setParsing] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [reviewHabits, setReviewHabits] = useState<ParsedHabit[]>([]);
   const node = orchestrator.currentNode;
   const nodeId = node?.id ?? null;
   const onBrainDump = isBrainDumpBeat(node?.componentType);
@@ -103,6 +195,9 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
       setText('');
       setInterim('');
       setHabits([]);
+      setReviewing(false);
+      setConfirmed(false);
+      setReviewHabits([]);
       dumpRef.current = '';
     }
   }, [nodeId]);
@@ -200,7 +295,43 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
           {err && `  ·  ${err}`}
         </div>
 
-        {onBrainDump && <HabitChips habits={habits} parsing={parsing} />}
+        {onBrainDump &&
+          (reviewing ? (
+            <HabitReview
+              habits={reviewHabits}
+              confirmed={confirmed}
+              onChangeFrequency={(i, f) =>
+                setReviewHabits((prev) => prev.map((h, idx) => (idx === i ? { ...h, frequency: f } : h)))
+              }
+              onConfirm={() => setConfirmed(true)}
+            />
+          ) : (
+            <>
+              <HabitChips habits={habits} parsing={parsing} />
+              {habits.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReviewHabits(habits);
+                    setReviewing(true);
+                  }}
+                  style={{
+                    marginBottom: 8,
+                    height: 38,
+                    padding: '0 16px',
+                    borderRadius: 12,
+                    border: '1px solid rgba(0,0,0,0.15)',
+                    background: '#fff',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    fontWeight: 500,
+                  }}
+                >
+                  Done, review {habits.length} habits
+                </button>
+              )}
+            </>
+          ))}
 
         {(listening || interim) && (
           <div
