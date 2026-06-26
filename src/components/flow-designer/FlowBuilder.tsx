@@ -33,6 +33,7 @@ import { DailyProgressCard } from '@/components/habits/DailyProgressCard';
 import { checkInDimensions } from '@/components/home/checkInConfig';
 import { DateStrip } from '@/components/home/DateStrip';
 import { EmojiOptionButton } from '@/components/home/EmojiOptionButton';
+import { HabitItem } from '@/components/home/HabitItem';
 import { HabitListItem } from '@/components/home/HabitListItem';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { QuickActionCards } from '@/components/home/QuickActionCards';
@@ -213,6 +214,21 @@ function HomeHabit() {
   );
 }
 
+function HabitItemPreview() {
+  const [status, setStatus] = useState<'done' | 'missed' | 'none'>('none');
+  return (
+    <HabitItem
+      name="No screens after 10 PM"
+      subtitle="10:00 PM"
+      streak={6}
+      isCompleted={status === 'done'}
+      status={status}
+      onToggleComplete={() => setStatus((s) => (s === 'done' ? 'none' : 'done'))}
+      onMarkMissed={() => setStatus((s) => (s === 'missed' ? 'none' : 'missed'))}
+    />
+  );
+}
+
 function HomeProgress() {
   return <DailyProgressCard completed={2} total={3} />;
 }
@@ -386,6 +402,7 @@ const REGISTRY: PaletteItem[] = [
   { type: 'home-datestrip', group: 'Home', label: 'Date strip', Comp: HomeDateStrip },
   { type: 'home-quickactions', group: 'Home', label: 'Quick actions', Comp: HomeQuickActions },
   { type: 'home-habit', group: 'Home', label: 'Habit row', Comp: HomeHabit },
+  { type: 'habit-item', group: 'Home', label: 'Habit row (no note)', Comp: HabitItemPreview },
   { type: 'home-progress', group: 'Home', label: 'Daily progress', Comp: HomeProgress },
   { type: 'pulse-orb', group: 'Orb', label: 'Pulse orb', Comp: PulseOrb },
   { type: 'voice-orb', group: 'Orb', label: 'Voice orb (dial)', Comp: VoiceOrb },
@@ -835,6 +852,23 @@ interface BeatMeta {
   figmaNode?: string;
   status?: string; // draft | ready | locked
   voiceNotes?: string; //                                   (Sheet: voice_notes)
+  // The runtime engine spec for this beat. The engine keys on these; today it
+  // derives them from the beat type, surfaced here so each beat describes itself
+  // and the export carries the full spec.
+  engine?: {
+    nodeId?: string; // stable graph id (profile, category, path-fork...)
+    backId?: string; // node the back action returns to
+    persistStep?: string; // Supabase onboarding_states step it writes ('' = none)
+    pathField?: boolean; // fork beat: its value saves as the routing path
+    captureFields?: string; // answer keys it captures (category, goals, age...)
+    toolName?: string; // LLM tool the coach fires to persist this beat
+    toolAdvancesStep?: boolean; // firing the tool advances current_step
+    toolPersistsFields?: string; // fields the tool writes
+    voiceExpectsInput?: boolean; // coach waits for the user before resolving
+    voiceDirectLlmAllowed?: boolean; // false = Vapi-only (auth, mic)
+    maxSelections?: string; // card cap (categories 1, goals 2...)
+    optionSource?: string; // categories | goalsByCategory | habitsByGoal
+  };
 }
 
 let UID = 0;
