@@ -52,7 +52,7 @@ import { Toggle } from '@/components/ui/Toggle';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 
 import { BEAT_DEFS } from './beats';
-import { PlayingCtx, AnimationsCtx } from './beatKit';
+import { PlayingCtx, AnimationsCtx, Karaoke } from './beatKit';
 import { FlowStateCtx, type FlowState } from './flowStateCtx';
 import { EXTRA_REGISTRY, EXTRA_GROUPS } from './paletteExtras';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
@@ -1196,14 +1196,66 @@ function MetaSelect({
   );
 }
 
-// Shared one-at-a-time player for the visible Variations list. Click a variation
-// to hear its MP3; the previous one stops.
+// Shared one-at-a-time player for the Variations picker. Click play to hear a
+// variation's MP3; the previous one stops.
 let variationAudio: HTMLAudioElement | null = null;
 function playVariation(url: string) {
   if (!url) return;
   if (variationAudio) variationAudio.pause();
   variationAudio = new Audio(url);
   void variationAudio.play().catch(() => {});
+}
+
+// A per-beat Variations picker, read LIVE from the Voice Scripts sheet by the beat's
+// stage (never from saved metadata, so it never goes stale). Pull down to choose a
+// variation, hit play to hear its MP3, and the words reveal one by one to simulate
+// how it plays in the app.
+function VariationsPicker({ stage }: { stage?: string }) {
+  const clips = clipsForStage(stage);
+  const [idx, setIdx] = useState(0);
+  const [revealKey, setRevealKey] = useState(0);
+  const [revealing, setRevealing] = useState(false);
+  if (!clips.length) return null;
+  const clip = clips[Math.min(idx, clips.length - 1)];
+  const play = () => {
+    playVariation(clip.file);
+    setRevealing(true);
+    setRevealKey((k) => k + 1);
+  };
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-content-tertiary">
+        Variations ({clips.length}) · pick, play, hear
+      </span>
+      <div className="flex items-center gap-2">
+        <select
+          value={idx}
+          onChange={(e) => {
+            setIdx(Number(e.target.value));
+            setRevealing(false);
+          }}
+          className="min-w-0 flex-1 truncate rounded-md border border-border bg-page px-2 py-1.5 text-[12px] text-content"
+        >
+          {clips.map((c, i) => (
+            <option key={i} value={i}>
+              {i + 1}. {c.text}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={play}
+          aria-label="Play variation"
+          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-white"
+        >
+          <Icon icon="ic:round-play-arrow" className="size-5" />
+        </button>
+      </div>
+      <div className="min-h-[36px] rounded-md border border-border bg-page px-2 py-2 text-[12px] leading-[1.5] text-content">
+        {revealing ? <Karaoke key={revealKey} text={clip.text} active /> : clip.text}
+      </div>
+    </div>
+  );
 }
 
 // The per-beat metadata editor: the full voice / AI / screen / authoring spec,
@@ -1731,34 +1783,7 @@ function SortableCard({
             className="w-full resize-none rounded-md border border-border bg-page px-2 py-1.5 text-[11px] leading-[1.5] text-content"
           />
         </label>
-        {(item.meta?.mp3Assets?.length ?? 0) > 0 && (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-content-tertiary">
-              Variations ({item.meta?.mp3Assets?.length}) · word + MP3
-            </span>
-            <div className="flex flex-col gap-1">
-              {(item.meta?.mp3Assets ?? []).map((c, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2 rounded-md border border-border bg-page px-2 py-1.5"
-                >
-                  <button
-                    type="button"
-                    onClick={() => playVariation(c.file)}
-                    disabled={!c.file}
-                    aria-label={`Play variation ${i + 1}`}
-                    className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-white disabled:opacity-40"
-                  >
-                    <Icon icon="ic:round-play-arrow" className="size-4" />
-                  </button>
-                  <span className="text-[11px] leading-[1.4] text-content">
-                    {c.transcript || c.label || `Variation ${i + 1}`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <VariationsPicker stage={item.sheetStage} />
         <MetaSection item={item} onUpdate={onUpdate} />
       </div>
     </div>
