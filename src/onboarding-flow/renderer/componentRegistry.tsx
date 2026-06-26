@@ -45,6 +45,7 @@ import {
   habitsByGoal,
   MAX_HABITS_ONBOARDING,
 } from '../flowData';
+import { useGhostFill } from '../ghostFillBus';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 
 export interface BeatAdapterProps {
@@ -522,6 +523,24 @@ function ProfileAdapter({ answers, onCapture }: BeatAdapterProps) {
     }
   });
 
+  // Ghost fill: pre-fill from in-progress speech WITHOUT setting voiceFilledRef,
+  // so the card shows age/gender appearing live but never auto-submits. The real
+  // tool result (above) is what commits + advances.
+  useGhostFill((result: OnboardingVoiceResult) => {
+    if (result.action === 'fill_field') {
+      const p = result.params as { fieldName?: string; value?: string | number };
+      if (p.fieldName !== 'age') return;
+      const n = typeof p.value === 'number' ? p.value : parseInt(String(p.value ?? ''), 10);
+      if (!isNaN(n) && n >= 13 && n <= 120) setAge(n);
+      return;
+    }
+    if (result.action === 'select_option') {
+      const p = result.params as { fieldName?: string; value?: string };
+      if (p.fieldName === 'gender' && typeof p.value === 'string' && GENDER_OPTIONS.includes(p.value))
+        setGender(p.value);
+    }
+  });
+
   const valid = !!(age && gender);
   const submittedRef = useRef(false);
   const submit = () => {
@@ -582,6 +601,13 @@ function PathSelectionAdapter({ node, onCapture }: BeatAdapterProps) {
       setSelected(p.value);
       voiceFilledRef.current = true;
     }
+  });
+
+  // Ghost fill: pre-select the spoken path WITHOUT auto-submitting.
+  useGhostFill((result: OnboardingVoiceResult) => {
+    if (!bindsToPath || result.action !== 'set_path') return;
+    const p = result.params as { value?: string };
+    if (p.value === 'simple' || p.value === 'braindump') setSelected(p.value);
   });
 
   const submit = () => {
@@ -652,6 +678,15 @@ function CategoryAdapter({ onCapture }: BeatAdapterProps) {
     }
   });
 
+  // Ghost fill: pre-select the spoken category WITHOUT auto-submitting.
+  useGhostFill((result: OnboardingVoiceResult) => {
+    if (result.action !== 'select_option') return;
+    const p = result.params as { fieldName?: string; value?: string };
+    if (p.fieldName !== 'category' || typeof p.value !== 'string') return;
+    const match = FLOW_CATEGORIES.find((c) => c.label.toLowerCase() === p.value!.toLowerCase());
+    if (match) setSelected(match.label);
+  });
+
   const submit = () => {
     if (!selected || submittedRef.current) return;
     submittedRef.current = true;
@@ -691,6 +726,20 @@ function GoalsAdapter({ answers, onCapture }: BeatAdapterProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
+    if (result.action !== 'select_multiple') return;
+    const p = result.params as { fieldName?: string; values?: unknown };
+    if (p.fieldName !== 'goals' || !Array.isArray(p.values)) return;
+    const allowed = new Set(goals);
+    const filtered = p.values
+      .filter((v): v is string => typeof v === 'string')
+      .filter((v) => allowed.has(v))
+      .slice(0, 2);
+    if (filtered.length > 0) setSelected(new Set(filtered));
+  });
+
+  // Ghost fill: pre-select spoken goals (goals beat has no auto-submit, so this
+  // mirrors the real voice fill, just arriving earlier from the partial).
+  useGhostFill((result: OnboardingVoiceResult) => {
     if (result.action !== 'select_multiple') return;
     const p = result.params as { fieldName?: string; values?: unknown };
     if (p.fieldName !== 'goals' || !Array.isArray(p.values)) return;
@@ -760,6 +809,15 @@ function HabitsAdapter({ answers, onCapture }: BeatAdapterProps) {
       const name = (p.name ?? p.value)?.trim();
       if (name && !selected.has(name) && selected.size < MAX_HABITS_ONBOARDING) toggle(name);
     }
+  });
+
+  // Ghost fill: as the user names habits, pre-check the matching cards (a slight
+  // lag behind the voice) WITHOUT submitting. The real add_habit tool reconciles.
+  useGhostFill((result: OnboardingVoiceResult) => {
+    if (result.action !== 'add_habit') return;
+    const p = result.params as { name?: string };
+    const name = p.name?.trim();
+    if (name && !selected.has(name) && selected.size < MAX_HABITS_ONBOARDING) toggle(name);
   });
 
   const submit = () => {

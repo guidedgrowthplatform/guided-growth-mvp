@@ -11,6 +11,7 @@
  * beat is presented (reveal timing + karaoke + the user-reply bubble per beat).
  */
 import { useCallback } from 'react';
+import { useLiveSkimmer } from '../useLiveSkimmer';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 import { applyName } from './applyName';
 import { BeatPlayer, LiveUserBubble, PastBeatBubbles, type BeatStep } from './BeatPlayer';
@@ -32,6 +33,10 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   const Adapter = getAdapter(node.componentType);
   const opener = node.voice.openerText ? applyName(node.voice.openerText, answers.nickname) : null;
   const summary = !active ? summarizeBeat(node, answers) : null;
+
+  // Live skimmer: while THIS beat is active, optimistically ghost-fill its card
+  // from the user's in-progress speech (null = inactive, so the hook no-ops).
+  useLiveSkimmer(active ? node : null, answers);
 
   const handleReveal = useCallback(() => onReveal?.(), [onReveal]);
 
