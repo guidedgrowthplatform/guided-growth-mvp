@@ -19,6 +19,7 @@ const pool = (await import('../../db.js')).default as {
 
 const { addHabit } = await import('../handlers/addHabit.js');
 const { submitReflectionConfig } = await import('../handlers/submitReflectionConfig.js');
+const { submitMorningCheckin } = await import('../handlers/submitMorningCheckin.js');
 const { confirmPlan } = await import('../handlers/confirmPlan.js');
 const { updateHabit } = await import('../handlers/updateHabit.js');
 const { navigateNext } = await import('../handlers/navigateNext.js');
@@ -209,6 +210,88 @@ describe('vapi submitReflectionConfig — reconciliation', () => {
     const res = await submitReflectionConfig({
       anon_id: ANON,
       time: '21:45',
+      days: [1, 2, 3, 4, 5],
+      reminder: true,
+    });
+    expect(res).toMatchObject({ error: expect.stringContaining('schedule') });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+});
+
+describe('vapi submitMorningCheckin — reconciliation + validation', () => {
+  it('writes under the morningCheckin key (not reflectionConfig)', async () => {
+    await submitMorningCheckin({
+      anon_id: ANON,
+      time: '07:30',
+      days: [1, 2, 3, 4, 5],
+      reminder: true,
+      schedule: 'Weekday',
+    });
+    const payload = JSON.parse(pool.query.mock.calls[0][1][1] as string);
+    expect(payload.morningCheckin).toBeDefined();
+    expect(payload.reflectionConfig).toBeUndefined();
+    expect(payload.morningCheckin.time).toBe('07:30');
+  });
+
+  it('reconciles stale schedule label against days (Every day -> Weekday)', async () => {
+    await submitMorningCheckin({
+      anon_id: ANON,
+      time: '07:30',
+      days: [1, 2, 3, 4, 5],
+      reminder: true,
+      schedule: 'Every day',
+    });
+    const payload = JSON.parse(pool.query.mock.calls[0][1][1] as string);
+    expect(payload.morningCheckin.schedule).toBe('Weekday');
+    expect(payload.morningCheckin.days).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('keeps LLM label when days is a custom combination', async () => {
+    await submitMorningCheckin({
+      anon_id: ANON,
+      time: '07:30',
+      days: [1, 3, 5],
+      reminder: true,
+      schedule: 'Weekday',
+    });
+    const payload = JSON.parse(pool.query.mock.calls[0][1][1] as string);
+    expect(payload.morningCheckin.schedule).toBe('Weekday');
+    expect(payload.morningCheckin.days).toEqual([1, 3, 5]);
+  });
+
+  it('rejects invalid identity', async () => {
+    const res = await submitMorningCheckin({
+      anon_id: 'not-a-uuid',
+      time: '07:30',
+      days: [1],
+      reminder: true,
+      schedule: 'Every day',
+    });
+    expect(res).toMatchObject({ error: 'invalid_identity' });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects call with no fields (no silent server defaults)', async () => {
+    const res = await submitMorningCheckin({ anon_id: ANON });
+    expect(res).toMatchObject({ error: expect.stringContaining('time') });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects call missing days', async () => {
+    const res = await submitMorningCheckin({
+      anon_id: ANON,
+      time: '07:30',
+      reminder: true,
+      schedule: 'Weekday',
+    });
+    expect(res).toMatchObject({ error: expect.stringContaining('days') });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects call missing schedule', async () => {
+    const res = await submitMorningCheckin({
+      anon_id: ANON,
+      time: '07:30',
       days: [1, 2, 3, 4, 5],
       reminder: true,
     });

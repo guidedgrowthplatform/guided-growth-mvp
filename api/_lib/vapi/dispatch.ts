@@ -19,6 +19,7 @@ import { addHabit } from './handlers/addHabit.js';
 import { removeHabit } from './handlers/removeHabit.js';
 import { updateHabit } from './handlers/updateHabit.js';
 import { submitReflectionConfig } from './handlers/submitReflectionConfig.js';
+import { submitMorningCheckin } from './handlers/submitMorningCheckin.js';
 import { submitCustomPrompts } from './handlers/submitCustomPrompts.js';
 import { submitBrainDump } from './handlers/submitBrainDump.js';
 import { navigateNext } from './handlers/navigateNext.js';
@@ -49,6 +50,8 @@ export async function dispatchVapiToolCall(
       return updateHabit(args, db);
     case 'submit_reflection_config':
       return submitReflectionConfig(args, db);
+    case 'submit_morning_checkin':
+      return submitMorningCheckin(args, db);
     case 'submit_custom_prompts':
       return submitCustomPrompts(args, db);
     case 'submit_brain_dump':

@@ -25,6 +25,7 @@ export type OnboardingToolName =
   | 'remove_habit'
   | 'update_habit'
   | 'submit_reflection_config'
+  | 'submit_morning_checkin'
   | 'submit_custom_prompts'
   | 'submit_brain_dump'
   | 'navigate_next'
@@ -381,6 +382,44 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     },
   },
   {
+    name: 'submit_morning_checkin',
+    screen: 'ONBOARD-MORNING-SETUP',
+    description:
+      "Save the user's morning check-in schedule. DATA ONLY — does NOT advance to the next screen; chain navigate_next AFTER this returns, in the same turn. " +
+      'PRECONDITION: do NOT call this until the user has actually answered when they want their morning check-in. ' +
+      "ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). If the user has not yet said a time, ASK FIRST — do NOT pre-fill defaults silently and fire this tool. The morning-setup screen is the user's choice; do not bypass it. " +
+      'Once the user gives a time (e.g. "around 7:30 in the morning" → time="07:30"), infer the missing fields from natural defaults (Weekday + reminder on) and call. Then chain navigate_next in the same turn.',
+    messages: {
+      requestStart: '',
+      requestFailed: '',
+    },
+    parameters: {
+      type: 'object',
+      properties: {
+        time: {
+          type: 'string',
+          description: 'HH:MM 24-hour format.',
+        },
+        days: {
+          type: 'array',
+          description: 'Days as 0-6 ints, 0=Sunday.',
+          items: { type: 'number' },
+        },
+        reminder: {
+          type: 'boolean',
+          description: 'Reminder notification toggle.',
+        },
+        schedule: {
+          type: 'string',
+          description: 'Schedule preset matching the days array.',
+          enum: [...SCHEDULE_OPTIONS],
+        },
+      },
+      required: ['time', 'days', 'reminder', 'schedule'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'submit_custom_prompts',
     screen: 'ONBOARD-ADV-CUSTOM',
     description:
@@ -429,7 +468,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     screen: '*',
     description:
       'Advance the user to the next onboarding screen. This is the ONLY tool that moves the user between screens — the submit_* / add_* tools just save data, they do NOT navigate. ' +
-      'ABSOLUTE LAW: navigate_next MUST be called in the SAME TURN as the data tool. Whenever you call submit_profile / submit_path_choice / submit_category / submit_goals / add_habit / submit_reflection_config / submit_custom_prompts / submit_brain_dump, you MUST chain navigate_next right after, in the same response. If you finished a turn that called a data tool but did NOT call navigate_next, you have a critical bug — the user is now stuck and will have to remind you. Do not let this happen. ' +
+      'ABSOLUTE LAW: navigate_next MUST be called in the SAME TURN as the data tool. Whenever you call submit_profile / submit_path_choice / submit_category / submit_goals / add_habit / submit_reflection_config / submit_morning_checkin / submit_custom_prompts / submit_brain_dump, you MUST chain navigate_next right after, in the same response. If you finished a turn that called a data tool but did NOT call navigate_next, you have a critical bug — the user is now stuck and will have to remind you. Do not let this happen. ' +
       'NEVER ask the user "are you ready?" / "anything else?" / "want to continue?" / "ready to move on?" before navigating. The data tool firing IS the confirmation. The user does not know navigate_next exists; they expect screens to advance based on what they said. ' +
       "GOOD: User says 'I want walking 3 times a week at 8pm with reminders'. You call: add_habit(name='Walking', days=[1,3,5], time='20:00', reminder=true), THEN navigate_next(target_step=6). One turn, two tool calls. " +
       "BAD: User says the same thing. You call: add_habit(...), then say 'Walking, three days a week at 8 PM. Anything else?'. This is a BUG. You FAILED to call navigate_next. The user now has to say 'continue' to unstick. " +
