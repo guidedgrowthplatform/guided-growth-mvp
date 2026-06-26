@@ -1056,16 +1056,25 @@ function PhoneScreenInner({
       <div className="absolute inset-0" style={{ background: bgColor(bg) }} />
       <div
         className="absolute inset-x-0 top-0 flex flex-col overflow-y-auto px-4 [transform:translateZ(0)]"
-        style={{ bottom: checkin ? 64 : 116 }}
+        style={{ bottom: checkin ? 64 : 150 }}
       >
+        {/* my-auto centers short content and top-aligns + scrolls tall content.
+            The tap fix is the bottom reserve above: it must clear the full orb
+            block (148px), not just the 92px button, or the bottom row sits under
+            the orb and eats clicks. */}
         <div className="my-auto w-full py-6">{children}</div>
       </div>
       <div className="absolute inset-x-0 bottom-0">
         {checkin ? (
           <BuilderBottomNav />
         ) : (
-          <div className="flex justify-center pb-6 pt-2">
-            <BeatOrb size={92} {...orb} />
+          // The orb floats over the bottom of the content. Its strip is
+          // click-through (pointer-events-none) so taps on a card behind it still
+          // land; only the orb button itself stays interactive.
+          <div className="pointer-events-none flex justify-center pb-6 pt-2">
+            <div className="pointer-events-auto">
+              <BeatOrb size={92} {...orb} />
+            </div>
           </div>
         )}
       </div>
