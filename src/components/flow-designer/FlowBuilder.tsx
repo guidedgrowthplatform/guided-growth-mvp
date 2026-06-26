@@ -742,6 +742,90 @@ function withSheetAudio(meta: BeatMeta | undefined, sheetStage?: string): BeatMe
   return { ...(meta ?? {}), voiceEngine: meta?.voiceEngine ?? 'MP3', mp3Assets };
 }
 
+// The engine spec each onboarding beat type carries (node ids, persistence step,
+// capture keys, voice routing, card caps). The runtime engine derives these from
+// the beat type today; seeding them here pre-fills the Engine group and the export
+// with the real values. Anything already set on the beat wins. Tool names are left
+// blank on purpose (they need confirming against the live tool list).
+const ENGINE_DEFAULTS: Record<string, NonNullable<BeatMeta['engine']>> = {
+  'auth-signup': { nodeId: 'auth', voiceExpectsInput: false, voiceDirectLlmAllowed: false },
+  'mic-permission': { nodeId: 'mic', voiceExpectsInput: false, voiceDirectLlmAllowed: false },
+  'profile-beat': {
+    nodeId: 'profile',
+    persistStep: '1',
+    captureFields: 'age, gender',
+    voiceExpectsInput: true,
+    voiceDirectLlmAllowed: true,
+  },
+  'path-selection': {
+    nodeId: 'path-fork',
+    persistStep: '2',
+    pathField: true,
+    captureFields: 'path',
+    voiceExpectsInput: true,
+    voiceDirectLlmAllowed: true,
+  },
+  'category-grid': {
+    nodeId: 'category',
+    backId: 'path-fork',
+    persistStep: '3',
+    captureFields: 'category',
+    maxSelections: '1',
+    optionSource: 'categories',
+    voiceExpectsInput: true,
+    voiceDirectLlmAllowed: true,
+  },
+  'goals-list': {
+    nodeId: 'goals',
+    backId: 'category',
+    persistStep: '4',
+    captureFields: 'goals',
+    maxSelections: '2',
+    optionSource: 'goalsByCategory',
+    voiceExpectsInput: true,
+    voiceDirectLlmAllowed: true,
+  },
+  'habit-picker': {
+    nodeId: 'habit-select',
+    backId: 'goals',
+    persistStep: '5',
+    captureFields: 'habitConfigs',
+    maxSelections: '2',
+    optionSource: 'habitsByGoal',
+    voiceExpectsInput: true,
+    voiceDirectLlmAllowed: true,
+  },
+  'advanced-capture': {
+    nodeId: 'advanced-input',
+    backId: 'path-fork',
+    persistStep: '3',
+    captureFields: 'brainDumpText',
+    voiceExpectsInput: true,
+    voiceDirectLlmAllowed: true,
+  },
+  'reflection-card': {
+    nodeId: 'reflection-setup',
+    backId: 'habit-select',
+    persistStep: '6',
+    captureFields: 'reflectionConfig',
+    voiceExpectsInput: true,
+    voiceDirectLlmAllowed: true,
+  },
+  'plan-cards': {
+    nodeId: 'plan-review',
+    backId: 'reflection-setup',
+    voiceExpectsInput: true,
+    voiceDirectLlmAllowed: true,
+  },
+};
+
+// Fill a beat's engine spec from the type defaults; anything already authored wins.
+function withEngineDefaults(type: string, meta: BeatMeta | undefined): BeatMeta | undefined {
+  const d = ENGINE_DEFAULTS[type];
+  if (!d) return meta;
+  return { ...(meta ?? {}), engine: { ...d, ...(meta?.engine ?? {}) } };
+}
+
 // Every beat is coach-led or user-led; default to coach, user bubbles to user.
 const hydrate = (stored: StoredBeat[]): Placed[] =>
   stored.map((b) => ({
@@ -756,7 +840,7 @@ const hydrate = (stored: StoredBeat[]): Placed[] =>
     variant: b.variant ?? 'shared',
     showOnPath: b.showOnPath,
     lanes: b.lanes?.map((l) => ({ id: newUid('lane'), label: l.label, items: hydrate(l.items) })),
-    meta: withSheetAudio(b.meta, b.sheetStage),
+    meta: withEngineDefaults(b.type, withSheetAudio(b.meta, b.sheetStage)),
   }));
 
 const serialize = (items: Placed[]): StoredBeat[] =>
@@ -1287,6 +1371,9 @@ function MetaSection({
   };
   const orb = meta.orb ?? {};
   const setOrb = (patch: Partial<NonNullable<BeatMeta['orb']>>) => setMeta({ orb: { ...orb, ...patch } });
+  const engine = meta.engine ?? {};
+  const setEngine = (patch: Partial<NonNullable<BeatMeta['engine']>>) =>
+    setMeta({ engine: { ...engine, ...patch } });
   const groupLabel = 'text-[9px] font-bold uppercase tracking-[0.08em] text-content-subtle';
 
   return (
@@ -1519,6 +1606,109 @@ function MetaSection({
                 className={`${META_INPUT} resize-none leading-[1.5]`}
               />
             </MetaField>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className={groupLabel}>Engine</span>
+            <MetaField label="Node id">
+              <input
+                value={engine.nodeId ?? ''}
+                onChange={(e) => setEngine({ nodeId: e.target.value })}
+                placeholder="profile, category, path-fork..."
+                className={META_INPUT}
+              />
+            </MetaField>
+            <MetaField label="Back target (node id)">
+              <input
+                value={engine.backId ?? ''}
+                onChange={(e) => setEngine({ backId: e.target.value })}
+                placeholder="node the back button returns to"
+                className={META_INPUT}
+              />
+            </MetaField>
+            <MetaField label="Persist step">
+              <input
+                value={engine.persistStep ?? ''}
+                onChange={(e) => setEngine({ persistStep: e.target.value })}
+                placeholder="Supabase step, blank = none"
+                className={META_INPUT}
+              />
+            </MetaField>
+            <MetaField label="Captures (answer keys)">
+              <input
+                value={engine.captureFields ?? ''}
+                onChange={(e) => setEngine({ captureFields: e.target.value })}
+                placeholder="category, goals, age..."
+                className={META_INPUT}
+              />
+            </MetaField>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={!!engine.pathField}
+                onChange={(e) => setEngine({ pathField: e.target.checked })}
+                className="size-3.5"
+              />
+              <span className={META_LABEL}>Fork beat (value saves as path)</span>
+            </label>
+            <MetaField label="Tool name">
+              <input
+                value={engine.toolName ?? ''}
+                onChange={(e) => setEngine({ toolName: e.target.value })}
+                placeholder="submit_category, add_habit..."
+                className={META_INPUT}
+              />
+            </MetaField>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={!!engine.toolAdvancesStep}
+                onChange={(e) => setEngine({ toolAdvancesStep: e.target.checked })}
+                className="size-3.5"
+              />
+              <span className={META_LABEL}>Tool advances the step</span>
+            </label>
+            <MetaField label="Tool persists fields">
+              <input
+                value={engine.toolPersistsFields ?? ''}
+                onChange={(e) => setEngine({ toolPersistsFields: e.target.value })}
+                placeholder="fields the tool writes"
+                className={META_INPUT}
+              />
+            </MetaField>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={!!engine.voiceExpectsInput}
+                onChange={(e) => setEngine({ voiceExpectsInput: e.target.checked })}
+                className="size-3.5"
+              />
+              <span className={META_LABEL}>Waits for user input</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={!!engine.voiceDirectLlmAllowed}
+                onChange={(e) => setEngine({ voiceDirectLlmAllowed: e.target.checked })}
+                className="size-3.5"
+              />
+              <span className={META_LABEL}>Direct-LLM allowed (off = Vapi only)</span>
+            </label>
+            <MetaField label="Max selections">
+              <input
+                value={engine.maxSelections ?? ''}
+                onChange={(e) => setEngine({ maxSelections: e.target.value })}
+                placeholder="1, 2..."
+                className={META_INPUT}
+              />
+            </MetaField>
+            <MetaSelect
+              label="Option source"
+              value={engine.optionSource}
+              options={['categories', 'goalsByCategory', 'habitsByGoal']}
+              placeholder="none"
+              onChange={(v) => setEngine({ optionSource: v })}
+            />
           </div>
         </div>
       )}
