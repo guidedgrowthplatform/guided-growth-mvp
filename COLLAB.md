@@ -36,6 +36,53 @@ Worst case with this discipline is a merge conflict you resolve, never lost work
   (`FlowPhone` / `PlayView` / `PlayPanel` / `PhoneScreenInner`), the onboarding
   `DEFAULT_FLOW`, the path fork (`showOnPath`), the animations toggle.
 
+#### Splash intro + orb + coach greeting (appended by the intro animation session)
+
+Exact files in this lane:
+- `src/components/welcome/SplashIntro.tsx` — the splash bloom + coach greeting (wordmark, orb
+  blooms up and speaks riding the audio envelope + voice cone, then settles to its dock).
+  Props: `autoPlay`, `loop`, `audioSrc`, `muted`, `skipSplash`. Exports `ORB_REST_TOP` /
+  `ORB_REST_SCALE` (the dock pose); `MicPermission` imports these, so don't rename them.
+- `src/components/welcome/MicPermission.tsx` — the mic-permission sequence (orb grows to the
+  top, grey mic half pulsing, Allow button, then mic half turns blue and it docks). Props:
+  `autoPlay`, `loop`, `onAllow`, `onSkip`, `heading`, `subheading`.
+- `src/components/welcome/{CoachIntroBubble,VoiceCone,beatMood}.tsx` + `splashCaptions.ts` —
+  the audio-synced coach bubble, the speaking cone, the background gradient (`COACH_BG`), the
+  caption timings.
+- `src/components/flow-designer/BeatOrb.tsx` — the SHARED canvas orb + `orbConfigForType` /
+  `ORB_BY_TYPE` (per-beat orb state).
+- Beats: `beats/splashIntro.tsx` (type `splash-intro`, coach greeting, renders `SplashIntro`),
+  `beats/micPermission.tsx` (type `mic-permission`, renders `MicPermission`),
+  `beats/getStarted.tsx`, `beats/splash.tsx`.
+- In `beatKit.tsx`: `Karaoke` (the line typing) and the `BeatPlayer` reveal.
+
+Per-beat orb config (breaks easily):
+- Every beat renders the shared `BeatOrb` docked at the bottom (from `PhoneScreenInner`). Its
+  per-beat state is `orbConfigForType(beat.type)` in `BeatOrb.tsx` (`ORB_BY_TYPE`).
+- `mic-permission` and `splash-intro` are `{ hidden: true }` ON PURPOSE: those beats render
+  their OWN orb (the full sequence), so the shared one is hidden to avoid a double orb
+  (`qa-control` is hidden too). Add a beat that brings its own orb? Hide the shared one here.
+  Seeing two orbs on a beat is almost always a missing hide entry.
+
+Muted-on-canvas / plays-in-Play audio rule (do not break):
+- `beats/splashIntro.tsx` ALWAYS passes `audioSrc` and gates SOUND on play state:
+  `muted={!playing}`, `loop={!playing}`, where `playing = useIsPlaying()`. So the static
+  canvas tile plays the clip MUTED (the words still fill, the orb still rides the envelope, no
+  sound) and Play plays it once with sound. `skipSplash` is on (beat 1 already shows the
+  wordmark). Never autoplay UNMUTED audio on the canvas, or every tile blasts sound at once.
+- `SplashIntro` / `MicPermission` render with NO background of their own (no `COACH_BG` on the
+  root) so the beat's background shows through. Re-add a background and you double-stack it
+  over the beat background.
+
+BeatPlayer / transitions (easy to break):
+- `BeatPlayer` (in `beatKit.tsx`) reserves each render step's space up front and fades it in;
+  spoken lines mount when reached and type via `Karaoke`. Render/card steps must stay reserved
+  (rendered from the start at opacity 0) or the layout jumps when they appear.
+- Hold-in-Play vs loop-on-canvas is gated on `useIsPlaying()` (`PlayingCtx` in `beatKit.tsx`,
+  provided by the Play view). Keep that provider, or canvas tiles stop looping / Play beats
+  start looping. The beat-to-beat dissolve (`BeatTransition`) lives in the shared player, so
+  coordinate before touching it.
+
 ### Audio + check-in
 - `src/components/flow-designer/voiceScriptsAudio.ts`,
   `src/components/flow-designer/beatAudio.ts`, the audio / MP3 pipeline.
