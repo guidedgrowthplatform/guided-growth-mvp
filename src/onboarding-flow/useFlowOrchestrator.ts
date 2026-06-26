@@ -15,7 +15,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { stepForScreenId } from '@/lib/onboarding/onboardingStepBeats';
+// Persist-null beats write no step, so they have no canonical save step. Their
+// advance threshold must sit strictly BELOW the next persist beat's step for the
+// leading-edge climb to fire (plan-cards precedes morning-setup at step 7).
+// Engine-local on purpose: the legacy chat lane's SCREEN_TO_STEP maps BEGINNER-06
+// to its terminal step-7 plan review, so we must NOT reuse it here.
+const ENGINE_PERSISTLESS_STEP: Record<string, number> = {
+  'ONBOARD-BEGINNER-06': 6,
+};
 import type { OnboardingPath, OnboardingState, OnboardingStepData } from '@gg/shared/types';
 import {
   applyCapture,
@@ -36,10 +43,12 @@ function deriveFinalData(answers: FlowAnswers): Partial<OnboardingStepData> {
 }
 
 /** The step this beat completes (persist.step is the canonical save step). */
-function beatStep(node: FlowNode | undefined): number | undefined {
+export function beatStep(node: FlowNode | undefined): number | undefined {
   if (!node) return undefined;
   if (node.persist) return node.persist.step;
-  return stepForScreenId(node.screenId);
+  // Terminal into-app (COMPLETE) is intentionally absent → undefined → no
+  // auto-advance; completion fires when the machine reaches its null nextId.
+  return ENGINE_PERSISTLESS_STEP[node.screenId];
 }
 
 /**
@@ -50,7 +59,10 @@ function beatStep(node: FlowNode | undefined): number | undefined {
  * machine advances with the SAME answers a card tap would have set (the fork
  * resolves, past-beat summaries render). data fields mirror the card adapters.
  */
-function serverCaptureForBeat(node: FlowNode | undefined, data: OnboardingStepData): BeatCapture {
+export function serverCaptureForBeat(
+  node: FlowNode | undefined,
+  data: OnboardingStepData,
+): BeatCapture {
   const out: BeatCapture = { data: {} };
   if (!node) return out;
   switch (node.componentType) {
@@ -75,8 +87,19 @@ function serverCaptureForBeat(node: FlowNode | undefined, data: OnboardingStepDa
     case 'reflection-card':
       if (data.reflectionConfig != null) out.data.reflectionConfig = data.reflectionConfig;
       break;
-    case 'coach-bubble':
+    case 'habit-schedule':
+      if (data.habitConfigs != null) out.data.habitConfigs = data.habitConfigs;
+      break;
+    case 'advanced-capture':
+      // brain dump is its own componentType now, no longer coach-bubble.
       if (data.brainDumpText != null) out.data.brainDumpText = data.brainDumpText;
+      break;
+    case 'morning-checkin-setup':
+      if (data.morningCheckin != null) out.data.morningCheckin = data.morningCheckin;
+      break;
+    case 'plan-cards':
+    case 'into-app':
+      // persist-null beats — no field to replay; advance with empty capture.
       break;
     default:
       break;
