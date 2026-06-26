@@ -34,7 +34,8 @@ Worst case with this discipline is a merge conflict you resolve, never lost work
 - In `FlowBuilder.tsx`: the metadata sidebar (`MetaSection`, the Voice / AI /
   Screen / Authoring / Engine groups, `ENGINE_DEFAULTS`), the player
   (`FlowPhone` / `PlayView` / `PlayPanel` / `PhoneScreenInner`), the onboarding
-  `DEFAULT_FLOW`, the path fork (`showOnPath`), the animations toggle.
+  `DEFAULT_FLOW`, the path fork (`showOnPath`), and the global animations control
+  (`AnimationsCtx`, the floating Pause button, and the per-tile pause on each card).
 
 #### Splash intro + orb + coach greeting (appended by the intro animation session)
 
@@ -184,3 +185,25 @@ model, registry, sidebar/metadata, player, default flows) would give each area
 its own file and nearly remove the shared surface. That split is the next step
 once the in-flight audio work lands; it has to be timed so it doesn't drop on
 top of an active edit.
+
+## 5. Running servers + the 7333 serve (do not kill what you did not start)
+
+- **7333 is the stable served build. Do not kill it.** A launchd agent
+  (`com.yair.flow-builder`) runs `scripts/serve-flow-builder.sh`: it builds the
+  flow builder, serves it statically at `localhost:7333` (clean root), and a loop
+  rebuilds within ~15s of any change, fast-forwarding origin when the tree is
+  clean. This is the canonical URL. Note: `scripts/serve-flow-builder.sh` is
+  UNTRACKED (local-only, not on the branch).
+- **5290 is the `ggmvp-skimmer` dev server (the live-capture work), a different
+  repo.** Leave it alone.
+- **5200 is transient verification only.** Start it to click through a change,
+  then stop it. Do not leave random dev servers running on jumping ports.
+- **Never kill a server you did not start.** Identify it first:
+  `lsof -nP -iTCP:<port> -sTCP:LISTEN` then `ps -o command= -p <pid>`. A vite on a
+  52xx port is NOT automatically a stray flow-builder server.
+- **publicDir stays ON in `vite.flow.config.ts`.** The 7333 serve is standalone
+  with no marketing site behind it, so the build must bundle `public/` (the
+  `/images/onboarding/*` category images). Do not set publicDir back to `false`
+  for the build, or the cards render broken on 7333.
+- To see a change on 7333, hard refresh (`Cmd+Shift+R`); the static server caches
+  the old bundle on a normal reload (until a no-cache header is added).
