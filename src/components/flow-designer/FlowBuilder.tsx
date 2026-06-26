@@ -569,7 +569,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     beat: '14',
     background: 'user',
     sheetStage: 'ONBOARD-BEGINNER-07: Evening Reflection Setup',
-    props: { coachLine: 'Now your evening reflection. When works for you?' },
+    props: { coachLine: 'Now your evening reflection. How do you want to do it, and when?' },
   },
   {
     type: 'into-app',
