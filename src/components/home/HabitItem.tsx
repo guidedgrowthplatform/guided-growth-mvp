@@ -137,38 +137,44 @@ export function HabitItem({
         )}
 
         <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            aria-label="Mark missed"
-            aria-pressed={markStatus === 'missed'}
-            onClick={(e) => {
-              e.stopPropagation();
-              onMarkMissed?.();
-            }}
-            className={`flex h-8 w-8 items-center justify-center rounded-md border-2 transition-colors ${
-              markStatus === 'missed'
-                ? 'border-danger bg-surface text-danger'
-                : 'border-transparent bg-content-tertiary/20 text-content-tertiary'
-            }`}
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="Mark done"
-            aria-pressed={markStatus === 'done'}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleComplete();
-            }}
-            className={`flex h-8 w-8 items-center justify-center rounded-md border-2 transition-colors ${
-              markStatus === 'done'
-                ? 'border-success bg-success text-white'
-                : 'border-transparent bg-content-tertiary/20 text-content-tertiary'
-            }`}
-          >
-            <Check className="h-4 w-4" />
-          </button>
+          {/* Both shown when none. Picking one collapses to just that symbol;
+              tapping the single symbol reopens the pair. */}
+          {markStatus !== 'done' && (
+            <button
+              type="button"
+              aria-label={markStatus === 'missed' ? 'Reopen' : 'Mark missed'}
+              aria-pressed={markStatus === 'missed'}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMarkMissed?.();
+              }}
+              className={`flex h-8 w-8 items-center justify-center rounded-md border-2 transition-colors ${
+                markStatus === 'missed'
+                  ? 'border-danger bg-surface text-danger'
+                  : 'border-transparent bg-content-tertiary/20 text-content-tertiary'
+              }`}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+          {markStatus !== 'missed' && (
+            <button
+              type="button"
+              aria-label={markStatus === 'done' ? 'Reopen' : 'Mark done'}
+              aria-pressed={markStatus === 'done'}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleComplete();
+              }}
+              className={`flex h-8 w-8 items-center justify-center rounded-md border-2 transition-colors ${
+                markStatus === 'done'
+                  ? 'border-success bg-success text-white'
+                  : 'border-transparent bg-content-tertiary/20 text-content-tertiary'
+              }`}
+            >
+              <Check className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
     </div>
