@@ -86,13 +86,28 @@ function optionMatches(text: string, opt: SkimOption | SkimHabit): boolean {
   return (opt.synonyms ?? []).some((s) => hasPhrase(text, s));
 }
 
-/** First plausible human age in the text, or null. Avoids years/times. */
+/**
+ * First plausible human age in the text, or null. Only called on the profile
+ * beat (where an age is what's being collected), so after the explicit forms
+ * ("I'm 34", "34 years old") it also accepts a bare number in human range
+ * ("63 male", "twenty eight" not handled). Numbers below AGE_MIN (a time like
+ * "at 6", "3 times") are ignored.
+ */
 function extractAge(text: string): number | null {
-  // "I'm 34", "34 years old", "age 34", or a bare 2-digit number in range.
   const explicit = text.match(/\b(?:i'?m|im|age|aged)\s+(\d{1,3})\b/);
   const yearsOld = text.match(/\b(\d{1,3})\s*(?:years?\s*old|y\/?o)\b/);
-  const candidate = explicit?.[1] ?? yearsOld?.[1];
-  if (candidate) {
+  let candidate = explicit?.[1] ?? yearsOld?.[1];
+  if (candidate == null) {
+    // Bare number fallback: first integer in human-age range wins.
+    for (const m of text.matchAll(/\b(\d{1,3})\b/g)) {
+      const n = Number(m[1]);
+      if (n >= AGE_MIN && n <= AGE_MAX) {
+        candidate = m[1];
+        break;
+      }
+    }
+  }
+  if (candidate != null) {
     const n = Number(candidate);
     if (n >= AGE_MIN && n <= AGE_MAX) return n;
   }

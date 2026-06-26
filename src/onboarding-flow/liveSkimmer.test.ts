@@ -46,6 +46,13 @@ describe('extractGhostCapture — profile-input', () => {
     });
   });
 
+  it('accepts a bare age number (profile beat)', () => {
+    expect(extractGhostCapture('profile-input', '63 male')).toEqual({
+      data: { age: 63, gender: 'Male' },
+    });
+    expect(extractGhostCapture('profile-input', '28')).toEqual({ data: { age: 28 } });
+  });
+
   it('rejects out-of-range and ambiguous numbers (conservative)', () => {
     expect(extractGhostCapture('profile-input', 'I wake up at 6')).toBeNull();
     expect(extractGhostCapture('profile-input', "I'm 200")).toBeNull();
