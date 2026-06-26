@@ -44,6 +44,7 @@ export interface UseLLMReturn {
   error: Error | null;
   reset: () => void;
   cancel: () => void;
+  regenerate: () => Promise<void>;
 }
 
 function makeId(counter: { n: number }): string {
@@ -86,6 +87,7 @@ export function useLLM(
 
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
+  const lastUserRef = useRef<{ id: string; content: string } | null>(null);
   const priorOpenerRef = useRef<string | null>(null);
   const idCounterRef = useRef({ n: 0 });
   const deltaBufferRef = useRef('');
@@ -114,6 +116,7 @@ export function useLLM(
     deltaBufferRef.current = '';
     inFlightRef.current = false;
     priorOpenerRef.current = null;
+    lastUserRef.current = null;
     setMessages([]);
     setResponse('');
     setToolEvents([]);
@@ -163,19 +166,25 @@ export function useLLM(
       text: string;
       surfaceErrors: boolean;
       timeoutMs?: number;
+      reuseTurnId?: string;
     }): Promise<boolean> => {
       if (inFlightRef.current) return false;
       inFlightRef.current = true;
 
       let userTurnId: string | null = null;
       if (opts.mode === 'chat') {
-        userTurnId = makeId(idCounterRef.current);
-        const userMsg: LLMChatMessage = {
-          id: userTurnId,
-          role: 'user',
-          content: opts.text,
-        };
-        setMessages((prev) => [...prev, userMsg]);
+        if (opts.reuseTurnId) {
+          userTurnId = opts.reuseTurnId;
+        } else {
+          userTurnId = makeId(idCounterRef.current);
+          const userMsg: LLMChatMessage = {
+            id: userTurnId,
+            role: 'user',
+            content: opts.text,
+          };
+          setMessages((prev) => [...prev, userMsg]);
+          lastUserRef.current = { id: userTurnId, content: opts.text };
+        }
       }
       setResponse('');
       setToolEvents([]);
@@ -390,6 +399,15 @@ export function useLLM(
     [runStream],
   );
 
+  const regenerate = useCallback(async () => {
+    const lu = lastUserRef.current;
+    if (!lu) {
+      await runStream({ mode: 'opener', text: '', surfaceErrors: false });
+      return;
+    }
+    await runStream({ mode: 'chat', text: lu.content, surfaceErrors: true, reuseTurnId: lu.id });
+  }, [runStream]);
+
   useEffect(() => {
     return () => {
       if (abortRef.current) {
@@ -429,5 +447,6 @@ export function useLLM(
     error,
     reset,
     cancel,
+    regenerate,
   };
 }

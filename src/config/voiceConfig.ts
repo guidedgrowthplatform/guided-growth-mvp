@@ -22,6 +22,9 @@ export const TURN_AGGREGATION_MS = 2000;
 export const TURN_PAUSE_COMPLETE_MS = 900;
 export const TURN_PAUSE_INCOMPLETE_MS = 2800;
 
+// onboarding chat-native voice: mic stays hot during TTS (AEC handles echo).
+export const FULL_DUPLEX_BARGE_IN = true;
+
 // Render + speak the MCHECK/ECHECK opener client-side (no LLM round-trip).
 // Off until device-verified; flip on to enable the instant opener.
 export const CHECKIN_LOCAL_OPENER = false;
