@@ -32,6 +32,12 @@ import type { SessionStateDeltaEntry } from '@gg/shared/types/context';
 type CoachingStyle = 'warm' | 'direct' | 'reflective';
 const COACHING_STYLES = new Set<CoachingStyle>(['warm', 'direct', 'reflective']);
 const TOOL_NAMES = new Set<string>(TOOL_DEFINITIONS.map((t) => t.name));
+// The screen context_block is already injected into the system prompt by
+// buildSystemPromptForRequest, so offering get_user_context here just lets the
+// model burn a paid round-trip (and one of MAX_ROUNDS) re-fetching what it
+// already has. Keep it in TOOL_DEFINITIONS for the Vapi wire artifact, but drop
+// it from the Direct-LLM base set. Still dispatchable if ever called.
+const DIRECT_LLM_BASE_TOOLS = TOOL_DEFINITIONS.filter((t) => t.name !== 'get_user_context');
 
 type LLMStreamEvent =
   | { type: 'delta'; content: string }
@@ -504,8 +510,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : checkinTools !== undefined
           ? checkinTools
           : readOnlyCheckinTools !== undefined
-            ? [...TOOL_DEFINITIONS, ...readOnlyCheckinTools]
-            : TOOL_DEFINITIONS;
+            ? [...DIRECT_LLM_BASE_TOOLS, ...readOnlyCheckinTools]
+            : DIRECT_LLM_BASE_TOOLS;
   const allowedToolNames = new Set<string>(requestTools ? requestTools.map((t) => t.name) : []);
 
   const forceForkChoice = isForkScreen && !pathAlreadySet && mode !== 'opener';
