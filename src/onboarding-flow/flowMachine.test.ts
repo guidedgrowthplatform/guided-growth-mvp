@@ -92,19 +92,42 @@ describe('flowMachine — the fork', () => {
     expect(resolveNextNodeId(flow, fork, {})).toBe('plan-review');
   });
 
-  it('beginner lane rejoins at plan-review and completes', () => {
+  it('beginner lane runs the full spine and completes at into-app', () => {
     const state = run(flow, [
       { data: {} }, // auth
       { data: {} }, // mic permission
       { data: { age: 30, gender: 'Other' } }, // profile
       { data: {}, path: 'simple' },
-      { data: { category: 'Sleep better' } },
-      { data: { goals: ['Fall asleep earlier'] } },
+      { data: { category: 'Sleep better' } }, // category
+      { data: { goals: ['Fall asleep earlier'] } }, // goals
       {
         data: {
           habitConfigs: { 'No screens after 10 PM': { days: [1], time: '21:00', reminder: true } },
         },
-      },
+      }, // habit-select
+      {
+        data: {
+          habitConfigs: {
+            'No screens after 10 PM': {
+              days: [1, 2, 3, 4, 5],
+              time: '21:00',
+              reminder: true,
+              schedule: 'Weekday',
+            },
+          },
+        },
+      }, // habit-schedule
+      { data: {} }, // plan-review
+      {
+        data: {
+          morningCheckin: {
+            time: '08:00',
+            days: [0, 1, 2, 3, 4, 5, 6],
+            reminder: true,
+            schedule: 'Every day',
+          },
+        },
+      }, // morning-checkin-setup
       {
         data: {
           reflectionConfig: {
@@ -114,13 +137,16 @@ describe('flowMachine — the fork', () => {
             schedule: 'Weekday',
           },
         },
-      },
-      { data: {} }, // plan-review confirm
+      }, // reflection-setup
+      { data: {} }, // into-app (terminal)
     ]);
     expect(state.status).toBe('complete');
     expect(state.currentNodeId).toBeNull();
     expect(state.visited).not.toContain('advanced-input');
     expect(state.visited).toContain('plan-review');
+    expect(state.visited).toContain('morning-checkin-setup');
+    expect(state.visited).toContain('reflection-setup');
+    expect(state.visited).toContain('into-app');
   });
 
   it('advanced lane reaches plan-review via the brain-dump beat', () => {

@@ -258,6 +258,14 @@ export interface OnboardingStepData {
     // null = custom day-set with no canonical preset label (validator accepts null).
     schedule: string | null;
   } | null;
+  // Morning check-in schedule, captured in onboarding (ONBOARD-MORNING-SETUP).
+  // Same shape as reflectionConfig: when the morning nudge fires.
+  morningCheckin?: {
+    time: string;
+    days: number[];
+    reminder: boolean;
+    schedule: string | null;
+  } | null;
   reflectionMode?: ReflectionMode | null;
   brainDumpText?: string | null;
   // Persisted LLM parse so advanced-results can rehydrate on lost router state (no regex re-invent).

@@ -4,10 +4,14 @@
  * source of truth for the engine today; see ../useFlow.ts for the Supabase
  * swap seam.
  *
- * The 'simple' (beginner) lane is fully built and reuses the real Step save
- * path (saveStep 1/3/4/5/6 + complete). The 'braindump' (advanced) lane is
- * represented by one brain-dump beat that rejoins at plan-review; the rich
- * 4-screen advanced lane is a documented follow-up (spec section 6.5).
+ * Resynced to the flow builder's DEFAULT_FLOW on 2026-06-26: the beginner lane
+ * runs category -> goals -> habit-select -> habit-schedule, the advanced lane is
+ * the single advanced-capture brain-dump beat, both rejoin at plan-review, and
+ * the shared tail continues plan-review -> morning-checkin-setup ->
+ * reflection-setup (evening) -> into-app (the terminal completion beat).
+ *
+ * This must deep-equal designerToFlowDocument(DESIGNER_ONBOARDING_FLOW); the
+ * transform test trips if the two ever diverge.
  */
 import type { FlowDocument } from '../types';
 
@@ -121,7 +125,7 @@ export const onboardingBeginnerV1: FlowDocument = {
           value: 'simple',
           label: 'Beginner',
           entryNodeId: 'category',
-          exitNodeId: 'reflection-setup',
+          exitNodeId: 'habit-schedule',
         },
         {
           value: 'braindump',
@@ -215,7 +219,7 @@ export const onboardingBeginnerV1: FlowDocument = {
       beatNumber: 6,
       name: 'Habit Selection',
       screenId: 'ONBOARD-BEGINNER-03',
-      nextId: 'reflection-setup',
+      nextId: 'habit-schedule',
       backId: 'goals',
       context: {
         screenId: 'ONBOARD-BEGINNER-03',
@@ -234,32 +238,28 @@ export const onboardingBeginnerV1: FlowDocument = {
       persist: { step: 5 },
     },
     {
-      id: 'reflection-setup',
+      id: 'habit-schedule',
       type: 'beat',
       beatNumber: 7,
-      name: 'Reflection Setup',
-      screenId: 'ONBOARD-BEGINNER-07',
+      name: 'Habit Schedule',
+      screenId: 'ONBOARD-BEGINNER-04',
       nextId: 'plan-review',
       backId: 'habit-select',
       context: {
-        screenId: 'ONBOARD-BEGINNER-07',
-        screenName: 'Reflection Setup',
+        screenId: 'ONBOARD-BEGINNER-04',
+        screenName: 'Habit Schedule',
         contextBlock:
-          'Set up a short daily reflection: when, which days, and whether they want a reminder. Frame it as a moment for their mind, not a chore.',
+          'For each habit they chose, set when they will do it: a time, which days, and whether they want a reminder. Parse combined answers when you can. Ask only for the piece that is missing.',
       },
-      componentType: 'reflection-card',
+      componentType: 'habit-schedule',
       componentProps: { showDayPicker: true, showReminderToggle: true },
       voice: {
-        openerText: "Let's set a daily moment to reflect. When works for you?",
+        openerText: 'When will you do these? Set a time and how often.',
         expectsInput: true,
         directLlmAllowed: true,
       },
-      tool: {
-        toolName: 'submit_reflection_config',
-        persistsFields: ['reflectionConfig'],
-        advancesStep: true,
-      },
-      persist: { step: 6 },
+      tool: { toolName: 'update_habit', persistsFields: ['habitConfigs'], advancesStep: true },
+      persist: { step: 5 },
     },
     {
       // Minimal advanced lane: one brain-dump beat that rejoins at plan-review.
@@ -278,13 +278,13 @@ export const onboardingBeginnerV1: FlowDocument = {
         contextBlock:
           'The user wants to tell you everything on their mind at once. Let them. Listen for the habits and goals inside it; do not interrupt with structure yet.',
       },
-      componentType: 'coach-bubble',
+      componentType: 'advanced-capture',
       componentProps: {
         brainDump: true,
         placeholder: 'Tell me everything on your mind, what you want to build, drop, or change.',
       },
       voice: {
-        openerText: 'Go ahead, tell me everything on your mind. I will organize it.',
+        openerText: "Perfect. Read me the habits you already track and I'll get them organized.",
         expectsInput: true,
         directLlmAllowed: true,
       },
@@ -301,19 +301,102 @@ export const onboardingBeginnerV1: FlowDocument = {
       beatNumber: 8,
       name: 'Plan Review',
       screenId: 'ONBOARD-BEGINNER-06',
-      nextId: null,
-      backId: 'reflection-setup',
+      nextId: 'morning-checkin-setup',
+      backId: 'habit-schedule',
       context: {
         screenId: 'ONBOARD-BEGINNER-06',
         screenName: 'Plan Review',
         contextBlock:
-          'Show them the plan you built together and ask if they want to change anything before starting. If they are happy, take them in.',
+          'Show them the habits you built together and ask if they want to change anything before moving on. Handle one edit at a time, then continue.',
       },
       componentType: 'plan-cards',
       componentProps: { showJournalCard: true },
       voice: {
-        openerText: "Here's your starting plan. We'll adjust as we go.",
+        openerText: 'Here are your habits. Do these look right, or want to change anything?',
         expectsInput: true,
+        directLlmAllowed: true,
+      },
+      tool: { toolName: 'update_habit', persistsFields: [], advancesStep: true },
+      persist: null,
+    },
+    {
+      id: 'morning-checkin-setup',
+      type: 'beat',
+      beatNumber: 9,
+      name: 'Morning Check-in',
+      screenId: 'ONBOARD-MORNING-SETUP',
+      nextId: 'reflection-setup',
+      backId: 'plan-review',
+      context: {
+        screenId: 'ONBOARD-MORNING-SETUP',
+        screenName: 'Morning Check-in',
+        contextBlock:
+          'Set up a short morning check-in: when they want the nudge, which days, and whether they want a reminder. Keep it light, a quick way to start the day with intention.',
+      },
+      componentType: 'morning-checkin-setup',
+      componentProps: { showDayPicker: true, showReminderToggle: true },
+      voice: {
+        openerText: "When do you want your morning check-in? I'll nudge you then.",
+        expectsInput: true,
+        directLlmAllowed: true,
+      },
+      tool: {
+        toolName: 'submit_morning_checkin',
+        persistsFields: ['morningCheckin'],
+        advancesStep: true,
+      },
+      persist: { step: 7 },
+    },
+    {
+      id: 'reflection-setup',
+      type: 'beat',
+      beatNumber: 10,
+      name: 'Reflection Setup',
+      screenId: 'ONBOARD-BEGINNER-07',
+      nextId: 'into-app',
+      backId: 'morning-checkin-setup',
+      context: {
+        screenId: 'ONBOARD-BEGINNER-07',
+        screenName: 'Reflection Setup',
+        contextBlock:
+          'Set up a short evening reflection: when, which days, whether they want a reminder, and the style (guided prompts, custom prompts, or freeform). Frame it as a moment for their mind, not a chore.',
+      },
+      componentType: 'reflection-card',
+      componentProps: { showDayPicker: true, showReminderToggle: true, showModePicker: true },
+      voice: {
+        openerText: 'Now your evening reflection. When works for you?',
+        expectsInput: true,
+        directLlmAllowed: true,
+      },
+      tool: {
+        toolName: 'submit_reflection_config',
+        persistsFields: ['reflectionConfig'],
+        advancesStep: true,
+      },
+      persist: { step: 8 },
+    },
+    {
+      // Terminal completion beat. Replaces the old hardcoded "You're all set"
+      // line in FlowRenderer: it is a real node now, so the engine ends on it and
+      // confirm_plan fires onboarding completion.
+      id: 'into-app',
+      type: 'beat',
+      beatNumber: 11,
+      name: 'Into the App',
+      screenId: 'ONBOARD-COMPLETE',
+      nextId: null,
+      backId: null,
+      context: {
+        screenId: 'ONBOARD-COMPLETE',
+        screenName: 'Into the App',
+        contextBlock:
+          'Onboarding is done. Warmly tell the user they are all set and take them in. Do not collect anything else.',
+      },
+      componentType: 'into-app',
+      componentProps: {},
+      voice: {
+        openerText: "You're all set. Let's get started.",
+        expectsInput: false,
         directLlmAllowed: true,
       },
       tool: { toolName: 'confirm_plan', persistsFields: [], advancesStep: true },

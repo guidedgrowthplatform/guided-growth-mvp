@@ -11,6 +11,7 @@ export type OnboardingToolName =
   | 'add_habit'
   | 'remove_habit'
   | 'update_habit'
+  | 'submit_morning_checkin'
   | 'submit_reflection_config'
   | 'submit_custom_prompts'
   | 'submit_brain_dump'
@@ -219,6 +220,39 @@ export const ONBOARDING_TOOLS: readonly OnboardingToolDefinition[] = [
         },
       },
       required: ['name'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'submit_morning_checkin',
+    description:
+      "Persist the user's morning check-in schedule on ONBOARD-MORNING-SETUP. " +
+      'PRECONDITION: do NOT call this until the user has actually answered when they want their morning check-in. If they have not given a time yet, ASK FIRST (e.g. "When would you like your morning check-in?"). ' +
+      'ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). Once the user gives a time, infer the remaining fields from natural defaults (Every day + reminder on) and call. ' +
+      'If the user says "whatever you think" / "default is fine", first ask once more. If they still decline, pick 08:00 BUT tell them explicitly ("I\'ll set 8 AM, you can change it later in Settings") before calling, do NOT silently default.',
+    parameters: {
+      type: 'object',
+      properties: {
+        time: {
+          type: 'string',
+          description: 'HH:MM 24-hour format.',
+        },
+        days: {
+          type: 'array',
+          description: 'Days as 0-6 ints, 0=Sunday.',
+          items: { type: 'number' },
+        },
+        reminder: {
+          type: 'boolean',
+          description: 'Reminder notification toggle.',
+        },
+        schedule: {
+          type: 'string',
+          description: 'Schedule preset matching the days array.',
+          enum: [...SCHEDULE_OPTIONS],
+        },
+      },
+      required: ['time', 'days', 'reminder', 'schedule'],
       additionalProperties: false,
     },
   },
