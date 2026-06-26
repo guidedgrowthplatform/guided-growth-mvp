@@ -417,6 +417,10 @@ interface DefaultBeat {
   props?: Record<string, string>;
   background?: string;
   variant?: FlowVariant;
+  // Which runtime path this beat belongs to: the beginner card path (new), the
+  // advanced read-a-list path (exp), or both (undefined). The player shows only
+  // the beats matching the path the user picks, so the fork runs live.
+  showOnPath?: 'new' | 'exp';
 }
 
 // The default onboarding flow, pre-connected to the beats sheet so each beat
@@ -489,6 +493,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     type: 'category-grid',
     beat: '8',
     background: 'user',
+    showOnPath: 'new',
     sheetStage: 'ONBOARD-BEGINNER-01: Category Selection',
     props: { coachLine: 'What part of your life do you most want to grow right now?' },
   },
@@ -496,6 +501,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     type: 'goals-list',
     beat: '9',
     background: 'user',
+    showOnPath: 'new',
     sheetStage: 'ONBOARD-BEGINNER-02: Subcategory Selection',
     props: { coachLine: 'Which of these feels most true for you?' },
   },
@@ -503,8 +509,17 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     type: 'habit-picker',
     beat: '10',
     background: 'user',
+    showOnPath: 'new',
     sheetStage: 'ONBOARD-BEGINNER-03: Habit Selection',
     props: { coachLine: "Here are a few habits that fit. Pick the ones you'll actually do." },
+  },
+  {
+    type: 'advanced-capture',
+    beat: '8',
+    background: 'user',
+    showOnPath: 'exp',
+    sheetStage: 'ONBOARD-ADVANCED: Brain Dump',
+    props: { coachLine: "Perfect. Read me the habits you already track and I'll get them organized." },
   },
   {
     type: 'reflection-card',
@@ -678,6 +693,7 @@ type StoredBeat = {
   transition?: { kind: BeatTransitionKind; durationMs: number };
   background?: string;
   variant?: FlowVariant;
+  showOnPath?: 'new' | 'exp';
   // Split blocks keep their parallel lanes here. The runtime lane id is dropped
   // on save and regenerated on hydrate; only the label and lane items persist.
   lanes?: { label: string; items: StoredBeat[] }[];
@@ -721,13 +737,14 @@ const hydrate = (stored: StoredBeat[]): Placed[] =>
     transition: b.transition,
     background: b.background ?? (b.type === 'user-bubble' ? 'user' : 'coach'),
     variant: b.variant ?? 'shared',
+    showOnPath: b.showOnPath,
     lanes: b.lanes?.map((l) => ({ id: newUid('lane'), label: l.label, items: hydrate(l.items) })),
     meta: withSheetAudio(b.meta, b.sheetStage),
   }));
 
 const serialize = (items: Placed[]): StoredBeat[] =>
   items.map(
-    ({ type, props, beat, note, sheetStage, transition, background, variant, lanes, meta }) => ({
+    ({
       type,
       props,
       beat,
@@ -736,6 +753,19 @@ const serialize = (items: Placed[]): StoredBeat[] =>
       transition,
       background,
       variant,
+      showOnPath,
+      lanes,
+      meta,
+    }) => ({
+      type,
+      props,
+      beat,
+      note,
+      sheetStage,
+      transition,
+      background,
+      variant,
+      showOnPath,
       lanes: lanes?.map((l) => ({ label: l.label, items: serialize(l.items) })),
       meta,
     }),
@@ -775,6 +805,7 @@ interface Placed {
   // Which variant of the flow this beat appears in: shared (both production and
   // QA), production only, or qa only. Default shared.
   variant?: FlowVariant;
+  showOnPath?: 'new' | 'exp';
   lanes?: Lane[];
   // Per-beat spec metadata: voice engine, MP3 clips, AI path, animation, etc.
   // Authored in the sidecar Metadata section, carried into the export, and named
@@ -1573,6 +1604,35 @@ function SortableCard({
             })}
           </div>
         </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-content-tertiary">
+            Show on path
+          </span>
+          <div className="flex items-center gap-1">
+            {[
+              { id: undefined, label: 'Any' },
+              { id: 'new' as const, label: 'Beginner' },
+              { id: 'exp' as const, label: 'Advanced' },
+            ].map((p) => {
+              const active = item.showOnPath === p.id;
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  title={p.id ? `Only on the ${p.label} path` : 'On both paths'}
+                  onClick={() => onUpdate({ showOnPath: p.id })}
+                  className={`flex h-7 flex-1 items-center justify-center rounded-md border text-[9px] font-bold ${
+                    active
+                      ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary'
+                      : 'border-border text-content-tertiary'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <select
           value={item.sheetStage ?? ''}
           onChange={(e) => {
@@ -1932,7 +1992,10 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
     </PhoneScreenInner>
   );
 
-  const beats = placed;
+  // Only the beats for the path the user picked (the beginner card path vs the
+  // advanced read-a-list path). Untagged beats always show. Defaults to the
+  // beginner path until the fork is chosen, so the flow reads complete up front.
+  const beats = placed.filter((b) => !b.showOnPath || b.showOnPath === (path ?? 'new'));
   const current = beats[step] ?? beats[0];
   const next = beats[step + 1];
 
@@ -2355,6 +2418,7 @@ export function FlowBuilder() {
     name: REGISTRY_MAP[p.type]?.label ?? p.type,
     componentType: p.type,
     variant: p.variant ?? 'shared',
+    showOnPath: p.showOnPath ?? null,
     background: p.background ?? 'coach',
     sheetStage: p.sheetStage ?? '',
     transition: p.transition ?? null,
