@@ -494,6 +494,18 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const openerHandleRef = useRef<SpeakOpenerHandle | null>(null);
   const openerDoneRef = useRef(false);
   const vapiJoinedRef = useRef(false);
+  // Last resort against a dead mic: if the unmute gate never resolves (Vapi
+  // 'call-start' late/missing, or setMuted throws), force the mic open after
+  // this window so the user is never stuck mic-muted on a live call.
+  const openerFailsafeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const OPENER_FAILSAFE_MS = 10000;
+
+  const clearOpenerFailsafe = useCallback(() => {
+    if (openerFailsafeTimerRef.current !== null) {
+      clearTimeout(openerFailsafeTimerRef.current);
+      openerFailsafeTimerRef.current = null;
+    }
+  }, []);
 
   const stopOpener = useCallback(() => {
     if (openerHandleRef.current) {
@@ -512,11 +524,16 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     try {
       client.setMuted(false);
     } catch (err) {
+      // Unmute FAILED — leave the gate armed so a later trigger (or the
+      // failsafe timer) retries. Clearing it here would consume the one-shot
+      // with the mic still muted.
       if (import.meta.env.DEV) console.debug('[onboarding-voice] opener unmute skipped', err);
+      return;
     }
     // One-shot: the gate is satisfied, the call now runs as a normal warm call.
     instantOpenerActiveRef.current = false;
-  }, []);
+    clearOpenerFailsafe();
+  }, [clearOpenerFailsafe]);
 
   const onCallStart = useCallback(() => {
     setEndedFlag(false);
@@ -533,12 +550,18 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     assistantTurnOpenRef.current = false;
     lastTurnRoleRef.current = null;
 
-    // Vapi has joined the call. Flush any screen-context that was queued because
-    // a send() ran pre-join (the sendAppMessage-before-join guard).
     vapiJoinedRef.current = true;
+    const sid =
+      activeSubScreenIdRef.current ?? registeredScreenIdRef.current ?? currentScreenIdRef.current;
+
+    // Flush any screen-context that was queued because a send() ran pre-join
+    // (the sendAppMessage-before-join guard). Only flush it if it still matches
+    // the resolved screen: if the screen changed during the connecting window,
+    // the queued body is stale — dropping it lets the resolved-sid push below
+    // fire the single, correct greeting instead of BOTH (which stuttered turn 0).
     const pending = pendingScreenContextRef.current;
-    if (pending) {
-      pendingScreenContextRef.current = null;
+    pendingScreenContextRef.current = null;
+    if (pending && pending.screenId === sid) {
       const client = getClientRef.current();
       if (client) {
         try {
@@ -553,6 +576,9 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
           }
         }
       }
+    } else if (pending) {
+      // Stale (screen changed) — reset the dedupe marker so the push below runs.
+      lastPushedScreenIdRef.current = null;
     }
 
     // Instant-opener call: mute the Vapi mic on join so the user can't talk into
@@ -570,8 +596,6 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       maybeOpenMic();
     }
 
-    const sid =
-      activeSubScreenIdRef.current ?? registeredScreenIdRef.current ?? currentScreenIdRef.current;
     // If we already injected the screen context via assistantOverrides at
     // vapi.start() (the cold-start path), skip the redundant context push —
     // Vapi would fire a second turn-0 response and stutter the opening.
@@ -599,6 +623,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     // persists across the call so the cold-start opener only ever fires once.
     vapiJoinedRef.current = false;
     instantOpenerActiveRef.current = false;
+    clearOpenerFailsafe();
     pendingScreenContextRef.current = null;
     stopOpener();
     if (!userInitiated) {
@@ -609,11 +634,20 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         setRemoteEndCooldown(false);
       }, REMOTE_END_COOLDOWN_MS);
     }
-  }, [clearRemoteEndCooldownTimer, stopOpener]);
+  }, [clearRemoteEndCooldownTimer, stopOpener, clearOpenerFailsafe]);
 
   const onError = useCallback(
     (msg: string) => {
       setProviderError(msg);
+      // A pre-'call-start' failure never fires onEnd, so the instant-opener
+      // gates would survive into the retry half-armed (mic muted, openerUsedRef
+      // already true → retry skips the opener and never re-mutes/unmutes). Reset
+      // them here so the retry is a clean standard call with a live mic.
+      if (instantOpenerActiveRef.current) {
+        instantOpenerActiveRef.current = false;
+        clearOpenerFailsafe();
+        stopOpener();
+      }
       if (isFatalVapiError(msg) || retryCountRef.current >= MAX_AUTO_RETRIES) {
         fatalErrorRef.current = true;
         clearRetryTimer();
@@ -622,13 +656,24 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       const delay = RETRY_BACKOFFS_MS[retryCountRef.current] ?? 5000;
       retryCountRef.current += 1;
       clearRetryTimer();
+      // Route the retry through the same pendingRef/lastTransitionRef
+      // serialization the vapiShouldBeLive effect uses, so it can't race a
+      // queued stop() or desync pendingRef. start()'s own stateRef guard still
+      // prevents a duplicate Daily instance.
       retryTimerRef.current = setTimeout(() => {
         retryTimerRef.current = null;
         if (!vapiShouldBeLiveRef.current) return;
-        void startRef.current?.();
+        if (pendingRef.current !== null) return;
+        pendingRef.current = 'starting';
+        const prev = lastTransitionRef.current;
+        lastTransitionRef.current = Promise.resolve(prev)
+          .then(() => startRef.current?.())
+          .finally(() => {
+            if (pendingRef.current === 'starting') pendingRef.current = null;
+          });
       }, delay);
     },
-    [clearRetryTimer],
+    [clearRetryTimer, clearOpenerFailsafe, stopOpener],
   );
 
   const metadata = useMemo(
@@ -793,6 +838,20 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         instantOpenerActiveRef.current = true;
         openerDoneRef.current = false;
         vapiJoinedRef.current = false;
+        // Dead-mic failsafe: if neither gate ever resolves, force the mic open.
+        clearOpenerFailsafe();
+        openerFailsafeTimerRef.current = setTimeout(() => {
+          openerFailsafeTimerRef.current = null;
+          if (!instantOpenerActiveRef.current) return;
+          instantOpenerActiveRef.current = false;
+          const c = getClientRef.current();
+          try {
+            c?.setMuted(false);
+          } catch (err) {
+            if (import.meta.env.DEV)
+              console.debug('[onboarding-voice] opener failsafe unmute skipped', err);
+          }
+        }, OPENER_FAILSAFE_MS);
         // Speak the beat's opener instantly via Cartesia, with the user's name
         // substituted. Falls back cleanly (resolves done) on any TTS failure so
         // the mic gate can never strand the call mic-closed.
@@ -837,7 +896,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       );
       return undefined;
     }
-  }, [qc, stopOpener, maybeOpenMic, markAssistantSpoke]);
+  }, [qc, stopOpener, maybeOpenMic, markAssistantSpoke, clearOpenerFailsafe]);
 
   const {
     state,
@@ -875,6 +934,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       if (remoteEndCooldownTimerRef.current !== null)
         clearTimeout(remoteEndCooldownTimerRef.current);
       if (userActiveTimerRef.current !== null) clearTimeout(userActiveTimerRef.current);
+      if (openerFailsafeTimerRef.current !== null) clearTimeout(openerFailsafeTimerRef.current);
       // Stop any in-flight instant-opener audio so it can't outlive the provider.
       if (openerHandleRef.current) {
         openerHandleRef.current.stop();

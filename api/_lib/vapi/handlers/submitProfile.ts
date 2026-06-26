@@ -15,7 +15,7 @@
  * Data shape: camelCase to match onboarding_states.data shape produced by
  * api/onboarding/[...path].ts (referral_source → referralSource).
  */
-import pool from '../../db.js';
+import pool, { type Queryable } from '../../db.js';
 import { GENDER_OPTIONS } from '../../llm/tools.onboarding.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -46,7 +46,10 @@ function isGenderOption(v: string): boolean {
   return (GENDER_OPTIONS as readonly string[]).includes(v);
 }
 
-export async function submitProfile(args: Record<string, unknown>): Promise<HandlerResult> {
+export async function submitProfile(
+  args: Record<string, unknown>,
+  db: Queryable = pool,
+): Promise<HandlerResult> {
   // 1. Identity — required, UUID format. Vapi injects this from the call's static params.
   const anonId = getString(args, 'anon_id');
   if (!anonId || !UUID_REGEX.test(anonId)) {
@@ -119,7 +122,7 @@ export async function submitProfile(args: Record<string, unknown>): Promise<Hand
   // on UPDATE. Navigation is the navigate_next tool's responsibility now.
   // INSERT path (defensive — onboarding init usually creates the row) seeds
   // current_step=1 since submit_profile fires from step-1.
-  const result = await pool.query(
+  const result = await db.query(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
      VALUES ($1, 1, 'in_progress', $2::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET

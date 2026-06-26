@@ -18,7 +18,12 @@ import {
   type OnboardingTranscriptListener,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
-import { useCoachSpeechReveal } from './useCoachSpeechReveal';
+import { countWords, useCoachSpeechReveal } from './useCoachSpeechReveal';
+
+// Hard ceiling on how long the card waits behind a voice-driven coach line. If
+// the speech signal stalls (frozen/half-open session that never emits
+// speech-end), reveal anyway so onboarding can never dead-end with no card.
+const VOICE_REVEAL_MAX_MS = 12000;
 
 // One part of a beat the player reveals in turn.
 //   - kind 'coach'  + say  -> a white bubble the coach speaks (karaoke reveal)
@@ -184,7 +189,11 @@ export function BeatPlayer({ steps, onReveal }: { steps: BeatStep[]; onReveal?: 
   useEffect(() => {
     if (revealed >= steps.length) return;
     const stepNow = steps[revealed - 1];
-    const wordTotal = stepNow?.say ? stepNow.say.split(/\s+/).length : 0;
+    // Must match the tokenizer the reveal source caps revealCount at
+    // (useCoachSpeechReveal.countWords / Karaoke's word filter). A raw
+    // split(/\s+/) over-counts on leading/trailing whitespace, making
+    // revealCount >= wordTotal unreachable so the card never reveals.
+    const wordTotal = stepNow?.say ? countWords(stepNow.say) : 0;
 
     // Voice-driven advance: when a live speech signal is pacing the coach line,
     // hold the card until the spoken words have all been revealed (the line is
@@ -193,7 +202,14 @@ export function BeatPlayer({ steps, onReveal }: { steps: BeatStep[]; onReveal?: 
     const voiceDriven = stepNow?.kind === 'coach' && reveal.mode !== 'fallback';
     if (voiceDriven) {
       const revealedAll = (reveal.revealCount ?? 0) >= wordTotal && wordTotal > 0;
-      if (!revealedAll) return; // wait for the spoken line to finish revealing
+      if (!revealedAll) {
+        // Don't strand the card if the speech signal never completes.
+        const safety = window.setTimeout(
+          () => setRevealed((r) => Math.min(steps.length, r + 1)),
+          VOICE_REVEAL_MAX_MS,
+        );
+        return () => window.clearTimeout(safety);
+      }
       const t = window.setTimeout(() => setRevealed((r) => Math.min(steps.length, r + 1)), 450);
       return () => window.clearTimeout(t);
     }

@@ -13,7 +13,7 @@
  * reads habitConfigs[name] = { days, time, reminder } and inserts into
  * user_habits on completion.
  */
-import pool from '../../db.js';
+import pool, { type Queryable } from '../../db.js';
 import {
   inferSchedule,
   MAX_HABITS,
@@ -68,7 +68,10 @@ function isScheduleOption(v: string): boolean {
   return (SCHEDULE_OPTIONS as readonly string[]).includes(v);
 }
 
-export async function addHabit(args: Record<string, unknown>): Promise<HandlerResult> {
+export async function addHabit(
+  args: Record<string, unknown>,
+  db: Queryable = pool,
+): Promise<HandlerResult> {
   console.log('[vapi/tool] received name=add_habit anon_id=' + getString(args, 'anon_id'));
 
   const anonId = getString(args, 'anon_id');
@@ -158,7 +161,14 @@ export async function addHabit(args: Record<string, unknown>): Promise<HandlerRe
   // the screen advance. INSERT path defaults to step 5 (habits). The
   // atomic MAX_HABITS gate stays — it's enforced via the WHERE clause on
   // the UPDATE branch.
-  const result = await pool.query(
+  //
+  // `habitConfigs` is normalized to a guaranteed object before every use:
+  // a prior bad write (e.g. a client PUT storing an array/string) would
+  // otherwise make `jsonb_typeof = 'object'` false, no-op the UPDATE, and
+  // return max_habits_reached at ZERO habits — permanently blocking the user.
+  // Coercing a non-object to '{}' self-heals it AND keeps jsonb_object_keys
+  // from erroring on a non-object in the count.
+  const result = await db.query(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
      VALUES ($1, 5, 'in_progress', $2::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET
@@ -166,21 +176,29 @@ export async function addHabit(args: Record<string, unknown>): Promise<HandlerRe
        data = jsonb_set(
          COALESCE(onboarding_states.data, '{}'::jsonb),
          '{habitConfigs}',
-         COALESCE(onboarding_states.data->'habitConfigs', '{}'::jsonb)
+         (CASE WHEN jsonb_typeof(onboarding_states.data->'habitConfigs') = 'object'
+               THEN onboarding_states.data->'habitConfigs'
+               ELSE '{}'::jsonb END)
            || jsonb_build_object(
                 $4::text,
-                COALESCE(onboarding_states.data->'habitConfigs'->$4, '{}'::jsonb) || ($3::jsonb -> $4)
+                COALESCE(
+                  CASE WHEN jsonb_typeof(onboarding_states.data->'habitConfigs'->$4) = 'object'
+                       THEN onboarding_states.data->'habitConfigs'->$4
+                       ELSE NULL END,
+                  '{}'::jsonb
+                ) || ($3::jsonb -> $4)
               )
        ),
        updated_at = now()
      WHERE
-       jsonb_typeof(COALESCE(onboarding_states.data->'habitConfigs', '{}'::jsonb)) = 'object'
-       AND (
-         (SELECT count(*) FROM jsonb_object_keys(
-           COALESCE(onboarding_states.data->'habitConfigs', '{}'::jsonb)
-         )) < $5
-         OR (COALESCE(onboarding_states.data->'habitConfigs', '{}'::jsonb)) ? $4::text
-       )
+       (SELECT count(*) FROM jsonb_object_keys(
+         CASE WHEN jsonb_typeof(onboarding_states.data->'habitConfigs') = 'object'
+              THEN onboarding_states.data->'habitConfigs'
+              ELSE '{}'::jsonb END
+       )) < $5
+       OR (CASE WHEN jsonb_typeof(onboarding_states.data->'habitConfigs') = 'object'
+                THEN onboarding_states.data->'habitConfigs'
+                ELSE '{}'::jsonb END) ? $4::text
      RETURNING anon_id`,
     [anonId, insertPayload, updatePayload, name, MAX_HABITS],
   );

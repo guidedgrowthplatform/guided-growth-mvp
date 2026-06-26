@@ -8,7 +8,7 @@
  * Drift note: PATH_OPTIONS is the single source of truth for allowed values;
  * mirrors the manual path-choice UI option set.
  */
-import pool from '../../db.js';
+import pool, { type Queryable } from '../../db.js';
 import { PATH_OPTIONS } from '../../llm/tools.onboarding.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -24,7 +24,10 @@ function isPathOption(v: string): boolean {
   return (PATH_OPTIONS as readonly string[]).includes(v);
 }
 
-export async function submitPathChoice(args: Record<string, unknown>): Promise<HandlerResult> {
+export async function submitPathChoice(
+  args: Record<string, unknown>,
+  db: Queryable = pool,
+): Promise<HandlerResult> {
   console.log('[vapi/tool] received name=submit_path_choice anon_id=' + getString(args, 'anon_id'));
 
   const anonId = getString(args, 'anon_id');
@@ -46,7 +49,7 @@ export async function submitPathChoice(args: Record<string, unknown>): Promise<H
   // DATA ONLY — writes the `path` column. current_step is not touched on
   // UPDATE; navigate_next handles the screen advance. INSERT path defaults
   // to step 2 (where submit_path_choice fires from).
-  const result = await pool.query(
+  const result = await db.query(
     `INSERT INTO onboarding_states (anon_id, current_step, path, status, data, updated_at)
      VALUES ($1, 2, $2, 'in_progress', '{}'::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET
