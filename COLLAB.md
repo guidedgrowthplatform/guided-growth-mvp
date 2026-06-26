@@ -87,10 +87,11 @@ BeatPlayer / transitions (easy to break):
 #### Habit schedule + advanced path (appended by the onboarding beats session)
 
 - `beats/habitSchedule.tsx` (type `habit-schedule`) is the shared scheduling card for BOTH
-  paths: one card per habit with a gray flame + 0 starting streak, a frequency picker, an
-  estimated-time pill, and a "Remind me" toggle that is OFF by default. The beginner path shows
-  it after `habit-picker`; the advanced path now shows the SAME card right after
-  `advanced-capture` (a second `habit-schedule` entry, `showOnPath: 'exp'`, in `DEFAULT_FLOW`).
+  paths, built from the real app components: the `HabitListItem` row (the habit with the check +
+  X), the `DayPicker` day circles for how often, the inline `TimePicker` for when, and a `Toggle`
+  reminder that is OFF by default. The beginner path shows it after `habit-picker`; the advanced
+  path now shows the SAME card right after `advanced-capture` (a second `habit-schedule` entry,
+  `showOnPath: 'exp'`, in `DEFAULT_FLOW`).
 - It reads the habits from shared flow state (`flow.habits`), so it receives whatever the
   on-the-fly capture produces. Interface still to close on the capture side:
   `beats/advancedCapture.tsx` should write its captured lines into `flow.habits` (via the
