@@ -1162,6 +1162,16 @@ function MetaSelect({
   );
 }
 
+// Shared one-at-a-time player for the visible Variations list. Click a variation
+// to hear its MP3; the previous one stops.
+let variationAudio: HTMLAudioElement | null = null;
+function playVariation(url: string) {
+  if (!url) return;
+  if (variationAudio) variationAudio.pause();
+  variationAudio = new Audio(url);
+  void variationAudio.play().catch(() => {});
+}
+
 // The per-beat metadata editor: the full voice / AI / screen / authoring spec,
 // collapsed by default. Field names match the Master Sheet voice schema so the
 // builder and the Sheet stay in sync, and everything here rides into the export.
@@ -1687,6 +1697,34 @@ function SortableCard({
             className="w-full resize-none rounded-md border border-border bg-page px-2 py-1.5 text-[11px] leading-[1.5] text-content"
           />
         </label>
+        {(item.meta?.mp3Assets?.length ?? 0) > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-content-tertiary">
+              Variations ({item.meta?.mp3Assets?.length}) · word + MP3
+            </span>
+            <div className="flex flex-col gap-1">
+              {(item.meta?.mp3Assets ?? []).map((c, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 rounded-md border border-border bg-page px-2 py-1.5"
+                >
+                  <button
+                    type="button"
+                    onClick={() => playVariation(c.file)}
+                    disabled={!c.file}
+                    aria-label={`Play variation ${i + 1}`}
+                    className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-white disabled:opacity-40"
+                  >
+                    <Icon icon="ic:round-play-arrow" className="size-4" />
+                  </button>
+                  <span className="text-[11px] leading-[1.4] text-content">
+                    {c.transcript || c.label || `Variation ${i + 1}`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <MetaSection item={item} onUpdate={onUpdate} />
       </div>
     </div>
