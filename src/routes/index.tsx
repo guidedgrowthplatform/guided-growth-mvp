@@ -113,6 +113,13 @@ const FlowOnboardingPreview = lazyWithRetry(() =>
     default: m.FlowOnboardingPreview,
   })),
 );
+// /onboarding-flow-sim = type-to-fill simulator (no voice, no login). Drive the
+// real cards by typing when voice is unavailable.
+const FlowOnboardingSim = lazyWithRetry(() =>
+  import('@/onboarding-flow/FlowOnboardingSim').then((m) => ({
+    default: m.FlowOnboardingSim,
+  })),
+);
 const QAControlScreen = lazyWithRetry(() =>
   import('@/onboarding-flow/QAControlScreen').then((m) => ({ default: m.QAControlScreen })),
 );
@@ -210,6 +217,9 @@ export function AppRoutes() {
 
         {/* Auth-free QA render of the unified chat-native onboarding engine */}
         <Route path="/onboarding-flow-preview" element={<FlowOnboardingPreview />} />
+
+        {/* Type-to-fill simulator: drive the real cards by typing (no voice) */}
+        <Route path="/onboarding-flow-sim" element={<FlowOnboardingSim />} />
 
         {/* QA control launcher (QA/dev builds only): pick a test user, log in / reset / re-onboard */}
         {QA_SCREEN_ENABLED && (

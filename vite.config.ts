@@ -103,6 +103,58 @@ function cartesiaTtsPlugin(apiKey: string): Plugin {
   };
 }
 
+/**
+ * Vite plugin: local Soniox temp-key mint (dev only).
+ * Intercepts POST /api/soniox-temp-key and mints a single-use realtime key
+ * server-side, so the type-to-fill sim + voice-in can run on `npm run dev`
+ * alone (no vercel dev, no login). Mirrors api/soniox-temp-key.ts minus auth.
+ */
+function sonioxTempKeyPlugin(apiKey: string): Plugin {
+  return {
+    name: 'soniox-temp-key-proxy',
+    configureServer(server) {
+      server.middlewares.use(
+        async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+          if (req.url !== '/api/soniox-temp-key' || req.method !== 'POST') {
+            next();
+            return;
+          }
+          if (!apiKey) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'SONIOX_API_KEY not set in .env.local' }));
+            return;
+          }
+          try {
+            const resp = await fetch('https://api.soniox.com/v1/auth/temporary-api-key', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                usage_type: 'transcribe_websocket',
+                expires_in_seconds: 300,
+                single_use: true,
+                max_session_duration_seconds: 3600,
+              }),
+            });
+            if (!resp.ok) {
+              console.error('[vite-soniox]', resp.status, await resp.text());
+              res.writeHead(502, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'STT temp key failed' }));
+              return;
+            }
+            const data = (await resp.json()) as { api_key?: string; expires_at?: string };
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ apiKey: data.api_key, expiresAt: data.expires_at }));
+          } catch (err) {
+            console.error('[vite-soniox]', err);
+            res.writeHead(502, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'STT temp key failed' }));
+          }
+        },
+      );
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   // Ignore VITE_API_URL when playing around locally with vercel dev running
@@ -132,6 +184,8 @@ export default defineConfig(({ mode }) => {
     plugins: [
       // Cartesia TTS proxy (primary)
       cartesiaTtsPlugin(env.CARTESIA_API_KEY || ''),
+      // Soniox temp-key mint (dev only) so voice-in runs on `npm run dev`
+      sonioxTempKeyPlugin(env.SONIOX_API_KEY || ''),
       react(),
       VitePWA({
         registerType: 'autoUpdate',

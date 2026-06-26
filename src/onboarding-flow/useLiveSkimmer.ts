@@ -76,6 +76,49 @@ function ghostResult(action: string, params: Record<string, unknown>): Onboardin
   return { success: true, action, params, message: 'ghost', confidence: 0.5 };
 }
 
+interface GhostFill {
+  sig: string;
+  result: OnboardingVoiceResult;
+}
+
+/** Pure: what the active beat would ghost-fill from this transcript. */
+function collectGhostFills(node: FlowNode, answers: FlowAnswers, text: string): GhostFill[] {
+  const result = extractGhostCapture(node.componentType, text, buildVocab(node.componentType, answers));
+  if (!result) return [];
+  const fills: GhostFill[] = [];
+  if (result.data.age != null) {
+    fills.push({ sig: `age:${result.data.age}`, result: ghostResult('fill_field', { fieldName: 'age', value: result.data.age }) });
+  }
+  if (result.data.gender != null) {
+    fills.push({ sig: `gender:${result.data.gender}`, result: ghostResult('select_option', { fieldName: 'gender', value: result.data.gender }) });
+  }
+  if (result.path) {
+    fills.push({ sig: `path:${result.path}`, result: ghostResult('set_path', { value: result.path }) });
+  }
+  if (result.data.category != null) {
+    fills.push({ sig: `category:${result.data.category}`, result: ghostResult('select_option', { fieldName: 'category', value: result.data.category }) });
+  }
+  if (result.data.goals?.length) {
+    fills.push({ sig: `goals:${result.data.goals.join(',')}`, result: ghostResult('select_multiple', { fieldName: 'goals', values: result.data.goals }) });
+  }
+  if (result.habitNames?.length) {
+    for (const name of result.habitNames) {
+      fills.push({ sig: `habit:${name}`, result: ghostResult('add_habit', { name }) });
+    }
+  }
+  return fills;
+}
+
+/**
+ * Stateless driver for the typed simulator: publish every ghost fill the active
+ * beat recognizes in `text`. Idempotent (adapters guard toggles), so it is safe
+ * to call on every keystroke.
+ */
+export function skimAndPublish(node: FlowNode | null, answers: FlowAnswers, text: string): void {
+  if (!node || !text.trim()) return;
+  for (const f of collectGhostFills(node, answers, text)) publishGhostFill(f.result);
+}
+
 export function useLiveSkimmer(node: FlowNode | null, answers: FlowAnswers): void {
   // De-dupe published fills so a growing partial does not re-emit the same value.
   // Reset whenever the active beat changes (a new beat = a fresh slate).
@@ -94,43 +137,10 @@ export function useLiveSkimmer(node: FlowNode | null, answers: FlowAnswers): voi
         seenRef.current = new Set();
       }
 
-      const result = extractGhostCapture(node.componentType, text, buildVocab(node.componentType, answers));
-      if (!result) return;
-
-      const emit = (sig: string, action: string, params: Record<string, unknown>) => {
-        if (seenRef.current.has(sig)) return;
-        seenRef.current.add(sig);
-        publishGhostFill(ghostResult(action, params));
-      };
-
-      if (result.data.age != null) {
-        emit(`age:${result.data.age}`, 'fill_field', { fieldName: 'age', value: result.data.age });
-      }
-      if (result.data.gender != null) {
-        emit(`gender:${result.data.gender}`, 'select_option', {
-          fieldName: 'gender',
-          value: result.data.gender,
-        });
-      }
-      if (result.path) {
-        emit(`path:${result.path}`, 'set_path', { value: result.path });
-      }
-      if (result.data.category != null) {
-        emit(`category:${result.data.category}`, 'select_option', {
-          fieldName: 'category',
-          value: result.data.category,
-        });
-      }
-      if (result.data.goals?.length) {
-        emit(`goals:${result.data.goals.join(',')}`, 'select_multiple', {
-          fieldName: 'goals',
-          values: result.data.goals,
-        });
-      }
-      if (result.habitNames?.length) {
-        for (const name of result.habitNames) {
-          emit(`habit:${name}`, 'add_habit', { name });
-        }
+      for (const f of collectGhostFills(node, answers, text)) {
+        if (seenRef.current.has(f.sig)) continue;
+        seenRef.current.add(f.sig);
+        publishGhostFill(f.result);
       }
     },
     [node, answers],
