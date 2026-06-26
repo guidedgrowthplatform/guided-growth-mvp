@@ -8,16 +8,16 @@ import { defineConfig } from 'vite';
  * /onboarding-flow/ on the marketing site. Keeps the app's root so postcss /
  * tailwind / the @ alias all resolve.
  *
- * publicDir: in dev we serve the app's public/ so /images/onboarding/* render
- * in the preview. For the build it stays off, because the deployed marketing
- * site already serves those images from its own root (/images/onboarding/...),
- * so bundling the 8MB image folder into the build would just duplicate them.
+ * publicDir: bundle the app's public/ in BOTH dev and the build, so the category
+ * images (/images/onboarding/*) render. The build is now served standalone at the
+ * clean root (localhost:7333) with no marketing site behind it to supply those
+ * images, so they have to ship inside the build.
  */
 const APP = __dirname;
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(() => ({
   base: '/onboarding-flow/',
-  publicDir: command === 'serve' ? path.resolve(APP, 'public') : false,
+  publicDir: path.resolve(APP, 'public'),
   plugins: [react()],
   resolve: {
     alias: {
