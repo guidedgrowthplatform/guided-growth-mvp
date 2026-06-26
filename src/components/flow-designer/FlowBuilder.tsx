@@ -52,7 +52,7 @@ import { Toggle } from '@/components/ui/Toggle';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 
 import { BEAT_DEFS } from './beats';
-import { PlayingCtx, AnimationsCtx, Karaoke } from './beatKit';
+import { PlayingCtx, AnimationsCtx, useAnimations, Karaoke } from './beatKit';
 import { FlowStateCtx, type FlowState } from './flowStateCtx';
 import { EXTRA_REGISTRY, EXTRA_GROUPS } from './paletteExtras';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
@@ -2272,7 +2272,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
   const uname = useContext(UserNameCtx);
   const [step, setStep] = useState(0);
   const [advancing, setAdvancing] = useState(false);
-  const [animationsOn, setAnimationsOn] = useState(true);
+  const animationsOn = useAnimations();
 
   // Shared selection state for this run, read and written by the onboarding
   // beats so a pick in one beat drives the next (category -> goals -> habits ->
@@ -2390,7 +2390,6 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
   return (
     <PlayingCtx.Provider value={true}>
     <FlowStateCtx.Provider value={flowState}>
-    <AnimationsCtx.Provider value={animationsOn}>
     <div className="flex flex-col items-center gap-3">
       <div
         className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
@@ -2455,28 +2454,10 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
         >
           <Icon icon="ic:round-arrow-back" className="size-4" /> Back
         </button>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-medium text-content-tertiary">
-            {beats.length === 0 ? 'No beats' : `Beat ${Math.min(step + 1, beats.length)} / ${beats.length}`}
-            {next ? ` · ${kind}` : ''}
-          </span>
-          <button
-            type="button"
-            onClick={() => setAnimationsOn((a) => !a)}
-            title={animationsOn ? 'Animations on, click to turn off' : 'Animations off, click to turn on'}
-            className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold ${
-              animationsOn
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border text-content-tertiary'
-            }`}
-          >
-            <Icon
-              icon={animationsOn ? 'ic:round-animation' : 'ic:round-motion-photos-off'}
-              className="size-3.5"
-            />
-            {animationsOn ? 'Anim' : 'Anim off'}
-          </button>
-        </div>
+        <span className="text-[11px] font-medium text-content-tertiary">
+          {beats.length === 0 ? 'No beats' : `Beat ${Math.min(step + 1, beats.length)} / ${beats.length}`}
+          {next ? ` · ${kind}` : ''}
+        </span>
         {next ? (
           <button
             type="button"
@@ -2497,7 +2478,6 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
         )}
       </div>
     </div>
-    </AnimationsCtx.Provider>
     </FlowStateCtx.Provider>
     </PlayingCtx.Provider>
   );
@@ -2587,6 +2567,8 @@ export function FlowBuilder() {
   const [beats, setBeats] = useState<{ stage: string; suggested: string }[] | null>(null);
   const [beatsErr, setBeatsErr] = useState<string | null>(null);
   const [play, setPlay] = useState(false);
+  // One global animation switch: pauses the looping canvas tiles AND the player.
+  const [animationsOn, setAnimationsOn] = useState(true);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const paletteDrop = useDroppable({ id: 'palette-zone' });
   const removing = paletteDrop.isOver && !activeFromPalette && activeLabel !== null;
@@ -2877,13 +2859,16 @@ export function FlowBuilder() {
   if (play) {
     return (
       <UserNameCtx.Provider value={userName}>
-        <PlayView placed={visible} flowId={flowId} onExit={() => setPlay(false)} />
+        <AnimationsCtx.Provider value={animationsOn}>
+          <PlayView placed={visible} flowId={flowId} onExit={() => setPlay(false)} />
+        </AnimationsCtx.Provider>
       </UserNameCtx.Provider>
     );
   }
 
   return (
     <UserNameCtx.Provider value={userName}>
+    <AnimationsCtx.Provider value={animationsOn}>
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
@@ -2895,6 +2880,18 @@ export function FlowBuilder() {
         setDropIndex(null);
       }}
     >
+      <button
+        type="button"
+        onClick={() => setAnimationsOn((a) => !a)}
+        title={animationsOn ? 'Pause all animations' : 'Play all animations'}
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5 text-[13px] font-semibold text-content shadow-elevated"
+      >
+        <Icon
+          icon={animationsOn ? 'ic:round-pause' : 'ic:round-play-arrow'}
+          className="size-5 text-primary"
+        />
+        {animationsOn ? 'Pause animations' : 'Play animations'}
+      </button>
       <div
         className="flex min-h-screen gap-5 p-5"
         style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#e8ecf1' }}
@@ -3088,6 +3085,7 @@ export function FlowBuilder() {
         ) : null}
       </DragOverlay>
     </DndContext>
+    </AnimationsCtx.Provider>
     </UserNameCtx.Provider>
   );
 }
