@@ -193,17 +193,10 @@ export function AppRoutes() {
         {/* Privacy policy — accessible from any state (onboarding, settings, anon) */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
-        {/* QA control launcher (QA/dev builds only): pick a test user, log in / reset / re-onboard */}
-        {QA_SCREEN_ENABLED && (
-          <Route
-            path="/onboarding/qa"
-            element={
-              <AppGate allow="public">
-                <QAControlScreen />
-              </AppGate>
-            }
-          />
-        )}
+        {/* QA control launcher (QA/dev builds only): pick a test user, log in / reset / re-onboard.
+            No AppGate: it must render for ANYONE (logged in mid-onboarding, done, or out),
+            since a tester reaches it from any screen to reset. It does its own sign-in. */}
+        {QA_SCREEN_ENABLED && <Route path="/onboarding/qa" element={<QAControlScreen />} />}
 
         {/* Auth callbacks (no auth guard) */}
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
