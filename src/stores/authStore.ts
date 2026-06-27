@@ -50,7 +50,19 @@ async function fetchAnonId(): Promise<string | null> {
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    if (!session?.access_token) return null;
+    if (!session?.access_token) {
+      // Anomalous: identifyUser only runs for an already-authenticated user, so
+      // a null session here means this getSession lost the race for the
+      // auth-token Web Lock (see Sentry "Lock broken ... 'steal'" on
+      // sb-...-auth-token). This path was previously silent, which is why an
+      // empty-home incident produced no signal at all. Log it so the trigger is
+      // attributable; the client still renders blind for this tick.
+      Sentry.captureMessage('analytics_identify_no_session', {
+        level: 'warning',
+        extra: { reason: 'getSession_returned_no_session' },
+      });
+      return null;
+    }
     const claims = decodeJwtPayload(session.access_token);
     let anonId = typeof claims?.anon_id === 'string' ? claims.anon_id : null;
     // Resilience: every client read filters by this anon_id, so if the JWT is
