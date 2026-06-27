@@ -231,11 +231,11 @@ function HabitItemPreview() {
 }
 
 function HabitScheduleCardPreview() {
-  const [type, setType] = useState<'build' | 'break'>('break');
+  const [type, setType] = useState<'build' | 'break'>('build');
   const [days, setDays] = useState<Set<number>>(new Set());
   return (
     <HabitScheduleCard
-      habitName="No screens after 10 PM"
+      habitName="Read 10 pages"
       habitType={type}
       selectedDays={days}
       onChangeType={setType}
