@@ -859,6 +859,27 @@ function refreshCheckinFlows() {
   }
 }
 
+// The app tour is being actively designed, so keep it from ever going stale:
+// whenever its default (HOME_TOUR_FLOW) changes, drop the cached tour so the
+// builder rebuilds from the new default. The signature is the flow's own
+// content, so no manual version bump is needed; any edit to HOME_TOUR_FLOW
+// triggers a refresh on the next load. Edits made in the builder persist until
+// the default itself changes.
+function refreshTourFlow() {
+  try {
+    const json = JSON.stringify(HOME_TOUR_FLOW);
+    let h = 0;
+    for (let i = 0; i < json.length; i += 1) h = (h * 31 + json.charCodeAt(i)) | 0;
+    const sig = String(h);
+    const KEY = `${STORAGE_BASE}:home-tour-sig`;
+    if (localStorage.getItem(KEY) === sig) return;
+    localStorage.removeItem(flowKey('home-tour'));
+    localStorage.setItem(KEY, sig);
+  } catch {
+    /* ignore */
+  }
+}
+
 type StoredBeat = {
   type: string;
   props?: Record<string, string>;
@@ -2750,6 +2771,7 @@ export function FlowBuilder() {
   useEffect(() => {
     migrateStorage();
     refreshCheckinFlows();
+    refreshTourFlow();
     let fid = 'onboarding';
     try {
       const a = localStorage.getItem(ACTIVE_FLOW_KEY);
