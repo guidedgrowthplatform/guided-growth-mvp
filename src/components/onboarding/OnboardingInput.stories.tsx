@@ -5,6 +5,12 @@ import { OnboardingInput } from './OnboardingInput';
 const meta = {
   title: 'Onboarding/Onboarding Input',
   component: OnboardingInput,
+  args: {
+    icon: '',
+    placeholder: '',
+    value: '',
+    onChange: () => {},
+  },
 } satisfies Meta<typeof OnboardingInput>;
 export default meta;
 

@@ -6,6 +6,16 @@ import type { ScheduleOption } from './SchedulePicker';
 const meta = {
   title: 'Onboarding/Daily Reflection Card',
   component: DailyReflectionCard,
+  args: {
+    time: '21:00',
+    onTimeChange: () => {},
+    days: new Set<number>(),
+    onToggleDay: () => {},
+    reminder: false,
+    onToggleReminder: () => {},
+    schedule: 'Every day',
+    onScheduleChange: () => {},
+  },
 } satisfies Meta<typeof DailyReflectionCard>;
 export default meta;
 

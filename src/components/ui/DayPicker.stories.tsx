@@ -5,6 +5,10 @@ import { DayPicker } from './DayPicker';
 const meta = {
   title: 'UI/Day Picker',
   component: DayPicker,
+  args: {
+    selectedDays: new Set<number>(),
+    onToggleDay: () => {},
+  },
 } satisfies Meta<typeof DayPicker>;
 export default meta;
 

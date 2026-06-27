@@ -5,6 +5,10 @@ import { SchedulePicker, type ScheduleOption } from './SchedulePicker';
 const meta = {
   title: 'UI/Schedule Picker',
   component: SchedulePicker,
+  args: {
+    value: 'Weekday',
+    onChange: () => {},
+  },
 } satisfies Meta<typeof SchedulePicker>;
 export default meta;
 

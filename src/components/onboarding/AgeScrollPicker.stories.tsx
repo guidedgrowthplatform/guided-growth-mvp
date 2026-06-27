@@ -5,6 +5,10 @@ import { AgeScrollPicker } from './AgeScrollPicker';
 const meta = {
   title: 'Onboarding/Age Scroll Picker',
   component: AgeScrollPicker,
+  args: {
+    value: 0,
+    onChange: () => {},
+  },
 } satisfies Meta<typeof AgeScrollPicker>;
 export default meta;
 

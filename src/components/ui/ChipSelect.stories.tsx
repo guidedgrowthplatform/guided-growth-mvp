@@ -5,6 +5,11 @@ import { ChipSelect } from './ChipSelect';
 const meta = {
   title: 'UI/Chip Select',
   component: ChipSelect,
+  args: {
+    options: [],
+    value: null,
+    onChange: () => {},
+  },
 } satisfies Meta<typeof ChipSelect>;
 export default meta;
 

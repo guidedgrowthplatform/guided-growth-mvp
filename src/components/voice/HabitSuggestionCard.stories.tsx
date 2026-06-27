@@ -5,6 +5,11 @@ import { HabitSuggestionCard } from './HabitSuggestionCard';
 const meta = {
   title: 'Check-in/Habit Suggestion Card',
   component: HabitSuggestionCard,
+  args: {
+    name: 'Sample',
+    days: [],
+    onDaysChange: () => {},
+  },
 } satisfies Meta<typeof HabitSuggestionCard>;
 export default meta;
 

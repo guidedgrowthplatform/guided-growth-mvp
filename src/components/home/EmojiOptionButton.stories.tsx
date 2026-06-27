@@ -8,6 +8,13 @@ const mood = checkInDimensions.find((d) => d.key === 'mood')!;
 const meta = {
   title: 'Check-in/Emoji Option Button',
   component: EmojiOptionButton,
+  args: {
+    icon: () => null,
+    label: 'Sample',
+    color: '#000000',
+    isSelected: false,
+    onClick: () => {},
+  },
 } satisfies Meta<typeof EmojiOptionButton>;
 export default meta;
 

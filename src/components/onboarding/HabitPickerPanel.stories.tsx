@@ -5,6 +5,14 @@ import { HabitPickerPanel } from './HabitPickerPanel';
 const meta = {
   title: 'Onboarding/Habit Picker Panel',
   component: HabitPickerPanel,
+  args: {
+    goal: 'Sample',
+    habits: [],
+    expanded: false,
+    onToggleExpanded: () => {},
+    selectedHabits: new Set<string>(),
+    onToggleHabit: () => {},
+  },
 } satisfies Meta<typeof HabitPickerPanel>;
 export default meta;
 

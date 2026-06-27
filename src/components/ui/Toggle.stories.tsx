@@ -5,6 +5,10 @@ import { Toggle } from './Toggle';
 const meta = {
   title: 'UI/Toggle',
   component: Toggle,
+  args: {
+    checked: false,
+    onChange: () => {},
+  },
 } satisfies Meta<typeof Toggle>;
 export default meta;
 
