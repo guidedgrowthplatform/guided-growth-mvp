@@ -12,7 +12,7 @@
  *   3. Version pinning — fires `onPin(tag)` on the first real save so the user
  *      is locked to the flow version they started on.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useOnboarding } from '@/hooks/useOnboarding';
 // Persist-null beats write no step, so they have no canonical save step. Their
@@ -263,7 +263,18 @@ export function useFlowOrchestrator(
   // lands at the just-completed (lower) step, and a back-nav arrives already
   // ahead, so neither is a transition past the active beat and neither double-fires.
   const serverStep = serverState?.current_step;
-  const serverData = serverState?.data;
+  // `path` lives in its OWN column (onboarding_states.path), not in `data` — but
+  // serverCaptureForBeat reads data.path to resolve the fork lane. Without merging
+  // it in, the fork capture sees no path → applyCapture falls through to the
+  // branch's mergeNodeId (plan review) and the engine SKIPS the whole beginner/
+  // advanced lane. Merge the column back into the data the capture reads.
+  const serverData = useMemo<OnboardingStepData>(
+    () => ({
+      ...(serverState?.data ?? {}),
+      ...(serverState?.path ? { path: serverState.path } : {}),
+    }),
+    [serverState?.data, serverState?.path],
+  );
   const activeNodeId = state.currentNodeId;
   const baselineStepRef = useRef<number | null>(null);
   const advancedNodeRef = useRef<string | null>(null);

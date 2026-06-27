@@ -42,6 +42,14 @@ describe('resumeToServerStep', () => {
     expect(resumedScreenId(3)).toBe('ONBOARD-BEGINNER-01');
   });
 
+  it('without path the fork falls through to the merge node (documents the column-merge bug)', () => {
+    // path lives in onboarding_states.path, not data. If the orchestrator fails
+    // to merge it in, the fork capture sees no path and applyCapture routes to
+    // the branch mergeNodeId (plan review) — skipping the entire lane.
+    const noPath = { ...DATA, path: undefined } as unknown as OnboardingStepData;
+    expect(resumedScreenId(3, noPath)).toBe('ONBOARD-BEGINNER-06');
+  });
+
   it('resumes to goals at step 4', () => {
     expect(resumedScreenId(4)).toBe('ONBOARD-BEGINNER-02');
   });
