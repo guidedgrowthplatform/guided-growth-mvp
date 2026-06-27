@@ -163,9 +163,13 @@ function sonioxTempKeyPlugin(apiKey: string): Plugin {
  */
 function simParseHabitsPlugin(openaiKey: string): Plugin {
   const INSTRUCTIONS = `Convert the user's free-text or voice "brain dump" into a list of concrete, trackable habits.
+This is RAW VOICE TRANSCRIPT: no punctuation, possibly mid-sentence, with lead-in phrases and filler. Extract only real, complete habits.
 Rules:
 - One habit per distinct intention the user expressed.
 - NEVER invent habits the user did not mention. If nothing concrete is present, return an empty list.
+- STRIP lead-in phrases from the name. The name is the action only, never the intention wrapper. Remove leading "I want to", "I'm going to", "going to", "I need to", "I would like to", "I should", "I'll", "let me", "trying to", "I", filler ("um", "so", "like", "also", "and"). Examples: "I want to go to the gym" -> "Go to the gym"; "I'm going to meditate every day" -> "Meditate"; "and also read before bed" -> "Read before bed".
+- IGNORE incomplete or trailed-off fragments that have no real action verb ("I want to", "going to", "I need", "um so", "do many things", "stuff"). Do not turn them into habits. When in doubt, drop it.
+- Capitalize the first letter of each name.
 - days: the specific weekdays (0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday). Include days ONLY when the user gave concrete days or an unambiguous schedule:
   - "daily" / "every day" -> [0,1,2,3,4,5,6]
   - "weekdays" / "every weekday" -> [1,2,3,4,5]

@@ -96,15 +96,15 @@ export function FlowOnboardingSim() {
 
   // ---- brain-dump parse state ---------------------------------------------
   const [listening, setListening] = useState(false);
-  const [interim, setInterim] = useState('');
+  const [interim, setInterim] = useState(''); // live words, not yet finalized
+  const [committed, setCommitted] = useState(''); // finalized utterances so far
   const [err, setErr] = useState<string | null>(null);
   const [habits, setHabits] = useState<ParsedHabit[]>([]);
   const [parsing, setParsing] = useState(false);
 
   const dumpRef = useRef('');
   const committedRef = useRef(''); // Soniox is per-utterance; accumulate finals.
-  const parseInFlight = useRef(false);
-  const pendingText = useRef<string | null>(null);
+  const parseAbort = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // ONE persistent accumulator, keyed by normalized name in first-seen order.
   // Habits only get ADDED or refined, never removed, so nothing disappears.
@@ -163,6 +163,7 @@ export function FlowOnboardingSim() {
     if (lastNodeRef.current !== nodeId) {
       lastNodeRef.current = nodeId;
       setInterim('');
+      setCommitted('');
       setHabits([]);
       dumpRef.current = '';
       committedRef.current = '';
@@ -180,32 +181,32 @@ export function FlowOnboardingSim() {
   );
 
   // The model is the splitter: it turns run-on speech into separate habits.
+  // Abort-latest (not a queue): a newer parse cancels the one in flight, and a
+  // hard timeout guarantees it can never wedge "Parsing…" forever.
   const parseDump = useCallback(
     async (full: string) => {
       if (!full.trim()) return;
-      if (parseInFlight.current) {
-        pendingText.current = full;
-        return;
-      }
-      parseInFlight.current = true;
+      parseAbort.current?.abort();
+      const ac = new AbortController();
+      parseAbort.current = ac;
+      const timeout = setTimeout(() => ac.abort(), 8000);
       setParsing(true);
       try {
         const r = await fetch('/api/sim-parse-habits', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: full }),
+          signal: ac.signal,
         });
         const d = (await r.json()) as { habits?: { name: string; days?: number[] }[] };
         if (Array.isArray(d.habits)) addParsed(d.habits, true);
       } catch {
-        // best-effort; leave prior cards up
+        // aborted or failed; leave the existing cards up
       } finally {
-        parseInFlight.current = false;
-        setParsing(false);
-        if (pendingText.current) {
-          const next = pendingText.current;
-          pendingText.current = null;
-          void parseDump(next);
+        clearTimeout(timeout);
+        if (parseAbort.current === ac) {
+          parseAbort.current = null;
+          setParsing(false);
         }
       }
     },
@@ -272,33 +273,57 @@ export function FlowOnboardingSim() {
     [habits, recompute],
   );
 
-  // Dev-only console hook so we can inject a dump without a mic.
+  // Dev-only console hooks so we can drive the sim without a mic.
+  //  __simDump(t)   — inject a finished transcript (skips streaming).
+  //  __simStream(t) — replay the real voice cadence: interim words tick into the
+  //                   bubble, then one final fires the parse. Use this to confirm
+  //                   partial words never spawn cards.
   useEffect(() => {
-    (window as unknown as { __simDump?: (t: string) => void }).__simDump = (t: string) => {
-      committedRef.current = t;
-      runRegex(t);
-      void parseDump(t);
+    const w = window as unknown as {
+      __simDump?: (t: string) => void;
+      __simStream?: (t: string, ms?: number) => Promise<void>;
     };
-  }, [runRegex, parseDump]);
+    w.__simDump = (t: string) => {
+      committedRef.current = `${committedRef.current} ${t}`.trim();
+      setCommitted(committedRef.current);
+      setInterim('');
+      runRegex(committedRef.current);
+      void parseDump(committedRef.current);
+    };
+    w.__simStream = async (t: string, ms = 110) => {
+      const words = t.split(/\s+/).filter(Boolean);
+      for (let i = 1; i <= words.length; i++) {
+        setInterim(words.slice(0, i).join(' ')); // interim grows, no parsing
+        await new Promise((r) => setTimeout(r, ms));
+      }
+      committedRef.current = `${committedRef.current} ${t}`.trim(); // final utterance
+      setCommitted(committedRef.current);
+      setInterim('');
+      runRegex(committedRef.current);
+      scheduleParse(committedRef.current);
+    };
+  }, [runRegex, parseDump, scheduleParse]);
 
   const { isListening } = useVoiceInCapture({
     active: listening,
     vapiStatus: 'idle',
     onInterim: (t) => {
       setErr(null);
+      // Brain dump: interim words ONLY stream into the speech bubble. Parsing a
+      // half-spoken phrase ("I want to...") is what spawned the half-baked cards,
+      // so we never parse interim, only finalized utterances below.
       setInterim(t);
-      if (onBrainDump) {
-        const full = `${committedRef.current} ${t}`.trim();
-        runRegex(full);
-        scheduleParse(full);
-      } else drive(t);
+      if (!onBrainDump) drive(t);
     },
     onTranscript: (t) => {
       if (onBrainDump) {
         committedRef.current = `${committedRef.current} ${t}`.trim();
+        setCommitted(committedRef.current);
         setInterim('');
+        // Finalized text is whole utterances, so names come out clean. Regex is
+        // instant; the AI refine is debounced so several quick finals coalesce.
         runRegex(committedRef.current);
-        void parseDump(committedRef.current);
+        scheduleParse(committedRef.current);
       } else {
         setInterim(t);
         drive(t);
@@ -308,13 +333,16 @@ export function FlowOnboardingSim() {
   });
 
   // ---- the live chat feed (speech bubble + forming cards) ------------------
+  // The bubble holds the FULL running transcript (every finalized word plus the
+  // live interim tail), growing like one real chat message as the user talks.
+  const transcript = [committed, interim].filter(Boolean).join(' ').trim();
   const afterFeed = useMemo(() => {
     if (!onBrainDump) return null;
     return (
       <div className="flex flex-col gap-3">
-        {interim && (
+        {transcript && (
           <div className="ml-auto max-w-[80%] rounded-[20px] bg-primary px-4 py-2.5 text-[15px] text-white">
-            {interim}
+            {transcript}
           </div>
         )}
         {habits.map((h, i) => (
@@ -331,7 +359,7 @@ export function FlowOnboardingSim() {
         ))}
       </div>
     );
-  }, [onBrainDump, interim, habits, setPolarity, toggleDay, removeHabit]);
+  }, [onBrainDump, transcript, habits, setPolarity, toggleDay, removeHabit]);
 
   return (
     <div className="bg-background flex h-screen w-screen flex-col">
@@ -339,7 +367,7 @@ export function FlowOnboardingSim() {
         <FlowRenderer
           orchestrator={orchestrator}
           afterFeed={afterFeed}
-          feedKey={`${habits.length}:${interim.length}:${parsing ? 1 : 0}`}
+          feedKey={`${habits.length}:${transcript.length}:${parsing ? 1 : 0}`}
         />
       </div>
 

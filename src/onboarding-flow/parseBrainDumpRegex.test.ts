@@ -65,4 +65,20 @@ describe('parseHabitsRegex', () => {
   it('returns empty for nothing concrete', () => {
     expect(parseHabitsRegex('   ')).toEqual([]);
   });
+
+  it('drops trailed-off lead-in fragments instead of carding them', () => {
+    // These are the half-spoken fragments that used to become "Want to. I want"
+    // style cards. After stripping the lead-ins nothing real is left, so reject.
+    expect(parseHabitsRegex('I want to')).toEqual([]);
+    expect(parseHabitsRegex('I want to. I want')).toEqual([]);
+    expect(parseHabitsRegex("I'm going to")).toEqual([]);
+    expect(parseHabitsRegex('I need to')).toEqual([]);
+  });
+
+  it('strips stacked lead-ins down to the real action', () => {
+    expect(parseHabitsRegex('I want to start to go to the gym')).toEqual([
+      { name: 'go to the gym' },
+    ]);
+    expect(parseHabitsRegex('I want to. I want to write')).toEqual([{ name: 'write' }]);
+  });
 });

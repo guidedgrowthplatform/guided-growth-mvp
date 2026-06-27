@@ -55,14 +55,18 @@ const FILLER =
 // "I" / "I'm" / "I am" / "I would" lead.
 const SUBJECT = /^(?:i\s+would\s+|i\s+am\s+|i'?m\s+|i'?ve\s+(?:been\s+)?|i\s+)/i;
 // Intent verbs, with or without a subject ("want to read", "going to run").
+// Trailing separator accepts punctuation, so "want to." (a comma/period crept in
+// by the transcriber) still strips instead of surviving as "Want to. I want".
 const INTENT =
-  /^(?:want(?:ing)?\s+to|wanna|going\s+to|gonna|need(?:ing)?\s+to|would\s+like\s+to|'?d\s+like\s+to|like\s+to|hoping\s+to|hope\s+to|try(?:ing)?\s+to|have\s+to|gotta|got\s+to|should|will|plan(?:ning)?\s+to|start(?:ing)?|begin|keep)\s+/i;
+  /^(?:want(?:ing)?\s+to|wanna|going\s+to|gonna|need(?:ing)?\s+to|would\s+like\s+to|'?d\s+like\s+to|like\s+to|hoping\s+to|hope\s+to|try(?:ing)?\s+to|have\s+to|gotta|got\s+to|should|will|plan(?:ning)?\s+to|start(?:ing)?|begin|keep)[\s.,;:]+/i;
 
 // Schedule wording to strip from the NAME (and, for days, captured separately).
 const SCHEDULE_PHRASE =
   /\b(?:on\s+)?(?:(?:sunday|saturday|monday|tuesday|wednesday|thursday|friday)(?:[\s,]*(?:and\s+)?))+|\b(?:every\s?day|everyday|daily)\b|\b(?:every\s+weekday|weekdays?)\b|\bweekends?\b|\b(?:once|twice|three times|four times|five times|\d+\s*(?:times|x))\s+(?:a|per)\s+week\b|\b(?:once|twice)\s+weekly\b|\bweekly\b|\bevery\s+(?:morning|evening|night|afternoon)\b|\bevery\s+other\s+day\b/gi;
 
-// Cleaned clauses that aren't habits.
+// Cleaned clauses that aren't habits. Includes the lead-in residue that's left
+// when someone trails off ("I want to...", "I'm going to") with no real verb, so
+// a half-spoken fragment never becomes a card.
 const REJECT = new Set([
   'you know',
   'etc',
@@ -78,16 +82,50 @@ const REJECT = new Set([
   'something',
   'anything',
   'more',
+  // intent / pronoun residue from trailed-off speech
+  'i',
+  'i want',
+  'i want to',
+  'want',
+  'want to',
+  'i need',
+  'i need to',
+  'need to',
+  'going to',
+  "i'm going to",
+  'im going to',
+  'i would',
+  'i would like',
+  'i would like to',
+  'gonna',
+  'wanna',
+  'to',
+  'do',
 ]);
 
+// Strip the lead-ins (filler, subject "I", intent verb) repeatedly until the
+// string stops changing. One pass leaves residue on stacked lead-ins like
+// "I want to start to ..." or "want to. I want to ..." (after the first strip a
+// new lead-in is exposed), which is exactly what produced the half-baked cards.
+function stripLeadIns(s: string): string {
+  let prev: string;
+  let n = s;
+  do {
+    prev = n;
+    n = n
+      .replace(FILLER, '')
+      .replace(SUBJECT, '')
+      .replace(INTENT, '')
+      // A bare "to" left over from "start to ...", "try to ..." is lead-in
+      // residue; no real habit name starts with "to".
+      .replace(/^to\s+/i, '')
+      .replace(/^[\s,.;:!?-]+/, '');
+  } while (n !== prev);
+  return n;
+}
+
 function cleanName(clause: string): string {
-  let n = clause.replace(FILLER, '');
-  n = n.replace(SUBJECT, '');
-  n = n.replace(INTENT, '');
-  // A second intent pass catches "want to go to the gym" -> after SUBJECT it can
-  // still lead with an intent verb, and stacked fillers like "just start".
-  n = n.replace(INTENT, '');
-  n = n
+  const n = stripLeadIns(clause)
     .replace(SCHEDULE_PHRASE, '')
     .replace(/\s+/g, ' ')
     .replace(/^[\s,.;:-]+|[\s,.;:!?-]+$/g, '')
