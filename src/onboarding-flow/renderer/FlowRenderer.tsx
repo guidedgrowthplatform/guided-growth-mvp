@@ -11,6 +11,7 @@
  * ends with a cutoff of padding ABOVE the orb so cards never slide under it.
  */
 import { Icon } from '@iconify/react';
+import type { ReactNode } from 'react';
 import { useStickToBottom } from '@/hooks/useStickToBottom';
 import { getNode } from '../flowMachine';
 import type { FlowOrchestrator } from '../useFlowOrchestrator';
@@ -23,14 +24,24 @@ export interface FlowRendererProps {
   // The floating voice orb. Surfaces that render their own bottom controls
   // (the sim's Listen bar) pass false so the orb does not overlap them.
   showVoiceControls?: boolean;
+  // Extra live content appended INSIDE the scrolling feed (the sim's speech
+  // bubble + forming habit cards), so it pushes the chat up like real messages.
+  afterFeed?: ReactNode;
+  // Bump this when afterFeed grows so the feed re-pins to the bottom.
+  feedKey?: unknown;
 }
 
-export function FlowRenderer({ orchestrator, showVoiceControls = true }: FlowRendererProps) {
+export function FlowRenderer({
+  orchestrator,
+  showVoiceControls = true,
+  afterFeed,
+  feedKey,
+}: FlowRendererProps) {
   const { flow, state, currentNode, answers, capture, back, canGoBack, isComplete } = orchestrator;
 
-  // Re-pin to the bottom whenever a beat advances or the flow completes; per-step
-  // reveals inside a beat pin via onReveal below.
-  const contentKey = `${state.currentNodeId}:${state.visited.length}:${isComplete ? 1 : 0}`;
+  // Re-pin to the bottom whenever a beat advances, the flow completes, or live
+  // feed content grows; per-step reveals inside a beat pin via onReveal below.
+  const contentKey = `${state.currentNodeId}:${state.visited.length}:${isComplete ? 1 : 0}:${String(feedKey ?? '')}`;
   const { scrollRef, onScroll, scrollToBottom } = useStickToBottom(contentKey);
 
   return (
@@ -76,6 +87,8 @@ export function FlowRenderer({ orchestrator, showVoiceControls = true }: FlowRen
           {isComplete && (
             <PastBeatBubbles coach="You're all set. Let's get started." reply={null} />
           )}
+
+          {afterFeed}
         </div>
       </div>
 
