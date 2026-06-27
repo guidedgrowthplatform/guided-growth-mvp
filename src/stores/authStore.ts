@@ -52,7 +52,28 @@ async function fetchAnonId(): Promise<string | null> {
     } = await supabase.auth.getSession();
     if (!session?.access_token) return null;
     const claims = decodeJwtPayload(session.access_token);
-    const anonId = typeof claims?.anon_id === 'string' ? claims.anon_id : null;
+    let anonId = typeof claims?.anon_id === 'string' ? claims.anon_id : null;
+    // Resilience: every client read filters by this anon_id, so if the JWT is
+    // missing the anon_id claim (a stale token minted before the profile got
+    // its anon_id, or a token-hook hiccup) the client goes blind and renders
+    // empty (no habits, no journal) even though the data is intact server-side.
+    // The profile row carries the canonical anon_id and is self-readable by
+    // auth.uid() (RLS users_can_read_own_profile), independent of the claim, so
+    // recover it from there instead of stranding the user.
+    if (!anonId && session.user?.id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('anon_id')
+        .eq('id', session.user.id)
+        .single();
+      anonId = typeof profile?.anon_id === 'string' ? profile.anon_id : null;
+      if (anonId) {
+        Sentry.captureMessage('analytics_identify_recovered', {
+          level: 'warning',
+          extra: { reason: 'missing_anon_id_claim_recovered_from_profile' },
+        });
+      }
+    }
     if (!anonId) {
       Sentry.captureMessage('analytics_identify_failed', {
         level: 'warning',
