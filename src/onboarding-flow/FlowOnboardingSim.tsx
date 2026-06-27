@@ -3,13 +3,21 @@
  *
  * Runs the REAL engine, renderer, and components with in-memory persistence and
  * no login. Soniox voice-in (Listen) streams the transcript and drives the
- * skimmer / brain-dump parse as it comes in. For fast iteration this jumps
- * straight to the Advanced brain-dump beat. Local QA only, at /onboarding-flow-sim.
+ * skimmer / brain-dump parse as it comes in. Jumps straight to the Advanced
+ * brain-dump beat for fast iteration. Local QA only, at /onboarding-flow-sim.
+ *
+ * Brain dump flow (two steps, per Yair):
+ *   1. capture  — the habits appear live as you talk; confirm the list.
+ *   2. schedule — set the specific days for each (real DayPicker). Days only
+ *      auto-fill when concrete ("daily", "weekdays", "Mon/Wed"); vague counts
+ *      ("three times a week") stay empty for the user to pick.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { useVoiceInCapture } from '@/hooks/useVoiceInCapture';
+import { formatCadence } from '@/components/onboarding/constants';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
+import { DayPicker } from '@/components/ui/DayPicker';
 import { VOICE_IN_ENABLED } from '@/lib/config/voice';
 import { resolveHabitPolarity } from './curatedHabitPolarity';
 import { useLocalPersistence } from './persistence';
@@ -21,12 +29,13 @@ import { useFlowOrchestrator, type FlowOrchestrator } from './useFlowOrchestrato
 
 interface ParsedHabit {
   name: string;
-  // Only set when the user explicitly stated it, or after the user picks it.
-  frequency?: string;
+  // Specific weekday indices (0=Sun..6=Sat). Only auto-filled when concrete.
+  days?: number[];
   polarity: 'positive' | 'negative' | null;
 }
 
-const FREQUENCY_OPTIONS = ['daily', 'weekdays', 'weekends', '3x/week', 'weekly'];
+type DumpPhase = 'capture' | 'schedule' | 'done';
+
 const PARSE_DEBOUNCE_MS = 600;
 
 function isBrainDumpBeat(componentType?: string): boolean {
@@ -39,61 +48,85 @@ function polarityMeta(p: ParsedHabit['polarity']): { icon: string; label: string
   return { icon: 'mdi:checkbox-marked-circle-outline', label: 'Do' };
 }
 
-// Real habit cards (PlanSummaryCard) that fill live. Frequency shows when stated;
-// when blank, inline pills let the user set it right on the card (no extra step).
+function btn(primary: boolean, enabled = true): React.CSSProperties {
+  return {
+    marginTop: 8,
+    height: 40,
+    width: '100%',
+    borderRadius: 12,
+    border: primary ? 'none' : '1px solid rgba(0,0,0,0.15)',
+    cursor: enabled ? 'pointer' : 'default',
+    fontSize: 15,
+    fontWeight: 500,
+    color: primary ? '#fff' : '#111',
+    background: primary ? (enabled ? '#2447e6' : '#9aa6e6') : '#fff',
+  };
+}
+
+// Step 1 reveals the habit cards live; step 2 reveals the day pickers to fill.
 function HabitCards({
   habits,
   parsing,
-  onSetFrequency,
+  phase,
+  onToggleDay,
+  onNext,
+  onDone,
 }: {
   habits: ParsedHabit[];
   parsing: boolean;
-  onSetFrequency: (index: number, frequency: string) => void;
+  phase: DumpPhase;
+  onToggleDay: (index: number, day: number) => void;
+  onNext: () => void;
+  onDone: () => void;
 }) {
   if (!habits.length && !parsing) return null;
+  const allHaveDays = habits.length > 0 && habits.every((h) => (h.days?.length ?? 0) > 0);
+  const header =
+    phase === 'done'
+      ? `All set, ${habits.length} habits`
+      : phase === 'capture'
+        ? `Are these your habits?${parsing ? ' …' : ''}`
+        : 'Pick the days for each';
   return (
-    <div style={{ marginBottom: 8, maxHeight: '46vh', overflowY: 'auto' }}>
-      <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>
-        Your habits{parsing ? ' …' : ''}
-      </div>
+    <div style={{ marginBottom: 8, maxHeight: '48vh', overflowY: 'auto' }}>
+      <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 6 }}>{header}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {habits.map((h, i) => {
           const meta = polarityMeta(h.polarity);
+          const sel = new Set(h.days ?? []);
+          const cadence = sel.size
+            ? formatCadence(sel)
+            : phase === 'capture'
+              ? 'Days next'
+              : 'Pick days';
           return (
             <div key={`${h.name}-${i}`}>
               <PlanSummaryCard
                 icon={meta.icon}
                 typeLabel="Habit"
                 title={h.name}
-                cadence={h.frequency ?? 'How often?'}
+                cadence={cadence}
                 rule={meta.label}
               />
-              {!h.frequency && (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-                  {FREQUENCY_OPTIONS.map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => onSetFrequency(i, f)}
-                      style={{
-                        padding: '5px 10px',
-                        borderRadius: 999,
-                        border: '1px solid #f59e0b',
-                        background: '#fffbeb',
-                        color: '#92400e',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {f}
-                    </button>
-                  ))}
+              {phase === 'schedule' && (
+                <div style={{ marginTop: 6 }}>
+                  <DayPicker selectedDays={sel} onToggleDay={(d) => onToggleDay(i, d)} />
                 </div>
               )}
             </div>
           );
         })}
       </div>
+      {phase === 'capture' && (
+        <button type="button" onClick={onNext} style={btn(true)}>
+          These are my habits
+        </button>
+      )}
+      {phase === 'schedule' && (
+        <button type="button" onClick={onDone} disabled={!allHaveDays} style={btn(true, allHaveDays)}>
+          {allHaveDays ? 'Done' : 'Set the days to finish'}
+        </button>
+      )}
     </div>
   );
 }
@@ -105,6 +138,7 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
   const [err, setErr] = useState<string | null>(null);
   const [habits, setHabits] = useState<ParsedHabit[]>([]);
   const [parsing, setParsing] = useState(false);
+  const [phase, setPhase] = useState<DumpPhase>('capture');
   const node = orchestrator.currentNode;
   const nodeId = node?.id ?? null;
   const onBrainDump = isBrainDumpBeat(node?.componentType);
@@ -113,10 +147,9 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
   const parseInFlight = useRef(false);
   const pendingText = useRef<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Frequencies the user picked by hand, so a re-parse never wipes them.
-  const manualFreq = useRef<Map<string, string>>(new Map());
+  // Days the user set by hand, so a re-parse never wipes them.
+  const manualDays = useRef<Map<string, number[]>>(new Map());
 
-  // Reset per beat.
   const lastNodeRef = useRef<string | null>(null);
   useEffect(() => {
     if (lastNodeRef.current !== nodeId) {
@@ -124,8 +157,9 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
       setText('');
       setInterim('');
       setHabits([]);
+      setPhase('capture');
       dumpRef.current = '';
-      manualFreq.current = new Map();
+      manualDays.current = new Map();
     }
   }, [nodeId]);
 
@@ -134,8 +168,6 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
     [orchestrator],
   );
 
-  // Fast-model brain-dump parse. Coalesced (one in flight, latest queued) and
-  // merged with the user's manual frequency picks.
   const parseDump = useCallback(async (full: string) => {
     if (!full.trim()) return;
     if (parseInFlight.current) {
@@ -150,12 +182,12 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: full }),
       });
-      const d = (await r.json()) as { habits?: { name: string; frequency?: string }[] };
+      const d = (await r.json()) as { habits?: { name: string; days?: number[] }[] };
       if (Array.isArray(d.habits)) {
         setHabits(
           d.habits.map((h) => ({
             name: h.name,
-            frequency: manualFreq.current.get(h.name) ?? h.frequency,
+            days: manualDays.current.get(h.name) ?? h.days,
             polarity: resolveHabitPolarity(h.name).polarity,
           })),
         );
@@ -183,12 +215,18 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
     [parseDump],
   );
 
-  const setFrequency = useCallback((index: number, frequency: string) => {
-    setHabits((prev) => {
-      const h = prev[index];
-      if (h) manualFreq.current.set(h.name, frequency);
-      return prev.map((x, idx) => (idx === index ? { ...x, frequency } : x));
-    });
+  const toggleDay = useCallback((index: number, day: number) => {
+    setHabits((prev) =>
+      prev.map((h, idx) => {
+        if (idx !== index) return h;
+        const set = new Set(h.days ?? []);
+        if (set.has(day)) set.delete(day);
+        else set.add(day);
+        const days = [...set].sort((a, b) => a - b);
+        manualDays.current.set(h.name, days);
+        return { ...h, days };
+      }),
+    );
   }, []);
 
   const { isListening } = useVoiceInCapture({
@@ -239,7 +277,16 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
           {err && `  ·  ${err}`}
         </div>
 
-        {onBrainDump && <HabitCards habits={habits} parsing={parsing} onSetFrequency={setFrequency} />}
+        {onBrainDump && (
+          <HabitCards
+            habits={habits}
+            parsing={parsing}
+            phase={phase}
+            onToggleDay={toggleDay}
+            onNext={() => setPhase('schedule')}
+            onDone={() => setPhase('done')}
+          />
+        )}
 
         {(listening || interim) && (
           <div
@@ -299,8 +346,7 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
 
 // Fast-forward straight to the Advanced brain-dump beat: seed the pre-dump beats
 // (auth/mic/profile, and pick the brain-dump path at the fork) so each test
-// starts where the work is. Returns null at the brain dump and after, so nothing
-// past it is auto-advanced.
+// starts where the work is. Returns null at the brain dump and after.
 function fastForwardCapture(node: FlowNode): BeatCapture | null {
   switch (node.componentType) {
     case 'auth':

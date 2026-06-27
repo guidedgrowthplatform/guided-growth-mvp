@@ -166,7 +166,12 @@ function simParseHabitsPlugin(openaiKey: string): Plugin {
 Rules:
 - One habit per distinct intention the user expressed.
 - NEVER invent habits the user did not mention. If nothing concrete is present, return an empty list.
-- frequency: include it ONLY if the user EXPLICITLY stated how often ("three times a week" -> 3x/week, "every weekday" -> weekdays, "every day" -> daily, "once a week" -> weekly). If the user did NOT say how often, OMIT frequency entirely. NEVER guess or default a frequency.
+- days: the specific weekdays (0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday). Include days ONLY when the user gave concrete days or an unambiguous schedule:
+  - "daily" / "every day" -> [0,1,2,3,4,5,6]
+  - "weekdays" / "every weekday" -> [1,2,3,4,5]
+  - "weekends" -> [0,6]
+  - named days ("Monday and Thursday") -> those indices
+  If the user said a vague count like "three times a week", "twice a week", "a few times", or "once a week" WITHOUT naming the days, OMIT days entirely (the user will pick which days). NEVER guess which days.
 - Do NOT infer time of day.
 - Keep habit names short and positive where natural.
 Return the result by calling submit_parsed_habits.`;
@@ -187,10 +192,7 @@ Return the result by calling submit_parsed_habits.`;
               additionalProperties: false,
               properties: {
                 name: { type: 'string' },
-                frequency: {
-                  type: 'string',
-                  enum: ['daily', 'weekdays', 'weekends', 'weekly', '3x/week'],
-                },
+                days: { type: 'array', items: { type: 'integer', minimum: 0, maximum: 6 } },
               },
               required: ['name'],
             },
