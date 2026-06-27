@@ -152,6 +152,10 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
   const parseInFlight = useRef(false);
   const pendingText = useRef<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Soniox sends the transcript per-utterance, so accumulate finals here and
+  // always parse the WHOLE dump (committed + current interim). Name-dedup in the
+  // parsers absorbs any overlap, so earlier habits never fall off.
+  const committedRef = useRef('');
   // Persistent accumulators so habits NEVER drop: the AI set (refined names) and
   // the latest regex set (instant), unioned by normalized name in first-seen
   // order. Days the user set by hand always win.
@@ -183,6 +187,7 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
       setHabits([]);
       setPhase('capture');
       dumpRef.current = '';
+      committedRef.current = '';
       aiByName.current = new Map();
       regexByName.current = new Map();
       orderRef.current = [];
@@ -283,17 +288,19 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
       setErr(null);
       setInterim(t);
       if (onBrainDump) {
-        runRegex(t); // instant
-        scheduleParse(t); // AI refine (debounced)
+        const full = `${committedRef.current} ${t}`.trim();
+        runRegex(full); // instant
+        scheduleParse(full); // AI refine (debounced)
       } else drive(t);
     },
     onTranscript: (t) => {
-      setInterim(t);
       if (onBrainDump) {
-        runRegex(t);
-        dumpRef.current = t;
-        void parseDump(t);
+        committedRef.current = `${committedRef.current} ${t}`.trim();
+        setInterim('');
+        runRegex(committedRef.current);
+        void parseDump(committedRef.current);
       } else {
+        setInterim(t);
         drive(t);
       }
     },
@@ -313,9 +320,7 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
       style={{
         flexShrink: 0,
         padding: '10px 12px',
-        background: 'var(--color-surface, #fff)',
-        borderTop: '1px solid rgba(0,0,0,0.08)',
-        boxShadow: '0 -4px 16px rgba(0,0,0,0.06)',
+        background: 'transparent',
       }}
     >
       <div style={{ maxWidth: 480, margin: '0 auto' }}>
