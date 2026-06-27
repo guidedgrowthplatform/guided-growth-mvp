@@ -594,6 +594,20 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       }
       // If the opener already finished while Vapi was connecting, open now.
       maybeOpenMic();
+    } else {
+      // Every call joins with startAudioOff:true (set once on the shared Vapi
+      // instance). Only the instant-opener beat has an unmute path; without this,
+      // every other call — the fork, later beats, and post-error retries — stays
+      // muted, so Vapi receives pure silence and ends with
+      // did-not-receive-customer-audio. Open the mic on join.
+      const client = getClientRef.current();
+      if (client) {
+        try {
+          client.setMuted(false);
+        } catch (err) {
+          if (import.meta.env.DEV) console.debug('[onboarding-voice] join unmute skipped', err);
+        }
+      }
     }
 
     // If we already injected the screen context via assistantOverrides at
