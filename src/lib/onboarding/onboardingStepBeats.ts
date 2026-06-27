@@ -25,6 +25,8 @@ export const CHAT_VAPI_BEAT_SCREENS: ReadonlySet<string> = new Set([
   'ONBOARD-FORK--FORM',
   'ONBOARD-BEGINNER-01',
   'ONBOARD-BEGINNER-02',
+  'ONBOARD-BEGINNER-03',
+  'ONBOARD-BEGINNER-04',
 ]);
 
 // 'none' = chat-only beat (no inline card yet). Cards beyond profile land

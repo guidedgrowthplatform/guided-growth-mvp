@@ -341,10 +341,10 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     name: 'submit_reflection_config',
     screen: 'ONBOARD-BEGINNER-07',
     description:
-      "Save the user's evening reflection schedule. DATA ONLY — does NOT advance to the next screen. Use `navigate_next(target_step=7)` AFTER this returns. " +
+      "Save the user's evening reflection schedule. DATA ONLY — does NOT advance to the next screen. Use `navigate_next(target_step=10)` AFTER this returns. " +
       'PRECONDITION: do NOT call this until the user has actually answered when they want their reflection. ' +
       "ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). If the user has not yet said a time, ASK FIRST — do NOT pre-fill defaults silently and fire this tool. The reflection screen is the user's choice; do not bypass it. " +
-      'Once the user gives you a time (e.g. "around 9 PM" → time="21:00", or "9:45 PM" → "21:45"), infer the missing fields from natural defaults (Weekday + reminder on) and call. Then chain navigate_next(target_step=7) in the same turn.',
+      'Once the user gives you a time (e.g. "around 9 PM" → time="21:00", or "9:45 PM" → "21:45"), infer the missing fields from natural defaults (Weekday + reminder on) and call. Then chain navigate_next(target_step=10) in the same turn.',
     messages: {
       requestStart: '',
       requestFailed: '',
@@ -385,10 +385,10 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     name: 'submit_morning_checkin',
     screen: 'ONBOARD-MORNING-SETUP',
     description:
-      "Save the user's morning check-in schedule. DATA ONLY — does NOT advance to the next screen; chain navigate_next AFTER this returns, in the same turn. " +
+      "Save the user's morning check-in schedule. DATA ONLY — does NOT advance to the next screen; chain navigate_next(target_step=9) AFTER this returns, in the same turn. " +
       'PRECONDITION: do NOT call this until the user has actually answered when they want their morning check-in. ' +
       "ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). If the user has not yet said a time, ASK FIRST — do NOT pre-fill defaults silently and fire this tool. The morning-setup screen is the user's choice; do not bypass it. " +
-      'Once the user gives a time (e.g. "around 7:30 in the morning" → time="07:30"), infer the missing fields from natural defaults (Weekday + reminder on) and call. Then chain navigate_next in the same turn.',
+      'Once the user gives a time (e.g. "around 7:30 in the morning" → time="07:30"), infer the missing fields from natural defaults (Weekday + reminder on) and call. Then chain navigate_next(target_step=9) in the same turn.',
     messages: {
       requestStart: '',
       requestFailed: '',
@@ -472,7 +472,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
       'NEVER ask the user "are you ready?" / "anything else?" / "want to continue?" / "ready to move on?" before navigating. The data tool firing IS the confirmation. The user does not know navigate_next exists; they expect screens to advance based on what they said. ' +
       "GOOD: User says 'I want walking 3 times a week at 8pm with reminders'. You call: add_habit(name='Walking', days=[1,3,5], time='20:00', reminder=true), THEN navigate_next(target_step=6). One turn, two tool calls. " +
       "BAD: User says the same thing. You call: add_habit(...), then say 'Walking, three days a week at 8 PM. Anything else?'. This is a BUG. You FAILED to call navigate_next. The user now has to say 'continue' to unstick. " +
-      'What to pass for target_step: the step number of the NEXT screen. From step-1 (profile) → 2. step-2 (path) → 3. step-3 (category/braindump) → 4. step-4 (goals) → 5. step-5 (habits) → 6. step-6 (reflection) → 7. ' +
+      'What to pass for target_step: the step number of the NEXT screen. From step-1 (profile) → 2. step-2 (path) → 3. step-3 (category/braindump) → 4. step-4 (goals) → 5. step-5 (habit-select) → 6. step-6 (habit-schedule) → 7. step-7 (plan-review) → 8. step-8 (morning) → 9. step-9 (reflection) → 10. ' +
       "For users who back-navigated to edit an earlier screen: after they re-confirm the edit, call this with target_step = currentScreenStep + 1. They'll walk through the remaining screens one by one — that's intended. Do NOT pass target_step values that skip multiple screens at once. " +
       'Only exception: if the user EXPLICITLY signals MORE input is coming BEFORE you call the data tool (e.g. "wait, one more habit", "and another goal"), capture that input first. Once you call the data tool, navigate_next MUST follow in the same turn.',
     messages: {
