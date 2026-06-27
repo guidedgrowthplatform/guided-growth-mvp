@@ -5,7 +5,7 @@ import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 're
 import { useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
 import { OnboardingChatOverlay } from '@/components/onboarding/OnboardingChatOverlay';
-import { getOnboardingOpener } from '@/components/onboarding/onboardingOpeners';
+import { getOnboardingOpenerForState } from '@/components/onboarding/onboardingOpeners';
 import { VoiceCapModal } from '@/components/voice/VoiceCapModal';
 import {
   FULL_DUPLEX_BARGE_IN,
@@ -869,9 +869,9 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         // Speak the beat's opener instantly via Cartesia, with the user's name
         // substituted. Falls back cleanly (resolves done) on any TTS failure so
         // the mic gate can never strand the call mic-closed.
-        const openerBase = getOnboardingOpener(sid) ?? '';
         const nickname =
           typeof filled.nickname === 'string' ? (filled.nickname as string) : undefined;
+        const openerBase = getOnboardingOpenerForState(sid, nickname) ?? '';
         const openerText = applyName(openerBase, nickname);
         stopOpener();
         const handle = speakOpener(openerText);
