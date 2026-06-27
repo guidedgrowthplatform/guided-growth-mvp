@@ -14,6 +14,14 @@ Severity bands:
 
 ## P0, fix first
 
+> Status update (commit `17def0c8`, home-tour build): items **3, 4, 5 are CLOSED**.
+> Item 3 (advanced capture dead end) was already closed earlier (advancedCapture lifts
+> `flow.setHabits`). Item 4 (schedule times never persist) is closed: FlowState now carries
+> `morningTime` / `eveningTime` / `habitConfigs`, the schedule + morning + evening beats lift
+> them, and the recap + home tour read them. Item 5 (plan-cards back points forward) is fixed
+> (now targets the habit step). Items 1, 2, 6 (copy / voice-pushes-UI / canvas-vs-runtime)
+> remain open.
+
 **1. Em dashes in live coach copy.** `src/components/onboarding/onboardingOpeners.ts`
 has 13+ em dashes in user-facing openers, plus `beats/reflectionCard.tsx:96`
 ("speak freely, no prompts"). These ship to real users and break the hard ban,
