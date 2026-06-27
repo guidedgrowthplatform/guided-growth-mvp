@@ -2,28 +2,36 @@ import { Ban, Pencil, Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { DayPicker } from '@/components/ui/DayPicker';
 
-export type HabitType = 'build' | 'break';
+// UI-side polarity vocabulary, kept separate from the data-layer HabitType in
+// @gg/shared/types on purpose. The wiring session maps at the seam:
+//   'build' <-> the "do more" data value (binary_do today, binary_build after
+//               the planned rename)
+//   'break' <-> the "stay away" data value (binary_avoid today, binary_break
+//               after the planned rename)
+// Because this component speaks build/break and never imports the data enum,
+// the data rename does not have to touch this file.
+export type HabitPolarity = 'build' | 'break';
 
 interface HabitScheduleCardProps {
   habitName: string;
-  habitType: HabitType;
+  polarity: HabitPolarity;
   selectedDays: Set<number>;
-  onChangeType: (type: HabitType) => void;
+  onChangePolarity: (polarity: HabitPolarity) => void;
   onToggleDay: (day: number) => void;
   onEdit: () => void;
 }
 
 // Compact onboarding / voice card: habit name + Edit on top, a neutral
-// Build/Break type toggle, then the round day-schedule pills. There is no
+// Build/Break polarity toggle, then the round day-schedule pills. There is no
 // completion check here. Green check and red X stay reserved for did-it /
 // missed-it on the check-in rows, so the Build/Break marker is blue and gray on
 // purpose and never reads as a daily result. Day pills default to off; the AI
 // or a tap turns them on. Edit covers both the name text and the schedule.
 export function HabitScheduleCard({
   habitName,
-  habitType,
+  polarity,
   selectedDays,
-  onChangeType,
+  onChangePolarity,
   onToggleDay,
   onEdit,
 }: HabitScheduleCardProps) {
@@ -43,16 +51,16 @@ export function HabitScheduleCard({
         </div>
         <div className="mt-[9px] inline-flex gap-[6px]">
           <TypeOption
-            active={habitType === 'build'}
+            active={polarity === 'build'}
             icon={<Plus className="size-[14px]" />}
             label="Build"
-            onClick={() => onChangeType('build')}
+            onClick={() => onChangePolarity('build')}
           />
           <TypeOption
-            active={habitType === 'break'}
+            active={polarity === 'break'}
             icon={<Ban className="size-[14px]" />}
             label="Break"
-            onClick={() => onChangeType('break')}
+            onClick={() => onChangePolarity('break')}
           />
         </div>
       </div>

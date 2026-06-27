@@ -54,7 +54,7 @@ import { ChatBubble } from '@/components/voice/ChatBubble';
 
 import { BEAT_DEFS } from './beats';
 import { PlayingCtx, AnimationsCtx, useAnimations, Karaoke } from './beatKit';
-import { FlowStateCtx, type FlowState } from './flowStateCtx';
+import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 import { EXTRA_REGISTRY, EXTRA_GROUPS } from './paletteExtras';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
@@ -231,14 +231,14 @@ function HabitItemPreview() {
 }
 
 function HabitScheduleCardPreview() {
-  const [type, setType] = useState<'build' | 'break'>('build');
+  const [polarity, setPolarity] = useState<'build' | 'break'>('build');
   const [days, setDays] = useState<Set<number>>(new Set());
   return (
     <HabitScheduleCard
       habitName="Read 10 pages"
-      habitType={type}
+      polarity={polarity}
       selectedDays={days}
-      onChangeType={setType}
+      onChangePolarity={setPolarity}
       onToggleDay={(d) =>
         setDays((prev) => {
           const next = new Set(prev);
@@ -890,8 +890,10 @@ const ENGINE_DEFAULTS: Record<string, NonNullable<BeatMeta['engine']>> = {
     voiceDirectLlmAllowed: true,
   },
   'plan-cards': {
+    // Back returns to the habit step. It used to point at 'reflection-setup',
+    // a beat that comes AFTER plan-cards, so Back jumped the user forward.
     nodeId: 'plan-review',
-    backId: 'reflection-setup',
+    backId: 'habit-select',
     voiceExpectsInput: true,
     voiceDirectLlmAllowed: true,
   },
@@ -2349,6 +2351,11 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
   const [category, setCategoryState] = useState<string | null>(null);
   const [goals, setGoals] = useState<string[]>([]);
   const [habits, setHabits] = useState<string[]>([]);
+  // Captured schedule + check-in times, lifted from the schedule / morning /
+  // evening beats so the plan recap and the home tour reflect the real plan.
+  const [morningTime, setMorningTime] = useState<string | null>(null);
+  const [eveningTime, setEveningTime] = useState<string | null>(null);
+  const [habitConfigs, setHabitConfigsState] = useState<Record<string, HabitScheduleCfg>>({});
   const toggleIn = (v: string, max: number, set: (fn: (p: string[]) => string[]) => void) =>
     set((p) => (p.includes(v) ? p.filter((x) => x !== v) : p.length < max ? [...p, v] : p));
   const flowState: FlowState = {
@@ -2366,6 +2373,12 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
     toggleGoal: (v, max = 2) => toggleIn(v, max, setGoals),
     toggleHabit: (v, max = 2) => toggleIn(v, max, setHabits),
     setHabits: (v) => setHabits(v),
+    morningTime,
+    eveningTime,
+    habitConfigs,
+    setMorningTime: (v) => setMorningTime(v),
+    setEveningTime: (v) => setEveningTime(v),
+    setHabitConfig: (habit, cfg) => setHabitConfigsState((p) => ({ ...p, [habit]: cfg })),
   };
 
   const renderComp = (item: Placed) => {
@@ -2452,6 +2465,9 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
     setCategoryState(null);
     setGoals([]);
     setHabits([]);
+    setMorningTime(null);
+    setEveningTime(null);
+    setHabitConfigsState({});
   };
 
   const kind = current?.transition?.kind ?? 'dissolve';
