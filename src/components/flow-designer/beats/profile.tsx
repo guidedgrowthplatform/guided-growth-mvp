@@ -7,7 +7,7 @@ import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 // to make a new one. Editable text comes from props (set in the flow + sidebar):
 // greeting, askAge, askGender, userReply, age, gender.
 function ProfileBeat(props?: Record<string, string>) {
-  const propAge = props?.age && props.age !== '' ? Number(props.age) : 28;
+  const propAge = props?.age && props.age !== '' ? Number(props.age) : 35;
   const propGender = props?.gender ?? 'Male';
   const [age, setAge] = useState<number | ''>(propAge);
   const [gender, setGender] = useState<string | null>(propGender);
@@ -44,7 +44,7 @@ function ProfileBeat(props?: Record<string, string>) {
         />
       ),
     },
-    { id: 'reply', speaker: 'user', say: props?.userReply ?? "I'm 28, and I'm male." },
+    { id: 'reply', speaker: 'user', say: props?.userReply ?? "I'm 35, and I'm male." },
   ];
 
   return (
