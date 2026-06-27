@@ -63,8 +63,16 @@ export type FlowComponentType =
   | 'category-grid'
   | 'goals-list'
   | 'habit-picker'
+  | 'habit-schedule'
+  | 'advanced-capture'
+  | 'morning-checkin-setup'
   | 'reflection-card'
   | 'plan-cards'
+  | 'into-app'
+  // Check-in flow component types (morning + evening check-in documents).
+  | 'state-check'
+  | 'habit-review'
+  | 'reflection'
   | 'coach-bubble';
 
 export interface BeatNode {
