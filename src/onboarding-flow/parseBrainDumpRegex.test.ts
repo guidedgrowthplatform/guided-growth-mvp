@@ -35,6 +35,24 @@ describe('parseHabitsRegex', () => {
     expect(r).toEqual([{ name: 'go running' }, { name: 'call mom' }]);
   });
 
+  it('strips intent verbs even without a leading "I"', () => {
+    // "want to read" (no "I", after splitting on "and") must not keep "want to".
+    expect(parseHabitsRegex('I want to run and want to read')).toEqual([
+      { name: 'run' },
+      { name: 'read' },
+    ]);
+    expect(parseHabitsRegex("going to meditate, gonna walk, I'm gonna stretch")).toEqual([
+      { name: 'meditate' },
+      { name: 'walk' },
+      { name: 'stretch' },
+    ]);
+  });
+
+  it('drops filler/non-habit clauses', () => {
+    const r = parseHabitsRegex('um, you know, run, and stuff');
+    expect(r).toEqual([{ name: 'run' }]);
+  });
+
   it('strips time-of-day from the name, leaving days empty', () => {
     expect(parseHabitsRegex('stretch every morning')).toEqual([{ name: 'stretch' }]);
   });
