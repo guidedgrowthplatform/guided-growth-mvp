@@ -161,20 +161,21 @@ export function FlowOnboardingSim() {
         });
         if (!orderRef.current.includes(key)) orderRef.current.push(key);
       }
-      if (fromAI) {
-        // The AI just read the transcript so far. Drop optimistic cards it didn't
-        // return this pass (premature guesses like "Go" before "Go to the gym",
-        // disfluent fragments), unless the user already touched them. Confirmed
-        // habits are sticky and never pruned, so nothing real disappears.
-        const aiKeys = new Set(parsed.map((p) => normName(p.name.trim())).filter(Boolean));
-        for (const key of [...orderRef.current]) {
-          const h = habitsRef.current.get(key);
-          if (!h || h.confirmed) continue;
-          const touched = manualDays.current.has(key) || manualPolarity.current.has(key);
-          if (!aiKeys.has(key) && !touched) {
-            habitsRef.current.delete(key);
-            orderRef.current = orderRef.current.filter((k) => k !== key);
-          }
+      // Supersede premature partials: drop any unconfirmed, untouched card whose
+      // name is a strict word-prefix of a fuller card ("Go" once "Go to the gym"
+      // lands, "Read" once "Read before bed" lands). This only removes the early
+      // guess that grew into a longer one; it never touches unrelated cards, so
+      // a wrong or empty AI pass can't wipe the regex's real catches.
+      for (const short of [...orderRef.current]) {
+        const sh = habitsRef.current.get(short);
+        if (!sh || sh.confirmed) continue;
+        if (manualDays.current.has(short) || manualPolarity.current.has(short)) continue;
+        const supersededBy = orderRef.current.some(
+          (long) => long !== short && long.startsWith(`${short} `),
+        );
+        if (supersededBy) {
+          habitsRef.current.delete(short);
+          orderRef.current = orderRef.current.filter((k) => k !== short);
         }
       }
       recompute();
@@ -298,6 +299,23 @@ export function FlowOnboardingSim() {
     [habits, recompute],
   );
 
+  // Wipe everything captured this beat (cards + transcript), without a reload.
+  // Useful after a test run so leftover state never carries into the next one.
+  const clearAll = useCallback(() => {
+    parseAbort.current?.abort();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    habitsRef.current = new Map();
+    orderRef.current = [];
+    manualDays.current = new Map();
+    manualPolarity.current = new Map();
+    deletedRef.current = new Set();
+    committedRef.current = '';
+    dumpRef.current = '';
+    setCommitted('');
+    setInterim('');
+    setHabits([]);
+  }, []);
+
   // Dev-only console hooks so we can drive the sim without a mic.
   //  __simDump(t)   — inject a finished transcript (skips streaming).
   //  __simStream(t) — replay the real voice cadence: interim words tick into the
@@ -307,7 +325,14 @@ export function FlowOnboardingSim() {
     const w = window as unknown as {
       __simDump?: (t: string) => void;
       __simStream?: (t: string, ms?: number) => Promise<void>;
+      __simState?: () => unknown;
     };
+    w.__simState = () => ({
+      committed: committedRef.current,
+      order: [...orderRef.current],
+      habits: [...habitsRef.current.entries()],
+      deleted: [...deletedRef.current],
+    });
     w.__simDump = (t: string) => {
       committedRef.current = `${committedRef.current} ${t}`.trim();
       setCommitted(committedRef.current);
@@ -416,6 +441,26 @@ export function FlowOnboardingSim() {
               {!VOICE_IN_ENABLED && 'voice-in disabled (set VITE_STATE3_ENABLED=true)'}
               {err && `  ·  ${err}`}
             </div>
+          )}
+          {habits.length > 0 && (
+            <button
+              type="button"
+              onClick={clearAll}
+              style={{
+                height: 36,
+                width: '100%',
+                marginBottom: 8,
+                borderRadius: 12,
+                border: '1px solid rgba(0,0,0,0.12)',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 500,
+                color: '#444',
+                background: 'rgba(255,255,255,0.7)',
+              }}
+            >
+              ↺ Clear all
+            </button>
           )}
           <button
             type="button"

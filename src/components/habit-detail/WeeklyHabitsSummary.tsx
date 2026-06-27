@@ -70,7 +70,10 @@ export function WeeklyHabitsSummary({
         </span>
       </div>
 
-      <div className="mt-5 grid grid-cols-[minmax(0,1fr)_repeat(7,24px)_44px] gap-x-2 gap-y-3">
+      <div className="mt-5 grid grid-cols-[34px_minmax(0,1fr)_repeat(7,24px)] gap-x-2 gap-y-3">
+        <div className="flex items-center justify-end">
+          <Flame size={11} className="text-content-tertiary" />
+        </div>
         <div />
         {dayLabels.slice(0, 7).map((label, index) => (
           <div
@@ -80,19 +83,18 @@ export function WeeklyHabitsSummary({
             {label}
           </div>
         ))}
-        <div className="flex items-center justify-end">
-          <Flame size={12} className="text-content-tertiary" />
-        </div>
 
         {rows.map((row) => (
           <div key={row.name} className="contents">
+            <div className="flex items-center justify-end">
+              <StreakFlame streak={row.streak} />
+            </div>
             <div className="flex min-h-6 items-center truncate text-sm font-medium text-content">
               {row.name}
             </div>
             {row.cells.slice(0, 7).map((cell, index) => (
               <StatusCell key={`${row.name}-${index}`} status={cell} />
             ))}
-            <StreakFlame streak={row.streak} />
           </div>
         ))}
       </div>

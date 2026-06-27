@@ -87,6 +87,17 @@ describe('parseHabitsRegex', () => {
     ]);
   });
 
+  it('drops quote-wrapped and pronoun-led narration', () => {
+    // The exact junk from the screenshot: quote-wrapped fragments + narration.
+    expect(parseHabitsRegex('"but I don\'t')).toEqual([]);
+    expect(parseHabitsRegex('" uh')).toEqual([]);
+    expect(parseHabitsRegex('but look')).toEqual([]);
+    expect(parseHabitsRegex('it said')).toEqual([]);
+    expect(parseHabitsRegex('we need to find a middle ground')).toEqual([]);
+    // A real habit wrapped in quotes still survives.
+    expect(parseHabitsRegex('"go to the gym"')).toEqual([{ name: 'go to the gym' }]);
+  });
+
   it('strips stacked lead-ins down to the real action', () => {
     expect(parseHabitsRegex('I want to start to go to the gym')).toEqual([
       { name: 'go to the gym' },

@@ -60,6 +60,9 @@ const DISFLUENCY = /(?:^|\s)(?:uh+|um+|er+|erm)(?:\s|$)|[—–]|--/i;
 // Bare negation lead with no real object ("I don't", "don't") = an incomplete
 // thought, not a "no X" habit (which the AI handles).
 const NEGATION_FRAGMENT = /^(?:i\s+)?don'?t\b/i;
+// Pronoun-led narration ("it said", "we need to", "that shows up") is the user
+// talking ABOUT things, not naming a habit. No real habit name leads with these.
+const PRONOUN_LEAD = /^(?:it|he|she|they|we|that|this|there|here)\b/i;
 // "I" / "I'm" / "I am" / "I would" lead.
 const SUBJECT = /^(?:i\s+would\s+|i\s+am\s+|i'?m\s+|i'?ve\s+(?:been\s+)?|i\s+)/i;
 // Intent verbs, with or without a subject ("want to read", "going to run").
@@ -156,9 +159,10 @@ function cleanName(clause: string): string {
 }
 
 export function parseHabitsRegex(text: string): { name: string; days?: number[] }[] {
-  // Normalize smart quotes so "don't" matches the same whether the transcriber
-  // used a straight or curly apostrophe.
-  const normalized = text.replace(/[‘’]/g, "'");
+  // Normalize smart apostrophes so "don't" matches regardless of quote style,
+  // and drop double quotes entirely (a transcriber sometimes wraps a phrase in
+  // them, which otherwise blocks the lead-in strip: '"But I don't' -> a card).
+  const normalized = text.replace(/[‘’]/g, "'").replace(/[“”„"]/g, '');
   // Note: we do NOT split on the em-dash. Splitting it truncates a cut-off word
   // ("don't" -> "don"); instead the whole disfluent clause is dropped below.
   const clauses = normalized
@@ -179,7 +183,8 @@ export function parseHabitsRegex(text: string): { name: string; days?: number[] 
       !seen.has(key) &&
       !REJECT.has(key) &&
       !DISFLUENCY.test(name) &&
-      !NEGATION_FRAGMENT.test(name)
+      !NEGATION_FRAGMENT.test(name) &&
+      !PRONOUN_LEAD.test(name)
     ) {
       seen.add(key);
       out.push(days ? { name, days } : { name });
