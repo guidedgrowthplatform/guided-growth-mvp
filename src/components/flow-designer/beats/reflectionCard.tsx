@@ -18,7 +18,7 @@ type ReflectionStyle = 'guided' | 'custom' | 'freeform';
 
 const DEFAULT_PROMPTS = ["I'm proud of...", "I forgive...", "I'm grateful for..."];
 
-// Style choice pill — compact horizontal tabs that feel like a segmented control.
+// Style choice pill, compact horizontal tabs that feel like a segmented control.
 function StylePicker({
   value,
   onChange,
@@ -93,7 +93,7 @@ function StyleDescription({ style }: { style: ReflectionStyle }) {
     freeform: {
       icon: 'mdi:microphone-variant',
       title: 'Open mic',
-      sub: 'Just speak freely — no prompts, no structure.',
+      sub: 'Just speak freely, no prompts, no structure.',
     },
   };
   const m = meta[style];
@@ -238,7 +238,7 @@ function EveningSetupCard({
           <StyleDescription style={style} />
         </div>
 
-        {/* Custom prompts — visible only when style is 'custom' */}
+        {/* Custom prompts, visible only when style is 'custom' */}
         {style === 'custom' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <span
