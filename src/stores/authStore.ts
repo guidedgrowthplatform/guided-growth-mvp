@@ -45,47 +45,59 @@ function mapUser(u: any): AppUser {
   };
 }
 
-async function fetchAnonId(): Promise<string | null> {
+// Resolves the anon_id every client read filters by. Callers pass the
+// access token and user id they ALREADY resolved (initialize, onAuthStateChange,
+// signIn, signInAsGuest all hold a fresh session). We deliberately do NOT call
+// getSession() again here in the common path: a second concurrent getSession()
+// contends for the auth-token Web Lock, and a "steal" can resolve it with no
+// session (see Sentry "Lock broken ... 'steal'" on sb-...-auth-token). When that
+// happened, anon_id stayed null, every client RLS read was disabled, and the home
+// rendered empty (no habits, no journal) even though the data was intact
+// server-side. Decoding the token the caller already has removes that race.
+async function fetchAnonId(
+  accessToken: string | null,
+  userId: string | null,
+): Promise<string | null> {
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      // Anomalous: identifyUser only runs for an already-authenticated user, so
-      // a null session here means this getSession lost the race for the
-      // auth-token Web Lock (see Sentry "Lock broken ... 'steal'" on
-      // sb-...-auth-token). This path was previously silent, which is why an
-      // empty-home incident produced no signal at all. Log it so the trigger is
-      // attributable; the client still renders blind for this tick.
+    // Prefer the token the caller resolved. Only fall back to getSession() if a
+    // caller did not hand one in (defensive; current callers always do).
+    let token = accessToken;
+    if (!token) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      token = session?.access_token ?? null;
+    }
+    if (!token) {
       Sentry.captureMessage('analytics_identify_no_session', {
         level: 'warning',
-        extra: { reason: 'getSession_returned_no_session' },
+        extra: { reason: 'no_access_token_for_authenticated_user' },
       });
-      return null;
     }
-    const claims = decodeJwtPayload(session.access_token);
+
+    const claims = token ? decodeJwtPayload(token) : null;
     let anonId = typeof claims?.anon_id === 'string' ? claims.anon_id : null;
-    // Resilience: every client read filters by this anon_id, so if the JWT is
-    // missing the anon_id claim (a stale token minted before the profile got
-    // its anon_id, or a token-hook hiccup) the client goes blind and renders
-    // empty (no habits, no journal) even though the data is intact server-side.
-    // The profile row carries the canonical anon_id and is self-readable by
-    // auth.uid() (RLS users_can_read_own_profile), independent of the claim, so
-    // recover it from there instead of stranding the user.
-    if (!anonId && session.user?.id) {
+
+    // Recover from the profile when the claim is missing (a stale token minted
+    // before the profile got its anon_id, or a token-hook hiccup) or when the
+    // token could not be resolved at all. The profile row carries the canonical
+    // anon_id and is self-readable by auth.uid() (RLS users_can_read_own_profile),
+    // independent of the JWT claim and of whether getSession won the lock race.
+    if (!anonId && userId) {
       const { data: profile } = await supabase
         .from('profiles')
         .select('anon_id')
-        .eq('id', session.user.id)
+        .eq('id', userId)
         .single();
       anonId = typeof profile?.anon_id === 'string' ? profile.anon_id : null;
       if (anonId) {
         Sentry.captureMessage('analytics_identify_recovered', {
           level: 'warning',
-          extra: { reason: 'missing_anon_id_claim_recovered_from_profile' },
+          extra: { reason: 'recovered_from_profile' },
         });
       }
     }
+
     if (!anonId) {
       Sentry.captureMessage('analytics_identify_failed', {
         level: 'warning',
@@ -149,6 +161,7 @@ function identifyUser(
   user: AppUser,
   cachedAnonId: string | null,
   setAnonId: (id: string | null) => void,
+  accessToken: string | null,
 ) {
   const callIdentify = (anonId: string) => {
     const traits = {
@@ -166,7 +179,9 @@ function identifyUser(
     return;
   }
 
-  void fetchAnonId().then((anonId) => {
+  // Pass the token + user id the caller already resolved so fetchAnonId does not
+  // make a second getSession() that would race the auth-token Web Lock.
+  void fetchAnonId(accessToken, user.id).then((anonId) => {
     if (!anonId) return;
     setAnonId(anonId);
     callIdentify(anonId);
@@ -215,7 +230,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
           if (session?.user) {
             const user = mapUser(session.user);
             set({ user });
-            identifyUser(user, get().anonId, setAnonId);
+            identifyUser(user, get().anonId, setAnonId, session.access_token);
           }
           set({ loading: false });
         })
@@ -244,7 +259,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
             // another tab.
             if (prevUser?.id !== nextUser.id) {
               const prevAnonId = prevUser ? null : get().anonId;
-              identifyUser(nextUser, prevAnonId, setAnonId);
+              identifyUser(nextUser, prevAnonId, setAnonId, session.access_token);
               // PostHog spec v6.0 §3.1: complete_signup / complete_login.
               // Email signup/signin already fire these from the dedicated
               // store actions; OAuth (Google/Apple) lands here via redirect
@@ -366,7 +381,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (data?.user) {
         const user = mapUser(data.user);
         set({ user });
-        identifyUser(user, get().anonId, setAnonId);
+        identifyUser(user, get().anonId, setAnonId, data.session?.access_token ?? null);
         // is_returning_user per spec v6.0 §3.1 — derived from the gap between
         // account creation and this sign-in. >60s gap = not the immediate post-signup
         // auto-login (which fires ~instantly after complete_signup), so it's a real
@@ -399,7 +414,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (data?.user) {
         const user = mapUser(data.user);
         set({ user });
-        identifyUser(user, get().anonId, setAnonId);
+        identifyUser(user, get().anonId, setAnonId, data.session?.access_token ?? null);
         track('complete_signup', { method: 'guest' }, { send_instantly: true });
       }
       return { error: null };
