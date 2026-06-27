@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HabitListItem } from '@/components/home/HabitListItem';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { TimePicker } from '@/components/ui/TimePicker';
@@ -86,6 +86,22 @@ function HabitScheduleBeat(props?: Record<string, string>) {
       ])
     )
   );
+
+  // Lift each habit's schedule (days / time / reminder) to shared flow state so
+  // the plan recap and the home tour list the real schedule the user set, not a
+  // placeholder. Days are stored as a plain array, not a Set.
+  useEffect(() => {
+    if (!flow) return;
+    for (const [name, cfg] of Object.entries(cfgs)) {
+      flow.setHabitConfig(name, {
+        days: [...cfg.days].sort((a, b) => a - b),
+        time: cfg.time,
+        reminder: cfg.reminder,
+      });
+    }
+    // react to the config map only; flow is read at call time
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cfgs]);
 
   function patch(habit: string, p: Partial<HabitCfg>) {
     setCfgs((prev) => ({ ...prev, [habit]: { ...prev[habit], ...p } }));

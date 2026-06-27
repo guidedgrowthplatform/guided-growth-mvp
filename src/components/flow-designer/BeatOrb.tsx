@@ -24,6 +24,9 @@ export interface OrbConfig {
   // from the docked splash orb reads as the orb blooming open.
   bloomed?: boolean;
   hidden?: boolean;
+  // fullBleed = this beat renders a full-screen surface (the home tour) and wants
+  // the screen's bottom orb-reserve removed so it can fill the phone edge to edge.
+  fullBleed?: boolean;
 }
 
 const RING_COUNT = 3;
@@ -121,6 +124,10 @@ const ORB_BY_TYPE: Record<string, OrbConfig> = {
   'splash-intro': { hidden: true },
   // QA control is a utility screen, not a coach turn: no orb.
   'qa-control': { hidden: true },
+  // The home tour renders the full home page with its own coach caption + the
+  // open-chat button, so the shared docked orb is hidden to avoid double chrome.
+  // fullBleed lets it fill the phone edge to edge (no orb-reserve gap).
+  'home-tour': { hidden: true, fullBleed: true },
 };
 
 export function orbConfigForType(type: string): OrbConfig {

@@ -1,5 +1,6 @@
 import { Icon } from '@iconify/react';
 import { Button } from '@/components/ui/Button';
+import { formatTime12 } from '@/components/ui/TimePicker';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 
@@ -68,9 +69,15 @@ function IntoAppBeat(props?: Record<string, string>) {
   const habitLabel =
     habitCount === 1 ? '1 habit set' : `${habitCount} habit${habitCount === 0 ? 's' : 's'} set`;
 
-  // Sample schedule values — the real engine fills these from the schedule beats.
-  const morningTime = props?.morningTime ?? '8:00 AM';
-  const eveningTime = props?.eveningTime ?? '9:30 PM';
+  // Prefer the real times the user set upstream (lifted to flow state by the
+  // morning / evening setup beats); fall back to the prop, then a placeholder
+  // so the static canvas tile still reads complete.
+  const morningTime = flow?.morningTime
+    ? formatTime12(flow.morningTime)
+    : (props?.morningTime ?? '8:00 AM');
+  const eveningTime = flow?.eveningTime
+    ? formatTime12(flow.eveningTime)
+    : (props?.eveningTime ?? '9:30 PM');
 
   const rows: Array<{ icon: string; text: string }> = [
     { icon: 'mdi:format-list-checks', text: props?.habitRow ?? habitLabel },

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { TimePicker, formatTime12 } from '@/components/ui/TimePicker';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { useFlowState } from '../flowStateCtx';
 
 const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 const BLUE = 'rgb(19, 91, 235)';
@@ -196,8 +197,17 @@ function MorningCard({
 }
 
 function MorningCheckinSetupBeat(props?: Record<string, string>) {
+  const flow = useFlowState();
   const [time, setTime] = useState(props?.defaultTime ?? '08:00');
   const [remind, setRemind] = useState(true);
+
+  // Lift the chosen morning time to shared flow state so the plan recap and the
+  // home tour show the real time the user set, not a placeholder.
+  useEffect(() => {
+    flow?.setMorningTime(time);
+    // react to the time only; flow is read at call time
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [time]);
 
   const steps: BeatStep[] = [
     {

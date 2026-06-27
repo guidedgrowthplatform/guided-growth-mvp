@@ -623,11 +623,14 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     props: { coachLine: "Let's do your first one right now. How are you feeling in this exact moment?" },
   },
   {
-    type: 'into-app',
+    // The state check is the last onboarding chat beat. From here the chat
+    // closes and the user lands on the real home page, where the coach runs the
+    // light app tour (reveal each half, then leave them on the live home with
+    // the chat one tap away). The tour reflects the plan they just built.
+    type: 'home-tour',
     beat: '15',
-    background: 'coach',
-    sheetStage: 'ONBOARD-COMPLETE: Into the App',
-    props: { coachLine: "You're all set. Let's get started." },
+    background: 'plain',
+    props: { userName: '{name}' },
   },
 ];
 
@@ -1254,7 +1257,7 @@ function PhoneScreenInner({
       <div className="absolute inset-0" style={{ background: bgColor(bg) }} />
       <div
         className="absolute inset-x-0 top-0 flex flex-col overflow-y-auto px-4 [transform:translateZ(0)]"
-        style={{ bottom: checkin ? 64 : 150 }}
+        style={{ bottom: checkin ? 64 : orb?.fullBleed ? 0 : 150 }}
       >
         {/* my-auto centers short content and top-aligns + scrolls tall content.
             The tap fix is the bottom reserve above: it must clear the full orb

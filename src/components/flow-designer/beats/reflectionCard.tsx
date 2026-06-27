@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { Toggle } from '@/components/ui/Toggle';
 import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { useFlowState } from '../flowStateCtx';
 
 const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 const BLUE = 'rgb(19, 91, 235)';
@@ -333,10 +334,19 @@ function EveningSetupCard({
 }
 
 function ReflectionCardBeat(props?: Record<string, string>) {
+  const flow = useFlowState();
   const [style, setStyle] = useState<ReflectionStyle>('guided');
   const [prompts, setPrompts] = useState<string[]>(['', '', '']);
   const [time, setTime] = useState('21:30');
   const [reminder, setReminder] = useState(true);
+
+  // Lift the chosen evening time to shared flow state so the plan recap and the
+  // home tour show the real time the user set, not a placeholder.
+  useEffect(() => {
+    flow?.setEveningTime(time);
+    // react to the time only; flow is read at call time
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [time]);
 
   const handlePromptChange = (i: number, v: string) => {
     setPrompts((prev) => {
