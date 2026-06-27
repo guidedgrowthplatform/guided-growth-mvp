@@ -7,6 +7,7 @@ import { HabitListItem } from '@/components/home/HabitListItem';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { OpenChatButton } from '@/components/home/OpenChatButton';
 import { QuickActionCards } from '@/components/home/QuickActionCards';
+import { SectionHeader } from '@/components/home/SectionHeader';
 import { checkInDimensions } from '@/components/home/checkInConfig';
 import { formatTime12 } from '@/components/ui/TimePicker';
 import { useAnimations, useIsPlaying, type BeatDef } from '../beatKit';
@@ -352,6 +353,37 @@ function Bubble({ who, children }: { who: 'coach' | 'user'; children: ReactNode 
   );
 }
 
+// The journaling section under the habits. The real RecentReflectionsSection is
+// data-backed and renders nothing for a brand-new user, so the tour shows an
+// inviting empty state in the same slot (Recent Reflections header + a soft
+// prompt) so the home reads complete.
+function RecentReflections() {
+  return (
+    <div className="flex flex-col gap-3">
+      <SectionHeader title="Recent Reflections" />
+      <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border bg-surface px-4 py-4">
+        <div
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 12,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(100,74,185,0.10)',
+          }}
+        >
+          <Icon icon="mdi:weather-night" width={20} height={20} style={{ color: 'rgb(100,74,185)' }} />
+        </div>
+        <span className="text-sm font-medium text-content-secondary">
+          Your reflections show up here after your first evening reflection.
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // A presentational bottom nav so the tour reads as the real home screen. The
 // real BottomNav needs the full voice runtime, so this is a faithful static
 // stand-in (Home active). The coach lives in the floating Open Chat button.
@@ -472,7 +504,7 @@ function HomeTourBeat(props?: Record<string, string>) {
             }}
             className="flex flex-col gap-5"
           >
-            <HomeHeader userName={name || 'there'} isFirstVisit />
+            <HomeHeader userName={name || 'there'} />
             <DateStrip selectedDate={selectedDate} onSelectDate={setSelectedDate} />
             <div>
               <QuickActionCards
@@ -539,6 +571,9 @@ function HomeTourBeat(props?: Record<string, string>) {
                 />
               ))}
             </div>
+
+            {/* Journaling, under the habits, same as the real home. */}
+            <RecentReflections />
           </div>
         </Reveal>
       </div>
