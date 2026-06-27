@@ -374,6 +374,7 @@ const COACH_LINE_PROP: Record<string, string> = {
   'habit-schedule': 'coachLine',
   'morning-checkin-setup': 'coachLine',
   'into-app': 'coachLine',
+  'state-check': 'coachLine',
 };
 
 // Imported components that are full-screen modals/overlays. They cannot preview
@@ -581,6 +582,16 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     background: 'user',
     sheetStage: 'ONBOARD-BEGINNER-07: Evening Reflection Setup',
     props: { coachLine: 'Now your evening reflection. How do you want to do it, and when?' },
+  },
+  {
+    // The first real state check, done right here as the last onboarding step:
+    // they set up their morning check-in, now they do one, then they land in the app.
+    // Canonical copy is owned by the beat-context lane (see HANDOFF-state-checkin-mvp.md).
+    type: 'state-check',
+    beat: '14b',
+    background: 'user',
+    sheetStage: 'ONBOARD-STATE-CHECK: First State Check',
+    props: { coachLine: "Let's do your first one right now. How are you feeling in this exact moment?" },
   },
   {
     type: 'into-app',
