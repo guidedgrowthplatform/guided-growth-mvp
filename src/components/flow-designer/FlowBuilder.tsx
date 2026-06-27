@@ -38,6 +38,7 @@ import { HabitListItem } from '@/components/home/HabitListItem';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { QuickActionCards } from '@/components/home/QuickActionCards';
 import { AgeScrollPicker } from '@/components/onboarding/AgeScrollPicker';
+import { HabitScheduleCard } from '@/components/onboarding/HabitScheduleCard';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
@@ -229,6 +230,28 @@ function HabitItemPreview() {
   );
 }
 
+function HabitScheduleCardPreview() {
+  const [type, setType] = useState<'build' | 'break'>('break');
+  const [days, setDays] = useState<Set<number>>(new Set());
+  return (
+    <HabitScheduleCard
+      habitName="No screens after 10 PM"
+      habitType={type}
+      selectedDays={days}
+      onChangeType={setType}
+      onToggleDay={(d) =>
+        setDays((prev) => {
+          const next = new Set(prev);
+          if (next.has(d)) next.delete(d);
+          else next.add(d);
+          return next;
+        })
+      }
+      onEdit={() => {}}
+    />
+  );
+}
+
 function HomeProgress() {
   return <DailyProgressCard completed={2} total={3} />;
 }
@@ -413,6 +436,12 @@ const REGISTRY: PaletteItem[] = [
   { type: 'primary-button', group: 'UI', label: 'Primary button', Comp: PrimaryButton },
   { type: 'toggle-row', group: 'UI', label: 'Toggle', Comp: ToggleRow },
   { type: 'daypicker-row', group: 'UI', label: 'Day picker', Comp: DayPickerRow },
+  {
+    type: 'habit-schedule-card',
+    group: 'Onboarding',
+    label: 'Habit schedule (Build/Break)',
+    Comp: HabitScheduleCardPreview,
+  },
   ...EXTRA_REGISTRY.filter((e) => !PALETTE_DROP.has(e.type)),
   ...BEAT_DEFS,
 ];
