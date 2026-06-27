@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { BeatPlayer, useAnimations, type BeatDef, type BeatStep } from '../beatKit';
+import { useFlowState } from '../flowStateCtx';
 
 const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 const BLUE = 'rgb(19, 91, 235)';
@@ -22,6 +23,7 @@ function LiveScan() {
   // Reveal the captured lines one at a time while animating, all at once when
   // paused (global or per-tile freeze), so a frozen tile shows the full result.
   const anims = useAnimations();
+  const flow = useFlowState();
   const [n, setN] = useState(anims ? 0 : SAMPLE.length);
   useEffect(() => {
     if (!anims) {
@@ -37,6 +39,14 @@ function LiveScan() {
     }, 950);
     return () => window.clearInterval(id);
   }, [anims]);
+
+  // Feed the captured habits into shared flow state as they land, so the next
+  // beat (the schedule card) lists the real captured habits, not a sample.
+  useEffect(() => {
+    flow?.setHabits(SAMPLE.slice(0, n).map((s) => s.line));
+    // react to the capture count only; flow is read at call time
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [n]);
 
   const captured = SAMPLE.slice(0, n);
   const listening = anims && n < SAMPLE.length;

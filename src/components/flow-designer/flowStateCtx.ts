@@ -18,6 +18,9 @@ export interface FlowState {
   setCategory: (v: string) => void;
   toggleGoal: (v: string, max?: number) => void;
   toggleHabit: (v: string, max?: number) => void;
+  // Set the whole habit list at once. The advanced path captures many habits with
+  // no per-pick cap, unlike the capped toggleHabit the beginner path uses.
+  setHabits: (v: string[]) => void;
 }
 
 export const FlowStateCtx = createContext<FlowState | null>(null);

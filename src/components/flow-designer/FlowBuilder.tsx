@@ -2325,6 +2325,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
     },
     toggleGoal: (v, max = 2) => toggleIn(v, max, setGoals),
     toggleHabit: (v, max = 2) => toggleIn(v, max, setHabits),
+    setHabits: (v) => setHabits(v),
   };
 
   const renderComp = (item: Placed) => {
