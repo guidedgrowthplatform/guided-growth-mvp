@@ -127,7 +127,7 @@ export function useCoachChat(
     coachingStyle,
     chatSessionId: chatSessionId ?? undefined,
     initialMessages,
-    inputMode: voiceModeOn ? 'voice' : 'text',
+    inputMode: micOn ? 'voice' : 'text',
   });
 
   // Returns the count of genuinely-new rows prepended, so the view can release

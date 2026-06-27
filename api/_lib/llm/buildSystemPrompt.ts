@@ -168,7 +168,8 @@ export async function buildSystemPromptForRequest(
     args.mode === 'opener' && args.screen_id === 'ECHECK-01' ? `\n\n${buildEveningOpener()}` : '';
   const morningOpenerBlock =
     args.mode === 'opener' && args.screen_id === 'MCHECK-01' ? `\n\n${buildMorningOpener()}` : '';
-  const inputModeBlock = args.input_mode === 'voice' ? '' : `\n\n${TEXT_INPUT_RULE}`;
+  const inputModeBlock =
+    args.input_mode === 'voice' ? `\n\n${VOICE_INPUT_RULE}` : `\n\n${TEXT_INPUT_RULE}`;
   const onboardingRow = isOnboardingScreen ? await fetchOnboardingRow(args.anon_id) : null;
   const alreadyFilledBlock = onboardingRow ? buildAlreadyFilledBlock(onboardingRow) : '';
   const optionsBlock = isOnboardingScreen
@@ -282,6 +283,9 @@ function buildAlreadyFilledBlock(row: OnboardingRow): string {
 
 const TEXT_INPUT_RULE = `## Text Mode
 The user is TYPING, not speaking. Don't tell them to tap, touch the orb, or say things aloud — phrase guidance for a keyboard/text user.`;
+
+const VOICE_INPUT_RULE = `## Voice Mode
+The user is SPEAKING; their words reach you as transcribed text. Treat spoken input as heard — never claim you can't hear them or tell them to type instead.`;
 
 const FALLBACK_CONTEXT_BLOCK = `## Screen
 No screen-specific guidance is configured for this screen. Respond helpfully and briefly in your coaching voice, using the recent activity below for continuity. Do not invent screen-specific instructions or pre-announce features.`;

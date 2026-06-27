@@ -291,7 +291,7 @@ describe('buildSystemPromptForRequest', () => {
     }
   });
 
-  it('injects the text-mode rule when input_mode=text or absent, omits it when voice', async () => {
+  it('injects the text-mode rule when input_mode=text or absent, the voice-mode rule when voice', async () => {
     const text = await buildSystemPromptForRequest({
       anon_id: 'a',
       screen_id: 'HOME-MORNING',
@@ -318,6 +318,8 @@ describe('buildSystemPromptForRequest', () => {
       input_mode: 'voice',
     });
     expect(voice.systemPrompt).not.toContain('## Text Mode');
+    expect(voice.systemPrompt).toContain('## Voice Mode');
+    expect(voice.systemPrompt).toContain("never claim you can't hear them");
   });
 
   it('opener instructions reference BEHAVIOR, not the stripped AI RESPONSE PATTERN', async () => {
