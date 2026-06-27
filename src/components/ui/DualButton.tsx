@@ -13,8 +13,6 @@ interface DualButtonProps {
   leftActive?: boolean;
   rightActive?: boolean;
   rightMuted?: boolean;
-  /** Both halves share the blue base; state shown via icon/rings, not bg. */
-  uniformBg?: boolean;
   size?: number;
   width?: number;
   className?: string;
@@ -43,7 +41,6 @@ export function DualButton({
   leftActive = false,
   rightActive = false,
   rightMuted = false,
-  uniformBg = false,
   size = 187,
   width,
   className,
@@ -79,7 +76,6 @@ export function DualButton({
       <Half
         side="left"
         active={leftActive}
-        uniformBg={uniformBg}
         gap={gap}
         innerRadius={innerRadius}
         onClick={onLeftClick}
@@ -91,7 +87,6 @@ export function DualButton({
         side="right"
         active={rightActive}
         muted={rightMuted}
-        uniformBg={uniformBg}
         gap={gap}
         innerRadius={innerRadius}
         onClick={onRightClick}
@@ -339,7 +334,6 @@ interface HalfProps {
   side: 'left' | 'right';
   active: boolean;
   muted?: boolean;
-  uniformBg?: boolean;
   gap: number;
   innerRadius: number;
   onClick?: () => void;
@@ -347,21 +341,11 @@ interface HalfProps {
   children: ReactNode;
 }
 
-function Half({
-  side,
-  active,
-  muted,
-  uniformBg,
-  gap,
-  innerRadius,
-  onClick,
-  ariaLabel,
-  children,
-}: HalfProps) {
+function Half({ side, active, muted, gap, innerRadius, onClick, ariaLabel, children }: HalfProps) {
   const isLeft = side === 'left';
   const className = [
     'absolute inset-y-0 flex items-center justify-center transition-colors duration-200',
-    uniformBg || active
+    active
       ? 'bg-primary text-white'
       : muted
         ? 'bg-primary text-white opacity-70'
