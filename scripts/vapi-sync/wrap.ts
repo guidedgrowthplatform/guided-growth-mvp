@@ -32,6 +32,13 @@ export interface VapiToolEnvelope {
   };
   readonly parameters: ReadonlyArray<{ readonly key: string; readonly value: string }>;
   readonly messages?: ReadonlyArray<VapiToolMessage>;
+  /**
+   * Vapi `async` tool flag. When true, Vapi resumes the model the instant the
+   * call fires and does NOT wait for the webhook response — the model never sees
+   * the result. Set only for pure data-saves (tool.nonBlocking), which take the
+   * tool round-trip off the spoken latency. Omitted (blocking) otherwise.
+   */
+  readonly async?: boolean;
   readonly server: {
     readonly url: string;
     readonly secret: string;
@@ -53,7 +60,13 @@ function buildMessages(tool: OnboardingTool): VapiToolMessage[] | undefined {
 
 export function wrapTool(tool: OnboardingTool, baseUrl: string, secret: string): VapiToolEnvelope {
   const trimmedBase = baseUrl.replace(/\/+$/, '');
-  const messages = buildMessages(tool);
+  // Async (non-blocking) tools never wait on the webhook, so there is no silence
+  // to bridge and the model's own next line speaks immediately. Emitting a
+  // request-start line here would double up with that line and re-introduce the
+  // "OK" filler that rule R4 retired, so suppress lifecycle messages for them.
+  // Blocking tools keep their messages — voice has no visual loading state, so
+  // the line covers the real round-trip wait.
+  const messages = tool.nonBlocking ? undefined : buildMessages(tool);
   return {
     type: 'function',
     function: {
@@ -66,6 +79,7 @@ export function wrapTool(tool: OnboardingTool, baseUrl: string, secret: string):
       { key: 'session_id', value: '{{ session_id }}' },
     ],
     ...(messages ? { messages } : {}),
+    ...(tool.nonBlocking ? { async: true } : {}),
     server: {
       url: `${trimmedBase}/api/vapi/tool`,
       secret,

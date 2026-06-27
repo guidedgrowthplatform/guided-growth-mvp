@@ -143,3 +143,6 @@ scripts/vapi-sync/vapi.lock.dev.json
 # derived QA adaptive layers (generated from icon-qa.png)
 assets/icon-foreground-qa.png
 assets/icon-background-qa.png
+
+*storybook.log
+storybook-static

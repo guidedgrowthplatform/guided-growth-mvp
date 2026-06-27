@@ -20,7 +20,7 @@ export function Step1Page() {
   const navigate = useNavigate();
   const { state: onboardingState, saveStep } = useOnboarding();
   const [nickname, setNickname] = useState('');
-  const [age, setAge] = useState<number | ''>('');
+  const [age, setAge] = useState<number | ''>(35); // default to 35; the user can scroll to change
   const [gender, setGender] = useState<string | null>(null);
   const [referralSource, setReferralSource] = useState<string | null>(null);
   const [referralOtherText, setReferralOtherText] = useState('');

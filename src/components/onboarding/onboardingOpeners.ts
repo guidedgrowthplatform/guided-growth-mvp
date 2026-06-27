@@ -1,36 +1,36 @@
 import type { OnboardingState, OnboardingStepData } from '@gg/shared/types';
 
-// Curated opening lines per onboarding screen (gg-spec packets). Deterministic —
+// Curated opening lines per onboarding screen (gg-spec packets). Deterministic,
 // rendered as the first coach bubble so the question never drifts.
-const ONBOARDING_OPENERS: Record<string, string> = {
-  'ONBOARD-00--PREFS':
-    "Hey, I'm your coach. We can do this by voice or just typing — whatever's easier for you right now. How do you want to start?",
+export const ONBOARDING_OPENERS: Record<string, string> = {
   'ONBOARD-01':
-    "Awesome {name}, two quick things so I can tailor this to you. How old are you? And what's your gender?",
+    'OK, let me get to know you a little. First, what should I call you? You can type it here, or fill it in on screen.',
   'ONBOARD-01--FORM':
-    "Awesome {name}, two quick things so I can tailor this to you. How old are you? And what's your gender?",
-  'ONBOARD-FORK': 'Have you tracked habits before, or is this new for you?',
-  'ONBOARD-FORK--FORM': 'Have you tracked habits before, or is this new for you?',
+    'OK, let me get to know you a little. First, what should I call you? You can type it here, or fill it in on screen.',
+  'ONBOARD-FORK':
+    'Quick question, have you tracked habits before, or is this new for you? Either way is great. I just want to know the best way to guide you.',
+  'ONBOARD-FORK--FORM':
+    'Quick question, have you tracked habits before, or is this new for you? Either way is great. I just want to know the best way to guide you.',
   'ONBOARD-BEGINNER-01':
-    "So — what feels most worth improving right now? Don't overthink it. There's no wrong answer. Pick the one that pulls you. You can always add more later.",
+    "So, what feels most worth improving right now? Don't overthink it. There's no wrong answer. Pick the one that pulls you. You can always add more later.",
   'ONBOARD-BEGINNER-02':
-    "OK — within that, what's the specific thing you want to work on? Pick the one that hits hardest.",
+    "OK, within that, what's the specific thing you want to work on? Pick the one that hits hardest.",
   'ONBOARD-BEGINNER-03':
     "Here are a few habits that really help with this. Pick what feels doable. Not heroic. Not impressive. Doable. Because one habit done consistently beats five that don't stick. You can also create your own if none of these fit.",
   'ONBOARD-ADVANCED':
-    "Tell me everything you want to achieve — say or type as much as you want, and I'll organize it into habits for you.",
+    "Tell me everything you want to achieve, say or type as much as you want, and I'll organize it into habits for you.",
   'ONBOARD-BEGINNER-07':
-    "One last thing — let's set up a short evening reflection. I can ask you a few simple questions each evening, or you can free-write. Which sounds better? You can change it anytime.",
+    "One last thing, let's set up a short evening reflection. I can ask you a few simple questions each evening, or you can free-write. Which sounds better? You can change it anytime.",
   'ONBOARD-BEGINNER-06':
-    "Here's your starting plan. Take a look — does it all look right, or want to change anything before we start?",
+    "Here's your starting plan. Take a look, does it all look right, or want to change anything before we start?",
   'ONBOARD-ADVANCED-04':
-    "Let's set up your evening reflection — I can ask you a few questions each evening, or you can free-write. Which feels better?",
+    "Let's set up your evening reflection, I can ask you a few questions each evening, or you can free-write. Which feels better?",
   'ONBOARD-ADVANCED-05':
     "Here's what I put together from everything you shared. Want to start with this, or tweak anything first?",
   'ONBOARD-ADV-CUSTOM':
     "What would you like me to ask you each evening? Give me up to three prompts and I'll use those.",
   'ONBOARD-ADVANCED-02':
-    'Here are the habits I pulled from what you shared. Take a look — keep them as they are, or want to change anything?',
+    'Here are the habits I pulled from what you shared. Take a look, keep them as they are, or want to change anything?',
 };
 
 export function getOnboardingOpener(screenId: string): string | undefined {
@@ -48,7 +48,7 @@ interface FieldSpec {
   recap: (d: OnboardingStepData, state: OnboardingState) => string | null;
 }
 
-// Multi-field steps only — single-field steps use tailored copy below.
+// Multi-field steps only, single-field steps use tailored copy below.
 const STEP_FIELDS: Record<string, FieldSpec[]> = {
   'ONBOARD-01': onboard01Fields(),
   'ONBOARD-01--FORM': onboard01Fields(),
@@ -120,7 +120,7 @@ export function getOnboardingRevisitOpener(
     };
   }
   return {
-    text: `Last time you told me ${summary}. I still need ${humanJoin(missing)} — want to fill that in?`,
+    text: `Last time you told me ${summary}. I still need ${humanJoin(missing)}, want to fill that in?`,
     complete: false,
   };
 }

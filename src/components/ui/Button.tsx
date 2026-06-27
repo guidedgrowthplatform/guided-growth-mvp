@@ -16,6 +16,7 @@ const sizes = {
   lg: 'px-6 py-3 text-base rounded-md',
   xl: 'px-8 py-4 text-lg rounded-lg',
   auth: 'px-6 h-14 text-base rounded-full',
+  'auth-slim': 'px-6 h-[42px] text-sm rounded-full',
   'auth-rect': 'px-6 h-14 text-base rounded-[24px]',
 } as const;
 
