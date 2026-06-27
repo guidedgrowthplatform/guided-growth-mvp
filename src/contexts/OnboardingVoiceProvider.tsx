@@ -46,6 +46,7 @@ import {
   VAPI_DAILY_CAP,
   ONBOARDING_CHAT_VAPI,
   ONBOARDING_INSTANT_OPENER,
+  ONBOARDING_VAPI_IDLE_TIMEOUT_MS,
 } from '@/lib/config/voice';
 import { buildContextMessage } from '@/lib/context/buildContextMessage';
 import { getScreenContext } from '@/lib/context/getScreenContext';
@@ -82,7 +83,7 @@ const MAX_AUTO_RETRIES = 2;
 // tail + a Siri-style pause. Mirrors useCoachChat's MIC_GRACE_MS.
 const MIC_GRACE_MS = 2500;
 const RETRY_BACKOFFS_MS = [2000, 5000];
-const IDLE_TIMEOUT_MS = 8000;
+const IDLE_TIMEOUT_MS = ONBOARDING_VAPI_IDLE_TIMEOUT_MS;
 const REMOTE_END_COOLDOWN_MS = 3000;
 
 // Errors that won't be fixed by retrying. 429 = rate/quota; 401/403 = bad
@@ -1299,7 +1300,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // opener waits for Vapi, Direct-LLM never fills it). Plus the transient health
   // gates: identity loaded, no fatal/cooldown, under the daily cap, not idle-paused.
   // The gate is a pure helper (vapiLiveGate) so it can be unit-tested.
-  const vapiShouldBeLive = vapiLiveGate({
+  const gateInputs = {
     engineIsVapi: engine.engine === 'vapi',
     micPermission: preferences.micPermission === true,
     micEnabled: preferences.micEnabled === true,
@@ -1308,11 +1309,34 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     remoteEndCooldown,
     voiceCapReached,
     micPausedReason,
-  });
+  };
+  const vapiShouldBeLive = vapiLiveGate(gateInputs);
 
   useEffect(() => {
     vapiShouldBeLiveRef.current = vapiShouldBeLive;
-  }, [vapiShouldBeLive]);
+    // Name WHICH condition is keeping Vapi down — turns "the gate is buggy" into
+    // a single readable line per transition. The blockers list is the failing
+    // conjuncts of vapiLiveGate (engineIsVapi/micPermission/micEnabled/hasAnonId
+    // must be true; fatalError/remoteEndCooldown/voiceCapReached/idle-pause must
+    // be false).
+    if (import.meta.env.DEV) {
+      const blockers = [
+        !gateInputs.engineIsVapi && `engine=${engine.engine}(not-vapi)`,
+        !gateInputs.micPermission && 'micPermission=false',
+        !gateInputs.micEnabled && 'micEnabled=false',
+        !gateInputs.hasAnonId && 'anonId=missing',
+        gateInputs.fatalError && 'fatalError',
+        gateInputs.remoteEndCooldown && 'remoteEndCooldown',
+        gateInputs.voiceCapReached && 'voiceCapReached',
+        gateInputs.micPausedReason != null && `micPaused=${gateInputs.micPausedReason}`,
+      ].filter(Boolean);
+      console.log(
+        `[vapi-gate] live=${vapiShouldBeLive}`,
+        blockers.length ? `blockers: ${blockers.join(', ')}` : '(all clear)',
+        `screen=${registeredScreenId}`,
+      );
+    }
+  }, [vapiShouldBeLive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (vapiShouldBeLive) {
