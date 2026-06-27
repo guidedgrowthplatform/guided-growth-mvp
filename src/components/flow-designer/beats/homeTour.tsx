@@ -9,8 +9,12 @@ import { OpenChatButton } from '@/components/home/OpenChatButton';
 import { QuickActionCards } from '@/components/home/QuickActionCards';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { checkInDimensions } from '@/components/home/checkInConfig';
+import { ChatComposer } from '@/components/chat/ChatComposer';
+import { IconChatText, IconMicMuted } from '@/components/icons';
+import { DualButton } from '@/components/ui/DualButton';
 import { formatTime12 } from '@/components/ui/TimePicker';
-import { useAnimations, useIsPlaying, type BeatDef } from '../beatKit';
+import { ChatBubble } from '@/components/voice/ChatBubble';
+import { type BeatDef } from '../beatKit';
 import { useFlowState, type HabitScheduleCfg } from '../flowStateCtx';
 
 // THE APP TOUR (the second half of onboarding).
@@ -30,6 +34,11 @@ import { useFlowState, type HabitScheduleCfg } from '../flowStateCtx';
 
 const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 const BLUE = 'rgb(19, 91, 235)';
+
+// The real coach-chat gradient (from CoachChatView): a blurred blue rising into
+// white, semi-transparent so the home shows through above it.
+const CHAT_GRADIENT =
+  'linear-gradient(to top, rgba(19,91,236,0.7) 0%, rgba(255,255,255,0.7) 54%, rgba(255,255,255,0.7) 81%, rgba(246,246,246,0.7) 100%)';
 
 // The reveal beats, in order. Each tap on the coach caption advances one stage;
 // LIVE is the finished home with the captions gone.
@@ -89,89 +98,129 @@ function Reveal({
   );
 }
 
-// The coach's voice for the tour: a docked caption bar (where the live app's
-// coach subtitle sits) with the orb + the line. It is the minimized chat, the
-// coach narrating the home. Each tour beat carries its own line; the player
-// (or the real engine) advances beat to beat, so this is narration, not a
-// button. `keyed` remounts it per beat so the line re-animates in.
-function CoachCaption({ text }: { text: string }) {
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        left: 12,
-        right: 12,
-        bottom: 72,
-        zIndex: 40,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '12px 14px',
-        borderRadius: 20,
-        border: '1.5px solid rgba(19,91,235,0.16)',
-        background: 'rgba(255,255,255,0.96)',
-        backdropFilter: 'blur(8px)',
-        boxShadow: '0 10px 30px -10px rgba(15,23,42,0.22)',
-        textAlign: 'left',
-        animation: 'ggTourCaptionIn 280ms ease-out',
-      }}
-    >
-      <div
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: '50%',
-          flexShrink: 0,
-          background: `radial-gradient(circle at 35% 30%, #5b9bff, ${BLUE})`,
-          boxShadow: '0 4px 12px -2px rgba(19,91,235,0.45)',
-        }}
-      />
-      <span
-        style={{
-          flex: 1,
-          fontFamily: FONT,
-          fontSize: 14.5,
-          fontWeight: 600,
-          lineHeight: 1.35,
-          color: 'rgb(15,23,42)',
-        }}
-      >
-        {text}
-      </span>
-    </div>
-  );
-}
+type ChatMsg = { role: 'user' | 'ai'; text: string };
 
-// The brief chat "peek" the Always-here beat plays: a chat panel rises up over
-// the home, holds, then docks back down (showing the chat can open/close), then
-// the Open Chat button is what remains. Lightweight, non-interactive, one-shot.
-function ChatPeek({ name }: { name: string }) {
+// The coach's chat in the tour, built from the REAL chat pieces: the same
+// blurred blue->white gradient, the real ChatBubble speech bubbles, the real
+// DualButton orb + composer, and the bottom-fade mask that hides part of the
+// thread behind the orb (the real CoachChatView look). It docks to the bottom
+// of the home and can be slim (a low strip) or take up half / all of the screen.
+// `heightPct` sets how much of the screen it covers; the gradient is
+// semi-transparent so the home shows through above it (the "same space" feel).
+function TourChat({
+  name,
+  messages,
+  heightPct = 100,
+  showComposer = false,
+  onClose,
+}: {
+  name: string;
+  messages: ChatMsg[];
+  heightPct?: number;
+  showComposer?: boolean;
+  onClose?: () => void;
+}) {
   return (
     <div
       style={{
         position: 'absolute',
-        inset: 0,
-        zIndex: 50,
-        pointerEvents: 'none',
-        background: 'linear-gradient(180deg, #eaf1ff 0%, #f7faff 70%, #ffffff 100%)',
-        animation: 'ggChatPeek 2400ms cubic-bezier(0.22,1,0.36,1) forwards',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: `${heightPct}%`,
+        zIndex: 55,
         display: 'flex',
         flexDirection: 'column',
-        padding: '16px 16px 0',
+        overflow: 'hidden',
+        animation: 'ggChatRise 380ms cubic-bezier(0.22,1,0.36,1)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <div
+      {/* The real chat background: white base + the blurred idle gradient. */}
+      <div style={{ position: 'absolute', inset: 0, background: '#fff' }} />
+      <div
+        style={{ position: 'absolute', inset: 0, backdropFilter: 'blur(50px)', backgroundImage: CHAT_GRADIENT }}
+      />
+
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close chat"
           style={{
-            width: 34,
-            height: 34,
-            borderRadius: '50%',
-            background: `radial-gradient(circle at 35% 30%, #5b9bff, ${BLUE})`,
+            position: 'absolute',
+            right: 18,
+            top: 14,
+            zIndex: 30,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            fontFamily: FONT,
+            fontSize: 12,
+            fontWeight: 700,
+            color: 'rgb(51,65,85)',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
           }}
-        />
-        <div style={{ fontFamily: FONT, fontSize: 14, fontWeight: 800, color: 'rgb(15,23,42)' }}>Coach</div>
+        >
+          Close chat
+          <Icon icon="mdi:close" width={18} height={18} />
+        </button>
+      )}
+
+      {/* The thread, masked at the bottom so it fades behind the orb. */}
+      <div
+        className="relative z-10 flex-1 overflow-y-auto px-5"
+        style={{
+          paddingTop: onClose ? 52 : 18,
+          paddingBottom: 132,
+          maskImage:
+            'linear-gradient(to top, transparent 0px, transparent 84px, black 190px, black 100%)',
+          WebkitMaskImage:
+            'linear-gradient(to top, transparent 0px, transparent 84px, black 190px, black 100%)',
+        }}
+      >
+        {messages.map((m, i) => (
+          <ChatBubble
+            key={i}
+            role={m.role}
+            text={m.text}
+            userName={name || 'You'}
+            eyebrowVariant="dark"
+            compact
+            animate={false}
+          />
+        ))}
       </div>
-      <Bubble who="coach">{name ? `Right here, ${name}.` : 'Right here.'} Open me whenever.</Bubble>
+
+      {/* The real DualButton orb (+ composer when it is the full open chat). */}
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-6 pt-4"
+        style={{ paddingBottom: 16 }}
+      >
+        <div className="pointer-events-auto">
+          <DualButton
+            size={74}
+            leftActive
+            rings
+            ringCount={3}
+            ringStep={5}
+            leftIcon={<IconChatText size={25} />}
+            rightIcon={<IconMicMuted size={23} />}
+            leftAriaLabel="Chat mode"
+            rightAriaLabel="Microphone"
+          />
+        </div>
+        {showComposer && (
+          <ChatComposer
+            value=""
+            onValueChange={() => {}}
+            onSubmit={() => {}}
+            placeholder="Type or talk..."
+            className="pointer-events-auto flex min-h-[44px] w-full items-end gap-1 rounded-[22px] bg-white py-1.5 pl-5 pr-2 shadow-[0px_10px_24px_-8px_rgba(15,23,42,0.18)]"
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -204,166 +253,6 @@ function LiveStateCheck() {
   );
 }
 
-// The open/close coach chat overlay. Slides up over the home and closes back to
-// it, so the user feels the model: the chat is the default surface, the home is
-// the visual one, and you move between them. This is a light stand-in for the
-// real CoachChatOverlay (which needs the full voice runtime); it shows the
-// thread + a composer so the open/close behavior reads true.
-function ChatOverlay({ name, onClose }: { name: string; onClose: () => void }) {
-  const [draft, setDraft] = useState('');
-  const [sent, setSent] = useState<string[]>([]);
-  const send = () => {
-    const t = draft.trim();
-    if (!t) return;
-    setSent((p) => [...p, t]);
-    setDraft('');
-  };
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        zIndex: 60,
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'linear-gradient(180deg, #eaf1ff 0%, #f7faff 60%, #ffffff 100%)',
-        animation: 'ggTourChatIn 320ms cubic-bezier(0.22,1,0.36,1)',
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '16px 16px 12px',
-        }}
-      >
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            background: `radial-gradient(circle at 35% 30%, #5b9bff, ${BLUE})`,
-            boxShadow: '0 4px 12px -2px rgba(19,91,235,0.45)',
-          }}
-        />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: FONT, fontSize: 15, fontWeight: 800, color: 'rgb(15,23,42)' }}>
-            Coach
-          </div>
-          <div style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: BLUE }}>
-            Here whenever you need me
-          </div>
-        </div>
-        <button
-          type="button"
-          aria-label="Close chat"
-          onClick={onClose}
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: '50%',
-            border: 'none',
-            background: 'rgba(15,23,42,0.06)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          <Icon icon="mdi:close" width={20} height={20} style={{ color: 'rgb(71,85,105)' }} />
-        </button>
-      </div>
-
-      {/* Thread */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <Bubble who="coach">
-          {name ? `I'm right here, ${name}.` : "I'm right here."} What's on your mind?
-        </Bubble>
-        {sent.map((m, i) => (
-          <Bubble key={i} who="user">
-            {m}
-          </Bubble>
-        ))}
-      </div>
-
-      {/* Composer */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '10px 14px calc(14px + env(safe-area-inset-bottom))',
-          borderTop: '1px solid rgba(15,23,42,0.06)',
-          background: '#fff',
-        }}
-      >
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') send();
-          }}
-          placeholder="Type a message..."
-          style={{
-            flex: 1,
-            border: '1.5px solid rgba(15,23,42,0.10)',
-            borderRadius: 22,
-            padding: '11px 16px',
-            fontFamily: FONT,
-            fontSize: 14.5,
-            outline: 'none',
-          }}
-        />
-        <button
-          type="button"
-          aria-label="Send"
-          onClick={send}
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: '50%',
-            border: 'none',
-            background: BLUE,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            flexShrink: 0,
-          }}
-        >
-          <Icon icon="mdi:arrow-up" width={22} height={22} style={{ color: '#fff' }} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Bubble({ who, children }: { who: 'coach' | 'user'; children: ReactNode }) {
-  const isCoach = who === 'coach';
-  return (
-    <div
-      style={{
-        alignSelf: isCoach ? 'flex-start' : 'flex-end',
-        maxWidth: '82%',
-        padding: '10px 14px',
-        borderRadius: 18,
-        borderBottomLeftRadius: isCoach ? 4 : 18,
-        borderBottomRightRadius: isCoach ? 18 : 4,
-        background: isCoach ? '#fff' : BLUE,
-        color: isCoach ? 'rgb(15,23,42)' : '#fff',
-        fontFamily: FONT,
-        fontSize: 14.5,
-        fontWeight: 500,
-        lineHeight: 1.4,
-        boxShadow: isCoach ? '0 2px 10px -4px rgba(15,23,42,0.14)' : 'none',
-      }}
-    >
-      {children}
-    </div>
-  );
-}
 
 // The journaling section under the habits. The real RecentReflectionsSection is
 // data-backed and renders nothing for a brand-new user, so the tour shows an
@@ -437,9 +326,6 @@ function HomeBottomNav() {
 
 function HomeTourBeat(props?: Record<string, string>) {
   const flow = useFlowState();
-  const playing = useIsPlaying();
-  const anims = useAnimations();
-  const live = playing && anims;
 
   const name = props?.userName && props.userName !== '{name}' ? props.userName : '';
 
@@ -448,8 +334,16 @@ function HomeTourBeat(props?: Record<string, string>) {
   const showHabits = idx >= 2; // reveal, chat, live
   const showButtons = idx >= 3; // chat, live
   const isLive = idx === 4;
-  const showCaption = !isLive; // the coach narrates every beat except the last
   const connectRing = idx === 1;
+
+  // The coach lives in the real chat docked at the bottom. It is tall (about half
+  // the screen) while the chat is the focus (land + connect), then recedes to a
+  // slim strip as the home takes over (reveal + chat), then docks to the Open
+  // Chat button on the live home. FRAME_H matches the beat's fixed height.
+  const FRAME_H = 792;
+  const chatPct = isLive ? 0 : idx <= 1 ? 54 : 30;
+  const chatPx = Math.round((FRAME_H * chatPct) / 100);
+  const showChat = !isLive; // the docked coach chat (narration) shows until live
 
   // Interactive home state. Habit toggles + the selected date lift to flow state
   // so they survive moving between the tour's beats (each beat is its own mount);
@@ -488,8 +382,8 @@ function HomeTourBeat(props?: Record<string, string>) {
 
   return (
     <div style={{ position: 'relative', height: 792 }}>
-      {/* The home, scrolling inside the full-bleed frame above the bottom nav.
-          What is revealed depends on the beat's stage. */}
+      {/* The home, scrolling in the space above the docked chat (or the nav when
+          live). What is revealed depends on the beat's stage. */}
       <div
         className="flex flex-col gap-5 pt-1"
         style={{
@@ -497,9 +391,9 @@ function HomeTourBeat(props?: Record<string, string>) {
           top: 0,
           left: 0,
           right: 0,
-          bottom: 64,
+          bottom: isLive ? 64 : chatPx,
           overflowY: 'auto',
-          paddingBottom: showCaption ? 140 : 92,
+          paddingBottom: isLive ? 92 : 16,
         }}
       >
         {/* TOP HALF: header + dates + the two quick-action cards (every stage). */}
@@ -584,14 +478,14 @@ function HomeTourBeat(props?: Record<string, string>) {
       {/* Floating feedback + open-chat buttons. While the coach narrates they
           float above the caption; on the live beat they settle above the nav. */}
       <div
-        style={{ position: 'absolute', left: 8, bottom: showCaption ? 152 : 78, zIndex: 30, transition: 'bottom 320ms ease-out' }}
+        style={{ position: 'absolute', left: 8, bottom: isLive ? 78 : chatPx + 14, zIndex: 58, transition: 'bottom 320ms ease-out', display: chatOpen ? 'none' : undefined }}
       >
         <Reveal show={showButtons}>
           <FeedbackButton onPress={() => setFeedbackAck(true)} />
         </Reveal>
       </div>
       <div
-        style={{ position: 'absolute', right: 8, bottom: showCaption ? 152 : 78, zIndex: 30, transition: 'bottom 320ms ease-out' }}
+        style={{ position: 'absolute', right: 8, bottom: isLive ? 78 : chatPx + 14, zIndex: 58, transition: 'bottom 320ms ease-out', display: chatOpen ? 'none' : undefined }}
       >
         <Reveal show={showButtons}>
           <OpenChatButton onPress={() => setChatOpen(true)} />
@@ -625,44 +519,37 @@ function HomeTourBeat(props?: Record<string, string>) {
         </div>
       )}
 
-      {/* The coach caption (the minimized chat narrating). Hidden on the live beat. */}
-      {showCaption && <CoachCaption key={idx} text={coachLine} />}
-
-      {/* Beat 1: the onboarding chat settles into the home (a panel collapses down). */}
-      {idx === 0 && live && (
-        <div
-          style={{
-            position: 'absolute',
-            left: 8,
-            right: 8,
-            top: 10,
-            bottom: 74,
-            zIndex: 48,
-            borderRadius: 14,
-            background: 'linear-gradient(180deg, #eaf1ff 0%, #f7faff 100%)',
-            transformOrigin: 'bottom',
-            animation: 'ggHomeCollapse 760ms ease-in forwards',
-            pointerEvents: 'none',
-          }}
-        />
+      {/* The coach's chat, docked at the bottom: the real chat (gradient + real
+          speech bubbles + orb), about half the screen while the chat leads, then
+          a slim strip as the home takes over. Keyed per stage so it re-animates. */}
+      {showChat && (
+        <TourChat key={idx} name={name} heightPct={chatPct} messages={[{ role: 'ai', text: coachLine }]} />
       )}
-
-      {/* Beat 4: a quick chat peek (rises up, then docks back down to the button). */}
-      {idx === 3 && live && <ChatPeek name={name} />}
 
       {/* The home's bottom nav, pinned to the bottom of the frame. */}
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20 }}>
         <HomeBottomNav />
       </div>
 
-      {/* The open/close chat overlay (covers the whole frame, including the nav). */}
-      {chatOpen && <ChatOverlay name={name} onClose={() => setChatOpen(false)} />}
+      {/* The full open/close chat overlay (the real chat, covers the frame). */}
+      {chatOpen && (
+        <TourChat
+          name={name}
+          heightPct={100}
+          showComposer
+          messages={[
+            {
+              role: 'ai',
+              text: name ? `I'm right here, ${name}. What's on your mind?` : "I'm right here. What's on your mind?",
+            },
+          ]}
+          onClose={() => setChatOpen(false)}
+        />
+      )}
 
       <style>{`
         @keyframes ggTourCaptionIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-        @keyframes ggTourChatIn { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
-        @keyframes ggHomeCollapse { from { opacity: .55; transform: scaleY(1); } to { opacity: 0; transform: scaleY(0); } }
-        @keyframes ggChatPeek { 0% { transform: translateY(100%); } 24% { transform: translateY(0); } 60% { transform: translateY(0); } 100% { transform: translateY(104%); } }
+        @keyframes ggChatRise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
       `}</style>
     </div>
   );
