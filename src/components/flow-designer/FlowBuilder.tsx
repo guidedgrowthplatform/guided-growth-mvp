@@ -248,6 +248,7 @@ function HabitScheduleCardPreview() {
         })
       }
       onEdit={() => {}}
+      onDelete={() => {}}
     />
   );
 }
