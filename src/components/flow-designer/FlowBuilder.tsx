@@ -39,6 +39,7 @@ import { HomeHeader } from '@/components/home/HomeHeader';
 import { QuickActionCards } from '@/components/home/QuickActionCards';
 import { AgeScrollPicker } from '@/components/onboarding/AgeScrollPicker';
 import { HabitScheduleCard } from '@/components/onboarding/HabitScheduleCard';
+import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
@@ -233,23 +234,52 @@ function HabitItemPreview() {
 function HabitScheduleCardPreview() {
   const [polarity, setPolarity] = useState<'build' | 'break'>('build');
   const [days, setDays] = useState<Set<number>>(new Set());
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+
+  if (deleted) {
+    return (
+      <div className="flex w-full items-center justify-between rounded-[20px] border border-border-light bg-surface px-[16px] py-[14px] shadow-sm">
+        <span className="text-[14px] font-semibold text-content-tertiary">Habit deleted</span>
+        <button
+          type="button"
+          onClick={() => setDeleted(false)}
+          className="text-[14px] font-semibold text-primary"
+        >
+          Undo
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <HabitScheduleCard
-      habitName="Read 10 pages"
-      polarity={polarity}
-      selectedDays={days}
-      onChangePolarity={setPolarity}
-      onToggleDay={(d) =>
-        setDays((prev) => {
-          const next = new Set(prev);
-          if (next.has(d)) next.delete(d);
-          else next.add(d);
-          return next;
-        })
-      }
-      onEdit={() => {}}
-      onDelete={() => {}}
-    />
+    <>
+      <HabitScheduleCard
+        habitName="Read 10 pages"
+        polarity={polarity}
+        selectedDays={days}
+        onChangePolarity={setPolarity}
+        onToggleDay={(d) =>
+          setDays((prev) => {
+            const next = new Set(prev);
+            if (next.has(d)) next.delete(d);
+            else next.add(d);
+            return next;
+          })
+        }
+        onEdit={() => {}}
+        onDelete={() => setConfirmingDelete(true)}
+      />
+      {confirmingDelete && (
+        <DeleteHabitModal
+          onDelete={() => {
+            setConfirmingDelete(false);
+            setDeleted(true);
+          }}
+          onKeep={() => setConfirmingDelete(false)}
+        />
+      )}
+    </>
   );
 }
 
