@@ -36,9 +36,9 @@ BEGIN
 
   INSERT INTO user_habits (id, user_id, name, habit_type, cadence, daily_goal, is_active)
   VALUES
-    (gen_random_uuid(), test_user_id, 'Meditation', 'binary_do', 'daily', 1, TRUE),
-    (gen_random_uuid(), test_user_id, 'Exercise', 'binary_do', 'weekdays', 1, TRUE),
-    (gen_random_uuid(), test_user_id, 'Reading', 'binary_do', 'daily', 1, TRUE)
+    (gen_random_uuid(), test_user_id, 'Meditation', 'binary_build', 'daily', 1, TRUE),
+    (gen_random_uuid(), test_user_id, 'Exercise', 'binary_build', 'weekdays', 1, TRUE),
+    (gen_random_uuid(), test_user_id, 'Reading', 'binary_build', 'daily', 1, TRUE)
   ON CONFLICT DO NOTHING
   RETURNING id INTO habit_meditation;
 

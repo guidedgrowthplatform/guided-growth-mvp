@@ -75,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         for (const [name, config] of Object.entries(habitConfigs)) {
           await client.query(
             `INSERT INTO user_habits (anon_id, name, habit_type, cadence, schedule_days, reminder_time, reminder_enabled, sort_order)
-             VALUES ($1, $2, 'binary_do', 'daily', $3, $4, $5, $6)
+             VALUES ($1, $2, 'binary_build', 'daily', $3, $4, $5, $6)
              ON CONFLICT (anon_id, name) DO UPDATE SET
                schedule_days = EXCLUDED.schedule_days,
                reminder_time = EXCLUDED.reminder_time,

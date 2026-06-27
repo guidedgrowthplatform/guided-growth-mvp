@@ -2,12 +2,10 @@ import { Ban, Pencil, Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { DayPicker } from '@/components/ui/DayPicker';
 
-// UI-side polarity vocabulary, kept separate from the data-layer HabitType in
-// @gg/shared/types on purpose. The wiring session maps at the seam:
-//   'build' <-> the "do more" data value (binary_do today, binary_build after
-//               the planned rename)
-//   'break' <-> the "stay away" data value (binary_avoid today, binary_break
-//               after the planned rename)
+// UI-side polarity vocabulary, kept separate from the data-layer habit_type on
+// purpose. The wiring session maps at the seam:
+//   'build' <-> habit_type 'binary_build' (do more of it; legacy 'binary_do')
+//   'break' <-> habit_type 'binary_break' (stay away from it; legacy 'binary_avoid')
 // Because this component speaks build/break and never imports the data enum,
 // the data rename does not have to touch this file.
 export type HabitPolarity = 'build' | 'break';

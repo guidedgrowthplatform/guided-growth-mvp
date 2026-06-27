@@ -52,7 +52,7 @@ export class SupabaseDataService implements DataService {
       .insert({
         anon_id: anonId,
         name,
-        habit_type: 'binary_do',
+        habit_type: 'binary_build',
         cadence:
           frequency === 'daily'
             ? 'daily'

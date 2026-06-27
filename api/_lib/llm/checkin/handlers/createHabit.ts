@@ -51,7 +51,7 @@ export async function createHabit(
   const cadence = cadenceFromFrequency(frequency);
   const res = await pool.query<InsertedHabit>(
     `INSERT INTO user_habits (anon_id, name, habit_type, cadence, schedule_days, is_active, sort_order)
-     VALUES ($1, $2, 'binary_do', $3, $4, true, 9999)
+     VALUES ($1, $2, 'binary_build', $3, $4, true, 9999)
      RETURNING id, name, cadence, schedule_days`,
     [ctx.anon_id, name, cadence, scheduleDays ?? null],
   );
