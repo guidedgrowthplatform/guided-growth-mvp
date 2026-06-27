@@ -333,19 +333,20 @@ describe('vapi navigateNext — skip + precondition guards', () => {
     expect(pool.query).toHaveBeenCalledTimes(2);
   });
 
-  it('rejects +2 catch-up when an intermediate step is missing data (step 5 → 7, no reflectionConfig)', async () => {
+  it('rejects +2 catch-up when an intermediate step is missing data (step 7 → 9, no morningCheckin)', async () => {
+    // Canonical tail: case 7 passes through, case 8 gates on morningCheckin.
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
       rows: [
         {
-          current_step: 5,
+          current_step: 7,
           data: { habitConfigs: { Run: {} } },
           path: 'simple',
           brain_dump_raw: null,
         },
       ],
     });
-    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    const res = await navigateNext({ anon_id: ANON, target_step: 9 });
     expect(res).toMatchObject({ error: expect.stringContaining('cannot_skip_steps') });
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
@@ -476,24 +477,44 @@ describe('vapi navigateNext — skip + precondition guards', () => {
     expect(res).toMatchObject({ error: expect.stringContaining('habits_missing') });
   });
 
-  it('rejects step 6 → 7 when reflection not saved', async () => {
+  it('allows step 6 → 7 (leaving habit-schedule) when habits saved', async () => {
+    // Canonical tail: case 6 now gates on habitConfigs, NOT reflection.
+    pool.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            current_step: 6,
+            data: { habitConfigs: { Walk: { days: [1, 2, 3, 4, 5], time: '07:00' } } },
+            path: 'simple',
+            brain_dump_raw: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    expect(res).toEqual({ result: 'ok' });
+  });
+
+  it('rejects step 9 → 10 when reflection not saved', async () => {
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
       rows: [
         {
-          current_step: 6,
+          current_step: 9,
           data: {
             nickname: 'Yair',
             category: 'Sleep better',
             goals: ['Wake up earlier'],
             habitConfigs: { Walk: { days: [1, 2, 3, 4, 5], time: '07:00' } },
+            morningCheckin: { time: '07:30', days: [1, 2, 3, 4, 5], reminder: true },
           },
           path: 'simple',
           brain_dump_raw: null,
         },
       ],
     });
-    const res = await navigateNext({ anon_id: ANON, target_step: 7 });
+    const res = await navigateNext({ anon_id: ANON, target_step: 10 });
     expect(res).toMatchObject({ error: expect.stringContaining('reflection_missing') });
   });
 });

@@ -28,14 +28,26 @@ export function checkAdvanceData(args: {
         return 'goals_missing: call submit_goals first (with the chosen goals)';
       }
       return null;
-    case 5: {
+    // Steps 5 and 6 are the two habit beats (habit-select + habit-schedule), both
+    // gated on habitConfigs — see docs/step-0-canonical-step-table.md. The merged
+    // resync tail is 5→6→7→8→9→10 (NOT the old reflection=6/plan=7 tail).
+    case 5:
+    case 6: {
       const habits = data.habitConfigs as Record<string, unknown> | undefined;
       if (!habits || Object.keys(habits).length === 0) {
         return 'habits_missing: call add_habit at least once first';
       }
       return null;
     }
-    case 6:
+    case 7:
+      // Leaving plan-review — a display/confirm beat with no new data to gate on.
+      return null;
+    case 8:
+      if (!data.morningCheckin) {
+        return 'morning_checkin_missing: call submit_morning_checkin first';
+      }
+      return null;
+    case 9:
       if (!data.reflectionConfig) {
         return 'reflection_missing: call submit_reflection_config first';
       }
