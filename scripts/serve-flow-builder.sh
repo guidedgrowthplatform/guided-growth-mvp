@@ -8,6 +8,7 @@ cd "$HOME/Developer/ggmvp-flow-builder" || exit 1
 SERVE="$HOME/.flow-builder-served"
 MARK="/tmp/flow-builder-last-build"
 PY="$(command -v python3)"
+WR="$(command -v wrangler 2>/dev/null || echo "$HOME/Developer/gg-cron-worker/node_modules/.bin/wrangler")"
 mkdir -p "$SERVE"
 
 build() {
@@ -15,6 +16,15 @@ build() {
   [ -f dist-flow/flow-standalone/index.html ] && cp dist-flow/flow-standalone/index.html dist-flow/index.html
   rsync -a --delete dist-flow/ "$SERVE/" 2>/dev/null
   date > "$MARK"
+}
+
+# Also push the freshest build to the public Cloudflare Pages URL
+# (gg-flow-builder.pages.dev), so the hosted page tracks the repo. Uses the
+# already logged-in wrangler. Best-effort, never blocks the local serve.
+deploy_page() {
+  [ -x "$WR" ] || return 0
+  "$WR" pages deploy "$SERVE" --project-name=gg-flow-builder --branch=main --commit-dirty=true \
+    >>/tmp/flow-builder-deploy.log 2>&1 || true
 }
 
 # seed the serve dir with the last good build so it is never empty, then rebuild fresh
@@ -25,6 +35,7 @@ build || true
 # then rebuild if HEAD moved or any source changed
 (
   LAST=""
+  DEPLOYED=""
   while true; do
     if git diff --quiet 2>/dev/null && git diff --cached --quiet 2>/dev/null; then
       git fetch origin flow-builder-onboarding -q 2>/dev/null || true
@@ -33,6 +44,9 @@ build || true
     HEAD="$(git rev-parse HEAD 2>/dev/null)"
     CHANGED="$(find src vite.flow.config.ts -type f -newer "$MARK" 2>/dev/null | head -1)"
     if [ "$HEAD" != "$LAST" ] || [ -n "$CHANGED" ]; then build && LAST="$HEAD"; fi
+    # Push the public page only when a new commit landed (not on every local-edit
+    # rebuild), so the hosted URL tracks pushed work.
+    if [ "$HEAD" != "$DEPLOYED" ]; then deploy_page && DEPLOYED="$HEAD"; fi
     sleep 15
   done
 ) &
