@@ -622,16 +622,6 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     sheetStage: 'ONBOARD-STATE-CHECK: First State Check',
     props: { coachLine: "Let's do your first one right now. How are you feeling in this exact moment?" },
   },
-  {
-    // The state check is the last onboarding chat beat. From here the chat
-    // closes and the user lands on the real home page, where the coach runs the
-    // light app tour (reveal each half, then leave them on the live home with
-    // the chat one tap away). The tour reflects the plan they just built.
-    type: 'home-tour',
-    beat: '15',
-    background: 'plain',
-    props: { userName: '{name}' },
-  },
 ];
 
 const ONBOARDING_FLOW = DEFAULT_FLOW;
@@ -704,6 +694,15 @@ const EVENING_CHECKIN_FLOW: DefaultBeat[] = [
   },
 ];
 
+// The app tour (the fourth flow): the second half of onboarding. Onboarding ends
+// on the first state check, the chat closes, and this flow runs over the real
+// home page. It is its own flow because the tour will grow into several beats;
+// for now it is the single home-tour beat (which reveals the home half a screen
+// at a time, then lands on the live home with the chat as an open/close overlay).
+const HOME_TOUR_FLOW: DefaultBeat[] = [
+  { type: 'home-tour', beat: '1', background: 'plain', props: { userName: '{name}' } },
+];
+
 interface FlowDef {
   id: string;
   label: string;
@@ -714,6 +713,7 @@ const FLOWS: FlowDef[] = [
   { id: 'onboarding', label: 'Onboarding', beats: ONBOARDING_FLOW },
   { id: 'morning-checkin', label: 'Morning check-in', beats: MORNING_CHECKIN_FLOW },
   { id: 'evening-checkin', label: 'Evening check-in', beats: EVENING_CHECKIN_FLOW },
+  { id: 'home-tour', label: 'App tour', beats: HOME_TOUR_FLOW },
 ];
 const FLOW_MAP: Record<string, FlowDef> = Object.fromEntries(FLOWS.map((f) => [f.id, f]));
 
