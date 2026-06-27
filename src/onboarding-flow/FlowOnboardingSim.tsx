@@ -1,169 +1,99 @@
 /**
- * FlowOnboardingSim — type-to-fill simulator for the chat-native flow.
+ * FlowOnboardingSim — voice/type simulator for the chat-native flow.
  *
- * Same engine, renderer, and REAL components as FlowOnboardingPreview, but with
- * a text box standing in for the voice the user would speak. As you type, the
- * live skimmer ghost-fills the active beat's real card (age, gender, category,
- * goals, habits with polarity). Tap the card's own Continue to commit + advance.
- *
- * For local QA only, mounted at /onboarding-flow-sim. No login, in-memory
- * persistence, no Vapi. Use this when voice is unavailable.
+ * Runs the REAL engine, renderer, and components with in-memory persistence and
+ * no login. Soniox voice-in (Listen) streams the transcript and drives the
+ * skimmer / brain-dump parse as it comes in. For fast iteration this jumps
+ * straight to the Advanced brain-dump beat. Local QA only, at /onboarding-flow-sim.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { useVoiceInCapture } from '@/hooks/useVoiceInCapture';
+import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { VOICE_IN_ENABLED } from '@/lib/config/voice';
 import { resolveHabitPolarity } from './curatedHabitPolarity';
-import { IntroGate } from './IntroGate';
 import { useLocalPersistence } from './persistence';
 import { FlowRenderer } from './renderer/FlowRenderer';
+import type { BeatCapture, FlowNode } from './types';
 import { skimAndPublish } from './useLiveSkimmer';
 import { useFlow } from './useFlow';
 import { useFlowOrchestrator, type FlowOrchestrator } from './useFlowOrchestrator';
 
 interface ParsedHabit {
   name: string;
-  // Only set when the user explicitly stated it. Blank => ask at review.
+  // Only set when the user explicitly stated it, or after the user picks it.
   frequency?: string;
   polarity: 'positive' | 'negative' | null;
 }
 
 const FREQUENCY_OPTIONS = ['daily', 'weekdays', 'weekends', '3x/week', 'weekly'];
+const PARSE_DEBOUNCE_MS = 600;
 
-// The brain-dump beat: free-text/voice dump that a fast model parses into habits.
 function isBrainDumpBeat(componentType?: string): boolean {
   return componentType === 'coach-bubble';
 }
 
-function PolarityTag({ polarity }: { polarity: ParsedHabit['polarity'] }) {
-  const neg = polarity === 'negative';
-  const unknown = polarity == null;
-  return (
-    <span
-      style={{
-        fontSize: 11,
-        fontWeight: 500,
-        color: unknown ? '#6b7280' : neg ? '#92400e' : '#166534',
-      }}
-    >
-      {unknown ? '?' : neg ? '↓ break' : '↑ do'}
-    </span>
-  );
+function polarityMeta(p: ParsedHabit['polarity']): { icon: string; label: string } {
+  if (p === 'negative') return { icon: 'mdi:close-circle-outline', label: 'Break' };
+  if (p == null) return { icon: 'mdi:help-circle-outline', label: 'Confirm type' };
+  return { icon: 'mdi:checkbox-marked-circle-outline', label: 'Do' };
 }
 
-// As the user dumps: show the habits, with frequency ONLY when they said it.
-function HabitChips({ habits, parsing }: { habits: ParsedHabit[]; parsing: boolean }) {
-  if (!habits.length && !parsing) return null;
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>
-        Habits I'm hearing{parsing ? ' …' : ''}
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {habits.map((h, i) => (
-          <div
-            key={`${h.name}-${i}`}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 10px',
-              borderRadius: 10,
-              border: '1px solid rgba(0,0,0,0.12)',
-              background: '#f5f6f8',
-              fontSize: 13,
-            }}
-          >
-            <PolarityTag polarity={h.polarity} />
-            <span style={{ fontWeight: 500 }}>{h.name}</span>
-            {h.frequency ? (
-              <span style={{ opacity: 0.6 }}>· {h.frequency}</span>
-            ) : (
-              <span style={{ color: '#b45309', fontSize: 11 }}>· needs frequency</span>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// When the user is done: confirm the habits and fill the missing frequencies.
-function HabitReview({
+// Real habit cards (PlanSummaryCard) that fill live. Frequency shows when stated;
+// when blank, inline pills let the user set it right on the card (no extra step).
+function HabitCards({
   habits,
-  onChangeFrequency,
-  onConfirm,
-  confirmed,
+  parsing,
+  onSetFrequency,
 }: {
   habits: ParsedHabit[];
-  onChangeFrequency: (index: number, frequency: string) => void;
-  onConfirm: () => void;
-  confirmed: boolean;
+  parsing: boolean;
+  onSetFrequency: (index: number, frequency: string) => void;
 }) {
-  const missing = habits.filter((h) => !h.frequency).length;
+  if (!habits.length && !parsing) return null;
   return (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 6 }}>
-        {confirmed
-          ? `Saved ${habits.length} habits`
-          : `Do these look right? ${missing ? `Set how often for ${missing}.` : ''}`}
+    <div style={{ marginBottom: 8, maxHeight: '46vh', overflowY: 'auto' }}>
+      <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>
+        Your habits{parsing ? ' …' : ''}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {habits.map((h, i) => (
-          <div
-            key={`${h.name}-${i}`}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 10px',
-              borderRadius: 10,
-              border: `1px solid ${!h.frequency ? '#f59e0b' : 'rgba(0,0,0,0.12)'}`,
-              background: '#fff',
-              fontSize: 13,
-            }}
-          >
-            <PolarityTag polarity={h.polarity} />
-            <span style={{ fontWeight: 500, flex: 1 }}>{h.name}</span>
-            <select
-              value={h.frequency ?? ''}
-              onChange={(e) => onChangeFrequency(i, e.target.value)}
-              disabled={confirmed}
-              style={{ fontSize: 13, padding: '4px 6px', borderRadius: 8 }}
-            >
-              <option value="" disabled>
-                how often?
-              </option>
-              {FREQUENCY_OPTIONS.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
-          </div>
-        ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {habits.map((h, i) => {
+          const meta = polarityMeta(h.polarity);
+          return (
+            <div key={`${h.name}-${i}`}>
+              <PlanSummaryCard
+                icon={meta.icon}
+                typeLabel="Habit"
+                title={h.name}
+                cadence={h.frequency ?? 'How often?'}
+                rule={meta.label}
+              />
+              {!h.frequency && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                  {FREQUENCY_OPTIONS.map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => onSetFrequency(i, f)}
+                      style={{
+                        padding: '5px 10px',
+                        borderRadius: 999,
+                        border: '1px solid #f59e0b',
+                        background: '#fffbeb',
+                        color: '#92400e',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
-      {!confirmed && (
-        <button
-          type="button"
-          onClick={onConfirm}
-          disabled={habits.some((h) => !h.frequency)}
-          style={{
-            marginTop: 8,
-            height: 40,
-            width: '100%',
-            borderRadius: 12,
-            border: 'none',
-            cursor: habits.some((h) => !h.frequency) ? 'default' : 'pointer',
-            fontSize: 15,
-            fontWeight: 500,
-            color: '#fff',
-            background: habits.some((h) => !h.frequency) ? '#9aa6e6' : '#2447e6',
-          }}
-        >
-          These look right
-        </button>
-      )}
     </div>
   );
 }
@@ -175,19 +105,18 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
   const [err, setErr] = useState<string | null>(null);
   const [habits, setHabits] = useState<ParsedHabit[]>([]);
   const [parsing, setParsing] = useState(false);
-  const [reviewing, setReviewing] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
-  const [reviewHabits, setReviewHabits] = useState<ParsedHabit[]>([]);
   const node = orchestrator.currentNode;
   const nodeId = node?.id ?? null;
   const onBrainDump = isBrainDumpBeat(node?.componentType);
 
-  // Accumulated dump text + parse coalescing (one in-flight call, latest queued).
   const dumpRef = useRef('');
   const parseInFlight = useRef(false);
   const pendingText = useRef<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Frequencies the user picked by hand, so a re-parse never wipes them.
+  const manualFreq = useRef<Map<string, string>>(new Map());
 
-  // Clear inputs when the beat advances so each beat starts fresh.
+  // Reset per beat.
   const lastNodeRef = useRef<string | null>(null);
   useEffect(() => {
     if (lastNodeRef.current !== nodeId) {
@@ -195,21 +124,20 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
       setText('');
       setInterim('');
       setHabits([]);
-      setReviewing(false);
-      setConfirmed(false);
-      setReviewHabits([]);
       dumpRef.current = '';
+      manualFreq.current = new Map();
     }
   }, [nodeId]);
 
-  // The skimmer runs against the LIVE node/answers (read fresh, not closed over).
   const drive = useCallback(
     (t: string) => skimAndPublish(orchestrator.currentNode ?? null, orchestrator.answers, t),
     [orchestrator],
   );
 
-  // Fast-model brain-dump parse: one call per completed sentence, coalesced.
+  // Fast-model brain-dump parse. Coalesced (one in flight, latest queued) and
+  // merged with the user's manual frequency picks.
   const parseDump = useCallback(async (full: string) => {
+    if (!full.trim()) return;
     if (parseInFlight.current) {
       pendingText.current = full;
       return;
@@ -222,12 +150,18 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: full }),
       });
-      const d = (await r.json()) as { habits?: Omit<ParsedHabit, 'polarity'>[] };
+      const d = (await r.json()) as { habits?: { name: string; frequency?: string }[] };
       if (Array.isArray(d.habits)) {
-        setHabits(d.habits.map((h) => ({ ...h, polarity: resolveHabitPolarity(h.name).polarity })));
+        setHabits(
+          d.habits.map((h) => ({
+            name: h.name,
+            frequency: manualFreq.current.get(h.name) ?? h.frequency,
+            polarity: resolveHabitPolarity(h.name).polarity,
+          })),
+        );
       }
     } catch {
-      // best-effort; leave prior habits up
+      // best-effort; leave prior cards up
     } finally {
       parseInFlight.current = false;
       setParsing(false);
@@ -239,24 +173,38 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
     }
   }, []);
 
-  // Real Soniox voice-in: while listening, the partial transcript streams here
-  // (onInterim) and drives the skimmer as it comes in, just like the app.
+  // Scan often: debounce ~600ms so habits show as fast as possible while talking.
+  const scheduleParse = useCallback(
+    (t: string) => {
+      dumpRef.current = t;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => void parseDump(dumpRef.current), PARSE_DEBOUNCE_MS);
+    },
+    [parseDump],
+  );
+
+  const setFrequency = useCallback((index: number, frequency: string) => {
+    setHabits((prev) => {
+      const h = prev[index];
+      if (h) manualFreq.current.set(h.name, frequency);
+      return prev.map((x, idx) => (idx === index ? { ...x, frequency } : x));
+    });
+  }, []);
+
   const { isListening } = useVoiceInCapture({
     active: listening,
     vapiStatus: 'idle',
     onInterim: (t) => {
       setErr(null);
       setInterim(t);
-      drive(t);
+      if (onBrainDump) scheduleParse(t);
+      else drive(t);
     },
     onTranscript: (t) => {
       setInterim(t);
       if (onBrainDump) {
-        const tt = t.trim();
-        if (tt && !dumpRef.current.endsWith(tt)) {
-          dumpRef.current = (dumpRef.current + ' ' + tt).trim();
-        }
-        void parseDump(dumpRef.current);
+        dumpRef.current = t;
+        void parseDump(t);
       } else {
         drive(t);
       }
@@ -266,12 +214,8 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
 
   const onChange = (v: string) => {
     setText(v);
-    if (onBrainDump) {
-      dumpRef.current = v;
-      void parseDump(v);
-    } else {
-      drive(v);
-    }
+    if (onBrainDump) scheduleParse(v);
+    else drive(v);
   };
 
   return (
@@ -295,43 +239,7 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
           {err && `  ·  ${err}`}
         </div>
 
-        {onBrainDump &&
-          (reviewing ? (
-            <HabitReview
-              habits={reviewHabits}
-              confirmed={confirmed}
-              onChangeFrequency={(i, f) =>
-                setReviewHabits((prev) => prev.map((h, idx) => (idx === i ? { ...h, frequency: f } : h)))
-              }
-              onConfirm={() => setConfirmed(true)}
-            />
-          ) : (
-            <>
-              <HabitChips habits={habits} parsing={parsing} />
-              {habits.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReviewHabits(habits);
-                    setReviewing(true);
-                  }}
-                  style={{
-                    marginBottom: 8,
-                    height: 38,
-                    padding: '0 16px',
-                    borderRadius: 12,
-                    border: '1px solid rgba(0,0,0,0.15)',
-                    background: '#fff',
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    fontWeight: 500,
-                  }}
-                >
-                  Done, review {habits.length} habits
-                </button>
-              )}
-            </>
-          ))}
+        {onBrainDump && <HabitCards habits={habits} parsing={parsing} onSetFrequency={setFrequency} />}
 
         {(listening || interim) && (
           <div
@@ -372,7 +280,7 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
           <input
             value={text}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="…or type to test the skimmer without voice"
+            placeholder="…or type to test without voice"
             style={{
               flex: 1,
               height: 44,
@@ -389,10 +297,24 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
   );
 }
 
-// Beats with no spoken data to capture: in the sim we auto-advance them so the
-// walk lands straight on the data-capture cards (auth/mic touch Supabase and
-// need a real login, which this sim does not have).
-const PASS_THROUGH = new Set(['auth', 'mic-permission', 'primary-button']);
+// Fast-forward straight to the Advanced brain-dump beat: seed the pre-dump beats
+// (auth/mic/profile, and pick the brain-dump path at the fork) so each test
+// starts where the work is. Returns null at the brain dump and after, so nothing
+// past it is auto-advanced.
+function fastForwardCapture(node: FlowNode): BeatCapture | null {
+  switch (node.componentType) {
+    case 'auth':
+    case 'mic-permission':
+    case 'primary-button':
+      return { data: {} };
+    case 'profile-input':
+      return { data: { age: 30, gender: 'Male' } };
+    case 'path-selection':
+      return { data: {}, path: 'braindump' };
+    default:
+      return null;
+  }
+}
 
 export function FlowOnboardingSim() {
   useEffect(() => {
@@ -405,22 +327,21 @@ export function FlowOnboardingSim() {
   const persistence = useLocalPersistence();
   const orchestrator = useFlowOrchestrator(flow, persistence, { flowTag: tag });
 
-  // Auto-advance pass-through beats once each (no double-advance).
   const node = orchestrator.currentNode;
   const advancedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!node || !PASS_THROUGH.has(node.componentType)) return;
+    if (!node) return;
+    const cap = fastForwardCapture(node);
+    if (!cap) return;
     if (advancedRef.current.has(node.id)) return;
     advancedRef.current.add(node.id);
-    orchestrator.capture({ data: {} });
+    orchestrator.capture(cap);
   }, [node, orchestrator]);
 
   return (
     <div className="bg-background flex h-screen w-screen flex-col">
       <div className="min-h-0 flex-1">
-        <IntroGate>
-          <FlowRenderer orchestrator={orchestrator} />
-        </IntroGate>
+        <FlowRenderer orchestrator={orchestrator} />
       </div>
       <SimDriverBar orchestrator={orchestrator} />
     </div>
