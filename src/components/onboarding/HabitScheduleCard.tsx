@@ -1,5 +1,4 @@
-import { Ban, Pencil, Plus } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Ban, Pencil, Plus, Trash2 } from 'lucide-react';
 import { DayPicker } from '@/components/ui/DayPicker';
 
 // UI-side polarity vocabulary, kept separate from the data-layer habit_type on
@@ -17,14 +16,16 @@ interface HabitScheduleCardProps {
   onChangePolarity: (polarity: HabitPolarity) => void;
   onToggleDay: (day: number) => void;
   onEdit: () => void;
+  onDelete?: () => void;
 }
 
-// Compact onboarding / voice card: habit name + Edit on top, a neutral
-// Build/Break polarity toggle, then the round day-schedule pills. There is no
-// completion check here. Green check and red X stay reserved for did-it /
-// missed-it on the check-in rows, so the Build/Break marker is blue and gray on
-// purpose and never reads as a daily result. Day pills default to off; the AI
-// or a tap turns them on. Edit covers both the name text and the schedule.
+// Compact onboarding / voice card. The top row keeps the habit name on the left
+// and, on the right, a single tap-to-flip Build/Break chip plus icon-only Edit
+// (blue pencil) and Delete (red trash). Dropping the control labels frees the
+// title to one line; only a long name wraps. The chip stays blue and gray, never
+// red/green, so it never reads as a daily result. There is no completion check
+// here. Day pills default to off; the AI or a tap turns them on. Edit covers the
+// name text and the schedule. Delete fires onDelete (the beat/app confirms).
 export function HabitScheduleCard({
   habitName,
   polarity,
@@ -32,34 +33,45 @@ export function HabitScheduleCard({
   onChangePolarity,
   onToggleDay,
   onEdit,
+  onDelete,
 }: HabitScheduleCardProps) {
+  const isBuild = polarity === 'build';
   return (
     <div className="w-full overflow-clip rounded-[20px] border-2 border-primary bg-surface p-[2px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.04)]">
       <div className="px-[16px] pb-[11px] pt-[13px]">
-        <div className="flex items-center justify-between gap-[10px]">
-          <span className="text-[16px] font-bold leading-[22px] text-content">{habitName}</span>
-          <button
-            type="button"
-            onClick={onEdit}
-            className="flex shrink-0 cursor-pointer items-center gap-[4px] text-[14px] font-semibold leading-[20px] text-primary"
-          >
-            Edit
-            <Pencil className="size-[15px]" />
-          </button>
-        </div>
-        <div className="mt-[9px] inline-flex gap-[6px]">
-          <TypeOption
-            active={polarity === 'build'}
-            icon={<Plus className="size-[14px]" />}
-            label="Build"
-            onClick={() => onChangePolarity('build')}
-          />
-          <TypeOption
-            active={polarity === 'break'}
-            icon={<Ban className="size-[14px]" />}
-            label="Break"
-            onClick={() => onChangePolarity('break')}
-          />
+        <div className="flex items-start justify-between gap-[8px]">
+          <span className="min-w-0 flex-1 pt-[4px] text-[16px] font-bold leading-[22px] text-content">
+            {habitName}
+          </span>
+          <div className="flex shrink-0 items-center gap-[4px]">
+            <button
+              type="button"
+              onClick={() => onChangePolarity(isBuild ? 'break' : 'build')}
+              aria-label={`Habit type ${isBuild ? 'Build' : 'Break'}, tap to switch`}
+              className="flex items-center gap-[3px] rounded-full border border-primary/30 bg-primary/10 px-[8px] py-[3px] text-[11px] font-semibold text-primary"
+            >
+              {isBuild ? <Plus className="size-[12px]" /> : <Ban className="size-[12px]" />}
+              {isBuild ? 'Build' : 'Break'}
+            </button>
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label="Edit habit"
+              className="flex size-[26px] shrink-0 cursor-pointer items-center justify-center rounded-lg text-primary"
+            >
+              <Pencil className="size-[17px]" />
+            </button>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                aria-label="Delete habit"
+                className="flex size-[26px] shrink-0 cursor-pointer items-center justify-center rounded-lg text-danger"
+              >
+                <Trash2 className="size-[17px]" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
       <div className="h-px w-full bg-border-light" />
@@ -67,33 +79,5 @@ export function HabitScheduleCard({
         <DayPicker selectedDays={selectedDays} onToggleDay={onToggleDay} />
       </div>
     </div>
-  );
-}
-
-function TypeOption({
-  active,
-  icon,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`flex items-center gap-[5px] rounded-full border px-[11px] py-[5px] text-[12px] font-semibold transition-colors ${
-        active
-          ? 'border-primary/30 bg-primary/10 text-primary'
-          : 'border-border bg-transparent text-content-tertiary'
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
   );
 }

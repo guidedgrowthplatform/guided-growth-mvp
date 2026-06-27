@@ -113,6 +113,9 @@ export function FlowOnboardingSim() {
   const orderRef = useRef<string[]>([]);
   const manualDays = useRef<Map<string, number[]>>(new Map());
   const manualPolarity = useRef<Map<string, Polarity>>(new Map());
+  // Deleted keys are remembered so a re-parse over the same transcript can't
+  // resurrect a habit the user removed.
+  const deletedRef = useRef<Set<string>>(new Set());
 
   const recompute = useCallback(() => {
     const list: ParsedHabit[] = [];
@@ -139,6 +142,7 @@ export function FlowOnboardingSim() {
         if (!fromAI && name.split(/\s+/).length > 4) continue; // regex run-on blob
         const key = normName(name);
         if (!key) continue;
+        if (deletedRef.current.has(key)) continue; // user removed it; don't resurrect
         const existing = habitsRef.current.get(key);
         habitsRef.current.set(key, {
           // The AI name is authoritative; the regex keeps an existing name.
@@ -166,6 +170,7 @@ export function FlowOnboardingSim() {
       orderRef.current = [];
       manualDays.current = new Map();
       manualPolarity.current = new Map();
+      deletedRef.current = new Set();
     }
   }, [nodeId]);
 
@@ -249,6 +254,24 @@ export function FlowOnboardingSim() {
     );
   }, []);
 
+  // Delete a card. The real beat opens DeleteHabitModal + dataService.deleteHabit;
+  // the sim has no persisted habits, so it just drops it from the accumulator and
+  // marks the key deleted so a re-parse can't bring it back.
+  const removeHabit = useCallback(
+    (index: number) => {
+      const h = habits[index];
+      if (!h) return;
+      const key = normName(h.name);
+      deletedRef.current.add(key);
+      habitsRef.current.delete(key);
+      orderRef.current = orderRef.current.filter((k) => k !== key);
+      manualDays.current.delete(key);
+      manualPolarity.current.delete(key);
+      recompute();
+    },
+    [habits, recompute],
+  );
+
   // Dev-only console hook so we can inject a dump without a mic.
   useEffect(() => {
     (window as unknown as { __simDump?: (t: string) => void }).__simDump = (t: string) => {
@@ -303,11 +326,12 @@ export function FlowOnboardingSim() {
             onChangePolarity={(p) => setPolarity(i, p === 'break' ? 'negative' : 'positive')}
             onToggleDay={(d) => toggleDay(i, d)}
             onEdit={() => {}}
+            onDelete={() => removeHabit(i)}
           />
         ))}
       </div>
     );
-  }, [onBrainDump, interim, habits, setPolarity, toggleDay]);
+  }, [onBrainDump, interim, habits, setPolarity, toggleDay, removeHabit]);
 
   return (
     <div className="bg-background flex h-screen w-screen flex-col">
