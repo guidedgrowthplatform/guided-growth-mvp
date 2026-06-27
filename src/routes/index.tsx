@@ -123,6 +123,20 @@ const FlowOnboardingSim = lazyWithRetry(() =>
 const QAControlScreen = lazyWithRetry(() =>
   import('@/onboarding-flow/QAControlScreen').then((m) => ({ default: m.QAControlScreen })),
 );
+// /weekly-projection-demo = standalone render of the post-capture projection
+// beat (empty -> mostly green -> mostly red, with coach narration).
+const WeeklyProjectionDemo = lazyWithRetry(() =>
+  import('@/onboarding-flow/WeeklyProjectionDemo').then((m) => ({
+    default: m.WeeklyProjectionDemo,
+  })),
+);
+// /weekly-projection-story = full scripted walkthrough: coach prompt -> capture
+// -> days -> the weekly projection. Auto-plays, no voice/keys.
+const WeeklyStoryDemo = lazyWithRetry(() =>
+  import('@/onboarding-flow/WeeklyStoryDemo').then((m) => ({
+    default: m.WeeklyStoryDemo,
+  })),
+);
 
 function PageLoader() {
   return (
@@ -220,6 +234,12 @@ export function AppRoutes() {
 
         {/* Type-to-fill simulator: drive the real cards by typing (no voice) */}
         <Route path="/onboarding-flow-sim" element={<FlowOnboardingSim />} />
+
+        {/* Post-capture weekly projection beat (standalone QA render) */}
+        <Route path="/weekly-projection-demo" element={<WeeklyProjectionDemo />} />
+
+        {/* Full scripted onboarding walkthrough into the projection beat */}
+        <Route path="/weekly-projection-story" element={<WeeklyStoryDemo />} />
 
         {/* QA control launcher (QA/dev builds only): pick a test user, log in / reset / re-onboard */}
         {QA_SCREEN_ENABLED && (

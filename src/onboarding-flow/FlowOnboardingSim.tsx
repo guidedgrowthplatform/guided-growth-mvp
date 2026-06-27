@@ -34,9 +34,13 @@ interface ParsedHabit {
   name: string;
   days?: number[]; // 0=Sun..6=Sat, only auto-filled when concrete
   polarity: Polarity;
+  confirmed?: boolean; // the AI has vouched for this one (sticky, never pruned)
 }
 
-const PARSE_DEBOUNCE_MS = 600;
+// Short enough to fire on a natural micro-pause mid-sentence (cards fill in with
+// a small lag while you talk), long enough that a continuous sentence doesn't
+// thrash the parser.
+const PARSE_DEBOUNCE_MS = 450;
 
 function isBrainDumpBeat(componentType?: string): boolean {
   return componentType === 'coach-bubble';
@@ -131,11 +135,13 @@ export function FlowOnboardingSim() {
     setHabits(list);
   }, []);
 
-  // Add/refine habits. Each parsed item becomes its OWN card. Voice has no
-  // punctuation, so the regex can't split a run-on; a long single name is a
-  // run-on blob, dropped here and left for the AI (which splits properly).
+  // Add/refine habits. Each parsed item becomes its OWN card. The regex is an
+  // instant OPTIMISTIC pass; the AI is AUTHORITATIVE. Anything the AI vouches for
+  // is sticky (confirmed). When the AI returns, any optimistic regex card it did
+  // NOT reconfirm (a disfluency or false start the regex let through) is pruned,
+  // so junk self-heals within a beat while real habits never disappear.
   const addParsed = useCallback(
-    (parsed: { name: string; days?: number[] }[], fromAI: boolean) => {
+    (parsed: { name: string; days?: number[] }[], fromAI: boolean, confirm = false) => {
       for (const p of parsed) {
         const name = p.name.trim();
         if (!name) continue;
@@ -149,8 +155,27 @@ export function FlowOnboardingSim() {
           name: fromAI ? name : (existing?.name ?? name),
           days: p.days ?? existing?.days,
           polarity: resolveHabitPolarity(name).polarity,
+          // Sticky only when the AI vouched for it on a FINAL utterance. Interim
+          // guesses stay optimistic so a fuller pass can supersede them.
+          confirmed: existing?.confirmed || (fromAI && confirm),
         });
         if (!orderRef.current.includes(key)) orderRef.current.push(key);
+      }
+      if (fromAI) {
+        // The AI just read the transcript so far. Drop optimistic cards it didn't
+        // return this pass (premature guesses like "Go" before "Go to the gym",
+        // disfluent fragments), unless the user already touched them. Confirmed
+        // habits are sticky and never pruned, so nothing real disappears.
+        const aiKeys = new Set(parsed.map((p) => normName(p.name.trim())).filter(Boolean));
+        for (const key of [...orderRef.current]) {
+          const h = habitsRef.current.get(key);
+          if (!h || h.confirmed) continue;
+          const touched = manualDays.current.has(key) || manualPolarity.current.has(key);
+          if (!aiKeys.has(key) && !touched) {
+            habitsRef.current.delete(key);
+            orderRef.current = orderRef.current.filter((k) => k !== key);
+          }
+        }
       }
       recompute();
     },
@@ -184,7 +209,7 @@ export function FlowOnboardingSim() {
   // Abort-latest (not a queue): a newer parse cancels the one in flight, and a
   // hard timeout guarantees it can never wedge "Parsing…" forever.
   const parseDump = useCallback(
-    async (full: string) => {
+    async (full: string, confirm = false) => {
       if (!full.trim()) return;
       parseAbort.current?.abort();
       const ac = new AbortController();
@@ -199,7 +224,7 @@ export function FlowOnboardingSim() {
           signal: ac.signal,
         });
         const d = (await r.json()) as { habits?: { name: string; days?: number[] }[] };
-        if (Array.isArray(d.habits)) addParsed(d.habits, true);
+        if (Array.isArray(d.habits)) addParsed(d.habits, true, confirm);
       } catch {
         // aborted or failed; leave the existing cards up
       } finally {
@@ -288,19 +313,25 @@ export function FlowOnboardingSim() {
       setCommitted(committedRef.current);
       setInterim('');
       runRegex(committedRef.current);
-      void parseDump(committedRef.current);
+      void parseDump(committedRef.current, true);
     };
     w.__simStream = async (t: string, ms = 110) => {
+      // Mirror the real handlers exactly: each interim tick streams a word into
+      // the bubble AND schedules a debounced parse (so a slow cadence with gaps
+      // > the debounce fills cards mid-sentence), then a final commits + parses.
       const words = t.split(/\s+/).filter(Boolean);
       for (let i = 1; i <= words.length; i++) {
-        setInterim(words.slice(0, i).join(' ')); // interim grows, no parsing
+        const partial = words.slice(0, i).join(' ');
+        setInterim(partial);
+        scheduleParse(`${committedRef.current} ${partial}`.trim());
         await new Promise((r) => setTimeout(r, ms));
       }
       committedRef.current = `${committedRef.current} ${t}`.trim(); // final utterance
       setCommitted(committedRef.current);
       setInterim('');
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       runRegex(committedRef.current);
-      scheduleParse(committedRef.current);
+      void parseDump(committedRef.current, true);
     };
   }, [runRegex, parseDump, scheduleParse]);
 
@@ -309,21 +340,28 @@ export function FlowOnboardingSim() {
     vapiStatus: 'idle',
     onInterim: (t) => {
       setErr(null);
-      // Brain dump: interim words ONLY stream into the speech bubble. Parsing a
-      // half-spoken phrase ("I want to...") is what spawned the half-baked cards,
-      // so we never parse interim, only finalized utterances below.
-      setInterim(t);
-      if (!onBrainDump) drive(t);
+      setInterim(t); // every word streams into the speech bubble
+      if (onBrainDump) {
+        // Parse the LIVE text on a short debounce: it fires on a natural
+        // micro-pause mid-sentence, so cards fill in with a small lag instead of
+        // waiting for a full stop. We don't run the instant regex on interim (a
+        // half-typed trailing word would flicker); the debounced AI is the
+        // splitter and the authority, and it prunes its own mistakes.
+        scheduleParse(`${committedRef.current} ${t}`.trim());
+      } else {
+        drive(t);
+      }
     },
     onTranscript: (t) => {
       if (onBrainDump) {
         committedRef.current = `${committedRef.current} ${t}`.trim();
         setCommitted(committedRef.current);
         setInterim('');
-        // Finalized text is whole utterances, so names come out clean. Regex is
-        // instant; the AI refine is debounced so several quick finals coalesce.
+        // A finalized utterance is a real pause: parse it now (not debounced) and
+        // CONFIRM, so these habits become sticky. Regex gives an instant card.
+        if (debounceRef.current) clearTimeout(debounceRef.current);
         runRegex(committedRef.current);
-        scheduleParse(committedRef.current);
+        void parseDump(committedRef.current, true);
       } else {
         setInterim(t);
         drive(t);

@@ -202,3 +202,15 @@ body {
     pointer-events: none;
   }
 }
+
+@keyframes flame-flicker {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.13) rotate(-4deg);
+    opacity: 0.88;
+  }
+}

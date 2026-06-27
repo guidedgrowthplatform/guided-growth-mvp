@@ -49,9 +49,17 @@ export function extractDaysRegex(lc: string): number[] | undefined {
   return found.size ? [...found].sort((a, b) => a - b) : undefined;
 }
 
-// Filler words people say (repeatable) before the real content.
+// Filler / discourse words people say (repeatable) before the real content.
 const FILLER =
-  /^(?:\s*(?:um|uh|er|so|like|ok|okay|yeah|yep|nah|well|and|also|then|plus|maybe|just|really|basically|honestly|i mean)\b[\s,]*)+/i;
+  /^(?:\s*(?:um|uh|er|erm|so|like|ok|okay|yeah|yep|nah|well|and|also|then|plus|maybe|just|really|basically|honestly|i mean|but|actually|look|anyway|alright|right|now|i guess)\b[\s,]*)+/i;
+
+// Disfluency / false-start markers. A clause carrying one of these is someone
+// trailing off or self-correcting ("but I don't—uh", "um, so like"), never a
+// real habit, so it must not become a card.
+const DISFLUENCY = /(?:^|\s)(?:uh+|um+|er+|erm)(?:\s|$)|[—–]|--/i;
+// Bare negation lead with no real object ("I don't", "don't") = an incomplete
+// thought, not a "no X" habit (which the AI handles).
+const NEGATION_FRAGMENT = /^(?:i\s+)?don'?t\b/i;
 // "I" / "I'm" / "I am" / "I would" lead.
 const SUBJECT = /^(?:i\s+would\s+|i\s+am\s+|i'?m\s+|i'?ve\s+(?:been\s+)?|i\s+)/i;
 // Intent verbs, with or without a subject ("want to read", "going to run").
@@ -82,6 +90,20 @@ const REJECT = new Set([
   'something',
   'anything',
   'more',
+  // disfluency / connective residue
+  'is',
+  'are',
+  'was',
+  'be',
+  'but',
+  'so',
+  'well',
+  'actually',
+  'look',
+  'dont',
+  "don't",
+  'i dont',
+  "i don't",
   // intent / pronoun residue from trailed-off speech
   'i',
   'i want',
@@ -134,17 +156,31 @@ function cleanName(clause: string): string {
 }
 
 export function parseHabitsRegex(text: string): { name: string; days?: number[] }[] {
-  const clauses = text
-    .split(/,|\band then\b|\band\b|\balso\b|;|\n|\bthen\b/i)
+  // Normalize smart quotes so "don't" matches the same whether the transcriber
+  // used a straight or curly apostrophe.
+  const normalized = text.replace(/[‘’]/g, "'");
+  // Note: we do NOT split on the em-dash. Splitting it truncates a cut-off word
+  // ("don't" -> "don"); instead the whole disfluent clause is dropped below.
+  const clauses = normalized
+    .split(/,|\band then\b|\band\b|\balso\b|\bbut\b|;|\n|\bthen\b/i)
     .map((c) => c.trim())
     .filter(Boolean);
   const out: { name: string; days?: number[] }[] = [];
   const seen = new Set<string>();
   for (const clause of clauses) {
+    // A clause that still carries a disfluency marker is a false start, drop it.
+    if (DISFLUENCY.test(clause)) continue;
     const days = extractDaysRegex(clause.toLowerCase());
     const name = cleanName(clause);
     const key = name.toLowerCase();
-    if (name.length >= 2 && name.length <= 60 && !seen.has(key) && !REJECT.has(key)) {
+    if (
+      name.length >= 2 &&
+      name.length <= 60 &&
+      !seen.has(key) &&
+      !REJECT.has(key) &&
+      !DISFLUENCY.test(name) &&
+      !NEGATION_FRAGMENT.test(name)
+    ) {
       seen.add(key);
       out.push(days ? { name, days } : { name });
     }

@@ -75,6 +75,18 @@ describe('parseHabitsRegex', () => {
     expect(parseHabitsRegex('I need to')).toEqual([]);
   });
 
+  it('drops disfluent false starts and bare negations', () => {
+    // The exact fragment that wrongly carded as "But I don't—uh".
+    expect(parseHabitsRegex('but I don—uh')).toEqual([]);
+    expect(parseHabitsRegex('um, so like, but I don’t')).toEqual([]);
+    // ...but a real habit in the same breath still comes through.
+    expect(parseHabitsRegex('run, but I don—uh')).toEqual([{ name: 'run' }]);
+    expect(parseHabitsRegex('I want to run, um, and bake')).toEqual([
+      { name: 'run' },
+      { name: 'bake' },
+    ]);
+  });
+
   it('strips stacked lead-ins down to the real action', () => {
     expect(parseHabitsRegex('I want to start to go to the gym')).toEqual([
       { name: 'go to the gym' },
