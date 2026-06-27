@@ -5,6 +5,7 @@ import { track } from '@/analytics';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { deriveOrbRing } from '@/components/ui/orbRing';
+import { useCoachChatLauncher } from '@/contexts/CoachChatContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useCoachVoice } from '@/contexts/useCoachVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
@@ -12,7 +13,7 @@ import { useMicVoiceActivity } from '@/hooks/useMicRingIntensity';
 import { useScreenMap } from '@/hooks/useScreenMap';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useVoiceChannelBusy } from '@/hooks/useVoiceChannelBusy';
-import { useTtsPlaybackStore } from '@/lib/services/tts-service';
+import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 
 // Soft-keyboard heuristic: visual viewport shrinks by more than this when the
@@ -60,13 +61,17 @@ interface NavTabProps {
   path: string;
   isActive: boolean;
   destination: NavDestination;
+  onNavigate?: () => void;
 }
 
-function NavTab({ icon, label, path, isActive, destination }: NavTabProps) {
+function NavTab({ icon, label, path, isActive, destination, onNavigate }: NavTabProps) {
   return (
     <Link
       to={path}
-      onClick={() => track('tap_nav_item', { destination })}
+      onClick={() => {
+        track('tap_nav_item', { destination });
+        onNavigate?.();
+      }}
       className={`flex flex-col items-center justify-end ${isActive ? 'text-primary' : 'text-content-tertiary'}`}
     >
       <Icon icon={icon} width={24} />
@@ -99,7 +104,7 @@ function NavBarBackground() {
   );
 }
 
-export function BottomNav({ hidden = false }: { hidden?: boolean }) {
+export function BottomNav() {
   const location = useLocation();
   const {
     voiceOn: ttsEnabled,
@@ -126,6 +131,15 @@ export function BottomNav({ hidden = false }: { hidden?: boolean }) {
   const voiceAnchorIdRef = useRef<string | null>(null);
   const micRequestPendingRef = useRef<boolean>(false);
   const keyboardOpen = useSoftKeyboardOpen();
+  const { openScreenId, closeCoachChat } = useCoachChatLauncher();
+  // Tab nav while the coach overlay is open: stop playback + close (mirrors the X button).
+  const dismissOverlay =
+    openScreenId !== null
+      ? () => {
+          stopTTS();
+          closeCoachChat();
+        }
+      : undefined;
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/' || location.pathname === '/home';
@@ -194,9 +208,7 @@ export function BottomNav({ hidden = false }: { hidden?: boolean }) {
   // viewport shrinks (issue #194). Unmounting would orphan in-flight voice
   // anchors held in voiceAnchorIdRef.
   return (
-    <nav
-      className={`fixed inset-x-0 bottom-0 z-[60] lg:hidden ${keyboardOpen || hidden ? 'hidden' : ''}`}
-    >
+    <nav className={`fixed inset-x-0 bottom-0 z-[60] lg:hidden ${keyboardOpen ? 'hidden' : ''}`}>
       <div>
         <div className="relative" style={{ height: '72px' }}>
           <NavBarBackground />
@@ -225,6 +237,7 @@ export function BottomNav({ hidden = false }: { hidden?: boolean }) {
               path="/"
               isActive={isActive('/')}
               destination="home"
+              onNavigate={dismissOverlay}
             />
             <NavTab
               icon="ic:round-leaderboard"
@@ -232,6 +245,7 @@ export function BottomNav({ hidden = false }: { hidden?: boolean }) {
               path="/report"
               isActive={isActive('/report')}
               destination="progress"
+              onNavigate={dismissOverlay}
             />
             <div />
             <NavTab
@@ -240,6 +254,7 @@ export function BottomNav({ hidden = false }: { hidden?: boolean }) {
               path="/focus"
               isActive={isActive('/focus')}
               destination="focus"
+              onNavigate={dismissOverlay}
             />
             <NavTab
               icon="ic:round-person"
@@ -247,6 +262,7 @@ export function BottomNav({ hidden = false }: { hidden?: boolean }) {
               path="/settings"
               isActive={isActive('/settings')}
               destination="profile"
+              onNavigate={dismissOverlay}
             />
           </div>
         </div>

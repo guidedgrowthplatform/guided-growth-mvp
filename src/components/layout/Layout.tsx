@@ -64,7 +64,7 @@ function LayoutInner({ children }: { children: ReactNode }) {
         )}
       </main>
 
-      <BottomNav hidden={chatOpen} />
+      <BottomNav />
       {!chatOpen && (
         <>
           <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] right-6 z-20">
