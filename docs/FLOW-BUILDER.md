@@ -37,8 +37,18 @@ Outputs the standalone static build to `dist-flow/` (base `/`, with the
 
 ## Hosted URL
 
-A hosted, auto-updating build for developers who do not want to run it locally is
-set up separately (see the repo's deploy settings). It rebuilds from this branch
-on every push, the same way the local 7333 serve does.
+Live at: **https://gg-flow-builder.pages.dev**
+
+Deployed to Cloudflare Pages (project `gg-flow-builder`, account
+yair@guidedgrowthos.com). Today it updates on a manual redeploy:
+
+```
+npm run build:flow
+wrangler pages deploy dist-flow --project-name=gg-flow-builder --branch=main --commit-dirty=true
+```
+
+To make it rebuild automatically on every push, connect the project to the GitLab
+repo in the Cloudflare dashboard, or add a CI job that runs the two commands
+above.
 ```
 
