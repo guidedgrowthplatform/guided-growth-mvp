@@ -429,6 +429,7 @@ const COACH_LINE_PROP: Record<string, string> = {
   'morning-checkin-setup': 'coachLine',
   'into-app': 'coachLine',
   'state-check': 'coachLine',
+  'home-tour': 'coachLine',
 };
 
 // Imported components that are full-screen modals/overlays. They cannot preview
@@ -731,7 +732,52 @@ const EVENING_CHECKIN_FLOW: DefaultBeat[] = [
 // for now it is the single home-tour beat (which reveals the home half a screen
 // at a time, then lands on the live home with the chat as an open/close overlay).
 const HOME_TOUR_FLOW: DefaultBeat[] = [
-  { type: 'home-tour', beat: '1', background: 'plain', props: { userName: '{name}' } },
+  {
+    type: 'home-tour',
+    beat: '1',
+    background: 'plain',
+    props: {
+      userName: '{name}',
+      stage: 'land',
+      coachLine: "That's everything. Welcome home, {name}. This is your space.",
+    },
+  },
+  {
+    type: 'home-tour',
+    beat: '2',
+    background: 'plain',
+    props: {
+      userName: '{name}',
+      stage: 'connect',
+      coachLine: "Everything we just did lives here. The chat's always a tap away.",
+    },
+  },
+  {
+    type: 'home-tour',
+    beat: '3',
+    background: 'plain',
+    props: {
+      userName: '{name}',
+      stage: 'reveal',
+      coachLine: 'These are your habits. Tap one done when you finish it. Your reflections land here too.',
+    },
+  },
+  {
+    type: 'home-tour',
+    beat: '4',
+    background: 'plain',
+    props: {
+      userName: '{name}',
+      stage: 'chat',
+      coachLine: "Feedback's here for me. And the chat's right here, tap it whenever. Otherwise, this is home.",
+    },
+  },
+  {
+    type: 'home-tour',
+    beat: '5',
+    background: 'plain',
+    props: { userName: '{name}', stage: 'live' },
+  },
 ];
 
 interface FlowDef {
@@ -2390,6 +2436,8 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
   const [morningTime, setMorningTime] = useState<string | null>(null);
   const [eveningTime, setEveningTime] = useState<string | null>(null);
   const [habitConfigs, setHabitConfigsState] = useState<Record<string, HabitScheduleCfg>>({});
+  const [tourHabitStatus, setTourHabitStatusState] = useState<Record<string, 'done' | 'missed' | 'none'>>({});
+  const [tourSelectedDate, setTourSelectedDateState] = useState<string | null>(null);
   const toggleIn = (v: string, max: number, set: (fn: (p: string[]) => string[]) => void) =>
     set((p) => (p.includes(v) ? p.filter((x) => x !== v) : p.length < max ? [...p, v] : p));
   const flowState: FlowState = {
@@ -2413,6 +2461,10 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
     setMorningTime: (v) => setMorningTime(v),
     setEveningTime: (v) => setEveningTime(v),
     setHabitConfig: (habit, cfg) => setHabitConfigsState((p) => ({ ...p, [habit]: cfg })),
+    tourHabitStatus,
+    tourSelectedDate,
+    setTourHabitStatus: (next) => setTourHabitStatusState(next),
+    setTourSelectedDate: (v) => setTourSelectedDateState(v),
   };
 
   const renderComp = (item: Placed) => {
@@ -2502,6 +2554,8 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
     setMorningTime(null);
     setEveningTime(null);
     setHabitConfigsState({});
+    setTourHabitStatusState({});
+    setTourSelectedDateState(null);
   };
 
   const kind = current?.transition?.kind ?? 'dissolve';

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Icon } from '@iconify/react';
 import { DateStrip } from '@/components/home/DateStrip';
 import { EmojiOptionButton } from '@/components/home/EmojiOptionButton';
@@ -33,8 +33,15 @@ const BLUE = 'rgb(19, 91, 235)';
 
 // The reveal beats, in order. Each tap on the coach caption advances one stage;
 // LIVE is the finished home with the captions gone.
-const STAGE = { TOP: 0, CONNECT: 1, HABITS: 2, FEEDBACK: 3, CHAT: 4, LIVE: 5 } as const;
-type Stage = (typeof STAGE)[keyof typeof STAGE];
+// The tour is five beats, each placed in the App tour flow with a `stage` prop.
+// The single home-tour beat reads its stage and renders the home at that reveal
+// level with the chat in the right form. Order matters (index drives reveal).
+const TOUR_STAGES = ['land', 'connect', 'reveal', 'chat', 'live'] as const;
+type TourStage = (typeof TOUR_STAGES)[number];
+function stageIndex(s?: string): number {
+  const i = TOUR_STAGES.indexOf((s ?? 'live') as TourStage);
+  return i < 0 ? TOUR_STAGES.length - 1 : i; // unknown / unset => the finished home
+}
 
 // Fallback plan shown on the canvas / when no upstream selection exists.
 const SAMPLE_HABITS = ['Morning walk', 'Read 10 pages', 'No screens after 10'];
@@ -82,22 +89,14 @@ function Reveal({
   );
 }
 
-// The coach's voice for the tour: a bottom bar (the same place the live app's
-// coach subtitle sits) with the orb, the line, and a tap-to-continue chevron.
-// Tapping it anywhere advances the reveal.
-function CoachCaption({
-  text,
-  isLast,
-  onNext,
-}: {
-  text: string;
-  isLast: boolean;
-  onNext: () => void;
-}) {
+// The coach's voice for the tour: a docked caption bar (where the live app's
+// coach subtitle sits) with the orb + the line. It is the minimized chat, the
+// coach narrating the home. Each tour beat carries its own line; the player
+// (or the real engine) advances beat to beat, so this is narration, not a
+// button. `keyed` remounts it per beat so the line re-animates in.
+function CoachCaption({ text }: { text: string }) {
   return (
-    <button
-      type="button"
-      onClick={onNext}
+    <div
       style={{
         position: 'absolute',
         left: 12,
@@ -113,7 +112,6 @@ function CoachCaption({
         background: 'rgba(255,255,255,0.96)',
         backdropFilter: 'blur(8px)',
         boxShadow: '0 10px 30px -10px rgba(15,23,42,0.22)',
-        cursor: 'pointer',
         textAlign: 'left',
         animation: 'ggTourCaptionIn 280ms ease-out',
       }}
@@ -140,27 +138,41 @@ function CoachCaption({
       >
         {text}
       </span>
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 4,
-          flexShrink: 0,
-          fontFamily: FONT,
-          fontSize: 12,
-          fontWeight: 700,
-          color: BLUE,
-        }}
-      >
-        {isLast ? 'Done' : 'Next'}
-        <Icon
-          icon={isLast ? 'mdi:check' : 'mdi:chevron-right'}
-          width={18}
-          height={18}
-          style={{ color: BLUE }}
+    </div>
+  );
+}
+
+// The brief chat "peek" the Always-here beat plays: a chat panel rises up over
+// the home, holds, then docks back down (showing the chat can open/close), then
+// the Open Chat button is what remains. Lightweight, non-interactive, one-shot.
+function ChatPeek({ name }: { name: string }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 50,
+        pointerEvents: 'none',
+        background: 'linear-gradient(180deg, #eaf1ff 0%, #f7faff 70%, #ffffff 100%)',
+        animation: 'ggChatPeek 2400ms cubic-bezier(0.22,1,0.36,1) forwards',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '16px 16px 0',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <div
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: '50%',
+            background: `radial-gradient(circle at 35% 30%, #5b9bff, ${BLUE})`,
+          }}
         />
-      </span>
-    </button>
+        <div style={{ fontFamily: FONT, fontSize: 14, fontWeight: 800, color: 'rgb(15,23,42)' }}>Coach</div>
+      </div>
+      <Bubble who="coach">{name ? `Right here, ${name}.` : 'Right here.'} Open me whenever.</Bubble>
+    </div>
   );
 }
 
@@ -427,18 +439,33 @@ function HomeTourBeat(props?: Record<string, string>) {
   const flow = useFlowState();
   const playing = useIsPlaying();
   const anims = useAnimations();
+  const live = playing && anims;
 
   const name = props?.userName && props.userName !== '{name}' ? props.userName : '';
 
-  // Live, tappable state mirroring the real home.
-  const [selectedDate, setSelectedDate] = useState(() => {
-    // Avoid Date.now() noise: just default to "today" via the strip's own logic.
-    return new Date().toISOString().slice(0, 10);
-  });
+  // This beat is placed once per tour stage; its stage prop drives what shows.
+  const idx = stageIndex(props?.stage);
+  const showHabits = idx >= 2; // reveal, chat, live
+  const showButtons = idx >= 3; // chat, live
+  const isLive = idx === 4;
+  const showCaption = !isLive; // the coach narrates every beat except the last
+  const connectRing = idx === 1;
+
+  // Interactive home state. Habit toggles + the selected date lift to flow state
+  // so they survive moving between the tour's beats (each beat is its own mount);
+  // on the static canvas (no flow provider) they fall back to local state.
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const [localDate, setLocalDate] = useState(today);
+  const [localStatus, setLocalStatus] = useState<Record<string, 'done' | 'missed' | 'none'>>({});
+  const selectedDate = flow ? (flow.tourSelectedDate ?? today) : localDate;
+  const onSelectDate = (d: string) => (flow ? flow.setTourSelectedDate(d) : setLocalDate(d));
+  const habitStatus = flow ? flow.tourHabitStatus : localStatus;
+  const setHabitStatus = (nx: Record<string, 'done' | 'missed' | 'none'>) =>
+    flow ? flow.setTourHabitStatus(nx) : setLocalStatus(nx);
+
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [feedbackAck, setFeedbackAck] = useState(false);
-  const [habitStatus, setHabitStatus] = useState<Record<string, 'done' | 'missed' | 'none'>>({});
 
   // The plan to show, real where we have it, sample otherwise.
   const habits = flow && flow.habits.length > 0 ? flow.habits : SAMPLE_HABITS;
@@ -447,40 +474,22 @@ function HomeTourBeat(props?: Record<string, string>) {
     [flow],
   );
 
-  // Reveal state machine. In a live play with animations we start at the top
-  // and tap through; on the static canvas (or animations off) we show the
-  // finished home so the tile reads complete.
-  const live = playing && anims;
-  const [stage, setStage] = useState<Stage>(live ? STAGE.TOP : STAGE.LIVE);
-  useEffect(() => {
-    setStage(live ? STAGE.TOP : STAGE.LIVE);
-  }, [live]);
+  const coachLine =
+    props?.coachLine && props.coachLine.trim()
+      ? props.coachLine
+      : name
+        ? `Welcome home, ${name}. This is your space.`
+        : 'Welcome home. This is your space.';
 
-  const next = () => setStage((s) => (Math.min(STAGE.LIVE, s + 1) as Stage));
-
-  // The coach's line for the current reveal stage. Woven with the name and the
-  // real plan so the landing reflects what they just built, not a generic line.
-  const captions: Record<number, string> = {
-    [STAGE.TOP]: name
-      ? `Welcome home, ${name}. This is your space now.`
-      : 'Welcome home. This is your space now.',
-    [STAGE.CONNECT]: 'Everything we just did lives here. The chat is always a tap away.',
-    [STAGE.HABITS]:
-      habits.length > 0
-        ? 'These are your habits. Tap one done when you finish it.'
-        : 'Your habits will show up right here.',
-    [STAGE.FEEDBACK]: "This button is for me. Tell me what's working, or not, anytime.",
-    [STAGE.CHAT]: "The chat's always right here. This view just lets you see and tap things.",
+  const toggle = (h: string, kind: 'done' | 'missed') => {
+    const cur = habitStatus[h] ?? 'none';
+    setHabitStatus({ ...habitStatus, [h]: cur === kind ? 'none' : kind });
   };
-
-  const revealing = stage !== STAGE.LIVE;
 
   return (
     <div style={{ position: 'relative', height: 792 }}>
-      {/* The home itself, revealed a piece at a time. It scrolls inside the
-          full-bleed frame (above the bottom nav) while the coach caption +
-          floating buttons + nav stay pinned. Reserve bottom space so the last
-          habit is never hidden behind them. */}
+      {/* The home, scrolling inside the full-bleed frame above the bottom nav.
+          What is revealed depends on the beat's stage. */}
       <div
         className="flex flex-col gap-5 pt-1"
         style={{
@@ -490,43 +499,40 @@ function HomeTourBeat(props?: Record<string, string>) {
           right: 0,
           bottom: 64,
           overflowY: 'auto',
-          paddingBottom: revealing ? 140 : 92,
+          paddingBottom: showCaption ? 140 : 92,
         }}
       >
-        {/* TOP HALF: header + dates + the two quick-action cards. */}
-        <Reveal show={stage >= STAGE.TOP}>
-          <div
-            style={{
-              borderRadius: 24,
-              outline: stage === STAGE.CONNECT ? `2px solid ${BLUE}` : '2px solid transparent',
-              outlineOffset: 6,
-              transition: 'outline-color 320ms ease-out',
-            }}
-            className="flex flex-col gap-5"
-          >
-            <HomeHeader userName={name || 'there'} />
-            <DateStrip selectedDate={selectedDate} onSelectDate={setSelectedDate} />
-            <div>
-              <QuickActionCards
-                onCheckInPress={() => setShowCheckIn((v) => !v)}
-                onJournalPress={() => setShowCheckIn((v) => !v)}
-              />
-              <div
-                className={`grid transition-all duration-300 ease-in-out ${
-                  showCheckIn ? 'mt-4 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-                }`}
-              >
-                <div className="overflow-hidden">
-                  <LiveStateCheck />
-                </div>
+        {/* TOP HALF: header + dates + the two quick-action cards (every stage). */}
+        <div
+          style={{
+            borderRadius: 24,
+            outline: connectRing ? `2px solid ${BLUE}` : '2px solid transparent',
+            outlineOffset: 6,
+            transition: 'outline-color 320ms ease-out',
+          }}
+          className="flex flex-col gap-5"
+        >
+          <HomeHeader userName={name || 'there'} />
+          <DateStrip selectedDate={selectedDate} onSelectDate={onSelectDate} />
+          <div>
+            <QuickActionCards
+              onCheckInPress={() => setShowCheckIn((v) => !v)}
+              onJournalPress={() => setShowCheckIn((v) => !v)}
+            />
+            <div
+              className={`grid transition-all duration-300 ease-in-out ${
+                showCheckIn ? 'mt-4 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+              }`}
+            >
+              <div className="overflow-hidden">
+                <LiveStateCheck />
               </div>
             </div>
           </div>
-        </Reveal>
+        </div>
 
-        {/* The connect-to-chat moment: a soft ribbon links the screen to the
-            chat, so the visual app and the chat read as the same space. */}
-        {stage === STAGE.CONNECT && (
+        {/* The connect-to-chat moment: a soft ribbon ties the screen to the chat. */}
+        {connectRing && (
           <div
             style={{
               display: 'flex',
@@ -547,8 +553,8 @@ function HomeTourBeat(props?: Record<string, string>) {
           </div>
         )}
 
-        {/* BOTTOM HALF: the habit list, with the real schedule they set. */}
-        <Reveal show={stage >= STAGE.HABITS}>
+        {/* BOTTOM HALF: habits (real schedule) + journaling. */}
+        <Reveal show={showHabits}>
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between px-0.5">
               <span className="text-base font-bold text-content">Today's habits</span>
@@ -563,12 +569,8 @@ function HomeTourBeat(props?: Record<string, string>) {
                   showNote={false}
                   isCompleted={(habitStatus[h] ?? 'none') === 'done'}
                   status={habitStatus[h] ?? 'none'}
-                  onToggleComplete={() =>
-                    setHabitStatus((p) => ({ ...p, [h]: (p[h] ?? 'none') === 'done' ? 'none' : 'done' }))
-                  }
-                  onMarkMissed={() =>
-                    setHabitStatus((p) => ({ ...p, [h]: (p[h] ?? 'none') === 'missed' ? 'none' : 'missed' }))
-                  }
+                  onToggleComplete={() => toggle(h, 'done')}
+                  onMarkMissed={() => toggle(h, 'missed')}
                 />
               ))}
             </div>
@@ -579,22 +581,19 @@ function HomeTourBeat(props?: Record<string, string>) {
         </Reveal>
       </div>
 
-      {/* Floating feedback button (bottom-left). While the coach is pointing it
-          out it floats above the caption; once live it settles just above the
-          nav, its real home position. */}
+      {/* Floating feedback + open-chat buttons. While the coach narrates they
+          float above the caption; on the live beat they settle above the nav. */}
       <div
-        style={{ position: 'absolute', left: 8, bottom: revealing ? 152 : 78, zIndex: 30, transition: 'bottom 320ms ease-out' }}
+        style={{ position: 'absolute', left: 8, bottom: showCaption ? 152 : 78, zIndex: 30, transition: 'bottom 320ms ease-out' }}
       >
-        <Reveal show={stage >= STAGE.FEEDBACK}>
+        <Reveal show={showButtons}>
           <FeedbackButton onPress={() => setFeedbackAck(true)} />
         </Reveal>
       </div>
-
-      {/* Floating open-chat button (bottom-right), revealed last, settles above the nav. */}
       <div
-        style={{ position: 'absolute', right: 8, bottom: revealing ? 152 : 78, zIndex: 30, transition: 'bottom 320ms ease-out' }}
+        style={{ position: 'absolute', right: 8, bottom: showCaption ? 152 : 78, zIndex: 30, transition: 'bottom 320ms ease-out' }}
       >
-        <Reveal show={stage >= STAGE.CHAT}>
+        <Reveal show={showButtons}>
           <OpenChatButton onPress={() => setChatOpen(true)} />
         </Reveal>
       </div>
@@ -626,10 +625,30 @@ function HomeTourBeat(props?: Record<string, string>) {
         </div>
       )}
 
-      {/* The coach caption that drives the reveal (hidden once live). */}
-      {revealing && (
-        <CoachCaption text={captions[stage]} isLast={stage === STAGE.CHAT} onNext={next} />
+      {/* The coach caption (the minimized chat narrating). Hidden on the live beat. */}
+      {showCaption && <CoachCaption key={idx} text={coachLine} />}
+
+      {/* Beat 1: the onboarding chat settles into the home (a panel collapses down). */}
+      {idx === 0 && live && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 8,
+            right: 8,
+            top: 10,
+            bottom: 74,
+            zIndex: 48,
+            borderRadius: 14,
+            background: 'linear-gradient(180deg, #eaf1ff 0%, #f7faff 100%)',
+            transformOrigin: 'bottom',
+            animation: 'ggHomeCollapse 760ms ease-in forwards',
+            pointerEvents: 'none',
+          }}
+        />
       )}
+
+      {/* Beat 4: a quick chat peek (rises up, then docks back down to the button). */}
+      {idx === 3 && live && <ChatPeek name={name} />}
 
       {/* The home's bottom nav, pinned to the bottom of the frame. */}
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20 }}>
@@ -642,6 +661,8 @@ function HomeTourBeat(props?: Record<string, string>) {
       <style>{`
         @keyframes ggTourCaptionIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         @keyframes ggTourChatIn { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+        @keyframes ggHomeCollapse { from { opacity: .55; transform: scaleY(1); } to { opacity: 0; transform: scaleY(0); } }
+        @keyframes ggChatPeek { 0% { transform: translateY(100%); } 24% { transform: translateY(0); } 60% { transform: translateY(0); } 100% { transform: translateY(104%); } }
       `}</style>
     </div>
   );

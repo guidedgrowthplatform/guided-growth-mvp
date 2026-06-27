@@ -40,6 +40,12 @@ export interface FlowState {
   setMorningTime: (v: string) => void;
   setEveningTime: (v: string) => void;
   setHabitConfig: (habit: string, cfg: HabitScheduleCfg) => void;
+  // App-tour interactive state, lifted so habit toggles + the selected date
+  // survive moving between the tour's beats (each beat is a separate mount).
+  tourHabitStatus: Record<string, 'done' | 'missed' | 'none'>;
+  tourSelectedDate: string | null;
+  setTourHabitStatus: (next: Record<string, 'done' | 'missed' | 'none'>) => void;
+  setTourSelectedDate: (v: string) => void;
 }
 
 export const FlowStateCtx = createContext<FlowState | null>(null);
