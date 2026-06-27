@@ -125,9 +125,6 @@ const FlowOnboardingPreview = lazyWithRetry(() =>
     default: m.FlowOnboardingPreview,
   })),
 );
-const QAControlScreen = lazyWithRetry(() =>
-  import('@/onboarding-flow/QAControlScreen').then((m) => ({ default: m.QAControlScreen })),
-);
 
 function PageLoader() {
   return (
@@ -142,10 +139,6 @@ function PageLoader() {
 // In-progress users always finish on the flow they started (the engine has no old
 // step state), so flipping this only affects new signups. Flip to go live.
 const USE_FLOW_ENGINE = import.meta.env.VITE_ONBOARDING_USE_ENGINE === 'true';
-
-// QA control launcher: gated to QA/dev builds only. Never registered in prod, so
-// the route 404s for real users. Enable with VITE_QA_SCREEN_ENABLED=true (or in dev).
-const QA_SCREEN_ENABLED = import.meta.env.VITE_QA_SCREEN_ENABLED === 'true' || import.meta.env.DEV;
 
 function OnboardingEntry() {
   const gate = useAppGate();

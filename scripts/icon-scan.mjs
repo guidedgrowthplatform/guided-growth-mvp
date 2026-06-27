@@ -31,10 +31,12 @@ export const KNOWN_PREFIXES = new Set([
 
 export function walkSourceFiles(dir = SRC, files = []) {
   for (const entry of readdirSync(dir)) {
-    if (entry === 'generated' || entry === 'node_modules') continue;
+    // Skip the flow-builder dev tool (its own deps + build) and Storybook
+    // stories, the same scoping as tsconfig: their icons are not in the shipped app.
+    if (entry === 'generated' || entry === 'node_modules' || entry === 'flow-designer') continue;
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) walkSourceFiles(full, files);
-    else if (/\.(tsx?|jsx?)$/.test(entry)) files.push(full);
+    else if (/\.(tsx?|jsx?)$/.test(entry) && !/\.stories\./.test(entry)) files.push(full);
   }
   return files;
 }

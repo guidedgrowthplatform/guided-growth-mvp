@@ -1,16 +1,23 @@
 import { Trash2, FileText, Check, X } from 'lucide-react';
 import { useRef, useState } from 'react';
+import type { HabitDayStatus, HabitType } from '@/lib/services/data-service.interface';
 import { IconCircleButton } from './IconCircleButton';
 
 interface HabitListItemProps {
   name: string;
   subtitle?: string;
   streak: number;
-  isCompleted: boolean;
-  status?: 'done' | 'missed' | 'none';
+  isCompleted?: boolean;
+  status?: HabitDayStatus | 'none';
+  // Accepted for parity with the data-layer callers (home, coach cards); the row
+  // styling does not branch on it today.
+  habitType?: HabitType;
   hasNote?: boolean;
-  onToggleComplete: () => void;
+  onToggleComplete?: () => void;
   onMarkMissed?: () => void;
+  // Data-layer callers (home, coach cards) set an explicit status. When provided,
+  // the check/X buttons call this; otherwise they fall back to toggle/mark-missed.
+  onSetStatus?: (next: HabitDayStatus) => void;
   onAddNote?: () => void;
   onClick?: () => void;
   onDelete?: () => void;
@@ -31,6 +38,7 @@ export function HabitListItem({
   hasNote = false,
   onToggleComplete,
   onMarkMissed,
+  onSetStatus,
   onAddNote,
   onClick,
   onDelete,
@@ -91,7 +99,8 @@ export function HabitListItem({
 
   const dragging = dragX !== null;
   const translateX = dragging ? dragX : isOpen ? -OPEN_OFFSET : 0;
-  const markStatus = status ?? (isCompleted ? 'done' : 'none');
+  const markStatus: 'done' | 'missed' | 'none' =
+    status === 'done' || status === 'missed' ? status : isCompleted ? 'done' : 'none';
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
@@ -159,7 +168,8 @@ export function HabitListItem({
             aria-pressed={markStatus === 'missed'}
             onClick={(e) => {
               e.stopPropagation();
-              onMarkMissed?.();
+              if (onSetStatus) onSetStatus(markStatus === 'missed' ? 'pending' : 'missed');
+              else onMarkMissed?.();
             }}
             className={`flex h-8 w-8 items-center justify-center rounded-md border-2 transition-colors ${
               markStatus === 'missed'
@@ -175,7 +185,8 @@ export function HabitListItem({
             aria-pressed={markStatus === 'done'}
             onClick={(e) => {
               e.stopPropagation();
-              onToggleComplete();
+              if (onSetStatus) onSetStatus(markStatus === 'done' ? 'pending' : 'done');
+              else onToggleComplete?.();
             }}
             className={`flex h-8 w-8 items-center justify-center rounded-md border-2 transition-colors ${
               markStatus === 'done'
