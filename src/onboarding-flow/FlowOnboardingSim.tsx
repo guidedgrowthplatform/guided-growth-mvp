@@ -46,6 +46,11 @@ function normName(s: string): string {
   return s.toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+// Capitalize the first letter for display ("go to the gym" -> "Go to the gym").
+function capitalize(s: string): string {
+  return s.length ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
 // Fast-forward straight to the Advanced brain-dump beat: seed the pre-dump beats
 // (auth/mic/profile, and pick the brain-dump path at the fork). Null at and after.
 function fastForwardCapture(node: FlowNode): BeatCapture | null {
@@ -289,7 +294,7 @@ export function FlowOnboardingSim() {
         {habits.map((h, i) => (
           <HabitScheduleCard
             key={normName(h.name)}
-            habitName={h.name}
+            habitName={capitalize(h.name)}
             polarity={h.polarity === 'negative' ? 'break' : 'build'}
             selectedDays={new Set(h.days ?? [])}
             onChangePolarity={(p) => setPolarity(i, p === 'break' ? 'negative' : 'positive')}
