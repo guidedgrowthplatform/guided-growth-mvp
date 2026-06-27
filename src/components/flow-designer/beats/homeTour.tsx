@@ -560,6 +560,7 @@ function HomeTourBeat(props?: Record<string, string>) {
                   name={h}
                   subtitle={scheduleSubtitle(cfgs[h])}
                   streak={0}
+                  showNote={false}
                   isCompleted={(habitStatus[h] ?? 'none') === 'done'}
                   status={habitStatus[h] ?? 'none'}
                   onToggleComplete={() =>

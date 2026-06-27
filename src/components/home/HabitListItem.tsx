@@ -14,6 +14,9 @@ interface HabitListItemProps {
   onAddNote?: () => void;
   onClick?: () => void;
   onDelete?: () => void;
+  // The note (reflection) icon shows by default; pass false to render just the
+  // X + check (used by the home tour, where there is no note affordance).
+  showNote?: boolean;
 }
 
 const OPEN_OFFSET = 88;
@@ -31,6 +34,7 @@ export function HabitListItem({
   onAddNote,
   onClick,
   onDelete,
+  showNote = true,
 }: HabitListItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [dragX, setDragX] = useState<number | null>(null);
@@ -139,14 +143,16 @@ export function HabitListItem({
         )}
 
         <div className="flex shrink-0 items-center gap-2">
-          <IconCircleButton
-            icon={FileText}
-            active={hasNote}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddNote?.();
-            }}
-          />
+          {showNote && (
+            <IconCircleButton
+              icon={FileText}
+              active={hasNote}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddNote?.();
+              }}
+            />
+          )}
           <button
             type="button"
             aria-label="Mark missed"
