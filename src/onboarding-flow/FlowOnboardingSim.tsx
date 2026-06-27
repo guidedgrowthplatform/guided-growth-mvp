@@ -259,11 +259,7 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
   return (
     <div
       style={{
-        position: 'fixed',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 50,
+        flexShrink: 0,
         padding: '10px 12px',
         background: 'var(--color-surface, #fff)',
         borderTop: '1px solid rgba(0,0,0,0.08)',
@@ -387,7 +383,7 @@ export function FlowOnboardingSim() {
   return (
     <div className="bg-background flex h-screen w-screen flex-col">
       <div className="min-h-0 flex-1">
-        <FlowRenderer orchestrator={orchestrator} />
+        <FlowRenderer orchestrator={orchestrator} showVoiceControls={false} />
       </div>
       <SimDriverBar orchestrator={orchestrator} />
     </div>
