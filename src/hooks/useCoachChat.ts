@@ -151,6 +151,7 @@ export function useCoachChat(
   const pendingTurnRef = useRef<string | null>(null);
   const openerSentRef = useRef<string | null>(null);
   const openerRetriedRef = useRef<string | null>(null);
+  const openerRunningRef = useRef<string | null>(null);
   const initiateNonceRef = useRef(0);
   const spokenSeededForRef = useRef<string | null>(null);
   const spokenIdsRef = useRef<Set<string>>(new Set());
@@ -457,16 +458,23 @@ export function useCoachChat(
   // Opener with timeout + one bounded retry per session; surfaces a visible
   // bubble on persistent failure so the overlay can't sit silently empty.
   const runOpener = useCallback(async () => {
-    if (await sendOpener(OPENER_TIMEOUT_MS)) return;
-    if (openerRetriedRef.current !== chatSessionId) {
-      openerRetriedRef.current = chatSessionId;
+    // Guard concurrent entry: else a busy sendOpener() returns false and reads as failure.
+    if (openerRunningRef.current === chatSessionId) return;
+    openerRunningRef.current = chatSessionId;
+    try {
       if (await sendOpener(OPENER_TIMEOUT_MS)) return;
+      if (openerRetriedRef.current !== chatSessionId) {
+        openerRetriedRef.current = chatSessionId;
+        if (await sendOpener(OPENER_TIMEOUT_MS)) return;
+      }
+      setErrorBubbles((prev) =>
+        prev.some((b) => b.id === 'opener-error')
+          ? prev
+          : [...prev, { id: 'opener-error', role: 'ai', text: OPENER_ERROR_TEXT }],
+      );
+    } finally {
+      openerRunningRef.current = null;
     }
-    setErrorBubbles((prev) =>
-      prev.some((b) => b.id === 'opener-error')
-        ? prev
-        : [...prev, { id: 'opener-error', role: 'ai', text: OPENER_ERROR_TEXT }],
-    );
   }, [sendOpener, chatSessionId]);
 
   // ─── Explicit check-in initiation: coach leads the next turn regardless of
