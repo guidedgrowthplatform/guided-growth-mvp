@@ -25,8 +25,11 @@ export const CHAT_VAPI_BEAT_SCREENS: ReadonlySet<string> = new Set([
   'ONBOARD-FORK--FORM',
   'ONBOARD-BEGINNER-01',
   'ONBOARD-BEGINNER-02',
+  // Habits is ONE beat: picking + scheduling happen together on BEGINNER-03 via
+  // add_habit. BEGINNER-04 (a separate schedule card) is a flow-design artifact —
+  // not driven as a distinct Vapi beat. If the beat owner splits it later, arm
+  // it then.
   'ONBOARD-BEGINNER-03',
-  'ONBOARD-BEGINNER-04',
 ]);
 
 // 'none' = chat-only beat (no inline card yet). Cards beyond profile land
