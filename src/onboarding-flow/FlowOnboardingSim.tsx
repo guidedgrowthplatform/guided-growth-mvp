@@ -106,10 +106,10 @@ export function FlowOnboardingSim() {
   const parseInFlight = useRef(false);
   const pendingText = useRef<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Persistent accumulators so habits NEVER drop, unioned by normalized name in
-  // first-seen order. Manual day / polarity picks always win over a re-parse.
-  const aiByName = useRef<Map<string, ParsedHabit>>(new Map());
-  const regexByName = useRef<Map<string, ParsedHabit>>(new Map());
+  // ONE persistent accumulator, keyed by normalized name in first-seen order.
+  // Habits only get ADDED or refined, never removed, so nothing disappears.
+  // Manual day / polarity picks always win over a re-parse.
+  const habitsRef = useRef<Map<string, ParsedHabit>>(new Map());
   const orderRef = useRef<string[]>([]);
   const manualDays = useRef<Map<string, number[]>>(new Map());
   const manualPolarity = useRef<Map<string, Polarity>>(new Map());
@@ -117,7 +117,7 @@ export function FlowOnboardingSim() {
   const recompute = useCallback(() => {
     const list: ParsedHabit[] = [];
     for (const key of orderRef.current) {
-      const h = aiByName.current.get(key) ?? regexByName.current.get(key);
+      const h = habitsRef.current.get(key);
       if (!h) continue;
       list.push({
         ...h,
@@ -128,9 +128,30 @@ export function FlowOnboardingSim() {
     setHabits(list);
   }, []);
 
-  const noteName = (key: string) => {
-    if (!orderRef.current.includes(key)) orderRef.current.push(key);
-  };
+  // Add/refine habits. Each parsed item becomes its OWN card. Voice has no
+  // punctuation, so the regex can't split a run-on; a long single name is a
+  // run-on blob, dropped here and left for the AI (which splits properly).
+  const addParsed = useCallback(
+    (parsed: { name: string; days?: number[] }[], fromAI: boolean) => {
+      for (const p of parsed) {
+        const name = p.name.trim();
+        if (!name) continue;
+        if (!fromAI && name.split(/\s+/).length > 4) continue; // regex run-on blob
+        const key = normName(name);
+        if (!key) continue;
+        const existing = habitsRef.current.get(key);
+        habitsRef.current.set(key, {
+          // The AI name is authoritative; the regex keeps an existing name.
+          name: fromAI ? name : (existing?.name ?? name),
+          days: p.days ?? existing?.days,
+          polarity: resolveHabitPolarity(name).polarity,
+        });
+        if (!orderRef.current.includes(key)) orderRef.current.push(key);
+      }
+      recompute();
+    },
+    [recompute],
+  );
 
   // Reset per beat.
   const lastNodeRef = useRef<string | null>(null);
@@ -141,8 +162,7 @@ export function FlowOnboardingSim() {
       setHabits([]);
       dumpRef.current = '';
       committedRef.current = '';
-      aiByName.current = new Map();
-      regexByName.current = new Map();
+      habitsRef.current = new Map();
       orderRef.current = [];
       manualDays.current = new Map();
       manualPolarity.current = new Map();
@@ -154,6 +174,7 @@ export function FlowOnboardingSim() {
     [orchestrator],
   );
 
+  // The model is the splitter: it turns run-on speech into separate habits.
   const parseDump = useCallback(
     async (full: string) => {
       if (!full.trim()) return;
@@ -170,19 +191,7 @@ export function FlowOnboardingSim() {
           body: JSON.stringify({ text: full }),
         });
         const d = (await r.json()) as { habits?: { name: string; days?: number[] }[] };
-        if (Array.isArray(d.habits)) {
-          for (const h of d.habits) {
-            const key = normName(h.name);
-            const existing = aiByName.current.get(key);
-            aiByName.current.set(key, {
-              name: h.name,
-              days: h.days ?? existing?.days,
-              polarity: resolveHabitPolarity(h.name).polarity,
-            });
-            noteName(key);
-          }
-          recompute();
-        }
+        if (Array.isArray(d.habits)) addParsed(d.habits, true);
       } catch {
         // best-effort; leave prior cards up
       } finally {
@@ -195,22 +204,16 @@ export function FlowOnboardingSim() {
         }
       }
     },
-    [recompute],
+    [addParsed],
   );
 
-  // Instant local pass: regex names + explicit days the moment text changes.
+  // Instant local pass: clean splits ("and"/commas) show immediately; run-ons
+  // are left to the AI.
   const runRegex = useCallback(
     (text: string) => {
-      const m = new Map<string, ParsedHabit>();
-      for (const r of parseHabitsRegex(text)) {
-        const key = normName(r.name);
-        m.set(key, { name: r.name, days: r.days, polarity: resolveHabitPolarity(r.name).polarity });
-        noteName(key);
-      }
-      regexByName.current = m;
-      recompute();
+      addParsed(parseHabitsRegex(text), false);
     },
-    [recompute],
+    [addParsed],
   );
 
   const scheduleParse = useCallback(
