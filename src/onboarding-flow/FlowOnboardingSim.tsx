@@ -20,6 +20,7 @@ import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { VOICE_IN_ENABLED } from '@/lib/config/voice';
 import { resolveHabitPolarity } from './curatedHabitPolarity';
+import { parseHabitsRegex } from './parseBrainDumpRegex';
 import { useLocalPersistence } from './persistence';
 import { FlowRenderer } from './renderer/FlowRenderer';
 import type { BeatCapture, FlowNode } from './types';
@@ -40,6 +41,10 @@ const PARSE_DEBOUNCE_MS = 600;
 
 function isBrainDumpBeat(componentType?: string): boolean {
   return componentType === 'coach-bubble';
+}
+
+function normName(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 function polarityMeta(p: ParsedHabit['polarity']): { icon: string; label: string } {
@@ -147,8 +152,27 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
   const parseInFlight = useRef(false);
   const pendingText = useRef<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Days the user set by hand, so a re-parse never wipes them.
+  // Persistent accumulators so habits NEVER drop: the AI set (refined names) and
+  // the latest regex set (instant), unioned by normalized name in first-seen
+  // order. Days the user set by hand always win.
+  const aiByName = useRef<Map<string, ParsedHabit>>(new Map());
+  const regexByName = useRef<Map<string, ParsedHabit>>(new Map());
+  const orderRef = useRef<string[]>([]);
   const manualDays = useRef<Map<string, number[]>>(new Map());
+
+  const recompute = useCallback(() => {
+    const list: ParsedHabit[] = [];
+    for (const key of orderRef.current) {
+      const h = aiByName.current.get(key) ?? regexByName.current.get(key);
+      if (!h) continue;
+      list.push({ ...h, days: manualDays.current.get(key) ?? h.days });
+    }
+    setHabits(list);
+  }, []);
+
+  const noteName = (key: string) => {
+    if (!orderRef.current.includes(key)) orderRef.current.push(key);
+  };
 
   const lastNodeRef = useRef<string | null>(null);
   useEffect(() => {
@@ -159,6 +183,9 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
       setHabits([]);
       setPhase('capture');
       dumpRef.current = '';
+      aiByName.current = new Map();
+      regexByName.current = new Map();
+      orderRef.current = [];
       manualDays.current = new Map();
     }
   }, [nodeId]);
@@ -184,13 +211,18 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
       });
       const d = (await r.json()) as { habits?: { name: string; days?: number[] }[] };
       if (Array.isArray(d.habits)) {
-        setHabits(
-          d.habits.map((h) => ({
+        // Accumulate, never drop: refine/add by name, keep prior days if omitted.
+        for (const h of d.habits) {
+          const key = normName(h.name);
+          const existing = aiByName.current.get(key);
+          aiByName.current.set(key, {
             name: h.name,
-            days: manualDays.current.get(h.name) ?? h.days,
+            days: h.days ?? existing?.days,
             polarity: resolveHabitPolarity(h.name).polarity,
-          })),
-        );
+          });
+          noteName(key);
+        }
+        recompute();
       }
     } catch {
       // best-effort; leave prior cards up
@@ -203,7 +235,22 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
         void parseDump(next);
       }
     }
-  }, []);
+  }, [recompute]);
+
+  // Instant local pass: regex names + explicit days the moment text changes.
+  const runRegex = useCallback(
+    (text: string) => {
+      const m = new Map<string, ParsedHabit>();
+      for (const r of parseHabitsRegex(text)) {
+        const key = normName(r.name);
+        m.set(key, { name: r.name, days: r.days, polarity: resolveHabitPolarity(r.name).polarity });
+        noteName(key);
+      }
+      regexByName.current = m;
+      recompute();
+    },
+    [recompute],
+  );
 
   // Scan often: debounce ~600ms so habits show as fast as possible while talking.
   const scheduleParse = useCallback(
@@ -223,7 +270,7 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
         if (set.has(day)) set.delete(day);
         else set.add(day);
         const days = [...set].sort((a, b) => a - b);
-        manualDays.current.set(h.name, days);
+        manualDays.current.set(normName(h.name), days);
         return { ...h, days };
       }),
     );
@@ -235,12 +282,15 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
     onInterim: (t) => {
       setErr(null);
       setInterim(t);
-      if (onBrainDump) scheduleParse(t);
-      else drive(t);
+      if (onBrainDump) {
+        runRegex(t); // instant
+        scheduleParse(t); // AI refine (debounced)
+      } else drive(t);
     },
     onTranscript: (t) => {
       setInterim(t);
       if (onBrainDump) {
+        runRegex(t);
         dumpRef.current = t;
         void parseDump(t);
       } else {
@@ -252,8 +302,10 @@ function SimDriverBar({ orchestrator }: { orchestrator: FlowOrchestrator }) {
 
   const onChange = (v: string) => {
     setText(v);
-    if (onBrainDump) scheduleParse(v);
-    else drive(v);
+    if (onBrainDump) {
+      runRegex(v); // instant
+      scheduleParse(v); // AI refine (debounced)
+    } else drive(v);
   };
 
   return (
