@@ -1,27 +1,8 @@
-// Scripted check-in lines the coach says verbatim. The text pool comes from the
-// Master Sheet "Voice Scripts" tab via the committed CHECKIN_SCRIPT_VARIANTS artifact
-// (regenerate with `npm run checkin:bundle`), overlaid on the hand-authored fallback
-// below so the coach is never silent if a stage is missing from the sheet. One variation
-// is picked at random per call.
-import { CHECKIN_SCRIPT_VARIANTS } from '../generated/checkin_scripts';
+// GENERATED — do not edit by hand.
+// Source: Master Sheet "Voice Scripts" tab (check-in in-session stages).
+// Regenerate: npm run checkin:bundle
 
-export type CheckinStageKey =
-  | 'morning_greeting'
-  | 'morning_state_prompt'
-  | 'morning_wrap'
-  | 'evening_greeting_habits'
-  | 'evening_habit_prompt'
-  | 'reflection_transition'
-  | 'reflection_proud'
-  | 'reflection_forgive'
-  | 'reflection_grateful'
-  | 'evening_wrap'
-  | 'are_you_done'
-  | 'acknowledgment';
-
-// Hand-authored fallback pool (never-blank): used for any stage the synced artifact
-// does not provide. The live CHECKIN_SCRIPTS below overlays the sheet content on this.
-const FALLBACK_SCRIPTS: Record<CheckinStageKey, readonly string[]> = {
+export const CHECKIN_SCRIPT_VARIANTS: Record<string, readonly string[]> = {
   morning_greeting: [
     'Good morning. Ready to check in?',
     "Hey. Let's start the day.",
@@ -104,18 +85,3 @@ const FALLBACK_SCRIPTS: Record<CheckinStageKey, readonly string[]> = {
     'Cool.',
   ],
 };
-
-// Live pool: synced Sheet variations overlaid on the fallback. A stage absent or empty
-// in the generated artifact falls back to its hand-authored line(s).
-export const CHECKIN_SCRIPTS = Object.fromEntries(
-  (Object.keys(FALLBACK_SCRIPTS) as CheckinStageKey[]).map((stage) => {
-    const synced = CHECKIN_SCRIPT_VARIANTS[stage];
-    return [stage, synced && synced.length > 0 ? synced : FALLBACK_SCRIPTS[stage]];
-  }),
-) as Record<CheckinStageKey, readonly string[]>;
-
-// One variation picked at random per call.
-export function pickVariation(stage: CheckinStageKey): string {
-  const variations = CHECKIN_SCRIPTS[stage];
-  return variations[Math.floor(Math.random() * variations.length)];
-}
