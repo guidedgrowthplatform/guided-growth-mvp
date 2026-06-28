@@ -31,6 +31,10 @@ export interface VoiceMessage {
   // The beat (screen_id) this turn belongs to, so the chat-native feed can group
   // dialogue under its beat and keep every prior beat scrollable.
   screenId?: string;
+  // Origin of the turn — gates server-side persistence. Only 'vapi'/'opener' are
+  // mirrored to chat_messages; Direct-LLM turns are already persisted by the
+  // backend and error bubbles must never persist.
+  source?: 'vapi' | 'direct_llm' | 'opener' | 'error';
 }
 
 export const USER_SPEAKING_IDLE_MS = 600;

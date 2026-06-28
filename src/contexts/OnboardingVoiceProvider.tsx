@@ -4,6 +4,7 @@ import type { AssistantOverrides } from '@vapi-ai/web/dist/api';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
+import { appendChatTurn } from '@/api/chat';
 import { OnboardingChatOverlay } from '@/components/onboarding/OnboardingChatOverlay';
 import { getOnboardingOpenerForState } from '@/components/onboarding/onboardingOpeners';
 import { VoiceCapModal } from '@/components/voice/VoiceCapModal';
@@ -53,6 +54,7 @@ import { getScreenContext } from '@/lib/context/getScreenContext';
 import { buildOpenerDirective } from '@/lib/context/onboardingBeatBundle';
 import { getBundledRoutes } from '@/lib/context/screenContextsBundle';
 import { screenIdForRoute } from '@/lib/context/screenIdForRoute';
+import { getOrCreateOnboardingChatSessionId } from '@/lib/onboarding/onboardingChatSession';
 import {
   CHAT_VAPI_BEAT_SCREENS,
   ONBOARDING_CHAT_ROUTE,
@@ -272,12 +274,16 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // into the next session without this. First resolve (null→id) keeps the
   // hydrated thread; only a genuine user switch wipes.
   const prevAnonIdRef = useRef<string | null>(null);
+  // client_turn_key → last mirrored text. Skips a re-POST when a live turn's text
+  // hasn't grown; cleared on a genuine user switch so a new user can't no-op.
+  const mirroredTurnsRef = useRef<Map<string, string>>(new Map());
   useEffect(() => {
     const prev = prevAnonIdRef.current;
     const next = anonId ?? null;
     prevAnonIdRef.current = next;
     if (shouldWipeOnAnonIdChange(prev, next)) {
       setMessages([]);
+      mirroredTurnsRef.current.clear();
       if (prev) clearThread(prev);
       return;
     }
@@ -294,6 +300,35 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!anonId) return;
     saveThread(anonId, messages);
+  }, [anonId, messages]);
+
+  // Mirror the latest live voice/opener turn to Supabase (lifetime persistence).
+  // Fires on the LAST message because the merge mutates it in place under a stable
+  // `vapi-`/`opener-` id — so a turn whose text grows re-POSTs the same
+  // client_turn_key and the server UPDATEs the row. Hydrated rows carry UUID ids
+  // and are skipped; Direct-LLM/error turns are skipped by source/id. Idempotent,
+  // so the StrictMode double-run and refresh re-fires never duplicate.
+  useEffect(() => {
+    if (!anonId) return;
+    const last = messages[messages.length - 1];
+    if (!last || !last.text) return;
+    const sid = last.screenId;
+    if (!sid || !sid.startsWith('ONBOARD-')) return;
+    const isLiveTurn = last.id.startsWith('vapi-') || last.id.startsWith('opener-');
+    if (!isLiveTurn) return;
+    if (mirroredTurnsRef.current.get(last.id) === last.text) return;
+    mirroredTurnsRef.current.set(last.id, last.text);
+    const mode = last.source === 'opener' || last.id.startsWith('opener-') ? 'opener' : 'chat';
+    void appendChatTurn({
+      chat_session_id: getOrCreateOnboardingChatSessionId(),
+      screen_id: sid,
+      role: last.role,
+      text: last.text,
+      client_turn_key: last.id,
+      mode,
+    }).catch(() => {
+      // best-effort; localStorage thread + next turn's re-fire cover a transient miss
+    });
   }, [anonId, messages]);
 
   // Form snapshot — updated by each onboarding page via setFormSnapshot.
@@ -814,7 +849,10 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
                 };
                 return [...prev.slice(0, -1), merged];
               }
-              return [...prev, { id: `vapi-${evt.role}-${now}`, role, text, screenId: sid }];
+              return [
+                ...prev,
+                { id: `vapi-${evt.role}-${now}`, role, text, screenId: sid, source: 'vapi' },
+              ];
             });
           }
         }
