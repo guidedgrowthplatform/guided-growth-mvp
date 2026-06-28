@@ -45,6 +45,7 @@ import {
   habitsByGoal,
   MAX_HABITS_ONBOARDING,
 } from '../flowData';
+import { BrainDumpCapture } from '../BrainDumpCapture';
 import { useGhostFill } from '../ghostFillBus';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 
@@ -963,23 +964,14 @@ function PlanAdapter({ node, answers, onCapture }: BeatAdapterProps) {
 
 function BrainDumpAdapter({ node, onCapture }: BeatAdapterProps) {
   const props = node.componentProps as { brainDump?: boolean; placeholder?: string };
-  const [text, setText] = useState('');
   if (!props.brainDump) return null;
-  return (
-    <CardShell>
-      <textarea
-        className="min-h-[140px] w-full rounded-[16px] border border-border bg-surface p-4 text-base text-content"
-        placeholder={props.placeholder ?? 'Tell me everything on your mind...'}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-      />
-      <Cta
-        label="Continue"
-        disabled={!text.trim()}
-        onClick={() => onCapture({ data: { brainDumpText: text.trim() } })}
-      />
-    </CardShell>
-  );
+  if (
+    typeof window !== 'undefined' &&
+    window.location.pathname.includes('onboarding-flow-sim')
+  ) {
+    return null;
+  }
+  return <BrainDumpCapture node={node} onCapture={onCapture} />;
 }
 
 /* ------------------------------------------------------------- the registry */
