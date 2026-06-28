@@ -8,13 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FlowOrchestrator } from '../useFlowOrchestrator';
 import { FlowRenderer } from './FlowRenderer';
 
-const orbSpy = vi.fn();
-vi.mock('./FlowVoiceControls', () => ({
-  FlowVoiceControls: () => {
-    orbSpy();
-    return null;
-  },
-}));
+vi.mock('./FlowVoiceControls', () => ({ FlowVoiceControls: () => null }));
 
 const orchestrator = {
   flow: { flowId: 'x', name: 'x', version: 1, publishedAt: '', entryNodeId: 'a', nodes: [] },
@@ -24,7 +18,7 @@ const orchestrator = {
   activeContext: null,
   capture: vi.fn(),
   back: vi.fn(),
-  canGoBack: false,
+  canGoBack: true,
   isComplete: false,
 } as unknown as FlowOrchestrator;
 
@@ -32,9 +26,7 @@ let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
-  // jsdom lacks scrollIntoView, which FlowRenderer's keep-in-view effect calls.
   Element.prototype.scrollIntoView = vi.fn();
-  orbSpy.mockClear();
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -44,14 +36,16 @@ afterEach(() => {
   container.remove();
 });
 
-describe('FlowRenderer showVoiceControls gate', () => {
-  it('omits the voice orb when showVoiceControls=false (tap-only check-in)', () => {
-    act(() => root.render(createElement(FlowRenderer, { orchestrator, showVoiceControls: false })));
-    expect(orbSpy).not.toHaveBeenCalled();
+const backButton = () => container.querySelector('button[aria-label="Back"]');
+
+describe('FlowRenderer variant', () => {
+  it('shows the back button by default (onboarding)', () => {
+    act(() => root.render(createElement(FlowRenderer, { orchestrator })));
+    expect(backButton()).not.toBeNull();
   });
 
-  it('renders the voice orb by default (onboarding unchanged)', () => {
-    act(() => root.render(createElement(FlowRenderer, { orchestrator })));
-    expect(orbSpy).toHaveBeenCalled();
+  it('hides the back button in the overlay variant (check-in)', () => {
+    act(() => root.render(createElement(FlowRenderer, { orchestrator, variant: 'overlay' })));
+    expect(backButton()).toBeNull();
   });
 });

@@ -51,6 +51,7 @@ import {
   MAX_HABITS_ONBOARDING,
 } from '../flowData';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
+import { useFlowSurface } from './flowSurface';
 
 export interface BeatAdapterProps {
   node: FlowNode;
@@ -76,9 +77,10 @@ function Cta({
   disabled?: boolean;
   onClick: () => void;
 }) {
+  const { onColoredSurface } = useFlowSurface();
   return (
     <Button
-      variant="primary"
+      variant={onColoredSurface ? 'secondary' : 'primary'}
       size="lg"
       fullWidth
       disabled={disabled}

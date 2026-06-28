@@ -11,19 +11,16 @@ import { useCallback, useEffect, useRef } from 'react';
 import { getNode } from '../flowMachine';
 import type { FlowOrchestrator } from '../useFlowOrchestrator';
 import { BeatView } from './BeatView';
+import { FlowSurfaceProvider } from './flowSurface';
 import { FlowVoiceControls } from './FlowVoiceControls';
 
 export interface FlowRendererProps {
   orchestrator: FlowOrchestrator;
-  showVoiceControls?: boolean;
-  surfaceClassName?: string;
+  variant?: 'default' | 'overlay';
 }
 
-export function FlowRenderer({
-  orchestrator,
-  showVoiceControls = true,
-  surfaceClassName = 'bg-background',
-}: FlowRendererProps) {
+export function FlowRenderer({ orchestrator, variant = 'default' }: FlowRendererProps) {
+  const overlay = variant === 'overlay';
   const { flow, state, currentNode, answers, capture, back, canGoBack, isComplete } = orchestrator;
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -37,49 +34,50 @@ export function FlowRenderer({
   }, [state.currentNodeId, isComplete, scrollToBottom]);
 
   return (
-    <div
-      className={`${surfaceClassName} relative mx-auto flex h-full w-full max-w-[480px] flex-col`}
-    >
-      {/* The only gradient is the dynamic voice one painted by FlowVoiceControls at
-          the bottom (blue idle, yellow listening). No static background layer. */}
-      {canGoBack && (
-        <div className="relative z-10 px-4 pt-4">
-          <button
-            type="button"
-            aria-label="Back"
-            onClick={back}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-content shadow-card"
-          >
-            <Icon icon="ic:round-arrow-back" width={20} height={20} />
-          </button>
+    <FlowSurfaceProvider value={{ onColoredSurface: overlay }}>
+      <div
+        className={`${overlay ? 'bg-transparent' : 'bg-background'} relative mx-auto flex h-full w-full max-w-[480px] flex-col`}
+      >
+        {!overlay && canGoBack && (
+          <div className="relative z-10 px-4 pt-4">
+            <button
+              type="button"
+              aria-label="Back"
+              onClick={back}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-content shadow-card"
+            >
+              <Icon icon="ic:round-arrow-back" width={20} height={20} />
+            </button>
+          </div>
+        )}
+
+        <div
+          className={`relative z-10 flex-1 overflow-y-auto px-4 pb-[160px] ${
+            overlay ? 'pt-[calc(env(safe-area-inset-top)+3.5rem)]' : 'pt-2'
+          }`}
+        >
+          <div className="flex flex-col gap-5">
+            {state.visited.map((id) => {
+              const node = getNode(flow, id);
+              if (!node) return null;
+              return (
+                <BeatView
+                  key={id}
+                  node={node}
+                  answers={answers}
+                  active={!isComplete && id === currentNode?.id}
+                  onCapture={capture}
+                  onReveal={scrollToBottom}
+                />
+              );
+            })}
+
+            <div ref={bottomRef} />
+          </div>
         </div>
-      )}
 
-      <div className="relative z-10 flex-1 overflow-y-auto px-4 pb-[160px] pt-2">
-        <div className="flex flex-col gap-5">
-          {state.visited.map((id) => {
-            const node = getNode(flow, id);
-            if (!node) return null;
-            return (
-              <BeatView
-                key={id}
-                node={node}
-                answers={answers}
-                active={!isComplete && id === currentNode?.id}
-                onCapture={capture}
-                onReveal={scrollToBottom}
-              />
-            );
-          })}
-
-          {/* The completion line is now the into-app terminal beat (rendered above
-              as the last visited node), not a hardcoded bubble here. */}
-
-          <div ref={bottomRef} />
-        </div>
+        <FlowVoiceControls />
       </div>
-
-      {showVoiceControls && <FlowVoiceControls />}
-    </div>
+    </FlowSurfaceProvider>
   );
 }
