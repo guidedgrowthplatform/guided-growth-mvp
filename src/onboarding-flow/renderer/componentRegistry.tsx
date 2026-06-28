@@ -56,6 +56,11 @@ export interface BeatAdapterProps {
   node: FlowNode;
   answers: FlowAnswers;
   onCapture: (capture: BeatCapture) => void;
+  // Past beat: render the card frozen in its captured state — the selection seeds
+  // from `answers`, inputs are inert, and the CTA is gone. The active beat (the
+  // default) is fully interactive. This is what keeps every completed beat on
+  // screen as a persisted chat receipt instead of collapsing to a text summary.
+  readOnly?: boolean;
 }
 
 type HabitConfigSerialized = { days: number[]; time: string; reminder: boolean; schedule: string };
@@ -90,8 +95,15 @@ function Cta({
   );
 }
 
-function CardShell({ children }: { children: React.ReactNode }) {
-  return <div className="mt-3 flex flex-col gap-4">{children}</div>;
+function CardShell({ children, frozen }: { children: React.ReactNode; frozen?: boolean }) {
+  return (
+    <div
+      className={`mt-3 flex flex-col gap-4${frozen ? ' pointer-events-none select-none opacity-95' : ''}`}
+      aria-disabled={frozen || undefined}
+    >
+      {children}
+    </div>
+  );
 }
 
 /* --------------------------------------------------------------------- auth */
@@ -141,7 +153,7 @@ function GoogleGlyph() {
   );
 }
 
-function AuthAdapter({ onCapture }: BeatAdapterProps) {
+function AuthAdapter({ onCapture, readOnly }: BeatAdapterProps) {
   const { user, signInWithGoogle, signUp, signIn } = useAuth();
   const toast = useToast();
   const [mode, setMode] = useState<'default' | 'signup' | 'login'>('default');
@@ -163,7 +175,7 @@ function AuthAdapter({ onCapture }: BeatAdapterProps) {
     onCapture({ data: {} });
   };
   useEffect(() => {
-    if (user) advance();
+    if (!readOnly && user) advance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -217,6 +229,20 @@ function AuthAdapter({ onCapture }: BeatAdapterProps) {
       setConfirmationPending(true);
     }
   };
+
+  // Past auth beat: a frozen confirmation, not the live signup form.
+  if (readOnly) {
+    return (
+      <CardShell frozen>
+        <div className="flex items-center gap-2 text-[15px] font-semibold text-content">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[12px] text-white">
+            ✓
+          </span>
+          You're signed in.
+        </div>
+      </CardShell>
+    );
+  }
 
   if (confirmationPending) {
     return (
@@ -408,7 +434,7 @@ function AuthAdapter({ onCapture }: BeatAdapterProps) {
 // path (useUserPreferences.updatePreferences -> Supabase, local-only when signed
 // out), then captures {} to advance. The copy is the designer's (props on the
 // flow node); the dual-button dial reuses the real MicPermissionPage visual.
-function MicPermissionAdapter({ node, onCapture }: BeatAdapterProps) {
+function MicPermissionAdapter({ node, onCapture, readOnly }: BeatAdapterProps) {
   const props = node.componentProps as {
     heading?: string;
     sub?: string;
@@ -451,7 +477,7 @@ function MicPermissionAdapter({ node, onCapture }: BeatAdapterProps) {
   };
 
   return (
-    <CardShell>
+    <CardShell frozen={readOnly}>
       <div className="flex items-center justify-center py-2">
         <DualButton
           size={150}
@@ -464,29 +490,31 @@ function MicPermissionAdapter({ node, onCapture }: BeatAdapterProps) {
           rightAriaLabel="Microphone indicator"
         />
       </div>
-      <div className="flex flex-col items-center gap-3">
-        <Button
-          variant="primary"
-          size="lg"
-          fullWidth
-          disabled={requesting !== null}
-          onClick={handleAllow}
-        >
-          {requesting === 'allow' ? (
-            <LoadingSpinner color="text-white" />
-          ) : (
-            (props.allowLabel ?? 'Allow microphone')
-          )}
-        </Button>
-        <button
-          type="button"
-          onClick={handleSkip}
-          disabled={requesting !== null}
-          className="py-2 text-[15px] font-semibold text-content-secondary disabled:opacity-50"
-        >
-          {requesting === 'skip' ? <LoadingSpinner size="sm" /> : (props.skipLabel ?? 'Not now')}
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="flex flex-col items-center gap-3">
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            disabled={requesting !== null}
+            onClick={handleAllow}
+          >
+            {requesting === 'allow' ? (
+              <LoadingSpinner color="text-white" />
+            ) : (
+              (props.allowLabel ?? 'Allow microphone')
+            )}
+          </Button>
+          <button
+            type="button"
+            onClick={handleSkip}
+            disabled={requesting !== null}
+            className="py-2 text-[15px] font-semibold text-content-secondary disabled:opacity-50"
+          >
+            {requesting === 'skip' ? <LoadingSpinner size="sm" /> : (props.skipLabel ?? 'Not now')}
+          </button>
+        </div>
+      )}
     </CardShell>
   );
 }
@@ -494,7 +522,7 @@ function MicPermissionAdapter({ node, onCapture }: BeatAdapterProps) {
 /* ------------------------------------------------------------------ profile */
 
 // Profile beat 1: age + gender only. The name comes from auth (beat 0).
-function ProfileAdapter({ answers, onCapture }: BeatAdapterProps) {
+function ProfileAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
   const [age, setAge] = useState<number | ''>((answers.age as number) ?? '');
   const [gender, setGender] = useState<string | null>((answers.gender as string) ?? null);
   // Set when the coach (Direct-LLM) fills a field by voice. Drives the
@@ -503,6 +531,7 @@ function ProfileAdapter({ answers, onCapture }: BeatAdapterProps) {
   const voiceFilledRef = useRef(false);
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
+    if (readOnly) return;
     if (result.action === 'fill_field') {
       const p = result.params as { fieldName?: string; value?: string | number };
       if (p.fieldName !== 'age') return;
@@ -530,7 +559,7 @@ function ProfileAdapter({ answers, onCapture }: BeatAdapterProps) {
   const valid = !!(age && gender);
   const submittedRef = useRef(false);
   const submit = () => {
-    if (!valid || submittedRef.current) return;
+    if (readOnly || !valid || submittedRef.current) return;
     submittedRef.current = true;
     onCapture({ data: { age: age as number, gender } });
   };
@@ -545,7 +574,7 @@ function ProfileAdapter({ answers, onCapture }: BeatAdapterProps) {
   }, [age, gender, valid]);
 
   return (
-    <CardShell>
+    <CardShell frozen={readOnly}>
       <AgeScrollPicker value={age} onChange={setAge} />
       <ChipSelect
         options={GENDER_OPTIONS}
@@ -554,12 +583,16 @@ function ProfileAdapter({ answers, onCapture }: BeatAdapterProps) {
         columns={3}
         ariaLabel="How do you identify?"
       />
-      {/* Affordance hint from the flow builder's profile beat: the user can use
-          the voice orb OR tap the inputs. Reinforces the in-page orb. */}
-      <div className="self-center text-[12px] font-medium text-content-tertiary">
-        You can speak or tap
-      </div>
-      <Cta label="Continue" disabled={!valid} onClick={submit} />
+      {!readOnly && (
+        <>
+          {/* Affordance hint from the flow builder's profile beat: the user can
+              use the voice orb OR tap the inputs. Reinforces the in-page orb. */}
+          <div className="self-center text-[12px] font-medium text-content-tertiary">
+            You can speak or tap
+          </div>
+          <Cta label="Continue" disabled={!valid} onClick={submit} />
+        </>
+      )}
     </CardShell>
   );
 }
@@ -572,16 +605,16 @@ interface PathOption {
   description?: string;
 }
 
-function PathSelectionAdapter({ node, onCapture }: BeatAdapterProps) {
+function PathSelectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps) {
   const props = node.componentProps as { options?: PathOption[]; bindsTo?: string };
   const options = props.options ?? [];
   const bindsToPath = props.bindsTo === 'path';
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(() => (answers.path as string) ?? null);
   const voiceFilledRef = useRef(false);
   const submittedRef = useRef(false);
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
-    if (!bindsToPath || result.action !== 'set_path') return;
+    if (readOnly || !bindsToPath || result.action !== 'set_path') return;
     const p = result.params as { value?: string };
     if (p.value === 'simple' || p.value === 'braindump') {
       setSelected(p.value);
@@ -590,7 +623,7 @@ function PathSelectionAdapter({ node, onCapture }: BeatAdapterProps) {
   });
 
   const submit = () => {
-    if (!selected || submittedRef.current) return;
+    if (readOnly || !selected || submittedRef.current) return;
     submittedRef.current = true;
     if (bindsToPath) onCapture({ data: {}, path: selected as 'simple' | 'braindump' });
     else onCapture({ data: {} });
@@ -604,7 +637,7 @@ function PathSelectionAdapter({ node, onCapture }: BeatAdapterProps) {
   }, [selected]);
 
   return (
-    <CardShell>
+    <CardShell frozen={readOnly}>
       {options.map((o) => (
         <SelectionCard
           key={o.value}
@@ -614,7 +647,7 @@ function PathSelectionAdapter({ node, onCapture }: BeatAdapterProps) {
           onSelect={() => setSelected(o.value)}
         />
       ))}
-      <Cta label="Continue" disabled={!selected} onClick={submit} />
+      {!readOnly && <Cta label="Continue" disabled={!selected} onClick={submit} />}
     </CardShell>
   );
 }
@@ -641,13 +674,13 @@ function PrimaryButtonAdapter({ node, onCapture }: BeatAdapterProps) {
 
 /* -------------------------------------------------------------- category */
 
-function CategoryAdapter({ onCapture }: BeatAdapterProps) {
-  const [selected, setSelected] = useState<string | null>(null);
+function CategoryAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
+  const [selected, setSelected] = useState<string | null>(() => (answers.category as string) ?? null);
   const voiceFilledRef = useRef(false);
   const submittedRef = useRef(false);
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
-    if (result.action !== 'select_option') return;
+    if (readOnly || result.action !== 'select_option') return;
     const p = result.params as { fieldName?: string; value?: string };
     if (p.fieldName !== 'category' || typeof p.value !== 'string') return;
     const match = FLOW_CATEGORIES.find((c) => c.label.toLowerCase() === p.value!.toLowerCase());
@@ -658,7 +691,7 @@ function CategoryAdapter({ onCapture }: BeatAdapterProps) {
   });
 
   const submit = () => {
-    if (!selected || submittedRef.current) return;
+    if (readOnly || !selected || submittedRef.current) return;
     submittedRef.current = true;
     onCapture({ data: { category: selected } });
   };
@@ -671,7 +704,7 @@ function CategoryAdapter({ onCapture }: BeatAdapterProps) {
   }, [selected]);
 
   return (
-    <CardShell>
+    <CardShell frozen={readOnly}>
       <div className="grid grid-cols-2 gap-[16px]">
         {FLOW_CATEGORIES.map((c) => (
           <CategoryCard
@@ -683,20 +716,22 @@ function CategoryAdapter({ onCapture }: BeatAdapterProps) {
           />
         ))}
       </div>
-      <Cta label="Continue" disabled={!selected} onClick={submit} />
+      {!readOnly && <Cta label="Continue" disabled={!selected} onClick={submit} />}
     </CardShell>
   );
 }
 
 /* ----------------------------------------------------------------- goals */
 
-function GoalsAdapter({ answers, onCapture }: BeatAdapterProps) {
+function GoalsAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
   const category = (answers.category as string) ?? 'Sleep better';
   const goals = goalsByCategory[category] ?? goalsByCategory['Sleep better'];
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set((answers.goals as string[]) ?? []),
+  );
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
-    if (result.action !== 'select_multiple') return;
+    if (readOnly || result.action !== 'select_multiple') return;
     const p = result.params as { fieldName?: string; values?: unknown };
     if (p.fieldName !== 'goals' || !Array.isArray(p.values)) return;
     const allowed = new Set(goals);
@@ -716,7 +751,7 @@ function GoalsAdapter({ answers, onCapture }: BeatAdapterProps) {
     });
 
   return (
-    <CardShell>
+    <CardShell frozen={readOnly}>
       <div className="flex flex-col gap-[16px]">
         {goals.map((g) => (
           <GoalCard
@@ -728,23 +763,27 @@ function GoalsAdapter({ answers, onCapture }: BeatAdapterProps) {
           />
         ))}
       </div>
-      <Cta
-        label="Continue"
-        disabled={selected.size === 0}
-        onClick={() => onCapture({ data: { goals: Array.from(selected) } })}
-      />
+      {!readOnly && (
+        <Cta
+          label="Continue"
+          disabled={selected.size === 0}
+          onClick={() => onCapture({ data: { goals: Array.from(selected) } })}
+        />
+      )}
     </CardShell>
   );
 }
 
 /* ----------------------------------------------------------------- habits */
 
-function HabitsAdapter({ answers, onCapture }: BeatAdapterProps) {
+function HabitsAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
   const goals = (answers.goals as string[])?.length
     ? (answers.goals as string[])
     : ['Fall asleep earlier'];
   const [expandedGoal, setExpandedGoal] = useState<string>(goals[0]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(Object.keys(answers.habitConfigs ?? {})),
+  );
 
   const toggle = (habit: string) =>
     setSelected((prev) => {
@@ -755,6 +794,7 @@ function HabitsAdapter({ answers, onCapture }: BeatAdapterProps) {
     });
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
+    if (readOnly) return;
     if (result.action === 'remove_habit') {
       const p = result.params as { name?: string };
       if (typeof p.name === 'string' && selected.has(p.name.trim())) toggle(p.name.trim());
@@ -768,14 +808,14 @@ function HabitsAdapter({ answers, onCapture }: BeatAdapterProps) {
   });
 
   const submit = () => {
-    if (selected.size === 0) return;
+    if (readOnly || selected.size === 0) return;
     const habitConfigs: Record<string, HabitConfigSerialized> = {};
     for (const habit of selected) habitConfigs[habit] = { ...DEFAULT_HABIT_CONFIG };
     onCapture({ data: { habitConfigs } });
   };
 
   return (
-    <CardShell>
+    <CardShell frozen={readOnly}>
       <div className="flex flex-col gap-[16px]">
         {goals.map((goal) => (
           <HabitPickerPanel
@@ -790,7 +830,7 @@ function HabitsAdapter({ answers, onCapture }: BeatAdapterProps) {
           />
         ))}
       </div>
-      <Cta label="Continue" disabled={selected.size === 0} onClick={submit} />
+      {!readOnly && <Cta label="Continue" disabled={selected.size === 0} onClick={submit} />}
     </CardShell>
   );
 }
@@ -810,21 +850,31 @@ interface ScheduleState {
 
 function ScheduleCard({
   initialTime,
+  initialDays,
+  initialReminder = true,
+  initialSchedule = 'Weekday',
   voiceAction,
   ctaLabel,
+  readOnly,
   onSubmit,
 }: {
   initialTime: string;
+  initialDays?: number[];
+  initialReminder?: boolean;
+  initialSchedule?: ScheduleOption;
   // The voice action this beat listens for (e.g. set_reflection_config). When the
   // coach (Direct-LLM) fills the schedule by voice, it lands here.
   voiceAction: string;
   ctaLabel: string;
+  readOnly?: boolean;
   onSubmit: (value: ScheduleState) => void;
 }) {
   const [time, setTime] = useState(initialTime);
-  const [days, setDays] = useState<Set<number>>(new Set(WEEKDAYS));
-  const [reminder, setReminder] = useState(true);
-  const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');
+  const [days, setDays] = useState<Set<number>>(
+    () => new Set(initialDays && initialDays.length > 0 ? initialDays : WEEKDAYS),
+  );
+  const [reminder, setReminder] = useState(initialReminder);
+  const [schedule, setSchedule] = useState<ScheduleOption>(initialSchedule);
 
   const changeSchedule = (value: ScheduleOption) => {
     setSchedule(value);
@@ -838,7 +888,7 @@ function ScheduleCard({
     });
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
-    if (result.action !== voiceAction) return;
+    if (readOnly || result.action !== voiceAction) return;
     const p = result.params as {
       time?: string;
       days?: number[];
@@ -860,7 +910,7 @@ function ScheduleCard({
   });
 
   return (
-    <CardShell>
+    <CardShell frozen={readOnly}>
       <DailyReflectionCard
         time={time}
         onTimeChange={setTime}
@@ -871,10 +921,12 @@ function ScheduleCard({
         schedule={schedule}
         onScheduleChange={changeSchedule}
       />
-      <Cta
-        label={ctaLabel}
-        onClick={() => onSubmit({ time, days: [...days], reminder, schedule })}
-      />
+      {!readOnly && (
+        <Cta
+          label={ctaLabel}
+          onClick={() => onSubmit({ time, days: [...days], reminder, schedule })}
+        />
+      )}
     </CardShell>
   );
 }
@@ -884,9 +936,10 @@ function ScheduleCard({
 // Habit schedule beat: pick when the chosen habits happen. The captured schedule
 // is applied to every selected habit's config (one shared schedule for the start
 // plan; per-habit tweaks happen later on plan-review).
-function HabitScheduleAdapter({ answers, onCapture }: BeatAdapterProps) {
+function HabitScheduleAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
   const existing = (answers.habitConfigs ?? {}) as Record<string, HabitConfigSerialized>;
   const names = Object.keys(existing);
+  const first = names.length > 0 ? existing[names[0]] : undefined;
   const submit = (s: ScheduleState) => {
     const base = { days: s.days, time: s.time, reminder: s.reminder, schedule: s.schedule };
     const habitConfigs: Record<string, HabitConfigSerialized> =
@@ -897,9 +950,13 @@ function HabitScheduleAdapter({ answers, onCapture }: BeatAdapterProps) {
   };
   return (
     <ScheduleCard
-      initialTime="09:00"
+      initialTime={first?.time ?? '09:00'}
+      initialDays={first?.days}
+      initialReminder={first?.reminder}
+      initialSchedule={(first?.schedule as ScheduleOption) ?? 'Weekday'}
       voiceAction="set_habit_schedule"
       ctaLabel="Continue"
+      readOnly={readOnly}
       onSubmit={submit}
     />
   );
@@ -909,7 +966,10 @@ function HabitScheduleAdapter({ answers, onCapture }: BeatAdapterProps) {
 
 // Morning check-in setup beat: pick when the morning nudge fires. Lands under the
 // morningCheckin answer key (submit_morning_checkin server-side).
-function MorningCheckinAdapter({ onCapture }: BeatAdapterProps) {
+function MorningCheckinAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
+  const existing = answers.morningCheckin as
+    | { time: string; days: number[]; reminder: boolean; schedule: string }
+    | undefined;
   const submit = (s: ScheduleState) =>
     onCapture({
       data: {
@@ -918,9 +978,13 @@ function MorningCheckinAdapter({ onCapture }: BeatAdapterProps) {
     });
   return (
     <ScheduleCard
-      initialTime="08:00"
+      initialTime={existing?.time ?? '08:00'}
+      initialDays={existing?.days}
+      initialReminder={existing?.reminder}
+      initialSchedule={(existing?.schedule as ScheduleOption) ?? 'Weekday'}
       voiceAction="set_morning_checkin"
       ctaLabel="Continue"
+      readOnly={readOnly}
       onSubmit={submit}
     />
   );
@@ -932,14 +996,25 @@ function MorningCheckinAdapter({ onCapture }: BeatAdapterProps) {
 // (guided prompts, custom prompts, or freeform) via the real ReflectionModeEditor.
 // The mode + custom prompts ride into the submit_reflection_config payload (the
 // tool already accepts a `mode` param and the handler already reads it).
-function ReflectionAdapter({ node, onCapture }: BeatAdapterProps) {
+function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps) {
   const props = node.componentProps as { showModePicker?: boolean };
-  const [time, setTime] = useState('21:45');
-  const [days, setDays] = useState<Set<number>>(new Set(WEEKDAYS));
-  const [reminder, setReminder] = useState(true);
-  const [schedule, setSchedule] = useState<ScheduleOption>('Weekday');
-  const [mode, setMode] = useState<ReflectionMode>('prompts');
-  const [prompts, setPrompts] = useState<string[]>([]);
+  const saved = answers.reflectionConfig as
+    | { time: string; days: number[]; reminder: boolean; schedule: string }
+    | undefined;
+  const [time, setTime] = useState(saved?.time ?? '21:45');
+  const [days, setDays] = useState<Set<number>>(
+    () => new Set(saved?.days && saved.days.length > 0 ? saved.days : WEEKDAYS),
+  );
+  const [reminder, setReminder] = useState(saved?.reminder ?? true);
+  const [schedule, setSchedule] = useState<ScheduleOption>(
+    (saved?.schedule as ScheduleOption) ?? 'Weekday',
+  );
+  const [mode, setMode] = useState<ReflectionMode>(
+    (answers.reflectionMode as ReflectionMode) ?? 'prompts',
+  );
+  const [prompts, setPrompts] = useState<string[]>(
+    () => (answers.customPrompts as string[]) ?? [],
+  );
 
   const changeSchedule = (value: ScheduleOption) => {
     setSchedule(value);
@@ -953,7 +1028,7 @@ function ReflectionAdapter({ node, onCapture }: BeatAdapterProps) {
     });
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
-    if (result.action !== 'set_reflection_config') return;
+    if (readOnly || result.action !== 'set_reflection_config') return;
     const p = result.params as {
       time?: string;
       days?: number[];
@@ -989,7 +1064,7 @@ function ReflectionAdapter({ node, onCapture }: BeatAdapterProps) {
   };
 
   return (
-    <CardShell>
+    <CardShell frozen={readOnly}>
       <DailyReflectionCard
         time={time}
         onTimeChange={setTime}
@@ -1008,7 +1083,7 @@ function ReflectionAdapter({ node, onCapture }: BeatAdapterProps) {
           onPromptsChange={setPrompts}
         />
       )}
-      <Cta label="Continue" onClick={submit} />
+      {!readOnly && <Cta label="Continue" onClick={submit} />}
     </CardShell>
   );
 }
@@ -1029,7 +1104,7 @@ function IntoAppAdapter({ node, onCapture }: BeatAdapterProps) {
 
 /* ------------------------------------------------------------- plan review */
 
-function PlanAdapter({ node, answers, onCapture }: BeatAdapterProps) {
+function PlanAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps) {
   const props = node.componentProps as { showJournalCard?: boolean };
   const habitConfigs = (answers.habitConfigs ?? {}) as Record<
     string,
@@ -1038,7 +1113,7 @@ function PlanAdapter({ node, answers, onCapture }: BeatAdapterProps) {
   const reflection = answers.reflectionConfig;
 
   return (
-    <CardShell>
+    <CardShell frozen={readOnly}>
       {Object.entries(habitConfigs).map(([name, cfg]) => {
         const daySet = cfg.days instanceof Set ? cfg.days : new Set(cfg.days);
         return (
@@ -1070,30 +1145,35 @@ function PlanAdapter({ node, answers, onCapture }: BeatAdapterProps) {
           rule={reflection.reminder ? `Reminder at ${reflection.time}` : `At ${reflection.time}`}
         />
       )}
-      <Cta label="Start my plan" onClick={() => onCapture({ data: {} })} />
+      {!readOnly && <Cta label="Start my plan" onClick={() => onCapture({ data: {} })} />}
     </CardShell>
   );
 }
 
 /* ----------------------------------------------------- brain dump / coach */
 
-function BrainDumpAdapter({ node, onCapture }: BeatAdapterProps) {
+function BrainDumpAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps) {
   const props = node.componentProps as { brainDump?: boolean; placeholder?: string };
-  const [text, setText] = useState('');
-  if (!props.brainDump) return null;
+  const [text, setText] = useState(() => (answers.brainDumpText as string) ?? '');
+  // Active coach-bubble fallback only renders for a brainDump beat; a frozen past
+  // beat always renders (it shows the captured dump).
+  if (!props.brainDump && !readOnly) return null;
   return (
-    <CardShell>
+    <CardShell frozen={readOnly}>
       <textarea
         className="min-h-[140px] w-full rounded-[16px] border border-border bg-surface p-4 text-base text-content"
         placeholder={props.placeholder ?? 'Tell me everything on your mind...'}
         value={text}
         onChange={(e) => setText(e.target.value)}
+        readOnly={readOnly}
       />
-      <Cta
-        label="Continue"
-        disabled={!text.trim()}
-        onClick={() => onCapture({ data: { brainDumpText: text.trim() } })}
-      />
+      {!readOnly && (
+        <Cta
+          label="Continue"
+          disabled={!text.trim()}
+          onClick={() => onCapture({ data: { brainDumpText: text.trim() } })}
+        />
+      )}
     </CardShell>
   );
 }
@@ -1320,6 +1400,27 @@ export const ADAPTER_REGISTRY: Record<string, AdapterComponent> = {
 export function getAdapter(componentType: string): AdapterComponent | undefined {
   return ADAPTER_REGISTRY[componentType];
 }
+
+// Past beats of these types re-render their real card frozen in the captured
+// state (seeded from `answers`, inputs inert, CTA gone) so every completed beat
+// stays on screen as a persisted chat receipt — the whole journey scrolls back as
+// real screens (auth confirmation, the mic dial, the brain dump, every data card),
+// not one-line summaries. Excluded: the terminal into-app (its content is just the
+// coach line) and the say-only / check-in beats (no captured card to freeze).
+export const FROZEN_CARD_TYPES: ReadonlySet<string> = new Set([
+  'auth',
+  'mic-permission',
+  'profile-input',
+  'path-selection',
+  'category-grid',
+  'goals-list',
+  'habit-picker',
+  'habit-schedule',
+  'morning-checkin-setup',
+  'reflection-card',
+  'plan-cards',
+  'advanced-capture',
+]);
 
 /* --------------------------------------------- past-beat answer summaries */
 
