@@ -4,6 +4,15 @@ _Planned 2026-06-28 (Yonas). PLAN ONLY — sensitive surface, do not implement b
 _Inspiration: `feat/onboarding-chat-vapi-fullduplex` (0d59550). Target surface: the flow
 engine at `/onboarding/flow` (FlowRenderer/BeatPlayer), NOT the old OnboardingChatPage._
 
+## STATUS — IMPLEMENTED 2026-06-28 (pending one live mic pass)
+
+All phases landed across `591a4ae` (P0 coverage), `b05f7c5` (P2 user bubbles + P3 typing),
+`57fdf1e` (coach live replies), `f917d5f` (P1 rigid opener). Applies to EVERY beat. Render
+changes never touch the nav/advance path. type-check clean, 1339 tests, build OK.
+P4 (one-bubble-per-turn) is covered by the per-utterance LiveCoach/LiveUser bubbles; audio-
+synced karaoke for mid-beat reactions (vs char-stream) is future polish. P5: the only
+authored line is the opener, and it is now SPOKEN (rigid), so nothing static-unspoken remains.
+
 ## The experience we want
 
 Onboarding chat should feel **live**, not pre-rendered:
