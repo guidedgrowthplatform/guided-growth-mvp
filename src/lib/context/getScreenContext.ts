@@ -1,5 +1,9 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { fetchScreenContextBlock, type ScreenContext } from '@/api/context';
+import {
+  BEAT_BUNDLE_VERSION,
+  composeOnboardingContextBlock,
+} from '@/lib/context/onboardingBeatBundle';
 import { getBundledContextBlock } from '@/lib/context/screenContextsBundle';
 import { queryKeys } from '@/lib/query/keys';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
@@ -24,6 +28,19 @@ export async function getScreenContext(
   screenId: string,
   sinceTs?: string | null,
 ): Promise<ScreenContext> {
+  // Onboarding beats are served from the synced beat bundle: code-generated
+  // nav machinery + the Supabase-synced coach copy (the unified source Direct-LLM
+  // also uses). Non-onboarding screens stay on the screen_contexts bundle.
+  const beatBlock = composeOnboardingContextBlock(screenId);
+  if (beatBlock) {
+    return {
+      screen_id: screenId,
+      context_block: beatBlock,
+      version: BEAT_BUNDLE_VERSION,
+      state_delta: useSessionLogStore.getState().getDeltaSince(sinceTs ?? null),
+    };
+  }
+
   const bundled = getBundledContextBlock(screenId);
   const block = bundled
     ? bundled

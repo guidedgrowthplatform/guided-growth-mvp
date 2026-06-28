@@ -54,6 +54,30 @@ Vapi onboarding context block = **[code-generated machinery] + [synced coach cop
 - **Coach copy** (synced Sheet): the clean beat `context` + `opener`.
 - Clean separation also dodges the order-desync: machinery follows the engine (code), copy follows the Sheet.
 
+## WS1 FINALIZED — Vapi flipped onto the unified source (2026-06-28)
+
+Per Yonas: order authority = the flow builder; habits (03/04/05) = one step;
+"give Vapi everything, integrate correctly." Done:
+
+- **Machinery is flow-derived.** `build-beat-bundle.ts` now reads `step`/`target_step`
+  from `onboarding-beginner-v1.generated.json` (`persist.step ?? ENGINE_PERSISTLESS_STEP`,
+  target = next node's step skipping same-step nodes). Habit beats (both step 5) → target 6
+  (plan-review). Tail follows the flow: 06→7 (morning), morning→8, 07→9, COMPLETE terminal
+  (`confirm_plan`, navigate_next forbidden).
+- **`getScreenContext` flipped**: `ONBOARD-*` now returns `composeOnboardingContextBlock`
+  (code-gen machinery + synced coach copy) for BOTH Vapi cold-start and the heartbeat.
+  Non-onboarding screens still use the `screen_contexts` bundle.
+- **Locked** with `onboardingBeatBundle.test.ts` (6 tests). type-check clean, 1331+6 tests pass.
+- **Regen chain**: `sync_beats_context.py` (Sheet→Supabase) → `sync_beat_contexts.py`
+  (Supabase→`beatContexts.generated.json`) → `npm run beats:bundle` (→ `src/generated/beat_contexts.json`).
+
+**Still open (flagged to Yair):**
+- BEGINNER-06 **copy** is new-order ("ready to start?") but **machinery** follows the flow
+  (→ morning-setup) — the held order-desync. Nav is correct; the coach line is slightly off
+  until the order change lands.
+- WS2 (push the synced global into the Vapi assistant via `vapi-sync/`, kill the dashboard
+  drift + the duplicated GENERAL/GLOBAL globals) — not started; touches shared Vapi config.
+
 ## WS1 PROGRESS + DIFF RESULT (2026-06-28)
 
 Built (additive, NOT wired into live nav — `getScreenContext` untouched):

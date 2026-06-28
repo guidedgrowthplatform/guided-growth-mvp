@@ -14,10 +14,14 @@ interface BundleBeat {
   opener?: string;
   allowedTools: string[];
   step: number | null;
+  // navigate_next target — the flow-builder step Vapi must reach to advance past
+  // this beat (skips same-step nodes, so the habit beats target plan-review).
+  targetStep: number | null;
 }
 
 const BEATS = bundle.beats as Record<string, BundleBeat>;
 const ALL_TOOLS = bundle.allTools as string[];
+export const BEAT_BUNDLE_VERSION = bundle.bundleVersion as number;
 
 // The engine nav tool advance_step maps to Vapi's navigate_next(target_step).
 const NAV_BEAT_TOOL = 'advance_step';
@@ -46,9 +50,9 @@ export function buildBeatMachinery(screenId: string): string {
   if (!hasNav) forbidden.push(NAV_VAPI_TOOL);
 
   const allowedLines = [...allowedData];
-  if (hasNav && beat.step != null) {
+  if (hasNav && beat.targetStep != null) {
     allowedLines.push(
-      `${NAV_VAPI_TOOL}(target_step=${beat.step + 1})  // AUTO-CALL immediately after the data tool returns; do not ask "ready?" first`,
+      `${NAV_VAPI_TOOL}(target_step=${beat.targetStep})  // AUTO-CALL immediately after the data tool returns; do not ask "ready?" first`,
     );
   }
 
