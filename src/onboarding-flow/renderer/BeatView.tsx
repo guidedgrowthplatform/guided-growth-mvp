@@ -20,6 +20,7 @@ import {
   BeatPlayer,
   COACH_BUBBLE_CLASS,
   CoachThinkingIndicator,
+  LiveCoachBubble,
   LiveUserBubble,
   PastBeatBubbles,
   type BeatStep,
@@ -58,8 +59,9 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
     return (
       <div className="flex flex-col gap-3">
         <BeatPlayer steps={steps} onReveal={handleReveal} />
-        {/* key per beat so a stale partial never carries across beats. */}
-        <LiveUserBubble key={node.id} onText={handleReveal} />
+        {/* keyed per beat so a stale partial never carries across beats. */}
+        <LiveUserBubble key={`u-${node.id}`} onText={handleReveal} />
+        <LiveCoachBubble key={`c-${node.id}`} onText={handleReveal} />
         <CoachThinkingIndicator />
       </div>
     );

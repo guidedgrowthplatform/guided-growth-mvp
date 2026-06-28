@@ -12,7 +12,7 @@
  * never the card's own state, selection, voice capture, or saving. Those stay in
  * the card adapters and the orchestrator, untouched.
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   useOnboardingVoice,
   type OnboardingTranscriptListener,
@@ -115,6 +115,65 @@ export function LiveUserBubble({ onText }: { onText?: () => void }) {
       ))}
       {shown.trim().length > 0 && (
         <div className={`animate-fade-in ${USER_BUBBLE_CLASS}`}>{shown}</div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The coach's LIVE spoken replies on the ACTIVE beat — the reactions and
+ * confirmations Vapi/the LLM says BEYOND the authored opener ("Got it, thanks",
+ * "Sleep, the foundation"). Without this, only the authored opener renders and
+ * the actual conversation is invisible.
+ *
+ * Gated to turns AFTER the user has spoken this beat: the opener is the pre-user
+ * coach turn and already renders as the karaoke line, so the post-user gate keeps
+ * this from duplicating it. One settled bubble per coach utterance.
+ */
+export function LiveCoachBubble({ onText }: { onText?: () => void }) {
+  const session = useOnboardingVoice();
+  const subscribe = session?.subscribeTranscripts;
+  const [partial, setPartial] = useState('');
+  const [finals, setFinals] = useState<string[]>([]);
+  const userSpokeRef = useRef(false);
+  const shown = useSmoothReveal(partial);
+
+  useEffect(() => {
+    if (!subscribe) return;
+    const onTranscript: OnboardingTranscriptListener = (evt) => {
+      if (evt.role === 'user') {
+        if (evt.kind === 'final') userSpokeRef.current = true;
+        return;
+      }
+      if (evt.role !== 'assistant') return;
+      // Opener (pre-user) is shown by the karaoke line — only render post-user
+      // coach turns here so the opener never doubles.
+      if (!userSpokeRef.current) return;
+      if (evt.kind === 'partial') {
+        setPartial(evt.text);
+        return;
+      }
+      const t = evt.text.trim();
+      if (t) setFinals((f) => [...f, t]);
+      setPartial('');
+    };
+    return subscribe(onTranscript);
+  }, [subscribe]);
+
+  useEffect(() => {
+    if (shown.length > 0 || finals.length > 0) onText?.();
+  }, [shown, finals.length, onText]);
+
+  if (finals.length === 0 && shown.trim().length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      {finals.map((t, i) => (
+        <div key={i} className={COACH_BUBBLE_CLASS}>
+          {t}
+        </div>
+      ))}
+      {shown.trim().length > 0 && (
+        <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{shown}</div>
       )}
     </div>
   );
