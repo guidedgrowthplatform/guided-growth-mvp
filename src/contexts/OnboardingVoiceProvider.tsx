@@ -4,7 +4,7 @@ import type { AssistantOverrides } from '@vapi-ai/web/dist/api';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { track } from '@/analytics';
-import { appendChatTurn } from '@/api/chat';
+import { appendChatTurn, fetchOnboardingThread } from '@/api/chat';
 import { OnboardingChatOverlay } from '@/components/onboarding/OnboardingChatOverlay';
 import { getOnboardingOpenerForState } from '@/components/onboarding/onboardingOpeners';
 import { VoiceCapModal } from '@/components/voice/VoiceCapModal';
@@ -54,7 +54,10 @@ import { getScreenContext } from '@/lib/context/getScreenContext';
 import { buildOpenerDirective } from '@/lib/context/onboardingBeatBundle';
 import { getBundledRoutes } from '@/lib/context/screenContextsBundle';
 import { screenIdForRoute } from '@/lib/context/screenIdForRoute';
-import { getOrCreateOnboardingChatSessionId } from '@/lib/onboarding/onboardingChatSession';
+import {
+  adoptOnboardingChatSessionId,
+  getOrCreateOnboardingChatSessionId,
+} from '@/lib/onboarding/onboardingChatSession';
 import {
   CHAT_VAPI_BEAT_SCREENS,
   ONBOARDING_CHAT_ROUTE,
@@ -75,8 +78,27 @@ import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import type { OnboardingState } from '@gg/shared/types';
+import type { OnboardingThreadTurn } from '@gg/shared/types/llm';
 import { clearThread, loadThread, saveThread } from './onboardingThreadStore';
 import { shouldWipeOnAnonIdChange } from './onboardingThreadWipe';
+
+// Server thread turn → live VoiceMessage. client_turn_key (the stable vapi-/opener-
+// id) becomes the VoiceMessage id so hydrated turns align with localStorage + the
+// mirror dedup; Direct-LLM turns keep their UUID id (skipped by the mirror).
+function threadTurnToVoiceMessage(t: OnboardingThreadTurn): VoiceMessage {
+  const source: VoiceMessage['source'] = t.client_turn_key
+    ? t.client_turn_key.startsWith('opener-')
+      ? 'opener'
+      : 'vapi'
+    : 'direct_llm';
+  return {
+    id: t.client_turn_key ?? t.id,
+    role: t.role === 'assistant' ? 'ai' : 'user',
+    text: t.content ?? '',
+    screenId: t.screen_id,
+    source,
+  };
+}
 
 function isOnboardingPath(pathname: string): boolean {
   return pathname === '/onboarding' || pathname.startsWith('/onboarding/');
@@ -330,6 +352,38 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       // best-effort; localStorage thread + next turn's re-fire cover a transient miss
     });
   }, [anonId, messages]);
+
+  // Cross-device / lifetime hydration: resolve the canonical onboarding thread by
+  // anon_id and seed the feed. Runs once per anon while on the onboarding surface
+  // (returning user resuming on a new device); the server is the source of truth,
+  // localStorage is only the instant cache. Adopts the resolved session id so live
+  // turns continue the SAME thread instead of minting a fresh one.
+  const hydratedThreadAnonRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!anonId || !inOnboarding) return;
+    if (hydratedThreadAnonRef.current === anonId) return;
+    hydratedThreadAnonRef.current = anonId;
+    let cancelled = false;
+    void fetchOnboardingThread()
+      .then((res) => {
+        if (cancelled || !res.chat_session_id || res.messages.length === 0) return;
+        adoptOnboardingChatSessionId(res.chat_session_id);
+        const seeded = res.messages
+          .filter((t) => (t.content ?? '').trim().length > 0)
+          .map(threadTurnToVoiceMessage);
+        if (seeded.length === 0) return;
+        // Don't clobber a longer live/in-progress in-memory thread.
+        setMessages((cur) => (cur.length >= seeded.length ? cur : seeded));
+        // Pre-seed the mirror dedup so hydrated turns don't re-POST.
+        seeded.forEach((m) => mirroredTurnsRef.current.set(m.id, m.text));
+      })
+      .catch(() => {
+        // offline / not signed in — localStorage hydration still applies
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [anonId, inOnboarding]);
 
   // Form snapshot — updated by each onboarding page via setFormSnapshot.
   // Read by buildOverridesForCall (cold start) and pushScreenContext (screen

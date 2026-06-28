@@ -2,7 +2,7 @@ import type {
   ChatHistoryResponse,
   ChatSessionResponse,
   LinearHistoryResponse,
-  LLMChatMessage,
+  OnboardingThreadResponse,
 } from '@gg/shared/types/llm';
 import { apiGet, apiPost } from './client';
 
@@ -19,11 +19,6 @@ export interface AppendChatTurnPayload {
 // VoiceMessage id) — a turn whose merged text grows re-POSTs the same key.
 export function appendChatTurn(payload: AppendChatTurnPayload): Promise<{ ok: true }> {
   return apiPost<{ ok: true }>('/api/chat/append', payload);
-}
-
-export interface OnboardingThreadResponse {
-  chat_session_id: string | null;
-  messages: LLMChatMessage[];
 }
 
 // Resolve the canonical onboarding thread for this anon_id (cross-device).

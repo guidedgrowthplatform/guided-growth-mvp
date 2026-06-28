@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { UUID_REGEX } from '../_lib/validation.js';
-import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
+import type { LLMChatMessage, LLMToolEvent, OnboardingThreadTurn } from '@gg/shared/types/llm';
 
 function isValidChatSessionId(id: unknown): id is string {
   return typeof id === 'string' && UUID_REGEX.test(id);
@@ -264,8 +264,19 @@ async function handleOnboardingThread(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ chat_session_id: null, messages: [] });
   }
 
-  const messages = await loadMessages(user.anonId, chatSessionId, MAX_LIMIT);
-  return res.status(200).json({ chat_session_id: chatSessionId, messages });
+  // Flat user/assistant turns ordered by turn_index (the single ordering authority);
+  // tool rows and empty pure-tool-call assistant rows are not part of the feed.
+  const rows = await pool.query<OnboardingThreadTurn>(
+    `SELECT id, client_turn_key, role, content, screen_id
+       FROM chat_messages
+      WHERE anon_id = $1 AND chat_session_id = $2
+        AND role IN ('user', 'assistant')
+        AND content IS NOT NULL AND length(trim(content)) > 0
+      ORDER BY turn_index ASC
+      LIMIT $3`,
+    [user.anonId, chatSessionId, MAX_LIMIT],
+  );
+  return res.status(200).json({ chat_session_id: chatSessionId, messages: rows.rows });
 }
 
 async function handleLinearHistory(req: VercelRequest, res: VercelResponse) {

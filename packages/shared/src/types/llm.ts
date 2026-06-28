@@ -42,6 +42,22 @@ export interface LinearHistoryResponse {
   has_more: boolean;
 }
 
+// Onboarding thread turn — flat shape for cross-device rehydration of the voice
+// feed. client_turn_key is the stable client id (vapi-/opener-) for voice turns,
+// null for Direct-LLM turns; the client uses it to align ids with localStorage.
+export interface OnboardingThreadTurn {
+  id: string;
+  client_turn_key: string | null;
+  role: 'user' | 'assistant';
+  content: string | null;
+  screen_id: string;
+}
+
+export interface OnboardingThreadResponse {
+  chat_session_id: string | null;
+  messages: OnboardingThreadTurn[];
+}
+
 export type LLMStreamEvent =
   | { type: 'delta'; content: string }
   | { type: 'tool_call'; id: string; name: string; args: Record<string, unknown> }
