@@ -1,7 +1,7 @@
 import type { OnboardingToolName } from './schemas.js';
 // Synced content from Supabase (the synced-file model). Committed empty until the
 // first sync; sync_beat_contexts.py overwrites it. Overlaid onto the defaults below.
-import generatedBeatContent from './beatContexts.generated.json';
+import generatedBeatContent from './beatContexts.generated.json' with { type: 'json' };
 
 // Beat-context store — the Direct-LLM source of truth for what the coach sees on
 // each onboarding beat. Two layers, both sent fresh every request (the LLM never
