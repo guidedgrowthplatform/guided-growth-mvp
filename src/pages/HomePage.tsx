@@ -5,7 +5,7 @@ import { track } from '@/analytics';
 import {
   HomeHeader,
   DateStrip,
-  CheckInCard,
+  CheckinFlowOverlay,
   QuickActionCards,
   HabitsSection,
   RecentReflectionsSection,
@@ -13,6 +13,7 @@ import {
   FeedbackSheet,
   ReminderSheet,
 } from '@/components/home';
+import { useCheckIn } from '@/hooks/useCheckIn';
 import { useDisplayName } from '@/hooks/useDisplayName';
 import { useEntries } from '@/hooks/useEntries';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -40,8 +41,18 @@ export function HomePage() {
   const fromOnboarding = (location.state as { fromOnboarding?: boolean })?.fromOnboarding === true;
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showReminders, setShowReminders] = useState(false);
-  const [showCheckIn, setShowCheckIn] = useState(false);
+  const [showMorningFlow, setShowMorningFlow] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+
+  // today's row, not time-bucketed useCheckinEntry (flips to evening after 16:00)
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const { checkIn: todayCheckin } = useCheckIn(todayStr, { type: 'morning' });
+  const morningDone =
+    !!todayCheckin &&
+    (todayCheckin.sleep != null ||
+      todayCheckin.mood != null ||
+      todayCheckin.energy != null ||
+      todayCheckin.stress != null);
   const homeScreenId = useMemo(() => deriveHomeScreenId(fromOnboarding), [fromOnboarding]);
 
   const dateRange = useMemo(() => {
@@ -76,20 +87,15 @@ export function HomePage() {
   // CHECKIN-EXPANDED is a state of HomePage, not a route — fire an explicit
   // navigate + checkin_started when the overlay opens.
   useEffect(() => {
-    if (showCheckIn) {
+    if (showMorningFlow) {
       logEvent(
         'navigate',
         { from_screen: homeScreenId, to_screen: 'HOME-MORNING-CHECKIN-EXPANDED', trigger: 'tap' },
         'HOME-MORNING-CHECKIN-EXPANDED',
       );
-      const isMorning = currentCheckinType() === 'morning';
-      logEvent(
-        'checkin_started',
-        { type: isMorning ? 'morning' : 'evening' },
-        isMorning ? 'MCHECK-01' : 'ECHECK-01',
-      );
+      logEvent('checkin_started', { type: 'morning' }, 'MCHECK-01');
     }
-  }, [showCheckIn, homeScreenId, logEvent]);
+  }, [showMorningFlow, homeScreenId, logEvent]);
 
   const displayName = useDisplayName('there');
 
@@ -152,32 +158,16 @@ export function HomePage() {
           onSelectDate={setSelectedDate}
           entries={entriesForStrip}
         />
-        <div>
-          <QuickActionCards
-            onCheckInPress={() => {
-              const next = !showCheckIn;
-              if (next) {
-                track('start_checkin', {
-                  checkin_type: currentCheckinType(),
-                  trigger: 'home_card',
-                });
-              }
-              setShowCheckIn(next);
-            }}
-            onJournalPress={() => {
-              navigate('/journal');
-            }}
-          />
-          <div
-            className={`grid transition-all duration-300 ease-in-out ${
-              showCheckIn ? 'mt-4 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-            }`}
-          >
-            <div className="overflow-hidden">
-              <CheckInCard selectedDate={selectedDate} onClose={() => setShowCheckIn(false)} />
-            </div>
-          </div>
-        </div>
+        <QuickActionCards
+          morningDone={morningDone}
+          onCheckInPress={() => {
+            track('start_checkin', { checkin_type: 'morning', trigger: 'home_card' });
+            setShowMorningFlow(true);
+          }}
+          onJournalPress={() => {
+            navigate('/journal');
+          }}
+        />
         <HabitsSection selectedDate={selectedDate} screenId={homeScreenId} />
         <RecentReflectionsSection />
       </div>
@@ -185,6 +175,14 @@ export function HomePage() {
       <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-6 z-20">
         <FeedbackButton onPress={() => setShowFeedback(true)} />
       </div>
+
+      {showMorningFlow && (
+        <CheckinFlowOverlay
+          flowId="morning-checkin-v1"
+          alreadyDone={morningDone}
+          onClose={() => setShowMorningFlow(false)}
+        />
+      )}
 
       {showFeedback && <FeedbackSheet onClose={() => setShowFeedback(false)} />}
 

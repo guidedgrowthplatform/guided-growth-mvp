@@ -15,9 +15,10 @@ import { FlowVoiceControls } from './FlowVoiceControls';
 
 export interface FlowRendererProps {
   orchestrator: FlowOrchestrator;
+  showVoiceControls?: boolean;
 }
 
-export function FlowRenderer({ orchestrator }: FlowRendererProps) {
+export function FlowRenderer({ orchestrator, showVoiceControls = true }: FlowRendererProps) {
   const { flow, state, currentNode, answers, capture, back, canGoBack, isComplete } = orchestrator;
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -71,7 +72,7 @@ export function FlowRenderer({ orchestrator }: FlowRendererProps) {
         </div>
       </div>
 
-      <FlowVoiceControls />
+      {showVoiceControls && <FlowVoiceControls />}
     </div>
   );
 }

@@ -16,6 +16,7 @@ import type { FlowPersistence } from './persistence';
 
 export function useCheckinFlowPersistence(
   onComplete?: (finalData?: Partial<OnboardingStepData>) => void,
+  type: 'morning' | 'evening' = 'morning',
 ): FlowPersistence {
   const qc = useQueryClient();
   const { addToast } = useToast();
@@ -39,7 +40,7 @@ export function useCheckinFlowPersistence(
           .then(() => {
             qc.invalidateQueries({ queryKey: queryKeys.checkins.all });
             logEvent('checkin_completed', {
-              type: 'morning',
+              type,
               via: 'tap',
               sleep: args.sleep ?? undefined,
               mood: args.mood ?? undefined,
@@ -53,6 +54,6 @@ export function useCheckinFlowPersistence(
           });
       },
     }),
-    [qc, addToast, logEvent, onComplete],
+    [qc, addToast, logEvent, onComplete, type],
   );
 }
