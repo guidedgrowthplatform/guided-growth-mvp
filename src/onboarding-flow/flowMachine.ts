@@ -25,6 +25,16 @@ export function indexNodes(flow: FlowDocument): Map<string, FlowNode> {
   return map;
 }
 
+// Tool-bearing beat saved on a user tap -> the tool to fire, else null. Pure so
+// the orchestrator branch is testable without rendering the hook.
+export function toolSaveFor(
+  node: FlowNode | undefined,
+  save: boolean,
+): { toolName: string } | null {
+  if (!node || node.type !== 'beat' || !node.tool || !save) return null;
+  return { toolName: node.tool.toolName };
+}
+
 export function getNode(flow: FlowDocument, id: string | null): FlowNode | undefined {
   if (!id) return undefined;
   return flow.nodes.find((n) => n.id === id);
@@ -136,7 +146,8 @@ export function validateFlow(flow: FlowDocument): string[] {
     if (id && !ids.has(id)) problems.push(`${where} -> unknown node "${id}"`);
   };
 
-  if (!ids.has(flow.entryNodeId)) problems.push(`entryNodeId -> unknown node "${flow.entryNodeId}"`);
+  if (!ids.has(flow.entryNodeId))
+    problems.push(`entryNodeId -> unknown node "${flow.entryNodeId}"`);
 
   for (const node of flow.nodes) {
     if (node.type === 'beat') {

@@ -24,6 +24,7 @@ import {
   getNode,
   goBack,
   initFlowMachine,
+  toolSaveFor,
 } from './flowMachine';
 import { composeBeatContext } from './generalContext';
 import type { FlowPersistence } from './persistence';
@@ -162,6 +163,11 @@ export function useFlowOrchestrator(
           opts.onPin?.(opts.flowTag);
         }
       }
+
+      // Check-in beats save via a tool, not the onboarding step path. The
+      // adapter owns which tools it handles (no-op on onboarding, which omits saveTool).
+      const toolSave = toolSaveFor(node, save);
+      if (toolSave) persistence.saveTool?.(toolSave.toolName, cap.data);
 
       if (next.status === 'complete') {
         persistence.complete(deriveFinalData(next.answers));

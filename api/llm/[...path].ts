@@ -15,6 +15,7 @@ import { dispatchOnboardingToolCall } from '../_lib/llm/onboarding/dispatch.js';
 import { getOnboardingTools } from '../_lib/llm/onboarding/registry.js';
 import { isOnboardingToolName } from '../_lib/llm/onboarding/schemas.js';
 import { dispatchCheckinToolCall } from '../_lib/llm/checkin/dispatch.js';
+import { handleCheckinTool } from '../_lib/llm/checkin/handleCheckinToolRoute.js';
 import {
   getCheckinTools,
   getReadOnlyCheckinTools,
@@ -73,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] === '__index' ? '' : segments[0] || '';
-  if (route !== '' && route !== 'parse-brain-dump') {
+  if (route !== '' && route !== 'parse-brain-dump' && route !== 'checkin-tool') {
     return res.status(404).json({ error: 'Not found' });
   }
 
@@ -118,6 +119,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (route === 'parse-brain-dump') {
     return handleParseBrainDump(req, res, { anonId: user.anonId });
+  }
+
+  if (route === 'checkin-tool') {
+    return handleCheckinTool(req, res, { anonId: user.anonId });
   }
 
   const body = (req.body ?? {}) as Record<string, unknown>;
