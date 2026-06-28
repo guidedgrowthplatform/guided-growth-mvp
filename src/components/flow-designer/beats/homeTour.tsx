@@ -483,9 +483,21 @@ function HomeTourBeat(props?: Record<string, string>) {
           </div>
         )}
 
-        {/* BOTTOM HALF: habits (real schedule) + journaling. */}
+        {/* BOTTOM HALF: habits (real schedule) + journaling. The habits get a
+            soft highlight on the beat where the coach points them out. */}
         <Reveal show={showHabits}>
-          <div ref={habitsRef} className="flex flex-col gap-3 scroll-mt-2">
+          <div
+            ref={habitsRef}
+            className="flex flex-col gap-3 scroll-mt-2"
+            style={{
+              borderRadius: 18,
+              outline: idx === 2 ? `2px solid ${BLUE}` : '2px solid transparent',
+              outlineOffset: 6,
+              boxShadow: idx === 2 ? '0 0 0 6px rgba(19,91,236,0.10)' : 'none',
+              transition: 'outline-color 360ms ease-out, box-shadow 360ms ease-out',
+              animation: idx === 2 ? 'ggGlow 1800ms ease-in-out infinite' : 'none',
+            }}
+          >
             <div className="flex items-center justify-between px-0.5">
               <span className="text-base font-bold text-content">Today's habits</span>
             </div>
@@ -517,14 +529,18 @@ function HomeTourBeat(props?: Record<string, string>) {
         style={{ position: 'absolute', left: 8, bottom: 78, zIndex: 58, transition: 'bottom 320ms ease-out', display: chatOpen ? 'none' : undefined }}
       >
         <Reveal show={showButtons}>
-          <FeedbackButton onPress={() => setFeedbackAck(true)} />
+          <span style={{ borderRadius: 999, animation: idx === 3 ? 'ggGlow 1800ms ease-in-out infinite' : 'none' }}>
+            <FeedbackButton onPress={() => setFeedbackAck(true)} />
+          </span>
         </Reveal>
       </div>
       <div
         style={{ position: 'absolute', right: 8, bottom: 78, zIndex: 58, transition: 'bottom 320ms ease-out', display: chatOpen ? 'none' : undefined }}
       >
         <Reveal show={showButtons}>
-          <OpenChatButton onPress={() => setChatOpen(true)} />
+          <span style={{ borderRadius: 999, animation: idx === 3 ? 'ggGlow 1800ms ease-in-out infinite' : 'none' }}>
+            <OpenChatButton onPress={() => setChatOpen(true)} />
+          </span>
         </Reveal>
       </div>
 
@@ -595,6 +611,7 @@ function HomeTourBeat(props?: Record<string, string>) {
       <style>{`
         @keyframes ggTourCaptionIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         @keyframes ggChatRise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+        @keyframes ggGlow { 0%,100% { box-shadow: 0 0 0 3px rgba(19,91,236,0.16), 0 6px 22px -6px rgba(19,91,236,0.30); } 50% { box-shadow: 0 0 0 5px rgba(19,91,236,0.28), 0 10px 30px -6px rgba(19,91,236,0.48); } }
       `}</style>
     </div>
   );
