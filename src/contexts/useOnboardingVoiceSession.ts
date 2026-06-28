@@ -51,6 +51,9 @@ export interface OnboardingVoiceContextValue {
   openOverlay: () => void;
   closeOverlay: () => void;
   messages: VoiceMessage[];
+  // Live word-reveal for the cold-start Cartesia opener, paced by the real audio
+  // playback so the karaoke syncs to the voice. Scoped by screenId.
+  openerReveal?: { screenId: string; revealedWords: number } | null;
   appendMessage: (msg: VoiceMessage) => void;
   // Text path only; idempotent per screenId. Voice resets via onCallStart.
   startThread: (

@@ -100,6 +100,27 @@ function threadTurnToVoiceMessage(t: OnboardingThreadTurn): VoiceMessage {
   };
 }
 
+// Force every beat's opener (its first coach turn before any user turn) to the
+// stable `opener-${sid}` id, so a re-spoken opener REPLACES the hydrated one
+// instead of stacking a duplicate — even for turns persisted before stable ids.
+function normalizeOpenerIds(msgs: VoiceMessage[]): VoiceMessage[] {
+  const sawUser = new Set<string>();
+  const openerDone = new Set<string>();
+  return msgs.map((m) => {
+    const sid = m.screenId;
+    if (!sid) return m;
+    if (m.role === 'user') {
+      sawUser.add(sid);
+      return m;
+    }
+    if (m.role === 'ai' && !sawUser.has(sid) && !openerDone.has(sid)) {
+      openerDone.add(sid);
+      return { ...m, id: `opener-${sid}`, source: 'opener' };
+    }
+    return m;
+  });
+}
+
 function isOnboardingPath(pathname: string): boolean {
   return pathname === '/onboarding' || pathname.startsWith('/onboarding/');
 }
@@ -196,6 +217,18 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   const userClosedOverlayRef = useRef(false);
   const prevSettledStatusRef = useRef<OnboardingVoiceStatus>('idle');
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
+  // Live word-reveal for the cold-start Cartesia opener, paced by the real audio
+  // (speakOpener's playback fraction) so the karaoke syncs to the voice instead of
+  // a fixed-cadence guess. Scoped by screenId; consumed by BeatConversation.
+  const [openerReveal, setOpenerReveal] = useState<{
+    screenId: string;
+    revealedWords: number;
+  } | null>(null);
+  const openerRevealCountRef = useRef(-1);
+  // Beats whose opener has been spoken THIS session — so a re-spoken opener's
+  // first final replaces a stale/hydrated opener bubble, and later finals of the
+  // same utterance accumulate into it (one stable opener bubble per beat).
+  const openerSpeakStartedRef = useRef<Set<string>>(new Set());
   const threadScreenIdRef = useRef<string | null>(null);
   const lastAssistantFinalRef = useRef<{ text: string; at: number }>({ text: '', at: 0 });
   const lastUserFinalRef = useRef<{ text: string; at: number }>({ text: '', at: 0 });
@@ -313,7 +346,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     // conversation survives a refresh. Only seed when in-memory is still empty,
     // so a live session is never clobbered.
     if (next) {
-      const stored = loadThread(next);
+      const stored = normalizeOpenerIds(loadThread(next));
       if (stored.length) setMessages((cur) => (cur.length ? cur : stored));
     }
   }, [anonId]);
@@ -368,9 +401,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       .then((res) => {
         if (cancelled || !res.chat_session_id || res.messages.length === 0) return;
         adoptOnboardingChatSessionId(res.chat_session_id);
-        const seeded = res.messages
-          .filter((t) => (t.content ?? '').trim().length > 0)
-          .map(threadTurnToVoiceMessage);
+        const seeded = normalizeOpenerIds(
+          res.messages
+            .filter((t) => (t.content ?? '').trim().length > 0)
+            .map(threadTurnToVoiceMessage),
+        );
         if (seeded.length === 0) return;
         // Don't clobber a longer live/in-progress in-memory thread.
         setMessages((cur) => (cur.length >= seeded.length ? cur : seeded));
@@ -893,6 +928,36 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
               assistantTurnOpenRef.current = false;
               closeMergeWindow();
             }
+            // The opener is the first coach turn on a beat BEFORE any user turn.
+            // Give it a STABLE per-beat id so re-entering / refreshing the beat (the
+            // coach re-speaks every entry) REPLACES the opener bubble instead of
+            // stacking a duplicate. The first live final this session replaces a
+            // stale/hydrated opener; later finals of the same utterance accumulate.
+            const beatHasUser =
+              !!sid && messagesRef.current.some((m) => m.screenId === sid && m.role === 'user');
+            const isOpenerTurn = role === 'ai' && !!sid && !beatHasUser;
+            if (isOpenerTurn) {
+              const openerId = `opener-${sid}`;
+              const accumulate = openerSpeakStartedRef.current.has(sid as string);
+              openerSpeakStartedRef.current.add(sid as string);
+              setMessages((prev) => {
+                const idx = prev.findIndex((m) => m.id === openerId);
+                if (idx >= 0) {
+                  const existing = prev[idx];
+                  const newText = accumulate
+                    ? `${existing.text} ${text}`.replace(/\s+/g, ' ').trim()
+                    : text;
+                  return [
+                    ...prev.slice(0, idx),
+                    { ...existing, text: newText },
+                    ...prev.slice(idx + 1),
+                  ];
+                }
+                return [...prev, { id: openerId, role, text, screenId: sid, source: 'vapi' }];
+              });
+              notifyTranscriptListeners(evt);
+              return;
+            }
             setMessages((prev) => {
               const last = prev[prev.length - 1];
               if (merge && last && last.role === role && last.screenId === sid) {
@@ -1009,14 +1074,30 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
           setMessages((prev) =>
             prev.some((m) => m.id === openerMsg.id) ? prev : [...prev, openerMsg],
           );
+          // Mark spoken-this-session so a stray pre-user Vapi final accumulates into
+          // the opener rather than replacing the Cartesia text.
+          openerSpeakStartedRef.current.add(sid);
         }
+        // Reset + drive the synced karaoke from the real Cartesia playback.
+        openerRevealCountRef.current = -1;
+        setOpenerReveal(openerText ? { screenId: sid, revealedWords: 0 } : null);
+        const openerWordTotal = openerText.trim().split(/\s+/).filter(Boolean).length;
+        const onOpenerProgress = (fraction: number) => {
+          const c = Math.min(openerWordTotal, Math.round(fraction * openerWordTotal));
+          if (c === openerRevealCountRef.current) return;
+          openerRevealCountRef.current = c;
+          setOpenerReveal({ screenId: sid, revealedWords: c });
+        };
         stopOpener();
-        const handle = speakOpener(openerText);
+        const handle = speakOpener(openerText, onOpenerProgress);
         openerHandleRef.current = handle;
         track('instant_opener_started', { screen_id: sid });
         void handle.done.then(() => {
           openerDoneRef.current = true;
           if (openerHandleRef.current === handle) openerHandleRef.current = null;
+          // Snap the karaoke to the full line the instant the audio ends.
+          openerRevealCountRef.current = openerWordTotal;
+          setOpenerReveal({ screenId: sid, revealedWords: openerWordTotal });
           // The coach has now spoken (via Cartesia, since Vapi joined silent on
           // this beat). Mark it so the idle auto-pause timer arms — Vapi's
           // speech-start never fires on the silent-first path, so without this
@@ -1665,6 +1746,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       openOverlay,
       closeOverlay,
       messages,
+      openerReveal,
       appendMessage,
       startThread,
       sendUserTurn,
@@ -1693,6 +1775,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       openOverlay,
       closeOverlay,
       messages,
+      openerReveal,
       appendMessage,
       startThread,
       sendUserTurn,

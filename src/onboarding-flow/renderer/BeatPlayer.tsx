@@ -133,16 +133,24 @@ export function BeatConversation({
     if (beatMsgs.length > 0 || shown.trim().length > 0) onText?.();
   }, [beatMsgs.length, shown, onText]);
 
-  // Karaoke only the cold-start opener bubble, only while active — it lands as
-  // full text (Cartesia TTS, no STT partials), so reveal it word-by-word.
-  const openerKaraokeId = active ? beatMsgs.find((m) => m.source === 'opener')?.id : undefined;
+  // Karaoke the cold-start opener bubble IN SYNC with the Cartesia audio: it lands
+  // as full text (TTS, no STT partials), and openerReveal carries the live word
+  // count paced by the real playback. Only the live opener on this beat is driven;
+  // hydrated / past / warm openers render in full.
+  const openerReveal = session?.openerReveal;
+  const coldOpenerLive = !!(active && openerReveal && openerReveal.screenId === screenId);
+  const openerMsgId = beatMsgs.find((m) => m.source === 'opener')?.id;
   const showConnecting = connecting && active && !hasCoachTurn && !partial;
 
   return (
     <div className="flex flex-col gap-2">
       {beatMsgs.map((m) => (
         <div key={m.id} className={m.role === 'ai' ? COACH_BUBBLE_CLASS : USER_BUBBLE_CLASS}>
-          {m.id === openerKaraokeId ? <Karaoke text={m.text} active /> : m.text}
+          {coldOpenerLive && m.id === openerMsgId ? (
+            <Karaoke text={m.text} active revealCount={openerReveal!.revealedWords} />
+          ) : (
+            m.text
+          )}
         </div>
       ))}
       {showConnecting && fallbackOn && fallbackOpener && (
