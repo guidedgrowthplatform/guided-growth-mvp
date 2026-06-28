@@ -3,7 +3,7 @@
 // (regenerate with `npm run checkin:bundle`), overlaid on the hand-authored fallback
 // below so the coach is never silent if a stage is missing from the sheet. One variation
 // is picked at random per call.
-import { CHECKIN_SCRIPT_VARIANTS } from '../generated/checkin_scripts';
+import { CHECKIN_SCRIPT_VARIANTS } from '../generated/checkin_scripts.js';
 
 export type CheckinStageKey =
   | 'morning_greeting'
