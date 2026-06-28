@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 import { fetchScreenRoutes } from '@/api/context';
 import {
-  getOnboardingOpener,
+  getOnboardingOpenerForState,
   getOnboardingRevisitOpener,
 } from '@/components/onboarding/onboardingOpeners';
 import type { OnboardingVoiceResult, VoiceMessage } from '@/contexts/useOnboardingVoiceSession';
@@ -264,7 +264,8 @@ export function useOnboardingChat({
       qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state) ?? null;
     const revisit = getOnboardingRevisitOpener(screenId, onboardingState);
     landedCompleteRef.current = revisit?.complete === true;
-    const opener = revisit?.text ?? getOnboardingOpener(screenId);
+    const opener =
+      revisit?.text ?? getOnboardingOpenerForState(screenId, onboardingState?.data?.nickname);
     // Chat-native page: attach this beat's inline card to its opener message so
     // it renders at the turn and freezes in scrollback when the flow advances.
     const card = chatNative ? cardForScreenId(screenId, onboardingState) : null;
@@ -522,7 +523,9 @@ export function useOnboardingChat({
     const pending = openerCardRef.current;
     if (chatNative && pending && pending.screenId === screenIdRef.current) {
       openerCardRef.current = null;
-      const line = getOnboardingOpener(screenIdRef.current) ?? '';
+      const nickname = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data
+        ?.nickname;
+      const line = getOnboardingOpenerForState(screenIdRef.current, nickname) ?? '';
       appendMessage({
         id: `opener-fallback-${screenIdRef.current}`,
         role: 'ai',

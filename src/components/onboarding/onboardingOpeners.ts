@@ -37,6 +37,26 @@ export function getOnboardingOpener(screenId: string): string | undefined {
   return ONBOARDING_OPENERS[screenId];
 }
 
+// The profile beat MUST collect the name (advance precondition requires
+// data.nickname). OAuth sign-ins may pre-fill it, but email sign-ups arrive
+// nameless — SignUpPage collects only email+password — so the default
+// "Awesome {name}, two quick things" opener (which only asks age+gender, and
+// renders "Awesome there" with no name) would never capture the nickname and
+// the advance fails with profile_missing. When nickname is absent, open by
+// asking for it.
+const PROFILE_OPENER_SCREENS = new Set(['ONBOARD-01', 'ONBOARD-01--FORM']);
+const PROFILE_OPENER_ASK_NAME =
+  'Awesome — three quick things so I can tailor this to you. What should I call you? And how old are you, and what gender are you?';
+
+export function getOnboardingOpenerForState(
+  screenId: string,
+  nickname: string | null | undefined,
+): string | undefined {
+  const haveName = typeof nickname === 'string' && nickname.trim().length > 0;
+  if (PROFILE_OPENER_SCREENS.has(screenId) && !haveName) return PROFILE_OPENER_ASK_NAME;
+  return ONBOARDING_OPENERS[screenId];
+}
+
 export interface RevisitOpener {
   text: string;
   // All fields present → caller may offer affirm→auto-advance.

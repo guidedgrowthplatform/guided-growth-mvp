@@ -27,11 +27,11 @@
  * LLM says to (e.g. user back-navved from step 5 to step 1, then asked
  * to walk forward; LLM calls navigate_next(2) which sets step to 2).
  */
-import pool from '../../db.js';
+import pool, { type Queryable } from '../../db.js';
 // Shared with the Direct-LLM advance_step path so a beat advances IDENTICALLY
 // whether driven by Vapi navigate_next or Direct-LLM (step-1 needs nickname+age+
 // gender; step-4 braindump gates on the brain dump, not goals).
-import { checkAdvanceData } from '../../llm/onboarding/preconditions.js';
+import { checkAdvanceData, traceAdvanceStep0 } from '../../llm/onboarding/preconditions.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MIN_STEP = 1;
@@ -55,7 +55,10 @@ function getInteger(args: Record<string, unknown>, key: string): number | undefi
   return undefined;
 }
 
-export async function navigateNext(args: Record<string, unknown>): Promise<HandlerResult> {
+export async function navigateNext(
+  args: Record<string, unknown>,
+  db: Queryable = pool,
+): Promise<HandlerResult> {
   console.log('[vapi/tool] received name=navigate_next anon_id=' + getString(args, 'anon_id'));
 
   const anonId = getString(args, 'anon_id');
@@ -82,7 +85,7 @@ export async function navigateNext(args: Record<string, unknown>): Promise<Handl
   // backend hard guards against the agent skipping steps / advancing before
   // the screen's data tool has fired. Prompt rules (RULE 7.5) already tell
   // the model to chain data_tool → navigate_next; this is the safety net.
-  const existing = await pool.query<{
+  const existing = await db.query<{
     current_step: number;
     data: Record<string, unknown> | null;
     path: string | null;
@@ -137,11 +140,13 @@ export async function navigateNext(args: Record<string, unknown>): Promise<Handl
     }
   }
 
+  traceAdvanceStep0('vapi', { currentStep, targetStep, data, path, brainDumpRaw });
+
   // No GREATEST — explicitly set step to the LLM-supplied target. INSERT
   // path is defensive (onboarding_states row should already exist by the
   // time any tool fires); we seed with target_step too so a fresh row
   // matches the LLM's intent.
-  const result = await pool.query(
+  const result = await db.query(
     `INSERT INTO onboarding_states (anon_id, current_step, status, updated_at)
      VALUES ($1, $2, 'in_progress', now())
      ON CONFLICT (anon_id) DO UPDATE SET

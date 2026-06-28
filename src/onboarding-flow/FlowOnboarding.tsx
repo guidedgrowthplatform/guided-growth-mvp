@@ -8,6 +8,7 @@
  */
 import { useCallback } from 'react';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useOnboardingRealtimeSync } from '@/hooks/useOnboardingRealtimeSync';
 import { IntroGate } from './IntroGate';
 import { useOnboardingPersistence } from './persistence';
 import { FlowRenderer } from './renderer/FlowRenderer';
@@ -15,6 +16,12 @@ import { useFlow } from './useFlow';
 import { useFlowOrchestrator } from './useFlowOrchestrator';
 
 export function FlowOnboarding() {
+  // Vapi tool calls write onboarding_states server-side; this realtime
+  // side-channel mirrors those writes into the React Query cache so the
+  // orchestrator sees the current_step climb + form fields fill. The legacy
+  // step pages got this via OnboardingLayout, which the chat-native engine
+  // intentionally doesn't render — so mount it directly here.
+  useOnboardingRealtimeSync();
   const { state } = useOnboarding();
   // Pin a returning user to the version they started on. The read is wired now;
   // writing the tag back (onPin) lands with the flow_versions table — see

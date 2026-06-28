@@ -13,13 +13,23 @@ export const ONBOARDING_FLOW_ROUTE = '/onboarding/flow';
 // engages here too), but with in-memory persistence so it runs without sign-in.
 export const ONBOARDING_FLOW_PREVIEW_ROUTE = '/onboarding-flow-preview';
 
-// Beats covered by Vapi full-duplex on the chat page today: profile → fork. The
-// AUTH beat stays silent (like the routed screens); beats past the fork aren't
-// voice-ready yet, so they fall back to the mic→LLM (Soniox) text loop. Widen
-// this set as later beats land.
+// Beats covered by Vapi full-duplex on the chat page: profile → fork → category
+// → goals. The AUTH beat stays silent (like the routed screens). Single-field,
+// server-step-advanced beats are armed; the habit beats (BEGINNER-03/04 share
+// step 5 with a local select→schedule transition) and the plan/reflection/
+// morning beats (step-model + bundle gaps) are arming in later phases. Widening
+// this set keeps vapiShouldBeLive true across the added beats, so Vapi stays one
+// continuous session through them instead of tearing down and cold-starting.
 export const CHAT_VAPI_BEAT_SCREENS: ReadonlySet<string> = new Set([
   'ONBOARD-01--FORM',
   'ONBOARD-FORK--FORM',
+  'ONBOARD-BEGINNER-01',
+  'ONBOARD-BEGINNER-02',
+  // Habits is ONE beat: picking + scheduling happen together on BEGINNER-03 via
+  // add_habit. BEGINNER-04 (a separate schedule card) is a flow-design artifact —
+  // not driven as a distinct Vapi beat. If the beat owner splits it later, arm
+  // it then.
+  'ONBOARD-BEGINNER-03',
 ]);
 
 // 'none' = chat-only beat (no inline card yet). Cards beyond profile land

@@ -62,7 +62,7 @@ const WORD_SIGNAL_IDLE_MS = 1200;
 const WINDOW_MS_PER_WORD = 360;
 const WINDOW_TICK_MS = 90;
 
-function countWords(text: string): number {
+export function countWords(text: string): number {
   const t = text.trim();
   if (!t) return 0;
   return t.split(/\s+/).length;

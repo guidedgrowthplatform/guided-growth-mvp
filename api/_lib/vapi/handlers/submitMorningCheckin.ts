@@ -1,11 +1,11 @@
 /**
- * submit_reflection_config handler — writes the user's evening reflection
- * schedule to onboarding_states.data.reflectionConfig.
+ * submit_morning_checkin handler — writes the user's morning check-in schedule
+ * to onboarding_states.data.morningCheckin on ONBOARD-MORNING-SETUP.
  *
  * Auth model: see submitProfile.ts. Channel auth is X-Vapi-Secret;
  * identity arrives as `anon_id` injected by Vapi from static call params.
  *
- * Validation patterns mirror add_habit for time/days/schedule.
+ * Validation patterns mirror submitReflectionConfig (time/days/reminder/schedule).
  */
 import pool, { type Queryable } from '../../db.js';
 import {
@@ -56,12 +56,12 @@ function isScheduleOption(v: string): boolean {
   return (SCHEDULE_OPTIONS as readonly string[]).includes(v);
 }
 
-export async function submitReflectionConfig(
+export async function submitMorningCheckin(
   args: Record<string, unknown>,
   db: Queryable = pool,
 ): Promise<HandlerResult> {
   console.log(
-    '[vapi/tool] received name=submit_reflection_config anon_id=' + getString(args, 'anon_id'),
+    '[vapi/tool] received name=submit_morning_checkin anon_id=' + getString(args, 'anon_id'),
   );
 
   const anonId = getString(args, 'anon_id');
@@ -101,25 +101,20 @@ export async function submitReflectionConfig(
     return { error: `validation_failed: schedule must be one of ${SCHEDULE_OPTIONS.join(', ')}` };
   }
 
-  // Reconcile: days is authoritative, schedule is a UI hint kept in sync so
-  // PlanReviewPage's formatCadence(days) is faithful. If days doesn't match a
-  // preset (custom combination), fall back to the LLM-supplied label.
+  // Reconcile: days is authoritative, schedule kept in sync so a stale label from
+  // LLM drift lands corrected. Falls back to the LLM-supplied label for a custom
+  // day combination.
   const schedule: ScheduleOption = inferSchedule(days) ?? (scheduleRaw as ScheduleOption);
 
-  const modeRaw = getString(args, 'mode');
-  const reflectionMode =
-    modeRaw === 'freeform' ? 'freeform' : modeRaw === 'prompts' ? 'prompts' : undefined;
+  const morningCheckin = { time, days, reminder, schedule };
+  const payload = JSON.stringify({ morningCheckin });
 
-  const reflectionConfig = { time, days, reminder, schedule };
-  const payload = JSON.stringify(
-    reflectionMode ? { reflectionConfig, reflectionMode } : { reflectionConfig },
-  );
-
-  // DATA ONLY — current_step not touched on UPDATE; navigate_next handles
-  // the screen advance. INSERT path defaults to step 6 (reflection).
+  // DATA ONLY — current_step not touched on UPDATE; navigate_next handles the
+  // screen advance. INSERT path defaults to step 7 (morning-checkin-setup); it is
+  // a fallback only — by this beat a row already exists from prior steps.
   const result = await db.query(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
-     VALUES ($1, 6, 'in_progress', $2::jsonb, now())
+     VALUES ($1, 7, 'in_progress', $2::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET
        status = 'in_progress',
        data = onboarding_states.data || $2::jsonb,
@@ -127,6 +122,6 @@ export async function submitReflectionConfig(
     [anonId, payload],
   );
 
-  console.log(`[vapi/tool] submit_reflection_config written rows=${result.rowCount ?? 0}`);
+  console.log(`[vapi/tool] submit_morning_checkin written rows=${result.rowCount ?? 0}`);
   return { result: 'ok' };
 }

@@ -36,6 +36,18 @@ export const ONBOARDING_CHAT_VAPI = import.meta.env.VITE_ONBOARDING_CHAT_VAPI ==
 // first cold-start beat; later beats are already warm and unaffected.
 export const ONBOARDING_INSTANT_OPENER = import.meta.env.VITE_ONBOARDING_INSTANT_OPENER === 'true';
 
+// ─── Onboarding Vapi idle auto-pause ────────────────────────────────────────
+// After this many ms of CONTINUOUS user silence, the live Vapi call is paused
+// (systemPauseMic → vapiShouldBeLive false → call torn down) to save voice
+// minutes; a user gesture re-arms it. 8s is aggressive for an ACTIVE guided
+// conversation — a normal think-pause reads as "Vapi shut down for no reason."
+// Override (e.g. 600000 to effectively keep the call live while testing) via
+// VITE_ONBOARDING_VAPI_IDLE_TIMEOUT_MS. Default unchanged.
+export const ONBOARDING_VAPI_IDLE_TIMEOUT_MS = envNumber(
+  import.meta.env.VITE_ONBOARDING_VAPI_IDLE_TIMEOUT_MS,
+  8000,
+);
+
 // ─── Vapi (Path 1) daily cap ────────────────────────────────────────────────
 // Test override; gg-spec UX-12 says 5. Revert before launch.
 export const VAPI_DAILY_CAP = envNumber(import.meta.env.VITE_VAPI_DAILY_CAP, 25);

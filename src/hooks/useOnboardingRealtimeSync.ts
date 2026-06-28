@@ -17,13 +17,42 @@ export type RealtimeSyncStatus = 'idle' | 'subscribing' | 'subscribed' | 'error'
  * clause; otherwise the just-saved cache row has `updated_at === undefined`, the
  * comparison short-circuits to "not stale", and a late echo of the pre-save row
  * silently clobbers fresh state. Tested against both shapes below.
+ *
+ * Compare by parsed epoch, NOT lexically: the API PUT returns ISO-8601
+ * (`2026-...T10:00:00.123Z`) while Supabase Realtime delivers the Postgres
+ * space form (`2026-... 10:00:00.123456+00`). A string `>` sorts `' '`(0x20)
+ * below `'T'`(0x54), so a realtime echo would always read as "older" than a
+ * just-saved ISO row and get dropped. Date.parse normalizes both.
  */
 export function isStaleRealtimeRow(
   current: { updated_at?: string | null } | null | undefined,
   next: { updated_at?: string | null },
 ): boolean {
   if (!current?.updated_at || !next.updated_at) return false;
-  return current.updated_at > next.updated_at;
+  const c = Date.parse(current.updated_at);
+  const n = Date.parse(next.updated_at);
+  if (Number.isNaN(c) || Number.isNaN(n)) return false;
+  return c > n;
+}
+
+/**
+ * Apply a passed-the-guard realtime row onto the cached row. `current_step` and
+ * other scalars take the incoming (newest-by-timestamp) value — back-nav via
+ * navigate_next to a lower step must still take effect. `data` is UNIONED so a
+ * write that touched only one column (e.g. navigate_next bumping current_step)
+ * can never drop a field a concurrent split-write just added. The backend
+ * transaction (one coalesced event per tool batch) is the primary fix; this is
+ * defense-in-depth for any non-coalesced write.
+ */
+export function mergeRealtimeRow(
+  current: OnboardingState | null | undefined,
+  next: OnboardingState,
+): OnboardingState {
+  if (!current) return next;
+  return {
+    ...next,
+    data: { ...(current.data ?? {}), ...(next.data ?? {}) },
+  };
 }
 
 /**
@@ -89,7 +118,9 @@ export function useOnboardingRealtimeSync(): RealtimeSyncStatus {
             }
             return;
           }
-          qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, next);
+          qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, (cur) =>
+            mergeRealtimeRow(cur, next),
+          );
           if (import.meta.env.DEV) {
             console.log('[realtime] cache updated → data:', next.data);
           }

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { OnboardingState, OnboardingStepData } from '@gg/shared/types';
-import { getOnboardingOpener, getOnboardingRevisitOpener } from './onboardingOpeners';
+import {
+  getOnboardingOpener,
+  getOnboardingOpenerForState,
+  getOnboardingRevisitOpener,
+} from './onboardingOpeners';
 
 function makeState(
   over: Partial<OnboardingState> & { data?: OnboardingStepData },
@@ -95,5 +99,34 @@ describe('getOnboardingOpener coverage', () => {
   ])('%s has a non-empty opener', (screenId) => {
     const opener = getOnboardingOpener(screenId);
     expect(opener && opener.length > 0).toBe(true);
+  });
+});
+
+describe('getOnboardingOpenerForState — profile beat name capture', () => {
+  it.each(['ONBOARD-01', 'ONBOARD-01--FORM'])(
+    '%s with no nickname asks for the name (not the {name} template)',
+    (screenId) => {
+      const opener = getOnboardingOpenerForState(screenId, undefined);
+      expect(opener).toMatch(/what should i call you/i);
+      expect(opener).not.toContain('{name}');
+    },
+  );
+
+  it.each([undefined, null, '', '   '])('treats %p nickname as missing', (nickname) => {
+    expect(getOnboardingOpenerForState('ONBOARD-01--FORM', nickname)).toMatch(
+      /what should i call you/i,
+    );
+  });
+
+  it('with a known nickname falls back to the standard {name} opener', () => {
+    expect(getOnboardingOpenerForState('ONBOARD-01--FORM', 'Yonas')).toBe(
+      getOnboardingOpener('ONBOARD-01--FORM'),
+    );
+  });
+
+  it('non-profile screens ignore nickname and return the standard opener', () => {
+    expect(getOnboardingOpenerForState('ONBOARD-BEGINNER-01', undefined)).toBe(
+      getOnboardingOpener('ONBOARD-BEGINNER-01'),
+    );
   });
 });
