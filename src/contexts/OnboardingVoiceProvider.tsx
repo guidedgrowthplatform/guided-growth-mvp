@@ -995,6 +995,21 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
           typeof filled.nickname === 'string' ? (filled.nickname as string) : undefined;
         const openerBase = getOnboardingOpenerForState(sid, nickname) ?? '';
         const openerText = applyName(openerBase, nickname);
+        // Route the Cartesia opener through the SAME message store as Vapi turns so
+        // it renders from the transcript (not pre-rendered authored text) and gets
+        // persisted (source 'opener'). Stable id per beat → dedup + mirror-once.
+        if (openerText) {
+          const openerMsg: VoiceMessage = {
+            id: `opener-${sid}`,
+            role: 'ai',
+            text: openerText,
+            screenId: sid,
+            source: 'opener',
+          };
+          setMessages((prev) =>
+            prev.some((m) => m.id === openerMsg.id) ? prev : [...prev, openerMsg],
+          );
+        }
         stopOpener();
         const handle = speakOpener(openerText);
         openerHandleRef.current = handle;

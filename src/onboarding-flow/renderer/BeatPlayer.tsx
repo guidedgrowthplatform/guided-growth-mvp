@@ -25,6 +25,11 @@ import { countWords, useCoachSpeechReveal } from './useCoachSpeechReveal';
 // speech-end), reveal anyway so onboarding can never dead-end with no card.
 const VOICE_REVEAL_MAX_MS = 12000;
 
+// How long the opener waits for a TRANSCRIPT before falling back to the authored
+// line. Cold-start appends the opener instantly (no wait); warm Vapi streams it in
+// a second or two. The fallback only fires if voice fails to produce any opener.
+const OPENER_FALLBACK_MS = 12000;
+
 // One part of a beat the player reveals in turn.
 //   - kind 'coach'  + say  -> a white bubble the coach speaks (karaoke reveal)
 //   - kind 'card'   + body -> the interactive card, revealed after the coach line
@@ -132,6 +137,61 @@ export function LiveBeatConversation({
   );
 }
 
+/**
+ * The beat's opener as a TRANSCRIPT turn — the first coach turn for this beat in
+ * the message store, streamed live as it is spoken (warm Vapi) or appended (cold
+ * Cartesia). This replaces rendering the pre-authored opener text: the bubble now
+ * shows what the coach actually says. `fallbackText` (the authored line) is shown
+ * only if no transcript opener arrives within the failsafe window (voice stalled),
+ * so a beat can never dead-end with no opener.
+ *
+ * `present` flips true once the opener is settled (final landed, or fallback
+ * engaged) — the caller gates the card on it so the card reveals after the opener.
+ */
+export function useBeatOpener(
+  screenId: string,
+  fallbackText: string | null,
+): { text: string; present: boolean; streaming: boolean } {
+  const session = useOnboardingVoice();
+  const all = session?.messages;
+  const subscribe = session?.subscribeTranscripts;
+
+  const beatMsgs = (all ?? []).filter((m) => m.screenId === screenId);
+  const firstUserIdx = beatMsgs.findIndex((m) => m.role === 'user');
+  const openerTurn = beatMsgs.find(
+    (m, i) => m.role === 'ai' && (firstUserIdx < 0 || i < firstUserIdx),
+  );
+
+  const [partial, setPartial] = useState('');
+  const shown = useSmoothReveal(partial);
+  const [fallbackEngaged, setFallbackEngaged] = useState(false);
+  const userSpokeRef = useRef(firstUserIdx >= 0);
+
+  useEffect(() => {
+    if (!subscribe) return;
+    const onTranscript: OnboardingTranscriptListener = (evt) => {
+      if (evt.role === 'user' && evt.kind !== 'partial') userSpokeRef.current = true;
+      // Only pre-user coach speech is the opener.
+      if (evt.role !== 'assistant' || userSpokeRef.current) return;
+      setPartial(evt.kind === 'partial' ? evt.text : '');
+    };
+    return subscribe(onTranscript);
+  }, [subscribe]);
+
+  useEffect(() => {
+    if (openerTurn) return;
+    const t = window.setTimeout(() => setFallbackEngaged(true), OPENER_FALLBACK_MS);
+    return () => window.clearTimeout(t);
+  }, [openerTurn]);
+
+  const present = !!openerTurn || fallbackEngaged;
+  let text = '';
+  if (openerTurn) text = openerTurn.text;
+  else if (shown.trim().length > 0) text = shown;
+  else if (fallbackEngaged && fallbackText) text = fallbackText;
+  return { text, present, streaming: !openerTurn && shown.trim().length > 0 };
+}
+
 // True after the user finishes a turn and before the coach starts replying (and
 // while a Direct-LLM turn is in flight). Keys off a USER final, so it never fires
 // during the opener (no user turn yet) and clears as soon as the coach speaks.
@@ -161,7 +221,7 @@ function useCoachThinking(): boolean {
 // Three bouncing dots in a coach bubble — the live cue that the coach is
 // connecting / thinking, or a tool is in flight. Neutral by design (no words),
 // sized to the flow feed (not the old full-duplex page's labelled variant).
-function ThinkingDots() {
+export function ThinkingDots() {
   return (
     <div
       className={`flex w-fit items-center gap-1.5 ${COACH_BUBBLE_CLASS} animate-fade-in`}

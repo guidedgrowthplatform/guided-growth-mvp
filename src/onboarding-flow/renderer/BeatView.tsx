@@ -13,7 +13,8 @@
  * its own state, voice capture, and save path. This view only changes how the
  * beat is presented (reveal timing + karaoke + the frozen/summary past state).
  */
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
+import { CHAT_VAPI_BEAT_SCREENS } from '@/lib/onboarding/onboardingStepBeats';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 import { applyName } from './applyName';
 import {
@@ -21,9 +22,54 @@ import {
   COACH_BUBBLE_CLASS,
   LiveBeatConversation,
   PastBeatBubbles,
+  ThinkingDots,
+  useBeatOpener,
   type BeatStep,
 } from './BeatPlayer';
 import { FROZEN_CARD_TYPES, getAdapter, summarizeBeat } from './componentRegistry';
+
+// Active beat on a Vapi-covered screen: the opener renders from the live
+// TRANSCRIPT (what the coach actually says), the card reveals once the opener has
+// settled, and the dialogue streams below. Encapsulated so useBeatOpener (which
+// subscribes to transcripts) is mounted only for the one active Vapi beat.
+function ActiveVapiBeat({
+  node,
+  answers,
+  onCapture,
+  fallbackOpener,
+  onReveal,
+}: {
+  node: FlowNode;
+  answers: FlowAnswers;
+  onCapture: (capture: BeatCapture) => void;
+  fallbackOpener: string | null;
+  onReveal?: () => void;
+}) {
+  const Adapter = getAdapter(node.componentType);
+  const { text, present } = useBeatOpener(node.screenId, fallbackOpener);
+
+  useEffect(() => {
+    if (text || present) onReveal?.();
+  }, [text, present, onReveal]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {text ? (
+        <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{text}</div>
+      ) : (
+        <ThinkingDots />
+      )}
+      {present && Adapter && (
+        <div className="animate-fade-in">
+          <Adapter node={node} answers={answers} onCapture={onCapture} />
+        </div>
+      )}
+      {/* Dialogue after the opener (LiveBeatConversation slices from the first user
+          turn), one chronological feed from the provider's message store. */}
+      <LiveBeatConversation key={node.id} screenId={node.screenId} onText={onReveal} />
+    </div>
+  );
+}
 
 export interface BeatViewProps {
   node: FlowNode;
@@ -44,8 +90,22 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
 
   const handleReveal = useCallback(() => onReveal?.(), [onReveal]);
 
-  // Active beat: coach line karaokes, then the live card reveals beneath it, and
-  // the user's spoken words land live as a blue bubble below (voice turns only).
+  // Active Vapi beat: opener from the live transcript (not pre-rendered authored
+  // text), card revealed once the opener settles, dialogue streaming below.
+  if (active && Adapter && CHAT_VAPI_BEAT_SCREENS.has(node.screenId)) {
+    return (
+      <ActiveVapiBeat
+        node={node}
+        answers={answers}
+        onCapture={onCapture}
+        fallbackOpener={opener}
+        onReveal={handleReveal}
+      />
+    );
+  }
+
+  // Active non-Vapi beat (text / Path-3): the authored coach line karaokes, then
+  // the live card reveals beneath it. No transcript opener on this path.
   if (active && Adapter) {
     const steps: BeatStep[] = [];
     if (opener) steps.push({ id: `${node.id}-coach`, kind: 'coach', say: opener });
