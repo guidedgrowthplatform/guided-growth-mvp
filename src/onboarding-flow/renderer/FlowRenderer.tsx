@@ -76,7 +76,7 @@ export function FlowRenderer({ orchestrator, variant = 'default' }: FlowRenderer
           </div>
         </div>
 
-        <FlowVoiceControls />
+        {!overlay && <FlowVoiceControls />}
       </div>
     </FlowSurfaceProvider>
   );

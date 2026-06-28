@@ -45,7 +45,7 @@ export function CheckinFlowOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[70] bg-gradient-to-b from-primary-bg via-primary to-primary-dark"
+      className="fixed inset-0 z-[55] bg-gradient-to-b from-primary-bg via-primary to-primary-dark"
       role="dialog"
       aria-modal="true"
       aria-label="Check-in"
