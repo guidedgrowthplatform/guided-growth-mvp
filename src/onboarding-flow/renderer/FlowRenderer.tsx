@@ -16,9 +16,14 @@ import { FlowVoiceControls } from './FlowVoiceControls';
 export interface FlowRendererProps {
   orchestrator: FlowOrchestrator;
   showVoiceControls?: boolean;
+  surfaceClassName?: string;
 }
 
-export function FlowRenderer({ orchestrator, showVoiceControls = true }: FlowRendererProps) {
+export function FlowRenderer({
+  orchestrator,
+  showVoiceControls = true,
+  surfaceClassName = 'bg-background',
+}: FlowRendererProps) {
   const { flow, state, currentNode, answers, capture, back, canGoBack, isComplete } = orchestrator;
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -32,7 +37,9 @@ export function FlowRenderer({ orchestrator, showVoiceControls = true }: FlowRen
   }, [state.currentNodeId, isComplete, scrollToBottom]);
 
   return (
-    <div className="bg-background relative mx-auto flex h-full w-full max-w-[480px] flex-col">
+    <div
+      className={`${surfaceClassName} relative mx-auto flex h-full w-full max-w-[480px] flex-col`}
+    >
       {/* The only gradient is the dynamic voice one painted by FlowVoiceControls at
           the bottom (blue idle, yellow listening). No static background layer. */}
       {canGoBack && (

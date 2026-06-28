@@ -45,7 +45,7 @@ export function CheckinFlowOverlay({
 
   return (
     <div
-      className="bg-background fixed inset-0 z-[70]"
+      className="fixed inset-0 z-[70] bg-gradient-to-b from-primary-bg via-primary to-primary-dark"
       role="dialog"
       aria-modal="true"
       aria-label="Check-in"
@@ -58,7 +58,11 @@ export function CheckinFlowOverlay({
       >
         <Icon icon="ic:round-close" width={20} height={20} />
       </button>
-      <FlowRenderer orchestrator={orchestrator} showVoiceControls={false} />
+      <FlowRenderer
+        orchestrator={orchestrator}
+        showVoiceControls={false}
+        surfaceClassName="bg-transparent"
+      />
     </div>
   );
 }

@@ -34,10 +34,10 @@ export interface BeatStep {
 // as the same chat. Coach = white bubble on the left, user = blue bubble on the
 // right (ported from the builder's BeatPlayer).
 export const COACH_BUBBLE_CLASS =
-  'max-w-[85%] self-start rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 text-[14px] font-medium leading-[1.45] text-content shadow-[0px_4px_16px_-4px_rgba(15,23,42,0.12)]';
+  'max-w-[85%] self-start rounded-2xl rounded-tl-sm bg-surface px-4 py-2.5 text-[14px] font-medium leading-[1.45] text-content shadow-card';
 
 export const USER_BUBBLE_CLASS =
-  'max-w-[80%] self-end rounded-2xl rounded-tr-sm bg-[rgba(19,91,236,0.9)] px-4 py-2.5 text-[14px] font-medium text-white shadow-card';
+  'max-w-[80%] self-end rounded-2xl rounded-tr-sm bg-primary/90 px-4 py-2.5 text-[14px] font-medium text-white shadow-card';
 
 // A past beat replayed as static bubbles: the coach line, then the user's answer.
 // No karaoke, no timing (the beat already happened); same visual language as the

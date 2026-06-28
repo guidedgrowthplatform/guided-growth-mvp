@@ -123,6 +123,14 @@ describe('POST /api/llm/checkin-tool', () => {
     expect(res._json).toMatchObject({ error: 'handler_error' });
   });
 
+  it('returns 500 (not a crash) when dispatch throws', async () => {
+    dispatch.mockRejectedValue(new Error('ENOTFOUND pooler'));
+    const res = mockRes();
+    await handler(mockReq({ toolName: 'record_checkin', args: { sleep: 4 } }), res);
+    expect(res._status).toBe(500);
+    expect(res._json).toMatchObject({ error: 'handler_error', message: 'ENOTFOUND pooler' });
+  });
+
   it('defaults timezone to UTC when absent', async () => {
     dispatch.mockResolvedValue({ ok: true, result: {} });
     const res = mockRes();

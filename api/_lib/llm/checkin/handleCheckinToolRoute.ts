@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { validateTimezone } from '../../validation.js';
+import { reportToolFailure } from '../../sentry.js';
+import type { ToolResult } from '../tools.js';
 import { dispatchCheckinToolCall } from './dispatch.js';
 
 // Tap-driven check-in writes from the flow engine. Reuses the same record_checkin
@@ -25,10 +27,20 @@ export async function handleCheckinTool(
       : {};
   const timezone = validateTimezone(body.timezone) ?? 'UTC';
 
-  const result = await dispatchCheckinToolCall(toolName, args, {
-    anon_id: user.anonId,
-    timezone,
-  });
+  let result: ToolResult;
+  try {
+    result = await dispatchCheckinToolCall(toolName, args, { anon_id: user.anonId, timezone });
+  } catch (err) {
+    reportToolFailure({
+      tool: toolName,
+      anonId: user.anonId,
+      errorCode: 'handler_error',
+      args,
+      error: err,
+    });
+    res.status(500).json({ error: 'handler_error', message: (err as Error).message });
+    return;
+  }
 
   if (result.ok) {
     res.status(200).json(result);
