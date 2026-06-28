@@ -73,6 +73,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import type { OnboardingState } from '@gg/shared/types';
+import { clearThread, loadThread, saveThread } from './onboardingThreadStore';
 import { shouldWipeOnAnonIdChange } from './onboardingThreadWipe';
 
 function isOnboardingPath(pathname: string): boolean {
@@ -277,8 +278,23 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     prevAnonIdRef.current = next;
     if (shouldWipeOnAnonIdChange(prev, next)) {
       setMessages([]);
+      if (prev) clearThread(prev);
+      return;
+    }
+    // First resolve (null→id) or same id: hydrate the persisted thread so the
+    // conversation survives a refresh. Only seed when in-memory is still empty,
+    // so a live session is never clobbered.
+    if (next) {
+      const stored = loadThread(next);
+      if (stored.length) setMessages((cur) => (cur.length ? cur : stored));
     }
   }, [anonId]);
+
+  // Persist the thread on every change so a refresh restores the conversation.
+  useEffect(() => {
+    if (!anonId) return;
+    saveThread(anonId, messages);
+  }, [anonId, messages]);
 
   // Form snapshot — updated by each onboarding page via setFormSnapshot.
   // Read by buildOverridesForCall (cold start) and pushScreenContext (screen
