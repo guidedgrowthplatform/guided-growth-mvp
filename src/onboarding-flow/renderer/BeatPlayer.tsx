@@ -68,128 +68,96 @@ export function PastBeatBubbles({
 }
 
 /**
- * The live conversation on the ACTIVE beat, rendered from the provider's single
- * chronological message store (handleTranscript appends every user + coach final
- * in order, merged per turn, tagged by screenId). This is the ONE source of turn
- * order — the previous approach rendered user and coach turns from separate
- * buffers, which interleaved them wrong (a reply could land above the line it
- * answered). Here every turn sits on the real timeline.
+ * A beat's FULL conversation, rendered from the provider's single chronological
+ * message store (every coach + user turn for this beat, in turn order — opener
+ * first, then the dialogue). ONE source of order, so turns can never interleave
+ * wrong. Because it renders the persisted store, a COMPLETED beat keeps its whole
+ * conversation on screen (and rehydrates after a refresh) instead of collapsing —
+ * pass `active={false}` for a static past-beat replay.
  *
- * The opener (the coach's pre-user turn) is the karaoke line above, so the feed
- * starts at the first USER turn and renders everything after it in order. The
- * in-progress turn streams as a live partial at the tail until its final lands in
- * the store.
+ * Active beat only: the in-progress turn streams as a live partial at the tail, a
+ * thinking indicator shows while the coach connects / replies, and the cold-start
+ * Cartesia opener (source 'opener') karaokes word-by-word. Warm Vapi openers and
+ * replies already arrive word-by-word as STT partials.
+ *
+ * `fallbackOpener` (the authored line) shows only if the active beat produces no
+ * coach turn within the failsafe window (voice stalled), so a beat can't dead-end.
  */
-export function LiveBeatConversation({
+export function BeatConversation({
   screenId,
+  active,
   onText,
+  fallbackOpener,
+  connecting = true,
 }: {
   screenId: string;
+  active: boolean;
   onText?: () => void;
+  fallbackOpener?: string | null;
+  // Whether to show the connecting/thinking + authored-opener failsafe. Off on the
+  // non-Vapi path (the authored opener is already drawn by BeatPlayer there).
+  connecting?: boolean;
 }) {
   const session = useOnboardingVoice();
   const all = session?.messages;
   const subscribe = session?.subscribeTranscripts;
 
   const beatMsgs = (all ?? []).filter((m) => m.screenId === screenId);
-  const firstUserIdx = beatMsgs.findIndex((m) => m.role === 'user');
-  // From the first user turn onward, in timeline order. The opener / any pre-user
-  // coach line is the karaoke line above, not repeated here.
-  const convo = firstUserIdx >= 0 ? beatMsgs.slice(firstUserIdx) : [];
+  const hasCoachTurn = beatMsgs.some((m) => m.role === 'ai');
 
-  const userSpokeRef = useRef(firstUserIdx >= 0);
   const [partial, setPartial] = useState<{ role: 'ai' | 'user'; text: string } | null>(null);
   const shown = useSmoothReveal(partial?.text ?? '');
+  const [fallbackOn, setFallbackOn] = useState(false);
 
   useEffect(() => {
-    if (!subscribe) return;
+    if (!active || !subscribe) {
+      setPartial(null);
+      return;
+    }
     const onTranscript: OnboardingTranscriptListener = (evt) => {
       const role: 'ai' | 'user' = evt.role === 'assistant' ? 'ai' : 'user';
-      if (evt.role === 'user' && evt.kind !== 'partial') userSpokeRef.current = true;
-      // Pre-user coach speech is the opener (karaoke line) — don't stream it here.
-      if (!userSpokeRef.current) return;
       if (evt.kind === 'partial') setPartial({ role, text: evt.text });
       else setPartial(null);
     };
     return subscribe(onTranscript);
-  }, [subscribe]);
+  }, [active, subscribe]);
+
+  // Failsafe: surface the authored opener if voice never produces a coach turn.
+  useEffect(() => {
+    if (!connecting || !active || hasCoachTurn || !fallbackOpener) return;
+    const t = window.setTimeout(() => setFallbackOn(true), OPENER_FALLBACK_MS);
+    return () => window.clearTimeout(t);
+  }, [connecting, active, hasCoachTurn, fallbackOpener]);
 
   useEffect(() => {
-    if (convo.length > 0 || shown.trim().length > 0) onText?.();
-  }, [convo.length, shown, onText]);
+    if (beatMsgs.length > 0 || shown.trim().length > 0) onText?.();
+  }, [beatMsgs.length, shown, onText]);
+
+  // Karaoke only the cold-start opener bubble, only while active — it lands as
+  // full text (Cartesia TTS, no STT partials), so reveal it word-by-word.
+  const openerKaraokeId = active ? beatMsgs.find((m) => m.source === 'opener')?.id : undefined;
+  const showConnecting = connecting && active && !hasCoachTurn && !partial;
 
   return (
     <div className="flex flex-col gap-2">
-      {convo.map((m) => (
+      {beatMsgs.map((m) => (
         <div key={m.id} className={m.role === 'ai' ? COACH_BUBBLE_CLASS : USER_BUBBLE_CLASS}>
-          {m.text}
+          {m.id === openerKaraokeId ? <Karaoke text={m.text} active /> : m.text}
         </div>
       ))}
-      {partial && shown.trim().length > 0 && (
+      {showConnecting && fallbackOn && fallbackOpener && (
+        <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{fallbackOpener}</div>
+      )}
+      {active && partial && shown.trim().length > 0 && (
         <div
           className={`animate-fade-in ${partial.role === 'ai' ? COACH_BUBBLE_CLASS : USER_BUBBLE_CLASS}`}
         >
           {shown}
         </div>
       )}
-      <CoachThinkingIndicator />
+      {showConnecting && !fallbackOn ? <ThinkingDots /> : active && <CoachThinkingIndicator />}
     </div>
   );
-}
-
-/**
- * The beat's opener as a TRANSCRIPT turn — the first coach turn for this beat in
- * the message store, streamed live as it is spoken (warm Vapi) or appended (cold
- * Cartesia). This replaces rendering the pre-authored opener text: the bubble now
- * shows what the coach actually says. `fallbackText` (the authored line) is shown
- * only if no transcript opener arrives within the failsafe window (voice stalled),
- * so a beat can never dead-end with no opener.
- *
- * `present` flips true once the opener is settled (final landed, or fallback
- * engaged) — the caller gates the card on it so the card reveals after the opener.
- */
-export function useBeatOpener(
-  screenId: string,
-  fallbackText: string | null,
-): { text: string; present: boolean; streaming: boolean } {
-  const session = useOnboardingVoice();
-  const all = session?.messages;
-  const subscribe = session?.subscribeTranscripts;
-
-  const beatMsgs = (all ?? []).filter((m) => m.screenId === screenId);
-  const firstUserIdx = beatMsgs.findIndex((m) => m.role === 'user');
-  const openerTurn = beatMsgs.find(
-    (m, i) => m.role === 'ai' && (firstUserIdx < 0 || i < firstUserIdx),
-  );
-
-  const [partial, setPartial] = useState('');
-  const shown = useSmoothReveal(partial);
-  const [fallbackEngaged, setFallbackEngaged] = useState(false);
-  const userSpokeRef = useRef(firstUserIdx >= 0);
-
-  useEffect(() => {
-    if (!subscribe) return;
-    const onTranscript: OnboardingTranscriptListener = (evt) => {
-      if (evt.role === 'user' && evt.kind !== 'partial') userSpokeRef.current = true;
-      // Only pre-user coach speech is the opener.
-      if (evt.role !== 'assistant' || userSpokeRef.current) return;
-      setPartial(evt.kind === 'partial' ? evt.text : '');
-    };
-    return subscribe(onTranscript);
-  }, [subscribe]);
-
-  useEffect(() => {
-    if (openerTurn) return;
-    const t = window.setTimeout(() => setFallbackEngaged(true), OPENER_FALLBACK_MS);
-    return () => window.clearTimeout(t);
-  }, [openerTurn]);
-
-  const present = !!openerTurn || fallbackEngaged;
-  let text = '';
-  if (openerTurn) text = openerTurn.text;
-  else if (shown.trim().length > 0) text = shown;
-  else if (fallbackEngaged && fallbackText) text = fallbackText;
-  return { text, present, streaming: !openerTurn && shown.trim().length > 0 };
 }
 
 // True after the user finishes a turn and before the coach starts replying (and

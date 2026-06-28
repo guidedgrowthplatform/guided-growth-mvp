@@ -13,63 +13,19 @@
  * its own state, voice capture, and save path. This view only changes how the
  * beat is presented (reveal timing + karaoke + the frozen/summary past state).
  */
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
+import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { CHAT_VAPI_BEAT_SCREENS } from '@/lib/onboarding/onboardingStepBeats';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 import { applyName } from './applyName';
 import {
+  BeatConversation,
   BeatPlayer,
   COACH_BUBBLE_CLASS,
-  LiveBeatConversation,
   PastBeatBubbles,
-  ThinkingDots,
-  useBeatOpener,
   type BeatStep,
 } from './BeatPlayer';
 import { FROZEN_CARD_TYPES, getAdapter, summarizeBeat } from './componentRegistry';
-
-// Active beat on a Vapi-covered screen: the opener renders from the live
-// TRANSCRIPT (what the coach actually says), the card reveals once the opener has
-// settled, and the dialogue streams below. Encapsulated so useBeatOpener (which
-// subscribes to transcripts) is mounted only for the one active Vapi beat.
-function ActiveVapiBeat({
-  node,
-  answers,
-  onCapture,
-  fallbackOpener,
-  onReveal,
-}: {
-  node: FlowNode;
-  answers: FlowAnswers;
-  onCapture: (capture: BeatCapture) => void;
-  fallbackOpener: string | null;
-  onReveal?: () => void;
-}) {
-  const Adapter = getAdapter(node.componentType);
-  const { text, present } = useBeatOpener(node.screenId, fallbackOpener);
-
-  useEffect(() => {
-    if (text || present) onReveal?.();
-  }, [text, present, onReveal]);
-
-  return (
-    <div className="flex flex-col gap-3">
-      {text ? (
-        <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{text}</div>
-      ) : (
-        <ThinkingDots />
-      )}
-      {present && Adapter && (
-        <div className="animate-fade-in">
-          <Adapter node={node} answers={answers} onCapture={onCapture} />
-        </div>
-      )}
-      {/* Dialogue after the opener (LiveBeatConversation slices from the first user
-          turn), one chronological feed from the provider's message store. */}
-      <LiveBeatConversation key={node.id} screenId={node.screenId} onText={onReveal} />
-    </div>
-  );
-}
 
 export interface BeatViewProps {
   node: FlowNode;
@@ -81,31 +37,45 @@ export interface BeatViewProps {
 }
 
 export function BeatView({ node, answers, active, onCapture, onReveal }: BeatViewProps) {
+  const session = useOnboardingVoice();
   // getAdapter returns a module-stable component reference per componentType, so
   // identity only changes when the beat (and thus the card) changes — which is
   // exactly when a state reset is correct. Safe despite the static-components rule.
   const Adapter = getAdapter(node.componentType);
   const opener = node.voice.openerText ? applyName(node.voice.openerText, answers.nickname) : null;
   const summary = !active ? summarizeBeat(node, answers) : null;
+  // Does this beat have persisted/live conversation turns in the store? Drives
+  // whether a PAST beat replays its real dialogue (so it never disappears) or
+  // falls back to the authored opener + receipt.
+  const hasBeatConversation = (session?.messages ?? []).some(
+    (m) => m.screenId === node.screenId && !!m.text,
+  );
+  const isVapiBeat = CHAT_VAPI_BEAT_SCREENS.has(node.screenId);
 
   const handleReveal = useCallback(() => onReveal?.(), [onReveal]);
 
-  // Active Vapi beat: opener from the live transcript (not pre-rendered authored
-  // text), card revealed once the opener settles, dialogue streaming below.
-  if (active && Adapter && CHAT_VAPI_BEAT_SCREENS.has(node.screenId)) {
+  // Active Vapi beat: the WHOLE conversation (opener + dialogue) from the transcript
+  // as one contiguous feed, the card at the BOTTOM — so AI turns stay together
+  // instead of being split above/below the card.
+  if (active && Adapter && isVapiBeat) {
     return (
-      <ActiveVapiBeat
-        node={node}
-        answers={answers}
-        onCapture={onCapture}
-        fallbackOpener={opener}
-        onReveal={handleReveal}
-      />
+      <div className="flex flex-col gap-3">
+        <BeatConversation
+          key={node.id}
+          screenId={node.screenId}
+          active
+          fallbackOpener={opener}
+          onText={handleReveal}
+        />
+        <div className="animate-fade-in">
+          <Adapter node={node} answers={answers} onCapture={onCapture} />
+        </div>
+      </div>
     );
   }
 
   // Active non-Vapi beat (text / Path-3): the authored coach line karaokes, then
-  // the live card reveals beneath it. No transcript opener on this path.
+  // the live card reveals beneath it; dialogue (if any) streams below.
   if (active && Adapter) {
     const steps: BeatStep[] = [];
     if (opener) steps.push({ id: `${node.id}-coach`, kind: 'coach', say: opener });
@@ -117,17 +87,33 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
     return (
       <div className="flex flex-col gap-3">
         <BeatPlayer steps={steps} onReveal={handleReveal} />
-        {/* One chronological feed from the provider's message store (correct turn
-            order). Keyed per beat so nothing carries across beats. */}
-        <LiveBeatConversation key={node.id} screenId={node.screenId} onText={handleReveal} />
+        <BeatConversation
+          key={node.id}
+          screenId={node.screenId}
+          active
+          connecting={false}
+          onText={handleReveal}
+        />
       </div>
     );
   }
 
-  // Past data beat: the coach line, then the SAME card re-rendered frozen in its
-  // captured state — so a completed beat stays on screen as a filled receipt
-  // instead of collapsing to one line. The adapter seeds its selection from
-  // `answers` and renders inert (no CTA, no taps) under readOnly.
+  // Past beat with a real conversation: replay the persisted turns (opener +
+  // dialogue) so the completed beat keeps its whole conversation on screen and
+  // rehydrates after a refresh. Data beats also keep their frozen card receipt.
+  if (!active && hasBeatConversation) {
+    return (
+      <div className="flex flex-col gap-3">
+        <BeatConversation screenId={node.screenId} active={false} />
+        {Adapter && FROZEN_CARD_TYPES.has(node.componentType) && (
+          <Adapter node={node} answers={answers} onCapture={onCapture} readOnly />
+        )}
+      </div>
+    );
+  }
+
+  // Past data beat with no captured conversation: the coach line, then the SAME
+  // card re-rendered frozen in its captured state (inert under readOnly).
   if (Adapter && FROZEN_CARD_TYPES.has(node.componentType)) {
     return (
       <div className="flex flex-col gap-3">
