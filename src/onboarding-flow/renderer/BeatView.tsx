@@ -54,23 +54,18 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
 
   const handleReveal = useCallback(() => onReveal?.(), [onReveal]);
 
-  // Active Vapi beat: the WHOLE conversation (opener + dialogue) from the transcript
-  // as one contiguous feed, the card at the BOTTOM — so AI turns stay together
-  // instead of being split above/below the card.
+  // Active Vapi beat: opener → the beat component (IN the timeline) → dialogue,
+  // all from the transcript store as one ordered feed.
   if (active && Adapter && isVapiBeat) {
     return (
-      <div className="flex flex-col gap-3">
-        <BeatConversation
-          key={node.id}
-          screenId={node.screenId}
-          active
-          fallbackOpener={opener}
-          onText={handleReveal}
-        />
-        <div className="animate-fade-in">
-          <Adapter node={node} answers={answers} onCapture={onCapture} />
-        </div>
-      </div>
+      <BeatConversation
+        key={node.id}
+        screenId={node.screenId}
+        active
+        fallbackOpener={opener}
+        card={<Adapter node={node} answers={answers} onCapture={onCapture} />}
+        onText={handleReveal}
+      />
     );
   }
 
@@ -102,14 +97,11 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   // dialogue) so the completed beat keeps its whole conversation on screen and
   // rehydrates after a refresh. Data beats also keep their frozen card receipt.
   if (!active && hasBeatConversation) {
-    return (
-      <div className="flex flex-col gap-3">
-        <BeatConversation screenId={node.screenId} active={false} />
-        {Adapter && FROZEN_CARD_TYPES.has(node.componentType) && (
-          <Adapter node={node} answers={answers} onCapture={onCapture} readOnly />
-        )}
-      </div>
-    );
+    const frozenCard =
+      Adapter && FROZEN_CARD_TYPES.has(node.componentType) ? (
+        <Adapter node={node} answers={answers} onCapture={onCapture} readOnly />
+      ) : undefined;
+    return <BeatConversation screenId={node.screenId} active={false} card={frozenCard} />;
   }
 
   // Past data beat with no captured conversation: the coach line, then the SAME

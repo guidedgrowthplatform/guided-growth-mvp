@@ -16,6 +16,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   useOnboardingVoice,
   type OnboardingTranscriptListener,
+  type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
 import { countWords, useCoachSpeechReveal } from './useCoachSpeechReveal';
@@ -88,12 +89,16 @@ export function BeatConversation({
   active,
   onText,
   fallbackOpener,
+  card,
   connecting = true,
 }: {
   screenId: string;
   active: boolean;
   onText?: () => void;
   fallbackOpener?: string | null;
+  // The beat's interactive component, placed IN the timeline right after the
+  // opener (coach presents it, then the dialogue continues below it).
+  card?: ReactNode;
   // Whether to show the connecting/thinking + authored-opener failsafe. Off on the
   // non-Vapi path (the authored opener is already drawn by BeatPlayer there).
   connecting?: boolean;
@@ -101,9 +106,17 @@ export function BeatConversation({
   const session = useOnboardingVoice();
   const all = session?.messages;
   const subscribe = session?.subscribeTranscripts;
+  const openerReveal = session?.openerReveal;
 
   const beatMsgs = (all ?? []).filter((m) => m.screenId === screenId);
   const hasCoachTurn = beatMsgs.some((m) => m.role === 'ai');
+  // The opener is the first coach turn before any user turn; the rest is dialogue.
+  const firstUserIdx = beatMsgs.findIndex((m) => m.role === 'user');
+  const openerIdx = beatMsgs.findIndex(
+    (m, i) => m.role === 'ai' && (firstUserIdx < 0 || i < firstUserIdx),
+  );
+  const opener = openerIdx >= 0 ? beatMsgs[openerIdx] : null;
+  const dialogue = openerIdx >= 0 ? beatMsgs.slice(openerIdx + 1) : beatMsgs;
 
   const [partial, setPartial] = useState<{ role: 'ai' | 'user'; text: string } | null>(null);
   const shown = useSmoothReveal(partial?.text ?? '');
@@ -133,36 +146,60 @@ export function BeatConversation({
     if (beatMsgs.length > 0 || shown.trim().length > 0) onText?.();
   }, [beatMsgs.length, shown, onText]);
 
-  // Karaoke the cold-start opener bubble IN SYNC with the Cartesia audio: it lands
-  // as full text (TTS, no STT partials), and openerReveal carries the live word
-  // count paced by the real playback. Only the live opener on this beat is driven;
-  // hydrated / past / warm openers render in full.
-  const openerReveal = session?.openerReveal;
   const coldOpenerLive = !!(active && openerReveal && openerReveal.screenId === screenId);
-  const openerMsgId = beatMsgs.find((m) => m.source === 'opener')?.id;
   const showConnecting = connecting && active && !hasCoachTurn && !partial;
+  const openerPresent = !!opener || (fallbackOn && !!fallbackOpener);
+
+  // ONE bubble per turn: the live partial EXTENDS the current turn's bubble when it
+  // continues that turn (same role as the tail), instead of spawning a second
+  // bubble that later collapses. A partial of a NEW turn (different role) renders
+  // as its own bubble at the tail.
+  const livePartial = active && partial && shown.trim().length > 0 ? shown : null;
+  const tail = dialogue.length > 0 ? dialogue[dialogue.length - 1] : opener;
+  const partialExtendsTail = !!livePartial && !!tail && tail.role === partial!.role;
+  const partialExtendsOpener = partialExtendsTail && dialogue.length === 0;
+  const partialExtendsDialogue = partialExtendsTail && dialogue.length > 0;
+
+  const renderTurn = (m: VoiceMessage, append?: string | null) => {
+    const isColdOpener = coldOpenerLive && m.source === 'opener' && m.id === opener?.id;
+    const text = append ? `${m.text} ${append}`.replace(/\s+/g, ' ').trim() : m.text;
+    return (
+      <div key={m.id} className={m.role === 'ai' ? COACH_BUBBLE_CLASS : USER_BUBBLE_CLASS}>
+        {isColdOpener ? (
+          <Karaoke text={m.text} active revealCount={openerReveal!.revealedWords} />
+        ) : (
+          text
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-2">
-      {beatMsgs.map((m) => (
-        <div key={m.id} className={m.role === 'ai' ? COACH_BUBBLE_CLASS : USER_BUBBLE_CLASS}>
-          {coldOpenerLive && m.id === openerMsgId ? (
-            <Karaoke text={m.text} active revealCount={openerReveal!.revealedWords} />
-          ) : (
-            m.text
-          )}
-        </div>
-      ))}
-      {showConnecting && fallbackOn && fallbackOpener && (
+      {/* opener (or the authored failsafe if voice never spoke) */}
+      {opener ? (
+        renderTurn(opener, partialExtendsOpener ? livePartial : null)
+      ) : showConnecting && fallbackOn && fallbackOpener ? (
         <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{fallbackOpener}</div>
+      ) : null}
+
+      {/* the beat component, IN the timeline — right after the opener */}
+      {card && openerPresent && <div className="animate-fade-in">{card}</div>}
+
+      {/* dialogue, the partial extending the last turn's bubble when it continues it */}
+      {dialogue.map((m, i) =>
+        renderTurn(m, i === dialogue.length - 1 && partialExtendsDialogue ? livePartial : null),
       )}
-      {active && partial && shown.trim().length > 0 && (
+
+      {/* a partial that STARTS a new turn renders as its own (single) bubble */}
+      {livePartial && !partialExtendsTail && (
         <div
-          className={`animate-fade-in ${partial.role === 'ai' ? COACH_BUBBLE_CLASS : USER_BUBBLE_CLASS}`}
+          className={`animate-fade-in ${partial!.role === 'ai' ? COACH_BUBBLE_CLASS : USER_BUBBLE_CLASS}`}
         >
-          {shown}
+          {livePartial}
         </div>
       )}
+
       {showConnecting && !fallbackOn ? <ThinkingDots /> : active && <CoachThinkingIndicator />}
     </div>
   );
