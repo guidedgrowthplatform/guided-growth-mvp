@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildBeatMachinery,
+  buildOpenerDirective,
   composeOnboardingContextBlock,
+  getBeatOpener,
   isBundledBeat,
 } from './onboardingBeatBundle';
 
@@ -42,5 +44,19 @@ describe('onboarding beat machinery (flow-derived)', () => {
   it('returns null for non-onboarding screens (caller falls back to screen_contexts)', () => {
     expect(isBundledBeat('HOME-01')).toBe(false);
     expect(composeOnboardingContextBlock('HOME-01')).toBeNull();
+  });
+
+  it('builds a verbatim opener directive carrying the authored opener line', () => {
+    const opener = getBeatOpener('ONBOARD-BEGINNER-01');
+    expect(opener).toBeTruthy();
+    const directive = buildOpenerDirective('ONBOARD-BEGINNER-01');
+    expect(directive).toContain('verbatim');
+    expect(directive).toContain(opener!);
+  });
+
+  it('has no opener directive for a silent / opener-less beat', () => {
+    // AUTH is silent (no opener) → no directive.
+    expect(getBeatOpener('ONBOARD-AUTH--FORM')).toBeNull();
+    expect(buildOpenerDirective('ONBOARD-AUTH--FORM')).toBeNull();
   });
 });

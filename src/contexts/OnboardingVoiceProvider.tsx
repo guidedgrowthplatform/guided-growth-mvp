@@ -50,6 +50,7 @@ import {
 } from '@/lib/config/voice';
 import { buildContextMessage } from '@/lib/context/buildContextMessage';
 import { getScreenContext } from '@/lib/context/getScreenContext';
+import { buildOpenerDirective } from '@/lib/context/onboardingBeatBundle';
 import { getBundledRoutes } from '@/lib/context/screenContextsBundle';
 import { screenIdForRoute } from '@/lib/context/screenIdForRoute';
 import {
@@ -294,6 +295,10 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // the context still reaches Vapi instead of throwing and being lost.
   const pendingScreenContextRef = useRef<{ screenId: string; body: string } | null>(null);
 
+  // The beat whose opener the Cartesia instant-opener spoke (cold-start). The
+  // warm-beat opener directive is skipped for it so Vapi never re-says it.
+  const instantOpenedScreenRef = useRef<string | null>(null);
+
   const pushScreenContext = useCallback(
     async (screenId: string, sinceTs: string | null) => {
       const client = getClientRef.current();
@@ -307,9 +312,16 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         const persisted =
           qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data ?? {};
         const filled = { ...persisted, ...formSnapshotRef.current };
+        // Warm-beat opener: Vapi opens the beat with the authored line verbatim
+        // (rigid). Skipped for the cold-start beat (Cartesia spoke that opener).
+        const openerDirective =
+          screenId === instantOpenedScreenRef.current ? null : buildOpenerDirective(screenId);
+        const contextBlock = openerDirective
+          ? `${openerDirective}\n\n${ctx.context_block}`
+          : ctx.context_block;
         const body = buildContextMessage({
           screen_id: ctx.screen_id,
-          context_block: ctx.context_block,
+          context_block: contextBlock,
           state_delta: ctx.state_delta,
           filled_form_state: filled,
         });
@@ -850,6 +862,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         // Mark the call so onCallStart mutes the Vapi mic on join and the mic
         // gate (opener ended AND Vapi joined) governs the unmute.
         openerUsedRef.current = true;
+        instantOpenedScreenRef.current = sid;
         instantOpenerActiveRef.current = true;
         openerDoneRef.current = false;
         vapiJoinedRef.current = false;

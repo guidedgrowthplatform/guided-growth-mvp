@@ -35,6 +35,20 @@ export function getBundledBeat(screenId: string): BundleBeat | undefined {
   return BEATS[screenId];
 }
 
+export function getBeatOpener(screenId: string): string | null {
+  return BEATS[screenId]?.opener ?? null;
+}
+
+// The verbatim-opener directive prepended to a WARM-beat context push so Vapi
+// opens the beat with the authored line word-for-word (rigid, not improvised)
+// instead of generating its own greeting. Null when the beat has no opener.
+// NOT used on the cold-start beat — Cartesia speaks that opener instantly.
+export function buildOpenerDirective(screenId: string): string | null {
+  const opener = BEATS[screenId]?.opener;
+  if (!opener) return null;
+  return `OPENER — your first line on this beat: say it verbatim, word for word, then continue naturally. Do not paraphrase it.\n"${opener}"`;
+}
+
 // The code-generated Vapi machinery block for a beat: which tools are allowed
 // (data tools + navigate_next with the engine's target_step), and which are
 // forbidden. Empty string for a beat that has no tools at all.
