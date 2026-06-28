@@ -3,18 +3,28 @@
  *
  * Active beat: the coach line plays as a karaoke caption (a white coach bubble),
  * then the interactive card reveals beneath it (the BeatPlayer step timeline).
- * Past beats: the coach line, then the user's captured answer as a blue reply
- * bubble, so the scroll reads back as a real coach/user conversation.
+ * Past beats: the coach line, then either the same card re-rendered FROZEN in its
+ * captured state (the data beats — profile, category, goals, habits, schedules,
+ * plan — so the whole conversation stays on screen as persisted receipts), or a
+ * short answer bubble for beats where a frozen form would be noise (auth, mic,
+ * brain-dump, say-only). Either way the scroll reads back as a real conversation.
  *
  * The card itself is unchanged: it is the same orchestrator-wired adapter, with
  * its own state, voice capture, and save path. This view only changes how the
- * beat is presented (reveal timing + karaoke + the user-reply bubble per beat).
+ * beat is presented (reveal timing + karaoke + the frozen/summary past state).
  */
 import { useCallback } from 'react';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 import { applyName } from './applyName';
-import { BeatPlayer, LiveUserBubble, PastBeatBubbles, type BeatStep } from './BeatPlayer';
-import { getAdapter, summarizeBeat } from './componentRegistry';
+import {
+  BeatPlayer,
+  COACH_BUBBLE_CLASS,
+  CoachThinkingIndicator,
+  LiveUserBubble,
+  PastBeatBubbles,
+  type BeatStep,
+} from './BeatPlayer';
+import { FROZEN_CARD_TYPES, getAdapter, summarizeBeat } from './componentRegistry';
 
 export interface BeatViewProps {
   node: FlowNode;
@@ -50,12 +60,26 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
         <BeatPlayer steps={steps} onReveal={handleReveal} />
         {/* key per beat so a stale partial never carries across beats. */}
         <LiveUserBubble key={node.id} onText={handleReveal} />
+        <CoachThinkingIndicator />
       </div>
     );
   }
 
-  // Past beat: the coach line, then the user's captured answer as a reply bubble,
-  // replayed in the same chat language as the active beat (no karaoke timing).
+  // Past data beat: the coach line, then the SAME card re-rendered frozen in its
+  // captured state — so a completed beat stays on screen as a filled receipt
+  // instead of collapsing to one line. The adapter seeds its selection from
+  // `answers` and renders inert (no CTA, no taps) under readOnly.
+  if (Adapter && FROZEN_CARD_TYPES.has(node.componentType)) {
+    return (
+      <div className="flex flex-col gap-3">
+        {opener && <div className={COACH_BUBBLE_CLASS}>{opener}</div>}
+        <Adapter node={node} answers={answers} onCapture={onCapture} readOnly />
+      </div>
+    );
+  }
+
+  // Other past beats (auth, mic, brain-dump, say-only): the coach line, then the
+  // user's captured answer as a short reply bubble — no frozen form.
   return (
     <div className="flex flex-col">
       <PastBeatBubbles coach={opener} reply={summary} />

@@ -81,24 +81,90 @@ export function LiveUserBubble({ onText }: { onText?: () => void }) {
   const session = useOnboardingVoice();
   const subscribe = session?.subscribeTranscripts;
   const [partial, setPartial] = useState('');
+  // Settled utterances: each final becomes its OWN bubble (one composition = one
+  // bubble) and STAYS on screen, instead of vanishing the moment the final lands.
+  const [finals, setFinals] = useState<string[]>([]);
   const shown = useSmoothReveal(partial);
 
   useEffect(() => {
     if (!subscribe) return;
     const onTranscript: OnboardingTranscriptListener = (evt) => {
       if (evt.role !== 'user') return;
-      // Partial = words landing live; final clears (the settled answer takes over).
-      setPartial(evt.kind === 'partial' ? evt.text : '');
+      if (evt.kind === 'partial') {
+        setPartial(evt.text);
+        return;
+      }
+      const t = evt.text.trim();
+      if (t) setFinals((f) => [...f, t]);
+      setPartial('');
     };
     return subscribe(onTranscript);
   }, [subscribe]);
 
   useEffect(() => {
-    if (shown.length > 0) onText?.();
-  }, [shown, onText]);
+    if (shown.length > 0 || finals.length > 0) onText?.();
+  }, [shown, finals.length, onText]);
 
-  if (shown.trim().length === 0) return null;
-  return <div className={`animate-fade-in ${USER_BUBBLE_CLASS}`}>{shown}</div>;
+  if (finals.length === 0 && shown.trim().length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      {finals.map((t, i) => (
+        <div key={i} className={USER_BUBBLE_CLASS}>
+          {t}
+        </div>
+      ))}
+      {shown.trim().length > 0 && (
+        <div className={`animate-fade-in ${USER_BUBBLE_CLASS}`}>{shown}</div>
+      )}
+    </div>
+  );
+}
+
+// Three bouncing dots: the live cue that the coach is connecting / thinking, or a
+// tool is in flight. Neutral by design (no words) — never narrate the system.
+export function TypingIndicator() {
+  return (
+    <div
+      className={`flex w-fit items-center gap-1.5 ${COACH_BUBBLE_CLASS} animate-fade-in`}
+      aria-label="Coach is thinking"
+    >
+      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40" />
+      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40 [animation-delay:150ms]" />
+      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40 [animation-delay:300ms]" />
+    </div>
+  );
+}
+
+// True after the user finishes a turn and before the coach starts replying (and
+// while a Direct-LLM turn is in flight). Keys off a USER final, so it never fires
+// during the opener (no user turn yet) and clears as soon as the coach speaks.
+function useCoachThinking(): boolean {
+  const session = useOnboardingVoice();
+  const subscribe = session?.subscribeTranscripts;
+  const speaking = session?.isAssistantSpeaking ?? false;
+  const chatBusy = session?.chatBusy ?? false;
+  const [awaiting, setAwaiting] = useState(false);
+
+  useEffect(() => {
+    if (!subscribe) return;
+    const onTranscript: OnboardingTranscriptListener = (evt) => {
+      if (evt.role === 'user' && evt.kind === 'final') setAwaiting(true);
+      else if (evt.role === 'assistant') setAwaiting(false);
+    };
+    return subscribe(onTranscript);
+  }, [subscribe]);
+
+  useEffect(() => {
+    if (speaking) setAwaiting(false);
+  }, [speaking]);
+
+  return (awaiting || chatBusy) && !speaking;
+}
+
+// Renders the typing dots only while the coach is thinking. Mount ONLY on the
+// active beat (the hook subscribes to the transcript bus).
+export function CoachThinkingIndicator() {
+  return useCoachThinking() ? <TypingIndicator /> : null;
 }
 
 // Reveals words one at a time while `active`, dimming the not-yet-spoken ones so
