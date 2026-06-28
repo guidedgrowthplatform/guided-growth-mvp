@@ -19,9 +19,7 @@ import { applyName } from './applyName';
 import {
   BeatPlayer,
   COACH_BUBBLE_CLASS,
-  CoachThinkingIndicator,
-  LiveCoachBubble,
-  LiveUserBubble,
+  LiveBeatConversation,
   PastBeatBubbles,
   type BeatStep,
 } from './BeatPlayer';
@@ -59,10 +57,9 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
     return (
       <div className="flex flex-col gap-3">
         <BeatPlayer steps={steps} onReveal={handleReveal} />
-        {/* keyed per beat so a stale partial never carries across beats. */}
-        <LiveUserBubble key={`u-${node.id}`} onText={handleReveal} />
-        <LiveCoachBubble key={`c-${node.id}`} onText={handleReveal} />
-        <CoachThinkingIndicator />
+        {/* One chronological feed from the provider's message store (correct turn
+            order). Keyed per beat so nothing carries across beats. */}
+        <LiveBeatConversation key={node.id} screenId={node.screenId} onText={handleReveal} />
       </div>
     );
   }

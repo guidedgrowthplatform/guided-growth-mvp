@@ -63,133 +63,71 @@ export function PastBeatBubbles({
 }
 
 /**
- * The user's words as they speak — a live blue bubble on the ACTIVE beat.
+ * The live conversation on the ACTIVE beat, rendered from the provider's single
+ * chronological message store (handleTranscript appends every user + coach final
+ * in order, merged per turn, tagged by screenId). This is the ONE source of turn
+ * order — the previous approach rendered user and coach turns from separate
+ * buffers, which interleaved them wrong (a reply could land above the line it
+ * answered). Here every turn sits on the real timeline.
  *
- * Subscribes to the voice provider's user transcript bus (the same bus the old
- * single-page overlay reads, see OnboardingChatOverlay's partialUser listener).
- * The bus emits `{ role: 'user', kind: 'partial' }` while the user is speaking on
- * BOTH voice paths (Vapi via handleTranscript, Direct-LLM voice-in via
- * emitVoiceInInterim), and a `final` when the turn settles. We light the partial
- * smoothed by useSmoothReveal so it grows word by word, then clear it on final —
- * the captured answer then renders as the beat's settled blue reply.
- *
- * Scoped to voice turns by construction: a user transcript event only fires when
- * the mic is hot, so in text-only mode nothing arrives and the bubble never
- * shows (it renders null while empty). `onText` lets the feed scroll as it grows.
+ * The opener (the coach's pre-user turn) is the karaoke line above, so the feed
+ * starts at the first USER turn and renders everything after it in order. The
+ * in-progress turn streams as a live partial at the tail until its final lands in
+ * the store.
  */
-export function LiveUserBubble({ onText }: { onText?: () => void }) {
+export function LiveBeatConversation({
+  screenId,
+  onText,
+}: {
+  screenId: string;
+  onText?: () => void;
+}) {
   const session = useOnboardingVoice();
+  const all = session?.messages;
   const subscribe = session?.subscribeTranscripts;
-  const [partial, setPartial] = useState('');
-  // Settled utterances: each final becomes its OWN bubble (one composition = one
-  // bubble) and STAYS on screen, instead of vanishing the moment the final lands.
-  const [finals, setFinals] = useState<string[]>([]);
-  const shown = useSmoothReveal(partial);
+
+  const beatMsgs = (all ?? []).filter((m) => m.screenId === screenId);
+  const firstUserIdx = beatMsgs.findIndex((m) => m.role === 'user');
+  // From the first user turn onward, in timeline order. The opener / any pre-user
+  // coach line is the karaoke line above, not repeated here.
+  const convo = firstUserIdx >= 0 ? beatMsgs.slice(firstUserIdx) : [];
+
+  const userSpokeRef = useRef(firstUserIdx >= 0);
+  const [partial, setPartial] = useState<{ role: 'ai' | 'user'; text: string } | null>(null);
+  const shown = useSmoothReveal(partial?.text ?? '');
 
   useEffect(() => {
     if (!subscribe) return;
     const onTranscript: OnboardingTranscriptListener = (evt) => {
-      if (evt.role !== 'user') return;
-      if (evt.kind === 'partial') {
-        setPartial(evt.text);
-        return;
-      }
-      const t = evt.text.trim();
-      if (t) setFinals((f) => [...f, t]);
-      setPartial('');
-    };
-    return subscribe(onTranscript);
-  }, [subscribe]);
-
-  useEffect(() => {
-    if (shown.length > 0 || finals.length > 0) onText?.();
-  }, [shown, finals.length, onText]);
-
-  if (finals.length === 0 && shown.trim().length === 0) return null;
-  return (
-    <div className="flex flex-col gap-2">
-      {finals.map((t, i) => (
-        <div key={i} className={USER_BUBBLE_CLASS}>
-          {t}
-        </div>
-      ))}
-      {shown.trim().length > 0 && (
-        <div className={`animate-fade-in ${USER_BUBBLE_CLASS}`}>{shown}</div>
-      )}
-    </div>
-  );
-}
-
-/**
- * The coach's LIVE spoken replies on the ACTIVE beat — the reactions and
- * confirmations Vapi/the LLM says BEYOND the authored opener ("Got it, thanks",
- * "Sleep, the foundation"). Without this, only the authored opener renders and
- * the actual conversation is invisible.
- *
- * Gated to turns AFTER the user has spoken this beat: the opener is the pre-user
- * coach turn and already renders as the karaoke line, so the post-user gate keeps
- * this from duplicating it. One settled bubble per coach utterance.
- */
-export function LiveCoachBubble({ onText }: { onText?: () => void }) {
-  const session = useOnboardingVoice();
-  const subscribe = session?.subscribeTranscripts;
-  const [partial, setPartial] = useState('');
-  const [finals, setFinals] = useState<string[]>([]);
-  const userSpokeRef = useRef(false);
-  const shown = useSmoothReveal(partial);
-
-  useEffect(() => {
-    if (!subscribe) return;
-    const onTranscript: OnboardingTranscriptListener = (evt) => {
-      if (evt.role === 'user') {
-        if (evt.kind === 'final') userSpokeRef.current = true;
-        return;
-      }
-      if (evt.role !== 'assistant') return;
-      // Opener (pre-user) is shown by the karaoke line — only render post-user
-      // coach turns here so the opener never doubles.
+      const role: 'ai' | 'user' = evt.role === 'assistant' ? 'ai' : 'user';
+      if (evt.role === 'user' && evt.kind !== 'partial') userSpokeRef.current = true;
+      // Pre-user coach speech is the opener (karaoke line) — don't stream it here.
       if (!userSpokeRef.current) return;
-      if (evt.kind === 'partial') {
-        setPartial(evt.text);
-        return;
-      }
-      const t = evt.text.trim();
-      if (t) setFinals((f) => [...f, t]);
-      setPartial('');
+      if (evt.kind === 'partial') setPartial({ role, text: evt.text });
+      else setPartial(null);
     };
     return subscribe(onTranscript);
   }, [subscribe]);
 
   useEffect(() => {
-    if (shown.length > 0 || finals.length > 0) onText?.();
-  }, [shown, finals.length, onText]);
+    if (convo.length > 0 || shown.trim().length > 0) onText?.();
+  }, [convo.length, shown, onText]);
 
-  if (finals.length === 0 && shown.trim().length === 0) return null;
   return (
     <div className="flex flex-col gap-2">
-      {finals.map((t, i) => (
-        <div key={i} className={COACH_BUBBLE_CLASS}>
-          {t}
+      {convo.map((m) => (
+        <div key={m.id} className={m.role === 'ai' ? COACH_BUBBLE_CLASS : USER_BUBBLE_CLASS}>
+          {m.text}
         </div>
       ))}
-      {shown.trim().length > 0 && (
-        <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{shown}</div>
+      {partial && shown.trim().length > 0 && (
+        <div
+          className={`animate-fade-in ${partial.role === 'ai' ? COACH_BUBBLE_CLASS : USER_BUBBLE_CLASS}`}
+        >
+          {shown}
+        </div>
       )}
-    </div>
-  );
-}
-
-// Three bouncing dots: the live cue that the coach is connecting / thinking, or a
-// tool is in flight. Neutral by design (no words) — never narrate the system.
-export function TypingIndicator() {
-  return (
-    <div
-      className={`flex w-fit items-center gap-1.5 ${COACH_BUBBLE_CLASS} animate-fade-in`}
-      aria-label="Coach is thinking"
-    >
-      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40" />
-      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40 [animation-delay:150ms]" />
-      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40 [animation-delay:300ms]" />
+      <CoachThinkingIndicator />
     </div>
   );
 }
@@ -220,10 +158,26 @@ function useCoachThinking(): boolean {
   return (awaiting || chatBusy) && !speaking;
 }
 
+// Three bouncing dots in a coach bubble — the live cue that the coach is
+// connecting / thinking, or a tool is in flight. Neutral by design (no words),
+// sized to the flow feed (not the old full-duplex page's labelled variant).
+function ThinkingDots() {
+  return (
+    <div
+      className={`flex w-fit items-center gap-1.5 ${COACH_BUBBLE_CLASS} animate-fade-in`}
+      aria-label="Coach is thinking"
+    >
+      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40" />
+      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40 [animation-delay:150ms]" />
+      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40 [animation-delay:300ms]" />
+    </div>
+  );
+}
+
 // Renders the typing dots only while the coach is thinking. Mount ONLY on the
 // active beat (the hook subscribes to the transcript bus).
 export function CoachThinkingIndicator() {
-  return useCoachThinking() ? <TypingIndicator /> : null;
+  return useCoachThinking() ? <ThinkingDots /> : null;
 }
 
 // Reveals words one at a time while `active`, dimming the not-yet-spoken ones so
