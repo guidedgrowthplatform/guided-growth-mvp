@@ -1,5 +1,9 @@
 # CLAUDE.md — Project Guide for AI Assistants
 
+## Rules of engagement (read first)
+
+Every Claude or Codex session in this repo follows these behavioral guardrails: no silent assumptions, simplest thing that works, surgical changes only, goal with a done-condition, brutal honesty. See [RULES.md](RULES.md).
+
 ## Architecture Overview
 
 **Monorepo layout:**
