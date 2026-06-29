@@ -39,15 +39,6 @@ export const COACH_BUBBLE_CLASS =
 export const USER_BUBBLE_CLASS =
   'max-w-[80%] self-end rounded-2xl rounded-tr-sm bg-primary/90 px-4 py-2.5 text-[14px] font-medium text-white shadow-card';
 
-// Coach openers may carry multiple lines joined by a blank line; each becomes its
-// own bubble (the karaoke bubble has no pre-wrap, so a single bubble would collapse).
-export function splitCoachLines(text: string): string[] {
-  return text
-    .split('\n\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
 // A past beat replayed as static bubbles: the coach line, then the user's answer.
 // No karaoke, no timing (the beat already happened); same visual language as the
 // active beat so the scroll reads as one conversation.
@@ -60,12 +51,7 @@ export function PastBeatBubbles({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      {coach &&
-        splitCoachLines(coach).map((line, i) => (
-          <div key={`${i}-${line.slice(0, 24)}`} className={COACH_BUBBLE_CLASS}>
-            {line}
-          </div>
-        ))}
+      {coach && <div className={COACH_BUBBLE_CLASS}>{coach}</div>}
       {reply && <div className={USER_BUBBLE_CLASS}>{reply}</div>}
     </div>
   );

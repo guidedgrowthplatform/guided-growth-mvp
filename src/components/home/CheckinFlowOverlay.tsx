@@ -1,10 +1,9 @@
 import { Icon } from '@iconify/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { track } from '@/analytics';
-import { getFlag, MORNING_STATE_INTRO_SHOWN, setFlag } from '@/lib/storage/persistentFlags';
 import { useCheckinFlowPersistence } from '@/onboarding-flow/checkinPersistence';
 import { FlowRenderer } from '@/onboarding-flow/renderer/FlowRenderer';
-import { MORNING_FLOW_ID, resolveCheckinOpeners } from '@/onboarding-flow/resolveCheckinOpeners';
+import { resolveCheckinOpeners } from '@/onboarding-flow/resolveCheckinOpeners';
 import { useCheckinFlow, type CheckinFlowId } from '@/onboarding-flow/useCheckinFlow';
 import { useFlowOrchestrator } from '@/onboarding-flow/useFlowOrchestrator';
 import type { CheckInData } from '@gg/shared/types';
@@ -24,18 +23,7 @@ export function CheckinFlowOverlay({
   const type = TYPE_FOR_FLOW[flowId];
   const { flow, tag, problems } = useCheckinFlow(flowId);
 
-  const [isFirstRun] = useState(
-    () => flowId === MORNING_FLOW_ID && getFlag(MORNING_STATE_INTRO_SHOWN) === null,
-  );
-  const { flow: resolvedFlow, introShown } = useMemo(
-    () => resolveCheckinOpeners(flow, { firstRun: isFirstRun }),
-    [flow, isFirstRun],
-  );
-
-  // Burn the one-time slot only once the real intro was actually included.
-  useEffect(() => {
-    if (introShown) setFlag(MORNING_STATE_INTRO_SHOWN, '1');
-  }, [introShown]);
+  const resolvedFlow = useMemo(() => resolveCheckinOpeners(flow), [flow]);
 
   useEffect(() => {
     if (problems.length && import.meta.env.DEV) console.error('[checkin] invalid flow', problems);

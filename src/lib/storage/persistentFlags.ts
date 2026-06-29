@@ -4,9 +4,8 @@ import { Capacitor } from '@capacitor/core';
 // Hydrated to a sync cache at boot so render-path reads (AppGate) stay synchronous.
 
 export const FIRST_OPEN = 'gg_first_open';
-export const MORNING_STATE_INTRO_SHOWN = 'gg_morning_state_intro_shown';
 
-const KEYS: readonly string[] = [FIRST_OPEN, MORNING_STATE_INTRO_SHOWN];
+const KEYS: readonly string[] = [FIRST_OPEN];
 
 const isNative = Capacitor.isNativePlatform();
 const cache = new Map<string, string>();
