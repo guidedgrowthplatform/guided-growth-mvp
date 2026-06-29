@@ -554,7 +554,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
       heading: 'Allow your microphone',
       sub: 'So you can talk with your coach out loud.',
       coachLine:
-        "I'd love to actually talk with you. If you let me use your mic, you can just speak. You can always type instead.",
+        "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
     },
   },
   {
@@ -799,7 +799,7 @@ const MORNING_CHECKIN_FLOW: DefaultBeat[] = [
     sheetStage: 'morning_state_prompt',
     props: {
       coachLine:
-        'How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Tap what fits or just tell me.',
+        'How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Just tell me where you\'re at.',
     },
   },
   {
@@ -861,7 +861,7 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
       userName: '{name}',
       stage: 'morning',
       coachLine:
-        "Mornings start with a quick check-in, {name}. Tap it, or just say you're ready, and we'll see how you slept and where you're at.",
+        "Mornings start with a quick check-in, {name}. Just say you're ready, and we'll see how you slept and where you're at.",
     },
   },
   {
@@ -872,7 +872,7 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
       userName: '{name}',
       stage: 'evening',
       coachLine:
-        'Evenings, you reflect on the day. Tap it or just start talking to me, how it went, what is on your mind.',
+        "Evenings, you reflect on the day. Just start talking to me, how it went, what's on your mind.",
     },
   },
   {
@@ -883,7 +883,7 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
       userName: '{name}',
       stage: 'habits',
       coachLine:
-        'These are your habits. Say it or tap when you finish one, the X if you miss it. Either way works.',
+        'These are your habits. Tell me the ones you do, and the ones you miss. Either way works.',
     },
   },
   {
@@ -894,7 +894,7 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
       userName: '{name}',
       stage: 'add-habit',
       coachLine:
-        "Want to track something new? Press the plus up top, {name}, or just tell me, and we'll add it together.",
+        "Want to track something new? Just tell me, {name}, and we'll add it together.",
     },
   },
   {

@@ -67,10 +67,10 @@ function stageIndex(s?: string): number {
 // has not supplied a coachLine prop). User-facing copy, so no em dashes.
 const STAGE_LINE: Record<TourStage, string> = {
   'add-habit':
-    "Want to track something new later? Press the plus up here, or just tell me, and we'll add it together.",
-  morning: "Mornings start with a quick check-in. Tap it, or just say you're ready, and we'll see how you slept and where you're at.",
-  evening: 'Evenings, you reflect on the day. Tap it or just start talking to me, how it went, what is on your mind.',
-  habits: 'These are your habits. Say it or tap when you finish one, the X if you miss it. Either way works.',
+    "Want to track something new later? Just tell me, and we'll add it together.",
+  morning: "Mornings start with a quick check-in. Just say you're ready, and we'll see how you slept and where you're at.",
+  evening: "Evenings, you reflect on the day. Just start talking to me, how it went, what's on your mind.",
+  habits: 'These are your habits. Tell me the ones you do, and the ones you miss. Either way works.',
   reflections: "It's empty now, but this is where your reflections will live. After your first evening one, they show up here.",
   feedback:
     "You're one of our 50 founding users, so your feedback is one of the most meaningful things you can do for us. It shapes where this whole product goes. There's a button here for it, and you can also just tell me, anytime you've got something.",

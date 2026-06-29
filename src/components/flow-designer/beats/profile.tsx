@@ -8,7 +8,7 @@ import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 // greeting, askAge, askGender, userReply, age, gender.
 function ProfileBeat(props?: Record<string, string>) {
   const propAge = props?.age && props.age !== '' ? Number(props.age) : 35;
-  const propGender = props?.gender ?? 'Male';
+  const propGender = props?.gender ?? null;
   const [age, setAge] = useState<number | ''>(propAge);
   const [gender, setGender] = useState<string | null>(propGender);
   useEffect(() => {
