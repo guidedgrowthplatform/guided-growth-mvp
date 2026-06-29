@@ -13,7 +13,13 @@
 import { useCallback } from 'react';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 import { applyName } from './applyName';
-import { BeatPlayer, LiveUserBubble, PastBeatBubbles, type BeatStep } from './BeatPlayer';
+import {
+  BeatPlayer,
+  LiveUserBubble,
+  PastBeatBubbles,
+  splitCoachLines,
+  type BeatStep,
+} from './BeatPlayer';
 import { getAdapter, summarizeBeat } from './componentRegistry';
 
 export interface BeatViewProps {
@@ -39,7 +45,9 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   // the user's spoken words land live as a blue bubble below (voice turns only).
   if (active && Adapter) {
     const steps: BeatStep[] = [];
-    if (opener) steps.push({ id: `${node.id}-coach`, kind: 'coach', say: opener });
+    if (opener)
+      for (const [i, line] of splitCoachLines(opener).entries())
+        steps.push({ id: `${node.id}-coach-${i}`, kind: 'coach', say: line });
     steps.push({
       id: `${node.id}-card`,
       kind: 'card',

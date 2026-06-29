@@ -7,6 +7,7 @@ import { CHECKIN_SCRIPT_VARIANTS } from '../generated/checkin_scripts.js';
 
 export type CheckinStageKey =
   | 'morning_greeting'
+  | 'state_intro'
   | 'morning_state_prompt'
   | 'morning_wrap'
   | 'evening_greeting_habits'
@@ -18,6 +19,9 @@ export type CheckinStageKey =
   | 'evening_wrap'
   | 'are_you_done'
   | 'acknowledgment';
+
+// Sentinel until verbatim copy lands; gates the first-run intro off.
+export const STATE_INTRO_PLACEHOLDER = 'PLACEHOLDER state_intro — awaiting verbatim copy.';
 
 // Hand-authored fallback pool (never-blank): used for any stage the synced artifact
 // does not provide. The live CHECKIN_SCRIPTS below overlays the sheet content on this.
@@ -31,6 +35,9 @@ const FALLBACK_SCRIPTS: Record<CheckinStageKey, readonly string[]> = {
     'Morning. Glad you showed up.',
     "Hey. Let's see where you're starting from today.",
   ],
+  // TODO(state_intro): replace with verbatim "two reasons" copy. Sentinel gates
+  // the first-run intro OFF until real copy lands (see hasStateIntroCopy).
+  state_intro: [STATE_INTRO_PLACEHOLDER],
   morning_state_prompt: [
     'How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Tap what fits or just tell me.',
     "Let's check in on the basics. How's your mood, energy, sleep, and any stress? Tap the items on screen or just say it out loud.",
@@ -118,4 +125,9 @@ export const CHECKIN_SCRIPTS = Object.fromEntries(
 export function pickVariation(stage: CheckinStageKey): string {
   const variations = CHECKIN_SCRIPTS[stage];
   return variations[Math.floor(Math.random() * variations.length)];
+}
+
+// False while state_intro is still the placeholder; keeps the first-run intro off.
+export function hasStateIntroCopy(): boolean {
+  return CHECKIN_SCRIPTS.state_intro.every((s) => s !== STATE_INTRO_PLACEHOLDER);
 }
