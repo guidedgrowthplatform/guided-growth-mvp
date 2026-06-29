@@ -3,7 +3,6 @@ import { IconChatVoice, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
 import { CoachIntroBubble } from '@/components/welcome/CoachIntroBubble';
 import { SPLASH_CAPTIONS } from '@/components/welcome/splashCaptions';
-import { VoiceCone } from '@/components/welcome/VoiceCone';
 
 // Phase durations (ms)
 const PHASE_SPLASH_HOLD = 1200;
@@ -27,7 +26,6 @@ const ORB_GAP = Math.max(5, Math.round(ORB_SIZE * 0.06));
 const VOICE_ICON_PCT = ((ORB_SIZE / 2 - ORB_GAP / 2) / 2 / ORB_SIZE) * 100;
 
 // Speaking pose: orb sits high (upper third) so the coach bubble reads below it.
-const SPEAK_TOP_RATIO = 0.34;
 const SPEAK_TOP = '34%';
 const BUBBLE_TOP = '50%';
 
@@ -83,9 +81,7 @@ export function SplashIntro({
   skipSplash = false,
 }: SplashIntroProps) {
   ensureStyles();
-  const [phase, setPhase] = useState<Phase>(
-    autoPlay ? (skipSplash ? 'orb' : 'splash') : 'done',
-  );
+  const [phase, setPhase] = useState<Phase>(autoPlay ? (skipSplash ? 'orb' : 'splash') : 'done');
   const [intensity, setIntensity] = useState(0);
   // Shows a tap affordance when the browser blocks audio until a gesture.
   const [needsTap, setNeedsTap] = useState(false);
@@ -340,7 +336,14 @@ export function SplashIntro({
       className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden"
       aria-label="Guided Growth introduction"
     >
-      <audio ref={audioRef} src={audioSrc} preload="auto" playsInline muted={muted} className="hidden" />
+      <audio
+        ref={audioRef}
+        src={audioSrc}
+        preload="auto"
+        playsInline
+        muted={muted}
+        className="hidden"
+      />
 
       {/* Soft blue glow around the screen edge, breathing with the voice
           (a calm take on the new Siri look). */}
@@ -426,13 +429,6 @@ export function SplashIntro({
           travels down + shrinks to its resting pose at the bottom. */}
       {showOrb && (
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-          <VoiceCone
-            active={orbSpeaking}
-            intensity={intensity}
-            orbRadius={ORB_SIZE / 2}
-            originYRatio={SPEAK_TOP_RATIO}
-          />
-
           <div
             style={{
               position: 'absolute',
@@ -523,6 +519,10 @@ export function SplashIntro({
                 size={ORB_SIZE}
                 leftActive
                 rightActive={false}
+                activeRings={orbSpeaking ? 'left' : null}
+                ringCount={3}
+                ringStep={7}
+                intensity={0.5}
                 leftIcon={null}
                 rightIcon={<IconMicMuted size={36} />}
                 leftAriaLabel="Coach voice"
