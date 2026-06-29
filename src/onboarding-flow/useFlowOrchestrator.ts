@@ -15,34 +15,41 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useOnboarding } from '@/hooks/useOnboarding';
-// Persist-null beats write no step, so they have no canonical save step. Their
-// advance threshold must sit strictly BELOW the next persist beat's step for the
-// leading-edge climb to fire (plan-cards precedes morning-setup at step 7).
-// Engine-local on purpose: the legacy chat lane's SCREEN_TO_STEP maps BEGINNER-06
-// to its terminal step-7 plan review, so we must NOT reuse it here.
-const ENGINE_PERSISTLESS_STEP: Record<string, number> = {
-  'ONBOARD-BEGINNER-06': 6,
-};
-// Server-scale `current_step` each beat ENTERS at (canonical step table,
-// docs/step-0-canonical-step-table.md). Distinct from engine `beatStep`: the
-// leading-edge model's two consecutive 5s (habit-select + habit-schedule) make the
-// stored server step run one AHEAD of the engine step from habit-schedule on. Resume
-// maps a stored SERVER step back to its beat, so it must compare on THIS scale —
-// comparing against engine `beatStep` overshoots (a user on habit-schedule has server
-// step 6 but engine beatStep 5, so the walk runs past it, landing on plan-review / the
-// end). auth + mic are pre-step (absent → walked through).
+// V3: all pre-fork beats (why-intro, state-check, morning-checkin-setup, reflection-card)
+// have persist steps 6-8 but appear BEFORE the fork in flow order. No ENGINE_PERSISTLESS_STEP
+// entries are needed in v3: into-app has persistsFields=[] so its tool is cosmetic, and
+// the weekly-projection nodes are pure display with no step.
+const ENGINE_PERSISTLESS_STEP: Record<string, number> = {};
+// Server-scale `current_step` each beat ENTERS at (v3 canonical step table).
+// Distinct from engine `beatStep`: the leading-edge model's two consecutive 5s
+// (habit-select + habit-schedule) make the stored server step run one AHEAD of
+// the engine step from habit-schedule on. Resume maps a stored SERVER step back
+// to its beat on THIS scale, not engine beatStep.
+//
+// V3 flow order: auth -> mic -> profile (1) -> why-intro -> state-check ->
+//   morning-checkin-setup -> reflection-setup -> path-fork (2) ->
+//   [beginner] category (3) -> goals (4) -> habit-select (5) -> habit-schedule (5)
+//   [advanced] advanced-capture (3) -> advanced-frequency (4)
+//   -> into-app -> weekly-projection x5
+// (state-check=6, morning-setup=7, reflection=8 have large persist steps but
+// appear before the fork; they are ABSENT from this table so the resume walk
+// passes through them when seeking steps 2-5, and they become stop targets only
+// when current_step is >= their persist step.)
 const ENTRY_SERVER_STEP: Record<string, number> = {
   'ONBOARD-01--FORM': 1,
   'ONBOARD-FORK--FORM': 2,
   'ONBOARD-BEGINNER-01': 3,
   'ONBOARD-ADVANCED': 3,
   'ONBOARD-BEGINNER-02': 4,
+  'ONBOARD-ADVANCED-FREQUENCY': 4,
   'ONBOARD-BEGINNER-03': 5,
-  'ONBOARD-BEGINNER-04': 6,
-  'ONBOARD-BEGINNER-06': 7,
-  'ONBOARD-MORNING-SETUP': 8,
-  'ONBOARD-BEGINNER-07': 9,
-  'ONBOARD-COMPLETE': 10,
+  'ONBOARD-BEGINNER-04': 5,
+  // V3 note: ONBOARD-STATE-CHECK (persist step 6), ONBOARD-MORNING-SETUP (7), and
+  // ONBOARD-BEGINNER-07 (8) appear BEFORE the fork in flow order but hold persist
+  // steps 6-8. They are intentionally absent from this resume table: the resume
+  // walk passes through them (serverCaptureForBeat is called but they are not stop
+  // targets for steps 2-5). For steps 6-8, the user is mid pre-fork setup; the
+  // leading-edge coach-advance handles those transitions, not the resume walk.
 };
 
 /** The server `current_step` a beat is active at — the resume scale (NOT beatStep). */
@@ -121,12 +128,26 @@ export function serverCaptureForBeat(
       // brain dump is its own componentType now, no longer coach-bubble.
       if (data.brainDumpText != null) out.data.brainDumpText = data.brainDumpText;
       break;
+    case 'advanced-frequency':
+      // V3: day-picker for braindump habits. Same field as habit-schedule.
+      if (data.habitConfigs != null) out.data.habitConfigs = data.habitConfigs;
+      break;
+    case 'state-check':
+      // V3: first check-in during onboarding. The checkin record is stored in
+      // its own server table, not in OnboardingStepData, so there is nothing to
+      // pull back here. Return morningCheckin as a proxy so the machine sees a
+      // non-empty replay and advances past this beat on resume (the actual checkin
+      // data is not needed by the engine for downstream routing).
+      out.data.morningCheckin = data.morningCheckin ?? { time: '08:00', days: [1,2,3,4,5], reminder: true, schedule: 'Weekday' };
+      break;
     case 'morning-checkin-setup':
       if (data.morningCheckin != null) out.data.morningCheckin = data.morningCheckin;
       break;
     case 'plan-cards':
     case 'into-app':
-      // persist-null beats — no field to replay; advance with empty capture.
+    case 'why-intro':
+    case 'weekly-projection':
+      // No fields to replay; advance with empty capture.
       break;
     default:
       break;

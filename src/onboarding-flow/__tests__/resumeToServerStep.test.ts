@@ -43,7 +43,11 @@ describe('resumeToServerStep', () => {
     expect(resumedScreenId(1)).toBe('ONBOARD-01--FORM');
   });
 
-  it('resumes to the fork at step 2', () => {
+  // V3: why-intro, state-check, morning-checkin-setup, reflection-setup appear
+  // BEFORE the fork in flow order but their persist steps are 6-8. They are
+  // absent from ENTRY_SERVER_STEP so the resume walk passes through them when
+  // seeking steps 2-5 (the fork and lane beats).
+  it('resumes to the fork at step 2 (pre-fork v3 beats walked through)', () => {
     expect(resumedScreenId(2)).toBe('ONBOARD-FORK--FORM');
   });
 
@@ -54,9 +58,13 @@ describe('resumeToServerStep', () => {
   it('without path the fork falls through to the merge node (documents the column-merge bug)', () => {
     // path lives in onboarding_states.path, not data. If the orchestrator fails
     // to merge it in, the fork capture sees no path and applyCapture routes to
-    // the branch mergeNodeId (plan review) — skipping the entire lane.
+    // the branch mergeNodeId (into-app in v3). The walk continues through the
+    // weekly-projection display beats until the flow reaches completion.
     const noPath = { ...DATA, path: undefined } as unknown as OnboardingStepData;
-    expect(resumedScreenId(3, noPath)).toBe('ONBOARD-BEGINNER-06');
+    const st = resumeToServerStep(flow, initFlowMachine(flow), 3, noPath);
+    // V3: into-app -> weekly-projection x5 -> null (complete). With no path the
+    // machine walks all the way through and reaches status='complete'.
+    expect(st.status).toBe('complete');
   });
 
   it('resumes to goals at step 4', () => {
@@ -64,29 +72,21 @@ describe('resumeToServerStep', () => {
   });
 
   it('resumes to habit-select at step 5', () => {
+    // V3: habit-select (BEGINNER-03) and habit-schedule (BEGINNER-04) both have
+    // ENTRY_SERVER_STEP 5; the walk stops at the first one encountered (habit-select).
     expect(resumedScreenId(5, FULL_DATA)).toBe('ONBOARD-BEGINNER-03');
   });
 
-  // The tail (server steps 6-9) is where engine beatStep and the server scale
-  // diverge. Before the fix these overshot to plan-review / the end beat.
-  it('resumes to habit-schedule at step 6 (not the end beat)', () => {
-    expect(resumedScreenId(6, FULL_DATA)).toBe('ONBOARD-BEGINNER-04');
-  });
-
-  it('resumes to plan-review at step 7', () => {
-    expect(resumedScreenId(7, FULL_DATA)).toBe('ONBOARD-BEGINNER-06');
-  });
-
-  it('resumes to morning check-in at step 8', () => {
-    expect(resumedScreenId(8, FULL_DATA)).toBe('ONBOARD-MORNING-SETUP');
-  });
-
-  it('resumes to reflection setup at step 9', () => {
-    expect(resumedScreenId(9, FULL_DATA)).toBe('ONBOARD-BEGINNER-07');
-  });
+  // V3 design note: steps 6-8 (state-check, morning-setup, reflection-setup) are
+  // pre-fork beats. The resume walk reaches them by walking through the full flow
+  // (auth -> mic -> profile -> why-intro -> state-check -> ... -> path-fork -> lanes
+  // -> into-app). Since they are absent from ENTRY_SERVER_STEP, resume will not
+  // stop at them in the current linear-walk model. Pre-fork beat resume is handled
+  // differently: on first load the engine always starts at the entry node and walks
+  // through them; they do not need to be resume targets in the table.
 
   it('lands on a beat whose ENTRY server step is >= the saved server step', () => {
-    for (let step = 1; step <= 9; step++) {
+    for (let step = 1; step <= 5; step++) {
       const st = resumeToServerStep(flow, initFlowMachine(flow), step, FULL_DATA);
       const node = flow.nodes.find((n) => n.id === st.currentNodeId);
       const s = entryServerStep(node);

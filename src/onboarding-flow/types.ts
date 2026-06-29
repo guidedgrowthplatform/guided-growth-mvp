@@ -65,10 +65,13 @@ export type FlowComponentType =
   | 'habit-picker'
   | 'habit-schedule'
   | 'advanced-capture'
+  | 'advanced-frequency'
   | 'morning-checkin-setup'
   | 'reflection-card'
   | 'plan-cards'
   | 'into-app'
+  | 'why-intro'
+  | 'weekly-projection'
   // Check-in flow component types (morning + evening check-in documents).
   | 'state-check'
   | 'habit-review'

@@ -41,18 +41,25 @@ const TYPE_TO_COMPONENT: Record<string, FlowComponentType | null> = {
   'auth-signup': 'auth',
   'mic-permission': 'mic-permission',
   'profile-beat': 'profile-input',
+  // V3: why-intro, state-check, morning-checkin-setup, reflection-card all appear
+  // before the path fork now.
+  'why-intro': 'why-intro',
+  'state-check': 'state-check',
+  'morning-checkin-setup': 'morning-checkin-setup',
+  'reflection-card': 'reflection-card',
   'path-selection': 'path-selection',
   'category-grid': 'category-grid',
   'goals-list': 'goals-list',
   'habit-picker': 'habit-picker',
   'habit-schedule': 'habit-schedule',
-  // The advanced (braindump) lane's single capture beat. Maps to its own engine
-  // component now (was a synthesized coach-bubble lane before the resync).
+  // Advanced lane: capture then frequency.
   'advanced-capture': 'advanced-capture',
-  'plan-cards': 'plan-cards',
-  'morning-checkin-setup': 'morning-checkin-setup',
-  'reflection-card': 'reflection-card',
+  'advanced-frequency': 'advanced-frequency',
+  // V3: plan-cards dropped; into-app is the single convergence point.
+  'plan-cards': null,
   'into-app': 'into-app',
+  // Five weekly-projection beats appended after into-app.
+  'weekly-projection': 'weekly-projection',
 };
 
 /**
@@ -145,10 +152,29 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
     screenName: 'Profile',
     contextBlock: 'Profile beat: age + gender only. Name comes from auth (see beatContexts).',
   },
+  // V3 new: state-check, the first check-in performed during onboarding.
+  'state-check': {
+    nodeId: 'state-check',
+    beatNumber: 2,
+    backId: 'why-intro',
+    screenId: 'ONBOARD-STATE-CHECK',
+    componentProps: {},
+    voice: {
+      openerText:
+        "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+      expectsInput: true,
+      directLlmAllowed: true,
+    },
+    tool: { toolName: 'record_checkin', persistsFields: ['checkin'], advancesStep: true },
+    persist: { step: 6 },
+    screenName: 'First State Check',
+    contextBlock:
+      'The user does their very first check-in right now. Four dimensions: mood, energy, sleep, stress. Accept spoken or tapped answers. Do not over-explain; keep it brief and warm.',
+  },
   'path-selection': {
     nodeId: 'path-fork',
     beatNumber: 0,
-    backId: null,
+    backId: 'reflection-setup',
     screenId: 'ONBOARD-FORK--FORM',
     componentProps: {
       bindsTo: 'path',
@@ -244,9 +270,8 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
     contextBlock:
       'For each habit they chose, set when they will do it: a time, which days, and whether they want a reminder. Parse combined answers when you can. Ask only for the piece that is missing.',
   },
-  // The advanced (braindump) lane's single capture beat. A real designer beat now
-  // (was synthesized as coach-bubble before the resync). Routes only on the
-  // braindump lane and rejoins at plan-review.
+  // The advanced (braindump) lane's capture beat. Routes on the braindump lane
+  // and continues to advanced-frequency before rejoining at into-app.
   'advanced-capture': {
     nodeId: 'advanced-input',
     beatNumber: 4,
@@ -257,7 +282,7 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
       placeholder: 'Tell me everything on your mind, what you want to build, drop, or change.',
     },
     voice: {
-      openerText: "Perfect. Read me the habits you already track and I'll get them organized.",
+      openerText: "Read me the habits you already track. Less is more to start, you can always build on it.",
       expectsInput: true,
       directLlmAllowed: true,
     },
@@ -267,31 +292,33 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
     contextBlock:
       'The user wants to tell you everything on their mind at once. Let them. Listen for the habits and goals inside it; do not interrupt with structure yet.',
   },
-  'plan-cards': {
-    nodeId: 'plan-review',
-    beatNumber: 8,
-    backId: 'habit-schedule',
-    screenId: 'ONBOARD-BEGINNER-06',
-    componentProps: { showJournalCard: true },
+  // V3 new: advanced frequency, the day-picker step after the braindump capture.
+  'advanced-frequency': {
+    nodeId: 'advanced-frequency',
+    beatNumber: 5,
+    backId: 'advanced-input',
+    screenId: 'ONBOARD-ADVANCED-FREQUENCY',
+    componentProps: {},
     voice: {
-      openerText: 'Here are your habits. Do these look right, or want to change anything?',
+      openerText: "Now the days. Tell me how often each one runs and I'll fill them in.",
       expectsInput: true,
       directLlmAllowed: true,
     },
-    tool: { toolName: 'update_habit', persistsFields: [], advancesStep: true },
-    persist: null,
-    screenName: 'Plan Review',
+    tool: { toolName: 'update_habit', persistsFields: ['habitConfigs'], advancesStep: true },
+    persist: { step: 4 },
+    screenName: 'Habit Days',
     contextBlock:
-      'Show them the habits you built together and ask if they want to change anything before moving on. Handle one edit at a time, then continue.',
+      'For each habit in the braindump, set how often it runs. Parse spoken answers when you can. Ask only for missing pieces.',
   },
+  // V3: morning-checkin-setup and reflection-card appear BEFORE the path fork.
   'morning-checkin-setup': {
     nodeId: 'morning-checkin-setup',
-    beatNumber: 9,
-    backId: 'plan-review',
+    beatNumber: 3,
+    backId: 'state-check',
     screenId: 'ONBOARD-MORNING-SETUP',
     componentProps: { showDayPicker: true, showReminderToggle: true },
     voice: {
-      openerText: "When do you want your morning check-in? I'll nudge you then.",
+      openerText: "When do you want this each day? I'll nudge you then.",
       expectsInput: true,
       directLlmAllowed: true,
     },
@@ -307,12 +334,13 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
   },
   'reflection-card': {
     nodeId: 'reflection-setup',
-    beatNumber: 10,
+    beatNumber: 3,
     backId: 'morning-checkin-setup',
     screenId: 'ONBOARD-BEGINNER-07',
     componentProps: { showDayPicker: true, showReminderToggle: true, showModePicker: true },
     voice: {
-      openerText: 'Now your evening reflection. When works for you?',
+      openerText:
+        'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
       expectsInput: true,
       directLlmAllowed: true,
     },
@@ -326,31 +354,79 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
     contextBlock:
       'Set up a short evening reflection: when, which days, whether they want a reminder, and the style (guided prompts, custom prompts, or freeform). Frame it as a moment for their mind, not a chore.',
   },
+  // V3: into-app is the single convergence point for both paths (plan-cards dropped).
+  // No tool: the engine does not need to fire confirm_plan; completion is detected
+  // when the machine reaches a null nextId after walking through weekly-projections.
   'into-app': {
     nodeId: 'into-app',
-    beatNumber: 11,
+    beatNumber: 9,
     backId: null,
     screenId: 'ONBOARD-COMPLETE',
     componentProps: {},
     voice: {
-      openerText: "You're all set. Let's get started.",
+      openerText:
+        "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
       expectsInput: false,
       directLlmAllowed: true,
     },
-    tool: { toolName: 'confirm_plan', persistsFields: [], advancesStep: true },
+    tool: null,
     persist: null,
     screenName: 'Into the App',
     contextBlock:
-      "Onboarding is done. Warmly tell the user they are all set and take them in. Do not collect anything else.",
+      'Onboarding is done. Warmly tell the user they are all set and take them in. Do not collect anything else.',
+  },
+  // V3 new: why-intro, a coach-only framing beat before the first check-in.
+  'why-intro': {
+    nodeId: 'why-intro',
+    beatNumber: 2,
+    backId: 'profile',
+    screenId: 'ONBOARD-WHY-INTRO',
+    componentProps: {},
+    voice: {
+      openerText:
+        "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
+      expectsInput: false,
+      directLlmAllowed: false,
+    },
+    tool: null,
+    persist: null,
+    screenName: 'Why Intro',
+    contextBlock:
+      'A short coach framing: the first habit is a check-in, not a workout. Frame it warmly and move on.',
+  },
+  // V3 new: weekly-projection, five frames shown in sequence after into-app.
+  // Each frame is a separate beat with a state prop ('blank'|'full'|'p78'|'p36'|'gaps').
+  // The adapter auto-advances after the MP3 plays. The ENGINE_BEAT_SPECS here is
+  // shared across all five frames; the transform produces five distinct nodes by
+  // consuming all five designer beats of this type in sequence.
+  'weekly-projection': {
+    nodeId: 'weekly-projection',
+    beatNumber: 10,
+    backId: null,
+    screenId: 'ONBOARD-WEEKLY-PROJECTION-BLANK',
+    componentProps: { state: 'blank' },
+    voice: {
+      openerText: 'This is your week. Blank, starting today.',
+      expectsInput: false,
+      directLlmAllowed: false,
+    },
+    tool: null,
+    persist: null,
+    screenName: 'Weekly Projection',
+    contextBlock:
+      'A visual projection of the habit week. Show five states in sequence; no user input needed.',
   },
 };
 
 /**
- * The fork's lanes and the merge target. The flat designer array has no fork; the
- * engine forks at the path-selection beat into a beginner lane (category through
- * habit-schedule) and the advanced lane (the single advanced-capture brain-dump
- * beat), both rejoining at plan-review. From plan-review the spine continues
- * shared: morning-checkin-setup -> reflection-setup -> into-app.
+ * V3 fork: the engine forks at path-selection into:
+ *   - beginner lane: category -> goals -> habit-select -> habit-schedule
+ *   - advanced lane: advanced-input -> advanced-frequency
+ * Both lanes merge at into-app (plan-review is dropped in v3).
+ *
+ * Before the fork (shared spine): auth -> mic -> profile -> why-intro ->
+ *   state-check -> morning-checkin-setup -> reflection-setup -> path-fork.
+ * After the merge (shared spine): into-app -> weekly-projection x5.
  */
 const FORK_LANES = [
   { value: 'simple', label: 'Beginner', entryNodeId: 'category', exitNodeId: 'habit-schedule' },
@@ -358,15 +434,14 @@ const FORK_LANES = [
     value: 'braindump',
     label: 'Advanced',
     entryNodeId: 'advanced-input',
-    exitNodeId: 'advanced-input',
+    exitNodeId: 'advanced-frequency',
   },
 ] as const;
-const FORK_MERGE_NODE_ID = 'plan-review';
+const FORK_MERGE_NODE_ID = 'into-app';
 const FORK_CONDITION_SOURCE = 'answers.path';
-// The designer component type that backs the advanced (braindump) lane node. It
-// is pulled out of the linear beginner spine and inserted as a lane node, the way
-// the synthesized coach-bubble beat used to be, but now it is a real designer beat.
-const ADVANCED_LANE_COMPONENT: FlowComponentType = 'advanced-capture';
+// Designer component types that back the advanced lane nodes. Both are pulled
+// out of the linear spine and handled in a dedicated pass (pass 2).
+const ADVANCED_LANE_COMPONENTS: FlowComponentType[] = ['advanced-capture', 'advanced-frequency'];
 
 export interface TransformOptions {
   flowId?: string;
@@ -413,12 +488,24 @@ function resolveOpener(beat: DesignerBeat | undefined, spec: EngineBeatSpec): st
 /**
  * Transform the designer flow into the engine FlowDocument.
  *
- * The graph is built in three passes:
- *   1. Map each designer beat (skipping intro types) to an engine node, in order.
- *   2. Insert the synthesized advanced-input lane beat (no designer counterpart).
- *   3. Chain nextId across the BEGINNER spine and turn the path beat into a
- *      BranchNode, so the result matches the hand-authored flow exactly. beatNumber
- *      and backId come from the engine spec, not the designer's beat string.
+ * V3 graph topology (beats in node order):
+ *   auth -> mic -> profile -> why-intro -> state-check ->
+ *   morning-checkin-setup -> reflection-setup -> path-fork ->
+ *     [beginner lane] category -> goals -> habit-select -> habit-schedule
+ *     [advanced lane] advanced-input -> advanced-frequency
+ *   -> into-app ->
+ *   weekly-projection-blank -> weekly-projection-full -> weekly-projection-p78
+ *   -> weekly-projection-p36 -> weekly-projection-gaps
+ *
+ * Built in four passes:
+ *   1. Map each designer beat to a component type in spine order. Skip:
+ *      intro types (null mapping), advanced-lane types, weekly-projection types.
+ *   2. Build each spine node, turning path-selection into a BranchNode.
+ *   3. Build the two advanced-lane nodes (advanced-input, advanced-frequency),
+ *      chained to each other with advanced-frequency -> into-app.
+ *   4. Build the five weekly-projection nodes from the five designer beats,
+ *      chaining them blank -> full -> p78 -> p36 -> gaps -> null.
+ *   5. Assemble all nodes in canonical order.
  */
 export function designerToFlowDocument(
   designerFlow: DesignerBeat[],
@@ -426,53 +513,70 @@ export function designerToFlowDocument(
 ): FlowDocument {
   const opts = { ...DEFAULTS, ...options };
 
-  // Pass 1: designer beats -> engine component types, in spine order. Intro beats
-  // (no mapping), the advanced-lane beat (routed only on the braindump lane, added
-  // in pass 2), and any type without an engine spec are skipped, so every entry
-  // here has a spec.
-  const mappedTypes: FlowComponentType[] = [];
+  // Collect all designer beats of a given designer type in authoring order.
+  const beatsByDesignerType = new Map<string, DesignerBeat[]>();
   for (const beat of designerFlow) {
-    const component = TYPE_TO_COMPONENT[beat.type];
-    if (component == null) continue; // intro beat, not an engine node
-    if (component === ADVANCED_LANE_COMPONENT) continue; // advanced lane, added in pass 2
-    if (!ENGINE_BEAT_SPECS[component]) continue; // registry type with no onboarding spec
-    mappedTypes.push(component);
+    const arr = beatsByDesignerType.get(beat.type) ?? [];
+    arr.push(beat);
+    beatsByDesignerType.set(beat.type, arr);
+  }
+  // First designer beat for each type (opener + screenId lookup for non-multi types).
+  const firstByDesignerType = new Map<string, DesignerBeat>();
+  for (const [type, beats] of beatsByDesignerType) firstByDesignerType.set(type, beats[0]);
+
+  // Resolve a designer beat to its component type (null = skip).
+  const componentFor = (type: string): FlowComponentType | null =>
+    TYPE_TO_COMPONENT[type] ?? null;
+
+  // Pass 1: spine component types in order. Skip: null-mapped, advanced-lane,
+  // weekly-projection (all handled in dedicated passes).
+  const SKIP_IN_SPINE = new Set<FlowComponentType>([
+    ...ADVANCED_LANE_COMPONENTS,
+    'weekly-projection',
+  ]);
+  const spineComponents: FlowComponentType[] = [];
+  // Track which designer types we have seen to avoid duplicates (multiple designer
+  // beats of the same type, e.g. weekly-projection, must not appear in the spine).
+  const seenDesignerTypes = new Set<string>();
+  for (const beat of designerFlow) {
+    if (seenDesignerTypes.has(beat.type)) continue;
+    seenDesignerTypes.add(beat.type);
+    const component = componentFor(beat.type);
+    if (component == null) continue; // null-mapped
+    if (SKIP_IN_SPINE.has(component)) continue;
+    if (!ENGINE_BEAT_SPECS[component]) continue; // no spec
+    spineComponents.push(component);
   }
 
-  // The designer beat for each mapped component (for opener + screenId overrides).
-  // The advanced-lane beat is kept too, so pass 2 can read its designer opener.
-  const designerByComponent = new Map<FlowComponentType, DesignerBeat>();
+  // Spine node IDs in order (for nextId chaining).
+  const spineNodeIds = spineComponents.map((c) => specFor(c).nodeId);
+
+  // First designer beat for each engine component type. A component may be reached
+  // by multiple designer types (unlikely) or multiple beats of the same type; we
+  // want the first one in authoring order.
+  const firstDesignerBeatByComponent = new Map<FlowComponentType, DesignerBeat>();
   for (const beat of designerFlow) {
-    const component = TYPE_TO_COMPONENT[beat.type];
-    if (component) designerByComponent.set(component, beat);
+    const component = componentFor(beat.type);
+    if (component && !firstDesignerBeatByComponent.has(component)) {
+      firstDesignerBeatByComponent.set(component, beat);
+    }
   }
 
-  // The spine order of node ids, in the BEGINNER path, as authored.
-  // auth -> mic -> profile -> path-fork -> category -> goals -> habit-select ->
-  // habit-schedule -> [advanced-input lane node] -> plan-review ->
-  // morning-checkin-setup -> reflection-setup -> into-app.
-  const spineIds = mappedTypes.map((c) => specFor(c).nodeId);
-
-  // The beginner-spine successor of each node id (for nextId/backId chaining). The
-  // path beat's next is the fork resolution, handled when we build the BranchNode.
+  // Pass 2: build spine nodes.
   const nodeById = new Map<string, FlowNode>();
 
-  mappedTypes.forEach((component, i) => {
+  spineComponents.forEach((component, i) => {
     const spec = specFor(component);
-    const designerBeat = designerByComponent.get(component);
+    const designerBeat = firstDesignerBeatByComponent.get(component);
     const screenId = screenIdFromSheetStage(designerBeat?.sheetStage) ?? spec.screenId;
     const opener = resolveOpener(designerBeat, spec);
     const componentProps = { ...spec.componentProps };
-
-    const nextId = i < spineIds.length - 1 ? spineIds[i + 1] : null;
-
     const baseVoice: VoiceConfig = { ...spec.voice, openerText: opener };
-    const context = {
-      screenId,
-      screenName: spec.screenName,
-      contextBlock: spec.contextBlock,
-    };
-    const beatNumber = spec.beatNumber;
+    const context = { screenId, screenName: spec.screenName, contextBlock: spec.contextBlock };
+
+    // The next spine node (null when we are at path-fork, which diverges into lanes).
+    // The merge node (into-app) follows naturally at the end of the shared spine.
+    const nextId = i < spineNodeIds.length - 1 ? spineNodeIds[i + 1] : null;
 
     if (component === 'path-selection') {
       const branch: BranchNode = {
@@ -494,14 +598,10 @@ export function designerToFlowDocument(
       return;
     }
 
-    // nextId chains linearly down the spine. The last spine node (into-app, the
-    // shared terminal) ends with null. backId is the engine spec's value (the
-    // graph back target, which is not always the spine predecessor: category goes
-    // back to the fork).
     const node: BeatNode = {
       id: spec.nodeId,
       type: 'beat',
-      beatNumber,
+      beatNumber: spec.beatNumber,
       name: spec.screenName,
       screenId,
       nextId,
@@ -516,41 +616,131 @@ export function designerToFlowDocument(
     nodeById.set(spec.nodeId, node);
   });
 
-  // Pass 2: the advanced-input lane beat. A real designer beat now (advance-capture),
-  // pulled out of the linear beginner spine and inserted as the braindump lane node
-  // that rejoins at plan-review. Its opener comes from the designer beat.
-  const advSpec = specFor(ADVANCED_LANE_COMPONENT);
-  const advDesigner = designerByComponent.get(ADVANCED_LANE_COMPONENT);
-  const advScreenId = screenIdFromSheetStage(advDesigner?.sheetStage) ?? advSpec.screenId;
-  const advNode: BeatNode = {
-    id: advSpec.nodeId,
+  // Pass 3: advanced lane nodes. Two nodes: advanced-input -> advanced-frequency.
+  // advanced-input backId = path-fork (from spec).
+  // advanced-frequency nextId = into-app (FORK_MERGE_NODE_ID), backId = advanced-input.
+  const advCaptureDesigner = firstDesignerBeatByComponent.get('advanced-capture');
+  const advCaptureSpec = specFor('advanced-capture');
+  const advCaptureScreenId =
+    screenIdFromSheetStage(advCaptureDesigner?.sheetStage) ?? advCaptureSpec.screenId;
+  const advCaptureNode: BeatNode = {
+    id: advCaptureSpec.nodeId,
     type: 'beat',
-    beatNumber: advSpec.beatNumber,
+    beatNumber: advCaptureSpec.beatNumber,
     name: 'Brain Dump (Advanced)',
-    screenId: advScreenId,
-    nextId: FORK_MERGE_NODE_ID,
-    backId: advSpec.backId,
+    screenId: advCaptureScreenId,
+    nextId: 'advanced-frequency',
+    backId: advCaptureSpec.backId,
     context: {
-      screenId: advScreenId,
-      screenName: advSpec.screenName,
-      contextBlock: advSpec.contextBlock,
+      screenId: advCaptureScreenId,
+      screenName: advCaptureSpec.screenName,
+      contextBlock: advCaptureSpec.contextBlock,
     },
-    componentType: ADVANCED_LANE_COMPONENT,
-    componentProps: { ...advSpec.componentProps },
-    voice: { ...advSpec.voice, openerText: resolveOpener(advDesigner, advSpec) },
-    tool: advSpec.tool,
-    persist: advSpec.persist,
+    componentType: 'advanced-capture',
+    componentProps: { ...advCaptureSpec.componentProps },
+    voice: { ...advCaptureSpec.voice, openerText: resolveOpener(advCaptureDesigner, advCaptureSpec) },
+    tool: advCaptureSpec.tool,
+    persist: advCaptureSpec.persist,
   };
 
-  // Pass 3: assemble nodes in the exact authored order. The advanced-input beat is
-  // inserted just before plan-review, matching the hand-authored file's order.
+  const advFreqDesigner = firstDesignerBeatByComponent.get('advanced-frequency');
+  const advFreqSpec = specFor('advanced-frequency');
+  const advFreqScreenId =
+    screenIdFromSheetStage(advFreqDesigner?.sheetStage) ?? advFreqSpec.screenId;
+  const advFreqNode: BeatNode = {
+    id: advFreqSpec.nodeId,
+    type: 'beat',
+    beatNumber: advFreqSpec.beatNumber,
+    name: 'Habit Days (Advanced)',
+    screenId: advFreqScreenId,
+    nextId: FORK_MERGE_NODE_ID,
+    backId: 'advanced-input',
+    context: {
+      screenId: advFreqScreenId,
+      screenName: advFreqSpec.screenName,
+      contextBlock: advFreqSpec.contextBlock,
+    },
+    componentType: 'advanced-frequency',
+    componentProps: { ...advFreqSpec.componentProps },
+    voice: { ...advFreqSpec.voice, openerText: resolveOpener(advFreqDesigner, advFreqSpec) },
+    tool: advFreqSpec.tool,
+    persist: advFreqSpec.persist,
+  };
+
+  // Pass 4: five weekly-projection nodes, one per designer beat, chained in order.
+  const projectionDesignerBeats = beatsByDesignerType.get('weekly-projection') ?? [];
+  const projectionNodeIds = projectionDesignerBeats.map(
+    (_, idx) => `weekly-projection-${['blank', 'full', 'p78', 'p36', 'gaps'][idx] ?? String(idx)}`,
+  );
+  const projectionNodes: BeatNode[] = projectionDesignerBeats.map((beat, idx) => {
+    const spec = specFor('weekly-projection');
+    const screenId = screenIdFromSheetStage(beat.sheetStage) ?? spec.screenId;
+    const opener = resolveOpener(beat, spec);
+    const state = beat.props?.state ?? 'blank';
+    return {
+      id: projectionNodeIds[idx],
+      type: 'beat' as const,
+      beatNumber: spec.beatNumber + idx,
+      name: `Weekly Projection (${state})`,
+      screenId,
+      nextId: idx < projectionNodeIds.length - 1 ? projectionNodeIds[idx + 1] : null,
+      backId: null,
+      context: {
+        screenId,
+        screenName: `Weekly Projection (${state})`,
+        contextBlock: spec.contextBlock,
+      },
+      componentType: 'weekly-projection' as FlowComponentType,
+      componentProps: { ...spec.componentProps, state },
+      voice: { ...spec.voice, openerText: opener },
+      tool: spec.tool,
+      persist: spec.persist,
+    };
+  });
+
+  // Pass 5: assemble all nodes in canonical order.
+  // Spine up to (not including) path-fork, then beginner lane nodes, then
+  // advanced lane nodes, then merge node + post-merge spine, then projections.
+  // The path-fork node itself is in spineNodeIds, just before the beginner lane.
   const nodes: FlowNode[] = [];
-  for (const id of spineIds) {
-    if (id === FORK_MERGE_NODE_ID) {
-      nodes.push(advNode); // advanced lane node lands right before the merge node
+
+  // Pre-fork spine (auth through reflection-setup).
+  const forkIdx = spineNodeIds.indexOf(specFor('path-selection').nodeId);
+  for (let i = 0; i < forkIdx && i < spineNodeIds.length; i++) {
+    const n = nodeById.get(spineNodeIds[i]);
+    if (n) nodes.push(n);
+  }
+  // The fork node itself.
+  const forkNode = nodeById.get(specFor('path-selection').nodeId);
+  if (forkNode) nodes.push(forkNode);
+
+  // Beginner lane nodes (category through habit-schedule).
+  const beginnerComponents: FlowComponentType[] = ['category-grid', 'goals-list', 'habit-picker', 'habit-schedule'];
+  for (const c of beginnerComponents) {
+    const n = nodeById.get(specFor(c).nodeId);
+    if (n) nodes.push(n);
+  }
+
+  // Advanced lane nodes.
+  nodes.push(advCaptureNode);
+  nodes.push(advFreqNode);
+
+  // Post-fork merge node and any post-merge spine nodes (into-app etc.).
+  const mergeIdx = spineNodeIds.indexOf(FORK_MERGE_NODE_ID);
+  for (let i = mergeIdx; i < spineNodeIds.length; i++) {
+    const n = nodeById.get(spineNodeIds[i]);
+    if (n) nodes.push(n);
+  }
+
+  // Weekly projection nodes.
+  for (const pn of projectionNodes) nodes.push(pn);
+
+  // Patch into-app's nextId to point at the first projection node (if any).
+  if (projectionNodeIds.length > 0) {
+    const intoAppNode = nodes.find((n) => n.id === 'into-app');
+    if (intoAppNode && intoAppNode.type === 'beat') {
+      (intoAppNode as BeatNode).nextId = projectionNodeIds[0];
     }
-    const node = nodeById.get(id);
-    if (node) nodes.push(node);
   }
 
   return {
@@ -558,7 +748,7 @@ export function designerToFlowDocument(
     name: opts.name,
     version: opts.version,
     publishedAt: opts.publishedAt,
-    entryNodeId: spineIds[0] ?? 'auth',
+    entryNodeId: spineNodeIds[0] ?? 'auth',
     nodes,
   };
 }

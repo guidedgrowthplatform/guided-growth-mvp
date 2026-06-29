@@ -28,7 +28,7 @@ export interface DesignerBeat {
 
 /**
  * Mirror of ggmvp-flow-builder DEFAULT_FLOW (the onboarding starter set).
- * Keep this in lockstep with the builder source. Last synced: 2026-06-26.
+ * Keep this in lockstep with the builder source. Last synced: 2026-06-29 (v3).
  *
  * Differences from the builder array, by design:
  *   - The builder's beat-0 `qa-control` launcher is OMITTED here. It is a QA-only
@@ -36,12 +36,23 @@ export interface DesignerBeat {
  *     of the engine onboarding flow.
  *   - `showOnPath` / `variant` are not mirrored: the transform derives the fork
  *     lanes from the path-selection beat, and the engine has no QA variant.
+ *
+ * V3 changes vs the 2026-06-26 mirror:
+ *   - `why-intro` (beat 7) inserted before the first check-in.
+ *   - `state-check` (beat 8a) the user does their first check-in during onboarding.
+ *   - `morning-checkin-setup` (beat 8b) moved before the path fork.
+ *   - `reflection-card` (beat 9) also moved before the path fork.
+ *   - `path-selection` (beat 10) now follows the check-in setup beats.
+ *   - `advanced-frequency` (beat 11f) added after advanced-capture on the advanced lane.
+ *   - `plan-cards` / plan-review dropped entirely; `into-app` (beat 12) is the single
+ *     convergence point for both paths.
+ *   - Five `weekly-projection` beats (13a-13e) appended after into-app.
  */
 export const DESIGNER_ONBOARDING_FLOW: DesignerBeat[] = [
   { type: 'splash', beat: '1', background: 'coach' },
   { type: 'get-started', beat: '2', background: 'coach' },
   { type: 'splash-intro', beat: '3', background: 'coach' },
-  { type: 'auth-signup', beat: '4', background: 'user' },
+  { type: 'auth-signup', beat: '4', background: 'coach' },
   {
     type: 'mic-permission',
     beat: '5',
@@ -54,89 +65,194 @@ export const DESIGNER_ONBOARDING_FLOW: DesignerBeat[] = [
     },
   },
   {
+    // Profile: age + gender only. No name field. Name captured at sign-up;
+    // coach greets the user by name (spoken via Cartesia).
     type: 'profile-beat',
     beat: '6',
     background: 'coach',
     sheetStage: 'ONBOARD-01--FORM: Profile Setup',
     props: {
-      greeting: 'Awesome {name}, two quick things so I can tailor this to you.',
+      greeting: 'Good to meet you, {name}. Two quick things so I can tailor this to you.',
       askAge: 'How old are you?',
-      askGender: "And what's your gender?",
+      askGender: 'And your gender?',
       userReply: "I'm 28, and I'm male.",
       age: '28',
       gender: 'Male',
     },
   },
   {
-    type: 'path-selection',
+    // Why intro: onboarding-only framing beat, shown once. Frames why we check in.
+    type: 'why-intro',
     beat: '7',
-    background: 'user',
-    sheetStage: 'ONBOARD-FORK--FORM: Experience Fork',
-    props: { coachLine: 'Have you tracked habits before, or is this new for you?' },
-  },
-  {
-    type: 'category-grid',
-    beat: '8',
-    background: 'user',
-    sheetStage: 'ONBOARD-BEGINNER-01: Category Selection',
-    props: { coachLine: 'What part of your life do you most want to grow right now?' },
-  },
-  {
-    type: 'goals-list',
-    beat: '9',
-    background: 'user',
-    sheetStage: 'ONBOARD-BEGINNER-02: Subcategory Selection',
-    props: { coachLine: 'Which of these feels most true for you?' },
-  },
-  {
-    type: 'habit-picker',
-    beat: '10',
-    background: 'user',
-    sheetStage: 'ONBOARD-BEGINNER-03: Habit Selection',
-    props: { coachLine: "Here are a few habits that fit. Pick the ones you'll actually do." },
-  },
-  {
-    type: 'habit-schedule',
-    beat: '11',
-    background: 'user',
-    sheetStage: 'ONBOARD-BEGINNER-04: Habit Schedule',
-    props: { coachLine: 'When will you do these? Set a time and how often.' },
-  },
-  {
-    type: 'advanced-capture',
-    beat: '8',
-    background: 'user',
-    sheetStage: 'ONBOARD-ADVANCED: Brain Dump',
+    background: 'coach',
+    sheetStage: 'ONBOARD-WHY-INTRO: Why We Check In',
     props: {
-      coachLine: "Perfect. Read me the habits you already track and I'll get them organized.",
+      coachLine:
+        "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
     },
   },
   {
-    type: 'plan-cards',
-    beat: '12',
+    // 8a: The user does their first check-in right now.
+    type: 'state-check',
+    beat: '8a',
     background: 'coach',
-    sheetStage: 'ONBOARD-BEGINNER-06: Confirm Habits',
-    props: { coachLine: 'Here are your habits. Do these look right, or want to change anything?' },
+    sheetStage: 'ONBOARD-STATE-CHECK: First State Check',
+    props: {
+      coachLine:
+        "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+    },
   },
   {
+    // 8b: Set the daily check-in time. Reminder ON by default.
     type: 'morning-checkin-setup',
-    beat: '13',
-    background: 'user',
-    sheetStage: 'ONBOARD-MORNING-SETUP: Morning Check-in',
-    props: { coachLine: "When do you want your morning check-in? I'll nudge you then." },
+    beat: '8b',
+    background: 'coach',
+    sheetStage: 'ONBOARD-MORNING-SETUP: Morning Check-in Time',
+    props: { coachLine: "When do you want this each day? I'll nudge you then." },
   },
   {
+    // 9: Evening reflection, configured only, NOT performed during onboarding.
     type: 'reflection-card',
-    beat: '14',
-    background: 'user',
+    beat: '9',
+    background: 'coach',
     sheetStage: 'ONBOARD-BEGINNER-07: Evening Reflection Setup',
-    props: { coachLine: 'Now your evening reflection. When works for you?' },
+    props: {
+      coachLine:
+        'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
+    },
   },
+  {
+    // 10: Path fork, "tracked habits before?"
+    type: 'path-selection',
+    beat: '10',
+    background: 'coach',
+    sheetStage: 'ONBOARD-FORK--FORM: Experience Fork',
+    props: { coachLine: 'Have you tracked habits before, or is this new for you?' },
+  },
+  // 11: Beginner path beats (showOnPath:'new')
+  {
+    type: 'category-grid',
+    beat: '11a',
+    background: 'coach',
+    sheetStage: 'ONBOARD-BEGINNER-01: Category Selection',
+    props: {
+      coachLine:
+        'What part of your life do you most want to work on right now? Pick the one that pulls you.',
+    },
+  },
+  {
+    type: 'goals-list',
+    beat: '11b',
+    background: 'coach',
+    sheetStage: 'ONBOARD-BEGINNER-02: Subcategory Selection',
+    props: { coachLine: "Within that, what's the piece you want to start with?" },
+  },
+  {
+    type: 'habit-picker',
+    beat: '11c',
+    background: 'coach',
+    sheetStage: 'ONBOARD-BEGINNER-03: Habit Selection',
+    props: {
+      coachLine:
+        "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+    },
+  },
+  {
+    type: 'habit-schedule',
+    beat: '11d',
+    background: 'coach',
+    sheetStage: 'ONBOARD-BEGINNER-04: Habit Schedule',
+    props: {
+      coachLine: "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
+    },
+  },
+  // 11: Advanced path beats (showOnPath:'exp')
+  {
+    type: 'advanced-capture',
+    beat: '11e',
+    background: 'coach',
+    sheetStage: 'ONBOARD-ADVANCED: Brain Dump',
+    props: {
+      coachLine:
+        "Read me the habits you already track. Less is more to start, you can always build on it.",
+      closeCoachLine:
+        "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
+    },
+  },
+  {
+    // Advanced frequency: same cards, now growing day circles per habit.
+    type: 'advanced-frequency',
+    beat: '11f',
+    background: 'coach',
+    sheetStage: 'ONBOARD-ADVANCED-FREQUENCY: Habit Days',
+    props: {
+      coachLine: "Now the days. Tell me how often each one runs and I'll fill them in.",
+      confirmCoachLine: 'Your habits are all set, your plan is ready.',
+    },
+  },
+  // 12: Single convergence point for both paths. Full plan confirm.
   {
     type: 'into-app',
-    beat: '15',
+    beat: '12',
     background: 'coach',
-    sheetStage: 'ONBOARD-COMPLETE: Into the App',
-    props: { coachLine: "You're all set. Let's get started." },
+    sheetStage: 'ONBOARD-COMPLETE: Full Plan Confirm',
+    props: {
+      coachLine:
+        "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+    },
+  },
+  // 13a-13e: Weekly projection, five frames shown in sequence.
+  {
+    type: 'weekly-projection',
+    beat: '13a',
+    background: 'coach',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-BLANK: Blank Week',
+    props: {
+      state: 'blank',
+      coachLine: 'This is your week. Blank, starting today.',
+    },
+  },
+  {
+    type: 'weekly-projection',
+    beat: '13b',
+    background: 'coach',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-FULL: Full Green Week',
+    props: {
+      state: 'full',
+      coachLine: 'Best case, every day green. Every streak going strong. That would be amazing.',
+    },
+  },
+  {
+    type: 'weekly-projection',
+    beat: '13c',
+    background: 'coach',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-P78: Mostly Done Week',
+    props: {
+      state: 'p78',
+      coachLine:
+        "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
+    },
+  },
+  {
+    type: 'weekly-projection',
+    beat: '13d',
+    background: 'coach',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-P36: Rough Week',
+    props: {
+      state: 'p36',
+      coachLine:
+        "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
+    },
+  },
+  {
+    type: 'weekly-projection',
+    beat: '13e',
+    background: 'coach',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-GAPS: Gap Week',
+    props: {
+      state: 'gaps',
+      coachLine:
+        'The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.',
+    },
   },
 ];
