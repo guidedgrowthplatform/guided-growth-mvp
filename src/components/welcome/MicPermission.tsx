@@ -108,13 +108,15 @@ export function MicPermission({
         <DualButton
           size={ORB_SIZE}
           leftActive
-          rightActive={granted}
+          // Mic half stays blue (active) while the user speaks/asks, not just
+          // after granting — it's the user's active turn (gold waves on the right).
+          rightActive={asking || granted}
           activeRings={asking ? 'right' : null}
           ringCount={3}
           ringStep={7}
           intensity={0.5}
           leftIcon={<IconChatVoice size={38} />}
-          rightIcon={granted ? <IconMic size={38} /> : <IconMicMuted size={38} />}
+          rightIcon={asking || granted ? <IconMic size={38} /> : <IconMicMuted size={38} />}
           leftAriaLabel="Coach voice"
           rightAriaLabel="Microphone"
         />

@@ -6,6 +6,10 @@ type ActiveSide = 'left' | 'right' | 'both' | 'idle' | 'ready';
 // Blue matches the overlay's idle/assistant color, gold matches the user-speaks color.
 const IDLE_RING_BLUE = 'rgba(19,91,236,0.7)';
 const IDLE_RING_GOLD = 'rgba(253,208,23,0.7)';
+// Bolder, fully-opaque speaking-wave colors so the directional pulse reads
+// clearly against the light background: gold = user (right), blue = AI (left).
+const SPEAK_RING_GOLD = 'rgba(250,196,8,1)';
+const SPEAK_RING_BLUE = 'rgba(19,91,236,1)';
 
 interface DualButtonProps {
   leftIcon: ReactNode;
@@ -311,9 +315,14 @@ function RingStack({ side, dialWidth, dialHeight, step, count, intensity }: Ring
             }}
           >
             <div
-              className="h-full w-full animate-ring-pulse rounded-full border border-primary/70"
+              className="h-full w-full animate-ring-pulse rounded-full border"
               style={
                 {
+                  // Speaking waves are color-coded by side: left = AI (blue),
+                  // right = user (gold) — bold + thick so they read clearly.
+                  // Beats 3 & 5 (Yair's locked orb spec).
+                  borderColor: side === 'right' ? SPEAK_RING_GOLD : SPEAK_RING_BLUE,
+                  borderWidth: 2.5,
                   '--ring-opacity': opacity,
                   '--pulse-scale':
                     intensity != null ? Math.min(0.05 + intensity * 0.1, 0.15) : 0.05,
