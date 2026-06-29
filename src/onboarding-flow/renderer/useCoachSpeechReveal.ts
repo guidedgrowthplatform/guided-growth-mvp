@@ -40,7 +40,6 @@ import {
   useOnboardingVoice,
   type OnboardingTranscriptListener,
 } from '@/contexts/useOnboardingVoiceSession';
-import { useTtsPlaybackStore } from '@/lib/services/tts-service';
 
 export type RevealMode = 'word' | 'window' | 'fallback';
 
@@ -63,7 +62,7 @@ const WORD_SIGNAL_IDLE_MS = 1200;
 const WINDOW_MS_PER_WORD = 360;
 const WINDOW_TICK_MS = 90;
 
-function countWords(text: string): number {
+export function countWords(text: string): number {
   const t = text.trim();
   if (!t) return 0;
   return t.split(/\s+/).length;
@@ -76,9 +75,7 @@ function countWords(text: string): number {
 export function useCoachSpeechReveal(text: string, active: boolean): CoachSpeechReveal {
   const session = useOnboardingVoice();
   const subscribeTranscripts = session?.subscribeTranscripts;
-  // Check-in self-driven TTS has no Vapi provider; the store flag drives window mode.
-  const ttsSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
-  const isAssistantSpeaking = (session?.isAssistantSpeaking ?? false) || ttsSpeaking;
+  const isAssistantSpeaking = session?.isAssistantSpeaking ?? false;
 
   const total = countWords(text);
 

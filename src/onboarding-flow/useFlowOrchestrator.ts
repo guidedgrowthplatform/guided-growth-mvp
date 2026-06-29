@@ -12,10 +12,44 @@
  *   3. Version pinning — fires `onPin(tag)` on the first real save so the user
  *      is locked to the flow version they started on.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { stepForScreenId } from '@/lib/onboarding/onboardingStepBeats';
+// Persist-null beats write no step, so they have no canonical save step. Their
+// advance threshold must sit strictly BELOW the next persist beat's step for the
+// leading-edge climb to fire (plan-cards precedes morning-setup at step 7).
+// Engine-local on purpose: the legacy chat lane's SCREEN_TO_STEP maps BEGINNER-06
+// to its terminal step-7 plan review, so we must NOT reuse it here.
+const ENGINE_PERSISTLESS_STEP: Record<string, number> = {
+  'ONBOARD-BEGINNER-06': 6,
+};
+// Server-scale `current_step` each beat ENTERS at (canonical step table,
+// docs/step-0-canonical-step-table.md). Distinct from engine `beatStep`: the
+// leading-edge model's two consecutive 5s (habit-select + habit-schedule) make the
+// stored server step run one AHEAD of the engine step from habit-schedule on. Resume
+// maps a stored SERVER step back to its beat, so it must compare on THIS scale —
+// comparing against engine `beatStep` overshoots (a user on habit-schedule has server
+// step 6 but engine beatStep 5, so the walk runs past it, landing on plan-review / the
+// end). auth + mic are pre-step (absent → walked through).
+const ENTRY_SERVER_STEP: Record<string, number> = {
+  'ONBOARD-01--FORM': 1,
+  'ONBOARD-FORK--FORM': 2,
+  'ONBOARD-BEGINNER-01': 3,
+  'ONBOARD-ADVANCED': 3,
+  'ONBOARD-BEGINNER-02': 4,
+  'ONBOARD-BEGINNER-03': 5,
+  'ONBOARD-BEGINNER-04': 6,
+  'ONBOARD-BEGINNER-06': 7,
+  'ONBOARD-MORNING-SETUP': 8,
+  'ONBOARD-BEGINNER-07': 9,
+  'ONBOARD-COMPLETE': 10,
+};
+
+/** The server `current_step` a beat is active at — the resume scale (NOT beatStep). */
+export function entryServerStep(node: FlowNode | undefined): number | undefined {
+  if (!node) return undefined;
+  return ENTRY_SERVER_STEP[node.screenId];
+}
 import type { OnboardingPath, OnboardingState, OnboardingStepData } from '@gg/shared/types';
 import {
   applyCapture,
@@ -37,10 +71,12 @@ function deriveFinalData(answers: FlowAnswers): Partial<OnboardingStepData> {
 }
 
 /** The step this beat completes (persist.step is the canonical save step). */
-function beatStep(node: FlowNode | undefined): number | undefined {
+export function beatStep(node: FlowNode | undefined): number | undefined {
   if (!node) return undefined;
   if (node.persist) return node.persist.step;
-  return stepForScreenId(node.screenId);
+  // Terminal into-app (COMPLETE) is intentionally absent → undefined → no
+  // auto-advance; completion fires when the machine reaches its null nextId.
+  return ENGINE_PERSISTLESS_STEP[node.screenId];
 }
 
 /**
@@ -51,7 +87,10 @@ function beatStep(node: FlowNode | undefined): number | undefined {
  * machine advances with the SAME answers a card tap would have set (the fork
  * resolves, past-beat summaries render). data fields mirror the card adapters.
  */
-function serverCaptureForBeat(node: FlowNode | undefined, data: OnboardingStepData): BeatCapture {
+export function serverCaptureForBeat(
+  node: FlowNode | undefined,
+  data: OnboardingStepData,
+): BeatCapture {
   const out: BeatCapture = { data: {} };
   if (!node) return out;
   switch (node.componentType) {
@@ -76,13 +115,55 @@ function serverCaptureForBeat(node: FlowNode | undefined, data: OnboardingStepDa
     case 'reflection-card':
       if (data.reflectionConfig != null) out.data.reflectionConfig = data.reflectionConfig;
       break;
-    case 'coach-bubble':
+    case 'habit-schedule':
+      if (data.habitConfigs != null) out.data.habitConfigs = data.habitConfigs;
+      break;
+    case 'advanced-capture':
+      // brain dump is its own componentType now, no longer coach-bubble.
       if (data.brainDumpText != null) out.data.brainDumpText = data.brainDumpText;
+      break;
+    case 'morning-checkin-setup':
+      if (data.morningCheckin != null) out.data.morningCheckin = data.morningCheckin;
+      break;
+    case 'plan-cards':
+    case 'into-app':
+      // persist-null beats — no field to replay; advance with empty capture.
       break;
     default:
       break;
   }
   return out;
+}
+
+/**
+ * Fast-forward a fresh machine to the saved server step so a page refresh lands
+ * on the beat the user was on, not back at the entry node. Walks from `fromState`,
+ * replaying each passed beat's server capture (so answers populate + the fork
+ * resolves), and stops at the first beat whose ENTRY server step is >= `serverStep`
+ * (the resume target). The comparison is on the server `current_step` scale
+ * (`entryServerStep`), NOT engine `beatStep` — the two diverge past habit-schedule,
+ * and using beatStep here overshoots the user to the end. Pre-step beats (auth/mic,
+ * undefined entry step) are walked through — on resume the user is already authed and
+ * mic-granted. Guarded against non-progress and the terminal node. Pure → unit-testable.
+ */
+export function resumeToServerStep(
+  flow: FlowDocument,
+  fromState: FlowMachineState,
+  serverStep: number,
+  data: OnboardingStepData,
+): FlowMachineState {
+  let st = fromState;
+  for (let guard = 0; guard < 50; guard++) {
+    if (st.status === 'complete') break;
+    const node = getNode(flow, st.currentNodeId);
+    if (!node) break;
+    const eStep = entryServerStep(node);
+    if (eStep !== undefined && eStep >= serverStep) break; // reached the saved beat
+    const next = applyCapture(flow, st, serverCaptureForBeat(node, data));
+    if (next.currentNodeId === st.currentNodeId) break; // no progress → stop
+    st = next;
+  }
+  return st;
 }
 
 export interface FlowOrchestrator {
@@ -103,6 +184,9 @@ export interface FlowOrchestratorOptions {
   /** Pin tag for the loaded flow; fired via onPin on the first save. */
   flowTag?: string;
   onPin?: (tag: string) => void;
+  /** Seed answers known before the flow starts (e.g. nickname from sign-in) so the
+   *  coach treats them as filled and never re-asks. A later capture overrides them. */
+  initialAnswers?: Partial<FlowAnswers>;
 }
 
 export function useFlowOrchestrator(
@@ -110,7 +194,12 @@ export function useFlowOrchestrator(
   persistence: FlowPersistence,
   options?: FlowOrchestratorOptions,
 ): FlowOrchestrator {
-  const [state, setState] = useState<FlowMachineState>(() => initFlowMachine(flow));
+  const [state, setState] = useState<FlowMachineState>(() => {
+    const init = initFlowMachine(flow);
+    return options?.initialAnswers
+      ? { ...init, answers: { ...options.initialAnswers, ...init.answers } }
+      : init;
+  });
   const voice = useOnboardingVoice();
   // Server onboarding row (current_step + data). Mirrored from Supabase Realtime
   // on the voice path; null in the auth-free preview. Drives the coach-save
@@ -217,10 +306,43 @@ export function useFlowOrchestrator(
   // lands at the just-completed (lower) step, and a back-nav arrives already
   // ahead, so neither is a transition past the active beat and neither double-fires.
   const serverStep = serverState?.current_step;
-  const serverData = serverState?.data;
+  // `path` lives in its OWN column (onboarding_states.path), not in `data` — but
+  // serverCaptureForBeat reads data.path to resolve the fork lane. Without merging
+  // it in, the fork capture sees no path → applyCapture falls through to the
+  // branch's mergeNodeId (plan review) and the engine SKIPS the whole beginner/
+  // advanced lane. Merge the column back into the data the capture reads.
+  const serverData = useMemo<OnboardingStepData>(
+    () => ({
+      ...(serverState?.data ?? {}),
+      ...(serverState?.path ? { path: serverState.path } : {}),
+    }),
+    [serverState?.data, serverState?.path],
+  );
   const activeNodeId = state.currentNodeId;
   const baselineStepRef = useRef<number | null>(null);
   const advancedNodeRef = useRef<string | null>(null);
+
+  // One-time resume: on the first load with a server row ahead of the entry,
+  // fast-forward the local engine to the saved current_step so a refresh lands on
+  // the beat the user was on (not back at AUTH). Runs once; afterwards the
+  // leading-edge effect below owns live advances + back-nav semantics.
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current) return;
+    if (typeof serverStep !== 'number') return; // no server row (preview / not loaded yet)
+    resumedRef.current = true;
+    const resumed = resumeToServerStep(
+      flow,
+      stateRef.current,
+      serverStep,
+      (serverData ?? {}) as OnboardingStepData,
+    );
+    if (resumed.currentNodeId !== stateRef.current.currentNodeId) {
+      stateRef.current = resumed;
+      setState(resumed);
+    }
+  }, [serverStep, serverData, flow]);
+
   // Reset the per-beat baseline + fired-flag whenever the active beat changes, so
   // each beat judges advancement against the step seen on entry (not a prior
   // beat's) and a re-entered beat can advance again.

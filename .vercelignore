@@ -1,0 +1,15 @@
+# Trim what `vercel dev` watches/uploads — fixes EMFILE "too many open files"
+# by keeping these huge/irrelevant trees out of the file watcher.
+node_modules
+ios
+android
+.git
+dist
+build
+out
+coverage
+.venv
+venv
+__pycache__
+supabase/.temp
+.vercel

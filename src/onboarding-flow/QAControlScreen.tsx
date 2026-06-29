@@ -125,6 +125,16 @@ export function QAControlScreen() {
   async function ensureSignedIn() {
     const { error: signInError } = await signIn(email, QA_PASSWORD);
     if (signInError) throw new Error(signInError);
+    // QA accounts ship nameless; stamp the derived display name onto the session so
+    // onboarding greets by it and never re-asks (the "name from sign-in").
+    const label = users.find((u) => u.email === email)?.label;
+    if (label) {
+      try {
+        await supabase.auth.updateUser({ data: { nickname: label } });
+      } catch {
+        /* non-fatal — onboarding still works, it may just ask for the name */
+      }
+    }
   }
 
   async function selfReset() {
@@ -149,8 +159,7 @@ export function QAControlScreen() {
       await ensureSignedIn();
       if (action === 'restart') {
         await selfReset();
-        // /onboarding routes to whatever onboarding is live (the page flow today,
-        // the engine once VITE_ONBOARDING_USE_ENGINE is on), so this works in prod.
+        // /onboarding redirects to the chat-native engine (/onboarding/flow).
         navigate('/onboarding', { replace: true });
       } else if (action === 'reonboard') {
         navigate('/onboarding', { replace: true });

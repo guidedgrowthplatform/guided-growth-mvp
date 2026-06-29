@@ -10,13 +10,16 @@
  * Auth model: see navigateNext.ts. Channel auth via X-Vapi-Secret;
  * identity arrives as `anon_id` injected by Vapi from static call params.
  */
-import pool from '../../db.js';
+import pool, { type Queryable } from '../../db.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type HandlerResult = { result: string } | { error: string };
 
-export async function confirmPlan(args: Record<string, unknown>): Promise<HandlerResult> {
+export async function confirmPlan(
+  args: Record<string, unknown>,
+  db: Queryable = pool,
+): Promise<HandlerResult> {
   const anonId = typeof args.anon_id === 'string' ? args.anon_id : undefined;
   if (!anonId || !UUID_REGEX.test(anonId)) {
     console.log('[vapi/tool] validation_failed reason=invalid_identity name=confirm_plan');
@@ -28,7 +31,7 @@ export async function confirmPlan(args: Record<string, unknown>): Promise<Handle
   // PlanReviewPage would crash trying to render a half-built plan. Reject so the
   // agent (per RULE 6) retries silently and the user is steered back to the
   // missing screen.
-  const existing = await pool.query<{
+  const existing = await db.query<{
     data: Record<string, unknown> | null;
     current_step: number | null;
   }>(`SELECT data, current_step FROM onboarding_states WHERE anon_id = $1`, [anonId]);
@@ -62,7 +65,7 @@ export async function confirmPlan(args: Record<string, unknown>): Promise<Handle
     };
   }
 
-  const result = await pool.query(
+  const result = await db.query(
     `INSERT INTO onboarding_states (anon_id, current_step, status, updated_at)
      VALUES ($1, 8, 'in_progress', now())
      ON CONFLICT (anon_id) DO UPDATE SET

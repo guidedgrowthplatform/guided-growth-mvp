@@ -19,6 +19,18 @@ export function getOrCreateOnboardingChatSessionId(): string {
   }
 }
 
+// Adopt a server-resolved session id ONLY when this tab hasn't already minted one
+// — overriding a session the tab is mid-write on would split the thread. Lets a
+// fresh tab / new device continue the canonical onboarding thread (cross-device).
+export function adoptOnboardingChatSessionId(id: string): void {
+  try {
+    if (sessionStorage.getItem(ONBOARDING_CHAT_SESSION_KEY)) return;
+    sessionStorage.setItem(ONBOARDING_CHAT_SESSION_KEY, id);
+  } catch {
+    if (!memoryFallbackId) memoryFallbackId = id;
+  }
+}
+
 export function clearOnboardingChatSessionId(): void {
   memoryFallbackId = null;
   try {

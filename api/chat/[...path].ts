@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { requireUser, setUserContext, handlePreflight } from '../_lib/auth.js';
 import { UUID_REGEX } from '../_lib/validation.js';
-import type { LLMChatMessage, LLMToolEvent } from '@gg/shared/types/llm';
+import type { LLMChatMessage, LLMToolEvent, OnboardingThreadTurn } from '@gg/shared/types/llm';
 
 function isValidChatSessionId(id: unknown): id is string {
   return typeof id === 'string' && UUID_REGEX.test(id);
@@ -11,6 +11,11 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
 // Resume window. UX heuristic, not a security boundary (auth + anon_id scope are).
 const SESSION_RECENCY_MINUTES = 720;
+const MAX_CONTENT = 8000; // chat_messages.content CHECK
+// One anchor row per anon_id (PK is (anon_id, screen_id)) pins the canonical
+// onboarding chat_session_id so the thread resumes cross-device, not per-beat.
+const ONBOARDING_ANCHOR_SCREEN = 'ONBOARDING';
+const isOnboardingScreen = (s: string) => s.startsWith('ONBOARD-');
 
 interface ChatRow {
   id: string;
@@ -147,7 +152,131 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (route === 'history') return handleHistory(req, res);
   if (route === 'linear') return handleLinearHistory(req, res);
   if (route === 'session') return handleSession(req, res);
+  if (route === 'append') return handleAppend(req, res);
+  if (route === 'onboarding-thread') return handleOnboardingThread(req, res);
   return res.status(404).json({ error: 'Not found' });
+}
+
+// Persist one voice/Vapi turn. Idempotent per (chat_session_id, client_turn_key):
+// a turn whose merged text grows across finals re-POSTs the same key and the row's
+// content is UPDATEd. Shares the Direct-LLM advisory lock so the two writers never
+// collide on turn_index (pg.Pool max:1 does NOT serialize across functions).
+async function handleAppend(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const user = await requireUser(req, res);
+  if (!user) return;
+  await setUserContext(user.anonId);
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+
+  const chatSessionId = body.chat_session_id;
+  if (!isValidChatSessionId(chatSessionId)) {
+    return res.status(400).json({ error: 'chat_session_id must be a UUID' });
+  }
+
+  const screenId = body.screen_id;
+  if (typeof screenId !== 'string' || screenId.length === 0 || screenId.length > 200) {
+    return res.status(400).json({ error: 'screen_id is required (1-200 chars)' });
+  }
+
+  const clientTurnKey = body.client_turn_key;
+  if (
+    typeof clientTurnKey !== 'string' ||
+    clientTurnKey.length === 0 ||
+    clientTurnKey.length > 200
+  ) {
+    return res.status(400).json({ error: 'client_turn_key is required (1-200 chars)' });
+  }
+
+  const rawRole = body.role;
+  if (rawRole !== 'user' && rawRole !== 'ai' && rawRole !== 'assistant') {
+    return res.status(400).json({ error: "role must be 'user' | 'ai' | 'assistant'" });
+  }
+  const role = rawRole === 'ai' ? 'assistant' : rawRole;
+
+  const rawText = typeof body.text === 'string' ? body.text : '';
+  const content = rawText.length > 0 ? rawText.slice(0, MAX_CONTENT) : null;
+  const mode = body.mode === 'opener' ? 'opener' : 'chat';
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [chatSessionId]);
+
+    const baseRes = await client.query<{ base: number }>(
+      'SELECT COALESCE(MAX(turn_index) + 1, 0) AS base FROM chat_messages WHERE chat_session_id = $1',
+      [chatSessionId],
+    );
+    const base = baseRes.rows[0].base;
+
+    await client.query(
+      `INSERT INTO chat_messages
+         (anon_id, chat_session_id, screen_id, turn_index, role, content, mode, client_turn_key)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (chat_session_id, client_turn_key) WHERE client_turn_key IS NOT NULL
+         DO UPDATE SET content = EXCLUDED.content`,
+      [user.anonId, chatSessionId, screenId, base, role, content, mode, clientTurnKey],
+    );
+
+    if (isOnboardingScreen(screenId)) {
+      await client.query(
+        `INSERT INTO chat_sessions (anon_id, screen_id, chat_session_id)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (anon_id, screen_id) DO UPDATE SET last_activity = now()`,
+        [user.anonId, ONBOARDING_ANCHOR_SCREEN, chatSessionId],
+      );
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // rollback best-effort
+    }
+    console.error('[/api/chat/append] failed', err);
+    return res.status(500).json({ error: 'append_failed' });
+  } finally {
+    client.release();
+  }
+
+  return res.status(200).json({ ok: true });
+}
+
+// Resolve the canonical onboarding thread for this anon_id (cross-device, no
+// 12h window, no per-beat screen scoping) and return its persisted messages.
+// null when onboarding never wrote a turn — the client then mints a fresh id.
+async function handleOnboardingThread(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  const user = await requireUser(req, res);
+  if (!user) return;
+  await setUserContext(user.anonId);
+
+  const anchor = await pool.query<{ chat_session_id: string }>(
+    `SELECT chat_session_id FROM chat_sessions
+      WHERE anon_id = $1 AND screen_id = $2`,
+    [user.anonId, ONBOARDING_ANCHOR_SCREEN],
+  );
+  const chatSessionId = anchor.rows[0]?.chat_session_id ?? null;
+  if (!chatSessionId) {
+    return res.status(200).json({ chat_session_id: null, messages: [] });
+  }
+
+  // Flat user/assistant turns ordered by turn_index (the single ordering authority);
+  // tool rows and empty pure-tool-call assistant rows are not part of the feed.
+  const rows = await pool.query<OnboardingThreadTurn>(
+    `SELECT id, client_turn_key, role, content, screen_id
+       FROM chat_messages
+      WHERE anon_id = $1 AND chat_session_id = $2
+        AND role IN ('user', 'assistant')
+        AND content IS NOT NULL AND length(trim(content)) > 0
+      ORDER BY turn_index ASC
+      LIMIT $3`,
+    [user.anonId, chatSessionId, MAX_LIMIT],
+  );
+  return res.status(200).json({ chat_session_id: chatSessionId, messages: rows.rows });
 }
 
 async function handleLinearHistory(req: VercelRequest, res: VercelResponse) {
@@ -290,7 +419,7 @@ async function handleSession(req: VercelRequest, res: VercelResponse) {
   } catch (err) {
     const code = (err as { code?: string }).code;
     if (code === '42P01') {
-      console.warn('[chat/session] chat_sessions missing — run migration 044; using plain mint');
+      console.warn('[chat/session] chat_sessions missing — run migration 047; using plain mint');
     } else {
       console.error('[chat/session] cold-mint upsert failed', err);
     }

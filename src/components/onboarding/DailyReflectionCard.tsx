@@ -20,6 +20,12 @@ interface DailyReflectionCardProps {
   prompts?: string[];
   selectedPrompts?: string[];
   onTogglePrompt?: (prompt: string) => void;
+  // 'schedule' drops the reflection header + questions, leaving only the
+  // schedule/when/how-often/reminder editor (reused by the habit-schedule and
+  // morning-checkin beats, which only need the cadence chrome).
+  variant?: 'reflection' | 'schedule';
+  title?: string;
+  subtitle?: string;
 }
 
 export function DailyReflectionCard({
@@ -35,11 +41,19 @@ export function DailyReflectionCard({
   prompts,
   selectedPrompts,
   onTogglePrompt,
+  variant = 'reflection',
+  title,
+  subtitle,
 }: DailyReflectionCardProps) {
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const questions = prompts ?? DEFAULT_REFLECTION_PROMPTS;
   const isSelected = (q: string) => !selectedPrompts || selectedPrompts.includes(q);
   const selectedCount = questions.filter(isSelected).length;
+  const isSchedule = variant === 'schedule';
+  const headerTitle = isSchedule ? (title ?? 'Schedule') : 'Daily Reflection';
+  const headerSubtitle = isSchedule
+    ? subtitle
+    : `${selectedCount} quick question${selectedCount === 1 ? '' : 's'} before bed`;
 
   return (
     <>
@@ -47,51 +61,60 @@ export function DailyReflectionCard({
         {/* Header */}
         <div className="flex items-center gap-[16px]">
           <div className="flex size-[48px] items-center justify-center rounded-[24px] bg-primary/10">
-            <Icon icon="ic:round-menu-book" className="size-[24px] text-primary" />
+            <Icon
+              icon={isSchedule ? 'ic:round-event-available' : 'ic:round-menu-book'}
+              className="size-[24px] text-primary"
+            />
           </div>
           <div className="flex flex-col">
-            <span className="text-[18px] font-bold text-content">Daily Reflection</span>
-            <span className="text-[14px] font-medium text-content-tertiary">
-              {selectedCount} quick question{selectedCount === 1 ? '' : 's'} before bed
-            </span>
+            <span className="text-[18px] font-bold text-content">{headerTitle}</span>
+            {headerSubtitle && (
+              <span className="text-[14px] font-medium text-content-tertiary">
+                {headerSubtitle}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Questions — tappable, selected = solid, deselected = faded */}
-        <div className="flex flex-col gap-[12px]">
-          <span className="text-[14px] font-bold uppercase tracking-[0.35px] text-content-secondary">
-            You'll answer {selectedCount} quick question{selectedCount === 1 ? '' : 's'}:
-          </span>
-          {questions.map((q) => {
-            const selected = isSelected(q);
-            return (
+        {!isSchedule && (
+          <>
+            {/* Questions — tappable, selected = solid, deselected = faded */}
+            <div className="flex flex-col gap-[12px]">
+              <span className="text-[14px] font-bold uppercase tracking-[0.35px] text-content-secondary">
+                You'll answer {selectedCount} quick question{selectedCount === 1 ? '' : 's'}:
+              </span>
+              {questions.map((q) => {
+                const selected = isSelected(q);
+                return (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => onTogglePrompt?.(q)}
+                    disabled={!onTogglePrompt}
+                    className={`w-full rounded-[16px] bg-surface-secondary px-[16px] py-[14px] text-left text-[16px] font-medium transition-opacity ${
+                      selected ? 'text-content' : 'text-content-tertiary opacity-50'
+                    }`}
+                  >
+                    {q}
+                  </button>
+                );
+              })}
+            </div>
+
+            {onCreatePrompts && (
               <button
-                key={q}
                 type="button"
-                onClick={() => onTogglePrompt?.(q)}
-                disabled={!onTogglePrompt}
-                className={`w-full rounded-[16px] bg-surface-secondary px-[16px] py-[14px] text-left text-[16px] font-medium transition-opacity ${
-                  selected ? 'text-content' : 'text-content-tertiary opacity-50'
-                }`}
+                onClick={onCreatePrompts}
+                className="w-full rounded-full border-2 border-primary py-[14px] text-center text-[16px] font-bold text-primary"
               >
-                {q}
+                Optional: Create My Own Prompts
               </button>
-            );
-          })}
-        </div>
+            )}
 
-        {onCreatePrompts && (
-          <button
-            type="button"
-            onClick={onCreatePrompts}
-            className="w-full rounded-full border-2 border-primary py-[14px] text-center text-[16px] font-bold text-primary"
-          >
-            Optional: Create My Own Prompts
-          </button>
+            {/* Divider */}
+            <div className="h-px w-full bg-border-light" />
+          </>
         )}
-
-        {/* Divider */}
-        <div className="h-px w-full bg-border-light" />
 
         {/* Schedule */}
         <div className="flex items-center justify-between">

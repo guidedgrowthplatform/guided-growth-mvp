@@ -37,6 +37,28 @@ export function getOnboardingOpener(screenId: string): string | undefined {
   return ONBOARDING_OPENERS[screenId];
 }
 
+// The profile beat MUST collect the name (advance precondition requires
+// data.nickname). When the name is already known from sign-in (OAuth, or QA which
+// stamps user_metadata.nickname), greet by it and ask only the two remaining things
+// (age + gender). Email sign-ups arrive nameless — SignUpPage collects only
+// email+password — so when nickname is absent, open by asking for it too.
+const PROFILE_OPENER_SCREENS = new Set(['ONBOARD-01', 'ONBOARD-01--FORM']);
+const PROFILE_OPENER_ASK_NAME =
+  'Awesome — three quick things so I can tailor this to you. What should I call you? And how old are you, and what gender are you?';
+const PROFILE_OPENER_KNOWN_NAME =
+  'Awesome {name}, two quick things so I can tailor this to you. How old are you, and how do you identify?';
+
+export function getOnboardingOpenerForState(
+  screenId: string,
+  nickname: string | null | undefined,
+): string | undefined {
+  const haveName = typeof nickname === 'string' && nickname.trim().length > 0;
+  if (PROFILE_OPENER_SCREENS.has(screenId)) {
+    return haveName ? PROFILE_OPENER_KNOWN_NAME : PROFILE_OPENER_ASK_NAME;
+  }
+  return ONBOARDING_OPENERS[screenId];
+}
+
 export interface RevisitOpener {
   text: string;
   // All fields present → caller may offer affirm→auto-advance.

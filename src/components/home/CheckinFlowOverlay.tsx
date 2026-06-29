@@ -61,7 +61,7 @@ export function CheckinFlowOverlay({
       >
         <Icon icon="ic:round-close" width={20} height={20} />
       </button>
-      <FlowRenderer orchestrator={orchestrator} variant="overlay" speakBeats />
+      <FlowRenderer orchestrator={orchestrator} variant="overlay" />
     </div>
   );
 }

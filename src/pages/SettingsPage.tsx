@@ -115,7 +115,7 @@ export function SettingsPage() {
     try {
       await signOut();
       track('complete_logout');
-      navigate('/login', { replace: true });
+      navigate('/onboarding/flow', { replace: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to log out';
       addToast('error', msg);
@@ -168,7 +168,7 @@ export function SettingsPage() {
       sessionStorage.clear();
       setFlag(FIRST_OPEN, 'true');
       await signOut();
-      navigate('/login', { replace: true });
+      navigate('/onboarding/flow', { replace: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete account';
       addToast('error', msg);

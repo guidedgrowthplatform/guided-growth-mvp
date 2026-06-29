@@ -17,15 +17,9 @@ import { FlowVoiceControls } from './FlowVoiceControls';
 export interface FlowRendererProps {
   orchestrator: FlowOrchestrator;
   variant?: 'default' | 'overlay';
-  // Check-in only; onboarding leaves off.
-  speakBeats?: boolean;
 }
 
-export function FlowRenderer({
-  orchestrator,
-  variant = 'default',
-  speakBeats = false,
-}: FlowRendererProps) {
+export function FlowRenderer({ orchestrator, variant = 'default' }: FlowRendererProps) {
   const overlay = variant === 'overlay';
   const { flow, state, currentNode, answers, capture, back, canGoBack, isComplete } = orchestrator;
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -74,7 +68,6 @@ export function FlowRenderer({
                   active={!isComplete && id === currentNode?.id}
                   onCapture={capture}
                   onReveal={scrollToBottom}
-                  speakBeats={speakBeats}
                 />
               );
             })}

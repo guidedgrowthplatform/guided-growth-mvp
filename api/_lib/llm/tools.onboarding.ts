@@ -25,6 +25,7 @@ export type OnboardingToolName =
   | 'remove_habit'
   | 'update_habit'
   | 'submit_reflection_config'
+  | 'submit_morning_checkin'
   | 'submit_custom_prompts'
   | 'submit_brain_dump'
   | 'navigate_next'
@@ -131,7 +132,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     screen: 'ONBOARD-01--FORM',
     nonBlocking: true,
     description:
-      "Save profile fields (nickname, age, gender, referral source) to the database. DATA ONLY — this tool does NOT advance the user to the next screen. Use `navigate_next` for that, AFTER the user confirms they're ready. AUTO-CALL IMMEDIATELY the moment the user states any of these fields. Do not ask for permission. Do not summarize. Edit mode: re-call with only the field(s) the user is updating — never re-send unchanged values. Only include fields the user explicitly stated; never invent values. At least one field is required per call.",
+      'Save profile fields (nickname, age, gender, referral source) to the database. DATA ONLY — this tool does NOT advance the user to the next screen. Use `navigate_next` for that, chained in the SAME turn the moment age and gender are captured (or gender declined) — the saved data IS the confirmation, so never wait for the user to say they are ready. AUTO-CALL IMMEDIATELY the moment the user states any of these fields. Do not ask for permission. Do not summarize. Edit mode: re-call with only the field(s) the user is updating — never re-send unchanged values. Only include fields the user explicitly stated; never invent values. At least one field is required per call.',
     messages: {
       requestStart: '',
       requestFailed: '',
@@ -167,7 +168,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     screen: 'ONBOARD-FORK--FORM',
     nonBlocking: true,
     description:
-      'Save the user\'s chosen onboarding path (simple vs braindump). DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user signals their choice. Phrases like "I\'m new", "this is my first time" → simple. "I already have habits", "I know what I want to work on" → braindump. Do not ask for permission to save — just call.',
+      'Save the user\'s chosen onboarding path (simple vs braindump). DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, chained in the SAME turn — the saved data IS the confirmation, so never wait for the user to say they are ready. AUTO-CALL IMMEDIATELY the moment the user signals their choice. Phrases like "I\'m new", "this is my first time" → simple. "I already have habits", "I know what I want to work on" → braindump. Do not ask for permission to save — just call.',
     messages: {
       requestStart: '',
       requestFailed: '',
@@ -190,7 +191,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     screen: 'ONBOARD-BEGINNER-01',
     nonBlocking: true,
     description:
-      'Save the user\'s chosen category. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user names an improvement area, even loosely. Map to the closest of the 8 categories: "sleep more" → Sleep better, "be more active" → Move more, "eat healthier" → Eat better, "less stressed" → Reduce stress, "focus better" → Improve focus, "quit smoking/drinking/phone" → Break bad habits, "more organized/on top of things" → Get more organized, "more energy" → Feel more energized. Do not ask for permission — just call.',
+      'Save the user\'s chosen category. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, chained in the SAME turn — the saved data IS the confirmation, so never wait for the user to say they are ready. AUTO-CALL IMMEDIATELY the moment the user names an improvement area, even loosely. Map to the closest of the 8 categories: "sleep more" → Sleep better, "be more active" → Move more, "eat healthier" → Eat better, "less stressed" → Reduce stress, "focus better" → Improve focus, "quit smoking/drinking/phone" → Break bad habits, "more organized/on top of things" → Get more organized, "more energy" → Feel more energized. Do not ask for permission — just call.',
     messages: {
       requestStart: '',
       requestFailed: '',
@@ -213,7 +214,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     screen: 'ONBOARD-BEGINNER-02',
     nonBlocking: true,
     description:
-      "Save the user's COMPLETE goal selection for this screen (1 or 2 goals). This REPLACES whatever was saved before, so EVERY call MUST include ALL goals the user currently wants — never just the newest one. If they pick one goal now and add a second later, call again with BOTH goals in the array. If they change their mind, call again with only the goals they now want. DATA ONLY — does NOT advance to the next screen; use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY when the user names a goal — do not ask permission. Goal labels must match the on-screen options exactly.",
+      "Save the user's COMPLETE goal selection for this screen (1 or 2 goals). This REPLACES whatever was saved before, so EVERY call MUST include ALL goals the user currently wants — never just the newest one. If they pick one goal now and add a second later, call again with BOTH goals in the array. If they change their mind, call again with only the goals they now want. DATA ONLY — does NOT advance to the next screen; use `navigate_next` for that, chained in the SAME turn — the saved data IS the confirmation, so never wait for the user to say they are ready. AUTO-CALL IMMEDIATELY when the user names a goal — do not ask permission. Goal labels must match the on-screen options exactly.",
     messages: {
       requestStart: '',
       requestFailed: '',
@@ -359,10 +360,10 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     screen: 'ONBOARD-BEGINNER-07',
     nonBlocking: true,
     description:
-      "Save the user's evening reflection schedule. DATA ONLY — does NOT advance to the next screen. Use `navigate_next(target_step=7)` AFTER this returns. " +
+      "Save the user's evening reflection schedule. DATA ONLY — does NOT advance to the next screen. Use `navigate_next(target_step=10)` AFTER this returns. " +
       'PRECONDITION: do NOT call this until the user has actually answered when they want their reflection. ' +
       "ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). If the user has not yet said a time, ASK FIRST — do NOT pre-fill defaults silently and fire this tool. The reflection screen is the user's choice; do not bypass it. " +
-      'Once the user gives you a time (e.g. "around 9 PM" → time="21:00", or "9:45 PM" → "21:45"), infer the missing fields from natural defaults (Weekday + reminder on) and call. Then chain navigate_next(target_step=7) in the same turn.',
+      'Once the user gives you a time (e.g. "around 9 PM" → time="21:00", or "9:45 PM" → "21:45"), infer the missing fields from natural defaults (Weekday + reminder on) and call. Then chain navigate_next(target_step=10) in the same turn.',
     messages: {
       requestStart: '',
       requestFailed: '',
@@ -400,11 +401,49 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     },
   },
   {
+    name: 'submit_morning_checkin',
+    screen: 'ONBOARD-MORNING-SETUP',
+    description:
+      "Save the user's morning check-in schedule. DATA ONLY — does NOT advance to the next screen; chain navigate_next(target_step=9) AFTER this returns, in the same turn. " +
+      'PRECONDITION: do NOT call this until the user has actually answered when they want their morning check-in. ' +
+      "ALL FOUR FIELDS ARE REQUIRED by the server: `time` (HH:MM), `days` (array of 0-6 ints), `reminder` (boolean), `schedule` (Weekday | Weekend | Every day). If the user has not yet said a time, ASK FIRST — do NOT pre-fill defaults silently and fire this tool. The morning-setup screen is the user's choice; do not bypass it. " +
+      'Once the user gives a time (e.g. "around 7:30 in the morning" → time="07:30"), infer the missing fields from natural defaults (Weekday + reminder on) and call. Then chain navigate_next(target_step=9) in the same turn.',
+    messages: {
+      requestStart: '',
+      requestFailed: '',
+    },
+    parameters: {
+      type: 'object',
+      properties: {
+        time: {
+          type: 'string',
+          description: 'HH:MM 24-hour format.',
+        },
+        days: {
+          type: 'array',
+          description: 'Days as 0-6 ints, 0=Sunday.',
+          items: { type: 'number' },
+        },
+        reminder: {
+          type: 'boolean',
+          description: 'Reminder notification toggle.',
+        },
+        schedule: {
+          type: 'string',
+          description: 'Schedule preset matching the days array.',
+          enum: [...SCHEDULE_OPTIONS],
+        },
+      },
+      required: ['time', 'days', 'reminder', 'schedule'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'submit_custom_prompts',
     screen: 'ONBOARD-ADV-CUSTOM',
     nonBlocking: true,
     description:
-      "Save the user's custom evening-reflection prompts. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user gives one or more prompts. The prompts array REPLACES the saved set — always send the COMPLETE current list the user wants, never just the newest one (if they had two and add a third, send all three). Do not ask for permission — just call.",
+      "Save the user's custom evening-reflection prompts. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, chained in the SAME turn — the saved data IS the confirmation, so never wait for the user to say they are ready. AUTO-CALL IMMEDIATELY the moment the user gives one or more prompts. The prompts array REPLACES the saved set — always send the COMPLETE current list the user wants, never just the newest one (if they had two and add a third, send all three). Do not ask for permission — just call.",
     messages: {
       requestStart: '',
       requestFailed: '',
@@ -428,7 +467,7 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     screen: 'ONBOARD-ADVANCED',
     nonBlocking: true,
     description:
-      "Save the user's verbatim brain-dump text. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, after the user confirms. AUTO-CALL IMMEDIATELY the moment the user finishes describing what they want to work on (after a natural pause of a sentence or two). Pass the FULL transcript verbatim — never summarize, never rephrase, never paraphrase. Server parses this. Do not ask for permission — just call.",
+      "Save the user's verbatim brain-dump text. DATA ONLY — does NOT advance to the next screen. Use `navigate_next` for that, chained in the SAME turn — the saved data IS the confirmation, so never wait for the user to say they are ready. AUTO-CALL IMMEDIATELY the moment the user finishes describing what they want to work on (after a natural pause of a sentence or two). Pass the FULL transcript verbatim — never summarize, never rephrase, never paraphrase. Server parses this. Do not ask for permission — just call.",
     messages: {
       requestStart: '',
       requestFailed: '',
@@ -450,11 +489,11 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
     screen: '*',
     description:
       'Advance the user to the next onboarding screen. This is the ONLY tool that moves the user between screens — the submit_* / add_* tools just save data, they do NOT navigate. ' +
-      'ABSOLUTE LAW: navigate_next MUST be called in the SAME TURN as the data tool. Whenever you call submit_profile / submit_path_choice / submit_category / submit_goals / add_habit / submit_reflection_config / submit_custom_prompts / submit_brain_dump, you MUST chain navigate_next right after, in the same response. If you finished a turn that called a data tool but did NOT call navigate_next, you have a critical bug — the user is now stuck and will have to remind you. Do not let this happen. ' +
+      'ABSOLUTE LAW: navigate_next MUST be called in the SAME TURN as the data tool. Whenever you call submit_profile / submit_path_choice / submit_category / submit_goals / add_habit / submit_reflection_config / submit_morning_checkin / submit_custom_prompts / submit_brain_dump, you MUST chain navigate_next right after, in the same response. If you finished a turn that called a data tool but did NOT call navigate_next, you have a critical bug — the user is now stuck and will have to remind you. Do not let this happen. ' +
       'NEVER ask the user "are you ready?" / "anything else?" / "want to continue?" / "ready to move on?" before navigating. The data tool firing IS the confirmation. The user does not know navigate_next exists; they expect screens to advance based on what they said. ' +
       "GOOD: User says 'I want walking 3 times a week at 8pm with reminders'. You call: add_habit(name='Walking', days=[1,3,5], time='20:00', reminder=true), THEN navigate_next(target_step=6). One turn, two tool calls. " +
       "BAD: User says the same thing. You call: add_habit(...), then say 'Walking, three days a week at 8 PM. Anything else?'. This is a BUG. You FAILED to call navigate_next. The user now has to say 'continue' to unstick. " +
-      'What to pass for target_step: the step number of the NEXT screen. From step-1 (profile) → 2. step-2 (path) → 3. step-3 (category/braindump) → 4. step-4 (goals) → 5. step-5 (habits) → 6. step-6 (reflection) → 7. ' +
+      'What to pass for target_step: the step number of the NEXT screen. From step-1 (profile) → 2. step-2 (path) → 3. step-3 (category/braindump) → 4. step-4 (goals) → 5. step-5 (habit-select) → 6. step-6 (habit-schedule) → 7. step-7 (plan-review) → 8. step-8 (morning) → 9. step-9 (reflection) → 10. ' +
       "For users who back-navigated to edit an earlier screen: after they re-confirm the edit, call this with target_step = currentScreenStep + 1. They'll walk through the remaining screens one by one — that's intended. Do NOT pass target_step values that skip multiple screens at once. " +
       'Only exception: if the user EXPLICITLY signals MORE input is coming BEFORE you call the data tool (e.g. "wait, one more habit", "and another goal"), capture that input first. Once you call the data tool, navigate_next MUST follow in the same turn.',
     messages: {

@@ -8,7 +8,7 @@
  * Idempotent: if no row or no matching key, returns ok without erroring.
  * current_step is NOT bumped — removing a habit shouldn't advance progress.
  */
-import pool from '../../db.js';
+import pool, { type Queryable } from '../../db.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NAME_MAX_LEN = 100;
@@ -20,7 +20,10 @@ function getString(args: Record<string, unknown>, key: string): string | undefin
   return typeof v === 'string' ? v : undefined;
 }
 
-export async function removeHabit(args: Record<string, unknown>): Promise<HandlerResult> {
+export async function removeHabit(
+  args: Record<string, unknown>,
+  db: Queryable = pool,
+): Promise<HandlerResult> {
   console.log('[vapi/tool] received name=remove_habit anon_id=' + getString(args, 'anon_id'));
 
   const anonId = getString(args, 'anon_id');
@@ -42,7 +45,7 @@ export async function removeHabit(args: Record<string, unknown>): Promise<Handle
   const target = nameRaw.trim().toLowerCase();
 
   // Read current habitConfigs to find a case-insensitive key match.
-  const existingRes = await pool.query<{ hc: Record<string, unknown> | null }>(
+  const existingRes = await db.query<{ hc: Record<string, unknown> | null }>(
     `SELECT data->'habitConfigs' AS hc FROM onboarding_states WHERE anon_id = $1`,
     [anonId],
   );
@@ -61,7 +64,7 @@ export async function removeHabit(args: Record<string, unknown>): Promise<Handle
     return { result: 'ok' };
   }
 
-  const result = await pool.query(
+  const result = await db.query(
     `UPDATE onboarding_states
      SET data = jsonb_set(data, '{habitConfigs}', (data->'habitConfigs') - $2::text),
          updated_at = now()
