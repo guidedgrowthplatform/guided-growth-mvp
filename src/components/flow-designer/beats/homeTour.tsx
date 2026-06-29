@@ -73,7 +73,8 @@ const STAGE_LINE: Record<TourStage, string> = {
   evening: "Evenings you reflect. How the day went, what's on your mind.",
   habits: 'Your habits live here. Tap the check when you do one, the X if you miss it.',
   reflections: 'Everything you reflect on collects here, so you can look back anytime.',
-  feedback: 'See something off? Tap feedback and tell me. It opens right into a chat.',
+  feedback:
+    "You're one of our 50 founding users, so your feedback is one of the most meaningful things you can do for us. It shapes where this whole product goes. There's a button here for it, and you can also just tell me, anytime you've got something.",
   chat: 'And anytime at all, open the chat. We can talk about anything.',
 };
 
@@ -447,7 +448,11 @@ function HomeTourBeat(props?: Record<string, string>) {
     return () => window.clearTimeout(id);
   }, [idx, stage]);
 
+  // The highlighted element glows AND lifts above the blur veil (zIndex 60 > the
+  // veil's 44) so it stays sharp while the rest of the home blurs behind it.
   const glow = (on: boolean): CSSProperties => ({
+    position: 'relative',
+    zIndex: on ? 60 : undefined,
     borderRadius: 18,
     outline: on ? `2px solid ${BLUE}` : '2px solid transparent',
     outlineOffset: 6,
@@ -455,6 +460,10 @@ function HomeTourBeat(props?: Record<string, string>) {
     transition: 'outline-color 360ms ease-out, box-shadow 360ms ease-out',
     animation: on ? 'ggGlow 1800ms ease-in-out infinite' : 'none',
   });
+  // Lift only (no outline glow) for the quick-action row, whose own card glows
+  // via the QuickActionCards highlight prop.
+  const lift = (on: boolean): CSSProperties | undefined =>
+    on ? { position: 'relative', zIndex: 60 } : undefined;
 
   return (
     <div style={{ position: 'relative', height: 792, overflow: 'hidden' }}>
@@ -477,7 +486,7 @@ function HomeTourBeat(props?: Record<string, string>) {
         <div style={glow(hl === 'calendar')}>
           <DateStrip selectedDate={selectedDate} onSelectDate={onSelectDate} />
         </div>
-        <div ref={quickRef}>
+        <div ref={quickRef} style={lift(hl === 'morning' || hl === 'evening')}>
           <QuickActionCards
             highlight={hl === 'morning' ? 'checkin' : hl === 'evening' ? 'journal' : undefined}
             onCheckInPress={() => setShowCheckIn((v) => !v)}
@@ -516,27 +525,29 @@ function HomeTourBeat(props?: Record<string, string>) {
         </div>
       </div>
 
+      {/* Spotlight veil: on every highlight beat, softly blur + dim the rest of
+          the home (and the nav) so the highlighted part, which lifts above this
+          veil with its blue glow, is clearly the point. The veil fades in on
+          enter; the beat-to-beat dissolve fades it out as you leave. */}
+      {hl !== null && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 44,
+            background: 'rgba(248,250,252,0.5)',
+            backdropFilter: 'blur(3px)',
+            WebkitBackdropFilter: 'blur(3px)',
+            animation: 'ggScrimIn 420ms ease-out',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
       {/* The home's real bottom controls, shown on the top-band beats (the chat
           is up top, so feedback + open chat + nav own the bottom). */}
       {showBottomControls && (
         <>
-          {/* Spotlight: on the feedback beat, softly blur + dim the home and nav
-              behind so the two buttons pop into focus, while the real home stays
-              visible underneath (not scrolled away). */}
-          {hl === 'feedback' && (
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                zIndex: 44,
-                background: 'rgba(248,250,252,0.58)',
-                backdropFilter: 'blur(3px)',
-                WebkitBackdropFilter: 'blur(3px)',
-                animation: 'ggScrimIn 420ms ease-out',
-                pointerEvents: 'none',
-              }}
-            />
-          )}
           <div
             style={{
               position: 'absolute',

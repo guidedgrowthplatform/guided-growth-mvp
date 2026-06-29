@@ -822,7 +822,8 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
     props: {
       userName: '{name}',
       stage: 'feedback',
-      coachLine: 'See something off? Tap feedback and tell me. It opens right into a chat.',
+      coachLine:
+        "You're one of our 50 founding users, {name}, so your feedback is one of the most meaningful things you can do for us. It shapes where this whole product goes. There's a button here for it, and you can also just tell me, anytime you've got something.",
     },
   },
   {
