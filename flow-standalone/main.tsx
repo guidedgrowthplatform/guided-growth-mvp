@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import '@/index.css';
-import { FlowBuilder } from '@/components/flow-designer/FlowBuilder';
+import { FlowDesigner } from '@/components/flow-designer/FlowDesigner';
 
 const el = document.getElementById('root');
-if (el) createRoot(el).render(<FlowBuilder />);
+if (el) createRoot(el).render(<FlowDesigner />);

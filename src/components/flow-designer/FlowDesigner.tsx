@@ -12,13 +12,20 @@ import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 
 /**
- * FlowDesigner — the chat-native onboarding flow as one continuous scroll,
+ * FlowDesigner -- the chat-native onboarding flow as one continuous scroll,
  * built from the REAL app components (not lookalikes) with real onboarding
  * content (the 8 categories, real goals, real sub-habits, real gender
  * options, real coach lines).
  *
  * Lives in three places: a Storybook story (Flow / Flow Designer), a dev-only
  * /flow-designer route in the app, and a standalone hosted build.
+ *
+ * Voice engine badges sit OUTSIDE the phone frame, in the right margin,
+ * aligned to each beat. Four kinds:
+ *   MP3       -- pre-recorded verbatim clip (blue)
+ *   Cartesia  -- live dynamic TTS, dynamic content (purple)
+ *   Vapi      -- live two-way coaching session (green)
+ *   Silent    -- no coach voice at this beat (gray)
  */
 
 // --- Beat bodies: each holds its own local state and renders real components.
@@ -198,101 +205,462 @@ function CheckinBody() {
   );
 }
 
+// --- Voice engine badge ---
+
+type VoiceEngine = 'MP3' | 'Cartesia' | 'Vapi' | 'Silent';
+
+const ENGINE_META: Record<
+  VoiceEngine,
+  { label: string; icon: string; bg: string; text: string; border: string; note?: string }
+> = {
+  MP3: {
+    label: 'MP3',
+    icon: 'mdi:play-circle-outline',
+    bg: '#dbeafe',
+    text: '#1d4ed8',
+    border: '#93c5fd',
+    note: 'Pre-recorded verbatim',
+  },
+  Cartesia: {
+    label: 'Cartesia',
+    icon: 'mdi:waveform',
+    bg: '#ede9fe',
+    text: '#6d28d9',
+    border: '#c4b5fd',
+    note: 'Live dynamic TTS',
+  },
+  Vapi: {
+    label: 'Vapi',
+    icon: 'mdi:microphone-outline',
+    bg: '#dcfce7',
+    text: '#15803d',
+    border: '#86efac',
+    note: 'Live two-way coaching',
+  },
+  Silent: {
+    label: 'Silent',
+    icon: 'mdi:volume-off',
+    bg: '#f1f5f9',
+    text: '#64748b',
+    border: '#cbd5e1',
+    note: 'No coach voice',
+  },
+};
+
+function VoiceEngineBadge({
+  engine,
+  note,
+}: {
+  engine: VoiceEngine;
+  note?: string;
+}) {
+  const m = ENGINE_META[engine];
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: 3,
+        minWidth: 108,
+        maxWidth: 140,
+      }}
+    >
+      <div
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          padding: '3px 8px',
+          borderRadius: 99,
+          border: `1.5px solid ${m.border}`,
+          background: m.bg,
+          color: m.text,
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.01em',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <Icon icon={m.icon} style={{ width: 12, height: 12 }} />
+        {m.label}
+      </div>
+      {(note ?? m.note) && (
+        <span
+          style={{
+            fontSize: 10,
+            color: '#94a3b8',
+            lineHeight: 1.3,
+            paddingLeft: 2,
+          }}
+        >
+          {note ?? m.note}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// --- Legend ---
+
+function VoiceLegend() {
+  return (
+    <div
+      style={{
+        background: '#fff',
+        border: '1px solid #e2e8f0',
+        borderRadius: 12,
+        padding: '12px 14px',
+        marginBottom: 24,
+        width: 420,
+        maxWidth: '100%',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        fontFamily: 'Urbanist, -apple-system, sans-serif',
+      }}
+    >
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 8, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+        Voice delivery
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        {(Object.keys(ENGINE_META) as VoiceEngine[]).map((engine) => {
+          const m = ENGINE_META[engine];
+          return (
+            <div key={engine} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '2px 8px',
+                  borderRadius: 99,
+                  border: `1.5px solid ${m.border}`,
+                  background: m.bg,
+                  color: m.text,
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}
+              >
+                <Icon icon={m.icon} style={{ width: 11, height: 11 }} />
+                {m.label}
+              </div>
+              <span style={{ fontSize: 11, color: '#64748b' }}>{m.note}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// --- Beat data with voice engine mapping ---
+
 interface Beat {
   id: string;
   name: string;
   coachLine: string;
   Body: () => ReactElement;
   reply?: string;
+  voiceEngine: VoiceEngine;
+  voiceNote?: string;
 }
 
 const BEATS: Beat[] = [
   {
     id: 'profile',
     name: 'Profile',
-    coachLine: "Hey, I'm your coach. Before we start, what should I call you?",
+    coachLine: "Hey, I'm your coach. Good to meet you. A couple of quick things.",
     Body: ProfileBody,
+    // Name was captured at sign-up; coach greets by name dynamically via Cartesia
+    voiceEngine: 'Cartesia',
+    voiceNote: 'Greets by name, dynamic',
   },
   {
     id: 'category',
     name: 'Focus area',
-    coachLine: 'What feels most worth improving right now?',
+    coachLine: 'What do you want to grow? Not sure? Talk it through with me.',
     Body: CategoryBody,
-    reply: "Sleep, yeah. That's the foundation of everything else.",
+    reply: "Sleep, yeah. That's the foundation.",
+    // Opener is MP3; live Vapi coaching available if user is unsure
+    voiceEngine: 'MP3',
+    voiceNote: 'Opener MP3 + Vapi if unsure',
   },
   {
     id: 'goals',
-    name: 'Goals',
-    coachLine: 'Within sleep, what matters most? Pick one or two.',
+    name: 'Subcategory',
+    coachLine: 'Within that, what matters most to you? Pick one or two.',
     Body: GoalsBody,
+    voiceEngine: 'MP3',
+    voiceNote: 'Pre-recorded opener',
   },
   {
     id: 'habits',
-    name: 'Habits',
-    coachLine:
-      "Can't fall asleep is so common, and it's fixable. Let's pick a habit or two to start.",
+    name: 'Habit picker',
+    coachLine: 'Pick one or two to start. One is plenty, the check-in is already a habit.',
     Body: HabitsBody,
+    voiceEngine: 'MP3',
+    voiceNote: 'MP3 opener + Vapi available',
   },
   {
     id: 'reflection',
-    name: 'Reflection',
-    coachLine: 'Last thing, want a short daily reflection too?',
+    name: 'Evening reflection',
+    coachLine: 'And your evening reflection. How do you want to do it, and when?',
     Body: ReflectionBody,
+    voiceEngine: 'MP3',
+    voiceNote: 'Pre-recorded opener',
   },
   {
     id: 'plan',
-    name: 'Plan',
-    coachLine: "Here's the plan you just built. You can tweak anything.",
+    name: 'Full plan',
+    coachLine: "Here's your plan. Morning check-in, evening reflection, and your habits. Approve and you're in.",
     Body: PlanBody,
+    voiceEngine: 'MP3',
+    voiceNote: 'Pre-recorded verbatim',
   },
   {
     id: 'checkin',
-    name: 'Daily check-in',
-    coachLine: "You're all set. Quick check-in, how's your mood today?",
+    name: 'State check',
+    coachLine: 'How are you landing right now?',
     Body: CheckinBody,
+    voiceEngine: 'MP3',
+    voiceNote: 'Pre-recorded opener',
   },
 ];
 
 export function FlowDesigner() {
   return (
     <div
-      className="min-h-screen px-4 py-8"
-      style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#e8ecf1' }}
+      style={{
+        minHeight: '100vh',
+        padding: '32px 16px',
+        fontFamily: 'Urbanist, -apple-system, sans-serif',
+        background: '#e8ecf1',
+      }}
     >
-      <div className="mx-auto flex w-full max-w-[420px] flex-col overflow-hidden rounded-[32px] border border-border bg-surface shadow-elevated">
-        <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border-light bg-surface px-5 py-4">
-          <Icon icon="ic:round-auto-awesome" className="size-5 text-primary" />
-          <span className="text-[15px] font-bold text-content">Coach</span>
+      {/* Page header */}
+      <div style={{ maxWidth: 720, margin: '0 auto 24px' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
+          Guided Growth
         </div>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1e293b', margin: 0, marginBottom: 4 }}>
+          Onboarding flow
+        </h1>
+        <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
+          Real components, real content. Voice delivery annotated in the right margin.
+        </p>
+      </div>
 
-        <div className="flex flex-col gap-6 px-5 py-6" style={{ background: '#f9f9f9' }}>
-          {BEATS.map((b) => {
-            const Body = b.Body;
-            return (
-              <div key={b.id} className="flex flex-col gap-3">
-                <div className="mr-auto max-w-[290px] rounded-2xl rounded-tl-md bg-surface-secondary px-4 py-3 text-[15px] leading-[21px] text-content">
-                  {b.coachLine}
-                </div>
-                <Body />
-                {b.reply && (
-                  <div className="ml-auto max-w-[280px] rounded-2xl rounded-tr-md bg-primary px-4 py-3 text-[15px] font-medium leading-[21px] text-white">
-                    {b.reply}
+      {/* Legend */}
+      <div style={{ maxWidth: 720, margin: '0 auto 8px' }}>
+        <VoiceLegend />
+      </div>
+
+      {/* Main layout: phone centered, badge column in right margin */}
+      <div
+        style={{
+          maxWidth: 720,
+          margin: '0 auto',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 20,
+        }}
+      >
+        {/* Phone frame */}
+        <div
+          style={{
+            flex: '0 0 420px',
+            maxWidth: 420,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            borderRadius: 32,
+            border: '1px solid #e2e8f0',
+            background: '#fff',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.10)',
+          }}
+        >
+          {/* Status bar */}
+          <div
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 10,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              borderBottom: '1px solid #f1f5f9',
+              background: '#fff',
+              padding: '16px 20px',
+            }}
+          >
+            <Icon icon="ic:round-auto-awesome" style={{ width: 20, height: 20, color: '#6366f1' }} />
+            <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Coach</span>
+          </div>
+
+          {/* Beat stream */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 24,
+              padding: '24px 20px',
+              background: '#f9f9f9',
+            }}
+          >
+            {BEATS.map((b) => {
+              const Body = b.Body;
+              return (
+                <div
+                  key={b.id}
+                  data-beat-id={b.id}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+                >
+                  {/* Beat label (inside phone, above coach bubble) */}
+                  <div
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: '#94a3b8',
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      paddingBottom: 2,
+                    }}
+                  >
+                    {b.name}
                   </div>
-                )}
-              </div>
-            );
-          })}
+                  {/* Coach bubble */}
+                  <div
+                    style={{
+                      marginRight: 'auto',
+                      maxWidth: 290,
+                      borderRadius: '16px 16px 16px 4px',
+                      background: '#f1f5f9',
+                      padding: '12px 16px',
+                      fontSize: 15,
+                      lineHeight: 1.4,
+                      color: '#1e293b',
+                    }}
+                  >
+                    {b.coachLine}
+                  </div>
+                  {/* Component body */}
+                  <Body />
+                  {/* User reply bubble (if any) */}
+                  {b.reply && (
+                    <div
+                      style={{
+                        marginLeft: 'auto',
+                        maxWidth: 280,
+                        borderRadius: '16px 16px 4px 16px',
+                        background: '#6366f1',
+                        padding: '12px 16px',
+                        fontSize: 15,
+                        fontWeight: 500,
+                        lineHeight: 1.4,
+                        color: '#fff',
+                      }}
+                    >
+                      {b.reply}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Bottom input bar */}
+          <div
+            style={{
+              position: 'sticky',
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              borderTop: '1px solid #f1f5f9',
+              background: '#fff',
+              padding: '12px 16px',
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                borderRadius: 99,
+                background: '#f1f5f9',
+                padding: '8px 16px',
+                fontSize: 14,
+                color: '#94a3b8',
+              }}
+            >
+              Type or talk...
+            </div>
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 99,
+                background: '#6366f1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Icon icon="ic:round-mic" style={{ width: 20, height: 20, color: '#fff' }} />
+            </div>
+          </div>
         </div>
 
-        <div className="sticky bottom-0 flex items-center gap-2 border-t border-border-light bg-surface px-4 py-3">
-          <div className="flex-1 rounded-full bg-surface-secondary px-4 py-2 text-[14px] text-content-tertiary">
-            Type or talk...
-          </div>
-          <div className="flex size-10 items-center justify-center rounded-full bg-primary">
-            <Icon icon="ic:round-mic" className="size-5 text-white" />
-          </div>
+        {/* Voice engine badge column (outside the phone) */}
+        <div
+          style={{
+            flex: '1 1 140px',
+            display: 'flex',
+            flexDirection: 'column',
+            // paddingTop matches: status-bar height (53px) + gap between status bar and first beat label
+            // Status bar: ~53px. Then 24px padding-top, then beat-label (~18px), then coach bubble starts.
+            // Aligning to the coach bubble's top for the first beat.
+            paddingTop: 95,
+            gap: 0,
+          }}
+        >
+          {BEATS.map((b) => (
+            <BeatBadgeSlot key={b.id} engine={b.voiceEngine} note={b.voiceNote} />
+          ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Each badge slot uses a fixed height that approximates the rendered height of its beat.
+// These are rough but visually aligned because FlowDesigner is a continuous scroll,
+// not a per-screen layout. The badge sits beside the coach bubble for each beat.
+const BEAT_SLOT_HEIGHTS: Record<string, number> = {
+  profile: 230,
+  category: 320,
+  goals: 200,
+  habits: 200,
+  reflection: 200,
+  plan: 180,
+  checkin: 150,
+};
+
+function BeatBadgeSlot({
+  engine,
+  note,
+}: {
+  engine: VoiceEngine;
+  note?: string;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        paddingTop: 30,
+        minHeight: 80,
+      }}
+    >
+      <VoiceEngineBadge engine={engine} note={note} />
     </div>
   );
 }
