@@ -11,7 +11,7 @@ function WhyIntroBeat(props?: Record<string, string>) {
       speaker: 'coach',
       say:
         props?.coachLine ??
-        "This is your first habit. Checking in takes about thirty seconds, and over time it tells you a lot about yourself.",
+        "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
     },
     {
       id: 'reassure',

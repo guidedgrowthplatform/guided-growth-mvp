@@ -454,7 +454,7 @@ function ReflectionCardBeat(props?: Record<string, string>) {
       // Rule: no tap/scroll/click/press/swipe language. Coach continues by voice.
       say:
         props?.coachLine ??
-        'And your evening reflection. How do you want to do it, and when?',
+        'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
     },
     {
       id: 'setup',

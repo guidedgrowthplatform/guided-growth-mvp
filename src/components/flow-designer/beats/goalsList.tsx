@@ -63,7 +63,7 @@ function GoalsListBeat(props?: Record<string, string>) {
     {
       id: 'ask',
       speaker: 'coach',
-      say: props?.coachLine ?? 'Pick one or two subcategories that feel right.',
+      say: props?.coachLine ?? "Within that, what's the piece you want to start with?",
     },
     {
       id: 'show',

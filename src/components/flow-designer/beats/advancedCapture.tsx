@@ -341,7 +341,7 @@ function AdvancedCaptureBeat(props?: Record<string, string>) {
       speaker: 'coach',
       say:
         props?.closeCoachLine ??
-        'Those are all in, and I marked each as build or break. Tell me if any look wrong. If they are good, we will set the days next.',
+        "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
     },
   ];
 

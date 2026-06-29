@@ -89,7 +89,9 @@ function FullPlanBeat(props?: Record<string, string>) {
     {
       id: 'coach-intro',
       speaker: 'coach',
-      say: props?.coachLine ?? "Here's your plan. Take a look.",
+      say:
+        props?.coachLine ??
+        "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
     },
     { id: 'plan-card', speaker: 'coach', render: plan },
     { id: 'approve', speaker: 'coach', render: approveButton },

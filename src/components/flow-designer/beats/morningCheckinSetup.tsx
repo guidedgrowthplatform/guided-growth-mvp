@@ -215,7 +215,7 @@ function MorningCheckinSetupBeat(props?: Record<string, string>) {
       speaker: 'coach',
       say:
         props?.coachLine ??
-        "When do you want your morning check-in? I'll nudge you then.",
+        "When do you want this each day? I'll nudge you then.",
     },
     {
       id: 'card',

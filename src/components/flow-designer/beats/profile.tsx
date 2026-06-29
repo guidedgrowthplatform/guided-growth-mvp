@@ -24,7 +24,7 @@ function ProfileBeat(props?: Record<string, string>) {
       speaker: 'coach',
       // {name} is substituted at runtime from the sign-up auth profile (Cartesia speaks it).
       // The real copy comes from beatContexts.ts; this is a placeholder that keeps the name.
-      say: props?.greeting ?? 'Good to meet you, {name}. A couple of quick things.',
+      say: props?.greeting ?? 'Good to meet you, {name}. Two quick things so I can tailor this to you.',
     },
     {
       id: 'age',
@@ -35,7 +35,7 @@ function ProfileBeat(props?: Record<string, string>) {
     {
       id: 'gender',
       speaker: 'coach',
-      say: props?.askGender ?? "And what's your gender?",
+      say: props?.askGender ?? 'And your gender?',
       render: (
         <ChipSelect
           options={['Male', 'Female', 'Other']}

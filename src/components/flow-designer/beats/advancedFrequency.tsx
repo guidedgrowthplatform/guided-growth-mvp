@@ -94,7 +94,7 @@ function AdvancedFrequencyBeat(props?: Record<string, string>) {
     {
       id: 'confirm',
       speaker: 'coach',
-      say: props?.confirmCoachLine ?? 'Perfect. Your habits are all set. Your plan is ready.',
+      say: props?.confirmCoachLine ?? 'Your habits are all set, your plan is ready.',
     },
   ];
 

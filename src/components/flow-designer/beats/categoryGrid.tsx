@@ -187,7 +187,9 @@ function CategoryGrid(props?: Record<string, string>) {
       speaker: 'coach',
       // Real copy comes from beatContexts.ts. Placeholder matches the v3 mock
       // (beat 11a): no tap/click language, just an open invitation.
-      say: props?.coachLine ?? 'What do you want to grow? Not sure? Talk it through with me.',
+      say:
+        props?.coachLine ??
+        'What part of your life do you most want to work on right now? Pick the one that pulls you.',
     },
     {
       id: 'mic',

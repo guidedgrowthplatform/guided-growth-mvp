@@ -137,7 +137,7 @@ function StateCheckBeat(props?: Record<string, string>) {
       speaker: 'coach',
       say:
         props?.coachLine ??
-        'How are you landing this morning? Mood, energy, sleep, any stress. Choose one or just tell me.',
+        "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
     },
     { id: 'card', speaker: 'coach', render: <StateCheckCard /> },
   ];
