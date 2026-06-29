@@ -2,9 +2,7 @@ import { Icon } from '@iconify/react';
 import { formatTime12 } from '@/components/ui/TimePicker';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState, type HabitScheduleCfg } from '../flowStateCtx';
-
-const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-const BLUE = 'rgb(19, 91, 235)';
+import { FONT, PRIMARY, INK, CARD, SPACE } from './_beatStyle';
 
 // A habit with its schedule details. When coming from flow state we only have
 // the habit name, so we generate plausible time + frequency defaults. Sample
@@ -55,14 +53,11 @@ function HabitConfirmCard({ habit }: { habit: HabitEntry }) {
   return (
     <div
       style={{
+        ...CARD,
         display: 'flex',
         alignItems: 'flex-start',
-        gap: 14,
-        background: '#fff',
-        border: '1.5px solid rgba(15,23,42,0.07)',
-        borderRadius: 20,
-        padding: '16px 18px',
-        boxShadow: '0 4px 18px -8px rgba(15,23,42,0.10)',
+        gap: SPACE.lg,
+        padding: `${SPACE.lg}px 18px`,
       }}
     >
       {/* Icon tile */}
@@ -78,7 +73,7 @@ function HabitConfirmCard({ habit }: { habit: HabitEntry }) {
           background: 'rgba(19,91,235,0.10)',
         }}
       >
-        <Icon icon={habit.icon} width={22} height={22} style={{ color: BLUE }} />
+        <Icon icon={habit.icon} width={22} height={22} style={{ color: PRIMARY }} />
       </div>
 
       {/* Text */}
@@ -86,11 +81,11 @@ function HabitConfirmCard({ habit }: { habit: HabitEntry }) {
         <div
           style={{
             fontFamily: FONT,
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: 700,
-            color: 'rgb(15,23,42)',
-            lineHeight: 1.25,
-            marginBottom: 8,
+            color: INK,
+            lineHeight: 1.3,
+            marginBottom: SPACE.sm,
           }}
         >
           {habit.name}
@@ -113,7 +108,7 @@ function HabitConfirmCard({ habit }: { habit: HabitEntry }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: BLUE,
+          background: PRIMARY,
           marginTop: 1,
         }}
       >
@@ -131,18 +126,18 @@ function Chip({ icon, label }: { icon: string; label: string }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: 4,
-        background: 'rgba(19,91,235,0.07)',
+        background: 'rgba(19,91,235,0.09)',
         borderRadius: 8,
         padding: '3px 9px 3px 6px',
       }}
     >
-      <Icon icon={icon} width={13} height={13} style={{ color: BLUE, flexShrink: 0 }} />
+      <Icon icon={icon} width={13} height={13} style={{ color: PRIMARY, flexShrink: 0 }} />
       <span
         style={{
           fontFamily: FONT,
-          fontSize: 12.5,
-          fontWeight: 600,
-          color: BLUE,
+          fontSize: 12,
+          fontWeight: 700,
+          color: PRIMARY,
           lineHeight: 1.3,
           whiteSpace: 'nowrap',
         }}
@@ -171,7 +166,7 @@ function PlanCardsBeat(props?: Record<string, string>) {
       id: 'cards',
       speaker: 'coach',
       render: (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE.md }}>
           {habits.map((h) => (
             <HabitConfirmCard key={h.name} habit={h} />
           ))}

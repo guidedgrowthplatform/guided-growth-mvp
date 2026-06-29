@@ -16,6 +16,7 @@ import { formatTime12 } from '@/components/ui/TimePicker';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 import { type BeatDef } from '../beatKit';
 import { useFlowState, type HabitScheduleCfg } from '../flowStateCtx';
+import { FONT, PRIMARY as BLUE } from './_beatStyle';
 
 // THE APP TOUR (the second half of onboarding, its own flow).
 //
@@ -29,9 +30,6 @@ import { useFlowState, type HabitScheduleCfg } from '../flowStateCtx';
 //
 // On the static build canvas (no flow provider) each beat renders its own stage
 // so the tiles read as the seven steps of the tour.
-
-const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-const BLUE = 'rgb(19, 91, 235)';
 
 // The real coach-chat gradient (from CoachChatView): a blurred blue rising into
 // white, semi-transparent so the home shows through above it.

@@ -2,9 +2,7 @@ import { useState } from 'react';
 import { Icon } from '@iconify/react';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
-
-const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-const BLUE = 'rgb(19, 91, 235)';
+import { FONT, PRIMARY, INK, SUBTLE, BORDER, SPACE } from './_beatStyle';
 
 // One path choice. The whole card lights up when picked (blue border + tint + a
 // blue icon tile + a check), so the choice is never ambiguous. Icon sits in a
@@ -29,17 +27,17 @@ function ChoiceCard({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 14,
+        gap: SPACE.lg,
         width: '100%',
         textAlign: 'left',
-        padding: '16px 18px',
+        padding: `${SPACE.lg}px 18px`,
         borderRadius: 20,
         cursor: 'pointer',
         background: selected ? 'rgba(19,91,235,0.06)' : '#fff',
-        border: selected ? `2px solid ${BLUE}` : '2px solid rgba(15,23,42,0.06)',
+        border: selected ? `2px solid ${PRIMARY}` : `2px solid rgba(15,23,42,0.06)`,
         boxShadow: selected
           ? '0 10px 26px -12px rgba(19,91,235,0.40)'
-          : '0 4px 16px -8px rgba(15,23,42,0.12)',
+          : '0 4px 16px -8px rgba(15,23,42,0.10)',
         transition: 'background 160ms ease-out, border-color 160ms ease-out, box-shadow 160ms ease-out',
       }}
     >
@@ -52,14 +50,14 @@ function ChoiceCard({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: selected ? BLUE : 'rgba(19,91,235,0.10)',
+          background: selected ? PRIMARY : 'rgba(19,91,235,0.10)',
           transition: 'background 160ms ease-out',
         }}
       >
-        <Icon icon={icon} width={26} height={26} style={{ color: selected ? '#fff' : BLUE }} />
+        <Icon icon={icon} width={26} height={26} style={{ color: selected ? '#fff' : PRIMARY }} />
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontFamily: FONT, fontSize: 17, fontWeight: 700, color: 'rgb(15,23,42)', lineHeight: 1.2 }}>
+        <div style={{ fontFamily: FONT, fontSize: 17, fontWeight: 700, color: INK, lineHeight: 1.2 }}>
           {title}
         </div>
         <div
@@ -67,9 +65,9 @@ function ChoiceCard({
             fontFamily: FONT,
             fontSize: 13.5,
             fontWeight: 500,
-            color: 'rgb(100,116,139)',
-            marginTop: 3,
-            lineHeight: 1.35,
+            color: SUBTLE,
+            marginTop: SPACE.xs,
+            lineHeight: 1.4,
           }}
         >
           {sub}
@@ -84,8 +82,8 @@ function ChoiceCard({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          border: selected ? 'none' : '2px solid rgb(203,213,225)',
-          background: selected ? BLUE : 'transparent',
+          border: selected ? 'none' : `2px solid ${BORDER}`,
+          background: selected ? PRIMARY : 'transparent',
         }}
       >
         {selected && <Icon icon="mdi:check" width={15} height={15} style={{ color: '#fff' }} />}

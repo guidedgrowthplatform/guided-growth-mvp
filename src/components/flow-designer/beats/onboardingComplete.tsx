@@ -3,12 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { formatTime12 } from '@/components/ui/TimePicker';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
-
-const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-const BLUE = 'rgb(19, 91, 235)';
-const INK = 'rgb(15, 23, 42)';
-const SUB = 'rgb(100, 116, 139)';
-const LINE = 'rgba(15, 23, 42, 0.07)';
+import { FONT, PRIMARY, INK, SUBTLE, BORDER_LIGHT, CARD, SPACE } from './_beatStyle';
 
 // Sample habits shown on the canvas (no live flow state in static mode).
 const SAMPLE_HABITS = ['Morning walk', 'No screens after 10 PM'];
@@ -29,7 +24,7 @@ function ScheduleRow({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: 8,
+        gap: SPACE.sm,
       }}
     >
       <span
@@ -43,7 +38,7 @@ function ScheduleRow({
           color: INK,
         }}
       >
-        <Icon icon={icon} width={14} height={14} style={{ color: BLUE, flexShrink: 0 }} />
+        <Icon icon={icon} width={15} height={15} style={{ color: PRIMARY, flexShrink: 0 }} />
         {label}
       </span>
       <span
@@ -51,7 +46,7 @@ function ScheduleRow({
           fontFamily: FONT,
           fontSize: 13,
           fontWeight: 600,
-          color: SUB,
+          color: SUBTLE,
         }}
       >
         {time}
@@ -67,7 +62,7 @@ function HabitLine({ name }: { name: string }) {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 8,
+        gap: SPACE.sm,
         padding: '5px 0',
       }}
     >
@@ -75,7 +70,7 @@ function HabitLine({ name }: { name: string }) {
         icon="mdi:checkbox-marked-circle-outline"
         width={15}
         height={15}
-        style={{ color: BLUE, flexShrink: 0 }}
+        style={{ color: PRIMARY, flexShrink: 0 }}
       />
       <span
         style={{
@@ -113,15 +108,45 @@ function FullPlanBeat(props?: Record<string, string>) {
   const planCard = (
     <div
       style={{
-        background: '#fff',
-        borderRadius: 16,
-        padding: '14px 16px',
-        boxShadow: '0 6px 20px -10px rgba(15,23,42,0.18)',
+        ...CARD,
+        padding: '16px 18px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 10,
+        gap: SPACE.md,
       }}
     >
+      {/* Section eyebrow */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          marginBottom: 2,
+        }}
+      >
+        <div
+          style={{
+            width: 4,
+            height: 18,
+            borderRadius: 2,
+            background: PRIMARY,
+            flexShrink: 0,
+          }}
+        />
+        <span
+          style={{
+            fontFamily: FONT,
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase' as const,
+            color: PRIMARY,
+          }}
+        >
+          Your plan
+        </span>
+      </div>
+
       {/* Morning check-in row */}
       <ScheduleRow
         icon="mdi:weather-sunny"
@@ -137,7 +162,7 @@ function FullPlanBeat(props?: Record<string, string>) {
       />
 
       {/* Divider + habit list */}
-      <div style={{ borderTop: `1px solid ${LINE}`, paddingTop: 10 }}>
+      <div style={{ borderTop: `1px solid ${BORDER_LIGHT}`, paddingTop: SPACE.md }}>
         {habits.map((h) => (
           <HabitLine key={h} name={h} />
         ))}

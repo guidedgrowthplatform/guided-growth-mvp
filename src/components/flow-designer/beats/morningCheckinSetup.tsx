@@ -3,9 +3,9 @@ import { Icon } from '@iconify/react';
 import { TimePicker, formatTime12 } from '@/components/ui/TimePicker';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
+import { FONT, INK, SUBTLE } from './_beatStyle';
 
-const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-const BLUE = 'rgb(19, 91, 235)';
+// Amber accent, unique to the morning theme.
 const AMBER = 'rgb(245, 158, 11)';
 const AMBER_LIGHT = 'rgba(245, 158, 11, 0.10)';
 const AMBER_MED = 'rgba(245, 158, 11, 0.18)';
@@ -29,8 +29,8 @@ function MorningCard({
       style={{
         background: '#fff',
         borderRadius: 20,
-        boxShadow: '0 4px 20px -8px rgba(15,23,42,0.12)',
-        border: '1.5px solid rgba(245,158,11,0.20)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04)',
+        border: '1.5px solid rgba(245,158,11,0.22)',
         overflow: 'hidden',
         fontFamily: FONT,
       }}
@@ -66,7 +66,7 @@ function MorningCard({
             style={{
               fontSize: 16,
               fontWeight: 700,
-              color: 'rgb(15,23,42)',
+              color: INK,
               lineHeight: 1.2,
             }}
           >
@@ -101,7 +101,7 @@ function MorningCard({
             icon="ph:clock-afternoon-light"
             width={18}
             height={18}
-            style={{ color: 'rgb(100,116,139)', flexShrink: 0 }}
+            style={{ color: SUBTLE, flexShrink: 0 }}
           />
           <span style={{ fontSize: 15, fontWeight: 600, color: 'rgb(51,65,85)' }}>Check-in time</span>
         </div>
@@ -122,10 +122,10 @@ function MorningCard({
             icon="ph:bell-simple-light"
             width={18}
             height={18}
-            style={{ color: 'rgb(100,116,139)', flexShrink: 0 }}
+            style={{ color: SUBTLE, flexShrink: 0 }}
           />
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'rgb(51,65,85)', lineHeight: 1.2 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'rgb(51,65,85)' /* SUBTLE_DARK */, lineHeight: 1.2 }}>
               Remind me
             </div>
             <div style={{ fontSize: 12.5, fontWeight: 500, color: 'rgb(148,163,184)', marginTop: 1 }}>

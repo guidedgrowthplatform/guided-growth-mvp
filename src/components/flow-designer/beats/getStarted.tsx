@@ -1,5 +1,9 @@
+import { FONT, PRIMARY, SECTION_LABEL, SUBTLE, SPACE } from './_beatStyle';
 import { Button } from '@/components/ui/Button';
 import { type BeatDef } from '../beatKit';
+
+// Eyebrow accent: GG blue at 70% opacity, matching the Tailwind text-primary/70 intent.
+const PRIMARY_70 = 'rgba(19,91,235,0.7)';
 
 // The Get Started beat. Comes right after the splash: the brand line and a
 // single primary button that begins onboarding, with a quiet log-in link for
@@ -10,18 +14,38 @@ function GetStarted(props?: Record<string, string>) {
   const buttonLabel = props?.buttonLabel ?? 'Get started';
   const loginLabel = props?.loginLabel ?? 'I already have an account';
   return (
-    <div className="flex flex-col items-center gap-8 text-center">
-      <div>
-        <div className="text-[30px] font-extrabold tracking-tight text-primary">{heading}</div>
-        <div className="mt-2 text-[12px] font-bold uppercase tracking-[0.16em] text-primary/70">
-          {eyebrow}
+    <div
+      style={{ fontFamily: FONT, gap: SPACE.xl * 1.5 }}
+      className="flex flex-col items-center text-center"
+    >
+      {/* Brand block */}
+      <div className="flex flex-col items-center" style={{ gap: SPACE.sm }}>
+        <div
+          style={{ color: PRIMARY, fontFamily: FONT }}
+          className="text-[30px] font-extrabold tracking-tight leading-none"
+        >
+          {heading}
         </div>
+        <span
+          style={{
+            ...SECTION_LABEL,
+            color: PRIMARY_70,
+            letterSpacing: '0.16em',
+          }}
+        >
+          {eyebrow}
+        </span>
       </div>
-      <div className="flex w-full flex-col items-center gap-3">
+
+      {/* CTA cluster */}
+      <div className="flex w-full flex-col items-center" style={{ gap: SPACE.md }}>
         <Button variant="primary" size="auth" fullWidth>
           {buttonLabel}
         </Button>
-        <button type="button" className="text-[14px] font-semibold text-content-secondary">
+        <button
+          type="button"
+          style={{ fontFamily: FONT, color: SUBTLE, fontSize: 14, fontWeight: 600 }}
+        >
           {loginLabel}
         </button>
       </div>

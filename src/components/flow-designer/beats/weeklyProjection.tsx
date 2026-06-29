@@ -29,6 +29,7 @@
  */
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { WeeklyHabitsSummary, type HabitWeekCell } from '@/components/habit-detail/WeeklyHabitsSummary';
+import { FONT, PRIMARY, INK, SUBTLE, CARD, SPACE } from './_beatStyle';
 
 // The five projection states. Passed via props.state so the flow organiser can
 // configure each DEFAULT_FLOW entry independently.
@@ -226,10 +227,51 @@ function WeeklyProjectionCard({
   const rows = buildRows(allHabits, state);
   const stats = overallStats(rows);
 
+  // State accent: a tiny colored label that tells the designer which frame is showing.
+  const STATE_LABEL: Record<ProjectionState, string> = {
+    empty: 'Your blank week',
+    full: 'Best case',
+    p74: 'More likely',
+    p30: 'Tough week',
+    gaps: 'What to avoid',
+  };
+
   return (
-    <div className="flex w-full flex-col gap-3">
-      <div className="rounded-xl bg-surface-secondary px-4 py-3">
-        <p className="text-sm leading-relaxed text-content">{coachLine}</p>
+    <div style={{ display: 'flex', width: '100%', flexDirection: 'column', gap: SPACE.md }}>
+      {/* Coach narration bubble */}
+      <div
+        style={{
+          ...CARD,
+          padding: `${SPACE.md}px ${SPACE.lg}px`,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: SPACE.xs,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: FONT,
+            fontSize: 10,
+            fontWeight: 800,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase' as const,
+            color: PRIMARY,
+          }}
+        >
+          {STATE_LABEL[state]}
+        </span>
+        <p
+          style={{
+            fontFamily: FONT,
+            fontSize: 14,
+            fontWeight: 500,
+            lineHeight: 1.55,
+            color: INK,
+            margin: 0,
+          }}
+        >
+          {coachLine}
+        </p>
       </div>
       <WeeklyHabitsSummary
         overallPercent={stats.percent}

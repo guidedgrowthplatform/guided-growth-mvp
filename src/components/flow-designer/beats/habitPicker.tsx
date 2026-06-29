@@ -3,6 +3,7 @@ import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { habitsByGoal, MAX_HABITS_ONBOARDING } from '@/data/onboardingHabits';
+import { FONT, PRIMARY, SUBTLE, SPACE } from './_beatStyle';
 
 // "Less is more" cap for this beat. The check-ins are already habits, so
 // one or two additional habits is plenty. One is totally fine.
@@ -55,9 +56,19 @@ function HabitPickerBeat(props?: Record<string, string>) {
       id: 'show',
       speaker: 'coach',
       render: (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col" style={{ gap: SPACE.md }}>
           {/* Selection hint: "less is more" nudge, updates as they pick */}
-          <p className="text-center text-[12.5px] font-semibold text-content-secondary">
+          <p
+            style={{
+              fontFamily: FONT,
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: selectionCount >= HABIT_PICKER_CAP ? PRIMARY : SUBTLE,
+              textAlign: 'center',
+              margin: 0,
+              letterSpacing: '0.01em',
+            }}
+          >
             {selectionHint}
           </p>
           {goals.map((g) => (

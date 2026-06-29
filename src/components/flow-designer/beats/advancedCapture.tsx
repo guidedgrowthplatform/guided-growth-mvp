@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { BeatPlayer, useAnimations, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
-
-const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-const BLUE = 'rgb(19, 91, 235)';
+import { FONT, PRIMARY as BLUE, INK, SUBTLE, SURFACE, BORDER, SPACE } from './_beatStyle';
 
 // The advanced path of the fork: the user reads the habits they already track
 // and the coach captures them line by line, filing each under its real category
@@ -67,18 +65,18 @@ function LiveScan() {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE.lg }}>
       {/* Listening surface: the mic + the line currently being heard. */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
-          padding: '14px 16px',
-          borderRadius: 18,
-          border: `1.5px solid ${listening ? BLUE : 'rgba(15,23,42,0.10)'}`,
-          background: '#fff',
-          boxShadow: '0 4px 16px -8px rgba(15,23,42,0.10)',
+          gap: SPACE.md,
+          padding: `${SPACE.md}px ${SPACE.lg}px`,
+          borderRadius: 20,
+          border: `1.5px solid ${listening ? BLUE : BORDER}`,
+          background: SURFACE,
+          boxShadow: '0 4px 20px -8px rgba(15,23,42,0.12)',
           transition: 'border-color 200ms ease-out',
         }}
       >
@@ -98,7 +96,7 @@ function LiveScan() {
           <Icon icon="mdi:microphone" width={20} height={20} style={{ color: listening ? '#fff' : BLUE }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: FONT, fontSize: 14.5, fontWeight: 600, color: 'rgb(15,23,42)' }}>
+          <div style={{ fontFamily: FONT, fontSize: 14.5, fontWeight: 600, color: INK }}>
             {listening
               ? captured.length
                 ? 'Got it, keep going...'
@@ -106,7 +104,7 @@ function LiveScan() {
               : 'All captured'}
           </div>
           {listening && SAMPLE[n] && (
-            <div style={{ fontFamily: FONT, fontSize: 13, color: 'rgb(100,116,139)', marginTop: 2 }}>
+            <div style={{ fontFamily: FONT, fontSize: 13, color: SUBTLE, marginTop: 2 }}>
               &ldquo;{SAMPLE[n].line}&rdquo;
             </div>
           )}
@@ -127,15 +125,16 @@ function LiveScan() {
 
       {/* Captured, organized by category as they land. */}
       {groups.map((g) => (
-        <div key={g.category} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div key={g.category} style={{ display: 'flex', flexDirection: 'column', gap: SPACE.sm }}>
           <div
             style={{
               fontFamily: FONT,
               fontSize: 11,
               fontWeight: 700,
               textTransform: 'uppercase',
-              letterSpacing: '0.04em',
+              letterSpacing: '0.05em',
               color: BLUE,
+              paddingLeft: 4,
             }}
           >
             {g.category}
@@ -146,15 +145,16 @@ function LiveScan() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 10,
-                padding: '10px 14px',
-                borderRadius: 14,
+                gap: SPACE.md,
+                padding: `${SPACE.md}px ${SPACE.lg}px`,
+                borderRadius: 16,
                 background: 'rgba(19,91,235,0.06)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 animation: 'ggScanIn 280ms ease-out',
               }}
             >
               <Icon icon="mdi:check-circle" width={18} height={18} style={{ color: BLUE, flexShrink: 0 }} />
-              <span style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: 'rgb(15,23,42)' }}>
+              <span style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: INK }}>
                 {line}
               </span>
             </div>
@@ -199,22 +199,23 @@ function TypeInstead() {
 
   if (submitted) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE.sm }}>
         {lines.map((line) => (
           <div
             key={line}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
-              padding: '10px 14px',
-              borderRadius: 14,
+              gap: SPACE.md,
+              padding: `${SPACE.md}px ${SPACE.lg}px`,
+              borderRadius: 16,
               background: 'rgba(19,91,235,0.06)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
               animation: 'ggScanIn 280ms ease-out',
             }}
           >
             <Icon icon="mdi:check-circle" width={18} height={18} style={{ color: BLUE, flexShrink: 0 }} />
-            <span style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: 'rgb(15,23,42)' }}>
+            <span style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: INK }}>
               {line}
             </span>
           </div>
@@ -225,7 +226,7 @@ function TypeInstead() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE.md }}>
       <textarea
         ref={textareaRef}
         value={value}
@@ -236,13 +237,13 @@ function TypeInstead() {
           fontFamily: FONT,
           fontSize: 14.5,
           fontWeight: 500,
-          color: 'rgb(15,23,42)',
+          color: INK,
           lineHeight: 1.6,
-          padding: '14px 16px',
-          borderRadius: 18,
+          padding: `${SPACE.md}px ${SPACE.lg}px`,
+          borderRadius: 20,
           border: `1.5px solid ${BLUE}`,
-          background: '#fff',
-          boxShadow: '0 4px 16px -8px rgba(15,23,42,0.10)',
+          background: SURFACE,
+          boxShadow: '0 4px 20px -8px rgba(15,23,42,0.12)',
           resize: 'none',
           outline: 'none',
           width: '100%',
@@ -260,7 +261,7 @@ function TypeInstead() {
           color: lines.length ? '#fff' : 'rgba(15,23,42,0.35)',
           background: lines.length ? BLUE : 'rgba(15,23,42,0.07)',
           border: 'none',
-          borderRadius: 18,
+          borderRadius: 14,
           padding: '13px 20px',
           cursor: lines.length ? 'pointer' : 'default',
           transition: 'background 180ms ease-out, color 180ms ease-out',
@@ -280,7 +281,7 @@ function CaptureWithFallback() {
   const [typing, setTyping] = useState(false);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE.lg }}>
       {typing ? <TypeInstead /> : <LiveScan />}
 
       {/* Toggle between voice and text paths. */}
@@ -291,14 +292,14 @@ function CaptureWithFallback() {
           fontFamily: FONT,
           fontSize: 13,
           fontWeight: 600,
-          color: 'rgba(15,23,42,0.50)',
+          color: SUBTLE,
           background: 'none',
           border: 'none',
           cursor: 'pointer',
-          padding: '4px 0',
+          padding: `${SPACE.xs}px 0`,
           textAlign: 'center',
           textDecoration: 'underline',
-          textDecorationColor: 'rgba(15,23,42,0.20)',
+          textDecorationColor: 'rgba(100,116,139,0.35)',
           textUnderlineOffset: 3,
         }}
       >

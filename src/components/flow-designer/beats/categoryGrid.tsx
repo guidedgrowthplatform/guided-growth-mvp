@@ -3,9 +3,7 @@ import { Icon } from '@iconify/react';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
-
-const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-const BLUE = 'rgb(19, 91, 235)';
+import { FONT, PRIMARY, INK, SPACE } from './_beatStyle';
 
 const CATS = [
   { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
@@ -27,10 +25,10 @@ function MicHint({ label }: { label: string }) {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
-        padding: '12px 16px',
+        gap: SPACE.md,
+        padding: `${SPACE.md}px ${SPACE.lg}px`,
         borderRadius: 16,
-        border: `1.5px solid ${BLUE}`,
+        border: `1.5px solid ${PRIMARY}`,
         background: 'rgba(19,91,235,0.05)',
         boxShadow: '0 4px 14px -8px rgba(19,91,235,0.18)',
       }}
@@ -38,17 +36,17 @@ function MicHint({ label }: { label: string }) {
       {/* Mic icon tile, matches the listening-surface style in advancedCapture. */}
       <div
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 11,
+          width: 38,
+          height: 38,
+          borderRadius: 12,
           flexShrink: 0,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: BLUE,
+          background: PRIMARY,
         }}
       >
-        <Icon icon="mdi:microphone" width={18} height={18} style={{ color: '#fff' }} />
+        <Icon icon="mdi:microphone" width={19} height={19} style={{ color: '#fff' }} />
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -57,8 +55,8 @@ function MicHint({ label }: { label: string }) {
             fontFamily: FONT,
             fontSize: 13.5,
             fontWeight: 600,
-            color: 'rgb(15,23,42)',
-            lineHeight: 1.35,
+            color: INK,
+            lineHeight: 1.4,
           }}
         >
           {label}
@@ -72,7 +70,7 @@ function MicHint({ label }: { label: string }) {
           height: 8,
           borderRadius: '50%',
           flexShrink: 0,
-          background: BLUE,
+          background: PRIMARY,
           animation: 'ggMicPulse 2s ease-in-out infinite',
         }}
       />
