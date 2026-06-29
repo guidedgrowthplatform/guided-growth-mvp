@@ -43,15 +43,15 @@ const CHAT_GRADIENT =
 // its stage and renders the real home with that feature highlighted and the
 // coach chat positioned so it never covers the part being shown. Order matters:
 // the index drives which part glows, where the chat sits, and how big it is.
-//   calendar    the date strip up top            chat bottom 45%
+//   add-habit   the + in the header (add a habit) chat bottom 45%
 //   morning     the morning check-in card opens  chat bottom 40%
 //   evening     the evening reflection card      chat bottom 45%
-//   habits      today's habits (X / check)       chat bottom 45%
+//   habits      today's habits (say / tap)       chat bottom 45%
 //   reflections the recent reflections section   chat top 45%
 //   feedback    the feedback button -> a chat    chat top 45%
 //   chat        the full open chat               chat full
 const TOUR_STAGES = [
-  'calendar',
+  'add-habit',
   'morning',
   'evening',
   'habits',
@@ -61,18 +61,19 @@ const TOUR_STAGES = [
 ] as const;
 type TourStage = (typeof TOUR_STAGES)[number];
 function stageIndex(s?: string): number {
-  const i = TOUR_STAGES.indexOf((s ?? 'calendar') as TourStage);
+  const i = TOUR_STAGES.indexOf((s ?? 'add-habit') as TourStage);
   return i < 0 ? 0 : i;
 }
 
 // The coach line each beat falls back to on the static canvas (where the flow
 // has not supplied a coachLine prop). User-facing copy, so no em dashes.
 const STAGE_LINE: Record<TourStage, string> = {
-  calendar: 'This is your week up top. Tap any day to look back.',
-  morning: "Mornings start here. A quick check-in on how you slept and where you're at.",
-  evening: "Evenings you reflect. How the day went, what's on your mind.",
-  habits: 'Your habits live here. Tap the check when you do one, the X if you miss it.',
-  reflections: 'Everything you reflect on collects here, so you can look back anytime.',
+  'add-habit':
+    "Want to track something new later? Press the plus up here, or just tell me, and we'll add it together.",
+  morning: "Mornings start with a quick check-in. Tap it, or just say you're ready, and we'll see how you slept and where you're at.",
+  evening: 'Evenings, you reflect on the day. Tap it or just start talking to me, how it went, what is on your mind.',
+  habits: 'These are your habits. Say it or tap when you finish one, the X if you miss it. Either way works.',
+  reflections: "It's empty now, but this is where your reflections will live. After your first evening one, they show up here.",
   feedback:
     "You're one of our 50 founding users, so your feedback is one of the most meaningful things you can do for us. It shapes where this whole product goes. There's a button here for it, and you can also just tell me, anytime you've got something.",
   chat: "Great job getting here. This might be the longest you'll ever be in the app, but it was worth it to set up your foundation. The key now is consistency. It doesn't have to be long, just do it twice a day, and we'll do our best to help you improve and stay consistent. I'm right here anytime, just open the chat.",
@@ -482,8 +483,8 @@ function HomeTourBeat(props?: Record<string, string>) {
           paddingBottom: 16,
         }}
       >
-        <HomeHeader userName={name || 'there'} />
-        <div style={glow(hl === 'calendar')}>
+        <HomeHeader userName={name || 'there'} highlightPlus={hl === 'add-habit'} />
+        <div>
           <DateStrip selectedDate={selectedDate} onSelectDate={onSelectDate} />
         </div>
         <div ref={quickRef} style={lift(hl === 'morning' || hl === 'evening')}>

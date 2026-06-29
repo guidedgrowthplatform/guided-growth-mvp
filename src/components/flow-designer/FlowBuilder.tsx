@@ -431,6 +431,7 @@ const COACH_LINE_PROP: Record<string, string> = {
   'into-app': 'coachLine',
   'state-check': 'coachLine',
   'home-tour': 'coachLine',
+  'weekly-projection': 'coachLine',
 };
 
 // Imported components that are full-screen modals/overlays. They cannot preview
@@ -665,18 +666,29 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     },
   },
   {
-    // Advanced users schedule their captured habits with the same card the
-    // beginner path uses, so both paths share one component.
-    type: 'habit-schedule',
+    // Advanced path beat 1 of 2: confirm polarity (Build / Break) for each
+    // captured habit. Day circles are hidden here so the coach can frame
+    // build-vs-break first before asking about frequency.
+    type: 'advanced-habits',
     beat: '11f',
     background: 'coach',
     showOnPath: 'exp',
-    sheetStage: 'ONBOARD-ADVANCED-SCHEDULE: Schedule Captured Habits',
-    props: { coachLine: 'Now, how often and roughly when for each one?' },
+    sheetStage: 'ONBOARD-ADVANCED-HABITS: Build or Break',
+    props: { coachLine: 'For each one, are you building this habit or breaking it?' },
+  },
+  {
+    // Advanced path beat 2 of 2: pick days for each habit now that polarity is set.
+    type: 'advanced-frequency',
+    beat: '11g',
+    background: 'coach',
+    showOnPath: 'exp',
+    sheetStage: 'ONBOARD-ADVANCED-FREQUENCY: Habit Days',
+    props: { coachLine: 'Now pick the days for each one. How often does each happen?' },
   },
   // 12: The ONE full-plan confirm. Morning + evening times (both already set, shown as defaults)
-  // + all habits. Approve -> home tour. plan-cards is dropped; into-app is the single
-  // convergence point for both beginner and advanced paths.
+  // + all habits. Approve -> weekly projection (beats 13a-13e), then the home tour
+  // (its own flow). plan-cards is dropped; into-app is the single convergence point
+  // for both beginner and advanced paths.
   {
     type: 'into-app',
     beat: '12',
@@ -685,6 +697,60 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     props: {
       coachLine:
         "Here's your plan, {name}. Morning check-in, evening reflection, and your habits. Approve and you're in.",
+    },
+  },
+  // 13a-13e: Weekly projection. Five frames shown in sequence, each a different
+  // outcome state of the habit week-grid. Comes right after the plan confirm and
+  // before the home tour. The home tour is its own separate flow; these are the
+  // last onboarding beats.
+  {
+    type: 'weekly-projection',
+    beat: '13a',
+    background: 'coach',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-EMPTY: Empty Week',
+    props: {
+      state: 'empty',
+      coachLine: 'This is your week. Right now everything is open.',
+    },
+  },
+  {
+    type: 'weekly-projection',
+    beat: '13b',
+    background: 'coach',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-FULL: Full Green Week',
+    props: {
+      state: 'full',
+      coachLine: 'A week where everything got done. Your streaks are strong.',
+    },
+  },
+  {
+    type: 'weekly-projection',
+    beat: '13c',
+    background: 'coach',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-P74: Mostly Done Week',
+    props: {
+      state: 'p74',
+      coachLine: 'Seventy-four percent. Mostly green, streaks holding. That counts.',
+    },
+  },
+  {
+    type: 'weekly-projection',
+    beat: '13d',
+    background: 'coach',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-P30: Rough Week',
+    props: {
+      state: 'p30',
+      coachLine: 'Thirty percent. One streak survives. Still a win. You reassess and go again.',
+    },
+  },
+  {
+    type: 'weekly-projection',
+    beat: '13e',
+    background: 'coach',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-GAPS: Gap Week',
+    props: {
+      state: 'gaps',
+      coachLine: 'The one to avoid: days that go unreported. Log it, even if you missed.',
     },
   },
 ];
@@ -771,8 +837,9 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
     background: 'plain',
     props: {
       userName: '{name}',
-      stage: 'calendar',
-      coachLine: 'This is your week up top, {name}. Tap any day to look back.',
+      stage: 'add-habit',
+      coachLine:
+        "Want to track something new later, {name}? Press the plus up here, or just tell me, and we'll add it together.",
     },
   },
   {
@@ -782,7 +849,8 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
     props: {
       userName: '{name}',
       stage: 'morning',
-      coachLine: "Mornings start here. A quick check-in on how you slept and where you're at.",
+      coachLine:
+        "Mornings start with a quick check-in, {name}. Tap it, or just say you're ready, and we'll see how you slept and where you're at.",
     },
   },
   {
@@ -792,7 +860,8 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
     props: {
       userName: '{name}',
       stage: 'evening',
-      coachLine: "Evenings you reflect. How the day went, what's on your mind.",
+      coachLine:
+        'Evenings, you reflect on the day. Tap it or just start talking to me, how it went, what is on your mind.',
     },
   },
   {
@@ -802,7 +871,8 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
     props: {
       userName: '{name}',
       stage: 'habits',
-      coachLine: 'Your habits live here. Tap the check when you do one, the X if you miss it.',
+      coachLine:
+        'These are your habits. Say it or tap when you finish one, the X if you miss it. Either way works.',
     },
   },
   {
@@ -812,7 +882,8 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
     props: {
       userName: '{name}',
       stage: 'reflections',
-      coachLine: 'Everything you reflect on collects here, so you can look back anytime.',
+      coachLine:
+        "It's empty now, but this is where your reflections will live. After your first evening one, they show up here.",
     },
   },
   {

@@ -1,12 +1,26 @@
 import { Icon } from '@iconify/react';
 import { format } from 'date-fns';
+import type { CSSProperties } from 'react';
 
 interface HomeHeaderProps {
   userName: string;
   isFirstVisit?: boolean;
   onPlusClick?: () => void;
   onBellClick?: () => void;
+  // The home tour glows + lifts the add button (the plus) above its blur veil.
+  highlightPlus?: boolean;
 }
+
+// Glow ring + lift above the tour's blur veil (zIndex 60 > the veil's 44). The
+// ggGlow keyframe is injected by the tour; outside it this is just a static ring.
+const PLUS_HIGHLIGHT: CSSProperties = {
+  position: 'relative',
+  zIndex: 60,
+  outline: '2px solid rgb(19,91,235)',
+  outlineOffset: 3,
+  boxShadow: '0 0 0 5px rgba(19,91,236,0.12)',
+  animation: 'ggGlow 1800ms ease-in-out infinite',
+};
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -20,6 +34,7 @@ export function HomeHeader({
   isFirstVisit = false,
   onPlusClick,
   onBellClick,
+  highlightPlus = false,
 }: HomeHeaderProps) {
   const headline = isFirstVisit ? 'Welcome to Guided Growth' : `Welcome back, ${userName}`;
 
@@ -40,6 +55,7 @@ export function HomeHeader({
           aria-label="Add"
           onClick={onPlusClick}
           className="flex h-9 w-9 items-center justify-center rounded-md bg-primary shadow-sm"
+          style={highlightPlus ? PLUS_HIGHLIGHT : undefined}
         >
           <Icon icon="mdi:plus" width={22} height={22} className="text-white" />
         </button>
