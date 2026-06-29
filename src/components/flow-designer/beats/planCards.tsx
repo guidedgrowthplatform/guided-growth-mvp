@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
+import { formatTime12 } from '@/components/ui/TimePicker';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
-import { useFlowState } from '../flowStateCtx';
+import { useFlowState, type HabitScheduleCfg } from '../flowStateCtx';
 
 const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 const BLUE = 'rgb(19, 91, 235)';
@@ -20,11 +21,24 @@ interface HabitEntry {
 const TIME_DEFAULTS = ['7:00 AM', '8:00 AM', '12:00 PM', '6:00 PM', '9:00 PM'];
 const FREQ_DEFAULT = 'Every day';
 
-function habitToEntry(name: string, idx: number): HabitEntry {
+// Turn the picked days into the same cadence label the schedule card and the
+// home tour use, so the recap reads consistently with them.
+function frequencyLabel(days: number[]): string {
+  const s = new Set(days);
+  if (s.size >= 7) return 'Every day';
+  if (s.size === 5 && [1, 2, 3, 4, 5].every((d) => s.has(d))) return 'Weekdays';
+  if (s.size === 2 && s.has(0) && s.has(6)) return 'Weekends';
+  return `${s.size}x / week`;
+}
+
+// Build a confirm-card entry from the habit name plus the real schedule the user
+// set on the schedule card (lifted to flow state). Falls back to deterministic
+// defaults only when there is no config (e.g. the static canvas).
+function habitToEntry(name: string, idx: number, cfg?: HabitScheduleCfg): HabitEntry {
   return {
     name,
-    time: TIME_DEFAULTS[idx % TIME_DEFAULTS.length],
-    frequency: FREQ_DEFAULT,
+    time: cfg ? formatTime12(cfg.time) : TIME_DEFAULTS[idx % TIME_DEFAULTS.length],
+    frequency: cfg ? frequencyLabel(cfg.days) : FREQ_DEFAULT,
     icon: 'mdi:checkbox-marked-circle-outline',
   };
 }
@@ -144,7 +158,7 @@ function PlanCardsBeat(props?: Record<string, string>) {
   // fall back to sample data so the tile always looks complete.
   const flow = useFlowState();
   const habits: HabitEntry[] = flow?.habits.length
-    ? flow.habits.map(habitToEntry)
+    ? flow.habits.map((name, idx) => habitToEntry(name, idx, flow.habitConfigs[name]))
     : SAMPLE_HABITS;
 
   const steps: BeatStep[] = [
