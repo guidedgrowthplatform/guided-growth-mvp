@@ -17,6 +17,10 @@
   --color-border: 226 232 240;
   --color-border-light: 241 245 249;
   --color-page-bg: 249 249 249;
+  /* The flow-builder canvas behind the beat tiles. Sits one notch off the panels
+     so the artboards read as raised. Dark value is darker than --color-surface
+     for depth. */
+  --color-canvas: #e8ecf1;
   --color-heading: 40 40 40;
   --color-link-muted: 68 70 85;
   --color-ripple: 190 210 254;
@@ -42,6 +46,7 @@
   --color-border: 100 116 139;
   --color-border-light: 51 65 85;
   --color-page-bg: 11 19 38;
+  --color-canvas: #070c18;
   --color-heading: 255 255 255;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
