@@ -42,6 +42,30 @@ function deriveFinalData(answers: FlowAnswers): Partial<OnboardingStepData> {
   return { category, goals, habitConfigs, reflectionConfig };
 }
 
+/**
+ * Walk the machine forward from `fromState` until `currentNodeId === targetNodeId`
+ * (or until no progress). Used by the QA startAtNodeId seed to skip pre-beat
+ * nodes (auth, mic) so a tester can jump straight to, e.g., the profile beat.
+ * Each intermediate node is advanced with an empty capture (no data written).
+ * Pure; does not mutate state. Returns the original state unchanged if the
+ * target node is not reachable from the start.
+ */
+export function fastForwardToNode(
+  flow: FlowDocument,
+  fromState: FlowMachineState,
+  targetNodeId: string,
+): FlowMachineState {
+  let st = fromState;
+  for (let guard = 0; guard < 50; guard++) {
+    if (st.currentNodeId === targetNodeId) break;
+    if (st.status === 'complete') break;
+    const next = applyCapture(flow, st, { data: {} });
+    if (next.currentNodeId === st.currentNodeId) break; // no progress
+    st = next;
+  }
+  return st;
+}
+
 /** The step this beat completes (persist.step is the canonical save step). */
 export function beatStep(node: FlowNode | undefined): number | undefined {
   if (!node) return undefined;
@@ -154,6 +178,14 @@ export interface FlowOrchestratorOptions {
   /** Pin tag for the loaded flow; fired via onPin on the first save. */
   flowTag?: string;
   onPin?: (tag: string) => void;
+  /**
+   * QA only: if set, the machine is seeded at the node matching this id
+   * on mount. Pre-beat nodes (auth, mic) are walked with empty captures so
+   * their data requirements are satisfied. The user MUST already be signed
+   * in (ensureSignedIn ran in QAControlScreen) before navigating here.
+   * Has no effect once the server-step resume fires on a non-zero serverStep.
+   */
+  startAtNodeId?: string;
 }
 
 export function useFlowOrchestrator(
@@ -161,7 +193,18 @@ export function useFlowOrchestrator(
   persistence: FlowPersistence,
   options?: FlowOrchestratorOptions,
 ): FlowOrchestrator {
-  const [state, setState] = useState<FlowMachineState>(() => initFlowMachine(flow));
+  const [state, setState] = useState<FlowMachineState>(() => {
+    const initial = initFlowMachine(flow);
+    // QA only: if a startAtNodeId is requested, walk to that node synchronously
+    // so the machine starts there rather than at the entry node. The server-step
+    // resume effect (resumedRef) will see the machine already past step 0 and
+    // not rewind it; the leading-edge advance effect will record the correct
+    // baseline on the first serverStep observation.
+    if (options?.startAtNodeId) {
+      return fastForwardToNode(flow, initial, options.startAtNodeId);
+    }
+    return initial;
+  });
   const voice = useOnboardingVoice();
   // Server onboarding row (current_step + data). Mirrored from Supabase Realtime
   // on the voice path; null in the auth-free preview. Drives the coach-save

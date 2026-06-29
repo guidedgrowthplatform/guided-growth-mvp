@@ -73,7 +73,11 @@ export type FlowComponentType =
   | 'state-check'
   | 'habit-review'
   | 'reflection'
-  | 'coach-bubble';
+  | 'coach-bubble'
+  // Home-tour flow component type. Exists in the flow designer (beats/homeTour.tsx)
+  // but the engine adapter is not yet in componentRegistry.tsx -- deferred to the
+  // app-shell workstream (HANDOFF-app-shell-and-flow-order.md).
+  | 'home-tour';
 
 export interface BeatNode {
   id: string;
