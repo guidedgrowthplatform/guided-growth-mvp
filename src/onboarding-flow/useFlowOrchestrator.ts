@@ -187,6 +187,8 @@ export interface FlowOrchestratorOptions {
   /** Seed answers known before the flow starts (e.g. nickname from sign-in) so the
    *  coach treats them as filled and never re-asks. A later capture overrides them. */
   initialAnswers?: Partial<FlowAnswers>;
+  /** Onboarding only: resume/advance off the server `current_step`. Off for check-in. */
+  serverSync?: boolean;
 }
 
 export function useFlowOrchestrator(
@@ -205,6 +207,7 @@ export function useFlowOrchestrator(
   // on the voice path; null in the auth-free preview. Drives the coach-save
   // advance below.
   const { state: serverState } = useOnboarding();
+  const serverSync = options?.serverSync ?? true;
 
   // Mirror state into a ref so capture() reads the latest synchronously and runs
   // its save side effects exactly once (not inside a setState updater, which can
@@ -328,6 +331,7 @@ export function useFlowOrchestrator(
   // leading-edge effect below owns live advances + back-nav semantics.
   const resumedRef = useRef(false);
   useEffect(() => {
+    if (!serverSync) return;
     if (resumedRef.current) return;
     if (typeof serverStep !== 'number') return; // no server row (preview / not loaded yet)
     resumedRef.current = true;
@@ -341,7 +345,7 @@ export function useFlowOrchestrator(
       stateRef.current = resumed;
       setState(resumed);
     }
-  }, [serverStep, serverData, flow]);
+  }, [serverStep, serverData, flow, serverSync]);
 
   // Reset the per-beat baseline + fired-flag whenever the active beat changes, so
   // each beat judges advancement against the step seen on entry (not a prior
@@ -351,6 +355,7 @@ export function useFlowOrchestrator(
     advancedNodeRef.current = null;
   }, [activeNodeId]);
   useEffect(() => {
+    if (!serverSync) return;
     if (!activeNodeId || state.status === 'complete') return;
     if (typeof serverStep !== 'number') return; // no server row (preview / not loaded)
     const node = getNode(flow, activeNodeId);
@@ -370,7 +375,7 @@ export function useFlowOrchestrator(
     advancedNodeRef.current = activeNodeId;
     const cap = serverCaptureForBeat(node, (serverData ?? {}) as OnboardingStepData);
     applyAndAdvance(cap, false);
-  }, [activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
+  }, [serverSync, activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
 
   const canGoBack = machineCanGoBack(state, flow);
 

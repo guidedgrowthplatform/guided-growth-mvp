@@ -40,7 +40,10 @@ export function CheckinFlowOverlay({
   }, [type, alreadyDone, onClose]);
 
   const persistence = useCheckinFlowPersistence(handleComplete, type);
-  const orchestrator = useFlowOrchestrator(resolvedFlow, persistence, { flowTag: tag });
+  const orchestrator = useFlowOrchestrator(resolvedFlow, persistence, {
+    flowTag: tag,
+    serverSync: false,
+  });
 
   useEffect(() => {
     answersRef.current = orchestrator.answers;
