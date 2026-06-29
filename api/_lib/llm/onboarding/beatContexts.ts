@@ -227,6 +227,158 @@ Onboarding is done. Warmly tell the user they are all set and take them in. Do n
     allowedTools: ['confirm_plan'],
     opener: "You're all set. Let's get started.",
   },
+
+  // ---------------------------------------------------------------------------
+  // v3 beats. Base context/opener copied verbatim from beatContexts.generated.json
+  // so the entry is correct even if the synced file is ever absent; the overlay
+  // refreshes context+opener from the Sheet at load. allowedTools is code-owned
+  // (from the Sheet's Allowed Tools column) and never comes from the JSON. The []
+  // beats advance via the frontend (no tool).
+  // ---------------------------------------------------------------------------
+
+  // First voice line. The orb blooms; coach speaks. No data, frontend advances.
+  'COACH-GREETING': {
+    context: `BEAT: First hello.
+
+SPEAK MODE: VERBATIM_OPENER
+
+The orb blooms and you speak for the first time. One warm line that lands the surprise of a real voice and invites them in. Then the flow moves on.`,
+    allowedTools: [],
+    opener:
+      "Hey. I'm your coach inside Guided Growth. Give me two minutes and we'll set up something that actually sticks.",
+  },
+
+  // Mic permission ask. No data, frontend advances on the permission result.
+  'MIC-PERMISSION': {
+    context: `BEAT: Mic permission.
+
+SPEAK MODE: VERBATIM_OPENER
+
+Ask for the mic so the user can talk to you. Keep it light, optional, no pressure. If they skip it, they can still type, and that's completely fine.`,
+    allowedTools: [],
+    opener:
+      "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+  },
+
+  // Why intro. Framing-only beat, shown once. No data, frontend advances.
+  'ONBOARD-WHY-INTRO': {
+    context: `BEAT: Why intro.
+
+SPEAK MODE: VERBATIM_OPENER
+
+Onboarding only, shown once. Frame what's about to happen: checking in with yourself is the first habit, and it's simple and good. Don't explain how the check-in works. Keep it short and warm, then move on.`,
+    allowedTools: [],
+    opener:
+      "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
+  },
+
+  // First state check (mood/sleep/energy/stress). record_checkin saves; advance moves on.
+  'ONBOARD-STATE-CHECK': {
+    context: `BEAT: First state check, the first habit.
+
+SPEAK MODE: VERBATIM_OPENER
+
+The user does a check-in right now: mood, sleep, energy, stress, on the card. This is the first habit, started right now, not because it's morning. A voice-is-open affordance is on screen, so they can answer out loud or on the card. Save what they give. After they report, one short warm line, no advice, then move on to the time.
+
+DO NOT:
+- Read the four items back as numbers.
+- Give advice on what they reported. One warm line, then move on.`,
+    allowedTools: ['record_checkin', 'advance_step'],
+    opener:
+      "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+  },
+
+  // Advanced habit-frequency beat. add_habit / update_habit set the days; advance moves on.
+  'ONBOARD-ADVANCED-FREQUENCY': {
+    context: `BEAT: Habit days, advanced.
+
+SPEAK MODE: VERBATIM_OPENER
+
+The habits are already captured as cards. Now set how often each one runs. The day circles grow out of the same cards. Parse a full answer when they give one, ask only for what's missing. Per-habit reminders OFF by default. Go through them, then the plan is ready.
+
+DO NOT:
+- Re-ask anything already captured.
+- Turn a reminder on unless they ask.`,
+    allowedTools: ['add_habit', 'update_habit', 'advance_step'],
+    opener: 'Now the days. Tell me how often each one runs and I\'ll fill them in.',
+  },
+
+  // Weekly projection, frame 1 of 5. MP3-candidate narration. No data, frontend advances.
+  'ONBOARD-WEEKLY-PROJECTION-BLANK': {
+    context: `BEAT: Weekly projection, frame 1 of 5.
+
+SPEAK MODE: VERBATIM_OPENER
+
+The week grid animates on screen. This single line is verbatim and timed to the frame, an MP3 candidate (Cartesia, Yair Pro Clone). Say it as written, don't improvise or add. The five frames together carry the message: reporting itself is the win, weekly reassessment is the loop, a miss still counts, the one thing to avoid is the unreported gap.
+
+DO NOT:
+- Improvise or add to the line.
+- Describe the grid.`,
+    allowedTools: [],
+    opener: 'This is your week. Blank, starting today.',
+  },
+
+  // Weekly projection, frame 2 of 5. MP3-candidate narration. No data, frontend advances.
+  'ONBOARD-WEEKLY-PROJECTION-FULL': {
+    context: `BEAT: Weekly projection, frame 2 of 5.
+
+SPEAK MODE: VERBATIM_OPENER
+
+The week grid fills green on screen. Verbatim, timed to the frame, an MP3 candidate. Say it as written, don't improvise. This is the best-case frame, hold it lightly, the realistic frames come next.
+
+DO NOT:
+- Improvise or add.
+- Promise this is what will happen.`,
+    allowedTools: [],
+    opener: 'Best case, every day green. Every streak going strong. That would be amazing.',
+  },
+
+  // Weekly projection, frame 3 of 5. MP3-candidate narration. No data, frontend advances.
+  'ONBOARD-WEEKLY-PROJECTION-P78': {
+    context: `BEAT: Weekly projection, frame 3 of 5.
+
+SPEAK MODE: VERBATIM_OPENER
+
+The grid shows mostly green with a few misses. Verbatim, timed to the frame, an MP3 candidate. Say it as written. This is the realistic win frame, the one that matters most.
+
+DO NOT:
+- Improvise or add.`,
+    allowedTools: [],
+    opener:
+      'More likely, you land around here. Mostly green, a few misses, your streaks holding. That\'s a real win.',
+  },
+
+  // Weekly projection, frame 4 of 5. MP3-candidate narration. No data, frontend advances.
+  'ONBOARD-WEEKLY-PROJECTION-P36': {
+    context: `BEAT: Weekly projection, frame 4 of 5.
+
+SPEAK MODE: VERBATIM_OPENER
+
+The grid shows a rough week, one streak surviving. Verbatim, timed to the frame, an MP3 candidate. Say it as written. The message: a rough week is still building, we reassess, no guilt.
+
+DO NOT:
+- Improvise or add.
+- Make a rough week sound like failure.`,
+    allowedTools: [],
+    opener:
+      'Some weeks land here. One streak survives, the rest take a hit. Still fine, you\'re building. We reassess.',
+  },
+
+  // Weekly projection, frame 5 of 5. MP3-candidate narration. No data, frontend advances.
+  'ONBOARD-WEEKLY-PROJECTION-GAPS': {
+    context: `BEAT: Weekly projection, frame 5 of 5.
+
+SPEAK MODE: VERBATIM_OPENER
+
+The grid shows empty, unreported days. Verbatim, timed to the frame, an MP3 candidate. Say it as written. This is the close: the only thing to avoid is the unreported gap, even a miss counts when you report it.
+
+DO NOT:
+- Improvise or add.
+- Shame the user. The point is reporting, not perfection.`,
+    allowedTools: [],
+    opener:
+      'The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.',
+  },
 };
 
 // Overlay Supabase-synced content (the synced file) onto the hand-authored beat
