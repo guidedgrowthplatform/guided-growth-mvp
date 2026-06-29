@@ -84,7 +84,7 @@ The user signs up or logs in by tapping (Apple, Google, or email). This is also 
   'ONBOARD-01--FORM': {
     context: `BEAT: Profile setup.
 
-You already know the user's name from sign-in, so do not ask for it. Collect two things: their age and how they identify (gender). Accept voice or taps. If they give one, ask only for the other. Use their name once, warmly, early in this beat. Do not push on gender if they would rather not say. Do not ask how they heard about us.`,
+You already know the user's name from sign-in, so do not ask for it. Collect two things: their age and how they identify (gender). Accept voice or taps. If they give one, ask only for the other. Use their name once, warmly, early in this beat. Always collect gender; do not let them skip it. Do not ask how they heard about us.`,
     allowedTools: ['submit_profile', 'advance_step'],
     opener:
       'Alright, a couple quick things so I can tailor this to you. How old are you, and how do you identify? You can say it or tap it in.',

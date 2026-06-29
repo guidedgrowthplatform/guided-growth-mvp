@@ -26,6 +26,7 @@ export type OnboardingToolName =
   | 'update_habit'
   | 'submit_reflection_config'
   | 'submit_morning_checkin'
+  | 'record_checkin'
   | 'submit_custom_prompts'
   | 'submit_brain_dump'
   | 'navigate_next'
@@ -435,6 +436,43 @@ export const ONBOARDING_TOOLS: readonly OnboardingTool[] = [
         },
       },
       required: ['time', 'days', 'reminder', 'schedule'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'record_checkin',
+    screen: 'ONBOARD-STATE-CHECK',
+    nonBlocking: true,
+    description:
+      'Save the state-check result (sleep, mood, energy, stress) from the state-check beat. ' +
+      'DATA ONLY — does NOT advance to the next beat; chain navigate_next after this call. ' +
+      'Call the moment the user has rated at least one dimension. At least one field is required; ' +
+      'all four are optional. Integers 1-5 (1 = worst, 5 = best).',
+    messages: {
+      requestStart: '',
+      requestFailed: '',
+    },
+    parameters: {
+      type: 'object',
+      properties: {
+        sleep: {
+          type: 'number',
+          description: 'Sleep quality rating 1-5.',
+        },
+        mood: {
+          type: 'number',
+          description: 'Mood rating 1-5.',
+        },
+        energy: {
+          type: 'number',
+          description: 'Energy level rating 1-5.',
+        },
+        stress: {
+          type: 'number',
+          description: 'Stress level rating 1-5 (1 = high stress, 5 = low stress).',
+        },
+      },
+      required: [],
       additionalProperties: false,
     },
   },
