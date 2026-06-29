@@ -30,7 +30,7 @@ export interface LLMToolFailure {
 
 export interface UseLLMReturn {
   sendMessage: (text: string) => Promise<void>;
-  sendOpener: () => Promise<void>;
+  sendOpener: (timeoutMs?: number) => Promise<boolean>;
   seedOpener: (content: string, toolEvent: LLMToolEvent) => void;
   prependMessages: (older: LLMChatMessage[]) => number;
   messages: LLMChatMessage[];
@@ -87,7 +87,6 @@ export function useLLM(
 
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
-  // Last real user turn (id + text) so we can re-answer it without re-adding it.
   const lastUserRef = useRef<{ id: string; content: string } | null>(null);
   const priorOpenerRef = useRef<string | null>(null);
   const idCounterRef = useRef({ n: 0 });
@@ -166,16 +165,15 @@ export function useLLM(
       mode: 'chat' | 'opener';
       text: string;
       surfaceErrors: boolean;
+      timeoutMs?: number;
       reuseTurnId?: string;
-    }) => {
-      if (inFlightRef.current) return;
+    }): Promise<boolean> => {
+      if (inFlightRef.current) return false;
       inFlightRef.current = true;
 
       let userTurnId: string | null = null;
       if (opts.mode === 'chat') {
         if (opts.reuseTurnId) {
-          // Regenerate: the user message is already in history; reuse its id so
-          // the backend dedups (ON CONFLICT) instead of creating a second turn.
           userTurnId = opts.reuseTurnId;
         } else {
           userTurnId = makeId(idCounterRef.current);
@@ -196,9 +194,12 @@ export function useLLM(
 
       const controller = new AbortController();
       abortRef.current = controller;
+      const timeoutId =
+        opts.timeoutMs != null ? setTimeout(() => controller.abort(), opts.timeoutMs) : null;
 
       let acc = '';
       let sawTerminal = false;
+      let succeeded = false;
       const localTools: LLMToolEvent[] = [];
 
       // Direct-LLM (Path 2/3) tap — onboarding only; same console timeline as Vapi.
@@ -257,6 +258,7 @@ export function useLLM(
           }
           case 'done': {
             sawTerminal = true;
+            succeeded = true;
             flushDeltaBuffer();
             // Skip a blank assistant turn (tool-only). Truly empty (no text, no
             // tools) → fallback line so the turn never renders as silence.
@@ -357,6 +359,7 @@ export function useLLM(
           setStatus('idle');
         }
       } finally {
+        if (timeoutId) clearTimeout(timeoutId);
         if (abortRef.current === controller) {
           abortRef.current = null;
         }
@@ -372,36 +375,37 @@ export function useLLM(
           }
         }
       }
+      return succeeded;
     },
     [sessionId, screenId, coachingStyle, logEvent, chatSessionId],
   );
 
   const sendMessage = useCallback(
-    (text: string) => {
+    async (text: string) => {
       if (!chatSessionId) {
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[useLLM] sendMessage called without chatSessionId; no-op');
         }
-        return Promise.resolve();
+        return;
       }
-      return runStream({ mode: 'chat', text, surfaceErrors: true });
+      await runStream({ mode: 'chat', text, surfaceErrors: true });
     },
     [runStream, chatSessionId],
   );
 
   const sendOpener = useCallback(
-    () => runStream({ mode: 'opener', text: '', surfaceErrors: false }),
+    (timeoutMs?: number) =>
+      runStream({ mode: 'opener', text: '', surfaceErrors: false, timeoutMs }),
     [runStream],
   );
 
-  // Re-answer the LAST user turn WITHOUT adding a new message — used to guarantee
-  // the coach replies to a turn whose reply got dropped/aborted/interrupted.
-  const regenerate = useCallback(() => {
+  const regenerate = useCallback(async () => {
     const lu = lastUserRef.current;
-    // No prior user turn (e.g. the coach's opener got interrupted) → re-issue a
-    // coach-led message instead of no-op'ing into silence.
-    if (!lu) return runStream({ mode: 'opener', text: '', surfaceErrors: false });
-    return runStream({ mode: 'chat', text: lu.content, surfaceErrors: true, reuseTurnId: lu.id });
+    if (!lu) {
+      await runStream({ mode: 'opener', text: '', surfaceErrors: false });
+      return;
+    }
+    await runStream({ mode: 'chat', text: lu.content, surfaceErrors: true, reuseTurnId: lu.id });
   }, [runStream]);
 
   useEffect(() => {

@@ -17,7 +17,7 @@ vi.mock('@/analytics', () => ({
 }));
 
 vi.mock('@/lib/sentry', () => ({
-  Sentry: { setUser: vi.fn() },
+  Sentry: { setUser: vi.fn(), captureMessage: vi.fn(), captureException: vi.fn() },
 }));
 
 vi.mock('@capacitor/core', () => ({
@@ -181,10 +181,7 @@ describe('OAuth complete events via onAuthStateChange', () => {
   it('does NOT fire on USER_UPDATED for OAuth user', () => {
     const created = new Date('2026-04-01T10:00:00Z').toISOString();
     const signedIn = new Date('2026-04-29T10:00:00Z').toISOString();
-    capturedHandler!(
-      'USER_UPDATED',
-      googleSession({ createdAt: created, lastSignInAt: signedIn }),
-    );
+    capturedHandler!('USER_UPDATED', googleSession({ createdAt: created, lastSignInAt: signedIn }));
 
     expect(trackMock).not.toHaveBeenCalled();
   });
