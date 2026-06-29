@@ -837,17 +837,6 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
     background: 'plain',
     props: {
       userName: '{name}',
-      stage: 'add-habit',
-      coachLine:
-        "Want to track something new later, {name}? Press the plus up here, or just tell me, and we'll add it together.",
-    },
-  },
-  {
-    type: 'home-tour',
-    beat: '2',
-    background: 'plain',
-    props: {
-      userName: '{name}',
       stage: 'morning',
       coachLine:
         "Mornings start with a quick check-in, {name}. Tap it, or just say you're ready, and we'll see how you slept and where you're at.",
@@ -855,7 +844,7 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
   },
   {
     type: 'home-tour',
-    beat: '3',
+    beat: '2',
     background: 'plain',
     props: {
       userName: '{name}',
@@ -866,13 +855,24 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
   },
   {
     type: 'home-tour',
-    beat: '4',
+    beat: '3',
     background: 'plain',
     props: {
       userName: '{name}',
       stage: 'habits',
       coachLine:
         'These are your habits. Say it or tap when you finish one, the X if you miss it. Either way works.',
+    },
+  },
+  {
+    type: 'home-tour',
+    beat: '4',
+    background: 'plain',
+    props: {
+      userName: '{name}',
+      stage: 'add-habit',
+      coachLine:
+        "Want to track something new? Press the plus up top, {name}, or just tell me, and we'll add it together.",
     },
   },
   {

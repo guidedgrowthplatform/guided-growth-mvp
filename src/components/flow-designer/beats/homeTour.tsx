@@ -43,25 +43,25 @@ const CHAT_GRADIENT =
 // its stage and renders the real home with that feature highlighted and the
 // coach chat positioned so it never covers the part being shown. Order matters:
 // the index drives which part glows, where the chat sits, and how big it is.
+//   morning     the morning check-in card opens   chat bottom 40%
+//   evening     the evening reflection card       chat bottom 45%
+//   habits      today's habits (say / tap)        chat bottom 45%
 //   add-habit   the + in the header (add a habit) chat bottom 45%
-//   morning     the morning check-in card opens  chat bottom 40%
-//   evening     the evening reflection card      chat bottom 45%
-//   habits      today's habits (say / tap)       chat bottom 45%
-//   reflections the recent reflections section   chat top 45%
-//   feedback    the feedback button -> a chat    chat top 45%
-//   chat        the full open chat               chat full
+//   reflections the recent reflections section    chat top 45%
+//   feedback    the feedback button -> a chat     chat top 45%
+//   chat        the full open chat                chat full
 const TOUR_STAGES = [
-  'add-habit',
   'morning',
   'evening',
   'habits',
+  'add-habit',
   'reflections',
   'feedback',
   'chat',
 ] as const;
 type TourStage = (typeof TOUR_STAGES)[number];
 function stageIndex(s?: string): number {
-  const i = TOUR_STAGES.indexOf((s ?? 'add-habit') as TourStage);
+  const i = TOUR_STAGES.indexOf((s ?? 'morning') as TourStage);
   return i < 0 ? 0 : i;
 }
 
@@ -428,8 +428,8 @@ function HomeTourBeat(props?: Record<string, string>) {
     const c = homeScrollRef.current;
     if (!c) return;
     const id = window.setTimeout(() => {
-      if (idx === 0) {
-        c.scrollTop = 0;
+      if (stage === 'add-habit') {
+        c.scrollTop = 0; // the + lives in the header, at the very top
         return;
       }
       const tgt =
