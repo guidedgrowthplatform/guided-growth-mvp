@@ -520,7 +520,32 @@ function HomeTourBeat(props?: Record<string, string>) {
           is up top, so feedback + open chat + nav own the bottom). */}
       {showBottomControls && (
         <>
-          <div style={{ position: 'absolute', left: 8, bottom: 80, zIndex: 58 }}>
+          {/* Spotlight: on the feedback beat, softly blur + dim the home and nav
+              behind so the two buttons pop into focus, while the real home stays
+              visible underneath (not scrolled away). */}
+          {hl === 'feedback' && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 44,
+                background: 'rgba(248,250,252,0.58)',
+                backdropFilter: 'blur(3px)',
+                WebkitBackdropFilter: 'blur(3px)',
+                animation: 'ggScrimIn 420ms ease-out',
+                pointerEvents: 'none',
+              }}
+            />
+          )}
+          <div
+            style={{
+              position: 'absolute',
+              left: 8,
+              bottom: 80,
+              zIndex: 58,
+              animation: hl === 'feedback' ? 'ggPop 460ms cubic-bezier(0.22,1,0.36,1) both' : 'none',
+            }}
+          >
             <span
               style={{
                 borderRadius: 999,
@@ -531,7 +556,15 @@ function HomeTourBeat(props?: Record<string, string>) {
               <FeedbackButton onPress={() => setChat('feedback')} />
             </span>
           </div>
-          <div style={{ position: 'absolute', right: 8, bottom: 80, zIndex: 58 }}>
+          <div
+            style={{
+              position: 'absolute',
+              right: 8,
+              bottom: 80,
+              zIndex: 58,
+              animation: hl === 'feedback' ? 'ggPop 460ms 70ms cubic-bezier(0.22,1,0.36,1) both' : 'none',
+            }}
+          >
             <OpenChatButton onPress={() => setChat('open')} />
           </div>
           <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20 }}>
@@ -569,6 +602,8 @@ function HomeTourBeat(props?: Record<string, string>) {
       <style>{`
         @keyframes ggChatRise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
         @keyframes ggGlow { 0%,100% { box-shadow: 0 0 0 3px rgba(19,91,236,0.16), 0 6px 22px -6px rgba(19,91,236,0.30); } 50% { box-shadow: 0 0 0 5px rgba(19,91,236,0.28), 0 10px 30px -6px rgba(19,91,236,0.48); } }
+        @keyframes ggScrimIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes ggPop { from { opacity: 0; transform: translateY(10px) scale(0.94); } to { opacity: 1; transform: none; } }
       `}</style>
     </div>
   );
