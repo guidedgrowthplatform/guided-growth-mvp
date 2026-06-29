@@ -703,10 +703,10 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     type: 'weekly-projection',
     beat: '13a',
     background: 'coach',
-    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-EMPTY: Empty Week',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-BLANK: Blank Week',
     props: {
-      state: 'empty',
-      coachLine: 'This is your week. Right now everything is open.',
+      state: 'blank',
+      coachLine: 'This is your week. Blank, starting today.',
     },
   },
   {
@@ -716,27 +716,29 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     sheetStage: 'ONBOARD-WEEKLY-PROJECTION-FULL: Full Green Week',
     props: {
       state: 'full',
-      coachLine: 'A week where everything got done. Your streaks are strong.',
+      coachLine: 'Best case, every day green. Every streak going strong. That would be amazing.',
     },
   },
   {
     type: 'weekly-projection',
     beat: '13c',
     background: 'coach',
-    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-P74: Mostly Done Week',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-P78: Mostly Done Week',
     props: {
-      state: 'p74',
-      coachLine: 'Seventy-four percent. Mostly green, streaks holding. That counts.',
+      state: 'p78',
+      coachLine:
+        "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
     },
   },
   {
     type: 'weekly-projection',
     beat: '13d',
     background: 'coach',
-    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-P30: Rough Week',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-P36: Rough Week',
     props: {
-      state: 'p30',
-      coachLine: 'Thirty percent. One streak survives. Still a win. You reassess and go again.',
+      state: 'p36',
+      coachLine:
+        "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
     },
   },
   {
@@ -746,7 +748,8 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     sheetStage: 'ONBOARD-WEEKLY-PROJECTION-GAPS: Gap Week',
     props: {
       state: 'gaps',
-      coachLine: 'The one to avoid: days that go unreported. Log it, even if you missed.',
+      coachLine:
+        'The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.',
     },
   },
 ];

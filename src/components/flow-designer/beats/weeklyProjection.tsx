@@ -1,25 +1,15 @@
 /**
  * weeklyProjection, flow-builder beat for the weekly habit grid projection.
  *
- * One BeatDef, type 'weekly-projection'. The flow organiser adds five
- * DEFAULT_FLOW entries (one per state), each passing different props.state and
- * props.coachLine values so the designer can see each frame in sequence.
+ * Faithful port of the skimmer component (ggmvp-skimmer
+ * src/onboarding-flow/WeeklyProjection.tsx): same coach rituals, same sample
+ * habits, same modes (blank, full, p78, p36, gaps), same percentages, same gap
+ * logic, same narration lines. The flow builder splits the skimmer's
+ * auto-cycling stages into five separate beats (one per state) via props.state.
  *
  * Props (both editable in the sidebar):
- *   state     - which projection frame to show (see ProjectionState)
- *   coachLine - the narration text shown above the grid (placeholder by default;
- *               real copy comes from the beats-context lane)
- *
- * States:
- *   empty - blank starting week, nothing reported yet
- *   full  - 100% green, every streak strong
- *   p74   - 74% done, mostly green, a few misses, streaks holding
- *   p30   - 30% done, one streak survives, the rest took a hit
- *   gaps  - the one to avoid: exactly two habit rows have unreported days (gap
- *           cells), the rest are green or off, to show what empty days look like
- *
- * Coach rituals (Morning state check-in, Evening habit report, Daily reflection)
- * appear at the top of every frame, the same way the skimmer does.
+ *   state     - which projection frame (blank | full | p78 | p36 | gaps)
+ *   coachLine - the narration shown above the grid (skimmer line by default)
  *
  * RULES followed here:
  *   - No em dashes anywhere (commas and periods used instead)
@@ -29,39 +19,59 @@
  */
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { WeeklyHabitsSummary, type HabitWeekCell } from '@/components/habit-detail/WeeklyHabitsSummary';
-import { FONT, PRIMARY, INK, SUBTLE, CARD, SPACE } from './_beatStyle';
+import { FONT, PRIMARY, INK, CARD, SPACE } from './_beatStyle';
 
-// The five projection states. Passed via props.state so the flow organiser can
-// configure each DEFAULT_FLOW entry independently.
-export type ProjectionState = 'empty' | 'full' | 'p74' | 'p30' | 'gaps';
+// The five projection states, matching the skimmer modes exactly.
+export type ProjectionState = 'blank' | 'full' | 'p78' | 'p36' | 'gaps';
 
 interface ScheduledHabit {
   name: string;
   days: number[]; // JS weekday numbers, 0=Sun..6=Sat
 }
 
-// Three coach-owned rituals shown in every frame, matching the skimmer's
-// COACH_HABITS constant. All daily.
+// Three rituals every user gets, all daily. Same as the skimmer COACH_HABITS.
 const COACH_HABITS: ScheduledHabit[] = [
   { name: 'Morning state check-in', days: [0, 1, 2, 3, 4, 5, 6] },
-  { name: 'Evening habit report',   days: [0, 1, 2, 3, 4, 5, 6] },
-  { name: 'Daily reflection',       days: [0, 1, 2, 3, 4, 5, 6] },
+  { name: 'Evening habit report', days: [0, 1, 2, 3, 4, 5, 6] },
+  { name: 'Daily reflection', days: [0, 1, 2, 3, 4, 5, 6] },
 ];
 
-// Sample user habits. Real flows pass in the habits the user just captured;
-// these placeholders give the beat a realistic look in the designer.
+// Sample captured habits, matching the skimmer demo so the rendered week is
+// identical. Real flows pass the habits the user just captured.
 const SAMPLE_USER_HABITS: ScheduledHabit[] = [
-  { name: 'Morning walk',          days: [1, 2, 3, 4, 5] },      // Mon to Fri
-  { name: 'No screens after 10 PM', days: [0, 1, 2, 3, 4, 5, 6] },
-  { name: 'Read 10 pages',          days: [0, 1, 2, 3, 4, 5, 6] },
+  { name: 'Meditate', days: [0, 1, 2, 3, 4, 5, 6] },
+  { name: 'Workout', days: [1, 3, 5] },
+  { name: 'Read 10 pages', days: [0, 1, 2, 3, 4, 5, 6] },
+  { name: 'No phone in bed', days: [0, 1, 2, 3, 4, 5, 6] },
+  { name: 'Journal', days: [1, 2, 3, 4, 5] },
 ];
 
-// WeeklyHabitsSummary renders Mon-first (M T W T F S S). DAY_ORDER maps
-// column index 0..6 to JS weekday: Mon=1, Tue=2, ..., Sat=6, Sun=0.
+// WeeklyHabitsSummary renders Mon-first (M T W T F S S). DAY_ORDER maps column
+// index 0..6 to JS weekday: Mon=1, ..., Sat=6, Sun=0.
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
-// Tiny deterministic PRNG ported from the skimmer so projected weeks are
-// stable across re-renders but look organic per habit/day pair.
+// Heroes stay fully green so at least one streak survives (indices into the
+// combined list: 0,1,2 are the coach rituals).
+const HEROES: Partial<Record<ProjectionState, number[]>> = {
+  p78: [0, 1],
+  p36: [0],
+};
+
+const TARGET_PCT: Partial<Record<ProjectionState, number>> = {
+  p78: 78,
+  p36: 36,
+};
+
+const SALT: Record<ProjectionState, number> = { blank: 1, full: 2, p78: 20, p36: 34, gaps: 50 };
+
+interface Row {
+  name: string;
+  cells: HabitWeekCell[];
+  streak: number;
+}
+
+// Tiny deterministic PRNG ported from the skimmer so projected weeks are stable
+// across re-renders but look organic per habit/day pair.
 function rand(seed: number): number {
   let t = (seed + 0x6d2b79f5) | 0;
   t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -81,93 +91,45 @@ function trailingStreak(cells: HabitWeekCell[]): number {
   return s;
 }
 
-// Per-state PRNG salts keep p74 and p30 visually distinct.
-const SALT: Record<ProjectionState, number> = {
-  empty: 1,
-  full:  2,
-  p74:   20,
-  p30:   34,
-  gaps:  50,
-};
-
-interface Row {
-  name: string;
-  cells: HabitWeekCell[];
-  streak: number;
-}
-
-// Build row data for a given projection state.
+// Build row data for a given projection state, matching the skimmer exactly.
 function buildRows(habits: ScheduledHabit[], state: ProjectionState): Row[] {
   const scheduled = habits.map((h) => {
-    const set = new Set(h.days);
+    const days = h.days && h.days.length ? h.days : [0, 1, 2, 3, 4, 5, 6];
+    const set = new Set(days);
     return DAY_ORDER.map((weekday) => set.has(weekday));
   });
 
-  // empty: everything scheduled shows as gap (never reported).
-  if (state === 'empty') {
-    return habits.map((h, hi) => {
-      const cells: HabitWeekCell[] = DAY_ORDER.map((_, ci) =>
-        scheduled[hi][ci] ? 'gap' : 'off',
-      );
-      return { name: h.name, cells, streak: 0 };
-    });
-  }
-
-  // full: every scheduled day is done.
-  if (state === 'full') {
-    return habits.map((h, hi) => {
-      const cells: HabitWeekCell[] = DAY_ORDER.map((_, ci) =>
-        scheduled[hi][ci] ? 'done' : 'off',
-      );
-      return { name: h.name, cells, streak: trailingStreak(cells) };
-    });
-  }
-
-  // gaps: EXACTLY TWO habits show gap cells. We pick the first two user habits
-  // (indices >= COACH_HABITS.length) so the coach rituals stay green, making
-  // the contrast between "green rituals" and "empty user habits" read clearly.
-  // Fallback to the first two rows overall if there are fewer than two user habits.
-  if (state === 'gaps') {
-    const gapRows = new Set<number>();
-    for (let hi = COACH_HABITS.length; hi < habits.length && gapRows.size < 2; hi++) {
-      gapRows.add(hi);
-    }
-    for (let hi = 0; hi < habits.length && gapRows.size < 2; hi++) {
-      gapRows.add(hi);
-    }
-
+  // blank / full / gaps: decided per cell.
+  if (state === 'blank' || state === 'full' || state === 'gaps') {
     return habits.map((h, hi) => {
       const cells: HabitWeekCell[] = DAY_ORDER.map((_, ci) => {
         if (!scheduled[hi][ci]) return 'off';
-        return gapRows.has(hi) ? 'gap' : 'done';
+        if (state === 'blank') return 'gap';
+        if (state === 'full') return 'done';
+        const r = rand(hi * 131 + ci * 17 + SALT.gaps);
+        if (r < 0.26) return 'gap';
+        if (r < 0.62) return 'missed';
+        return 'done';
       });
       return { name: h.name, cells, streak: trailingStreak(cells) };
     });
   }
 
-  // p74 and p30: hit the named percentage exactly via a seeded sort.
-  // Hero rows stay fully green so at least one streak survives per state.
-  const targetPct = state === 'p74' ? 74 : 30;
-  // p74: first two coach rows are heroes (morning + evening streaks hold).
-  // p30: first coach row only (morning streak alone survives).
-  const heroRows = state === 'p74' ? new Set([0, 1]) : new Set([0]);
-
+  // p78 / p36: hit the named percent exactly. Heroes stay fully green (the
+  // surviving streak); the remaining done days scatter across the other habits.
+  const heroes = HEROES[state] ?? [];
+  const targetPct = TARGET_PCT[state] ?? 0;
   let totalScheduled = 0;
   let heroDone = 0;
   const pool: { hi: number; ci: number; pri: number }[] = [];
-
   habits.forEach((_, hi) => {
     scheduled[hi].forEach((sched, ci) => {
       if (!sched) return;
       totalScheduled += 1;
-      if (heroRows.has(hi)) {
-        heroDone += 1;
-      } else {
-        pool.push({ hi, ci, pri: rand(hi * 131 + ci * 17 + SALT[state]) });
-      }
+      if (heroes.includes(hi)) heroDone += 1;
+      else pool.push({ hi, ci, pri: rand(hi * 131 + ci * 17 + SALT[state]) });
     });
   });
-
   const targetDone = Math.round((targetPct / 100) * totalScheduled);
   const fromPool = Math.max(0, Math.min(targetDone - heroDone, pool.length));
   pool.sort((a, b) => a.pri - b.pri);
@@ -176,7 +138,7 @@ function buildRows(habits: ScheduledHabit[], state: ProjectionState): Row[] {
   return habits.map((h, hi) => {
     const cells: HabitWeekCell[] = DAY_ORDER.map((_, ci) => {
       if (!scheduled[hi][ci]) return 'off';
-      if (heroRows.has(hi)) return 'done';
+      if (heroes.includes(hi)) return 'done';
       return doneCells.has(`${hi}:${ci}`) ? 'done' : 'missed';
     });
     return { name: h.name, cells, streak: trailingStreak(cells) };
@@ -193,52 +155,36 @@ function overallStats(rows: Row[]): { done: number; scheduled: number; percent: 
       if (c === 'done') done += 1;
     }
   }
-  return {
-    done,
-    scheduled,
-    percent: scheduled ? Math.round((done / scheduled) * 100) : 0,
-  };
+  return { done, scheduled, percent: scheduled ? Math.round((done / scheduled) * 100) : 0 };
 }
 
-// Default placeholder narration for each state. Real copy comes from the
-// beats-context lane and is supplied via props.coachLine.
+// Default narration per state: the skimmer's exact lines. Real copy can override
+// via props.coachLine.
 const DEFAULT_COACH_LINES: Record<ProjectionState, string> = {
-  empty:
-    'This is your week. Blank, starting today.',
-  full:
-    'Best case, every day green. Every streak going strong. That would be amazing.',
-  p74:
-    'More likely you land around here. Mostly green, a few misses, your streaks holding. That is a real win.',
-  p30:
-    'Some weeks land here. One streak survives, the rest take a hit. Still fine, you are building. We reassess.',
-  gaps:
-    'The one thing to avoid: these empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.',
+  blank: 'This is your week. Blank, starting today.',
+  full: 'Best case, every day green. Every streak going strong. That would be amazing.',
+  p78: "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
+  p36: "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
+  gaps: 'The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.',
+};
+
+// A short accent label per state so the designer can tell the frames apart.
+const STATE_LABEL: Record<ProjectionState, string> = {
+  blank: 'Your blank week',
+  full: 'Best case',
+  p78: 'More likely',
+  p36: 'Tough week',
+  gaps: 'What to avoid',
 };
 
 // Renders one static projection frame: the coach narration above the grid.
-function WeeklyProjectionCard({
-  state,
-  coachLine,
-}: {
-  state: ProjectionState;
-  coachLine: string;
-}) {
+function WeeklyProjectionCard({ state, coachLine }: { state: ProjectionState; coachLine: string }) {
   const allHabits = [...COACH_HABITS, ...SAMPLE_USER_HABITS];
   const rows = buildRows(allHabits, state);
   const stats = overallStats(rows);
 
-  // State accent: a tiny colored label that tells the designer which frame is showing.
-  const STATE_LABEL: Record<ProjectionState, string> = {
-    empty: 'Your blank week',
-    full: 'Best case',
-    p74: 'More likely',
-    p30: 'Tough week',
-    gaps: 'What to avoid',
-  };
-
   return (
     <div style={{ display: 'flex', width: '100%', flexDirection: 'column', gap: SPACE.md }}>
-      {/* Coach narration bubble */}
       <div
         style={{
           ...CARD,
@@ -260,16 +206,7 @@ function WeeklyProjectionCard({
         >
           {STATE_LABEL[state]}
         </span>
-        <p
-          style={{
-            fontFamily: FONT,
-            fontSize: 14,
-            fontWeight: 500,
-            lineHeight: 1.55,
-            color: INK,
-            margin: 0,
-          }}
-        >
+        <p style={{ fontFamily: FONT, fontSize: 14, fontWeight: 500, lineHeight: 1.55, color: INK, margin: 0 }}>
           {coachLine}
         </p>
       </div>
@@ -283,12 +220,8 @@ function WeeklyProjectionCard({
   );
 }
 
-// The beat component. Reads state and coachLine from props so the flow
-// organiser can configure each DEFAULT_FLOW entry independently. Falls back to
-// 'empty' and the placeholder line if props are absent (static canvas preview).
 function WeeklyProjectionBeat(props?: Record<string, string>) {
-  const state: ProjectionState =
-    (props?.state as ProjectionState | undefined) ?? 'empty';
+  const state: ProjectionState = (props?.state as ProjectionState | undefined) ?? 'blank';
   const coachLine = props?.coachLine ?? DEFAULT_COACH_LINES[state];
 
   const steps: BeatStep[] = [
@@ -302,9 +235,6 @@ function WeeklyProjectionBeat(props?: Record<string, string>) {
   return <BeatPlayer steps={steps} />;
 }
 
-// One BeatDef covers all five states via props. The flow organiser adds five
-// DEFAULT_FLOW entries of type 'weekly-projection', each with a different
-// props.state ('empty' | 'full' | 'p74' | 'p30' | 'gaps') and props.coachLine.
 const weeklyProjectionBeat: BeatDef = {
   type: 'weekly-projection',
   group: 'Onboarding',

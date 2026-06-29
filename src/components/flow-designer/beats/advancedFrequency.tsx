@@ -3,17 +3,18 @@ import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/H
 import { classifyHabitPolarity } from '@/components/onboarding/habitPolarity';
 import { toggleSetItem, WEEKDAYS } from '@/components/onboarding/constants';
 import type { HabitScheduleCfg } from '../flowStateCtx';
-import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { BeatPlayer, useAnimations, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 
 // Advanced path, the frequency step. Redesigned 2026-06-29.
 //
 // After the user approves the captured habits, this beat shows the SAME cards
 // (same Build/Break chip, auto-classified the same way as the capture beat so
-// the read matches) and grows the day-circle picker out of each card
-// (showDays + animateDaysIn). The coach asks how often each habit runs and the
-// circles fill in. Day selections are lifted to shared FlowState via
-// setHabitConfig so the plan recap and home tour reflect the real schedule.
+// the read matches) and grows the day-circle picker out of each card. The grow
+// only animates while animations are playing (animateDaysIn={anims}); in the
+// static canvas the day circles render in place so the beat is never blank.
+// Day selections are lifted to shared FlowState via setHabitConfig so the plan
+// recap and home tour reflect the real schedule.
 //
 // Polarity here is derived from the habit name, the same as the capture beat, so
 // the two beats agree without threading state. A user flip made in capture is not
@@ -30,6 +31,7 @@ interface HabitEntry {
 
 function AdvancedFrequencyBeat(props?: Record<string, string>) {
   const flow = useFlowState();
+  const anims = useAnimations();
   const habits = flow && flow.habits.length > 0 ? flow.habits : SAMPLE_HABITS;
 
   const [entries, setEntries] = useState<HabitEntry[]>(() =>
@@ -72,7 +74,7 @@ function AdvancedFrequencyBeat(props?: Record<string, string>) {
           onToggleDay={(d) => toggleDay(idx, d)}
           onEdit={() => undefined}
           showDays
-          animateDaysIn
+          animateDaysIn={anims}
         />
       ))}
       {/* The grow keyframe the card references when animateDaysIn is set. */}
