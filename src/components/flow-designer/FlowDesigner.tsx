@@ -1,469 +1,181 @@
 import { Icon } from '@iconify/react';
-import { useState, type ReactElement } from 'react';
-import { checkInDimensions } from '@/components/home/checkInConfig';
-import { EmojiOptionButton } from '@/components/home/EmojiOptionButton';
-import { AgeScrollPicker } from '@/components/onboarding/AgeScrollPicker';
-import { CategoryCard } from '@/components/onboarding/CategoryCard';
-import { DailyReflectionCard } from '@/components/onboarding/DailyReflectionCard';
-import { GoalCard } from '@/components/onboarding/GoalCard';
-import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
-import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
-import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
-import { ChipSelect } from '@/components/ui/ChipSelect';
+import { createElement, useState, type ReactNode } from 'react';
+import { AnimationsCtx, PlayingCtx, type BeatDef } from './beatKit';
+import { BEAT_DEFS } from './beats';
+import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 
 /**
  * FlowDesigner -- the chat-native onboarding flow as one continuous scroll,
- * built from the REAL app components (not lookalikes) with the v3 onboarding
- * content (coach lines and on-screen copy from the v3 beats spec).
+ * built from the REAL flow-builder beat components (the same ones FlowBuilder
+ * renders in its live Play pane), in the v3 order with v3 content.
  *
- * The chat flows continuously: a coach bubble, the real component, then the
- * next coach bubble. There are no machine section labels, it reads like the
- * real app.
+ * Each beat is the real registry component (BEAT_DEFS, keyed by type). To let
+ * them all render stacked in one scroll without a single global "active beat"
+ * assumption, every beat is wrapped in its OWN isolated flow-state provider
+ * (IsolatedBeat below), mirroring how FlowBuilder mounts a single beat preview,
+ * just once per beat down the page.
  *
- * Voice engine badges sit OUTSIDE the phone frame, in the right margin,
- * aligned to each beat. Four kinds:
- *   MP3       -- pre-recorded verbatim clip (blue)
- *   Cartesia  -- live dynamic TTS, dynamic content (purple)
- *   Vapi      -- live two-way coaching session (green)
- *   Silent    -- no coach voice at this beat (gray)
+ * Voice tags sit OUTSIDE the phone frame in the LEFT margin (coach bubbles are
+ * left-aligned), each tag next to the beat it describes. A tag is engine + mode:
+ *   MP3 . Verbatim        pre-recorded clip (blue)
+ *   Cartesia . Verbatim   live TTS reading a scripted opener (purple)
+ *   Cartesia . Improvise  live TTS phrasing it itself (purple)
+ *   Vapi . Improvise      live two-way coaching (green)
+ *   Silent                no coach voice at this beat (gray)
  */
 
-// --- Beat bodies: each holds its own local state and renders real components.
+// The real beat registry, keyed by type. BEAT_DEFS auto-collects every beat
+// file (the same set the flow builder uses). REGISTRY_MAP[type].Comp is the
+// real component for that beat.
+const REGISTRY_MAP: Record<string, BeatDef> = Object.fromEntries(
+  BEAT_DEFS.map((d) => [d.type, d]),
+);
 
-// Profile, v3: AGE + GENDER only. No name field (the name was captured at
-// sign-up; the coach greets by it). Age scroll picker, then the gender chips.
-function ProfileBody() {
-  const [age, setAge] = useState<number | ''>(28);
-  const [gender, setGender] = useState<string | null>('Male');
-  return (
-    <div className="flex flex-col gap-4">
-      <AgeScrollPicker value={age} onChange={setAge} />
-      <ChipSelect
-        options={['Male', 'Female', 'Other']}
-        value={gender}
-        onChange={setGender}
-        ariaLabel="And your gender?"
-        columns={3}
-      />
-    </div>
-  );
+// --- Isolated per-beat flow-state provider ---
+// A fresh, scoped FlowState for one beat, so beats can stack in one scroll
+// without sharing a global active-beat state. Mirrors the flowState object
+// FlowBuilder builds for its Play pane (flowStateCtx.ts shape), seeded with
+// light demo values so each beat looks interactive on its own.
+function useIsolatedFlowState(): FlowState {
+  const [path, setPath] = useState<'new' | 'exp' | null>('new');
+  const [category, setCategoryState] = useState<string | null>('Sleep better');
+  const [goals, setGoals] = useState<string[]>(['Fall asleep earlier']);
+  const [habits, setHabits] = useState<string[]>(['No screens after 10 PM']);
+  // 24-hour "HH:MM" so the beats' formatTime12() renders them correctly.
+  const [morningTime, setMorningTime] = useState<string | null>('08:00');
+  const [eveningTime, setEveningTime] = useState<string | null>('21:30');
+  const [habitConfigs, setHabitConfigsState] = useState<Record<string, HabitScheduleCfg>>({});
+  const [tourHabitStatus, setTourHabitStatusState] = useState<
+    Record<string, 'done' | 'missed' | 'none'>
+  >({});
+  const [tourSelectedDate, setTourSelectedDateState] = useState<string | null>(null);
+  const toggleIn = (v: string, max: number, set: (fn: (p: string[]) => string[]) => void) =>
+    set((p) => (p.includes(v) ? p.filter((x) => x !== v) : p.length < max ? [...p, v] : p));
+  return {
+    path,
+    category,
+    goals,
+    habits,
+    setPath,
+    setCategory: (v) => {
+      setCategoryState(v);
+      setGoals([]);
+      setHabits([]);
+    },
+    toggleGoal: (v, max = 2) => toggleIn(v, max, setGoals),
+    toggleHabit: (v, max = 2) => toggleIn(v, max, setHabits),
+    setHabits: (v) => setHabits(v),
+    morningTime,
+    eveningTime,
+    habitConfigs,
+    setMorningTime: (v) => setMorningTime(v),
+    setEveningTime: (v) => setEveningTime(v),
+    setHabitConfig: (habit, cfg) => setHabitConfigsState((p) => ({ ...p, [habit]: cfg })),
+    tourHabitStatus,
+    tourSelectedDate,
+    setTourHabitStatus: (next) => setTourHabitStatusState(next),
+    setTourSelectedDate: (v) => setTourSelectedDateState(v),
+  };
 }
 
-function CategoryBody() {
-  const cats = [
-    { label: 'Sleep better', image: '/images/onboarding/sleep-better.png' },
-    { label: 'Move more', image: '/images/onboarding/move-more.jpg' },
-    { label: 'Eat better', image: '/images/onboarding/eat-better.png' },
-    { label: 'Feel more energized', image: '/images/onboarding/feel-more-energized.png' },
-    { label: 'Reduce stress', image: '/images/onboarding/reduce-stress.png' },
-    { label: 'Improve focus', image: '/images/onboarding/improve-focus.jpg' },
-    { label: 'Break bad habits', image: '/images/onboarding/break-bad-habits.png' },
-    { label: 'Get more organized', image: '/images/onboarding/get-more-organized.png' },
-  ];
-  const [sel, setSel] = useState('Sleep better');
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {cats.map((c) => (
-        <CategoryCard
-          key={c.label}
-          image={c.image}
-          label={c.label}
-          selected={sel === c.label}
-          onSelect={() => setSel(c.label)}
-        />
-      ))}
-    </div>
-  );
+// Mounts one real beat component inside its own scoped providers. PlayingCtx is
+// true so beats hold their fully revealed state (no looping). AnimationsCtx is
+// false so the whole flow renders settled (a debug view, not an animation).
+
+// The demo user name the coach greets with. Beats carry {name} in their copy
+// (the real flow substitutes the sign-up name); we substitute it here too so
+// the greeting reads as a real name, not the literal token.
+const DEMO_NAME = 'Yair';
+
+function applyName(props?: Record<string, string>): Record<string, string> | undefined {
+  if (!props) return props;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(props)) {
+    out[k] = typeof v === 'string' && v.includes('{name}') ? v.split('{name}').join(DEMO_NAME) : v;
+  }
+  return out;
 }
 
-function GoalsBody() {
-  const goals = [
-    'Fall asleep earlier',
-    'Wake up earlier',
-    'Sleep more consistently',
-    'Sleep more deeply',
-  ];
-  const [sel, setSel] = useState<Set<string>>(new Set(['Fall asleep earlier']));
-  return (
-    <div className="flex flex-col gap-3">
-      {goals.map((g) => (
-        <GoalCard
-          key={g}
-          label={g}
-          selected={sel.has(g)}
-          onToggle={() =>
-            setSel((prev) => {
-              const next = new Set(prev);
-              if (next.has(g)) next.delete(g);
-              else next.add(g);
-              return next;
-            })
-          }
-        />
-      ))}
-    </div>
-  );
-}
-
-function HabitsBody() {
-  const [expanded, setExpanded] = useState(true);
-  const [sel, setSel] = useState<Set<string>>(new Set(['No screens after 10 PM']));
-  const habits = [
-    'No caffeine after 2 PM',
-    'No screens after 10 PM',
-    'Start wind-down by 10 PM',
-    'Be in bed by target bedtime',
-  ];
-  return (
-    <HabitPickerPanel
-      goal="Fall asleep earlier"
-      habits={habits}
-      expanded={expanded}
-      onToggleExpanded={() => setExpanded((v) => !v)}
-      selectedHabits={sel}
-      onToggleHabit={(h) =>
-        setSel((prev) => {
-          const next = new Set(prev);
-          if (next.has(h)) next.delete(h);
-          else next.add(h);
-          return next;
-        })
-      }
-      onAddCustomHabit={(h) => setSel((prev) => new Set(prev).add(h))}
-    />
-  );
-}
-
-// Evening reflection, v3: style is one of "Suggested template" / "Your
-// template" / "Freeform". The simple DailyReflectionCard has no style tabs, so
-// a compact segmented control is added above it. Names match the v3 spec.
-type ReflectionStyle = 'Suggested template' | 'Your template' | 'Freeform';
-const REFLECTION_STYLES: { id: ReflectionStyle; icon: string }[] = [
-  { id: 'Suggested template', icon: 'mdi:comment-question-outline' },
-  { id: 'Your template', icon: 'mdi:pencil-outline' },
-  { id: 'Freeform', icon: 'mdi:microphone-outline' },
-];
-
-function ReflectionBody() {
-  const [style, setStyle] = useState<ReflectionStyle>('Suggested template');
-  const [time, setTime] = useState('21:30');
-  const [days, setDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
-  const [reminder, setReminder] = useState(true);
-  const [schedule, setSchedule] = useState<ScheduleOption>('Every day');
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex gap-2">
-        {REFLECTION_STYLES.map((s) => {
-          const active = s.id === style;
-          return (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setStyle(s.id)}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl border px-2 py-2.5 text-[12px] font-semibold ${
-                active
-                  ? 'border-primary bg-primary text-white'
-                  : 'border-border-light bg-surface-secondary text-content-secondary'
-              }`}
-            >
-              <Icon icon={s.icon} className="size-3.5 shrink-0" />
-              {s.id}
-            </button>
-          );
-        })}
-      </div>
-      <DailyReflectionCard
-        time={time}
-        onTimeChange={setTime}
-        days={days}
-        onToggleDay={(d) =>
-          setDays((prev) => {
-            const next = new Set(prev);
-            if (next.has(d)) next.delete(d);
-            else next.add(d);
-            return next;
-          })
-        }
-        reminder={reminder}
-        onToggleReminder={setReminder}
-        schedule={schedule}
-        onScheduleChange={setSchedule}
-      />
-    </div>
-  );
-}
-
-function PlanBody() {
-  return (
-    <div className="flex flex-col gap-3">
-      <PlanSummaryCard
-        icon="mdi:weather-sunny"
-        typeLabel="Journal"
-        title="Daily check-in"
-        cadence="Every day"
-        rule="8:00 AM"
-        onEdit={() => {}}
-      />
-      <PlanSummaryCard
-        icon="mdi:notebook-outline"
-        typeLabel="Journal"
-        title="Evening reflection"
-        cadence="Every day"
-        rule="9:30 PM"
-        onEdit={() => {}}
-      />
-      <PlanSummaryCard
-        icon="mdi:bed-outline"
-        typeLabel="Habit"
-        title="No screens after 10 PM"
-        cadence="Every day"
-        rule="10:00 PM"
-        onEdit={() => {}}
-      />
-    </div>
-  );
-}
-
-// Morning check-in, v3: the user does a state check right now. The mood row is
-// the real check-in card row.
-function CheckinBody() {
-  const mood = checkInDimensions.find((d) => d.key === 'mood')!;
-  const [sel, setSel] = useState<number | null>(4);
-  return (
-    <div className="flex w-full justify-between">
-      {mood.options.map((o) => (
-        <EmojiOptionButton
-          key={o.value}
-          icon={o.icon}
-          label={o.label}
-          color={o.color}
-          isSelected={sel === o.value}
-          onClick={() => setSel(o.value)}
-        />
-      ))}
-    </div>
-  );
-}
-
-// Beginner per-habit schedule body, the days + time controls inline.
-function ScheduleBody() {
-  const [days, setDays] = useState<Set<number>>(new Set([1, 2, 3, 4, 5]));
-  const labels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border-light bg-surface-secondary p-4">
-      <span className="text-[13px] font-bold text-content">No screens after 10 PM</span>
-      <div className="flex justify-between">
-        {labels.map((l, i) => {
-          const on = days.has(i);
-          return (
-            <button
-              key={i}
-              type="button"
-              onClick={() =>
-                setDays((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(i)) next.delete(i);
-                  else next.add(i);
-                  return next;
-                })
-              }
-              className={`flex size-9 items-center justify-center rounded-full text-[13px] font-bold ${
-                on ? 'bg-primary text-white' : 'bg-surface text-content-tertiary'
-              }`}
-            >
-              {l}
-            </button>
-          );
-        })}
-      </div>
-      <div className="flex items-center justify-between rounded-2xl border border-primary bg-surface px-4 py-3">
-        <span className="text-[14px] font-bold text-content">10:00 PM</span>
-        <Icon icon="ic:round-access-time" className="size-5 text-primary" />
-      </div>
-    </div>
-  );
-}
-
-// Splash, get-started, sign-up, mic, why-intro: chat-stream stand-ins. The real
-// app renders these as full screens; in the continuous scroll they show their
-// on-screen heading + sub so the order reads true.
-
-function SplashBody() {
-  return <ScreenStub eyebrow="Behavioral OS" heading="Guided Growth" icon="ic:round-auto-awesome" />;
-}
-
-function GetStartedBody() {
-  return (
-    <ScreenStub
-      eyebrow="Behavioral OS"
-      heading="Guided Growth"
-      icon="ic:round-auto-awesome"
-      primary="Get started"
-      secondary="I already have an account"
-    />
-  );
-}
-
-function SignupBody() {
-  return (
-    <ScreenStub
-      heading="Create your account"
-      icon="mdi:account-plus-outline"
-      primary="Continue with Apple"
-      secondary="Continue with Google"
-      sub="or sign up with email"
-    />
-  );
-}
-
-function MicBody() {
-  return (
-    <ScreenStub
-      heading="Talk with your coach"
-      sub="Turn on your mic to talk out loud. You can always type instead."
-      icon="ic:round-mic"
-      primary="Turn on mic"
-      secondary="Maybe later"
-    />
-  );
-}
-
-function WhyIntroBody() {
-  return (
-    <ScreenStub
-      heading="Your first habit"
-      sub="Checking in with yourself. Simple, and it carries everything else."
-      icon="mdi:heart-outline"
-    />
-  );
-}
-
-// A simple, app-styled stand-in for a full screen, shown inline in the chat
-// stream. Centered card with an icon, a heading, an optional sub, and up to two
-// buttons styled like the real app's primary / secondary.
-function ScreenStub({
-  eyebrow,
-  heading,
-  sub,
-  icon,
-  primary,
-  secondary,
+function IsolatedBeat({
+  type,
+  props,
 }: {
-  eyebrow?: string;
-  heading: string;
-  sub?: string;
-  icon: string;
-  primary?: string;
-  secondary?: string;
+  type: string;
+  props?: Record<string, string>;
 }) {
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-border-light bg-surface-secondary px-5 py-6 text-center">
-      <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
-        <Icon icon={icon} className="size-6 text-primary" />
+  const flowState = useIsolatedFlowState();
+  const entry = REGISTRY_MAP[type];
+  if (!entry) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border bg-surface-secondary px-4 py-3 text-[13px] text-content-tertiary">
+        Unknown beat type: {type}
       </div>
-      {eyebrow && (
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-content-tertiary">
-          {eyebrow}
-        </span>
-      )}
-      <span className="text-[18px] font-bold text-content">{heading}</span>
-      {sub && <span className="max-w-[260px] text-[14px] text-content-tertiary">{sub}</span>}
-      {primary && (
-        <div className="mt-1 w-full rounded-full bg-primary px-4 py-2.5 text-[14px] font-semibold text-white">
-          {primary}
-        </div>
-      )}
-      {secondary && (
-        <span className="text-[13px] font-medium text-content-secondary">{secondary}</span>
-      )}
-    </div>
+    );
+  }
+  return (
+    <PlayingCtx.Provider value={true}>
+      <AnimationsCtx.Provider value={false}>
+        <FlowStateCtx.Provider value={flowState}>
+          <div className="overflow-hidden [transform:translateZ(0)]">
+            {createElement(entry.Comp, applyName(props))}
+          </div>
+        </FlowStateCtx.Provider>
+      </AnimationsCtx.Provider>
+    </PlayingCtx.Provider>
   );
 }
 
-// --- Voice engine badge ---
+// --- Voice engine + mode tags ---
 
 type VoiceEngine = 'MP3' | 'Cartesia' | 'Vapi' | 'Silent';
+type VoiceMode = 'Verbatim' | 'Improvise' | null;
 
-const ENGINE_META: Record<
-  VoiceEngine,
-  { label: string; icon: string; bg: string; text: string; border: string; note?: string }
-> = {
-  MP3: {
-    label: 'MP3',
-    icon: 'mdi:play-circle-outline',
-    bg: '#dbeafe',
-    text: '#1d4ed8',
-    border: '#93c5fd',
-    note: 'Pre-recorded verbatim',
-  },
-  Cartesia: {
-    label: 'Cartesia',
-    icon: 'mdi:waveform',
-    bg: '#ede9fe',
-    text: '#6d28d9',
-    border: '#c4b5fd',
-    note: 'Live dynamic TTS',
-  },
-  Vapi: {
-    label: 'Vapi',
-    icon: 'mdi:microphone-outline',
-    bg: '#dcfce7',
-    text: '#15803d',
-    border: '#86efac',
-    note: 'Live two-way coaching',
-  },
-  Silent: {
-    label: 'Silent',
-    icon: 'mdi:volume-off',
-    bg: '#f1f5f9',
-    text: '#64748b',
-    border: '#cbd5e1',
-    note: 'No coach voice',
-  },
-};
+const ENGINE_STYLE: Record<VoiceEngine, { bg: string; text: string; border: string; icon: string }> =
+  {
+    MP3: { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd', icon: 'mdi:play-circle-outline' },
+    Cartesia: { bg: '#ede9fe', text: '#6d28d9', border: '#c4b5fd', icon: 'mdi:waveform' },
+    Vapi: { bg: '#dcfce7', text: '#15803d', border: '#86efac', icon: 'mdi:microphone-outline' },
+    Silent: { bg: '#f1f5f9', text: '#64748b', border: '#cbd5e1', icon: 'mdi:volume-off' },
+  };
 
-function VoiceEngineBadge({ engine, note }: { engine: VoiceEngine; note?: string }) {
-  const m = ENGINE_META[engine];
+function tagLabel(engine: VoiceEngine, mode: VoiceMode): string {
+  return mode ? `${engine} · ${mode}` : engine;
+}
+
+function VoiceTag({ engine, mode }: { engine: VoiceEngine; mode: VoiceMode }) {
+  const s = ENGINE_STYLE[engine];
   return (
     <div
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: 3,
-        minWidth: 108,
-        maxWidth: 150,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        padding: '3px 9px',
+        borderRadius: 99,
+        border: `1.5px solid ${s.border}`,
+        background: s.bg,
+        color: s.text,
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: '0.01em',
+        whiteSpace: 'nowrap',
       }}
     >
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 5,
-          padding: '3px 8px',
-          borderRadius: 99,
-          border: `1.5px solid ${m.border}`,
-          background: m.bg,
-          color: m.text,
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: '0.01em',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        <Icon icon={m.icon} style={{ width: 12, height: 12 }} />
-        {m.label}
-      </div>
-      {(note ?? m.note) && (
-        <span style={{ fontSize: 10, color: '#94a3b8', lineHeight: 1.3, paddingLeft: 2 }}>
-          {note ?? m.note}
-        </span>
-      )}
+      <Icon icon={s.icon} style={{ width: 12, height: 12 }} />
+      {tagLabel(engine, mode)}
     </div>
   );
 }
 
 // --- Legend ---
+
+const LEGEND: { engine: VoiceEngine; mode: VoiceMode; note: string }[] = [
+  { engine: 'MP3', mode: 'Verbatim', note: 'Pre-recorded clip' },
+  { engine: 'Cartesia', mode: 'Verbatim', note: 'Live TTS, scripted opener' },
+  { engine: 'Cartesia', mode: 'Improvise', note: 'Live TTS, phrased on the fly' },
+  { engine: 'Vapi', mode: 'Improvise', note: 'Live two-way coaching' },
+  { engine: 'Silent', mode: null, note: 'No coach voice' },
+];
 
 function VoiceLegend() {
   return (
@@ -474,8 +186,7 @@ function VoiceLegend() {
         borderRadius: 12,
         padding: '12px 14px',
         marginBottom: 24,
-        width: 420,
-        maxWidth: '100%',
+        maxWidth: 720,
         boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
         fontFamily: 'Urbanist, -apple-system, sans-serif',
       }}
@@ -492,157 +203,171 @@ function VoiceLegend() {
       >
         Voice delivery
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-        {(Object.keys(ENGINE_META) as VoiceEngine[]).map((engine) => {
-          const m = ENGINE_META[engine];
-          return (
-            <div key={engine} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '2px 8px',
-                  borderRadius: 99,
-                  border: `1.5px solid ${m.border}`,
-                  background: m.bg,
-                  color: m.text,
-                  fontSize: 11,
-                  fontWeight: 600,
-                }}
-              >
-                <Icon icon={m.icon} style={{ width: 11, height: 11 }} />
-                {m.label}
-              </div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>{m.note}</span>
-            </div>
-          );
-        })}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+        {LEGEND.map((l) => (
+          <div
+            key={`${l.engine}-${l.mode ?? 'none'}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <VoiceTag engine={l.engine} mode={l.mode} />
+            <span style={{ fontSize: 11, color: '#64748b' }}>{l.note}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-// --- Beat data, v3 order and copy ---
+// --- Beats, v3 order + copy. Each names a real registry type, the props it
+// passes (coachLine and any seed props), and the engine + mode tag. ---
 
-interface Beat {
+interface FlowBeat {
   id: string;
-  coachLine?: string;
-  Body?: () => ReactElement;
-  reply?: string;
-  voiceEngine: VoiceEngine;
-  voiceNote?: string;
+  type: string;
+  props?: Record<string, string>;
+  engine: VoiceEngine;
+  mode: VoiceMode;
 }
 
-const BEATS: Beat[] = [
+const BEATS: FlowBeat[] = [
   // 1. Splash. Silent.
-  { id: 'splash', Body: SplashBody, voiceEngine: 'Silent' },
+  { id: 'splash', type: 'splash', engine: 'Silent', mode: null },
   // 2. Get Started. Silent.
-  { id: 'get-started', Body: GetStartedBody, voiceEngine: 'Silent' },
-  // 3. Coach Greeting. The orb blooms and speaks, MP3.
+  { id: 'get-started', type: 'get-started', engine: 'Silent', mode: null },
+  // 3. Coach Greeting. The orb blooms and speaks. MP3 verbatim.
   {
     id: 'coach-greeting',
-    coachLine:
-      "Hey. I'm your coach inside Guided Growth. Give me two minutes and we'll set up something that actually sticks.",
-    voiceEngine: 'MP3',
-    voiceNote: 'splash_welcome.mp3',
+    type: 'splash-intro',
+    props: {
+      coachLine:
+        "Hey. I'm your coach inside Guided Growth. Give me two minutes and we'll set up something that actually sticks.",
+    },
+    engine: 'MP3',
+    mode: 'Verbatim',
   },
   // 4. Sign Up. Silent form, the name is captured here.
-  { id: 'signup', Body: SignupBody, voiceEngine: 'Silent' },
-  // 5. Mic Permission. MP3.
+  { id: 'signup', type: 'auth-signup', engine: 'Silent', mode: null },
+  // 5. Mic Permission. MP3 verbatim opener.
   {
     id: 'mic',
-    coachLine:
-      "I'd love to actually talk with you. If you let me use your mic, you can just speak. You can always type instead.",
-    Body: MicBody,
-    voiceEngine: 'MP3',
-    voiceNote: 'Verbatim opener',
+    type: 'mic-permission',
+    props: {
+      heading: 'Talk with your coach',
+      sub: 'Turn on your mic to talk out loud. You can always type instead.',
+      coachLine:
+        "I'd love to actually talk with you. If you let me use your mic, you can just speak. You can always type instead.",
+    },
+    engine: 'MP3',
+    mode: 'Verbatim',
   },
-  // 6. Profile. Age + gender. Greet by name, dynamic via Cartesia.
+  // 6. Profile. Age + gender, greet by name. Cartesia, improvised (dynamic name).
   {
     id: 'profile',
-    coachLine: 'Good to meet you, Yair. Two quick things so I can tailor this to you. How old are you?',
-    Body: ProfileBody,
-    voiceEngine: 'Cartesia',
-    voiceNote: 'Greets by name, dynamic',
+    type: 'profile-beat',
+    props: {
+      greeting: 'Good to meet you, {name}. Two quick things so I can tailor this to you.',
+      askAge: 'How old are you?',
+      askGender: 'And your gender?',
+      age: '28',
+      gender: 'Male',
+    },
+    engine: 'Cartesia',
+    mode: 'Improvise',
   },
-  // 7. Why intro. MP3.
+  // 7. Why intro. MP3 verbatim.
   {
     id: 'why-intro',
-    coachLine:
-      "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
-    Body: WhyIntroBody,
-    voiceEngine: 'MP3',
-    voiceNote: 'Verbatim, candidate MP3',
+    type: 'why-intro',
+    props: {
+      coachLine:
+        "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
+    },
+    engine: 'MP3',
+    mode: 'Verbatim',
   },
-  // 8. Morning check-in. State card now, then set the daily time. MP3 opener.
+  // 8. Morning check-in. State card now, then set the daily time. MP3 verbatim opener.
   {
     id: 'checkin',
-    coachLine:
-      "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
-    Body: CheckinBody,
-    reply: 'Honestly pretty good, slept well for once.',
-    voiceEngine: 'MP3',
-    voiceNote: 'MP3 opener + Vapi reaction',
+    type: 'morning-checkin-setup',
+    props: {
+      coachLine:
+        "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+    },
+    engine: 'MP3',
+    mode: 'Verbatim',
   },
-  // 9. Evening reflection setup, configured only. MP3 opener + silent options.
+  // 9. Evening reflection setup, configured only. MP3 verbatim opener, options silent.
   {
     id: 'reflection',
-    coachLine:
-      'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
-    Body: ReflectionBody,
-    voiceEngine: 'MP3',
-    voiceNote: 'Opener MP3, options silent',
+    type: 'reflection-card',
+    props: {
+      coachLine:
+        'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
+    },
+    engine: 'MP3',
+    mode: 'Verbatim',
   },
-  // 10. Path fork. MP3.
+  // 10. Path fork. MP3 verbatim.
   {
     id: 'fork',
-    coachLine: 'Quick one. Have you tracked habits before, or is this new for you? Either way is great.',
-    voiceEngine: 'MP3',
-    voiceNote: 'Verbatim opener',
+    type: 'path-selection',
+    props: {
+      coachLine: 'Quick one. Have you tracked habits before, or is this new for you? Either way is great.',
+    },
+    engine: 'MP3',
+    mode: 'Verbatim',
   },
-  // 11. Beginner, category. MP3 opener + silent options + Vapi if unsure.
+  // 11. Beginner, category. MP3 verbatim opener, options silent.
   {
     id: 'category',
-    coachLine:
-      'What part of your life do you most want to work on right now? Pick the one that pulls you.',
-    Body: CategoryBody,
-    voiceEngine: 'MP3',
-    voiceNote: 'Opener MP3 + Vapi if unsure',
+    type: 'category-grid',
+    props: {
+      coachLine:
+        'What part of your life do you most want to work on right now? Pick the one that pulls you.',
+    },
+    engine: 'MP3',
+    mode: 'Verbatim',
   },
-  // 12. Beginner, subcategory. MP3 opener + silent options.
+  // 12. Beginner, subcategory. MP3 verbatim opener, options silent.
   {
     id: 'goals',
-    coachLine: "Within that, what's the piece you want to start with?",
-    Body: GoalsBody,
-    voiceEngine: 'MP3',
-    voiceNote: 'Opener MP3, options silent',
+    type: 'goals-list',
+    props: { coachLine: "Within that, what's the piece you want to start with?" },
+    engine: 'MP3',
+    mode: 'Verbatim',
   },
-  // 13. Beginner, habits. MP3 opener + silent options + Vapi.
+  // 13. Beginner, habits. MP3 verbatim opener, options silent.
   {
     id: 'habits',
-    coachLine:
-      "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
-    Body: HabitsBody,
-    voiceEngine: 'MP3',
-    voiceNote: 'MP3 opener + Vapi available',
+    type: 'habit-picker',
+    props: {
+      coachLine:
+        "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+    },
+    engine: 'MP3',
+    mode: 'Verbatim',
   },
-  // 14. Beginner, per-habit schedule. Vapi (live config).
+  // 14. Beginner, per-habit schedule. Vapi, live config.
   {
     id: 'schedule',
-    coachLine: 'When will you do each one? Pick the days and a time. A reminder only if you want a nudge.',
-    Body: ScheduleBody,
-    voiceEngine: 'Vapi',
-    voiceNote: 'Live per-habit config',
+    type: 'habit-schedule',
+    props: {
+      coachLine: 'When will you do each one? Pick the days and a time. A reminder only if you want a nudge.',
+    },
+    engine: 'Vapi',
+    mode: 'Improvise',
   },
-  // 17. Full plan, the one confirm. MP3.
+  // 17. Full plan, the one confirm. MP3 verbatim.
   {
     id: 'plan',
-    coachLine:
-      "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
-    Body: PlanBody,
-    voiceEngine: 'MP3',
-    voiceNote: 'Verbatim opener',
+    type: 'into-app',
+    props: {
+      coachLine:
+        "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+      buttonLabel: 'Start',
+    },
+    engine: 'MP3',
+    mode: 'Verbatim',
   },
 ];
 
@@ -665,7 +390,7 @@ export function FlowDesigner() {
           Onboarding flow
         </h1>
         <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
-          Real components, v3 content. Voice delivery annotated in the right margin.
+          Real flow-builder components, v3 content. Voice delivery tagged in the left margin.
         </p>
       </div>
 
@@ -674,7 +399,7 @@ export function FlowDesigner() {
         <VoiceLegend />
       </div>
 
-      {/* Main layout: phone centered, badge column in right margin */}
+      {/* Main layout: left tag column, then the phone */}
       <div
         style={{
           maxWidth: 720,
@@ -684,6 +409,24 @@ export function FlowDesigner() {
           gap: 20,
         }}
       >
+        {/* Voice tag column (outside the phone, LEFT) */}
+        <div
+          style={{
+            flex: '0 0 150px',
+            display: 'flex',
+            flexDirection: 'column',
+            // Align the first tag to roughly the first beat:
+            // status bar (~53px) + stream padding (24px) + a little.
+            paddingTop: 90,
+            gap: 0,
+            textAlign: 'right',
+          }}
+        >
+          {BEATS.map((b) => (
+            <BeatTagSlot key={b.id} engine={b.engine} mode={b.mode} />
+          ))}
+        </div>
+
         {/* Phone frame */}
         <div
           style={{
@@ -716,7 +459,7 @@ export function FlowDesigner() {
             <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Coach</span>
           </div>
 
-          {/* Beat stream, continuous */}
+          {/* Beat stream, continuous. Each beat is the real component. */}
           <div
             style={{
               display: 'flex',
@@ -726,54 +469,11 @@ export function FlowDesigner() {
               background: '#f9f9f9',
             }}
           >
-            {BEATS.map((b) => {
-              const Body = b.Body;
-              return (
-                <div
-                  key={b.id}
-                  data-beat-id={b.id}
-                  style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
-                >
-                  {/* Coach bubble */}
-                  {b.coachLine && (
-                    <div
-                      style={{
-                        marginRight: 'auto',
-                        maxWidth: 300,
-                        borderRadius: '16px 16px 16px 4px',
-                        background: '#f1f5f9',
-                        padding: '12px 16px',
-                        fontSize: 15,
-                        lineHeight: 1.4,
-                        color: '#1e293b',
-                      }}
-                    >
-                      {b.coachLine}
-                    </div>
-                  )}
-                  {/* Component body */}
-                  {Body && <Body />}
-                  {/* User reply bubble (if any) */}
-                  {b.reply && (
-                    <div
-                      style={{
-                        marginLeft: 'auto',
-                        maxWidth: 280,
-                        borderRadius: '16px 16px 4px 16px',
-                        background: '#6366f1',
-                        padding: '12px 16px',
-                        fontSize: 15,
-                        fontWeight: 500,
-                        lineHeight: 1.4,
-                        color: '#fff',
-                      }}
-                    >
-                      {b.reply}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {BEATS.map((b) => (
+              <div key={b.id} data-beat-id={b.id}>
+                <IsolatedBeat type={b.type} props={b.props} />
+              </div>
+            ))}
           </div>
 
           {/* Bottom input bar */}
@@ -817,42 +517,27 @@ export function FlowDesigner() {
             </div>
           </div>
         </div>
-
-        {/* Voice engine badge column (outside the phone) */}
-        <div
-          style={{
-            flex: '1 1 150px',
-            display: 'flex',
-            flexDirection: 'column',
-            // Align the first badge to roughly the first coach bubble:
-            // status bar (~53px) + stream padding (24px) + a little.
-            paddingTop: 90,
-            gap: 0,
-          }}
-        >
-          {BEATS.map((b) => (
-            <BeatBadgeSlot key={b.id} engine={b.voiceEngine} note={b.voiceNote} />
-          ))}
-        </div>
       </div>
     </div>
   );
 }
 
-// Each badge slot is a fixed-height row beside its beat. FlowDesigner is a
-// continuous scroll, not a per-screen layout, so the badges are approximately
-// aligned to their beats rather than pixel-locked.
-function BeatBadgeSlot({ engine, note }: { engine: VoiceEngine; note?: string }) {
+// One tag row beside its beat. FlowDesigner is a continuous scroll, not a
+// per-screen layout, so tags are approximately aligned to their beats. The
+// tag is right-aligned in its column so it sits flush against the phone's left
+// edge, next to the left-aligned coach bubble.
+function BeatTagSlot({ engine, mode }: { engine: VoiceEngine; mode: VoiceMode }): ReactNode {
   return (
     <div
       style={{
         display: 'flex',
+        justifyContent: 'flex-end',
         alignItems: 'flex-start',
         paddingTop: 30,
         minHeight: 80,
       }}
     >
-      <VoiceEngineBadge engine={engine} note={note} />
+      <VoiceTag engine={engine} mode={mode} />
     </div>
   );
 }
