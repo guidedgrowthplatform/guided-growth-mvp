@@ -24,6 +24,14 @@ import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowState
  *   Silent                no coach voice at this beat (gray)
  */
 
+// Layout constants. The page is laid out as per-beat rows of
+// [tag column | phone column], so a tag and its beat share one flex row and
+// stay aligned by construction at every scroll position.
+const TAG_COL_W = 130; // fixed-width left column holding the voice tag
+const TAG_GAP = 14; // space between the tag and the phone's left edge
+const PHONE_W = 420; // the phone interior width
+const TOTAL_W = TAG_COL_W + PHONE_W;
+
 // The real beat registry, keyed by type. BEAT_DEFS auto-collects every beat
 // file (the same set the flow builder uses). REGISTRY_MAP[type].Comp is the
 // real component for that beat.
@@ -229,38 +237,12 @@ interface FlowBeat {
   mode: VoiceMode;
 }
 
+// The render starts at the profile beat. The intro screens (splash,
+// get-started, coach greeting, sign-up, mic permission) are intentionally
+// omitted so this view opens straight on the coach greeting the user by name.
 const BEATS: FlowBeat[] = [
-  // 1. Splash. Silent.
-  { id: 'splash', type: 'splash', engine: 'Silent', mode: null },
-  // 2. Get Started. Silent.
-  { id: 'get-started', type: 'get-started', engine: 'Silent', mode: null },
-  // 3. Coach Greeting. The orb blooms and speaks. MP3 verbatim.
-  {
-    id: 'coach-greeting',
-    type: 'splash-intro',
-    props: {
-      coachLine:
-        "Hey. I'm your coach inside Guided Growth. Give me two minutes and we'll set up something that actually sticks.",
-    },
-    engine: 'MP3',
-    mode: 'Verbatim',
-  },
-  // 4. Sign Up. Silent form, the name is captured here.
-  { id: 'signup', type: 'auth-signup', engine: 'Silent', mode: null },
-  // 5. Mic Permission. MP3 verbatim opener.
-  {
-    id: 'mic',
-    type: 'mic-permission',
-    props: {
-      heading: 'Talk with your coach',
-      sub: 'Turn on your mic to talk out loud. You can always type instead.',
-      coachLine:
-        "I'd love to actually talk with you. If you let me use your mic, you can just speak. You can always type instead.",
-    },
-    engine: 'MP3',
-    mode: 'Verbatim',
-  },
-  // 6. Profile. Age + gender, greet by name. Cartesia, improvised (dynamic name).
+  // 1. Profile. Age + gender, greet by name. Cartesia VERBATIM: the opener is a
+  // scripted line, but it carries the {name} token so it is read live, not an MP3.
   {
     id: 'profile',
     type: 'profile-beat',
@@ -272,7 +254,7 @@ const BEATS: FlowBeat[] = [
       gender: 'Male',
     },
     engine: 'Cartesia',
-    mode: 'Improvise',
+    mode: 'Verbatim',
   },
   // 7. Why intro. MP3 verbatim.
   {
@@ -399,58 +381,27 @@ export function FlowDesigner() {
         <VoiceLegend />
       </div>
 
-      {/* Main layout: left tag column, then the phone */}
-      <div
-        style={{
-          maxWidth: 720,
-          margin: '0 auto',
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 20,
-        }}
-      >
-        {/* Voice tag column (outside the phone, LEFT) */}
-        <div
-          style={{
-            flex: '0 0 150px',
-            display: 'flex',
-            flexDirection: 'column',
-            // Align the first tag to roughly the first beat:
-            // status bar (~53px) + stream padding (24px) + a little.
-            paddingTop: 90,
-            gap: 0,
-            textAlign: 'right',
-          }}
-        >
-          {BEATS.map((b) => (
-            <BeatTagSlot key={b.id} engine={b.engine} mode={b.mode} />
-          ))}
-        </div>
-
-        {/* Phone frame */}
-        <div
-          style={{
-            flex: '0 0 420px',
-            maxWidth: 420,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            borderRadius: 32,
-            border: '1px solid #e2e8f0',
-            background: '#fff',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.10)',
-          }}
-        >
-          {/* Status bar */}
+      {/* Main layout. The phone is reconstructed as a stack of per-beat ROWS so
+          each tag and its beat share one flex row and stay aligned by
+          construction. Each row = [tag column | phone-interior beat column].
+          The phone chrome (rounded top + status bar, rounded bottom + input
+          bar) renders once above and below, offset by the tag column so it
+          lines up with the beat column. */}
+      <div style={{ width: TOTAL_W, maxWidth: '100%', margin: '0 auto' }}>
+        {/* Status bar (offset to sit above the phone column) */}
+        <div style={{ display: 'flex' }}>
+          <div style={{ flex: `0 0 ${TAG_COL_W}px` }} />
           <div
             style={{
-              position: 'sticky',
-              top: 0,
-              zIndex: 10,
+              flex: `0 0 ${PHONE_W}px`,
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              borderBottom: '1px solid #f1f5f9',
+              borderTop: '1px solid #e2e8f0',
+              borderLeft: '1px solid #e2e8f0',
+              borderRight: '1px solid #e2e8f0',
+              borderTopLeftRadius: 32,
+              borderTopRightRadius: 32,
               background: '#fff',
               padding: '16px 20px',
             }}
@@ -458,33 +409,56 @@ export function FlowDesigner() {
             <Icon icon="ic:round-auto-awesome" style={{ width: 20, height: 20, color: '#6366f1' }} />
             <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Coach</span>
           </div>
+        </div>
 
-          {/* Beat stream, continuous. Each beat is the real component. */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 24,
-              padding: '24px 20px',
-              background: '#f9f9f9',
-            }}
-          >
-            {BEATS.map((b) => (
-              <div key={b.id} data-beat-id={b.id}>
-                <IsolatedBeat type={b.type} props={b.props} />
-              </div>
-            ))}
+        {/* Per-beat rows. tag (left) and beat (right) are top-aligned in one row. */}
+        {BEATS.map((b) => (
+          <div key={b.id} data-beat-id={b.id} style={{ display: 'flex', alignItems: 'flex-start' }}>
+            {/* Tag column: fixed width, right-aligned so the tag sits flush to
+                the phone's left edge, top-aligned to the beat's opener. */}
+            <div
+              style={{
+                flex: `0 0 ${TAG_COL_W}px`,
+                display: 'flex',
+                justifyContent: 'flex-end',
+                paddingRight: TAG_GAP,
+                // The beat column has 24px top padding before the opener bubble.
+                // Match it so the tag's top lines up with the bubble's top.
+                paddingTop: 24,
+              }}
+            >
+              <VoiceTag engine={b.engine} mode={b.mode} />
+            </div>
+            {/* Beat column: the phone interior, side borders + bg per row so the
+                rows read as one continuous phone. */}
+            <div
+              style={{
+                flex: `0 0 ${PHONE_W}px`,
+                borderLeft: '1px solid #e2e8f0',
+                borderRight: '1px solid #e2e8f0',
+                background: '#f9f9f9',
+                padding: '24px 20px',
+              }}
+            >
+              <IsolatedBeat type={b.type} props={b.props} />
+            </div>
           </div>
+        ))}
 
-          {/* Bottom input bar */}
+        {/* Bottom input bar (offset to sit below the phone column) */}
+        <div style={{ display: 'flex' }}>
+          <div style={{ flex: `0 0 ${TAG_COL_W}px` }} />
           <div
             style={{
-              position: 'sticky',
-              bottom: 0,
+              flex: `0 0 ${PHONE_W}px`,
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              borderTop: '1px solid #f1f5f9',
+              borderBottom: '1px solid #e2e8f0',
+              borderLeft: '1px solid #e2e8f0',
+              borderRight: '1px solid #e2e8f0',
+              borderBottomLeftRadius: 32,
+              borderBottomRightRadius: 32,
               background: '#fff',
               padding: '12px 16px',
             }}
@@ -518,26 +492,6 @@ export function FlowDesigner() {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-// One tag row beside its beat. FlowDesigner is a continuous scroll, not a
-// per-screen layout, so tags are approximately aligned to their beats. The
-// tag is right-aligned in its column so it sits flush against the phone's left
-// edge, next to the left-aligned coach bubble.
-function BeatTagSlot({ engine, mode }: { engine: VoiceEngine; mode: VoiceMode }): ReactNode {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'flex-end',
-        alignItems: 'flex-start',
-        paddingTop: 30,
-        minHeight: 80,
-      }}
-    >
-      <VoiceTag engine={engine} mode={mode} />
     </div>
   );
 }
