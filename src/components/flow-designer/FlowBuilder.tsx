@@ -1273,7 +1273,7 @@ function PaletteCard({
         <Icon icon="ic:round-drag-indicator" className="size-3.5" />
         {item.label}
       </div>
-      <div className="pointer-events-none overflow-hidden [transform:translateZ(0)]">
+      <div className="pointer-events-none gg-light overflow-hidden [transform:translateZ(0)]">
         {createElement(item.Comp)}
       </div>
       <SendButtons onSend={(where) => onSend(item.type, where)} />
@@ -1453,7 +1453,7 @@ function PhoneScreenFrame({
 }) {
   return (
     <div
-      className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
+      className="gg-light relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
       style={{ width: PHONE_DISPLAY_W, height: PHONE_DISPLAY_H }}
     >
       <div
@@ -2136,8 +2136,8 @@ function SortableCard({
                   onClick={() => onUpdate({ background: b.id })}
                   className={`flex h-7 flex-1 items-center justify-center rounded-md border text-[9px] font-bold ${
                     active
-                      ? 'border-primary text-content ring-1 ring-primary'
-                      : 'border-border text-content-tertiary'
+                      ? 'border-primary text-slate-800 ring-1 ring-primary'
+                      : 'border-black/10 text-slate-500'
                   }`}
                   style={{ background: b.color }}
                 >
@@ -2644,7 +2644,7 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
     <FlowStateCtx.Provider value={flowState}>
     <div className="flex flex-col items-center gap-3">
       <div
-        className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
+        className="gg-light relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
         style={{ width: PHONE_DISPLAY_W, height: PHONE_DISPLAY_H }}
       >
         <div

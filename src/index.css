@@ -54,6 +54,33 @@
   --shadow-elevated: 0 10px 25px rgba(0, 0, 0, 0.5);
 }
 
+/* Light island. The flow-designer phone artboards and palette previews render
+   real app components, which are token-based. In builder dark mode the .dark
+   token flip would drag those previews into a half-dark, broken state. Wrapping
+   each preview in .gg-light re-declares the light token values, so the app
+   screens always render in their true light theme (light artboards on a dark
+   workbench, the Figma model) no matter the chrome theme. Mirrors exactly the
+   keys that .dark overrides above. */
+.gg-light {
+  --color-primary-bg: 232 237 245;
+  --color-surface: 255 255 255;
+  --color-surface-secondary: 245 247 250;
+  --color-text: 15 23 42;
+  --color-text-secondary: 100 116 139;
+  --color-text-tertiary: 148 163 184;
+  --color-text-muted: 107 114 128;
+  --color-text-subtle: 51 65 85;
+  --color-border: 226 232 240;
+  --color-border-light: 241 245 249;
+  --color-page-bg: 249 249 249;
+  --color-canvas: #e8ecf1;
+  --color-heading: 40 40 40;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-elevated: 0 10px 25px rgba(0, 0, 0, 0.12);
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -150,6 +177,100 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: rgb(var(--color-border)) transparent;
+}
+
+/* Streak flame animation. The grid never triggers the celebration keyframes
+   (opt-in via burstNonce), so many flames in the week grid stay calm. */
+@keyframes flame-flicker {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.13) rotate(-4deg);
+    opacity: 0.88;
+  }
+}
+@keyframes streak-burst {
+  0% {
+    transform: scale(0.4) rotate(0deg);
+  }
+  40% {
+    transform: scale(1.8) rotate(-9deg);
+  }
+  65% {
+    transform: scale(0.92) rotate(6deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+@keyframes streak-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.25);
+  }
+}
+@keyframes streak-ember {
+  0% {
+    transform: translate(-50%, 0) scale(1);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--ex, 0px)), -28px) scale(0.2);
+    opacity: 0;
+  }
+}
+@keyframes streak-spark {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(0.2);
+    opacity: 0;
+  }
+}
+@keyframes streak-plus-float {
+  0% {
+    transform: translateX(-50%) scale(0.6);
+    opacity: 0;
+  }
+  25% {
+    transform: translateX(-50%) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -30px) scale(1);
+    opacity: 0;
+  }
+}
+@keyframes streak-count-bump {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  45% {
+    transform: translateY(-11px);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(9px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 @layer utilities {
