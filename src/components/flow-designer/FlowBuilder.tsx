@@ -833,7 +833,8 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
     props: {
       userName: '{name}',
       stage: 'chat',
-      coachLine: 'And anytime at all, open the chat. We can talk about anything.',
+      coachLine:
+        "Great job getting here, {name}. This might be the longest you'll ever be in the app, but it was worth it to set up your foundation. The key now is consistency. It doesn't have to be long, just do it twice a day, and we'll do our best to help you improve and stay consistent. I'm right here anytime, just open the chat.",
     },
   },
 ];

@@ -75,7 +75,7 @@ const STAGE_LINE: Record<TourStage, string> = {
   reflections: 'Everything you reflect on collects here, so you can look back anytime.',
   feedback:
     "You're one of our 50 founding users, so your feedback is one of the most meaningful things you can do for us. It shapes where this whole product goes. There's a button here for it, and you can also just tell me, anytime you've got something.",
-  chat: 'And anytime at all, open the chat. We can talk about anything.',
+  chat: "Great job getting here. This might be the longest you'll ever be in the app, but it was worth it to set up your foundation. The key now is consistency. It doesn't have to be long, just do it twice a day, and we'll do our best to help you improve and stay consistent. I'm right here anytime, just open the chat.",
 };
 
 // Fallback plan shown on the canvas / when no upstream selection exists.
