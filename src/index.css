@@ -214,3 +214,107 @@ body {
     opacity: 0.88;
   }
 }
+
+/* Streak flame celebration (the "just marked" moment). Used by FlameMark when it
+   bursts and by StreakFlame for the +1 float / count bump. From Yair's reference
+   streak-flame-animation.html. The grid never triggers these (opt-in), so many
+   flames stay calm; a single home-row flame celebrates on tap. */
+@keyframes streak-burst {
+  0% {
+    transform: scale(0.4) rotate(0deg);
+  }
+  40% {
+    transform: scale(1.8) rotate(-9deg);
+  }
+  65% {
+    transform: scale(0.92) rotate(6deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+@keyframes streak-core-flicker {
+  0%,
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 0.95;
+  }
+  30% {
+    transform: scale(0.86, 1.1) translateY(-1px);
+    opacity: 1;
+  }
+  55% {
+    transform: scale(1.05, 0.92) translateY(0);
+    opacity: 0.85;
+  }
+  80% {
+    transform: scale(0.9, 1.06) translateY(-1px);
+    opacity: 1;
+  }
+}
+@keyframes streak-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.25);
+  }
+}
+@keyframes streak-ember {
+  0% {
+    transform: translate(-50%, 0) scale(1);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--ex, 0px)), -28px) scale(0.2);
+    opacity: 0;
+  }
+}
+@keyframes streak-spark {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(0.2);
+    opacity: 0;
+  }
+}
+@keyframes streak-plus-float {
+  0% {
+    transform: translateX(-50%) scale(0.6);
+    opacity: 0;
+  }
+  25% {
+    transform: translateX(-50%) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -30px) scale(1);
+    opacity: 0;
+  }
+}
+@keyframes streak-count-bump {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  45% {
+    transform: translateY(-11px);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(9px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

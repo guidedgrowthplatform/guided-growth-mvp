@@ -137,6 +137,13 @@ const WeeklyStoryDemo = lazyWithRetry(() =>
     default: m.WeeklyStoryDemo,
   })),
 );
+// /flame-showcase = standalone playground for the streak flame: every size, both
+// states, and interactive rows that fire the celebration on tap.
+const FlameShowcase = lazyWithRetry(() =>
+  import('@/components/habit-detail/FlameShowcase').then((m) => ({
+    default: m.FlameShowcase,
+  })),
+);
 
 function PageLoader() {
   return (
@@ -240,6 +247,9 @@ export function AppRoutes() {
 
         {/* Full scripted onboarding walkthrough into the projection beat */}
         <Route path="/weekly-projection-story" element={<WeeklyStoryDemo />} />
+
+        {/* Streak flame playground (every size, both states, live celebration) */}
+        <Route path="/flame-showcase" element={<FlameShowcase />} />
 
         {/* QA control launcher (QA/dev builds only): pick a test user, log in / reset / re-onboard */}
         {QA_SCREEN_ENABLED && (
