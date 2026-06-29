@@ -5,12 +5,14 @@
  * Built here; injected at the home morning-card entry point (Milestone 2).
  */
 import { useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import { useMemo } from 'react';
 import { recordCheckinTool } from '@/api/checkinTool';
 import { useToast } from '@/contexts/ToastContext';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { queryKeys } from '@/lib/query/keys';
 import { Sentry } from '@/lib/sentry';
+import type { CheckInRecord } from '@/lib/services/data-service.interface';
 import type { CheckInData, OnboardingStepData } from '@gg/shared/types';
 import type { FlowPersistence } from './persistence';
 
@@ -37,7 +39,15 @@ export function useCheckinFlowPersistence(
         const args = (data as { checkin?: Partial<CheckInData> }).checkin ?? {};
         // Optimistic: the beat already advanced; fire-and-forget the write.
         recordCheckinTool(args)
-          .then(() => {
+          .then((res) => {
+            // Flip Home before the refetch; invalidate converges the full row.
+            const today = format(new Date(), 'yyyy-MM-dd');
+            qc.setQueryData<CheckInRecord | null>(queryKeys.checkins.byDate(today), (old) => ({
+              id: old?.id ?? '',
+              date: old?.date ?? res.result.date,
+              createdAt: old?.createdAt ?? '',
+              ...res.result.checkin,
+            }));
             qc.invalidateQueries({ queryKey: queryKeys.checkins.all });
             logEvent('checkin_completed', {
               type,

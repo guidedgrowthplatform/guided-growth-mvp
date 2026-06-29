@@ -10,10 +10,16 @@
  * its own state, voice capture, and save path. This view only changes how the
  * beat is presented (reveal timing + karaoke + the user-reply bubble per beat).
  */
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 import { applyName } from './applyName';
-import { BeatPlayer, LiveUserBubble, PastBeatBubbles, type BeatStep } from './BeatPlayer';
+import {
+  BeatPlayer,
+  LiveUserBubble,
+  PastBeatBubbles,
+  USER_BUBBLE_CLASS,
+  type BeatStep,
+} from './BeatPlayer';
 import { getAdapter, summarizeBeat } from './componentRegistry';
 
 export interface BeatViewProps {
@@ -23,9 +29,18 @@ export interface BeatViewProps {
   onCapture: (capture: BeatCapture) => void;
   /** Called whenever a step reveals, so the feed can keep the latest in view. */
   onReveal?: () => void;
+  /** Check-in only: self-drive coach TTS per beat. */
+  speakBeats?: boolean;
 }
 
-export function BeatView({ node, answers, active, onCapture, onReveal }: BeatViewProps) {
+export function BeatView({
+  node,
+  answers,
+  active,
+  onCapture,
+  onReveal,
+  speakBeats,
+}: BeatViewProps) {
   // getAdapter returns a module-stable component reference per componentType, so
   // identity only changes when the beat (and thus the card) changes — which is
   // exactly when a state reset is correct. Safe despite the static-components rule.
@@ -35,6 +50,17 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
 
   const handleReveal = useCallback(() => onReveal?.(), [onReveal]);
 
+  // Tap echo: voice turns use LiveUserBubble instead.
+  const [tapped, setTapped] = useState<BeatCapture | null>(null);
+  const handleCapture = useCallback(
+    (capture: BeatCapture) => {
+      setTapped(capture);
+      onCapture(capture);
+    },
+    [onCapture],
+  );
+  const tapSummary = tapped ? summarizeBeat(node, { ...answers, ...tapped.data }) : null;
+
   // Active beat: coach line karaokes, then the live card reveals beneath it, and
   // the user's spoken words land live as a blue bubble below (voice turns only).
   if (active && Adapter) {
@@ -43,11 +69,12 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
     steps.push({
       id: `${node.id}-card`,
       kind: 'card',
-      body: <Adapter node={node} answers={answers} onCapture={onCapture} />,
+      body: <Adapter node={node} answers={answers} onCapture={handleCapture} />,
     });
     return (
       <div className="flex flex-col gap-3">
-        <BeatPlayer steps={steps} onReveal={handleReveal} />
+        <BeatPlayer steps={steps} onReveal={handleReveal} speakBeats={speakBeats} />
+        {tapSummary && <div className={`animate-fade-in ${USER_BUBBLE_CLASS}`}>{tapSummary}</div>}
         {/* key per beat so a stale partial never carries across beats. */}
         <LiveUserBubble key={node.id} onText={handleReveal} />
       </div>

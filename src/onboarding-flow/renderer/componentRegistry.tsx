@@ -1165,7 +1165,7 @@ function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
   });
 
   const anyFilled = Object.keys(values).length > 0;
-  const submit = () => onCapture({ data: { checkin: values } as Record<string, unknown> });
+  const submit = () => onCapture({ data: { checkin: values } });
 
   return (
     <CardShell>
@@ -1365,11 +1365,16 @@ export function summarizeBeat(node: FlowNode, answers: FlowAnswers): string | nu
       // Terminal beat; no captured answer to echo back.
       return null;
     case 'state-check': {
-      const checkin = (answers as Record<string, unknown>).checkin as
-        | Record<string, number>
-        | undefined;
-      const filled = checkin ? Object.keys(checkin).length : 0;
-      return filled > 0 ? 'Checked in.' : null;
+      const checkin = answers.checkin;
+      if (!checkin) return null;
+      const parts = checkInDimensions
+        .map((d) => {
+          const v = checkin[d.key];
+          const opt = typeof v === 'number' ? d.options.find((o) => o.value === v) : undefined;
+          return opt ? `${d.label}: ${opt.label}` : null;
+        })
+        .filter(Boolean);
+      return parts.length > 0 ? parts.join(' · ') : null;
     }
     case 'habit-review': {
       const statuses = (answers as Record<string, unknown>).habitStatuses as

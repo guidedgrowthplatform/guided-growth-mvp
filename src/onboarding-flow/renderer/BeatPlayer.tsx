@@ -18,6 +18,12 @@ import {
   type OnboardingTranscriptListener,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
+import {
+  beginSpeechTurn,
+  endSpeechTurn,
+  pushSpeechChunk,
+  stopTTS,
+} from '@/lib/services/tts-service';
 import { useCoachSpeechReveal } from './useCoachSpeechReveal';
 
 // One part of a beat the player reveals in turn.
@@ -164,7 +170,15 @@ export function Karaoke({
  * speech window over Vapi). When no voice signal is present (text-only / Path 3 /
  * voice not engaged) it degrades to the original fixed cadence + dwell.
  */
-export function BeatPlayer({ steps, onReveal }: { steps: BeatStep[]; onReveal?: () => void }) {
+export function BeatPlayer({
+  steps,
+  onReveal,
+  speakBeats = false,
+}: {
+  steps: BeatStep[];
+  onReveal?: () => void;
+  speakBeats?: boolean;
+}) {
   const sig = steps.map((s) => `${s.kind}:${s.say ?? ''}`).join('|');
   const [revealed, setRevealed] = useState(1);
 
@@ -208,6 +222,18 @@ export function BeatPlayer({ steps, onReveal }: { steps: BeatStep[]; onReveal?: 
   useEffect(() => {
     onReveal?.();
   }, [revealed, onReveal]);
+
+  useEffect(() => {
+    if (!speakBeats || !curIsCoach) return;
+    const say = cur?.say ?? '';
+    const sentences = say.match(/[^.!?]+[.!?]*\s*/g) ?? [say];
+    beginSpeechTurn();
+    for (const s of sentences) pushSpeechChunk(s);
+    void endSpeechTurn();
+    return () => stopTTS();
+    // step id + revealed, not say text, so identical lines re-fire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [speakBeats, curIsCoach, cur?.id, revealed]);
 
   return (
     <div className="flex flex-col gap-4">

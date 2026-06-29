@@ -21,7 +21,7 @@ import { useReminderCheckinDeepLink } from '@/hooks/useReminderCheckinDeepLink';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { PERMISSIONS_SEEN_KEY } from '@/lib/permissions';
-import { speak } from '@/lib/services/tts-service';
+import { speak, unlockTTS } from '@/lib/services/tts-service';
 import { currentCheckinType } from '@/utils/dates';
 import type { EntriesMap } from '@gg/shared/types';
 
@@ -161,6 +161,7 @@ export function HomePage() {
         <QuickActionCards
           morningDone={morningDone}
           onCheckInPress={() => {
+            unlockTTS(); // gesture-bound; required for iOS audio
             track('start_checkin', { checkin_type: 'morning', trigger: 'home_card' });
             setShowMorningFlow(true);
           }}
