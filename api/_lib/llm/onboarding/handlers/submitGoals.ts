@@ -51,11 +51,13 @@ export async function submitGoals(
   if (goals === undefined) return invalid('goals must be an array of strings');
   if (goals.length === 0) return invalid('goals must have at least one entry');
 
-  const catRes = await pool.query<{ category: string | null }>(
-    `SELECT data->>'category' AS category FROM onboarding_states WHERE anon_id = $1`,
+  const catRes = await pool.query<{ category: string | null; goals: string[] | null }>(
+    `SELECT data->>'category' AS category, data->'goals' AS goals
+     FROM onboarding_states WHERE anon_id = $1`,
     [ctx.anon_id],
   );
   const category = catRes.rows[0]?.category ?? null;
+  const storedGoals = catRes.rows[0]?.goals ?? null;
 
   let validated: string[];
   const dropped: string[] = [];
@@ -80,6 +82,17 @@ export async function submitGoals(
 
   const finalGoals = validated.slice(0, MAX_GOALS);
   if (validated.length > MAX_GOALS) dropped.push(...validated.slice(MAX_GOALS));
+
+  // Idempotent single-fire: a re-fired call with the same goals (the Direct-LLM
+  // path has no per-call dedup ledger) skips the redundant write + Realtime event.
+  if (
+    Array.isArray(storedGoals) &&
+    storedGoals.length === finalGoals.length &&
+    storedGoals.every((g, i) => g === finalGoals[i])
+  ) {
+    return ok({ goals: finalGoals, ...(dropped.length > 0 ? { dropped } : {}) });
+  }
+
   const payload = JSON.stringify({ goals: finalGoals });
 
   const result = await pool.query<{ data: Record<string, unknown>; current_step: number }>(

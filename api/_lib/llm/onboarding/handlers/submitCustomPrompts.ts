@@ -20,6 +20,24 @@ export async function submitCustomPrompts(
   if (customPrompts.length === 0)
     return invalid('prompts must contain at least one non-empty string');
 
+  // Idempotent single-fire: a re-fired tool call with the same prompts (the
+  // Direct-LLM path has no per-call dedup ledger) skips the redundant write +
+  // Realtime event instead of overwriting with an identical value.
+  const cur = await pool.query<{ prompts: string[] | null; mode: string | null }>(
+    `SELECT data->'customPrompts' AS prompts, data->>'reflectionMode' AS mode
+     FROM onboarding_states WHERE anon_id = $1`,
+    [ctx.anon_id],
+  );
+  const stored = cur.rows[0];
+  if (
+    stored?.mode === 'prompts' &&
+    Array.isArray(stored.prompts) &&
+    stored.prompts.length === customPrompts.length &&
+    stored.prompts.every((p, i) => p === customPrompts[i])
+  ) {
+    return ok({ customPrompts });
+  }
+
   // Object payload so top-level `||` REPLACES the customPrompts key (never the bare array).
   // Defining prompts implies prompts mode.
   const payload = JSON.stringify({ customPrompts, reflectionMode: 'prompts' });

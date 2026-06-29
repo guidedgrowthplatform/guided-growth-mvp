@@ -21,7 +21,17 @@ Working the post-demo fix list. Beat order/content untouched (waiting on Yair's 
 - **Fix:** `BeatPlayer.tsx` — on the **active** beat, render the card as soon as the beat is live (`active || openerPresent`); the opener still karaokes above it when it arrives. Past beats unchanged (still require the opener so the frozen receipt sits under it).
 - **Note for the flow rework:** this rendering area will be touched by the new beat order; the fix is presentation-only and beat-agnostic.
 
-### What's next
+### #4 — Duplicate tool calls / "data deleted" — DIAGNOSED + cheap rails
 
-- **#4 duplicate tool calls** (profile submitted several times, "delete-data") — in progress. Backend dedup (`migration 053_vapi_tool_dedup`) is keyed on Vapi `tool_call_id` (robust per call-id), and there is **no `delete_data` tool** in `dispatch.ts` — so duplicates are most likely _prompt-driven repeats_ (same logical action, different call-ids) and the "delete" is probably `remove_habit` or a QA reset path. Needs a live Vapi call-log trace (`/call?assistantId=…` with `VAPI_PRIVATE_KEY`, read tool calls) to pin client-refire vs prompt-repeat before changing anything.
+- **Not reproduced on the Vapi (demo) path.** Pulled live prod call logs (`/call?assistantId=…` with `VAPI_PRIVATE_KEY`): the two full onboarding runs fire **one tool call per action** (`submit_profile → nav → path → nav → category → nav → goals → nav → add_habit×2 → nav → update_habit×2 → nav`) — **~11 calls is the NORMAL count** (6 data tools + 5 `navigate_next`), not excess. Vapi dedups per `tool_call_id` (PK, migration 053).
+- **No delete tool exists.** Zero delete/reset/clear tools exposed to the LLM (`tools.onboarding.ts`). The only data-wipe paths are `api/qa-reset.ts` / `api/qa/self-reset.ts`, gated to `qa-onboarding-*@guidedgrowth.test` emails and only firable from `/onboarding/qa`. So "data deleted" was a **QA reset press, an older build, or a replace-style re-fire**, not a coach-invoked delete.
+- **All handlers merge at the top level** (replace only their own key, preserve the rest) and **reject empty** — `submit_profile`/`category`/`reflection`/`morning` use `data || {…}`; `add_habit` keys per habit id; `remove_habit` is idempotent; `submit_goals`/`submit_custom_prompts` replace only their own key. **No blanket `data` overwrite → no data-wipe is possible.**
+- **Real latent gap (NOT the demo path):** the Direct-LLM (Path 3) tool path has **no server-side dedup ledger** like Vapi's (`/api/llm` only dedups when `persistChat && userTurnId`). Full hardening (a ledger + unconditional dedup) was deferred — bigger change.
+- **`advanceStep` GREATEST was rejected:** it bare-sets `current_step` _by design_ (`advanceStep.ts:9`) so back-nav-then-forward re-fires `useAgentNavigation`; a GREATEST guard would break back-navigation. It's already guarded against the harmful case (`cannot_skip_steps` + `checkAdvanceData`).
+- **Cheap rails shipped:** idempotent single-fire no-op on the two Direct-LLM replace handlers (`submitGoals.ts`, `submitCustomPrompts.ts`) — a re-fired call with the same value skips the redundant write + Realtime event (the unprotected path). Handlers were already safe against data loss; this trims churn.
+
+### What's next / blocked
+
 - Blocked: #2 beat-context modifiers (need Yair's proposal doc — not in repo), new beat order (Flow Builder review first).
+- Optional follow-up (deferred, Yonas's call): full Path-3 idempotency ledger to match Vapi.
+- Live mic-pass still owed for #3 (cold opener word-by-word) and #5 (category card renders on a fast navigate) — voice can't be unit-tested.
