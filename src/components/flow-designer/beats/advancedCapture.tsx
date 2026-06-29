@@ -6,11 +6,15 @@ import { useFlowState } from '../flowStateCtx';
 const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 const BLUE = 'rgb(19, 91, 235)';
 
-// The advanced (exp) side of the fork: the user reads the habits they already
-// track and the coach captures them line by line, filing each under its real
-// category as it goes. This previews that live scan: sample lines are captured
-// one at a time and organized by category. Each captured line maps to one of the
-// real onboarding categories.
+// The advanced path of the fork: the user reads the habits they already track
+// and the coach captures them line by line, filing each under its real category
+// as it goes. This previews the live scan: sample lines are captured one at a
+// time and organized by category. Each captured line maps to one of the real
+// onboarding categories.
+//
+// Framing (locked 2026-06-29): encourage less is more at the start. They can
+// always build on it later. The check-ins are already habits, so two or three
+// more is plenty. The coach does NOT say tap/scroll/click/press/swipe.
 const SAMPLE: { line: string; category: string }[] = [
   { line: '10-minute walk after lunch', category: 'Move more' },
   { line: 'No screens after 10 PM', category: 'Sleep better' },
@@ -166,13 +170,32 @@ function LiveScan() {
 function AdvancedCaptureBeat(props?: Record<string, string>) {
   const steps: BeatStep[] = [
     {
+      // Opener: invite them to read their habits aloud. The framing here is
+      // "less is more, start small." Real copy comes from beatContexts.ts;
+      // this string is a placeholder that matches the spec direction.
       id: 'ask',
       speaker: 'coach',
       say:
         props?.coachLine ??
-        "Perfect. Read me the habits you already track and I'll organize them as you go.",
+        'Read me the habits you already track. Less is more to start. You can always add more later.',
     },
-    { id: 'scan', speaker: 'coach', render: <LiveScan /> },
+    {
+      // Live capture: coach stays active (mic open) while the user speaks.
+      // Lines land one by one, organized by category in real time.
+      id: 'scan',
+      speaker: 'coach',
+      render: <LiveScan />,
+    },
+    {
+      // Closing nudge: once all lines are in, reinforce the small-start framing
+      // so they do not feel pressure to load up everything now.
+      // Real copy comes from beatContexts.ts; placeholder matches spec direction.
+      id: 'close',
+      speaker: 'coach',
+      say:
+        props?.closeCoachLine ??
+        "Good. That's a solid place to start. You can grow it from here.",
+    },
   ];
 
   return <BeatPlayer steps={steps} />;

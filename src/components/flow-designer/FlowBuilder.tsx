@@ -69,7 +69,7 @@ import {
 import { COACH_BG, USER_BG } from '@/components/welcome/beatMood';
 
 /**
- * FlowBuilder — two buckets. Left: every real component. Right: the flow.
+ * FlowBuilder, two buckets. Left: every real component. Right: the flow.
  * Drag a component across (a drop-line shows where it lands) or click the
  * top / middle / bottom buttons to insert without dragging. Reorder by
  * dragging inside the flow. Layout persists to localStorage.
@@ -419,6 +419,7 @@ const TEXT_FIELDS: Record<string, FieldDef[]> = {
 const COACH_LINE_PROP: Record<string, string> = {
   'coach-bubble': 'text',
   'profile-beat': 'greeting',
+  'why-intro': 'coachLine',
   'path-selection': 'coachLine',
   'category-grid': 'coachLine',
   'goals-list': 'coachLine',
@@ -540,7 +541,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
   { type: 'splash', beat: '1', background: 'coach' },
   { type: 'get-started', beat: '2', background: 'coach' },
   { type: 'splash-intro', beat: '3', background: 'coach' },
-  { type: 'auth-signup', beat: '4', background: 'user' },
+  { type: 'auth-signup', beat: '4', background: 'coach' },
   {
     type: 'mic-permission',
     beat: '5',
@@ -551,12 +552,14 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     },
   },
   {
+    // Profile: age + gender only. No name field. Name was captured at sign-up;
+    // the coach greets the user by name here (spoken via Cartesia).
     type: 'profile-beat',
     beat: '6',
     background: 'coach',
     sheetStage: 'ONBOARD-01--FORM: Profile Setup',
     props: {
-      greeting: 'Awesome {name}, two quick things so I can tailor this to you.',
+      greeting: 'Good to meet you, {name}. A couple of quick things.',
       askAge: 'How old are you?',
       askGender: "And what's your gender?",
       userReply: "I'm 28, and I'm male.",
@@ -565,94 +568,124 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     },
   },
   {
-    type: 'path-selection',
+    // Why intro: onboarding-only beat, shown once. Frames why we check in:
+    // this is your first habit, checking in is simple and good. Does NOT explain
+    // check-in mechanics; kept separate so it does not confuse with the actual check-in.
+    type: 'why-intro',
     beat: '7',
-    background: 'user',
+    background: 'coach',
+    sheetStage: 'ONBOARD-WHY-INTRO: Why We Check In',
+    props: {
+      coachLine:
+        "Let's start you with a habit right now. Checking in with yourself is simple, and it's good. It's your first one.",
+    },
+  },
+  {
+    // 8a: The user DOES their first check-in right now (the state card).
+    // The point is NOT "because it is morning", we start them with a habit NOW.
+    type: 'state-check',
+    beat: '8a',
+    background: 'coach',
+    sheetStage: 'ONBOARD-STATE-CHECK: First State Check',
+    props: { coachLine: 'How are you landing right now?' },
+  },
+  {
+    // 8b: Set the daily check-in time. Reminder ON by default.
+    type: 'morning-checkin-setup',
+    beat: '8b',
+    background: 'coach',
+    sheetStage: 'ONBOARD-MORNING-SETUP: Morning Check-in Time',
+    props: { coachLine: "Nice. When do you want this each day? I'll nudge you then." },
+  },
+  {
+    // 9: Evening reflection, configured only, NOT performed during onboarding.
+    // Three styles: suggested template / your template / freeform. Reminder ON.
+    type: 'reflection-card',
+    beat: '9',
+    background: 'coach',
+    sheetStage: 'ONBOARD-BEGINNER-07: Evening Reflection Setup',
+    props: { coachLine: 'And your evening reflection. How do you want to do it, and when?' },
+  },
+  {
+    // 10: Path fork, "tracked habits before?"
+    type: 'path-selection',
+    beat: '10',
+    background: 'coach',
     sheetStage: 'ONBOARD-FORK--FORM: Experience Fork',
     props: { coachLine: 'Have you tracked habits before, or is this new for you?' },
   },
+  // 11: Habits, beginner path (showOnPath:'new'): category -> subcategory -> habits -> schedule
   {
+    // Coach stays OPEN by voice here so users can talk it through if unsure.
     type: 'category-grid',
-    beat: '8',
-    background: 'user',
+    beat: '11a',
+    background: 'coach',
     showOnPath: 'new',
     sheetStage: 'ONBOARD-BEGINNER-01: Category Selection',
-    props: { coachLine: 'What part of your life do you most want to grow right now?' },
+    props: { coachLine: "What do you want to grow? Not sure? Talk it through with me." },
   },
   {
+    // goals-list is the subcategory beat. "Which feels true" is dropped; the
+    // language is "subcategory". Pick 1-2 subcategories per category.
     type: 'goals-list',
-    beat: '9',
-    background: 'user',
+    beat: '11b',
+    background: 'coach',
     showOnPath: 'new',
     sheetStage: 'ONBOARD-BEGINNER-02: Subcategory Selection',
-    props: { coachLine: 'Which of these feels most true for you?' },
+    props: { coachLine: 'Within that, what matters most to you? Pick one or two.' },
   },
   {
+    // Less is more: one or two habits. The check-in is already a habit.
     type: 'habit-picker',
-    beat: '10',
-    background: 'user',
+    beat: '11c',
+    background: 'coach',
     showOnPath: 'new',
     sheetStage: 'ONBOARD-BEGINNER-03: Habit Selection',
-    props: { coachLine: "Here are a few habits that fit. Pick the ones you'll actually do." },
+    props: { coachLine: 'Pick one or two to start. One is plenty, the check-in is already a habit.' },
   },
   {
     type: 'habit-schedule',
-    beat: '11',
-    background: 'user',
+    beat: '11d',
+    background: 'coach',
     showOnPath: 'new',
     sheetStage: 'ONBOARD-BEGINNER-04: Habit Schedule',
-    props: { coachLine: 'When will you do these? Set a time and how often.' },
+    props: { coachLine: 'How often and roughly when for each one?' },
   },
+  // 11: Habits, advanced path (showOnPath:'exp'): capture -> schedule
   {
+    // Advanced users read their habits aloud; cards form live. Less is more here too.
     type: 'advanced-capture',
-    beat: '8',
-    background: 'user',
+    beat: '11e',
+    background: 'coach',
     showOnPath: 'exp',
     sheetStage: 'ONBOARD-ADVANCED: Brain Dump',
-    props: { coachLine: "Perfect. Read me the habits you already track and I'll get them organized." },
+    props: {
+      coachLine:
+        "Read me the habits you already track. Less is more to start, you can always build on it.",
+    },
   },
   {
     // Advanced users schedule their captured habits with the same card the
-    // beginner path uses, so both paths share one component. Reads the captured
-    // habits from shared flow state.
+    // beginner path uses, so both paths share one component.
     type: 'habit-schedule',
-    beat: '8b',
-    background: 'user',
+    beat: '11f',
+    background: 'coach',
     showOnPath: 'exp',
     sheetStage: 'ONBOARD-ADVANCED-SCHEDULE: Schedule Captured Habits',
     props: { coachLine: 'Now, how often and roughly when for each one?' },
   },
-  // Both paths converge from here.
+  // 12: The ONE full-plan confirm. Morning + evening times (both already set, shown as defaults)
+  // + all habits. Approve -> home tour. plan-cards is dropped; into-app is the single
+  // convergence point for both beginner and advanced paths.
   {
-    type: 'plan-cards',
+    type: 'into-app',
     beat: '12',
     background: 'coach',
-    sheetStage: 'ONBOARD-BEGINNER-06: Confirm Habits',
-    props: { coachLine: 'Here are your habits. Do these look right, or want to change anything?' },
-  },
-  {
-    type: 'morning-checkin-setup',
-    beat: '13',
-    background: 'user',
-    sheetStage: 'ONBOARD-MORNING-SETUP: Morning Check-in',
-    props: { coachLine: "When do you want your morning check-in? I'll nudge you then." },
-  },
-  {
-    type: 'reflection-card',
-    beat: '14',
-    background: 'user',
-    sheetStage: 'ONBOARD-BEGINNER-07: Evening Reflection Setup',
-    props: { coachLine: 'Now your evening reflection. How do you want to do it, and when?' },
-  },
-  {
-    // The first real state check, done right here as the last onboarding step:
-    // they set up their morning check-in, now they do one, then they land in the app.
-    // Canonical copy is owned by the beat-context lane (see HANDOFF-state-checkin-mvp.md).
-    type: 'state-check',
-    beat: '14b',
-    background: 'user',
-    sheetStage: 'ONBOARD-STATE-CHECK: First State Check',
-    props: { coachLine: "Let's do your first one right now. How are you feeling in this exact moment?" },
+    sheetStage: 'ONBOARD-COMPLETE: Full Plan Confirm',
+    props: {
+      coachLine:
+        "Here's your plan, {name}. Morning check-in, evening reflection, and your habits. Approve and you're in.",
+    },
   },
 ];
 
@@ -674,7 +707,7 @@ const MORNING_CHECKIN_FLOW: DefaultBeat[] = [
   {
     type: 'state-check',
     beat: '2',
-    background: 'user',
+    background: 'coach',
     sheetStage: 'morning_state_prompt',
     props: {
       coachLine:
@@ -706,7 +739,7 @@ const EVENING_CHECKIN_FLOW: DefaultBeat[] = [
     sheetStage: 'evening_greeting_habits',
     props: { text: 'Hey, good evening. Here are your habits for today. How did the day go?' },
   },
-  { type: 'habit-review', beat: '2', background: 'user' },
+  { type: 'habit-review', beat: '2', background: 'coach' },
   {
     type: 'coach-bubble',
     beat: '3',
@@ -1041,7 +1074,7 @@ const hydrate = (stored: StoredBeat[]): Placed[] =>
     note: b.note,
     sheetStage: b.sheetStage,
     transition: b.transition,
-    background: b.background ?? (b.type === 'user-bubble' ? 'user' : 'coach'),
+    background: b.background ?? 'coach',
     variant: b.variant ?? 'shared',
     showOnPath: b.showOnPath,
     lanes: b.lanes?.map((l) => ({ id: newUid('lane'), label: l.label, items: hydrate(l.items) })),
@@ -1169,7 +1202,7 @@ const newUid = (type: string) => `${type}-${++UID}`;
 const freshBeat = (type: string): Placed => ({
   uid: newUid(type),
   type,
-  background: type === 'user-bubble' ? 'user' : 'coach',
+  background: 'coach',
 });
 
 function DropLine() {
@@ -2713,7 +2746,7 @@ function PlayView({
   return (
     <div
       className="flex min-h-screen flex-col items-center gap-4 p-6"
-      style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#e8ecf1' }}
+      style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: 'var(--color-canvas)' }}
     >
       <div className="flex w-[390px] max-w-full items-center justify-between">
         <div className="text-[14px] font-bold text-content">Onboarding preview</div>
@@ -2787,6 +2820,23 @@ export function FlowBuilder() {
   const [play, setPlay] = useState(false);
   // One global animation switch: pauses the looping canvas tiles AND the player.
   const [animationsOn, setAnimationsOn] = useState(true);
+  // Dark mode for the builder chrome (canvas, panels, controls) via the .dark
+  // token set. The phone tiles keep their own app backgrounds.
+  const [dark, setDark] = useState(() => {
+    try {
+      return localStorage.getItem('gg-flow-builder-theme') === 'dark';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+    try {
+      localStorage.setItem('gg-flow-builder-theme', dark ? 'dark' : 'light');
+    } catch {
+      /* ignore */
+    }
+  }, [dark]);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const paletteDrop = useDroppable({ id: 'palette-zone' });
   const removing = paletteDrop.isOver && !activeFromPalette && activeLabel !== null;
@@ -3101,6 +3151,15 @@ export function FlowBuilder() {
     >
       <button
         type="button"
+        onClick={() => setDark((d) => !d)}
+        title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+        aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+        className="fixed bottom-20 right-6 z-50 flex size-11 items-center justify-center rounded-full border border-border bg-surface text-content shadow-elevated"
+      >
+        <Icon icon={dark ? 'ic:round-light-mode' : 'ic:round-dark-mode'} className="size-5 text-primary" />
+      </button>
+      <button
+        type="button"
         onClick={() => setAnimationsOn((a) => !a)}
         title={animationsOn ? 'Pause all animations' : 'Play all animations'}
         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5 text-[13px] font-semibold text-content shadow-elevated"
@@ -3113,7 +3172,7 @@ export function FlowBuilder() {
       </button>
       <div
         className="flex min-h-screen gap-5 p-5"
-        style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#e8ecf1' }}
+        style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: 'var(--color-canvas)' }}
       >
         {/* Left bucket: every component, rendered. Also a drop target to remove. */}
         <div

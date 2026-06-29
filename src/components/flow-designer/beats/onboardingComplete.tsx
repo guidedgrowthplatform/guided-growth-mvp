@@ -6,143 +6,179 @@ import { useFlowState } from '../flowStateCtx';
 
 const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 const BLUE = 'rgb(19, 91, 235)';
+const INK = 'rgb(15, 23, 42)';
+const SUB = 'rgb(100, 116, 139)';
+const LINE = 'rgba(15, 23, 42, 0.07)';
 
-// One row in the plan recap card.
-function PlanRow({ icon, text }: { icon: string; text: string }) {
+// Sample habits shown on the canvas (no live flow state in static mode).
+const SAMPLE_HABITS = ['Morning walk', 'No screens after 10 PM'];
+
+// One row in the schedule summary (morning or evening check-in time).
+function ScheduleRow({
+  icon,
+  label,
+  time,
+}: {
+  icon: string;
+  label: string;
+  time: string;
+}) {
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
-        padding: '10px 0',
+        justifyContent: 'space-between',
+        gap: 8,
       }}
     >
-      <div
+      <span
         style={{
-          width: 34,
-          height: 34,
-          borderRadius: 10,
-          flexShrink: 0,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          background: 'rgba(19,91,235,0.10)',
+          gap: 6,
+          fontFamily: FONT,
+          fontSize: 13,
+          fontWeight: 700,
+          color: INK,
         }}
       >
-        <Icon icon={icon} width={18} height={18} style={{ color: BLUE }} />
-      </div>
+        <Icon icon={icon} width={14} height={14} style={{ color: BLUE, flexShrink: 0 }} />
+        {label}
+      </span>
       <span
         style={{
           fontFamily: FONT,
-          fontSize: 15,
+          fontSize: 13,
           fontWeight: 600,
-          color: 'rgb(15,23,42)',
-          lineHeight: 1.3,
+          color: SUB,
         }}
       >
-        {text}
+        {time}
       </span>
     </div>
   );
 }
 
-// Divider between rows.
-function RowDivider() {
+// One habit line under the divider. Keeps the full plan card compact.
+function HabitLine({ name }: { name: string }) {
   return (
     <div
       style={{
-        height: 1,
-        background: 'rgba(15,23,42,0.06)',
-        margin: '0 0',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '5px 0',
       }}
-    />
+    >
+      <Icon
+        icon="mdi:checkbox-marked-circle-outline"
+        width={15}
+        height={15}
+        style={{ color: BLUE, flexShrink: 0 }}
+      />
+      <span
+        style={{
+          fontFamily: FONT,
+          fontSize: 13,
+          fontWeight: 600,
+          color: INK,
+          lineHeight: 1.3,
+        }}
+      >
+        {name}
+      </span>
+    </div>
   );
 }
 
-function IntoAppBeat(props?: Record<string, string>) {
+function FullPlanBeat(props?: Record<string, string>) {
   const flow = useFlowState();
 
-  // Build plan rows from live flow state when in Play, or fall back to
-  // sample/placeholder values when on the static canvas (flow is null there).
-  const habitCount = flow?.habits?.length ?? 3;
-  const habitLabel =
-    habitCount === 1 ? '1 habit set' : `${habitCount} habit${habitCount === 0 ? 's' : 's'} set`;
-
-  // Prefer the real times the user set upstream (lifted to flow state by the
-  // morning / evening setup beats); fall back to the prop, then a placeholder
-  // so the static canvas tile still reads complete.
+  // Times: prefer real values lifted from the morning and evening beats,
+  // fall back to props (useful when a designer pins a custom preview),
+  // then default placeholders so the static canvas tile always reads complete.
   const morningTime = flow?.morningTime
     ? formatTime12(flow.morningTime)
     : (props?.morningTime ?? '8:00 AM');
+
   const eveningTime = flow?.eveningTime
     ? formatTime12(flow.eveningTime)
     : (props?.eveningTime ?? '9:30 PM');
 
-  const rows: Array<{ icon: string; text: string }> = [
-    { icon: 'mdi:format-list-checks', text: props?.habitRow ?? habitLabel },
-    { icon: 'mdi:weather-sunny', text: `Morning check-in at ${morningTime}` },
-    { icon: 'mdi:moon-waning-crescent', text: `Evening reflection at ${eveningTime}` },
-  ];
+  // Habits: real selections when in Play, sample when on the static canvas.
+  const habits: string[] =
+    flow && flow.habits.length > 0 ? flow.habits : SAMPLE_HABITS;
+
+  const planCard = (
+    <div
+      style={{
+        background: '#fff',
+        borderRadius: 16,
+        padding: '14px 16px',
+        boxShadow: '0 6px 20px -10px rgba(15,23,42,0.18)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+      }}
+    >
+      {/* Morning check-in row */}
+      <ScheduleRow
+        icon="mdi:weather-sunny"
+        label="Morning check-in"
+        time={morningTime}
+      />
+
+      {/* Evening reflection row */}
+      <ScheduleRow
+        icon="mdi:moon-waning-crescent"
+        label="Evening reflection"
+        time={eveningTime}
+      />
+
+      {/* Divider + habit list */}
+      <div style={{ borderTop: `1px solid ${LINE}`, paddingTop: 10 }}>
+        {habits.map((h) => (
+          <HabitLine key={h} name={h} />
+        ))}
+      </div>
+    </div>
+  );
+
+  const approveButton = (
+    <div style={{ width: '100%', marginTop: 4 }}>
+      <Button variant="primary" size="auth" fullWidth>
+        {props?.buttonLabel ?? 'Approve and start'}
+      </Button>
+    </div>
+  );
 
   const steps: BeatStep[] = [
     {
-      id: 'wrap',
+      id: 'coach-intro',
       speaker: 'coach',
-      say: props?.coachLine ?? "You're all set. Here's your plan.",
+      say: props?.coachLine ?? "Here's your plan. Take a look.",
     },
     {
-      id: 'recap',
+      id: 'plan-card',
       speaker: 'coach',
-      render: (
-        <div
-          style={{
-            background: '#fff',
-            borderRadius: 20,
-            boxShadow: '0 4px 20px -8px rgba(15,23,42,0.14)',
-            padding: '6px 18px 6px',
-            width: '100%',
-            boxSizing: 'border-box',
-          }}
-        >
-          {rows.map((row, i) => (
-            <div key={row.icon}>
-              <PlanRow icon={row.icon} text={row.text} />
-              {i < rows.length - 1 && <RowDivider />}
-            </div>
-          ))}
-        </div>
-      ),
+      render: planCard,
     },
     {
-      id: 'go',
+      id: 'approve',
       speaker: 'coach',
-      render: (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            width: '100%',
-            marginTop: 4,
-          }}
-        >
-          <Button variant="primary" size="auth" fullWidth>
-            {props?.buttonLabel ?? 'Enter Guided Growth'}
-          </Button>
-        </div>
-      ),
+      render: approveButton,
     },
   ];
 
   return <BeatPlayer steps={steps} />;
 }
 
-const intoAppBeat: BeatDef = {
+const fullPlanBeat: BeatDef = {
   type: 'into-app',
   group: 'Onboarding',
-  label: 'Into the app',
-  Comp: IntoAppBeat,
+  label: 'Full plan confirm',
+  Comp: FullPlanBeat,
 };
 
-export default intoAppBeat;
+export default fullPlanBeat;

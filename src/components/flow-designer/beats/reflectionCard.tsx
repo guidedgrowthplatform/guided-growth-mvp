@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
-import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { Toggle } from '@/components/ui/Toggle';
 import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
@@ -15,7 +14,9 @@ const EVENING_ICON_BG = 'rgba(67, 47, 120, 0.12)';
 const EVENING_ICON_COLOR = 'rgb(100, 74, 185)';
 const EVENING_BORDER = 'rgba(100, 74, 185, 0.15)';
 
-type ReflectionStyle = 'guided' | 'custom' | 'freeform';
+// Style names are locked to these exact strings everywhere in this file.
+// The spec requires: "suggested template" | "your template" | "freeform"
+type ReflectionStyle = 'suggested template' | 'your template' | 'freeform';
 
 const DEFAULT_PROMPTS = ["I'm proud of...", "I forgive...", "I'm grateful for..."];
 
@@ -28,8 +29,8 @@ function StylePicker({
   onChange: (v: ReflectionStyle) => void;
 }) {
   const options: { id: ReflectionStyle; label: string; icon: string }[] = [
-    { id: 'guided', label: 'Guided', icon: 'mdi:comment-question-outline' },
-    { id: 'custom', label: 'Custom', icon: 'mdi:pencil-outline' },
+    { id: 'suggested template', label: 'Suggested template', icon: 'mdi:comment-question-outline' },
+    { id: 'your template', label: 'Your template', icon: 'mdi:pencil-outline' },
     { id: 'freeform', label: 'Freeform', icon: 'mdi:microphone-outline' },
   ];
 
@@ -61,15 +62,17 @@ function StylePicker({
               border: 'none',
               cursor: 'pointer',
               fontFamily: FONT,
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: active ? 700 : 500,
               color: active ? BLUE : 'rgb(100,116,139)',
               background: active ? '#fff' : 'transparent',
               boxShadow: active ? '0 2px 8px -2px rgba(19,91,235,0.18)' : 'none',
               transition: 'all 160ms ease-out',
+              lineHeight: 1.25,
+              textAlign: 'center',
             }}
           >
-            <Icon icon={opt.icon} width={15} height={15} style={{ flexShrink: 0 }} />
+            <Icon icon={opt.icon} width={13} height={13} style={{ flexShrink: 0 }} />
             {opt.label}
           </button>
         );
@@ -81,20 +84,20 @@ function StylePicker({
 // Description card beneath the style picker: icon + title + subtitle.
 function StyleDescription({ style }: { style: ReflectionStyle }) {
   const meta: Record<ReflectionStyle, { icon: string; title: string; sub: string }> = {
-    guided: {
+    'suggested template': {
       icon: 'mdi:chat-question-outline',
-      title: 'Guided prompts',
-      sub: 'The coach asks you a set of questions each evening.',
+      title: 'Suggested template',
+      sub: 'The coach walks you through a set of reflection questions each evening.',
     },
-    custom: {
+    'your template': {
       icon: 'mdi:text-box-edit-outline',
-      title: 'Custom prompts',
+      title: 'Your template',
       sub: 'Write up to 3 prompts you want to answer every night.',
     },
     freeform: {
       icon: 'mdi:microphone-variant',
-      title: 'Open mic',
-      sub: 'Just speak freely, no prompts, no structure.',
+      title: 'Freeform',
+      sub: 'Speak freely, no prompts, no structure. Whatever comes up.',
     },
   };
   const m = meta[style];
@@ -141,6 +144,54 @@ function StyleDescription({ style }: { style: ReflectionStyle }) {
           {m.sub}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Editable prompt row for "your template" style.
+function PromptInput({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '11px 14px',
+        borderRadius: 14,
+        background: EVENING_BG,
+        border: `1.5px solid ${EVENING_BORDER}`,
+      }}
+    >
+      <Icon
+        icon="mdi:format-quote-open"
+        width={16}
+        height={16}
+        style={{ color: EVENING_ICON_COLOR, flexShrink: 0 }}
+      />
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          flex: 1,
+          border: 'none',
+          background: 'transparent',
+          fontFamily: FONT,
+          fontSize: 14,
+          fontWeight: 500,
+          color: 'rgb(15,23,42)',
+          outline: 'none',
+        }}
+      />
     </div>
   );
 }
@@ -239,8 +290,8 @@ function EveningSetupCard({
           <StyleDescription style={style} />
         </div>
 
-        {/* Custom prompts, visible only when style is 'custom' */}
-        {style === 'custom' && (
+        {/* Prompt editor, visible only when style is "your template" */}
+        {style === 'your template' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <span
               style={{
@@ -255,9 +306,8 @@ function EveningSetupCard({
               Your prompts
             </span>
             {prompts.map((p, i) => (
-              <OnboardingInput
+              <PromptInput
                 key={i}
-                icon="mdi:format-quote-open"
                 placeholder={DEFAULT_PROMPTS[i] ?? 'Add a prompt...'}
                 value={p}
                 onChange={(v) => onPromptChange(i, v)}
@@ -305,7 +355,7 @@ function EveningSetupCard({
           </button>
         </div>
 
-        {/* Remind me toggle */}
+        {/* Remind me toggle. Reminder is ON by default per spec. */}
         <div
           style={{
             display: 'flex',
@@ -319,7 +369,9 @@ function EveningSetupCard({
               Remind me
             </div>
             <div style={{ fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'rgb(100,116,139)', marginTop: 1 }}>
-              A nudge when it's time to wind down
+              {reminder
+                ? `Notification at ${formatTime12(time)}`
+                : 'Notifications off'}
             </div>
           </div>
           <Toggle checked={reminder} onChange={onReminderChange} />
@@ -335,16 +387,18 @@ function EveningSetupCard({
 
 function ReflectionCardBeat(props?: Record<string, string>) {
   const flow = useFlowState();
-  const [style, setStyle] = useState<ReflectionStyle>('guided');
+
+  // Default style is "suggested template". Reminder starts ON per spec.
+  const [style, setStyle] = useState<ReflectionStyle>('suggested template');
   const [prompts, setPrompts] = useState<string[]>(['', '', '']);
   const [time, setTime] = useState('21:30');
   const [reminder, setReminder] = useState(true);
 
-  // Lift the chosen evening time to shared flow state so the plan recap and the
+  // Lift the chosen evening time to shared flow state so the plan recap and
   // home tour show the real time the user set, not a placeholder.
   useEffect(() => {
     flow?.setEveningTime(time);
-    // react to the time only; flow is read at call time
+    // react to time only; flow is stable
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [time]);
 
@@ -360,9 +414,11 @@ function ReflectionCardBeat(props?: Record<string, string>) {
     {
       id: 'ask',
       speaker: 'coach',
+      // Placeholder. Real copy comes from beatContexts.ts.
+      // Rule: no tap/scroll/click/press/swipe language. Coach continues by voice.
       say:
         props?.coachLine ??
-        'Now your evening reflection. How do you want to do it, and when?',
+        'And your evening reflection. How do you want to do it, and when?',
     },
     {
       id: 'setup',
@@ -388,7 +444,7 @@ function ReflectionCardBeat(props?: Record<string, string>) {
 const reflectionCardBeat: BeatDef = {
   type: 'reflection-card',
   group: 'Onboarding',
-  label: 'Daily reflection',
+  label: 'Evening reflection setup',
   Comp: ReflectionCardBeat,
 };
 

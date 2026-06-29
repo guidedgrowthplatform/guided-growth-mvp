@@ -22,7 +22,9 @@ function ProfileBeat(props?: Record<string, string>) {
     {
       id: 'greet',
       speaker: 'coach',
-      say: props?.greeting ?? 'Awesome, two quick things so I can tailor this to you.',
+      // {name} is substituted at runtime from the sign-up auth profile (Cartesia speaks it).
+      // The real copy comes from beatContexts.ts; this is a placeholder that keeps the name.
+      say: props?.greeting ?? 'Good to meet you, {name}. A couple of quick things.',
     },
     {
       id: 'age',
@@ -47,14 +49,7 @@ function ProfileBeat(props?: Record<string, string>) {
     { id: 'reply', speaker: 'user', say: props?.userReply ?? "I'm 35, and I'm male." },
   ];
 
-  return (
-    <div className="flex flex-col gap-4">
-      <BeatPlayer steps={steps} />
-      <div className="self-center text-[12px] font-medium text-content-tertiary">
-        You can speak or tap
-      </div>
-    </div>
-  );
+  return <BeatPlayer steps={steps} />;
 }
 
 const profileBeat: BeatDef = {

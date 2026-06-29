@@ -10,7 +10,7 @@ const AMBER = 'rgb(245, 158, 11)';
 const AMBER_LIGHT = 'rgba(245, 158, 11, 0.10)';
 const AMBER_MED = 'rgba(245, 158, 11, 0.18)';
 
-// Inline morning card — purposely lighter and warmer than the evening reflection
+// Inline morning card, purposely lighter and warmer than the evening reflection
 // card. No day picker, no schedule selector: morning check-ins are every day by
 // design. Just time + a reminder toggle so the card stays calm and focused.
 function MorningCard({
@@ -136,7 +136,7 @@ function MorningCard({
           </div>
         </div>
 
-        {/* Inline toggle — amber accent to match morning theme */}
+        {/* Inline toggle, amber accent to match morning theme */}
         <button
           type="button"
           role="switch"
