@@ -69,7 +69,7 @@ export function DateFilterBar({ availableMonths, selected, onSelect }: DateFilte
                   icon="mdi:check"
                   width={16}
                   height={16}
-                  className="ml-2 inline text-primary"
+                  className="ml-2 inline text-success"
                 />
               )}
             </button>

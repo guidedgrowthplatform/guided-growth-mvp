@@ -11,12 +11,13 @@ const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 function cellClass(status: CalendarCell['status']): string {
   switch (status) {
     case 'done':
-      return 'bg-primary';
+      return 'bg-success';
     case 'missed':
       return 'border-2 border-danger bg-surface';
-    case 'today':
     case 'today-done':
-      return 'bg-[#fdd017]';
+      return 'bg-success';
+    case 'today':
+      return 'border-2 border-content-tertiary bg-surface';
     case 'scheduled-future':
       return 'bg-surface';
     case 'unscheduled-past':
@@ -58,13 +59,10 @@ export function StreakCalendarGrid({ data }: StreakCalendarGridProps) {
           {row.map((cell, ci) => (
             <div
               key={`c-${wi}-${ci}`}
-              className={`flex aspect-square items-center justify-center rounded-md ${cellClass(cell.status)}`}
+              className={`flex aspect-square items-center justify-center rounded-sm ${cellClass(cell.status)}`}
             >
               {(cell.status === 'done' || cell.status === 'today-done') && (
-                <Check
-                  size={14}
-                  className={cell.status === 'today-done' ? 'text-white/80' : 'text-white'}
-                />
+                <Check size={14} className="text-white" />
               )}
               {cell.status === 'missed' && <X size={14} className="text-danger" />}
               {cell.status === 'unscheduled-past' && (

@@ -11,5 +11,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src", "packages/shared/src"]
+  "include": ["src", "packages/shared/src"],
+  "exclude": ["src/components/flow-designer", "src/**/*.stories.tsx"]
 }

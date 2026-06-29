@@ -3,7 +3,7 @@ import { ONBOARDING_TOOLS, ONBOARDING_TOOL_NAMES, isOnboardingToolName } from '.
 import { getOnboardingTools, isOnboardingScreen } from '../registry.js';
 
 describe('ONBOARDING_TOOLS', () => {
-  it('exposes the thirteen canonical tool names', () => {
+  it('exposes the fourteen canonical tool names', () => {
     expect(ONBOARDING_TOOLS.map((t) => t.name).sort()).toEqual([
       'add_habit',
       'advance_step',
@@ -14,6 +14,7 @@ describe('ONBOARDING_TOOLS', () => {
       'submit_category',
       'submit_custom_prompts',
       'submit_goals',
+      'submit_morning_checkin',
       'submit_path_choice',
       'submit_profile',
       'submit_reflection_config',
@@ -158,6 +159,21 @@ describe('ONBOARDING_TOOLS', () => {
           ],
         },
         {
+          "name": "submit_morning_checkin",
+          "properties": [
+            "days",
+            "reminder",
+            "schedule",
+            "time",
+          ],
+          "required": [
+            "days",
+            "reminder",
+            "schedule",
+            "time",
+          ],
+        },
+        {
           "name": "submit_reflection_config",
           "properties": [
             "days",
@@ -222,8 +238,8 @@ describe('ONBOARDING_TOOLS', () => {
 });
 
 describe('ONBOARDING_TOOL_NAMES + isOnboardingToolName', () => {
-  it('set contains exactly the thirteen names', () => {
-    expect(ONBOARDING_TOOL_NAMES.size).toBe(13);
+  it('set contains exactly the fourteen names', () => {
+    expect(ONBOARDING_TOOL_NAMES.size).toBe(14);
   });
 
   it('isOnboardingToolName accepts known names', () => {

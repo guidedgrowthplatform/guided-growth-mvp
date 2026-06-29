@@ -13,6 +13,7 @@ import {
   consumePendingAuthHandoff,
 } from '@/lib/auth/authHandoff';
 import { getFreshToken } from '@/lib/auth/tokenStore';
+import { QAFab } from '@/onboarding-flow/QAFab';
 import { queryClient } from '@/lib/query';
 import { reacquireIfActive, suspendWakeLock } from '@/lib/services/keepAwake';
 import { AppRoutes } from '@/routes';
@@ -121,6 +122,7 @@ export default function App() {
               <PushRegistrar />
               <OnboardingVoiceProvider>
                 <AppRoutes />
+                <QAFab />
               </OnboardingVoiceProvider>
             </ToastProvider>
           </VoiceProvider>

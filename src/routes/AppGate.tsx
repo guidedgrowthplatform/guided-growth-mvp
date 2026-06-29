@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useAppGate } from '@/hooks/useAppGate';
-import { FIRST_OPEN, getFlag } from '@/lib/storage/persistentFlags';
 import { useAuthStore } from '@/stores/authStore';
 
 function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
@@ -62,9 +61,10 @@ export function AppGate({
     return <>{children}</>;
   }
 
-  // Unauthenticated: first open shows splash → welcome intro, then straight to login.
+  // Unauthenticated: the chat-native flow IS the entry — its first beat handles
+  // sign-up/login, so logged-out users land there instead of the old auth pages.
   if (gate.status === 'unauthenticated') {
-    return <Navigate to={getFlag(FIRST_OPEN) ? '/login' : '/splash'} replace />;
+    return <Navigate to="/onboarding/flow" replace />;
   }
 
   // Onboarding routes: only allow if not completed. The flow route

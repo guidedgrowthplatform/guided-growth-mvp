@@ -13,13 +13,25 @@ export const ONBOARDING_FLOW_ROUTE = '/onboarding/flow';
 // engages here too), but with in-memory persistence so it runs without sign-in.
 export const ONBOARDING_FLOW_PREVIEW_ROUTE = '/onboarding-flow-preview';
 
-// Beats covered by Vapi full-duplex on the chat page today: profile → fork. The
-// AUTH beat stays silent (like the routed screens); beats past the fork aren't
-// voice-ready yet, so they fall back to the mic→LLM (Soniox) text loop. Widen
-// this set as later beats land.
+// Every onboarding beat with a coach voice turn is Vapi-covered, so Vapi stays
+// ONE continuous live session across the whole flow (no per-beat teardown /
+// cold-start). The step-model + bundle gaps that held the tail back are closed
+// by the unified beat bundle (target_step + machinery per beat). AUTH and
+// MIC-PERMISSION stay silent (no coach turn). Habit-select (03) and habit-schedule
+// (04) are BOTH armed — they share step 5, so arming both keeps the session alive
+// across the select→configure transition within the single habit beat.
 export const CHAT_VAPI_BEAT_SCREENS: ReadonlySet<string> = new Set([
   'ONBOARD-01--FORM',
   'ONBOARD-FORK--FORM',
+  'ONBOARD-BEGINNER-01',
+  'ONBOARD-BEGINNER-02',
+  'ONBOARD-BEGINNER-03',
+  'ONBOARD-BEGINNER-04',
+  'ONBOARD-ADVANCED',
+  'ONBOARD-BEGINNER-06',
+  'ONBOARD-MORNING-SETUP',
+  'ONBOARD-BEGINNER-07',
+  'ONBOARD-COMPLETE',
 ]);
 
 // 'none' = chat-only beat (no inline card yet). Cards beyond profile land

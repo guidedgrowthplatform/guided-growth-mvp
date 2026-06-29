@@ -153,8 +153,8 @@ export function CheckInCard({ selectedDate, onClose, embedded }: CheckInCardProp
         aria-live="polite"
         className="rounded-2xl border border-border-light bg-surface p-5 text-center shadow-sm"
       >
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-          <Check className="h-6 w-6 text-primary" aria-hidden="true" />
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-success/10">
+          <Check className="h-6 w-6 text-success" aria-hidden="true" />
         </div>
         <h3 className="text-base font-semibold text-content">Check-in saved</h3>
         <p className="mt-1 text-sm text-content-secondary">

@@ -10,7 +10,7 @@
  * completion, so a not-yet-persisted habit returns ok (no write) rather than
  * an error — the client voice-action drives the edit-habit nav in that case.
  */
-import pool from '../../db.js';
+import pool, { type Queryable } from '../../db.js';
 import {
   inferSchedule,
   SCHEDULE_DAYS,
@@ -61,7 +61,10 @@ function isScheduleOption(v: string): boolean {
   return (SCHEDULE_OPTIONS as readonly string[]).includes(v);
 }
 
-export async function updateHabit(args: Record<string, unknown>): Promise<HandlerResult> {
+export async function updateHabit(
+  args: Record<string, unknown>,
+  db: Queryable = pool,
+): Promise<HandlerResult> {
   console.log('[vapi/tool] received name=update_habit anon_id=' + getString(args, 'anon_id'));
 
   const anonId = getString(args, 'anon_id');
@@ -81,7 +84,7 @@ export async function updateHabit(args: Record<string, unknown>): Promise<Handle
   }
   const target = nameRaw.trim().toLowerCase();
 
-  const existingRes = await pool.query<{ hc: Record<string, HabitEntry> | null }>(
+  const existingRes = await db.query<{ hc: Record<string, HabitEntry> | null }>(
     `SELECT data->'habitConfigs' AS hc FROM onboarding_states WHERE anon_id = $1`,
     [anonId],
   );
@@ -143,7 +146,7 @@ export async function updateHabit(args: Record<string, unknown>): Promise<Handle
   const merged = { ...existing, ...patch };
   const mergePayload = JSON.stringify({ [matchKey]: merged });
 
-  const result = await pool.query(
+  const result = await db.query(
     `UPDATE onboarding_states
      SET data = jsonb_set(
            COALESCE(data, '{}'::jsonb),

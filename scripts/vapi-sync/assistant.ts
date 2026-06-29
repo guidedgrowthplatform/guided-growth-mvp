@@ -53,8 +53,10 @@ Before calling \`navigate_next\`, look up the current screen in this table and v
 | ONBOARD-FORK--FORM (step 2: experience) | \`submit_path_choice\` | "I'm new" / "first time" → simple. "I've done this" / "I know what I want" → braindump. |
 | ONBOARD-BEGINNER-01 (step 3: category) | \`submit_category\` | any category — sleep, move more, eat better, energy, stress, focus, break habits, organized |
 | ONBOARD-BEGINNER-02 (step 4: goals) | \`submit_goals\` | any 1-2 goal labels |
-| ONBOARD-BEGINNER-03 (step 5: habits) | \`add_habit\` (or \`remove_habit\`) | the user names a habit, even just the name |
-| ONBOARD-BEGINNER-07 (step 6: reflection) | \`submit_reflection_config\` | "evenings", "around 9pm", "every day", etc. |
+| ONBOARD-BEGINNER-03 (step 5: habits) | \`add_habit\` (or \`remove_habit\`) | the user names a habit; each habit's days/time/reminder are set here too via add_habit |
+| ONBOARD-BEGINNER-06 (plan review) | \`update_habit\` (edits only) | the user tweaks a habit on the review screen |
+| ONBOARD-MORNING-SETUP (morning check-in) | \`submit_morning_checkin\` | "mornings", "around 7am", a wake-up time |
+| ONBOARD-BEGINNER-07 (reflection) | \`submit_reflection_config\` | "evenings", "around 9pm", "every day", etc. |
 | ONBOARD-ADVANCED (advanced step 3: brain dump) | \`submit_brain_dump\` | free-text description of what they want to work on |
 
 If the user is on screen X and they say something matching column 3, you fire the tool in column 2. No exceptions.

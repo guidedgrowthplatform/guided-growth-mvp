@@ -181,6 +181,7 @@ interface VapiToolListItem {
   id: string;
   function?: { name?: string; description?: string; parameters?: unknown };
   server?: { url?: string };
+  async?: boolean;
 }
 
 // Live tools indexed by function-name. Lets the loop adopt tools made by a
@@ -206,6 +207,7 @@ function diffEnvelope(live: VapiToolListItem | undefined, env: VapiToolEnvelope)
   if (JSON.stringify(live.function?.parameters ?? null) !== JSON.stringify(env.function.parameters))
     changed.push('parameters');
   if ((live.server?.url ?? '') !== env.server.url) changed.push('server.url');
+  if ((live.async ?? false) !== (env.async ?? false)) changed.push('async');
   return changed;
 }
 

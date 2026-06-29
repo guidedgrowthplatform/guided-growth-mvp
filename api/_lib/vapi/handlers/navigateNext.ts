@@ -27,11 +27,11 @@
  * LLM says to (e.g. user back-navved from step 5 to step 1, then asked
  * to walk forward; LLM calls navigate_next(2) which sets step to 2).
  */
-import pool from '../../db.js';
+import pool, { type Queryable } from '../../db.js';
 // Shared with the Direct-LLM advance_step path so a beat advances IDENTICALLY
 // whether driven by Vapi navigate_next or Direct-LLM (step-1 needs nickname+age+
 // gender; step-4 braindump gates on the brain dump, not goals).
-import { checkAdvanceData } from '../../llm/onboarding/preconditions.js';
+import { checkAdvanceData, traceAdvanceStep0 } from '../../llm/onboarding/preconditions.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MIN_STEP = 1;
@@ -55,7 +55,10 @@ function getInteger(args: Record<string, unknown>, key: string): number | undefi
   return undefined;
 }
 
-export async function navigateNext(args: Record<string, unknown>): Promise<HandlerResult> {
+export async function navigateNext(
+  args: Record<string, unknown>,
+  db: Queryable = pool,
+): Promise<HandlerResult> {
   console.log('[vapi/tool] received name=navigate_next anon_id=' + getString(args, 'anon_id'));
 
   const anonId = getString(args, 'anon_id');
@@ -82,7 +85,7 @@ export async function navigateNext(args: Record<string, unknown>): Promise<Handl
   // backend hard guards against the agent skipping steps / advancing before
   // the screen's data tool has fired. Prompt rules (RULE 7.5) already tell
   // the model to chain data_tool → navigate_next; this is the safety net.
-  const existing = await pool.query<{
+  const existing = await db.query<{
     current_step: number;
     data: Record<string, unknown> | null;
     path: string | null;
@@ -94,9 +97,9 @@ export async function navigateNext(args: Record<string, unknown>): Promise<Handl
   );
   const row = existing.rows[0];
   const currentStep = row?.current_step ?? 1;
-  const data = (row?.data ?? {}) as Record<string, unknown>;
-  const path = row?.path ?? null;
-  const brainDumpRaw = row?.brain_dump_raw ?? null;
+  let data = (row?.data ?? {}) as Record<string, unknown>;
+  let path = row?.path ?? null;
+  let brainDumpRaw = row?.brain_dump_raw ?? null;
 
   // Jumps beyond +2 are genuine skips → reject. Same step (re-render) and
   // back-nav are fine.
@@ -126,9 +129,26 @@ export async function navigateNext(args: Record<string, unknown>): Promise<Handl
     }
   }
 
-  // Single-step forward: verify the source step's data has been saved.
+  // Single-step forward: verify the source step's data has been saved. The submit_*
+  // tools are async (nonBlocking), and Vapi chains navigate_next in the SAME turn, so
+  // the data write is often still in flight on our first read (the submit webhook
+  // arrives just before this one and commits a beat later). Re-read a few times before
+  // rejecting so we don't false-fail a legitimate same-turn save.
   if (targetStep === currentStep + 1) {
-    const missing = checkAdvanceData({ sourceStep: currentStep, data, path, brainDumpRaw });
+    let missing = checkAdvanceData({ sourceStep: currentStep, data, path, brainDumpRaw });
+    for (let attempt = 0; missing && attempt < 5; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const retry = await db.query<{
+        data: Record<string, unknown> | null;
+        path: string | null;
+        brain_dump_raw: string | null;
+      }>(`SELECT data, path, brain_dump_raw FROM onboarding_states WHERE anon_id = $1`, [anonId]);
+      const rr = retry.rows[0];
+      data = (rr?.data ?? {}) as Record<string, unknown>;
+      path = rr?.path ?? null;
+      brainDumpRaw = rr?.brain_dump_raw ?? null;
+      missing = checkAdvanceData({ sourceStep: currentStep, data, path, brainDumpRaw });
+    }
     if (missing) {
       console.log(
         `[vapi/tool] navigate_next rejected reason=precondition_not_met current=${currentStep} target=${targetStep} detail=${missing}`,
@@ -137,11 +157,13 @@ export async function navigateNext(args: Record<string, unknown>): Promise<Handl
     }
   }
 
+  traceAdvanceStep0('vapi', { currentStep, targetStep, data, path, brainDumpRaw });
+
   // No GREATEST — explicitly set step to the LLM-supplied target. INSERT
   // path is defensive (onboarding_states row should already exist by the
   // time any tool fires); we seed with target_step too so a fresh row
   // matches the LLM's intent.
-  const result = await pool.query(
+  const result = await db.query(
     `INSERT INTO onboarding_states (anon_id, current_step, status, updated_at)
      VALUES ($1, $2, 'in_progress', now())
      ON CONFLICT (anon_id) DO UPDATE SET

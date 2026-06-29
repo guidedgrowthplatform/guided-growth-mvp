@@ -12,13 +12,24 @@
  * never the card's own state, selection, voice capture, or saving. Those stay in
  * the card adapters and the orchestrator, untouched.
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   useOnboardingVoice,
   type OnboardingTranscriptListener,
+  type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
-import { useCoachSpeechReveal } from './useCoachSpeechReveal';
+import { countWords, useCoachSpeechReveal } from './useCoachSpeechReveal';
+
+// Hard ceiling on how long the card waits behind a voice-driven coach line. If
+// the speech signal stalls (frozen/half-open session that never emits
+// speech-end), reveal anyway so onboarding can never dead-end with no card.
+const VOICE_REVEAL_MAX_MS = 12000;
+
+// How long the opener waits for a TRANSCRIPT before falling back to the authored
+// line. Cold-start appends the opener instantly (no wait); warm Vapi streams it in
+// a second or two. The fallback only fires if voice fails to produce any opener.
+const OPENER_FALLBACK_MS = 12000;
 
 // One part of a beat the player reveals in turn.
 //   - kind 'coach'  + say  -> a white bubble the coach speaks (karaoke reveal)
@@ -58,42 +69,192 @@ export function PastBeatBubbles({
 }
 
 /**
- * The user's words as they speak — a live blue bubble on the ACTIVE beat.
+ * A beat's FULL conversation, rendered from the provider's single chronological
+ * message store (every coach + user turn for this beat, in turn order — opener
+ * first, then the dialogue). ONE source of order, so turns can never interleave
+ * wrong. Because it renders the persisted store, a COMPLETED beat keeps its whole
+ * conversation on screen (and rehydrates after a refresh) instead of collapsing —
+ * pass `active={false}` for a static past-beat replay.
  *
- * Subscribes to the voice provider's user transcript bus (the same bus the old
- * single-page overlay reads, see OnboardingChatOverlay's partialUser listener).
- * The bus emits `{ role: 'user', kind: 'partial' }` while the user is speaking on
- * BOTH voice paths (Vapi via handleTranscript, Direct-LLM voice-in via
- * emitVoiceInInterim), and a `final` when the turn settles. We light the partial
- * smoothed by useSmoothReveal so it grows word by word, then clear it on final —
- * the captured answer then renders as the beat's settled blue reply.
+ * Active beat only: the in-progress turn streams as a live partial at the tail, a
+ * thinking indicator shows while the coach connects / replies, and the cold-start
+ * Cartesia opener (source 'opener') karaokes word-by-word. Warm Vapi openers and
+ * replies already arrive word-by-word as STT partials.
  *
- * Scoped to voice turns by construction: a user transcript event only fires when
- * the mic is hot, so in text-only mode nothing arrives and the bubble never
- * shows (it renders null while empty). `onText` lets the feed scroll as it grows.
+ * `fallbackOpener` (the authored line) shows only if the active beat produces no
+ * coach turn within the failsafe window (voice stalled), so a beat can't dead-end.
  */
-export function LiveUserBubble({ onText }: { onText?: () => void }) {
+export function BeatConversation({
+  screenId,
+  active,
+  onText,
+  fallbackOpener,
+  card,
+  connecting = true,
+}: {
+  screenId: string;
+  active: boolean;
+  onText?: () => void;
+  fallbackOpener?: string | null;
+  // The beat's interactive component, placed IN the timeline right after the
+  // opener (coach presents it, then the dialogue continues below it).
+  card?: ReactNode;
+  // Whether to show the connecting/thinking + authored-opener failsafe. Off on the
+  // non-Vapi path (the authored opener is already drawn by BeatPlayer there).
+  connecting?: boolean;
+}) {
+  const session = useOnboardingVoice();
+  const all = session?.messages;
+  const subscribe = session?.subscribeTranscripts;
+  const openerReveal = session?.openerReveal;
+
+  const beatMsgs = (all ?? []).filter((m) => m.screenId === screenId);
+  const hasCoachTurn = beatMsgs.some((m) => m.role === 'ai');
+  // The opener is the first coach turn before any user turn; the rest is dialogue.
+  const firstUserIdx = beatMsgs.findIndex((m) => m.role === 'user');
+  const openerIdx = beatMsgs.findIndex(
+    (m, i) => m.role === 'ai' && (firstUserIdx < 0 || i < firstUserIdx),
+  );
+  const opener = openerIdx >= 0 ? beatMsgs[openerIdx] : null;
+  const dialogue = openerIdx >= 0 ? beatMsgs.slice(openerIdx + 1) : beatMsgs;
+
+  const [partial, setPartial] = useState<{ role: 'ai' | 'user'; text: string } | null>(null);
+  const shown = useSmoothReveal(partial?.text ?? '');
+  const [fallbackOn, setFallbackOn] = useState(false);
+
+  useEffect(() => {
+    if (!active || !subscribe) {
+      setPartial(null);
+      return;
+    }
+    const onTranscript: OnboardingTranscriptListener = (evt) => {
+      const role: 'ai' | 'user' = evt.role === 'assistant' ? 'ai' : 'user';
+      if (evt.kind === 'partial') setPartial({ role, text: evt.text });
+      else setPartial(null);
+    };
+    return subscribe(onTranscript);
+  }, [active, subscribe]);
+
+  // Failsafe: surface the authored opener if voice never produces a coach turn.
+  useEffect(() => {
+    if (!connecting || !active || hasCoachTurn || !fallbackOpener) return;
+    const t = window.setTimeout(() => setFallbackOn(true), OPENER_FALLBACK_MS);
+    return () => window.clearTimeout(t);
+  }, [connecting, active, hasCoachTurn, fallbackOpener]);
+
+  useEffect(() => {
+    if (beatMsgs.length > 0 || shown.trim().length > 0) onText?.();
+  }, [beatMsgs.length, shown, onText]);
+
+  const coldOpenerLive = !!(active && openerReveal && openerReveal.screenId === screenId);
+  // The cold opener turn exists with 0 revealed words before the audio starts — don't
+  // draw an empty bubble; hold it until the first word lands so it grows from nothing.
+  const coldOpenerPending =
+    coldOpenerLive && opener?.source === 'opener' && (openerReveal!.revealedWords ?? 0) <= 0;
+  const showConnecting = connecting && active && !hasCoachTurn && !partial;
+  const openerPresent = !!opener || (fallbackOn && !!fallbackOpener);
+
+  // ONE bubble per turn: the live partial EXTENDS the current turn's bubble when it
+  // continues that turn (same role as the tail), instead of spawning a second
+  // bubble that later collapses. A partial of a NEW turn (different role) renders
+  // as its own bubble at the tail.
+  const livePartial = active && partial && shown.trim().length > 0 ? shown : null;
+  const tail = dialogue.length > 0 ? dialogue[dialogue.length - 1] : opener;
+  const partialExtendsTail = !!livePartial && !!tail && tail.role === partial!.role;
+  const partialExtendsOpener = partialExtendsTail && dialogue.length === 0;
+  const partialExtendsDialogue = partialExtendsTail && dialogue.length > 0;
+
+  const renderTurn = (m: VoiceMessage, append?: string | null) => {
+    const isColdOpener = coldOpenerLive && m.source === 'opener' && m.id === opener?.id;
+    const text = append ? `${m.text} ${append}`.replace(/\s+/g, ' ').trim() : m.text;
+    return (
+      <div key={m.id} className={m.role === 'ai' ? COACH_BUBBLE_CLASS : USER_BUBBLE_CLASS}>
+        {isColdOpener ? (
+          <Karaoke text={m.text} active revealCount={openerReveal!.revealedWords} />
+        ) : (
+          text
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* opener (or the authored failsafe if voice never spoke) */}
+      {opener && !coldOpenerPending ? (
+        renderTurn(opener, partialExtendsOpener ? livePartial : null)
+      ) : showConnecting && fallbackOn && fallbackOpener ? (
+        <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{fallbackOpener}</div>
+      ) : null}
+
+      {/* the beat component, IN the timeline — right after the opener */}
+      {card && openerPresent && <div className="animate-fade-in">{card}</div>}
+
+      {/* dialogue, the partial extending the last turn's bubble when it continues it */}
+      {dialogue.map((m, i) =>
+        renderTurn(m, i === dialogue.length - 1 && partialExtendsDialogue ? livePartial : null),
+      )}
+
+      {/* a partial that STARTS a new turn renders as its own (single) bubble */}
+      {livePartial && !partialExtendsTail && (
+        <div
+          className={`animate-fade-in ${partial!.role === 'ai' ? COACH_BUBBLE_CLASS : USER_BUBBLE_CLASS}`}
+        >
+          {livePartial}
+        </div>
+      )}
+
+      {showConnecting && !fallbackOn ? <ThinkingDots /> : active && <CoachThinkingIndicator />}
+    </div>
+  );
+}
+
+// True after the user finishes a turn and before the coach starts replying (and
+// while a Direct-LLM turn is in flight). Keys off a USER final, so it never fires
+// during the opener (no user turn yet) and clears as soon as the coach speaks.
+function useCoachThinking(): boolean {
   const session = useOnboardingVoice();
   const subscribe = session?.subscribeTranscripts;
-  const [partial, setPartial] = useState('');
-  const shown = useSmoothReveal(partial);
+  const speaking = session?.isAssistantSpeaking ?? false;
+  const chatBusy = session?.chatBusy ?? false;
+  const [awaiting, setAwaiting] = useState(false);
 
   useEffect(() => {
     if (!subscribe) return;
     const onTranscript: OnboardingTranscriptListener = (evt) => {
-      if (evt.role !== 'user') return;
-      // Partial = words landing live; final clears (the settled answer takes over).
-      setPartial(evt.kind === 'partial' ? evt.text : '');
+      if (evt.role === 'user' && evt.kind === 'final') setAwaiting(true);
+      else if (evt.role === 'assistant') setAwaiting(false);
     };
     return subscribe(onTranscript);
   }, [subscribe]);
 
   useEffect(() => {
-    if (shown.length > 0) onText?.();
-  }, [shown, onText]);
+    if (speaking) setAwaiting(false);
+  }, [speaking]);
 
-  if (shown.trim().length === 0) return null;
-  return <div className={`animate-fade-in ${USER_BUBBLE_CLASS}`}>{shown}</div>;
+  return (awaiting || chatBusy) && !speaking;
+}
+
+// Three bouncing dots in a coach bubble — the live cue that the coach is
+// connecting / thinking, or a tool is in flight. Neutral by design (no words),
+// sized to the flow feed (not the old full-duplex page's labelled variant).
+export function ThinkingDots() {
+  return (
+    <div
+      className={`flex w-fit items-center gap-1.5 ${COACH_BUBBLE_CLASS} animate-fade-in`}
+      aria-label="Coach is thinking"
+    >
+      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40" />
+      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40 [animation-delay:150ms]" />
+      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40 [animation-delay:300ms]" />
+    </div>
+  );
+}
+
+// Renders the typing dots only while the coach is thinking. Mount ONLY on the
+// active beat (the hook subscribes to the transcript bus).
+export function CoachThinkingIndicator() {
+  return useCoachThinking() ? <ThinkingDots /> : null;
 }
 
 // Reveals words one at a time while `active`, dimming the not-yet-spoken ones so
@@ -137,21 +298,20 @@ export function Karaoke({
     return () => window.clearInterval(id);
   }, [text, active, total, driven]);
   const shownCount = !active ? total : driven ? Math.max(0, Math.min(total, revealCount ?? 0)) : n;
+  // Render ONLY the revealed words so the bubble GROWS word-by-word as the coach
+  // speaks (like the dialogue bubbles) — not a full-width box with hidden/grey words.
   let seen = 0;
-  return (
-    <>
-      {parts.map((p, i) => {
-        if (!/\S/.test(p)) return <span key={i}>{p}</span>;
-        seen += 1;
-        const shown = seen <= shownCount;
-        return (
-          <span key={i} style={{ opacity: shown ? 1 : 0.25, transition: 'opacity 160ms ease-out' }}>
-            {p}
-          </span>
-        );
-      })}
-    </>
-  );
+  let end = parts.length;
+  for (let i = 0; i < parts.length; i += 1) {
+    if (/\S/.test(parts[i])) {
+      if (seen >= shownCount) {
+        end = i;
+        break;
+      }
+      seen += 1;
+    }
+  }
+  return <>{parts.slice(0, end).join('')}</>;
 }
 
 /**
@@ -184,7 +344,11 @@ export function BeatPlayer({ steps, onReveal }: { steps: BeatStep[]; onReveal?: 
   useEffect(() => {
     if (revealed >= steps.length) return;
     const stepNow = steps[revealed - 1];
-    const wordTotal = stepNow?.say ? stepNow.say.split(/\s+/).length : 0;
+    // Must match the tokenizer the reveal source caps revealCount at
+    // (useCoachSpeechReveal.countWords / Karaoke's word filter). A raw
+    // split(/\s+/) over-counts on leading/trailing whitespace, making
+    // revealCount >= wordTotal unreachable so the card never reveals.
+    const wordTotal = stepNow?.say ? countWords(stepNow.say) : 0;
 
     // Voice-driven advance: when a live speech signal is pacing the coach line,
     // hold the card until the spoken words have all been revealed (the line is
@@ -193,7 +357,14 @@ export function BeatPlayer({ steps, onReveal }: { steps: BeatStep[]; onReveal?: 
     const voiceDriven = stepNow?.kind === 'coach' && reveal.mode !== 'fallback';
     if (voiceDriven) {
       const revealedAll = (reveal.revealCount ?? 0) >= wordTotal && wordTotal > 0;
-      if (!revealedAll) return; // wait for the spoken line to finish revealing
+      if (!revealedAll) {
+        // Don't strand the card if the speech signal never completes.
+        const safety = window.setTimeout(
+          () => setRevealed((r) => Math.min(steps.length, r + 1)),
+          VOICE_REVEAL_MAX_MS,
+        );
+        return () => window.clearTimeout(safety);
+      }
       const t = window.setTimeout(() => setRevealed((r) => Math.min(steps.length, r + 1)), 450);
       return () => window.clearTimeout(t);
     }

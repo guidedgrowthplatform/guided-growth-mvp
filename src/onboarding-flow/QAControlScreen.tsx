@@ -11,10 +11,11 @@ import { useAuthStore } from '@/stores/authStore';
  * real users never reach it.
  *
  * Each test account is a dedicated `qa-onboarding-*@guidedgrowth.test` user (one
- * per tester). They share one password, read from VITE_QA_PASSWORD (QA builds
- * only). The reset/restart actions call /api/qa/self-reset, which wipes the
- * authed QA user's data but keeps the account. "Re-run (keep data)" drops into
- * the flow without wiping; the engine seeding it from saved data is a follow-up.
+ * per tester). They share one embedded password (QA_PASSWORD below) so testers
+ * just pick a user and go, no entry. The reset/restart actions call
+ * /api/qa/self-reset, which wipes the authed QA user's data but keeps the
+ * account. "Re-run (keep data)" drops into the flow without wiping; the engine
+ * seeding it from saved data is a follow-up.
  */
 
 const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -36,7 +37,11 @@ const FALLBACK_USERS: QaUser[] = [
   { label: 'Timothy', email: 'qa-onboarding-timothy@guidedgrowth.test' },
 ];
 
-const QA_PASSWORD = import.meta.env.VITE_QA_PASSWORD as string | undefined;
+// Shared password for the QA test accounts. Embedded on purpose: these are
+// throwaway qa-onboarding-*@guidedgrowth.test accounts with no real data, behind
+// a QA-only gated route, so testers pick a user and go with no entry. The
+// create-test-users script seeds the accounts with this exact value.
+const QA_PASSWORD = 'guided-growth-qa-2026';
 
 type ActionKey = 'login' | 'restart' | 'reonboard' | 'reset';
 
@@ -118,9 +123,18 @@ export function QAControlScreen() {
   }, []);
 
   async function ensureSignedIn() {
-    if (!QA_PASSWORD) throw new Error('VITE_QA_PASSWORD is not set in this build.');
     const { error: signInError } = await signIn(email, QA_PASSWORD);
     if (signInError) throw new Error(signInError);
+    // QA accounts ship nameless; stamp the derived display name onto the session so
+    // onboarding greets by it and never re-asks (the "name from sign-in").
+    const label = users.find((u) => u.email === email)?.label;
+    if (label) {
+      try {
+        await supabase.auth.updateUser({ data: { nickname: label } });
+      } catch {
+        /* non-fatal — onboarding still works, it may just ask for the name */
+      }
+    }
   }
 
   async function selfReset() {
@@ -145,9 +159,10 @@ export function QAControlScreen() {
       await ensureSignedIn();
       if (action === 'restart') {
         await selfReset();
-        navigate('/onboarding/flow', { replace: true });
+        // /onboarding redirects to the chat-native engine (/onboarding/flow).
+        navigate('/onboarding', { replace: true });
       } else if (action === 'reonboard') {
-        navigate('/onboarding/flow', { replace: true });
+        navigate('/onboarding', { replace: true });
       } else if (action === 'reset') {
         await selfReset();
         navigate('/', { replace: true });
@@ -343,11 +358,6 @@ export function QAControlScreen() {
           })}
         </div>
 
-        {!QA_PASSWORD && (
-          <p style={{ fontSize: 12.5, fontWeight: 600, color: 'rgb(202,138,4)', margin: 0 }}>
-            Set VITE_QA_PASSWORD in this build to enable sign-in.
-          </p>
-        )}
         {error && (
           <p style={{ fontSize: 12.5, fontWeight: 600, color: 'rgb(220,38,38)', margin: 0 }}>
             {error}

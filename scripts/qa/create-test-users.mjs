@@ -20,10 +20,12 @@ import { createClient } from '@supabase/supabase-js';
 
 const url = process.env.SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const password = process.env.QA_PASSWORD;
+// Must match QA_PASSWORD embedded in src/onboarding-flow/QAControlScreen.tsx, so
+// the screen can sign in with no entry. Override with QA_PASSWORD if you change it.
+const password = process.env.QA_PASSWORD || 'guided-growth-qa-2026';
 
-if (!url || !serviceKey || !password) {
-  console.error('Set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and QA_PASSWORD.');
+if (!url || !serviceKey) {
+  console.error('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (e.g. node --env-file=.env.local).');
   process.exit(1);
 }
 
@@ -37,17 +39,25 @@ const EMAILS = [
 
 const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
+// Map existing emails to ids so an account that already exists gets its password
+// set to the shared value (otherwise login would fail with its old password).
+// Only the EMAILS below are ever touched, so other qa-onboarding-* accounts are safe.
+const existing = new Map();
+for (let page = 1; page <= 5; page++) {
+  const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+  if (error || !data) break;
+  for (const u of data.users) if (u.email) existing.set(u.email.toLowerCase(), u.id);
+  if (data.users.length < 200) break;
+}
+
 for (const email of EMAILS) {
-  const { data, error } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-  });
-  if (error) {
-    const exists = /already.*registered|exists/i.test(error.message);
-    console.log(`${exists ? 'skip ' : 'FAIL '} ${email}${exists ? ' (exists)' : ': ' + error.message}`);
+  const id = existing.get(email.toLowerCase());
+  if (id) {
+    const { error } = await admin.auth.admin.updateUserById(id, { password, email_confirm: true });
+    console.log(error ? `FAIL  ${email}: ${error.message}` : `set   ${email} (existing, password synced)`);
   } else {
-    console.log(`made  ${email}  (${data.user?.id})`);
+    const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    console.log(error ? `FAIL  ${email}: ${error.message}` : `made  ${email} (${data.user?.id})`);
   }
 }
-console.log('Done. Set VITE_QA_PASSWORD to the same QA_PASSWORD on the QA build.');
+console.log('Done. All five accounts now use the embedded QA password.');

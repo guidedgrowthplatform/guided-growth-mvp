@@ -7,7 +7,7 @@
  *
  * Replace-not-append: the prompts array overwrites data.customPrompts.
  */
-import pool from '../../db.js';
+import pool, { type Queryable } from '../../db.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -37,7 +37,10 @@ function getStringArray(args: Record<string, unknown>, key: string): string[] | 
   return out;
 }
 
-export async function submitCustomPrompts(args: Record<string, unknown>): Promise<HandlerResult> {
+export async function submitCustomPrompts(
+  args: Record<string, unknown>,
+  db: Queryable = pool,
+): Promise<HandlerResult> {
   console.log(
     '[vapi/tool] received name=submit_custom_prompts anon_id=' + getString(args, 'anon_id'),
   );
@@ -59,7 +62,7 @@ export async function submitCustomPrompts(args: Record<string, unknown>): Promis
   const payload = JSON.stringify({ customPrompts, reflectionMode: 'prompts' });
 
   // DATA ONLY — current_step not touched; navigate_next handles the advance.
-  const result = await pool.query(
+  const result = await db.query(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
      VALUES ($1, 6, 'in_progress', $2::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET

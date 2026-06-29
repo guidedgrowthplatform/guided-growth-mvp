@@ -66,8 +66,15 @@ export interface SpeakOpenerHandle {
  * when playback ends (or fails, since a failed opener must never strand the mic
  * closed, so the caller treats "done" as "opener no longer pending"). Resolves
  * immediately for empty text.
+ *
+ * `onProgress(fraction)` reports playback position 0..1 (driven by the audio
+ * element's own clock), so the caller can karaoke the opener IN SYNC with the
+ * Cartesia voice instead of a fixed-cadence guess. Always ends with 1.
  */
-export function speakOpener(text: string): SpeakOpenerHandle {
+export function speakOpener(
+  text: string,
+  onProgress?: (fraction: number) => void,
+): SpeakOpenerHandle {
   const clean = text.trim();
   if (!clean) {
     return { done: Promise.resolve(), stop: () => {} };
@@ -76,14 +83,23 @@ export function speakOpener(text: string): SpeakOpenerHandle {
   const abort = new AbortController();
   let audio: HTMLAudioElement | null = null;
   let settled = false;
+  let raf = 0;
   let resolveDone: () => void = () => {};
   const done = new Promise<void>((resolve) => {
     resolveDone = resolve;
   });
 
+  const stopProgress = () => {
+    if (raf) {
+      cancelAnimationFrame(raf);
+      raf = 0;
+    }
+  };
+
   const settle = () => {
     if (settled) return;
     settled = true;
+    stopProgress();
     if (audio) {
       audio.onended = null;
       audio.onerror = null;
@@ -132,6 +148,8 @@ export function speakOpener(text: string): SpeakOpenerHandle {
       audio = el;
       const cleanupUrl = () => URL.revokeObjectURL(url);
       el.onended = () => {
+        stopProgress();
+        onProgress?.(1);
         cleanupUrl();
         settle();
       };
@@ -139,6 +157,17 @@ export function speakOpener(text: string): SpeakOpenerHandle {
         cleanupUrl();
         settle();
       };
+      if (onProgress) {
+        const tick = () => {
+          if (settled || !audio) return;
+          const d = audio.duration;
+          if (d && Number.isFinite(d) && d > 0) {
+            onProgress(Math.min(1, audio.currentTime / d));
+          }
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+      }
       try {
         await el.play();
       } catch (err) {

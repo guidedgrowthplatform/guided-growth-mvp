@@ -37,12 +37,13 @@ describe('buildCanonicalOptionsBlock', () => {
     expect(buildCanonicalOptionsBlock('ONBOARD-BEGINNER-03', {})).toBe('');
   });
 
-  it('injects profile-collection guidance for ONBOARD-01--FORM (all four fields, no early advance)', () => {
+  it('injects profile-collection guidance for ONBOARD-01--FORM (age + gender only, name from auth, no referral)', () => {
     const out = buildCanonicalOptionsBlock('ONBOARD-01--FORM', {});
     expect(out).toContain('Profile Fields');
-    expect(out).toContain('nickname, age, gender');
-    expect(out).toContain('referral source');
-    expect(out).toContain('Do NOT call advance_step');
+    expect(out).toContain('age and gender');
+    expect(out).toContain('do NOT ask for it');
+    expect(out).toContain('no referral source');
+    expect(out).not.toContain('nickname, age, gender');
   });
 
   it('returns empty for unrelated screens', () => {

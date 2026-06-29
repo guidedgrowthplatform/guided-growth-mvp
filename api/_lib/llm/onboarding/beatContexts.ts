@@ -127,10 +127,11 @@ Collect one to three habits tied to the chosen goals. Encourage doable, not hero
   },
 
   'ONBOARD-BEGINNER-04': {
-    context: `BEAT: Habit configuration.
+    context: `BEAT: Habit schedule.
 
-For each selected habit, collect the missing schedule details: time, frequency, and reminder preference. Parse combined answers when possible, like every weekday at 7 with reminders. If anything is missing, ask only for that piece. Do not accept vague times like before bed without a follow-up.`,
+For each habit they chose, set when they will do it: a time, which days, and whether they want a reminder. Parse combined answers when you can, like every weekday at 7 with reminders. If anything is missing, ask only for that piece. Do not accept vague times like before bed without a follow-up.`,
     allowedTools: ['add_habit', 'update_habit', 'advance_step'],
+    opener: 'When will you do these? Set a time and how often, and I can remind you.',
   },
 
   'ONBOARD-BEGINNER-05': {
@@ -140,24 +141,25 @@ If a second habit exists, collect its missing time, frequency, and reminder pref
     allowedTools: ['add_habit', 'update_habit', 'advance_step'],
   },
 
-  // Plan-review / completion beat (beginner). Habits + reflection already saved;
-  // confirm_plan ends onboarding.
+  // Plan-review beat (beginner). The user confirms their habits, then continues to
+  // the morning + evening setup beats. confirm_plan now lives on the final
+  // ONBOARD-COMPLETE beat, so here the coach edits and advances only.
   'ONBOARD-BEGINNER-06': {
     context: `BEAT: Plan review.
 
-Confirm the configured plan quickly. Ask whether anything needs changing, and handle one edit at a time. Keep momentum. When the user signals they are ready, start the plan. Do not add commentary, encourage second-guessing, or re-collect details that are already complete.`,
-    allowedTools: ['update_habit', 'confirm_plan'],
+Show them the habits you built together and ask if anything needs changing. Handle one edit at a time, keep momentum. When they are happy, move on. Do not add commentary, encourage second-guessing, or re-collect details that are already complete.`,
+    allowedTools: ['update_habit', 'advance_step'],
     opener:
-      "Here's your starting plan. Take a look, does it all look right, or want to change anything before we start?",
+      'Here are your habits. Take a look, does it all look right, or want to change anything before we keep going?',
   },
 
   'ONBOARD-BEGINNER-07': {
     context: `BEAT: Reflection setup.
 
-Collect one reflection style: guided prompts, custom prompts, or freeform. Reflection is required, but the style is the user's choice. Explain the options briefly and neutrally. If they resist journaling, normalize keeping it lightweight and ask which style feels least annoying. Do not skip the beat.`,
+Collect one reflection style: guided prompts, custom prompts, or freeform, plus when and how often. Reflection is required, but the style and timing are the user's choice. Explain the options briefly and neutrally. If they resist journaling, normalize keeping it lightweight and ask which style feels least annoying. Do not skip the beat.`,
     allowedTools: ['submit_reflection_config', 'submit_custom_prompts', 'advance_step'],
     opener:
-      "One last thing, let's set up a short evening reflection. I can ask you a few simple questions each evening, or you can free-write. Which sounds better? You can change it anytime.",
+      'Now your evening reflection. When works for you? I can ask you a few simple questions each evening, or you can free-write. Which sounds better? You can change it anytime.',
   },
 
   'ONBOARD-ADVANCED': {
@@ -166,7 +168,7 @@ Collect one reflection style: guided prompts, custom prompts, or freeform. Refle
 Collect the user's existing habits one at a time. For each habit, capture name, time, frequency, and reminder preference if known. Accept rough drafts and partial details. Ask for missing pieces only when needed. Do not redesign their system or move them into beginner guidance.`,
     allowedTools: ['submit_brain_dump', 'advance_step'],
     opener:
-      "Tell me everything you want to achieve. Say or type as much as you want, and I'll organize it into habits for you.",
+      "Perfect. Read me the habits you already track and I'll get them organized. Say or type as much as you want.",
   },
 
   'ONBOARD-ADVANCED-02': {
@@ -204,6 +206,26 @@ Show the final plan summary in plain language: habits, reflection setup, and sch
     allowedTools: ['update_habit', 'confirm_plan'],
     opener:
       "Here's what I put together from everything you shared. Want to start with this, or tweak anything first?",
+  },
+
+  // Morning check-in setup. Both paths reach this after plan review.
+  'ONBOARD-MORNING-SETUP': {
+    context: `BEAT: Morning check-in setup.
+
+Set up a short morning check-in: when they want the nudge, which days, and whether they want a reminder. Keep it light, a quick way to start the day with intention. Once they give a time, infer the rest from natural defaults and continue.`,
+    allowedTools: ['submit_morning_checkin', 'advance_step'],
+    opener:
+      "When do you want your morning check-in? I'll nudge you then so you can start the day with a clear head.",
+  },
+
+  // Final completion beat. Habits + morning + evening are all saved; confirm_plan
+  // ends onboarding and takes the user into the app.
+  'ONBOARD-COMPLETE': {
+    context: `BEAT: Into the app.
+
+Onboarding is done. Warmly tell the user they are all set and take them in. Do not collect anything else, do not re-confirm details, do not add a speech.`,
+    allowedTools: ['confirm_plan'],
+    opener: "You're all set. Let's get started.",
   },
 };
 

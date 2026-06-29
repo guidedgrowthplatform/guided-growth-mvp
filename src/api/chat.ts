@@ -2,8 +2,29 @@ import type {
   ChatHistoryResponse,
   ChatSessionResponse,
   LinearHistoryResponse,
+  OnboardingThreadResponse,
 } from '@gg/shared/types/llm';
 import { apiGet, apiPost } from './client';
+
+export interface AppendChatTurnPayload {
+  chat_session_id: string;
+  screen_id: string;
+  role: 'user' | 'ai' | 'assistant';
+  text: string;
+  client_turn_key: string;
+  mode?: 'chat' | 'opener';
+}
+
+// Persist one voice/Vapi turn. Idempotent per client_turn_key (the stable
+// VoiceMessage id) — a turn whose merged text grows re-POSTs the same key.
+export function appendChatTurn(payload: AppendChatTurnPayload): Promise<{ ok: true }> {
+  return apiPost<{ ok: true }>('/api/chat/append', payload);
+}
+
+// Resolve the canonical onboarding thread for this anon_id (cross-device).
+export function fetchOnboardingThread(): Promise<OnboardingThreadResponse> {
+  return apiGet<OnboardingThreadResponse>('/api/chat/onboarding-thread');
+}
 
 // Full message history for a known chat_session_id (cross-screen). Used to
 // rehydrate the chat-native onboarding thread, whose stable session spans beats.

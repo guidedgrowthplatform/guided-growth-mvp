@@ -1,4 +1,10 @@
-// Scripted check-in lines said verbatim; one variation picked at random per call.
+// Scripted check-in lines the coach says verbatim. The text pool comes from the
+// Master Sheet "Voice Scripts" tab via the committed CHECKIN_SCRIPT_VARIANTS artifact
+// (regenerate with `npm run checkin:bundle`), overlaid on the hand-authored fallback
+// below so the coach is never silent if a stage is missing from the sheet. One variation
+// is picked at random per call.
+import { CHECKIN_SCRIPT_VARIANTS } from '../generated/checkin_scripts';
+
 export type CheckinStageKey =
   | 'morning_greeting'
   | 'morning_state_prompt'
@@ -13,7 +19,9 @@ export type CheckinStageKey =
   | 'are_you_done'
   | 'acknowledgment';
 
-export const CHECKIN_SCRIPTS: Record<CheckinStageKey, readonly string[]> = {
+// Hand-authored fallback pool (never-blank): used for any stage the synced artifact
+// does not provide. The live CHECKIN_SCRIPTS below overlays the sheet content on this.
+const FALLBACK_SCRIPTS: Record<CheckinStageKey, readonly string[]> = {
   morning_greeting: [
     'Good morning. Ready to check in?',
     "Hey. Let's start the day.",
@@ -32,7 +40,6 @@ export const CHECKIN_SCRIPTS: Record<CheckinStageKey, readonly string[]> = {
     "How are you doing right now? Check in on your mood, energy, sleep, and any stress. Tap the items or just say what's true.",
     'Tell me about this morning. Mood, energy, how you slept, anything sitting on you. You can tap or just talk.',
   ],
-  // DRAFT: not in gg-spec, needs Yair
   morning_wrap: [
     "That's a good start. Go make it a good one.",
     "You're set. Have a good day.",
@@ -98,6 +105,16 @@ export const CHECKIN_SCRIPTS: Record<CheckinStageKey, readonly string[]> = {
   ],
 };
 
+// Live pool: synced Sheet variations overlaid on the fallback. A stage absent or empty
+// in the generated artifact falls back to its hand-authored line(s).
+export const CHECKIN_SCRIPTS = Object.fromEntries(
+  (Object.keys(FALLBACK_SCRIPTS) as CheckinStageKey[]).map((stage) => {
+    const synced = CHECKIN_SCRIPT_VARIANTS[stage];
+    return [stage, synced && synced.length > 0 ? synced : FALLBACK_SCRIPTS[stage]];
+  }),
+) as Record<CheckinStageKey, readonly string[]>;
+
+// One variation picked at random per call.
 export function pickVariation(stage: CheckinStageKey): string {
   const variations = CHECKIN_SCRIPTS[stage];
   return variations[Math.floor(Math.random() * variations.length)];
