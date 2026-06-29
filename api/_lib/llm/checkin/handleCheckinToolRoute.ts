@@ -7,7 +7,7 @@ import { dispatchCheckinToolCall } from './dispatch.js';
 // Tap-driven check-in writes from the flow engine. Reuses the same record_checkin
 // handler the coach fires by voice. Allowlisted so this is not a generic 15-tool
 // gateway that bypasses per-screen tool gating.
-const TAP_ALLOWED_TOOLS = new Set(['record_checkin']);
+const TAP_ALLOWED_TOOLS = new Set(['record_checkin', 'complete_habit', 'log_reflection']);
 
 export async function handleCheckinTool(
   req: VercelRequest,

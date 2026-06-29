@@ -7,12 +7,17 @@ import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionLogContext, type SessionLogContextValue } from '@/contexts/SessionLogContext';
 import { ToastProvider } from '@/contexts/ToastContext';
+import { queryKeys } from '@/lib/query/keys';
 import { useCheckinFlowPersistence } from './checkinPersistence';
 import type { FlowPersistence } from './persistence';
 
 const recordCheckinTool = vi.fn();
+const completeHabitTool = vi.fn();
+const logReflectionTool = vi.fn();
 vi.mock('@/api/checkinTool', () => ({
   recordCheckinTool: (...a: unknown[]) => recordCheckinTool(...a),
+  completeHabitTool: (...a: unknown[]) => completeHabitTool(...a),
+  logReflectionTool: (...a: unknown[]) => logReflectionTool(...a),
 }));
 
 const captureException = vi.fn();
@@ -104,6 +109,80 @@ describe('useCheckinFlowPersistence.saveTool', () => {
     ).not.toThrow();
     await flush();
     expect(captureException).toHaveBeenCalled();
+  });
+
+  it('complete_habit: fires once per done habit, skips missed/pending', async () => {
+    completeHabitTool.mockResolvedValue({ ok: true });
+    act(() => {
+      captured.saveTool?.('complete_habit', {
+        habitStatuses: { h1: 'done', h2: 'missed', h3: 'done', h4: 'pending' },
+      } as never);
+    });
+    await flush();
+    expect(completeHabitTool).toHaveBeenCalledTimes(2);
+    expect(completeHabitTool).toHaveBeenCalledWith('h1');
+    expect(completeHabitTool).toHaveBeenCalledWith('h3');
+  });
+
+  it('complete_habit: no done habits → no call', async () => {
+    act(() => {
+      captured.saveTool?.('complete_habit', { habitStatuses: { h1: 'pending' } } as never);
+    });
+    await flush();
+    expect(completeHabitTool).not.toHaveBeenCalled();
+  });
+
+  it('log_reflection: posts the text and logs completion', async () => {
+    logReflectionTool.mockResolvedValue({ ok: true });
+    act(() => {
+      captured.saveTool?.('log_reflection', { reflectionText: 'grateful today' } as never);
+    });
+    await flush();
+    expect(logReflectionTool).toHaveBeenCalledWith('grateful today');
+    expect(logEvent).toHaveBeenCalledWith(
+      'checkin_completed',
+      expect.objectContaining({ type: 'morning', via: 'tap' }),
+    );
+  });
+
+  it('complete_habit: success invalidates the habits cache', async () => {
+    completeHabitTool.mockResolvedValue({ ok: true });
+    const invalidate = vi.spyOn(qc, 'invalidateQueries');
+    act(() => {
+      captured.saveTool?.('complete_habit', { habitStatuses: { h1: 'done' } } as never);
+    });
+    await flush();
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.habits.all });
+  });
+
+  it('complete_habit: a failed call still invalidates and reports', async () => {
+    completeHabitTool.mockRejectedValue(new Error('save down'));
+    const invalidate = vi.spyOn(qc, 'invalidateQueries');
+    act(() => {
+      captured.saveTool?.('complete_habit', { habitStatuses: { h1: 'done' } } as never);
+    });
+    await flush();
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.habits.all });
+    expect(captureException).toHaveBeenCalled();
+  });
+
+  it('log_reflection: on save failure reports to Sentry, does not throw', async () => {
+    logReflectionTool.mockRejectedValue(new Error('save down'));
+    expect(() =>
+      act(() => {
+        captured.saveTool?.('log_reflection', { reflectionText: 'today' } as never);
+      }),
+    ).not.toThrow();
+    await flush();
+    expect(captureException).toHaveBeenCalled();
+  });
+
+  it('log_reflection: empty text → no call', async () => {
+    act(() => {
+      captured.saveTool?.('log_reflection', { reflectionText: '   ' } as never);
+    });
+    await flush();
+    expect(logReflectionTool).not.toHaveBeenCalled();
   });
 
   it('reports an unmapped tool to Sentry and does not dispatch', async () => {

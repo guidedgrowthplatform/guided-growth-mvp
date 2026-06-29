@@ -67,6 +67,22 @@ export function resolveNextNodeId(
   return node.nextId;
 }
 
+// Advance past any beat whose skipWhen is true for these answers. Beats without
+// skipWhen (all onboarding beats) are never skipped. Guarded against cycles.
+function skipForward(
+  flow: FlowDocument,
+  startId: string | null,
+  answers: FlowAnswers,
+): string | null {
+  let id = startId;
+  for (let guard = 0; id != null && guard < 100; guard++) {
+    const node = getNode(flow, id);
+    if (!node || node.type !== 'beat' || !node.skipWhen || !node.skipWhen(answers)) break;
+    id = node.nextId;
+  }
+  return id;
+}
+
 export function initFlowMachine(flow: FlowDocument): FlowMachineState {
   return {
     currentNodeId: flow.entryNodeId,
@@ -95,7 +111,7 @@ export function applyCapture(
     ...(capture.path ? { path: capture.path } : {}),
   };
 
-  const nextId = resolveNextNodeId(flow, current, answers);
+  const nextId = skipForward(flow, resolveNextNodeId(flow, current, answers), answers);
 
   if (nextId == null) {
     return { currentNodeId: null, visited: state.visited, answers, status: 'complete' };
@@ -109,14 +125,29 @@ export function applyCapture(
   };
 }
 
+// Back target, hopping over skipWhen-skipped beats (never visited, so the raw
+// backId would dead-end). Onboarding beats have no skipWhen → returns backId.
+function resolveBackId(flow: FlowDocument, state: FlowMachineState): string | null {
+  const current = getNode(flow, state.currentNodeId);
+  let backId = current && current.type !== 'branch' ? current.backId : null;
+  for (let guard = 0; backId != null && guard < 100; guard++) {
+    const node = getNode(flow, backId);
+    if (node && node.type === 'beat' && node.skipWhen && node.skipWhen(state.answers)) {
+      backId = node.backId;
+      continue;
+    }
+    break;
+  }
+  return backId;
+}
+
 /**
  * Jump back to a node (the back action). Pure; trims visited to that node. Only
  * goes back to a beat actually visited this session, so the entry beat (whose
  * backId may point at a node owned by a prior route) has no in-engine back.
  */
 export function goBack(flow: FlowDocument, state: FlowMachineState): FlowMachineState {
-  const current = getNode(flow, state.currentNodeId);
-  const backId = current && current.type !== 'branch' ? current.backId : null;
+  const backId = resolveBackId(flow, state);
   const idx = backId ? state.visited.lastIndexOf(backId) : -1;
   if (idx < 0) return state;
   return {
@@ -129,9 +160,8 @@ export function goBack(flow: FlowDocument, state: FlowMachineState): FlowMachine
 
 /** Can the back action fire from the current node (a visited, non-branch backId)? */
 export function canGoBack(state: FlowMachineState, flow: FlowDocument): boolean {
-  const current = getNode(flow, state.currentNodeId);
-  if (!current || current.type === 'branch' || !current.backId) return false;
-  return state.visited.includes(current.backId);
+  const backId = resolveBackId(flow, state);
+  return backId != null && state.visited.includes(backId);
 }
 
 /**

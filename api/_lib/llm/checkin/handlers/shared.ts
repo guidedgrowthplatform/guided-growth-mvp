@@ -129,6 +129,17 @@ export async function findHabitByName(anonId: string, name: string): Promise<Hab
   return res.rows[0] ?? null;
 }
 
+export async function findHabitById(anonId: string, id: string): Promise<HabitRow | null> {
+  const res = await pool.query<HabitRow>(
+    `SELECT id, name, cadence, schedule_days, habit_type
+       FROM user_habits
+      WHERE anon_id = $1 AND id = $2 AND is_active = true AND archived_at IS NULL
+      LIMIT 1`,
+    [anonId, id],
+  );
+  return res.rows[0] ?? null;
+}
+
 export interface MetricRow {
   id: string;
   name: string;
@@ -149,6 +160,13 @@ export async function resolveHabitArg(
   anonId: string,
   args: Record<string, unknown>,
 ): Promise<Resolved<HabitRow>> {
+  // client taps key by id (names not unique); voice coach sends name.
+  const rawId = args.habit_id;
+  if (typeof rawId === 'string' && rawId.trim() !== '') {
+    const habit = await findHabitById(anonId, rawId.trim());
+    if (!habit) return { ok: false, error: notFound(`No habit with id "${rawId}".`) };
+    return { ok: true, value: habit };
+  }
   const raw = args.name;
   if (typeof raw !== 'string' || raw.trim() === '')
     return { ok: false, error: invalid('name is required') };

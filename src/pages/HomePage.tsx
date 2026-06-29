@@ -5,7 +5,6 @@ import { track } from '@/analytics';
 import {
   HomeHeader,
   DateStrip,
-  CheckinFlowOverlay,
   QuickActionCards,
   HabitsSection,
   RecentReflectionsSection,
@@ -14,6 +13,7 @@ import {
   ReminderSheet,
 } from '@/components/home';
 import { useCheckIn } from '@/hooks/useCheckIn';
+import { useOpenCheckinCoach } from '@/hooks/useCheckinEntry';
 import { useDisplayName } from '@/hooks/useDisplayName';
 import { useEntries } from '@/hooks/useEntries';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -21,7 +21,7 @@ import { useReminderCheckinDeepLink } from '@/hooks/useReminderCheckinDeepLink';
 import { useSessionLog } from '@/hooks/useSessionLog';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { PERMISSIONS_SEEN_KEY } from '@/lib/permissions';
-import { speak, unlockTTS } from '@/lib/services/tts-service';
+import { speak } from '@/lib/services/tts-service';
 import { currentCheckinType } from '@/utils/dates';
 import type { EntriesMap } from '@gg/shared/types';
 
@@ -41,8 +41,8 @@ export function HomePage() {
   const fromOnboarding = (location.state as { fromOnboarding?: boolean })?.fromOnboarding === true;
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showReminders, setShowReminders] = useState(false);
-  const [showMorningFlow, setShowMorningFlow] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const openCheckinCoach = useOpenCheckinCoach();
 
   // today's row, not time-bucketed useCheckinEntry (flips to evening after 16:00)
   const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -83,19 +83,6 @@ export function HomePage() {
       homeScreenId,
     );
   }, [homeScreenId, logEvent]);
-
-  // CHECKIN-EXPANDED is a state of HomePage, not a route — fire an explicit
-  // navigate + checkin_started when the overlay opens.
-  useEffect(() => {
-    if (showMorningFlow) {
-      logEvent(
-        'navigate',
-        { from_screen: homeScreenId, to_screen: 'HOME-MORNING-CHECKIN-EXPANDED', trigger: 'tap' },
-        'HOME-MORNING-CHECKIN-EXPANDED',
-      );
-      logEvent('checkin_started', { type: 'morning' }, 'MCHECK-01');
-    }
-  }, [showMorningFlow, homeScreenId, logEvent]);
 
   const displayName = useDisplayName('there');
 
@@ -161,9 +148,8 @@ export function HomePage() {
         <QuickActionCards
           morningDone={morningDone}
           onCheckInPress={() => {
-            unlockTTS(); // gesture-bound; required for iOS audio
             track('start_checkin', { checkin_type: 'morning', trigger: 'home_card' });
-            setShowMorningFlow(true);
+            openCheckinCoach();
           }}
           onJournalPress={() => {
             navigate('/journal');
@@ -176,14 +162,6 @@ export function HomePage() {
       <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-6 z-20">
         <FeedbackButton onPress={() => setShowFeedback(true)} />
       </div>
-
-      {showMorningFlow && (
-        <CheckinFlowOverlay
-          flowId="morning-checkin-v1"
-          alreadyDone={morningDone}
-          onClose={() => setShowMorningFlow(false)}
-        />
-      )}
 
       {showFeedback && <FeedbackSheet onClose={() => setShowFeedback(false)} />}
 

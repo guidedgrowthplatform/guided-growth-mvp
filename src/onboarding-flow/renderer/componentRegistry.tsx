@@ -41,7 +41,9 @@ import {
   useOnboardingVoiceActions,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useAuth } from '@/hooks/useAuth';
+import { useHabitsForDate } from '@/hooks/useHabitsForDate';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { formatDate } from '@/utils/dates';
 import type { CheckInDimension, HabitDayStatus, ReflectionMode } from '@gg/shared/types';
 import {
   FLOW_CATEGORIES,
@@ -1288,49 +1290,45 @@ function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
 
 /* --------------------------------------------------------- habit review */
 
-// Evening habit review: a tri-state list (pending -> done -> missed -> pending).
-// The captured statuses are handed back; the per-habit save goes through the
-// check-in complete_habit handler (server side). Habits come from prior answers
-// (the day's habits) or a small default sample when the engine has none loaded.
-const HABIT_REVIEW_SAMPLE: { name: string; subtitle: string; streak: number }[] = [
-  { name: 'Morning walk', subtitle: '7:00 AM', streak: 4 },
-  { name: 'No screens after 10 PM', subtitle: '10:00 PM', streak: 6 },
-  { name: 'Read 10 pages', subtitle: 'Evening', streak: 2 },
-];
+// Real habits for today; persistence on Continue via complete_habit, taps are local overrides.
+const cycleHabitStatus = (s: HabitDayStatus): HabitDayStatus =>
+  s === 'pending' ? 'done' : s === 'done' ? 'missed' : 'pending';
 
-function HabitReviewAdapter({ answers, onCapture }: BeatAdapterProps) {
-  const fromAnswers = answers.habitConfigs
-    ? Object.keys(answers.habitConfigs).map((name) => ({ name, subtitle: '', streak: 0 }))
-    : [];
-  const habits = fromAnswers.length > 0 ? fromAnswers : HABIT_REVIEW_SAMPLE;
-  const [statuses, setStatuses] = useState<Record<string, HabitDayStatus>>(() =>
-    Object.fromEntries(habits.map((h) => [h.name, 'pending' as HabitDayStatus])),
-  );
+function HabitReviewAdapter({ onCapture }: BeatAdapterProps) {
+  const today = formatDate(new Date());
+  const { habits, loading } = useHabitsForDate(today, 'ECHECK-HABITS');
+  // Local overrides over the persisted status; absent → the real day status.
+  const [overrides, setOverrides] = useState<Record<string, HabitDayStatus>>({});
+  const statusOf = (id: string, initial: HabitDayStatus) => overrides[id] ?? initial;
 
-  const cycle = (s: HabitDayStatus): HabitDayStatus =>
-    s === 'pending' ? 'done' : s === 'done' ? 'missed' : 'pending';
+  const submit = () => {
+    const habitStatuses = Object.fromEntries(
+      habits.map((h) => [h.habit.id, statusOf(h.habit.id, h.status)]),
+    );
+    onCapture({ data: { habitStatuses } as Record<string, unknown> });
+  };
 
   return (
     <CardShell>
       <div className="flex w-full flex-col gap-2">
-        {habits.map((h) => (
-          <HabitListItem
-            key={h.name}
-            name={h.name}
-            subtitle={h.subtitle}
-            streak={h.streak}
-            status={statuses[h.name] ?? 'pending'}
-            onSetStatus={(next) => setStatuses((prev) => ({ ...prev, [h.name]: next }))}
-            onClick={() =>
-              setStatuses((prev) => ({ ...prev, [h.name]: cycle(prev[h.name] ?? 'pending') }))
-            }
-          />
-        ))}
+        {habits.map((h) => {
+          const st = statusOf(h.habit.id, h.status);
+          return (
+            <HabitListItem
+              key={h.habit.id}
+              name={h.habit.name}
+              subtitle=""
+              streak={h.streak}
+              status={st}
+              onSetStatus={(next) => setOverrides((prev) => ({ ...prev, [h.habit.id]: next }))}
+              onClick={() =>
+                setOverrides((prev) => ({ ...prev, [h.habit.id]: cycleHabitStatus(st) }))
+              }
+            />
+          );
+        })}
       </div>
-      <Cta
-        label="Continue"
-        onClick={() => onCapture({ data: { habitStatuses: statuses } as Record<string, unknown> })}
-      />
+      <Cta label="Continue" disabled={loading} onClick={submit} />
     </CardShell>
   );
 }

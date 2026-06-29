@@ -3,6 +3,20 @@ import { unlockTTS } from '@/lib/services/tts-service';
 
 export type CheckinScreenId = 'HOME-CHECKIN' | 'MCHECK-01' | 'ECHECK-01';
 
+// Dedicated check-in screens run on the beat engine; HOME-CHECKIN stays LLM chat.
+const CHECKIN_SCREEN_TO_FLOW = {
+  'MCHECK-01': 'morning-checkin-v1',
+  'ECHECK-01': 'evening-checkin-v1',
+} as const;
+
+export function checkinFlowForScreen(
+  screenId: CheckinScreenId | null,
+): (typeof CHECKIN_SCREEN_TO_FLOW)[keyof typeof CHECKIN_SCREEN_TO_FLOW] | null {
+  return screenId
+    ? (CHECKIN_SCREEN_TO_FLOW[screenId as keyof typeof CHECKIN_SCREEN_TO_FLOW] ?? null)
+    : null;
+}
+
 interface CoachChatContextValue {
   openScreenId: CheckinScreenId | null;
   // Bumps each open-with-initiateCheckin — the provider/hook watches this to

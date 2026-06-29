@@ -6,12 +6,20 @@ interface CheckinToolResult {
   result: { recorded: boolean; date: string; checkin: CheckInData };
 }
 
-// Tap-driven record_checkin. Same handler the coach fires by voice.
-export function recordCheckinTool(args: Partial<CheckInData>): Promise<CheckinToolResult> {
+function callCheckinTool<T>(toolName: string, args: Record<string, unknown>): Promise<T> {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return apiPost<CheckinToolResult>('/api/llm/checkin-tool', {
-    toolName: 'record_checkin',
-    args,
-    timezone,
-  });
+  return apiPost<T>('/api/llm/checkin-tool', { toolName, args, timezone });
+}
+
+// Same handlers the coach fires by voice.
+export function recordCheckinTool(args: Partial<CheckInData>): Promise<CheckinToolResult> {
+  return callCheckinTool<CheckinToolResult>('record_checkin', args);
+}
+
+export function completeHabitTool(habitId: string): Promise<{ ok: true }> {
+  return callCheckinTool<{ ok: true }>('complete_habit', { habit_id: habitId });
+}
+
+export function logReflectionTool(text: string): Promise<{ ok: true }> {
+  return callCheckinTool<{ ok: true }>('log_reflection', { text });
 }
