@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { BeatPlayer, useAnimations, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
@@ -167,24 +167,165 @@ function LiveScan() {
   );
 }
 
+// Fallback input surface for the mic-off path. The user types habits one per
+// line and the list feeds the same flow.setHabits channel that LiveScan uses,
+// so the downstream advanced-habits and advanced-frequency beats receive the
+// real captured habits rather than the sample fallback.
+function TypeInstead() {
+  const flow = useFlowState();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [value, setValue] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (textareaRef.current) textareaRef.current.focus();
+  }, []);
+
+  function parseLines(raw: string): string[] {
+    return raw
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+  }
+
+  function handleSubmit() {
+    const lines = parseLines(value);
+    if (!lines.length) return;
+    flow?.setHabits(lines);
+    setSubmitted(true);
+  }
+
+  const lines = parseLines(value);
+
+  if (submitted) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {lines.map((line) => (
+          <div
+            key={line}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 14px',
+              borderRadius: 14,
+              background: 'rgba(19,91,235,0.06)',
+              animation: 'ggScanIn 280ms ease-out',
+            }}
+          >
+            <Icon icon="mdi:check-circle" width={18} height={18} style={{ color: BLUE, flexShrink: 0 }} />
+            <span style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: 'rgb(15,23,42)' }}>
+              {line}
+            </span>
+          </div>
+        ))}
+        <style>{`@keyframes ggScanIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}`}</style>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <textarea
+        ref={textareaRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={'One habit per line, for example:\n10-minute walk after lunch\nNo screens after 10 PM'}
+        rows={5}
+        style={{
+          fontFamily: FONT,
+          fontSize: 14.5,
+          fontWeight: 500,
+          color: 'rgb(15,23,42)',
+          lineHeight: 1.6,
+          padding: '14px 16px',
+          borderRadius: 18,
+          border: `1.5px solid ${BLUE}`,
+          background: '#fff',
+          boxShadow: '0 4px 16px -8px rgba(15,23,42,0.10)',
+          resize: 'none',
+          outline: 'none',
+          width: '100%',
+          boxSizing: 'border-box',
+        }}
+      />
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={!lines.length}
+        style={{
+          fontFamily: FONT,
+          fontSize: 14.5,
+          fontWeight: 700,
+          color: lines.length ? '#fff' : 'rgba(15,23,42,0.35)',
+          background: lines.length ? BLUE : 'rgba(15,23,42,0.07)',
+          border: 'none',
+          borderRadius: 18,
+          padding: '13px 20px',
+          cursor: lines.length ? 'pointer' : 'default',
+          transition: 'background 180ms ease-out, color 180ms ease-out',
+          textAlign: 'center',
+        }}
+      >
+        {lines.length ? `Save ${lines.length} habit${lines.length === 1 ? '' : 's'}` : 'Add at least one habit'}
+      </button>
+    </div>
+  );
+}
+
+// Wrapper that renders LiveScan by default and lets the user reveal TypeInstead
+// via a "Type instead" toggle. When the user has already submitted via typing,
+// the toggle is hidden so the confirmed state stays visible.
+function CaptureWithFallback() {
+  const [typing, setTyping] = useState(false);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {typing ? <TypeInstead /> : <LiveScan />}
+
+      {/* Toggle between voice and text paths. */}
+      <button
+        type="button"
+        onClick={() => setTyping((v) => !v)}
+        style={{
+          fontFamily: FONT,
+          fontSize: 13,
+          fontWeight: 600,
+          color: 'rgba(15,23,42,0.50)',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '4px 0',
+          textAlign: 'center',
+          textDecoration: 'underline',
+          textDecorationColor: 'rgba(15,23,42,0.20)',
+          textUnderlineOffset: 3,
+        }}
+      >
+        {typing ? 'Use mic instead' : 'Type instead'}
+      </button>
+    </div>
+  );
+}
+
 function AdvancedCaptureBeat(props?: Record<string, string>) {
   const steps: BeatStep[] = [
     {
-      // Opener: invite them to read their habits aloud. The framing here is
+      // Opener: invite them to share their habits. The framing here is
       // "less is more, start small." Real copy comes from beatContexts.ts;
       // this string is a placeholder that matches the spec direction.
       id: 'ask',
       speaker: 'coach',
       say:
         props?.coachLine ??
-        'Read me the habits you already track. Less is more to start. You can always add more later.',
+        'Share the habits you already track. Less is more to start. You can always add more later.',
     },
     {
-      // Live capture: coach stays active (mic open) while the user speaks.
-      // Lines land one by one, organized by category in real time.
+      // Capture surface: mic-on path uses the live scan, mic-off path uses the
+      // text input. Both feed the same captured-habits list downstream.
       id: 'scan',
       speaker: 'coach',
-      render: <LiveScan />,
+      render: <CaptureWithFallback />,
     },
     {
       // Closing nudge: once all lines are in, reinforce the small-start framing

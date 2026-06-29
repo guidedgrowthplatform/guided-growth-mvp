@@ -290,6 +290,44 @@ function EveningSetupCard({
           <StyleDescription style={style} />
         </div>
 
+        {/* Freeform fallback textarea, visible only when style is "freeform".
+            Lets mic-off users type their reflection instead of speaking. */}
+        {style === 'freeform' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span
+              style={{
+                fontFamily: FONT,
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.6px',
+                textTransform: 'uppercase',
+                color: 'rgb(100,116,139)',
+              }}
+            >
+              Or type your thoughts
+            </span>
+            <textarea
+              rows={5}
+              placeholder="Whatever comes up tonight..."
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                borderRadius: 14,
+                border: `1.5px solid ${EVENING_BORDER}`,
+                background: EVENING_BG,
+                fontFamily: FONT,
+                fontSize: 14,
+                fontWeight: 500,
+                color: 'rgb(15,23,42)',
+                outline: 'none',
+                resize: 'vertical',
+                lineHeight: 1.55,
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        )}
+
         {/* Prompt editor, visible only when style is "your template" */}
         {style === 'your template' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

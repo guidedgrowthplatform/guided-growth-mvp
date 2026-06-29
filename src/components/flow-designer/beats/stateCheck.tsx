@@ -1,12 +1,17 @@
 import { useState } from 'react';
 import { checkInDimensions } from '@/components/home/checkInConfig';
 import { EmojiOptionButton } from '@/components/home/EmojiOptionButton';
+import { Button } from '@/components/ui/Button';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 
 // The morning state-check card: all four rows (sleep, mood, energy, stress) in one
 // card, the user taps each. This is the real four-row card, not the mood-only row.
+// A Done button below the rows lets a mic-off user advance with whatever subset
+// they have filled in (no dimension is required before moving on).
 function StateCheckCard() {
   const [sel, setSel] = useState<Record<string, number>>({});
+  const [done, setDone] = useState(false);
+
   return (
     <div className="flex w-full max-w-[360px] flex-col gap-4 rounded-2xl border border-border bg-surface p-4">
       {checkInDimensions.map((dim) => (
@@ -26,6 +31,16 @@ function StateCheckCard() {
           </div>
         </div>
       ))}
+
+      <Button
+        variant="primary"
+        size="lg"
+        fullWidth
+        disabled={done}
+        onClick={() => setDone(true)}
+      >
+        {done ? 'Got it' : 'Done'}
+      </Button>
     </div>
   );
 }

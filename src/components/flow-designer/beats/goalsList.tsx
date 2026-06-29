@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
+import { Icon } from '@iconify/react';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
@@ -17,7 +18,19 @@ function GoalsListBeat(props?: Record<string, string>) {
   const category = flow?.category ?? 'Sleep better';
   const subcategories = goalsByCategory[category] ?? goalsByCategory['Sleep better'] ?? [];
   const [localSel, setLocalSel] = useState<string[]>([]);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customValue, setCustomValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showCustomInput && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [showCustomInput]);
+
   const selected = flow ? flow.goals : localSel;
+  const maxReached = selected.length >= MAX_SUBCATEGORIES;
+
   const toggle = (sub: string) =>
     flow
       ? flow.toggleGoal(sub, MAX_SUBCATEGORIES)
@@ -28,6 +41,22 @@ function GoalsListBeat(props?: Record<string, string>) {
               ? [...prev, sub]
               : prev,
         );
+
+  function handleCreateClick() {
+    if (maxReached) return;
+    setShowCustomInput(true);
+  }
+
+  function handleSubmitCustom() {
+    const trimmed = customValue.trim();
+    if (!trimmed) return;
+    // Skip if it duplicates an existing option (case-insensitive).
+    const allOptions = [...subcategories, ...selected];
+    if (allOptions.some((s) => s.toLowerCase() === trimmed.toLowerCase())) return;
+    toggle(trimmed);
+    setCustomValue('');
+    setShowCustomInput(false);
+  }
 
   const steps: BeatStep[] = [
     {
@@ -50,11 +79,48 @@ function GoalsListBeat(props?: Record<string, string>) {
                 key={sub}
                 label={sub}
                 selected={on}
-                disabled={!on && selected.length >= MAX_SUBCATEGORIES}
+                disabled={!on && maxReached}
                 onToggle={() => toggle(sub)}
               />
             );
           })}
+
+          {showCustomInput ? (
+            <div className="flex items-center gap-2 rounded-[24px] border border-primary bg-surface px-[16px] py-[10px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.04)]">
+              <input
+                ref={inputRef}
+                type="text"
+                value={customValue}
+                onChange={(e) => setCustomValue(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmitCustom()}
+                placeholder="Type your subcategory..."
+                className="flex-1 text-[16px] font-bold leading-[24px] text-content outline-none placeholder:font-normal placeholder:text-content-secondary/50"
+              />
+              <button
+                type="button"
+                onClick={handleSubmitCustom}
+                disabled={!customValue.trim()}
+                className="flex size-[28px] shrink-0 items-center justify-center rounded-md bg-success transition-opacity disabled:opacity-30"
+              >
+                <Icon icon="mdi:check" width={18} height={18} className="text-white" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleCreateClick}
+              className={`flex w-full items-center justify-between rounded-[24px] border bg-surface px-[16px] py-[14px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.04)] transition-all duration-200 ${
+                maxReached ? 'border-transparent opacity-40' : 'cursor-pointer border-border'
+              }`}
+            >
+              <span className="text-[16px] font-bold leading-[24px] text-content">
+                Create your own
+              </span>
+              <div className="flex size-[28px] shrink-0 items-center justify-center rounded-full bg-warning">
+                <Icon icon="mdi:plus" width={18} height={18} className="text-white" />
+              </div>
+            </button>
+          )}
         </div>
       ),
     },
