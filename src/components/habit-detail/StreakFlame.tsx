@@ -49,7 +49,7 @@ export function StreakFlame({
   return (
     <span
       className={`flex items-center justify-end gap-[3px] font-bold ${COUNT_CLASS[size]}`}
-      style={{ color: lit ? '#FF8A1E' : '#6B7280' }}
+      style={{ color: lit ? '#EF4444' : '#94A3B8' }}
     >
       <FlameMark lit={lit} size={size} burstNonce={celebrateOnIncrement ? burstNonce : undefined} />
       {showCount && (
