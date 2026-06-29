@@ -324,7 +324,22 @@ export function Karaoke({
  * speech window over Vapi). When no voice signal is present (text-only / Path 3 /
  * voice not engaged) it degrades to the original fixed cadence + dwell.
  */
-export function BeatPlayer({ steps, onReveal }: { steps: BeatStep[]; onReveal?: () => void }) {
+export function BeatPlayer({
+  steps,
+  onReveal,
+  overrideRevealCount,
+}: {
+  steps: BeatStep[];
+  onReveal?: () => void;
+  /**
+   * When provided (e.g. driven by an MP3 opener's playback progress), overrides
+   * the useCoachSpeechReveal signal for the active coach step. Lets the caller
+   * feed an external word-count derived from audio currentTime/duration so the
+   * karaoke reveal tracks the pre-encoded clip instead of the live TTS signal.
+   * Pass null to fall back to the internal voice-pacing logic.
+   */
+  overrideRevealCount?: number | null;
+}) {
   const sig = steps.map((s) => `${s.kind}:${s.say ?? ''}`).join('|');
   const [revealed, setRevealed] = useState(1);
 
@@ -335,6 +350,15 @@ export function BeatPlayer({ steps, onReveal }: { steps: BeatStep[]; onReveal?: 
   // available signal and returns mode 'fallback' (revealCount null) when there is
   // none, so the Karaoke component then runs its own fixed-cadence timer.
   const reveal = useCoachSpeechReveal(curIsCoach ? (cur?.say ?? '') : '', curIsCoach);
+  // Caller can inject an MP3-progress-derived count; that wins over the internal signal.
+  const effectiveRevealCount =
+    overrideRevealCount !== null && overrideRevealCount !== undefined
+      ? overrideRevealCount
+      : reveal.revealCount;
+  const effectiveMode =
+    overrideRevealCount !== null && overrideRevealCount !== undefined
+      ? ('window' as const)
+      : reveal.mode;
 
   // Restart the reveal timeline when the beat's step shape changes.
   useEffect(() => {
@@ -354,9 +378,9 @@ export function BeatPlayer({ steps, onReveal }: { steps: BeatStep[]; onReveal?: 
     // hold the card until the spoken words have all been revealed (the line is
     // done), then a short breath. This tracks the real audio length instead of
     // guessing it from a per-word constant.
-    const voiceDriven = stepNow?.kind === 'coach' && reveal.mode !== 'fallback';
+    const voiceDriven = stepNow?.kind === 'coach' && effectiveMode !== 'fallback';
     if (voiceDriven) {
-      const revealedAll = (reveal.revealCount ?? 0) >= wordTotal && wordTotal > 0;
+      const revealedAll = (effectiveRevealCount ?? 0) >= wordTotal && wordTotal > 0;
       if (!revealedAll) {
         // Don't strand the card if the speech signal never completes.
         const safety = window.setTimeout(
@@ -374,7 +398,7 @@ export function BeatPlayer({ steps, onReveal }: { steps: BeatStep[]; onReveal?: 
     const dwell = stepNow?.say ? 650 + wordTotal * 110 : 450;
     const t = window.setTimeout(() => setRevealed((r) => Math.min(steps.length, r + 1)), dwell);
     return () => window.clearTimeout(t);
-  }, [revealed, steps, reveal.mode, reveal.revealCount]);
+  }, [revealed, steps, effectiveMode, effectiveRevealCount]);
 
   useEffect(() => {
     onReveal?.();
@@ -393,7 +417,7 @@ export function BeatPlayer({ steps, onReveal }: { steps: BeatStep[]; onReveal?: 
                 // Only the active coach line is audio-driven; earlier coach lines
                 // in the same beat (if any) render fully (Karaoke shows the whole
                 // line when inactive).
-                revealCount={last ? reveal.revealCount : undefined}
+                revealCount={last ? effectiveRevealCount : undefined}
               />
             </div>
           );
