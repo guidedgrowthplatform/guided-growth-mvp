@@ -187,8 +187,12 @@ export function BeatConversation({
         <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{fallbackOpener}</div>
       ) : null}
 
-      {/* the beat component, IN the timeline — right after the opener */}
-      {card && openerPresent && <div className="animate-fade-in">{card}</div>}
+      {/* the beat component, IN the timeline — right after the opener. On the
+          ACTIVE beat it renders as soon as the beat is live (not gated on the
+          opener landing) so a slow/missing opener or a fast navigate can't drop
+          the card; the opener still karaokes above it when it arrives. Past
+          beats keep requiring the opener so the frozen receipt sits under it. */}
+      {card && (active || openerPresent) && <div className="animate-fade-in">{card}</div>}
 
       {/* dialogue, the partial extending the last turn's bubble when it continues it */}
       {dialogue.map((m, i) =>
