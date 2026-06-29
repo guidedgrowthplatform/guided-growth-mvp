@@ -17,6 +17,8 @@ interface HabitScheduleCardProps {
   onToggleDay: (day: number) => void;
   onEdit: () => void;
   onDelete?: () => void;
+  /** When false the day-picker section is hidden. Defaults to true. */
+  showDays?: boolean;
 }
 
 // Compact onboarding / voice card. The top row keeps the habit name on the left
@@ -34,6 +36,7 @@ export function HabitScheduleCard({
   onToggleDay,
   onEdit,
   onDelete,
+  showDays = true,
 }: HabitScheduleCardProps) {
   const isBuild = polarity === 'build';
   return (
@@ -74,10 +77,14 @@ export function HabitScheduleCard({
           </div>
         </div>
       </div>
-      <div className="h-px w-full bg-border-light" />
-      <div className="bg-surface-secondary/50 px-[16px] py-[11px]">
-        <DayPicker selectedDays={selectedDays} onToggleDay={onToggleDay} />
-      </div>
+      {showDays && (
+        <>
+          <div className="h-px w-full bg-border-light" />
+          <div className="bg-surface-secondary/50 px-[16px] py-[11px]">
+            <DayPicker selectedDays={selectedDays} onToggleDay={onToggleDay} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,110 +1,52 @@
 import { useEffect, useState } from 'react';
-import { HabitListItem } from '@/components/home/HabitListItem';
-import { DayPicker } from '@/components/ui/DayPicker';
-import { TimePicker } from '@/components/ui/TimePicker';
-import { Toggle } from '@/components/ui/Toggle';
-import { SECTION_LABEL_CLASS, WEEKDAYS, toggleSetItem } from '@/components/onboarding/constants';
+import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/HabitScheduleCard';
+import { WEEKDAYS, toggleSetItem } from '@/components/onboarding/constants';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 
 const DEFAULT_HABITS = ['Morning walk', 'Read 10 pages', 'No screens after 10'];
 
-// Default times spread out through the day so the sample list looks plausible.
-const DEFAULT_TIMES: Record<string, string> = {
-  'Morning walk': '07:00',
-  'Read 10 pages': '21:00',
-  'No screens after 10': '22:00',
-};
-
-function defaultTime(habit: string) {
-  return DEFAULT_TIMES[habit] ?? '08:00';
-}
-
-type Status = 'done' | 'missed' | 'none';
+// Per-habit local state: which days are selected and the polarity (Build/Break).
+// Time and reminder are not part of the HabitScheduleCard surface; the beginner
+// path collects days + polarity here. Time can be added in a follow-on beat if
+// needed. Polarity defaults to 'build' for all habits, auto-classify comes later.
 interface HabitCfg {
   days: Set<number>;
-  time: string;
-  reminder: boolean;
-  status: Status;
-}
-
-// One card per habit, built from the real app components: the HabitListItem row
-// (the habit with the check and the X) on top, then the day-circle DayPicker for
-// how often, the inline TimePicker for when, and a reminder toggle that is OFF by
-// default. The beginner path and the advanced captured-habits path both use this
-// same card, so both share these exact components.
-function HabitCard({
-  name,
-  cfg,
-  onPatch,
-  onToggleDay,
-}: {
-  name: string;
-  cfg: HabitCfg;
-  onPatch: (patch: Partial<HabitCfg>) => void;
-  onToggleDay: (day: number) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-3">
-      <HabitListItem
-        name={name}
-        streak={0}
-        isCompleted={cfg.status === 'done'}
-        status={cfg.status}
-        onToggleComplete={() => onPatch({ status: cfg.status === 'done' ? 'none' : 'done' })}
-        onMarkMissed={() => onPatch({ status: cfg.status === 'missed' ? 'none' : 'missed' })}
-      />
-      <div className="flex flex-col gap-4 px-1.5 pb-1">
-        <div className="flex flex-col gap-2">
-          <span className={SECTION_LABEL_CLASS}>How often?</span>
-          <DayPicker selectedDays={cfg.days} onToggleDay={onToggleDay} />
-        </div>
-        <div className="flex items-center justify-between">
-          <span className={SECTION_LABEL_CLASS}>When?</span>
-          <TimePicker value={cfg.time} onChange={(t) => onPatch({ time: t })} />
-        </div>
-        <div className="flex items-center justify-between">
-          <span className={SECTION_LABEL_CLASS}>Remind me</span>
-          <Toggle checked={cfg.reminder} onChange={(v) => onPatch({ reminder: v })} ariaLabel={`Reminder for ${name}`} />
-        </div>
-      </div>
-    </div>
-  );
+  polarity: HabitPolarity;
 }
 
 function HabitScheduleBeat(props?: Record<string, string>) {
   const flow = useFlowState();
 
-  // Use habits from shared flow state if available, otherwise fall back to sample list.
+  // Read habits from flow state (set by the habit-pick beat). Fall back to the
+  // sample list when rendering as a static tile on the build canvas (no provider).
   const habits = flow && flow.habits.length > 0 ? flow.habits : DEFAULT_HABITS;
 
   const [cfgs, setCfgs] = useState<Record<string, HabitCfg>>(() =>
     Object.fromEntries(
-      habits.map((h) => [
-        h,
-        { days: new Set(WEEKDAYS), time: defaultTime(h), reminder: false, status: 'none' as Status },
-      ])
+      habits.map((h) => [h, { days: new Set(WEEKDAYS), polarity: 'build' as HabitPolarity }])
     )
   );
 
-  // Lift each habit's schedule (days / time / reminder) to shared flow state so
-  // the plan recap and the home tour list the real schedule the user set, not a
-  // placeholder. Days are stored as a plain array, not a Set.
+  // Lift the selected days to shared flow state so the plan recap and home tour
+  // reflect the real schedule the user set. Days stored as a sorted array (plain
+  // serializable, not a Set). Time and reminder default to '08:00' / false until a
+  // dedicated beat collects them.
   useEffect(() => {
     if (!flow) return;
     for (const [name, cfg] of Object.entries(cfgs)) {
       flow.setHabitConfig(name, {
         days: [...cfg.days].sort((a, b) => a - b),
-        time: cfg.time,
-        reminder: cfg.reminder,
+        time: '08:00',
+        reminder: false,
       });
     }
-    // react to the config map only; flow is read at call time
+    // react to the config map only; flow is a stable ref at call time
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfgs]);
 
-  function patch(habit: string, p: Partial<HabitCfg>) {
-    setCfgs((prev) => ({ ...prev, [habit]: { ...prev[habit], ...p } }));
+  function patchPolarity(habit: string, polarity: HabitPolarity) {
+    setCfgs((prev) => ({ ...prev, [habit]: { ...prev[habit], polarity } }));
   }
   function toggleDay(habit: string, day: number) {
     setCfgs((prev) => ({
@@ -113,20 +55,28 @@ function HabitScheduleBeat(props?: Record<string, string>) {
     }));
   }
   function get(habit: string): HabitCfg {
-    return cfgs[habit] ?? { days: new Set(WEEKDAYS), time: '08:00', reminder: false, status: 'none' };
+    return cfgs[habit] ?? { days: new Set(WEEKDAYS), polarity: 'build' };
   }
 
   const cards = (
-    <div className="flex w-full max-w-[360px] flex-col gap-6">
-      {habits.map((h) => (
-        <HabitCard
-          key={h}
-          name={h}
-          cfg={get(h)}
-          onPatch={(p) => patch(h, p)}
-          onToggleDay={(d) => toggleDay(h, d)}
-        />
-      ))}
+    <div className="flex w-full max-w-[360px] flex-col gap-4">
+      {habits.map((h) => {
+        const cfg = get(h);
+        return (
+          <HabitScheduleCard
+            key={h}
+            habitName={h}
+            polarity={cfg.polarity}
+            selectedDays={cfg.days}
+            onChangePolarity={(p) => patchPolarity(h, p)}
+            onToggleDay={(d) => toggleDay(h, d)}
+            onEdit={() => {
+              // Edit is a no-op in the flow-builder preview. The real app opens the
+              // habit edit sheet from here; a follow-on wiring session adds that.
+            }}
+          />
+        );
+      })}
     </div>
   );
 
@@ -136,7 +86,7 @@ function HabitScheduleBeat(props?: Record<string, string>) {
       speaker: 'coach',
       say:
         props?.coachLine ??
-        'When will you do each one? Pick the days and a time. Add a reminder only if you want a nudge.',
+        'For each habit, choose which days work for you. Build means adding something new, Break means moving away from something.',
     },
     { id: 'cards', speaker: 'coach', render: cards },
   ];

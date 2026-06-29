@@ -1,6 +1,12 @@
-import { Check, Minus, X } from 'lucide-react';
+import { Check, Flame, Minus, X } from 'lucide-react';
+import { StreakFlame } from './StreakFlame';
 
-type HabitWeekCell = 'done' | 'missed' | 'off';
+// Four cell states:
+//   done   -> green check (reported, done)
+//   missed -> red X       (reported, not done)
+//   off    -> gray dash   (not scheduled that day; fine, not a problem)
+//   gap    -> blank       (scheduled but never reported; breaks the streak)
+export type HabitWeekCell = 'done' | 'missed' | 'gap' | 'off';
 
 interface WeeklyHabitsSummaryProps {
   overallPercent: number;
@@ -9,8 +15,7 @@ interface WeeklyHabitsSummaryProps {
   rows: {
     name: string;
     cells: HabitWeekCell[];
-    done: number;
-    scheduled: number;
+    streak: number;
   }[];
   dayLabels?: string[];
 }
@@ -34,11 +39,17 @@ function StatusCell({ status }: { status: HabitWeekCell }) {
     );
   }
 
-  return (
-    <div className="flex aspect-square items-center justify-center rounded-sm bg-border-light">
-      <Minus size={13} className="text-content-tertiary" />
-    </div>
-  );
+  if (status === 'off') {
+    // Not scheduled that day. A gray dash. Totally fine, not a problem.
+    return (
+      <div className="flex aspect-square items-center justify-center rounded-sm bg-border-light">
+        <Minus size={13} className="text-content-tertiary" />
+      </div>
+    );
+  }
+
+  // gap: scheduled but never reported. Just empty. Breaks the streak.
+  return <div className="aspect-square" />;
 }
 
 export function WeeklyHabitsSummary({
@@ -59,7 +70,10 @@ export function WeeklyHabitsSummary({
         </span>
       </div>
 
-      <div className="mt-5 grid grid-cols-[minmax(0,1fr)_repeat(7,24px)_38px] gap-x-2 gap-y-3">
+      <div className="mt-5 grid grid-cols-[34px_minmax(0,1fr)_repeat(7,24px)] gap-x-2 gap-y-3">
+        <div className="flex items-center justify-end">
+          <Flame size={11} className="text-content-tertiary" />
+        </div>
         <div />
         {dayLabels.slice(0, 7).map((label, index) => (
           <div
@@ -69,19 +83,18 @@ export function WeeklyHabitsSummary({
             {label}
           </div>
         ))}
-        <div />
 
         {rows.map((row) => (
           <div key={row.name} className="contents">
+            <div className="flex items-center justify-end">
+              <StreakFlame streak={row.streak} />
+            </div>
             <div className="flex min-h-6 items-center truncate text-sm font-medium text-content">
               {row.name}
             </div>
             {row.cells.slice(0, 7).map((cell, index) => (
               <StatusCell key={`${row.name}-${index}`} status={cell} />
             ))}
-            <div className="flex items-center justify-end text-xs font-bold text-content-tertiary">
-              {row.done}/{row.scheduled}
-            </div>
           </div>
         ))}
       </div>

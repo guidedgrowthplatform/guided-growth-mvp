@@ -247,11 +247,11 @@ function WeeklyHabitsSummaryPreview() {
       overallDone={26}
       overallScheduled={34}
       rows={[
-        { name: 'Morning walk', cells: ['done', 'done', 'missed', 'done', 'done', 'off', 'done'], done: 5, scheduled: 6 },
-        { name: 'No screens after 10 PM', cells: ['done', 'missed', 'done', 'done', 'done', 'done', 'done'], done: 6, scheduled: 7 },
-        { name: 'Drink water', cells: ['done', 'done', 'done', 'missed', 'done', 'done', 'missed'], done: 5, scheduled: 7 },
-        { name: '10 minute stretch', cells: ['off', 'done', 'off', 'done', 'off', 'done', 'off'], done: 3, scheduled: 3 },
-        { name: 'Read before bed', cells: ['done', 'missed', 'missed', 'done', 'done', 'off', 'off'], done: 3, scheduled: 5 },
+        { name: 'Morning walk', cells: ['done', 'done', 'missed', 'done', 'done', 'off', 'done'], streak: 3 },
+        { name: 'No screens after 10 PM', cells: ['done', 'missed', 'done', 'done', 'done', 'done', 'done'], streak: 5 },
+        { name: 'Drink water', cells: ['done', 'done', 'gap', 'missed', 'done', 'done', 'missed'], streak: 2 },
+        { name: '10 minute stretch', cells: ['off', 'done', 'off', 'done', 'off', 'done', 'off'], streak: 1 },
+        { name: 'Read before bed', cells: ['done', 'missed', 'missed', 'done', 'done', 'off', 'off'], streak: 0 },
       ]}
     />
   );
