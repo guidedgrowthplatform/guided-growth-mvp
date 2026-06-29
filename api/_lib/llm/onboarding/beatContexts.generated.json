@@ -6,7 +6,7 @@
   "beats": {
     "ONBOARD-01--FORM": {
       "context": "BEAT: Profile setup.\n\nYou already know the user's name from sign-in, so do not ask for it. Collect two things: their age and how they identify (gender). Accept voice or taps. If they give one, ask only for the other. Use their name once, warmly, early in this beat. Do not push on gender if they would rather not say. Do not ask how they heard about us.",
-      "opener": "Alright, a couple quick things so I can tailor this to you. How old are you, and how do you identify? You can say it or tap it in.",
+      "opener": "Awesome, two quick things so I can tailor this to you. How old are you, and how do you identify? You can say it or tap it in.",
       "version": 1,
       "contentHash": "a69db503"
     },

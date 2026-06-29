@@ -147,6 +147,10 @@ export function BeatConversation({
   }, [beatMsgs.length, shown, onText]);
 
   const coldOpenerLive = !!(active && openerReveal && openerReveal.screenId === screenId);
+  // The cold opener turn exists with 0 revealed words before the audio starts — don't
+  // draw an empty bubble; hold it until the first word lands so it grows from nothing.
+  const coldOpenerPending =
+    coldOpenerLive && opener?.source === 'opener' && (openerReveal!.revealedWords ?? 0) <= 0;
   const showConnecting = connecting && active && !hasCoachTurn && !partial;
   const openerPresent = !!opener || (fallbackOn && !!fallbackOpener);
 
@@ -177,7 +181,7 @@ export function BeatConversation({
   return (
     <div className="flex flex-col gap-2">
       {/* opener (or the authored failsafe if voice never spoke) */}
-      {opener ? (
+      {opener && !coldOpenerPending ? (
         renderTurn(opener, partialExtendsOpener ? livePartial : null)
       ) : showConnecting && fallbackOn && fallbackOpener ? (
         <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{fallbackOpener}</div>
@@ -294,21 +298,20 @@ export function Karaoke({
     return () => window.clearInterval(id);
   }, [text, active, total, driven]);
   const shownCount = !active ? total : driven ? Math.max(0, Math.min(total, revealCount ?? 0)) : n;
+  // Render ONLY the revealed words so the bubble GROWS word-by-word as the coach
+  // speaks (like the dialogue bubbles) — not a full-width box with hidden/grey words.
   let seen = 0;
-  return (
-    <>
-      {parts.map((p, i) => {
-        if (!/\S/.test(p)) return <span key={i}>{p}</span>;
-        seen += 1;
-        const shown = seen <= shownCount;
-        return (
-          <span key={i} style={{ opacity: shown ? 1 : 0.25, transition: 'opacity 160ms ease-out' }}>
-            {p}
-          </span>
-        );
-      })}
-    </>
-  );
+  let end = parts.length;
+  for (let i = 0; i < parts.length; i += 1) {
+    if (/\S/.test(parts[i])) {
+      if (seen >= shownCount) {
+        end = i;
+        break;
+      }
+      seen += 1;
+    }
+  }
+  return <>{parts.slice(0, end).join('')}</>;
 }
 
 /**

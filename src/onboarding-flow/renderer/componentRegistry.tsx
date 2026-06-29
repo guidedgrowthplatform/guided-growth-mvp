@@ -98,7 +98,7 @@ function Cta({
 function CardShell({ children, frozen }: { children: React.ReactNode; frozen?: boolean }) {
   return (
     <div
-      className={`mt-3 flex flex-col gap-4${frozen ? ' pointer-events-none select-none opacity-95' : ''}`}
+      className={`mt-3 flex flex-col gap-4${frozen ? 'pointer-events-none select-none opacity-95' : ''}`}
       aria-disabled={frozen || undefined}
     >
       {children}
@@ -675,7 +675,9 @@ function PrimaryButtonAdapter({ node, onCapture }: BeatAdapterProps) {
 /* -------------------------------------------------------------- category */
 
 function CategoryAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
-  const [selected, setSelected] = useState<string | null>(() => (answers.category as string) ?? null);
+  const [selected, setSelected] = useState<string | null>(
+    () => (answers.category as string) ?? null,
+  );
   const voiceFilledRef = useRef(false);
   const submittedRef = useRef(false);
 
@@ -857,6 +859,8 @@ function ScheduleCard({
   ctaLabel,
   readOnly,
   onSubmit,
+  title,
+  subtitle,
 }: {
   initialTime: string;
   initialDays?: number[];
@@ -868,6 +872,8 @@ function ScheduleCard({
   ctaLabel: string;
   readOnly?: boolean;
   onSubmit: (value: ScheduleState) => void;
+  title?: string;
+  subtitle?: string;
 }) {
   const [time, setTime] = useState(initialTime);
   const [days, setDays] = useState<Set<number>>(
@@ -912,6 +918,9 @@ function ScheduleCard({
   return (
     <CardShell frozen={readOnly}>
       <DailyReflectionCard
+        variant="schedule"
+        title={title}
+        subtitle={subtitle}
         time={time}
         onTimeChange={setTime}
         days={days}
@@ -949,6 +958,7 @@ function HabitScheduleAdapter({ answers, onCapture, readOnly }: BeatAdapterProps
     onCapture({ data: { habitConfigs } });
   };
   return (
+    // title/subtitle copy provisional — pending Yair.
     <ScheduleCard
       initialTime={first?.time ?? '09:00'}
       initialDays={first?.days}
@@ -956,6 +966,8 @@ function HabitScheduleAdapter({ answers, onCapture, readOnly }: BeatAdapterProps
       initialSchedule={(first?.schedule as ScheduleOption) ?? 'Weekday'}
       voiceAction="set_habit_schedule"
       ctaLabel="Continue"
+      title="Habit Schedule"
+      subtitle="When you'll do these"
       readOnly={readOnly}
       onSubmit={submit}
     />
@@ -977,6 +989,7 @@ function MorningCheckinAdapter({ answers, onCapture, readOnly }: BeatAdapterProp
       },
     });
   return (
+    // title/subtitle copy provisional — pending Yair.
     <ScheduleCard
       initialTime={existing?.time ?? '08:00'}
       initialDays={existing?.days}
@@ -984,6 +997,8 @@ function MorningCheckinAdapter({ answers, onCapture, readOnly }: BeatAdapterProp
       initialSchedule={(existing?.schedule as ScheduleOption) ?? 'Weekday'}
       voiceAction="set_morning_checkin"
       ctaLabel="Continue"
+      title="Morning Check-in"
+      subtitle="Your daily start nudge"
       readOnly={readOnly}
       onSubmit={submit}
     />
@@ -1012,9 +1027,7 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
   const [mode, setMode] = useState<ReflectionMode>(
     (answers.reflectionMode as ReflectionMode) ?? 'prompts',
   );
-  const [prompts, setPrompts] = useState<string[]>(
-    () => (answers.customPrompts as string[]) ?? [],
-  );
+  const [prompts, setPrompts] = useState<string[]>(() => (answers.customPrompts as string[]) ?? []);
 
   const changeSchedule = (value: ScheduleOption) => {
     setSchedule(value);

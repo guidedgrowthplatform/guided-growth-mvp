@@ -375,7 +375,11 @@ describe('vapi navigateNext — skip + precondition guards', () => {
     });
     const res = await navigateNext({ anon_id: ANON, target_step: 2 });
     expect(res).toMatchObject({ error: expect.stringContaining('profile_missing') });
-    expect(pool.query).toHaveBeenCalledTimes(1);
+    // Re-reads for the in-flight async submit, then rejects — never advances (no write).
+    const wrote = pool.query.mock.calls.some((c) =>
+      /INSERT INTO onboarding_states/i.test(String(c[0])),
+    );
+    expect(wrote).toBe(false);
   });
 
   it('rejects single-step forward at step 2 with no path (the reported bug)', async () => {

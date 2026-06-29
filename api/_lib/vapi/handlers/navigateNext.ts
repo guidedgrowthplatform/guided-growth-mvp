@@ -97,9 +97,9 @@ export async function navigateNext(
   );
   const row = existing.rows[0];
   const currentStep = row?.current_step ?? 1;
-  const data = (row?.data ?? {}) as Record<string, unknown>;
-  const path = row?.path ?? null;
-  const brainDumpRaw = row?.brain_dump_raw ?? null;
+  let data = (row?.data ?? {}) as Record<string, unknown>;
+  let path = row?.path ?? null;
+  let brainDumpRaw = row?.brain_dump_raw ?? null;
 
   // Jumps beyond +2 are genuine skips → reject. Same step (re-render) and
   // back-nav are fine.
@@ -129,9 +129,26 @@ export async function navigateNext(
     }
   }
 
-  // Single-step forward: verify the source step's data has been saved.
+  // Single-step forward: verify the source step's data has been saved. The submit_*
+  // tools are async (nonBlocking), and Vapi chains navigate_next in the SAME turn, so
+  // the data write is often still in flight on our first read (the submit webhook
+  // arrives just before this one and commits a beat later). Re-read a few times before
+  // rejecting so we don't false-fail a legitimate same-turn save.
   if (targetStep === currentStep + 1) {
-    const missing = checkAdvanceData({ sourceStep: currentStep, data, path, brainDumpRaw });
+    let missing = checkAdvanceData({ sourceStep: currentStep, data, path, brainDumpRaw });
+    for (let attempt = 0; missing && attempt < 5; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const retry = await db.query<{
+        data: Record<string, unknown> | null;
+        path: string | null;
+        brain_dump_raw: string | null;
+      }>(`SELECT data, path, brain_dump_raw FROM onboarding_states WHERE anon_id = $1`, [anonId]);
+      const rr = retry.rows[0];
+      data = (rr?.data ?? {}) as Record<string, unknown>;
+      path = rr?.path ?? null;
+      brainDumpRaw = rr?.brain_dump_raw ?? null;
+      missing = checkAdvanceData({ sourceStep: currentStep, data, path, brainDumpRaw });
+    }
     if (missing) {
       console.log(
         `[vapi/tool] navigate_next rejected reason=precondition_not_met current=${currentStep} target=${targetStep} detail=${missing}`,

@@ -118,10 +118,11 @@ describe('getOnboardingOpenerForState — profile beat name capture', () => {
     );
   });
 
-  it('with a known nickname falls back to the standard {name} opener', () => {
-    expect(getOnboardingOpenerForState('ONBOARD-01--FORM', 'Yonas')).toBe(
-      getOnboardingOpener('ONBOARD-01--FORM'),
-    );
+  it('with a known nickname greets by name and asks only the two remaining things', () => {
+    const opener = getOnboardingOpenerForState('ONBOARD-01--FORM', 'Yonas');
+    expect(opener).toContain('{name}');
+    expect(opener).toMatch(/two quick things/i);
+    expect(opener).not.toMatch(/what should i call you/i);
   });
 
   it('non-profile screens ignore nickname and return the standard opener', () => {

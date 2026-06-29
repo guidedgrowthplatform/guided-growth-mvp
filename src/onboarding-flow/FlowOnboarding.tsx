@@ -6,12 +6,14 @@
  * Mount this inside the onboarding AppGate + OnboardingVoiceProvider, the same
  * way the Step pages are mounted today.
  */
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingRealtimeSync } from '@/hooks/useOnboardingRealtimeSync';
+import { useAuthStore } from '@/stores/authStore';
 import { IntroGate } from './IntroGate';
 import { useOnboardingPersistence } from './persistence';
 import { FlowRenderer } from './renderer/FlowRenderer';
+import type { FlowAnswers } from './types';
 import { useFlow } from './useFlow';
 import { useFlowOrchestrator } from './useFlowOrchestrator';
 
@@ -30,6 +32,26 @@ export function FlowOnboarding() {
   const { flow, tag, problems } = useFlow(pinnedTag);
   const persistence = useOnboardingPersistence();
 
+  // The name comes from sign-in (the profile beat says "you already know it"), so
+  // seed it as a known answer — the coach greets by it and never re-asks. QA accounts
+  // get this stamped onto user_metadata.nickname at sign-in (QAControlScreen).
+  const authNickname = useAuthStore((s) => s.user?.nickname ?? s.user?.name ?? null);
+  const initialAnswers: Partial<FlowAnswers> | undefined = authNickname
+    ? { nickname: authNickname }
+    : undefined;
+
+  // Persist the known name to onboarding_states up front (step 1, GREATEST keeps the
+  // real step) so the profile-advance precondition (data.nickname required) passes
+  // even though the user never states a name they gave at sign-in. Only a server-valid
+  // nickname (letters/digits/underscore) to avoid a 400 on names with spaces.
+  const persistedNameRef = useRef(false);
+  useEffect(() => {
+    if (persistedNameRef.current) return;
+    if (!authNickname || !/^[a-zA-Z0-9_]{1,50}$/.test(authNickname)) return;
+    persistedNameRef.current = true;
+    persistence.saveStep(1, { nickname: authNickname });
+  }, [authNickname, persistence]);
+
   const onPin = useCallback((t: string) => {
     // SEAM: persist `t` into onboarding_states.data.flowVersion so this user
     // stays on this flow version across sessions. Deferred with flow_versions.
@@ -40,7 +62,11 @@ export function FlowOnboarding() {
     console.error('[flow] invalid flow document:', problems);
   }
 
-  const orchestrator = useFlowOrchestrator(flow, persistence, { flowTag: tag, onPin });
+  const orchestrator = useFlowOrchestrator(flow, persistence, {
+    flowTag: tag,
+    onPin,
+    initialAnswers,
+  });
 
   return (
     <IntroGate>

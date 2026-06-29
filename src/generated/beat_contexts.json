@@ -27,167 +27,112 @@
     },
     "ONBOARD-01--FORM": {
       "context": "BEAT: Profile setup.\n\nYou already know the user's name from sign-in, so do not ask for it. Collect two things: their age and how they identify (gender). Accept voice or taps. If they give one, ask only for the other. Use their name once, warmly, early in this beat. Do not push on gender if they would rather not say. Do not ask how they heard about us.",
-      "opener": "Alright, a couple quick things so I can tailor this to you. How old are you, and how do you identify? You can say it or tap it in.",
-      "allowedTools": [
-        "submit_profile",
-        "advance_step"
-      ],
+      "opener": "Awesome, two quick things so I can tailor this to you. How old are you, and how do you identify? You can say it or tap it in.",
+      "allowedTools": ["submit_profile", "advance_step"],
       "step": 1,
       "targetStep": 2
     },
     "ONBOARD-FORK--FORM": {
       "context": "BEAT: Experience fork.\n\nCollect whether the user is new to habit tracking or already has habits they want to bring in. Route first-timers, people who tried and dropped off, or people who want guidance to beginner. Route users with an existing habit list or tracking system to advanced. If unclear, ask one short clarifying question.",
       "opener": "Quick question. Have you tracked habits before, or is this new for you? Either way is great. I just want to know the best way to guide you.",
-      "allowedTools": [
-        "submit_path_choice",
-        "ask_clarification",
-        "advance_step"
-      ],
+      "allowedTools": ["submit_path_choice", "ask_clarification", "advance_step"],
       "step": 2,
       "targetStep": 3
     },
     "ONBOARD-BEGINNER-01": {
       "context": "BEAT: Focus area.\n\nCollect one focus category. Ask what feels most worth improving now. If the user names several, help them choose the one that feels most urgent. Keep the response specific to their chosen category. Do not praise, advise, or collect multiple categories.",
       "opener": "So, what feels most worth improving right now? Don't overthink it, there's no wrong answer. Pick the one that pulls you. You can always add more later.",
-      "allowedTools": [
-        "submit_category",
-        "advance_step"
-      ],
+      "allowedTools": ["submit_category", "advance_step"],
       "step": 3,
       "targetStep": 4
     },
     "ONBOARD-BEGINNER-02": {
       "context": "BEAT: Goal narrowing.\n\nCollect one or two specific goals inside the chosen category. Offer only valid goals from that category, using the provided option names exactly. If they speak generally, map to the closest valid goal or ask one clarifying question. Do not invent, rename, or paraphrase goal labels.",
       "opener": "OK, within that, what's the specific thing you want to work on? Pick the one that hits hardest.",
-      "allowedTools": [
-        "submit_goals",
-        "advance_step"
-      ],
+      "allowedTools": ["submit_goals", "advance_step"],
       "step": 4,
       "targetStep": 5
     },
     "ONBOARD-BEGINNER-03": {
       "context": "BEAT: Habit selection.\n\nCollect one to three habits tied to the chosen goals. Encourage doable, not heroic. Use the provided habit options when available, and accept a custom habit name if they offer one. Require at least one habit before continuing. If they choose more than three, help them narrow without making it feel like failure.",
       "opener": "Here are a few habits that really help with this. Pick what feels doable. Not heroic, not impressive, doable. One habit done consistently beats five that don't stick. You can also create your own if none of these fit.",
-      "allowedTools": [
-        "add_habit",
-        "remove_habit",
-        "advance_step"
-      ],
+      "allowedTools": ["add_habit", "remove_habit", "advance_step"],
       "step": 5,
       "targetStep": 6
     },
     "ONBOARD-BEGINNER-04": {
       "context": "BEAT: Habit configuration.\n\nFor each selected habit, collect the missing schedule details: time, frequency, and reminder preference. Parse combined answers when possible, like every weekday at 7 with reminders. If anything is missing, ask only for that piece. Do not accept vague times like before bed without a follow-up.",
       "opener": "When will you do these? Set a time and how often, and I can remind you.",
-      "allowedTools": [
-        "add_habit",
-        "update_habit",
-        "advance_step"
-      ],
+      "allowedTools": ["add_habit", "update_habit", "advance_step"],
       "step": 5,
       "targetStep": 6
     },
     "ONBOARD-BEGINNER-05": {
       "context": "BEAT: Configure second habit.\n\nIf a second habit exists, collect its missing time, frequency, and reminder preference. Reuse a clear schedule pattern from the first habit only if the user asks for the same setup. Ask for one missing detail at a time. If there is no second habit, this beat is complete.",
-      "allowedTools": [
-        "add_habit",
-        "update_habit",
-        "advance_step"
-      ],
+      "allowedTools": ["add_habit", "update_habit", "advance_step"],
       "step": null,
       "targetStep": null
     },
     "ONBOARD-BEGINNER-06": {
       "context": "BEAT: Plan review.\n\nConfirm the configured plan quickly. Ask whether anything needs changing, and handle one edit at a time. Keep momentum. When the user signals they are ready, start the plan. Do not add commentary, encourage second-guessing, or re-collect details that are already complete.",
       "opener": "Here's your starting plan. Take a look, does it all look right, or want to change anything before we start?",
-      "allowedTools": [
-        "update_habit",
-        "advance_step"
-      ],
+      "allowedTools": ["update_habit", "advance_step"],
       "step": 6,
       "targetStep": 7
     },
     "ONBOARD-BEGINNER-07": {
       "context": "BEAT: Reflection setup.\n\nCollect one reflection style: guided prompts, custom prompts, or freeform. Reflection is required, but the style is the user's choice. Explain the options briefly and neutrally. If they resist journaling, normalize keeping it lightweight and ask which style feels least annoying. Do not skip the beat.",
       "opener": "One last thing, let's set up a short evening reflection. I can ask you a few simple questions each evening, or you can free-write. Which sounds better? You can change it anytime.",
-      "allowedTools": [
-        "submit_reflection_config",
-        "submit_custom_prompts",
-        "advance_step"
-      ],
+      "allowedTools": ["submit_reflection_config", "submit_custom_prompts", "advance_step"],
       "step": 8,
       "targetStep": 9
     },
     "ONBOARD-ADVANCED": {
       "context": "BEAT: Advanced habit capture.\n\nCollect the user's existing habits one at a time. For each habit, capture name, time, frequency, and reminder preference if known. Accept rough drafts and partial details. Ask for missing pieces only when needed. Do not redesign their system or move them into beginner guidance.",
       "opener": "Tell me everything you want to achieve. Say or type as much as you want, and I'll organize it into habits for you.",
-      "allowedTools": [
-        "submit_brain_dump",
-        "advance_step"
-      ],
+      "allowedTools": ["submit_brain_dump", "advance_step"],
       "step": 3,
       "targetStep": 6
     },
     "ONBOARD-ADVANCED-02": {
       "context": "BEAT: Advanced plan review.\n\nReview the captured habits briefly and ask what needs changing before the plan is created. Suggest only small practical tweaks when something is clearly overloaded or vague. Accept confirmations, edits, and additions. Do not make the user defend habits they already use.",
       "opener": "Here are the habits I pulled from what you shared. Take a look, keep them as they are, or want to change anything?",
-      "allowedTools": [
-        "update_habit",
-        "remove_habit",
-        "add_habit",
-        "advance_step"
-      ],
+      "allowedTools": ["update_habit", "remove_habit", "add_habit", "advance_step"],
       "step": null,
       "targetStep": null
     },
     "ONBOARD-ADVANCED-04": {
       "context": "BEAT: Advanced journal mode.\n\nCollect one journal mode: freeform or custom prompts. Freeform means they can talk without prompts. Custom prompts means they can define their own questions. If they are unsure, ask which would feel less restrictive. Do not show beginner guided mode or force prompt writing now.",
       "opener": "Let's set up your evening reflection. I can ask you a few questions each evening, or you can free-write. Which feels better?",
-      "allowedTools": [
-        "submit_reflection_config",
-        "submit_custom_prompts",
-        "advance_step"
-      ],
+      "allowedTools": ["submit_reflection_config", "submit_custom_prompts", "advance_step"],
       "step": null,
       "targetStep": null
     },
     "ONBOARD-ADV-CUSTOM": {
       "context": "BEAT: Custom reflection prompts.\n\nCollect any prompt edits the user wants. They can keep defaults, replace them, or add their own. Capture spoken prompts as written by the user when possible. Do not force a specific number of prompts or block completion because the prompt list is imperfect.",
       "opener": "What would you like me to ask you each evening? Give me up to three prompts and I'll use those.",
-      "allowedTools": [
-        "submit_custom_prompts",
-        "advance_step"
-      ],
+      "allowedTools": ["submit_custom_prompts", "advance_step"],
       "step": null,
       "targetStep": null
     },
     "ONBOARD-ADVANCED-05": {
       "context": "BEAT: Starting plan.\n\nShow the final plan summary in plain language: habits, reflection setup, and schedule defaults. Ask for confirmation to start, or handle one requested edit. Make it clear they can tweak things later. Do not push more edits or make the plan feel locked.",
       "opener": "Here's what I put together from everything you shared. Want to start with this, or tweak anything first?",
-      "allowedTools": [
-        "update_habit",
-        "confirm_plan"
-      ],
+      "allowedTools": ["update_habit", "confirm_plan"],
       "step": null,
       "targetStep": null
     },
     "ONBOARD-MORNING-SETUP": {
       "context": "BEAT: Morning check-in setup.\n\nSet up a short morning check-in: when they want the nudge, which days, and whether they want a reminder. Keep it light, a quick way to start the day with intention. Once they give a time, infer the rest from natural defaults and continue.",
       "opener": "When do you want your morning check-in? I'll nudge you then so you can start the day with a clear head.",
-      "allowedTools": [
-        "submit_morning_checkin",
-        "advance_step"
-      ],
+      "allowedTools": ["submit_morning_checkin", "advance_step"],
       "step": 7,
       "targetStep": 8
     },
     "ONBOARD-COMPLETE": {
       "context": "BEAT: Into the app.\n\nOnboarding is done. Warmly tell the user they are all set and take them in. Do not collect anything else, do not re-confirm details, do not add a speech.",
       "opener": "You're all set. Let's get started.",
-      "allowedTools": [
-        "confirm_plan"
-      ],
+      "allowedTools": ["confirm_plan"],
       "step": null,
       "targetStep": null
     }

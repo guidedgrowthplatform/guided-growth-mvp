@@ -23,6 +23,33 @@ import { useOnboarding } from '@/hooks/useOnboarding';
 const ENGINE_PERSISTLESS_STEP: Record<string, number> = {
   'ONBOARD-BEGINNER-06': 6,
 };
+// Server-scale `current_step` each beat ENTERS at (canonical step table,
+// docs/step-0-canonical-step-table.md). Distinct from engine `beatStep`: the
+// leading-edge model's two consecutive 5s (habit-select + habit-schedule) make the
+// stored server step run one AHEAD of the engine step from habit-schedule on. Resume
+// maps a stored SERVER step back to its beat, so it must compare on THIS scale —
+// comparing against engine `beatStep` overshoots (a user on habit-schedule has server
+// step 6 but engine beatStep 5, so the walk runs past it, landing on plan-review / the
+// end). auth + mic are pre-step (absent → walked through).
+const ENTRY_SERVER_STEP: Record<string, number> = {
+  'ONBOARD-01--FORM': 1,
+  'ONBOARD-FORK--FORM': 2,
+  'ONBOARD-BEGINNER-01': 3,
+  'ONBOARD-ADVANCED': 3,
+  'ONBOARD-BEGINNER-02': 4,
+  'ONBOARD-BEGINNER-03': 5,
+  'ONBOARD-BEGINNER-04': 6,
+  'ONBOARD-BEGINNER-06': 7,
+  'ONBOARD-MORNING-SETUP': 8,
+  'ONBOARD-BEGINNER-07': 9,
+  'ONBOARD-COMPLETE': 10,
+};
+
+/** The server `current_step` a beat is active at — the resume scale (NOT beatStep). */
+export function entryServerStep(node: FlowNode | undefined): number | undefined {
+  if (!node) return undefined;
+  return ENTRY_SERVER_STEP[node.screenId];
+}
 import type { OnboardingPath, OnboardingState, OnboardingStepData } from '@gg/shared/types';
 import {
   applyCapture,
@@ -111,10 +138,12 @@ export function serverCaptureForBeat(
  * Fast-forward a fresh machine to the saved server step so a page refresh lands
  * on the beat the user was on, not back at the entry node. Walks from `fromState`,
  * replaying each passed beat's server capture (so answers populate + the fork
- * resolves), and stops at the first beat whose step is >= `serverStep` (the
- * resume target). Pre-step beats (auth/mic, undefined beatStep) are walked
- * through — on resume the user is already authed and mic-granted. Guarded against
- * non-progress and the terminal node. Pure → unit-testable.
+ * resolves), and stops at the first beat whose ENTRY server step is >= `serverStep`
+ * (the resume target). The comparison is on the server `current_step` scale
+ * (`entryServerStep`), NOT engine `beatStep` — the two diverge past habit-schedule,
+ * and using beatStep here overshoots the user to the end. Pre-step beats (auth/mic,
+ * undefined entry step) are walked through — on resume the user is already authed and
+ * mic-granted. Guarded against non-progress and the terminal node. Pure → unit-testable.
  */
 export function resumeToServerStep(
   flow: FlowDocument,
@@ -127,8 +156,8 @@ export function resumeToServerStep(
     if (st.status === 'complete') break;
     const node = getNode(flow, st.currentNodeId);
     if (!node) break;
-    const bStep = beatStep(node);
-    if (bStep !== undefined && bStep >= serverStep) break; // reached the saved beat
+    const eStep = entryServerStep(node);
+    if (eStep !== undefined && eStep >= serverStep) break; // reached the saved beat
     const next = applyCapture(flow, st, serverCaptureForBeat(node, data));
     if (next.currentNodeId === st.currentNodeId) break; // no progress → stop
     st = next;
@@ -154,6 +183,9 @@ export interface FlowOrchestratorOptions {
   /** Pin tag for the loaded flow; fired via onPin on the first save. */
   flowTag?: string;
   onPin?: (tag: string) => void;
+  /** Seed answers known before the flow starts (e.g. nickname from sign-in) so the
+   *  coach treats them as filled and never re-asks. A later capture overrides them. */
+  initialAnswers?: Partial<FlowAnswers>;
 }
 
 export function useFlowOrchestrator(
@@ -161,7 +193,12 @@ export function useFlowOrchestrator(
   persistence: FlowPersistence,
   options?: FlowOrchestratorOptions,
 ): FlowOrchestrator {
-  const [state, setState] = useState<FlowMachineState>(() => initFlowMachine(flow));
+  const [state, setState] = useState<FlowMachineState>(() => {
+    const init = initFlowMachine(flow);
+    return options?.initialAnswers
+      ? { ...init, answers: { ...options.initialAnswers, ...init.answers } }
+      : init;
+  });
   const voice = useOnboardingVoice();
   // Server onboarding row (current_step + data). Mirrored from Supabase Realtime
   // on the voice path; null in the auth-free preview. Drives the coach-save
