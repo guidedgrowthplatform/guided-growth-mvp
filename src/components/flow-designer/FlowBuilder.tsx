@@ -432,6 +432,8 @@ const COACH_LINE_PROP: Record<string, string> = {
   'state-check': 'coachLine',
   'home-tour': 'coachLine',
   'weekly-projection': 'coachLine',
+  'advanced-capture': 'coachLine',
+  'advanced-frequency': 'coachLine',
 };
 
 // Imported components that are full-screen modals/overlays. They cannot preview
@@ -652,9 +654,13 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     sheetStage: 'ONBOARD-BEGINNER-04: Habit Schedule',
     props: { coachLine: 'How often and roughly when for each one?' },
   },
-  // 11: Habits, advanced path (showOnPath:'exp'): capture -> schedule
+  // 11: Habits, advanced path (showOnPath:'exp'): live cards (Build/Break
+  // auto-classified, no per-habit asking) -> approve -> frequency grows out.
   {
-    // Advanced users read their habits aloud; cards form live. Less is more here too.
+    // Advanced users read the habits they already track. Each one forms live as
+    // the same schedule card, minus the day circles, with an auto-classified
+    // Build/Break chip, a pencil, and a delete. The coach does not ask polarity
+    // per habit; it names the build/break read at the close for one approval.
     type: 'advanced-capture',
     beat: '11e',
     background: 'coach',
@@ -666,24 +672,14 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     },
   },
   {
-    // Advanced path beat 1 of 2: confirm polarity (Build / Break) for each
-    // captured habit. Day circles are hidden here so the coach can frame
-    // build-vs-break first before asking about frequency.
-    type: 'advanced-habits',
+    // Advanced frequency: the same cards, now growing the day circles out of
+    // each one once the user approved the set.
+    type: 'advanced-frequency',
     beat: '11f',
     background: 'coach',
     showOnPath: 'exp',
-    sheetStage: 'ONBOARD-ADVANCED-HABITS: Build or Break',
-    props: { coachLine: 'For each one, are you building this habit or breaking it?' },
-  },
-  {
-    // Advanced path beat 2 of 2: pick days for each habit now that polarity is set.
-    type: 'advanced-frequency',
-    beat: '11g',
-    background: 'coach',
-    showOnPath: 'exp',
     sheetStage: 'ONBOARD-ADVANCED-FREQUENCY: Habit Days',
-    props: { coachLine: 'Now pick the days for each one. How often does each happen?' },
+    props: { coachLine: "Now the days. Tell me how often each one runs and I'll fill them in." },
   },
   // 12: The ONE full-plan confirm. Morning + evening times (both already set, shown as defaults)
   // + all habits. Approve -> weekly projection (beats 13a-13e), then the home tour
