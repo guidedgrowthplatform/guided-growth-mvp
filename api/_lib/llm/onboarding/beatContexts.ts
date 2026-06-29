@@ -69,7 +69,7 @@ export interface BeatContext {
 }
 
 // Bumped when beat copy/tooling changes meaningfully.
-export const BEAT_CONTEXT_VERSION = 2;
+export const BEAT_CONTEXT_VERSION = 3;
 
 export const BEAT_CONTEXTS: Record<string, BeatContext> = {
   // Beat 0 — auth. Card-only; coach stays silent (the page auto-advances on
