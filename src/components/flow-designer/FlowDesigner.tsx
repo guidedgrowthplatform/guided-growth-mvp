@@ -2,23 +2,23 @@ import { Icon } from '@iconify/react';
 import { useState, type ReactElement } from 'react';
 import { checkInDimensions } from '@/components/home/checkInConfig';
 import { EmojiOptionButton } from '@/components/home/EmojiOptionButton';
+import { AgeScrollPicker } from '@/components/onboarding/AgeScrollPicker';
 import { CategoryCard } from '@/components/onboarding/CategoryCard';
 import { DailyReflectionCard } from '@/components/onboarding/DailyReflectionCard';
 import { GoalCard } from '@/components/onboarding/GoalCard';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
-import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { PlanSummaryCard } from '@/components/onboarding/PlanSummaryCard';
 import type { ScheduleOption } from '@/components/onboarding/SchedulePicker';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 
 /**
  * FlowDesigner -- the chat-native onboarding flow as one continuous scroll,
- * built from the REAL app components (not lookalikes) with real onboarding
- * content (the 8 categories, real goals, real sub-habits, real gender
- * options, real coach lines).
+ * built from the REAL app components (not lookalikes) with the v3 onboarding
+ * content (coach lines and on-screen copy from the v3 beats spec).
  *
- * Lives in three places: a Storybook story (Flow / Flow Designer), a dev-only
- * /flow-designer route in the app, and a standalone hosted build.
+ * The chat flows continuously: a coach bubble, the real component, then the
+ * next coach bubble. There are no machine section labels, it reads like the
+ * real app.
  *
  * Voice engine badges sit OUTSIDE the phone frame, in the right margin,
  * aligned to each beat. Four kinds:
@@ -30,22 +30,19 @@ import { ChipSelect } from '@/components/ui/ChipSelect';
 
 // --- Beat bodies: each holds its own local state and renders real components.
 
+// Profile, v3: AGE + GENDER only. No name field (the name was captured at
+// sign-up; the coach greets by it). Age scroll picker, then the gender chips.
 function ProfileBody() {
-  const [name, setName] = useState('');
+  const [age, setAge] = useState<number | ''>(28);
   const [gender, setGender] = useState<string | null>('Male');
   return (
     <div className="flex flex-col gap-4">
-      <OnboardingInput
-        icon="mdi:account-outline"
-        placeholder="What should I call you?"
-        value={name}
-        onChange={setName}
-      />
+      <AgeScrollPicker value={age} onChange={setAge} />
       <ChipSelect
         options={['Male', 'Female', 'Other']}
         value={gender}
         onChange={setGender}
-        ariaLabel="How do you identify?"
+        ariaLabel="And your gender?"
         columns={3}
       />
     </div>
@@ -137,35 +134,84 @@ function HabitsBody() {
   );
 }
 
+// Evening reflection, v3: style is one of "Suggested template" / "Your
+// template" / "Freeform". The simple DailyReflectionCard has no style tabs, so
+// a compact segmented control is added above it. Names match the v3 spec.
+type ReflectionStyle = 'Suggested template' | 'Your template' | 'Freeform';
+const REFLECTION_STYLES: { id: ReflectionStyle; icon: string }[] = [
+  { id: 'Suggested template', icon: 'mdi:comment-question-outline' },
+  { id: 'Your template', icon: 'mdi:pencil-outline' },
+  { id: 'Freeform', icon: 'mdi:microphone-outline' },
+];
+
 function ReflectionBody() {
+  const [style, setStyle] = useState<ReflectionStyle>('Suggested template');
   const [time, setTime] = useState('21:30');
   const [days, setDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
   const [reminder, setReminder] = useState(true);
   const [schedule, setSchedule] = useState<ScheduleOption>('Every day');
   return (
-    <DailyReflectionCard
-      time={time}
-      onTimeChange={setTime}
-      days={days}
-      onToggleDay={(d) =>
-        setDays((prev) => {
-          const next = new Set(prev);
-          if (next.has(d)) next.delete(d);
-          else next.add(d);
-          return next;
-        })
-      }
-      reminder={reminder}
-      onToggleReminder={setReminder}
-      schedule={schedule}
-      onScheduleChange={setSchedule}
-    />
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-2">
+        {REFLECTION_STYLES.map((s) => {
+          const active = s.id === style;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setStyle(s.id)}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl border px-2 py-2.5 text-[12px] font-semibold ${
+                active
+                  ? 'border-primary bg-primary text-white'
+                  : 'border-border-light bg-surface-secondary text-content-secondary'
+              }`}
+            >
+              <Icon icon={s.icon} className="size-3.5 shrink-0" />
+              {s.id}
+            </button>
+          );
+        })}
+      </div>
+      <DailyReflectionCard
+        time={time}
+        onTimeChange={setTime}
+        days={days}
+        onToggleDay={(d) =>
+          setDays((prev) => {
+            const next = new Set(prev);
+            if (next.has(d)) next.delete(d);
+            else next.add(d);
+            return next;
+          })
+        }
+        reminder={reminder}
+        onToggleReminder={setReminder}
+        schedule={schedule}
+        onScheduleChange={setSchedule}
+      />
+    </div>
   );
 }
 
 function PlanBody() {
   return (
     <div className="flex flex-col gap-3">
+      <PlanSummaryCard
+        icon="mdi:weather-sunny"
+        typeLabel="Journal"
+        title="Daily check-in"
+        cadence="Every day"
+        rule="8:00 AM"
+        onEdit={() => {}}
+      />
+      <PlanSummaryCard
+        icon="mdi:notebook-outline"
+        typeLabel="Journal"
+        title="Evening reflection"
+        cadence="Every day"
+        rule="9:30 PM"
+        onEdit={() => {}}
+      />
       <PlanSummaryCard
         icon="mdi:bed-outline"
         typeLabel="Habit"
@@ -174,18 +220,12 @@ function PlanBody() {
         rule="10:00 PM"
         onEdit={() => {}}
       />
-      <PlanSummaryCard
-        icon="mdi:notebook-outline"
-        typeLabel="Journal"
-        title="Daily Reflection"
-        cadence="Every day"
-        rule="3 questions"
-        onEdit={() => {}}
-      />
     </div>
   );
 }
 
+// Morning check-in, v3: the user does a state check right now. The mood row is
+// the real check-in card row.
 function CheckinBody() {
   const mood = checkInDimensions.find((d) => d.key === 'mood')!;
   const [sel, setSel] = useState<number | null>(4);
@@ -201,6 +241,141 @@ function CheckinBody() {
           onClick={() => setSel(o.value)}
         />
       ))}
+    </div>
+  );
+}
+
+// Beginner per-habit schedule body, the days + time controls inline.
+function ScheduleBody() {
+  const [days, setDays] = useState<Set<number>>(new Set([1, 2, 3, 4, 5]));
+  const labels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-border-light bg-surface-secondary p-4">
+      <span className="text-[13px] font-bold text-content">No screens after 10 PM</span>
+      <div className="flex justify-between">
+        {labels.map((l, i) => {
+          const on = days.has(i);
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() =>
+                setDays((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(i)) next.delete(i);
+                  else next.add(i);
+                  return next;
+                })
+              }
+              className={`flex size-9 items-center justify-center rounded-full text-[13px] font-bold ${
+                on ? 'bg-primary text-white' : 'bg-surface text-content-tertiary'
+              }`}
+            >
+              {l}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-between rounded-2xl border border-primary bg-surface px-4 py-3">
+        <span className="text-[14px] font-bold text-content">10:00 PM</span>
+        <Icon icon="ic:round-access-time" className="size-5 text-primary" />
+      </div>
+    </div>
+  );
+}
+
+// Splash, get-started, sign-up, mic, why-intro: chat-stream stand-ins. The real
+// app renders these as full screens; in the continuous scroll they show their
+// on-screen heading + sub so the order reads true.
+
+function SplashBody() {
+  return <ScreenStub eyebrow="Behavioral OS" heading="Guided Growth" icon="ic:round-auto-awesome" />;
+}
+
+function GetStartedBody() {
+  return (
+    <ScreenStub
+      eyebrow="Behavioral OS"
+      heading="Guided Growth"
+      icon="ic:round-auto-awesome"
+      primary="Get started"
+      secondary="I already have an account"
+    />
+  );
+}
+
+function SignupBody() {
+  return (
+    <ScreenStub
+      heading="Create your account"
+      icon="mdi:account-plus-outline"
+      primary="Continue with Apple"
+      secondary="Continue with Google"
+      sub="or sign up with email"
+    />
+  );
+}
+
+function MicBody() {
+  return (
+    <ScreenStub
+      heading="Talk with your coach"
+      sub="Turn on your mic to talk out loud. You can always type instead."
+      icon="ic:round-mic"
+      primary="Turn on mic"
+      secondary="Maybe later"
+    />
+  );
+}
+
+function WhyIntroBody() {
+  return (
+    <ScreenStub
+      heading="Your first habit"
+      sub="Checking in with yourself. Simple, and it carries everything else."
+      icon="mdi:heart-outline"
+    />
+  );
+}
+
+// A simple, app-styled stand-in for a full screen, shown inline in the chat
+// stream. Centered card with an icon, a heading, an optional sub, and up to two
+// buttons styled like the real app's primary / secondary.
+function ScreenStub({
+  eyebrow,
+  heading,
+  sub,
+  icon,
+  primary,
+  secondary,
+}: {
+  eyebrow?: string;
+  heading: string;
+  sub?: string;
+  icon: string;
+  primary?: string;
+  secondary?: string;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-border-light bg-surface-secondary px-5 py-6 text-center">
+      <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
+        <Icon icon={icon} className="size-6 text-primary" />
+      </div>
+      {eyebrow && (
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-content-tertiary">
+          {eyebrow}
+        </span>
+      )}
+      <span className="text-[18px] font-bold text-content">{heading}</span>
+      {sub && <span className="max-w-[260px] text-[14px] text-content-tertiary">{sub}</span>}
+      {primary && (
+        <div className="mt-1 w-full rounded-full bg-primary px-4 py-2.5 text-[14px] font-semibold text-white">
+          {primary}
+        </div>
+      )}
+      {secondary && (
+        <span className="text-[13px] font-medium text-content-secondary">{secondary}</span>
+      )}
     </div>
   );
 }
@@ -247,13 +422,7 @@ const ENGINE_META: Record<
   },
 };
 
-function VoiceEngineBadge({
-  engine,
-  note,
-}: {
-  engine: VoiceEngine;
-  note?: string;
-}) {
+function VoiceEngineBadge({ engine, note }: { engine: VoiceEngine; note?: string }) {
   const m = ENGINE_META[engine];
   return (
     <div
@@ -263,7 +432,7 @@ function VoiceEngineBadge({
         alignItems: 'flex-start',
         gap: 3,
         minWidth: 108,
-        maxWidth: 140,
+        maxWidth: 150,
       }}
     >
       <div
@@ -286,14 +455,7 @@ function VoiceEngineBadge({
         {m.label}
       </div>
       {(note ?? m.note) && (
-        <span
-          style={{
-            fontSize: 10,
-            color: '#94a3b8',
-            lineHeight: 1.3,
-            paddingLeft: 2,
-          }}
-        >
+        <span style={{ fontSize: 10, color: '#94a3b8', lineHeight: 1.3, paddingLeft: 2 }}>
           {note ?? m.note}
         </span>
       )}
@@ -318,7 +480,16 @@ function VoiceLegend() {
         fontFamily: 'Urbanist, -apple-system, sans-serif',
       }}
     >
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 8, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          color: '#475569',
+          marginBottom: 8,
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase',
+        }}
+      >
         Voice delivery
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
@@ -352,77 +523,126 @@ function VoiceLegend() {
   );
 }
 
-// --- Beat data with voice engine mapping ---
+// --- Beat data, v3 order and copy ---
 
 interface Beat {
   id: string;
-  name: string;
-  coachLine: string;
-  Body: () => ReactElement;
+  coachLine?: string;
+  Body?: () => ReactElement;
   reply?: string;
   voiceEngine: VoiceEngine;
   voiceNote?: string;
 }
 
 const BEATS: Beat[] = [
+  // 1. Splash. Silent.
+  { id: 'splash', Body: SplashBody, voiceEngine: 'Silent' },
+  // 2. Get Started. Silent.
+  { id: 'get-started', Body: GetStartedBody, voiceEngine: 'Silent' },
+  // 3. Coach Greeting. The orb blooms and speaks, MP3.
+  {
+    id: 'coach-greeting',
+    coachLine:
+      "Hey. I'm your coach inside Guided Growth. Give me two minutes and we'll set up something that actually sticks.",
+    voiceEngine: 'MP3',
+    voiceNote: 'splash_welcome.mp3',
+  },
+  // 4. Sign Up. Silent form, the name is captured here.
+  { id: 'signup', Body: SignupBody, voiceEngine: 'Silent' },
+  // 5. Mic Permission. MP3.
+  {
+    id: 'mic',
+    coachLine:
+      "I'd love to actually talk with you. If you let me use your mic, you can just speak. You can always type instead.",
+    Body: MicBody,
+    voiceEngine: 'MP3',
+    voiceNote: 'Verbatim opener',
+  },
+  // 6. Profile. Age + gender. Greet by name, dynamic via Cartesia.
   {
     id: 'profile',
-    name: 'Profile',
-    coachLine: "Hey, I'm your coach. Good to meet you. A couple of quick things.",
+    coachLine: 'Good to meet you, Yair. Two quick things so I can tailor this to you. How old are you?',
     Body: ProfileBody,
-    // Name was captured at sign-up; coach greets by name dynamically via Cartesia
     voiceEngine: 'Cartesia',
     voiceNote: 'Greets by name, dynamic',
   },
+  // 7. Why intro. MP3.
+  {
+    id: 'why-intro',
+    coachLine:
+      "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
+    Body: WhyIntroBody,
+    voiceEngine: 'MP3',
+    voiceNote: 'Verbatim, candidate MP3',
+  },
+  // 8. Morning check-in. State card now, then set the daily time. MP3 opener.
+  {
+    id: 'checkin',
+    coachLine:
+      "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+    Body: CheckinBody,
+    reply: 'Honestly pretty good, slept well for once.',
+    voiceEngine: 'MP3',
+    voiceNote: 'MP3 opener + Vapi reaction',
+  },
+  // 9. Evening reflection setup, configured only. MP3 opener + silent options.
+  {
+    id: 'reflection',
+    coachLine:
+      'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
+    Body: ReflectionBody,
+    voiceEngine: 'MP3',
+    voiceNote: 'Opener MP3, options silent',
+  },
+  // 10. Path fork. MP3.
+  {
+    id: 'fork',
+    coachLine: 'Quick one. Have you tracked habits before, or is this new for you? Either way is great.',
+    voiceEngine: 'MP3',
+    voiceNote: 'Verbatim opener',
+  },
+  // 11. Beginner, category. MP3 opener + silent options + Vapi if unsure.
   {
     id: 'category',
-    name: 'Focus area',
-    coachLine: 'What do you want to grow? Not sure? Talk it through with me.',
+    coachLine:
+      'What part of your life do you most want to work on right now? Pick the one that pulls you.',
     Body: CategoryBody,
-    reply: "Sleep, yeah. That's the foundation.",
-    // Opener is MP3; live Vapi coaching available if user is unsure
     voiceEngine: 'MP3',
     voiceNote: 'Opener MP3 + Vapi if unsure',
   },
+  // 12. Beginner, subcategory. MP3 opener + silent options.
   {
     id: 'goals',
-    name: 'Subcategory',
-    coachLine: 'Within that, what matters most to you? Pick one or two.',
+    coachLine: "Within that, what's the piece you want to start with?",
     Body: GoalsBody,
     voiceEngine: 'MP3',
-    voiceNote: 'Pre-recorded opener',
+    voiceNote: 'Opener MP3, options silent',
   },
+  // 13. Beginner, habits. MP3 opener + silent options + Vapi.
   {
     id: 'habits',
-    name: 'Habit picker',
-    coachLine: 'Pick one or two to start. One is plenty, the check-in is already a habit.',
+    coachLine:
+      "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
     Body: HabitsBody,
     voiceEngine: 'MP3',
     voiceNote: 'MP3 opener + Vapi available',
   },
+  // 14. Beginner, per-habit schedule. Vapi (live config).
   {
-    id: 'reflection',
-    name: 'Evening reflection',
-    coachLine: 'And your evening reflection. How do you want to do it, and when?',
-    Body: ReflectionBody,
-    voiceEngine: 'MP3',
-    voiceNote: 'Pre-recorded opener',
+    id: 'schedule',
+    coachLine: 'When will you do each one? Pick the days and a time. A reminder only if you want a nudge.',
+    Body: ScheduleBody,
+    voiceEngine: 'Vapi',
+    voiceNote: 'Live per-habit config',
   },
+  // 17. Full plan, the one confirm. MP3.
   {
     id: 'plan',
-    name: 'Full plan',
-    coachLine: "Here's your plan. Morning check-in, evening reflection, and your habits. Approve and you're in.",
+    coachLine:
+      "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
     Body: PlanBody,
     voiceEngine: 'MP3',
-    voiceNote: 'Pre-recorded verbatim',
-  },
-  {
-    id: 'checkin',
-    name: 'State check',
-    coachLine: 'How are you landing right now?',
-    Body: CheckinBody,
-    voiceEngine: 'MP3',
-    voiceNote: 'Pre-recorded opener',
+    voiceNote: 'Verbatim opener',
   },
 ];
 
@@ -445,7 +665,7 @@ export function FlowDesigner() {
           Onboarding flow
         </h1>
         <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
-          Real components, real content. Voice delivery annotated in the right margin.
+          Real components, v3 content. Voice delivery annotated in the right margin.
         </p>
       </div>
 
@@ -496,7 +716,7 @@ export function FlowDesigner() {
             <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Coach</span>
           </div>
 
-          {/* Beat stream */}
+          {/* Beat stream, continuous */}
           <div
             style={{
               display: 'flex',
@@ -514,36 +734,25 @@ export function FlowDesigner() {
                   data-beat-id={b.id}
                   style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
                 >
-                  {/* Beat label (inside phone, above coach bubble) */}
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      color: '#94a3b8',
-                      letterSpacing: '0.08em',
-                      textTransform: 'uppercase',
-                      paddingBottom: 2,
-                    }}
-                  >
-                    {b.name}
-                  </div>
                   {/* Coach bubble */}
-                  <div
-                    style={{
-                      marginRight: 'auto',
-                      maxWidth: 290,
-                      borderRadius: '16px 16px 16px 4px',
-                      background: '#f1f5f9',
-                      padding: '12px 16px',
-                      fontSize: 15,
-                      lineHeight: 1.4,
-                      color: '#1e293b',
-                    }}
-                  >
-                    {b.coachLine}
-                  </div>
+                  {b.coachLine && (
+                    <div
+                      style={{
+                        marginRight: 'auto',
+                        maxWidth: 300,
+                        borderRadius: '16px 16px 16px 4px',
+                        background: '#f1f5f9',
+                        padding: '12px 16px',
+                        fontSize: 15,
+                        lineHeight: 1.4,
+                        color: '#1e293b',
+                      }}
+                    >
+                      {b.coachLine}
+                    </div>
+                  )}
                   {/* Component body */}
-                  <Body />
+                  {Body && <Body />}
                   {/* User reply bubble (if any) */}
                   {b.reply && (
                     <div
@@ -612,13 +821,12 @@ export function FlowDesigner() {
         {/* Voice engine badge column (outside the phone) */}
         <div
           style={{
-            flex: '1 1 140px',
+            flex: '1 1 150px',
             display: 'flex',
             flexDirection: 'column',
-            // paddingTop matches: status-bar height (53px) + gap between status bar and first beat label
-            // Status bar: ~53px. Then 24px padding-top, then beat-label (~18px), then coach bubble starts.
-            // Aligning to the coach bubble's top for the first beat.
-            paddingTop: 95,
+            // Align the first badge to roughly the first coach bubble:
+            // status bar (~53px) + stream padding (24px) + a little.
+            paddingTop: 90,
             gap: 0,
           }}
         >
@@ -631,26 +839,10 @@ export function FlowDesigner() {
   );
 }
 
-// Each badge slot uses a fixed height that approximates the rendered height of its beat.
-// These are rough but visually aligned because FlowDesigner is a continuous scroll,
-// not a per-screen layout. The badge sits beside the coach bubble for each beat.
-const BEAT_SLOT_HEIGHTS: Record<string, number> = {
-  profile: 230,
-  category: 320,
-  goals: 200,
-  habits: 200,
-  reflection: 200,
-  plan: 180,
-  checkin: 150,
-};
-
-function BeatBadgeSlot({
-  engine,
-  note,
-}: {
-  engine: VoiceEngine;
-  note?: string;
-}) {
+// Each badge slot is a fixed-height row beside its beat. FlowDesigner is a
+// continuous scroll, not a per-screen layout, so the badges are approximately
+// aligned to their beats rather than pixel-locked.
+function BeatBadgeSlot({ engine, note }: { engine: VoiceEngine; note?: string }) {
   return (
     <div
       style={{
