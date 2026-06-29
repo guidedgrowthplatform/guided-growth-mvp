@@ -728,9 +728,9 @@ const EVENING_CHECKIN_FLOW: DefaultBeat[] = [
 
 // The app tour (the fourth flow): the second half of onboarding. Onboarding ends
 // on the first state check, the chat closes, and this flow runs over the real
-// home page. It is its own flow because the tour will grow into several beats;
-// for now it is the single home-tour beat (which reveals the home half a screen
-// at a time, then lands on the live home with the chat as an open/close overlay).
+// home page. It walks the home top to bottom, one real feature per beat, with
+// the coach chat positioned so it never covers the part being shown. The single
+// home-tour beat reads its `stage` prop; the order here drives the walk.
 const HOME_TOUR_FLOW: DefaultBeat[] = [
   {
     type: 'home-tour',
@@ -738,8 +738,8 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
     background: 'plain',
     props: {
       userName: '{name}',
-      stage: 'land',
-      coachLine: "That's everything. Welcome home, {name}. This is your space.",
+      stage: 'calendar',
+      coachLine: 'This is your week up top, {name}. Tap any day to look back.',
     },
   },
   {
@@ -748,8 +748,8 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
     background: 'plain',
     props: {
       userName: '{name}',
-      stage: 'connect',
-      coachLine: "Everything we just did lives here. The chat's always a tap away.",
+      stage: 'morning',
+      coachLine: "Mornings start here. A quick check-in on how you slept and where you're at.",
     },
   },
   {
@@ -758,8 +758,8 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
     background: 'plain',
     props: {
       userName: '{name}',
-      stage: 'reveal',
-      coachLine: 'These are your habits. Tap one done when you finish it. Your reflections land here too.',
+      stage: 'evening',
+      coachLine: "Evenings you reflect. How the day went, what's on your mind.",
     },
   },
   {
@@ -768,15 +768,39 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
     background: 'plain',
     props: {
       userName: '{name}',
-      stage: 'chat',
-      coachLine: "Feedback's here for me. And the chat's right here, tap it whenever. Otherwise, this is home.",
+      stage: 'habits',
+      coachLine: 'Your habits live here. Tap the check when you do one, the X if you miss it.',
     },
   },
   {
     type: 'home-tour',
     beat: '5',
     background: 'plain',
-    props: { userName: '{name}', stage: 'live' },
+    props: {
+      userName: '{name}',
+      stage: 'reflections',
+      coachLine: 'Everything you reflect on collects here, so you can look back anytime.',
+    },
+  },
+  {
+    type: 'home-tour',
+    beat: '6',
+    background: 'plain',
+    props: {
+      userName: '{name}',
+      stage: 'feedback',
+      coachLine: 'See something off? Tap feedback and tell me. It opens right into a chat.',
+    },
+  },
+  {
+    type: 'home-tour',
+    beat: '7',
+    background: 'plain',
+    props: {
+      userName: '{name}',
+      stage: 'chat',
+      coachLine: 'And anytime at all, open the chat. We can talk about anything.',
+    },
   },
 ];
 
