@@ -98,7 +98,15 @@ function Cta({
 function CardShell({ children, frozen }: { children: React.ReactNode; frozen?: boolean }) {
   return (
     <div
-      className={`mt-3 flex flex-col gap-4${frozen ? 'pointer-events-none select-none opacity-95' : ''}`}
+      // array+join (not a template literal): prettier-plugin-tailwindcss strips a
+      // leading space inside a `${frozen ? ' …'}` conditional, which fused `gap-4`
+      // into `gap-4pointer-events-none` and dropped the gap on frozen cards.
+      className={[
+        'mt-3 flex flex-col gap-4',
+        frozen && 'pointer-events-none select-none opacity-95',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       aria-disabled={frozen || undefined}
     >
       {children}
@@ -1595,12 +1603,13 @@ export function getAdapter(componentType: string): AdapterComponent | undefined 
 // Past beats of these types re-render their real card frozen in the captured
 // state (seeded from `answers`, inputs inert, CTA gone) so every completed beat
 // stays on screen as a persisted chat receipt — the whole journey scrolls back as
-// real screens (auth confirmation, the mic dial, the brain dump, every data card),
-// not one-line summaries. Excluded: the terminal into-app (its content is just the
-// coach line) and the say-only / check-in beats (no captured card to freeze).
+// real screens (auth confirmation, the brain dump, every data card), not one-line
+// summaries. Excluded: the terminal into-app (its content is just the coach line),
+// the say-only / check-in beats (no captured card to freeze), and mic-permission —
+// its big dial must COLLAPSE to a short summary after Allow (the bottom orb takes
+// over) rather than persist as a static frozen dial.
 export const FROZEN_CARD_TYPES: ReadonlySet<string> = new Set([
   'auth',
-  'mic-permission',
   'profile-input',
   'path-selection',
   'category-grid',
