@@ -116,6 +116,17 @@ export function CoachChatView({
     tail && tail.role === 'ai' && (displayedAssistant.length > 0 || speaking) ? tail.id : null;
   const renderedMessages = revealingId ? messages.filter((m) => m.id !== revealingId) : messages;
 
+  // [REVEAL-DEBUG] temporary — remove after diagnosing the send-time flicker.
+  const dbgPrevRef = useRef('');
+  {
+    const key = `tail=${tail?.role ?? '-'}:${tail?.id?.slice(-4) ?? '-'} msgs=${messages.length} partial=${displayedAssistant.length} speaking=${speaking} processing=${isProcessing} revealingId=${revealingId?.slice(-4) ?? 'null'}`;
+    if (key !== dbgPrevRef.current) {
+      dbgPrevRef.current = key;
+
+      console.log(`[REVEAL] t=${Math.round(performance.now())} ${key}`);
+    }
+  }
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pinnedToBottomRef = useRef(true);
   const touchStartY = useRef<number | null>(null);
@@ -157,6 +168,10 @@ export function CoachChatView({
 
   useCoachTranscripts((evt) => {
     if (evt.role !== 'assistant') return;
+
+    console.log(
+      `[REVEAL] t=${Math.round(performance.now())} BUS ${evt.kind} len=${evt.text.length}`,
+    );
     if (evt.kind === 'partial') setPartialAssistant(evt.text);
     else setPartialAssistant('');
   });
@@ -168,6 +183,7 @@ export function CoachChatView({
 
   const handleSendText = useCallback(
     (text: string) => {
+      console.log(`[REVEAL] t=${Math.round(performance.now())} SEND "${text.slice(0, 20)}"`);
       setPartialAssistant(''); // drop stale reveal → straight to user msg + loading
       sendText(text);
       setDraft('');

@@ -592,6 +592,10 @@ export function useCoachChat(
       if (m.role !== 'assistant' || !m.content) continue;
       if (spokenIdsRef.current.has(m.id)) continue;
       spokenIdsRef.current.add(m.id);
+
+      console.log(
+        `[REVEAL] t=${Math.round(performance.now())} COMMIT id=${m.id.slice(-4)} len=${m.content.length} path=${!voiceModeOn || suppressLlmSpeech ? 'text' : streamedSomethingRef.current ? 'chunked' : 'oneshot'}`,
+      );
       // screen/text mode (or suppressed): mark seen but stay silent.
       if (!voiceModeOn || suppressLlmSpeech) {
         onTranscriptStream?.('assistant', m.content, 'final');
