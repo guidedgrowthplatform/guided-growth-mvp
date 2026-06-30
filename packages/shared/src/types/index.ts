@@ -283,6 +283,7 @@ export interface OnboardingStepData {
     }
   > | null;
   reflectionSchedule?: string | null;
+  checkin?: Partial<CheckInData> | null;
 }
 
 export interface OnboardingState {

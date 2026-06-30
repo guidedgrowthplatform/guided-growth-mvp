@@ -100,6 +100,9 @@ export interface BeatNode {
   tool: ToolConfig | null;
   /** null = capture-only beat that advances without a save (e.g. mic permission). */
   persist: PersistConfig | null;
+  // Skip this beat (advance straight past it) when true for the accumulated answers.
+  // Onboarding beats omit it. Used by the check-in "are you done?" beats.
+  skipWhen?: (answers: FlowAnswers) => boolean;
 }
 
 export interface BranchLane {

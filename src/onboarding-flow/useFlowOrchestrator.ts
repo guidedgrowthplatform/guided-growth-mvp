@@ -65,6 +65,7 @@ import {
   getNode,
   goBack,
   initFlowMachine,
+  toolSaveFor,
 } from './flowMachine';
 import { composeBeatContext } from './generalContext';
 import type { FlowPersistence } from './persistence';
@@ -231,6 +232,8 @@ export interface FlowOrchestratorOptions {
   /** Seed answers known before the flow starts (e.g. nickname from sign-in) so the
    *  coach treats them as filled and never re-asks. A later capture overrides them. */
   initialAnswers?: Partial<FlowAnswers>;
+  /** Onboarding only: resume/advance off the server `current_step`. Off for check-in. */
+  serverSync?: boolean;
   /**
    * QA only: if set, the machine is seeded at the node matching this id
    * on mount. Pre-beat nodes (auth, mic) are walked with empty captures so
@@ -267,6 +270,7 @@ export function useFlowOrchestrator(
   // on the voice path; null in the auth-free preview. Drives the coach-save
   // advance below.
   const { state: serverState } = useOnboarding();
+  const serverSync = options?.serverSync ?? true;
 
   // Mirror state into a ref so capture() reads the latest synchronously and runs
   // its save side effects exactly once (not inside a setState updater, which can
@@ -314,6 +318,11 @@ export function useFlowOrchestrator(
           opts.onPin?.(opts.flowTag);
         }
       }
+
+      // Check-in beats save via a tool, not the onboarding step path. The
+      // adapter owns which tools it handles (no-op on onboarding, which omits saveTool).
+      const toolSave = toolSaveFor(node, save);
+      if (toolSave) persistence.saveTool?.(toolSave.toolName, cap.data);
 
       if (next.status === 'complete') {
         persistence.complete(deriveFinalData(next.answers));
@@ -385,6 +394,7 @@ export function useFlowOrchestrator(
   // leading-edge effect below owns live advances + back-nav semantics.
   const resumedRef = useRef(false);
   useEffect(() => {
+    if (!serverSync) return;
     if (resumedRef.current) return;
     if (typeof serverStep !== 'number') return; // no server row (preview / not loaded yet)
     resumedRef.current = true;
@@ -398,7 +408,7 @@ export function useFlowOrchestrator(
       stateRef.current = resumed;
       setState(resumed);
     }
-  }, [serverStep, serverData, flow]);
+  }, [serverStep, serverData, flow, serverSync]);
 
   // Reset the per-beat baseline + fired-flag whenever the active beat changes, so
   // each beat judges advancement against the step seen on entry (not a prior
@@ -408,6 +418,7 @@ export function useFlowOrchestrator(
     advancedNodeRef.current = null;
   }, [activeNodeId]);
   useEffect(() => {
+    if (!serverSync) return;
     if (!activeNodeId || state.status === 'complete') return;
     if (typeof serverStep !== 'number') return; // no server row (preview / not loaded)
     const node = getNode(flow, activeNodeId);
@@ -427,7 +438,7 @@ export function useFlowOrchestrator(
     advancedNodeRef.current = activeNodeId;
     const cap = serverCaptureForBeat(node, (serverData ?? {}) as OnboardingStepData);
     applyAndAdvance(cap, false);
-  }, [activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
+  }, [serverSync, activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
 
   const canGoBack = machineCanGoBack(state, flow);
 

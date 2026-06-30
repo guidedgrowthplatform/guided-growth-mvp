@@ -12,18 +12,18 @@ export type AppGateStatus =
   | { status: 'error'; retry: () => void };
 
 export function useAppGate(): AppGateStatus {
-  const { user, loading: authLoading } = useAuth();
+  const { user, anonId, loading: authLoading } = useAuth();
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.onboarding.state,
     queryFn: () => supabaseDataService.getOnboardingState(),
-    enabled: !!user,
+    enabled: !!user && !!anonId,
     staleTime: Infinity,
     gcTime: Infinity,
     retry: 1,
   });
 
-  if (authLoading || (!!user && isLoading)) return { status: 'loading' };
+  if (authLoading || (!!user && (!anonId || isLoading))) return { status: 'loading' };
   if (!user) return { status: 'unauthenticated' };
   if (isError) return { status: 'error', retry: refetch };
 

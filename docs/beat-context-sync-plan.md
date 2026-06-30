@@ -31,13 +31,13 @@ is broken. This doc explains the machine and lays out how to turn it on.
 
 ### Two separate content pipelines (they diverge — this is the core mess)
 
-| | **Path 1 — Vapi** | **Path 3 — Direct-LLM** |
-|---|---|---|
-| Reads at runtime | `src/generated/screen_contexts.json` bundle | `beatContexts.ts` (+ `beatContexts.generated.json` overlay) |
-| DB table | `screen_contexts` — **59 rows on prod ✅** | `beat_contexts` + `onboarding_globals` — **missing ❌** |
-| Seed source | Master Sheet "Screens" tab → `seed_contexts.py` | hand-authored `beatContexts.ts` → `seed_beat_contexts.py` |
-| Sync to repo | `seed_contexts.py` writes bundle (Vapi has NO global) | `sync_beat_contexts.py` writes generated.json |
-| Global context | a **separate copy** in the Vapi "Coach Yair" system prompt (drifts) | `GLOBAL_ONBOARDING_CONTEXT` in code / `onboarding_globals` |
+|                  | **Path 1 — Vapi**                                                   | **Path 3 — Direct-LLM**                                     |
+| ---------------- | ------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Reads at runtime | `src/generated/screen_contexts.json` bundle                         | `beatContexts.ts` (+ `beatContexts.generated.json` overlay) |
+| DB table         | `screen_contexts` — **59 rows on prod ✅**                          | `beat_contexts` + `onboarding_globals` — **missing ❌**     |
+| Seed source      | Master Sheet "Screens" tab → `seed_contexts.py`                     | hand-authored `beatContexts.ts` → `seed_beat_contexts.py`   |
+| Sync to repo     | `seed_contexts.py` writes bundle (Vapi has NO global)               | `sync_beat_contexts.py` writes generated.json               |
+| Global context   | a **separate copy** in the Vapi "Coach Yair" system prompt (drifts) | `GLOBAL_ONBOARDING_CONTEXT` in code / `onboarding_globals`  |
 
 The Vapi side is live and seeded. The Direct-LLM beat-context side is the one that was
 built but never turned on.
@@ -119,33 +119,40 @@ Pick one model and write it down:
 Until this is decided, do NOT seed — seeding picks the winner.
 
 ### Phase 1 — Run the migration (prod)
+
 ```bash
 node scripts/run-migration.mjs 052
 ```
+
 Verify both tables exist + RLS on. (Optionally add a `schema_migrations` row-keeping
 convention while here.)
 
 ### Phase 2 — De-stale the seed (only if seeding)
+
 Reconcile `seed_beat_contexts.py`'s inlined block against the **current**
 `beatContexts.ts` (the resync changed beats; the inline copy likely lags). Either
 hand-update the block, or — better — refactor the seed to import/parse the real source so
 it can't drift again. Diff before trusting it.
 
 ### Phase 3 — Seed Supabase
+
 ```bash
 cd scripts/voice-sync && python seed_beat_contexts.py --dry-run   # preview
 python seed_beat_contexts.py                                       # write
 ```
 
 ### Phase 4 — Sync back + commit
+
 ```bash
 python sync_beat_contexts.py --dry-run
 python sync_beat_contexts.py          # writes api/_lib/llm/onboarding/beatContexts.generated.json
 ```
+
 Commit the regenerated JSON. After this, `generated.global` and per-beat overrides are
 non-empty and the overlay starts winning over defaults.
 
 ### Phase 5 — Local dev + CI story ("rethink my local dev")
+
 - **Local dev needs NOTHING new.** App falls back to committed defaults when the generated
   file is empty/absent. A dev only runs `sync_beat_contexts.py` if they want live Supabase
   copy locally — and only needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (no Sheets).
@@ -155,6 +162,7 @@ non-empty and the overlay starts winning over defaults.
   deterministic, no runtime DB read on cold start) vs. generated at build.
 
 ### Phase 6 — (stretch, from Yair's "Open") Unify the global context
+
 Yair flagged: the Vapi "Coach Yair" system-prompt global is a **separate copy** from the
 code global, and the `{{initial_screen_context}}` slot appears **twice** in the Vapi
 prompt. Once `onboarding_globals` exists, make BOTH paths read one source (the Supabase
@@ -177,22 +185,22 @@ QA/authoring reference and are NOT synced into code today. `allowedTools` is cod
 
 **Per-beat verdict (onboarding):**
 
-| screen_id | context | opener | safe to sync? |
-|---|---|---|---|
-| ONBOARD-01--FORM | identical | identical | ✅ |
-| ONBOARD-FORK--FORM | identical | identical | ✅ |
-| ONBOARD-BEGINNER-01 | identical | identical | ✅ |
-| ONBOARD-BEGINNER-02 | identical | identical | ✅ |
-| ONBOARD-BEGINNER-03 | identical | identical | ✅ |
-| ONBOARD-BEGINNER-05 | identical | (both none) | ✅ |
-| ONBOARD-ADVANCED-02 | identical | identical | ✅ |
-| ONBOARD-ADVANCED-04 | identical | identical | ✅ |
-| ONBOARD-ADV-CUSTOM | identical | identical | ✅ |
-| ONBOARD-ADVANCED-05 | identical | identical | ✅ |
-| ONBOARD-BEGINNER-04 | "Habit Configuration" vs code "Habit schedule" | Sheet (none) vs code line | ⚠️ order-tied |
-| ONBOARD-BEGINNER-07 | ~close | "One last thing…" (implies last) vs code | ⚠️ order-tied |
-| ONBOARD-BEGINNER-06 | **plan-review FINAL + confirm_plan** vs code advance_step-then-more | "…before we start" vs "…keep going" | ❌ ORDER COLLISION |
-| ONBOARD-ADVANCED | wording differs | "Tell me everything…" vs "Read me the habits…" | ⚠️ |
+| screen_id           | context                                                             | opener                                         | safe to sync?      |
+| ------------------- | ------------------------------------------------------------------- | ---------------------------------------------- | ------------------ |
+| ONBOARD-01--FORM    | identical                                                           | identical                                      | ✅                 |
+| ONBOARD-FORK--FORM  | identical                                                           | identical                                      | ✅                 |
+| ONBOARD-BEGINNER-01 | identical                                                           | identical                                      | ✅                 |
+| ONBOARD-BEGINNER-02 | identical                                                           | identical                                      | ✅                 |
+| ONBOARD-BEGINNER-03 | identical                                                           | identical                                      | ✅                 |
+| ONBOARD-BEGINNER-05 | identical                                                           | (both none)                                    | ✅                 |
+| ONBOARD-ADVANCED-02 | identical                                                           | identical                                      | ✅                 |
+| ONBOARD-ADVANCED-04 | identical                                                           | identical                                      | ✅                 |
+| ONBOARD-ADV-CUSTOM  | identical                                                           | identical                                      | ✅                 |
+| ONBOARD-ADVANCED-05 | identical                                                           | identical                                      | ✅                 |
+| ONBOARD-BEGINNER-04 | "Habit Configuration" vs code "Habit schedule"                      | Sheet (none) vs code line                      | ⚠️ order-tied      |
+| ONBOARD-BEGINNER-07 | ~close                                                              | "One last thing…" (implies last) vs code       | ⚠️ order-tied      |
+| ONBOARD-BEGINNER-06 | **plan-review FINAL + confirm_plan** vs code advance_step-then-more | "…before we start" vs "…keep going"            | ❌ ORDER COLLISION |
+| ONBOARD-ADVANCED    | wording differs                                                     | "Tell me everything…" vs "Read me the habits…" | ⚠️                 |
 
 Code-only (not in Sheet): `ONBOARD-AUTH--FORM` (silent, fine), `ONBOARD-MORNING-SETUP`,
 `ONBOARD-COMPLETE` — the last two are old-order beats the new order drops.
@@ -202,7 +210,7 @@ plan, want to start?") onto this branch, the coach says "let's start" but the en
 routes to MORNING-SETUP — coach copy desyncs from engine flow. So **10 beats are safe to
 sync now; 4 are order-tied and must wait for (or trigger) the order change.**
 
-**Check-in section of the paste** (GLOBAL + morning_*/evening_*/reflection/are_you_done)
+**Check-in section of the paste** (GLOBAL + morning*\*/evening*\*/reflection/are_you_done)
 is a SEPARATE target — `beat_contexts`/`beatContexts.ts` is onboarding-only. Check-in beat
 copy has no `beat_contexts` consumer wired yet (Yair: check-in flows built, not wired), so
 it's out of scope for this sync until a consumer exists.
@@ -219,5 +227,7 @@ it's out of scope for this sync until a consumer exists.
    from code? That edits the shared Coach Yair assistant prompt.
 5. **Migration ledger** — want me to add a `schema_migrations` table/convention so we stop
    guessing what's been run on prod?
+
 ```
 
+```

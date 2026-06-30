@@ -256,8 +256,7 @@ SPEAK MODE: VERBATIM_OPENER
 
 Ask for the mic so the user can talk to you. Keep it light, optional, no pressure. If they skip it, they can still type, and that's completely fine.`,
     allowedTools: [],
-    opener:
-      "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+    opener: "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
   },
 
   // Why intro. Framing-only beat, shown once. No data, frontend advances.
@@ -300,7 +299,7 @@ DO NOT:
 - Re-ask anything already captured.
 - Turn a reminder on unless they ask.`,
     allowedTools: ['add_habit', 'update_habit', 'advance_step'],
-    opener: 'Now the days. Tell me how often each one runs and I\'ll fill them in.',
+    opener: "Now the days. Tell me how often each one runs and I'll fill them in.",
   },
 
   // Weekly projection, frame 1 of 5. MP3-candidate narration. No data, frontend advances.
@@ -345,7 +344,7 @@ DO NOT:
 - Improvise or add.`,
     allowedTools: [],
     opener:
-      'More likely, you land around here. Mostly green, a few misses, your streaks holding. That\'s a real win.',
+      "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
   },
 
   // Weekly projection, frame 4 of 5. MP3-candidate narration. No data, frontend advances.
@@ -361,7 +360,7 @@ DO NOT:
 - Make a rough week sound like failure.`,
     allowedTools: [],
     opener:
-      'Some weeks land here. One streak survives, the rest take a hit. Still fine, you\'re building. We reassess.',
+      "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
   },
 
   // Weekly projection, frame 5 of 5. MP3-candidate narration. No data, frontend advances.

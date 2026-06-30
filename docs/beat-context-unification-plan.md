@@ -12,13 +12,13 @@ dashboard-only Vapi global). One edit in the Sheet → every path sees it.
 
 ## Where each path stands today (grounded)
 
-| Path | Per-beat context | Global / persona | On synced source? |
-|---|---|---|---|
-| **Direct-LLM (3)** | `getBeatContext` (`buildSystemPrompt.ts:118`) | `GLOBAL_ONBOARDING_CONTEXT` (`:119`) | ✅ yes |
-| **Vapi cold-start (1)** | `getScreenContext`→`screen_contexts.json` bundle (`buildAssistantOverrides.ts:61`) | — none sent | ❌ old bundle |
-| **Vapi heartbeat (1)** | `pushScreenContext`→`getScreenContext` (`OnboardingVoiceProvider.tsx:297,1467`) `client.send(add-message)` | — | ❌ old bundle |
-| **Vapi global** | — | **Vapi dashboard only** (drifts); code syncs only the tool-rules addendum (`vapi-sync/assistant.ts`) | ❌ not code |
-| **get_user_context tool** | `SELECT … FROM screen_contexts` (`tools.ts:168`) | — | ❌ old table |
+| Path                      | Per-beat context                                                                                           | Global / persona                                                                                     | On synced source? |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------- |
+| **Direct-LLM (3)**        | `getBeatContext` (`buildSystemPrompt.ts:118`)                                                              | `GLOBAL_ONBOARDING_CONTEXT` (`:119`)                                                                 | ✅ yes            |
+| **Vapi cold-start (1)**   | `getScreenContext`→`screen_contexts.json` bundle (`buildAssistantOverrides.ts:61`)                         | — none sent                                                                                          | ❌ old bundle     |
+| **Vapi heartbeat (1)**    | `pushScreenContext`→`getScreenContext` (`OnboardingVoiceProvider.tsx:297,1467`) `client.send(add-message)` | —                                                                                                    | ❌ old bundle     |
+| **Vapi global**           | —                                                                                                          | **Vapi dashboard only** (drifts); code syncs only the tool-rules addendum (`vapi-sync/assistant.ts`) | ❌ not code       |
+| **get_user_context tool** | `SELECT … FROM screen_contexts` (`tools.ts:168`)                                                           | —                                                                                                    | ❌ old table      |
 
 Shared renderer `buildContextMessage` (packages/shared) is used by BOTH paths — **keep it.**
 
@@ -45,11 +45,13 @@ is the frontend bundle today.
    have no machinery at all; it includes legacy non-v2 screens (`BEGINNER-08/09`, `ADVANCED-03`);
    it's old-order and hand-authored in the Screens tab.
 4. **The engine code is the authority.** `beatForStep`/`stepForScreenId` (`src/lib/onboarding/
-   onboardingStepBeats.ts`) gives target_step; `getBeatAllowedTools` (`beatContexts.ts`) gives
+onboardingStepBeats.ts`) gives target_step; `getBeatAllowedTools` (`beatContexts.ts`) gives
    the allowed set. Generate the machinery from these → engine-consistent, deterministic.
 
 ### Refined WS1 — compose, don't swap
+
 Vapi onboarding context block = **[code-generated machinery] + [synced coach copy]**:
+
 - **Machinery** (code, engine-consistent): `ALLOWED TOOLS` (data tools + `navigate_next(target_step=stepForScreenId+1)`), `FORBIDDEN` = all onboarding tools − allowed, AUTO-CALL hint. Translates the beat's `advance_step` → Vapi's `navigate_next`.
 - **Coach copy** (synced Sheet): the clean beat `context` + `opener`.
 - Clean separation also dodges the order-desync: machinery follows the engine (code), copy follows the Sheet.
@@ -72,6 +74,7 @@ Per Yonas: order authority = the flow builder; habits (03/04/05) = one step;
   (Supabase→`beatContexts.generated.json`) → `npm run beats:bundle` (→ `src/generated/beat_contexts.json`).
 
 **Still open (flagged to Yair):**
+
 - BEGINNER-06 **copy** is new-order ("ready to start?") but **machinery** follows the flow
   (→ morning-setup) — the held order-desync. Nav is correct; the coach line is slightly off
   until the order change lands.
@@ -81,6 +84,7 @@ Per Yonas: order authority = the flow builder; habits (03/04/05) = one step;
 ## WS1 PROGRESS + DIFF RESULT (2026-06-28)
 
 Built (additive, NOT wired into live nav — `getScreenContext` untouched):
+
 - `scripts/build-beat-bundle.ts` → `src/generated/beat_contexts.json` (17 beats: synced
   copy + opener + code `allowedTools` + step; full tool universe for FORBIDDEN).
 - `src/lib/context/onboardingBeatBundle.ts` — composer: machinery (from step model +
@@ -88,8 +92,9 @@ Built (additive, NOT wired into live nav — `getScreenContext` untouched):
 - `scripts/diff-beat-machinery.ts` — read-only old-vs-new machinery diff.
 
 **Diff verdict: flip NOT safe yet.** Matches on BEGINNER-01/02/03/07 (same target_step +
-tools); FORK new correctly *adds* the legit `ask_clarification`. Three genuine blockers,
+tools); FORK new correctly _adds_ the legit `ask_clarification`. Three genuine blockers,
 all engine-step-model / order-desync (Yair's domain):
+
 1. **BEGINNER-04 / -05** — `stepForScreenId` is undefined (they're sub-sheets of step 5),
    so generated machinery drops the `navigate_next` target the old block had (`6`). Need a
    canonical target_step for the habit-config sub-beats.
@@ -104,6 +109,7 @@ all engine-step-model / order-desync (Yair's domain):
 ## Plan — 4 workstreams
 
 ### WS1 — Frontend beat bundle (the enabler)
+
 - Extend the Supabase→repo sync to ALSO emit `src/generated/beat_contexts.json`
   (`{ global, beats: { [screenId]: { context, opener, version } } }`) — same data already
   written to `beatContexts.generated.json`, just placed where the frontend bundles it.
@@ -114,6 +120,7 @@ all engine-step-model / order-desync (Yair's domain):
   mechanism (`variableValues` + `add-message`). No change to `buildContextMessage`.
 
 ### WS2 — Vapi global from one source (kill the drift)
+
 - The synced `GLOBAL_ONBOARDING_CONTEXT` (from `onboarding_globals`) becomes the Vapi
   assistant's persona, pushed via `scripts/vapi-sync/` (code-owned, like the tool addendum)
   — replacing the hand-maintained dashboard copy. One source for both paths.
@@ -121,11 +128,13 @@ all engine-step-model / order-desync (Yair's domain):
 - ⚠️ Touches the **shared Vapi assistant config** — flag Yair before applying (standing rule).
 
 ### WS3 — get_user_context reads the beat source
+
 - `tools.ts:168` (`getUserContext`) → for `ONBOARD-*`, return the beat context
   (`getBeatContext`) instead of the `screen_contexts` row; non-onboarding unchanged.
 - Keeps the tool a valid fallback that agrees with the rest of the pipeline.
 
 ### WS4 — Retire the old onboarding path
+
 - Onboarding screens stop being sourced from `screen_contexts.json` bundle / `screen_contexts`
   table / dashboard global. Those artifacts STAY for **non-onboarding** screens (home,
   check-in screens still on screen_contexts) until they migrate separately.
@@ -144,13 +153,14 @@ all engine-step-model / order-desync (Yair's domain):
    finish the tool-driven nav first.
 2. **Tool Notes.** The Sheet's "Tool Notes / Expected Answers / Coach Lines" columns are
    NOT synced into code (only the `Beat Context` paragraph + opener are). Vapi may rely on
-   tool-notes for *when* to call `advance_step`. Decide: do those columns get folded into the
+   tool-notes for _when_ to call `advance_step`. Decide: do those columns get folded into the
    synced beat context (richer Vapi prompt), or stay dashboard/QA-only?
 3. **Shared Vapi config** — WS2 edits the live assistant; coordinate with Yair.
-4. **Order desync unchanged** — unifying makes both paths equally *new-order*; it does NOT
+4. **Order desync unchanged** — unifying makes both paths equally _new-order_; it does NOT
    resolve the held engine order mismatch (`beat-context-sync-plan.md §STATUS`).
 
 ## Suggested sequence
+
 WS1 (frontend bundle, safe, no shared-config touch) → WS3 (tool, backend, safe) → WS2
 (Vapi global, needs Yair) → WS4 (retire, after WS1–WS3 verified live). Each its own commit;
 type-check + tests before each; #MVP after each.

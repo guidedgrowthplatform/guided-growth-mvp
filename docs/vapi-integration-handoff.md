@@ -80,7 +80,7 @@ Now **Vapi is brought onto the same synced source Direct-LLM uses.**
   opener + code-owned `allowedTools` + the per-beat step/target — so the frontend
   (Vapi) can read the same content the backend (Direct-LLM) uses.
 - **Machinery composer** `src/lib/context/onboardingBeatBundle.ts`: Vapi gates
-  tools by *prose* (it has no structural per-beat tool filter), so the context it
+  tools by _prose_ (it has no structural per-beat tool filter), so the context it
   receives must still carry the machinery — `ALLOWED`/`FORBIDDEN` tools +
   `navigate_next(target_step=N)`. That machinery is **generated from code** (the
   engine step model), then prepended to the clean **synced coach copy**.
@@ -205,22 +205,22 @@ indicator; rigid opener; thread persistence; frozen receipt cards.
 
 ## 9. Key files
 
-| What | Where |
-|---|---|
-| Sheet → Supabase sync (new, durable) | `scripts/voice-sync/sync_beats_context.py` |
-| Supabase → repo sync | `scripts/voice-sync/sync_beat_contexts.py` |
-| Beat tables migration | `supabase/migrations/052_beat_contexts.sql` |
-| Direct-LLM beat context (synced) | `api/_lib/llm/onboarding/beatContexts.ts` (+ `.generated.json`) |
-| Frontend beat bundle generator | `scripts/build-beat-bundle.ts` → `src/generated/beat_contexts.json` |
-| Vapi machinery composer | `src/lib/context/onboardingBeatBundle.ts` |
-| Context resolver (Vapi cold-start + heartbeat) | `src/lib/context/getScreenContext.ts` |
-| Vapi coverage set | `src/lib/onboarding/onboardingStepBeats.ts` (`CHAT_VAPI_BEAT_SCREENS`) |
-| Voice provider (messages, opener, persistence) | `src/contexts/OnboardingVoiceProvider.tsx` |
-| Thread persistence | `src/contexts/onboardingThreadStore.ts` |
-| Live chat renderer | `src/onboarding-flow/renderer/BeatPlayer.tsx`, `BeatView.tsx` |
-| Frozen receipt cards | `src/onboarding-flow/renderer/componentRegistry.tsx` |
-| Flow order authority | `src/onboarding-flow/flows/onboarding-beginner-v1.generated.json` |
-| Machinery diff (read-only) | `scripts/diff-beat-machinery.ts` |
+| What                                           | Where                                                                  |
+| ---------------------------------------------- | ---------------------------------------------------------------------- |
+| Sheet → Supabase sync (new, durable)           | `scripts/voice-sync/sync_beats_context.py`                             |
+| Supabase → repo sync                           | `scripts/voice-sync/sync_beat_contexts.py`                             |
+| Beat tables migration                          | `supabase/migrations/052_beat_contexts.sql`                            |
+| Direct-LLM beat context (synced)               | `api/_lib/llm/onboarding/beatContexts.ts` (+ `.generated.json`)        |
+| Frontend beat bundle generator                 | `scripts/build-beat-bundle.ts` → `src/generated/beat_contexts.json`    |
+| Vapi machinery composer                        | `src/lib/context/onboardingBeatBundle.ts`                              |
+| Context resolver (Vapi cold-start + heartbeat) | `src/lib/context/getScreenContext.ts`                                  |
+| Vapi coverage set                              | `src/lib/onboarding/onboardingStepBeats.ts` (`CHAT_VAPI_BEAT_SCREENS`) |
+| Voice provider (messages, opener, persistence) | `src/contexts/OnboardingVoiceProvider.tsx`                             |
+| Thread persistence                             | `src/contexts/onboardingThreadStore.ts`                                |
+| Live chat renderer                             | `src/onboarding-flow/renderer/BeatPlayer.tsx`, `BeatView.tsx`          |
+| Frozen receipt cards                           | `src/onboarding-flow/renderer/componentRegistry.tsx`                   |
+| Flow order authority                           | `src/onboarding-flow/flows/onboarding-beginner-v1.generated.json`      |
+| Machinery diff (read-only)                     | `scripts/diff-beat-machinery.ts`                                       |
 
 Deeper design notes live in `docs/beat-context-sync-plan.md`,
 `docs/beat-context-unification-plan.md`, and

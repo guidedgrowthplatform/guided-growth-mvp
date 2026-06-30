@@ -10,8 +10,8 @@ voice-sync:
   resource_group: voice-sync
   timeout: 5 minutes
   variables:
-    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
-    GOOGLE_APPLICATION_CREDENTIALS: "$GCP_SA_KEY"
+    PIP_CACHE_DIR: '$CI_PROJECT_DIR/.pip-cache'
+    GOOGLE_APPLICATION_CREDENTIALS: '$GCP_SA_KEY'
   cache:
     key: voice-sync-pip
     paths:

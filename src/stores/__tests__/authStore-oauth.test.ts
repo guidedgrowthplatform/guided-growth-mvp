@@ -17,7 +17,7 @@ vi.mock('@/analytics', () => ({
 }));
 
 vi.mock('@/lib/sentry', () => ({
-  Sentry: { setUser: vi.fn(), captureMessage: vi.fn() },
+  Sentry: { setUser: vi.fn(), captureMessage: vi.fn(), captureException: vi.fn() },
 }));
 
 vi.mock('@capacitor/core', () => ({

@@ -15,7 +15,9 @@ function oldMachinery(screenId: string): { target: string | null; tools: string[
   const blk: string = screens[screenId]?.context_block ?? screens[screenId]?.contextBlock ?? '';
   const target = (blk.match(/navigate_next\(target_step=(\d+)\)/) || [])[1] ?? null;
   const allowed = (blk.match(/ALLOWED TOOLS[^\n]*\n((?:- [^\n]*\n?)*)/) || [])[1] || '';
-  const tools = [...allowed.matchAll(/- (\w+)/g)].map((m) => m[1]).filter((t) => t !== 'navigate_next');
+  const tools = [...allowed.matchAll(/- (\w+)/g)]
+    .map((m) => m[1])
+    .filter((t) => t !== 'navigate_next');
   return { target, tools };
 }
 
@@ -50,4 +52,6 @@ for (const id of ids) {
     oldDeclared ? (ok ? 'OK' : 'MISMATCH') : '(old: none → new adds)',
   );
 }
-console.log(`\n${ids.length} beats compared, ${mismatches} mismatches where old declared machinery.`);
+console.log(
+  `\n${ids.length} beats compared, ${mismatches} mismatches where old declared machinery.`,
+);

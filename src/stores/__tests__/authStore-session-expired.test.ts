@@ -8,7 +8,9 @@ const { getSessionMock, onAuthStateChangeMock, signOutMock } = vi.hoisted(() => 
 }));
 
 vi.mock('@/analytics', () => ({ track: vi.fn(), identify: vi.fn(), resetIdentity: vi.fn() }));
-vi.mock('@/lib/sentry', () => ({ Sentry: { setUser: vi.fn(), captureMessage: vi.fn() } }));
+vi.mock('@/lib/sentry', () => ({
+  Sentry: { setUser: vi.fn(), captureMessage: vi.fn(), captureException: vi.fn() },
+}));
 vi.mock('@capacitor/core', () => ({
   Capacitor: { isNativePlatform: () => false, getPlatform: () => 'web' },
 }));
