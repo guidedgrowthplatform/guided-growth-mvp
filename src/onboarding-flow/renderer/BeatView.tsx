@@ -15,7 +15,10 @@
  */
 import { useCallback, useLayoutEffect } from 'react';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
-import { CHAT_VAPI_BEAT_SCREENS } from '@/lib/onboarding/onboardingStepBeats';
+import {
+  CHAT_VAPI_BEAT_SCREENS,
+  LOCAL_CAPTURE_BEATS,
+} from '@/lib/onboarding/onboardingStepBeats';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 import { applyName } from './applyName';
 import {
@@ -56,7 +59,8 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   const hasBeatConversation = (session?.messages ?? []).some(
     (m) => m.screenId === node.screenId && !!m.text,
   );
-  const isVapiBeat = CHAT_VAPI_BEAT_SCREENS.has(node.screenId);
+  const isLocalCaptureBeat = LOCAL_CAPTURE_BEATS.has(node.screenId);
+  const isVapiBeat = CHAT_VAPI_BEAT_SCREENS.has(node.screenId) && !isLocalCaptureBeat;
 
   // MP3 opener: registered beats play a pre-encoded clip at beat mount instead of
   // calling Cartesia or waiting for Vapi to speak the opener. The progress fraction

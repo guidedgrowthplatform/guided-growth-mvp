@@ -33,9 +33,32 @@ export const CHAT_VAPI_BEAT_SCREENS: ReadonlySet<string> = new Set([
   'ONBOARD-COMPLETE',
 ]);
 
-// These beats own local Soniox capture in their adapter. The provider-level
-// engine must stay idle so it does not arm Soniox or Direct-LLM for them.
-export const LOCAL_CAPTURE_BEATS: ReadonlySet<string> = new Set(['ONBOARD-01--FORM']);
+// These beats are handled locally by the flow renderer/adapters. The
+// provider-level engine must stay idle so it does not arm Vapi, Soniox, or
+// Direct-LLM for them.
+export const LOCAL_CAPTURE_BEATS: ReadonlySet<string> = new Set([
+  'ONBOARD-AUTH--FORM',
+  'MIC-PERMISSION',
+  'ONBOARD-01--FORM',
+  'ONBOARD-WHY-INTRO',
+  'ONBOARD-STATE-CHECK',
+  'ONBOARD-FORK--FORM',
+  'ONBOARD-BEGINNER-01',
+  'ONBOARD-BEGINNER-02',
+  'ONBOARD-BEGINNER-03',
+  'ONBOARD-BEGINNER-04',
+  'ONBOARD-ADVANCED',
+  'ONBOARD-ADVANCED-FREQUENCY',
+  'ONBOARD-BEGINNER-06',
+  'ONBOARD-MORNING-SETUP',
+  'ONBOARD-BEGINNER-07',
+  'ONBOARD-COMPLETE',
+  'ONBOARD-WEEKLY-PROJECTION-BLANK',
+  'ONBOARD-WEEKLY-PROJECTION-FULL',
+  'ONBOARD-WEEKLY-PROJECTION-P78',
+  'ONBOARD-WEEKLY-PROJECTION-P36',
+  'ONBOARD-WEEKLY-PROJECTION-GAPS',
+]);
 
 // 'none' = chat-only beat (no inline card yet). Cards beyond profile land
 // incrementally; the flow still works, the coach just drives that beat in chat.

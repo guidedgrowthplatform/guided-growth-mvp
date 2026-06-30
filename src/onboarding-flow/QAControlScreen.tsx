@@ -13,7 +13,7 @@ import { useAuthStore } from '@/stores/authStore';
  * Layout (one phone screen, no scroll):
  *   1. Header (QA badge + title)
  *   2. Test user picker (select)
- *   3. "Start a flow" grid (5 square buttons)
+ *   3. "Start a flow" grid
  *   4. Account-state action buttons (log in / restart / re-onboard / reset)
  *   5. Error line
  *
@@ -47,7 +47,13 @@ const QA_PASSWORD = 'guided-growth-qa-2026';
 // Flow picker config
 // ---------------------------------------------------------------------------
 
-type FlowId = 'full-onboarding' | 'profile-start' | 'home-tour' | 'morning-checkin' | 'evening-checkin';
+type FlowId =
+  | 'full-onboarding'
+  | 'mic-profile-start'
+  | 'profile-start'
+  | 'home-tour'
+  | 'morning-checkin'
+  | 'evening-checkin';
 
 interface FlowDef {
   id: FlowId;
@@ -84,6 +90,17 @@ const FLOWS: FlowDef[] = [
     // in onboarding-beginner-v1.ts:84). The user must already be signed in,
     // which ensureSignedIn in run() handles before this navigation fires.
     navigate: (nav) => nav('/onboarding/flow?startAt=profile', { replace: true }),
+    fullyRunnable: true,
+  },
+  {
+    id: 'mic-profile-start',
+    icon: 'ic:round-mic',
+    label: 'Mic + Profile',
+    desc: 'Start at mic permission, then profile',
+    // ?startAt=mic seeds the orchestrator at the MIC-PERMISSION node
+    // (id='mic'), so the Allow tap grants mic and unlocks browser audio before
+    // the profile beat's MP3/live opener path needs playback.
+    navigate: (nav) => nav('/onboarding/flow?startAt=mic', { replace: true }),
     fullyRunnable: true,
   },
   {
@@ -389,7 +406,7 @@ export function QAControlScreen() {
           </div>
         </label>
 
-        {/* Flow picker grid (5 square buttons) */}
+        {/* Flow picker grid */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span
             style={{
@@ -405,7 +422,7 @@ export function QAControlScreen() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(5, 1fr)',
+              gridTemplateColumns: 'repeat(3, 1fr)',
               gap: 8,
             }}
           >

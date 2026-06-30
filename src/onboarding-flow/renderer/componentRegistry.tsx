@@ -43,6 +43,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useVoiceInCapture } from '@/hooks/useVoiceInCapture';
+import { unlockTTS } from '@/lib/services/tts-service';
 import type { CheckInDimension, HabitDayStatus, ReflectionMode } from '@gg/shared/types';
 import {
   FLOW_CATEGORIES,
@@ -466,6 +467,7 @@ function MicPermissionAdapter({ node, onCapture, readOnly }: BeatAdapterProps) {
   const handleAllow = async () => {
     if (requesting) return;
     setRequesting('allow');
+    unlockTTS();
     let granted = true;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
