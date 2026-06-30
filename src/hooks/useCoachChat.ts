@@ -611,9 +611,18 @@ export function useCoachChat(
           }
         });
       } else {
-        onTranscriptStream?.('assistant', m.content, 'final');
+        // One-shot: reveal while it plays, finalize on audio end (else the row
+        // hides under speaking with an empty reveal and vanishes mid-playback).
+        const content = m.content;
+        const seq = turnSeqRef.current;
+        onTranscriptStreamRef.current?.('assistant', content, 'partial');
         setTtsActive((c) => c + 1);
-        void speak(m.content).finally(() => setTtsActive((c) => Math.max(0, c - 1)));
+        void speak(content).finally(() => {
+          setTtsActive((c) => Math.max(0, c - 1));
+          if (turnSeqRef.current === seq) {
+            onTranscriptStreamRef.current?.('assistant', content, 'final');
+          }
+        });
       }
     }
   }, [llmMessages, voiceModeOn, suppressLlmSpeech, onTranscriptStream, endCoachSpeechTurn]);
