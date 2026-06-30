@@ -83,6 +83,9 @@ const NotificationsPage = lazyWithRetry(() =>
 const NotificationDetailPage = lazyWithRetry(() =>
   import('@/pages/NotificationDetailPage').then((m) => ({ default: m.NotificationDetailPage })),
 );
+const QAMorningCheckin = lazyWithRetry(() =>
+  import('@/onboarding-flow/QAMorningCheckin').then((m) => ({ default: m.QAMorningCheckin })),
+);
 const QAControlScreen = lazyWithRetry(() =>
   import('@/onboarding-flow/QAControlScreen').then((m) => ({ default: m.QAControlScreen })),
 );
@@ -206,6 +209,13 @@ export function AppRoutes() {
             No AppGate: it must render for ANYONE (logged in mid-onboarding, done, or out),
             since a tester reaches it from any screen to reset. It does its own sign-in. */}
         {QA_SCREEN_ENABLED && <Route path="/onboarding/qa" element={<QAControlScreen />} />}
+
+        {/* QA-only direct entry to the real morning check-in overlay (the MP3 path).
+            No AppGate: the launcher already signed in, and the overlay renders
+            standalone so a mid-onboarding test user does not bounce to onboarding. */}
+        {QA_SCREEN_ENABLED && (
+          <Route path="/onboarding/qa/morning" element={<QAMorningCheckin />} />
+        )}
 
         {/* Auth callbacks (no auth guard) */}
         <Route path="/auth/callback" element={<AuthCallbackPage />} />

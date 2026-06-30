@@ -208,9 +208,7 @@ export function QAControlScreen() {
       );
       return;
     }
-    // One-shot signal Layout consumes on the next route to force the morning flow.
-    sessionStorage.setItem('qa_open_checkin', 'MCHECK-01');
-    navigate('/', { replace: true });
+    navigate('/onboarding/qa/morning');
   }
 
   return (

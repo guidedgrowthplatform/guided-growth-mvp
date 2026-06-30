@@ -78,13 +78,6 @@ export function AppGate({
   }
 
   if (gate.status === 'onboarding_needed' || gate.status === 'onboarding_in_progress') {
-    // QA: the Morning check-in launcher drops a test user straight onto home (where
-    // the check-in overlay opens). Skip the onboarding redirect when that one-shot
-    // flag is present, so the check-in can be QA'd without a full onboarding run.
-    // Real users never set this flag (it lives behind the QA-only control).
-    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('qa_open_checkin')) {
-      return <>{children}</>;
-    }
     return <Navigate to="/onboarding" replace />;
   }
 
