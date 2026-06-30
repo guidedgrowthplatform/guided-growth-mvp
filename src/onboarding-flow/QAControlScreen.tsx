@@ -45,7 +45,7 @@ const FALLBACK_USERS: QaUser[] = [
 // create-test-users script seeds the accounts with this exact value.
 const QA_PASSWORD = 'guided-growth-qa-2026';
 
-type ActionKey = 'morning' | 'login' | 'restart' | 'reonboard' | 'reset';
+type ActionKey = 'morning' | 'evening' | 'login' | 'restart' | 'reonboard' | 'reset';
 
 interface ActionDef {
   key: ActionKey;
@@ -67,6 +67,13 @@ const ACTIONS: ActionDef[] = [
     icon: 'ic:round-wb-sunny',
     label: 'Morning check-in',
     desc: 'Allow the mic, then drop straight into the morning check-in.',
+    tone: 'primary',
+  },
+  {
+    key: 'evening',
+    icon: 'ic:round-nightlight-round',
+    label: 'Evening check-in',
+    desc: 'Allow the mic, then drop straight into the evening check-in.',
     tone: 'primary',
   },
   {
@@ -111,7 +118,7 @@ export function QAControlScreen() {
   // to its own tap (a gesture). Granting here means the check-in's Soniov mic is
   // already live when we land, so the coach can play and the user can speak at the
   // same time.
-  const [micGate, setMicGate] = useState(false);
+  const [micGate, setMicGate] = useState<'morning' | 'evening' | null>(null);
 
   // Pull the live list of QA accounts from Supabase so the dropdown reflects the
   // real accounts (and shows who already has data). Falls back to the static list.
@@ -172,10 +179,10 @@ export function QAControlScreen() {
     setError(null);
     try {
       await ensureSignedIn();
-      if (action === 'morning') {
+      if (action === 'morning' || action === 'evening') {
         // Signed in. Hand off to the allow-mic gate; the open happens after the grant.
         setBusy(null);
-        setMicGate(true);
+        setMicGate(action);
         return;
       }
       if (action === 'restart') {
@@ -216,7 +223,7 @@ export function QAControlScreen() {
       );
       return;
     }
-    navigate('/onboarding/qa/morning');
+    navigate(`/onboarding/qa/${micGate ?? 'morning'}`);
   }
 
   return (
@@ -294,8 +301,8 @@ export function QAControlScreen() {
                 lineHeight: 1.4,
               }}
             >
-              The coach speaks and listens at the same time. Allow the microphone, then the morning
-              check-in starts.
+              The coach speaks and listens at the same time. Allow the microphone, then the
+              {micGate === 'evening' ? ' evening' : ' morning'} check-in starts.
             </p>
             <button
               type="button"
@@ -320,7 +327,7 @@ export function QAControlScreen() {
             </button>
             <button
               type="button"
-              onClick={() => setMicGate(false)}
+              onClick={() => setMicGate(null)}
               style={{
                 background: 'none',
                 border: 'none',
