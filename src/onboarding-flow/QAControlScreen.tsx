@@ -1,6 +1,8 @@
 import { Icon } from '@iconify/react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { unlockTTS } from '@/lib/services/tts-service';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -100,6 +102,7 @@ const ACTIONS: ActionDef[] = [
 export function QAControlScreen() {
   const navigate = useNavigate();
   const signIn = useAuthStore((s) => s.signIn);
+  const { updatePreferences } = useUserPreferences();
   const [users, setUsers] = useState<QaUser[]>(FALLBACK_USERS);
   const [email, setEmail] = useState(FALLBACK_USERS[0]?.email ?? '');
   const [busy, setBusy] = useState<ActionKey | null>(null);
@@ -195,12 +198,17 @@ export function QAControlScreen() {
   }
 
   async function allowMicAndGo() {
+    // Unlock audio inside the tap gesture so the recorded openers can autoplay,
+    // and turn voice mode on so the check-in actually speaks (the opener only plays
+    // when voiceOn). Both run within this user gesture, before navigation.
+    unlockTTS();
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // Permission persists for the origin; release the stream so the check-in's
       // own voice capture acquires it cleanly.
       stream.getTracks().forEach((t) => t.stop());
+      await updatePreferences({ voiceMode: 'voice', micPermission: true, micEnabled: true });
     } catch (e) {
       setError(
         'Microphone permission is needed for the check-in. ' +

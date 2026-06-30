@@ -28,6 +28,7 @@ function QAMorningInner() {
       flowId="morning-checkin-v1"
       alreadyDone={false}
       onClose={() => navigate('/onboarding/qa')}
+      showVoiceControls
     />
   );
 }

@@ -4,6 +4,7 @@ import { track } from '@/analytics';
 import { OnboardingVoiceContext } from '@/contexts/useOnboardingVoiceSession';
 import { useCheckinFlowPersistence } from '@/onboarding-flow/checkinPersistence';
 import { FlowRenderer } from '@/onboarding-flow/renderer/FlowRenderer';
+import { FlowVoiceControls } from '@/onboarding-flow/renderer/FlowVoiceControls';
 import { resolveCheckinOpeners } from '@/onboarding-flow/resolveCheckinOpeners';
 import { useCheckinFlow, type CheckinFlowId } from '@/onboarding-flow/useCheckinFlow';
 import { useFlowOrchestrator } from '@/onboarding-flow/useFlowOrchestrator';
@@ -15,12 +16,17 @@ interface CheckinFlowOverlayProps {
   flowId: CheckinFlowId;
   onClose: () => void;
   alreadyDone?: boolean;
+  /** Render the in-overlay voice orb. Default off: the app shell (Layout) supplies
+   *  the orb normally; the standalone QA route renders the overlay outside Layout,
+   *  so it opts in to its own orb. */
+  showVoiceControls?: boolean;
 }
 
 export function CheckinFlowOverlay({
   flowId,
   onClose,
   alreadyDone = false,
+  showVoiceControls = false,
 }: CheckinFlowOverlayProps) {
   const type = TYPE_FOR_FLOW[flowId];
   const { flow, tag, problems } = useCheckinFlow(flowId);
@@ -84,6 +90,7 @@ export function CheckinFlowOverlay({
       </button>
       <OnboardingVoiceContext.Provider value={voiceValue}>
         <FlowRenderer orchestrator={orchestrator} variant="overlay" />
+        {showVoiceControls && <FlowVoiceControls />}
       </OnboardingVoiceContext.Provider>
     </div>
   );
