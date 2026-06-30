@@ -6,5 +6,6 @@ export { FeedbackButton } from './FeedbackButton';
 export { OpenChatButton } from './OpenChatButton';
 export { FeedbackSheet } from './FeedbackSheet';
 export { QuickActionCards } from './QuickActionCards';
+export { CheckinFlowOverlay } from './CheckinFlowOverlay';
 export { ReminderSheet } from './ReminderSheet';
 export { RecentReflectionsSection } from './RecentReflectionsSection';

@@ -2,10 +2,15 @@ import { type ReactNode, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CoachChatOverlay, CoachSubtitleBar } from '@/components/coach';
 import { OpenChatButton } from '@/components/home';
+import { CheckinFlowOverlay } from '@/components/home/CheckinFlowOverlay';
 import { ToastContainer } from '@/components/ui/Toast';
-import { CoachChatProvider, useCoachChatLauncher } from '@/contexts/CoachChatContext';
+import {
+  checkinFlowForScreen,
+  CoachChatProvider,
+  useCoachChatLauncher,
+} from '@/contexts/CoachChatContext';
 import { CoachVoiceProvider } from '@/contexts/CoachVoiceProvider';
-import { useOpenCheckinCoach } from '@/hooks/useCheckinEntry';
+import { useCheckinEntry, useOpenCheckinCoach } from '@/hooks/useCheckinEntry';
 import type { CoachChatCloseInfo } from '@/lib/chat/coachChatTypes';
 import { BottomNav } from './BottomNav';
 
@@ -27,7 +32,11 @@ function LayoutInner({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { openScreenId, closeCoachChat } = useCoachChatLauncher();
-  const chatOpen = openScreenId !== null;
+  const { doneToday } = useCheckinEntry();
+  const checkinFlowId = checkinFlowForScreen(openScreenId);
+  // Dedicated check-in screens render the beat engine; HOME-CHECKIN stays LLM chat.
+  const chatOpen = openScreenId === 'HOME-CHECKIN';
+  const anyOverlayOpen = openScreenId !== null;
   // Opening the coach from the global button leads today's check-in if it isn't
   // done yet (morning→MCHECK-01, evening→ECHECK-01), else opens plain chat.
   const openCheckinCoach = useOpenCheckinCoach();
@@ -65,7 +74,7 @@ function LayoutInner({ children }: { children: ReactNode }) {
       </main>
 
       <BottomNav />
-      {!chatOpen && (
+      {!anyOverlayOpen && (
         <>
           <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] right-6 z-20">
             <OpenChatButton onPress={openCheckinCoach} />
@@ -75,6 +84,13 @@ function LayoutInner({ children }: { children: ReactNode }) {
       )}
       <ToastContainer />
       {chatOpen && <CoachChatOverlay onClose={handleCloseChat} />}
+      {checkinFlowId && (
+        <CheckinFlowOverlay
+          flowId={checkinFlowId}
+          alreadyDone={doneToday}
+          onClose={closeCoachChat}
+        />
+      )}
     </div>
   );
 }

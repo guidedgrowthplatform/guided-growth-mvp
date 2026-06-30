@@ -36,9 +36,14 @@ function ActionCard({
 interface QuickActionCardsProps {
   onCheckInPress: () => void;
   onJournalPress: () => void;
+  morningDone?: boolean;
 }
 
-export function QuickActionCards({ onCheckInPress, onJournalPress }: QuickActionCardsProps) {
+export function QuickActionCards({
+  onCheckInPress,
+  onJournalPress,
+  morningDone = false,
+}: QuickActionCardsProps) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <ActionCard
@@ -46,7 +51,7 @@ export function QuickActionCards({ onCheckInPress, onJournalPress }: QuickAction
         iconWrapClass="bg-primary"
         iconClass="text-white"
         title="How are you feeling?"
-        buttonLabel="Morning Check In"
+        buttonLabel={morningDone ? 'Checked in' : 'Morning Check In'}
         onPress={onCheckInPress}
       />
       <ActionCard

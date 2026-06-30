@@ -19,7 +19,7 @@ import {
   type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
-import { countWords, useCoachSpeechReveal } from './useCoachSpeechReveal';
+import { countWords, useCoachSpeechReveal, type CoachSpeechReveal } from './useCoachSpeechReveal';
 
 // Hard ceiling on how long the card waits behind a voice-driven coach line. If
 // the speech signal stalls (frozen/half-open session that never emits
@@ -356,17 +356,14 @@ export function Karaoke({
 export function BeatPlayer({
   steps,
   onReveal,
+  openerRevealCount,
   overrideRevealCount,
 }: {
   steps: BeatStep[];
   onReveal?: () => void;
-  /**
-   * When provided (e.g. driven by an MP3 opener's playback progress), overrides
-   * the useCoachSpeechReveal signal for the active coach step. Lets the caller
-   * feed an external word-count derived from audio currentTime/duration so the
-   * karaoke reveal tracks the pre-encoded clip instead of the live TTS signal.
-   * Pass null to fall back to the internal voice-pacing logic.
-   */
+  // Audio-clock word count for the active coach opener (check-in); overrides the hook.
+  openerRevealCount?: number | null;
+  // MP3-opener playback progress word-count (onboarding); overrides the hook.
   overrideRevealCount?: number | null;
 }) {
   const sig = steps.map((s) => `${s.kind}:${s.say ?? ''}`).join('|');
@@ -378,16 +375,15 @@ export function BeatPlayer({
   // Audio-synced reveal for the active coach line. The hook self-detects the
   // available signal and returns mode 'fallback' (revealCount null) when there is
   // none, so the Karaoke component then runs its own fixed-cadence timer.
-  const reveal = useCoachSpeechReveal(curIsCoach ? (cur?.say ?? '') : '', curIsCoach);
-  // Caller can inject an MP3-progress-derived count; that wins over the internal signal.
-  const effectiveRevealCount =
-    overrideRevealCount !== null && overrideRevealCount !== undefined
-      ? overrideRevealCount
-      : reveal.revealCount;
-  const effectiveMode =
-    overrideRevealCount !== null && overrideRevealCount !== undefined
-      ? ('window' as const)
-      : reveal.mode;
+  const hookReveal = useCoachSpeechReveal(curIsCoach ? (cur?.say ?? '') : '', curIsCoach);
+  const coldDriven = typeof openerRevealCount === 'number';
+  const reveal: CoachSpeechReveal = coldDriven
+    ? { revealCount: openerRevealCount ?? 0, mode: 'word' }
+    : hookReveal;
+  // MP3-progress override (onboarding) wins over the internal signal when present.
+  const hasMp3Override = overrideRevealCount !== null && overrideRevealCount !== undefined;
+  const effectiveRevealCount = hasMp3Override ? overrideRevealCount : reveal.revealCount;
+  const effectiveMode = hasMp3Override ? ('window' as const) : reveal.mode;
 
   // Restart the reveal timeline when the beat's step shape changes.
   useEffect(() => {
@@ -438,6 +434,8 @@ export function BeatPlayer({
       {steps.slice(0, revealed).map((s, i) => {
         const last = i === revealed - 1;
         if (s.kind === 'coach' && s.say) {
+          // Hold the cold opener until the first word lands (no empty bubble).
+          if (last && coldDriven && (reveal.revealCount ?? 0) <= 0) return null;
           return (
             <div key={s.id} className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>
               <Karaoke

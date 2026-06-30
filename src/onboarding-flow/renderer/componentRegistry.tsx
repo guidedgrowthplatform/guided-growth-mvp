@@ -38,10 +38,13 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/contexts/ToastContext';
 import {
   type OnboardingVoiceResult,
+  useOnboardingVoice,
   useOnboardingVoiceActions,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useAuth } from '@/hooks/useAuth';
+import { useHabitsForDate } from '@/hooks/useHabitsForDate';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { formatDate } from '@/utils/dates';
 import type { CheckInDimension, HabitDayStatus, ReflectionMode } from '@gg/shared/types';
 import {
   FLOW_CATEGORIES,
@@ -51,6 +54,7 @@ import {
   MAX_HABITS_ONBOARDING,
 } from '../flowData';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
+import { useFlowSurface } from './flowSurface';
 
 export interface BeatAdapterProps {
   node: FlowNode;
@@ -81,9 +85,10 @@ function Cta({
   disabled?: boolean;
   onClick: () => void;
 }) {
+  const { onColoredSurface } = useFlowSurface();
   return (
     <Button
-      variant="primary"
+      variant={onColoredSurface ? 'secondary' : 'primary'}
       size="lg"
       fullWidth
       disabled={disabled}
@@ -1226,16 +1231,32 @@ function CoachBubbleAdapter({ node, onCapture }: BeatAdapterProps) {
   );
 }
 
-// Fires onDone once on mount. Used by say-only statement beats that carry the
-// conversation forward without user input.
+// Statement beats carry the conversation forward without user input. When the
+// opener is being spoken, wait for it to finish so the line isn't cut off;
+// otherwise advance after a short grace (tap / voice-off / no provider).
+const AUTO_ADVANCE_GRACE_MS = 600;
 function AutoAdvance({ onDone }: { onDone: () => void }) {
+  const isSpeaking = useOnboardingVoice()?.isAssistantSpeaking ?? false;
   const firedRef = useRef(false);
+  const spokeRef = useRef(false);
   useEffect(() => {
     if (firedRef.current) return;
-    firedRef.current = true;
-    onDone();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (isSpeaking) {
+      spokeRef.current = true;
+      return;
+    }
+    if (spokeRef.current) {
+      firedRef.current = true;
+      onDone();
+      return;
+    }
+    const t = window.setTimeout(() => {
+      if (firedRef.current) return;
+      firedRef.current = true;
+      onDone();
+    }, AUTO_ADVANCE_GRACE_MS);
+    return () => window.clearTimeout(t);
+  }, [isSpeaking, onDone]);
   return null;
 }
 
@@ -1264,7 +1285,7 @@ function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
   });
 
   const anyFilled = Object.keys(values).length > 0;
-  const submit = () => onCapture({ data: { checkin: values } as Record<string, unknown> });
+  const submit = () => onCapture({ data: { checkin: values } });
 
   return (
     <CardShell>
@@ -1294,49 +1315,55 @@ function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
 
 /* --------------------------------------------------------- habit review */
 
-// Evening habit review: a tri-state list (pending -> done -> missed -> pending).
-// The captured statuses are handed back; the per-habit save goes through the
-// check-in complete_habit handler (server side). Habits come from prior answers
-// (the day's habits) or a small default sample when the engine has none loaded.
-const HABIT_REVIEW_SAMPLE: { name: string; subtitle: string; streak: number }[] = [
-  { name: 'Morning walk', subtitle: '7:00 AM', streak: 4 },
-  { name: 'No screens after 10 PM', subtitle: '10:00 PM', streak: 6 },
-  { name: 'Read 10 pages', subtitle: 'Evening', streak: 2 },
-];
+// Real habits for today; persistence on Continue via complete_habit, taps are local overrides.
+const cycleHabitStatus = (s: HabitDayStatus): HabitDayStatus =>
+  s === 'pending' ? 'done' : s === 'done' ? 'missed' : 'pending';
 
-function HabitReviewAdapter({ answers, onCapture }: BeatAdapterProps) {
-  const fromAnswers = answers.habitConfigs
-    ? Object.keys(answers.habitConfigs).map((name) => ({ name, subtitle: '', streak: 0 }))
-    : [];
-  const habits = fromAnswers.length > 0 ? fromAnswers : HABIT_REVIEW_SAMPLE;
-  const [statuses, setStatuses] = useState<Record<string, HabitDayStatus>>(() =>
-    Object.fromEntries(habits.map((h) => [h.name, 'pending' as HabitDayStatus])),
-  );
+function HabitReviewAdapter({ onCapture }: BeatAdapterProps) {
+  const today = formatDate(new Date());
+  const { habits, loading } = useHabitsForDate(today, 'ECHECK-HABITS');
+  // Local overrides over the persisted status; absent → the real day status.
+  const [overrides, setOverrides] = useState<Record<string, HabitDayStatus>>({});
+  const statusOf = (id: string, initial: HabitDayStatus) => overrides[id] ?? initial;
 
-  const cycle = (s: HabitDayStatus): HabitDayStatus =>
-    s === 'pending' ? 'done' : s === 'done' ? 'missed' : 'pending';
+  // Voice marks a habit done (match by id, else name); not-done stays tap.
+  useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
+    if (result.action !== 'complete_habit') return;
+    const { id, name } = result.params as { id?: string; name?: string };
+    const match = habits.find(
+      (h) => h.habit.id === id || h.habit.name.toLowerCase() === String(name ?? '').toLowerCase(),
+    );
+    if (match) setOverrides((prev) => ({ ...prev, [match.habit.id]: 'done' }));
+  });
+
+  const submit = () => {
+    const habitStatuses = Object.fromEntries(
+      habits.map((h) => [h.habit.id, statusOf(h.habit.id, h.status)]),
+    );
+    onCapture({ data: { habitStatuses } as Record<string, unknown> });
+  };
 
   return (
     <CardShell>
       <div className="flex w-full flex-col gap-2">
-        {habits.map((h) => (
-          <HabitListItem
-            key={h.name}
-            name={h.name}
-            subtitle={h.subtitle}
-            streak={h.streak}
-            status={statuses[h.name] ?? 'pending'}
-            onSetStatus={(next) => setStatuses((prev) => ({ ...prev, [h.name]: next }))}
-            onClick={() =>
-              setStatuses((prev) => ({ ...prev, [h.name]: cycle(prev[h.name] ?? 'pending') }))
-            }
-          />
-        ))}
+        {habits.map((h) => {
+          const st = statusOf(h.habit.id, h.status);
+          return (
+            <HabitListItem
+              key={h.habit.id}
+              name={h.habit.name}
+              subtitle=""
+              streak={h.streak}
+              status={st}
+              onSetStatus={(next) => setOverrides((prev) => ({ ...prev, [h.habit.id]: next }))}
+              onClick={() =>
+                setOverrides((prev) => ({ ...prev, [h.habit.id]: cycleHabitStatus(st) }))
+              }
+            />
+          );
+        })}
       </div>
-      <Cta
-        label="Continue"
-        onClick={() => onCapture({ data: { habitStatuses: statuses } as Record<string, unknown> })}
-      />
+      <Cta label="Continue" disabled={loading} onClick={submit} />
     </CardShell>
   );
 }
@@ -1664,11 +1691,16 @@ export function summarizeBeat(node: FlowNode, answers: FlowAnswers): string | nu
       // Terminal beat; no captured answer to echo back.
       return null;
     case 'state-check': {
-      const checkin = (answers as Record<string, unknown>).checkin as
-        | Record<string, number>
-        | undefined;
-      const filled = checkin ? Object.keys(checkin).length : 0;
-      return filled > 0 ? 'Checked in.' : null;
+      const checkin = answers.checkin;
+      if (!checkin) return null;
+      const parts = checkInDimensions
+        .map((d) => {
+          const v = checkin[d.key];
+          const opt = typeof v === 'number' ? d.options.find((o) => o.value === v) : undefined;
+          return opt ? `${d.label}: ${opt.label}` : null;
+        })
+        .filter(Boolean);
+      return parts.length > 0 ? parts.join(' · ') : null;
     }
     case 'habit-review': {
       const statuses = (answers as Record<string, unknown>).habitStatuses as

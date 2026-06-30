@@ -5,7 +5,6 @@ import { track } from '@/analytics';
 import {
   HomeHeader,
   DateStrip,
-  CheckInCard,
   QuickActionCards,
   HabitsSection,
   RecentReflectionsSection,
@@ -13,6 +12,9 @@ import {
   FeedbackSheet,
   ReminderSheet,
 } from '@/components/home';
+import { CheckinQAFab } from '@/components/home/CheckinQAFab';
+import { useCheckIn } from '@/hooks/useCheckIn';
+import { useOpenCheckinCoach } from '@/hooks/useCheckinEntry';
 import { useDisplayName } from '@/hooks/useDisplayName';
 import { useEntries } from '@/hooks/useEntries';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -40,8 +42,18 @@ export function HomePage() {
   const fromOnboarding = (location.state as { fromOnboarding?: boolean })?.fromOnboarding === true;
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showReminders, setShowReminders] = useState(false);
-  const [showCheckIn, setShowCheckIn] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const openCheckinCoach = useOpenCheckinCoach();
+
+  // today's row, not time-bucketed useCheckinEntry (flips to evening after 16:00)
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const { checkIn: todayCheckin } = useCheckIn(todayStr, { type: 'morning' });
+  const morningDone =
+    !!todayCheckin &&
+    (todayCheckin.sleep != null ||
+      todayCheckin.mood != null ||
+      todayCheckin.energy != null ||
+      todayCheckin.stress != null);
   const homeScreenId = useMemo(() => deriveHomeScreenId(fromOnboarding), [fromOnboarding]);
 
   const dateRange = useMemo(() => {
@@ -72,24 +84,6 @@ export function HomePage() {
       homeScreenId,
     );
   }, [homeScreenId, logEvent]);
-
-  // CHECKIN-EXPANDED is a state of HomePage, not a route — fire an explicit
-  // navigate + checkin_started when the overlay opens.
-  useEffect(() => {
-    if (showCheckIn) {
-      logEvent(
-        'navigate',
-        { from_screen: homeScreenId, to_screen: 'HOME-MORNING-CHECKIN-EXPANDED', trigger: 'tap' },
-        'HOME-MORNING-CHECKIN-EXPANDED',
-      );
-      const isMorning = currentCheckinType() === 'morning';
-      logEvent(
-        'checkin_started',
-        { type: isMorning ? 'morning' : 'evening' },
-        isMorning ? 'MCHECK-01' : 'ECHECK-01',
-      );
-    }
-  }, [showCheckIn, homeScreenId, logEvent]);
 
   const displayName = useDisplayName('there');
 
@@ -132,6 +126,7 @@ export function HomePage() {
 
   return (
     <>
+      <CheckinQAFab />
       <div className="space-y-6 pb-8 pt-2">
         <HomeHeader
           userName={displayName}
@@ -152,32 +147,16 @@ export function HomePage() {
           onSelectDate={setSelectedDate}
           entries={entriesForStrip}
         />
-        <div>
-          <QuickActionCards
-            onCheckInPress={() => {
-              const next = !showCheckIn;
-              if (next) {
-                track('start_checkin', {
-                  checkin_type: currentCheckinType(),
-                  trigger: 'home_card',
-                });
-              }
-              setShowCheckIn(next);
-            }}
-            onJournalPress={() => {
-              navigate('/journal');
-            }}
-          />
-          <div
-            className={`grid transition-all duration-300 ease-in-out ${
-              showCheckIn ? 'mt-4 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-            }`}
-          >
-            <div className="overflow-hidden">
-              <CheckInCard selectedDate={selectedDate} onClose={() => setShowCheckIn(false)} />
-            </div>
-          </div>
-        </div>
+        <QuickActionCards
+          morningDone={morningDone}
+          onCheckInPress={() => {
+            track('start_checkin', { checkin_type: 'morning', trigger: 'home_card' });
+            openCheckinCoach();
+          }}
+          onJournalPress={() => {
+            navigate('/journal');
+          }}
+        />
         <HabitsSection selectedDate={selectedDate} screenId={homeScreenId} />
         <RecentReflectionsSection />
       </div>

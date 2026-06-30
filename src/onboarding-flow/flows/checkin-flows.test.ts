@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyCapture, initFlowMachine, validateFlow } from '../flowMachine';
+import { applyCapture, canGoBack, goBack, initFlowMachine, validateFlow } from '../flowMachine';
 import type { BeatCapture, FlowDocument } from '../types';
 import { CHECKIN_FLOWS, eveningCheckinV1, morningCheckinV1 } from './checkin-flows';
 
@@ -85,5 +85,55 @@ describe('check-in flows: run to completion', () => {
 
   it('CHECKIN_FLOWS indexes both documents by id', () => {
     expect(Object.keys(CHECKIN_FLOWS).sort()).toEqual(['evening-checkin-v1', 'morning-checkin-v1']);
+  });
+});
+
+describe('check-in flows: "are you done?" fires only when partial', () => {
+  it('morning: fully-answered state check SKIPS are-you-done -> wrap', () => {
+    let state = initFlowMachine(morningCheckinV1);
+    state = applyCapture(morningCheckinV1, state, { data: {} }); // greeting -> state
+    state = applyCapture(morningCheckinV1, state, {
+      data: { checkin: { sleep: 3, mood: 3, energy: 3, stress: 3 } },
+    });
+    expect(state.currentNodeId).toBe('morning-wrap');
+    expect(state.visited).not.toContain('morning-are-you-done');
+  });
+
+  it('morning: partial state check SHOWS are-you-done', () => {
+    let state = initFlowMachine(morningCheckinV1);
+    state = applyCapture(morningCheckinV1, state, { data: {} });
+    state = applyCapture(morningCheckinV1, state, { data: { checkin: { sleep: 3 } } });
+    expect(state.currentNodeId).toBe('morning-are-you-done');
+  });
+
+  it('evening: all habits non-pending SKIPS are-you-done -> reflection', () => {
+    let state = initFlowMachine(eveningCheckinV1);
+    state = applyCapture(eveningCheckinV1, state, { data: {} }); // greeting -> habit review
+    state = applyCapture(eveningCheckinV1, state, {
+      data: { habitStatuses: { a: 'done', b: 'missed' } } as Record<string, unknown>,
+    });
+    expect(state.currentNodeId).toBe('evening-reflection');
+    expect(state.visited).not.toContain('evening-are-you-done');
+  });
+
+  it('evening: a pending habit SHOWS are-you-done', () => {
+    let state = initFlowMachine(eveningCheckinV1);
+    state = applyCapture(eveningCheckinV1, state, { data: {} });
+    state = applyCapture(eveningCheckinV1, state, {
+      data: { habitStatuses: { a: 'done', b: 'pending' } } as Record<string, unknown>,
+    });
+    expect(state.currentNodeId).toBe('evening-are-you-done');
+  });
+
+  it('evening: back from reflection skips the skipped are-you-done back to habit review', () => {
+    let state = initFlowMachine(eveningCheckinV1);
+    state = applyCapture(eveningCheckinV1, state, { data: {} });
+    state = applyCapture(eveningCheckinV1, state, {
+      data: { habitStatuses: { a: 'done', b: 'missed' } } as Record<string, unknown>,
+    });
+    expect(state.currentNodeId).toBe('evening-reflection');
+    expect(canGoBack(state, eveningCheckinV1)).toBe(true);
+    state = goBack(eveningCheckinV1, state);
+    expect(state.currentNodeId).toBe('evening-habit-review');
   });
 });

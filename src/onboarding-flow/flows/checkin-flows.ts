@@ -20,7 +20,25 @@
  *
  * NO EM DASHES.
  */
-import type { FlowDocument } from '../types';
+import type { CheckInDimension, HabitDayStatus } from '@gg/shared/types';
+import type { FlowAnswers, FlowDocument } from '../types';
+
+const MORNING_DIMENSIONS: CheckInDimension[] = ['sleep', 'mood', 'energy', 'stress'];
+
+// "Are you done?" fires ONLY when the bounded step is partial (spec rule).
+const morningFullyAnswered = (answers: FlowAnswers): boolean => {
+  const checkin = answers.checkin;
+  if (!checkin) return false;
+  return MORNING_DIMENSIONS.every((d) => typeof checkin[d] === 'number');
+};
+
+const eveningFullyAnswered = (answers: FlowAnswers): boolean => {
+  const statuses = (answers as Record<string, unknown>).habitStatuses as
+    | Record<string, HabitDayStatus>
+    | undefined;
+  if (!statuses) return false;
+  return Object.values(statuses).every((s) => s !== 'pending');
+};
 
 // Morning check-in: greeting -> state check (the four-row sleep/mood/energy/stress
 // card) -> are-you-done nudge -> wrap. Mirrors MORNING_CHECKIN_FLOW.
@@ -103,6 +121,7 @@ export const morningCheckinV1: FlowDocument = {
       },
       tool: null,
       persist: null,
+      skipWhen: morningFullyAnswered,
     },
     {
       id: 'morning-wrap',
@@ -151,8 +170,7 @@ export const eveningCheckinV1: FlowDocument = {
       context: {
         screenId: 'ECHECK-01',
         screenName: 'Evening Greeting',
-        contextBlock:
-          "Warm evening greeting. Surface today's habits and ask how the day went.",
+        contextBlock: "Warm evening greeting. Surface today's habits and ask how the day went.",
       },
       componentType: 'coach-bubble',
       componentProps: {},
@@ -212,6 +230,7 @@ export const eveningCheckinV1: FlowDocument = {
       },
       tool: null,
       persist: null,
+      skipWhen: eveningFullyAnswered,
     },
     {
       id: 'evening-reflection',

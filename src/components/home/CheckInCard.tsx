@@ -11,6 +11,7 @@ import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { unlockTTS } from '@/lib/services/tts-service';
 import type { CheckInDimension } from '@gg/shared/types';
+import { buildCheckinCompleteEvent } from './checkinCompleteEvent';
 import { checkInDimensions } from './checkInConfig';
 import { EmojiOptionButton } from './EmojiOptionButton';
 
@@ -101,15 +102,15 @@ export function CheckInCard({ selectedDate, onClose, embedded }: CheckInCardProp
     try {
       await save(values);
       completedRef.current = true;
-      track('complete_checkin', {
-        checkin_type: isMorning ? 'morning' : 'evening',
-        sleep_quality: values.sleep,
-        mood: values.mood,
-        energy_level: values.energy,
-        stress_level: values.stress,
-        duration_seconds: Math.round((Date.now() - mountTimeRef.current) / 1000),
-        is_update: Boolean(checkIn),
-      });
+      track(
+        'complete_checkin',
+        buildCheckinCompleteEvent(
+          isMorning ? 'morning' : 'evening',
+          values,
+          Boolean(checkIn),
+          Math.round((Date.now() - mountTimeRef.current) / 1000),
+        ),
+      );
       // GitLab #171: show the in-place success confirmation instead of
       // closing silently. In the overlay we stay on the editable card (button
       // flips to "Update Check-In") rather than navigating away.
