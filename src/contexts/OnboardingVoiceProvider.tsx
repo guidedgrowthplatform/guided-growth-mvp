@@ -73,6 +73,7 @@ import { createListenerBus } from '@/lib/util/listenerBus';
 import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
 import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
 import { resolveTurnPauseMs } from '@/lib/voice/turnDecision';
+import { ONBOARDING_BEAT_MP3S } from '@/onboarding-flow/renderer/useBeatOpenerMp3';
 import { applyName } from '@/onboarding-flow/renderer/applyName';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
@@ -466,9 +467,12 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
           qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data ?? {};
         const filled = { ...persisted, ...formSnapshotRef.current };
         // Warm-beat opener: Vapi opens the beat with the authored line verbatim
-        // (rigid). Skipped for the cold-start beat (Cartesia spoke that opener).
+        // (rigid). Skipped for the cold-start beat (Cartesia spoke that opener)
+        // and MP3 beats (the prerecorded clip already spoke the opener).
         const openerDirective =
-          screenId === instantOpenedScreenRef.current ? null : buildOpenerDirective(screenId);
+          screenId === instantOpenedScreenRef.current || screenId in ONBOARDING_BEAT_MP3S
+            ? null
+            : buildOpenerDirective(screenId);
         const contextBlock = openerDirective
           ? `${openerDirective}\n\n${ctx.context_block}`
           : ctx.context_block;

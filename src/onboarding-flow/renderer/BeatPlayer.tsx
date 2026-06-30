@@ -90,6 +90,7 @@ export function BeatConversation({
   onText,
   fallbackOpener,
   card,
+  cardReadyOverride,
   connecting = true,
 }: {
   screenId: string;
@@ -99,6 +100,9 @@ export function BeatConversation({
   // The beat's interactive component, placed IN the timeline right after the
   // opener (coach presents it, then the dialogue continues below it).
   card?: ReactNode;
+  // Optional external reveal gate for beats whose opener is rendered outside the
+  // transcript stream (for example, prerecorded MP3 hybrid openers).
+  cardReadyOverride?: boolean;
   // Whether to show the connecting/thinking + authored-opener failsafe. Off on the
   // non-Vapi path (the authored opener is already drawn by BeatPlayer there).
   connecting?: boolean;
@@ -180,6 +184,7 @@ export function BeatConversation({
     opener?.source === 'opener' &&
     (openerReveal?.revealedWords ?? 0) < countWords(opener?.text ?? '');
   const cardReady = openerPresent && !liveOpener && !coldOpenerSpeaking;
+  const shouldRevealCard = cardReadyOverride ?? cardReady;
 
   const renderTurn = (m: VoiceMessage, append?: string | null) => {
     const isColdOpener = coldOpenerLive && m.source === 'opener' && m.id === opener?.id;
@@ -211,7 +216,7 @@ export function BeatConversation({
           finished the opener (cold karaoke complete / warm opener committed, or
           the 12s authored-opener failsafe), so it slots in BELOW the finished
           opener instead of above an in-progress one. */}
-      {card && cardReady && <div className="animate-fade-in">{card}</div>}
+      {card && shouldRevealCard && <div className="animate-fade-in">{card}</div>}
 
       {/* dialogue, the partial extending the last turn's bubble when it continues it */}
       {dialogue.map((m, i) =>

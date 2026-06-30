@@ -111,6 +111,7 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
           // BeatConversation's own opener so it doesn't double-render it.
           fallbackOpener={null}
           connecting={!HYBRID_OPENER_BEATS.has(node.screenId)}
+          cardReadyOverride={isHybridOpenerBeat ? mp3.done : undefined}
           card={<Adapter node={node} answers={answers} onCapture={onCapture} />}
           onText={handleReveal}
         />
