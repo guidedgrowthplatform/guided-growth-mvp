@@ -98,7 +98,15 @@ function Cta({
 function CardShell({ children, frozen }: { children: React.ReactNode; frozen?: boolean }) {
   return (
     <div
-      className={`mt-3 flex flex-col gap-4${frozen ? 'pointer-events-none select-none opacity-95' : ''}`}
+      // array+join (not a template literal): prettier-plugin-tailwindcss strips a
+      // leading space inside a `${frozen ? ' …'}` conditional, which fused `gap-4`
+      // into `gap-4pointer-events-none` and dropped the gap on frozen cards.
+      className={[
+        'mt-3 flex flex-col gap-4',
+        frozen && 'pointer-events-none select-none opacity-95',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       aria-disabled={frozen || undefined}
     >
       {children}
