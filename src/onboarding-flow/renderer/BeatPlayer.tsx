@@ -13,6 +13,7 @@
  * the card adapters and the orchestrator, untouched.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import {
   useOnboardingVoice,
   type OnboardingTranscriptListener,
@@ -251,20 +252,11 @@ function useCoachThinking(): boolean {
   return (awaiting || chatBusy) && !speaking;
 }
 
-// Three bouncing dots in a coach bubble — the live cue that the coach is
-// connecting / thinking, or a tool is in flight. Neutral by design (no words),
-// sized to the flow feed (not the old full-duplex page's labelled variant).
+// The coach "thinking" loading cue in the flow feed. Reuses the home coach's
+// TypingIndicator so onboarding shows the SAME loading bubble as the home coach
+// (the home coach one is the canonical/correct bubble).
 export function ThinkingDots() {
-  return (
-    <div
-      className={`flex w-fit items-center gap-1.5 ${COACH_BUBBLE_CLASS} animate-fade-in`}
-      aria-label="Coach is thinking"
-    >
-      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40" />
-      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40 [animation-delay:150ms]" />
-      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40 [animation-delay:300ms]" />
-    </div>
-  );
+  return <TypingIndicator />;
 }
 
 // Renders the typing dots only while the coach is thinking. Mount ONLY on the
