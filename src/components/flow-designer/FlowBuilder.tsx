@@ -1017,13 +1017,23 @@ function migrateStorage() {
 // defaults load (redesigned 2026-06-25: the 4-row state card, habit review, the
 // single reflection beat, and sheet-fed audio). Onboarding is untouched.
 // Idempotent via a flag.
+// The check-in flows are still being designed, so keep them from ever going
+// stale the same way the tour does: signature off the flows' own content and
+// drop the cache whenever the default changes (no manual flag bump). Any edit
+// to MORNING_CHECKIN_FLOW / EVENING_CHECKIN_FLOW rebuilds the saved copy on the
+// next load, so new beats (e.g. the live-reaction beats) show up immediately.
+// Edits made inside the builder persist until the default itself changes.
 function refreshCheckinFlows() {
   try {
-    const FLAG = `${STORAGE_BASE}:checkin-refresh-2026-06-25`;
-    if (localStorage.getItem(FLAG)) return;
+    const json = JSON.stringify([MORNING_CHECKIN_FLOW, EVENING_CHECKIN_FLOW]);
+    let h = 0;
+    for (let i = 0; i < json.length; i += 1) h = (h * 31 + json.charCodeAt(i)) | 0;
+    const sig = String(h);
+    const KEY = `${STORAGE_BASE}:checkin-sig`;
+    if (localStorage.getItem(KEY) === sig) return;
     localStorage.removeItem(flowKey('morning-checkin'));
     localStorage.removeItem(flowKey('evening-checkin'));
-    localStorage.setItem(FLAG, '1');
+    localStorage.setItem(KEY, sig);
   } catch {
     /* ignore */
   }
