@@ -803,14 +803,20 @@ const MORNING_CHECKIN_FLOW: DefaultBeat[] = [
     },
   },
   {
-    type: 'coach-bubble',
+    type: 'live-reaction',
     beat: '3',
+    background: 'coach',
+    props: { text: 'Reacts live to how you said you are landing.' },
+  },
+  {
+    type: 'coach-bubble',
+    beat: '4',
     sheetStage: 'are_you_done',
     props: { text: 'Looks like there are a few items left. Want to add anything, or should we move on?' },
   },
   {
     type: 'coach-bubble',
-    beat: '4',
+    beat: '5',
     sheetStage: 'morning_wrap',
     props: { text: "That's a good start. Go make it a good one." },
   },
@@ -829,19 +835,31 @@ const EVENING_CHECKIN_FLOW: DefaultBeat[] = [
   },
   { type: 'habit-review', beat: '2', background: 'coach' },
   {
-    type: 'coach-bubble',
+    type: 'live-reaction',
     beat: '3',
+    background: 'coach',
+    props: { text: 'Reacts live to how the day went.' },
+  },
+  {
+    type: 'coach-bubble',
+    beat: '4',
     sheetStage: 'are_you_done',
     props: { text: 'Looks like there are a few items left. Want to add anything, or should we move on?' },
   },
   {
     type: 'reflection',
-    beat: '4',
+    beat: '5',
     sheetStage: 'reflection_transition,reflection_proud,reflection_forgive,reflection_grateful',
   },
   {
+    type: 'live-reaction',
+    beat: '6',
+    background: 'coach',
+    props: { text: 'One reaction to the whole reflection: proud, forgive, grateful.' },
+  },
+  {
     type: 'coach-bubble',
-    beat: '5',
+    beat: '7',
     sheetStage: 'evening_wrap',
     props: { text: "That's it for tonight. Sleep well." },
   },
@@ -1055,7 +1073,11 @@ type StoredBeat = {
 // speaks several stages (the reflection beat: transition + proud + forgive + grateful)
 // lists them comma-separated and gets every stage's clips. Beats whose stage has no
 // clips (the onboarding openers, which use live voice) are left untouched.
-function withSheetAudio(meta: BeatMeta | undefined, sheetStage?: string): BeatMeta | undefined {
+function withSheetAudio(
+  meta: BeatMeta | undefined,
+  sheetStage?: string,
+  type?: string,
+): BeatMeta | undefined {
   if (meta?.mp3Assets?.length) return meta; // never clobber manual edits
   const stages = (sheetStage ?? '')
     .split(',')
@@ -1069,8 +1091,13 @@ function withSheetAudio(meta: BeatMeta | undefined, sheetStage?: string): BeatMe
       opener: '',
     })),
   );
-  if (!mp3Assets.length) return meta;
-  return { ...(meta ?? {}), voiceEngine: meta?.voiceEngine ?? 'MP3', mp3Assets };
+  if (mp3Assets.length) return { ...(meta ?? {}), voiceEngine: meta?.voiceEngine ?? 'MP3', mp3Assets };
+  // No clips: mark the voice engine by type so the verbatim-vs-live split is explicit.
+  // A live reaction is improvised via Cartesia (not a recorded clip); the habit review
+  // is a silent user action.
+  if (type === 'live-reaction') return { ...(meta ?? {}), voiceEngine: meta?.voiceEngine ?? 'Cartesia' };
+  if (type === 'habit-review') return { ...(meta ?? {}), voiceEngine: meta?.voiceEngine ?? 'None' };
+  return meta;
 }
 
 // The engine spec each onboarding beat type carries (node ids, persistence step,
@@ -1173,7 +1200,7 @@ const hydrate = (stored: StoredBeat[]): Placed[] =>
     variant: b.variant ?? 'shared',
     showOnPath: b.showOnPath,
     lanes: b.lanes?.map((l) => ({ id: newUid('lane'), label: l.label, items: hydrate(l.items) })),
-    meta: withEngineDefaults(b.type, withSheetAudio(b.meta, b.sheetStage)),
+    meta: withEngineDefaults(b.type, withSheetAudio(b.meta, b.sheetStage, b.type)),
   }));
 
 const serialize = (items: Placed[]): StoredBeat[] =>
