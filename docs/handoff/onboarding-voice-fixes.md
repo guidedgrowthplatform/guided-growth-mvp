@@ -37,6 +37,16 @@ Working the post-demo fix list. Beat order/content untouched (waiting on Yair's 
 - **Fix:** (1) removed `'mic-permission'` from `FROZEN_CARD_TYPES` (`componentRegistry.tsx`) so the big dial stops persisting; (2) `BeatView.tsx` now returns `null` for the past mic-permission beat so it **collapses entirely** — no big dial, no opener bubble, no receipt. It's a transient permission gate, so once granted only the bottom orb remains. Data beats still freeze as receipts; `auth` left frozen (only mic was flagged).
 - Needs a visual check on the preview (UI, can't unit-test).
 
+### Opener rendered below the card (regression from #5) — FIXED
+
+- **Cause:** #5 made the card render as soon as the beat is active, but a **warm opener streams as a live STT partial before it commits** to the store; an uncommitted partial draws at the tail → opener appeared _below_ the card until it committed, then jumped above.
+- **Fix:** `BeatPlayer.tsx` — added a `liveOpener` case (no committed opener + AI partial + empty dialogue) that renders the streaming opener **above** the card, and excluded it from the tail partial render.
+
+### Frozen profile card — no vertical gap between age & gender — FIXED
+
+- **Cause:** a missing space in `CardShell`'s template literal: `gap-4${frozen ? 'pointer-events-none …'}` → when frozen the class became `gap-4pointer-events-none`, so **`gap-4` was silently dropped** (and `pointer-events-none`/`select-none` never applied — frozen cards were still interactive).
+- **Fix:** `componentRegistry.tsx` — added the leading space (`' pointer-events-none …'`). Restores the gap on every frozen card AND actually makes frozen cards inert. No other instance of this concat bug in the tree.
+
 ### What's next / blocked
 
 - Blocked: #2 beat-context modifiers (need Yair's proposal doc — not in repo), new beat order (Flow Builder review first).

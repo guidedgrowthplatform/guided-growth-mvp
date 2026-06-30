@@ -163,6 +163,14 @@ export function BeatConversation({
   const partialExtendsTail = !!livePartial && !!tail && tail.role === partial!.role;
   const partialExtendsOpener = partialExtendsTail && dialogue.length === 0;
   const partialExtendsDialogue = partialExtendsTail && dialogue.length > 0;
+  // A warm opener still STREAMING before it commits to the store: no committed
+  // opener yet, an AI partial, nothing in dialogue. It IS the opener, so it must
+  // render ABOVE the card — not as a tail bubble below it (the card now shows as
+  // soon as the beat is active, so an uncommitted opener would otherwise sit under it).
+  const liveOpener =
+    !opener && !!livePartial && partial?.role === 'ai' && dialogue.length === 0
+      ? livePartial
+      : null;
 
   const renderTurn = (m: VoiceMessage, append?: string | null) => {
     const isColdOpener = coldOpenerLive && m.source === 'opener' && m.id === opener?.id;
@@ -180,9 +188,12 @@ export function BeatConversation({
 
   return (
     <div className="flex flex-col gap-2">
-      {/* opener (or the authored failsafe if voice never spoke) */}
+      {/* opener (committed, the streaming opener before it commits, or the
+          authored failsafe if voice never spoke) — always ABOVE the card */}
       {opener && !coldOpenerPending ? (
         renderTurn(opener, partialExtendsOpener ? livePartial : null)
+      ) : liveOpener ? (
+        <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{liveOpener}</div>
       ) : showConnecting && fallbackOn && fallbackOpener ? (
         <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{fallbackOpener}</div>
       ) : null}
@@ -199,8 +210,9 @@ export function BeatConversation({
         renderTurn(m, i === dialogue.length - 1 && partialExtendsDialogue ? livePartial : null),
       )}
 
-      {/* a partial that STARTS a new turn renders as its own (single) bubble */}
-      {livePartial && !partialExtendsTail && (
+      {/* a partial that STARTS a new turn renders as its own (single) bubble —
+          except the streaming opener, already drawn above the card */}
+      {livePartial && !partialExtendsTail && !liveOpener && (
         <div
           className={`animate-fade-in ${partial!.role === 'ai' ? COACH_BUBBLE_CLASS : USER_BUBBLE_CLASS}`}
         >
