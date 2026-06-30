@@ -47,10 +47,6 @@ Working the post-demo fix list. Beat order/content untouched (waiting on Yair's 
 - **Cause:** a missing space in `CardShell`'s template literal: `gap-4${frozen ? 'pointer-events-none …'}` → when frozen the class became `gap-4pointer-events-none`, so **`gap-4` was silently dropped** (and `pointer-events-none`/`select-none` never applied — frozen cards were still interactive).
 - **Fix:** `componentRegistry.tsx` — added the leading space (`' pointer-events-none …'`). Restores the gap on every frozen card AND actually makes frozen cards inert. No other instance of this concat bug in the tree.
 
-### Home coach loading bubble — match the onboarding one — DONE
-
-- The home coach (`CoachChatView`) used the shared `TypingIndicator` (big bubble + "GUIDED GROWTH COACH" eyebrow); the new onboarding uses `ThinkingDots` (tight white coach bubble, small dots, no eyebrow). Rewrote the shared `TypingIndicator` to match `ThinkingDots`, so the loading state reads the same in the home coach, the old onboarding overlay, and the flow designer.
-
 ### What's next / blocked
 
 - Blocked: #2 beat-context modifiers (need Yair's proposal doc — not in repo), new beat order (Flow Builder review first).
