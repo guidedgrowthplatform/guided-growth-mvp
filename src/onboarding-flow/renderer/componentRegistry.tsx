@@ -38,6 +38,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/contexts/ToastContext';
 import {
   type OnboardingVoiceResult,
+  useOnboardingVoice,
   useOnboardingVoiceActions,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useAuth } from '@/hooks/useAuth';
@@ -1222,16 +1223,32 @@ function CoachBubbleAdapter({ node, onCapture }: BeatAdapterProps) {
   );
 }
 
-// Fires onDone once on mount. Used by say-only statement beats that carry the
-// conversation forward without user input.
+// Statement beats carry the conversation forward without user input. When the
+// opener is being spoken, wait for it to finish so the line isn't cut off;
+// otherwise advance after a short grace (tap / voice-off / no provider).
+const AUTO_ADVANCE_GRACE_MS = 600;
 function AutoAdvance({ onDone }: { onDone: () => void }) {
+  const isSpeaking = useOnboardingVoice()?.isAssistantSpeaking ?? false;
   const firedRef = useRef(false);
+  const spokeRef = useRef(false);
   useEffect(() => {
     if (firedRef.current) return;
-    firedRef.current = true;
-    onDone();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (isSpeaking) {
+      spokeRef.current = true;
+      return;
+    }
+    if (spokeRef.current) {
+      firedRef.current = true;
+      onDone();
+      return;
+    }
+    const t = window.setTimeout(() => {
+      if (firedRef.current) return;
+      firedRef.current = true;
+      onDone();
+    }, AUTO_ADVANCE_GRACE_MS);
+    return () => window.clearTimeout(t);
+  }, [isSpeaking, onDone]);
   return null;
 }
 

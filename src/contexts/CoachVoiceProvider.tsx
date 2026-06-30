@@ -64,7 +64,9 @@ export function CoachVoiceProvider({ children }: { children: ReactNode }) {
   // micOn arms capture on Home before the overlay is ever opened (#88) —
   // currentScreenId falls back to HOME-CHECKIN so the session has context.
   const api = useCoachChat(currentScreenId, {
-    enabled: activeScreenId !== null || micOn,
+    // Engine check-ins (MCHECK/ECHECK) run their own scoped coach loop in the
+    // overlay — keep this provider instance off so there's no dual mic/session.
+    enabled: !isEngineCheckin && (activeScreenId !== null || micOn),
     onTranscriptStream: handleTranscriptStream,
     initiateCheckinNonce,
     // Welcome opener must not fire when only the mic is armed on Home (MR#4).

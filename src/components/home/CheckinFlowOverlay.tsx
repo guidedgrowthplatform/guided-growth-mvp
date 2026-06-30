@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { track } from '@/analytics';
+import { OnboardingVoiceContext } from '@/contexts/useOnboardingVoiceSession';
 import { useCheckinFlowPersistence } from '@/onboarding-flow/checkinPersistence';
 import { FlowRenderer } from '@/onboarding-flow/renderer/FlowRenderer';
 import { resolveCheckinOpeners } from '@/onboarding-flow/resolveCheckinOpeners';
@@ -8,6 +9,7 @@ import { useCheckinFlow, type CheckinFlowId } from '@/onboarding-flow/useCheckin
 import { useFlowOrchestrator } from '@/onboarding-flow/useFlowOrchestrator';
 import type { CheckInData } from '@gg/shared/types';
 import { buildCheckinCompleteEvent, TYPE_FOR_FLOW } from './checkinCompleteEvent';
+import { useCheckinVoice } from './useCheckinVoice';
 
 interface CheckinFlowOverlayProps {
   flowId: CheckinFlowId;
@@ -49,6 +51,12 @@ export function CheckinFlowOverlay({
     answersRef.current = orchestrator.answers;
   }, [orchestrator.answers]);
 
+  const { value: voiceValue } = useCheckinVoice(
+    orchestrator.currentNode,
+    orchestrator.answers.nickname ?? undefined,
+    type === 'morning' ? 'MCHECK-01' : 'ECHECK-01',
+  );
+
   return (
     <div
       className="fixed inset-0 z-[55] bg-gradient-to-b from-primary-bg via-primary to-primary-dark"
@@ -64,7 +72,9 @@ export function CheckinFlowOverlay({
       >
         <Icon icon="ic:round-close" width={20} height={20} />
       </button>
-      <FlowRenderer orchestrator={orchestrator} variant="overlay" />
+      <OnboardingVoiceContext.Provider value={voiceValue}>
+        <FlowRenderer orchestrator={orchestrator} variant="overlay" />
+      </OnboardingVoiceContext.Provider>
     </div>
   );
 }
