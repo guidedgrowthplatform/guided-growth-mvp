@@ -5,7 +5,8 @@ import type { FlowDocument } from './types';
 // Beat node id -> rotation stage, per flow. Every opener beat rotates from its pool.
 const NODE_STAGE: Record<string, CheckinStageKey> = {
   'morning-greeting': 'morning_greeting',
-  'morning-state': 'morning_state_prompt',
+  // morning-state has no combined opener: the state-check adapter plays the four
+  // per-element lines itself (see StateCheckAdapter), so it is intentionally absent.
   'morning-are-you-done': 'are_you_done',
   'morning-wrap': 'morning_wrap',
   'evening-greeting': 'evening_greeting_habits',

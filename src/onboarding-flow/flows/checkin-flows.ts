@@ -89,8 +89,10 @@ export const morningCheckinV1: FlowDocument = {
       componentType: 'state-check',
       componentProps: { dimensions: ['sleep', 'mood', 'energy', 'stress'] },
       voice: {
-        openerText:
-          'How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Tap what fits or just tell me.',
+        // No combined opener. The state-check adapter plays the four per-element
+        // lines (state_sleep / state_mood / state_energy / state_stress) and reveals
+        // each row as its line plays, so there is no one-line prompt or its bubble.
+        openerText: null,
         expectsInput: true,
         directLlmAllowed: true,
       },

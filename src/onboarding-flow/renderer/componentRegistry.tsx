@@ -10,6 +10,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
+import { VOICE_SCRIPTS_AUDIO } from '@/components/flow-designer/voiceScriptsAudio';
 import { checkInDimensions } from '@/components/home/checkInConfig';
 import { EmojiOptionButton } from '@/components/home/EmojiOptionButton';
 import { HabitListItem } from '@/components/home/HabitListItem';
@@ -42,8 +43,10 @@ import {
   useOnboardingVoiceActions,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useAuth } from '@/hooks/useAuth';
+import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { useHabitsForDate } from '@/hooks/useHabitsForDate';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { playClip } from '@/lib/voice/playClip';
 import { formatDate } from '@/utils/dates';
 import type { CheckInDimension, HabitDayStatus, ReflectionMode } from '@gg/shared/types';
 import {
@@ -1270,6 +1273,43 @@ function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
   const want = props.dimensions;
   const dims = want ? checkInDimensions.filter((d) => want.includes(d.key)) : checkInDimensions;
   const [values, setValues] = useState<Partial<Record<CheckInDimension, number>>>({});
+  const { voiceOn } = useDualButtonControls();
+
+  // Per-element reveal: each dimension is its own strip, revealed one at a time as
+  // its recorded line plays (state_sleep / state_mood / state_energy / state_stress).
+  // The combined opener is suppressed for this beat (morning-state carries no
+  // openerText), so this is the only audio. Voice off shows all strips at once.
+  const [revealed, setRevealed] = useState(voiceOn ? 0 : dims.length);
+  const ranRef = useRef(false);
+  useEffect(() => {
+    if (ranRef.current) return;
+    ranRef.current = true;
+    if (!voiceOn) {
+      setRevealed(dims.length);
+      return;
+    }
+    let cancelled = false;
+    let handle: { stop: () => void } | null = null;
+    void (async () => {
+      for (let i = 0; i < dims.length; i += 1) {
+        if (cancelled) return;
+        setRevealed(i + 1);
+        const clips = VOICE_SCRIPTS_AUDIO['state_' + dims[i].key];
+        const url = clips && clips[0] ? clips[0].file : null;
+        if (url) {
+          const h = playClip(url);
+          handle = h;
+          await h.done;
+        } else {
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      handle?.stop();
+    };
+  }, [voiceOn, dims.length]);
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
     if (result.action !== 'record_checkin') return;
@@ -1289,26 +1329,33 @@ function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
 
   return (
     <CardShell>
-      <div className="flex w-full flex-col gap-4 rounded-2xl border border-border bg-surface p-4">
-        {dims.map((dim) => (
-          <div key={dim.key} className="flex flex-col gap-1.5">
-            <span className="text-[13px] font-medium text-content-subtle">{dim.label}</span>
-            <div className="flex w-full justify-between">
-              {dim.options.map((o) => (
-                <EmojiOptionButton
-                  key={o.value}
-                  icon={o.icon}
-                  label={o.label}
-                  color={o.color}
-                  isSelected={values[dim.key] === o.value}
-                  onClick={() => setValues((prev) => ({ ...prev, [dim.key]: o.value }))}
-                />
-              ))}
+      <div className="flex w-full flex-col gap-3">
+        {dims.map((dim, i) =>
+          i >= revealed ? null : (
+            <div
+              key={dim.key}
+              style={{ animation: 'ckReveal 0.42s ease' }}
+              className="flex flex-col gap-1.5 rounded-2xl border border-border bg-surface p-4"
+            >
+              <span className="text-[13px] font-medium text-content-subtle">{dim.label}</span>
+              <div className="flex w-full justify-between">
+                {dim.options.map((o) => (
+                  <EmojiOptionButton
+                    key={o.value}
+                    icon={o.icon}
+                    label={o.label}
+                    color={o.color}
+                    isSelected={values[dim.key] === o.value}
+                    onClick={() => setValues((prev) => ({ ...prev, [dim.key]: o.value }))}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ),
+        )}
       </div>
       <Cta label="Continue" disabled={!anyFilled} onClick={submit} />
+      <style>{`@keyframes ckReveal{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </CardShell>
   );
 }
