@@ -263,6 +263,7 @@ export function useCheckinVoice(
       overlayOpen: true,
       openOverlay: () => {},
       closeOverlay: () => {},
+      setScreenContextDeferred: () => {},
       messages,
       openerReveal,
       appendMessage: () => {},

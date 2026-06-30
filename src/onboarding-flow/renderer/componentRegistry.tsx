@@ -1416,6 +1416,180 @@ function ReflectionSayAdapter({ node, onCapture }: BeatAdapterProps) {
   );
 }
 
+/* ----------------------------------------------------- why-intro (v3 new) */
+
+// Why-intro beat: a coach-only framing beat, no user interaction. The coach line
+// plays as the opener (MP3) and the beat auto-advances immediately on mount, so
+// the flow moves on as soon as the coach finishes speaking.
+function WhyIntroAdapter({ onCapture }: BeatAdapterProps) {
+  return <AutoAdvance onDone={() => onCapture({ data: {} })} />;
+}
+
+/* -------------------------------------------------- advanced-frequency (v3 new) */
+
+// Advanced frequency beat: shows one HabitScheduleCard per habit the user captured
+// in the brain-dump, pre-seeded to all weekdays. The user adjusts days via the day
+// picker on each card or by voice. Captures all configs and advances.
+function AdvancedFrequencyAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
+  const brainDumpText = (answers.brainDumpText as string) ?? '';
+  // Parse habit names from the brain dump (newline- or comma-separated list, or
+  // fall back to the habitConfigs keys if the brain dump is a prose block).
+  const fromConfigs = Object.keys((answers.habitConfigs ?? {}) as Record<string, unknown>);
+  const fromDump = brainDumpText
+    .split(/[\n,]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && s.length < 80);
+  const habitNames = fromConfigs.length > 0 ? fromConfigs : fromDump.length > 0 ? fromDump : [];
+  const SAMPLE = ['Morning walk', 'No screens after 10 PM', 'Meditate'];
+  const names = habitNames.length > 0 ? habitNames : SAMPLE;
+
+  const [configs, setConfigs] = useState<Record<string, { days: number[]; time: string; reminder: boolean }>>(() => {
+    const base: Record<string, { days: number[]; time: string; reminder: boolean }> = {};
+    for (const name of names) {
+      base[name] = { days: [...WEEKDAYS], time: '09:00', reminder: true };
+    }
+    return base;
+  });
+
+  const toggleDay = (name: string, day: number) => {
+    setConfigs((prev) => {
+      const existing = prev[name] ?? { days: [...WEEKDAYS], time: '09:00', reminder: true };
+      const daySet = new Set(existing.days);
+      if (daySet.has(day)) daySet.delete(day);
+      else daySet.add(day);
+      return { ...prev, [name]: { ...existing, days: [...daySet].sort((a, b) => a - b) } };
+    });
+  };
+
+  const submit = () => {
+    const habitConfigs: Record<string, { days: number[]; time: string; reminder: boolean; schedule: string }> = {};
+    for (const [name, cfg] of Object.entries(configs)) {
+      habitConfigs[name] = { ...cfg, schedule: 'Weekday' };
+    }
+    onCapture({ data: { habitConfigs } });
+  };
+
+  return (
+    <CardShell frozen={readOnly}>
+      {names.map((name) => {
+        const cfg = configs[name] ?? { days: [...WEEKDAYS], time: '09:00', reminder: true };
+        return (
+          <div key={name} className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4">
+            <span className="text-[15px] font-semibold text-content">{name}</span>
+            <div className="flex flex-wrap gap-2">
+              {[1, 2, 3, 4, 5, 6, 0].map((d) => {
+                const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                const idx = [1, 2, 3, 4, 5, 6, 0].indexOf(d);
+                const active = cfg.days.includes(d);
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => !readOnly && toggleDay(name, d)}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-semibold transition-colors ${
+                      active
+                        ? 'bg-primary text-white'
+                        : 'bg-surface-secondary text-content-secondary'
+                    }`}
+                  >
+                    {labels[idx]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+      {!readOnly && <Cta label="Looks good" onClick={submit} />}
+    </CardShell>
+  );
+}
+
+/* -------------------------------------------------- weekly-projection (v3 new) */
+
+// Weekly projection beat: shows a static projection grid for the given state prop.
+// Auto-advances after a short delay so the coach MP3 can play and the user can
+// absorb the frame before moving on. Uses simple colored cells (no external
+// WeeklyHabitsSummary dep here) to keep the adapter self-contained and avoid
+// import chain issues with the flow-builder component.
+type ProjectionState = 'blank' | 'full' | 'p78' | 'p36' | 'gaps';
+
+const PROJECTION_HABIT_NAMES = [
+  'Morning check-in',
+  'Evening report',
+  'Daily reflection',
+  'Your habit',
+];
+
+// Returns a filled-fraction per row for each state.
+function rowFillForState(
+  state: ProjectionState,
+  rowIdx: number,
+): ('done' | 'missed' | 'empty')[] {
+  const days = 7;
+  const isHero = rowIdx < 2; // first two rows stay fully green
+  return Array.from({ length: days }, (_, d) => {
+    if (state === 'blank') return 'empty';
+    if (state === 'full') return 'done';
+    if (state === 'p78') return isHero || (rowIdx + d) % 5 !== 0 ? 'done' : 'missed';
+    if (state === 'p36') return isHero ? 'done' : d % 3 === 0 ? 'done' : 'missed';
+    // gaps: mixed empty and missed
+    return d === 0 || d === 3 ? 'empty' : (rowIdx + d) % 3 === 0 ? 'done' : 'missed';
+  });
+}
+
+const STATE_CELL_COLOR: Record<'done' | 'missed' | 'empty', string> = {
+  done: 'bg-green-500',
+  missed: 'bg-red-400',
+  empty: 'bg-surface-secondary',
+};
+
+function WeeklyProjectionAdapter({ node, onCapture }: BeatAdapterProps) {
+  const props = node.componentProps as { state?: string };
+  const state = (props.state ?? 'blank') as ProjectionState;
+  const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  // Auto-advance after the opener MP3 has enough time to finish. The MP3 hook in
+  // BeatView drives the karaoke, so we just need a generous timeout. The user can
+  // also tap "Next" to skip ahead.
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 3500);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <CardShell>
+      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4">
+        <div className="mb-1 flex gap-1 pl-[120px]">
+          {DAY_LABELS.map((d, i) => (
+            <span key={i} className="w-7 text-center text-[11px] font-medium text-content-tertiary">
+              {d}
+            </span>
+          ))}
+        </div>
+        {PROJECTION_HABIT_NAMES.map((name, rowIdx) => {
+          const cells = rowFillForState(state, rowIdx);
+          return (
+            <div key={name} className="flex items-center gap-1">
+              <span className="w-[112px] truncate text-[12px] text-content-secondary">{name}</span>
+              {cells.map((cell, d) => (
+                <div
+                  key={d}
+                  className={`h-6 w-7 rounded ${STATE_CELL_COLOR[cell]}`}
+                />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+      {ready && (
+        <Cta label="Next" onClick={() => onCapture({ data: {} })} />
+      )}
+    </CardShell>
+  );
+}
+
 /* ------------------------------------------------------------- the registry */
 
 type AdapterComponent = (props: BeatAdapterProps) => React.ReactNode;
@@ -1443,6 +1617,10 @@ export const ADAPTER_REGISTRY: Record<string, AdapterComponent> = {
   'state-check': StateCheckAdapter,
   'habit-review': HabitReviewAdapter,
   reflection: ReflectionSayAdapter,
+  // V3 new beats.
+  'why-intro': WhyIntroAdapter,
+  'advanced-frequency': AdvancedFrequencyAdapter,
+  'weekly-projection': WeeklyProjectionAdapter,
 };
 
 export function getAdapter(componentType: string): AdapterComponent | undefined {

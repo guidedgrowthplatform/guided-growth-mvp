@@ -37,10 +37,6 @@ export function QAFab() {
       aria-label="Sign out and go to QA control"
       title="QA control (sign out / reset / switch user)"
       style={{
-        position: 'fixed',
-        top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
-        right: 8,
-        zIndex: 2147483647,
         display: 'inline-flex',
         alignItems: 'center',
         gap: 5,

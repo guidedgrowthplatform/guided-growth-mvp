@@ -13,7 +13,7 @@
  * its own state, voice capture, and save path. This view only changes how the
  * beat is presented (reveal timing + karaoke + the frozen/summary past state).
  */
-import { useCallback } from 'react';
+import { useCallback, useLayoutEffect } from 'react';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { CHAT_VAPI_BEAT_SCREENS } from '@/lib/onboarding/onboardingStepBeats';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
@@ -22,10 +22,16 @@ import {
   BeatConversation,
   BeatPlayer,
   COACH_BUBBLE_CLASS,
+  Karaoke,
   PastBeatBubbles,
   type BeatStep,
 } from './BeatPlayer';
 import { FROZEN_CARD_TYPES, getAdapter, summarizeBeat } from './componentRegistry';
+import {
+  HYBRID_OPENER_BEATS,
+  ONBOARDING_BEAT_MP3S,
+  useBeatOpenerMp3,
+} from './useBeatOpenerMp3';
 
 export interface BeatViewProps {
   node: FlowNode;
@@ -52,10 +58,69 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   );
   const isVapiBeat = CHAT_VAPI_BEAT_SCREENS.has(node.screenId);
 
+  // MP3 opener: registered beats play a pre-encoded clip at beat mount instead of
+  // calling Cartesia or waiting for Vapi to speak the opener. The progress fraction
+  // (0..1) drives the karaoke reveal in sync with the real audio. For hybrid beats
+  // (ONBOARD-BEGINNER-04, ONBOARD-ADVANCED) the MP3 is the opener only — Vapi
+  // continues the conversation after the audio ends. For all other registered beats
+  // the MP3 is the full opener and Vapi (or the card) follows normally.
+  const hasOpenerMp3 = node.screenId in ONBOARDING_BEAT_MP3S;
+  const mp3 = useBeatOpenerMp3(node.screenId, active && hasOpenerMp3);
+  const setScreenContextDeferred = session?.setScreenContextDeferred;
+  const isHybridOpenerBeat = HYBRID_OPENER_BEATS.has(node.screenId);
+  useLayoutEffect(() => {
+    if (!setScreenContextDeferred || !active || !hasOpenerMp3 || !isHybridOpenerBeat) return;
+    setScreenContextDeferred(node.screenId, !mp3.done);
+    return () => setScreenContextDeferred(node.screenId, false);
+  }, [
+    active,
+    hasOpenerMp3,
+    isHybridOpenerBeat,
+    mp3.done,
+    node.screenId,
+    setScreenContextDeferred,
+  ]);
+  // Map 0..1 progress fraction to a word count so Karaoke can light words in sync.
+  // Falls back to null when the MP3 hasn't started (karaoke runs its own timer).
+  const openerWordCount = opener
+    ? mp3.progress !== null
+      ? Math.round(mp3.progress * opener.trim().split(/\s+/).filter(Boolean).length)
+      : null
+    : null;
+
   const handleReveal = useCallback(() => onReveal?.(), [onReveal]);
 
-  // Active Vapi beat: opener → the beat component (IN the timeline) → dialogue,
-  // all from the transcript store as one ordered feed.
+  // Active Vapi beat with an MP3 opener: play the opener MP3 at mount, then show
+  // the BeatConversation (Vapi continues). For hybrid beats the MP3 is the opener
+  // only; for non-hybrid Vapi beats the MP3 replaces the Vapi-spoken opener but
+  // Vapi still handles follow-up dialogue.
+  if (active && Adapter && isVapiBeat && hasOpenerMp3) {
+    // Render the opener bubble driven by MP3 progress, then the card + dialogue.
+    return (
+      <div className="flex flex-col gap-3">
+        {opener && (
+          <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>
+            <Karaoke text={opener} active revealCount={openerWordCount} />
+          </div>
+        )}
+        <BeatConversation
+          key={node.id}
+          screenId={node.screenId}
+          active
+          // Already rendered the opener bubble above; suppress the
+          // BeatConversation's own opener so it doesn't double-render it.
+          fallbackOpener={null}
+          connecting={!HYBRID_OPENER_BEATS.has(node.screenId)}
+          cardReadyOverride={isHybridOpenerBeat ? mp3.done : undefined}
+          card={<Adapter node={node} answers={answers} onCapture={onCapture} />}
+          onText={handleReveal}
+        />
+      </div>
+    );
+  }
+
+  // Active Vapi beat (no MP3 override): opener → the beat component (IN the
+  // timeline) → dialogue, all from the transcript store as one ordered feed.
   if (active && Adapter && isVapiBeat) {
     return (
       <BeatConversation
@@ -66,6 +131,34 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
         card={<Adapter node={node} answers={answers} onCapture={onCapture} />}
         onText={handleReveal}
       />
+    );
+  }
+
+  // Active non-Vapi beat with an MP3 opener: the MP3 plays for the opener bubble,
+  // then the card reveals; dialogue (if any) streams below.
+  if (active && Adapter && hasOpenerMp3) {
+    const steps: BeatStep[] = [];
+    if (opener) {
+      steps.push({ id: `${node.id}-coach`, kind: 'coach', say: opener });
+    }
+    steps.push({
+      id: `${node.id}-card`,
+      kind: 'card',
+      body: <Adapter node={node} answers={answers} onCapture={onCapture} />,
+    });
+    return (
+      <div className="flex flex-col gap-3">
+        {/* overrideRevealCount feeds the MP3 playback progress into the karaoke
+            reveal so the word highlight tracks the pre-encoded clip. */}
+        <BeatPlayer steps={steps} onReveal={handleReveal} overrideRevealCount={openerWordCount} />
+        <BeatConversation
+          key={node.id}
+          screenId={node.screenId}
+          active
+          connecting={false}
+          onText={handleReveal}
+        />
+      </div>
     );
   }
 

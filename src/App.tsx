@@ -14,6 +14,7 @@ import {
 } from '@/lib/auth/authHandoff';
 import { getFreshToken } from '@/lib/auth/tokenStore';
 import { QAFab } from '@/onboarding-flow/QAFab';
+import { QASoundToggle } from '@/onboarding-flow/QASoundToggle';
 import { queryClient } from '@/lib/query';
 import { reacquireIfActive, suspendWakeLock } from '@/lib/services/keepAwake';
 import { AppRoutes } from '@/routes';
@@ -122,7 +123,22 @@ export default function App() {
               <PushRegistrar />
               <OnboardingVoiceProvider>
                 <AppRoutes />
-                <QAFab />
+                {/* QA pill row — fixed top-right, only in QA/dev builds */}
+                <div
+                  style={{
+                    position: 'fixed',
+                    top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+                    right: 8,
+                    zIndex: 2147483647,
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <QASoundToggle />
+                  <QAFab />
+                </div>
               </OnboardingVoiceProvider>
             </ToastProvider>
           </VoiceProvider>

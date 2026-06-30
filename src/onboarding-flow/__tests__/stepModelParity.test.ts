@@ -34,11 +34,12 @@ describe('step model parity', () => {
 
   it('coach-advanced persist-null beats sit strictly below the next stepped beat', () => {
     // Coach-advanced = has a tool (auth / mic-permission self-advance via UI and
-    // carry no tool, so they're exempt). Terminal nodes (into-app) never auto-advance.
+    // carry no tool, so they're exempt). Terminal nodes (into-app in v3) have no
+    // tool so they're also exempt. V3 dropped plan-cards, so this set may be empty.
     const coachPersistless = flow.nodes.filter(
       (n): n is BeatNode => isBeat(n) && !n.persist && n.tool != null && n.nextId != null,
     );
-    expect(coachPersistless.length).toBeGreaterThan(0); // plan-cards at least
+    // V3: plan-cards dropped, into-app tool set to null. Set can be empty.
 
     for (const node of coachPersistless) {
       const step = beatStep(node);

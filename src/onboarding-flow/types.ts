@@ -65,15 +65,22 @@ export type FlowComponentType =
   | 'habit-picker'
   | 'habit-schedule'
   | 'advanced-capture'
+  | 'advanced-frequency'
   | 'morning-checkin-setup'
   | 'reflection-card'
   | 'plan-cards'
   | 'into-app'
+  | 'why-intro'
+  | 'weekly-projection'
   // Check-in flow component types (morning + evening check-in documents).
   | 'state-check'
   | 'habit-review'
   | 'reflection'
-  | 'coach-bubble';
+  | 'coach-bubble'
+  // Home-tour flow component type. Exists in the flow designer (beats/homeTour.tsx)
+  // but the engine adapter is not yet in componentRegistry.tsx -- deferred to the
+  // app-shell workstream (HANDOFF-app-shell-and-flow-order.md).
+  | 'home-tour';
 
 export interface BeatNode {
   id: string;

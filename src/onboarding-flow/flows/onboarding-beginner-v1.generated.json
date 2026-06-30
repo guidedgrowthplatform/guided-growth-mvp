@@ -62,7 +62,7 @@
       "beatNumber": 1,
       "name": "Profile",
       "screenId": "ONBOARD-01--FORM",
-      "nextId": "path-fork",
+      "nextId": "why-intro",
       "backId": "mic",
       "context": {
         "screenId": "ONBOARD-01--FORM",
@@ -103,6 +103,129 @@
       }
     },
     {
+      "id": "why-intro",
+      "type": "beat",
+      "beatNumber": 2,
+      "name": "Why Intro",
+      "screenId": "ONBOARD-WHY-INTRO",
+      "nextId": "state-check",
+      "backId": "profile",
+      "context": {
+        "screenId": "ONBOARD-WHY-INTRO",
+        "screenName": "Why Intro",
+        "contextBlock": "A short coach framing: the first habit is a check-in, not a workout. Frame it warmly and move on."
+      },
+      "componentType": "why-intro",
+      "componentProps": {},
+      "voice": {
+        "openerText": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
+        "expectsInput": false,
+        "directLlmAllowed": false
+      },
+      "tool": null,
+      "persist": null
+    },
+    {
+      "id": "state-check",
+      "type": "beat",
+      "beatNumber": 2,
+      "name": "First State Check",
+      "screenId": "ONBOARD-STATE-CHECK",
+      "nextId": "morning-checkin-setup",
+      "backId": "why-intro",
+      "context": {
+        "screenId": "ONBOARD-STATE-CHECK",
+        "screenName": "First State Check",
+        "contextBlock": "The user does their very first check-in right now. Four dimensions: mood, energy, sleep, stress. Accept spoken or tapped answers. Do not over-explain; keep it brief and warm."
+      },
+      "componentType": "state-check",
+      "componentProps": {},
+      "voice": {
+        "openerText": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "tool": {
+        "toolName": "record_checkin",
+        "persistsFields": [
+          "checkin"
+        ],
+        "advancesStep": true
+      },
+      "persist": {
+        "step": 6
+      }
+    },
+    {
+      "id": "morning-checkin-setup",
+      "type": "beat",
+      "beatNumber": 3,
+      "name": "Morning Check-in",
+      "screenId": "ONBOARD-MORNING-SETUP",
+      "nextId": "reflection-setup",
+      "backId": "state-check",
+      "context": {
+        "screenId": "ONBOARD-MORNING-SETUP",
+        "screenName": "Morning Check-in",
+        "contextBlock": "Set up a short morning check-in: when they want the nudge, which days, and whether they want a reminder. Keep it light, a quick way to start the day with intention."
+      },
+      "componentType": "morning-checkin-setup",
+      "componentProps": {
+        "showDayPicker": true,
+        "showReminderToggle": true
+      },
+      "voice": {
+        "openerText": "When do you want this each day? I'll nudge you then.",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "tool": {
+        "toolName": "submit_morning_checkin",
+        "persistsFields": [
+          "morningCheckin"
+        ],
+        "advancesStep": true
+      },
+      "persist": {
+        "step": 7
+      }
+    },
+    {
+      "id": "reflection-setup",
+      "type": "beat",
+      "beatNumber": 3,
+      "name": "Reflection Setup",
+      "screenId": "ONBOARD-BEGINNER-07",
+      "nextId": "path-fork",
+      "backId": "morning-checkin-setup",
+      "context": {
+        "screenId": "ONBOARD-BEGINNER-07",
+        "screenName": "Reflection Setup",
+        "contextBlock": "Set up a short evening reflection: when, which days, whether they want a reminder, and the style (guided prompts, custom prompts, or freeform). Frame it as a moment for their mind, not a chore."
+      },
+      "componentType": "reflection-card",
+      "componentProps": {
+        "showDayPicker": true,
+        "showReminderToggle": true,
+        "showModePicker": true
+      },
+      "voice": {
+        "openerText": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "tool": {
+        "toolName": "submit_reflection_config",
+        "persistsFields": [
+          "reflectionConfig"
+        ],
+        "advancesStep": true
+      },
+      "persist": {
+        "step": 8
+      }
+    },
+    {
       "id": "path-fork",
       "type": "branch",
       "name": "Path Fork",
@@ -122,10 +245,10 @@
           "value": "braindump",
           "label": "Advanced",
           "entryNodeId": "advanced-input",
-          "exitNodeId": "advanced-input"
+          "exitNodeId": "advanced-frequency"
         }
       ],
-      "mergeNodeId": "plan-review",
+      "mergeNodeId": "into-app",
       "context": {
         "screenId": "ONBOARD-FORK--FORM",
         "screenName": "Path Choice",
@@ -183,7 +306,7 @@
         "optionSource": "categories"
       },
       "voice": {
-        "openerText": "What part of your life do you most want to grow right now?",
+        "openerText": "What part of your life do you most want to work on right now? Pick the one that pulls you.",
         "expectsInput": true,
         "directLlmAllowed": true
       },
@@ -217,7 +340,7 @@
         "optionSource": "goalsByCategory"
       },
       "voice": {
-        "openerText": "Which of these feels most true for you?",
+        "openerText": "Within that, what's the piece you want to start with?",
         "expectsInput": true,
         "directLlmAllowed": true
       },
@@ -251,7 +374,7 @@
         "optionSource": "habitsByGoal"
       },
       "voice": {
-        "openerText": "Here are a few habits that fit. Pick the ones you'll actually do.",
+        "openerText": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
         "expectsInput": true,
         "directLlmAllowed": true
       },
@@ -272,7 +395,7 @@
       "beatNumber": 7,
       "name": "Habit Schedule",
       "screenId": "ONBOARD-BEGINNER-04",
-      "nextId": "plan-review",
+      "nextId": "into-app",
       "backId": "habit-select",
       "context": {
         "screenId": "ONBOARD-BEGINNER-04",
@@ -285,7 +408,7 @@
         "showReminderToggle": true
       },
       "voice": {
-        "openerText": "When will you do these? Set a time and how often.",
+        "openerText": "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
         "expectsInput": true,
         "directLlmAllowed": true
       },
@@ -306,7 +429,7 @@
       "beatNumber": 4,
       "name": "Brain Dump (Advanced)",
       "screenId": "ONBOARD-ADVANCED",
-      "nextId": "plan-review",
+      "nextId": "advanced-frequency",
       "backId": "path-fork",
       "context": {
         "screenId": "ONBOARD-ADVANCED",
@@ -319,7 +442,7 @@
         "placeholder": "Tell me everything on your mind, what you want to build, drop, or change."
       },
       "voice": {
-        "openerText": "Perfect. Read me the habits you already track and I'll get them organized.",
+        "openerText": "Read me the habits you already track. Less is more to start, you can always build on it.",
         "expectsInput": true,
         "directLlmAllowed": true
       },
@@ -335,110 +458,43 @@
       }
     },
     {
-      "id": "plan-review",
+      "id": "advanced-frequency",
       "type": "beat",
-      "beatNumber": 8,
-      "name": "Plan Review",
-      "screenId": "ONBOARD-BEGINNER-06",
-      "nextId": "morning-checkin-setup",
-      "backId": "habit-schedule",
+      "beatNumber": 5,
+      "name": "Habit Days (Advanced)",
+      "screenId": "ONBOARD-ADVANCED-FREQUENCY",
+      "nextId": "into-app",
+      "backId": "advanced-input",
       "context": {
-        "screenId": "ONBOARD-BEGINNER-06",
-        "screenName": "Plan Review",
-        "contextBlock": "Show them the habits you built together and ask if they want to change anything before moving on. Handle one edit at a time, then continue."
+        "screenId": "ONBOARD-ADVANCED-FREQUENCY",
+        "screenName": "Habit Days",
+        "contextBlock": "For each habit in the braindump, set how often it runs. Parse spoken answers when you can. Ask only for missing pieces."
       },
-      "componentType": "plan-cards",
-      "componentProps": {
-        "showJournalCard": true
-      },
+      "componentType": "advanced-frequency",
+      "componentProps": {},
       "voice": {
-        "openerText": "Here are your habits. Do these look right, or want to change anything?",
+        "openerText": "Now the days. Tell me how often each one runs and I'll fill them in.",
         "expectsInput": true,
         "directLlmAllowed": true
       },
       "tool": {
         "toolName": "update_habit",
-        "persistsFields": [],
-        "advancesStep": true
-      },
-      "persist": null
-    },
-    {
-      "id": "morning-checkin-setup",
-      "type": "beat",
-      "beatNumber": 9,
-      "name": "Morning Check-in",
-      "screenId": "ONBOARD-MORNING-SETUP",
-      "nextId": "reflection-setup",
-      "backId": "plan-review",
-      "context": {
-        "screenId": "ONBOARD-MORNING-SETUP",
-        "screenName": "Morning Check-in",
-        "contextBlock": "Set up a short morning check-in: when they want the nudge, which days, and whether they want a reminder. Keep it light, a quick way to start the day with intention."
-      },
-      "componentType": "morning-checkin-setup",
-      "componentProps": {
-        "showDayPicker": true,
-        "showReminderToggle": true
-      },
-      "voice": {
-        "openerText": "When do you want your morning check-in? I'll nudge you then.",
-        "expectsInput": true,
-        "directLlmAllowed": true
-      },
-      "tool": {
-        "toolName": "submit_morning_checkin",
         "persistsFields": [
-          "morningCheckin"
+          "habitConfigs"
         ],
         "advancesStep": true
       },
       "persist": {
-        "step": 7
-      }
-    },
-    {
-      "id": "reflection-setup",
-      "type": "beat",
-      "beatNumber": 10,
-      "name": "Reflection Setup",
-      "screenId": "ONBOARD-BEGINNER-07",
-      "nextId": "into-app",
-      "backId": "morning-checkin-setup",
-      "context": {
-        "screenId": "ONBOARD-BEGINNER-07",
-        "screenName": "Reflection Setup",
-        "contextBlock": "Set up a short evening reflection: when, which days, whether they want a reminder, and the style (guided prompts, custom prompts, or freeform). Frame it as a moment for their mind, not a chore."
-      },
-      "componentType": "reflection-card",
-      "componentProps": {
-        "showDayPicker": true,
-        "showReminderToggle": true,
-        "showModePicker": true
-      },
-      "voice": {
-        "openerText": "Now your evening reflection. When works for you?",
-        "expectsInput": true,
-        "directLlmAllowed": true
-      },
-      "tool": {
-        "toolName": "submit_reflection_config",
-        "persistsFields": [
-          "reflectionConfig"
-        ],
-        "advancesStep": true
-      },
-      "persist": {
-        "step": 8
+        "step": 4
       }
     },
     {
       "id": "into-app",
       "type": "beat",
-      "beatNumber": 11,
+      "beatNumber": 9,
       "name": "Into the App",
       "screenId": "ONBOARD-COMPLETE",
-      "nextId": null,
+      "nextId": "weekly-projection-blank",
       "backId": null,
       "context": {
         "screenId": "ONBOARD-COMPLETE",
@@ -448,15 +504,136 @@
       "componentType": "into-app",
       "componentProps": {},
       "voice": {
-        "openerText": "You're all set. Let's get started.",
+        "openerText": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
         "expectsInput": false,
         "directLlmAllowed": true
       },
-      "tool": {
-        "toolName": "confirm_plan",
-        "persistsFields": [],
-        "advancesStep": true
+      "tool": null,
+      "persist": null
+    },
+    {
+      "id": "weekly-projection-blank",
+      "type": "beat",
+      "beatNumber": 10,
+      "name": "Weekly Projection (blank)",
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-BLANK",
+      "nextId": "weekly-projection-full",
+      "backId": null,
+      "context": {
+        "screenId": "ONBOARD-WEEKLY-PROJECTION-BLANK",
+        "screenName": "Weekly Projection (blank)",
+        "contextBlock": "A visual projection of the habit week. Show five states in sequence; no user input needed."
       },
+      "componentType": "weekly-projection",
+      "componentProps": {
+        "state": "blank"
+      },
+      "voice": {
+        "openerText": "This is your week. Blank, starting today.",
+        "expectsInput": false,
+        "directLlmAllowed": false
+      },
+      "tool": null,
+      "persist": null
+    },
+    {
+      "id": "weekly-projection-full",
+      "type": "beat",
+      "beatNumber": 11,
+      "name": "Weekly Projection (full)",
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-FULL",
+      "nextId": "weekly-projection-p78",
+      "backId": null,
+      "context": {
+        "screenId": "ONBOARD-WEEKLY-PROJECTION-FULL",
+        "screenName": "Weekly Projection (full)",
+        "contextBlock": "A visual projection of the habit week. Show five states in sequence; no user input needed."
+      },
+      "componentType": "weekly-projection",
+      "componentProps": {
+        "state": "full"
+      },
+      "voice": {
+        "openerText": "Best case, every day green. Every streak going strong. That would be amazing.",
+        "expectsInput": false,
+        "directLlmAllowed": false
+      },
+      "tool": null,
+      "persist": null
+    },
+    {
+      "id": "weekly-projection-p78",
+      "type": "beat",
+      "beatNumber": 12,
+      "name": "Weekly Projection (p78)",
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-P78",
+      "nextId": "weekly-projection-p36",
+      "backId": null,
+      "context": {
+        "screenId": "ONBOARD-WEEKLY-PROJECTION-P78",
+        "screenName": "Weekly Projection (p78)",
+        "contextBlock": "A visual projection of the habit week. Show five states in sequence; no user input needed."
+      },
+      "componentType": "weekly-projection",
+      "componentProps": {
+        "state": "p78"
+      },
+      "voice": {
+        "openerText": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
+        "expectsInput": false,
+        "directLlmAllowed": false
+      },
+      "tool": null,
+      "persist": null
+    },
+    {
+      "id": "weekly-projection-p36",
+      "type": "beat",
+      "beatNumber": 13,
+      "name": "Weekly Projection (p36)",
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-P36",
+      "nextId": "weekly-projection-gaps",
+      "backId": null,
+      "context": {
+        "screenId": "ONBOARD-WEEKLY-PROJECTION-P36",
+        "screenName": "Weekly Projection (p36)",
+        "contextBlock": "A visual projection of the habit week. Show five states in sequence; no user input needed."
+      },
+      "componentType": "weekly-projection",
+      "componentProps": {
+        "state": "p36"
+      },
+      "voice": {
+        "openerText": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
+        "expectsInput": false,
+        "directLlmAllowed": false
+      },
+      "tool": null,
+      "persist": null
+    },
+    {
+      "id": "weekly-projection-gaps",
+      "type": "beat",
+      "beatNumber": 14,
+      "name": "Weekly Projection (gaps)",
+      "screenId": "ONBOARD-WEEKLY-PROJECTION-GAPS",
+      "nextId": null,
+      "backId": null,
+      "context": {
+        "screenId": "ONBOARD-WEEKLY-PROJECTION-GAPS",
+        "screenName": "Weekly Projection (gaps)",
+        "contextBlock": "A visual projection of the habit week. Show five states in sequence; no user input needed."
+      },
+      "componentType": "weekly-projection",
+      "componentProps": {
+        "state": "gaps"
+      },
+      "voice": {
+        "openerText": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.",
+        "expectsInput": false,
+        "directLlmAllowed": false
+      },
+      "tool": null,
       "persist": null
     }
   ]

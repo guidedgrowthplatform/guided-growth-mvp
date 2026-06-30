@@ -90,6 +90,7 @@ export function BeatConversation({
   onText,
   fallbackOpener,
   card,
+  cardReadyOverride,
   connecting = true,
 }: {
   screenId: string;
@@ -99,6 +100,9 @@ export function BeatConversation({
   // The beat's interactive component, placed IN the timeline right after the
   // opener (coach presents it, then the dialogue continues below it).
   card?: ReactNode;
+  // Optional external reveal gate for beats whose opener is rendered outside the
+  // transcript stream (for example, prerecorded MP3 hybrid openers).
+  cardReadyOverride?: boolean;
   // Whether to show the connecting/thinking + authored-opener failsafe. Off on the
   // non-Vapi path (the authored opener is already drawn by BeatPlayer there).
   connecting?: boolean;
@@ -180,6 +184,7 @@ export function BeatConversation({
     opener?.source === 'opener' &&
     (openerReveal?.revealedWords ?? 0) < countWords(opener?.text ?? '');
   const cardReady = openerPresent && !liveOpener && !coldOpenerSpeaking;
+  const shouldRevealCard = cardReadyOverride ?? cardReady;
 
   const renderTurn = (m: VoiceMessage, append?: string | null) => {
     const isColdOpener = coldOpenerLive && m.source === 'opener' && m.id === opener?.id;
@@ -211,7 +216,7 @@ export function BeatConversation({
           finished the opener (cold karaoke complete / warm opener committed, or
           the 12s authored-opener failsafe), so it slots in BELOW the finished
           opener instead of above an in-progress one. */}
-      {card && cardReady && <div className="animate-fade-in">{card}</div>}
+      {card && shouldRevealCard && <div className="animate-fade-in">{card}</div>}
 
       {/* dialogue, the partial extending the last turn's bubble when it continues it */}
       {dialogue.map((m, i) =>
@@ -352,11 +357,14 @@ export function BeatPlayer({
   steps,
   onReveal,
   openerRevealCount,
+  overrideRevealCount,
 }: {
   steps: BeatStep[];
   onReveal?: () => void;
-  // Audio-clock word count for the active coach opener; overrides the hook.
+  // Audio-clock word count for the active coach opener (check-in); overrides the hook.
   openerRevealCount?: number | null;
+  // MP3-opener playback progress word-count (onboarding); overrides the hook.
+  overrideRevealCount?: number | null;
 }) {
   const sig = steps.map((s) => `${s.kind}:${s.say ?? ''}`).join('|');
   const [revealed, setRevealed] = useState(1);
@@ -372,6 +380,10 @@ export function BeatPlayer({
   const reveal: CoachSpeechReveal = coldDriven
     ? { revealCount: openerRevealCount ?? 0, mode: 'word' }
     : hookReveal;
+  // MP3-progress override (onboarding) wins over the internal signal when present.
+  const hasMp3Override = overrideRevealCount !== null && overrideRevealCount !== undefined;
+  const effectiveRevealCount = hasMp3Override ? overrideRevealCount : reveal.revealCount;
+  const effectiveMode = hasMp3Override ? ('window' as const) : reveal.mode;
 
   // Restart the reveal timeline when the beat's step shape changes.
   useEffect(() => {
@@ -391,9 +403,9 @@ export function BeatPlayer({
     // hold the card until the spoken words have all been revealed (the line is
     // done), then a short breath. This tracks the real audio length instead of
     // guessing it from a per-word constant.
-    const voiceDriven = stepNow?.kind === 'coach' && reveal.mode !== 'fallback';
+    const voiceDriven = stepNow?.kind === 'coach' && effectiveMode !== 'fallback';
     if (voiceDriven) {
-      const revealedAll = (reveal.revealCount ?? 0) >= wordTotal && wordTotal > 0;
+      const revealedAll = (effectiveRevealCount ?? 0) >= wordTotal && wordTotal > 0;
       if (!revealedAll) {
         // Don't strand the card if the speech signal never completes.
         const safety = window.setTimeout(
@@ -411,7 +423,7 @@ export function BeatPlayer({
     const dwell = stepNow?.say ? 650 + wordTotal * 110 : 450;
     const t = window.setTimeout(() => setRevealed((r) => Math.min(steps.length, r + 1)), dwell);
     return () => window.clearTimeout(t);
-  }, [revealed, steps, reveal.mode, reveal.revealCount]);
+  }, [revealed, steps, effectiveMode, effectiveRevealCount]);
 
   useEffect(() => {
     onReveal?.();
@@ -432,7 +444,7 @@ export function BeatPlayer({
                 // Only the active coach line is audio-driven; earlier coach lines
                 // in the same beat (if any) render fully (Karaoke shows the whole
                 // line when inactive).
-                revealCount={last ? reveal.revealCount : undefined}
+                revealCount={last ? effectiveRevealCount : undefined}
               />
             </div>
           );

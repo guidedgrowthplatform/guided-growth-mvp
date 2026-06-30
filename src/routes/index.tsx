@@ -87,6 +87,38 @@ const QAControlScreen = lazyWithRetry(() =>
   import('@/onboarding-flow/QAControlScreen').then((m) => ({ default: m.QAControlScreen })),
 );
 
+// QA flow preview components (gated inside QA_SCREEN_ENABLED block below).
+// Each lazy import co-loads the target FlowDocument and returns a zero-prop
+// wrapper so React Router can use it as an element with no runtime branching.
+const MorningCheckinPreview = lazyWithRetry(() =>
+  Promise.all([
+    import('@/onboarding-flow/FlowCheckinPreview'),
+    import('@/onboarding-flow/flows/checkin-flows'),
+  ]).then(([{ FlowCheckinPreview }, { morningCheckinV1 }]) => ({
+    default: () => <FlowCheckinPreview flow={morningCheckinV1} />,
+  })),
+);
+const EveningCheckinPreview = lazyWithRetry(() =>
+  Promise.all([
+    import('@/onboarding-flow/FlowCheckinPreview'),
+    import('@/onboarding-flow/flows/checkin-flows'),
+  ]).then(([{ FlowCheckinPreview }, { eveningCheckinV1 }]) => ({
+    default: () => <FlowCheckinPreview flow={eveningCheckinV1} />,
+  })),
+);
+// Home tour: routes correctly but renders incompletely -- the 'home-tour'
+// componentType is NOT in the engine componentRegistry.tsx (only in the flow
+// designer). Each beat shows the coach text only; no interactive card fires
+// onCapture, so the flow stalls per beat. Deferred to app-shell workstream.
+const HomeTourPreview = lazyWithRetry(() =>
+  Promise.all([
+    import('@/onboarding-flow/FlowCheckinPreview'),
+    import('@/onboarding-flow/flows/home-tour-v1'),
+  ]).then(([{ FlowCheckinPreview }, { homeTourV1 }]) => ({
+    default: () => <FlowCheckinPreview flow={homeTourV1} />,
+  })),
+);
+
 // QA control launcher: gated to QA/dev builds only. Off in production by default,
 // so real users never see it. The QA build flips VITE_QA_SCREEN_ENABLED=true to
 // expose /onboarding/qa. Same code, two builds, one flag.
@@ -187,25 +219,31 @@ export function AppRoutes() {
         {/* Auth-free QA render of the unified chat-native onboarding engine */}
         <Route path="/onboarding-flow-preview" element={<FlowOnboardingPreview />} />
 
-        {/* QA control launcher (QA/dev builds only): pick a test user, log in / reset / re-onboard */}
+        {/* QA control launcher (QA/dev builds only): pick a test user, log in / reset / re-onboard.
+            No AppGate: must render for ANYONE (logged in mid-onboarding, done, or out),
+            since a tester reaches it from any screen to reset. It does its own sign-in.
+            NOTE: the duplicate AppGate-wrapped route that used to precede this was dead code
+            (the second Route wins in React Router) and has been removed (spec STEP 7). */}
+        {QA_SCREEN_ENABLED && <Route path="/onboarding/qa" element={<QAControlScreen />} />}
+
+        {/* QA auth-free flow previews (QA/dev builds only).
+            Each route renders a specific FlowDocument through the engine without a login.
+            morning-checkin and evening-checkin: fully runnable (all componentTypes registered).
+            home-tour: route is wired, but 'home-tour' componentType is missing from
+            componentRegistry.tsx, so each beat shows coach text only and stalls.
+            Deferred to the app-shell workstream (HANDOFF-app-shell-and-flow-order.md). */}
         {QA_SCREEN_ENABLED && (
-          <Route
-            path="/onboarding/qa"
-            element={
-              <AppGate allow="public">
-                <QAControlScreen />
-              </AppGate>
-            }
-          />
+          <Route path="/flow-preview/morning-checkin" element={<MorningCheckinPreview />} />
+        )}
+        {QA_SCREEN_ENABLED && (
+          <Route path="/flow-preview/evening-checkin" element={<EveningCheckinPreview />} />
+        )}
+        {QA_SCREEN_ENABLED && (
+          <Route path="/flow-preview/home-tour" element={<HomeTourPreview />} />
         )}
 
-        {/* Privacy policy — accessible from any state (onboarding, settings, anon) */}
+        {/* Privacy policy -- accessible from any state (onboarding, settings, anon) */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-
-        {/* QA control launcher (QA/dev builds only): pick a test user, log in / reset / re-onboard.
-            No AppGate: it must render for ANYONE (logged in mid-onboarding, done, or out),
-            since a tester reaches it from any screen to reset. It does its own sign-in. */}
-        {QA_SCREEN_ENABLED && <Route path="/onboarding/qa" element={<QAControlScreen />} />}
 
         {/* Auth callbacks (no auth guard) */}
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
