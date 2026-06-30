@@ -18,7 +18,7 @@ Working the post-demo fix list. Beat order/content untouched (waiting on Yair's 
 ### #5 — Inconsistent category-card render — DIAGNOSED (engine-timing) + minimal fix
 
 - **Verdict: engine TIMING, not prompt/context.** The interactive card was gated behind `openerPresent` (`BeatPlayer.tsx` `BeatConversation`): the card only rendered once the opener _message_ landed (cold append / warm Vapi STT) or a 12s fallback fired. So whether the card showed depended on opener/message timing vs the navigate→Realtime→advance cycle — if the coach was slow to speak the opener or the beat advanced first, the card was hidden. Nothing to do with the beat copy.
-- **Fix:** `BeatPlayer.tsx` — on the **active** beat, render the card as soon as the beat is live (`active || openerPresent`); the opener still karaokes above it when it arrives. Past beats unchanged (still require the opener so the frozen receipt sits under it).
+- **Fix (revised):** `BeatPlayer.tsx` — the card reveals only AFTER the coach finishes the opener (`cardReady = openerPresent && !liveOpener && !coldOpenerSpeaking`): cold opener = karaoke lit every word, warm opener = committed final, or the 12s authored-opener failsafe. So the card slots in BELOW the finished opener, never above an in-progress one. The failsafe keeps the original #5 guarantee (card can't hang if voice stalls). (Superseded the earlier `active || openerPresent` gate, which rendered the card too early and pushed the streaming opener below it.)
 - **Note for the flow rework:** this rendering area will be touched by the new beat order; the fix is presentation-only and beat-agnostic.
 
 ### #4 — Duplicate tool calls / "data deleted" — DIAGNOSED + cheap rails

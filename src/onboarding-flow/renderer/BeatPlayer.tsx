@@ -164,13 +164,22 @@ export function BeatConversation({
   const partialExtendsOpener = partialExtendsTail && dialogue.length === 0;
   const partialExtendsDialogue = partialExtendsTail && dialogue.length > 0;
   // A warm opener still STREAMING before it commits to the store: no committed
-  // opener yet, an AI partial, nothing in dialogue. It IS the opener, so it must
-  // render ABOVE the card — not as a tail bubble below it (the card now shows as
-  // soon as the beat is active, so an uncommitted opener would otherwise sit under it).
+  // opener yet, an AI partial, nothing in dialogue. It IS the opener, so it
+  // renders ABOVE the card while the card is still held back.
   const liveOpener =
     !opener && !!livePartial && partial?.role === 'ai' && dialogue.length === 0
       ? livePartial
       : null;
+  // Reveal the card only AFTER the coach finishes the opener: a cold-start opener
+  // is still speaking until its karaoke has lit every word; a warm opener is still
+  // speaking while it streams uncommitted (liveOpener). The authored-opener
+  // failsafe (fallbackOn) also satisfies openerPresent, so a stalled voice can't
+  // hang the card forever.
+  const coldOpenerSpeaking =
+    coldOpenerLive &&
+    opener?.source === 'opener' &&
+    (openerReveal?.revealedWords ?? 0) < countWords(opener?.text ?? '');
+  const cardReady = openerPresent && !liveOpener && !coldOpenerSpeaking;
 
   const renderTurn = (m: VoiceMessage, append?: string | null) => {
     const isColdOpener = coldOpenerLive && m.source === 'opener' && m.id === opener?.id;
@@ -198,12 +207,11 @@ export function BeatConversation({
         <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{fallbackOpener}</div>
       ) : null}
 
-      {/* the beat component, IN the timeline — right after the opener. On the
-          ACTIVE beat it renders as soon as the beat is live (not gated on the
-          opener landing) so a slow/missing opener or a fast navigate can't drop
-          the card; the opener still karaokes above it when it arrives. Past
-          beats keep requiring the opener so the frozen receipt sits under it. */}
-      {card && (active || openerPresent) && <div className="animate-fade-in">{card}</div>}
+      {/* the beat component, IN the timeline — revealed only AFTER the coach has
+          finished the opener (cold karaoke complete / warm opener committed, or
+          the 12s authored-opener failsafe), so it slots in BELOW the finished
+          opener instead of above an in-progress one. */}
+      {card && cardReady && <div className="animate-fade-in">{card}</div>}
 
       {/* dialogue, the partial extending the last turn's bubble when it continues it */}
       {dialogue.map((m, i) =>
