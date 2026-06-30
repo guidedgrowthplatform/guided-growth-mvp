@@ -18,45 +18,59 @@ interface CoachChatViewProps extends CoachChatApi {
   onClose: () => void;
 }
 
-const CoachMessageRow = memo(function CoachMessageRow({
-  msg,
-  displayName,
-  updateHabitDays,
-  onClose,
-}: {
-  msg: CoachChatApi['messages'][number];
-  displayName?: string;
-  updateHabitDays: CoachChatApi['updateHabitDays'];
-  onClose: () => void;
-}) {
-  return (
-    <div className="flex flex-col">
-      <ChatBubble
-        role={msg.role}
-        text={msg.text}
-        userName={displayName}
-        eyebrowVariant="dark"
-        compact
-        animate={false}
-        markdown
-      />
-      {msg.habitCards?.map((card, i) => (
-        <HabitSuggestionCard
-          key={i}
-          name={card.name}
-          days={card.days}
-          onDaysChange={(days) => updateHabitDays(msg.id, i, days)}
+const CoachMessageRow = memo(
+  function CoachMessageRow({
+    msg,
+    displayName,
+    updateHabitDays,
+    onClose,
+  }: {
+    msg: CoachChatApi['messages'][number];
+    displayName?: string;
+    updateHabitDays: CoachChatApi['updateHabitDays'];
+    onClose: () => void;
+  }) {
+    return (
+      <div className="flex flex-col">
+        <ChatBubble
+          role={msg.role}
+          text={msg.text}
+          userName={displayName}
+          eyebrowVariant="dark"
+          compact
+          animate={false}
+          markdown
         />
-      ))}
-      {msg.checkinCard && (
-        <div className="mb-3 mt-2 w-full max-w-[360px]">
-          <CheckInCard selectedDate={msg.checkinCard.date} embedded onClose={onClose} />
-        </div>
-      )}
-      {msg.habitReport && <HabitReportCard />}
-    </div>
-  );
-});
+        {msg.habitCards?.map((card, i) => (
+          <HabitSuggestionCard
+            key={i}
+            name={card.name}
+            days={card.days}
+            onDaysChange={(days) => updateHabitDays(msg.id, i, days)}
+          />
+        ))}
+        {msg.checkinCard && (
+          <div className="mb-3 mt-2 w-full max-w-[360px]">
+            <CheckInCard selectedDate={msg.checkinCard.date} embedded onClose={onClose} />
+          </div>
+        )}
+        {msg.habitReport && <HabitReportCard />}
+      </div>
+    );
+  },
+  // useCoachChat rebuilds every message object each turn; without this the whole
+  // thread re-renders (and re-parses markdown) on every send — a visible flash.
+  (a, b) =>
+    a.msg.id === b.msg.id &&
+    a.msg.text === b.msg.text &&
+    a.msg.role === b.msg.role &&
+    a.msg.habitReport === b.msg.habitReport &&
+    a.displayName === b.displayName &&
+    a.updateHabitDays === b.updateHabitDays &&
+    a.onClose === b.onClose &&
+    JSON.stringify(a.msg.habitCards) === JSON.stringify(b.msg.habitCards) &&
+    JSON.stringify(a.msg.checkinCard) === JSON.stringify(b.msg.checkinCard),
+);
 
 const IDLE_GRADIENT =
   'linear-gradient(to top, rgba(19,91,236,0.7) 0%, rgba(255,255,255,0.7) 54%, rgba(255,255,255,0.7) 81%, rgba(246,246,246,0.7) 100%)';
