@@ -3,6 +3,7 @@ import { IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 import { DualButton } from '@/components/ui/DualButton';
 import { ORB_REST_SCALE, ORB_REST_TOP } from '@/components/welcome/SplashIntro';
+import { orbRingStep } from '@/components/flow-designer/beats/_beatStyle';
 
 const ORB_SIZE = 150;
 // Orb rises all the way to the top so the centred iOS/Android permission
@@ -111,7 +112,7 @@ export function MicPermission({
           rightActive={granted}
           activeRings={asking ? 'right' : null}
           ringCount={3}
-          ringStep={7}
+          ringStep={orbRingStep(ORB_SIZE)}
           intensity={0.5}
           leftIcon={<IconChatVoice size={38} />}
           rightIcon={granted ? <IconMic size={38} /> : <IconMicMuted size={38} />}

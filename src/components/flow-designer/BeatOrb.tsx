@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { IconChatText, IconChatVoice, IconMic, IconMicMuted } from '@/components/icons';
 import { DualButton } from '@/components/ui/DualButton';
+import { orbRingStep } from './beats/_beatStyle';
 
 // The shared canvas orb, interactive like the real app orb. Each half is the real
 // DualButton half: blue when on, slate-grey when off, with a WHITE icon either way.
@@ -30,7 +31,10 @@ export interface OrbConfig {
 }
 
 const RING_COUNT = 3;
-const RING_STEP = 4;
+// Ring step derived from the shared ratio so the spread is proportionally
+// identical to the 150px sequences in SplashIntro and MicPermission.
+// At baseSize=56: Math.round(56 * 0.053) = 3.
+const RING_STEP = orbRingStep(56);
 
 export function BeatOrb({
   size: baseSize = 56,

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FONT, PRIMARY, SUBTLE, BORDER, CARD, SECTION_LABEL, SPACE } from './_beatStyle';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
 import { Button } from '@/components/ui/Button';
 import { type BeatDef } from '../beatKit';
@@ -9,20 +10,27 @@ function AuthSignup() {
   const [last, setLast] = useState('');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
+
   return (
-    <div className="flex flex-col gap-3">
-      <div className="text-[26px] font-bold text-primary">
+    <div style={{ fontFamily: FONT, gap: SPACE.lg }} className="flex flex-col">
+      {/* Heading */}
+      <div
+        style={{ color: PRIMARY, fontFamily: FONT }}
+        className="text-[26px] font-extrabold tracking-tight leading-tight"
+      >
         {mode === 'login' ? 'Welcome back' : 'Create your account'}
       </div>
-      <div className="space-y-3">
+
+      {/* Social sign-in */}
+      <div style={{ gap: SPACE.md }} className="flex flex-col">
         <Button variant="social-dark" size="auth" fullWidth>
-          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+          <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
           </svg>
           Continue with Apple
         </Button>
         <Button variant="social-light" size="auth" fullWidth>
-          <svg className="h-5 w-5" viewBox="0 0 24 24">
+          <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24">
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
               fill="#4285F4"
@@ -43,12 +51,15 @@ function AuthSignup() {
           Continue with Google
         </Button>
       </div>
+
+      {/* Email form: signup */}
       {mode === 'signup' && (
-        <div className="flex flex-col gap-2.5">
-          <div className="flex items-center gap-2 text-[13px] text-content-tertiary">
-            <span className="h-px flex-1 bg-border" />
-            sign up with email
-            <span className="h-px flex-1 bg-border" />
+        <div style={{ ...CARD, padding: SPACE.lg, gap: SPACE.md }} className="flex flex-col">
+          {/* Divider label */}
+          <div style={{ gap: SPACE.sm }} className="flex items-center">
+            <span style={{ flex: 1, height: 1, background: BORDER }} />
+            <span style={{ ...SECTION_LABEL }}>sign up with email</span>
+            <span style={{ flex: 1, height: 1, background: BORDER }} />
           </div>
           <OnboardingInput
             icon="mdi:account-outline"
@@ -79,12 +90,15 @@ function AuthSignup() {
           </Button>
         </div>
       )}
+
+      {/* Email form: login */}
       {mode === 'login' && (
-        <div className="flex flex-col gap-2.5">
-          <div className="flex items-center gap-2 text-[13px] text-content-tertiary">
-            <span className="h-px flex-1 bg-border" />
-            log in with email
-            <span className="h-px flex-1 bg-border" />
+        <div style={{ ...CARD, padding: SPACE.lg, gap: SPACE.md }} className="flex flex-col">
+          {/* Divider label */}
+          <div style={{ gap: SPACE.sm }} className="flex items-center">
+            <span style={{ flex: 1, height: 1, background: BORDER }} />
+            <span style={{ ...SECTION_LABEL }}>log in with email</span>
+            <span style={{ flex: 1, height: 1, background: BORDER }} />
           </div>
           <OnboardingInput
             icon="mdi:email-outline"
@@ -103,19 +117,23 @@ function AuthSignup() {
           </Button>
         </div>
       )}
+
+      {/* Email CTA (default mode) */}
       {mode === 'default' && (
         <Button variant="primary" size="auth" fullWidth onClick={() => setMode('signup')}>
           Sign up with email
         </Button>
       )}
-      <div className="text-center text-[13px] text-content-secondary">
+
+      {/* Mode toggle */}
+      <div style={{ textAlign: 'center', fontSize: 13, fontFamily: FONT, color: SUBTLE }}>
         {mode === 'login' ? (
           <>
             New here?{' '}
             <button
               type="button"
               onClick={() => setMode('signup')}
-              className="font-semibold text-primary"
+              style={{ color: PRIMARY, fontWeight: 700, fontFamily: FONT, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
             >
               Sign up
             </button>
@@ -126,7 +144,7 @@ function AuthSignup() {
             <button
               type="button"
               onClick={() => setMode('login')}
-              className="font-semibold text-primary"
+              style={{ color: PRIMARY, fontWeight: 700, fontFamily: FONT, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
             >
               Log in
             </button>

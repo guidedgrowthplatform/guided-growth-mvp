@@ -1,181 +1,196 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@iconify/react';
+import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/HabitScheduleCard';
+import { classifyHabitPolarity } from '@/components/onboarding/habitPolarity';
 import { BeatPlayer, useAnimations, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
+import { FONT, PRIMARY as BLUE, INK, SUBTLE, SURFACE, BORDER, SPACE } from './_beatStyle';
 
-const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-const BLUE = 'rgb(19, 91, 235)';
-
-// The advanced path of the fork: the user reads the habits they already track
-// and the coach captures them line by line, filing each under its real category
-// as it goes. This previews the live scan: sample lines are captured one at a
-// time and organized by category. Each captured line maps to one of the real
-// onboarding categories.
+// Advanced path capture, redesigned 2026-06-29.
 //
-// Framing (locked 2026-06-29): encourage less is more at the start. They can
-// always build on it later. The check-ins are already habits, so two or three
-// more is plenty. The coach does NOT say tap/scroll/click/press/swipe.
-const SAMPLE: { line: string; category: string }[] = [
-  { line: '10-minute walk after lunch', category: 'Move more' },
-  { line: 'No screens after 10 PM', category: 'Sleep better' },
-  { line: 'Meditate for 5 minutes', category: 'Reduce stress' },
-  { line: 'Plan meals on Sunday', category: 'Eat better' },
-  { line: 'Phone away while working', category: 'Improve focus' },
+// As the user reads the habits they already track, each one forms live as the
+// SAME card used for the schedule (HabitScheduleCard), minus the day circles
+// (showDays={false}): the habit name, an auto-classified Build/Break chip, a
+// pencil, and a delete. The coach does NOT ask build-vs-break per habit. It is
+// inferred from the wording (classifyHabitPolarity) and the user can change any
+// chip. When every habit is in, the coach names the build/break read and asks
+// the user to approve the whole set. On approve, the next beat (advanced-frequency)
+// grows the day picker out of these same cards.
+//
+// Framing (locked 2026-06-29): less is more at the start, they can build on it
+// later. The check-ins are already habits, so two or three more is plenty. The
+// coach never says tap/scroll/click/press/swipe.
+
+const SAMPLE = [
+  '10-minute walk after lunch',
+  'No screens after 10 PM',
+  'Meditate for 5 minutes',
+  'Plan meals on Sunday',
+  'Phone away while working',
 ];
 
+// showDays is false on these cards, so selectedDays is unused; one stable empty
+// set avoids re-allocating per render.
+const EMPTY_DAYS: Set<number> = new Set();
+
+interface Entry {
+  name: string;
+  polarity: HabitPolarity;
+}
+
+function makeEntries(names: string[]): Entry[] {
+  return names.map((name) => ({ name, polarity: classifyHabitPolarity(name) }));
+}
+
+// One card per captured habit: the Build/Break chip (auto-set, flippable), a
+// pencil, and a delete. No day circles here; the frequency beat grows those out.
+function CardList({
+  entries,
+  onFlip,
+  onRemove,
+  animate,
+}: {
+  entries: Entry[];
+  onFlip: (idx: number, polarity: HabitPolarity) => void;
+  onRemove: (idx: number) => void;
+  animate: boolean;
+}) {
+  return (
+    <div className="flex w-full max-w-[360px] flex-col gap-3">
+      {entries.map((e, idx) => (
+        <div key={e.name} style={animate ? { animation: 'ggCardIn 300ms ease-out both' } : undefined}>
+          <HabitScheduleCard
+            habitName={e.name}
+            polarity={e.polarity}
+            selectedDays={EMPTY_DAYS}
+            onChangePolarity={(p) => onFlip(idx, p)}
+            onToggleDay={() => undefined}
+            onEdit={() => undefined}
+            onDelete={() => onRemove(idx)}
+            showDays={false}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// A slim listening header: the mic, the current status, and a breathing dot
+// while more habits are still coming in.
+function ListeningHeader({ listening, current }: { listening: boolean; current?: string }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: SPACE.md,
+        padding: `${SPACE.md}px ${SPACE.lg}px`,
+        borderRadius: 20,
+        border: `1.5px solid ${listening ? BLUE : BORDER}`,
+        background: SURFACE,
+        boxShadow: '0 4px 20px -8px rgba(15,23,42,0.12)',
+        transition: 'border-color 200ms ease-out',
+      }}
+    >
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 12,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: listening ? BLUE : 'rgba(19,91,235,0.10)',
+          transition: 'background 200ms ease-out',
+        }}
+      >
+        <Icon icon="mdi:microphone" width={20} height={20} style={{ color: listening ? '#fff' : BLUE }} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: FONT, fontSize: 14.5, fontWeight: 600, color: INK }}>
+          {listening ? (current ? 'Got it, keep going...' : 'Listening for your habits...') : 'All captured'}
+        </div>
+        {listening && current && (
+          <div style={{ fontFamily: FONT, fontSize: 13, color: SUBTLE, marginTop: 2 }}>
+            &ldquo;{current}&rdquo;
+          </div>
+        )}
+      </div>
+      {listening && (
+        <span
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            flexShrink: 0,
+            background: BLUE,
+            animation: 'ggScanPulse 1s ease-in-out infinite',
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Mic-on path: habits land one at a time as cards while the listening header
+// shows what is being heard.
 function LiveScan() {
-  // Reveal the captured lines one at a time while animating, all at once when
-  // paused (global or per-tile freeze), so a frozen tile shows the full result.
   const anims = useAnimations();
   const flow = useFlowState();
-  const [n, setN] = useState(anims ? 0 : SAMPLE.length);
+  const [entries, setEntries] = useState<Entry[]>(() => makeEntries(SAMPLE));
+  const [revealed, setRevealed] = useState(anims ? 0 : SAMPLE.length);
+
   useEffect(() => {
     if (!anims) {
-      setN(SAMPLE.length);
+      setRevealed(SAMPLE.length);
       return;
     }
-    setN(0);
+    setRevealed(0);
     let i = 0;
     const id = window.setInterval(() => {
       i += 1;
-      setN(i);
+      setRevealed(i);
       if (i >= SAMPLE.length) window.clearInterval(id);
     }, 950);
     return () => window.clearInterval(id);
   }, [anims]);
 
-  // Feed the captured habits into shared flow state as they land, so the next
-  // beat (the schedule card) lists the real captured habits, not a sample.
+  // Feed captured names into shared flow state as they land, so the frequency
+  // beat and the plan recap list the real habits, not the sample fallback.
   useEffect(() => {
-    flow?.setHabits(SAMPLE.slice(0, n).map((s) => s.line));
+    flow?.setHabits(entries.slice(0, Math.min(revealed, entries.length)).map((e) => e.name));
     // react to the capture count only; flow is read at call time
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [n]);
+  }, [revealed, entries]);
 
-  const captured = SAMPLE.slice(0, n);
-  const listening = anims && n < SAMPLE.length;
+  const shown = entries.slice(0, Math.min(revealed, entries.length));
+  const listening = anims && revealed < entries.length;
+  const current = listening && SAMPLE[revealed] ? SAMPLE[revealed] : undefined;
 
-  // Group captured lines by category, keeping first-seen order.
-  const groups: { category: string; lines: string[] }[] = [];
-  captured.forEach((c) => {
-    let g = groups.find((x) => x.category === c.category);
-    if (!g) {
-      g = { category: c.category, lines: [] };
-      groups.push(g);
-    }
-    g.lines.push(c.line);
-  });
+  function flip(idx: number, polarity: HabitPolarity) {
+    setEntries((prev) => prev.map((e, i) => (i === idx ? { ...e, polarity } : e)));
+  }
+  function remove(idx: number) {
+    setEntries((prev) => prev.filter((_, i) => i !== idx));
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* Listening surface: the mic + the line currently being heard. */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '14px 16px',
-          borderRadius: 18,
-          border: `1.5px solid ${listening ? BLUE : 'rgba(15,23,42,0.10)'}`,
-          background: '#fff',
-          boxShadow: '0 4px 16px -8px rgba(15,23,42,0.10)',
-          transition: 'border-color 200ms ease-out',
-        }}
-      >
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 12,
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: listening ? BLUE : 'rgba(19,91,235,0.10)',
-            transition: 'background 200ms ease-out',
-          }}
-        >
-          <Icon icon="mdi:microphone" width={20} height={20} style={{ color: listening ? '#fff' : BLUE }} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: FONT, fontSize: 14.5, fontWeight: 600, color: 'rgb(15,23,42)' }}>
-            {listening
-              ? captured.length
-                ? 'Got it, keep going...'
-                : 'Listening for your habits...'
-              : 'All captured'}
-          </div>
-          {listening && SAMPLE[n] && (
-            <div style={{ fontFamily: FONT, fontSize: 13, color: 'rgb(100,116,139)', marginTop: 2 }}>
-              &ldquo;{SAMPLE[n].line}&rdquo;
-            </div>
-          )}
-        </div>
-        {listening && (
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              flexShrink: 0,
-              background: BLUE,
-              animation: 'ggScanPulse 1s ease-in-out infinite',
-            }}
-          />
-        )}
-      </div>
-
-      {/* Captured, organized by category as they land. */}
-      {groups.map((g) => (
-        <div key={g.category} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div
-            style={{
-              fontFamily: FONT,
-              fontSize: 11,
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: BLUE,
-            }}
-          >
-            {g.category}
-          </div>
-          {g.lines.map((line) => (
-            <div
-              key={line}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '10px 14px',
-                borderRadius: 14,
-                background: 'rgba(19,91,235,0.06)',
-                animation: 'ggScanIn 280ms ease-out',
-              }}
-            >
-              <Icon icon="mdi:check-circle" width={18} height={18} style={{ color: BLUE, flexShrink: 0 }} />
-              <span style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: 'rgb(15,23,42)' }}>
-                {line}
-              </span>
-            </div>
-          ))}
-        </div>
-      ))}
-
-      <style>{`@keyframes ggScanPulse{0%,100%{opacity:.3}50%{opacity:1}}@keyframes ggScanIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}`}</style>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE.lg }}>
+      <ListeningHeader listening={listening} current={current} />
+      <CardList entries={shown} onFlip={flip} onRemove={remove} animate />
+      <style>{`@keyframes ggScanPulse{0%,100%{opacity:.3}50%{opacity:1}}@keyframes ggCardIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}`}</style>
     </div>
   );
 }
 
-// Fallback input surface for the mic-off path. The user types habits one per
-// line and the list feeds the same flow.setHabits channel that LiveScan uses,
-// so the downstream advanced-habits and advanced-frequency beats receive the
-// real captured habits rather than the sample fallback.
+// Mic-off fallback: the user types habits one per line; on submit they become
+// the same cards with the same auto-classified Build/Break chips.
 function TypeInstead() {
   const flow = useFlowState();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [entries, setEntries] = useState<Entry[] | null>(null);
 
   useEffect(() => {
     if (textareaRef.current) textareaRef.current.focus();
@@ -191,41 +206,36 @@ function TypeInstead() {
   function handleSubmit() {
     const lines = parseLines(value);
     if (!lines.length) return;
-    flow?.setHabits(lines);
-    setSubmitted(true);
+    const next = makeEntries(lines);
+    setEntries(next);
+    flow?.setHabits(next.map((e) => e.name));
+  }
+
+  function flip(idx: number, polarity: HabitPolarity) {
+    setEntries((prev) => (prev ? prev.map((e, i) => (i === idx ? { ...e, polarity } : e)) : prev));
+  }
+  function remove(idx: number) {
+    setEntries((prev) => {
+      if (!prev) return prev;
+      const next = prev.filter((_, i) => i !== idx);
+      flow?.setHabits(next.map((e) => e.name));
+      return next;
+    });
   }
 
   const lines = parseLines(value);
 
-  if (submitted) {
+  if (entries) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {lines.map((line) => (
-          <div
-            key={line}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '10px 14px',
-              borderRadius: 14,
-              background: 'rgba(19,91,235,0.06)',
-              animation: 'ggScanIn 280ms ease-out',
-            }}
-          >
-            <Icon icon="mdi:check-circle" width={18} height={18} style={{ color: BLUE, flexShrink: 0 }} />
-            <span style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: 'rgb(15,23,42)' }}>
-              {line}
-            </span>
-          </div>
-        ))}
-        <style>{`@keyframes ggScanIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}`}</style>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE.lg }}>
+        <CardList entries={entries} onFlip={flip} onRemove={remove} animate />
+        <style>{`@keyframes ggCardIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}`}</style>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE.md }}>
       <textarea
         ref={textareaRef}
         value={value}
@@ -236,13 +246,13 @@ function TypeInstead() {
           fontFamily: FONT,
           fontSize: 14.5,
           fontWeight: 500,
-          color: 'rgb(15,23,42)',
+          color: INK,
           lineHeight: 1.6,
-          padding: '14px 16px',
-          borderRadius: 18,
+          padding: `${SPACE.md}px ${SPACE.lg}px`,
+          borderRadius: 20,
           border: `1.5px solid ${BLUE}`,
-          background: '#fff',
-          boxShadow: '0 4px 16px -8px rgba(15,23,42,0.10)',
+          background: SURFACE,
+          boxShadow: '0 4px 20px -8px rgba(15,23,42,0.12)',
           resize: 'none',
           outline: 'none',
           width: '100%',
@@ -260,7 +270,7 @@ function TypeInstead() {
           color: lines.length ? '#fff' : 'rgba(15,23,42,0.35)',
           background: lines.length ? BLUE : 'rgba(15,23,42,0.07)',
           border: 'none',
-          borderRadius: 18,
+          borderRadius: 14,
           padding: '13px 20px',
           cursor: lines.length ? 'pointer' : 'default',
           transition: 'background 180ms ease-out, color 180ms ease-out',
@@ -273,17 +283,15 @@ function TypeInstead() {
   );
 }
 
-// Wrapper that renders LiveScan by default and lets the user reveal TypeInstead
-// via a "Type instead" toggle. When the user has already submitted via typing,
-// the toggle is hidden so the confirmed state stays visible.
+// Renders the live scan by default; the user can reveal the type fallback via a
+// "Type instead" toggle.
 function CaptureWithFallback() {
   const [typing, setTyping] = useState(false);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE.lg }}>
       {typing ? <TypeInstead /> : <LiveScan />}
 
-      {/* Toggle between voice and text paths. */}
       <button
         type="button"
         onClick={() => setTyping((v) => !v)}
@@ -291,14 +299,14 @@ function CaptureWithFallback() {
           fontFamily: FONT,
           fontSize: 13,
           fontWeight: 600,
-          color: 'rgba(15,23,42,0.50)',
+          color: SUBTLE,
           background: 'none',
           border: 'none',
           cursor: 'pointer',
-          padding: '4px 0',
+          padding: `${SPACE.xs}px 0`,
           textAlign: 'center',
           textDecoration: 'underline',
-          textDecorationColor: 'rgba(15,23,42,0.20)',
+          textDecorationColor: 'rgba(100,116,139,0.35)',
           textUnderlineOffset: 3,
         }}
       >
@@ -311,31 +319,29 @@ function CaptureWithFallback() {
 function AdvancedCaptureBeat(props?: Record<string, string>) {
   const steps: BeatStep[] = [
     {
-      // Opener: invite them to share their habits. The framing here is
-      // "less is more, start small." Real copy comes from beatContexts.ts;
-      // this string is a placeholder that matches the spec direction.
+      // Opener: invite them to read their habits, framed "less is more, start
+      // small." Real copy comes from beatContexts.ts; this is a placeholder.
       id: 'ask',
       speaker: 'coach',
       say:
         props?.coachLine ??
-        'Share the habits you already track. Less is more to start. You can always add more later.',
+        'Read me the habits you already track. Less is more to start, you can always build on it.',
     },
     {
-      // Capture surface: mic-on path uses the live scan, mic-off path uses the
-      // text input. Both feed the same captured-habits list downstream.
+      // Capture surface: cards form live (mic) or from typed lines (mic-off),
+      // each with an auto-classified Build/Break chip the user can flip.
       id: 'scan',
       speaker: 'coach',
       render: <CaptureWithFallback />,
     },
     {
-      // Closing nudge: once all lines are in, reinforce the small-start framing
-      // so they do not feel pressure to load up everything now.
-      // Real copy comes from beatContexts.ts; placeholder matches spec direction.
+      // Close: name the build/break read and ask for one approval over the whole
+      // set, no per-habit questions. Real copy comes from beatContexts.ts.
       id: 'close',
       speaker: 'coach',
       say:
         props?.closeCoachLine ??
-        "Good. That's a solid place to start. You can grow it from here.",
+        "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
     },
   ];
 

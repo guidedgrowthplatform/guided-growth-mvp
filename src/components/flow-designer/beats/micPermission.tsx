@@ -1,3 +1,6 @@
+// Visual identity (orb, palette, font) is owned entirely by the MicPermission
+// component. No local style overrides needed here. The shared _beatStyle tokens
+// apply inside MicPermission itself rather than at this wrapper level.
 import { MicPermission } from '@/components/welcome/MicPermission';
 import { useIsPlaying, type BeatDef } from '../beatKit';
 

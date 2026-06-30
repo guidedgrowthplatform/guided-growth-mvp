@@ -19,6 +19,10 @@ interface HabitScheduleCardProps {
   onDelete?: () => void;
   /** When false the day-picker section is hidden. Defaults to true. */
   showDays?: boolean;
+  /** When true the day-picker section grows in on mount. The advanced frequency
+   * step uses this to grow the day circles out of the already-captured card.
+   * Defaults to false. Requires the ggDaysGrow keyframe to be present. */
+  animateDaysIn?: boolean;
 }
 
 // Compact onboarding / voice card. The top row keeps the habit name on the left
@@ -37,6 +41,7 @@ export function HabitScheduleCard({
   onEdit,
   onDelete,
   showDays = true,
+  animateDaysIn = false,
 }: HabitScheduleCardProps) {
   const isBuild = polarity === 'build';
   return (
@@ -78,12 +83,18 @@ export function HabitScheduleCard({
         </div>
       </div>
       {showDays && (
-        <>
+        <div
+          style={
+            animateDaysIn
+              ? { animation: 'ggDaysGrow 420ms cubic-bezier(0.16,1,0.3,1) both', overflow: 'hidden' }
+              : undefined
+          }
+        >
           <div className="h-px w-full bg-border-light" />
           <div className="bg-surface-secondary/50 px-[16px] py-[11px]">
             <DayPicker selectedDays={selectedDays} onToggleDay={onToggleDay} />
           </div>
-        </>
+        </div>
       )}
     </div>
   );

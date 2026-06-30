@@ -4,6 +4,7 @@ import { GoalCard } from '@/components/onboarding/GoalCard';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { goalsByCategory } from '@/data/onboardingHabits';
+import { SECTION_LABEL, SPACE } from './_beatStyle';
 
 // The user picks 1 or 2 subcategories within their chosen category. The
 // underlying flow state field is still named "goals" (a shared-package type),
@@ -62,14 +63,14 @@ function GoalsListBeat(props?: Record<string, string>) {
     {
       id: 'ask',
       speaker: 'coach',
-      say: props?.coachLine ?? 'Pick one or two subcategories that feel right.',
+      say: props?.coachLine ?? "Within that, what's the piece you want to start with?",
     },
     {
       id: 'show',
       speaker: 'coach',
       render: (
-        <div className="flex flex-col gap-3">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-content-secondary">
+        <div className="flex flex-col" style={{ gap: SPACE.md }}>
+          <p style={{ ...SECTION_LABEL, marginBottom: SPACE.xs }}>
             Subcategory
           </p>
           {subcategories.map((sub) => {

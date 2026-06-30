@@ -86,7 +86,7 @@ function HabitScheduleBeat(props?: Record<string, string>) {
       speaker: 'coach',
       say:
         props?.coachLine ??
-        'For each habit, choose which days work for you. Build means adding something new, Break means moving away from something.',
+        "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
     },
     { id: 'cards', speaker: 'coach', render: cards },
   ];

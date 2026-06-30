@@ -4,9 +4,7 @@ import { Toggle } from '@/components/ui/Toggle';
 import { formatTime12, TimePickerSheet } from '@/components/ui/TimePicker';
 import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
-
-const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-const BLUE = 'rgb(19, 91, 235)';
+import { FONT, PRIMARY as BLUE, INK, SUBTLE } from './_beatStyle';
 
 // Evening palette: deep indigo-purple tones, warm and winding-down.
 const EVENING_BG = 'rgba(67, 47, 120, 0.06)';
@@ -128,7 +126,7 @@ function StyleDescription({ style }: { style: ReflectionStyle }) {
         <Icon icon={m.icon} width={20} height={20} style={{ color: EVENING_ICON_COLOR }} />
       </div>
       <div>
-        <div style={{ fontFamily: FONT, fontSize: 15, fontWeight: 700, color: 'rgb(15,23,42)' }}>
+        <div style={{ fontFamily: FONT, fontSize: 15, fontWeight: 700, color: INK }}>
           {m.title}
         </div>
         <div
@@ -136,7 +134,7 @@ function StyleDescription({ style }: { style: ReflectionStyle }) {
             fontFamily: FONT,
             fontSize: 13,
             fontWeight: 500,
-            color: 'rgb(100,116,139)',
+            color: SUBTLE,
             marginTop: 2,
             lineHeight: 1.4,
           }}
@@ -188,7 +186,7 @@ function PromptInput({
           fontFamily: FONT,
           fontSize: 14,
           fontWeight: 500,
-          color: 'rgb(15,23,42)',
+          color: INK,
           outline: 'none',
         }}
       />
@@ -231,7 +229,7 @@ function EveningSetupCard({
           background: '#fff',
           border: `1.5px solid ${EVENING_BORDER}`,
           boxShadow:
-            '0 10px 30px -5px rgba(100,74,185,0.10), 0 4px 12px -4px rgba(0,0,0,0.04)',
+            '0 4px 16px -4px rgba(100,74,185,0.12), 0 1px 4px rgba(0,0,0,0.04)',
         }}
       >
         {/* Header */}
@@ -257,12 +255,12 @@ function EveningSetupCard({
           </div>
           <div>
             <div
-              style={{ fontFamily: FONT, fontSize: 18, fontWeight: 800, color: 'rgb(15,23,42)' }}
+              style={{ fontFamily: FONT, fontSize: 18, fontWeight: 800, color: INK }}
             >
               Evening Reflection
             </div>
             <div
-              style={{ fontFamily: FONT, fontSize: 13.5, fontWeight: 500, color: 'rgb(100,116,139)', marginTop: 2 }}
+              style={{ fontFamily: FONT, fontSize: 13.5, fontWeight: 500, color: SUBTLE, marginTop: 2 }}
             >
               Wind down and close your day
             </div>
@@ -281,7 +279,7 @@ function EveningSetupCard({
               fontWeight: 700,
               letterSpacing: '0.6px',
               textTransform: 'uppercase',
-              color: 'rgb(100,116,139)',
+              color: SUBTLE,
             }}
           >
             Reflection style
@@ -301,7 +299,7 @@ function EveningSetupCard({
                 fontWeight: 700,
                 letterSpacing: '0.6px',
                 textTransform: 'uppercase',
-                color: 'rgb(100,116,139)',
+                color: SUBTLE,
               }}
             >
               Or type your thoughts
@@ -318,7 +316,7 @@ function EveningSetupCard({
                 fontFamily: FONT,
                 fontSize: 14,
                 fontWeight: 500,
-                color: 'rgb(15,23,42)',
+                color: INK,
                 outline: 'none',
                 resize: 'vertical',
                 lineHeight: 1.55,
@@ -338,7 +336,7 @@ function EveningSetupCard({
                 fontWeight: 700,
                 letterSpacing: '0.6px',
                 textTransform: 'uppercase',
-                color: 'rgb(100,116,139)',
+                color: SUBTLE,
               }}
             >
               Your prompts
@@ -366,7 +364,7 @@ function EveningSetupCard({
               fontWeight: 700,
               letterSpacing: '0.6px',
               textTransform: 'uppercase',
-              color: 'rgb(100,116,139)',
+              color: SUBTLE,
             }}
           >
             When?
@@ -403,10 +401,10 @@ function EveningSetupCard({
           }}
         >
           <div>
-            <div style={{ fontFamily: FONT, fontSize: 15, fontWeight: 600, color: 'rgb(15,23,42)' }}>
+            <div style={{ fontFamily: FONT, fontSize: 15, fontWeight: 600, color: INK }}>
               Remind me
             </div>
-            <div style={{ fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'rgb(100,116,139)', marginTop: 1 }}>
+            <div style={{ fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: SUBTLE, marginTop: 1 }}>
               {reminder
                 ? `Notification at ${formatTime12(time)}`
                 : 'Notifications off'}
@@ -456,7 +454,7 @@ function ReflectionCardBeat(props?: Record<string, string>) {
       // Rule: no tap/scroll/click/press/swipe language. Coach continues by voice.
       say:
         props?.coachLine ??
-        'And your evening reflection. How do you want to do it, and when?',
+        'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
     },
     {
       id: 'setup',

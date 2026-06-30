@@ -1,21 +1,25 @@
 import { useEffect, useState } from 'react';
 import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/HabitScheduleCard';
+import { classifyHabitPolarity } from '@/components/onboarding/habitPolarity';
 import { toggleSetItem, WEEKDAYS } from '@/components/onboarding/constants';
 import type { HabitScheduleCfg } from '../flowStateCtx';
-import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { BeatPlayer, useAnimations, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 
-// Beat 2 of the advanced schedule split.
+// Advanced path, the frequency step. Redesigned 2026-06-29.
 //
-// Shows the same habits from the capture beat, now with the full HabitScheduleCard
-// including the day-circle DayPicker (showDays defaults to true). The coach asks
-// the user to say which days they want each habit. The day selections are lifted
-// to shared FlowState via setHabitConfig so the plan recap and home tour
-// reflect the real schedule the user chose.
+// After the user approves the captured habits, this beat shows the SAME cards
+// (same Build/Break chip, auto-classified the same way as the capture beat so
+// the read matches) and grows the day-circle picker out of each card. The grow
+// only animates while animations are playing (animateDaysIn={anims}); in the
+// static canvas the day circles render in place so the beat is never blank.
+// Day selections are lifted to shared FlowState via setHabitConfig so the plan
+// recap and home tour reflect the real schedule.
 //
-// Polarity is set to 'build' by default here. When the engine wires these two
-// beats end-to-end it should pass polarity forward; for now the beat is self-contained
-// and the placeholder polarity is correct for most habits.
+// Polarity here is derived from the habit name, the same as the capture beat, so
+// the two beats agree without threading state. A user flip made in capture is not
+// carried forward yet; that is an engine follow-up when the two beats are wired
+// in-place rather than as separate preview beats.
 
 const SAMPLE_HABITS = ['Morning walk', 'No screens after 10 PM', 'Meditate 5 minutes'];
 
@@ -27,10 +31,11 @@ interface HabitEntry {
 
 function AdvancedFrequencyBeat(props?: Record<string, string>) {
   const flow = useFlowState();
+  const anims = useAnimations();
   const habits = flow && flow.habits.length > 0 ? flow.habits : SAMPLE_HABITS;
 
   const [entries, setEntries] = useState<HabitEntry[]>(() =>
-    habits.map((name) => ({ name, polarity: 'build' as HabitPolarity, days: new Set(WEEKDAYS) }))
+    habits.map((name) => ({ name, polarity: classifyHabitPolarity(name), days: new Set(WEEKDAYS) }))
   );
 
   // Lift day selections to shared flow state whenever they change so the plan
@@ -50,11 +55,7 @@ function AdvancedFrequencyBeat(props?: Record<string, string>) {
   }, [entries]);
 
   function toggleDay(idx: number, day: number) {
-    setEntries((prev) =>
-      prev.map((e, i) =>
-        i === idx ? { ...e, days: toggleSetItem(e.days, day) } : e
-      )
-    );
+    setEntries((prev) => prev.map((e, i) => (i === idx ? { ...e, days: toggleSetItem(e.days, day) } : e)));
   }
 
   function changePolarity(idx: number, polarity: HabitPolarity) {
@@ -73,8 +74,11 @@ function AdvancedFrequencyBeat(props?: Record<string, string>) {
           onToggleDay={(d) => toggleDay(idx, d)}
           onEdit={() => undefined}
           showDays
+          animateDaysIn={anims}
         />
       ))}
+      {/* The grow keyframe the card references when animateDaysIn is set. */}
+      <style>{`@keyframes ggDaysGrow{from{max-height:0;opacity:0}to{max-height:160px;opacity:1}}`}</style>
     </div>
   );
 
@@ -84,15 +88,13 @@ function AdvancedFrequencyBeat(props?: Record<string, string>) {
       speaker: 'coach',
       say:
         props?.coachLine ??
-        'Now for the days. Say which days you want each habit, and the circles will update.',
+        "Now the days. Tell me how often each one runs and I'll fill them in.",
     },
     { id: 'cards', speaker: 'coach', render: cards },
     {
       id: 'confirm',
       speaker: 'coach',
-      say:
-        props?.confirmCoachLine ??
-        'Perfect. Your habits are all set. Your plan is ready.',
+      say: props?.confirmCoachLine ?? 'Your habits are all set, your plan is ready.',
     },
   ];
 

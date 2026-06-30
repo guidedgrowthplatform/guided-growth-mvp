@@ -1,3 +1,6 @@
+// Visual identity (orb, palette, font) is owned entirely by the SplashIntro
+// component. No local style overrides needed here. The shared _beatStyle tokens
+// apply inside SplashIntro itself rather than at this wrapper level.
 import { SplashIntro } from '@/components/welcome/SplashIntro';
 import { useIsPlaying, type BeatDef } from '../beatKit';
 

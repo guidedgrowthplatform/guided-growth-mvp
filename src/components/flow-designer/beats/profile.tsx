@@ -8,7 +8,7 @@ import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
 // greeting, askAge, askGender, userReply, age, gender.
 function ProfileBeat(props?: Record<string, string>) {
   const propAge = props?.age && props.age !== '' ? Number(props.age) : 35;
-  const propGender = props?.gender ?? 'Male';
+  const propGender = props?.gender ?? null;
   const [age, setAge] = useState<number | ''>(propAge);
   const [gender, setGender] = useState<string | null>(propGender);
   useEffect(() => {
@@ -24,7 +24,7 @@ function ProfileBeat(props?: Record<string, string>) {
       speaker: 'coach',
       // {name} is substituted at runtime from the sign-up auth profile (Cartesia speaks it).
       // The real copy comes from beatContexts.ts; this is a placeholder that keeps the name.
-      say: props?.greeting ?? 'Good to meet you, {name}. A couple of quick things.',
+      say: props?.greeting ?? 'Good to meet you, {name}. Two quick things so I can tailor this to you.',
     },
     {
       id: 'age',
@@ -35,7 +35,7 @@ function ProfileBeat(props?: Record<string, string>) {
     {
       id: 'gender',
       speaker: 'coach',
-      say: props?.askGender ?? "And what's your gender?",
+      say: props?.askGender ?? 'And your gender?',
       render: (
         <ChipSelect
           options={['Male', 'Female', 'Other']}

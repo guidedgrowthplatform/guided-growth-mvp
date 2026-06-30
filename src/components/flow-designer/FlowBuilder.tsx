@@ -418,6 +418,7 @@ const TEXT_FIELDS: Record<string, FieldDef[]> = {
 // the speech bubble and the beat's coach line stay in sync as one value.
 const COACH_LINE_PROP: Record<string, string> = {
   'coach-bubble': 'text',
+  'mic-permission': 'coachLine',
   'profile-beat': 'greeting',
   'why-intro': 'coachLine',
   'path-selection': 'coachLine',
@@ -432,6 +433,8 @@ const COACH_LINE_PROP: Record<string, string> = {
   'state-check': 'coachLine',
   'home-tour': 'coachLine',
   'weekly-projection': 'coachLine',
+  'advanced-capture': 'coachLine',
+  'advanced-frequency': 'coachLine',
 };
 
 // Imported components that are full-screen modals/overlays. They cannot preview
@@ -550,6 +553,8 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     props: {
       heading: 'Allow your microphone',
       sub: 'So you can talk with your coach out loud.',
+      coachLine:
+        "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
     },
   },
   {
@@ -560,9 +565,9 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     background: 'coach',
     sheetStage: 'ONBOARD-01--FORM: Profile Setup',
     props: {
-      greeting: 'Good to meet you, {name}. A couple of quick things.',
+      greeting: 'Good to meet you, {name}. Two quick things so I can tailor this to you.',
       askAge: 'How old are you?',
-      askGender: "And what's your gender?",
+      askGender: 'And your gender?',
       userReply: "I'm 28, and I'm male.",
       age: '28',
       gender: 'Male',
@@ -578,7 +583,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     sheetStage: 'ONBOARD-WHY-INTRO: Why We Check In',
     props: {
       coachLine:
-        "Let's start you with a habit right now. Checking in with yourself is simple, and it's good. It's your first one.",
+        "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
     },
   },
   {
@@ -588,7 +593,10 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     beat: '8a',
     background: 'coach',
     sheetStage: 'ONBOARD-STATE-CHECK: First State Check',
-    props: { coachLine: 'How are you landing right now?' },
+    props: {
+      coachLine:
+        "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+    },
   },
   {
     // 8b: Set the daily check-in time. Reminder ON by default.
@@ -596,7 +604,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     beat: '8b',
     background: 'coach',
     sheetStage: 'ONBOARD-MORNING-SETUP: Morning Check-in Time',
-    props: { coachLine: "Nice. When do you want this each day? I'll nudge you then." },
+    props: { coachLine: "When do you want this each day? I'll nudge you then." },
   },
   {
     // 9: Evening reflection, configured only, NOT performed during onboarding.
@@ -605,7 +613,10 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     beat: '9',
     background: 'coach',
     sheetStage: 'ONBOARD-BEGINNER-07: Evening Reflection Setup',
-    props: { coachLine: 'And your evening reflection. How do you want to do it, and when?' },
+    props: {
+      coachLine:
+        'One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?',
+    },
   },
   {
     // 10: Path fork, "tracked habits before?"
@@ -623,7 +634,10 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     background: 'coach',
     showOnPath: 'new',
     sheetStage: 'ONBOARD-BEGINNER-01: Category Selection',
-    props: { coachLine: "What do you want to grow? Not sure? Talk it through with me." },
+    props: {
+      coachLine:
+        'What part of your life do you most want to work on right now? Pick the one that pulls you.',
+    },
   },
   {
     // goals-list is the subcategory beat. "Which feels true" is dropped; the
@@ -633,7 +647,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     background: 'coach',
     showOnPath: 'new',
     sheetStage: 'ONBOARD-BEGINNER-02: Subcategory Selection',
-    props: { coachLine: 'Within that, what matters most to you? Pick one or two.' },
+    props: { coachLine: "Within that, what's the piece you want to start with?" },
   },
   {
     // Less is more: one or two habits. The check-in is already a habit.
@@ -642,7 +656,10 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     background: 'coach',
     showOnPath: 'new',
     sheetStage: 'ONBOARD-BEGINNER-03: Habit Selection',
-    props: { coachLine: 'Pick one or two to start. One is plenty, the check-in is already a habit.' },
+    props: {
+      coachLine:
+        "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+    },
   },
   {
     type: 'habit-schedule',
@@ -650,11 +667,18 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     background: 'coach',
     showOnPath: 'new',
     sheetStage: 'ONBOARD-BEGINNER-04: Habit Schedule',
-    props: { coachLine: 'How often and roughly when for each one?' },
+    props: {
+      coachLine:
+        "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
+    },
   },
-  // 11: Habits, advanced path (showOnPath:'exp'): capture -> schedule
+  // 11: Habits, advanced path (showOnPath:'exp'): live cards (Build/Break
+  // auto-classified, no per-habit asking) -> approve -> frequency grows out.
   {
-    // Advanced users read their habits aloud; cards form live. Less is more here too.
+    // Advanced users read the habits they already track. Each one forms live as
+    // the same schedule card, minus the day circles, with an auto-classified
+    // Build/Break chip, a pencil, and a delete. The coach does not ask polarity
+    // per habit; it names the build/break read at the close for one approval.
     type: 'advanced-capture',
     beat: '11e',
     background: 'coach',
@@ -663,27 +687,22 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     props: {
       coachLine:
         "Read me the habits you already track. Less is more to start, you can always build on it.",
+      closeCoachLine:
+        "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
     },
   },
   {
-    // Advanced path beat 1 of 2: confirm polarity (Build / Break) for each
-    // captured habit. Day circles are hidden here so the coach can frame
-    // build-vs-break first before asking about frequency.
-    type: 'advanced-habits',
+    // Advanced frequency: the same cards, now growing the day circles out of
+    // each one once the user approved the set.
+    type: 'advanced-frequency',
     beat: '11f',
     background: 'coach',
     showOnPath: 'exp',
-    sheetStage: 'ONBOARD-ADVANCED-HABITS: Build or Break',
-    props: { coachLine: 'For each one, are you building this habit or breaking it?' },
-  },
-  {
-    // Advanced path beat 2 of 2: pick days for each habit now that polarity is set.
-    type: 'advanced-frequency',
-    beat: '11g',
-    background: 'coach',
-    showOnPath: 'exp',
     sheetStage: 'ONBOARD-ADVANCED-FREQUENCY: Habit Days',
-    props: { coachLine: 'Now pick the days for each one. How often does each happen?' },
+    props: {
+      coachLine: "Now the days. Tell me how often each one runs and I'll fill them in.",
+      confirmCoachLine: 'Your habits are all set, your plan is ready.',
+    },
   },
   // 12: The ONE full-plan confirm. Morning + evening times (both already set, shown as defaults)
   // + all habits. Approve -> weekly projection (beats 13a-13e), then the home tour
@@ -696,7 +715,7 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     sheetStage: 'ONBOARD-COMPLETE: Full Plan Confirm',
     props: {
       coachLine:
-        "Here's your plan, {name}. Morning check-in, evening reflection, and your habits. Approve and you're in.",
+        "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
     },
   },
   // 13a-13e: Weekly projection. Five frames shown in sequence, each a different
@@ -707,10 +726,10 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     type: 'weekly-projection',
     beat: '13a',
     background: 'coach',
-    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-EMPTY: Empty Week',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-BLANK: Blank Week',
     props: {
-      state: 'empty',
-      coachLine: 'This is your week. Right now everything is open.',
+      state: 'blank',
+      coachLine: 'This is your week. Blank, starting today.',
     },
   },
   {
@@ -720,27 +739,29 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     sheetStage: 'ONBOARD-WEEKLY-PROJECTION-FULL: Full Green Week',
     props: {
       state: 'full',
-      coachLine: 'A week where everything got done. Your streaks are strong.',
+      coachLine: 'Best case, every day green. Every streak going strong. That would be amazing.',
     },
   },
   {
     type: 'weekly-projection',
     beat: '13c',
     background: 'coach',
-    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-P74: Mostly Done Week',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-P78: Mostly Done Week',
     props: {
-      state: 'p74',
-      coachLine: 'Seventy-four percent. Mostly green, streaks holding. That counts.',
+      state: 'p78',
+      coachLine:
+        "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
     },
   },
   {
     type: 'weekly-projection',
     beat: '13d',
     background: 'coach',
-    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-P30: Rough Week',
+    sheetStage: 'ONBOARD-WEEKLY-PROJECTION-P36: Rough Week',
     props: {
-      state: 'p30',
-      coachLine: 'Thirty percent. One streak survives. Still a win. You reassess and go again.',
+      state: 'p36',
+      coachLine:
+        "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
     },
   },
   {
@@ -750,7 +771,8 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     sheetStage: 'ONBOARD-WEEKLY-PROJECTION-GAPS: Gap Week',
     props: {
       state: 'gaps',
-      coachLine: 'The one to avoid: days that go unreported. Log it, even if you missed.',
+      coachLine:
+        'The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.',
     },
   },
 ];
@@ -777,7 +799,7 @@ const MORNING_CHECKIN_FLOW: DefaultBeat[] = [
     sheetStage: 'morning_state_prompt',
     props: {
       coachLine:
-        'How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Tap what fits or just tell me.',
+        'How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Just tell me where you\'re at.',
     },
   },
   {
@@ -839,7 +861,7 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
       userName: '{name}',
       stage: 'morning',
       coachLine:
-        "Mornings start with a quick check-in, {name}. Tap it, or just say you're ready, and we'll see how you slept and where you're at.",
+        "Mornings start with a quick check-in, {name}. Just say you're ready, and we'll see how you slept and where you're at.",
     },
   },
   {
@@ -850,7 +872,7 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
       userName: '{name}',
       stage: 'evening',
       coachLine:
-        'Evenings, you reflect on the day. Tap it or just start talking to me, how it went, what is on your mind.',
+        "Evenings, you reflect on the day. Just start talking to me, how it went, what's on your mind.",
     },
   },
   {
@@ -861,7 +883,7 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
       userName: '{name}',
       stage: 'habits',
       coachLine:
-        'These are your habits. Say it or tap when you finish one, the X if you miss it. Either way works.',
+        'These are your habits. Tell me the ones you do, and the ones you miss. Either way works.',
     },
   },
   {
@@ -872,7 +894,7 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
       userName: '{name}',
       stage: 'add-habit',
       coachLine:
-        "Want to track something new? Press the plus up top, {name}, or just tell me, and we'll add it together.",
+        "Want to track something new? Just tell me, {name}, and we'll add it together.",
     },
   },
   {
