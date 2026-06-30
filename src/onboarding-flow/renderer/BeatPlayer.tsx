@@ -13,7 +13,6 @@
  * the card adapters and the orchestrator, untouched.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import {
   useOnboardingVoice,
   type OnboardingTranscriptListener,
@@ -252,11 +251,20 @@ function useCoachThinking(): boolean {
   return (awaiting || chatBusy) && !speaking;
 }
 
-// The coach "thinking" loading cue in the flow feed. Reuses the home coach's
-// TypingIndicator so onboarding shows the SAME loading bubble as the home coach
-// (the home coach one is the canonical/correct bubble).
+// The coach "thinking" loading cue in the flow feed. Uses the home coach's
+// loading BUBBLE UI (TypingIndicator) — the bigger white bubble with backdrop
+// blur — but WITHOUT its "GUIDED GROWTH COACH" eyebrow label.
 export function ThinkingDots() {
-  return <TypingIndicator />;
+  return (
+    <div
+      className="flex w-fit animate-fade-in items-center gap-1.5 rounded-bl-2xl rounded-br-2xl rounded-tr-2xl bg-white px-5 py-5 shadow-[0px_4px_16px_-4px_rgba(15,23,42,0.08)] backdrop-blur-[6px]"
+      aria-label="Coach is thinking"
+    >
+      <div className="h-2 w-2 animate-bounce rounded-full bg-[#0f172a]/40" />
+      <div className="h-2 w-2 animate-bounce rounded-full bg-[#0f172a]/40 [animation-delay:150ms]" />
+      <div className="h-2 w-2 animate-bounce rounded-full bg-[#0f172a]/40 [animation-delay:300ms]" />
+    </div>
+  );
 }
 
 // Renders the typing dots only while the coach is thinking. Mount ONLY on the
