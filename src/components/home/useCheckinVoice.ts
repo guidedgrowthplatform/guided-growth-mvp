@@ -3,7 +3,8 @@
  * half-duplex coach loop (useCoachChat, muted) scoped to the overlay for STT →
  * extract → tool, speaks the scripted (rotated) openers + acks via Cartesia, and
  * bridges tool results onto a voice-action bus the beat adapters consume. The
- * beat engine stays the source of truth; this never advances beats itself.
+ * beat engine stays the source of truth; voice advances only the short say-only
+ * beats (greeting / are-you-done) via explicit spoken intents.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -33,10 +34,49 @@ function toolResultPayload(evt: LLMToolEvent): Record<string, unknown> | null {
   return r && typeof r === 'object' ? r : null;
 }
 
+// V5 say-only intents, parsed from the user's final transcript on the short
+// say-only beats (greeting / are-you-done). Data-card beats (state-check,
+// habit-review) and the reflection beat advance by tap — never keyword-matched:
+// reflection answers are substantive prose, so "nothing"/"quit" would misfire.
+const RE_DECLINE = /\b(not now|cancel|close this|exit|never ?mind|quit)\b/i;
+const RE_MORE = /\b(add|more|wait|one more|another|something else)\b/i;
+const RE_DONE =
+  /\b(done|no|nope|nothing|that'?s (it|all)|move on|all good|finished|ready|let'?s go)\b/i;
+
+type IntentBeat = 'are-you-done' | 'say-advance' | null;
+function intentBeatFor(node: FlowNode | undefined): IntentBeat {
+  if (!node) return null;
+  if (node.componentType === 'coach-bubble' && node.voice.expectsInput) {
+    return node.id.includes('are-you-done') ? 'are-you-done' : 'say-advance';
+  }
+  return null;
+}
+
+export type CheckinIntent = 'advance' | 'back' | 'decline' | null;
+
+// Pure intent routing for a say-only beat's final user transcript.
+export function resolveCheckinIntent(node: FlowNode | undefined, text: string): CheckinIntent {
+  const beat = intentBeatFor(node);
+  if (!beat) return null;
+  if (RE_DECLINE.test(text)) return 'decline';
+  if (beat === 'are-you-done') {
+    if (RE_MORE.test(text)) return 'back';
+    return RE_DONE.test(text) ? 'advance' : null;
+  }
+  return RE_DONE.test(text) ? 'advance' : null;
+}
+
+export interface CheckinVoiceHandlers {
+  advance: () => void;
+  back: () => void;
+  decline: () => void;
+}
+
 export function useCheckinVoice(
   currentNode: FlowNode | undefined,
   nickname: string | undefined,
   checkinScreenId: string,
+  handlers?: CheckinVoiceHandlers,
 ): { value: OnboardingVoiceContextValue } {
   const { voiceOn } = useDualButtonControls();
   const [speaking, setSpeaking] = useState(false);
@@ -93,12 +133,36 @@ export function useCheckinVoice(
     [voiceOn, speak],
   );
 
+  // Intent parsing reads the live node + handlers at call time.
+  const nodeRef = useRef(currentNode);
+  nodeRef.current = currentNode;
+  const handlersRef = useRef(handlers);
+  handlersRef.current = handlers;
+  const intentFiredForRef = useRef<string | null>(null);
+
+  const onTranscriptStream = useCallback(
+    (role: 'user' | 'assistant', text: string, kind: 'partial' | 'final') => {
+      if (role !== 'user' || kind !== 'final') return;
+      const node = nodeRef.current;
+      const h = handlersRef.current;
+      if (!node || !h || intentFiredForRef.current === node.id) return;
+      const intent = resolveCheckinIntent(node, text);
+      if (!intent) return;
+      intentFiredForRef.current = node.id;
+      if (intent === 'decline') h.decline();
+      else if (intent === 'back') h.back();
+      else h.advance();
+    },
+    [],
+  );
+
   const coach = useCoachChat(checkinScreenId, {
     suppressLlmSpeech: true,
     suppressCheckinCompleted: true,
     overlayOpen: true,
     micMuted: speaking,
     onToolResult,
+    onTranscriptStream,
   });
 
   // Speak the active beat's opener once per beat.
@@ -112,6 +176,7 @@ export function useCheckinVoice(
     }
     if (spokenForRef.current === currentNode.id) return;
     spokenForRef.current = currentNode.id;
+    intentFiredForRef.current = null;
     if (voiceOn && openerText) speak(applyName(openerText, nickname));
     else setSpeaking(false);
   }, [currentNode, openerText, voiceOn, nickname, speak]);

@@ -51,10 +51,20 @@ export function CheckinFlowOverlay({
     answersRef.current = orchestrator.answers;
   }, [orchestrator.answers]);
 
+  const voiceHandlers = useMemo(
+    () => ({
+      advance: () => orchestrator.capture({ data: {} }),
+      back: () => orchestrator.back(),
+      decline: onClose,
+    }),
+    [orchestrator.capture, orchestrator.back, onClose],
+  );
+
   const { value: voiceValue } = useCheckinVoice(
     orchestrator.currentNode,
     orchestrator.answers.nickname ?? undefined,
     type === 'morning' ? 'MCHECK-01' : 'ECHECK-01',
+    voiceHandlers,
   );
 
   return (
