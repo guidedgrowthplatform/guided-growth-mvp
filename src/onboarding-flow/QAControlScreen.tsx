@@ -176,7 +176,13 @@ export function QAControlScreen() {
   const navigate = useNavigate();
   const signIn = useAuthStore((s) => s.signIn);
   const [users, setUsers] = useState<QaUser[]>(FALLBACK_USERS);
-  const [email, setEmail] = useState(FALLBACK_USERS[0]?.email ?? '');
+  const [email, setEmail] = useState<string>(() => {
+    try {
+      return localStorage.getItem('gg_qa_test_user') || FALLBACK_USERS[0]?.email || '';
+    } catch {
+      return FALLBACK_USERS[0]?.email ?? '';
+    }
+  });
   const [flowId, setFlowId] = useState<FlowId>('full-onboarding');
   const [busy, setBusy] = useState<ActionKey | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -195,7 +201,9 @@ export function QAControlScreen() {
           onboarded: u.onboarded,
         }));
         setUsers(live);
-        setEmail(live[0].email);
+        // Keep the tester's saved pick if it's still a real account; only default
+        // to the first user when the saved one is gone.
+        setEmail((prev) => (live.some((u) => u.email === prev) ? prev : live[0].email));
       })
       .catch(() => {
         /* keep the fallback list */
@@ -334,7 +342,14 @@ export function QAControlScreen() {
           <div style={{ position: 'relative' }}>
             <select
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                try {
+                  localStorage.setItem('gg_qa_test_user', e.target.value);
+                } catch {
+                  /* private mode; the pick just won't persist */
+                }
+              }}
               aria-label="Test user"
               disabled={busy !== null}
               style={{
