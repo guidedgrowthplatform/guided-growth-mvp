@@ -434,6 +434,19 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // rendered body here and flush it from onCallStart (which fires on join), so
   // the context still reaches Vapi instead of throwing and being lost.
   const pendingScreenContextRef = useRef<{ screenId: string; body: string } | null>(null);
+  const deferredScreenContextRef = useRef<Set<string>>(new Set());
+  const [deferredScreenContextVersion, setDeferredScreenContextVersion] = useState(0);
+  const setScreenContextDeferred = useCallback((screenId: string, deferred: boolean) => {
+    const deferredSet = deferredScreenContextRef.current;
+    const hasScreen = deferredSet.has(screenId);
+    if (deferred === hasScreen) return;
+    if (deferred) {
+      deferredSet.add(screenId);
+    } else {
+      deferredSet.delete(screenId);
+    }
+    setDeferredScreenContextVersion((version) => version + 1);
+  }, []);
 
   // The beat whose opener the Cartesia instant-opener spoke (cold-start). The
   // warm-beat opener directive is skipped for it so Vapi never re-says it.
@@ -443,7 +456,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     async (screenId: string, sinceTs: string | null) => {
       const client = getClientRef.current();
       if (!client) return;
-      lastPushedScreenIdRef.current = screenId;
+      if (deferredScreenContextRef.current.has(screenId)) return;
       try {
         const ctx = await getScreenContext(qc, screenId, sinceTs);
         // Merge persisted data UNDER the in-flight snapshot: the ref can lag the
@@ -465,6 +478,8 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
           state_delta: ctx.state_delta,
           filled_form_state: filled,
         });
+        if (deferredScreenContextRef.current.has(screenId)) return;
+        lastPushedScreenIdRef.current = screenId;
         try {
           client.send({
             type: 'add-message',
@@ -771,7 +786,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     // whether the dashboard prompt contains the {{initial_screen_context}}
     // placeholder (variable substitution silently drops when placeholder is
     // missing — the snapshot would otherwise never reach Vapi on cold start).
-    if (sid && lastPushedScreenIdRef.current !== sid) {
+    if (sid && lastPushedScreenIdRef.current !== sid && !deferredScreenContextRef.current.has(sid)) {
       lastScreenChangeTsRef.current = new Date().toISOString();
       void pushScreenContext(sid, null);
     } else if (sid) {
@@ -1673,6 +1688,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     const screenToFetch = activeSubScreenId ?? registeredScreenId ?? currentScreenId;
     if (!screenToFetch) return;
     if (lastPushedScreenIdRef.current === screenToFetch) return;
+    if (deferredScreenContextRef.current.has(screenToFetch)) return;
     const priorTs = lastScreenChangeTsRef.current;
     lastScreenChangeTsRef.current = new Date().toISOString();
     // A screen change triggers a fresh assistant turn (pushScreenContext sends
@@ -1687,6 +1703,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     currentScreenId,
     activeSubScreenId,
     registeredScreenId,
+    deferredScreenContextVersion,
     pushScreenContext,
     closeMergeWindow,
   ]);
@@ -1755,6 +1772,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       subscribeVoiceActions,
       registerScreen,
       registerAdvance,
+      setScreenContextDeferred,
       endCall,
       restartCall,
       pushSubScreen,
@@ -1783,6 +1801,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       subscribeVoiceActions,
       registerScreen,
       registerAdvance,
+      setScreenContextDeferred,
       endCall,
       restartCall,
       pushSubScreen,

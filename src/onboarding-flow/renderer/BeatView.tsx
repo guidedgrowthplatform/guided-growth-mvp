@@ -13,7 +13,7 @@
  * its own state, voice capture, and save path. This view only changes how the
  * beat is presented (reveal timing + karaoke + the frozen/summary past state).
  */
-import { useCallback } from 'react';
+import { useCallback, useLayoutEffect } from 'react';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { CHAT_VAPI_BEAT_SCREENS } from '@/lib/onboarding/onboardingStepBeats';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
@@ -66,6 +66,20 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   // the MP3 is the full opener and Vapi (or the card) follows normally.
   const hasOpenerMp3 = node.screenId in ONBOARDING_BEAT_MP3S;
   const mp3 = useBeatOpenerMp3(node.screenId, active && hasOpenerMp3);
+  const setScreenContextDeferred = session?.setScreenContextDeferred;
+  const isHybridOpenerBeat = HYBRID_OPENER_BEATS.has(node.screenId);
+  useLayoutEffect(() => {
+    if (!setScreenContextDeferred || !active || !hasOpenerMp3 || !isHybridOpenerBeat) return;
+    setScreenContextDeferred(node.screenId, !mp3.done);
+    return () => setScreenContextDeferred(node.screenId, false);
+  }, [
+    active,
+    hasOpenerMp3,
+    isHybridOpenerBeat,
+    mp3.done,
+    node.screenId,
+    setScreenContextDeferred,
+  ]);
   // Map 0..1 progress fraction to a word count so Karaoke can light words in sync.
   // Falls back to null when the MP3 hasn't started (karaoke runs its own timer).
   const openerWordCount = opener

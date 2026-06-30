@@ -77,6 +77,8 @@ export const HYBRID_OPENER_BEATS: ReadonlySet<string> = new Set([
 export interface BeatOpenerMp3State {
   /** True while the audio element is actively playing. */
   playing: boolean;
+  /** True once playback has ended, failed, or been stopped for this activation. */
+  done: boolean;
   /**
    * Playback fraction 0..1, updated via requestAnimationFrame.
    * null until the audio starts (so the caller can gate karaoke on it).
@@ -96,6 +98,7 @@ export function useBeatOpenerMp3(screenId: string, active: boolean): BeatOpenerM
 
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
+  const [done, setDone] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -121,6 +124,7 @@ export function useBeatOpenerMp3(screenId: string, active: boolean): BeatOpenerM
     }
     setPlaying(false);
     setProgress(1);
+    setDone(true);
   }, [stopProgress]);
 
   const stop = useCallback(() => {
@@ -136,6 +140,7 @@ export function useBeatOpenerMp3(screenId: string, active: boolean): BeatOpenerM
     settledRef.current = false;
     setPlaying(false);
     setProgress(null);
+    setDone(false);
 
     const el = new Audio(src);
     el.preload = 'auto';
@@ -205,5 +210,5 @@ export function useBeatOpenerMp3(screenId: string, active: boolean): BeatOpenerM
     }
   }, [active, stop]);
 
-  return { playing, progress, stop };
+  return { playing, progress, done, stop };
 }
