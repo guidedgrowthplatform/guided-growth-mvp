@@ -13,13 +13,8 @@ export const ONBOARDING_FLOW_ROUTE = '/onboarding/flow';
 // engages here too), but with in-memory persistence so it runs without sign-in.
 export const ONBOARDING_FLOW_PREVIEW_ROUTE = '/onboarding-flow-preview';
 
-// Every onboarding beat with a coach voice turn is Vapi-covered, so Vapi stays
-// ONE continuous live session across the whole flow (no per-beat teardown /
-// cold-start). The step-model + bundle gaps that held the tail back are closed
-// by the unified beat bundle (target_step + machinery per beat). AUTH and
-// MIC-PERMISSION stay silent (no coach turn). Habit-select (03) and habit-schedule
-// (04) are BOTH armed — they share step 5, so arming both keeps the session alive
-// across the select→configure transition within the single habit beat.
+// Every onboarding beat with a coach voice turn is Vapi-capable. The runtime
+// ONBOARDING_CHAT_VAPI gate decides whether these beats actually use Vapi.
 export const CHAT_VAPI_BEAT_SCREENS: ReadonlySet<string> = new Set([
   'ONBOARD-FORK--FORM',
   'ONBOARD-BEGINNER-01',
@@ -33,32 +28,8 @@ export const CHAT_VAPI_BEAT_SCREENS: ReadonlySet<string> = new Set([
   'ONBOARD-COMPLETE',
 ]);
 
-// These beats are handled locally by the flow renderer/adapters. The
-// provider-level engine must stay idle so it does not arm Vapi, Soniox, or
-// Direct-LLM for them.
-export const LOCAL_CAPTURE_BEATS: ReadonlySet<string> = new Set([
-  'ONBOARD-AUTH--FORM',
-  'MIC-PERMISSION',
-  'ONBOARD-01--FORM',
-  'ONBOARD-WHY-INTRO',
-  'ONBOARD-STATE-CHECK',
-  'ONBOARD-FORK--FORM',
-  'ONBOARD-BEGINNER-01',
-  'ONBOARD-BEGINNER-02',
-  'ONBOARD-BEGINNER-03',
-  'ONBOARD-BEGINNER-04',
-  'ONBOARD-ADVANCED',
-  'ONBOARD-ADVANCED-FREQUENCY',
-  'ONBOARD-BEGINNER-06',
-  'ONBOARD-MORNING-SETUP',
-  'ONBOARD-BEGINNER-07',
-  'ONBOARD-COMPLETE',
-  'ONBOARD-WEEKLY-PROJECTION-BLANK',
-  'ONBOARD-WEEKLY-PROJECTION-FULL',
-  'ONBOARD-WEEKLY-PROJECTION-P78',
-  'ONBOARD-WEEKLY-PROJECTION-P36',
-  'ONBOARD-WEEKLY-PROJECTION-GAPS',
-]);
+// Kept as an engineForTurn gate for future adapter-owned capture beats.
+export const LOCAL_CAPTURE_BEATS: ReadonlySet<string> = new Set([]);
 
 // 'none' = chat-only beat (no inline card yet). Cards beyond profile land
 // incrementally; the flow still works, the coach just drives that beat in chat.

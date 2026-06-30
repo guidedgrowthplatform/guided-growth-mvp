@@ -42,7 +42,6 @@ import {
 } from '@/contexts/useOnboardingVoiceSession';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { useVoiceInCapture } from '@/hooks/useVoiceInCapture';
 import { unlockTTS } from '@/lib/services/tts-service';
 import type { CheckInDimension, HabitDayStatus, ReflectionMode } from '@gg/shared/types';
 import {
@@ -52,7 +51,6 @@ import {
   habitsByGoal,
   MAX_HABITS_ONBOARDING,
 } from '../flowData';
-import { parseProfileSpeech } from '../capture/parseProfileSpeech';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 
 export interface BeatAdapterProps {
@@ -534,7 +532,7 @@ function MicPermissionAdapter({ node, onCapture, readOnly }: BeatAdapterProps) {
 /* ------------------------------------------------------------------ profile */
 
 // Profile beat 1: age + gender only. The name comes from auth (beat 0).
-function ProfileAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps) {
+function ProfileAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
   const [age, setAge] = useState<number | ''>((answers.age as number) ?? '');
   const [gender, setGender] = useState<string | null>((answers.gender as string) ?? null);
   const [tapped, setTapped] = useState(false);
@@ -563,17 +561,6 @@ function ProfileAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps
     },
     [age, gender, readOnly],
   );
-
-  const handleProfileTranscript = useCallback(
-    (text: string) => applyVoiceProfile(parseProfileSpeech(text)),
-    [applyVoiceProfile],
-  );
-
-  useVoiceInCapture({
-    active: !readOnly && node.screenId === 'ONBOARD-01--FORM',
-    vapiStatus: 'idle',
-    onTranscript: handleProfileTranscript,
-  });
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
     if (readOnly) return;

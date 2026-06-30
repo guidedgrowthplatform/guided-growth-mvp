@@ -23,8 +23,27 @@ const envString = (raw: string | undefined, fallback: string): string => {
 export const VOICE_IN_ENABLED = import.meta.env.VITE_STATE3_ENABLED === 'true';
 
 // ─── Onboarding chat-native Vapi (full-duplex) ──────────────────────────────
-// Gates Vapi full-duplex on the single-page chat onboarding. Off unless set.
-export const ONBOARDING_CHAT_VAPI = import.meta.env.VITE_ONBOARDING_CHAT_VAPI === 'true';
+// Vapi is paused by default and only turned on via the QA toggle
+// (localStorage: gg_vapi_enabled). The env flag remains read here so the
+// rollout path stays visible, but it does not enable Vapi while paused.
+const ONBOARDING_CHAT_VAPI_ENV_REQUESTED =
+  import.meta.env.VITE_ONBOARDING_CHAT_VAPI === 'true';
+const ONBOARDING_CHAT_VAPI_PAUSED_BY_DEFAULT = true;
+
+const readOnboardingChatVapi = (): boolean => {
+  try {
+    const stored = localStorage.getItem('gg_vapi_enabled');
+    if (stored === 'true') return true;
+    if (stored === 'false') return false;
+  } catch {
+    // SSR or blocked localStorage: keep Vapi paused by default.
+  }
+
+  return ONBOARDING_CHAT_VAPI_ENV_REQUESTED && !ONBOARDING_CHAT_VAPI_PAUSED_BY_DEFAULT;
+};
+
+// Fixed for the life of the page. The QA toggle reloads so the engine re-reads it.
+export const ONBOARDING_CHAT_VAPI = readOnboardingChatVapi();
 
 // ─── Onboarding instant personalized opener ─────────────────────────────────
 // Hides the Vapi cold-start latency (vapi_first_audio_ms 7-18s) on the FIRST
