@@ -253,6 +253,7 @@ export function CoachChatView({
             animate={false}
             streaming
             markdown
+            revealByWord
           />
         )}
         {micLive && displayedUser.length > 0 && (
@@ -264,6 +265,7 @@ export function CoachChatView({
             compact
             animate={false}
             streaming
+            revealByWord
           />
         )}
         {isProcessing && partialAssistant.length === 0 && <TypingIndicator />}
