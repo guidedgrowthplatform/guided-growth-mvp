@@ -398,11 +398,19 @@ describe('vapi navigateNext — skip + precondition guards', () => {
     expect(res).toMatchObject({ error: expect.stringContaining('path_missing') });
   });
 
-  it('allows single-step forward when source data is saved (step 1 → 2 with nickname)', async () => {
+  it('allows single-step forward when source data is saved (step 1 → 2 with nickname + gender)', async () => {
     pool.query
       .mockResolvedValueOnce({
         rowCount: 1,
-        rows: [{ current_step: 1, data: { nickname: 'Yair' }, path: null, brain_dump_raw: null }],
+        // gender is required to leave the profile step (strict gender gate).
+        rows: [
+          {
+            current_step: 1,
+            data: { nickname: 'Yair', gender: 'Other' },
+            path: null,
+            brain_dump_raw: null,
+          },
+        ],
       })
       .mockResolvedValueOnce({ rowCount: 1, rows: [] });
     const res = await navigateNext({ anon_id: ANON, target_step: 2 });
