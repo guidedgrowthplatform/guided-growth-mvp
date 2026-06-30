@@ -45,5 +45,5 @@ deploy_qa_preview:
       echo "Preview: $SHOWN_URL"
     - |
       if [ -n "$MATTERMOST_WEBHOOK_URL" ]; then
-        curl -s -X POST "$MATTERMOST_WEBHOOK_URL" -H 'Content-Type: application/json' -d "{\"text\": \":rocket: \`${CI_COMMIT_REF_NAME}\` deployed -> ${SHOWN_URL}\n> ${CI_COMMIT_TITLE}\"}" || true
+        curl -s -X POST "$MATTERMOST_WEBHOOK_URL" -H 'Content-Type: application/json' -d "{\"text\": \"@yairamsel :rocket: \`${CI_COMMIT_REF_NAME}\` deployed -> ${SHOWN_URL}\n> ${CI_COMMIT_TITLE}\"}" || true
       fi
