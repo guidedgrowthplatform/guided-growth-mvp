@@ -32,6 +32,7 @@ import {
   pushSpeechChunk,
   speak,
   stopTTS,
+  ttsKaraokeActive,
   useTtsPlaybackStore,
 } from '@/lib/services/tts-service';
 import { isSemanticEndOfTurn, resolveTurnPauseMs } from '@/lib/voice/turnDecision';
@@ -569,7 +570,10 @@ export function useCoachChat(
     if (chunks.length === 0) return;
     if (!streamTurnActiveRef.current) {
       turnSeqRef.current += 1;
-      beginSpeechTurn();
+      // Reveal text word-by-word off the audio clock (subtitle/bubble in sync).
+      beginSpeechTurn({
+        onReveal: (t) => onTranscriptStreamRef.current?.('assistant', t, 'partial'),
+      });
       streamTurnActiveRef.current = true;
       turnFinalizedRef.current = false;
       ttsBumpedRef.current = true;
@@ -624,11 +628,14 @@ export function useCoachChat(
   }, [isStreaming, llmMessages, endCoachSpeechTurn]);
 
   // Live partial stream → transcript bus (subtitle renders typing in real time).
+  // In voice-out, the audio-paced onReveal drives the reveal instead, so skip the
+  // instant full-text partial (it would race ahead of the voice).
   useEffect(() => {
     if (!onTranscriptStream) return;
     if (!isStreaming || llmResponse.length === 0) return;
+    if (voiceModeOn && !suppressLlmSpeech && ttsKaraokeActive()) return;
     onTranscriptStream('assistant', llmResponse, 'partial');
-  }, [isStreaming, llmResponse, onTranscriptStream]);
+  }, [isStreaming, llmResponse, onTranscriptStream, voiceModeOn, suppressLlmSpeech]);
 
   // ─── Transcript → LLM (queued while busy, flushed when free) ──────────
   // Streaming Soniox can land multiple finals during a single LLM turn. The

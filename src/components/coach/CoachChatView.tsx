@@ -92,7 +92,7 @@ export function CoachChatView({
   displayName,
   onClose,
 }: CoachChatViewProps) {
-  const { micOn: micRuntimeOn } = useDualButtonControls();
+  const { micOn: micRuntimeOn, voiceOn } = useDualButtonControls();
 
   // Soniox interim (set by useCoachChat's onInterim). Shows the user typing-by-voice.
   const interim = useVoiceStore((s) => s.interim);
@@ -265,7 +265,7 @@ export function CoachChatView({
             animate={false}
             streaming
             markdown
-            revealByWord
+            revealByWord={!voiceOn}
           />
         )}
         {micLive && displayedUser.length > 0 && (
