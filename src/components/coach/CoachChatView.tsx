@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { Icon } from '@iconify/react';
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { HabitReportCard } from '@/components/coach/HabitReportCard';
@@ -207,11 +207,9 @@ export function CoachChatView({
         type="button"
         onClick={handleClose}
         aria-label="Close chat"
-        className="absolute right-6 z-30 flex items-center gap-1.5 text-[12px] font-semibold leading-[16px] text-slate-700"
-        style={{ top: 'max(16px, env(safe-area-inset-top))' }}
+        className="absolute right-4 top-[calc(0.75rem+env(safe-area-inset-top))] z-30 flex h-9 w-9 items-center justify-center rounded-full bg-surface text-content shadow-card"
       >
-        <span>Close chat</span>
-        <X className="h-5 w-5" />
+        <Icon icon="ic:round-close" width={20} height={20} />
       </button>
 
       <div
