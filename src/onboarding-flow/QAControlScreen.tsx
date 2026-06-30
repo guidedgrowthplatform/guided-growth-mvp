@@ -55,6 +55,8 @@ type FlowId =
   | 'morning-checkin'
   | 'evening-checkin';
 
+const MIC_PROFILE_FLOW_ID: FlowId = 'mic-profile-start';
+
 interface FlowDef {
   id: FlowId;
   icon: string;
@@ -261,7 +263,8 @@ export function QAControlScreen() {
 
   const selectedFlow = FLOWS.find((f) => f.id === flowId) ?? FLOWS[0];
 
-  async function run(action: ActionKey) {
+  async function run(action: ActionKey, nextFlowId: FlowId = flowId) {
+    const flowToRun = FLOWS.find((f) => f.id === nextFlowId) ?? FLOWS[0];
     if (busy) return;
     setBusy(action);
     setError(null);
@@ -271,21 +274,27 @@ export function QAControlScreen() {
         await selfReset();
         // Use the selected flow's navigate function so the tester lands in the
         // correct flow after a fresh reset, not just on /onboarding.
-        selectedFlow.navigate(navigate);
+        flowToRun.navigate(navigate);
       } else if (action === 'reonboard') {
-        selectedFlow.navigate(navigate);
+        flowToRun.navigate(navigate);
       } else if (action === 'reset') {
         // Reset data only: wipe and go home, regardless of flow selection.
         await selfReset();
         navigate('/', { replace: true });
       } else {
         // login: navigate to the selected flow.
-        selectedFlow.navigate(navigate);
+        flowToRun.navigate(navigate);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
       setBusy(null);
     }
+  }
+
+  async function launchMicProfileFresh() {
+    if (busy) return;
+    setFlowId(MIC_PROFILE_FLOW_ID);
+    await run('restart', MIC_PROFILE_FLOW_ID);
   }
 
   return (
@@ -428,14 +437,22 @@ export function QAControlScreen() {
           >
             {FLOWS.map((f) => {
               const isSelected = flowId === f.id;
+              const isMicProfile = f.id === MIC_PROFILE_FLOW_ID;
+              const isMicProfileBusy = isMicProfile && busy === 'restart';
               return (
                 <button
                   key={f.id}
                   type="button"
-                  onClick={() => setFlowId(f.id)}
+                  onClick={() => {
+                    if (isMicProfile) {
+                      void launchMicProfileFresh();
+                    } else {
+                      setFlowId(f.id);
+                    }
+                  }}
                   disabled={busy !== null}
                   title={f.desc}
-                  aria-label={f.label}
+                  aria-label={isMicProfile ? 'Mic + Profile fresh launch' : f.label}
                   aria-pressed={isSelected}
                   style={{
                     display: 'flex',
@@ -455,7 +472,7 @@ export function QAControlScreen() {
                   }}
                 >
                   <Icon
-                    icon={f.icon}
+                    icon={isMicProfileBusy ? 'svg-spinners:ring-resize' : f.icon}
                     style={{
                       fontSize: 22,
                       color: isSelected ? 'rgb(19,91,235)' : 'rgb(71,85,105)',
@@ -473,6 +490,19 @@ export function QAControlScreen() {
                   >
                     {f.label}
                   </span>
+                  {isMicProfile && (
+                    <span
+                      style={{
+                        fontSize: 8,
+                        fontWeight: 800,
+                        color: 'rgb(19,91,235)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      fresh launch
+                    </span>
+                  )}
                   {/* Warn that home-tour cannot run yet */}
                   {!f.fullyRunnable && (
                     <span
