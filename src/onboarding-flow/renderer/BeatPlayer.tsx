@@ -19,7 +19,7 @@ import {
   type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
-import { countWords, useCoachSpeechReveal } from './useCoachSpeechReveal';
+import { countWords, useCoachSpeechReveal, type CoachSpeechReveal } from './useCoachSpeechReveal';
 
 // Hard ceiling on how long the card waits behind a voice-driven coach line. If
 // the speech signal stalls (frozen/half-open session that never emits
@@ -324,7 +324,16 @@ export function Karaoke({
  * speech window over Vapi). When no voice signal is present (text-only / Path 3 /
  * voice not engaged) it degrades to the original fixed cadence + dwell.
  */
-export function BeatPlayer({ steps, onReveal }: { steps: BeatStep[]; onReveal?: () => void }) {
+export function BeatPlayer({
+  steps,
+  onReveal,
+  openerRevealCount,
+}: {
+  steps: BeatStep[];
+  onReveal?: () => void;
+  // Audio-clock word count for the active coach opener; overrides the hook.
+  openerRevealCount?: number | null;
+}) {
   const sig = steps.map((s) => `${s.kind}:${s.say ?? ''}`).join('|');
   const [revealed, setRevealed] = useState(1);
 
@@ -334,7 +343,11 @@ export function BeatPlayer({ steps, onReveal }: { steps: BeatStep[]; onReveal?: 
   // Audio-synced reveal for the active coach line. The hook self-detects the
   // available signal and returns mode 'fallback' (revealCount null) when there is
   // none, so the Karaoke component then runs its own fixed-cadence timer.
-  const reveal = useCoachSpeechReveal(curIsCoach ? (cur?.say ?? '') : '', curIsCoach);
+  const hookReveal = useCoachSpeechReveal(curIsCoach ? (cur?.say ?? '') : '', curIsCoach);
+  const coldDriven = typeof openerRevealCount === 'number';
+  const reveal: CoachSpeechReveal = coldDriven
+    ? { revealCount: openerRevealCount ?? 0, mode: 'word' }
+    : hookReveal;
 
   // Restart the reveal timeline when the beat's step shape changes.
   useEffect(() => {
@@ -385,6 +398,8 @@ export function BeatPlayer({ steps, onReveal }: { steps: BeatStep[]; onReveal?: 
       {steps.slice(0, revealed).map((s, i) => {
         const last = i === revealed - 1;
         if (s.kind === 'coach' && s.say) {
+          // Hold the cold opener until the first word lands (no empty bubble).
+          if (last && coldDriven && (reveal.revealCount ?? 0) <= 0) return null;
           return (
             <div key={s.id} className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>
               <Karaoke

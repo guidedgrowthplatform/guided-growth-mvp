@@ -1,11 +1,7 @@
-/**
- * Voice layer for the check-in beat overlay (Path 2). Mounts the documented
- * half-duplex coach loop (useCoachChat, muted) scoped to the overlay for STT →
- * extract → tool, speaks the scripted (rotated) openers + acks via Cartesia, and
- * bridges tool results onto a voice-action bus the beat adapters consume. The
- * beat engine stays the source of truth; voice advances only the short say-only
- * beats (greeting / are-you-done) via explicit spoken intents.
- */
+// Voice layer for the check-in beat overlay (Path 2): mounts useCoachChat (muted)
+// for STT/tools, speaks rotated openers + acks via Cartesia, bridges tool results
+// to the beat adapters. Beat engine stays source of truth; voice advances only the
+// say-only beats (greeting / are-you-done).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type OnboardingVoiceActionListener,
@@ -15,6 +11,7 @@ import {
 import { useCoachChat } from '@/hooks/useCoachChat';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import { acquireWakeLock, releaseWakeLock } from '@/lib/services/keepAwake';
+import { unlockTTS } from '@/lib/services/tts-service';
 import { createListenerBus, type ListenerBus } from '@/lib/util/listenerBus';
 import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
 import { applyName } from '@/onboarding-flow/renderer/applyName';
@@ -34,10 +31,8 @@ function toolResultPayload(evt: LLMToolEvent): Record<string, unknown> | null {
   return r && typeof r === 'object' ? r : null;
 }
 
-// V5 say-only intents, parsed from the user's final transcript on the short
-// say-only beats (greeting / are-you-done). Data-card beats (state-check,
-// habit-review) and the reflection beat advance by tap — never keyword-matched:
-// reflection answers are substantive prose, so "nothing"/"quit" would misfire.
+// Intents on say-only beats only. Reflection/data beats advance by tap: prose
+// answers ("nothing"/"quit") would misfire keyword matching.
 const RE_DECLINE = /\b(not now|cancel|close this|exit|never ?mind|quit)\b/i;
 const RE_MORE = /\b(add|more|wait|one more|another|something else)\b/i;
 const RE_DONE =
@@ -80,6 +75,11 @@ export function useCheckinVoice(
 ): { value: OnboardingVoiceContextValue } {
   const { voiceOn } = useDualButtonControls();
   const [speaking, setSpeaking] = useState(false);
+  // revealedWords tracks the real Cartesia playback clock.
+  const [openerReveal, setOpenerReveal] = useState<{
+    screenId: string;
+    revealedWords: number;
+  } | null>(null);
   const busRef = useRef<ListenerBus<OnboardingVoiceResult> | null>(null);
   if (busRef.current === null) busRef.current = createListenerBus('checkin-voice/voice-action');
   // Stable callback (reads the ref at call time) so the context value + memo
@@ -91,16 +91,33 @@ export function useCheckinVoice(
 
   const handleRef = useRef<SpeakOpenerHandle | null>(null);
 
-  // Speak a scripted line. `speaking` is fed back to useCoachChat as micMuted,
-  // so the mic is closed for the duration (speakOpener bypasses tts-service).
-  const speak = useCallback((text: string) => {
+  // revealScreenId (openers only) drives the synced karaoke; acks pass none.
+  const speak = useCallback((text: string, revealScreenId?: string) => {
     handleRef.current?.stop();
-    if (!text.trim()) return;
+    const clean = text.trim();
+    if (!clean) return;
     setSpeaking(true);
-    const handle = speakOpener(text);
+    const wordTotal = clean.split(/\s+/).length;
+    if (revealScreenId) setOpenerReveal({ screenId: revealScreenId, revealedWords: 0 });
+    const handle = speakOpener(
+      text,
+      revealScreenId
+        ? (fraction) => {
+            const words = Math.min(wordTotal, Math.round(fraction * wordTotal));
+            setOpenerReveal((prev) =>
+              prev && prev.screenId === revealScreenId && prev.revealedWords === words
+                ? prev
+                : { screenId: revealScreenId, revealedWords: words },
+            );
+          }
+        : undefined,
+    );
     handleRef.current = handle;
     void handle.done.then(() => {
-      if (handleRef.current === handle) setSpeaking(false);
+      if (handleRef.current !== handle) return;
+      setSpeaking(false);
+      // Snap to full so the card never stalls if audio fails / is blocked.
+      if (revealScreenId) setOpenerReveal({ screenId: revealScreenId, revealedWords: wordTotal });
     });
   }, []);
 
@@ -177,7 +194,7 @@ export function useCheckinVoice(
     if (spokenForRef.current === currentNode.id) return;
     spokenForRef.current = currentNode.id;
     intentFiredForRef.current = null;
-    if (voiceOn && openerText) speak(applyName(openerText, nickname));
+    if (voiceOn && openerText) speak(applyName(openerText, nickname), currentNode.screenId);
     else setSpeaking(false);
   }, [currentNode, openerText, voiceOn, nickname, speak]);
 
@@ -189,8 +206,8 @@ export function useCheckinVoice(
     }
   }, [voiceOn]);
 
-  // Keep the screen awake for the duration of the check-in.
   useEffect(() => {
+    unlockTTS();
     void acquireWakeLock();
     return () => {
       handleRef.current?.stop();
@@ -211,7 +228,7 @@ export function useCheckinVoice(
       openOverlay: () => {},
       closeOverlay: () => {},
       messages: [],
-      openerReveal: null,
+      openerReveal,
       appendMessage: () => {},
       startThread: () => {},
       sendUserTurn: () => {},
@@ -228,7 +245,7 @@ export function useCheckinVoice(
       voiceCapReached: false,
       dismissVoiceCap: () => {},
     }),
-    [speaking, screenId, subscribeVoiceActions, coach.micListening],
+    [speaking, screenId, subscribeVoiceActions, coach.micListening, openerReveal],
   );
 
   return { value };

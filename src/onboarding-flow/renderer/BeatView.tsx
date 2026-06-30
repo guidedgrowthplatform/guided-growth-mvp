@@ -79,9 +79,13 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
       kind: 'card',
       body: <Adapter node={node} answers={answers} onCapture={onCapture} />,
     });
+    const coldOpenerCount =
+      session?.openerReveal && session.openerReveal.screenId === node.screenId
+        ? session.openerReveal.revealedWords
+        : null;
     return (
       <div className="flex flex-col gap-3">
-        <BeatPlayer steps={steps} onReveal={handleReveal} />
+        <BeatPlayer steps={steps} onReveal={handleReveal} openerRevealCount={coldOpenerCount} />
         <BeatConversation
           key={node.id}
           screenId={node.screenId}

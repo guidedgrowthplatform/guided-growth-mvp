@@ -23,3 +23,8 @@ export function completeHabitTool(habitId: string): Promise<{ ok: true }> {
 export function logReflectionTool(text: string): Promise<{ ok: true }> {
   return callCheckinTool<{ ok: true }>('log_reflection', { text });
 }
+
+export function resetCheckinTodayQA(): Promise<{ ok: true; date: string }> {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return apiPost('/api/qa/reset-checkin', { timezone });
+}

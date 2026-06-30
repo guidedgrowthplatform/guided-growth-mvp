@@ -12,6 +12,7 @@ import {
   FeedbackSheet,
   ReminderSheet,
 } from '@/components/home';
+import { CheckinQAFab } from '@/components/home/CheckinQAFab';
 import { useCheckIn } from '@/hooks/useCheckIn';
 import { useOpenCheckinCoach } from '@/hooks/useCheckinEntry';
 import { useDisplayName } from '@/hooks/useDisplayName';
@@ -125,6 +126,7 @@ export function HomePage() {
 
   return (
     <>
+      <CheckinQAFab />
       <div className="space-y-6 pb-8 pt-2">
         <HomeHeader
           userName={displayName}
