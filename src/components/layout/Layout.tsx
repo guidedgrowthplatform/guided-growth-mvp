@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback } from 'react';
+import { type ReactNode, useCallback, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CoachChatOverlay, CoachSubtitleBar } from '@/components/coach';
 import { OpenChatButton } from '@/components/home';
@@ -31,8 +31,19 @@ export function Layout({ children }: { children: ReactNode }) {
 function LayoutInner({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { openScreenId, closeCoachChat } = useCoachChatLauncher();
+  const { openScreenId, closeCoachChat, openCoachChat } = useCoachChatLauncher();
   const { doneToday } = useCheckinEntry();
+
+  // QA one-shot: the QA Control screen sets this flag (after granting the mic) to
+  // drop straight into a specific check-in. Consume it once and force that flow
+  // open, regardless of time of day.
+  useEffect(() => {
+    const qa = sessionStorage.getItem('qa_open_checkin');
+    if (qa === 'MCHECK-01' || qa === 'ECHECK-01') {
+      sessionStorage.removeItem('qa_open_checkin');
+      openCoachChat(qa, { initiateCheckin: true });
+    }
+  }, [openCoachChat]);
   const checkinFlowId = checkinFlowForScreen(openScreenId);
   // Dedicated check-in screens render the beat engine; HOME-CHECKIN stays LLM chat.
   const chatOpen = openScreenId === 'HOME-CHECKIN';

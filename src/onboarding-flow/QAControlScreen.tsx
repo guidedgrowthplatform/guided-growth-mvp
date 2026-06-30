@@ -43,7 +43,7 @@ const FALLBACK_USERS: QaUser[] = [
 // create-test-users script seeds the accounts with this exact value.
 const QA_PASSWORD = 'guided-growth-qa-2026';
 
-type ActionKey = 'login' | 'restart' | 'reonboard' | 'reset';
+type ActionKey = 'morning' | 'login' | 'restart' | 'reonboard' | 'reset';
 
 interface ActionDef {
   key: ActionKey;
@@ -60,6 +60,13 @@ const TONE: Record<ActionDef['tone'], { chip: string; icon: string }> = {
 };
 
 const ACTIONS: ActionDef[] = [
+  {
+    key: 'morning',
+    icon: 'ic:round-wb-sunny',
+    label: 'Morning check-in',
+    desc: 'Allow the mic, then drop straight into the morning check-in.',
+    tone: 'primary',
+  },
   {
     key: 'login',
     icon: 'ic:round-login',
@@ -97,6 +104,11 @@ export function QAControlScreen() {
   const [email, setEmail] = useState(FALLBACK_USERS[0]?.email ?? '');
   const [busy, setBusy] = useState<ActionKey | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // After "Morning check-in" signs in, show an allow-mic gate so the grant is tied
+  // to its own tap (a gesture). Granting here means the check-in's Soniov mic is
+  // already live when we land, so the coach can play and the user can speak at the
+  // same time.
+  const [micGate, setMicGate] = useState(false);
 
   // Pull the live list of QA accounts from Supabase so the dropdown reflects the
   // real accounts (and shows who already has data). Falls back to the static list.
@@ -157,6 +169,12 @@ export function QAControlScreen() {
     setError(null);
     try {
       await ensureSignedIn();
+      if (action === 'morning') {
+        // Signed in. Hand off to the allow-mic gate; the open happens after the grant.
+        setBusy(null);
+        setMicGate(true);
+        return;
+      }
       if (action === 'restart') {
         await selfReset();
         // /onboarding redirects to the chat-native engine (/onboarding/flow).
@@ -174,6 +192,25 @@ export function QAControlScreen() {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
       setBusy(null);
     }
+  }
+
+  async function allowMicAndGo() {
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Permission persists for the origin; release the stream so the check-in's
+      // own voice capture acquires it cleanly.
+      stream.getTracks().forEach((t) => t.stop());
+    } catch (e) {
+      setError(
+        'Microphone permission is needed for the check-in. ' +
+          (e instanceof Error ? e.message : ''),
+      );
+      return;
+    }
+    // One-shot signal Layout consumes on the next route to force the morning flow.
+    sessionStorage.setItem('qa_open_checkin', 'MCHECK-01');
+    navigate('/', { replace: true });
   }
 
   return (
@@ -230,133 +267,201 @@ export function QAControlScreen() {
           </p>
         </div>
 
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span
+        {micGate ? (
+          <div
             style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              color: 'rgb(100,116,139)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+              background: '#fff',
+              border: '1px solid rgb(226,232,240)',
+              borderRadius: 16,
+              padding: 18,
             }}
           >
-            Test user
-          </span>
-          <div style={{ position: 'relative' }}>
-            <select
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              aria-label="Test user"
-              disabled={busy !== null}
+            <p
               style={{
-                width: '100%',
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                fontFamily: FONT,
-                fontSize: 15,
+                fontSize: 14,
                 fontWeight: 600,
-                color: 'rgb(15,23,42)',
-                background: '#fff',
-                border: '1px solid rgb(226,232,240)',
-                borderRadius: 12,
-                padding: '13px 40px 13px 14px',
+                color: 'rgb(71,85,105)',
+                margin: 0,
+                lineHeight: 1.4,
+              }}
+            >
+              The coach speaks and listens at the same time. Allow the microphone, then the morning
+              check-in starts.
+            </p>
+            <button
+              type="button"
+              onClick={allowMicAndGo}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                padding: 14,
+                borderRadius: 14,
+                border: 'none',
+                background: 'rgb(19,91,235)',
+                color: '#fff',
+                fontSize: 15,
+                fontWeight: 700,
                 cursor: 'pointer',
               }}
             >
-              {users.map((u) => (
-                <option key={u.email} value={u.email}>
-                  {u.label}
-                  {u.onboarded === undefined ? '' : u.onboarded ? '  ·  onboarded' : '  ·  fresh'}
-                </option>
-              ))}
-            </select>
-            <Icon
-              icon="ic:round-keyboard-arrow-down"
+              <Icon icon="ic:round-mic" style={{ fontSize: 20 }} />
+              Allow microphone and start
+            </button>
+            <button
+              type="button"
+              onClick={() => setMicGate(false)}
               style={{
-                position: 'absolute',
-                right: 12,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                fontSize: 22,
+                background: 'none',
+                border: 'none',
                 color: 'rgb(100,116,139)',
-                pointerEvents: 'none',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
               }}
-            />
+            >
+              Back
+            </button>
           </div>
-        </label>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {ACTIONS.map((a) => {
-            const isBusy = busy === a.key;
-            return (
-              <button
-                key={a.key}
-                type="button"
-                onClick={() => run(a.key)}
-                disabled={busy !== null}
+        ) : (
+          <>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  textAlign: 'left',
-                  padding: '13px 14px',
-                  borderRadius: 14,
-                  border: '1px solid rgb(226,232,240)',
-                  background: '#fff',
-                  cursor: busy ? 'default' : 'pointer',
-                  opacity: busy && !isBusy ? 0.5 : 1,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  color: 'rgb(100,116,139)',
                 }}
               >
-                <span
+                Test user
+              </span>
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  aria-label="Test user"
+                  disabled={busy !== null}
                   style={{
-                    flexShrink: 0,
-                    width: 38,
-                    height: 38,
-                    borderRadius: 11,
-                    background: TONE[a.tone].chip,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    width: '100%',
+                    appearance: 'none',
+                    WebkitAppearance: 'none',
+                    fontFamily: FONT,
+                    fontSize: 15,
+                    fontWeight: 600,
+                    color: 'rgb(15,23,42)',
+                    background: '#fff',
+                    border: '1px solid rgb(226,232,240)',
+                    borderRadius: 12,
+                    padding: '13px 40px 13px 14px',
+                    cursor: 'pointer',
                   }}
                 >
-                  <Icon
-                    icon={isBusy ? 'svg-spinners:ring-resize' : a.icon}
-                    style={{ fontSize: 20, color: TONE[a.tone].icon }}
-                  />
-                </span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span
-                    style={{
-                      display: 'block',
-                      fontSize: 15,
-                      fontWeight: 700,
-                      color: 'rgb(15,23,42)',
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {a.label}
-                  </span>
-                  <span
-                    style={{
-                      display: 'block',
-                      fontSize: 12.5,
-                      fontWeight: 500,
-                      color: 'rgb(100,116,139)',
-                      lineHeight: 1.35,
-                      marginTop: 2,
-                    }}
-                  >
-                    {a.desc}
-                  </span>
-                </span>
+                  {users.map((u) => (
+                    <option key={u.email} value={u.email}>
+                      {u.label}
+                      {u.onboarded === undefined
+                        ? ''
+                        : u.onboarded
+                          ? '  ·  onboarded'
+                          : '  ·  fresh'}
+                    </option>
+                  ))}
+                </select>
                 <Icon
-                  icon="ic:round-chevron-right"
-                  style={{ flexShrink: 0, fontSize: 20, color: 'rgb(148,163,184)' }}
+                  icon="ic:round-keyboard-arrow-down"
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    fontSize: 22,
+                    color: 'rgb(100,116,139)',
+                    pointerEvents: 'none',
+                  }}
                 />
-              </button>
-            );
-          })}
-        </div>
+              </div>
+            </label>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {ACTIONS.map((a) => {
+                const isBusy = busy === a.key;
+                return (
+                  <button
+                    key={a.key}
+                    type="button"
+                    onClick={() => run(a.key)}
+                    disabled={busy !== null}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      textAlign: 'left',
+                      padding: '13px 14px',
+                      borderRadius: 14,
+                      border: '1px solid rgb(226,232,240)',
+                      background: '#fff',
+                      cursor: busy ? 'default' : 'pointer',
+                      opacity: busy && !isBusy ? 0.5 : 1,
+                    }}
+                  >
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        width: 38,
+                        height: 38,
+                        borderRadius: 11,
+                        background: TONE[a.tone].chip,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Icon
+                        icon={isBusy ? 'svg-spinners:ring-resize' : a.icon}
+                        style={{ fontSize: 20, color: TONE[a.tone].icon }}
+                      />
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span
+                        style={{
+                          display: 'block',
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: 'rgb(15,23,42)',
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {a.label}
+                      </span>
+                      <span
+                        style={{
+                          display: 'block',
+                          fontSize: 12.5,
+                          fontWeight: 500,
+                          color: 'rgb(100,116,139)',
+                          lineHeight: 1.35,
+                          marginTop: 2,
+                        }}
+                      >
+                        {a.desc}
+                      </span>
+                    </span>
+                    <Icon
+                      icon="ic:round-chevron-right"
+                      style={{ flexShrink: 0, fontSize: 20, color: 'rgb(148,163,184)' }}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {error && (
           <p style={{ fontSize: 12.5, fontWeight: 600, color: 'rgb(220,38,38)', margin: 0 }}>
