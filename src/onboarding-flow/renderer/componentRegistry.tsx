@@ -1318,6 +1318,16 @@ function HabitReviewAdapter({ onCapture }: BeatAdapterProps) {
   const [overrides, setOverrides] = useState<Record<string, HabitDayStatus>>({});
   const statusOf = (id: string, initial: HabitDayStatus) => overrides[id] ?? initial;
 
+  // Voice marks a habit done (match by id, else name); not-done stays tap.
+  useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
+    if (result.action !== 'complete_habit') return;
+    const { id, name } = result.params as { id?: string; name?: string };
+    const match = habits.find(
+      (h) => h.habit.id === id || h.habit.name.toLowerCase() === String(name ?? '').toLowerCase(),
+    );
+    if (match) setOverrides((prev) => ({ ...prev, [match.habit.id]: 'done' }));
+  });
+
   const submit = () => {
     const habitStatuses = Object.fromEntries(
       habits.map((h) => [h.habit.id, statusOf(h.habit.id, h.status)]),

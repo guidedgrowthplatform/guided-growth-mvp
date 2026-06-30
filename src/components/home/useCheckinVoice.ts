@@ -77,6 +77,17 @@ export function useCheckinVoice(
           confidence: 1,
         });
       }
+      // Voice can only mark a habit done (no "missed" tool); not-done stays tap.
+      if (evt.name === 'complete_habit' && r?.habit && typeof r.habit === 'object') {
+        const h = r.habit as { id?: unknown; name?: unknown };
+        busRef.current!.notify({
+          success: true,
+          action: 'complete_habit',
+          params: { id: h.id, name: h.name, status: 'done' },
+          message: '',
+          confidence: 1,
+        });
+      }
       if (voiceOn && CARD_TOOLS.has(evt.name)) speak(pickVariation('acknowledgment'));
     },
     [voiceOn, speak],
