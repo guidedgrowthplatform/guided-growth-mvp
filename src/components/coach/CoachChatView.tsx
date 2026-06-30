@@ -83,6 +83,7 @@ export function CoachChatView({
   messages,
   voiceState,
   speaking,
+  revealingMessageId,
   micListening,
   sendText,
   updateHabitDays,
@@ -109,23 +110,17 @@ export function CoachChatView({
   const displayedAssistant = partialAssistant;
   const displayedUser = interim;
 
-  // Tail-only: hide the in-flight reply's committed row while it speaks (no
-  // full-text flash); never hides a previous turn (tail is the user msg then).
+  // Hide the in-flight reply's committed row while it reveals — keyed by the
+  // exact id useCoachChat is speaking (commit → audio end), so a finalized prior
+  // turn or an error bubble is never hidden. The audio-paced bubble (or typing
+  // dots, before the first word) renders the reply meanwhile.
   const tail = messages[messages.length - 1];
+  const inRevealWindow = revealingMessageId != null && tail?.id === revealingMessageId;
   const revealingId =
-    tail && tail.role === 'ai' && (displayedAssistant.length > 0 || speaking) ? tail.id : null;
+    tail && tail.role === 'ai' && (displayedAssistant.length > 0 || inRevealWindow)
+      ? tail.id
+      : null;
   const renderedMessages = revealingId ? messages.filter((m) => m.id !== revealingId) : messages;
-
-  // [REVEAL-DEBUG] temporary — remove after diagnosing the send-time flicker.
-  const dbgPrevRef = useRef('');
-  {
-    const key = `tail=${tail?.role ?? '-'}:${tail?.id?.slice(-4) ?? '-'} msgs=${messages.length} partial=${displayedAssistant.length} speaking=${speaking} processing=${isProcessing} revealingId=${revealingId?.slice(-4) ?? 'null'}`;
-    if (key !== dbgPrevRef.current) {
-      dbgPrevRef.current = key;
-
-      console.log(`[REVEAL] t=${Math.round(performance.now())} ${key}`);
-    }
-  }
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pinnedToBottomRef = useRef(true);
@@ -168,10 +163,6 @@ export function CoachChatView({
 
   useCoachTranscripts((evt) => {
     if (evt.role !== 'assistant') return;
-
-    console.log(
-      `[REVEAL] t=${Math.round(performance.now())} BUS ${evt.kind} len=${evt.text.length}`,
-    );
     if (evt.kind === 'partial') setPartialAssistant(evt.text);
     else setPartialAssistant('');
   });
@@ -183,7 +174,6 @@ export function CoachChatView({
 
   const handleSendText = useCallback(
     (text: string) => {
-      console.log(`[REVEAL] t=${Math.round(performance.now())} SEND "${text.slice(0, 20)}"`);
       setPartialAssistant(''); // drop stale reveal → straight to user msg + loading
       sendText(text);
       setDraft('');
@@ -293,7 +283,7 @@ export function CoachChatView({
             revealByWord
           />
         )}
-        {isProcessing && partialAssistant.length === 0 && <TypingIndicator />}
+        {(isProcessing || inRevealWindow) && partialAssistant.length === 0 && <TypingIndicator />}
       </div>
 
       {/* clear nav bar (72) + orb half poking above it (46) + gap */}

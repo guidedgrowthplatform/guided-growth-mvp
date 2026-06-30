@@ -203,6 +203,10 @@ export function useCoachChat(
   // >0 from speak() dispatch until playback ends — closes the gap where the TTS
   // store's isSpeaking flips async (fetch latency) and the channel would release early.
   const [ttsActive, setTtsActive] = useState(0);
+  // Id of the reply being spoken/revealed (commit → audio end). Only set for
+  // genuinely-new spoken assistant turns, so the view never hides an error
+  // bubble or a seeded/finalized row.
+  const [revealingMessageId, setRevealingMessageId] = useState<string | null>(null);
 
   // Single reconciliation for a chunked turn — runs on normal completion AND on
   // abort (a queued turn cancels an in-flight reply, so the final-message effect
@@ -592,15 +596,14 @@ export function useCoachChat(
       if (m.role !== 'assistant' || !m.content) continue;
       if (spokenIdsRef.current.has(m.id)) continue;
       spokenIdsRef.current.add(m.id);
-
-      console.log(
-        `[REVEAL] t=${Math.round(performance.now())} COMMIT id=${m.id.slice(-4)} len=${m.content.length} path=${!voiceModeOn || suppressLlmSpeech ? 'text' : streamedSomethingRef.current ? 'chunked' : 'oneshot'}`,
-      );
       // screen/text mode (or suppressed): mark seen but stay silent.
       if (!voiceModeOn || suppressLlmSpeech) {
         onTranscriptStream?.('assistant', m.content, 'final');
         continue;
       }
+      // Spoken turn: hide this committed row until its audio ends (reveal owns it).
+      setRevealingMessageId(m.id);
+      const clearReveal = () => setRevealingMessageId((cur) => (cur === m.id ? null : cur));
       if (streamedSomethingRef.current) {
         streamedSomethingRef.current = false;
         turnFinalizedRef.current = true;
@@ -610,6 +613,7 @@ export function useCoachChat(
         const seq = turnSeqRef.current;
         void endSpeechTurn().finally(() => {
           endCoachSpeechTurn();
+          clearReveal();
           if (turnSeqRef.current === seq) {
             onTranscriptStreamRef.current?.('assistant', content, 'final');
           }
@@ -623,6 +627,7 @@ export function useCoachChat(
         setTtsActive((c) => c + 1);
         void speak(content).finally(() => {
           setTtsActive((c) => Math.max(0, c - 1));
+          clearReveal();
           if (turnSeqRef.current === seq) {
             onTranscriptStreamRef.current?.('assistant', content, 'final');
           }
@@ -814,6 +819,7 @@ export function useCoachChat(
     messages,
     voiceState,
     speaking: isSpeaking || ttsActive > 0,
+    revealingMessageId,
     micListening: isListening,
     startListening,
     stopListening,
