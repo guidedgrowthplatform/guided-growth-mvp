@@ -109,13 +109,11 @@ export function CoachChatView({
   const displayedAssistant = partialAssistant;
   const displayedUser = interim;
 
-  // Tail-only: hide the in-flight reply's committed row while it reveals. Gate
-  // speaking on processing — trailing audio of a finished reply must not hide it.
+  // Tail-only: hide the in-flight reply's committed row while it speaks (no
+  // full-text flash); never hides a previous turn (tail is the user msg then).
   const tail = messages[messages.length - 1];
   const revealingId =
-    tail && tail.role === 'ai' && (displayedAssistant.length > 0 || (speaking && isProcessing))
-      ? tail.id
-      : null;
+    tail && tail.role === 'ai' && (displayedAssistant.length > 0 || speaking) ? tail.id : null;
   const renderedMessages = revealingId ? messages.filter((m) => m.id !== revealingId) : messages;
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
