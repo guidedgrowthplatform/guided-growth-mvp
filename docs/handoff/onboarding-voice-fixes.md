@@ -30,6 +30,13 @@ Working the post-demo fix list. Beat order/content untouched (waiting on Yair's 
 - **`advanceStep` GREATEST was rejected:** it bare-sets `current_step` _by design_ (`advanceStep.ts:9`) so back-nav-then-forward re-fires `useAgentNavigation`; a GREATEST guard would break back-navigation. It's already guarded against the harmful case (`cannot_skip_steps` + `checkAdvanceData`).
 - **Cheap rails shipped:** idempotent single-fire no-op on the two Direct-LLM replace handlers (`submitGoals.ts`, `submitCustomPrompts.ts`) — a re-fired call with the same value skips the redundant write + Realtime event (the unprotected path). Handlers were already safe against data loss; this trims churn.
 
+### Mic beat — big dial stayed static instead of collapsing to the orb — FIXED
+
+- **Symptom:** after clicking **Allow** on the mic-permission beat, the big mic dial used to disappear (the bottom orb took over); it now stays on screen, static.
+- **Root cause:** the frozen-receipt feature (`4f99274` + "keep whole conversation on screen") added `'mic-permission'` to `FROZEN_CARD_TYPES` (`componentRegistry.tsx`), so the completed mic beat re-renders its big dial frozen on screen instead of collapsing. (No morph animation ever existed — the old effect was the dial collapsing away while the always-present bottom orb remained.)
+- **Fix:** removed `'mic-permission'` from `FROZEN_CARD_TYPES`. The completed mic beat now collapses to its `summarizeBeat` line ("Microphone set.") and the orb is the focus again. Data beats still freeze as receipts; only the permission gate stops persisting its dial. (`auth` left frozen — only mic was flagged.)
+- Needs a visual check on the preview (UI, can't unit-test).
+
 ### What's next / blocked
 
 - Blocked: #2 beat-context modifiers (need Yair's proposal doc — not in repo), new beat order (Flow Builder review first).

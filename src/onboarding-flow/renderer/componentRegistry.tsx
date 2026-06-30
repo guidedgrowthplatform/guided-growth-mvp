@@ -1417,12 +1417,13 @@ export function getAdapter(componentType: string): AdapterComponent | undefined 
 // Past beats of these types re-render their real card frozen in the captured
 // state (seeded from `answers`, inputs inert, CTA gone) so every completed beat
 // stays on screen as a persisted chat receipt — the whole journey scrolls back as
-// real screens (auth confirmation, the mic dial, the brain dump, every data card),
-// not one-line summaries. Excluded: the terminal into-app (its content is just the
-// coach line) and the say-only / check-in beats (no captured card to freeze).
+// real screens (auth confirmation, the brain dump, every data card), not one-line
+// summaries. Excluded: the terminal into-app (its content is just the coach line),
+// the say-only / check-in beats (no captured card to freeze), and mic-permission —
+// its big dial must COLLAPSE to a short summary after Allow (the bottom orb takes
+// over) rather than persist as a static frozen dial.
 export const FROZEN_CARD_TYPES: ReadonlySet<string> = new Set([
   'auth',
-  'mic-permission',
   'profile-input',
   'path-selection',
   'category-grid',
