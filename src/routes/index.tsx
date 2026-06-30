@@ -190,18 +190,6 @@ export function AppRoutes() {
         {/* Auth-free QA render of the unified chat-native onboarding engine */}
         <Route path="/onboarding-flow-preview" element={<FlowOnboardingPreview />} />
 
-        {/* QA control launcher (QA/dev builds only): pick a test user, log in / reset / re-onboard */}
-        {QA_SCREEN_ENABLED && (
-          <Route
-            path="/onboarding/qa"
-            element={
-              <AppGate allow="public">
-                <QAControlScreen />
-              </AppGate>
-            }
-          />
-        )}
-
         {/* Privacy policy — accessible from any state (onboarding, settings, anon) */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
