@@ -71,3 +71,31 @@ A consolidation research pass is running to map this branch against your existin
 - Coach backend: `api/llm/[...path].ts`, `api/_lib/llm/buildSystemPrompt.ts`
 - The build fix: `package.json` (`build:shared`, `postinstall`)
 - Design intent (visual-first, word-by-word sync): `Yair-Context/handoffs/HANDOFF-beats-av-sync.md`
+
+## Consolidation with the team's existing work (research pass)
+
+A research pass mapped this branch against the team's active branches (`feat/checkin-state-persist`, `feat/checkin-mp3-openers`), all forked from staging the same day. Findings:
+
+**Already built by the team (do not rebuild, adopt theirs):**
+- The morning/evening check-in LIVE coach is fully wired on `feat/checkin-state-persist`: `checkin-flows.ts` (MCHECK/ECHECK beats with tools), an 18-handler check-in tool registry (`api/_lib/llm/checkin/handlers/`), the live voice layer `useCheckinVoice.ts`, brain entries, and persistence. So the "check-in coach not wired" item above is resolved by adopting their branch, not by reimplementing it.
+- Cartesia word-by-word sync + caching exists on their branches (`tts-service.ts` `revealPrefix` / `committedRevealText`, commit `32d2af48`). This is the piece flagged as in-progress in the dev sync. A working version already exists to share. Not on staging or this branch.
+- The verbatim-opener / anti-improvisation structure (`SPEAK MODE: VERBATIM_OPENER` + per-beat `DO NOT`) is on their `beatContexts.ts`.
+
+**Genuinely new on this branch (keep and upstream):**
+- The build fix (`cb011ece`, `tsc -b ... --force`). No team branch has it, and it fixes a 500 on every Direct-LLM coach turn for everyone. Upstream first, standalone.
+- The runtime Vapi toggle (`qaVapi.ts`, `QAVapiToggle.tsx`, the `voice.ts` rewrite).
+- The standalone Soniox profile parser (`parseProfileSpeech.ts`).
+- The `engineForTurn` local-capture gate.
+- `submit_profile` carrying the name (confirm whether their handler already does this).
+
+**The `{name}` echo fix belongs in `beatContexts.ts`** (the team's beat-context line), not the renderer. `applyName` already covers the static opener; the literal `{name}` is the LLM improvising over the templated context.
+
+**Soniox first-word cutoff is open for everyone.** This branch's hypothesis is mic-armed-a-beat-late; the dev-sync hypothesis is raw-Soniox quality plus mic hardware. Test on phone before assuming a timing fix.
+
+**Merge-collision hotspots (resolve by hand):**
+- `componentRegistry.tsx` (this branch +85, theirs +132) - hardest.
+- `QAControlScreen.tsx` - both branches add a QA tile.
+- `BeatView.tsx` - both touch it.
+- `voice.ts` / `engineForTurn.ts` - only this branch, but verify behavior after merge.
+
+**Recommended order:** cherry-pick the build fix to staging first (standalone, zero-conflict, fixes the 500 for the team), then upstream the Vapi toggle, the profile parser, and the engine gate; adopt their check-in coach and word-sync; land the `{name}` fix in their `beatContexts.ts`.
