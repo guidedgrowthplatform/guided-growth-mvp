@@ -109,15 +109,11 @@ export function CoachChatView({
   const displayedAssistant = partialAssistant;
   const displayedUser = interim;
 
-  let revealingId: string | null = null;
-  if (displayedAssistant.length > 0) {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === 'ai') {
-        revealingId = messages[i].id;
-        break;
-      }
-    }
-  }
+  // Tail-only: hide the in-flight reply's committed row while it speaks (no
+  // full-text flash); never hides a previous turn (tail is the user msg then).
+  const tail = messages[messages.length - 1];
+  const revealingId =
+    tail && tail.role === 'ai' && (displayedAssistant.length > 0 || speaking) ? tail.id : null;
   const renderedMessages = revealingId ? messages.filter((m) => m.id !== revealingId) : messages;
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -172,6 +168,7 @@ export function CoachChatView({
 
   const handleSendText = useCallback(
     (text: string) => {
+      setPartialAssistant(''); // drop stale reveal → straight to user msg + loading
       sendText(text);
       setDraft('');
     },
