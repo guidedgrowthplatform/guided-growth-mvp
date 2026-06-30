@@ -160,7 +160,7 @@ export async function buildSystemPromptForRequest(
   // does not get it.
   const reflectionSettingsBlock =
     args.screen_id === 'HOME-CHECKIN' || args.screen_id === 'ECHECK-01'
-      ? await buildReflectionSettingsBlock(args.anon_id)
+      ? await buildReflectionSettingsBlock(args.anon_id, args.screen_id === 'ECHECK-01')
       : '';
   const openerNudge = args.mode === 'opener' ? `\n\n${OPENER_INSTRUCTIONS}` : '';
   // Scripted opener lines (greeting + state/habit prompt), rotating per day.
@@ -223,12 +223,26 @@ async function buildCheckinHabitsBlock(anonId: string): Promise<string> {
 // The user's current reflection mode + prompts, so the coach (a) walks the right
 // questions during the evening reflection and (b) can edit them via update_reflection
 // (add/remove needs the current list in context).
-async function buildReflectionSettingsBlock(anonId: string): Promise<string> {
+// forCheckin: ECHECK-01 walks these as the reflection. Free chat (HOME-CHECKIN)
+// gets the list for update_reflection edits ONLY — never to run a reflection.
+async function buildReflectionSettingsBlock(anonId: string, forCheckin: boolean): Promise<string> {
   const settings = await readReflectionSettings(anonId);
   const editLine =
     `To change/add/remove a reflection question or switch mode, call update_reflection with the ` +
     `COMPLETE new prompts list (to add: the list above plus the new one; to remove: the list above ` +
     `minus that one) — never send only the delta. This edits their setup; it does NOT log an entry.`;
+  if (!forCheckin) {
+    const prompts = settings.prompts.length > 0 ? settings.prompts : DEFAULT_REFLECTION_PROMPTS;
+    const list =
+      settings.mode === 'freeform'
+        ? 'Mode: FREEFORM (no set questions).'
+        : prompts.map((p, i) => `${i + 1}. ${p}`).join('\n');
+    return (
+      `\n\n## Reflection Settings (this user — for reference / editing only)\n${list}\n` +
+      `Do NOT start or walk a reflection here. The daily check-in runs on its own screen; ` +
+      `if the user asks to check in, that flow handles it.\n${editLine}`
+    );
+  }
   if (settings.mode === 'freeform') {
     return (
       `\n\n## Reflection Settings (this user)\n` +
