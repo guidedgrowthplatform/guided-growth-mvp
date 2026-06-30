@@ -94,7 +94,8 @@
         "toolName": "submit_profile",
         "persistsFields": [
           "age",
-          "gender"
+          "gender",
+          "nickname"
         ],
         "advancesStep": true
       },

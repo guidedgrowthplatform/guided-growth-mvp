@@ -3,7 +3,8 @@ import type { OrbState } from './orbState';
 // Single source of truth for which conversational engine owns a turn, so the
 // three live-predicates (Vapi / Direct-LLM / Soniox) are derived from ONE
 // decision and can never overlap. This decides INTENT only (orbs + beat +
-// surface); transient Vapi health gates (anon_id, cap, fatal, cooldown) are
+// surface), while local-capture beats are left idle for their adapter-owned
+// capture; transient Vapi health gates (anon_id, cap, fatal, cooldown) are
 // applied by the caller when turning intent into `vapiShouldBeLive`.
 export type ChatEngine = 'vapi' | 'direct_llm' | 'idle';
 export type MicSource = 'vapi' | 'soniox' | 'none';
@@ -20,6 +21,7 @@ export interface EngineInputs {
   // Chat-page Vapi gating.
   chatVapiFlag: boolean;
   vapiCapableBeat: boolean;
+  isLocalCaptureBeat: boolean;
   // Chat page: the beat's screen_id is registered (not the first-render null).
   beatResolved: boolean;
   // Routed screens: a route-resolved screen_id exists.
@@ -38,6 +40,7 @@ const IDLE: EngineDecision = { engine: 'idle', micSource: 'none', speakReplies: 
 
 export function engineForTurn(i: EngineInputs): EngineDecision {
   if (!i.inOnboarding) return IDLE;
+  if (i.isLocalCaptureBeat) return IDLE;
 
   if (i.onChatPage) {
     // Undecided until the beat resolves — neither engine arms. Closes the mount

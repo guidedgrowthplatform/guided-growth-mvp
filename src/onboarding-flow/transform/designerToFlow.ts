@@ -147,7 +147,11 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
       expectsInput: true,
       directLlmAllowed: true,
     },
-    tool: { toolName: 'submit_profile', persistsFields: ['age', 'gender'], advancesStep: true },
+    tool: {
+      toolName: 'submit_profile',
+      persistsFields: ['age', 'gender', 'nickname'],
+      advancesStep: true,
+    },
     persist: { step: 1 },
     screenName: 'Profile',
     contextBlock: 'Profile beat: age + gender only. Name comes from auth (see beatContexts).',

@@ -8,7 +8,7 @@
  * Each adapter renders the ACTIVE beat's interactive card. Past beats are shown
  * as a short user-answer summary (see summarizeBeat) by BeatView.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
 import { checkInDimensions } from '@/components/home/checkInConfig';
 import { EmojiOptionButton } from '@/components/home/EmojiOptionButton';
@@ -42,6 +42,7 @@ import {
 } from '@/contexts/useOnboardingVoiceSession';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { useVoiceInCapture } from '@/hooks/useVoiceInCapture';
 import type { CheckInDimension, HabitDayStatus, ReflectionMode } from '@gg/shared/types';
 import {
   FLOW_CATEGORIES,
@@ -50,6 +51,7 @@ import {
   habitsByGoal,
   MAX_HABITS_ONBOARDING,
 } from '../flowData';
+import { parseProfileSpeech } from '../capture/parseProfileSpeech';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 
 export interface BeatAdapterProps {
@@ -530,13 +532,46 @@ function MicPermissionAdapter({ node, onCapture, readOnly }: BeatAdapterProps) {
 /* ------------------------------------------------------------------ profile */
 
 // Profile beat 1: age + gender only. The name comes from auth (beat 0).
-function ProfileAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
+function ProfileAdapter({ node, answers, onCapture, readOnly }: BeatAdapterProps) {
   const [age, setAge] = useState<number | ''>((answers.age as number) ?? '');
   const [gender, setGender] = useState<string | null>((answers.gender as string) ?? null);
+  const [tapped, setTapped] = useState(false);
   // Set when the coach (Direct-LLM) fills a field by voice. Drives the
   // auto-submit below so a spoken answer saves + advances without a tap. Never
   // set by a tap or by hydration, so tap stays Continue-driven.
   const voiceFilledRef = useRef(false);
+  const ageVoiceOwnedRef = useRef(false);
+  const genderVoiceOwnedRef = useRef(false);
+
+  const applyVoiceProfile = useCallback(
+    (parsed: { age?: number; gender?: 'Male' | 'Female' | 'Other' }) => {
+      if (readOnly) return;
+      let filled = false;
+      if (parsed.age !== undefined && (age === '' || ageVoiceOwnedRef.current)) {
+        setAge(parsed.age);
+        ageVoiceOwnedRef.current = true;
+        filled = true;
+      }
+      if (parsed.gender !== undefined && (!gender || genderVoiceOwnedRef.current)) {
+        setGender(parsed.gender);
+        genderVoiceOwnedRef.current = true;
+        filled = true;
+      }
+      if (filled) voiceFilledRef.current = true;
+    },
+    [age, gender, readOnly],
+  );
+
+  const handleProfileTranscript = useCallback(
+    (text: string) => applyVoiceProfile(parseProfileSpeech(text)),
+    [applyVoiceProfile],
+  );
+
+  useVoiceInCapture({
+    active: !readOnly && node.screenId === 'ONBOARD-01--FORM',
+    vapiStatus: 'idle',
+    onTranscript: handleProfileTranscript,
+  });
 
   useOnboardingVoiceActions((result: OnboardingVoiceResult) => {
     if (readOnly) return;
@@ -546,8 +581,7 @@ function ProfileAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
       const raw = p.value;
       const n = typeof raw === 'number' ? raw : parseInt(String(raw ?? ''), 10);
       if (!isNaN(n) && n >= 13 && n <= 120) {
-        setAge(n);
-        voiceFilledRef.current = true;
+        applyVoiceProfile({ age: n });
       }
       return;
     }
@@ -558,8 +592,7 @@ function ProfileAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
         typeof p.value === 'string' &&
         GENDER_OPTIONS.includes(p.value)
       ) {
-        setGender(p.value);
-        voiceFilledRef.current = true;
+        applyVoiceProfile({ gender: p.value as 'Male' | 'Female' | 'Other' });
       }
     }
   });
@@ -569,28 +602,55 @@ function ProfileAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
   const submit = () => {
     if (readOnly || !valid || submittedRef.current) return;
     submittedRef.current = true;
-    onCapture({ data: { age: age as number, gender } });
+    const data: BeatCapture['data'] = { age: age as number, gender };
+    if (typeof answers.nickname === 'string' && answers.nickname.length > 0) {
+      data.nickname = answers.nickname;
+    }
+    onCapture({ data });
+  };
+  const markTapped = () => {
+    if (!readOnly) setTapped(true);
+  };
+  const handleAgeChange = (nextAge: number) => {
+    markTapped();
+    ageVoiceOwnedRef.current = false;
+    setAge(nextAge);
+  };
+  const handleGenderChange = (nextGender: string) => {
+    markTapped();
+    genderVoiceOwnedRef.current = false;
+    setGender(nextGender);
   };
 
-  // Auto-submit fallback for the Direct-LLM path: once BOTH age and gender have
+  // Auto-submit fallback for the voice path: once BOTH age and gender have
   // been filled by voice, save + advance without waiting for a tap (the coach
   // already collected both). Multi-field beat, so never fire on the first field.
-  // (The Vapi path advances via the orchestrator's server-step watcher instead.)
   useEffect(() => {
-    if (voiceFilledRef.current && valid) submit();
+    if (
+      voiceFilledRef.current &&
+      ageVoiceOwnedRef.current &&
+      genderVoiceOwnedRef.current &&
+      valid
+    ) {
+      submit();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [age, gender, valid]);
 
   return (
     <CardShell frozen={readOnly}>
-      <AgeScrollPicker value={age} onChange={setAge} />
-      <ChipSelect
-        options={GENDER_OPTIONS}
-        value={gender}
-        onChange={setGender}
-        columns={3}
-        ariaLabel="How do you identify?"
-      />
+      <div onPointerDown={markTapped}>
+        <AgeScrollPicker value={age} onChange={handleAgeChange} />
+      </div>
+      <div onPointerDown={markTapped}>
+        <ChipSelect
+          options={GENDER_OPTIONS}
+          value={gender}
+          onChange={handleGenderChange}
+          columns={3}
+          ariaLabel="How do you identify?"
+        />
+      </div>
       {!readOnly && (
         <>
           {/* Affordance hint from the flow builder's profile beat: the user can
@@ -598,7 +658,7 @@ function ProfileAdapter({ answers, onCapture, readOnly }: BeatAdapterProps) {
           <div className="self-center text-[12px] font-medium text-content-tertiary">
             You can speak or tap
           </div>
-          <Cta label="Continue" disabled={!valid} onClick={submit} />
+          {tapped && <Cta label="Continue" disabled={!valid} onClick={submit} />}
         </>
       )}
     </CardShell>

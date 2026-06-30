@@ -109,7 +109,7 @@ export const onboardingBeginnerV1: FlowDocument = {
       },
       tool: {
         toolName: 'submit_profile',
-        persistsFields: ['age', 'gender'],
+        persistsFields: ['age', 'gender', 'nickname'],
         advancesStep: true,
       },
       persist: { step: 1 },

@@ -21,7 +21,6 @@ export const ONBOARDING_FLOW_PREVIEW_ROUTE = '/onboarding-flow-preview';
 // (04) are BOTH armed — they share step 5, so arming both keeps the session alive
 // across the select→configure transition within the single habit beat.
 export const CHAT_VAPI_BEAT_SCREENS: ReadonlySet<string> = new Set([
-  'ONBOARD-01--FORM',
   'ONBOARD-FORK--FORM',
   'ONBOARD-BEGINNER-01',
   'ONBOARD-BEGINNER-02',
@@ -33,6 +32,10 @@ export const CHAT_VAPI_BEAT_SCREENS: ReadonlySet<string> = new Set([
   'ONBOARD-BEGINNER-07',
   'ONBOARD-COMPLETE',
 ]);
+
+// These beats own local Soniox capture in their adapter. The provider-level
+// engine must stay idle so it does not arm Soniox or Direct-LLM for them.
+export const LOCAL_CAPTURE_BEATS: ReadonlySet<string> = new Set(['ONBOARD-01--FORM']);
 
 // 'none' = chat-only beat (no inline card yet). Cards beyond profile land
 // incrementally; the flow still works, the coach just drives that beat in chat.

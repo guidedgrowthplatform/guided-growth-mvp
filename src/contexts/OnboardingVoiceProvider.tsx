@@ -60,6 +60,7 @@ import {
 } from '@/lib/onboarding/onboardingChatSession';
 import {
   CHAT_VAPI_BEAT_SCREENS,
+  LOCAL_CAPTURE_BEATS,
   ONBOARDING_CHAT_ROUTE,
   ONBOARDING_FLOW_PREVIEW_ROUTE,
   ONBOARDING_FLOW_ROUTE,
@@ -1287,6 +1288,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // applied below when turning intent into vapiShouldBeLive.
   const rawOrbState = orbStateFrom(voiceOn, micOn);
   const vapiCapableBeat = !!registeredScreenId && CHAT_VAPI_BEAT_SCREENS.has(registeredScreenId);
+  const isLocalCaptureBeat = !!registeredScreenId && LOCAL_CAPTURE_BEATS.has(registeredScreenId);
   const engine = engineForTurn({
     inOnboarding,
     onChatPage,
@@ -1295,6 +1297,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     micOn,
     chatVapiFlag: ONBOARDING_CHAT_VAPI,
     vapiCapableBeat,
+    isLocalCaptureBeat,
     beatResolved: registeredScreenId !== null,
     hasScreen: !!currentScreenId,
   });
