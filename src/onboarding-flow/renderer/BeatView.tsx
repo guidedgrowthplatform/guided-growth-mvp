@@ -93,6 +93,11 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
     );
   }
 
+  // The mic-permission beat is a transient gate: once granted it collapses
+  // ENTIRELY (no big dial, no opener bubble, no receipt) so the bottom orb is
+  // the only voice affordance left — it must not linger in the scrollback.
+  if (node.componentType === 'mic-permission') return null;
+
   // Past beat with a real conversation: replay the persisted turns (opener +
   // dialogue) so the completed beat keeps its whole conversation on screen and
   // rehydrates after a refresh. Data beats also keep their frozen card receipt.

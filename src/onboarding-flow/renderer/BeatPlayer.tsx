@@ -163,6 +163,23 @@ export function BeatConversation({
   const partialExtendsTail = !!livePartial && !!tail && tail.role === partial!.role;
   const partialExtendsOpener = partialExtendsTail && dialogue.length === 0;
   const partialExtendsDialogue = partialExtendsTail && dialogue.length > 0;
+  // A warm opener still STREAMING before it commits to the store: no committed
+  // opener yet, an AI partial, nothing in dialogue. It IS the opener, so it
+  // renders ABOVE the card while the card is still held back.
+  const liveOpener =
+    !opener && !!livePartial && partial?.role === 'ai' && dialogue.length === 0
+      ? livePartial
+      : null;
+  // Reveal the card only AFTER the coach finishes the opener: a cold-start opener
+  // is still speaking until its karaoke has lit every word; a warm opener is still
+  // speaking while it streams uncommitted (liveOpener). The authored-opener
+  // failsafe (fallbackOn) also satisfies openerPresent, so a stalled voice can't
+  // hang the card forever.
+  const coldOpenerSpeaking =
+    coldOpenerLive &&
+    opener?.source === 'opener' &&
+    (openerReveal?.revealedWords ?? 0) < countWords(opener?.text ?? '');
+  const cardReady = openerPresent && !liveOpener && !coldOpenerSpeaking;
 
   const renderTurn = (m: VoiceMessage, append?: string | null) => {
     const isColdOpener = coldOpenerLive && m.source === 'opener' && m.id === opener?.id;
@@ -180,23 +197,30 @@ export function BeatConversation({
 
   return (
     <div className="flex flex-col gap-2">
-      {/* opener (or the authored failsafe if voice never spoke) */}
+      {/* opener (committed, the streaming opener before it commits, or the
+          authored failsafe if voice never spoke) — always ABOVE the card */}
       {opener && !coldOpenerPending ? (
         renderTurn(opener, partialExtendsOpener ? livePartial : null)
+      ) : liveOpener ? (
+        <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{liveOpener}</div>
       ) : showConnecting && fallbackOn && fallbackOpener ? (
         <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{fallbackOpener}</div>
       ) : null}
 
-      {/* the beat component, IN the timeline — right after the opener */}
-      {card && openerPresent && <div className="animate-fade-in">{card}</div>}
+      {/* the beat component, IN the timeline — revealed only AFTER the coach has
+          finished the opener (cold karaoke complete / warm opener committed, or
+          the 12s authored-opener failsafe), so it slots in BELOW the finished
+          opener instead of above an in-progress one. */}
+      {card && cardReady && <div className="animate-fade-in">{card}</div>}
 
       {/* dialogue, the partial extending the last turn's bubble when it continues it */}
       {dialogue.map((m, i) =>
         renderTurn(m, i === dialogue.length - 1 && partialExtendsDialogue ? livePartial : null),
       )}
 
-      {/* a partial that STARTS a new turn renders as its own (single) bubble */}
-      {livePartial && !partialExtendsTail && (
+      {/* a partial that STARTS a new turn renders as its own (single) bubble —
+          except the streaming opener, already drawn above the card */}
+      {livePartial && !partialExtendsTail && !liveOpener && (
         <div
           className={`animate-fade-in ${partial!.role === 'ai' ? COACH_BUBBLE_CLASS : USER_BUBBLE_CLASS}`}
         >
@@ -235,18 +259,18 @@ function useCoachThinking(): boolean {
   return (awaiting || chatBusy) && !speaking;
 }
 
-// Three bouncing dots in a coach bubble — the live cue that the coach is
-// connecting / thinking, or a tool is in flight. Neutral by design (no words),
-// sized to the flow feed (not the old full-duplex page's labelled variant).
+// The coach "thinking" loading cue in the flow feed. Uses the home coach's
+// loading BUBBLE UI (TypingIndicator) — the bigger white bubble with backdrop
+// blur — but WITHOUT its "GUIDED GROWTH COACH" eyebrow label.
 export function ThinkingDots() {
   return (
     <div
-      className={`flex w-fit items-center gap-1.5 ${COACH_BUBBLE_CLASS} animate-fade-in`}
+      className="flex w-fit animate-fade-in items-center gap-1.5 rounded-bl-2xl rounded-br-2xl rounded-tr-2xl bg-white px-5 py-5 shadow-[0px_4px_16px_-4px_rgba(15,23,42,0.08)] backdrop-blur-[6px]"
       aria-label="Coach is thinking"
     >
-      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40" />
-      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40 [animation-delay:150ms]" />
-      <span className="h-2 w-2 animate-bounce rounded-full bg-content/40 [animation-delay:300ms]" />
+      <div className="h-2 w-2 animate-bounce rounded-full bg-[#0f172a]/40" />
+      <div className="h-2 w-2 animate-bounce rounded-full bg-[#0f172a]/40 [animation-delay:150ms]" />
+      <div className="h-2 w-2 animate-bounce rounded-full bg-[#0f172a]/40 [animation-delay:300ms]" />
     </div>
   );
 }
