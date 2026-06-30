@@ -4,12 +4,15 @@
 // say-only beats (greeting / are-you-done).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  type OnboardingTranscriptListener,
   type OnboardingVoiceActionListener,
   type OnboardingVoiceContextValue,
   type OnboardingVoiceResult,
+  type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useCoachChat } from '@/hooks/useCoachChat';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
+import type { RealtimeTranscriptEvent } from '@/hooks/useRealtimeVoice';
 import { acquireWakeLock, releaseWakeLock } from '@/lib/services/keepAwake';
 import { unlockTTS } from '@/lib/services/tts-service';
 import { createListenerBus, type ListenerBus } from '@/lib/util/listenerBus';
@@ -19,9 +22,14 @@ import type { FlowNode } from '@/onboarding-flow/types';
 import { pickVariation } from '@gg/shared/checkin/scriptVariations';
 import type { LLMToolEvent } from '@gg/shared/types/llm';
 
-const noopUnsub = () => () => {};
 // Tools whose result warrants a spoken ack (the card-filling writes).
 const CARD_TOOLS = new Set(['record_checkin', 'complete_habit', 'log_reflection']);
+
+function turnId(role: string, screenId: string, n: number): string {
+  return typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${role}-${screenId}-${n}`;
+}
 
 // Wire shape: useLLM wraps tool_result as { ok, payload: e.result }; the server
 // ok() nests { ok, result }, so values live at payload.result.
@@ -88,6 +96,17 @@ export function useCheckinVoice(
     (l: OnboardingVoiceActionListener) => busRef.current!.subscribe(l),
     [],
   );
+
+  // Transcript bus + persisted thread feed the BeatConversation: live partials
+  // stream word-by-word, finals persist as bubbles (engine rules 1-3).
+  const transcriptBusRef = useRef<ListenerBus<RealtimeTranscriptEvent> | null>(null);
+  if (transcriptBusRef.current === null)
+    transcriptBusRef.current = createListenerBus('checkin-voice/transcripts');
+  const subscribeTranscripts = useCallback(
+    (l: OnboardingTranscriptListener) => transcriptBusRef.current!.subscribe(l),
+    [],
+  );
+  const [messages, setMessages] = useState<VoiceMessage[]>([]);
 
   const handleRef = useRef<SpeakOpenerHandle | null>(null);
 
@@ -159,8 +178,25 @@ export function useCheckinVoice(
 
   const onTranscriptStream = useCallback(
     (role: 'user' | 'assistant', text: string, kind: 'partial' | 'final') => {
-      if (role !== 'user' || kind !== 'final') return;
+      const tRole = role === 'assistant' ? 'assistant' : 'user';
+      // Live stream: drives BeatConversation's word-by-word partial bubble.
+      transcriptBusRef.current!.notify({ role: tRole, kind, text });
       const node = nodeRef.current;
+      const screenId = node?.screenId;
+      // Final: persist as a thread bubble so it stays on screen and scrolls back.
+      if (kind === 'final' && text.trim() && screenId) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: turnId(tRole, screenId, prev.length),
+            role: tRole === 'assistant' ? 'ai' : 'user',
+            text: text.trim(),
+            screenId,
+            source: 'direct_llm',
+          },
+        ]);
+      }
+      if (role !== 'user' || kind !== 'final') return;
       const h = handlersRef.current;
       if (!node || !h || intentFiredForRef.current === node.id) return;
       const intent = resolveCheckinIntent(node, text);
@@ -227,7 +263,7 @@ export function useCheckinVoice(
       overlayOpen: true,
       openOverlay: () => {},
       closeOverlay: () => {},
-      messages: [],
+      messages,
       openerReveal,
       appendMessage: () => {},
       startThread: () => {},
@@ -241,11 +277,19 @@ export function useCheckinVoice(
       restartCall: async () => {},
       pushSubScreen: () => {},
       setFormSnapshot: () => {},
-      subscribeTranscripts: noopUnsub,
+      subscribeTranscripts,
       voiceCapReached: false,
       dismissVoiceCap: () => {},
     }),
-    [speaking, screenId, subscribeVoiceActions, coach.micListening, openerReveal],
+    [
+      speaking,
+      screenId,
+      subscribeVoiceActions,
+      coach.micListening,
+      openerReveal,
+      messages,
+      subscribeTranscripts,
+    ],
   );
 
   return { value };
