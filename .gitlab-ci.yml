@@ -44,6 +44,13 @@ deploy_qa_preview:
       fi
       echo "Preview: $SHOWN_URL"
     - |
-      if [ -n "$MATTERMOST_WEBHOOK_URL" ]; then
-        curl -s -X POST "$MATTERMOST_WEBHOOK_URL" -H 'Content-Type: application/json' -d "{\"text\": \"@yairamsel :rocket: \`${CI_COMMIT_REF_NAME}\` deployed -> ${SHOWN_URL}\n> ${CI_COMMIT_TITLE}\"}" || true
-      fi
+      case "$CI_COMMIT_REF_NAME" in
+        staging|stable|main)
+          if [ -n "$MATTERMOST_WEBHOOK_URL" ]; then
+            curl -s -X POST "$MATTERMOST_WEBHOOK_URL" -H 'Content-Type: application/json' -d "{\"text\": \"@yairamsel :rocket: \`${CI_COMMIT_REF_NAME}\` deployed -> ${SHOWN_URL}\n> ${CI_COMMIT_TITLE}\"}" || true
+          fi
+          ;;
+        *)
+          echo "Preview built for $CI_COMMIT_REF_NAME (feature branch, no Mattermost notify)"
+          ;;
+      esac
