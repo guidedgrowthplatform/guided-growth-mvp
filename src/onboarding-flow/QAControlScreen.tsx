@@ -5,17 +5,20 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 
 /**
- * QA Control screen — the functional twin of the `qa-control` beat designed in
- * the flow builder. A QA-only launcher: pick a test user, then choose how to
- * enter the app. Gated to a flag-protected route (see src/routes/index.tsx), so
- * real users never reach it.
+ * QA Control screen -- the functional twin of the `qa-control` beat designed in
+ * the flow builder. A QA-only launcher: pick a test user, pick a flow to run, then
+ * choose how to enter the app. Gated to a flag-protected route (see src/routes/index.tsx),
+ * so real users never reach it.
  *
- * Each test account is a dedicated `qa-onboarding-*@guidedgrowth.test` user (one
- * per tester). They share one embedded password (QA_PASSWORD below) so testers
- * just pick a user and go, no entry. The reset/restart actions call
- * /api/qa/self-reset, which wipes the authed QA user's data but keeps the
- * account. "Re-run (keep data)" drops into the flow without wiping; the engine
- * seeding it from saved data is a follow-up.
+ * Layout (one phone screen, no scroll):
+ *   1. Header (QA badge + title)
+ *   2. Test user picker (select)
+ *   3. "Start a flow" grid (5 square buttons)
+ *   4. Account-state action buttons (log in / restart / re-onboard / reset)
+ *   5. Error line
+ *
+ * Each test account is a dedicated `qa-onboarding-*@guidedgrowth.test` user. They
+ * share one embedded password so testers just pick a user and go.
  */
 
 const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -26,9 +29,6 @@ interface QaUser {
   onboarded?: boolean;
 }
 
-// Fallback list used until /api/qa/users responds (the live list of real
-// qa-onboarding-* accounts from Supabase). Keeps the screen usable offline or
-// before the endpoint deploys.
 const FALLBACK_USERS: QaUser[] = [
   { label: 'Yair', email: 'qa-onboarding-yair@guidedgrowth.test' },
   { label: 'Alejandro', email: 'qa-onboarding-alejandro@guidedgrowth.test' },
@@ -42,6 +42,84 @@ const FALLBACK_USERS: QaUser[] = [
 // a QA-only gated route, so testers pick a user and go with no entry. The
 // create-test-users script seeds the accounts with this exact value.
 const QA_PASSWORD = 'guided-growth-qa-2026';
+
+// ---------------------------------------------------------------------------
+// Flow picker config
+// ---------------------------------------------------------------------------
+
+type FlowId = 'full-onboarding' | 'profile-start' | 'home-tour' | 'morning-checkin' | 'evening-checkin';
+
+interface FlowDef {
+  id: FlowId;
+  icon: string;
+  label: string;
+  desc: string;
+  /** Call to navigate to the flow's route. Receives the react-router navigate fn. */
+  navigate: (nav: ReturnType<typeof useNavigate>) => void;
+  /**
+   * true when the flow renders completely through the engine today.
+   * false when components are missing from componentRegistry.tsx and the flow
+   * will render an empty or fallback beat for those nodes.
+   */
+  fullyRunnable: boolean;
+}
+
+const FLOWS: FlowDef[] = [
+  {
+    id: 'full-onboarding',
+    icon: 'ic:round-play-arrow',
+    label: 'Full onboarding',
+    desc: 'From auth (beat 0)',
+    // Navigate directly to /onboarding/flow, bypassing OnboardingEntry so the
+    // QA path is never affected by the VITE_ONBOARDING_USE_ENGINE flag.
+    navigate: (nav) => nav('/onboarding/flow', { replace: true }),
+    fullyRunnable: true,
+  },
+  {
+    id: 'profile-start',
+    icon: 'ic:round-person',
+    label: 'Profile start',
+    desc: 'Skip auth, start at profile beat',
+    // ?startAt=profile seeds the orchestrator at the profile node (id='profile'
+    // in onboarding-beginner-v1.ts:84). The user must already be signed in,
+    // which ensureSignedIn in run() handles before this navigation fires.
+    navigate: (nav) => nav('/onboarding/flow?startAt=profile', { replace: true }),
+    fullyRunnable: true,
+  },
+  {
+    id: 'home-tour',
+    icon: 'ic:round-home',
+    label: 'Home tour',
+    desc: 'Post-onboarding app tour',
+    // Routes to /flow-preview/home-tour but the 'home-tour' componentType is NOT
+    // registered in src/onboarding-flow/renderer/componentRegistry.tsx. The engine
+    // renderer will hit the default/fallback case for each beat. This flow is
+    // deferred to the app-shell workstream (HANDOFF-app-shell-and-flow-order.md).
+    // The route and button are wired correctly; the adapter is what is missing.
+    navigate: (nav) => nav('/flow-preview/home-tour', { replace: true }),
+    fullyRunnable: false,
+  },
+  {
+    id: 'morning-checkin',
+    icon: 'ic:round-wb-sunny',
+    label: 'Morning check-in',
+    desc: '4-beat morning state-check flow',
+    navigate: (nav) => nav('/flow-preview/morning-checkin', { replace: true }),
+    fullyRunnable: true,
+  },
+  {
+    id: 'evening-checkin',
+    icon: 'ic:round-nights-stay',
+    label: 'Evening check-in',
+    desc: '5-beat evening flow',
+    navigate: (nav) => nav('/flow-preview/evening-checkin', { replace: true }),
+    fullyRunnable: true,
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Account-state actions
+// ---------------------------------------------------------------------------
 
 type ActionKey = 'login' | 'restart' | 'reonboard' | 'reset';
 
@@ -90,11 +168,16 @@ const ACTIONS: ActionDef[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export function QAControlScreen() {
   const navigate = useNavigate();
   const signIn = useAuthStore((s) => s.signIn);
   const [users, setUsers] = useState<QaUser[]>(FALLBACK_USERS);
   const [email, setEmail] = useState(FALLBACK_USERS[0]?.email ?? '');
+  const [flowId, setFlowId] = useState<FlowId>('full-onboarding');
   const [busy, setBusy] = useState<ActionKey | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -151,6 +234,8 @@ export function QAControlScreen() {
     }
   }
 
+  const selectedFlow = FLOWS.find((f) => f.id === flowId) ?? FLOWS[0];
+
   async function run(action: ActionKey) {
     if (busy) return;
     setBusy(action);
@@ -159,16 +244,18 @@ export function QAControlScreen() {
       await ensureSignedIn();
       if (action === 'restart') {
         await selfReset();
-        // /onboarding redirects to the chat-native engine (/onboarding/flow).
-        navigate('/onboarding', { replace: true });
+        // Use the selected flow's navigate function so the tester lands in the
+        // correct flow after a fresh reset, not just on /onboarding.
+        selectedFlow.navigate(navigate);
       } else if (action === 'reonboard') {
-        navigate('/onboarding', { replace: true });
+        selectedFlow.navigate(navigate);
       } else if (action === 'reset') {
+        // Reset data only: wipe and go home, regardless of flow selection.
         await selfReset();
         navigate('/', { replace: true });
       } else {
-        // login: land wherever the user's state routes (OnboardingEntry decides).
-        navigate('/onboarding', { replace: true });
+        // login: navigate to the selected flow.
+        selectedFlow.navigate(navigate);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
@@ -184,7 +271,7 @@ export function QAControlScreen() {
         background: '#f1f5f9',
         display: 'flex',
         justifyContent: 'center',
-        padding: '24px 16px',
+        padding: '20px 16px',
       }}
     >
       <div
@@ -193,10 +280,11 @@ export function QAControlScreen() {
           maxWidth: 420,
           display: 'flex',
           flexDirection: 'column',
-          gap: 18,
+          gap: 16,
           alignSelf: 'center',
         }}
       >
+        {/* Header */}
         <div>
           <span
             style={{
@@ -214,22 +302,23 @@ export function QAControlScreen() {
           </span>
           <h1
             style={{
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: 700,
               letterSpacing: '-0.02em',
               color: 'rgb(15,23,42)',
-              margin: '10px 0 0',
+              margin: '8px 0 0',
             }}
           >
             QA Control
           </h1>
           <p
-            style={{ fontSize: 14, fontWeight: 500, color: 'rgb(100,116,139)', margin: '4px 0 0' }}
+            style={{ fontSize: 13, fontWeight: 500, color: 'rgb(100,116,139)', margin: '3px 0 0' }}
           >
-            Pick a test user, then choose how to start.
+            Pick a test user and a flow, then choose how to start.
           </p>
         </div>
 
+        {/* Test user picker */}
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span
             style={{
@@ -259,7 +348,7 @@ export function QAControlScreen() {
                 background: '#fff',
                 border: '1px solid rgb(226,232,240)',
                 borderRadius: 12,
-                padding: '13px 40px 13px 14px',
+                padding: '12px 40px 12px 14px',
                 cursor: 'pointer',
               }}
             >
@@ -285,7 +374,111 @@ export function QAControlScreen() {
           </div>
         </label>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Flow picker grid (5 square buttons) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              color: 'rgb(100,116,139)',
+            }}
+          >
+            Start a flow
+          </span>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gap: 8,
+            }}
+          >
+            {FLOWS.map((f) => {
+              const isSelected = flowId === f.id;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFlowId(f.id)}
+                  disabled={busy !== null}
+                  title={f.desc}
+                  aria-label={f.label}
+                  aria-pressed={isSelected}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 5,
+                    padding: '10px 4px',
+                    borderRadius: 14,
+                    border: isSelected
+                      ? '2px solid rgb(19,91,235)'
+                      : '2px solid rgb(226,232,240)',
+                    background: isSelected ? 'rgba(19,91,236,0.06)' : '#fff',
+                    cursor: busy ? 'default' : 'pointer',
+                    opacity: busy ? 0.6 : 1,
+                    transition: 'border-color 0.12s, background 0.12s',
+                  }}
+                >
+                  <Icon
+                    icon={f.icon}
+                    style={{
+                      fontSize: 22,
+                      color: isSelected ? 'rgb(19,91,235)' : 'rgb(71,85,105)',
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: isSelected ? 'rgb(19,91,235)' : 'rgb(71,85,105)',
+                      textAlign: 'center',
+                      lineHeight: 1.2,
+                      letterSpacing: '-0.01em',
+                    }}
+                  >
+                    {f.label}
+                  </span>
+                  {/* Warn that home-tour cannot run yet */}
+                  {!f.fullyRunnable && (
+                    <span
+                      style={{
+                        fontSize: 8,
+                        fontWeight: 700,
+                        color: 'rgb(234,88,12)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      partial
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <p
+            style={{
+              fontSize: 11.5,
+              fontWeight: 500,
+              color: 'rgb(100,116,139)',
+              margin: 0,
+              minHeight: 16,
+            }}
+          >
+            {selectedFlow.desc}
+            {!selectedFlow.fullyRunnable && (
+              <span style={{ color: 'rgb(234,88,12)', marginLeft: 4 }}>
+                (adapter not yet in engine registry)
+              </span>
+            )}
+          </p>
+        </div>
+
+        {/* Account-state action buttons */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
           {ACTIONS.map((a) => {
             const isBusy = busy === a.key;
             return (
@@ -299,7 +492,7 @@ export function QAControlScreen() {
                   alignItems: 'center',
                   gap: 12,
                   textAlign: 'left',
-                  padding: '13px 14px',
+                  padding: '12px 14px',
                   borderRadius: 14,
                   border: '1px solid rgb(226,232,240)',
                   background: '#fff',
@@ -310,8 +503,8 @@ export function QAControlScreen() {
                 <span
                   style={{
                     flexShrink: 0,
-                    width: 38,
-                    height: 38,
+                    width: 36,
+                    height: 36,
                     borderRadius: 11,
                     background: TONE[a.tone].chip,
                     display: 'flex',
@@ -328,7 +521,7 @@ export function QAControlScreen() {
                   <span
                     style={{
                       display: 'block',
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: 700,
                       color: 'rgb(15,23,42)',
                       lineHeight: 1.2,
@@ -339,7 +532,7 @@ export function QAControlScreen() {
                   <span
                     style={{
                       display: 'block',
-                      fontSize: 12.5,
+                      fontSize: 12,
                       fontWeight: 500,
                       color: 'rgb(100,116,139)',
                       lineHeight: 1.35,

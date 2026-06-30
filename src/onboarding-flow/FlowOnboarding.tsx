@@ -7,6 +7,7 @@
  * way the Step pages are mounted today.
  */
 import { useCallback, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingRealtimeSync } from '@/hooks/useOnboardingRealtimeSync';
 import { useAuthStore } from '@/stores/authStore';
@@ -22,11 +23,11 @@ export function FlowOnboarding() {
   // side-channel mirrors those writes into the React Query cache so the
   // orchestrator sees the current_step climb + form fields fill. The legacy
   // step pages got this via OnboardingLayout, which the chat-native engine
-  // intentionally doesn't render — so mount it directly here.
+  // intentionally doesn't render -- so mount it directly here.
   useOnboardingRealtimeSync();
   const { state } = useOnboarding();
   // Pin a returning user to the version they started on. The read is wired now;
-  // writing the tag back (onPin) lands with the flow_versions table — see
+  // writing the tag back (onPin) lands with the flow_versions table -- see
   // useFlow.ts. Until then, unpinned users get the latest published flow.
   const pinnedTag = (state?.data as { flowVersion?: string } | undefined)?.flowVersion ?? null;
   const { flow, tag, problems } = useFlow(pinnedTag);
@@ -52,6 +53,13 @@ export function FlowOnboarding() {
     persistence.saveStep(1, { nickname: authNickname });
   }, [authNickname, persistence]);
 
+  // QA only: ?startAt=<nodeId> lets the QA screen jump into a specific beat
+  // (e.g. ?startAt=profile to skip auth and mic). The orchestrator seeds the
+  // machine at that node on mount. Ignored in production (no one navigates
+  // to /onboarding/flow with this param outside the QA screen).
+  const [searchParams] = useSearchParams();
+  const startAtNodeId = searchParams.get('startAt') ?? undefined;
+
   const onPin = useCallback((t: string) => {
     // SEAM: persist `t` into onboarding_states.data.flowVersion so this user
     // stays on this flow version across sessions. Deferred with flow_versions.
@@ -66,6 +74,7 @@ export function FlowOnboarding() {
     flowTag: tag,
     onPin,
     initialAnswers,
+    startAtNodeId,
   });
 
   return (
