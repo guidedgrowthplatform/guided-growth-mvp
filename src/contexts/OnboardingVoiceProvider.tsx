@@ -1089,7 +1089,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
           setOpenerReveal({ screenId: sid, revealedWords: c });
         };
         stopOpener();
-        const handle = speakOpener(openerText, onOpenerProgress);
+        // ~310ms/word spoken-cadence estimate, used only if the audio element
+        // can't report a finite duration (Chrome blob-MP3 Infinity bug) so the
+        // karaoke still reveals word-by-word instead of snapping to full.
+        const openerEstMs = Math.max(1200, openerWordTotal * 310);
+        const handle = speakOpener(openerText, onOpenerProgress, openerEstMs);
         openerHandleRef.current = handle;
         track('instant_opener_started', { screen_id: sid });
         void handle.done.then(() => {

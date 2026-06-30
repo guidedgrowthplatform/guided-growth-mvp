@@ -46,9 +46,11 @@ describe('checkAdvanceData — canonical resync tail', () => {
     expect(gate(10, {})).toBeNull();
   });
 
-  it('spine cases 1-4 unchanged', () => {
+  it('spine cases 1-4: case 1 now requires both nickname AND gender', () => {
     expect(gate(1, {})).toMatch(/profile_missing/);
-    expect(gate(1, { nickname: 'Yo' })).toBeNull();
+    // nickname-only is no longer sufficient — gender is required too
+    expect(gate(1, { nickname: 'Yo' })).toMatch(/gender_missing/);
+    expect(gate(1, { nickname: 'Yo', gender: 'Male' })).toBeNull();
     expect(gate(2, {}, { path: null })).toMatch(/path_missing/);
     expect(gate(2, {}, { path: 'simple' })).toBeNull();
     expect(gate(3, {})).toMatch(/category_or_braindump_missing/);

@@ -14,6 +14,8 @@ export function checkAdvanceData(args: {
   switch (sourceStep) {
     case 1:
       if (!data.nickname) return 'profile_missing: call submit_profile (nickname required) first';
+      if (!data.gender)
+        return 'gender_missing: call submit_profile with gender (Male | Female | Other) — gender is required and cannot be skipped';
       return null;
     case 2:
       if (!path) return 'path_missing: call submit_path_choice first';

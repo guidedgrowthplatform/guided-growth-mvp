@@ -70,10 +70,18 @@ export interface SpeakOpenerHandle {
  * `onProgress(fraction)` reports playback position 0..1 (driven by the audio
  * element's own clock), so the caller can karaoke the opener IN SYNC with the
  * Cartesia voice instead of a fixed-cadence guess. Always ends with 1.
+ *
+ * `estimatedDurationMs` is a fallback length used ONLY when the audio element
+ * can't report a finite duration — Chrome reports `duration === Infinity` for
+ * blob-sourced MP3 (Cartesia returns MP3), which would otherwise suppress every
+ * mid-playback tick and make the karaoke snap from empty to full at the end
+ * ("filled"). With it, progress is estimated from elapsed time so the line still
+ * reveals word-by-word; the real fraction takes over if duration resolves.
  */
 export function speakOpener(
   text: string,
   onProgress?: (fraction: number) => void,
+  estimatedDurationMs?: number,
 ): SpeakOpenerHandle {
   const clean = text.trim();
   if (!clean) {
@@ -163,6 +171,10 @@ export function speakOpener(
           const d = audio.duration;
           if (d && Number.isFinite(d) && d > 0) {
             onProgress(Math.min(1, audio.currentTime / d));
+          } else if (estimatedDurationMs && estimatedDurationMs > 0 && audio.currentTime > 0) {
+            // duration unknown (blob-MP3 Infinity bug): estimate from elapsed time,
+            // capped below 1 so the line completes only on the real audio end.
+            onProgress(Math.min(0.97, (audio.currentTime * 1000) / estimatedDurationMs));
           }
           raf = requestAnimationFrame(tick);
         };

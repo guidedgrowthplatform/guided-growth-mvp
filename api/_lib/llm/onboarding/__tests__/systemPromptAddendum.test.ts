@@ -4,13 +4,14 @@ import { ONBOARDING_TOOL_ADDENDUM } from '../systemPromptAddendum.js';
 import { CATEGORY_OPTIONS, ONBOARDING_TOOLS } from '../schemas.js';
 
 describe('onboarding tool registry', () => {
-  it('exposes exactly the fourteen expected tools', () => {
+  it('exposes exactly the fifteen expected tools', () => {
     expect(ONBOARDING_TOOLS.map((t) => t.name).sort()).toEqual(
       [
         'add_habit',
         'advance_step',
         'ask_clarification',
         'confirm_plan',
+        'record_checkin',
         'remove_habit',
         'submit_brain_dump',
         'submit_category',
