@@ -33,6 +33,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
 
 // ─── Clip registry ──────────────────────────────────────────────────────────
 // Maps canonical screenId -> public/voice/*.mp3 path.
@@ -138,7 +139,16 @@ export function useBeatOpenerMp3(screenId: string, active: boolean): BeatOpenerM
 
     const el = new Audio(src);
     el.preload = 'auto';
+    // Apply QA mute state at creation so the element is pre-configured.
+    el.muted = isQaMuted();
     audioRef.current = el;
+
+    // Mirror live QA mute toggles onto the element so toggling mid-clip works.
+    const unsubQaSound = subscribeQaSound(() => {
+      if (audioRef.current) {
+        audioRef.current.muted = isQaMuted();
+      }
+    });
 
     el.onended = () => {
       stopProgress();
@@ -182,6 +192,7 @@ export function useBeatOpenerMp3(screenId: string, active: boolean): BeatOpenerM
 
     return () => {
       // Beat deactivated or unmounted — stop and release.
+      unsubQaSound();
       stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

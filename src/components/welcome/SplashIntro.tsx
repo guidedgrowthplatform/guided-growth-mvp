@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconChatVoice, IconMicMuted } from '@/components/icons';
+import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
 import { DualButton } from '@/components/ui/DualButton';
 import { CoachIntroBubble } from '@/components/welcome/CoachIntroBubble';
 import { SPLASH_CAPTIONS } from '@/components/welcome/splashCaptions';
@@ -327,6 +328,20 @@ export function SplashIntro({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoPlay]);
 
+  // Mirror QA mute-toggle onto the audio element live so toggling mid-clip works.
+  // The `muted` prop from the caller (e.g. flow-designer preview) takes precedence
+  // when it's explicitly true; the QA store is an additional overlay on top.
+  useEffect(() => {
+    const sync = () => {
+      const el = audioRef.current;
+      if (el) el.muted = muted || isQaMuted();
+    };
+    // Apply immediately in case the element already exists.
+    sync();
+    return subscribeQaSound(sync);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [muted]);
+
   const showSplash = phase === 'splash' || phase === 'splash-out';
   const splashVisible = phase === 'splash';
   const showOrb =
@@ -340,7 +355,7 @@ export function SplashIntro({
       className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden"
       aria-label="Guided Growth introduction"
     >
-      <audio ref={audioRef} src={audioSrc} preload="auto" playsInline muted={muted} className="hidden" />
+      <audio ref={audioRef} src={audioSrc} preload="auto" playsInline muted={muted || isQaMuted()} className="hidden" />
 
       {/* Soft blue glow around the screen edge, breathing with the voice
           (a calm take on the new Siri look). */}
@@ -574,41 +589,6 @@ export function SplashIntro({
         top={BUBBLE_TOP}
       />
 
-      {/* Tap to start, shown only when the browser blocked autoplay. */}
-      {needsTap && (
-        <button
-          type="button"
-          onClick={unlockAndPlay}
-          aria-label="Tap to play the coach"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            zIndex: 20,
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            paddingBottom: 130,
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-          }}
-        >
-          <span
-            style={{
-              fontFamily: 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'rgb(19,91,235)',
-              background: 'rgba(255,255,255,0.92)',
-              padding: '10px 18px',
-              borderRadius: 999,
-              boxShadow: '0 8px 24px -8px rgba(15,23,42,0.28)',
-            }}
-          >
-            Tap to play
-          </span>
-        </button>
-      )}
     </div>
   );
 }
