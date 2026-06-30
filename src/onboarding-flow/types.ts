@@ -27,6 +27,9 @@ export interface ContextBlock {
 export interface VoiceConfig {
   /** First coach line spoken on beat mount. null = no opener. */
   openerText: string | null;
+  /** Pre-recorded MP3 for the opener line (check-in ritual lines). When set, the
+   *  voice layer plays this file instead of generating the line via Cartesia TTS. */
+  openerAudioUrl?: string;
   /** true = coach waits for user speech / input before advancing. */
   expectsInput: boolean;
   /** false = Vapi-only (e.g. mic permission). */

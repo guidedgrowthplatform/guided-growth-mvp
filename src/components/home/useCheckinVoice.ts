@@ -3,6 +3,7 @@
 // to the beat adapters. Beat engine stays source of truth; voice advances only the
 // say-only beats (greeting / are-you-done).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { VOICE_SCRIPTS_AUDIO } from '@/components/flow-designer/voiceScriptsAudio';
 import {
   type OnboardingTranscriptListener,
   type OnboardingVoiceActionListener,
@@ -16,6 +17,7 @@ import type { RealtimeTranscriptEvent } from '@/hooks/useRealtimeVoice';
 import { acquireWakeLock, releaseWakeLock } from '@/lib/services/keepAwake';
 import { unlockTTS } from '@/lib/services/tts-service';
 import { createListenerBus, type ListenerBus } from '@/lib/util/listenerBus';
+import { playClip } from '@/lib/voice/playClip';
 import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
 import { applyName } from '@/onboarding-flow/renderer/applyName';
 import type { FlowNode } from '@/onboarding-flow/types';
@@ -111,26 +113,26 @@ export function useCheckinVoice(
   const handleRef = useRef<SpeakOpenerHandle | null>(null);
 
   // revealScreenId (openers only) drives the synced karaoke; acks pass none.
-  const speak = useCallback((text: string, revealScreenId?: string) => {
+  // audioUrl (when set) plays the pre-recorded MP3 ritual line instead of
+  // generating it via Cartesia TTS.
+  const speak = useCallback((text: string, revealScreenId?: string, audioUrl?: string) => {
     handleRef.current?.stop();
     const clean = text.trim();
     if (!clean) return;
     setSpeaking(true);
     const wordTotal = clean.split(/\s+/).length;
     if (revealScreenId) setOpenerReveal({ screenId: revealScreenId, revealedWords: 0 });
-    const handle = speakOpener(
-      text,
-      revealScreenId
-        ? (fraction) => {
-            const words = Math.min(wordTotal, Math.round(fraction * wordTotal));
-            setOpenerReveal((prev) =>
-              prev && prev.screenId === revealScreenId && prev.revealedWords === words
-                ? prev
-                : { screenId: revealScreenId, revealedWords: words },
-            );
-          }
-        : undefined,
-    );
+    const onProgress = revealScreenId
+      ? (fraction: number) => {
+          const words = Math.min(wordTotal, Math.round(fraction * wordTotal));
+          setOpenerReveal((prev) =>
+            prev && prev.screenId === revealScreenId && prev.revealedWords === words
+              ? prev
+              : { screenId: revealScreenId, revealedWords: words },
+          );
+        }
+      : undefined;
+    const handle = audioUrl ? playClip(audioUrl, onProgress) : speakOpener(text, onProgress);
     handleRef.current = handle;
     void handle.done.then(() => {
       if (handleRef.current !== handle) return;
@@ -164,7 +166,16 @@ export function useCheckinVoice(
           confidence: 1,
         });
       }
-      if (voiceOn && CARD_TOOLS.has(evt.name)) speak(pickVariation('acknowledgment'));
+      if (voiceOn && CARD_TOOLS.has(evt.name)) {
+        // Play a recorded ack MP3 (no Cartesia) when available; text-only fallback.
+        const acks = VOICE_SCRIPTS_AUDIO['acknowledgment'];
+        if (acks && acks.length > 0) {
+          const a = acks[Math.floor(Math.random() * acks.length)];
+          speak(a.text, undefined, a.file);
+        } else {
+          speak(pickVariation('acknowledgment'));
+        }
+      }
     },
     [voiceOn, speak],
   );
@@ -230,7 +241,12 @@ export function useCheckinVoice(
     if (spokenForRef.current === currentNode.id) return;
     spokenForRef.current = currentNode.id;
     intentFiredForRef.current = null;
-    if (voiceOn && openerText) speak(applyName(openerText, nickname), currentNode.screenId);
+    if (voiceOn && openerText)
+      speak(
+        applyName(openerText, nickname),
+        currentNode.screenId,
+        currentNode.voice.openerAudioUrl,
+      );
     else setSpeaking(false);
   }, [currentNode, openerText, voiceOn, nickname, speak]);
 
