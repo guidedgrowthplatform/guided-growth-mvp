@@ -81,10 +81,41 @@ let prefetch: Prefetch | null = null;
 let preloadedNext: { gen: number; text: string; audio: HTMLAudioElement; url: string } | null =
   null;
 let drainResolvers: Array<() => void> = [];
-// Onboarding reveal: accumulated spoken text fired as each chunk starts playing.
-// Chunk-level, paced to audio — ws word-timestamps no longer exist on this path.
+// Reveal: words light in step with the audio. The playing chunk's rAF reports
+// fraction → word prefix, appended to all fully-played chunks (committedRevealText).
 let turnOnReveal: ((text: string) => void) | null = null;
-let revealedText = '';
+let committedRevealText = '';
+let revealRaf = 0;
+
+function cancelRevealRaf(): void {
+  if (revealRaf) {
+    cancelAnimationFrame(revealRaf);
+    revealRaf = 0;
+  }
+}
+
+// Tokenizer must match ChatBubble.useStreamReveal + useCoachSpeechReveal.countWords.
+export function revealWordCount(text: string): number {
+  const t = text.trim();
+  return t ? t.split(/\s+/).length : 0;
+}
+
+export function revealPrefix(text: string, words: number): string {
+  if (words <= 0) return '';
+  const parts = text.split(/(\s+)/);
+  let seen = 0;
+  let end = parts.length;
+  for (let i = 0; i < parts.length; i += 1) {
+    if (/\S/.test(parts[i])) {
+      if (seen >= words) {
+        end = i;
+        break;
+      }
+      seen += 1;
+    }
+  }
+  return parts.slice(0, end).join('');
+}
 
 function disposeElement(audio: HTMLAudioElement, url: string): void {
   audio.pause();
@@ -131,6 +162,8 @@ function resolveDrainers(): void {
 function finishTurn(): void {
   if (!turnActive) return;
   turnActive = false;
+  cancelRevealRaf();
+  committedRevealText = '';
   turnOnReveal = null;
   prefetch = null;
   teardownPreloadedNext();
@@ -211,19 +244,16 @@ async function runDrain(): Promise<void> {
         speakingHeld = true;
         setSpeaking(true);
       }
-      if (turnOnReveal) {
-        revealedText += item.text;
-        turnOnReveal(revealedText);
-      }
       maybePrefetchNext(gen);
       // Pre-build the next element while this one plays (closes per-sentence gap).
       void preloadNextElement(gen);
-      await playChunkElement(ready.audio, ready.url, item.volume, gen);
+      await playChunkElement(ready.audio, ready.url, item.volume, gen, item.text);
       if (gen !== speakGeneration) {
         drainRunning = false;
         if (turnSealed) finishTurn();
         return;
       }
+      committedRevealText += item.text;
     }
     playCursor++;
   }
@@ -238,7 +268,7 @@ export function beginSpeechTurn(opts?: { onReveal?: (text: string) => void }): n
   turnSealed = false;
   turnActive = true;
   turnOnReveal = opts?.onReveal ?? null;
-  revealedText = '';
+  committedRevealText = '';
   return ++speakGeneration;
 }
 
@@ -290,6 +320,8 @@ export function stopTTS(): void {
   drainRunning = false;
   turnActive = false;
   speakingHeld = false;
+  cancelRevealRaf();
+  committedRevealText = '';
   turnOnReveal = null;
   deferredOneShot = null;
   if (currentAudioResolver) {
@@ -328,6 +360,7 @@ async function playChunkElement(
   audioUrl: string,
   volume: number,
   generation: number,
+  revealText?: string,
 ): Promise<boolean> {
   if (generation !== speakGeneration) {
     disposeElement(audio, audioUrl);
@@ -341,8 +374,33 @@ async function playChunkElement(
   audio.volume = volume;
   currentAudio = audio;
 
+  // Word reveal paced off THIS chunk's audio clock (mirrors speakOpener's tick).
+  if (turnOnReveal && revealText) {
+    const total = revealWordCount(revealText);
+    const estMs = total * 310; // MP3 duration===Infinity fallback cadence
+    let lastWords = -1;
+    cancelRevealRaf();
+    const tick = () => {
+      if (generation !== speakGeneration || currentAudio !== audio) return;
+      const d = audio.duration;
+      let frac: number;
+      if (d && Number.isFinite(d) && d > 0) frac = Math.min(1, audio.currentTime / d);
+      else if (estMs > 0 && audio.currentTime > 0)
+        frac = Math.min(0.97, (audio.currentTime * 1000) / estMs);
+      else frac = 0;
+      const w = Math.round(frac * total);
+      if (w !== lastWords) {
+        lastWords = w;
+        turnOnReveal?.(committedRevealText + revealPrefix(revealText, w));
+      }
+      revealRaf = requestAnimationFrame(tick);
+    };
+    revealRaf = requestAnimationFrame(tick);
+  }
+
   return await new Promise<boolean>((resolve) => {
     const cleanup = () => {
+      cancelRevealRaf();
       URL.revokeObjectURL(audioUrl);
       if (currentAudio === audio) currentAudio = null;
       if (currentAudioResolver === settle) currentAudioResolver = null;
@@ -350,6 +408,8 @@ async function playChunkElement(
     // onended OR external stopTTS() (via currentAudioResolver)
     const settle = () => {
       audio.pause();
+      // Snap to the full chunk so a fast finish never strands mid-line.
+      if (turnOnReveal && revealText) turnOnReveal(committedRevealText + revealText);
       cleanup();
       resolve(true);
     };

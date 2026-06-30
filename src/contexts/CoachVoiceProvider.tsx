@@ -1,5 +1,5 @@
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useCoachChatLauncher } from '@/contexts/CoachChatContext';
+import { checkinFlowForScreen, useCoachChatLauncher } from '@/contexts/CoachChatContext';
 import {
   CoachVoiceContext,
   type CoachTranscriptEvent,
@@ -22,16 +22,21 @@ export function CoachVoiceProvider({ children }: { children: ReactNode }) {
   const { micOn } = useDualButtonControls();
   const [activeScreenId, setActiveScreenId] = useState<string | null>(null);
 
+  // MCHECK/ECHECK run on the beat engine, not this LLM session — exclude them so
+  // the coach doesn't open/speak behind the engine overlay.
+  const isEngineCheckin = checkinFlowForScreen(openScreenId) !== null;
+  const chatOpenScreenId = isEngineCheckin ? null : openScreenId;
+
   useEffect(() => {
-    if (openScreenId && openScreenId !== activeScreenId) {
-      setActiveScreenId(openScreenId);
+    if (chatOpenScreenId && chatOpenScreenId !== activeScreenId) {
+      setActiveScreenId(chatOpenScreenId);
     }
-  }, [openScreenId, activeScreenId]);
+  }, [chatOpenScreenId, activeScreenId]);
 
   // Prefer the CURRENTLY-open screen so per-turn context + the dimension-scales
   // gate reflect the real screen, not a stale activeScreenId left from an earlier
   // morning check-in (MR#5). Falls back to the last screen when closed.
-  const currentScreenId = openScreenId ?? activeScreenId ?? 'HOME-CHECKIN';
+  const currentScreenId = chatOpenScreenId ?? activeScreenId ?? 'HOME-CHECKIN';
 
   // Lazy-init the bus only once — useRef's argument is evaluated every render
   // but only the first result is stored. This pattern avoids churn while
@@ -59,11 +64,13 @@ export function CoachVoiceProvider({ children }: { children: ReactNode }) {
   // micOn arms capture on Home before the overlay is ever opened (#88) —
   // currentScreenId falls back to HOME-CHECKIN so the session has context.
   const api = useCoachChat(currentScreenId, {
-    enabled: activeScreenId !== null || micOn,
+    // Engine check-ins (MCHECK/ECHECK) run their own scoped coach loop in the
+    // overlay — keep this provider instance off so there's no dual mic/session.
+    enabled: !isEngineCheckin && (activeScreenId !== null || micOn),
     onTranscriptStream: handleTranscriptStream,
     initiateCheckinNonce,
     // Welcome opener must not fire when only the mic is armed on Home (MR#4).
-    overlayOpen: openScreenId !== null,
+    overlayOpen: chatOpenScreenId !== null,
   });
 
   // Pull specific stable fields from `api` instead of spreading the whole
@@ -73,6 +80,7 @@ export function CoachVoiceProvider({ children }: { children: ReactNode }) {
     messages,
     voiceState,
     speaking,
+    revealingMessageId,
     micListening,
     startListening,
     stopListening,
@@ -89,6 +97,7 @@ export function CoachVoiceProvider({ children }: { children: ReactNode }) {
       messages,
       voiceState,
       speaking,
+      revealingMessageId,
       micListening,
       startListening,
       stopListening,
@@ -105,6 +114,7 @@ export function CoachVoiceProvider({ children }: { children: ReactNode }) {
       messages,
       voiceState,
       speaking,
+      revealingMessageId,
       micListening,
       startListening,
       stopListening,

@@ -48,9 +48,19 @@ export function useCoachChatToolEvents(
   resetKey: string | null,
   initialMessages: LLMChatMessage[],
   screenId: string,
+  opts?: {
+    // Bridge each successful tool result once (the beat engine consumes this).
+    onToolResult?: (evt: LLMToolEvent) => void;
+    // Beat engine logs checkin_completed on advance, so suppress it here.
+    suppressCheckinCompleted?: boolean;
+  },
 ): LastCreatedItem | undefined {
   const qc = useQueryClient();
   const { logEvent } = useSessionLog();
+  const onToolResult = opts?.onToolResult;
+  const suppressCheckinCompleted = opts?.suppressCheckinCompleted ?? false;
+  const onToolResultRef = useRef(onToolResult);
+  onToolResultRef.current = onToolResult;
   const firedIdsRef = useRef<Set<string>>(new Set());
   const eveningDoneEmittedRef = useRef(false);
   const morningDoneEmittedRef = useRef(false);
@@ -77,13 +87,24 @@ export function useCoachChatToolEvents(
         if (firedIdsRef.current.has(evt.id)) continue;
         firedIdsRef.current.add(evt.id);
         trackCoachToolEvent(evt);
+        onToolResultRef.current?.(evt);
         if (MUTATING_TOOLS.has(evt.name)) mutated = true;
         // Per-bucket conclusion signals — gate the once-per-day skip. Once per session.
-        if (onEvening && EVENING_DONE_TOOLS.has(evt.name) && !eveningDoneEmittedRef.current) {
+        if (
+          !suppressCheckinCompleted &&
+          onEvening &&
+          EVENING_DONE_TOOLS.has(evt.name) &&
+          !eveningDoneEmittedRef.current
+        ) {
           eveningDoneEmittedRef.current = true;
           logEvent('checkin_completed', { type: 'evening', via: evt.name }, screenId);
         }
-        if (onMorning && MORNING_DONE_TOOLS.has(evt.name) && !morningDoneEmittedRef.current) {
+        if (
+          !suppressCheckinCompleted &&
+          onMorning &&
+          MORNING_DONE_TOOLS.has(evt.name) &&
+          !morningDoneEmittedRef.current
+        ) {
           morningDoneEmittedRef.current = true;
           logEvent('checkin_completed', { type: 'morning', via: evt.name }, screenId);
         }
@@ -102,7 +123,7 @@ export function useCoachChatToolEvents(
     qc.invalidateQueries({ queryKey: queryKeys.focusSessions.all });
     // Non-React-Query consumers (HabitsSection / useHabitsForDate) listen for this.
     window.dispatchEvent(new CustomEvent('habits-changed'));
-  }, [messages, qc, screenId, logEvent]);
+  }, [messages, qc, screenId, logEvent, suppressCheckinCompleted]);
 
   return lastCreatedItem;
 }

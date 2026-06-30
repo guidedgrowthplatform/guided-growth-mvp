@@ -42,6 +42,10 @@ export interface CoachChatApi {
   messages: ChatMessage[];
   voiceState: VoiceChatState;
   speaking: boolean;
+  // Id of the assistant reply currently being spoken/revealed (commit → audio
+  // end), or null. Lets the view hide that one committed row in favour of the
+  // audio-paced bubble — never an error bubble or a finalized prior turn.
+  revealingMessageId: string | null;
   // True Soniox liveness (armed + 'listening'), not the persisted mic toggle —
   // drives the orb's active/ring so a dead/restarting mic doesn't read as live.
   micListening: boolean;

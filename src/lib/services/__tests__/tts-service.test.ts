@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { revealPrefix, revealWordCount } from '../tts-service';
 import { isVoiceOutEnabled } from '../voiceGate';
 
 vi.mock('../voiceGate', () => ({ isVoiceOutEnabled: vi.fn(() => true) }));
@@ -241,5 +242,28 @@ describe('tts-service: speak() Promise lifecycle (PR-0b)', () => {
     await flush();
     expect(resolved).toBe(true);
     expect(audioInstances).toHaveLength(0);
+  });
+});
+
+describe('reveal tokenizer: word-paced prefix matches the audio fraction', () => {
+  it('reveals the first N words, growing monotonically, capped at the total', () => {
+    const line = 'Sure! Let us start with your sleep quality.';
+    expect(revealWordCount(line)).toBe(8);
+    expect(revealPrefix(line, 0)).toBe('');
+    // prefix includes the trailing whitespace up to the next word (grows cleanly)
+    expect(revealPrefix(line, 1)).toBe('Sure! ');
+    expect(revealPrefix(line, 3)).toBe('Sure! Let us ');
+    // capped at total — never over-reveals
+    expect(revealPrefix(line, 99)).toBe(line);
+  });
+
+  it('preserves the original whitespace between revealed words', () => {
+    expect(revealPrefix('one  two\tthree', 2)).toBe('one  two\t');
+  });
+
+  it('handles empty / whitespace-only text', () => {
+    expect(revealWordCount('   ')).toBe(0);
+    expect(revealPrefix('   ', 2)).toBe('   ');
+    expect(revealPrefix('', 1)).toBe('');
   });
 });

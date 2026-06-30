@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { Icon } from '@iconify/react';
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { HabitReportCard } from '@/components/coach/HabitReportCard';
@@ -18,45 +18,59 @@ interface CoachChatViewProps extends CoachChatApi {
   onClose: () => void;
 }
 
-const CoachMessageRow = memo(function CoachMessageRow({
-  msg,
-  displayName,
-  updateHabitDays,
-  onClose,
-}: {
-  msg: CoachChatApi['messages'][number];
-  displayName?: string;
-  updateHabitDays: CoachChatApi['updateHabitDays'];
-  onClose: () => void;
-}) {
-  return (
-    <div className="flex flex-col">
-      <ChatBubble
-        role={msg.role}
-        text={msg.text}
-        userName={displayName}
-        eyebrowVariant="dark"
-        compact
-        animate={false}
-        markdown
-      />
-      {msg.habitCards?.map((card, i) => (
-        <HabitSuggestionCard
-          key={i}
-          name={card.name}
-          days={card.days}
-          onDaysChange={(days) => updateHabitDays(msg.id, i, days)}
+const CoachMessageRow = memo(
+  function CoachMessageRow({
+    msg,
+    displayName,
+    updateHabitDays,
+    onClose,
+  }: {
+    msg: CoachChatApi['messages'][number];
+    displayName?: string;
+    updateHabitDays: CoachChatApi['updateHabitDays'];
+    onClose: () => void;
+  }) {
+    return (
+      <div className="flex flex-col">
+        <ChatBubble
+          role={msg.role}
+          text={msg.text}
+          userName={displayName}
+          eyebrowVariant="dark"
+          compact
+          animate={false}
+          markdown
         />
-      ))}
-      {msg.checkinCard && (
-        <div className="mb-3 mt-2 w-full max-w-[360px]">
-          <CheckInCard selectedDate={msg.checkinCard.date} embedded onClose={onClose} />
-        </div>
-      )}
-      {msg.habitReport && <HabitReportCard />}
-    </div>
-  );
-});
+        {msg.habitCards?.map((card, i) => (
+          <HabitSuggestionCard
+            key={i}
+            name={card.name}
+            days={card.days}
+            onDaysChange={(days) => updateHabitDays(msg.id, i, days)}
+          />
+        ))}
+        {msg.checkinCard && (
+          <div className="mb-3 mt-2 w-full max-w-[360px]">
+            <CheckInCard selectedDate={msg.checkinCard.date} embedded onClose={onClose} />
+          </div>
+        )}
+        {msg.habitReport && <HabitReportCard />}
+      </div>
+    );
+  },
+  // useCoachChat rebuilds every message object each turn; without this the whole
+  // thread re-renders (and re-parses markdown) on every send — a visible flash.
+  (a, b) =>
+    a.msg.id === b.msg.id &&
+    a.msg.text === b.msg.text &&
+    a.msg.role === b.msg.role &&
+    a.msg.habitReport === b.msg.habitReport &&
+    a.displayName === b.displayName &&
+    a.updateHabitDays === b.updateHabitDays &&
+    a.onClose === b.onClose &&
+    JSON.stringify(a.msg.habitCards) === JSON.stringify(b.msg.habitCards) &&
+    JSON.stringify(a.msg.checkinCard) === JSON.stringify(b.msg.checkinCard),
+);
 
 const IDLE_GRADIENT =
   'linear-gradient(to top, rgba(19,91,236,0.7) 0%, rgba(255,255,255,0.7) 54%, rgba(255,255,255,0.7) 81%, rgba(246,246,246,0.7) 100%)';
@@ -69,6 +83,7 @@ export function CoachChatView({
   messages,
   voiceState,
   speaking,
+  revealingMessageId,
   micListening,
   sendText,
   updateHabitDays,
@@ -78,7 +93,7 @@ export function CoachChatView({
   displayName,
   onClose,
 }: CoachChatViewProps) {
-  const { micOn: micRuntimeOn } = useDualButtonControls();
+  const { micOn: micRuntimeOn, voiceOn } = useDualButtonControls();
 
   // Soniox interim (set by useCoachChat's onInterim). Shows the user typing-by-voice.
   const interim = useVoiceStore((s) => s.interim);
@@ -95,15 +110,16 @@ export function CoachChatView({
   const displayedAssistant = partialAssistant;
   const displayedUser = interim;
 
-  let revealingId: string | null = null;
-  if (displayedAssistant.length > 0) {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === 'ai') {
-        revealingId = messages[i].id;
-        break;
-      }
-    }
-  }
+  // Hide the in-flight reply's committed row while it reveals — keyed by the
+  // exact id useCoachChat is speaking (commit → audio end), so a finalized prior
+  // turn or an error bubble is never hidden. The audio-paced bubble (or typing
+  // dots, before the first word) renders the reply meanwhile.
+  const tail = messages[messages.length - 1];
+  const inRevealWindow = revealingMessageId != null && tail?.id === revealingMessageId;
+  const revealingId =
+    tail && tail.role === 'ai' && (displayedAssistant.length > 0 || inRevealWindow)
+      ? tail.id
+      : null;
   const renderedMessages = revealingId ? messages.filter((m) => m.id !== revealingId) : messages;
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -158,6 +174,7 @@ export function CoachChatView({
 
   const handleSendText = useCallback(
     (text: string) => {
+      setPartialAssistant(''); // drop stale reveal → straight to user msg + loading
       sendText(text);
       setDraft('');
     },
@@ -207,11 +224,9 @@ export function CoachChatView({
         type="button"
         onClick={handleClose}
         aria-label="Close chat"
-        className="absolute right-6 z-30 flex items-center gap-1.5 text-[12px] font-semibold leading-[16px] text-slate-700"
-        style={{ top: 'max(16px, env(safe-area-inset-top))' }}
+        className="absolute right-4 top-[calc(0.75rem+env(safe-area-inset-top))] z-30 flex h-9 w-9 items-center justify-center rounded-full bg-surface text-content shadow-card"
       >
-        <span>Close chat</span>
-        <X className="h-5 w-5" />
+        <Icon icon="ic:round-close" width={20} height={20} />
       </button>
 
       <div
@@ -253,6 +268,7 @@ export function CoachChatView({
             animate={false}
             streaming
             markdown
+            revealByWord={!voiceOn}
           />
         )}
         {micLive && displayedUser.length > 0 && (
@@ -264,9 +280,10 @@ export function CoachChatView({
             compact
             animate={false}
             streaming
+            revealByWord
           />
         )}
-        {isProcessing && partialAssistant.length === 0 && <TypingIndicator />}
+        {(isProcessing || inRevealWindow) && partialAssistant.length === 0 && <TypingIndicator />}
       </div>
 
       {/* clear nav bar (72) + orb half poking above it (46) + gap */}

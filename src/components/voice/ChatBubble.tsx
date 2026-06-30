@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { MarkdownMessage } from '@/components/chat/MarkdownMessage';
 import { safeStreamPrefix } from '@/lib/markdown/parse';
 
@@ -10,7 +11,12 @@ interface ChatBubbleProps {
   compact?: boolean;
   streaming?: boolean;
   markdown?: boolean;
+  // Opt-in word-by-word pacing for callers that pass the FULL streamed text
+  // (home chat). Off for callers that already pre-reveal (onboarding).
+  revealByWord?: boolean;
 }
+
+const REVEAL_MS_PER_WORD = 110;
 
 function StreamingText({ text }: { text: string }) {
   if (text.length === 0) return null;
@@ -24,6 +30,41 @@ function StreamingText({ text }: { text: string }) {
   );
 }
 
+function useStreamReveal(text: string, on: boolean): string {
+  const parts = text.split(/(\s+)/);
+  const total = parts.filter((p) => /\S/.test(p)).length;
+  const totalRef = useRef(total);
+  const [n, setN] = useState(total);
+
+  useEffect(() => {
+    totalRef.current = total;
+    setN((x) => (x > total ? 0 : x));
+  }, [total]);
+
+  useEffect(() => {
+    if (!on) return;
+    const id = window.setInterval(
+      () => setN((x) => (x < totalRef.current ? x + 1 : x)),
+      REVEAL_MS_PER_WORD,
+    );
+    return () => window.clearInterval(id);
+  }, [on]);
+
+  if (!on) return text;
+  let seen = 0;
+  let end = parts.length;
+  for (let i = 0; i < parts.length; i += 1) {
+    if (/\S/.test(parts[i])) {
+      if (seen >= n) {
+        end = i;
+        break;
+      }
+      seen += 1;
+    }
+  }
+  return parts.slice(0, end).join('');
+}
+
 export function ChatBubble({
   role,
   text,
@@ -33,7 +74,9 @@ export function ChatBubble({
   compact = false,
   streaming = false,
   markdown = false,
+  revealByWord = false,
 }: ChatBubbleProps) {
+  const revealed = useStreamReveal(text, streaming && revealByWord);
   const isUser = role === 'user';
   const isLightBackdrop = eyebrowVariant === 'dark';
   const userEyebrowColor = isLightBackdrop ? 'text-[#616f89]' : 'text-[rgba(255,255,255,0.4)]';
@@ -92,10 +135,14 @@ export function ChatBubble({
         >
           {markdown ? (
             <div className={textClasses}>
-              <MarkdownMessage text={streaming ? safeStreamPrefix(text) : text} />
+              <MarkdownMessage
+                text={streaming ? safeStreamPrefix(revealByWord ? revealed : text) : text}
+              />
             </div>
           ) : (
-            <p className={textClasses}>{streaming ? <StreamingText text={text} /> : text}</p>
+            <p className={textClasses}>
+              {streaming ? revealByWord ? revealed : <StreamingText text={text} /> : text}
+            </p>
           )}
         </div>
       </div>

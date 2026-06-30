@@ -32,12 +32,13 @@ import {
   pushSpeechChunk,
   speak,
   stopTTS,
+  ttsKaraokeActive,
   useTtsPlaybackStore,
 } from '@/lib/services/tts-service';
 import { isSemanticEndOfTurn, resolveTurnPauseMs } from '@/lib/voice/turnDecision';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { pickVariation } from '@gg/shared/checkin/scriptVariations';
-import type { CoachingStyle } from '@gg/shared/types/llm';
+import type { CoachingStyle, LLMToolEvent } from '@gg/shared/types/llm';
 
 // Breath window before the mic goes hot (post-TTS and on first arm) — covers the
 // echo tail + a Siri-style pause before listening resumes.
@@ -75,6 +76,12 @@ export function useCoachChat(
     ) => void;
     initiateCheckinNonce?: number;
     overlayOpen?: boolean;
+    // Beat-engine check-in: mute the LLM's spoken text (the overlay speaks
+    // scripted openers/acks), bridge tool results, and let the engine log completion.
+    suppressLlmSpeech?: boolean;
+    onToolResult?: (evt: LLMToolEvent) => void;
+    suppressCheckinCompleted?: boolean;
+    micMuted?: boolean;
   },
 ): CoachChatApi {
   const surface = opts?.surface ?? 'chat';
@@ -83,6 +90,10 @@ export function useCoachChat(
   const onTranscriptStream = opts?.onTranscriptStream;
   const initiateCheckinNonce = opts?.initiateCheckinNonce ?? 0;
   const overlayOpen = opts?.overlayOpen ?? true;
+  const suppressLlmSpeech = opts?.suppressLlmSpeech ?? false;
+  // External half-duplex mute: the check-in overlay speaks scripted lines via a
+  // path that bypasses tts-service, so it mutes the mic itself through this.
+  const micMutedExternal = opts?.micMuted ?? false;
 
   const { preferences } = useUserPreferences();
   const voiceModeOn = preferences.voiceMode === 'voice';
@@ -145,6 +156,7 @@ export function useCoachChat(
     chatSessionId,
     initialMessages,
     screenId,
+    { onToolResult: opts?.onToolResult, suppressCheckinCompleted: opts?.suppressCheckinCompleted },
   );
 
   const tokenRef = useRef<ReleaseToken | null>(null);
@@ -191,6 +203,10 @@ export function useCoachChat(
   // >0 from speak() dispatch until playback ends — closes the gap where the TTS
   // store's isSpeaking flips async (fetch latency) and the channel would release early.
   const [ttsActive, setTtsActive] = useState(0);
+  // Id of the reply being spoken/revealed (commit → audio end). Only set for
+  // genuinely-new spoken assistant turns, so the view never hides an error
+  // bubble or a seeded/finalized row.
+  const [revealingMessageId, setRevealingMessageId] = useState<string | null>(null);
 
   // Single reconciliation for a chunked turn — runs on normal completion AND on
   // abort (a queued turn cancels an in-flight reply, so the final-message effect
@@ -328,11 +344,14 @@ export function useCoachChat(
   //      cold-mint latency lets the VAD silence timer kill the connection
   //      before it reaches 'listening' → only partial transcripts arrive.
   //   3. `vapiStatus: 'idle'` (coach has no Vapi).
-  const voiceInActive = micOn;
+  // Gated on `enabled` too: a disabled instance (engine check-in) must not open
+  // a second mic or buffer a turn that replays when it re-enables.
+  const voiceInActive = micOn && enabled;
 
   // Half-duplex: mic closed through the whole reply (union covers the
   // stream→synth→playback gaps) so coach TTS can't leak into a hot mic.
-  const micMutedForTts = voiceModeOn && (isStreaming || ttsActive > 0 || isSpeaking);
+  const micMutedForTts =
+    micMutedExternal || (voiceModeOn && (isStreaming || ttsActive > 0 || isSpeaking));
 
   // Post-speech HOLD: mic stays muted MIC_GRACE_MS after playback ends —
   // covers echo tail + Siri-style breath before listening resumes. Cold-starts
@@ -550,12 +569,15 @@ export function useCoachChat(
     }
     prevStreamingRef.current = isStreaming;
 
-    if (!isStreaming || !voiceModeOn || !llmResponse) return;
+    if (!isStreaming || !voiceModeOn || suppressLlmSpeech || !llmResponse) return;
     const { chunks, nextOffset } = nextSentenceChunks(llmResponse, lastSpokenOffsetRef.current);
     if (chunks.length === 0) return;
     if (!streamTurnActiveRef.current) {
       turnSeqRef.current += 1;
-      beginSpeechTurn();
+      // Reveal text word-by-word off the audio clock (subtitle/bubble in sync).
+      beginSpeechTurn({
+        onReveal: (t) => onTranscriptStreamRef.current?.('assistant', t, 'partial'),
+      });
       streamTurnActiveRef.current = true;
       turnFinalizedRef.current = false;
       ttsBumpedRef.current = true;
@@ -564,7 +586,7 @@ export function useCoachChat(
     for (const c of chunks) pushSpeechChunk(c);
     lastSpokenOffsetRef.current = nextOffset;
     streamedSomethingRef.current = true;
-  }, [isStreaming, llmResponse, voiceModeOn, screenId]);
+  }, [isStreaming, llmResponse, voiceModeOn, suppressLlmSpeech, screenId]);
 
   // ─── Final message: emit to bus; speak the tail (chunked) or whole (one-shot) ─
   // State-4 "opening line only" is applied in CoachSubtitleBar, not here —
@@ -574,11 +596,14 @@ export function useCoachChat(
       if (m.role !== 'assistant' || !m.content) continue;
       if (spokenIdsRef.current.has(m.id)) continue;
       spokenIdsRef.current.add(m.id);
-      // screen/text mode: mark seen but stay silent — no backlog when voice re-enables
-      if (!voiceModeOn) {
+      // screen/text mode (or suppressed): mark seen but stay silent.
+      if (!voiceModeOn || suppressLlmSpeech) {
         onTranscriptStream?.('assistant', m.content, 'final');
         continue;
       }
+      // Spoken turn: hide this committed row until its audio ends (reveal owns it).
+      setRevealingMessageId(m.id);
+      const clearReveal = () => setRevealingMessageId((cur) => (cur === m.id ? null : cur));
       if (streamedSomethingRef.current) {
         streamedSomethingRef.current = false;
         turnFinalizedRef.current = true;
@@ -588,17 +613,28 @@ export function useCoachChat(
         const seq = turnSeqRef.current;
         void endSpeechTurn().finally(() => {
           endCoachSpeechTurn();
+          clearReveal();
           if (turnSeqRef.current === seq) {
             onTranscriptStreamRef.current?.('assistant', content, 'final');
           }
         });
       } else {
-        onTranscriptStream?.('assistant', m.content, 'final');
+        // One-shot: reveal while it plays, finalize on audio end (else the row
+        // hides under speaking with an empty reveal and vanishes mid-playback).
+        const content = m.content;
+        const seq = turnSeqRef.current;
+        onTranscriptStreamRef.current?.('assistant', content, 'partial');
         setTtsActive((c) => c + 1);
-        void speak(m.content).finally(() => setTtsActive((c) => Math.max(0, c - 1)));
+        void speak(content).finally(() => {
+          setTtsActive((c) => Math.max(0, c - 1));
+          clearReveal();
+          if (turnSeqRef.current === seq) {
+            onTranscriptStreamRef.current?.('assistant', content, 'final');
+          }
+        });
       }
     }
-  }, [llmMessages, voiceModeOn, onTranscriptStream, endCoachSpeechTurn]);
+  }, [llmMessages, voiceModeOn, suppressLlmSpeech, onTranscriptStream, endCoachSpeechTurn]);
 
   // Stream ended with no final message (abort/tool-only) — seal so ttsActive
   // doesn't stay stuck. After the final-message effect (which marks finalized).
@@ -610,11 +646,14 @@ export function useCoachChat(
   }, [isStreaming, llmMessages, endCoachSpeechTurn]);
 
   // Live partial stream → transcript bus (subtitle renders typing in real time).
+  // In voice-out, the audio-paced onReveal drives the reveal instead, so skip the
+  // instant full-text partial (it would race ahead of the voice).
   useEffect(() => {
     if (!onTranscriptStream) return;
     if (!isStreaming || llmResponse.length === 0) return;
+    if (voiceModeOn && !suppressLlmSpeech && ttsKaraokeActive()) return;
     onTranscriptStream('assistant', llmResponse, 'partial');
-  }, [isStreaming, llmResponse, onTranscriptStream]);
+  }, [isStreaming, llmResponse, onTranscriptStream, voiceModeOn, suppressLlmSpeech]);
 
   // ─── Transcript → LLM (queued while busy, flushed when free) ──────────
   // Streaming Soniox can land multiple finals during a single LLM turn. The
@@ -780,6 +819,7 @@ export function useCoachChat(
     messages,
     voiceState,
     speaking: isSpeaking || ttsActive > 0,
+    revealingMessageId,
     micListening: isListening,
     startListening,
     stopListening,
