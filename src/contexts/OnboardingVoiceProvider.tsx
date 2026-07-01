@@ -63,7 +63,6 @@ import {
   ONBOARDING_FLOW_PREVIEW_ROUTE,
   ONBOARDING_FLOW_ROUTE,
 } from '@/lib/onboarding/onboardingStepBeats';
-import { isVapiCapableBeat, isIdleCaptureBeat } from '@/onboarding-flow/beatEngineMeta';
 import { engineForTurn } from '@/lib/orb/engineForTurn';
 import { orbStateFrom, type OrbState } from '@/lib/orb/orbState';
 import { queryKeys } from '@/lib/query';
@@ -73,8 +72,9 @@ import { createListenerBus } from '@/lib/util/listenerBus';
 import { buildAssistantOverrides } from '@/lib/voice/buildAssistantOverrides';
 import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
 import { resolveTurnPauseMs } from '@/lib/voice/turnDecision';
-import { ONBOARDING_BEAT_MP3S } from '@/onboarding-flow/renderer/useBeatOpenerMp3';
+import { isVapiCapableBeat, isIdleCaptureBeat } from '@/onboarding-flow/beatEngineMeta';
 import { applyName } from '@/onboarding-flow/renderer/applyName';
+import { ONBOARDING_BEAT_MP3S } from '@/onboarding-flow/renderer/useBeatOpenerMp3';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
@@ -790,7 +790,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     // whether the dashboard prompt contains the {{initial_screen_context}}
     // placeholder (variable substitution silently drops when placeholder is
     // missing — the snapshot would otherwise never reach Vapi on cold start).
-    if (sid && lastPushedScreenIdRef.current !== sid && !deferredScreenContextRef.current.has(sid)) {
+    if (
+      sid &&
+      lastPushedScreenIdRef.current !== sid &&
+      !deferredScreenContextRef.current.has(sid)
+    ) {
       lastScreenChangeTsRef.current = new Date().toISOString();
       void pushScreenContext(sid, null);
     } else if (sid) {
@@ -1313,6 +1317,9 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
         : rawOrbState;
   // Soniox runs iff the decision hands it the mic — never while Vapi owns it.
   const voiceInShouldBeLive = VOICE_IN_ENABLED && engine.micSource === 'soniox';
+  // Keep the mic booted+warm across onboarding beats once granted, so an
+  // interactive beat arms instantly instead of cold-booting getUserMedia (T1-1).
+  const voiceInHoldMic = VOICE_IN_ENABLED && micOn && inOnboarding && engine.engine !== 'vapi';
 
   const emitAssistant = useCallback(
     (text: string, kind: 'partial' | 'final') => {
@@ -1480,6 +1487,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   }, [micMutedForTts]);
   const { isListening: voiceInListening } = useVoiceInCapture({
     active: voiceInShouldBeLive,
+    holdMic: voiceInHoldMic,
     vapiStatus: status,
     onTranscript: emitVoiceInFinal,
     onInterim: emitVoiceInInterim,

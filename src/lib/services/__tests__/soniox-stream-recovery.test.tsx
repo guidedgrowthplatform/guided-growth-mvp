@@ -137,6 +137,35 @@ describe('startSonioxBrowserSession — #206/#229 track-ended recovery', () => {
     expect(onError).toHaveBeenCalledTimes(1);
   });
 
+  it('setArmed(false) keeps the mic warm — no getUserMedia teardown across beats (T1-1)', async () => {
+    const onStateChange = vi.fn();
+    const getUserMedia = navigator.mediaDevices.getUserMedia as ReturnType<typeof vi.fn>;
+    const handle = startSonioxBrowserSession({
+      onInterim: vi.fn(),
+      onFinal: vi.fn(),
+      onStateChange,
+      onError: vi.fn(),
+      initialArmed: false, // booted-but-disarmed (say-only beat)
+    });
+    await settle();
+
+    // Boot disarmed → 'idle', not 'listening'.
+    expect(onStateChange).toHaveBeenLastCalledWith('idle');
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+
+    handle.setArmed(true); // interactive beat arms
+    expect(onStateChange).toHaveBeenLastCalledWith('listening');
+    handle.setArmed(false); // next say-only beat disarms
+    expect(onStateChange).toHaveBeenLastCalledWith('idle');
+
+    // The whole point of T1-1: arm/disarm never re-acquires the mic or stops the track.
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(currentTrack.stop).not.toHaveBeenCalled();
+
+    handle.stop(); // leaving onboarding DOES tear down
+    expect(currentTrack.stop).toHaveBeenCalledTimes(1);
+  });
+
   it('visibilitychange with an already-ended track routes to a recoverable onError', async () => {
     const onError = vi.fn();
     startSonioxBrowserSession({

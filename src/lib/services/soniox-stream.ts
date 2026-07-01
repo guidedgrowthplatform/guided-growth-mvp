@@ -364,6 +364,7 @@ export function createSonioxSession(deps: SonioxCoreDeps): SonioxSession {
 
 export interface BrowserSttHandle {
   setResponding(responding: boolean): void;
+  setArmed(armed: boolean): void;
   stop(): void;
 }
 
@@ -383,6 +384,9 @@ export interface StartBrowserSttOpts {
   onError: (msg: string) => void;
   onConnected?: (m: ConnectMetrics) => void;
   config?: Partial<SonioxConfig>;
+  // Boot armed (open sockets on speech). false = booted-but-disarmed (warm mic,
+  // say-only beat). Defaults true for legacy per-beat callers.
+  initialArmed?: boolean;
 }
 
 // First call returns the warm key; later calls re-mint — keys are single-use.
@@ -552,7 +556,10 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
   let captureNode: ScriptProcessorNode | AudioWorkletNode | null = null;
   let sourceNode: MediaStreamAudioSourceNode | null = null;
   let stopped = false;
-  let armed = false;
+  // booted = mic graph live; wantSockets = accept speech → open a paid socket.
+  // Split lets a say-only beat disarm while the mic stays warm across beats.
+  let booted = false;
+  let wantSockets = opts.initialArmed !== false;
   // True once any audio frame arrives — distinguishes a dead mic from a quiet user.
   let framesSeen = false;
   let pcmBuffer = new Float32Array(0);
@@ -579,7 +586,7 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
   // fed by a dead track emits zero frames. Re-route through onError so #206's
   // auto-restart boots a fresh getUserMedia + AudioContext + worklet.
   function triggerRecovery(reason: string): void {
-    if (stopped || !armed || recovering) return;
+    if (stopped || !booted || recovering) return;
     recovering = true;
     opts.onError(reason);
     stop();
@@ -600,7 +607,7 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
   }
 
   function openSocket(): void {
-    if (session || stopped || !armed) return;
+    if (session || stopped || !booted || !wantSockets) return;
     clearArmWatchdog(); // socket attempt underway; per-socket watchdog owns connect
     const isFirst = !connectMetricsSent;
     let connectingAt = 0;
@@ -695,12 +702,14 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
     framesSeen = true;
     const now = performance.now();
     const rms = computeRms(float32);
-    // raw RMS drives the ripple (responsive); EMA drives VAD (stable)
-    useAudioMetricsStore.getState().pushChunkRms(rms);
+    // raw RMS drives the ripple (responsive); EMA drives VAD (stable).
+    // Disarmed (say-only beat, mic warm): stay silent, no ripple.
+    if (wantSockets) useAudioMetricsStore.getState().pushChunkRms(rms);
     vadRmsEma = vadRmsEma * (1 - VAD_RMS_EMA_ALPHA) + rms * VAD_RMS_EMA_ALPHA;
     vad = updateVad(vad, vadRmsEma, now);
     // !responding: don't open a fresh socket on TTS echo while the coach speaks.
-    if (armed && !responding && shouldOpenSocket(vad, now, session !== null)) openSocket();
+    if (booted && wantSockets && !responding && shouldOpenSocket(vad, now, session !== null))
+      openSocket();
     // Only finalize a session that's actually reached 'listening' — closing it
     // mid-handshake aborts the WS upgrade and the user sees
     // "WebSocket closed before connection established". On slow links (high
@@ -730,7 +739,8 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
   function stop(): void {
     if (stopped) return;
     stopped = true;
-    armed = false;
+    booted = false;
+    wantSockets = false;
     clearSessionWatchdog();
     clearArmWatchdog();
     // drain before mic-off — feedAudio gated on 'listening'
@@ -852,7 +862,7 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
       audioSetupMs = performance.now() - audioStart;
       // iOS suspends the AudioContext on background; resume on return.
       visibilityHandler = () => {
-        if (stopped || !armed) return;
+        if (stopped || !booted) return;
         if (document.visibilityState !== 'visible') return;
         // A track ended in the background; resuming the context alone yields zero
         // frames (false "listening"). Re-acquire via the #206 restart instead.
@@ -863,9 +873,9 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
         if (audioContext?.state === 'suspended') void audioContext.resume();
       };
       document.addEventListener('visibilitychange', visibilityHandler);
-      // Armed: graph runs + ripple is live; the socket opens on first speech.
-      armed = true;
-      opts.onStateChange('listening');
+      // Booted: graph runs + ripple is live; the socket opens on first speech.
+      booted = true;
+      opts.onStateChange(wantSockets ? 'listening' : 'idle');
       armWatchdog = setTimeout(() => {
         armWatchdog = null;
         // Only a truly dead capture (zero frames) is an error; a quiet/thinking
@@ -880,6 +890,17 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
     }
   }
 
+  // Arm/disarm socket-opening WITHOUT tearing down the mic graph — keeps the
+  // stream warm across beats. Disarm finalizes any open turn; arm starts clean.
+  function setArmed(on: boolean): void {
+    if (stopped || on === wantSockets) return;
+    wantSockets = on;
+    if (!on) endUtterance();
+    prebuf.drain();
+    vad = emptyVadState();
+    opts.onStateChange(on ? 'listening' : 'idle');
+  }
+
   void boot();
 
   return {
@@ -887,6 +908,7 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
       responding = r;
       session?.setResponding(r);
     },
+    setArmed,
     stop,
   };
 }

@@ -41,6 +41,9 @@ export function shouldStartVoiceIn(active: boolean, vapiStatus: VapiStatus): boo
 interface Options {
   active: boolean;
   vapiStatus: VapiStatus;
+  // Keep the mic booted+warm across beats even when !active; per-beat voice-in
+  // is then armed/disarmed via `active`. Omit → legacy per-beat boot (= active).
+  holdMic?: boolean;
   onTranscript: (text: string) => void;
   onInterim?: (text: string) => void;
   responding?: boolean;
@@ -50,6 +53,7 @@ interface Options {
 export function useVoiceInCapture({
   active,
   vapiStatus,
+  holdMic,
   onTranscript,
   onInterim,
   responding,
@@ -64,6 +68,9 @@ export function useVoiceInCapture({
   const onInterimRef = useRef(onInterim);
   const onErrorRef = useRef(onError);
   const respondingRef = useRef(responding);
+  // initialArmed is read at boot; a ref keeps it fresh without re-keying the boot effect on `active`.
+  const activeRef = useRef(active);
+  activeRef.current = active;
   const sessionRef = useRef<BrowserSttHandle | null>(null);
   const restartStampsRef = useRef<number[]>([]);
   // Suppress the misleading "can't hear you" bubble once we've already transcribed speech this session.
@@ -109,12 +116,22 @@ export function useVoiceInCapture({
     return () => window.removeEventListener('online', handleOnline);
   }, [active, vapiStatus]);
 
+  // Boot keys on wantHold (mic warmth), NOT active — a say-only beat disarms
+  // via setArmed below without tearing down getUserMedia + the audio graph.
+  const wantHold = holdMic ?? active;
+
+  // Arm/disarm the live session per beat without a reboot.
+  useEffect(() => {
+    sessionRef.current?.setArmed?.(shouldStartVoiceIn(active, vapiStatus));
+  }, [active, vapiStatus]);
+
   useEffect(() => {
     if (!VOICE_IN_ENABLED) return;
-    if (!shouldStartVoiceIn(active, vapiStatus)) return;
+    if (!shouldStartVoiceIn(wantHold, vapiStatus)) return;
 
     let disposed = false;
     const handle = startSonioxBrowserSession({
+      initialArmed: shouldStartVoiceIn(activeRef.current, vapiStatus),
       onInterim: (t) => {
         if (!disposed) onInterimRef.current?.(t);
       },
@@ -174,7 +191,7 @@ export function useVoiceInCapture({
       handle.stop();
       setIsListening(false);
     };
-  }, [active, vapiStatus, restartNonce]);
+  }, [wantHold, vapiStatus, restartNonce]);
 
   return { isListening };
 }
