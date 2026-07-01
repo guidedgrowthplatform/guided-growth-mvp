@@ -27,9 +27,8 @@
  *   - done                  — resolves when the clip finishes (or fails)
  *   - stop()                — stop and release the element
  *
- * Safe to call for every beat: if the screenId has no MP3 registered, it is
- * a no-op (no fetch, no element). The hook re-fires only when screenId or
- * active changes.
+ * Safe to call for every beat: if the beat has no MP3 source, it is a no-op
+ * (no fetch, no element). The hook re-fires only when src or active changes.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -89,13 +88,11 @@ export interface BeatOpenerMp3State {
 }
 
 /**
- * When `active` is true and the screenId has a registered MP3, plays it on
- * mount and tracks playback progress. Stops and resets on deactivation or
- * screenId change. No-op for unregistered screenIds.
+ * When `active` is true and an MP3 source is present, plays it on mount and
+ * tracks playback progress. Stops and resets on deactivation or source change.
+ * No-op when src is null.
  */
-export function useBeatOpenerMp3(screenId: string, active: boolean): BeatOpenerMp3State {
-  const src = ONBOARDING_BEAT_MP3S[screenId] ?? null;
-
+export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpenerMp3State {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [done, setDone] = useState(false);
@@ -201,7 +198,7 @@ export function useBeatOpenerMp3(screenId: string, active: boolean): BeatOpenerM
       stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screenId, active, src]);
+  }, [active, src]);
 
   // When active flips to false, stop any in-flight audio.
   useEffect(() => {

@@ -688,7 +688,7 @@ function resolveMeta(designerBeat: DesignerBeat | undefined, spec: EngineBeatSpe
       directLlmAllowed: authored?.engine?.voiceDirectLlmAllowed ?? spec.voice.directLlmAllowed,
       instantOpenerEligible: isVapiBeat,
       suppressVapiDuringMp3: Boolean(mp3File && isHybridOpenerBeat),
-      continueVapiAfterMp3: Boolean(mp3File && isVapiBeat),
+      continueVapiAfterMp3: Boolean(mp3File && isHybridOpenerBeat),
       autoplayRequiresUnlock: Boolean(mp3File),
       qaForceEngineAllowed: true,
     },

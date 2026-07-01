@@ -527,7 +527,7 @@
           "directLlmAllowed": true,
           "instantOpenerEligible": true,
           "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": true,
+          "continueVapiAfterMp3": false,
           "autoplayRequiresUnlock": true,
           "qaForceEngineAllowed": true
         },
@@ -632,7 +632,7 @@
           "directLlmAllowed": true,
           "instantOpenerEligible": true,
           "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": true,
+          "continueVapiAfterMp3": false,
           "autoplayRequiresUnlock": true,
           "qaForceEngineAllowed": true
         },
@@ -763,7 +763,7 @@
           "directLlmAllowed": true,
           "instantOpenerEligible": true,
           "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": true,
+          "continueVapiAfterMp3": false,
           "autoplayRequiresUnlock": true,
           "qaForceEngineAllowed": true
         },
@@ -868,7 +868,7 @@
           "directLlmAllowed": true,
           "instantOpenerEligible": true,
           "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": true,
+          "continueVapiAfterMp3": false,
           "autoplayRequiresUnlock": true,
           "qaForceEngineAllowed": true
         },
@@ -974,7 +974,7 @@
           "directLlmAllowed": true,
           "instantOpenerEligible": true,
           "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": true,
+          "continueVapiAfterMp3": false,
           "autoplayRequiresUnlock": true,
           "qaForceEngineAllowed": true
         },
@@ -1080,7 +1080,7 @@
           "directLlmAllowed": true,
           "instantOpenerEligible": true,
           "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": true,
+          "continueVapiAfterMp3": false,
           "autoplayRequiresUnlock": true,
           "qaForceEngineAllowed": true
         },
@@ -1490,7 +1490,7 @@
           "directLlmAllowed": true,
           "instantOpenerEligible": true,
           "suppressVapiDuringMp3": false,
-          "continueVapiAfterMp3": true,
+          "continueVapiAfterMp3": false,
           "autoplayRequiresUnlock": true,
           "qaForceEngineAllowed": true
         },
