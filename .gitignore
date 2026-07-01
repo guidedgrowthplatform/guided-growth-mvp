@@ -123,6 +123,7 @@ tmp_*.txt
 *.mp3
 # But DO track generated voice assets (needed for Vercel deploy)
 !public/voice/*.mp3
+!public/voice/onboarding/*.mp3
 git_*.txt
 *_test.txt
 *_error.txt
