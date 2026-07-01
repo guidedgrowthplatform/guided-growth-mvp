@@ -100,12 +100,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "mic-permission-opener",
-              "label": "Mic Permission opener",
-              "file": "/voice/onboard_mic_permission.mp3",
+              "label": "mic-permission",
+              "file": "/voice/onboarding/mic-permission.mp3",
               "transcript": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
-              "opener": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
-              "timing": "opener"
+              "opener": "I'd love to actually talk with you. If you let me use your mic, you can just speak."
             }
           ],
           "lines": [
@@ -114,8 +112,7 @@
               "text": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "mic-permission-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -294,12 +291,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-why-intro-opener",
-              "label": "Why Intro opener",
-              "file": "/voice/onboard_why_intro.mp3",
+              "label": "ONBOARD-WHY-INTRO",
+              "file": "/voice/onboarding/ONBOARD-WHY-INTRO.mp3",
               "transcript": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
-              "opener": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
-              "timing": "opener"
+              "opener": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now."
             }
           ],
           "lines": [
@@ -308,8 +303,7 @@
               "text": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-why-intro-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -379,12 +373,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-state-check-opener",
-              "label": "First State Check opener",
-              "file": "/voice/onboard_state_check.mp3",
+              "label": "ONBOARD-STATE-CHECK",
+              "file": "/voice/onboarding/ONBOARD-STATE-CHECK.mp3",
               "transcript": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
-              "opener": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
-              "timing": "opener"
+              "opener": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you."
             }
           ],
           "lines": [
@@ -393,8 +385,7 @@
               "text": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-state-check-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -484,12 +475,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-morning-setup-opener",
-              "label": "Morning Check-in opener",
-              "file": "/voice/onboard_morning_time.mp3",
+              "label": "ONBOARD-MORNING-SETUP",
+              "file": "/voice/onboarding/ONBOARD-MORNING-SETUP.mp3",
               "transcript": "When do you want this each day? I'll nudge you then.",
-              "opener": "When do you want this each day? I'll nudge you then.",
-              "timing": "opener"
+              "opener": "When do you want this each day? I'll nudge you then."
             }
           ],
           "lines": [
@@ -498,8 +487,7 @@
               "text": "When do you want this each day? I'll nudge you then.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-morning-setup-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -590,12 +578,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-beginner-07-opener",
-              "label": "Reflection Setup opener",
-              "file": "/voice/onboard_evening_reflection.mp3",
+              "label": "ONBOARD-BEGINNER-07",
+              "file": "/voice/onboarding/ONBOARD-BEGINNER-07.mp3",
               "transcript": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?",
-              "opener": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?",
-              "timing": "opener"
+              "opener": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?"
             }
           ],
           "lines": [
@@ -604,8 +590,7 @@
               "text": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-beginner-07-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -723,12 +708,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-fork-form-opener",
-              "label": "Path Choice opener",
-              "file": "/voice/onboard_path_fork.mp3",
-              "transcript": "Have you tracked habits before, or is this new for you?",
-              "opener": "Have you tracked habits before, or is this new for you?",
-              "timing": "opener"
+              "label": "ONBOARD-FORK--FORM",
+              "file": "/voice/onboarding/ONBOARD-FORK--FORM.mp3",
+              "transcript": "Quick one. Have you tracked habits before, or is this new for you? Both are totally fine.",
+              "opener": "Quick one. Have you tracked habits before, or is this new for you? Both are totally fine."
             }
           ],
           "lines": [
@@ -737,8 +720,7 @@
               "text": "Quick one. Have you tracked habits before, or is this new for you? Both are totally fine.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-fork-form-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -830,12 +812,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-beginner-01-opener",
-              "label": "Focus Area opener",
-              "file": "/voice/onboard_category.mp3",
+              "label": "ONBOARD-BEGINNER-01",
+              "file": "/voice/onboarding/ONBOARD-BEGINNER-01.mp3",
               "transcript": "What part of your life do you most want to work on right now? Pick the one that pulls you.",
-              "opener": "What part of your life do you most want to work on right now? Pick the one that pulls you.",
-              "timing": "opener"
+              "opener": "What part of your life do you most want to work on right now? Pick the one that pulls you."
             }
           ],
           "lines": [
@@ -844,8 +824,7 @@
               "text": "What part of your life do you most want to work on right now? Pick the one that pulls you.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-beginner-01-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -937,12 +916,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-beginner-02-opener",
-              "label": "Goals opener",
-              "file": "/voice/onboard_subcategory.mp3",
+              "label": "ONBOARD-BEGINNER-02",
+              "file": "/voice/onboarding/ONBOARD-BEGINNER-02.mp3",
               "transcript": "Within that, what's the piece you want to start with?",
-              "opener": "Within that, what's the piece you want to start with?",
-              "timing": "opener"
+              "opener": "Within that, what's the piece you want to start with?"
             }
           ],
           "lines": [
@@ -951,8 +928,7 @@
               "text": "Within that, what's the piece you want to start with?",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-beginner-02-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -1044,12 +1020,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-beginner-03-opener",
-              "label": "Habit Selection opener",
-              "file": "/voice/onboard_habits.mp3",
+              "label": "ONBOARD-BEGINNER-03",
+              "file": "/voice/onboarding/ONBOARD-BEGINNER-03.mp3",
               "transcript": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
-              "opener": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
-              "timing": "opener"
+              "opener": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits."
             }
           ],
           "lines": [
@@ -1058,8 +1032,7 @@
               "text": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-beginner-03-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -1152,12 +1125,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-beginner-04-opener",
-              "label": "Habit Schedule opener",
-              "file": "/voice/onboard_habit_schedule.mp3",
+              "label": "ONBOARD-BEGINNER-04",
+              "file": "/voice/onboarding/ONBOARD-BEGINNER-04.mp3",
               "transcript": "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
-              "opener": "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
-              "timing": "opener"
+              "opener": "How often, and roughly when, for each one? Add a reminder only if you want a nudge."
             }
           ],
           "lines": [
@@ -1166,8 +1137,7 @@
               "text": "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-beginner-04-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -1258,12 +1228,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-advanced-opener",
-              "label": "Brain Dump opener",
-              "file": "/voice/onboard_advanced_capture.mp3",
+              "label": "ONBOARD-ADVANCED",
+              "file": "/voice/onboarding/ONBOARD-ADVANCED.mp3",
               "transcript": "Read me the habits you already track. Less is more to start, you can always build on it.",
-              "opener": "Read me the habits you already track. Less is more to start, you can always build on it.",
-              "timing": "opener"
+              "opener": "Read me the habits you already track. Less is more to start, you can always build on it."
             }
           ],
           "lines": [
@@ -1272,8 +1240,7 @@
               "text": "Read me the habits you already track. Less is more to start, you can always build on it.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-advanced-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -1360,12 +1327,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-advanced-frequency-opener",
-              "label": "Habit Days opener",
-              "file": "/voice/onboard_advanced_frequency.mp3",
+              "label": "ONBOARD-ADVANCED-FREQUENCY",
+              "file": "/voice/onboarding/ONBOARD-ADVANCED-FREQUENCY.mp3",
               "transcript": "Now the days. Tell me how often each one runs and I'll fill them in.",
-              "opener": "Now the days. Tell me how often each one runs and I'll fill them in.",
-              "timing": "opener"
+              "opener": "Now the days. Tell me how often each one runs and I'll fill them in."
             }
           ],
           "lines": [
@@ -1374,8 +1339,7 @@
               "text": "Now the days. Tell me how often each one runs and I'll fill them in.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-advanced-frequency-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -1463,12 +1427,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-complete-opener",
-              "label": "Into the App opener",
-              "file": "/voice/onboard_full_plan.mp3",
+              "label": "ONBOARD-COMPLETE",
+              "file": "/voice/onboarding/ONBOARD-COMPLETE.mp3",
               "transcript": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
-              "opener": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
-              "timing": "opener"
+              "opener": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?"
             }
           ],
           "lines": [
@@ -1477,8 +1439,7 @@
               "text": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-complete-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -1552,12 +1513,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-weekly-projection-blank-opener",
-              "label": "Weekly Projection opener",
-              "file": "/voice/onboard_weekly_blank.mp3",
+              "label": "ONBOARD-WEEKLY-PROJECTION-BLANK",
+              "file": "/voice/onboarding/ONBOARD-WEEKLY-PROJECTION-BLANK.mp3",
               "transcript": "This is your week. Blank, starting today.",
-              "opener": "This is your week. Blank, starting today.",
-              "timing": "opener"
+              "opener": "This is your week. Blank, starting today."
             }
           ],
           "lines": [
@@ -1566,8 +1525,7 @@
               "text": "This is your week. Blank, starting today.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-weekly-projection-blank-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -1638,12 +1596,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-weekly-projection-full-opener",
-              "label": "Weekly Projection opener",
-              "file": "/voice/onboard_weekly_full.mp3",
+              "label": "ONBOARD-WEEKLY-PROJECTION-FULL",
+              "file": "/voice/onboarding/ONBOARD-WEEKLY-PROJECTION-FULL.mp3",
               "transcript": "Best case, every day green. Every streak going strong. That would be amazing.",
-              "opener": "Best case, every day green. Every streak going strong. That would be amazing.",
-              "timing": "opener"
+              "opener": "Best case, every day green. Every streak going strong. That would be amazing."
             }
           ],
           "lines": [
@@ -1652,8 +1608,7 @@
               "text": "Best case, every day green. Every streak going strong. That would be amazing.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-weekly-projection-full-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -1724,12 +1679,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-weekly-projection-p78-opener",
-              "label": "Weekly Projection opener",
-              "file": "/voice/onboard_weekly_p78.mp3",
+              "label": "ONBOARD-WEEKLY-PROJECTION-P78",
+              "file": "/voice/onboarding/ONBOARD-WEEKLY-PROJECTION-P78.mp3",
               "transcript": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
-              "opener": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
-              "timing": "opener"
+              "opener": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win."
             }
           ],
           "lines": [
@@ -1738,8 +1691,7 @@
               "text": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-weekly-projection-p78-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -1810,12 +1762,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-weekly-projection-p36-opener",
-              "label": "Weekly Projection opener",
-              "file": "/voice/onboard_weekly_p36.mp3",
+              "label": "ONBOARD-WEEKLY-PROJECTION-P36",
+              "file": "/voice/onboarding/ONBOARD-WEEKLY-PROJECTION-P36.mp3",
               "transcript": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
-              "opener": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
-              "timing": "opener"
+              "opener": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess."
             }
           ],
           "lines": [
@@ -1824,8 +1774,7 @@
               "text": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-weekly-projection-p36-opener"
+              "engine": "mp3"
             }
           ]
         },
@@ -1896,12 +1845,10 @@
           "mode": "verbatim",
           "mp3Assets": [
             {
-              "id": "onboard-weekly-projection-gaps-opener",
-              "label": "Weekly Projection opener",
-              "file": "/voice/onboard_weekly_gaps.mp3",
+              "label": "ONBOARD-WEEKLY-PROJECTION-GAPS",
+              "file": "/voice/onboarding/ONBOARD-WEEKLY-PROJECTION-GAPS.mp3",
               "transcript": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.",
-              "opener": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.",
-              "timing": "opener"
+              "opener": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going."
             }
           ],
           "lines": [
@@ -1910,8 +1857,7 @@
               "text": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "mp3",
-              "assetRef": "onboard-weekly-projection-gaps-opener"
+              "engine": "mp3"
             }
           ]
         },

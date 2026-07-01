@@ -113,7 +113,15 @@
           "nodeId": "mic",
           "voiceExpectsInput": false,
           "voiceDirectLlmAllowed": false
-        }
+        },
+        "mp3Assets": [
+          {
+            "label": "mic-permission",
+            "file": "/voice/onboarding/mic-permission.mp3",
+            "transcript": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+            "opener": "I'd love to actually talk with you. If you let me use your mic, you can just speak."
+          }
+        ]
       }
     },
     {
@@ -169,7 +177,15 @@
         "voiceMode": "Verbatim",
         "spokenContent": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
         "openerShowsAsBubble": false,
-        "expectedResponse": "Auto-advances"
+        "expectedResponse": "Auto-advances",
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-WHY-INTRO",
+            "file": "/voice/onboarding/ONBOARD-WHY-INTRO.mp3",
+            "transcript": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
+            "opener": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now."
+          }
+        ]
       }
     },
     {
@@ -193,10 +209,38 @@
         "openerShowsAsBubble": true,
         "expectedResponse": "Taps or says sleep, mood, energy, stress",
         "perElement": [
-          { "elementId": "sleep", "line": "How did you sleep?", "order": 1, "showsAsBubble": false },
-          { "elementId": "mood", "line": "How's your mood?", "order": 2, "showsAsBubble": false },
-          { "elementId": "energy", "line": "How's your energy?", "order": 3, "showsAsBubble": false },
-          { "elementId": "stress", "line": "And your stress?", "order": 4, "showsAsBubble": false }
+          {
+            "elementId": "sleep",
+            "line": "How did you sleep?",
+            "order": 1,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "mood",
+            "line": "How's your mood?",
+            "order": 2,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "energy",
+            "line": "How's your energy?",
+            "order": 3,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "stress",
+            "line": "And your stress?",
+            "order": 4,
+            "showsAsBubble": false
+          }
+        ],
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-STATE-CHECK",
+            "file": "/voice/onboarding/ONBOARD-STATE-CHECK.mp3",
+            "transcript": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+            "opener": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you."
+          }
         ]
       }
     },
@@ -221,10 +265,38 @@
         "openerShowsAsBubble": false,
         "expectedResponse": "Sets a time and days",
         "perElement": [
-          { "elementId": "schedule", "line": "Weekdays, weekends, or every day?", "order": 1, "showsAsBubble": false },
-          { "elementId": "when", "line": "What time?", "order": 2, "showsAsBubble": false },
-          { "elementId": "how-often", "line": "Or your own days.", "order": 3, "showsAsBubble": false },
-          { "elementId": "reminder", "line": "Want a nudge when it's time?", "order": 4, "showsAsBubble": false }
+          {
+            "elementId": "schedule",
+            "line": "Weekdays, weekends, or every day?",
+            "order": 1,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "when",
+            "line": "What time?",
+            "order": 2,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "how-often",
+            "line": "Or your own days.",
+            "order": 3,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "reminder",
+            "line": "Want a nudge when it's time?",
+            "order": 4,
+            "showsAsBubble": false
+          }
+        ],
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-MORNING-SETUP",
+            "file": "/voice/onboarding/ONBOARD-MORNING-SETUP.mp3",
+            "transcript": "When do you want this each day? I'll nudge you then.",
+            "opener": "When do you want this each day? I'll nudge you then."
+          }
         ]
       }
     },
@@ -250,12 +322,42 @@
         "openerShowsAsBubble": true,
         "expectedResponse": "Picks a style and time",
         "perElement": [
-          { "elementId": "prompts", "line": "Three questions to close the day.", "order": 1, "showsAsBubble": false },
-          { "elementId": "mode", "line": "Or freeform, just talk.", "order": 2, "showsAsBubble": false },
-          { "elementId": "schedule", "line": "Weekdays, weekends, or every day?", "order": 3, "showsAsBubble": false },
-          { "elementId": "when", "line": "What time?", "order": 4, "showsAsBubble": false },
-          { "elementId": "how-often", "line": "Or your own days.", "order": 5, "showsAsBubble": false },
-          { "elementId": "reminder", "line": "Want a reminder?", "order": 6, "showsAsBubble": false }
+          {
+            "elementId": "prompts",
+            "line": "Three questions to close the day.",
+            "order": 1,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "mode",
+            "line": "Or freeform, just talk.",
+            "order": 2,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "schedule",
+            "line": "Weekdays, weekends, or every day?",
+            "order": 3,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "when",
+            "line": "What time?",
+            "order": 4,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "how-often",
+            "line": "Or your own days.",
+            "order": 5,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "reminder",
+            "line": "Want a reminder?",
+            "order": 6,
+            "showsAsBubble": false
+          }
         ],
         "engine": {
           "nodeId": "reflection-setup",
@@ -264,7 +366,15 @@
           "captureFields": "reflectionConfig",
           "voiceExpectsInput": true,
           "voiceDirectLlmAllowed": true
-        }
+        },
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-BEGINNER-07",
+            "file": "/voice/onboarding/ONBOARD-BEGINNER-07.mp3",
+            "transcript": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?",
+            "opener": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?"
+          }
+        ]
       }
     },
     {
@@ -294,7 +404,15 @@
           "captureFields": "path",
           "voiceExpectsInput": true,
           "voiceDirectLlmAllowed": true
-        }
+        },
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-FORK--FORM",
+            "file": "/voice/onboarding/ONBOARD-FORK--FORM.mp3",
+            "transcript": "Quick one. Have you tracked habits before, or is this new for you? Both are totally fine.",
+            "opener": "Quick one. Have you tracked habits before, or is this new for you? Both are totally fine."
+          }
+        ]
       }
     },
     {
@@ -326,7 +444,15 @@
           "optionSource": "categories",
           "voiceExpectsInput": true,
           "voiceDirectLlmAllowed": true
-        }
+        },
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-BEGINNER-01",
+            "file": "/voice/onboarding/ONBOARD-BEGINNER-01.mp3",
+            "transcript": "What part of your life do you most want to work on right now? Pick the one that pulls you.",
+            "opener": "What part of your life do you most want to work on right now? Pick the one that pulls you."
+          }
+        ]
       }
     },
     {
@@ -358,7 +484,15 @@
           "optionSource": "goalsByCategory",
           "voiceExpectsInput": true,
           "voiceDirectLlmAllowed": true
-        }
+        },
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-BEGINNER-02",
+            "file": "/voice/onboarding/ONBOARD-BEGINNER-02.mp3",
+            "transcript": "Within that, what's the piece you want to start with?",
+            "opener": "Within that, what's the piece you want to start with?"
+          }
+        ]
       }
     },
     {
@@ -390,7 +524,15 @@
           "optionSource": "habitsByGoal",
           "voiceExpectsInput": true,
           "voiceDirectLlmAllowed": true
-        }
+        },
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-BEGINNER-03",
+            "file": "/voice/onboarding/ONBOARD-BEGINNER-03.mp3",
+            "transcript": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+            "opener": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits."
+          }
+        ]
       }
     },
     {
@@ -414,10 +556,38 @@
         "openerShowsAsBubble": false,
         "expectedResponse": "Sets days and time per habit",
         "perElement": [
-          { "elementId": "schedule", "line": "Weekdays, weekends, or every day?", "order": 1, "showsAsBubble": false },
-          { "elementId": "when", "line": "What time?", "order": 2, "showsAsBubble": false },
-          { "elementId": "how-often", "line": "Or your own days.", "order": 3, "showsAsBubble": false },
-          { "elementId": "reminder", "line": "Want a reminder?", "order": 4, "showsAsBubble": false }
+          {
+            "elementId": "schedule",
+            "line": "Weekdays, weekends, or every day?",
+            "order": 1,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "when",
+            "line": "What time?",
+            "order": 2,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "how-often",
+            "line": "Or your own days.",
+            "order": 3,
+            "showsAsBubble": false
+          },
+          {
+            "elementId": "reminder",
+            "line": "Want a reminder?",
+            "order": 4,
+            "showsAsBubble": false
+          }
+        ],
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-BEGINNER-04",
+            "file": "/voice/onboarding/ONBOARD-BEGINNER-04.mp3",
+            "transcript": "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
+            "opener": "How often, and roughly when, for each one? Add a reminder only if you want a nudge."
+          }
         ]
       }
     },
@@ -449,7 +619,15 @@
           "captureFields": "brainDumpText",
           "voiceExpectsInput": true,
           "voiceDirectLlmAllowed": true
-        }
+        },
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-ADVANCED",
+            "file": "/voice/onboarding/ONBOARD-ADVANCED.mp3",
+            "transcript": "Read me the habits you already track. Less is more to start, you can always build on it.",
+            "opener": "Read me the habits you already track. Less is more to start, you can always build on it."
+          }
+        ]
       }
     },
     {
@@ -472,7 +650,15 @@
         "spokenContent": "Now the days. Tell me how often each one runs and I'll fill them in.",
         "allowedTools": "add_habit, update_habit, advance_step",
         "openerShowsAsBubble": true,
-        "expectedResponse": "Says the days per habit"
+        "expectedResponse": "Says the days per habit",
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-ADVANCED-FREQUENCY",
+            "file": "/voice/onboarding/ONBOARD-ADVANCED-FREQUENCY.mp3",
+            "transcript": "Now the days. Tell me how often each one runs and I'll fill them in.",
+            "opener": "Now the days. Tell me how often each one runs and I'll fill them in."
+          }
+        ]
       }
     },
     {
@@ -494,7 +680,15 @@
         "spokenContent": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
         "allowedTools": "update_habit, confirm_plan",
         "openerShowsAsBubble": true,
-        "expectedResponse": "Looks good, or an edit"
+        "expectedResponse": "Looks good, or an edit",
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-COMPLETE",
+            "file": "/voice/onboarding/ONBOARD-COMPLETE.mp3",
+            "transcript": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+            "opener": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?"
+          }
+        ]
       }
     },
     {
@@ -516,7 +710,15 @@
         "voiceMode": "Verbatim",
         "spokenContent": "This is your week. Blank, starting today.",
         "openerShowsAsBubble": false,
-        "expectedResponse": "Taps Next"
+        "expectedResponse": "Taps Next",
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-WEEKLY-PROJECTION-BLANK",
+            "file": "/voice/onboarding/ONBOARD-WEEKLY-PROJECTION-BLANK.mp3",
+            "transcript": "This is your week. Blank, starting today.",
+            "opener": "This is your week. Blank, starting today."
+          }
+        ]
       }
     },
     {
@@ -538,7 +740,15 @@
         "voiceMode": "Verbatim",
         "spokenContent": "Best case, every day green. Every streak going strong. That would be amazing.",
         "openerShowsAsBubble": false,
-        "expectedResponse": "Taps Next"
+        "expectedResponse": "Taps Next",
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-WEEKLY-PROJECTION-FULL",
+            "file": "/voice/onboarding/ONBOARD-WEEKLY-PROJECTION-FULL.mp3",
+            "transcript": "Best case, every day green. Every streak going strong. That would be amazing.",
+            "opener": "Best case, every day green. Every streak going strong. That would be amazing."
+          }
+        ]
       }
     },
     {
@@ -560,7 +770,15 @@
         "voiceMode": "Verbatim",
         "spokenContent": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
         "openerShowsAsBubble": false,
-        "expectedResponse": "Taps Next"
+        "expectedResponse": "Taps Next",
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-WEEKLY-PROJECTION-P78",
+            "file": "/voice/onboarding/ONBOARD-WEEKLY-PROJECTION-P78.mp3",
+            "transcript": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
+            "opener": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win."
+          }
+        ]
       }
     },
     {
@@ -582,7 +800,15 @@
         "voiceMode": "Verbatim",
         "spokenContent": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
         "openerShowsAsBubble": false,
-        "expectedResponse": "Taps Next"
+        "expectedResponse": "Taps Next",
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-WEEKLY-PROJECTION-P36",
+            "file": "/voice/onboarding/ONBOARD-WEEKLY-PROJECTION-P36.mp3",
+            "transcript": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
+            "opener": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess."
+          }
+        ]
       }
     },
     {
@@ -604,7 +830,15 @@
         "voiceMode": "Verbatim",
         "spokenContent": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.",
         "openerShowsAsBubble": false,
-        "expectedResponse": "Taps Next"
+        "expectedResponse": "Taps Next",
+        "mp3Assets": [
+          {
+            "label": "ONBOARD-WEEKLY-PROJECTION-GAPS",
+            "file": "/voice/onboarding/ONBOARD-WEEKLY-PROJECTION-GAPS.mp3",
+            "transcript": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.",
+            "opener": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going."
+          }
+        ]
       }
     }
   ]
