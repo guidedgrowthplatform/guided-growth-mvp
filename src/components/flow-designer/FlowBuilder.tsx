@@ -957,7 +957,13 @@ interface FlowDef {
   beats: DefaultBeat[];
 }
 
+// The orb design workspace: a single beat holding the full orb tuner (idle /
+// talking / pulse looks + presets + mic test). Its own flow, first in the list,
+// so the orb is always one click away instead of buried in the components palette.
+const ORB_DESIGN_FLOW: DefaultBeat[] = [{ type: 'orb-tuner', background: 'plain' }];
+
 const FLOWS: FlowDef[] = [
+  { id: 'orb-design', label: 'Orb design', beats: ORB_DESIGN_FLOW },
   { id: 'onboarding', label: 'Onboarding', beats: ONBOARDING_FLOW },
   { id: 'morning-checkin', label: 'Morning check-in', beats: MORNING_CHECKIN_FLOW },
   { id: 'evening-checkin', label: 'Evening check-in', beats: EVENING_CHECKIN_FLOW },

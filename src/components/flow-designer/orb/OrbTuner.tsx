@@ -735,7 +735,7 @@ export function OrbTuner() {
 
 const OT_CSS = `
 .ot-root{--D:172px;color:#e8e8ee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;gap:18px;padding:8px}
-.ot-stage{width:380px;height:302px;border-radius:30px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:46px;overflow:hidden;box-shadow:0 18px 50px rgba(20,30,60,.20), inset 0 0 0 1px rgba(255,255,255,.7)}
+.ot-stage{width:min(380px,100%);height:302px;border-radius:30px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:46px;overflow:hidden;box-shadow:0 18px 50px rgba(20,30,60,.20), inset 0 0 0 1px rgba(255,255,255,.7)}
 .ot-orb{position:relative;width:var(--D);height:var(--D);border-radius:50%;overflow:hidden;--gap:max(5px, calc(var(--D)*0.06));--innerR:calc(var(--D)*0.0494);box-shadow:0 8px 22px rgba(20,30,60,.26), 0 0 24px 2px rgba(175,195,255,.16)}
 .ot-orb.ot-full{--gap:0px;--innerR:0px}
 .ot-half{position:absolute;top:0;height:100%;width:calc(50% - var(--gap)/2);overflow:hidden;cursor:pointer;background:radial-gradient(125% 125% at 50% 34%, rgba(255,255,255, calc(0.20 + 0.16*(1 - var(--body)))), rgba(255,255,255, calc(0.04 + 0.05*(1 - var(--body)))) 52%, rgba(8,11,22, calc(0.10 + 0.52*var(--body))) 100%)}
@@ -751,7 +751,7 @@ const OT_CSS = `
 .ot-fullbody{position:absolute;inset:0;border-radius:50%;background:radial-gradient(125% 125% at 50% 40%, rgba(255,255,255, calc(0.20 + 0.16*(1 - var(--body)))), rgba(255,255,255, calc(0.04 + 0.05*(1 - var(--body)))) 52%, rgba(8,11,22, calc(0.10 + 0.52*var(--body))) 100%)}
 .ot-fullglass{position:absolute;inset:0;border-radius:50%;opacity:var(--glass);backdrop-filter:blur(var(--blur,0px));-webkit-backdrop-filter:blur(var(--blur,0px));background:radial-gradient(120% 95% at 50% 16%, rgba(255,255,255,.6), rgba(255,255,255,.16) 46%, rgba(255,255,255,0) 72%)}
 .ot-ring{position:absolute;inset:0;border-radius:50%;pointer-events:none;z-index:6;box-shadow:inset 0 0 0 1.3px rgba(255,255,255, calc(0.4 + 0.5*var(--rim)))}
-.ot-panel{width:520px;max-width:92vw;display:flex;flex-direction:column;gap:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:16px 18px}
+.ot-panel{width:min(520px,100%);display:flex;flex-direction:column;gap:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:16px 18px;box-sizing:border-box}
 .ot-row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
 .ot-lab{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#7a7c88;min-width:74px}
 .ot-btn{padding:7px 13px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#e8e8ee;font-size:12.5px;cursor:pointer}
