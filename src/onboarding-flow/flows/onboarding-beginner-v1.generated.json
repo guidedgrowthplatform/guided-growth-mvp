@@ -25,6 +25,47 @@
         "expectsInput": false,
         "directLlmAllowed": false
       },
+      "meta": {
+        "voiceOut": {
+          "engine": "none",
+          "mode": "verbatim"
+        },
+        "voiceIn": {
+          "engine": "none",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": false,
+          "micOn": false,
+          "micAsking": false,
+          "bloomed": false
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": false,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "auth",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
       "tool": null,
       "persist": null
     },
@@ -52,6 +93,67 @@
         "openerText": "Allow your microphone so you can talk with your coach out loud.",
         "expectsInput": false,
         "directLlmAllowed": false
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "mic-permission-opener",
+              "label": "Mic Permission opener",
+              "file": "/voice/onboard_mic_permission.mp3",
+              "transcript": "Allow your microphone so you can talk with your coach out loud.",
+              "opener": "Allow your microphone so you can talk with your coach out loud.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "mic-permission-line-1",
+              "text": "Allow your microphone so you can talk with your coach out loud.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "mic-permission-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "none",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": false,
+          "micAsking": true,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": false,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "mic",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
       },
       "tool": null,
       "persist": null
@@ -90,6 +192,69 @@
         "expectsInput": true,
         "directLlmAllowed": true
       },
+      "meta": {
+        "voiceOut": {
+          "engine": "cartesia",
+          "mode": "verbatim",
+          "lines": [
+            {
+              "id": "onboard-01-form-line-1",
+              "text": "Awesome {name}, two quick things so I can tailor this to you. How old are you? And what's your gender?",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "cartesia"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "soniox",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": [
+            "submit_profile"
+          ]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "profile",
+          "backId": "mic",
+          "persistStep": 1,
+          "pathField": false,
+          "captureFields": [
+            "age",
+            "gender",
+            "nickname"
+          ],
+          "toolName": "submit_profile",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": [
+            "age",
+            "gender",
+            "nickname"
+          ]
+        },
+        "authoring": {}
+      },
       "tool": {
         "toolName": "submit_profile",
         "persistsFields": [
@@ -123,6 +288,68 @@
         "expectsInput": false,
         "directLlmAllowed": false
       },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-why-intro-opener",
+              "label": "Why Intro opener",
+              "file": "/voice/onboard_why_intro.mp3",
+              "transcript": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
+              "opener": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-why-intro-line-1",
+              "text": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-why-intro-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "none",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": false,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": false,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "why-intro",
+          "backId": "profile",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
       "tool": null,
       "persist": null
     },
@@ -145,6 +372,76 @@
         "openerText": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
         "expectsInput": true,
         "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-state-check-opener",
+              "label": "First State Check opener",
+              "file": "/voice/onboard_state_check.mp3",
+              "transcript": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+              "opener": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-state-check-line-1",
+              "text": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-state-check-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "soniox",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": [
+            "record_checkin"
+          ]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "state-check",
+          "backId": "why-intro",
+          "persistStep": 6,
+          "pathField": false,
+          "captureFields": [
+            "checkin"
+          ],
+          "toolName": "record_checkin",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": [
+            "checkin"
+          ]
+        },
+        "authoring": {}
       },
       "tool": {
         "toolName": "record_checkin",
@@ -180,6 +477,76 @@
         "expectsInput": true,
         "directLlmAllowed": true
       },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-morning-setup-opener",
+              "label": "Morning Check-in opener",
+              "file": "/voice/onboard_morning_time.mp3",
+              "transcript": "When do you want this each day? I'll nudge you then.",
+              "opener": "When do you want this each day? I'll nudge you then.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-morning-setup-line-1",
+              "text": "When do you want this each day? I'll nudge you then.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-morning-setup-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "vapi",
+          "llmActive": true,
+          "allowedTools": [
+            "submit_morning_checkin"
+          ]
+        },
+        "path": "path-1-vapi",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": true,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "morning-checkin-setup",
+          "backId": "state-check",
+          "persistStep": 7,
+          "pathField": false,
+          "captureFields": [
+            "morningCheckin"
+          ],
+          "toolName": "submit_morning_checkin",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": [
+            "morningCheckin"
+          ]
+        },
+        "authoring": {}
+      },
       "tool": {
         "toolName": "submit_morning_checkin",
         "persistsFields": [
@@ -214,6 +581,76 @@
         "openerText": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?",
         "expectsInput": true,
         "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-beginner-07-opener",
+              "label": "Reflection Setup opener",
+              "file": "/voice/onboard_evening_reflection.mp3",
+              "transcript": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?",
+              "opener": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-beginner-07-line-1",
+              "text": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-beginner-07-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "vapi",
+          "llmActive": true,
+          "allowedTools": [
+            "submit_reflection_config"
+          ]
+        },
+        "path": "path-1-vapi",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": true,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "reflection-setup",
+          "backId": "morning-checkin-setup",
+          "persistStep": 8,
+          "pathField": false,
+          "captureFields": [
+            "reflectionConfig"
+          ],
+          "toolName": "submit_reflection_config",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": [
+            "reflectionConfig"
+          ]
+        },
+        "authoring": {}
       },
       "tool": {
         "toolName": "submit_reflection_config",
@@ -276,6 +713,76 @@
         "expectsInput": true,
         "directLlmAllowed": true
       },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-fork-form-opener",
+              "label": "Path Choice opener",
+              "file": "/voice/onboard_path_fork.mp3",
+              "transcript": "Have you tracked habits before, or is this new for you?",
+              "opener": "Have you tracked habits before, or is this new for you?",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-fork-form-line-1",
+              "text": "Have you tracked habits before, or is this new for you?",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-fork-form-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "vapi",
+          "llmActive": true,
+          "allowedTools": [
+            "submit_path_choice"
+          ]
+        },
+        "path": "path-1-vapi",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": true,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "path-fork",
+          "backId": "reflection-setup",
+          "persistStep": 2,
+          "pathField": true,
+          "captureFields": [
+            "path"
+          ],
+          "toolName": "submit_path_choice",
+          "toolAdvancesStep": false,
+          "toolPersistsFields": [
+            "path"
+          ]
+        },
+        "authoring": {}
+      },
       "tool": {
         "toolName": "submit_path_choice",
         "persistsFields": [
@@ -311,6 +818,78 @@
         "expectsInput": true,
         "directLlmAllowed": true
       },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-beginner-01-opener",
+              "label": "Focus Area opener",
+              "file": "/voice/onboard_category.mp3",
+              "transcript": "What part of your life do you most want to work on right now? Pick the one that pulls you.",
+              "opener": "What part of your life do you most want to work on right now? Pick the one that pulls you.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-beginner-01-line-1",
+              "text": "What part of your life do you most want to work on right now? Pick the one that pulls you.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-beginner-01-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "vapi",
+          "llmActive": true,
+          "allowedTools": [
+            "submit_category"
+          ]
+        },
+        "path": "path-1-vapi",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": true,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "category",
+          "backId": "path-fork",
+          "persistStep": 3,
+          "pathField": false,
+          "captureFields": [
+            "category"
+          ],
+          "toolName": "submit_category",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": [
+            "category"
+          ],
+          "maxSelections": 1,
+          "optionSource": "categories"
+        },
+        "authoring": {}
+      },
       "tool": {
         "toolName": "submit_category",
         "persistsFields": [
@@ -344,6 +923,78 @@
         "openerText": "Within that, what's the piece you want to start with?",
         "expectsInput": true,
         "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-beginner-02-opener",
+              "label": "Goals opener",
+              "file": "/voice/onboard_subcategory.mp3",
+              "transcript": "Within that, what's the piece you want to start with?",
+              "opener": "Within that, what's the piece you want to start with?",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-beginner-02-line-1",
+              "text": "Within that, what's the piece you want to start with?",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-beginner-02-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "vapi",
+          "llmActive": true,
+          "allowedTools": [
+            "submit_goals"
+          ]
+        },
+        "path": "path-1-vapi",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": true,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "goals",
+          "backId": "category",
+          "persistStep": 4,
+          "pathField": false,
+          "captureFields": [
+            "goals"
+          ],
+          "toolName": "submit_goals",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": [
+            "goals"
+          ],
+          "maxSelections": 2,
+          "optionSource": "goalsByCategory"
+        },
+        "authoring": {}
       },
       "tool": {
         "toolName": "submit_goals",
@@ -379,6 +1030,78 @@
         "expectsInput": true,
         "directLlmAllowed": true
       },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-beginner-03-opener",
+              "label": "Habit Selection opener",
+              "file": "/voice/onboard_habits.mp3",
+              "transcript": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+              "opener": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-beginner-03-line-1",
+              "text": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-beginner-03-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "vapi",
+          "llmActive": true,
+          "allowedTools": [
+            "add_habit"
+          ]
+        },
+        "path": "path-1-vapi",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": true,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "habit-select",
+          "backId": "goals",
+          "persistStep": 5,
+          "pathField": false,
+          "captureFields": [
+            "habits"
+          ],
+          "toolName": "add_habit",
+          "toolAdvancesStep": false,
+          "toolPersistsFields": [
+            "habits"
+          ],
+          "maxSelections": 2,
+          "optionSource": "habitsByGoal"
+        },
+        "authoring": {}
+      },
       "tool": {
         "toolName": "add_habit",
         "persistsFields": [
@@ -412,6 +1135,76 @@
         "openerText": "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
         "expectsInput": true,
         "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-beginner-04-opener",
+              "label": "Habit Schedule opener",
+              "file": "/voice/onboard_habit_schedule.mp3",
+              "transcript": "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
+              "opener": "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-beginner-04-line-1",
+              "text": "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-beginner-04-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "vapi",
+          "llmActive": true,
+          "allowedTools": [
+            "update_habit"
+          ]
+        },
+        "path": "path-1-vapi",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": true,
+          "continueVapiAfterMp3": true,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "habit-schedule",
+          "backId": "habit-select",
+          "persistStep": 5,
+          "pathField": false,
+          "captureFields": [
+            "habitConfigs"
+          ],
+          "toolName": "update_habit",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": [
+            "habitConfigs"
+          ]
+        },
+        "authoring": {}
       },
       "tool": {
         "toolName": "update_habit",
@@ -447,6 +1240,76 @@
         "expectsInput": true,
         "directLlmAllowed": true
       },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-advanced-opener",
+              "label": "Brain Dump opener",
+              "file": "/voice/onboard_advanced_capture.mp3",
+              "transcript": "Read me the habits you already track. Less is more to start, you can always build on it.",
+              "opener": "Read me the habits you already track. Less is more to start, you can always build on it.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-advanced-line-1",
+              "text": "Read me the habits you already track. Less is more to start, you can always build on it.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-advanced-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "vapi",
+          "llmActive": true,
+          "allowedTools": [
+            "submit_brain_dump"
+          ]
+        },
+        "path": "path-1-vapi",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": true,
+          "continueVapiAfterMp3": true,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "advanced-input",
+          "backId": "path-fork",
+          "persistStep": 3,
+          "pathField": false,
+          "captureFields": [
+            "brainDumpText"
+          ],
+          "toolName": "submit_brain_dump",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": [
+            "brainDumpText"
+          ]
+        },
+        "authoring": {}
+      },
       "tool": {
         "toolName": "submit_brain_dump",
         "persistsFields": [
@@ -477,6 +1340,76 @@
         "openerText": "Now the days. Tell me how often each one runs and I'll fill them in.",
         "expectsInput": true,
         "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-advanced-frequency-opener",
+              "label": "Habit Days opener",
+              "file": "/voice/onboard_advanced_frequency.mp3",
+              "transcript": "Now the days. Tell me how often each one runs and I'll fill them in.",
+              "opener": "Now the days. Tell me how often each one runs and I'll fill them in.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-advanced-frequency-line-1",
+              "text": "Now the days. Tell me how often each one runs and I'll fill them in.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-advanced-frequency-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "soniox",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": [
+            "update_habit"
+          ]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "advanced-frequency",
+          "backId": "advanced-input",
+          "persistStep": 4,
+          "pathField": false,
+          "captureFields": [
+            "habitConfigs"
+          ],
+          "toolName": "update_habit",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": [
+            "habitConfigs"
+          ]
+        },
+        "authoring": {}
       },
       "tool": {
         "toolName": "update_habit",
@@ -509,6 +1442,67 @@
         "expectsInput": false,
         "directLlmAllowed": true
       },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-complete-opener",
+              "label": "Into the App opener",
+              "file": "/voice/onboard_full_plan.mp3",
+              "transcript": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+              "opener": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-complete-line-1",
+              "text": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-complete-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "vapi",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "vapi",
+          "llmActive": true,
+          "allowedTools": []
+        },
+        "path": "path-1-vapi",
+        "orb": {
+          "voiceOn": true,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": true,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": true,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "into-app",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
       "tool": null,
       "persist": null
     },
@@ -533,6 +1527,67 @@
         "openerText": "This is your week. Blank, starting today.",
         "expectsInput": false,
         "directLlmAllowed": false
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-weekly-projection-blank-opener",
+              "label": "Weekly Projection opener",
+              "file": "/voice/onboard_weekly_blank.mp3",
+              "transcript": "This is your week. Blank, starting today.",
+              "opener": "This is your week. Blank, starting today.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-weekly-projection-blank-line-1",
+              "text": "This is your week. Blank, starting today.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-weekly-projection-blank-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "none",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": false,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": false,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "weekly-projection",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
       },
       "tool": null,
       "persist": null
@@ -559,6 +1614,67 @@
         "expectsInput": false,
         "directLlmAllowed": false
       },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-weekly-projection-full-opener",
+              "label": "Weekly Projection opener",
+              "file": "/voice/onboard_weekly_full.mp3",
+              "transcript": "Best case, every day green. Every streak going strong. That would be amazing.",
+              "opener": "Best case, every day green. Every streak going strong. That would be amazing.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-weekly-projection-full-line-1",
+              "text": "Best case, every day green. Every streak going strong. That would be amazing.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-weekly-projection-full-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "none",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": false,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": false,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "weekly-projection",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
       "tool": null,
       "persist": null
     },
@@ -583,6 +1699,67 @@
         "openerText": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
         "expectsInput": false,
         "directLlmAllowed": false
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-weekly-projection-p78-opener",
+              "label": "Weekly Projection opener",
+              "file": "/voice/onboard_weekly_p78.mp3",
+              "transcript": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
+              "opener": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-weekly-projection-p78-line-1",
+              "text": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-weekly-projection-p78-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "none",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": false,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": false,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "weekly-projection",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
       },
       "tool": null,
       "persist": null
@@ -609,6 +1786,67 @@
         "expectsInput": false,
         "directLlmAllowed": false
       },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-weekly-projection-p36-opener",
+              "label": "Weekly Projection opener",
+              "file": "/voice/onboard_weekly_p36.mp3",
+              "transcript": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
+              "opener": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-weekly-projection-p36-line-1",
+              "text": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-weekly-projection-p36-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "none",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": false,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": false,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "weekly-projection",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
       "tool": null,
       "persist": null
     },
@@ -633,6 +1871,67 @@
         "openerText": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.",
         "expectsInput": false,
         "directLlmAllowed": false
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "mp3",
+          "mode": "verbatim",
+          "mp3Assets": [
+            {
+              "id": "onboard-weekly-projection-gaps-opener",
+              "label": "Weekly Projection opener",
+              "file": "/voice/onboard_weekly_gaps.mp3",
+              "transcript": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.",
+              "opener": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.",
+              "timing": "opener"
+            }
+          ],
+          "lines": [
+            {
+              "id": "onboard-weekly-projection-gaps-line-1",
+              "text": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "mp3",
+              "assetRef": "onboard-weekly-projection-gaps-opener"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "none",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": true,
+          "micOn": false,
+          "micAsking": false,
+          "bloomed": true
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": false,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": true,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "weekly-projection",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
       },
       "tool": null,
       "persist": null

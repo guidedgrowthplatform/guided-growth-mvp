@@ -33,6 +33,78 @@ export interface VoiceConfig {
   directLlmAllowed: boolean;
 }
 
+export interface BeatRuntimeMeta {
+  voiceOut: {
+    engine: 'mp3' | 'cartesia' | 'vapi' | 'none';
+    mode: 'verbatim' | 'generative';
+    voiceId?: string;
+    mp3Assets?: Array<{
+      id?: string;
+      label: string;
+      file: string;
+      transcript: string;
+      opener?: string;
+      elementId?: string;
+      timing?: 'opener' | 'element' | 'full-beat';
+    }>;
+    lines?: Array<{
+      id: string;
+      elementId?: string;
+      text: string;
+      voiceOnly?: boolean;
+      onScreen?: boolean;
+      engine?: 'mp3' | 'cartesia' | 'vapi' | 'none';
+      assetRef?: string;
+    }>;
+  };
+  voiceIn: {
+    engine: 'soniox' | 'vapi' | 'none';
+    enabled: boolean;
+    micRequired?: boolean;
+    armOnBeatLoad?: boolean;
+  };
+  fill: {
+    brain: 'direct-llm' | 'vapi' | 'none';
+    llmActive: boolean;
+    allowedTools: string[];
+  };
+  path: 'path-1-vapi' | 'path-2-async' | 'path-3-direct-llm';
+  orb: {
+    voiceOn?: boolean;
+    micOn?: boolean;
+    micAsking?: boolean;
+    bloomed?: boolean;
+  };
+  toggles: {
+    expectsInput: boolean;
+    directLlmAllowed: boolean;
+    instantOpenerEligible?: boolean;
+    suppressVapiDuringMp3?: boolean;
+    continueVapiAfterMp3?: boolean;
+    autoplayRequiresUnlock?: boolean;
+    qaForceEngineAllowed?: boolean;
+  };
+  engine?: {
+    nodeId?: string;
+    backId?: string;
+    persistStep?: number | null;
+    pathField?: boolean;
+    captureFields?: string[];
+    toolName?: string;
+    toolAdvancesStep?: boolean;
+    toolPersistsFields?: string[];
+    maxSelections?: number;
+    optionSource?: string;
+  };
+  authoring?: {
+    figmaNode?: string;
+    status?: 'draft' | 'ready' | 'locked';
+    notes?: string;
+    feedbackConfig?: string;
+    animation?: string;
+  };
+}
+
 export interface ToolConfig {
   /** Matches a tool name in api/_lib/llm/tools.onboarding.ts. */
   toolName: string;
@@ -97,6 +169,7 @@ export interface BeatNode {
   componentType: FlowComponentType;
   componentProps: Record<string, unknown>;
   voice: VoiceConfig;
+  meta?: BeatRuntimeMeta;
   tool: ToolConfig | null;
   /** null = capture-only beat that advances without a save (e.g. mic permission). */
   persist: PersistConfig | null;
@@ -129,6 +202,7 @@ export interface BranchNode {
   componentType: FlowComponentType;
   componentProps: Record<string, unknown>;
   voice: VoiceConfig;
+  meta?: BeatRuntimeMeta;
   tool: ToolConfig | null;
   persist: PersistConfig | null;
 }

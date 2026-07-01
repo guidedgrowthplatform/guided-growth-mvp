@@ -21,6 +21,7 @@
  */
 import type {
   BeatNode,
+  BeatRuntimeMeta,
   BranchNode,
   FlowComponentType,
   FlowDocument,
@@ -447,6 +448,45 @@ const FORK_CONDITION_SOURCE = 'answers.path';
 // out of the linear spine and handled in a dedicated pass (pass 2).
 const ADVANCED_LANE_COMPONENTS: FlowComponentType[] = ['advanced-capture', 'advanced-frequency'];
 
+// Transition defaults mirrored from the runtime scatter. Do not consume these at
+// runtime in this phase; they only stamp today's behavior into the generated flow.
+const CHAT_VAPI_BEAT_SCREENS = new Set([
+  'ONBOARD-FORK--FORM',
+  'ONBOARD-BEGINNER-01',
+  'ONBOARD-BEGINNER-02',
+  'ONBOARD-BEGINNER-03',
+  'ONBOARD-BEGINNER-04',
+  'ONBOARD-ADVANCED',
+  'ONBOARD-BEGINNER-06',
+  'ONBOARD-MORNING-SETUP',
+  'ONBOARD-BEGINNER-07',
+  'ONBOARD-COMPLETE',
+]);
+
+const ONBOARDING_BEAT_MP3S: Record<string, string> = {
+  'COACH-GREETING': '/voice/onboard_coach_greeting.mp3',
+  'MIC-PERMISSION': '/voice/onboard_mic_permission.mp3',
+  'ONBOARD-WHY-INTRO': '/voice/onboard_why_intro.mp3',
+  'ONBOARD-STATE-CHECK': '/voice/onboard_state_check.mp3',
+  'ONBOARD-MORNING-SETUP': '/voice/onboard_morning_time.mp3',
+  'ONBOARD-BEGINNER-07': '/voice/onboard_evening_reflection.mp3',
+  'ONBOARD-FORK--FORM': '/voice/onboard_path_fork.mp3',
+  'ONBOARD-BEGINNER-01': '/voice/onboard_category.mp3',
+  'ONBOARD-BEGINNER-02': '/voice/onboard_subcategory.mp3',
+  'ONBOARD-BEGINNER-03': '/voice/onboard_habits.mp3',
+  'ONBOARD-BEGINNER-04': '/voice/onboard_habit_schedule.mp3',
+  'ONBOARD-ADVANCED': '/voice/onboard_advanced_capture.mp3',
+  'ONBOARD-ADVANCED-FREQUENCY': '/voice/onboard_advanced_frequency.mp3',
+  'ONBOARD-COMPLETE': '/voice/onboard_full_plan.mp3',
+  'ONBOARD-WEEKLY-PROJECTION-BLANK': '/voice/onboard_weekly_blank.mp3',
+  'ONBOARD-WEEKLY-PROJECTION-FULL': '/voice/onboard_weekly_full.mp3',
+  'ONBOARD-WEEKLY-PROJECTION-P78': '/voice/onboard_weekly_p78.mp3',
+  'ONBOARD-WEEKLY-PROJECTION-P36': '/voice/onboard_weekly_p36.mp3',
+  'ONBOARD-WEEKLY-PROJECTION-GAPS': '/voice/onboard_weekly_gaps.mp3',
+};
+
+const HYBRID_OPENER_BEATS = new Set(['ONBOARD-BEGINNER-04', 'ONBOARD-ADVANCED']);
+
 export interface TransformOptions {
   flowId?: string;
   name?: string;
@@ -487,6 +527,191 @@ function resolveOpener(beat: DesignerBeat | undefined, spec: EngineBeatSpec): st
   const coachLine = beat?.props?.coachLine;
   const greeting = beat?.props?.greeting;
   return coachLine ?? greeting ?? spec.voice.openerText;
+}
+
+const slug = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+function parseList(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(/[,\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseNumber(raw: string | undefined): number | undefined {
+  if (raw == null || raw.trim() === '') return undefined;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function mapVoiceOutEngine(
+  raw: string | undefined,
+): BeatRuntimeMeta['voiceOut']['engine'] | undefined {
+  const normalized = raw?.trim().toLowerCase();
+  if (normalized === 'mp3' || normalized === 'cartesia' || normalized === 'vapi' || normalized === 'none') {
+    return normalized;
+  }
+  return undefined;
+}
+
+function mapVoiceMode(raw: string | undefined): BeatRuntimeMeta['voiceOut']['mode'] | undefined {
+  const normalized = raw?.trim().toLowerCase();
+  if (normalized === 'verbatim' || normalized === 'generative') return normalized;
+  return undefined;
+}
+
+function mapPath(raw: string | undefined): BeatRuntimeMeta['path'] | undefined {
+  const normalized = raw?.trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized.includes('path 1') || normalized.includes('vapi')) return 'path-1-vapi';
+  if (normalized.includes('path 2') || normalized.includes('async')) return 'path-2-async';
+  if (normalized.includes('path 3') || normalized.includes('direct')) return 'path-3-direct-llm';
+  return undefined;
+}
+
+function mapStatus(raw: string | undefined): NonNullable<BeatRuntimeMeta['authoring']>['status'] | undefined {
+  const normalized = raw?.trim().toLowerCase();
+  if (normalized === 'draft' || normalized === 'ready' || normalized === 'locked') return normalized;
+  return undefined;
+}
+
+function firstNumberProp(props: Record<string, unknown>, keys: string[]): number | undefined {
+  for (const key of keys) {
+    const value = props[key];
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return undefined;
+}
+
+function resolveMeta(designerBeat: DesignerBeat | undefined, spec: EngineBeatSpec): BeatRuntimeMeta {
+  const screenId = screenIdFromSheetStage(designerBeat?.sheetStage) ?? spec.screenId;
+  const opener = resolveOpener(designerBeat, spec);
+  const authored = designerBeat?.meta;
+  const isVapiBeat = CHAT_VAPI_BEAT_SCREENS.has(screenId);
+  const mp3File = ONBOARDING_BEAT_MP3S[screenId];
+  const isHybridOpenerBeat = HYBRID_OPENER_BEATS.has(screenId);
+  const defaultVoiceOutEngine: BeatRuntimeMeta['voiceOut']['engine'] = mp3File
+    ? 'mp3'
+    : isVapiBeat
+      ? 'vapi'
+      : opener
+        ? 'cartesia'
+        : 'none';
+  const voiceOutEngine = mapVoiceOutEngine(authored?.voiceEngine) ?? defaultVoiceOutEngine;
+  const fillBrain: BeatRuntimeMeta['fill']['brain'] =
+    isVapiBeat || voiceOutEngine === 'vapi' ? 'vapi' : 'direct-llm';
+  const path = mapPath(authored?.path) ?? (fillBrain === 'vapi' ? 'path-1-vapi' : 'path-3-direct-llm');
+  const allowedTools =
+    parseList(authored?.allowedTools).length > 0
+      ? parseList(authored?.allowedTools)
+      : spec.tool
+        ? [spec.tool.toolName]
+        : [];
+  const mp3Assets =
+    authored?.mp3Assets ??
+    (mp3File
+      ? [
+          {
+            id: `${slug(screenId)}-opener`,
+            label: `${spec.screenName} opener`,
+            file: mp3File,
+            transcript: opener ?? '',
+            opener: opener ?? '',
+            timing: 'opener' as const,
+          },
+        ]
+      : undefined);
+  const spokenContent = authored?.spokenContent ?? opener ?? undefined;
+  const firstAssetRef = mp3Assets?.[0]?.id;
+  const componentProps = spec.componentProps;
+  const authoredPersistStep = parseNumber(authored?.engine?.persistStep);
+  const defaultMaxSelections = firstNumberProp(componentProps, ['maxSelections', 'maxPerGoal']);
+  const maxSelections = parseNumber(authored?.engine?.maxSelections) ?? defaultMaxSelections;
+  const optionSource =
+    authored?.engine?.optionSource ??
+    (typeof componentProps.optionSource === 'string' ? componentProps.optionSource : undefined);
+  const captureFields =
+    parseList(authored?.engine?.captureFields).length > 0
+      ? parseList(authored?.engine?.captureFields)
+      : spec.tool?.persistsFields ?? [];
+  const toolPersistsFields =
+    parseList(authored?.engine?.toolPersistsFields).length > 0
+      ? parseList(authored?.engine?.toolPersistsFields)
+      : spec.tool?.persistsFields ?? [];
+
+  return {
+    voiceOut: {
+      engine: voiceOutEngine,
+      mode: mapVoiceMode(authored?.voiceMode) ?? 'verbatim',
+      ...(authored?.voiceId ? { voiceId: authored.voiceId } : {}),
+      ...(mp3Assets ? { mp3Assets } : {}),
+      ...(spokenContent
+        ? {
+            lines: [
+              {
+                id: `${slug(screenId)}-line-1`,
+                text: spokenContent,
+                voiceOnly: false,
+                onScreen: true,
+                engine: voiceOutEngine,
+                ...(firstAssetRef ? { assetRef: firstAssetRef } : {}),
+              },
+            ],
+          }
+        : {}),
+    },
+    voiceIn: {
+      engine: isVapiBeat || fillBrain === 'vapi' ? 'vapi' : spec.voice.expectsInput ? 'soniox' : 'none',
+      enabled: spec.voice.expectsInput || isVapiBeat,
+      micRequired: spec.voice.expectsInput || isVapiBeat,
+      armOnBeatLoad: spec.voice.expectsInput || isVapiBeat,
+    },
+    fill: {
+      brain: fillBrain,
+      llmActive: authored?.llmActive ?? (isVapiBeat || spec.voice.expectsInput || spec.tool != null),
+      allowedTools,
+    },
+    path,
+    orb: authored?.orb ?? {
+      voiceOn: voiceOutEngine !== 'none',
+      micOn: spec.voice.expectsInput || isVapiBeat,
+      micAsking: screenId === 'MIC-PERMISSION',
+      bloomed: voiceOutEngine !== 'none',
+    },
+    toggles: {
+      expectsInput: authored?.engine?.voiceExpectsInput ?? spec.voice.expectsInput,
+      directLlmAllowed: authored?.engine?.voiceDirectLlmAllowed ?? spec.voice.directLlmAllowed,
+      instantOpenerEligible: isVapiBeat,
+      suppressVapiDuringMp3: Boolean(mp3File && isHybridOpenerBeat),
+      continueVapiAfterMp3: Boolean(mp3File && isVapiBeat),
+      autoplayRequiresUnlock: Boolean(mp3File),
+      qaForceEngineAllowed: true,
+    },
+    engine: {
+      nodeId: authored?.engine?.nodeId ?? spec.nodeId,
+      backId: authored?.engine?.backId ?? spec.backId ?? undefined,
+      persistStep: authoredPersistStep ?? spec.persist?.step ?? null,
+      pathField: authored?.engine?.pathField ?? spec.persist?.pathField ?? false,
+      captureFields,
+      toolName: authored?.engine?.toolName ?? spec.tool?.toolName,
+      toolAdvancesStep: authored?.engine?.toolAdvancesStep ?? spec.tool?.advancesStep,
+      toolPersistsFields,
+      ...(maxSelections != null ? { maxSelections } : {}),
+      ...(optionSource ? { optionSource } : {}),
+    },
+    authoring: {
+      ...(authored?.figmaNode ? { figmaNode: authored.figmaNode } : {}),
+      ...(mapStatus(authored?.status) ? { status: mapStatus(authored?.status) } : {}),
+      ...(authored?.voiceNotes ? { notes: authored.voiceNotes } : {}),
+      ...(authored?.feedbackConfig ? { feedbackConfig: authored.feedbackConfig } : {}),
+      ...(authored?.animation ? { animation: authored.animation } : {}),
+    },
+  };
 }
 
 /**
@@ -576,6 +801,7 @@ export function designerToFlowDocument(
     const opener = resolveOpener(designerBeat, spec);
     const componentProps = { ...spec.componentProps };
     const baseVoice: VoiceConfig = { ...spec.voice, openerText: opener };
+    const meta = resolveMeta(designerBeat, spec);
     const context = { screenId, screenName: spec.screenName, contextBlock: spec.contextBlock };
 
     // The next spine node (null when we are at path-fork, which diverges into lanes).
@@ -595,6 +821,7 @@ export function designerToFlowDocument(
         componentType: component,
         componentProps,
         voice: baseVoice,
+        meta,
         tool: spec.tool,
         persist: spec.persist,
       };
@@ -614,6 +841,7 @@ export function designerToFlowDocument(
       componentType: component,
       componentProps,
       voice: baseVoice,
+      meta,
       tool: spec.tool,
       persist: spec.persist,
     };
@@ -643,6 +871,7 @@ export function designerToFlowDocument(
     componentType: 'advanced-capture',
     componentProps: { ...advCaptureSpec.componentProps },
     voice: { ...advCaptureSpec.voice, openerText: resolveOpener(advCaptureDesigner, advCaptureSpec) },
+    meta: resolveMeta(advCaptureDesigner, advCaptureSpec),
     tool: advCaptureSpec.tool,
     persist: advCaptureSpec.persist,
   };
@@ -667,6 +896,7 @@ export function designerToFlowDocument(
     componentType: 'advanced-frequency',
     componentProps: { ...advFreqSpec.componentProps },
     voice: { ...advFreqSpec.voice, openerText: resolveOpener(advFreqDesigner, advFreqSpec) },
+    meta: resolveMeta(advFreqDesigner, advFreqSpec),
     tool: advFreqSpec.tool,
     persist: advFreqSpec.persist,
   };
@@ -697,6 +927,7 @@ export function designerToFlowDocument(
       componentType: 'weekly-projection' as FlowComponentType,
       componentProps: { ...spec.componentProps, state },
       voice: { ...spec.voice, openerText: opener },
+      meta: resolveMeta(beat, spec),
       tool: spec.tool,
       persist: spec.persist,
     };
