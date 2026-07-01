@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Guided Growth — Orb Builder</title>
+<style>
+  :root{
+    --size:230px;
+    --ai:#2f9bff; --user:#ffd23f; --active:#2f9bff;
+    --density:0.9;
+    --seam:5px;          /* softness of the split (low = crisp) */
+    --blur:6px; --glow:60px; --bright:1; --rim:0.7;
+    --speed:2.4s;        /* base drift/wobble cycle */
+    --flow:0.6;          /* inner color drift amount */
+    --memsize:40px;      /* outer membrane extent (smaller now) */
+    --memwob:0.6; --memop:0.7;
+    --level:0;           /* live voice level 0..1 (JS) */
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:Urbanist,system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e8edf6;background:#0b1220;display:flex;min-height:100vh}
+
+  .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;position:relative;transition:background .3s;overflow:hidden}
+  .stage[data-bg="dark"]{background:radial-gradient(120% 120% at 50% 30%,#101a2e,#0b1220)}
+  .stage[data-bg="light"]{background:radial-gradient(120% 120% at 50% 34%,#f3f7fc,#e2ebf6)}
+  .stage[data-bg="nav"]{background:linear-gradient(180deg,#eaf0f9 0%,#cfd9ea 100%)}
+  .cap{font-size:12px;font-weight:600;letter-spacing:.3px;color:#8ea2c0;z-index:5}
+  .cap b{color:#cdd8ea}
+  .stage[data-bg="light"] .cap,.stage[data-bg="nav"] .cap{color:#5a6b86}
+  .stage[data-bg="light"] .cap b,.stage[data-bg="nav"] .cap b{color:#26344a}
+
+  /* --- realistic bottom-nav preview (mirrors BottomNav.tsx) --- */
+  .phone{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:min(430px,94%);display:none;flex-direction:column;align-items:stretch}
+  .stage[data-bg="nav"] .phone{display:flex}
+  .stage[data-bg="nav"] #orbwrap{display:none}      /* focus on the docked orb */
+  .navbar{position:relative;height:72px}
+  .navbg{position:absolute;inset:0;display:flex;filter:drop-shadow(0 -4px 12px rgba(0,0,0,.10))}
+  .navbg .fill{height:100%;flex:1;background:#fff}
+  .navbg svg{display:block;height:100%;flex:none;color:#fff}
+  .navtabs{position:relative;height:100%;display:grid;grid-template-columns:repeat(5,1fr);align-items:end;padding:0 22px 9px;z-index:4}
+  .navtab{display:flex;flex-direction:column;align-items:center;gap:2px;color:#9aa7bd;font-size:10px;font-weight:700}
+  .navtab.act{color:#2f6bff}
+  .navtab svg{width:22px;height:22px;fill:currentColor}
+  .navnotch{position:absolute;left:50%;top:0;transform:translate(-50%,-50%);z-index:6;width:98px;height:98px;display:flex;align-items:center;justify-content:center}
+  .navsafe{height:20px;background:#fff}
+
+  .orbwrap{position:relative;width:calc(var(--size) + var(--memsize)*2 + 60px);height:calc(var(--size) + var(--memsize)*2 + 60px);display:flex;align-items:center;justify-content:center}
+
+  /* live aura (reacts to voice level) */
+  .aura{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:var(--size);height:var(--size);border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle,var(--active),transparent 62%);
+    filter:blur(24px);opacity:calc(var(--level)*0.55);mix-blend-mode:screen}
+
+  /* outer organic membrane (Reference 1) — smaller, reacts to level */
+  .memwrap{position:absolute;inset:0;pointer-events:none;
+    transform:scale(calc(1 + var(--level)*0.10))}
+  .mem{position:absolute;left:50%;top:50%;
+    width:calc(var(--size) + var(--memsize)*2);height:calc(var(--size) + var(--memsize)*2);
+    opacity:var(--memop);mix-blend-mode:screen;
+    background:radial-gradient(circle at 42% 36%,rgba(255,255,255,.55) 0%,rgba(206,230,255,.30) 44%,rgba(206,230,255,.08) 68%,transparent 82%);
+    filter:blur(7px);border-radius:46% 54% 52% 48% / 52% 46% 54% 48%;
+    animation:wob calc(var(--speed)*3) ease-in-out infinite}
+  .mem.m2{width:calc(var(--size) + var(--memsize)*1.3);height:calc(var(--size) + var(--memsize)*1.3);filter:blur(5px);opacity:calc(var(--memop)*.85);animation:wob2 calc(var(--speed)*2.3) ease-in-out infinite}
+  .orbwrap[data-state="ai"] .mem,.orbwrap[data-state="user"] .mem{background:radial-gradient(circle at 42% 36%,color-mix(in srgb,var(--active) 42%, rgba(255,255,255,.55)) 0%,color-mix(in srgb,var(--active) 30%, rgba(220,235,255,.28)) 46%,rgba(220,235,255,.05) 72%,transparent 84%)}
+  @keyframes wob{0%{transform:translate(-50%,-50%) rotate(0) scale(1);border-radius:46% 54% 52% 48% / 52% 46% 54% 48%}50%{transform:translate(-50%,-50%) rotate(6deg) scale(calc(1 + var(--memwob)*0.05));border-radius:54% 46% 48% 52% / 46% 54% 47% 53%}100%{transform:translate(-50%,-50%) rotate(0) scale(1);border-radius:46% 54% 52% 48% / 52% 46% 54% 48%}}
+  @keyframes wob2{0%{transform:translate(-50%,-50%) rotate(0) scale(1);border-radius:52% 48% 46% 54% / 48% 52% 50% 50%}50%{transform:translate(-50%,-50%) rotate(-7deg) scale(calc(1 + var(--memwob)*0.07));border-radius:47% 53% 55% 45% / 53% 47% 52% 48%}100%{transform:translate(-50%,-50%) rotate(0) scale(1);border-radius:52% 48% 46% 54% / 48% 52% 50% 50%}}
+
+  .orb{position:relative;width:var(--size);height:var(--size);border-radius:50%;filter:brightness(var(--bright));box-shadow:0 0 var(--glow) rgba(150,190,255,.30), inset 0 0 42px rgba(255,255,255,.30)}
+  .orbwrap[data-state="ai"] .orb,.orbwrap[data-state="user"] .orb{box-shadow:0 0 calc(var(--glow)*(1.3 + var(--level))) color-mix(in srgb,var(--active) 55%, transparent), inset 0 0 42px rgba(255,255,255,.30)}
+  .layer{position:absolute;inset:0;border-radius:50%}
+  .body{background:radial-gradient(120% 120% at 34% 28%,rgba(255,255,255,.92) 0%,rgba(255,255,255,.36) 18%,rgba(255,255,255,.06) 42%,rgba(255,255,255,0) 60%),radial-gradient(120% 120% at 70% 82%,rgba(120,160,220,.16),rgba(120,160,220,0) 55%);backdrop-filter:blur(var(--blur));background-color:rgba(255,255,255,.05)}
+
+  /* IDLE: two genuinely separate halves with a real divide */
+  .half{opacity:var(--density);mix-blend-mode:screen;filter:blur(var(--seam));transition:opacity .5s ease}
+  .halfL{background:radial-gradient(120% 130% at 26% 44%,var(--ai) 0%,color-mix(in srgb,var(--ai) 48%, transparent) 52%,transparent 72%);clip-path:inset(0 50% 0 0)}
+  .halfR{background:radial-gradient(120% 130% at 74% 44%,var(--user) 0%,color-mix(in srgb,var(--user) 48%, transparent) 52%,transparent 72%);clip-path:inset(0 0 0 50%)}
+  .seamline{position:absolute;top:6%;bottom:6%;left:calc(50% - 1.5px);width:3px;border-radius:3px;
+    background:linear-gradient(rgba(8,16,28,0),rgba(8,16,28,.55) 20%,rgba(8,16,28,.55) 80%,rgba(8,16,28,0));
+    opacity:.7;transition:opacity .45s ease;z-index:2}
+  .orbwrap[data-state="ai"] .half,.orbwrap[data-state="user"] .half,
+  .orbwrap[data-state="ai"] .seamline,.orbwrap[data-state="user"] .seamline{opacity:0}
+
+  /* SPEAKING: color lives + drifts inside; swells with --level */
+  .liquid{overflow:hidden;opacity:0;mix-blend-mode:screen;transition:opacity .5s ease;transform:scale(calc(1 + var(--level)*0.16))}
+  .orbwrap[data-state="ai"] .liquid,.orbwrap[data-state="user"] .liquid{opacity:var(--density)}
+  .blob{position:absolute;width:78%;height:78%;border-radius:50%;filter:blur(16px);mix-blend-mode:screen}
+  .b1{left:8%;top:14%;background:radial-gradient(circle,var(--active) 0%,transparent 62%);animation:flow1 var(--speed) ease-in-out infinite}
+  .b2{left:34%;top:40%;background:radial-gradient(circle,color-mix(in srgb,var(--active) 60%, white) 0%,transparent 60%);animation:flow2 calc(var(--speed)*1.35) ease-in-out infinite}
+  .b3{left:20%;top:52%;background:radial-gradient(circle,color-mix(in srgb,var(--active) 80%, black 12%) 0%,transparent 58%);animation:flow3 calc(var(--speed)*0.85) ease-in-out infinite}
+  @keyframes flow1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(calc(var(--flow)*22px),calc(var(--flow)*16px)) scale(calc(1 + var(--flow)*0.12))}}
+  @keyframes flow2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(calc(var(--flow)*-20px),calc(var(--flow)*-14px)) scale(calc(1 - var(--flow)*0.08))}}
+  @keyframes flow3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(calc(var(--flow)*14px),calc(var(--flow)*-20px)) scale(calc(1 + var(--flow)*0.1))}}
+
+  .rim{opacity:var(--rim);background:conic-gradient(from 210deg,#8ec5ff,#c9b8ff,#ffd1e8,#fff2b0,#b8ffe0,#8ec5ff);-webkit-mask:radial-gradient(closest-side,transparent 78%,#000 88%,#000 96%,transparent 100%);mask:radial-gradient(closest-side,transparent 78%,#000 88%,#000 96%,transparent 100%);mix-blend-mode:screen}
+  .spec{background:radial-gradient(40% 26% at 34% 24%,rgba(255,255,255,.95),rgba(255,255,255,0) 70%);filter:blur(1px)}
+
+  .panel{width:322px;flex:0 0 322px;background:#0f1a2e;border-left:1px solid #1d2c47;padding:18px 18px 28px;overflow-y:auto;height:100vh}
+  .panel h1{font-size:15px;margin:0 0 2px}.panel .sub{font-size:11px;color:#8194b3;margin:0 0 16px;line-height:1.5}
+  .seg{display:flex;gap:6px;margin-bottom:14px}
+  .seg button{flex:1;padding:9px 0;border-radius:10px;border:1px solid #26385a;background:#132139;color:#b9c6dd;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+  .seg button.on{background:var(--active);color:#08111f;border-color:transparent}
+  .mic{display:flex;align-items:center;gap:8px;font-size:11px;color:#8ea2c0;margin:0 0 14px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#3a4a66}.dot.live{background:#39d98a;box-shadow:0 0 8px #39d98a}.dot.err{background:#ff6b6b}
+  .grp{margin:0 0 14px;border-top:1px solid #1a2740;padding-top:12px}
+  .grp .lbl{font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#7f93b3;margin-bottom:8px}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:7px 0}
+  .row span{font-size:12px;color:#c3cfe4}.row input[type=range]{flex:1;accent-color:#3aa0ff}
+  .row .val{width:46px;text-align:right;font-size:11px;color:#8ea2c0;font-variant-numeric:tabular-nums}
+  .row input[type=color]{width:34px;height:24px;border:none;background:none;padding:0;border-radius:6px;cursor:pointer}
+  .bgrow{display:flex;gap:6px;margin-top:4px}
+  .bgrow button{flex:1;padding:7px 0;border-radius:8px;border:1px solid #26385a;background:#132139;color:#b9c6dd;font:inherit;font-size:11px;font-weight:600;cursor:pointer}
+  .bgrow button.on{border-color:#3aa0ff;color:#dbe8ff}
+  .exp{width:100%;margin-top:8px;padding:10px;border-radius:10px;border:none;background:#3aa0ff;color:#08111f;font:inherit;font-weight:800;font-size:13px;cursor:pointer}
+  textarea{width:100%;height:88px;margin-top:8px;background:#0a1424;color:#9fd0ff;border:1px solid #1d2c47;border-radius:8px;font-family:ui-monospace,monospace;font-size:11px;padding:8px;resize:vertical}
+</style>
+</head>
+<body>
+  <div class="stage" id="stage" data-bg="dark">
+    <div class="cap">Guided Growth · Orb Builder &nbsp;—&nbsp; <b id="stateCap">Idle (two sides)</b></div>
+    <div class="orbwrap" id="orbwrap" data-state="idle">
+      <div class="aura"></div>
+      <div class="memwrap"><div class="mem"></div><div class="mem m2"></div></div>
+      <div class="orb" id="orb">
+        <div class="layer body"></div>
+        <div class="layer half halfL"></div>
+        <div class="layer half halfR"></div>
+        <div class="seamline"></div>
+        <div class="layer liquid"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+        <div class="layer rim"></div>
+        <div class="layer spec"></div>
+      </div>
+    </div>
+    <div class="phone">
+      <div class="navbar">
+        <div class="navbg">
+          <div class="fill"></div>
+          <svg width="140" height="72" viewBox="0 0 140 72" xmlns="http://www.w3.org/2000/svg"><path d="M0 0 L14 0 C17 0, 19 1, 20 4 C20 28, 42 50, 70 50 C98 50, 120 28, 120 4 C121 1, 123 0, 126 0 L140 0 L140 72 L0 72 Z" fill="currentColor"/></svg>
+          <div class="fill"></div>
+        </div>
+        <div class="navtabs">
+          <div class="navtab act"><svg viewBox="0 0 24 24"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z"/></svg><span>Home</span></div>
+          <div class="navtab"><svg viewBox="0 0 24 24"><path d="M4 13h4v7H4zM10 4h4v16h-4zM16 9h4v11h-4z"/></svg><span>Progress</span></div>
+          <div></div>
+          <div class="navtab"><svg viewBox="0 0 24 24"><path d="M9 1h6v2H9zM11 7h2v6h-2zM12 5a8 8 0 100 16 8 8 0 000-16z"/></svg><span>Focus</span></div>
+          <div class="navtab"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5 0-9 2.5-9 6v2h18v-2c0-3.5-4-6-9-6z"/></svg><span>Profile</span></div>
+        </div>
+        <div class="navnotch">
+          <div class="orbwrap" id="navorbwrap" data-state="idle" style="--size:78px;--memsize:9px;--glow:22px;--blur:5px;width:96px;height:96px">
+            <div class="aura"></div>
+            <div class="memwrap"><div class="mem"></div><div class="mem m2"></div></div>
+            <div class="orb">
+              <div class="layer body"></div>
+              <div class="layer half halfL"></div>
+              <div class="layer half halfR"></div>
+              <div class="seamline"></div>
+              <div class="layer liquid"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+              <div class="layer rim"></div>
+              <div class="layer spec"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="navsafe"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h1>Orb Builder</h1>
+    <p class="sub">Idle = two separate halves (blue AI · gold user). Speaking = full orb, color drifts inside, membrane alive. <b>User speaks</b> reacts to your mic.</p>
+
+    <div class="seg" id="stateSeg">
+      <button data-state="idle" class="on">Idle</button>
+      <button data-state="ai">AI speaks</button>
+      <button data-state="user">User speaks</button>
+    </div>
+    <div class="mic"><span class="dot" id="micDot"></span><span id="micTxt">Mic idle — pick "User speaks" to react to your voice</span></div>
+
+    <div class="grp">
+      <div class="lbl">Colors &amp; pattern</div>
+      <div class="row"><span>AI (left)</span><input type="color" id="ai" value="#2f9bff"></div>
+      <div class="row"><span>User (right)</span><input type="color" id="user" value="#ffd23f"></div>
+      <div class="row"><span>Density</span><input type="range" id="density" min="0.3" max="1" step="0.01" value="0.9"><span class="val" id="densityV"></span></div>
+      <div class="row"><span>Split softness</span><input type="range" id="seam" min="0" max="30" step="1" value="5"><span class="val" id="seamV"></span></div>
+    </div>
+
+    <div class="grp">
+      <div class="lbl">Glass</div>
+      <div class="row"><span>Size</span><input type="range" id="size" min="120" max="320" step="2" value="230"><span class="val" id="sizeV"></span></div>
+      <div class="row"><span>Blur</span><input type="range" id="blur" min="0" max="18" step="0.5" value="6"><span class="val" id="blurV"></span></div>
+      <div class="row"><span>Glow</span><input type="range" id="glow" min="0" max="130" step="2" value="60"><span class="val" id="glowV"></span></div>
+      <div class="row"><span>Brightness</span><input type="range" id="bright" min="0.6" max="1.6" step="0.02" value="1"><span class="val" id="brightV"></span></div>
+      <div class="row"><span>Iridescent rim</span><input type="range" id="rim" min="0" max="1" step="0.02" value="0.7"><span class="val" id="rimV"></span></div>
+    </div>
+
+    <div class="grp">
+      <div class="lbl">Inner color movement</div>
+      <div class="row"><span>Flow speed</span><input type="range" id="speed" min="0.8" max="4" step="0.1" value="2.4"><span class="val" id="speedV"></span></div>
+      <div class="row"><span>Flow amount</span><input type="range" id="flow" min="0" max="1.4" step="0.05" value="0.6"><span class="val" id="flowV"></span></div>
+    </div>
+
+    <div class="grp">
+      <div class="lbl">Outer membrane</div>
+      <div class="row"><span>Size</span><input type="range" id="memsize" min="8" max="100" step="2" value="40"><span class="val" id="memsizeV"></span></div>
+      <div class="row"><span>Wobble</span><input type="range" id="memwob" min="0" max="1.4" step="0.05" value="0.6"><span class="val" id="memwobV"></span></div>
+      <div class="row"><span>Opacity</span><input type="range" id="memop" min="0" max="1" step="0.02" value="0.7"><span class="val" id="memopV"></span></div>
+    </div>
+
+    <div class="grp">
+      <div class="lbl">Live / mic</div>
+      <div class="row"><span>React to mic (User speaks)</span><input type="checkbox" id="useMic" checked></div>
+    </div>
+
+    <div class="grp">
+      <div class="lbl">Preview background</div>
+      <div class="bgrow" id="bgSeg">
+        <button data-bg="dark" class="on">Dark</button><button data-bg="light">Light</button><button data-bg="nav">Nav bar</button>
+      </div>
+      <button class="exp" id="exportBtn">Export settings (JSON)</button>
+      <textarea id="out" readonly placeholder="Exported settings appear here…"></textarea>
+    </div>
+  </div>
+
+<script>
+  const root=document.documentElement, wrap=document.getElementById('orbwrap'), stateCap=document.getElementById('stateCap');
+  const CTRL={density:{v:'--density'},seam:{v:'--seam',u:'px'},size:{v:'--size',u:'px'},blur:{v:'--blur',u:'px'},glow:{v:'--glow',u:'px'},bright:{v:'--bright'},rim:{v:'--rim'},speed:{v:'--speed',u:'s'},flow:{v:'--flow'},memsize:{v:'--memsize',u:'px'},memwob:{v:'--memwob'},memop:{v:'--memop'}};
+  function apply(id){const el=document.getElementById(id),c=CTRL[id],raw=el.value;if(c)root.style.setProperty(c.v,raw+(c.u||''));const v=document.getElementById(id+'V');if(v)v.textContent=raw+(c&&c.u?c.u:'');}
+  Object.keys(CTRL).forEach(id=>{document.getElementById(id).addEventListener('input',()=>apply(id));apply(id);});
+  function colors(){root.style.setProperty('--ai',document.getElementById('ai').value);root.style.setProperty('--user',document.getElementById('user').value);setActive();}
+  document.getElementById('ai').addEventListener('input',colors);document.getElementById('user').addEventListener('input',colors);
+
+  const state={cur:'idle'};
+  function setActive(){root.style.setProperty('--active', state.cur==='user'?document.getElementById('user').value:document.getElementById('ai').value);}
+  const navwrap=document.getElementById('navorbwrap');
+  function setState(s){
+    state.cur=s;wrap.dataset.state=s;if(navwrap)navwrap.dataset.state=s;setActive();
+    document.querySelectorAll('#stateSeg button').forEach(b=>b.classList.toggle('on',b.dataset.state===s));
+    stateCap.textContent=s==='idle'?'Idle (two sides)':s==='ai'?'AI speaking (living)':'User speaking (living)';
+    if(s==='user' && document.getElementById('useMic').checked) startMic(); else stopMic();
+  }
+  document.querySelectorAll('#stateSeg button').forEach(b=>b.onclick=()=>setState(b.dataset.state));
+
+  const stage=document.getElementById('stage');
+  document.querySelectorAll('#bgSeg button').forEach(b=>b.onclick=()=>{stage.dataset.bg=b.dataset.bg;document.querySelectorAll('#bgSeg button').forEach(x=>x.classList.toggle('on',x===b));});
+
+  document.getElementById('exportBtn').onclick=()=>{const cfg={state:state.cur,ai:document.getElementById('ai').value,user:document.getElementById('user').value};Object.keys(CTRL).forEach(id=>cfg[id]=document.getElementById(id).value);const t=JSON.stringify(cfg,null,2);document.getElementById('out').value=t;try{navigator.clipboard.writeText(t);}catch(e){}};
+
+  /* ---------- mic + live level ---------- */
+  const micDot=document.getElementById('micDot'), micTxt=document.getElementById('micTxt');
+  let stream=null, actx=null, analyser=null, data=null;
+  function micStatus(cls,txt){micDot.className='dot'+(cls?(' '+cls):'');micTxt.textContent=txt;}
+  async function startMic(){
+    if(analyser) return;
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
+      actx=new (window.AudioContext||window.webkitAudioContext)();
+      const src=actx.createMediaStreamSource(stream);
+      analyser=actx.createAnalyser();analyser.fftSize=512;data=new Uint8Array(analyser.fftSize);
+      src.connect(analyser);
+      micStatus('live','Listening… speak and watch the orb');
+    }catch(e){
+      analyser=null;
+      micStatus('err', location.protocol==='file:' ? 'Mic blocked on file:// — open via http://localhost' : 'Mic blocked (allow permission). Using auto motion.');
+    }
+  }
+  function stopMic(){
+    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+    if(actx){try{actx.close();}catch(e){}actx=null;}
+    analyser=null;data=null;
+    if(state.cur!=='user') micStatus('', 'Mic idle — pick "User speaks" to react to your voice');
+  }
+  function micLevel(){
+    if(!analyser) return null;
+    analyser.getByteTimeDomainData(data);
+    let sum=0;for(let i=0;i<data.length;i++){const x=(data[i]-128)/128;sum+=x*x;}
+    const rms=Math.sqrt(sum/data.length);
+    return Math.min(1, rms*3.2); // scale up quiet speech
+  }
+
+  let level=0;
+  function frame(t){
+    const sec=t/1000; let target=0;
+    if(state.cur==='idle'){ target=0.05+0.03*Math.sin(sec*1.2); }
+    else if(state.cur==='ai'){ target=0.42+0.30*Math.sin(sec*4.2)+0.12*Math.sin(sec*9.1); }
+    else { const m=micLevel(); target = m!=null ? m : 0.4+0.30*Math.sin(sec*4.6); }
+    target=Math.max(0,Math.min(1,target));
+    level += (target-level)* (target>level?0.35:0.12); // fast attack, slow release
+    root.style.setProperty('--level', level.toFixed(3));
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  document.getElementById('useMic').addEventListener('change',e=>{ if(state.cur==='user'){ e.target.checked?startMic():stopMic(); }});
+  setState('idle');
+</script>
+</body>
+</html>
