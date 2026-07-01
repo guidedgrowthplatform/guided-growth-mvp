@@ -59,12 +59,11 @@ import {
   getOrCreateOnboardingChatSessionId,
 } from '@/lib/onboarding/onboardingChatSession';
 import {
-  CHAT_VAPI_BEAT_SCREENS,
-  LOCAL_CAPTURE_BEATS,
   ONBOARDING_CHAT_ROUTE,
   ONBOARDING_FLOW_PREVIEW_ROUTE,
   ONBOARDING_FLOW_ROUTE,
 } from '@/lib/onboarding/onboardingStepBeats';
+import { isVapiCapableBeat, isIdleCaptureBeat } from '@/onboarding-flow/beatEngineMeta';
 import { engineForTurn } from '@/lib/orb/engineForTurn';
 import { orbStateFrom, type OrbState } from '@/lib/orb/orbState';
 import { queryKeys } from '@/lib/query';
@@ -1041,7 +1040,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
       // path (Cartesia speaks the opener, Vapi waits). Default OFF → this whole
       // block is dead and the standard speaks-first overrides ship unchanged.
       const isFirstColdStartBeat =
-        ONBOARDING_INSTANT_OPENER && !openerUsedRef.current && CHAT_VAPI_BEAT_SCREENS.has(sid);
+        ONBOARDING_INSTANT_OPENER && !openerUsedRef.current && isVapiCapableBeat(sid);
 
       const overrides = buildAssistantOverrides({
         screenId: ctx.screen_id,
@@ -1287,8 +1286,10 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // The selector decides INTENT (orbs + beat + surface); Vapi health gates are
   // applied below when turning intent into vapiShouldBeLive.
   const rawOrbState = orbStateFrom(voiceOn, micOn);
-  const vapiCapableBeat = !!registeredScreenId && CHAT_VAPI_BEAT_SCREENS.has(registeredScreenId);
-  const isLocalCaptureBeat = !!registeredScreenId && LOCAL_CAPTURE_BEATS.has(registeredScreenId);
+  // Engine per beat is metadata-driven (node.meta.fill.brain), resolved by
+  // screenId via beatEngineMeta; the legacy sets remain only as its fallback.
+  const vapiCapableBeat = isVapiCapableBeat(registeredScreenId);
+  const isLocalCaptureBeat = isIdleCaptureBeat(registeredScreenId);
   const engine = engineForTurn({
     inOnboarding,
     onChatPage,

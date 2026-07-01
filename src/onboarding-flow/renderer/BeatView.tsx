@@ -55,8 +55,15 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   const hasBeatConversation = (session?.messages ?? []).some(
     (m) => m.screenId === node.screenId && !!m.text,
   );
-  const isLocalCaptureBeat = LOCAL_CAPTURE_BEATS.has(node.screenId);
-  const isVapiBeat = CHAT_VAPI_BEAT_SCREENS.has(node.screenId) && !isLocalCaptureBeat;
+  // Engine per beat is metadata-driven: read the fill brain off node.meta (the
+  // re-exported flow carries it). The legacy sets stay only as a fallback for any
+  // screen the meta does not cover, so behavior is identical when meta is present.
+  const isLocalCaptureBeat = node.meta
+    ? node.meta.fill?.brain === 'none'
+    : LOCAL_CAPTURE_BEATS.has(node.screenId);
+  const isVapiBeat =
+    (node.meta ? node.meta.fill?.brain === 'vapi' : CHAT_VAPI_BEAT_SCREENS.has(node.screenId)) &&
+    !isLocalCaptureBeat;
 
   // MP3 opener: metadata-authored beats play a pre-encoded clip at beat mount
   // instead of calling Cartesia or waiting for Vapi to speak the opener. The

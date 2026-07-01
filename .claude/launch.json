@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ggmvp-staging",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--port", "5190", "--strictPort"],
+      "port": 5190
+    }
+  ]
+}
