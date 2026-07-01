@@ -1,5 +1,5 @@
-import { type MutableRefObject } from 'react';
 import { Icon } from '@iconify/react';
+import { type MutableRefObject } from 'react';
 import { IconChatText, IconMic } from '@/components/icons';
 import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
 import type { OrbStates, PulseParams } from './orbPresets';
@@ -64,12 +64,40 @@ export function HomeBarPreview({ orbState, orbStyle, params, pulse, mic }: HomeB
         className="relative overflow-hidden rounded-[34px] bg-white"
         style={{ width: 340, height: 560, boxShadow: '0 18px 50px rgba(20,30,60,.28)' }}
       >
-        {/* Content placeholder: swap for the real home page while building. */}
-        <div className="flex h-full flex-col gap-3 p-5">
-          <div className="h-7 w-40 rounded-md bg-slate-100" />
-          <div className="h-28 rounded-2xl bg-slate-50" />
-          <div className="h-28 rounded-2xl bg-slate-50" />
-          <div className="h-28 rounded-2xl bg-slate-50" />
+        {/* Home content mock, so the bar and orb read in a real context. */}
+        <div className="flex h-full flex-col gap-4 p-5 pb-24">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[11px] font-semibold text-slate-400">Good morning</div>
+              <div className="text-[18px] font-bold text-slate-800">Let&apos;s grow today</div>
+            </div>
+            <div className="h-9 w-9 rounded-full bg-slate-200" />
+          </div>
+
+          {/* Coach hero card: the orb below is how you reach it. */}
+          <div
+            className="rounded-3xl p-4 text-white"
+            style={{ background: 'linear-gradient(135deg,#2f6bff,#5b8cff)' }}
+          >
+            <div className="text-[12px] font-semibold opacity-90">Your coach</div>
+            <div className="mt-1 text-[15px] font-bold leading-snug">
+              Tap the orb to talk it through
+            </div>
+            <div className="mt-3 h-1.5 w-24 rounded-full bg-white/30" />
+          </div>
+
+          {/* A few home items so the layout feels lived-in. */}
+          <div className="flex flex-col gap-3">
+            {['Morning focus', 'Reflect on yesterday', 'Plan your day'].map((t) => (
+              <div key={t} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3">
+                <div className="h-9 w-9 shrink-0 rounded-xl bg-slate-200" />
+                <div className="flex-1">
+                  <div className="text-[13px] font-semibold text-slate-700">{t}</div>
+                  <div className="mt-1 h-2 w-2/3 rounded-full bg-slate-200" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* The home bar: scooped background, the live orb in the notch, four tabs. */}
