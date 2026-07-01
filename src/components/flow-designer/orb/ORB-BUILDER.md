@@ -46,8 +46,8 @@ Open http://localhost:8791/ and click Orb builder.
 To build the static bundle (this is what gets deployed):
 
 ```
-npx vite build --config vite.flow.config.ts
-# output: dist-flow/
+npm run build:flow
+# output: dist-flow/ (with index.html at the root)
 ```
 
 ## How to work on it
@@ -76,6 +76,22 @@ which renders the real `DualButton`. To take a tuned look live:
 
 ## Publish for review
 
-Once it looks good on your branch, deploy the flow bundle to Vercel and send the
-preview URL so it can be reviewed live. Build with the command above, deploy
-`dist-flow/`. Confirm the exact Vercel project before the first deploy.
+The flow builder lives on Cloudflare Pages, project `gg-flow-builder`. Production
+is https://gg-flow-builder.pages.dev. Each branch gets its own preview URL, so you
+can share your work without touching main.
+
+Deploy your branch as a preview (wrangler 4 needs Node 22, so pin wrangler 3 if
+you're on Node 20):
+
+```
+npm run build:flow
+npx -y wrangler@3 pages deploy dist-flow \
+  --project-name=gg-flow-builder \
+  --branch=<your-branch> --commit-dirty=true
+```
+
+That prints an alias URL like `https://<your-branch>.gg-flow-builder.pages.dev`.
+Send that so it can be reviewed live. The orb builder is the Orb builder tab at
+the top of the page.
+
+This branch is live at https://orb-builder.gg-flow-builder.pages.dev.
