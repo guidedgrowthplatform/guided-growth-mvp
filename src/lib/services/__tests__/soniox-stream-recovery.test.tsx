@@ -166,6 +166,23 @@ describe('startSonioxBrowserSession — #206/#229 track-ended recovery', () => {
     expect(currentTrack.stop).toHaveBeenCalledTimes(1);
   });
 
+  it('setResponding release (opener clip ended) keeps the mic warm — no teardown (T1-3)', async () => {
+    const getUserMedia = navigator.mediaDevices.getUserMedia as ReturnType<typeof vi.fn>;
+    const handle = startSonioxBrowserSession({
+      onInterim: vi.fn(),
+      onFinal: vi.fn(),
+      onStateChange: vi.fn(),
+      onError: vi.fn(),
+    });
+    await settle();
+
+    handle.setResponding(true); // coach opener clip playing → socket held closed
+    handle.setResponding(false); // clip ended → open clean on the user's first word
+
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(currentTrack.stop).not.toHaveBeenCalled();
+  });
+
   it('visibilitychange with an already-ended track routes to a recoverable onError', async () => {
     const onError = vi.fn();
     startSonioxBrowserSession({

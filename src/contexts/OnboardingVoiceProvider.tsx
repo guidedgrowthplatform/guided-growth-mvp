@@ -74,7 +74,10 @@ import { speakOpener, type SpeakOpenerHandle } from '@/lib/voice/speakOpener';
 import { resolveTurnPauseMs } from '@/lib/voice/turnDecision';
 import { isVapiCapableBeat, isIdleCaptureBeat } from '@/onboarding-flow/beatEngineMeta';
 import { applyName } from '@/onboarding-flow/renderer/applyName';
-import { ONBOARDING_BEAT_MP3S } from '@/onboarding-flow/renderer/useBeatOpenerMp3';
+import {
+  ONBOARDING_BEAT_MP3S,
+  useOpenerPlaybackStore,
+} from '@/onboarding-flow/renderer/useBeatOpenerMp3';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
@@ -1476,6 +1479,9 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
   // cover the echo tail. Gates on actual playback (isSpeaking), not the fetch.
   const ttsSpeaking = useTtsPlaybackStore((s) => s.isSpeaking);
   const micMutedForTts = !FULL_DUPLEX_BARGE_IN && voiceOn && ttsSpeaking;
+  // Opener clips override barge-in: hold the socket closed while the coach's MP3
+  // plays, then open at clip end so the first word lands clean, not on the echo (T1-3).
+  const openerPlaying = useOpenerPlaybackStore((s) => s.playing);
   const [micMutedHeld, setMicMutedHeld] = useState(true);
   useEffect(() => {
     if (micMutedForTts) {
@@ -1491,7 +1497,7 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
     vapiStatus: status,
     onTranscript: emitVoiceInFinal,
     onInterim: emitVoiceInInterim,
-    responding: micMutedForTts || micMutedHeld,
+    responding: micMutedForTts || micMutedHeld || openerPlaying,
     onError: handleVoiceInError,
   });
 

@@ -504,8 +504,9 @@ function realSocketAdapter(url: string): SonioxSocket {
 const CONNECT_TIMEOUT_MS = 7000;
 // armed but zero audio frames — dead capture; else orb sits on 'listening' forever
 const ARM_TIMEOUT_MS = 12000;
-// 1.5s @ 16k — opening words captured before the socket reaches 'listening'.
-const PREBUFFER_MAX_SAMPLES = 24000;
+// 2.0s @ 16k — opening words captured before the socket reaches 'listening'.
+// Covers VAD sustain + socket connect so the first token isn't clipped (T1-2).
+const PREBUFFER_MAX_SAMPLES = 32000;
 
 // VAD hysteresis. The local graph stays warm while armed (free); the paid
 // Soniox socket opens only on sustained speech and closes after silence.
@@ -905,8 +906,15 @@ export function startSonioxBrowserSession(opts: StartBrowserSttOpts): BrowserStt
 
   return {
     setResponding: (r) => {
+      const released = responding && !r;
       responding = r;
       session?.setResponding(r);
+      // Coach finished (e.g. opener clip ended): drop the buffered echo tail so
+      // the user's turn opens on their first word, not the coach's (T1-3).
+      if (released && !session) {
+        prebuf.drain();
+        vad = emptyVadState();
+      }
     },
     setArmed,
     stop,

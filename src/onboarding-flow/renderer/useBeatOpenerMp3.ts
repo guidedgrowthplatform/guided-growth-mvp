@@ -32,7 +32,17 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { create } from 'zustand';
 import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
+
+// The mic gate reads this: while an opener clip plays, the Soniox socket stays
+// closed so the coach's own voice isn't transcribed; it opens at clip end (T1-3).
+export const useOpenerPlaybackStore = create<{ playing: boolean }>(() => ({ playing: false }));
+function setOpenerPlaying(v: boolean) {
+  if (useOpenerPlaybackStore.getState().playing !== v) {
+    useOpenerPlaybackStore.setState({ playing: v });
+  }
+}
 
 // ─── Clip registry ──────────────────────────────────────────────────────────
 // Maps canonical screenId -> public/voice/*.mp3 path.
@@ -111,12 +121,17 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
   const settle = useCallback(() => {
     if (settledRef.current) return;
     settledRef.current = true;
+    setOpenerPlaying(false);
     stopProgress();
     const el = audioRef.current;
     if (el) {
       el.onended = null;
       el.onerror = null;
-      try { el.pause(); } catch { /* ignore */ }
+      try {
+        el.pause();
+      } catch {
+        /* ignore */
+      }
       audioRef.current = null;
     }
     setPlaying(false);
@@ -180,6 +195,7 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
     el.play()
       .then(() => {
         setPlaying(true);
+        setOpenerPlaying(true);
         startProgressLoop();
       })
       .catch((err) => {
