@@ -15,7 +15,10 @@
  */
 import { useCallback, useLayoutEffect } from 'react';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
-import { CHAT_VAPI_BEAT_SCREENS } from '@/lib/onboarding/onboardingStepBeats';
+import {
+  CHAT_VAPI_BEAT_SCREENS,
+  LOCAL_CAPTURE_BEATS,
+} from '@/lib/onboarding/onboardingStepBeats';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 import { applyName } from './applyName';
 import {
@@ -27,11 +30,7 @@ import {
   type BeatStep,
 } from './BeatPlayer';
 import { FROZEN_CARD_TYPES, getAdapter, summarizeBeat } from './componentRegistry';
-import {
-  HYBRID_OPENER_BEATS,
-  ONBOARDING_BEAT_MP3S,
-  useBeatOpenerMp3,
-} from './useBeatOpenerMp3';
+import { useBeatOpenerMp3 } from './useBeatOpenerMp3';
 
 export interface BeatViewProps {
   node: FlowNode;
@@ -56,18 +55,28 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   const hasBeatConversation = (session?.messages ?? []).some(
     (m) => m.screenId === node.screenId && !!m.text,
   );
-  const isVapiBeat = CHAT_VAPI_BEAT_SCREENS.has(node.screenId);
+  // Engine per beat is metadata-driven: read the fill brain off node.meta (the
+  // re-exported flow carries it). The legacy sets stay only as a fallback for any
+  // screen the meta does not cover, so behavior is identical when meta is present.
+  const isLocalCaptureBeat = node.meta
+    ? node.meta.fill?.brain === 'none'
+    : LOCAL_CAPTURE_BEATS.has(node.screenId);
+  const isVapiBeat =
+    (node.meta ? node.meta.fill?.brain === 'vapi' : CHAT_VAPI_BEAT_SCREENS.has(node.screenId)) &&
+    !isLocalCaptureBeat;
 
-  // MP3 opener: registered beats play a pre-encoded clip at beat mount instead of
-  // calling Cartesia or waiting for Vapi to speak the opener. The progress fraction
-  // (0..1) drives the karaoke reveal in sync with the real audio. For hybrid beats
-  // (ONBOARD-BEGINNER-04, ONBOARD-ADVANCED) the MP3 is the opener only — Vapi
-  // continues the conversation after the audio ends. For all other registered beats
-  // the MP3 is the full opener and Vapi (or the card) follows normally.
-  const hasOpenerMp3 = node.screenId in ONBOARDING_BEAT_MP3S;
-  const mp3 = useBeatOpenerMp3(node.screenId, active && hasOpenerMp3);
+  // MP3 opener: metadata-authored beats play a pre-encoded clip at beat mount
+  // instead of calling Cartesia or waiting for Vapi to speak the opener. The
+  // progress fraction (0..1) drives the karaoke reveal in sync with the real
+  // audio. For hybrid beats the MP3 is the opener only, then Vapi continues.
+  const openerMp3Src =
+    node.meta?.voiceOut?.engine === 'mp3'
+      ? (node.meta.voiceOut.mp3Assets?.[0]?.file ?? null)
+      : null;
+  const hasOpenerMp3 = !!openerMp3Src;
+  const mp3 = useBeatOpenerMp3(openerMp3Src, active && hasOpenerMp3);
   const setScreenContextDeferred = session?.setScreenContextDeferred;
-  const isHybridOpenerBeat = HYBRID_OPENER_BEATS.has(node.screenId);
+  const isHybridOpenerBeat = node.meta?.toggles?.continueVapiAfterMp3 === true;
   useLayoutEffect(() => {
     if (!setScreenContextDeferred || !active || !hasOpenerMp3 || !isHybridOpenerBeat) return;
     setScreenContextDeferred(node.screenId, !mp3.done);
@@ -110,7 +119,7 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
           // Already rendered the opener bubble above; suppress the
           // BeatConversation's own opener so it doesn't double-render it.
           fallbackOpener={null}
-          connecting={!HYBRID_OPENER_BEATS.has(node.screenId)}
+          connecting={!isHybridOpenerBeat}
           cardReadyOverride={isHybridOpenerBeat ? mp3.done : undefined}
           card={<Adapter node={node} answers={answers} onCapture={onCapture} />}
           onText={handleReveal}

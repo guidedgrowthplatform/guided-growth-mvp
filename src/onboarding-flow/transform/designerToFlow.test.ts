@@ -3,7 +3,7 @@ import { validateFlow } from '../flowMachine';
 import { onboardingBeginnerV1 } from '../flows/onboarding-beginner-v1';
 import generatedJson from '../flows/onboarding-beginner-v1.generated.json';
 import { loadPublishedFlow, versionTag } from '../useFlow';
-import { DESIGNER_ONBOARDING_FLOW } from './designerSource';
+import { DESIGNER_ONBOARDING_FLOW_FROM_JSON } from './designerSourceJson';
 import { designerToFlowDocument } from './designerToFlow';
 
 describe('designerToFlow no-op swap correctness', () => {
@@ -12,22 +12,22 @@ describe('designerToFlow no-op swap correctness', () => {
     // `npm run flow:sync` to regenerate the JSON from the current designer source.
     // NOTE: the hand-authored TS flow (onboardingBeginnerV1) is now intentionally
     // diverged from the v3 transform output -- it is a safe fallback only.
-    const fresh = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW);
+    const fresh = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
     expect(generatedJson).toEqual(fresh);
   });
 
   it('the committed generated JSON is up to date with the transform', () => {
     // If this fails, run `npm run flow:sync` to regenerate the JSON.
-    const fresh = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW);
+    const fresh = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
     expect(generatedJson).toEqual(fresh);
   });
 
   it('the generated flow passes graph-integrity validation', () => {
-    expect(validateFlow(designerToFlowDocument(DESIGNER_ONBOARDING_FLOW))).toEqual([]);
+    expect(validateFlow(designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON))).toEqual([]);
   });
 
   it('skips intro beats (splash / get-started / splash-intro)', () => {
-    const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW);
+    const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
     const screenIds = flow.nodes.map((n) => n.screenId);
     expect(flow.nodes.find((n) => n.id === 'auth')).toBeDefined();
     expect(screenIds).not.toContain('SPLASH');
@@ -35,7 +35,7 @@ describe('designerToFlow no-op swap correctness', () => {
   });
 
   it('builds the fork as a BranchNode with both lanes merging at into-app (v3)', () => {
-    const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW);
+    const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
     const fork = flow.nodes.find((n) => n.id === 'path-fork');
     expect(fork?.type).toBe('branch');
     if (fork?.type === 'branch') {
@@ -49,13 +49,13 @@ describe('designerToFlow no-op swap correctness', () => {
   });
 
   it('keeps the {name} token on the profile opener', () => {
-    const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW);
+    const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
     const profile = flow.nodes.find((n) => n.id === 'profile');
     expect(profile?.voice.openerText).toContain('{name}');
   });
 
   it('v3 flow has why-intro, state-check, advanced-frequency, and 5 weekly-projection nodes', () => {
-    const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW);
+    const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
     expect(flow.nodes.find((n) => n.id === 'why-intro')).toBeDefined();
     expect(flow.nodes.find((n) => n.id === 'state-check')).toBeDefined();
     expect(flow.nodes.find((n) => n.id === 'advanced-frequency')).toBeDefined();
@@ -72,7 +72,7 @@ describe('useFlow JSON load with safe fallback', () => {
     // hand-authored TS fallback intentionally differ; the generated JSON is the
     // canonical v3 flow and the TS file is the safe fallback only.
     const loaded = loadPublishedFlow();
-    const fresh = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW);
+    const fresh = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
     expect(loaded).toEqual(fresh);
   });
 

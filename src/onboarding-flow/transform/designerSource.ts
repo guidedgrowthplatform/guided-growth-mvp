@@ -9,8 +9,50 @@
  * ../flows/README-flow-sync.md).
  *
  * Only the SHAPE the transform reads is mirrored (type, beat, sheetStage, props,
- * background). The builder's full DefaultBeat type carries no other runtime field.
+ * background, meta). Metadata is carried into the generated flow for the runtime
+ * engine transition; sparse or absent metadata is normalized by the transform.
  */
+
+export interface DesignerMp3Clip {
+  id?: string;
+  label: string;
+  file: string;
+  transcript: string;
+  opener?: string;
+  elementId?: string;
+  timing?: 'opener' | 'element' | 'full-beat';
+}
+
+export interface DesignerBeatMeta {
+  voiceEngine?: string;
+  voiceMode?: string;
+  voiceId?: string;
+  mp3Assets?: DesignerMp3Clip[];
+  spokenContent?: string;
+  path?: string;
+  llmActive?: boolean;
+  allowedTools?: string;
+  feedbackConfig?: string;
+  animation?: string;
+  orb?: { voiceOn?: boolean; micOn?: boolean; micAsking?: boolean; bloomed?: boolean };
+  figmaNode?: string;
+  status?: string;
+  voiceNotes?: string;
+  engine?: {
+    nodeId?: string;
+    backId?: string;
+    persistStep?: string;
+    pathField?: boolean;
+    captureFields?: string;
+    toolName?: string;
+    toolAdvancesStep?: boolean;
+    toolPersistsFields?: string;
+    voiceExpectsInput?: boolean;
+    voiceDirectLlmAllowed?: boolean;
+    maxSelections?: string;
+    optionSource?: string;
+  };
+}
 
 /** One entry in the designer's DEFAULT_FLOW array (the builder's DefaultBeat). */
 export interface DesignerBeat {
@@ -24,6 +66,16 @@ export interface DesignerBeat {
   props?: Record<string, string>;
   /** "coach" or "user": who leads the beat. Not consumed by the engine today. */
   background?: string;
+  /**
+   * Lane hint from the builder Export: 'new' (beginner lane), 'exp' (advanced
+   * lane), or null (shared spine). Carried faithfully from the Export but NOT
+   * consumed by the transform, which builds the fork structurally by component
+   * type (see designerSourceJson.ts + FORK_LANES). The hand-typed mirror below
+   * omits it; it is optional.
+   */
+  showOnPath?: string | null;
+  /** Builder-authored sidecar metadata. Optional during the transition. */
+  meta?: DesignerBeatMeta;
 }
 
 /**

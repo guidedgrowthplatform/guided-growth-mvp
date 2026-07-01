@@ -14,6 +14,7 @@ import {
 } from '@/lib/auth/authHandoff';
 import { getFreshToken } from '@/lib/auth/tokenStore';
 import { QAFab } from '@/onboarding-flow/QAFab';
+import { QAVapiToggle } from '@/onboarding-flow/QAVapiToggle';
 import { QASoundToggle } from '@/onboarding-flow/QASoundToggle';
 import { queryClient } from '@/lib/query';
 import { reacquireIfActive, suspendWakeLock } from '@/lib/services/keepAwake';
@@ -136,6 +137,7 @@ export default function App() {
                     gap: 6,
                   }}
                 >
+                  <QAVapiToggle />
                   <QASoundToggle />
                   <QAFab />
                 </div>
