@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { isCheckinScreen, trackCheckinStarted } from '@/analytics/coachFunnel';
 import { track } from '@/analytics/posthog';
 import {
@@ -26,14 +26,13 @@ import {
 import type { ChatMessage, CoachChatApi, VoiceChatState } from '@/lib/chat/coachChatTypes';
 import { nextSentenceChunks, flushSentenceTail } from '@/lib/services/sentenceChunks';
 import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
+import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import {
-  beginSpeechTurn,
-  endSpeechTurn,
-  pushSpeechChunk,
-  speak,
-  stopTTS,
-  useTtsPlaybackStore,
-} from '@/lib/services/tts-service';
+  beginVoiceTurn,
+  endVoiceTurn,
+  pushVoiceChunk,
+  stopVoice,
+} from '@/lib/services/cartesiaVoice';
 import { isSemanticEndOfTurn, resolveTurnPauseMs } from '@/lib/voice/turnDecision';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { pickVariation } from '@gg/shared/checkin/scriptVariations';
@@ -277,10 +276,6 @@ export function useCoachChat(
 
   const handleSonioxFinal = useCallback(
     (t: string) => {
-      // Clear interim AT THE MOMENT we route the final, so the user bubble
-      // doesn't flicker between Soniox closing the socket and the message
-      // bubble landing.
-      setInterim('');
       onTranscriptStreamRef.current?.('user', t, 'final');
       if (finalsInTurnRef.current === 0 && coachStoppedAtRef.current) {
         track('coach_turn_handoff_ms', {
@@ -293,6 +288,8 @@ export function useCoachChat(
       utteranceBufferRef.current = utteranceBufferRef.current
         ? `${utteranceBufferRef.current} ${t}`
         : t;
+      // Hold the finalized text through the aggregation gap; commit effect clears it.
+      setInterim(utteranceBufferRef.current);
       finalsInTurnRef.current += 1;
       lastFinalAtRef.current = Date.now();
       awaitingResumeRef.current = true;
@@ -300,6 +297,17 @@ export function useCoachChat(
     },
     [setInterim, armFlush],
   );
+
+  // Clear the interim once the user's message commits (hand-off, no stale linger).
+  const lastUserMsgIdRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    let lastUserId: string | null = null;
+    for (const m of llmMessages) if (m.role === 'user') lastUserId = m.id;
+    if (lastUserId && lastUserId !== lastUserMsgIdRef.current) {
+      lastUserMsgIdRef.current = lastUserId;
+      setInterim('');
+    }
+  }, [llmMessages, setInterim]);
 
   const handleSonioxInterim = useCallback(
     (t: string) => {
@@ -414,6 +422,7 @@ export function useCoachChat(
   useEffect(() => {
     return () => {
       stopTTS();
+      stopVoice();
       const t = tokenRef.current;
       if (t) {
         tokenRef.current = null;
@@ -555,13 +564,13 @@ export function useCoachChat(
     if (chunks.length === 0) return;
     if (!streamTurnActiveRef.current) {
       turnSeqRef.current += 1;
-      beginSpeechTurn();
+      beginVoiceTurn();
       streamTurnActiveRef.current = true;
       turnFinalizedRef.current = false;
       ttsBumpedRef.current = true;
       setTtsActive((c) => c + 1);
     }
-    for (const c of chunks) pushSpeechChunk(c);
+    for (const c of chunks) pushVoiceChunk(c);
     lastSpokenOffsetRef.current = nextOffset;
     streamedSomethingRef.current = true;
   }, [isStreaming, llmResponse, voiceModeOn, screenId]);
@@ -583,10 +592,10 @@ export function useCoachChat(
         streamedSomethingRef.current = false;
         turnFinalizedRef.current = true;
         const tail = flushSentenceTail(m.content, lastSpokenOffsetRef.current);
-        if (tail) pushSpeechChunk(tail);
+        if (tail) pushVoiceChunk(tail);
         const content = m.content;
         const seq = turnSeqRef.current;
-        void endSpeechTurn().finally(() => {
+        void endVoiceTurn().finally(() => {
           endCoachSpeechTurn();
           if (turnSeqRef.current === seq) {
             onTranscriptStreamRef.current?.('assistant', content, 'final');
@@ -595,7 +604,9 @@ export function useCoachChat(
       } else {
         onTranscriptStream?.('assistant', m.content, 'final');
         setTtsActive((c) => c + 1);
-        void speak(m.content).finally(() => setTtsActive((c) => Math.max(0, c - 1)));
+        beginVoiceTurn();
+        pushVoiceChunk(m.content);
+        void endVoiceTurn().finally(() => setTtsActive((c) => Math.max(0, c - 1)));
       }
     }
   }, [llmMessages, voiceModeOn, onTranscriptStream, endCoachSpeechTurn]);
@@ -606,7 +617,7 @@ export function useCoachChat(
     if (isStreaming || !streamTurnActiveRef.current || turnFinalizedRef.current) return;
     turnFinalizedRef.current = true;
     streamedSomethingRef.current = false;
-    void endSpeechTurn().finally(endCoachSpeechTurn);
+    void endVoiceTurn().finally(endCoachSpeechTurn);
   }, [isStreaming, llmMessages, endCoachSpeechTurn]);
 
   // Live partial stream → transcript bus (subtitle renders typing in real time).
@@ -625,6 +636,7 @@ export function useCoachChat(
       const trimmed = text.trim();
       if (!trimmed) return;
       stopTTS();
+      stopVoice();
       endCoachSpeechTurn();
       if (!chatSessionId) {
         pendingTurnRef.current = pendingTurnRef.current
@@ -753,6 +765,7 @@ export function useCoachChat(
   // CoachChatView but the toggle is the dual-button orb.
   const startListening = useCallback(() => {
     stopTTS();
+    stopVoice();
     endCoachSpeechTurn();
   }, [endCoachSpeechTurn]);
 
@@ -763,6 +776,7 @@ export function useCoachChat(
   const sendText = useCallback(
     (text: string) => {
       stopTTS();
+      stopVoice();
       submitTurn(text);
     },
     [submitTurn],

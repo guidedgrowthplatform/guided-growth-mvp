@@ -14,6 +14,11 @@ function setSpeaking(value: boolean) {
   }
 }
 
+// Shared so the Cartesia dynamic engine can feed the same speaking signal.
+export function setTtsSpeaking(value: boolean): void {
+  setSpeaking(value);
+}
+
 // User selects Male or Female on splash screen
 export type { VoiceGender };
 

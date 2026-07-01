@@ -85,9 +85,7 @@ vi.mock('@/stores/voiceStore', () => ({
 vi.mock('@/lib/services/tts-service', () => ({
   stopTTS: vi.fn(),
   speak: vi.fn(() => Promise.resolve()),
-  beginSpeechTurn: vi.fn(),
-  endSpeechTurn: vi.fn(() => Promise.resolve()),
-  pushSpeechChunk: vi.fn(),
+  setTtsSpeaking: vi.fn(),
   isAudioUnlocked: () => audioUnlocked,
   subscribeAudioUnlock: (fn: () => void) => {
     audioListeners.add(fn);
