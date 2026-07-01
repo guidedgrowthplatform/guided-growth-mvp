@@ -66,6 +66,14 @@ export interface DesignerBeat {
   props?: Record<string, string>;
   /** "coach" or "user": who leads the beat. Not consumed by the engine today. */
   background?: string;
+  /**
+   * Lane hint from the builder Export: 'new' (beginner lane), 'exp' (advanced
+   * lane), or null (shared spine). Carried faithfully from the Export but NOT
+   * consumed by the transform, which builds the fork structurally by component
+   * type (see designerSourceJson.ts + FORK_LANES). The hand-typed mirror below
+   * omits it; it is optional.
+   */
+  showOnPath?: string | null;
   /** Builder-authored sidecar metadata. Optional during the transition. */
   meta?: DesignerBeatMeta;
 }

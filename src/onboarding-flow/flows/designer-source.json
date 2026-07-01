@@ -1,0 +1,611 @@
+{
+  "flowId": "onboarding-beginner-v1",
+  "source": "flow-builder Export (pasted 2026-07-01)",
+  "beats": [
+    {
+      "beat": "0",
+      "name": "QA control",
+      "componentType": "qa-control",
+      "variant": "qa",
+      "showOnPath": null,
+      "background": "plain",
+      "sheetStage": "",
+      "transition": null,
+      "context": "",
+      "props": {
+        "title": "QA Control",
+        "subtitle": "Pick a test user, then choose how to start.",
+        "users": "Yair,Alejandro,Yonas,Mintesnot,Timothy",
+        "loginLabel": "Log in",
+        "loginDesc": "Sign in and go to where this user left off.",
+        "restartLabel": "Restart onboarding (fresh)",
+        "restartDesc": "Delete this user data, keep the account, run onboarding from the top.",
+        "reonboardLabel": "Re-run onboarding (keep data)",
+        "reonboardDesc": "Go through onboarding again with the data already saved.",
+        "resetLabel": "Reset data only",
+        "resetDesc": "Wipe this user data, keep the account. No onboarding."
+      },
+      "meta": {}
+    },
+    {
+      "beat": "1",
+      "name": "Splash",
+      "componentType": "splash",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "",
+      "transition": null,
+      "context": "",
+      "props": {},
+      "meta": {}
+    },
+    {
+      "beat": "2",
+      "name": "Get Started",
+      "componentType": "get-started",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "",
+      "transition": null,
+      "context": "",
+      "props": {},
+      "meta": {}
+    },
+    {
+      "beat": "3",
+      "name": "Coach greeting",
+      "componentType": "splash-intro",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "",
+      "transition": null,
+      "context": "",
+      "props": {},
+      "meta": {}
+    },
+    {
+      "beat": "4",
+      "name": "Sign up (Apple / Google / email)",
+      "componentType": "auth-signup",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "",
+      "transition": null,
+      "context": "",
+      "props": {},
+      "meta": {
+        "voiceEngine": "None",
+        "openerShowsAsBubble": false,
+        "expectedResponse": "Taps Apple, Google, or email sign-in",
+        "engine": {
+          "nodeId": "auth",
+          "voiceExpectsInput": false,
+          "voiceDirectLlmAllowed": false
+        }
+      }
+    },
+    {
+      "beat": "5",
+      "name": "Mic permission",
+      "componentType": "mic-permission",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "",
+      "transition": null,
+      "context": "",
+      "props": {
+        "heading": "Allow your microphone",
+        "sub": "So you can talk with your coach out loud.",
+        "coachLine": "I'd love to actually talk with you. If you let me use your mic, you can just speak."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+        "openerShowsAsBubble": false,
+        "expectedResponse": "Taps Allow or Not now",
+        "engine": {
+          "nodeId": "mic",
+          "voiceExpectsInput": false,
+          "voiceDirectLlmAllowed": false
+        }
+      }
+    },
+    {
+      "beat": "6",
+      "name": "Profile (age + gender)",
+      "componentType": "profile-beat",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-01--FORM: Profile Setup",
+      "transition": null,
+      "context": "BEAT: Profile setup.\n\nName, age, and gender are all required. Gender can be Other, but it has to be answered. No skipping, no soft fields here. We don't ask for referral (where they heard about us) right now. Keep that field parked for later, do not collect it in this beat yet.\n\nWe usually already have the user's name from their Google or Apple sign-in, so open by welcoming them by name and confirm it's what they want to be called, then ask age and gender. If we don't have a name (for example an email sign-up), ask for the name first. Use the name warmly, once. Accept voice or taps interchangeably, fill the fields as answers come in, and never re-ask something you already have. This is the first moment the coach knows who they are, so keep it light, not like a form.\n\nPATHS\n\nPath 1 (full voice, talk and listen): If we have the name, open with it (\"Hey Sarah, good to have you. Want me to call you Sarah?\"), then ask age and gender. The user can answer in one go and the fields fill live. Run the pronunciation check only when the name is uncommon: a short \"did I say that right?\", cap at 2 tries, then accept their spelling. If the user corrects the name at any point, fix it on the spot. If we don't have a name, ask for it first. Ask only for fields still missing.\n\nPath 2 (half voice): If the coach speaks and the mic is off, say the welcome and the age and gender ask once, and let the user fill the fields by tapping. A short spoken name-back is fine, no pronunciation loop. If the mic is on and the coach is in text, let the user speak their answers and confirm them in writing.\n\nPath 3 (typing only): Show the welcome and the fields, with the name prefilled if we have it. The user confirms or edits the name and taps age and gender. Confirm warmly in text, using the name once. No spoken name read-back, no pronunciation step.\n\nAll three fields required before continuing, on every path. Same fields, same save, same next step. Only the delivery and the way the user answers change.",
+      "props": {
+        "greeting": "Good to meet you, {name}. Two quick things so I can tailor this to you.",
+        "askAge": "How old are you?",
+        "askGender": "And your gender?",
+        "userReply": "I'm 28, and I'm male.",
+        "age": "28",
+        "gender": "Male"
+      },
+      "meta": {
+        "voiceEngine": "Cartesia",
+        "voiceMode": "Verbatim",
+        "spokenContent": "Good to meet you, {name}. Two quick things so I can tailor this to you. How old are you?",
+        "allowedTools": "submit_profile, advance_step",
+        "variable": true,
+        "openerShowsAsBubble": true,
+        "expectedResponse": "Says or taps age and gender",
+        "engine": {
+          "nodeId": "profile",
+          "persistStep": "1",
+          "captureFields": "age, gender",
+          "voiceExpectsInput": true,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    },
+    {
+      "beat": "7",
+      "name": "Why intro",
+      "componentType": "why-intro",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-WHY-INTRO: Why We Check In",
+      "transition": null,
+      "context": "",
+      "props": {
+        "coachLine": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
+        "openerShowsAsBubble": false,
+        "expectedResponse": "Auto-advances"
+      }
+    },
+    {
+      "beat": "8a",
+      "name": "State check (sleep / mood / energy / stress)",
+      "componentType": "state-check",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-STATE-CHECK: First State Check",
+      "transition": null,
+      "context": "",
+      "props": {
+        "coachLine": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "Let's do your first check-in right now. How are you landing in this moment? Mood, energy, sleep, anything on you.",
+        "allowedTools": "record_checkin, advance_step",
+        "openerShowsAsBubble": true,
+        "expectedResponse": "Taps or says sleep, mood, energy, stress",
+        "perElement": [
+          { "elementId": "sleep", "line": "How did you sleep?", "order": 1, "showsAsBubble": false },
+          { "elementId": "mood", "line": "How's your mood?", "order": 2, "showsAsBubble": false },
+          { "elementId": "energy", "line": "How's your energy?", "order": 3, "showsAsBubble": false },
+          { "elementId": "stress", "line": "And your stress?", "order": 4, "showsAsBubble": false }
+        ]
+      }
+    },
+    {
+      "beat": "8b",
+      "name": "Morning check-in setup",
+      "componentType": "morning-checkin-setup",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-MORNING-SETUP: Morning Check-in Time",
+      "transition": null,
+      "context": "",
+      "props": {
+        "coachLine": "When do you want this each day? I'll nudge you then."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "openerMode": "A",
+        "allowedTools": "submit_morning_checkin, advance_step",
+        "openerShowsAsBubble": false,
+        "expectedResponse": "Sets a time and days",
+        "perElement": [
+          { "elementId": "schedule", "line": "Weekdays, weekends, or every day?", "order": 1, "showsAsBubble": false },
+          { "elementId": "when", "line": "What time?", "order": 2, "showsAsBubble": false },
+          { "elementId": "how-often", "line": "Or your own days.", "order": 3, "showsAsBubble": false },
+          { "elementId": "reminder", "line": "Want a nudge when it's time?", "order": 4, "showsAsBubble": false }
+        ]
+      }
+    },
+    {
+      "beat": "9",
+      "name": "Evening reflection setup",
+      "componentType": "reflection-card",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-BEGINNER-07: Evening Reflection Setup",
+      "transition": null,
+      "context": "",
+      "props": {
+        "coachLine": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?"
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?",
+        "openerMode": "B",
+        "allowedTools": "submit_reflection_config, submit_custom_prompts, advance_step",
+        "openerShowsAsBubble": true,
+        "expectedResponse": "Picks a style and time",
+        "perElement": [
+          { "elementId": "prompts", "line": "Three questions to close the day.", "order": 1, "showsAsBubble": false },
+          { "elementId": "mode", "line": "Or freeform, just talk.", "order": 2, "showsAsBubble": false },
+          { "elementId": "schedule", "line": "Weekdays, weekends, or every day?", "order": 3, "showsAsBubble": false },
+          { "elementId": "when", "line": "What time?", "order": 4, "showsAsBubble": false },
+          { "elementId": "how-often", "line": "Or your own days.", "order": 5, "showsAsBubble": false },
+          { "elementId": "reminder", "line": "Want a reminder?", "order": 6, "showsAsBubble": false }
+        ],
+        "engine": {
+          "nodeId": "reflection-setup",
+          "backId": "habit-select",
+          "persistStep": "6",
+          "captureFields": "reflectionConfig",
+          "voiceExpectsInput": true,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    },
+    {
+      "beat": "10",
+      "name": "Path choice",
+      "componentType": "path-selection",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-FORK--FORM: Experience Fork",
+      "transition": null,
+      "context": "BEAT: Experience fork.\n\nCollect whether the user is new to habit tracking or already has habits they want to bring in. Route first-timers, people who tried and dropped off, or people who want guidance to beginner. Route users with an existing habit list or tracking system to advanced. If unclear, ask one short clarifying question.\n\nPATHS\n\nSame question and same routing on every path. Only the answer changes.\nPath 1 (full voice): Ask it conversationally, the user answers by talking, you route.\nPath 2 (half voice): Speak the question once and let them tap new vs experienced, or let them say it and confirm in text.\nPath 3 (typing): Show the question and two choices, the user taps one.",
+      "props": {
+        "coachLine": "Have you tracked habits before, or is this new for you?"
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "Quick one. Have you tracked habits before, or is this new for you? Both are totally fine.",
+        "allowedTools": "submit_path_choice, ask_clarification, advance_step",
+        "openerShowsAsBubble": true,
+        "expectedResponse": "New, or I already track habits",
+        "engine": {
+          "nodeId": "path-fork",
+          "persistStep": "2",
+          "pathField": true,
+          "captureFields": "path",
+          "voiceExpectsInput": true,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    },
+    {
+      "beat": "11a",
+      "name": "Category tiles",
+      "componentType": "category-grid",
+      "variant": "shared",
+      "showOnPath": "new",
+      "background": "coach",
+      "sheetStage": "ONBOARD-BEGINNER-01: Category Selection",
+      "transition": null,
+      "context": "BEAT: Focus area.\n\nCollect one focus category. Ask what feels most worth improving now. If the user names several, help them choose the one that feels most urgent. Keep the response specific to their chosen category. Do not praise, advise, or let the beat collect multiple categories.\n\nPATHS\n\nSame content on every path. One category only. The category-specific response stays the same words, spoken or shown.\nPath 1 (full voice): Ask what feels most worth improving, the user says it, you respond with the line specific to their category.\nPath 2 (half voice): Speak the ask once and let them tap a category tile, or let them say it and confirm in text.\nPath 3 (typing): Show the categories as tiles, the user taps one, the specific response is text.",
+      "props": {
+        "coachLine": "What part of your life do you most want to work on right now? Pick the one that pulls you."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "What part of your life do you most want to work on right now? Pick the one that pulls you.",
+        "allowedTools": "submit_category, advance_step",
+        "openerShowsAsBubble": true,
+        "expectedResponse": "Names or taps one category",
+        "engine": {
+          "nodeId": "category",
+          "backId": "path-fork",
+          "persistStep": "3",
+          "captureFields": "category",
+          "maxSelections": "1",
+          "optionSource": "categories",
+          "voiceExpectsInput": true,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    },
+    {
+      "beat": "11b",
+      "name": "Subcategory picker",
+      "componentType": "goals-list",
+      "variant": "shared",
+      "showOnPath": "new",
+      "background": "coach",
+      "sheetStage": "ONBOARD-BEGINNER-02: Subcategory Selection",
+      "transition": null,
+      "context": "BEAT: Goal narrowing.\n\nCollect one or two specific goals inside the chosen category. Offer only valid goals from that category, using the provided option names exactly. If they speak generally, map to the closest valid goal or ask one clarifying question. Do not invent, rename, or paraphrase goal labels.\n\nPATHS\n\nSame content on every path. One or two goals, only the valid labels for the chosen category.\nPath 1 (full voice): Offer two or three examples out loud, the user picks or describes, you play the goal-specific response.\nPath 2 (half voice): Speak the options once and let them tap, or let them speak and confirm in text.\nPath 3 (typing): Show the goal options as cards plus a freeform field, the user taps or types.",
+      "props": {
+        "coachLine": "Within that, what's the piece you want to start with?"
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "Within that, what's the piece you want to start with?",
+        "allowedTools": "submit_goals, advance_step",
+        "openerShowsAsBubble": true,
+        "expectedResponse": "Names or taps 1 to 2 goals",
+        "engine": {
+          "nodeId": "goals",
+          "backId": "category",
+          "persistStep": "4",
+          "captureFields": "goals",
+          "maxSelections": "2",
+          "optionSource": "goalsByCategory",
+          "voiceExpectsInput": true,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    },
+    {
+      "beat": "11c",
+      "name": "Habit picker",
+      "componentType": "habit-picker",
+      "variant": "shared",
+      "showOnPath": "new",
+      "background": "coach",
+      "sheetStage": "ONBOARD-BEGINNER-03: Habit Selection",
+      "transition": null,
+      "context": "BEAT: Habit selection.\n\nCollect one to three habits tied to the chosen goals. Encourage doable, not heroic. Use the provided habit options when available, and accept a custom habit name if they offer one. Require at least one habit before continuing. If they choose more than three, help them narrow without making it feel like failure.\n\nPATHS\n\nSame content on every path. At least one habit, one to three total, custom allowed.\nPath 1 (full voice): Present the habits, the user picks or names a custom one out loud, you set it up.\nPath 2 (half voice): Speak the options once and let them tap, or let them speak and confirm in text.\nPath 3 (typing): Show the habit cards plus a create-your-own option, the user taps or types.",
+      "props": {
+        "coachLine": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.",
+        "allowedTools": "add_habit, remove_habit, advance_step",
+        "openerShowsAsBubble": true,
+        "expectedResponse": "Names or taps 1 to 2 habits",
+        "engine": {
+          "nodeId": "habit-select",
+          "backId": "goals",
+          "persistStep": "5",
+          "captureFields": "habitConfigs",
+          "maxSelections": "2",
+          "optionSource": "habitsByGoal",
+          "voiceExpectsInput": true,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    },
+    {
+      "beat": "11d",
+      "name": "Habit schedule",
+      "componentType": "habit-schedule",
+      "variant": "shared",
+      "showOnPath": "new",
+      "background": "coach",
+      "sheetStage": "ONBOARD-BEGINNER-04: Habit Schedule",
+      "transition": null,
+      "context": "",
+      "props": {
+        "coachLine": "How often, and roughly when, for each one? Add a reminder only if you want a nudge."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "openerMode": "A",
+        "allowedTools": "add_habit, update_habit, advance_step",
+        "openerShowsAsBubble": false,
+        "expectedResponse": "Sets days and time per habit",
+        "perElement": [
+          { "elementId": "schedule", "line": "Weekdays, weekends, or every day?", "order": 1, "showsAsBubble": false },
+          { "elementId": "when", "line": "What time?", "order": 2, "showsAsBubble": false },
+          { "elementId": "how-often", "line": "Or your own days.", "order": 3, "showsAsBubble": false },
+          { "elementId": "reminder", "line": "Want a reminder?", "order": 4, "showsAsBubble": false }
+        ]
+      }
+    },
+    {
+      "beat": "11e",
+      "name": "Advanced capture",
+      "componentType": "advanced-capture",
+      "variant": "shared",
+      "showOnPath": "exp",
+      "background": "coach",
+      "sheetStage": "ONBOARD-ADVANCED: Brain Dump",
+      "transition": null,
+      "context": "",
+      "props": {
+        "coachLine": "Read me the habits you already track. Less is more to start, you can always build on it.",
+        "closeCoachLine": "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "Read me the habits you already track. Less is more to start, you can always build on it.",
+        "allowedTools": "submit_brain_dump, advance_step",
+        "openerShowsAsBubble": true,
+        "expectedResponse": "Reads or types their habits",
+        "engine": {
+          "nodeId": "advanced-input",
+          "backId": "path-fork",
+          "persistStep": "3",
+          "captureFields": "brainDumpText",
+          "voiceExpectsInput": true,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    },
+    {
+      "beat": "11f",
+      "name": "Advanced frequency (day circles)",
+      "componentType": "advanced-frequency",
+      "variant": "shared",
+      "showOnPath": "exp",
+      "background": "coach",
+      "sheetStage": "ONBOARD-ADVANCED-FREQUENCY: Habit Days",
+      "transition": null,
+      "context": "",
+      "props": {
+        "coachLine": "Now the days. Tell me how often each one runs and I'll fill them in.",
+        "confirmCoachLine": "Your habits are all set, your plan is ready."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "Now the days. Tell me how often each one runs and I'll fill them in.",
+        "allowedTools": "add_habit, update_habit, advance_step",
+        "openerShowsAsBubble": true,
+        "expectedResponse": "Says the days per habit"
+      }
+    },
+    {
+      "beat": "12",
+      "name": "Full plan confirm",
+      "componentType": "into-app",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-COMPLETE: Full Plan Confirm",
+      "transition": null,
+      "context": "",
+      "props": {
+        "coachLine": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?"
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "Here's your plan. Your check-in, your reflection, and the habits you picked. Want to start here, or change anything first?",
+        "allowedTools": "update_habit, confirm_plan",
+        "openerShowsAsBubble": true,
+        "expectedResponse": "Looks good, or an edit"
+      }
+    },
+    {
+      "beat": "13a",
+      "name": "Weekly projection (habit grid)",
+      "componentType": "weekly-projection",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-WEEKLY-PROJECTION-BLANK: Blank Week",
+      "transition": null,
+      "context": "",
+      "props": {
+        "state": "blank",
+        "coachLine": "This is your week. Blank, starting today."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "This is your week. Blank, starting today.",
+        "openerShowsAsBubble": false,
+        "expectedResponse": "Taps Next"
+      }
+    },
+    {
+      "beat": "13b",
+      "name": "Weekly projection (habit grid)",
+      "componentType": "weekly-projection",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-WEEKLY-PROJECTION-FULL: Full Green Week",
+      "transition": null,
+      "context": "",
+      "props": {
+        "state": "full",
+        "coachLine": "Best case, every day green. Every streak going strong. That would be amazing."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "Best case, every day green. Every streak going strong. That would be amazing.",
+        "openerShowsAsBubble": false,
+        "expectedResponse": "Taps Next"
+      }
+    },
+    {
+      "beat": "13c",
+      "name": "Weekly projection (habit grid)",
+      "componentType": "weekly-projection",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-WEEKLY-PROJECTION-P78: Mostly Done Week",
+      "transition": null,
+      "context": "",
+      "props": {
+        "state": "p78",
+        "coachLine": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
+        "openerShowsAsBubble": false,
+        "expectedResponse": "Taps Next"
+      }
+    },
+    {
+      "beat": "13d",
+      "name": "Weekly projection (habit grid)",
+      "componentType": "weekly-projection",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-WEEKLY-PROJECTION-P36: Rough Week",
+      "transition": null,
+      "context": "",
+      "props": {
+        "state": "p36",
+        "coachLine": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
+        "openerShowsAsBubble": false,
+        "expectedResponse": "Taps Next"
+      }
+    },
+    {
+      "beat": "13e",
+      "name": "Weekly projection (habit grid)",
+      "componentType": "weekly-projection",
+      "variant": "shared",
+      "showOnPath": null,
+      "background": "coach",
+      "sheetStage": "ONBOARD-WEEKLY-PROJECTION-GAPS: Gap Week",
+      "transition": null,
+      "context": "",
+      "props": {
+        "state": "gaps",
+        "coachLine": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going."
+      },
+      "meta": {
+        "voiceEngine": "MP3",
+        "voiceMode": "Verbatim",
+        "spokenContent": "The one thing we want to avoid is this. The empty days you never reported. Stay consistent, just report it. Even a miss counts, that keeps us going.",
+        "openerShowsAsBubble": false,
+        "expectedResponse": "Taps Next"
+      }
+    }
+  ]
+}

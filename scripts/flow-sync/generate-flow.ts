@@ -19,6 +19,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateFlow } from '../../src/onboarding-flow/flowMachine';
 import { DESIGNER_ONBOARDING_FLOW } from '../../src/onboarding-flow/transform/designerSource';
+import { DESIGNER_ONBOARDING_FLOW_FROM_JSON } from '../../src/onboarding-flow/transform/designerSourceJson';
 import { designerToFlowDocument } from '../../src/onboarding-flow/transform/designerToFlow';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -28,7 +29,19 @@ const OUT_PATH = resolve(
 );
 
 function main(): void {
-  const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW);
+  // Drive from the builder Export JSON (the real source of truth). Fall back to
+  // the hand-typed mirror only if the Export is empty or missing, so a broken
+  // paste never wipes the flow.
+  const source =
+    DESIGNER_ONBOARDING_FLOW_FROM_JSON.length > 0
+      ? DESIGNER_ONBOARDING_FLOW_FROM_JSON
+      : DESIGNER_ONBOARDING_FLOW;
+  if (DESIGNER_ONBOARDING_FLOW_FROM_JSON.length === 0) {
+    console.warn('[flow:sync] designer-source.json is empty; falling back to the TS mirror.');
+  } else {
+    console.log('[flow:sync] source = designer-source.json (' + source.length + ' beats)');
+  }
+  const flow = designerToFlowDocument(source);
 
   const problems = validateFlow(flow);
   if (problems.length > 0) {

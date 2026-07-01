@@ -37,7 +37,7 @@
           "armOnBeatLoad": false
         },
         "fill": {
-          "brain": "direct-llm",
+          "brain": "none",
           "llmActive": false,
           "allowedTools": []
         },
@@ -90,7 +90,7 @@
         "skipLabel": "Not now"
       },
       "voice": {
-        "openerText": "Allow your microphone so you can talk with your coach out loud.",
+        "openerText": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
         "expectsInput": false,
         "directLlmAllowed": false
       },
@@ -103,15 +103,15 @@
               "id": "mic-permission-opener",
               "label": "Mic Permission opener",
               "file": "/voice/onboard_mic_permission.mp3",
-              "transcript": "Allow your microphone so you can talk with your coach out loud.",
-              "opener": "Allow your microphone so you can talk with your coach out loud.",
+              "transcript": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+              "opener": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
               "timing": "opener"
             }
           ],
           "lines": [
             {
               "id": "mic-permission-line-1",
-              "text": "Allow your microphone so you can talk with your coach out loud.",
+              "text": "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
               "voiceOnly": false,
               "onScreen": true,
               "engine": "mp3",
@@ -126,7 +126,7 @@
           "armOnBeatLoad": false
         },
         "fill": {
-          "brain": "direct-llm",
+          "brain": "none",
           "llmActive": false,
           "allowedTools": []
         },
@@ -199,7 +199,7 @@
           "lines": [
             {
               "id": "onboard-01-form-line-1",
-              "text": "Awesome {name}, two quick things so I can tailor this to you. How old are you? And what's your gender?",
+              "text": "Good to meet you, {name}. Two quick things so I can tailor this to you. How old are you?",
               "voiceOnly": false,
               "onScreen": true,
               "engine": "cartesia"
@@ -216,7 +216,8 @@
           "brain": "direct-llm",
           "llmActive": true,
           "allowedTools": [
-            "submit_profile"
+            "submit_profile",
+            "advance_step"
           ]
         },
         "path": "path-3-direct-llm",
@@ -242,8 +243,7 @@
           "pathField": false,
           "captureFields": [
             "age",
-            "gender",
-            "nickname"
+            "gender"
           ],
           "toolName": "submit_profile",
           "toolAdvancesStep": true,
@@ -320,7 +320,7 @@
           "armOnBeatLoad": false
         },
         "fill": {
-          "brain": "direct-llm",
+          "brain": "none",
           "llmActive": false,
           "allowedTools": []
         },
@@ -408,7 +408,8 @@
           "brain": "direct-llm",
           "llmActive": true,
           "allowedTools": [
-            "record_checkin"
+            "record_checkin",
+            "advance_step"
           ]
         },
         "path": "path-3-direct-llm",
@@ -509,13 +510,14 @@
           "armOnBeatLoad": true
         },
         "fill": {
-          "brain": "vapi",
+          "brain": "direct-llm",
           "llmActive": true,
           "allowedTools": [
-            "submit_morning_checkin"
+            "submit_morning_checkin",
+            "advance_step"
           ]
         },
-        "path": "path-1-vapi",
+        "path": "path-3-direct-llm",
         "orb": {
           "voiceOn": true,
           "micOn": true,
@@ -614,13 +616,15 @@
           "armOnBeatLoad": true
         },
         "fill": {
-          "brain": "vapi",
+          "brain": "direct-llm",
           "llmActive": true,
           "allowedTools": [
-            "submit_reflection_config"
+            "submit_reflection_config",
+            "submit_custom_prompts",
+            "advance_step"
           ]
         },
-        "path": "path-1-vapi",
+        "path": "path-3-direct-llm",
         "orb": {
           "voiceOn": true,
           "micOn": true,
@@ -638,8 +642,8 @@
         },
         "engine": {
           "nodeId": "reflection-setup",
-          "backId": "morning-checkin-setup",
-          "persistStep": 8,
+          "backId": "habit-select",
+          "persistStep": 6,
           "pathField": false,
           "captureFields": [
             "reflectionConfig"
@@ -730,7 +734,7 @@
           "lines": [
             {
               "id": "onboard-fork-form-line-1",
-              "text": "Have you tracked habits before, or is this new for you?",
+              "text": "Quick one. Have you tracked habits before, or is this new for you? Both are totally fine.",
               "voiceOnly": false,
               "onScreen": true,
               "engine": "mp3",
@@ -745,13 +749,15 @@
           "armOnBeatLoad": true
         },
         "fill": {
-          "brain": "vapi",
+          "brain": "direct-llm",
           "llmActive": true,
           "allowedTools": [
-            "submit_path_choice"
+            "submit_path_choice",
+            "ask_clarification",
+            "advance_step"
           ]
         },
-        "path": "path-1-vapi",
+        "path": "path-3-direct-llm",
         "orb": {
           "voiceOn": true,
           "micOn": true,
@@ -850,13 +856,14 @@
           "armOnBeatLoad": true
         },
         "fill": {
-          "brain": "vapi",
+          "brain": "direct-llm",
           "llmActive": true,
           "allowedTools": [
-            "submit_category"
+            "submit_category",
+            "advance_step"
           ]
         },
-        "path": "path-1-vapi",
+        "path": "path-3-direct-llm",
         "orb": {
           "voiceOn": true,
           "micOn": true,
@@ -956,13 +963,14 @@
           "armOnBeatLoad": true
         },
         "fill": {
-          "brain": "vapi",
+          "brain": "direct-llm",
           "llmActive": true,
           "allowedTools": [
-            "submit_goals"
+            "submit_goals",
+            "advance_step"
           ]
         },
-        "path": "path-1-vapi",
+        "path": "path-3-direct-llm",
         "orb": {
           "voiceOn": true,
           "micOn": true,
@@ -1062,13 +1070,15 @@
           "armOnBeatLoad": true
         },
         "fill": {
-          "brain": "vapi",
+          "brain": "direct-llm",
           "llmActive": true,
           "allowedTools": [
-            "add_habit"
+            "add_habit",
+            "remove_habit",
+            "advance_step"
           ]
         },
-        "path": "path-1-vapi",
+        "path": "path-3-direct-llm",
         "orb": {
           "voiceOn": true,
           "micOn": true,
@@ -1090,7 +1100,7 @@
           "persistStep": 5,
           "pathField": false,
           "captureFields": [
-            "habits"
+            "habitConfigs"
           ],
           "toolName": "add_habit",
           "toolAdvancesStep": false,
@@ -1168,13 +1178,15 @@
           "armOnBeatLoad": true
         },
         "fill": {
-          "brain": "vapi",
+          "brain": "direct-llm",
           "llmActive": true,
           "allowedTools": [
-            "update_habit"
+            "add_habit",
+            "update_habit",
+            "advance_step"
           ]
         },
-        "path": "path-1-vapi",
+        "path": "path-3-direct-llm",
         "orb": {
           "voiceOn": true,
           "micOn": true,
@@ -1272,13 +1284,14 @@
           "armOnBeatLoad": true
         },
         "fill": {
-          "brain": "vapi",
+          "brain": "direct-llm",
           "llmActive": true,
           "allowedTools": [
-            "submit_brain_dump"
+            "submit_brain_dump",
+            "advance_step"
           ]
         },
-        "path": "path-1-vapi",
+        "path": "path-3-direct-llm",
         "orb": {
           "voiceOn": true,
           "micOn": true,
@@ -1376,7 +1389,9 @@
           "brain": "direct-llm",
           "llmActive": true,
           "allowedTools": [
-            "update_habit"
+            "add_habit",
+            "update_habit",
+            "advance_step"
           ]
         },
         "path": "path-3-direct-llm",
@@ -1474,11 +1489,14 @@
           "armOnBeatLoad": true
         },
         "fill": {
-          "brain": "vapi",
+          "brain": "direct-llm",
           "llmActive": true,
-          "allowedTools": []
+          "allowedTools": [
+            "update_habit",
+            "confirm_plan"
+          ]
         },
-        "path": "path-1-vapi",
+        "path": "path-3-direct-llm",
         "orb": {
           "voiceOn": true,
           "micOn": true,
@@ -1560,7 +1578,7 @@
           "armOnBeatLoad": false
         },
         "fill": {
-          "brain": "direct-llm",
+          "brain": "none",
           "llmActive": false,
           "allowedTools": []
         },
@@ -1646,7 +1664,7 @@
           "armOnBeatLoad": false
         },
         "fill": {
-          "brain": "direct-llm",
+          "brain": "none",
           "llmActive": false,
           "allowedTools": []
         },
@@ -1732,7 +1750,7 @@
           "armOnBeatLoad": false
         },
         "fill": {
-          "brain": "direct-llm",
+          "brain": "none",
           "llmActive": false,
           "allowedTools": []
         },
@@ -1818,7 +1836,7 @@
           "armOnBeatLoad": false
         },
         "fill": {
-          "brain": "direct-llm",
+          "brain": "none",
           "llmActive": false,
           "allowedTools": []
         },
@@ -1904,7 +1922,7 @@
           "armOnBeatLoad": false
         },
         "fill": {
-          "brain": "direct-llm",
+          "brain": "none",
           "llmActive": false,
           "allowedTools": []
         },

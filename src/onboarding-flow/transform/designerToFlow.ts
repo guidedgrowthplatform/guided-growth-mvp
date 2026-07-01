@@ -603,8 +603,31 @@ function resolveMeta(designerBeat: DesignerBeat | undefined, spec: EngineBeatSpe
         ? 'cartesia'
         : 'none';
   const voiceOutEngine = mapVoiceOutEngine(authored?.voiceEngine) ?? defaultVoiceOutEngine;
-  const fillBrain: BeatRuntimeMeta['fill']['brain'] =
-    isVapiBeat || voiceOutEngine === 'vapi' ? 'vapi' : 'direct-llm';
+  // fill.brain, authored-metadata-first. When the beat carries an authored
+  // voiceEngine, derive the brain from the metadata (voiceEngine + allowedTools +
+  // engine.voiceExpectsInput / voiceDirectLlmAllowed), NOT the legacy Vapi scatter.
+  // Only a beat with NO authored voiceEngine falls back to CHAT_VAPI_BEAT_SCREENS.
+  const authoredVoiceEngine = authored?.voiceEngine?.trim().toLowerCase();
+  const authoredHasTools = parseList(authored?.allowedTools).length > 0;
+  const authoredExpectsInput = authored?.engine?.voiceExpectsInput === true;
+  const authoredDirectLlmAllowed = authored?.engine?.voiceDirectLlmAllowed === true;
+  const fillBrain: BeatRuntimeMeta['fill']['brain'] = authoredVoiceEngine
+    ? authoredVoiceEngine === 'vapi'
+      ? 'vapi'
+      : authoredVoiceEngine === 'none'
+        ? // 'None' voice: taps only unless the beat explicitly allows direct-LLM voice.
+          authoredDirectLlmAllowed
+          ? 'direct-llm'
+          : 'none'
+        : // MP3 / Cartesia: the coach fills only when the beat takes input
+          // (has tools or expects input). A say-only MP3 line stays 'none'.
+          authoredHasTools || authoredExpectsInput
+          ? 'direct-llm'
+          : 'none'
+    : // No authored voiceEngine: keep the legacy scatter as the fallback.
+      isVapiBeat || voiceOutEngine === 'vapi'
+      ? 'vapi'
+      : 'direct-llm';
   const path = mapPath(authored?.path) ?? (fillBrain === 'vapi' ? 'path-1-vapi' : 'path-3-direct-llm');
   const allowedTools =
     parseList(authored?.allowedTools).length > 0
