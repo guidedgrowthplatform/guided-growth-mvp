@@ -72,6 +72,16 @@ Done: on a fresh onboarding after mic grant, Soniox is listening the instant eac
 1. **`node_modules` is committed as a symlink** to `/Users/yairamsel/Developer/ggmvp-unified/node_modules` on `feat/onboarding-metadata-engine` AND `staging` (`git ls-tree ... node_modules` → mode 120000). Breaks checkout/build for everyone; worked around locally with skip-worktree. Needs removing from the branch + `.gitignore`.
 2. **Duplicated MP3 manifest**: `ONBOARDING_BEAT_MP3S` exists in both `useBeatOpenerMp3.ts:43-65` and `designerToFlow.ts:466-486`. Single-source it (transform should be the only owner; metadata `mp3Assets` is the runtime read).
 
+## Status (2026-07-01)
+
+- **T1-1 — DONE.** `setArmed()` in `soniox-stream.ts`; mic boots once at grant, warm across beats. Test in `soniox-stream-recovery.test.tsx`.
+- **T1-2 — DONE.** Prebuffer 1.5s→2.0s; echo tail dropped on clip-end release.
+- **T1-3 — DONE.** `useOpenerPlaybackStore` holds the socket closed during the opener clip, opens clean at clip end. (Judgment call: onboarding openers override global `FULL_DUPLEX_BARGE_IN`; confirm no-barge-in-during-opener is intended.)
+- **T1-4 — SATISFIED (not new code).** Defaults (`voiceMode:'voice'` + `micEnabled:true`) already give both-on after grant; T1-1 made the toggle effective; `onChatPage` resolves both-on → Direct-LLM + Soniox. Locked by `src/lib/orb/engineForTurn.test.ts` (9 tests).
+- **T1-5 — PENDING device test.** Needs a real phone on the QA build; blocked while local voice-out is silent (environmental: tab/system mute, autoplay, or QA sound pill — not a code path issue; runtime mp3Assets paths all resolve to existing files).
+
+Open (team decisions, not done): the `node_modules` symlink and the duplicated `ONBOARDING_BEAT_MP3S` (one is a membership check in `useBeatOpenerMp3.ts`, one is build-time in `designerToFlow.ts`; neither drives runtime playback). Also the Cartesia name beat still runs full-duplex.
+
 ## Order of execution
 
 1. T1-1 (persistent mic session) — foundation for T1-2/T1-3.
