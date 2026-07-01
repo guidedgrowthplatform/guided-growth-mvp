@@ -50,6 +50,7 @@ import { DayPicker } from '@/components/ui/DayPicker';
 import { DualButton } from '@/components/ui/DualButton';
 import { BeatOrb, orbConfigForType, type OrbConfig } from './BeatOrb';
 import { clipsForStage } from './beatAudio';
+import { BEAT_METADATA, type BeatContextMeta } from './beatMetadata';
 import { Toggle } from '@/components/ui/Toggle';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 
@@ -1196,6 +1197,33 @@ function withEngineDefaults(type: string, meta: BeatMeta | undefined): BeatMeta 
   return { ...(meta ?? {}), engine: { ...d, ...(meta?.engine ?? {}) } };
 }
 
+// Pre-Sheet beats carry no sheetStage (auth, mic), so map their type to a screen_id.
+const BEAT_META_TYPE_TO_SCREEN: Record<string, string> = {
+  'auth-signup': 'ONBOARD-AUTH--FORM',
+  'mic-permission': 'MIC-PERMISSION',
+};
+
+function beatMetaScreenId(sheetStage?: string, type?: string): string | undefined {
+  const fromStage = (sheetStage ?? '').split(':')[0].trim();
+  if (fromStage) return fromStage;
+  return type ? BEAT_META_TYPE_TO_SCREEN[type] : undefined;
+}
+
+// Fill a beat's voice authoring fields (engine, mode, opener, tools, per-element lines,
+// bubble/variable flags) from the Beats Context sheet map, keyed by screen_id. Same
+// contract as withEngineDefaults: anything already authored on the beat wins. This is how
+// the Sheet's engine + per-element narration land on each beat without hand-authoring.
+function withBeatMeta(
+  meta: BeatMeta | undefined,
+  sheetStage?: string,
+  type?: string,
+): BeatMeta | undefined {
+  const sid = beatMetaScreenId(sheetStage, type);
+  const seed = sid ? (BEAT_METADATA[sid] as BeatContextMeta | undefined) : undefined;
+  if (!seed) return meta;
+  return { ...seed, ...(meta ?? {}) };
+}
+
 // Every beat is coach-led or user-led; default to coach, user bubbles to user.
 const hydrate = (stored: StoredBeat[]): Placed[] =>
   stored.map((b) => ({
@@ -1210,7 +1238,10 @@ const hydrate = (stored: StoredBeat[]): Placed[] =>
     variant: b.variant ?? 'shared',
     showOnPath: b.showOnPath,
     lanes: b.lanes?.map((l) => ({ id: newUid('lane'), label: l.label, items: hydrate(l.items) })),
-    meta: withEngineDefaults(b.type, withSheetAudio(b.meta, b.sheetStage, b.type)),
+    meta: withEngineDefaults(
+      b.type,
+      withSheetAudio(withBeatMeta(b.meta, b.sheetStage, b.type), b.sheetStage, b.type),
+    ),
   }));
 
 const serialize = (items: Placed[]): StoredBeat[] =>
@@ -1306,6 +1337,13 @@ interface BeatMeta {
   figmaNode?: string;
   status?: string; // draft | ready | locked
   voiceNotes?: string; //                                   (Sheet: voice_notes)
+  // Beats-session authoring fields, generated into beatMetadata.ts from the
+  // "Beats Context" + "Beat Elements" tabs and merged on hydrate (withBeatMeta).
+  variable?: boolean; //           references {name}/a prior answer (Beats Context: Variable?)
+  openerMode?: 'A' | 'B'; //       A = no framing opener (control lines lead); B = keep it
+  openerShowsAsBubble?: boolean; // opener prints a chat bubble vs component-carried
+  expectedResponse?: string; //    (Beats Context: Expected User Response)
+  perElement?: BeatContextMeta['perElement']; // one micro-line per element, in fade order
   // The runtime engine spec for this beat. The engine keys on these; today it
   // derives them from the beat type, surfaced here so each beat describes itself
   // and the export carries the full spec.
