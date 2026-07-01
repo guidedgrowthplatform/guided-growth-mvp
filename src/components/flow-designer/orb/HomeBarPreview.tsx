@@ -1,16 +1,16 @@
+import { type MutableRefObject } from 'react';
 import { Icon } from '@iconify/react';
 import { IconChatText, IconMic } from '@/components/icons';
-import { DualButton } from '@/components/ui/DualButton';
+import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
+import type { OrbStates, PulseParams } from './orbPresets';
 
-// The home bar canvas for the Orb builder: a self-contained mockup of the app's
-// bottom nav (the real one is components/layout/BottomNav.tsx, which needs the
-// router + voice providers, so this mirrors its shape without them). It's the
-// starting point for building and improving the components around the orb in the
-// home bar. Keep the DualButton geometry and the scooped bar background matched
-// to BottomNav so what you tune here maps straight onto the real bar.
+// The home bar canvas: a self-contained mockup of the app's bottom nav (the real
+// one is components/layout/BottomNav.tsx, which needs the router + voice
+// providers). The orb in the notch is the SAME live orb the tuner drives, so any
+// change to the orb shows here too. Build and improve the bar around it here;
+// keep the DualButton geometry and the scoop path matched to BottomNav.
 
 function BarBackground() {
-  // Same scoop path BottomNav uses, so the orb sits in an identical notch.
   return (
     <div
       className="absolute inset-0 flex"
@@ -43,14 +43,22 @@ function Tab({ icon, label }: { icon: string; label: string }) {
   );
 }
 
-export function HomeBarPreview() {
+interface HomeBarPreviewProps {
+  orbState: OrbStateSel;
+  orbStyle: OrbTalkStyle;
+  params: OrbStates;
+  pulse: PulseParams;
+  mic: MutableRefObject<OrbMic>;
+}
+
+export function HomeBarPreview({ orbState, orbStyle, params, pulse, mic }: HomeBarPreviewProps) {
   return (
     <div className="flex flex-col items-center gap-3">
       <div
-        className="text-[11px] font-semibold uppercase tracking-wide"
+        className="text-[11px] font-semibold uppercase"
         style={{ color: '#8a92a8', letterSpacing: '.09em' }}
       >
-        Home bar
+        Home bar (live)
       </div>
       <div
         className="relative overflow-hidden rounded-[34px] bg-white"
@@ -64,16 +72,20 @@ export function HomeBarPreview() {
           <div className="h-28 rounded-2xl bg-slate-50" />
         </div>
 
-        {/* The home bar itself: scooped background, orb in the notch, four tabs. */}
+        {/* The home bar: scooped background, the live orb in the notch, four tabs. */}
         <div className="absolute inset-x-0 bottom-0">
           <div className="relative" style={{ height: 72 }}>
             <BarBackground />
             <div className="absolute left-1/2 top-0 z-50 -translate-x-1/2 -translate-y-1/2">
-              <DualButton
+              <Orb
                 size={91}
-                leftIcon={<IconChatText size={24} />}
-                rightIcon={<IconMic size={24} />}
-                ariaLabel="Voice controls"
+                state={orbState}
+                style={orbStyle}
+                params={params}
+                pulse={pulse}
+                mic={mic}
+                flat
+                overlayIcons={{ left: <IconChatText size={24} />, right: <IconMic size={24} /> }}
               />
             </div>
             <div className="relative grid h-full grid-cols-5 items-end px-6 pb-2">
