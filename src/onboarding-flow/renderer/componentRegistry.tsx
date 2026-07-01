@@ -1268,24 +1268,6 @@ function AutoAdvance({ onDone }: { onDone: () => void }) {
 // Morning state-check: the four-row sleep / mood / energy / stress card. The user
 // taps a 1-5 value per dimension; captured as a checkin object. Wraps the same
 // checkInDimensions + EmojiOptionButton primitives the home CheckInCard uses.
-// Tiny typewriter for the per-element state lines: reveals words at ~110ms so the
-// line types in as its clip plays. Inline to avoid a circular import of the renderer.
-function TypeLine({ text }: { text: string }) {
-  const words = text.split(/\s+/).filter(Boolean);
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    setN(0);
-    let i = 0;
-    const id = window.setInterval(() => {
-      i += 1;
-      setN(i);
-      if (i >= words.length) window.clearInterval(id);
-    }, 110);
-    return () => window.clearInterval(id);
-  }, [text, words.length]);
-  return <>{words.slice(0, n).join(' ')}</>;
-}
-
 function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
   const props = node.componentProps as { dimensions?: CheckInDimension[] };
   const want = props.dimensions;
@@ -1298,6 +1280,9 @@ function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
   // openerText), so this is the only audio.
   const [revealed, setRevealed] = useState(0);
   const [line, setLine] = useState<string | null>(null);
+  // Words of `line` revealed so far, driven by the clip's own audio clock (karaoke),
+  // so the text tracks the MP3 instead of a fixed typewriter speed.
+  const [revealedWords, setRevealedWords] = useState(0);
   const startedRef = useRef(false);
 
   // Run the sequence once voice is on. The QA launcher arms voice before navigating,
@@ -1313,12 +1298,18 @@ function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
         if (cancelled) return;
         const clips = VOICE_SCRIPTS_AUDIO['state_' + dims[i].key];
         const clip = clips && clips[0] ? clips[0] : null;
+        const wordTotal = clip ? clip.text.split(/\s+/).filter(Boolean).length : 0;
         setLine(clip ? clip.text : null);
-        setRevealed(i + 1);
+        setRevealedWords(0);
+        // Bloom the row; Math.max so a late voice-on never re-hides an already-shown row.
+        setRevealed((r) => Math.max(r, i + 1));
         if (clip) {
-          const h = playClip(clip.file);
+          const h = playClip(clip.file, (fraction) => {
+            setRevealedWords(Math.min(wordTotal, Math.round(fraction * wordTotal)));
+          });
           handle = h;
           await h.done;
+          setRevealedWords(wordTotal);
         } else {
           await new Promise((r) => setTimeout(r, 700));
         }
@@ -1360,7 +1351,7 @@ function StateCheckAdapter({ node, onCapture }: BeatAdapterProps) {
     <CardShell>
       {line && (
         <div className="max-w-[85%] self-start rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 text-[14px] font-medium leading-[1.45] text-content shadow-[0px_4px_16px_-4px_rgba(15,23,42,0.12)]">
-          <TypeLine text={line} />
+          {line.split(/\s+/).filter(Boolean).slice(0, revealedWords).join(' ')}
         </div>
       )}
       <div className="flex w-full flex-col gap-3">
