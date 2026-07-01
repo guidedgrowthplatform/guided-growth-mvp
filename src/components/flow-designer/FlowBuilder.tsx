@@ -57,6 +57,7 @@ import { ChatBubble } from '@/components/voice/ChatBubble';
 import { BEAT_DEFS } from './beats';
 import { PlayingCtx, AnimationsCtx, useAnimations, Karaoke } from './beatKit';
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
+import { HomeBarPreview } from './orb/HomeBarPreview';
 import { OrbTuner } from './orb/OrbTuner';
 import { EXTRA_REGISTRY, EXTRA_GROUPS } from './paletteExtras';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
@@ -3333,11 +3334,14 @@ export function FlowBuilder() {
   if (mode === 'orb') {
     return (
       <div
-        className="flex min-h-screen flex-col items-center gap-5 p-5"
+        className="flex min-h-screen flex-col items-center gap-6 p-5"
         style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#0c0e14' }}
       >
         {modeBar}
-        <OrbTuner />
+        <div className="flex flex-wrap items-start justify-center gap-10">
+          <OrbTuner />
+          <HomeBarPreview />
+        </div>
       </div>
     );
   }
