@@ -3,17 +3,25 @@ import { IconChatText, IconMicMuted } from '@/components/icons';
 import {
   AUTHOR_PRESETS,
   loadParams,
+  loadPulse,
+  loadSaved,
   resetParams,
   saveParams,
+  savePulse,
+  saveSavedList,
   type OrbParams,
   type OrbStates,
+  type PulseParams,
+  type SavedPreset,
 } from '../orb/orbPresets';
 
 // The Orb: a self-contained canvas-2D Siri-style glass button with a full tuner.
 // Idle = the resting two-half orb. Talking = either a full-circle merge (speaker
 // colour) or a directional pulse (blue left when the AI speaks, yellow right when
-// the user speaks). Everything is driven by two editable param sets (idle / talk)
-// that persist in localStorage; named presets live in orbPresets.ts (in git).
+// the user speaks). Three editable groups: the Idle look, the Talking look, and
+// Pulse (how the orb expands + breathes while talking). All persist in
+// localStorage; named presets live in orbPresets.ts (in git), and you can save
+// your own idle/talking looks live from the tuner.
 
 type Rgb = [number, number, number];
 const BLUE: Rgb[] = [
@@ -47,6 +55,7 @@ const BGS: Record<string, string> = {
 
 type StateSel = 'idle' | 'coach' | 'user';
 type TalkStyle = 'full' | 'directional';
+type EditTab = 'idle' | 'talk' | 'pulse';
 
 interface Blob {
   ci: number;
@@ -135,11 +144,16 @@ const LIGHT_SLIDERS: { k: keyof OrbParams; label: string; min: number; max: numb
   { k: 'spread', label: 'Particle spread', min: 12, max: 60 },
   { k: 'pglow', label: 'Particle glow', min: 0, max: 100 },
   { k: 'rand', label: 'Randomness', min: 0, max: 100 },
-  { k: 'pulse', label: 'Pulse (talking)', min: 0, max: 100 },
+];
+const PULSE_SLIDERS: { k: keyof PulseParams; label: string; min: number; max: number }[] = [
+  { k: 'size', label: 'Base size', min: 0, max: 40 },
+  { k: 'amt', label: 'Extra pulse', min: 0, max: 100 },
+  { k: 'speed', label: 'Pulse speed', min: 0, max: 100 },
 ];
 
 interface LiveCfg {
   params: OrbStates;
+  pulse: PulseParams;
   state: StateSel;
   style: TalkStyle;
   leftOn: boolean;
@@ -148,7 +162,11 @@ interface LiveCfg {
 
 export function OrbTuner() {
   const [params, setParams] = useState<OrbStates>(() => loadParams());
+  const [pulse, setPulse] = useState<PulseParams>(() => loadPulse());
+  const [saved, setSaved] = useState<SavedPreset[]>(() => loadSaved());
+  const [presetName, setPresetName] = useState('');
   const [state, setState] = useState<StateSel>('idle');
+  const [editTab, setEditTab] = useState<EditTab>('idle');
   const [style, setStyle] = useState<TalkStyle>('full');
   const [bg, setBg] = useState<string>('light');
   const [author, setAuthor] = useState<string>(Object.keys(AUTHOR_PRESETS)[0] ?? 'Yair');
@@ -156,7 +174,18 @@ export function OrbTuner() {
   const [rightOn, setRightOn] = useState(true);
   const [micOn, setMicOn] = useState(false);
 
-  const activeKey: keyof OrbStates = state === 'idle' ? 'idle' : 'talk';
+  const activeKey: 'idle' | 'talk' = editTab === 'idle' ? 'idle' : 'talk';
+  // Clicking a preview state follows the edit tab (idle look vs talking look),
+  // except while you're on the Pulse tab, so you can flip coach/user to watch it.
+  const pickState = (k: StateSel) => {
+    setState(k);
+    setEditTab((prev) => (prev === 'pulse' ? 'pulse' : k === 'idle' ? 'idle' : 'talk'));
+  };
+  const pickEdit = (k: EditTab) => {
+    setEditTab(k);
+    if (k === 'idle') setState('idle');
+    else setState((s) => (s === 'idle' ? 'coach' : s));
+  };
 
   const orbRef = useRef<HTMLDivElement>(null);
   const leftHalfRef = useRef<HTMLDivElement>(null);
@@ -165,8 +194,8 @@ export function OrbTuner() {
   const rightCv = useRef<HTMLCanvasElement>(null);
   const fullCv = useRef<HTMLCanvasElement>(null);
 
-  const cfg = useRef<LiveCfg>({ params, state, style, leftOn, rightOn });
-  cfg.current = { params, state, style, leftOn, rightOn };
+  const cfg = useRef<LiveCfg>({ params, pulse, state, style, leftOn, rightOn });
+  cfg.current = { params, pulse, state, style, leftOn, rightOn };
   const mic = useRef<{ on: boolean; amp: number }>({ on: false, amp: 0 });
   mic.current.on = micOn;
 
@@ -368,19 +397,24 @@ export function OrbTuner() {
       setVar('--blur', `${((aset.blur / 100) * 6).toFixed(1)}px`);
       orb.classList.toggle('ot-full', full);
       const t2 = performance.now() / 1000;
+      // Pulse config: the expand + breathe behaviour while talking.
+      const pz = c.pulse;
+      const prate = 1 + (pz.speed / 100) * 3;
+      const pbase = pz.size / 100; // how big it gets in general
+      const pamt = pz.amt / 100; // extra breathing on top
       if (full) {
-        const p = aset.pulse / 100;
         const micF = m.on ? 0.5 + m.amp * 0.9 : 1;
-        const grow = 1 + 0.1 * micF + (0.05 + p * 0.13) * (0.5 + 0.5 * Math.sin(t2 * 2)) * micF;
+        const swing = (0.5 + 0.5 * Math.sin(t2 * prate * 2)) * pamt * 0.22;
+        const grow = 1 + (pbase + swing) * micF;
         orb.style.transform = `scale(${grow.toFixed(3)})`;
       } else {
         orb.style.transform = '';
       }
       const activeSide = c.state === 'coach' ? 'left' : c.state === 'user' ? 'right' : null;
       if (talking && c.style === 'directional' && activeSide) {
-        const p = c.params.talk.pulse / 100;
         const micF = m.on ? 0.5 + m.amp * 0.9 : 1;
-        const gv = 1 + (0.05 + p * 0.12) * (0.6 + 0.4 * Math.sin(t2 * 2)) * micF;
+        const swing = (0.5 + 0.5 * Math.sin(t2 * prate * 2)) * pamt * 0.2;
+        const gv = 1 + (pbase * 0.85 + swing) * micF;
         if (leftHalfRef.current) leftHalfRef.current.style.transform = activeSide === 'left' ? `scale(${gv.toFixed(3)})` : '';
         if (rightHalfRef.current) rightHalfRef.current.style.transform = activeSide === 'right' ? `scale(${gv.toFixed(3)})` : '';
       } else {
@@ -445,6 +479,13 @@ export function OrbTuner() {
       return next;
     });
   };
+  const setPulseP = (k: keyof PulseParams, v: number) => {
+    setPulse((prev) => {
+      const next = { ...prev, [k]: v };
+      savePulse(next);
+      return next;
+    });
+  };
   const applyPreset = (name: string) => {
     const pr = AUTHOR_PRESETS[author]?.[name];
     if (!pr) return;
@@ -454,6 +495,50 @@ export function OrbTuner() {
       saveParams(next);
       return next;
     });
+  };
+
+  // Save the look you're editing (idle or talking) as a named, state-tagged preset.
+  const saveCurrent = () => {
+    const nm = presetName.trim();
+    if (!nm || editTab === 'pulse') return;
+    const st = activeKey;
+    const entry: SavedPreset = {
+      id: String(Date.now()),
+      name: nm,
+      state: st,
+      params: JSON.parse(JSON.stringify(params[st])),
+    };
+    setSaved((prev) => {
+      const next = [...prev.filter((p) => !(p.name === nm && p.state === st)), entry];
+      saveSavedList(next);
+      return next;
+    });
+    setPresetName('');
+  };
+  const applySaved = (p: SavedPreset) => {
+    setEditTab(p.state);
+    setState(p.state === 'idle' ? 'idle' : 'coach');
+    setParams((prev) => {
+      const next: OrbStates = JSON.parse(JSON.stringify(prev));
+      next[p.state] = JSON.parse(JSON.stringify(p.params));
+      saveParams(next);
+      return next;
+    });
+  };
+  const deleteSaved = (id: string) => {
+    setSaved((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      saveSavedList(next);
+      return next;
+    });
+  };
+  // Copy a ready-to-paste line for orbPresets.ts so a good look can land in git.
+  const copySaved = (p: SavedPreset) => {
+    const body = Object.entries(p.params)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(', ');
+    const line = `'${p.name}': { ${body} }, // ${p.state === 'talk' ? 'talking' : 'idle'} look`;
+    void navigator.clipboard?.writeText(line);
   };
 
   const A = params[activeKey];
@@ -496,7 +581,7 @@ export function OrbTuner() {
         <div className="ot-row">
           <span className="ot-lab">State</span>
           {(['idle', 'coach', 'user'] as const).map((k) => (
-            <button key={k} className={`ot-btn${state === k ? ' on' : ''}`} onClick={() => setState(k)}>
+            <button key={k} className={`ot-btn${state === k ? ' on' : ''}`} onClick={() => pickState(k)}>
               {k === 'idle' ? 'Idle' : k === 'coach' ? 'Coach talking' : 'User talking'}
             </button>
           ))}
@@ -513,7 +598,21 @@ export function OrbTuner() {
           ))}
         </div>
         <div className="ot-row">
-          <span className="ot-lab">Presets</span>
+          <span className="ot-lab">Edit</span>
+          {([
+            ['idle', 'Idle look'],
+            ['talk', 'Talking look'],
+            ['pulse', 'Pulse'],
+          ] as [EditTab, string][]).map(([k, lbl]) => (
+            <button key={k} className={`ot-btn${editTab === k ? ' on' : ''}`} onClick={() => pickEdit(k)}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+
+        <div className="ot-hdr">Presets</div>
+        <div className="ot-row">
+          <span className="ot-lab">Author</span>
           {Object.keys(AUTHOR_PRESETS).map((au) => (
             <button key={au} className={`ot-btn${author === au ? ' on' : ''}`} onClick={() => setAuthor(au)}>
               {au}
@@ -532,40 +631,101 @@ export function OrbTuner() {
           </button>
         </div>
         <div className="ot-row">
+          <span className="ot-lab">Save as</span>
+          <input
+            className="ot-input"
+            value={presetName}
+            placeholder={editTab === 'pulse' ? 'Switch to a look to save' : 'Preset name'}
+            onChange={(e) => setPresetName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveCurrent();
+            }}
+            disabled={editTab === 'pulse'}
+          />
+          <button className="ot-btn" onClick={saveCurrent} disabled={editTab === 'pulse' || !presetName.trim()}>
+            Save {activeKey === 'talk' ? 'talking' : 'idle'} look
+          </button>
+        </div>
+        {(['idle', 'talk'] as const).map((gk) => {
+          const items = saved.filter((p) => p.state === gk);
+          if (!items.length) return null;
+          return (
+            <div className="ot-row" key={gk}>
+              <span className="ot-lab">{gk === 'idle' ? 'Idle saved' : 'Talking saved'}</span>
+              {items.map((p) => (
+                <span key={p.id} className="ot-chip">
+                  <button className="ot-chip-name" onClick={() => applySaved(p)} title="Apply this look">
+                    {p.name}
+                  </button>
+                  <button className="ot-chip-x" onClick={() => copySaved(p)} title="Copy line for orbPresets.ts">
+                    ⧉
+                  </button>
+                  <button className="ot-chip-x" onClick={() => deleteSaved(p.id)} title="Delete">
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          );
+        })}
+        <div className="ot-row">
           <span className="ot-lab" />
           <span style={{ fontSize: 11, color: '#8a92a8' }}>
-            Editing the {state === 'idle' ? 'Idle' : 'Talking'} look. Click a half in Idle to toggle it on / off.
+            {editTab === 'pulse'
+              ? 'Pulse is how the orb expands and breathes while talking. Base size is how big it gets in general; extra pulse is the breathing on top.'
+              : `Editing the ${activeKey === 'talk' ? 'Talking' : 'Idle'} look. Click a half in Idle to toggle it on / off. Name it and Save to keep it as a preset.`}
           </span>
         </div>
 
-        <div className="ot-hdr">Orb (the glass button)</div>
-        {GLASS_SLIDERS.map((s) => (
-          <div className="ot-sl" key={s.k}>
-            <span className="ot-lab">{s.label}</span>
-            <input
-              type="range"
-              min={s.min}
-              max={s.max}
-              value={A[s.k]}
-              onChange={(e) => setP(s.k, Number(e.target.value))}
-            />
-            <span className="ot-val">{A[s.k]}</span>
-          </div>
-        ))}
-        <div className="ot-hdr">Inner light (the Siri blob)</div>
-        {LIGHT_SLIDERS.map((s) => (
-          <div className="ot-sl" key={s.k}>
-            <span className="ot-lab">{s.label}</span>
-            <input
-              type="range"
-              min={s.min}
-              max={s.max}
-              value={A[s.k]}
-              onChange={(e) => setP(s.k, Number(e.target.value))}
-            />
-            <span className="ot-val">{A[s.k]}</span>
-          </div>
-        ))}
+        {editTab !== 'pulse' ? (
+          <>
+            <div className="ot-hdr">Orb (the glass button)</div>
+            {GLASS_SLIDERS.map((s) => (
+              <div className="ot-sl" key={s.k}>
+                <span className="ot-lab">{s.label}</span>
+                <input
+                  type="range"
+                  min={s.min}
+                  max={s.max}
+                  value={A[s.k]}
+                  onChange={(e) => setP(s.k, Number(e.target.value))}
+                />
+                <span className="ot-val">{A[s.k]}</span>
+              </div>
+            ))}
+            <div className="ot-hdr">Inner light (the Siri blob)</div>
+            {LIGHT_SLIDERS.map((s) => (
+              <div className="ot-sl" key={s.k}>
+                <span className="ot-lab">{s.label}</span>
+                <input
+                  type="range"
+                  min={s.min}
+                  max={s.max}
+                  value={A[s.k]}
+                  onChange={(e) => setP(s.k, Number(e.target.value))}
+                />
+                <span className="ot-val">{A[s.k]}</span>
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <div className="ot-hdr">Pulse (expand + breathe while talking)</div>
+            {PULSE_SLIDERS.map((s) => (
+              <div className="ot-sl" key={s.k}>
+                <span className="ot-lab">{s.label}</span>
+                <input
+                  type="range"
+                  min={s.min}
+                  max={s.max}
+                  value={pulse[s.k]}
+                  onChange={(e) => setPulseP(s.k, Number(e.target.value))}
+                />
+                <span className="ot-val">{pulse[s.k]}</span>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       <style>{OT_CSS}</style>
@@ -596,6 +756,14 @@ const OT_CSS = `
 .ot-lab{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#7a7c88;min-width:74px}
 .ot-btn{padding:7px 13px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#e8e8ee;font-size:12.5px;cursor:pointer}
 .ot-btn.on{background:#fff;color:#15151c;border-color:#fff;font-weight:600}
+.ot-btn:disabled{opacity:.4;cursor:default}
+.ot-input{padding:6px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#e8e8ee;font-size:12.5px;min-width:130px}
+.ot-input:disabled{opacity:.4}
+.ot-chip{display:inline-flex;align-items:center;gap:0;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);overflow:hidden}
+.ot-chip-name{padding:6px 11px;background:transparent;border:none;color:#e8e8ee;font-size:12.5px;cursor:pointer}
+.ot-chip-name:hover{background:rgba(255,255,255,.12)}
+.ot-chip-x{padding:6px 8px;background:transparent;border:none;border-left:1px solid rgba(255,255,255,.12);color:#aeb2c2;font-size:12px;cursor:pointer}
+.ot-chip-x:hover{color:#fff;background:rgba(255,255,255,.12)}
 .ot-hdr{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:#c7cbe0;font-weight:700;margin:8px 0 2px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)}
 .ot-sl{display:flex;align-items:center;gap:12px}
 .ot-sl .ot-lab{min-width:104px}

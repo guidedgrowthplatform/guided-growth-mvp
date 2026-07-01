@@ -86,3 +86,60 @@ export function resetParams(): OrbStates {
   }
   return clone(DEFAULT_PARAMS);
 }
+
+// --- Pulse (the expand + breathe behaviour while talking) --------------------
+// Broken out as its own thing so it can be tuned separately from the idle/talking
+// looks. "size" is how big the orb gets in general while talking; "amt" is the
+// extra breathing pulse layered on top; "speed" is how fast it breathes.
+export interface PulseParams {
+  size: number; // baseline expansion when talking (0..40)
+  amt: number; // extra breathing amplitude on top (0..100)
+  speed: number; // breathing rate (0..100)
+}
+export const DEFAULT_PULSE: PulseParams = { size: 8, amt: 60, speed: 50 };
+const LS_PULSE = 'gg-flow-builder-v18:orb-pulse';
+export function loadPulse(): PulseParams {
+  try {
+    const s = localStorage.getItem(LS_PULSE);
+    if (s) return { ...DEFAULT_PULSE, ...(JSON.parse(s) as Partial<PulseParams>) };
+  } catch {
+    // ignore
+  }
+  return { ...DEFAULT_PULSE };
+}
+export function savePulse(p: PulseParams): void {
+  try {
+    localStorage.setItem(LS_PULSE, JSON.stringify(p));
+  } catch {
+    // ignore
+  }
+}
+
+// --- User-saved presets (state-tagged: an idle look or a talking look) --------
+// Saved live from the tuner and kept in localStorage. Each carries the state it
+// was captured for, so the card can show them as e.g. "<name> · idle" /
+// "<name> · talking". Once a look is worth sharing, copy it into AUTHOR_PRESETS
+// above (the tuner has a copy button that formats the line for you).
+export interface SavedPreset {
+  id: string;
+  name: string;
+  state: 'idle' | 'talk';
+  params: OrbParams;
+}
+const LS_SAVED = 'gg-flow-builder-v18:orb-saved';
+export function loadSaved(): SavedPreset[] {
+  try {
+    const s = localStorage.getItem(LS_SAVED);
+    if (s) return JSON.parse(s) as SavedPreset[];
+  } catch {
+    // ignore
+  }
+  return [];
+}
+export function saveSavedList(list: SavedPreset[]): void {
+  try {
+    localStorage.setItem(LS_SAVED, JSON.stringify(list));
+  } catch {
+    // ignore
+  }
+}
