@@ -34,7 +34,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { attemptPlayWithGestureFallback } from '@/lib/audio/attempt-play-with-gesture-fallback';
 import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
-import { getPreloadedClip } from './openerPreloadPool';
+import {
+  classifyOpenerPlayFailure,
+  createActivationTracker,
+  type OpenerActivationTracker,
+} from './openerActivation';
+import { claimPreloadedClip } from './openerPreloadPool';
+
+// How many times a live activation re-arms play() after an AbortError (the
+// shared pooled element got paused under a pending play()) before settling by
+// failure. Intentional teardowns never reach the retry path — they are scoped
+// out by the activation token / teardown-abort checks.
+const ABORT_REPLAY_ATTEMPTS = 2;
 
 // ─── Clip registry ──────────────────────────────────────────────────────────
 // Maps canonical screenId -> public/voice/*.mp3 path.
@@ -99,55 +110,38 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
   const [progress, setProgress] = useState<number | null>(null);
   const [done, setDone] = useState(false);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const settledRef = useRef(false);
-
-  const stopProgress = useCallback(() => {
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-  }, []);
-
-  const settle = useCallback(() => {
-    if (settledRef.current) return;
-    settledRef.current = true;
-    stopProgress();
-    const el = audioRef.current;
-    if (el) {
-      el.onended = null;
-      el.onerror = null;
-      try {
-        el.pause();
-        // Pooled elements are reused across activations — rewind for next time.
-        el.currentTime = 0;
-      } catch { /* ignore */ }
-      audioRef.current = null;
-    }
-    setPlaying(false);
-    setProgress(1);
-    setDone(true);
-  }, [stopProgress]);
+  // One tracker per hook instance; each effect run begins its own activation.
+  // React can run the effect twice for one logical activation (strict-mode
+  // double invoke / dep-change re-run) and the pooled element is shared, so a
+  // run's late play() AbortError must be scoped to ITS activation — a stale
+  // run settling the live one was the B4 "done with zero audio" race.
+  const trackerRef = useRef<OpenerActivationTracker | null>(null);
+  if (trackerRef.current === null) trackerRef.current = createActivationTracker();
+  // settle() of the CURRENT activation, for the external stop() / deactivation
+  // path. Stale settles are no-ops by the activation-token rules.
+  const settleCurrentRef = useRef<(() => void) | null>(null);
 
   const stop = useCallback(() => {
-    settle();
-  }, [settle]);
+    settleCurrentRef.current?.();
+  }, []);
 
   useEffect(() => {
     if (!active || !src) {
       return;
     }
 
+    const activation = trackerRef.current!.begin();
+
     // Reset for this activation.
-    settledRef.current = false;
     setPlaying(false);
     setProgress(null);
     setDone(false);
 
-    // Preloaded element when the pool has it (buffered at flow mount, B15);
-    // fresh element as the lazy fallback when preloading missed or failed.
-    const pooled = getPreloadedClip(src);
+    // Preloaded element when the pool has it (buffered at flow mount, B15) and
+    // no other consumer holds it (the claim serializes the handout); fresh
+    // element as the lazy fallback when preloading missed, failed, or the
+    // element is already claimed.
+    const pooled = claimPreloadedClip(src);
     const el = pooled?.el ?? new Audio(src);
     if (!pooled) el.preload = 'auto';
     try {
@@ -157,37 +151,69 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
     }
     // Apply QA mute state at creation so the element is pre-configured.
     el.muted = isQaMuted();
-    audioRef.current = el;
 
     // Mirror live QA mute toggles onto the element so toggling mid-clip works.
     const unsubQaSound = subscribeQaSound(() => {
-      if (audioRef.current) {
-        audioRef.current.muted = isQaMuted();
-      }
+      el.muted = isQaMuted();
     });
 
-    el.onended = () => {
+    let rafId: number | null = null;
+    const stopProgress = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    };
+
+    let warned = false;
+    const warnFailure = (reason: string, detail?: unknown) => {
+      // One quiet warn per failed clip: enough for a deployed build to surface
+      // the failure class, without per-activation diagnostic noise.
+      if (warned) return;
+      warned = true;
+      console.warn(`[useBeatOpenerMp3] ${reason}`, src, detail ?? '');
+    };
+
+    const settle = () => {
+      // Only the current activation may touch the (shared, pooled) element and
+      // the hook state; a stale activation records itself settled and exits.
+      if (!activation.settle()) return;
       stopProgress();
+      el.onended = null;
+      el.onerror = null;
+      try {
+        el.pause();
+        // Pooled elements are reused across activations — rewind for next time.
+        el.currentTime = 0;
+      } catch {
+        /* ignore */
+      }
+      pooled?.release();
+      setPlaying(false);
       setProgress(1);
+      setDone(true);
+    };
+    settleCurrentRef.current = settle;
+
+    el.onended = () => {
       settle();
     };
     el.onerror = () => {
-      // One quiet warn per failed clip (media/network error class).
-      console.warn('[useBeatOpenerMp3] failed to play', src);
+      warnFailure('failed to play', el.error?.code);
       settle();
     };
 
     // Start the rAF progress loop once playing.
     const startProgressLoop = () => {
       const tick = () => {
-        if (settledRef.current || !audioRef.current) return;
-        const d = audioRef.current.duration;
+        if (activation.isSettled()) return;
+        const d = el.duration;
         if (d && Number.isFinite(d) && d > 0) {
-          setProgress(Math.min(1, audioRef.current.currentTime / d));
+          setProgress(Math.min(1, el.currentTime / d));
         }
-        rafRef.current = requestAnimationFrame(tick);
+        rafId = requestAnimationFrame(tick);
       };
-      rafRef.current = requestAnimationFrame(tick);
+      rafId = requestAnimationFrame(tick);
     };
 
     // Autoplay rejection (no user gesture yet, e.g. a refresh landing directly
@@ -203,30 +229,56 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
           new Promise((resolve) => setTimeout(resolve, 2500)),
         ]);
       }
-      if (settledRef.current || abort.signal.aborted) {
+      if (activation.isSettled() || abort.signal.aborted) {
         throw new DOMException('Playback attempt aborted', 'AbortError');
       }
       await attemptPlayWithGestureFallback(el, { defer: true, signal: abort.signal });
     };
-    playGated()
-      .then(() => {
-        if (settledRef.current) return;
-        setPlaying(true);
-        startProgressLoop();
-      })
-      .catch((err) => {
-        if (settledRef.current) return;
-        // One quiet warn per failed clip so a deployed build still surfaces
-        // the failure class without per-activation diagnostic noise.
-        console.warn('[useBeatOpenerMp3] opener failed', src, (err as Error)?.name ?? err);
-        settle();
-      });
+    const attempt = (retriesLeft: number) => {
+      playGated()
+        .then(() => {
+          if (activation.isSettled() || !activation.isCurrent()) return;
+          setPlaying(true);
+          startProgressLoop();
+        })
+        .catch((err: unknown) => {
+          // Structural read: DOMException does not extend Error in every
+          // environment, and play() rejections are DOMExceptions.
+          const errorName =
+            typeof (err as { name?: unknown } | null | undefined)?.name === 'string'
+              ? (err as { name: string }).name
+              : null;
+          const action = classifyOpenerPlayFailure({
+            errorName,
+            isCurrent: activation.isCurrent(),
+            isSettled: activation.isSettled(),
+            teardownAborted: abort.signal.aborted,
+            retriesLeft,
+          });
+          if (action === 'ignore') return;
+          if (action === 'retry') {
+            // AbortError on the live activation: something paused the shared
+            // element under our pending play(). Re-arm instead of marking the
+            // beat done-with-no-audio.
+            attempt(retriesLeft - 1);
+            return;
+          }
+          warnFailure('opener failed', errorName ?? err);
+          settle();
+        });
+    };
+    attempt(ABORT_REPLAY_ATTEMPTS);
 
     return () => {
-      // Beat deactivated or unmounted — stop and release.
+      // Beat deactivated or unmounted — stop and release. settle() is scoped
+      // to this activation, so a strict-mode re-run's fresh activation is
+      // untouched by this cleanup's async fallout.
       abort.abort();
       unsubQaSound();
-      stop();
+      settle();
+      // Belt and braces: release the claim even if a stale settle skipped it.
+      pooled?.release();
+      if (settleCurrentRef.current === settle) settleCurrentRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, src]);

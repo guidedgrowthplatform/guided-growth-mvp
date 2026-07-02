@@ -18,6 +18,18 @@ interface PreloadEntry {
   ready: boolean;
   failed: boolean;
   readyPromise: Promise<void>;
+  /** True while a consumer holds the element for playback (see claim below). */
+  claimed: boolean;
+}
+
+/** A claimed pooled clip: exclusive playback handle over the warm element. */
+export interface ClaimedClip {
+  el: HTMLAudioElement;
+  /** Live view of the entry's canplaythrough state. */
+  readonly ready: boolean;
+  readyPromise: Promise<void>;
+  /** Return the element to the pool. Idempotent per claim. */
+  release(): void;
 }
 
 const pool = new Map<string, PreloadEntry>();
@@ -71,20 +83,38 @@ export function preloadOpenerClips(srcs: readonly string[]): void {
       el.addEventListener('canplaythrough', onReady);
       el.addEventListener('error', onError);
     });
-    pool.set(src, { el, ready: false, failed: false, readyPromise });
+    pool.set(src, { el, ready: false, failed: false, readyPromise, claimed: false });
     queue.push(src);
   }
   pump();
 }
 
 /**
- * The preloaded entry for a clip, or null when preloading never ran or failed
- * (caller falls back to a fresh element — the lazy path).
+ * Claim the preloaded clip for exclusive playback. Returns null when
+ * preloading never ran or failed, or when ANOTHER consumer currently holds
+ * the element — the caller then falls back to a fresh Audio element (the lazy
+ * path: no warm buffer, but the browser HTTP cache usually covers it, and two
+ * consumers can never pause each other's pending play() on a shared element).
+ * Serializing the handout is half of the B4 fix; the activation tokens in
+ * useBeatOpenerMp3 are the other half.
  */
-export function getPreloadedClip(src: string): PreloadEntry | null {
+export function claimPreloadedClip(src: string): ClaimedClip | null {
   const entry = pool.get(src);
-  if (!entry || entry.failed) return null;
-  return entry;
+  if (!entry || entry.failed || entry.claimed) return null;
+  entry.claimed = true;
+  let released = false;
+  return {
+    el: entry.el,
+    get ready() {
+      return entry.ready;
+    },
+    readyPromise: entry.readyPromise,
+    release() {
+      if (released) return;
+      released = true;
+      entry.claimed = false;
+    },
+  };
 }
 
 /** Test-only: clear pool state. */
