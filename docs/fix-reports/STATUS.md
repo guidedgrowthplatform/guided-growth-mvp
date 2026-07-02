@@ -28,6 +28,18 @@ Updated the moment a status changes; this branch (`bugfix-status-2026-07-02`) is
 | B20 | Voice check-in save acked by coach, but card never updates and next beat never loads | 2 | open | — | confirms the record_checkin/submit_morning_checkin wiring gap already in Loop 2 scope |
 | B21 | Completed subcategory beat removed from timeline; habit-selection + habit-schedule render simultaneously | 4 | open | — | removal = B6/B7 unmount class; double-render its own sequencing defect |
 
+## WORKLOG (append-only, one line per event; newest last)
+
+- 2026-07-02 14:29 EAT — resumed prior session's run in a fresh session (Fable, xhigh); state recovered from STATUS.md + branches + !397
+- 2026-07-02 14:40 — Loop 2 restart: re-verified GREATEST pin (api/onboarding/[...path].ts:37) + non-monotonic persist order 1,6,7,8,2,3,4,5,5 in generated flow
+- 2026-07-02 14:50 — found: recordCheckin DOES write data.stateCheck (V3 comment in serverCaptureForBeat is stale); every persist beat has a data fingerprint → evidence-driven resume is viable
+- 2026-07-02 14:55 — found: post-fork optimistic bump in useChatToolEvents is a no-op under the GREATEST pin (target 3..6 < pinned 8) → "dead air after path answer" (B4 facet) mechanism confirmed
+- 2026-07-02 15:18 — resumeFromServerRow (evidence-first walk + numeric back-nav stop for steps 2-5) committed with flow-derived refresh-matrix test; 27/27 flow tests green
+- 2026-07-02 15:20 — draft MR !398 opened (bugfix-loop2-resume → staging); B9/B10 fix-implemented
+- 2026-07-02 15:35 — operator update: plan v2.3; reviewed MR !396 (card-fill) → docs/fix-reports/mr396-review.md; verdict stack-on-it; B20 fill wiring covered there, beat-completion + post-fork bump + 4 maps remain Loop 2
+- 2026-07-02 15:40 — Loop 2 stacked on feat/onboarding-coach-card-fill (merge, no force-push); !398 is merge-after-!396
+- 2026-07-02 15:45 — worktree node_modules lost to the dangling-symlink dance (B18 landmine); reinstalling; !396 untracks the symlink for good
+
 ## Loop status
 
 | Loop | Scope | Status | Branch | MR |
