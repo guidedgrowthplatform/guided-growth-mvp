@@ -459,7 +459,7 @@ export function OrbTuner() {
         </div>
       </div>
 
-      <HomeBarPreview orbState={state} orbStyle={style} params={params} pulse={pulse} mic={mic} />
+      <HomeBarPreview orbState={state} orbStyle={style} params={params} pulse={pulse} mic={mic} screenBg={BGS[bg]} bgKey={bg} />
 
       <style>{OT_CSS}</style>
     </div>
