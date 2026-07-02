@@ -1,4 +1,4 @@
-# Loop 6 fix report - QA control screen audit (B1 remainder + B22)
+# Loop 6 fix report - QA control screen audit (B1 remainder + B23)
 
 Branch `bugfix-loop6-qa-audit` off origin/staging 9526b377. Plan: gg-spec
 `docs/onboarding-bugfix-plan-2026-07-02.md`, Loop 6. The one-tap-fresh tile
@@ -13,7 +13,7 @@ prod ref x0; user qa-onboarding-fable, Vapi off). Harness: Playwright headless,
 `docs/fix-reports/loop6-preview-walker.mjs` + `loop6-rerun-failures.mjs`;
 evidence (screenshots + results.json with request log) at /tmp/gg-verify-loop6.
 
-Verified verdicts: rows 1, 2 (incl. the B22 warm-heap fresh-state-read), 3, 5,
+Verified verdicts: rows 1, 2 (incl. the B23 warm-heap fresh-state-read), 3, 5,
 6, 7, 8, 9, 10, 11 all PASS on the preview. Row 4 FAILS on this branch - the
 "Mic + Profile" tile lands on the PROFILE card, mic beat skipped. Root cause is
 the B10 class owned by Loop 2: FlowOnboarding persists the sign-in nickname up
@@ -27,8 +27,8 @@ likewise re-verifies after !398.
 | # | Control | Claims | Actually does (staging, pre-fix) | Verdict / action |
 |---|---|---|---|---|
 | 1 | Test user dropdown | "the dropdown reflects the real accounts" (live list from /api/qa/users, fallback static) | Endpoint verified healthy on staging previews now (200: Fable, Mintesnot). The worklog's "/api/qa/users 500s on both previews" observation is STALE - that was the pre-env-flip state. Fallback list contained five prod-era accounts, none of which exist on staging, so an endpoint outage would leave only sign-in-failing picks | Fixed (minor): fallback list now leads with the two accounts that exist on staging (Fable, Mintesnot); prod-era names kept behind them |
-| 2 | Tile "Full onboarding" - "Fresh run from auth" | Sign in as picked user, wipe server rows, navigate /onboarding/flow | Wipe works. The launch can still not LOOK fresh for the known reasons: B17 stale thread (owned by MR !400) and B9 resume (owned by MR !398) - both out of scope here. NEW latent bug B22 found while auditing the launch path: react-query gate/resume cache survives a user switch (see fix 1); latent today because every entry to the launcher is a fresh page load, but armed by any multi-action visit (including this MR's stay-put reset) or future SPA entry | Fixed (B22, defensive): queryClient.clear() before navigation. Composes with !400's hard reload |
-| 3 | Tile "Profile start" - "Skip auth, start at profile beat" | ?startAt=profile fast-forwards auth+mic with empty captures; user already signed in via ensureSignedIn | Mechanism real on staging (FlowOnboarding reads startAt; fastForwardToNode walks pre-fork nodes deterministically). Same B22 caveat as row 2 | PASS on preview: lands on the profile card (age picker + gender chips, name-filled greeting) |
+| 2 | Tile "Full onboarding" - "Fresh run from auth" | Sign in as picked user, wipe server rows, navigate /onboarding/flow | Wipe works. The launch can still not LOOK fresh for the known reasons: B17 stale thread (owned by MR !400) and B9 resume (owned by MR !398) - both out of scope here. NEW latent bug B23 found while auditing the launch path: react-query gate/resume cache survives a user switch (see fix 1); latent today because every entry to the launcher is a fresh page load, but armed by any multi-action visit (including this MR's stay-put reset) or future SPA entry | Fixed (B23, defensive): queryClient.clear() before navigation. Composes with !400's hard reload |
+| 3 | Tile "Profile start" - "Skip auth, start at profile beat" | ?startAt=profile fast-forwards auth+mic with empty captures; user already signed in via ensureSignedIn | Mechanism real on staging (FlowOnboarding reads startAt; fastForwardToNode walks pre-fork nodes deterministically). Same B23 caveat as row 2 | PASS on preview: lands on the profile card (age picker + gender chips, name-filled greeting) |
 | 4 | Tile "Mic + Profile" - "Start at mic permission, then profile" | ?startAt=mic stops the seed walk at the mic node | FAILS live: lands on the PROFILE card, mic beat skipped. B10 class - the up-front nickname persist writes current_step=1 and staging's numeric resume walks past the seeded mic stop. MicPermissionAdapter has no auto-skip, so not a headless artifact | NOT fixed here (would duplicate Loop 2's resume rewrite). Owned by !398; re-verify after it merges |
 | 5 | Tile "Home tour" - "Post-onboarding app tour", tagged "partial" | Navigates /flow-preview/home-tour; 'home-tour' componentType absent from componentRegistry | Honest: the tile itself declares "partial" and the hint line explains. But launching it WIPED the picked user's server data for nothing (in-memory preview, see fix 2) | Fixed (fix 2): preview tiles no longer self-reset |
 | 6 | Tile "Morning check-in" - "4-beat morning state-check flow" | Navigates /flow-preview/morning-checkin | Beat count TRUE (4 nodes: greeting, state, are-you-done, wrap). All componentTypes registered. But the launch wiped the picked user's server data and the in-memory preview never reads it - a destructive no-op (a tester "just looking at the morning flow" silently destroys the selected account's data) | Fixed (fix 2) |
@@ -40,7 +40,7 @@ likewise re-verifies after !398.
 | 12 | Error line | Shows action errors | Works (setError in run's catch) | Unchanged; green notice line added next to it for fix 6 |
 | 13 | Launch voice default | (Loop 6 requirement: launches start with coach voice ON) | Voice preference default is B2, fixed on MR !398 (voice forced ON at flow mount), unmerged | NOT reimplemented here per the plan ("do not implement a second default-ON mechanism"). Until !398 merges, launches from this branch still start with voice OFF |
 
-## Fix 1 - B22 (new bug, latent): stale react-query cache across QA user switch
+## Fix 1 - B23 (new bug, latent): stale react-query cache across QA user switch
 
 **What broke.** `useAppGate` caches the onboarding row under a global (not
 per-user) query key with `staleTime: Infinity, gcTime: Infinity`. The only
