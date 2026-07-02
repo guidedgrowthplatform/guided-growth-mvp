@@ -10,6 +10,7 @@
  * walk, see the seeded anonId below.
  */
 import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { IntroGate } from './IntroGate';
 import { useLocalPersistence } from './persistence';
@@ -30,7 +31,12 @@ export function FlowOnboardingPreview() {
 
   const { flow, tag } = useFlow(null);
   const persistence = useLocalPersistence();
-  const orchestrator = useFlowOrchestrator(flow, persistence, { flowTag: tag });
+  // QA: ?startAt=<nodeId> jumps past the auth/mic gates, same affordance the
+  // real FlowOnboarding gives QAControlScreen — lets headless preview QA reach
+  // specific beats without a sign-in.
+  const [searchParams] = useSearchParams();
+  const startAtNodeId = searchParams.get('startAt') ?? undefined;
+  const orchestrator = useFlowOrchestrator(flow, persistence, { flowTag: tag, startAtNodeId });
 
   return (
     <div className="bg-background h-screen w-screen">
