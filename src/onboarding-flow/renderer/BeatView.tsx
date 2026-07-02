@@ -29,6 +29,7 @@ import {
   PastBeatBubbles,
   type BeatStep,
 } from './BeatPlayer';
+import { openerTurns } from './openerTurns';
 import { FROZEN_CARD_TYPES, getAdapter, summarizeBeat } from './componentRegistry';
 import { useBeatOpenerMp3 } from './useBeatOpenerMp3';
 
@@ -144,12 +145,14 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   }
 
   // Active non-Vapi beat with an MP3 opener: the MP3 plays for the opener bubble,
-  // then the card reveals; dialogue (if any) streams below.
+  // then the card reveals; dialogue (if any) streams below. Each opener line is
+  // its own coach turn (newline = turn break, e.g. the profile prompts).
   if (active && Adapter && hasOpenerMp3) {
-    const steps: BeatStep[] = [];
-    if (opener) {
-      steps.push({ id: `${node.id}-coach`, kind: 'coach', say: opener });
-    }
+    const steps: BeatStep[] = openerTurns(opener).map((line, i) => ({
+      id: `${node.id}-coach-${i}`,
+      kind: 'coach' as const,
+      say: line,
+    }));
     steps.push({
       id: `${node.id}-card`,
       kind: 'card',
@@ -171,11 +174,15 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
     );
   }
 
-  // Active non-Vapi beat (text / Path-3): the authored coach line karaokes, then
-  // the live card reveals beneath it; dialogue (if any) streams below.
+  // Active non-Vapi beat (text / Path-3): the authored coach line(s) karaoke in
+  // turn (one bubble per opener line), then the live card reveals beneath them;
+  // dialogue (if any) streams below.
   if (active && Adapter) {
-    const steps: BeatStep[] = [];
-    if (opener) steps.push({ id: `${node.id}-coach`, kind: 'coach', say: opener });
+    const steps: BeatStep[] = openerTurns(opener).map((line, i) => ({
+      id: `${node.id}-coach-${i}`,
+      kind: 'coach' as const,
+      say: line,
+    }));
     steps.push({
       id: `${node.id}-card`,
       kind: 'card',
@@ -211,12 +218,16 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
     return <BeatConversation screenId={node.screenId} active={false} card={frozenCard} />;
   }
 
-  // Past data beat with no captured conversation: the coach line, then the SAME
-  // card re-rendered frozen in its captured state (inert under readOnly).
+  // Past data beat with no captured conversation: the coach line(s), then the
+  // SAME card re-rendered frozen in its captured state (inert under readOnly).
   if (Adapter && FROZEN_CARD_TYPES.has(node.componentType)) {
     return (
       <div className="flex flex-col gap-3">
-        {opener && <div className={COACH_BUBBLE_CLASS}>{opener}</div>}
+        {openerTurns(opener).map((line, i) => (
+          <div key={i} className={COACH_BUBBLE_CLASS}>
+            {line}
+          </div>
+        ))}
         <Adapter node={node} answers={answers} onCapture={onCapture} readOnly />
       </div>
     );

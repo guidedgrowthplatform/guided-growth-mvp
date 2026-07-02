@@ -54,6 +54,18 @@ describe('designerToFlow no-op swap correctness', () => {
     expect(profile?.voice.openerText).toContain('{name}');
   });
 
+  it('B5: composes the profile opener as separate turns (greeting / age / gender lines)', () => {
+    const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
+    const profile = flow.nodes.find((n) => n.id === 'profile');
+    const lines = (profile?.voice.openerText ?? '').split('\n');
+    // Three turn lines: the greeting, the age prompt, the gender prompt. The
+    // renderer draws one coach bubble per line (openerTurns), so the age and
+    // gender prompts arrive as separate turns instead of one merged bubble.
+    expect(lines).toHaveLength(3);
+    expect(lines[1]).toMatch(/old are you/i);
+    expect(lines[2]).toMatch(/gender/i);
+  });
+
   it('v3 flow has why-intro, state-check, advanced-frequency, and 5 weekly-projection nodes', () => {
     const flow = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
     expect(flow.nodes.find((n) => n.id === 'why-intro')).toBeDefined();

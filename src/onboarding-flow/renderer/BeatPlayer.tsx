@@ -19,6 +19,7 @@ import {
   type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
+import { openerTurns } from './openerTurns';
 import { countWords, useCoachSpeechReveal } from './useCoachSpeechReveal';
 
 // Hard ceiling on how long the card waits behind a voice-driven coach line. If
@@ -50,9 +51,9 @@ export const COACH_BUBBLE_CLASS =
 export const USER_BUBBLE_CLASS =
   'max-w-[80%] self-end rounded-2xl rounded-tr-sm bg-[rgba(19,91,236,0.9)] px-4 py-2.5 text-[14px] font-medium text-white shadow-card';
 
-// A past beat replayed as static bubbles: the coach line, then the user's answer.
-// No karaoke, no timing (the beat already happened); same visual language as the
-// active beat so the scroll reads as one conversation.
+// A past beat replayed as static bubbles: the coach line(s), then the user's
+// answer. No karaoke, no timing (the beat already happened); same visual language
+// as the active beat so the scroll reads as one conversation.
 export function PastBeatBubbles({
   coach,
   reply,
@@ -62,7 +63,11 @@ export function PastBeatBubbles({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      {coach && <div className={COACH_BUBBLE_CLASS}>{coach}</div>}
+      {openerTurns(coach).map((line, i) => (
+        <div key={i} className={COACH_BUBBLE_CLASS}>
+          {line}
+        </div>
+      ))}
       {reply && <div className={USER_BUBBLE_CLASS}>{reply}</div>}
     </div>
   );
