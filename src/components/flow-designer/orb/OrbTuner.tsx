@@ -4,6 +4,7 @@ import { HomeBarPreview } from './HomeBarPreview';
 import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
 import {
   AUTHOR_PRESETS,
+  MOTION_PRESETS,
   loadParams,
   loadPulse,
   loadSaved,
@@ -149,6 +150,13 @@ export function OrbTuner() {
       savePulse(next);
       return next;
     });
+  };
+  const applyMotion = (name: string) => {
+    const p = MOTION_PRESETS[name];
+    if (!p) return;
+    const next = { ...p };
+    savePulse(next);
+    setPulse(next);
   };
   const applyPreset = (name: string) => {
     const pr = AUTHOR_PRESETS[author]?.[name];
@@ -417,6 +425,14 @@ export function OrbTuner() {
           ) : (
             <>
               <div className="ot-hdr">Pulse (expand + breathe while talking)</div>
+              <div className="ot-row">
+                <span className="ot-lab">Motion</span>
+                {Object.keys(MOTION_PRESETS).map((name) => (
+                  <button key={name} className="ot-btn" onClick={() => applyMotion(name)}>
+                    {name}
+                  </button>
+                ))}
+              </div>
               {PULSE_SLIDERS.map((s) => (
                 <div className="ot-sl" key={s.k}>
                   <span className="ot-lab">{s.label}</span>

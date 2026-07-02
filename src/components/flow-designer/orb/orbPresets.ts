@@ -347,6 +347,19 @@ export const DEFAULT_PULSE: PulseParams = {
   mem: 60,
   memSpeed: 35,
 };
+
+// Quick-apply MOTION presets (full PulseParams). These set only how things move
+// (disc vs outer membrane vs inner light), separate from the look presets in
+// AUTHOR_PRESETS. Apply from the Pulse tab.
+export const MOTION_PRESETS: Record<string, PulseParams> = {
+  'Yair default': { size: 8, amt: 60, speed: 50, orbAmt: 100, mem: 60, memSpeed: 35 },
+  // Orb disc holds still; only the outer membrane breathes, slowly.
+  'Calm membrane': { size: 8, amt: 40, speed: 30, orbAmt: 0, mem: 62, memSpeed: 20 },
+  // Orb disc still, no membrane; only the inner light drifts.
+  'Inner only': { size: 6, amt: 40, speed: 42, orbAmt: 0, mem: 0, memSpeed: 20 },
+  // Everything moves, but gently and slow.
+  'Gentle all': { size: 6, amt: 45, speed: 26, orbAmt: 58, mem: 55, memSpeed: 24 },
+};
 const LS_PULSE = 'gg-flow-builder-v18:orb-pulse';
 export function loadPulse(): PulseParams {
   try {
