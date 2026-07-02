@@ -4,7 +4,9 @@ import { getNumber, invalid, ok, type OnboardingHandlerCtx } from './shared.js';
 
 // Persist the state-check result (sleep, mood, energy, stress) from the
 // state-check beat. Mirrors submitMorningCheckin: merge-upsert into
-// onboarding_states.data.stateCheck, seed current_step but do not bump on UPDATE.
+// onboarding_states.data.stateCheck, GREATEST-bump current_step to the beat's
+// V3 persist step (6) — same semantics as the tap save path, so a voice save
+// survives a refresh identically to a tap.
 //
 // TODO(finalize: map onboarding stateCheck -> daily_checkins at onboarding-complete)
 export async function recordCheckin(
@@ -32,8 +34,9 @@ export async function recordCheckin(
 
   const result = await pool.query<{ data: Record<string, unknown>; current_step: number }>(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
-     VALUES ($1, 8, 'in_progress', $2::jsonb, now())
+     VALUES ($1, 6, 'in_progress', $2::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET
+       current_step = GREATEST(onboarding_states.current_step, 6),
        status = 'in_progress',
        data = onboarding_states.data || $2::jsonb,
        updated_at = now()
@@ -44,7 +47,7 @@ export async function recordCheckin(
   const row = result.rows[0];
   return ok({
     data: row?.data ?? { stateCheck: values },
-    current_step: row?.current_step ?? 8,
+    current_step: row?.current_step ?? 6,
     stateCheck: values,
   });
 }

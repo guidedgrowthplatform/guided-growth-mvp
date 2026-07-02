@@ -37,9 +37,9 @@ describe('ONBOARDING_TOOL_ADDENDUM', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).not.toContain('confirm_step_complete');
   });
 
-  it('steers plan-review to confirm_plan, not advance_step', () => {
+  it('steers the final confirm screen to confirm_plan, not advance_step', () => {
     expect(ONBOARDING_TOOL_ADDENDUM).toContain('confirm_plan');
-    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/PLAN REVIEW/);
+    expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/PLAN CONFIRM \(ONBOARD-COMPLETE/);
     expect(ONBOARDING_TOOL_ADDENDUM).toMatch(/call confirm_plan — NOT advance_step/);
   });
 

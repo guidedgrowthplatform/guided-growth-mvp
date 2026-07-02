@@ -42,10 +42,11 @@ export interface Beat {
   cardType: BeatCardType;
 }
 
-// current_step (+ path for the fork) → beat. screenIds match what the routed
-// pages register, so openers and screen-context resolve identically. The step
-// numbers are the server's canonical model (navigateNext.ts / saveStep(N)); the
-// advanced/braindump path diverges at 3-5 and 7 onto its own screen_ids.
+// current_step (+ path for the fork) → beat, on the V3 persist-step scale (the
+// step each beat SAVES: profile 1, fork 2, category/braindump 3, goals/frequency
+// 4, habit-select+schedule 5, state-check 6, morning-setup 7, reflection 8 —
+// non-monotonic vs flow order, see useFlowOrchestrator's resume notes). Parity
+// with the generated flow is locked by stepMapParity.test.ts.
 export function beatForStep(step: number, path: OnboardingPath | null): Beat {
   const s = step < 0 ? 0 : step;
   const advanced = path === 'braindump' || path === 'advanced';
@@ -64,32 +65,26 @@ export function beatForStep(step: number, path: OnboardingPath | null): Beat {
         : { step: s, screenId: 'ONBOARD-BEGINNER-01', cardType: 'category' };
     case 4:
       return advanced
-        ? { step: s, screenId: 'ONBOARD-ADVANCED-02', cardType: 'none' }
+        ? { step: s, screenId: 'ONBOARD-ADVANCED-FREQUENCY', cardType: 'none' }
         : { step: s, screenId: 'ONBOARD-BEGINNER-02', cardType: 'goals' };
     case 5:
-      return advanced
-        ? { step: s, screenId: 'ONBOARD-ADVANCED-04', cardType: 'none' }
-        : { step: s, screenId: 'ONBOARD-BEGINNER-03', cardType: 'habits' };
+      return { step: s, screenId: 'ONBOARD-BEGINNER-03', cardType: 'habits' };
     case 6:
-      // Advanced collapses habits+reflection at step 5 (ADVANCED-04), so its
-      // step 6 is already the plan review — don't show a second reflection beat.
-      return advanced
-        ? { step: s, screenId: 'ONBOARD-ADVANCED-05', cardType: 'planReview' }
-        : { step: s, screenId: 'ONBOARD-BEGINNER-07', cardType: 'reflection' };
+      // V3 pre-fork setup beats: the flow renderer owns their cards; the chat
+      // feed attaches none.
+      return { step: s, screenId: 'ONBOARD-STATE-CHECK', cardType: 'none' };
     case 7:
+      return { step: s, screenId: 'ONBOARD-MORNING-SETUP', cardType: 'none' };
+    case 8:
     default:
-      // Plan review / completion. Real screen_id (NOT STARTING-PLAN) so the
-      // opener + confirm_plan tool resolve and the ONBOARD- chat gate passes.
-      return advanced
-        ? { step: 7, screenId: 'ONBOARD-ADVANCED-05', cardType: 'planReview' }
-        : { step: 7, screenId: 'ONBOARD-BEGINNER-06', cardType: 'planReview' };
+      return { step: 8, screenId: 'ONBOARD-BEGINNER-07', cardType: 'reflection' };
   }
 }
 
-// Inverse of beatForStep — maps a screen_id back to its step so coach-driven
-// advancement on the chat page is idempotent (Math.max, not ++). Both fork
-// branches map to the same step; sub-screen ids (BEGINNER-04/05/08, ADV-CUSTOM)
-// are intentionally absent — they're sheets within a step, not steps.
+// Inverse of beatForStep on the same V3 persist-step scale — maps a screen_id
+// back to the step its beat saves, so coach-driven advancement is idempotent
+// (Math.max, not ++). Both fork lanes map to the same step; habit-select and
+// habit-schedule share 5 (the V3 two-5s).
 const SCREEN_TO_STEP: Record<string, number> = {
   'ONBOARD-AUTH--FORM': 0,
   'ONBOARD-00--PREFS': 0,
@@ -101,12 +96,18 @@ const SCREEN_TO_STEP: Record<string, number> = {
   'ONBOARD-ADVANCED': 3,
   'ONBOARD-BEGINNER-02': 4,
   'ONBOARD-ADVANCED-02': 4,
+  'ONBOARD-ADVANCED-FREQUENCY': 4,
   'ONBOARD-BEGINNER-03': 5,
+  'ONBOARD-BEGINNER-04': 5,
   'ONBOARD-ADVANCED-04': 5,
-  'ONBOARD-BEGINNER-07': 6,
-  'ONBOARD-BEGINNER-06': 7,
-  'ONBOARD-ADVANCED-05': 7,
-  'STARTING-PLAN': 7,
+  'ONBOARD-STATE-CHECK': 6,
+  'ONBOARD-MORNING-SETUP': 7,
+  'ONBOARD-BEGINNER-07': 8,
+  // Legacy plan-review ids (V3 has no plan-review beat — into-app follows
+  // habit-schedule): mapped past the scale so a navigate_next never rewinds.
+  'ONBOARD-BEGINNER-06': 9,
+  'ONBOARD-ADVANCED-05': 9,
+  'STARTING-PLAN': 9,
 };
 
 export function stepForScreenId(screenId: string): number | undefined {
@@ -118,16 +119,35 @@ export function stepForScreenId(screenId: string): number | undefined {
 // coach narrates as "done" actually moves on, instead of stranding on a
 // confirmation line waiting for the model to (unreliably) chain advance_step.
 // Multi-item beats (add_habit/remove_habit/update_habit) are excluded — the
-// coach decides when those are done. confirm_plan finalizes, it doesn't advance.
+// coach decides when those are done. submit_custom_prompts is a MID-beat save
+// (reflection completes on submit_reflection_config, which carries the
+// schedule). confirm_plan finalizes, it doesn't advance.
 export const BEAT_COMPLETING_TOOLS: ReadonlySet<string> = new Set([
   'submit_profile',
   'submit_path_choice',
   'submit_category',
   'submit_goals',
+  'record_checkin',
+  'submit_morning_checkin',
   'submit_reflection_config',
-  'submit_custom_prompts',
   'submit_brain_dump',
 ]);
+
+// The beat each completing tool belongs to. The optimistic advance fires only
+// when the tool's own beat is still the ACTIVE one — a tool racing in after the
+// user already tapped past (card tap + voice answer on the same beat) must not
+// push the NEXT beat forward with an empty capture. Parity with the generated
+// flow's node.tool.toolName is locked by stepMapParity.test.ts.
+export const BEAT_COMPLETING_TOOL_SCREEN: Readonly<Record<string, string>> = {
+  submit_profile: 'ONBOARD-01--FORM',
+  submit_path_choice: 'ONBOARD-FORK--FORM',
+  submit_category: 'ONBOARD-BEGINNER-01',
+  submit_goals: 'ONBOARD-BEGINNER-02',
+  record_checkin: 'ONBOARD-STATE-CHECK',
+  submit_morning_checkin: 'ONBOARD-MORNING-SETUP',
+  submit_reflection_config: 'ONBOARD-BEGINNER-07',
+  submit_brain_dump: 'ONBOARD-ADVANCED',
+};
 
 // Tools whose successful call moves the beat forward. The coach's trailing line
 // on such a turn is redundant (the next beat's opener carries the conversation),
@@ -138,8 +158,9 @@ export const ADVANCING_TOOL_NAMES: ReadonlySet<string> = new Set([
   'submit_path_choice',
   'submit_category',
   'submit_goals',
+  'record_checkin',
+  'submit_morning_checkin',
   'submit_reflection_config',
-  'submit_custom_prompts',
   'submit_brain_dump',
   'advance_step',
   'navigate_next',

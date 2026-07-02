@@ -312,8 +312,8 @@ describe('vapi navigateNext — skip + precondition guards', () => {
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
 
-  // tap→voice catch-up: user tapped into the reflection screen (current_step
-  // stays at the habits step) then advanced by voice — a +2 jump.
+  // tap→voice catch-up: current_step lags two behind after a tap-through — a
+  // +2 jump crosses V3 cases 5 (habits) and 6 (state-check).
   it('allows +2 catch-up when both skipped steps have data (step 5 → 7)', async () => {
     pool.query
       .mockResolvedValueOnce({
@@ -321,7 +321,7 @@ describe('vapi navigateNext — skip + precondition guards', () => {
         rows: [
           {
             current_step: 5,
-            data: { habitConfigs: { Run: {} }, reflectionConfig: { time: '21:00' } },
+            data: { habitConfigs: { Run: {} }, stateCheck: { sleep: 3 } },
             path: 'simple',
             brain_dump_raw: null,
           },
@@ -334,7 +334,7 @@ describe('vapi navigateNext — skip + precondition guards', () => {
   });
 
   it('rejects +2 catch-up when an intermediate step is missing data (step 7 → 9, no morningCheckin)', async () => {
-    // Canonical tail: case 7 passes through, case 8 gates on morningCheckin.
+    // V3 tail: case 7 gates on morningCheckin directly.
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
       rows: [
@@ -489,15 +489,15 @@ describe('vapi navigateNext — skip + precondition guards', () => {
     expect(res).toMatchObject({ error: expect.stringContaining('habits_missing') });
   });
 
-  it('allows step 6 → 7 (leaving habit-schedule) when habits saved', async () => {
-    // Canonical tail: case 6 now gates on habitConfigs, NOT reflection.
+  it('allows step 6 → 7 (leaving state-check) when the state check is saved', async () => {
+    // V3 tail: case 6 gates on stateCheck/checkin (state-check is pre-fork).
     pool.query
       .mockResolvedValueOnce({
         rowCount: 1,
         rows: [
           {
             current_step: 6,
-            data: { habitConfigs: { Walk: { days: [1, 2, 3, 4, 5], time: '07:00' } } },
+            data: { stateCheck: { sleep: 3, mood: 4 } },
             path: 'simple',
             brain_dump_raw: null,
           },
@@ -508,12 +508,12 @@ describe('vapi navigateNext — skip + precondition guards', () => {
     expect(res).toEqual({ result: 'ok' });
   });
 
-  it('rejects step 9 → 10 when reflection not saved', async () => {
+  it('rejects step 8 → 9 when reflection not saved (V3 reflection gate)', async () => {
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
       rows: [
         {
-          current_step: 9,
+          current_step: 8,
           data: {
             nickname: 'Yair',
             category: 'Sleep better',
@@ -526,7 +526,7 @@ describe('vapi navigateNext — skip + precondition guards', () => {
         },
       ],
     });
-    const res = await navigateNext({ anon_id: ANON, target_step: 10 });
+    const res = await navigateNext({ anon_id: ANON, target_step: 9 });
     expect(res).toMatchObject({ error: expect.stringContaining('reflection_missing') });
   });
 });

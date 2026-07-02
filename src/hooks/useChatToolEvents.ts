@@ -3,7 +3,11 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ScreenRouteEntry } from '@/api/context';
 import type { OnboardingVoiceResult } from '@/contexts/useOnboardingVoiceSession';
-import { BEAT_COMPLETING_TOOLS, stepForScreenId } from '@/lib/onboarding/onboardingStepBeats';
+import {
+  BEAT_COMPLETING_TOOL_SCREEN,
+  BEAT_COMPLETING_TOOLS,
+  stepForScreenId,
+} from '@/lib/onboarding/onboardingStepBeats';
 import { STATIC_FEED_MODE } from '@/lib/onboarding/staticFeed';
 import { toolEventToVoiceActions } from '@/lib/onboarding/toolEventToVoiceActions';
 import { queryKeys } from '@/lib/query';
@@ -130,19 +134,32 @@ export function useChatToolEvents({
           )?.current_step;
           mergeOnboardingState(qc, evt);
           // Chat-native: a beat-completing data tool (submit_profile, etc.) saved
-          // its data but does NOT bump current_step server-side — advance_step
-          // does. The model is unreliable about chaining advance_step, which
+          // its data but does NOT bump current_step server-side past the GREATEST
+          // pin — and the model is unreliable about chaining advance_step, which
           // strands the user on a "saved, let's continue" line with no next beat.
           // Mirror the card-tap handlers: a successful save advances in place.
-          if (chatNative && BEAT_COMPLETING_TOOLS.has(evt.name)) {
-            // Advance to THIS beat's step + 1, clamped — so a tool firing after the
-            // user already tapped the card (optimistic advance) doesn't skip a beat
-            // (bare current+1 from an already-advanced step would jump past the fork).
+          //
+          // Two rules learned the hard way (V3 non-monotonic persist steps):
+          //  - fire only when the tool's OWN beat is still active — a tool racing
+          //    in after a card tap already advanced must not push the NEXT beat
+          //    forward with an empty capture;
+          //  - climb strictly past the current step — the pre-fork saves pin
+          //    current_step at 8 (GREATEST), so a fixed beat-scale target (fork 3,
+          //    category 4, ...) sits below the pin and a clamped bump never fires
+          //    (the post-fork dead-air after a voice answer).
+          if (
+            chatNative &&
+            BEAT_COMPLETING_TOOLS.has(evt.name) &&
+            (!screenId || BEAT_COMPLETING_TOOL_SCREEN[evt.name] === screenId)
+          ) {
             const beatStep = screenId ? stepForScreenId(screenId) : undefined;
             qc.setQueryData<OnboardingState | null>(queryKeys.onboarding.state, (prev) => {
               if (!prev) return prev;
-              const target = beatStep !== undefined ? beatStep + 1 : prev.current_step + 1;
-              return { ...prev, current_step: Math.max(prev.current_step, target) };
+              const target = Math.max(
+                prev.current_step + 1,
+                beatStep !== undefined ? beatStep + 1 : 0,
+              );
+              return { ...prev, current_step: target };
             });
           }
           const after = qc.getQueryData<OnboardingState | null>(

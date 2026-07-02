@@ -200,6 +200,11 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   // the only voice affordance left — it must not linger in the scrollback.
   if (node.componentType === 'mic-permission') return null;
 
+  // Same for the auth gate: a passed auth beat must leave no "You're signed
+  // in." receipt in the onboarding timeline (B8) — onboarding never surfaces
+  // auth state.
+  if (node.componentType === 'auth') return null;
+
   // Past beat with a real conversation: replay the persisted turns (opener +
   // dialogue) so the completed beat keeps its whole conversation on screen and
   // rehydrates after a refresh. Data beats also keep their frozen card receipt.

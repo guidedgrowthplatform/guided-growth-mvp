@@ -413,9 +413,16 @@ DO NOT:
     const base = BEAT_CONTEXTS[beat.screenId];
     const tools = beat.meta?.fill?.allowedTools;
     if (!base || !tools || tools.length === 0) continue;
+    const overlaid = tools.filter(isOnboardingToolName);
+    // The overlay REPLACES the code-owned list — never let a builder export
+    // silently drop the nav tool from a beat that had it (an interactive beat
+    // without advance_step becomes un-advanceable with no error anywhere).
+    if (base.allowedTools.includes('advance_step') && !overlaid.includes('advance_step')) {
+      overlaid.push('advance_step');
+    }
     BEAT_CONTEXTS[beat.screenId] = {
       ...base,
-      allowedTools: tools.filter(isOnboardingToolName),
+      allowedTools: overlaid,
     };
   }
 }
