@@ -32,7 +32,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { attemptPlayWithGestureFallback } from '@/lib/audio/attempt-play-with-gesture-fallback';
 import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
+import { getPreloadedClip } from './openerPreloadPool';
 
 // ─── Clip registry ──────────────────────────────────────────────────────────
 // Maps canonical screenId -> public/voice/*.mp3 path.
@@ -116,7 +118,11 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
     if (el) {
       el.onended = null;
       el.onerror = null;
-      try { el.pause(); } catch { /* ignore */ }
+      try {
+        el.pause();
+        // Pooled elements are reused across activations — rewind for next time.
+        el.currentTime = 0;
+      } catch { /* ignore */ }
       audioRef.current = null;
     }
     setPlaying(false);
@@ -142,8 +148,16 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
     // TEMP(loop1): unconditional so "player never invoked" is distinguishable
     // from playback failures in the preview console.
     console.warn('[useBeatOpenerMp3] activating', src);
-    const el = new Audio(src);
-    el.preload = 'auto';
+    // Preloaded element when the pool has it (buffered at flow mount, B15);
+    // fresh element as the lazy fallback when preloading missed or failed.
+    const pooled = getPreloadedClip(src);
+    const el = pooled?.el ?? new Audio(src);
+    if (!pooled) el.preload = 'auto';
+    try {
+      el.currentTime = 0;
+    } catch {
+      /* not yet seekable — starts at 0 anyway */
+    }
     // Apply QA mute state at creation so the element is pre-configured.
     el.muted = isQaMuted();
     audioRef.current = el;
@@ -184,15 +198,32 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
       rafRef.current = requestAnimationFrame(tick);
     };
 
-    el.play()
+    // Autoplay rejection (no user gesture yet, e.g. a refresh landing directly
+    // on this beat) defers to the next pointer/key gesture instead of settling
+    // into a silent beat (B4). Abort tears the wait down on deactivation.
+    const abort = new AbortController();
+    const playGated = async () => {
+      // First play gates on canplaythrough so a cold buffer can't clip the
+      // first word (B14) — bounded so a stalled preload can't dead-end the beat.
+      if (pooled && !pooled.ready) {
+        await Promise.race([
+          pooled.readyPromise,
+          new Promise((resolve) => setTimeout(resolve, 2500)),
+        ]);
+      }
+      if (settledRef.current || abort.signal.aborted) {
+        throw new DOMException('Playback attempt aborted', 'AbortError');
+      }
+      await attemptPlayWithGestureFallback(el, { defer: true, signal: abort.signal });
+    };
+    playGated()
       .then(() => {
+        if (settledRef.current) return;
         setPlaying(true);
         startProgressLoop();
       })
       .catch((err) => {
-        // Autoplay blocked (iOS before gesture, or audio policy). Resolve cleanly
-        // so the karaoke falls back to its fixed-cadence timer and the beat
-        // doesn't dead-end.
+        if (settledRef.current) return;
         // TEMP(loop1): unconditional so preview builds surface the failure class.
         console.warn('[useBeatOpenerMp3] play() rejected:', src, (err as Error)?.name, err);
         settle();
@@ -200,6 +231,7 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
 
     return () => {
       // Beat deactivated or unmounted — stop and release.
+      abort.abort();
       unsubQaSound();
       stop();
     };
