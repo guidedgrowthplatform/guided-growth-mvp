@@ -57,6 +57,7 @@ import { ChatBubble } from '@/components/voice/ChatBubble';
 import { BEAT_DEFS } from './beats';
 import { PlayingCtx, AnimationsCtx, useAnimations, Karaoke } from './beatKit';
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
+import { OrbTuner } from './orb/OrbTuner';
 import { EXTRA_REGISTRY, EXTRA_GROUPS } from './paletteExtras';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
@@ -2966,6 +2967,12 @@ function PlayPanel({
 export function FlowBuilder() {
   const [placed, setPlaced] = useState<Placed[]>([]);
   const [flowId, setFlowId] = useState<string>('onboarding');
+  // Top-level workspace: the flow builder, or the standalone orb design workspace
+  // (palette + flow tabs hidden, just the orb and its tuner). One level up from flows.
+  const [mode, setMode] = useState<'flows' | 'orb'>(() => {
+    if (typeof localStorage === 'undefined') return 'flows';
+    return localStorage.getItem(`${STORAGE_BASE}:mode`) === 'orb' ? 'orb' : 'flows';
+  });
   const [userName, setUserName] = useState('Yair');
   // Production vs QA view. Beats tagged shared show in both; production/qa-only
   // beats show in just that view, so the two flows mirror with a few differences.
@@ -2980,6 +2987,13 @@ export function FlowBuilder() {
       /* ignore */
     }
   }, [variant]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${STORAGE_BASE}:mode`, mode);
+    } catch {
+      /* ignore */
+    }
+  }, [mode]);
   const hydratedRef = useRef(false);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [activeFromPalette, setActiveFromPalette] = useState(false);
@@ -3295,6 +3309,39 @@ export function FlowBuilder() {
   // Editing and reorder run on the full `placed` by uid, so this is display only.
   const visible = placed.filter((p) => inVariant(p.variant, variant));
 
+  // Top-level switch: Flows (the builder) vs Orb builder (the orb workspace).
+  const modeBar = (
+    <div className="flex w-[400px] max-w-full items-center gap-0.5 rounded-xl border border-border bg-surface p-0.5 shadow-sm">
+      {(['flows', 'orb'] as const).map((m) => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => setMode(m)}
+          className={`flex-1 rounded-lg px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
+            mode === m ? 'bg-primary text-white' : 'text-content-subtle hover:text-content'
+          }`}
+        >
+          {m === 'flows' ? 'Flows' : 'Orb builder'}
+        </button>
+      ))}
+    </div>
+  );
+
+  // Orb builder: the whole builder transforms into just the orb + its tuner.
+  // No components palette, no flow tabs. Presets + names save here. This is also
+  // where the home-bar components around the orb get built.
+  if (mode === 'orb') {
+    return (
+      <div
+        className="flex min-h-screen flex-col items-center gap-6 p-5"
+        style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#0c0e14' }}
+      >
+        {modeBar}
+        <OrbTuner />
+      </div>
+    );
+  }
+
   if (play) {
     return (
       <UserNameCtx.Provider value={userName}>
@@ -3377,6 +3424,7 @@ export function FlowBuilder() {
 
         {/* Right bucket: the flow */}
         <div className="flex flex-1 flex-col items-start gap-3">
+          {modeBar}
           <div className="flex w-[400px] max-w-full items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2">
             <Icon icon="ic:round-person" className="size-4 text-primary" />
             <span className="text-[11px] font-bold uppercase tracking-wide text-content-tertiary">
