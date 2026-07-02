@@ -30,6 +30,7 @@ import {
   type BeatStep,
 } from './BeatPlayer';
 import { FROZEN_CARD_TYPES, getAdapter, summarizeBeat } from './componentRegistry';
+import { useBeatOpenerCartesia } from './useBeatOpenerCartesia';
 import { useBeatOpenerMp3 } from './useBeatOpenerMp3';
 
 export interface BeatViewProps {
@@ -74,7 +75,16 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
       ? (node.meta.voiceOut.mp3Assets?.[0]?.file ?? null)
       : null;
   const hasOpenerMp3 = !!openerMp3Src;
-  const mp3 = useBeatOpenerMp3(openerMp3Src, active && hasOpenerMp3);
+  const mp3Audio = useBeatOpenerMp3(openerMp3Src, active && hasOpenerMp3);
+  // Variable lines (engine 'cartesia', e.g. the name-greeting profile beat) get
+  // live TTS: same state shape, so downstream karaoke gating is engine-agnostic.
+  const isCartesiaOpener = node.meta?.voiceOut?.engine === 'cartesia' && !!opener;
+  const cartesiaAudio = useBeatOpenerCartesia(
+    isCartesiaOpener ? opener : null,
+    active && isCartesiaOpener,
+  );
+  const mp3 = isCartesiaOpener ? cartesiaAudio : mp3Audio;
+  const hasOpenerAudio = hasOpenerMp3 || isCartesiaOpener;
   const setScreenContextDeferred = session?.setScreenContextDeferred;
   const isHybridOpenerBeat = node.meta?.toggles?.continueVapiAfterMp3 === true;
   useLayoutEffect(() => {
@@ -103,7 +113,7 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   // the BeatConversation (Vapi continues). For hybrid beats the MP3 is the opener
   // only; for non-hybrid Vapi beats the MP3 replaces the Vapi-spoken opener but
   // Vapi still handles follow-up dialogue.
-  if (active && Adapter && isVapiBeat && hasOpenerMp3) {
+  if (active && Adapter && isVapiBeat && hasOpenerAudio) {
     // Render the opener bubble driven by MP3 progress, then the card + dialogue.
     return (
       <div className="flex flex-col gap-3">
@@ -143,9 +153,10 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
     );
   }
 
-  // Active non-Vapi beat with an MP3 opener: the MP3 plays for the opener bubble,
-  // then the card reveals; dialogue (if any) streams below.
-  if (active && Adapter && hasOpenerMp3) {
+  // Active non-Vapi beat with an audio opener (MP3 clip or live Cartesia): the
+  // audio plays for the opener bubble, then the card reveals; dialogue (if any)
+  // streams below.
+  if (active && Adapter && hasOpenerAudio) {
     const steps: BeatStep[] = [];
     if (opener) {
       steps.push({ id: `${node.id}-coach`, kind: 'coach', say: opener });

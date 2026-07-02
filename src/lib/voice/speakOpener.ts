@@ -17,6 +17,7 @@
  */
 import { Capacitor } from '@capacitor/core';
 import { COACH_VOICE_ID } from '@/config/voiceConfig';
+import { attemptPlayWithGestureFallback } from '@/lib/audio/attempt-play-with-gesture-fallback';
 import { sessionReady, supabase } from '@/lib/supabase';
 
 function getApiBase(): string {
@@ -78,10 +79,22 @@ export interface SpeakOpenerHandle {
  * ("filled"). With it, progress is estimated from elapsed time so the line still
  * reveals word-by-word; the real fraction takes over if duration resolves.
  */
+export interface SpeakOpenerOptions {
+  /** Retry play() after the next user gesture instead of settling on autoplay
+   * rejection. The instant-opener (Vapi) path leaves this off: its mic gate
+   * must never wait on a gesture that may not come. */
+  gestureFallback?: boolean;
+  /** Access to the audio element before play (mute wiring etc.). */
+  onElement?: (el: HTMLAudioElement) => void;
+  /** Playback actually started (after any gesture wait). */
+  onPlaying?: () => void;
+}
+
 export function speakOpener(
   text: string,
   onProgress?: (fraction: number) => void,
   estimatedDurationMs?: number,
+  opts?: SpeakOpenerOptions,
 ): SpeakOpenerHandle {
   const clean = text.trim();
   if (!clean) {
@@ -154,6 +167,7 @@ export function speakOpener(
       const el = new Audio(url);
       el.volume = 0.85;
       audio = el;
+      opts?.onElement?.(el);
       const cleanupUrl = () => URL.revokeObjectURL(url);
       el.onended = () => {
         stopProgress();
@@ -181,7 +195,13 @@ export function speakOpener(
         raf = requestAnimationFrame(tick);
       }
       try {
-        await el.play();
+        if (opts?.gestureFallback) {
+          await attemptPlayWithGestureFallback(el, { defer: true, signal: abort.signal });
+        } else {
+          await el.play();
+        }
+        if (settled) return;
+        opts?.onPlaying?.();
       } catch (err) {
         // Autoplay rejection (iOS) or stale stop. Never strand the mic closed.
         console.warn('[opener] opener playback blocked/failed:', err);
