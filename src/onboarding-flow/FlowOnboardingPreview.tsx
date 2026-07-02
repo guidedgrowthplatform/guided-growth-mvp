@@ -15,6 +15,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { IntroGate } from './IntroGate';
 import { useLocalPersistence } from './persistence';
 import { FlowRenderer } from './renderer/FlowRenderer';
+import { preloadOpenerClips } from './renderer/openerPreloadPool';
 import { useFlow } from './useFlow';
 import { useFlowOrchestrator } from './useFlowOrchestrator';
 
@@ -31,6 +32,20 @@ export function FlowOnboardingPreview() {
 
   const { flow, tag } = useFlow(null);
   const persistence = useLocalPersistence();
+
+  // Same B15 warm-up as the real FlowOnboarding: the preview is the QA surface,
+  // so it must exercise the same preload path (it previously skipped the pool,
+  // which made preview playback ride the network and hid B15 regressions).
+  useEffect(() => {
+    if (!flow) return;
+    preloadOpenerClips(
+      flow.nodes.flatMap((n) =>
+        n.meta?.voiceOut?.engine === 'mp3' && n.meta.voiceOut.mp3Assets?.[0]?.file
+          ? [n.meta.voiceOut.mp3Assets[0].file]
+          : [],
+      ),
+    );
+  }, [flow]);
   // QA: ?startAt=<nodeId> jumps past the auth/mic gates, same affordance the
   // real FlowOnboarding gives QAControlScreen — lets headless preview QA reach
   // specific beats without a sign-in.
