@@ -13,9 +13,28 @@ function asStringArray(v: unknown): string[] | undefined {
 function asBoolean(v: unknown): boolean | undefined {
   return typeof v === 'boolean' ? v : undefined;
 }
+function asNumber(v: unknown): number | undefined {
+  return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+}
 
 function r(action: string, params: Record<string, unknown>): OnboardingVoiceResult {
   return { success: true, action, params, message: '', confidence: 1 };
+}
+
+// Shared schedule shape for habit + morning-checkin cards.
+function habitSchedule(
+  days: number[] | undefined,
+  time: string | undefined,
+  reminder: boolean | undefined,
+  schedule: string | undefined,
+): Record<string, unknown> | undefined {
+  const params = {
+    ...(time !== undefined ? { time } : {}),
+    ...(days !== undefined ? { days } : {}),
+    ...(reminder !== undefined ? { reminder } : {}),
+    ...(schedule !== undefined ? { schedule } : {}),
+  };
+  return Object.keys(params).length > 0 ? params : undefined;
 }
 
 export function toolEventToVoiceActions(event: LLMToolEvent): OnboardingVoiceResult[] {
@@ -70,6 +89,8 @@ export function toolEventToVoiceActions(event: LLMToolEvent): OnboardingVoiceRes
           }),
         );
       }
+      const sched = habitSchedule(days, time, reminder, schedule);
+      if (sched) out.push(r('set_habit_schedule', sched));
       return out;
     }
     case 'remove_habit': {
@@ -90,6 +111,8 @@ export function toolEventToVoiceActions(event: LLMToolEvent): OnboardingVoiceRes
       if (reminder !== undefined) patch.reminder = reminder;
       if (schedule !== undefined) patch.schedule = schedule;
       if (Object.keys(patch).length > 0) out.push(r('update_habit', { name, patch }));
+      const sched = habitSchedule(days, time, reminder, schedule);
+      if (sched) out.push(r('set_habit_schedule', sched));
       return out;
     }
     case 'submit_reflection_config': {
@@ -115,10 +138,28 @@ export function toolEventToVoiceActions(event: LLMToolEvent): OnboardingVoiceRes
     }
     case 'submit_custom_prompts': {
       const prompts = asStringArray(args.prompts);
-      if (prompts)
-        prompts.forEach((value, i) =>
-          out.push(r('fill_field', { fieldName: `customPrompts[${i}]`, value })),
-        );
+      if (prompts && prompts.length > 0)
+        out.push(r('set_reflection_config', { mode: 'prompts', prompts }));
+      return out;
+    }
+    case 'record_checkin': {
+      const params = {
+        ...(asNumber(args.sleep) !== undefined ? { sleep: asNumber(args.sleep) } : {}),
+        ...(asNumber(args.mood) !== undefined ? { mood: asNumber(args.mood) } : {}),
+        ...(asNumber(args.energy) !== undefined ? { energy: asNumber(args.energy) } : {}),
+        ...(asNumber(args.stress) !== undefined ? { stress: asNumber(args.stress) } : {}),
+      };
+      if (Object.keys(params).length > 0) out.push(r('record_checkin', params));
+      return out;
+    }
+    case 'submit_morning_checkin': {
+      const sched = habitSchedule(
+        asNumberArray(args.days),
+        asString(args.time),
+        asBoolean(args.reminder),
+        asString(args.schedule),
+      );
+      if (sched) out.push(r('set_morning_checkin', sched));
       return out;
     }
     case 'confirm_plan': {

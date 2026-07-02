@@ -13,8 +13,10 @@ export function checkAdvanceData(args: {
   const { sourceStep, data, path, brainDumpRaw } = args;
   switch (sourceStep) {
     case 1:
-      if (!data.nickname) return 'profile_missing: call submit_profile (nickname required) first';
-      if (!data.gender) return 'gender_missing: call submit_profile with gender (Male | Female | Other) — gender is required and cannot be skipped';
+      // nickname captured at auth; this beat gates on age+gender only.
+      if (!data.age) return 'age_missing: call submit_profile with age first';
+      if (!data.gender)
+        return 'gender_missing: call submit_profile with gender (Male | Female | Other) — gender is required and cannot be skipped';
       return null;
     case 2:
       if (!path) return 'path_missing: call submit_path_choice first';
