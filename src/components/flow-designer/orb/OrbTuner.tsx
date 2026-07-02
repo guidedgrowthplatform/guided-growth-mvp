@@ -161,16 +161,25 @@ export function OrbTuner() {
   const applyPreset = (name: string) => {
     const pr = AUTHOR_PRESETS[author]?.[name];
     if (!pr) return;
+    const isYair = author === 'Yair';
     setParams((prev) => {
       const next: OrbStates = JSON.parse(JSON.stringify(prev));
       Object.assign(next[activeKey], pr);
+      // Yair's presets are his standard look. Force the optional visual layers
+      // (aura / iris / depth) off too, so they never linger from a Timothy
+      // preset. Combined with the motion reset below, his looks are pristine
+      // no matter what was applied before.
+      if (isYair) {
+        next[activeKey].aura = 0;
+        next[activeKey].iris = 0;
+        next[activeKey].depth = 0;
+      }
       saveParams(next);
       return next;
     });
-    // Yair's presets always snap back to his standard expand/contract motion, so
-    // his looks are never affected by motion experiments. Only Timothy's author
-    // block leaves the motion untouched, so it stays free to play with.
-    if (author === 'Yair') {
+    // Yair's presets also snap the motion back to his standard expand/contract.
+    // Only Timothy's block leaves motion untouched, so it stays free to play with.
+    if (isYair) {
       const ym = { ...MOTION_PRESETS['Yair default'] };
       savePulse(ym);
       setPulse(ym);
