@@ -1,7 +1,11 @@
-import type { OnboardingToolName } from './schemas.js';
+import { isOnboardingToolName, type OnboardingToolName } from './schemas.js';
 // Synced content from Supabase (the synced-file model). Committed empty until the
 // first sync; sync_beat_contexts.py overwrites it. Overlaid onto the defaults below.
 import generatedBeatContent from './beatContexts.generated.json' with { type: 'json' };
+// Per-beat coach meta derived from the flow-builder Export (npm run flow:sync).
+// The Export is the single source of truth for allowedTools + spoken/per-element
+// lines, so a new flow ships as an export with no code change here.
+import flowBeatMeta from './flowBeatMeta.generated.json' with { type: 'json' };
 
 // Beat-context store — the Direct-LLM source of truth for what the coach sees on
 // each onboarding beat. Two layers, both sent fresh every request (the LLM never
@@ -256,8 +260,7 @@ SPEAK MODE: VERBATIM_OPENER
 
 Ask for the mic so the user can talk to you. Keep it light, optional, no pressure. If they skip it, they can still type, and that's completely fine.`,
     allowedTools: [],
-    opener:
-      "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+    opener: "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
   },
 
   // Why intro. Framing-only beat, shown once. No data, frontend advances.
@@ -300,7 +303,7 @@ DO NOT:
 - Re-ask anything already captured.
 - Turn a reminder on unless they ask.`,
     allowedTools: ['add_habit', 'update_habit', 'advance_step'],
-    opener: 'Now the days. Tell me how often each one runs and I\'ll fill them in.',
+    opener: "Now the days. Tell me how often each one runs and I'll fill them in.",
   },
 
   // Weekly projection, frame 1 of 5. MP3-candidate narration. No data, frontend advances.
@@ -345,7 +348,7 @@ DO NOT:
 - Improvise or add.`,
     allowedTools: [],
     opener:
-      'More likely, you land around here. Mostly green, a few misses, your streaks holding. That\'s a real win.',
+      "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
   },
 
   // Weekly projection, frame 4 of 5. MP3-candidate narration. No data, frontend advances.
@@ -361,7 +364,7 @@ DO NOT:
 - Make a rough week sound like failure.`,
     allowedTools: [],
     opener:
-      'Some weeks land here. One streak survives, the rest take a hit. Still fine, you\'re building. We reassess.',
+      "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
   },
 
   // Weekly projection, frame 5 of 5. MP3-candidate narration. No data, frontend advances.
@@ -397,6 +400,39 @@ DO NOT:
         ...(gen.opener !== undefined ? { opener: gen.opener } : {}),
       };
     }
+  }
+}
+
+// Export overlay: allowedTools + spoken/per-element lines come from the flow Export.
+// Hand-authored/synced prose stays the context base; the export APPENDS the
+// already-spoken opener (labeled so the coach never repeats it) + the per-element
+// ask order, and OVERRIDES allowedTools. Beats with no base (a future flow) are
+// built from the export alone.
+{
+  interface ExportBeatMeta {
+    context: string;
+    spokenContent?: string;
+    perElement: { elementId: string; line: string; order: number }[];
+    allowedTools: string[];
+  }
+  const exportBeats = flowBeatMeta as Record<string, ExportBeatMeta>;
+  for (const [screenId, meta] of Object.entries(exportBeats)) {
+    const base = BEAT_CONTEXTS[screenId];
+    const parts = [base?.context || meta.context || ''];
+    if (meta.spokenContent) {
+      parts.push(
+        `Opener (ALREADY SPOKEN aloud, do not repeat or paraphrase it): "${meta.spokenContent}"`,
+      );
+    }
+    if (meta.perElement.length > 0) {
+      const ordered = meta.perElement.map((e, i) => `${i + 1}. ${e.line}`).join(' ');
+      parts.push(`Ask for each in order: ${ordered}`);
+    }
+    BEAT_CONTEXTS[screenId] = {
+      ...base,
+      context: parts.filter(Boolean).join('\n\n'),
+      allowedTools: meta.allowedTools.filter(isOnboardingToolName),
+    };
   }
 }
 

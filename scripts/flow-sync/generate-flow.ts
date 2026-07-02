@@ -17,7 +17,10 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import designerSourceRaw from '../../src/onboarding-flow/flows/designer-source.json';
 import { validateFlow } from '../../src/onboarding-flow/flowMachine';
+import { ONBOARDING_TOOL_NAMES } from '../../api/_lib/llm/onboarding/schemas';
+import { buildFlowBeatMeta } from '../../src/onboarding-flow/transform/buildFlowBeatMeta';
 import { DESIGNER_ONBOARDING_FLOW } from '../../src/onboarding-flow/transform/designerSource';
 import { DESIGNER_ONBOARDING_FLOW_FROM_JSON } from '../../src/onboarding-flow/transform/designerSourceJson';
 import { designerToFlowDocument } from '../../src/onboarding-flow/transform/designerToFlow';
@@ -26,6 +29,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 const OUT_PATH = resolve(
   here,
   '../../src/onboarding-flow/flows/onboarding-beginner-v1.generated.json',
+);
+const BEAT_META_OUT_PATH = resolve(
+  here,
+  '../../api/_lib/llm/onboarding/flowBeatMeta.generated.json',
 );
 
 function main(): void {
@@ -55,6 +62,23 @@ function main(): void {
 
   console.log('[flow:sync] wrote ' + OUT_PATH);
   console.log('[flow:sync] ' + flow.nodes.length + ' nodes, entry=' + flow.entryNodeId);
+
+  // Per-beat coach meta for the Direct-LLM prompt (api reads flowBeatMeta.generated.json).
+  const beatMeta = buildFlowBeatMeta(designerSourceRaw, ONBOARDING_TOOL_NAMES);
+  for (const w of beatMeta.warnings) console.warn('[flow:sync] ' + w);
+  if (beatMeta.errors.length > 0) {
+    console.error('[flow:sync] beat meta failed validation:');
+    for (const e of beatMeta.errors) console.error('  - ' + e);
+    process.exit(1);
+  }
+  writeFileSync(BEAT_META_OUT_PATH, JSON.stringify(beatMeta.meta, null, 2) + '\n', 'utf8');
+  console.log(
+    '[flow:sync] wrote ' +
+      BEAT_META_OUT_PATH +
+      ' (' +
+      Object.keys(beatMeta.meta).length +
+      ' beats)',
+  );
 }
 
 main();
