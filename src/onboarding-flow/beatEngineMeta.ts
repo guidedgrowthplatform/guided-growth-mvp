@@ -14,7 +14,7 @@
  * from Supabase, replace buildMetaMap with a fetch; callers are unchanged.
  */
 import { CHAT_VAPI_BEAT_SCREENS, LOCAL_CAPTURE_BEATS } from '@/lib/onboarding/onboardingStepBeats';
-import generatedJson from './flows/onboarding-beginner-v1.generated.json';
+import generatedJson from './flows/onboarding-v1.generated.json';
 import type { BeatRuntimeMeta } from './types';
 
 type MetaNode = { screenId?: string; meta?: BeatRuntimeMeta };

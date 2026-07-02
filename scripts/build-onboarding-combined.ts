@@ -5,7 +5,7 @@
  * This is a GENERATED merge of the two existing sources, not a new source of
  * truth. Nothing the coach or frontend reads at runtime changes:
  *   - engine metadata (voiceEngine, mode, mp3 clip, fill brain, toggles, engine)
- *       ← the flow builder, via onboarding-beginner-v1.generated.json node.meta
+ *       ← the flow builder, via onboarding-v1.generated.json node.meta
  *         (authored in designer-source.json, produced by npm run flow:sync)
  *   - coach context + opener
  *       ← beatContexts.ts (Master Sheet "Beats Context" tab, synced in)
@@ -27,7 +27,7 @@ import {
   GLOBAL_ONBOARDING_CONTEXT,
   BEAT_CONTEXT_VERSION,
 } from '../api/_lib/llm/onboarding/beatContexts.ts';
-import flow from '../src/onboarding-flow/flows/onboarding-beginner-v1.generated.json';
+import flow from '../src/onboarding-flow/flows/onboarding-v1.generated.json';
 
 interface FlowNode {
   id: string;
@@ -58,7 +58,7 @@ const out = {
     'AUTO-GENERATED unified per-beat view by scripts/build-onboarding-combined.ts. ' +
     'Merges engine metadata (flow builder) + coach context/opener (beatContexts.ts, Sheet-synced) + global. ' +
     'Sources of truth unchanged. Re-run after flow:sync or a context sync. Do not edit by hand.',
-  flowId: (flow as { id?: string }).id ?? 'onboarding-beginner-v1',
+  flowId: (flow as { id?: string }).id ?? 'onboarding-v1',
   contextVersion: BEAT_CONTEXT_VERSION,
   globalContext: GLOBAL_ONBOARDING_CONTEXT,
   beats,

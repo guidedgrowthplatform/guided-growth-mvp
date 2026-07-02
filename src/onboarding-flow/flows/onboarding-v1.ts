@@ -15,8 +15,8 @@
  */
 import type { FlowDocument } from '../types';
 
-export const onboardingBeginnerV1: FlowDocument = {
-  flowId: 'onboarding-beginner-v1',
+export const onboardingV1: FlowDocument = {
+  flowId: 'onboarding-v1',
   name: 'Beginner Onboarding',
   version: 1,
   publishedAt: '2026-06-23T00:00:00Z',

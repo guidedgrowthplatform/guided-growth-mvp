@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import flowJson from '../flows/onboarding-beginner-v1.generated.json';
+import flowJson from '../flows/onboarding-v1.generated.json';
 import type { BeatNode, FlowDocument, FlowNode } from '../types';
 import { beatStep } from '../useFlowOrchestrator';
 

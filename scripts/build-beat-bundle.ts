@@ -6,7 +6,7 @@
  * Three sources, one bundle:
  *   - coach copy + opener  ← beatContexts.ts (Supabase-synced)
  *   - allowedTools         ← beatContexts.ts (code-owned)
- *   - step + target_step   ← the FLOW BUILDER (onboarding-beginner-v1.generated.json),
+ *   - step + target_step   ← the FLOW BUILDER (onboarding-v1.generated.json),
  *                            the canonical order. step = persist.step ?? the engine's
  *                            persist-null override; target_step follows nextId and SKIPS
  *                            same-step nodes (so habit-select/habit-schedule, both step 5,
@@ -21,7 +21,7 @@ import {
   GLOBAL_ONBOARDING_CONTEXT,
   BEAT_CONTEXT_VERSION,
 } from '../api/_lib/llm/onboarding/beatContexts.ts';
-import flow from '../src/onboarding-flow/flows/onboarding-beginner-v1.generated.json';
+import flow from '../src/onboarding-flow/flows/onboarding-v1.generated.json';
 
 // Mirror of ENGINE_PERSISTLESS_STEP in useFlowOrchestrator.ts — persist-null
 // beats whose canonical advance threshold is engine-local (NOT the legacy

@@ -3,7 +3,7 @@
  *
  * Reads the mirrored designer DEFAULT_FLOW (src/onboarding-flow/transform/
  * designerSource.ts), runs the transform, validates the result against the engine
- * flow machine, and writes src/onboarding-flow/flows/onboarding-beginner-v1.generated.json.
+ * flow machine, and writes src/onboarding-flow/flows/onboarding-v1.generated.json.
  *
  * Run: npm run flow:sync
  *
@@ -23,10 +23,7 @@ import { DESIGNER_ONBOARDING_FLOW_FROM_JSON } from '../../src/onboarding-flow/tr
 import { designerToFlowDocument } from '../../src/onboarding-flow/transform/designerToFlow';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const OUT_PATH = resolve(
-  here,
-  '../../src/onboarding-flow/flows/onboarding-beginner-v1.generated.json',
-);
+const OUT_PATH = resolve(here, '../../src/onboarding-flow/flows/onboarding-v1.generated.json');
 
 function main(): void {
   // Drive from the builder Export JSON (the real source of truth). Fall back to

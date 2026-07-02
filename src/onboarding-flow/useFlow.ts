@@ -2,7 +2,7 @@
  * Flow loader + version pinning.
  *
  * STORAGE DECISION (MVP): the flow document is the GENERATED static JSON
- * (./flows/onboarding-beginner-v1.generated.json), produced from the designer's
+ * (./flows/onboarding-v1.generated.json), produced from the designer's
  * source of truth by the transform (npm run flow:sync). This makes a design
  * change a data edit, not a code build, and is the spec's sanctioned
  * migration-period path ("the flow JSON can be a static file ... replaced with a
@@ -10,7 +10,7 @@
  *
  * SAFE FALLBACK: the JSON load is additive. If the generated JSON is missing,
  * structurally wrong, or fails the flow-machine validation, the loader falls back
- * to the hand-authored TS flow (onboardingBeginnerV1). The engine NEVER breaks on
+ * to the hand-authored TS flow (onboardingV1). The engine NEVER breaks on
  * a bad generated file; the worst case is it runs the proven TS flow.
  *
  * SWAP SEAM: to move to the recommended Supabase `flow_versions` table, replace
@@ -27,12 +27,12 @@
  */
 import { useMemo } from 'react';
 import { validateFlow } from './flowMachine';
-import { onboardingBeginnerV1 } from './flows/onboarding-beginner-v1';
-import generatedJson from './flows/onboarding-beginner-v1.generated.json';
+import { onboardingV1 } from './flows/onboarding-v1';
+import generatedJson from './flows/onboarding-v1.generated.json';
 import type { FlowDocument, FlowNode } from './types';
 
 /** The hand-authored TS flow: the always-safe fallback if the JSON is unusable. */
-const FALLBACK_FLOW = onboardingBeginnerV1;
+const FALLBACK_FLOW = onboardingV1;
 
 /**
  * Minimal structural guard before trusting the imported JSON as a FlowDocument.
@@ -83,7 +83,7 @@ const PUBLISHED_FLOWS: Record<string, FlowDocument> = {
   [versionTag(LATEST_FLOW)]: LATEST_FLOW,
 };
 
-/** The stable pin identifier for a flow document, e.g. "onboarding-beginner-v1@v1". */
+/** The stable pin identifier for a flow document, e.g. "onboarding-v1@v1". */
 export function versionTag(flow: FlowDocument): string {
   return `${flow.flowId}@v${flow.version}`;
 }

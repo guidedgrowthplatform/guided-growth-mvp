@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { validateFlow } from '../flowMachine';
-import { onboardingBeginnerV1 } from '../flows/onboarding-beginner-v1';
-import generatedJson from '../flows/onboarding-beginner-v1.generated.json';
+import { onboardingV1 } from '../flows/onboarding-v1';
+import generatedJson from '../flows/onboarding-v1.generated.json';
 import { loadPublishedFlow, versionTag } from '../useFlow';
 import { DESIGNER_ONBOARDING_FLOW_FROM_JSON } from './designerSourceJson';
 import { designerToFlowDocument } from './designerToFlow';
@@ -10,7 +10,7 @@ describe('designerToFlow no-op swap correctness', () => {
   it('the transform output matches the committed generated JSON', () => {
     // The generated JSON is the source of truth at runtime. If this fails, run
     // `npm run flow:sync` to regenerate the JSON from the current designer source.
-    // NOTE: the hand-authored TS flow (onboardingBeginnerV1) is now intentionally
+    // NOTE: the hand-authored TS flow (onboardingV1) is now intentionally
     // diverged from the v3 transform output -- it is a safe fallback only.
     const fresh = designerToFlowDocument(DESIGNER_ONBOARDING_FLOW_FROM_JSON);
     expect(generatedJson).toEqual(fresh);
@@ -85,6 +85,6 @@ describe('useFlow JSON load with safe fallback', () => {
   });
 
   it('the version tag is stable', () => {
-    expect(versionTag(loadPublishedFlow())).toBe('onboarding-beginner-v1@v1');
+    expect(versionTag(loadPublishedFlow())).toBe('onboarding-v1@v1');
   });
 });

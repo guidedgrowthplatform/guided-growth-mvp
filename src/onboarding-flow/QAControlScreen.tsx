@@ -89,7 +89,7 @@ const FLOWS: FlowDef[] = [
     label: 'Profile start',
     desc: 'Skip auth, start at profile beat',
     // ?startAt=profile seeds the orchestrator at the profile node (id='profile'
-    // in onboarding-beginner-v1.ts:84). The user must already be signed in,
+    // in onboarding-v1.ts:84). The user must already be signed in,
     // which ensureSignedIn in run() handles before this navigation fires.
     navigate: (nav) => nav('/onboarding/flow?startAt=profile', { replace: true }),
     fullyRunnable: true,
@@ -462,9 +462,7 @@ export function QAControlScreen() {
                     gap: 5,
                     padding: '10px 4px',
                     borderRadius: 14,
-                    border: isSelected
-                      ? '2px solid rgb(19,91,235)'
-                      : '2px solid rgb(226,232,240)',
+                    border: isSelected ? '2px solid rgb(19,91,235)' : '2px solid rgb(226,232,240)',
                     background: isSelected ? 'rgba(19,91,236,0.06)' : '#fff',
                     cursor: busy ? 'default' : 'pointer',
                     opacity: busy ? 0.6 : 1,

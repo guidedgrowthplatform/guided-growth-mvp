@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { OnboardingStepData } from '@gg/shared/types';
 import { initFlowMachine } from '../flowMachine';
-import flowJson from '../flows/onboarding-beginner-v1.generated.json';
+import flowJson from '../flows/onboarding-v1.generated.json';
 import type { FlowDocument } from '../types';
 import { entryServerStep, resumeToServerStep } from '../useFlowOrchestrator';
 

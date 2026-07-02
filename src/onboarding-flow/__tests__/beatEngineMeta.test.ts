@@ -10,8 +10,8 @@
  * "no Vapi beat" pin accordingly.
  */
 import { describe, expect, it } from 'vitest';
-import flowJson from '../flows/onboarding-beginner-v1.generated.json';
 import { getBeatMeta, isIdleCaptureBeat, isVapiCapableBeat } from '../beatEngineMeta';
+import flowJson from '../flows/onboarding-v1.generated.json';
 
 type MetaNode = { screenId?: string; meta?: { fill?: { brain?: string } } };
 const nodes = flowJson.nodes as MetaNode[];
@@ -26,19 +26,25 @@ describe('beatEngineMeta (metadata-driven engine per beat)', () => {
 
   it('Vapi classification reads from the flow metadata for every screen', () => {
     const mismatches = nodes
-      .filter((n) => !!n.screenId && isVapiCapableBeat(n.screenId) !== (n.meta?.fill?.brain === 'vapi'))
+      .filter(
+        (n) => !!n.screenId && isVapiCapableBeat(n.screenId) !== (n.meta?.fill?.brain === 'vapi'),
+      )
       .map((n) => n.screenId);
     expect(mismatches).toEqual([]);
   });
 
   it('the current onboarding export has no Vapi beat (MP3-dominant)', () => {
-    const vapi = nodes.filter((n) => !!n.screenId && isVapiCapableBeat(n.screenId)).map((n) => n.screenId);
+    const vapi = nodes
+      .filter((n) => !!n.screenId && isVapiCapableBeat(n.screenId))
+      .map((n) => n.screenId);
     expect(vapi).toEqual([]);
   });
 
   it('idle-capture classification reads from the flow metadata for every screen', () => {
     const mismatches = nodes
-      .filter((n) => !!n.screenId && isIdleCaptureBeat(n.screenId) !== (n.meta?.fill?.brain === 'none'))
+      .filter(
+        (n) => !!n.screenId && isIdleCaptureBeat(n.screenId) !== (n.meta?.fill?.brain === 'none'),
+      )
       .map((n) => n.screenId);
     expect(mismatches).toEqual([]);
   });

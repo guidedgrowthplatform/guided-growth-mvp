@@ -8,10 +8,10 @@ import {
   resolveNextNodeId,
   validateFlow,
 } from './flowMachine';
-import { onboardingBeginnerV1 } from './flows/onboarding-beginner-v1';
+import { onboardingV1 } from './flows/onboarding-v1';
 import type { BeatCapture, FlowDocument } from './types';
 
-const flow = onboardingBeginnerV1;
+const flow = onboardingV1;
 
 /** Drive the machine through a list of captures, returning the final state. */
 function run(doc: FlowDocument, captures: BeatCapture[]): FlowMachineState {
