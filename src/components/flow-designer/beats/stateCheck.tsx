@@ -3,7 +3,7 @@ import { Icon } from '@iconify/react';
 import { checkInDimensions } from '@/components/home/checkInConfig';
 import { EmojiOptionButton } from '@/components/home/EmojiOptionButton';
 import { Button } from '@/components/ui/Button';
-import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { FONT, PRIMARY, INK, SUBTLE, CARD, SPACE } from './_beatStyle';
 
 // Subtle "voice is open" affordance, modeled on the MicHint in categoryGrid.tsx.
@@ -71,6 +71,10 @@ function MicHint() {
 function StateCheckCard() {
   const [sel, setSel] = useState<Record<string, number>>({});
   const [done, setDone] = useState(false);
+  // Each dimension row blooms as its per-element clip plays (sleep, mood, energy,
+  // stress). The Done button and voice hint arrive once all four are shown.
+  const reveal = useElementReveal(checkInDimensions.length);
+  const allShown = reveal >= checkInDimensions.length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE.md, width: '100%', maxWidth: 360 }}>
@@ -84,48 +88,54 @@ function StateCheckCard() {
           padding: '16px 16px 12px',
         }}
       >
-        {checkInDimensions.map((dim) => (
-          <div key={dim.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span
-              style={{
-                fontFamily: FONT,
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                color: SUBTLE,
-              }}
-            >
-              {dim.label}
-            </span>
-            <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between' }}>
-              {dim.options.map((o) => (
-                <EmojiOptionButton
-                  key={o.value}
-                  icon={o.icon}
-                  label={o.label}
-                  color={o.color}
-                  isSelected={sel[dim.key] === o.value}
-                  onClick={() => setSel((p) => ({ ...p, [dim.key]: o.value }))}
-                />
-              ))}
+        {checkInDimensions.map((dim, i) => (
+          <Bloom key={dim.key} show={i < reveal}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span
+                style={{
+                  fontFamily: FONT,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  color: SUBTLE,
+                }}
+              >
+                {dim.label}
+              </span>
+              <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between' }}>
+                {dim.options.map((o) => (
+                  <EmojiOptionButton
+                    key={o.value}
+                    icon={o.icon}
+                    label={o.label}
+                    color={o.color}
+                    isSelected={sel[dim.key] === o.value}
+                    onClick={() => setSel((p) => ({ ...p, [dim.key]: o.value }))}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          </Bloom>
         ))}
 
-        <Button
-          variant="primary"
-          size="lg"
-          fullWidth
-          disabled={done}
-          onClick={() => setDone(true)}
-        >
-          {done ? 'Got it' : 'Done'}
-        </Button>
+        <Bloom show={allShown}>
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            disabled={done}
+            onClick={() => setDone(true)}
+          >
+            {done ? 'Got it' : 'Done'}
+          </Button>
+        </Bloom>
       </div>
 
       {/* Voice hint below the card */}
-      <MicHint />
+      <Bloom show={allShown}>
+        <MicHint />
+      </Bloom>
     </div>
   );
 }

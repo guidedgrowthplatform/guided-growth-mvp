@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { HabitScheduleCard, type HabitPolarity } from '@/components/onboarding/HabitScheduleCard';
 import { WEEKDAYS, toggleSetItem } from '@/components/onboarding/constants';
-import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 
 const DEFAULT_HABITS = ['Morning walk', 'Read 10 pages', 'No screens after 10'];
@@ -58,23 +58,29 @@ function HabitScheduleBeat(props?: Record<string, string>) {
     return cfgs[habit] ?? { days: new Set(WEEKDAYS), polarity: 'build' };
   }
 
+  // Each habit card blooms in turn as the coach reaches it.
+  const reveal = useElementReveal(habits.length);
   const cards = (
     <div className="flex w-full max-w-[360px] flex-col gap-4">
-      {habits.map((h) => {
+      {habits.map((h, i) => {
         const cfg = get(h);
         return (
-          <HabitScheduleCard
-            key={h}
-            habitName={h}
-            polarity={cfg.polarity}
-            selectedDays={cfg.days}
-            onChangePolarity={(p) => patchPolarity(h, p)}
-            onToggleDay={(d) => toggleDay(h, d)}
-            onEdit={() => {
-              // Edit is a no-op in the flow-builder preview. The real app opens the
-              // habit edit sheet from here; a follow-on wiring session adds that.
-            }}
-          />
+          <Bloom key={h} show={i < reveal}>
+            <HabitScheduleCard
+              habitName={h}
+              polarity={cfg.polarity}
+              selectedDays={cfg.days}
+              onChangePolarity={(p) => patchPolarity(h, p)}
+              onToggleDay={(d) => toggleDay(h, d)}
+              onEdit={() => {
+                // Edit is a no-op in the flow-builder preview. The real app opens the
+                // habit edit sheet from here; a follow-on wiring session adds that.
+              }}
+              onDelete={() => {
+                // Delete is a no-op in the preview; the real app removes the habit.
+              }}
+            />
+          </Bloom>
         );
       })}
     </div>

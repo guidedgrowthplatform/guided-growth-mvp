@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
+import { DayPicker } from '@/components/ui/DayPicker';
+import { WEEKDAYS, toggleSetItem } from '@/components/onboarding/constants';
 import { TimePicker, formatTime12 } from '@/components/ui/TimePicker';
-import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { FONT, INK, SUBTLE } from './_beatStyle';
 
@@ -14,16 +16,22 @@ const AMBER_MED = 'rgba(245, 158, 11, 0.18)';
 // card. No day picker, no schedule selector: morning check-ins are every day by
 // design. Just time + a reminder toggle so the card stays calm and focused.
 function MorningCard({
+  days,
+  onToggleDay,
   time,
   onTimeChange,
   remind,
   onToggleRemind,
 }: {
+  days: Set<number>;
+  onToggleDay: (d: number) => void;
   time: string;
   onTimeChange: (t: string) => void;
   remind: boolean;
   onToggleRemind: (v: boolean) => void;
 }) {
+  // Days first, then time, then the reminder, each blooming as its clip plays.
+  const reveal = useElementReveal(3);
   return (
     <div
       style={{
@@ -86,29 +94,39 @@ function MorningCard({
         </div>
       </div>
 
-      {/* Time row */}
-      <div
-        style={{
-          padding: '16px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid rgba(15,23,42,0.05)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Icon
-            icon="ph:clock-afternoon-light"
-            width={18}
-            height={18}
-            style={{ color: SUBTLE, flexShrink: 0 }}
-          />
-          <span style={{ fontSize: 15, fontWeight: 600, color: 'rgb(51,65,85)' }}>Check-in time</span>
+      {/* Days row */}
+      <Bloom show={reveal > 0}>
+        <div style={{ padding: '14px 20px 12px', borderBottom: '1px solid rgba(15,23,42,0.05)' }}>
+          <DayPicker selectedDays={days} onToggleDay={onToggleDay} />
         </div>
-        <TimePicker value={time} onChange={onTimeChange} />
-      </div>
+      </Bloom>
 
-      {/* Remind me row */}
+      {/* Time row */}
+      <Bloom show={reveal > 1}>
+        <div
+          style={{
+            padding: '16px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid rgba(15,23,42,0.05)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon
+              icon="ph:clock-afternoon-light"
+              width={18}
+              height={18}
+              style={{ color: SUBTLE, flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 15, fontWeight: 600, color: 'rgb(51,65,85)' }}>Check-in time</span>
+          </div>
+          <TimePicker value={time} onChange={onTimeChange} />
+        </div>
+      </Bloom>
+
+      {/* Remind me row + hint */}
+      <Bloom show={reveal > 2}>
       <div
         style={{
           padding: '14px 20px 16px',
@@ -192,14 +210,17 @@ function MorningCard({
           </span>
         </div>
       )}
+      </Bloom>
     </div>
   );
 }
 
 function MorningCheckinSetupBeat(props?: Record<string, string>) {
   const flow = useFlowState();
+  const [days, setDays] = useState<Set<number>>(new Set(WEEKDAYS));
   const [time, setTime] = useState(props?.defaultTime ?? '08:00');
   const [remind, setRemind] = useState(true);
+  const toggleDay = (d: number) => setDays((p) => toggleSetItem(p, d));
 
   // Lift the chosen morning time to shared flow state so the plan recap and the
   // home tour show the real time the user set, not a placeholder.
@@ -222,6 +243,8 @@ function MorningCheckinSetupBeat(props?: Record<string, string>) {
       speaker: 'coach',
       render: (
         <MorningCard
+          days={days}
+          onToggleDay={toggleDay}
           time={time}
           onTimeChange={setTime}
           remind={remind}

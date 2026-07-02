@@ -17,7 +17,7 @@ export function DayPicker({ selectedDays, onToggleDay, disabled = false }: DayPi
             type="button"
             onClick={() => !disabled && onToggleDay(i)}
             disabled={disabled}
-            className={`flex size-[40px] items-center justify-center rounded-full border text-[12px] font-bold transition-colors ${
+            className={`flex size-[44px] items-center justify-center rounded-full border-[1.5px] text-[13px] font-bold transition-colors ${
               active
                 ? 'border-primary bg-primary text-white'
                 : 'border-primary bg-white text-primary shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]'

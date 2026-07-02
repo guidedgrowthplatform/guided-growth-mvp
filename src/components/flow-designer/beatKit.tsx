@@ -75,6 +75,60 @@ export function Karaoke({ text, active }: { text: string; active: boolean }) {
   );
 }
 
+// Per-element reveal inside ONE card. A section card passes its element count and
+// gets back how many to show, driven up over time off the play clock so each strip
+// blooms as its clip plays. The audio transport can drive it explicitly by passing
+// `override`; without one it self-drives. Animations off shows all at once. On the
+// static builder canvas it loops; in Play it holds fully open so the user can act.
+export function useElementReveal(count: number, override?: number): number {
+  const playing = useIsPlaying();
+  const anims = useAnimations();
+  const [n, setN] = useState(anims ? 0 : count);
+  useEffect(() => {
+    if (override != null) return;
+    if (!anims) {
+      setN(count);
+      return;
+    }
+    let i = 0;
+    setN(0);
+    let timer = 0;
+    const tick = () => {
+      i += 1;
+      setN(i);
+      if (i < count) {
+        timer = window.setTimeout(tick, 900);
+      } else if (!playing) {
+        timer = window.setTimeout(() => {
+          i = 0;
+          setN(0);
+          timer = window.setTimeout(tick, 700);
+        }, 2400);
+      }
+    };
+    timer = window.setTimeout(tick, 500);
+    return () => window.clearTimeout(timer);
+  }, [count, anims, playing, override]);
+  return override ?? n;
+}
+
+// Fades and lifts one element into place while reserving its space, so nothing
+// jumps as the card blooms strip by strip. Pair with useElementReveal.
+export function Bloom({ show, children }: { show: boolean; children: ReactNode }) {
+  return (
+    <div
+      style={{
+        opacity: show ? 1 : 0,
+        transform: show ? 'none' : 'translateY(10px)',
+        transition: 'opacity 420ms ease-out, transform 420ms ease-out',
+        pointerEvents: show ? 'auto' : 'none',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 // Plays a beat's steps in order. Every step is laid out from the start (its space
 // is reserved) and starts invisible, then fades in on its turn, so the layout
 // never jumps and each part just fades in. A spoken line gets a read-length pause

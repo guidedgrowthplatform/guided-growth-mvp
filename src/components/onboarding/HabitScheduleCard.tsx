@@ -1,5 +1,6 @@
 import { Ban, Pencil, Plus, Trash2 } from 'lucide-react';
 import { DayPicker } from '@/components/ui/DayPicker';
+import { SchedulePicker, type ScheduleOption } from './SchedulePicker';
 
 // UI-side polarity vocabulary, kept separate from the data-layer habit_type on
 // purpose. The wiring session maps at the seam:
@@ -17,6 +18,10 @@ interface HabitScheduleCardProps {
   onToggleDay: (day: number) => void;
   onEdit: () => void;
   onDelete?: () => void;
+  /** Optional frequency preset (Weekday / Weekend / Every day) shown above the day
+   * pills. When omitted the frequency row is hidden and the card is days-only. */
+  frequency?: ScheduleOption;
+  onChangeFrequency?: (f: ScheduleOption) => void;
   /** When false the day-picker section is hidden. Defaults to true. */
   showDays?: boolean;
   /** When true the day-picker section grows in on mount. The advanced frequency
@@ -40,6 +45,8 @@ export function HabitScheduleCard({
   onToggleDay,
   onEdit,
   onDelete,
+  frequency,
+  onChangeFrequency,
   showDays = true,
   animateDaysIn = false,
 }: HabitScheduleCardProps) {
@@ -91,7 +98,15 @@ export function HabitScheduleCard({
           }
         >
           <div className="h-px w-full bg-border-light" />
-          <div className="bg-surface-secondary/50 px-[16px] py-[11px]">
+          <div className="flex flex-col gap-[10px] bg-surface-secondary/50 px-[16px] py-[11px]">
+            {frequency !== undefined && (
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-bold uppercase tracking-[0.04em] text-content-tertiary">
+                  How often
+                </span>
+                <SchedulePicker value={frequency} onChange={onChangeFrequency ?? (() => {})} />
+              </div>
+            )}
             <DayPicker selectedDays={selectedDays} onToggleDay={onToggleDay} />
           </div>
         </div>

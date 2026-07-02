@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { HabitPickerPanel } from '@/components/onboarding/HabitPickerPanel';
-import { BeatPlayer, type BeatDef, type BeatStep } from '../beatKit';
+import { BeatPlayer, Bloom, useElementReveal, type BeatDef, type BeatStep } from '../beatKit';
 import { useFlowState } from '../flowStateCtx';
 import { habitsByGoal, MAX_HABITS_ONBOARDING } from '@/data/onboardingHabits';
 import { FONT, PRIMARY, SUBTLE, SPACE } from './_beatStyle';
@@ -31,6 +31,7 @@ function HabitPickerBeat(props?: Record<string, string>) {
         );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const isOpen = (g: string) => expanded[g] ?? true;
+  const reveal = useElementReveal(goals.length);
 
   // Selection hint: shows "1 of 2 selected" or "2 of 2" when at cap.
   // Reminds the user that the cap is intentional, not a bug.
@@ -71,18 +72,19 @@ function HabitPickerBeat(props?: Record<string, string>) {
           >
             {selectionHint}
           </p>
-          {goals.map((g) => (
-            <HabitPickerPanel
-              key={g}
-              goal={g}
-              habits={habitsByGoal[g] ?? []}
-              expanded={isOpen(g)}
-              onToggleExpanded={() => setExpanded((e) => ({ ...e, [g]: !isOpen(g) }))}
-              selectedHabits={selectedSet}
-              maxReached={atCap}
-              onToggleHabit={(h) => toggle(h)}
-              onAddCustomHabit={(h) => toggle(h)}
-            />
+          {goals.map((g, i) => (
+            <Bloom key={g} show={i < reveal}>
+              <HabitPickerPanel
+                goal={g}
+                habits={habitsByGoal[g] ?? []}
+                expanded={isOpen(g)}
+                onToggleExpanded={() => setExpanded((e) => ({ ...e, [g]: !isOpen(g) }))}
+                selectedHabits={selectedSet}
+                maxReached={atCap}
+                onToggleHabit={(h) => toggle(h)}
+                onAddCustomHabit={(h) => toggle(h)}
+              />
+            </Bloom>
           ))}
         </div>
       ),
