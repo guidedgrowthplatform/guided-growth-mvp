@@ -50,12 +50,14 @@ import { DayPicker } from '@/components/ui/DayPicker';
 import { DualButton } from '@/components/ui/DualButton';
 import { BeatOrb, orbConfigForType, type OrbConfig } from './BeatOrb';
 import { clipsForStage } from './beatAudio';
+import { BEAT_METADATA, type BeatContextMeta } from './beatMetadata';
 import { Toggle } from '@/components/ui/Toggle';
 import { ChatBubble } from '@/components/voice/ChatBubble';
 
 import { BEAT_DEFS } from './beats';
 import { PlayingCtx, AnimationsCtx, useAnimations, Karaoke } from './beatKit';
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
+import { OrbTuner } from './orb/OrbTuner';
 import { EXTRA_REGISTRY, EXTRA_GROUPS } from './paletteExtras';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
@@ -803,14 +805,20 @@ const MORNING_CHECKIN_FLOW: DefaultBeat[] = [
     },
   },
   {
-    type: 'coach-bubble',
+    type: 'live-reaction',
     beat: '3',
+    background: 'coach',
+    props: { text: 'Reacts live to how you said you are landing.' },
+  },
+  {
+    type: 'coach-bubble',
+    beat: '4',
     sheetStage: 'are_you_done',
     props: { text: 'Looks like there are a few items left. Want to add anything, or should we move on?' },
   },
   {
     type: 'coach-bubble',
-    beat: '4',
+    beat: '5',
     sheetStage: 'morning_wrap',
     props: { text: "That's a good start. Go make it a good one." },
   },
@@ -829,19 +837,31 @@ const EVENING_CHECKIN_FLOW: DefaultBeat[] = [
   },
   { type: 'habit-review', beat: '2', background: 'coach' },
   {
-    type: 'coach-bubble',
+    type: 'live-reaction',
     beat: '3',
+    background: 'coach',
+    props: { text: 'Reacts live to how the day went.' },
+  },
+  {
+    type: 'coach-bubble',
+    beat: '4',
     sheetStage: 'are_you_done',
     props: { text: 'Looks like there are a few items left. Want to add anything, or should we move on?' },
   },
   {
     type: 'reflection',
-    beat: '4',
+    beat: '5',
     sheetStage: 'reflection_transition,reflection_proud,reflection_forgive,reflection_grateful',
   },
   {
+    type: 'live-reaction',
+    beat: '6',
+    background: 'coach',
+    props: { text: 'One reaction to the whole reflection: proud, forgive, grateful.' },
+  },
+  {
     type: 'coach-bubble',
-    beat: '5',
+    beat: '7',
     sheetStage: 'evening_wrap',
     props: { text: "That's it for tonight. Sleep well." },
   },
@@ -999,13 +1019,23 @@ function migrateStorage() {
 // defaults load (redesigned 2026-06-25: the 4-row state card, habit review, the
 // single reflection beat, and sheet-fed audio). Onboarding is untouched.
 // Idempotent via a flag.
+// The check-in flows are still being designed, so keep them from ever going
+// stale the same way the tour does: signature off the flows' own content and
+// drop the cache whenever the default changes (no manual flag bump). Any edit
+// to MORNING_CHECKIN_FLOW / EVENING_CHECKIN_FLOW rebuilds the saved copy on the
+// next load, so new beats (e.g. the live-reaction beats) show up immediately.
+// Edits made inside the builder persist until the default itself changes.
 function refreshCheckinFlows() {
   try {
-    const FLAG = `${STORAGE_BASE}:checkin-refresh-2026-06-25`;
-    if (localStorage.getItem(FLAG)) return;
+    const json = JSON.stringify([MORNING_CHECKIN_FLOW, EVENING_CHECKIN_FLOW]);
+    let h = 0;
+    for (let i = 0; i < json.length; i += 1) h = (h * 31 + json.charCodeAt(i)) | 0;
+    const sig = String(h);
+    const KEY = `${STORAGE_BASE}:checkin-sig`;
+    if (localStorage.getItem(KEY) === sig) return;
     localStorage.removeItem(flowKey('morning-checkin'));
     localStorage.removeItem(flowKey('evening-checkin'));
-    localStorage.setItem(FLAG, '1');
+    localStorage.setItem(KEY, sig);
   } catch {
     /* ignore */
   }
@@ -1055,7 +1085,11 @@ type StoredBeat = {
 // speaks several stages (the reflection beat: transition + proud + forgive + grateful)
 // lists them comma-separated and gets every stage's clips. Beats whose stage has no
 // clips (the onboarding openers, which use live voice) are left untouched.
-function withSheetAudio(meta: BeatMeta | undefined, sheetStage?: string): BeatMeta | undefined {
+function withSheetAudio(
+  meta: BeatMeta | undefined,
+  sheetStage?: string,
+  type?: string,
+): BeatMeta | undefined {
   if (meta?.mp3Assets?.length) return meta; // never clobber manual edits
   const stages = (sheetStage ?? '')
     .split(',')
@@ -1069,8 +1103,13 @@ function withSheetAudio(meta: BeatMeta | undefined, sheetStage?: string): BeatMe
       opener: '',
     })),
   );
-  if (!mp3Assets.length) return meta;
-  return { ...(meta ?? {}), voiceEngine: meta?.voiceEngine ?? 'MP3', mp3Assets };
+  if (mp3Assets.length) return { ...(meta ?? {}), voiceEngine: meta?.voiceEngine ?? 'MP3', mp3Assets };
+  // No clips: mark the voice engine by type so the verbatim-vs-live split is explicit.
+  // A live reaction is improvised via Cartesia (not a recorded clip); the habit review
+  // is a silent user action.
+  if (type === 'live-reaction') return { ...(meta ?? {}), voiceEngine: meta?.voiceEngine ?? 'Cartesia' };
+  if (type === 'habit-review') return { ...(meta ?? {}), voiceEngine: meta?.voiceEngine ?? 'None' };
+  return meta;
 }
 
 // The engine spec each onboarding beat type carries (node ids, persistence step,
@@ -1159,6 +1198,33 @@ function withEngineDefaults(type: string, meta: BeatMeta | undefined): BeatMeta 
   return { ...(meta ?? {}), engine: { ...d, ...(meta?.engine ?? {}) } };
 }
 
+// Pre-Sheet beats carry no sheetStage (auth, mic), so map their type to a screen_id.
+const BEAT_META_TYPE_TO_SCREEN: Record<string, string> = {
+  'auth-signup': 'ONBOARD-AUTH--FORM',
+  'mic-permission': 'MIC-PERMISSION',
+};
+
+function beatMetaScreenId(sheetStage?: string, type?: string): string | undefined {
+  const fromStage = (sheetStage ?? '').split(':')[0].trim();
+  if (fromStage) return fromStage;
+  return type ? BEAT_META_TYPE_TO_SCREEN[type] : undefined;
+}
+
+// Fill a beat's voice authoring fields (engine, mode, opener, tools, per-element lines,
+// bubble/variable flags) from the Beats Context sheet map, keyed by screen_id. Same
+// contract as withEngineDefaults: anything already authored on the beat wins. This is how
+// the Sheet's engine + per-element narration land on each beat without hand-authoring.
+function withBeatMeta(
+  meta: BeatMeta | undefined,
+  sheetStage?: string,
+  type?: string,
+): BeatMeta | undefined {
+  const sid = beatMetaScreenId(sheetStage, type);
+  const seed = sid ? (BEAT_METADATA[sid] as BeatContextMeta | undefined) : undefined;
+  if (!seed) return meta;
+  return { ...seed, ...(meta ?? {}) };
+}
+
 // Every beat is coach-led or user-led; default to coach, user bubbles to user.
 const hydrate = (stored: StoredBeat[]): Placed[] =>
   stored.map((b) => ({
@@ -1173,7 +1239,10 @@ const hydrate = (stored: StoredBeat[]): Placed[] =>
     variant: b.variant ?? 'shared',
     showOnPath: b.showOnPath,
     lanes: b.lanes?.map((l) => ({ id: newUid('lane'), label: l.label, items: hydrate(l.items) })),
-    meta: withEngineDefaults(b.type, withSheetAudio(b.meta, b.sheetStage)),
+    meta: withEngineDefaults(
+      b.type,
+      withSheetAudio(withBeatMeta(b.meta, b.sheetStage, b.type), b.sheetStage, b.type),
+    ),
   }));
 
 const serialize = (items: Placed[]): StoredBeat[] =>
@@ -1269,6 +1338,13 @@ interface BeatMeta {
   figmaNode?: string;
   status?: string; // draft | ready | locked
   voiceNotes?: string; //                                   (Sheet: voice_notes)
+  // Beats-session authoring fields, generated into beatMetadata.ts from the
+  // "Beats Context" + "Beat Elements" tabs and merged on hydrate (withBeatMeta).
+  variable?: boolean; //           references {name}/a prior answer (Beats Context: Variable?)
+  openerMode?: 'A' | 'B'; //       A = no framing opener (control lines lead); B = keep it
+  openerShowsAsBubble?: boolean; // opener prints a chat bubble vs component-carried
+  expectedResponse?: string; //    (Beats Context: Expected User Response)
+  perElement?: BeatContextMeta['perElement']; // one micro-line per element, in fade order
   // The runtime engine spec for this beat. The engine keys on these; today it
   // derives them from the beat type, surfaced here so each beat describes itself
   // and the export carries the full spec.
@@ -2891,6 +2967,12 @@ function PlayPanel({
 export function FlowBuilder() {
   const [placed, setPlaced] = useState<Placed[]>([]);
   const [flowId, setFlowId] = useState<string>('onboarding');
+  // Top-level workspace: the flow builder, or the standalone orb design workspace
+  // (palette + flow tabs hidden, just the orb and its tuner). One level up from flows.
+  const [mode, setMode] = useState<'flows' | 'orb'>(() => {
+    if (typeof localStorage === 'undefined') return 'flows';
+    return localStorage.getItem(`${STORAGE_BASE}:mode`) === 'orb' ? 'orb' : 'flows';
+  });
   const [userName, setUserName] = useState('Yair');
   // Production vs QA view. Beats tagged shared show in both; production/qa-only
   // beats show in just that view, so the two flows mirror with a few differences.
@@ -2905,6 +2987,13 @@ export function FlowBuilder() {
       /* ignore */
     }
   }, [variant]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${STORAGE_BASE}:mode`, mode);
+    } catch {
+      /* ignore */
+    }
+  }, [mode]);
   const hydratedRef = useRef(false);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [activeFromPalette, setActiveFromPalette] = useState(false);
@@ -3220,6 +3309,39 @@ export function FlowBuilder() {
   // Editing and reorder run on the full `placed` by uid, so this is display only.
   const visible = placed.filter((p) => inVariant(p.variant, variant));
 
+  // Top-level switch: Flows (the builder) vs Orb builder (the orb workspace).
+  const modeBar = (
+    <div className="flex w-[400px] max-w-full items-center gap-0.5 rounded-xl border border-border bg-surface p-0.5 shadow-sm">
+      {(['flows', 'orb'] as const).map((m) => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => setMode(m)}
+          className={`flex-1 rounded-lg px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
+            mode === m ? 'bg-primary text-white' : 'text-content-subtle hover:text-content'
+          }`}
+        >
+          {m === 'flows' ? 'Flows' : 'Orb builder'}
+        </button>
+      ))}
+    </div>
+  );
+
+  // Orb builder: the whole builder transforms into just the orb + its tuner.
+  // No components palette, no flow tabs. Presets + names save here. This is also
+  // where the home-bar components around the orb get built.
+  if (mode === 'orb') {
+    return (
+      <div
+        className="flex min-h-screen flex-col items-center gap-6 p-5"
+        style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#0c0e14' }}
+      >
+        {modeBar}
+        <OrbTuner />
+      </div>
+    );
+  }
+
   if (play) {
     return (
       <UserNameCtx.Provider value={userName}>
@@ -3302,6 +3424,7 @@ export function FlowBuilder() {
 
         {/* Right bucket: the flow */}
         <div className="flex flex-1 flex-col items-start gap-3">
+          {modeBar}
           <div className="flex w-[400px] max-w-full items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2">
             <Icon icon="ic:round-person" className="size-4 text-primary" />
             <span className="text-[11px] font-bold uppercase tracking-wide text-content-tertiary">
