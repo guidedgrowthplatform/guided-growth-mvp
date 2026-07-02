@@ -106,7 +106,7 @@ export function BeatPlayer({ steps }: { steps: BeatStep[] }) {
     return () => window.clearTimeout(t);
   }, [revealed, steps.length, playing, anims]);
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-7">
       {steps.map((s, i) => {
         const shown = i < revealed;
         // A render step (cards, picker) reserves its space from the start and just
@@ -117,7 +117,7 @@ export function BeatPlayer({ steps }: { steps: BeatStep[] }) {
         return (
           <div
             key={s.id}
-            className={reserve ? 'flex flex-col gap-3' : 'flex animate-fade-in flex-col gap-3'}
+            className={reserve ? 'flex flex-col gap-7' : 'flex animate-fade-in flex-col gap-7'}
             style={
               reserve
                 ? {

@@ -2,6 +2,7 @@ import { Icon } from '@iconify/react';
 import { createElement, useState, type ReactNode } from 'react';
 import { AnimationsCtx, PlayingCtx, type BeatDef } from './beatKit';
 import { BEAT_DEFS } from './beats';
+import { COACH_BG } from './beats/_beatStyle';
 import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
 import onboardingMetadataRaw from './onboardingMetadata.json';
 
@@ -243,6 +244,71 @@ function VoiceTag({ engine, mode }: { engine: VoiceEngine; mode: VoiceMode }) {
   );
 }
 
+// --- Path banner (BEGINNER / ADVANCED / BOTH PATHS) ---
+// A prominent, full-width colored bar rendered above each onboarding beat row
+// so it's obvious at a glance which path a beat belongs to.
+
+const PATH_STYLE: Record<BeatPath, { bg: string; text: string; label: string }> = {
+  beginner: { bg: '#16a34a', text: '#ffffff', label: 'BEGINNER' },
+  advanced: { bg: '#d97706', text: '#ffffff', label: 'ADVANCED' },
+  both: { bg: '#475569', text: '#ffffff', label: 'BOTH PATHS' },
+};
+
+function PathBanner({ path, edge }: { path?: BeatPath; edge: 'start' | 'end' }) {
+  // A marker only at the START and END of a branched section, not on every beat.
+  if (!path || path === 'both') return null;
+  const s = PATH_STYLE[path];
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: s.bg,
+        color: s.text,
+        fontSize: 13,
+        fontWeight: 800,
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        padding: '8px 12px',
+        borderRadius: 8,
+        marginLeft: TAG_COL_W + TAG_GAP,
+        marginBottom: edge === 'start' ? 10 : 0,
+        marginTop: edge === 'end' ? 10 : 0,
+        width: PHONE_W - 1,
+        fontFamily: 'Urbanist, -apple-system, sans-serif',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+      }}
+    >
+      {s.label} PATH {edge === 'start' ? 'STARTS' : 'ENDS'}
+    </div>
+  );
+}
+
+// A thin divider plus the beat number above each beat, so a beat's position in
+// the flow is clear at a glance.
+function BeatDivider({ n }: { n: number }) {
+  return (
+    <div style={{ marginTop: 28, marginBottom: 10 }}>
+      <div style={{ height: 1, background: '#cbd5e1', width: '100%' }} />
+      <div
+        style={{
+          marginTop: 6,
+          marginLeft: TAG_COL_W + TAG_GAP,
+          fontSize: 12,
+          fontWeight: 800,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          color: '#64748b',
+          fontFamily: 'Urbanist, -apple-system, sans-serif',
+        }}
+      >
+        Beat {n}
+      </div>
+    </div>
+  );
+}
+
 // --- Legend ---
 
 const LEGEND: { engine: VoiceEngine; mode: VoiceMode; note: string }[] = [
@@ -458,6 +524,8 @@ function WordsPanel({ screenId }: { screenId?: string }) {
 // --- Beats, v3 order + copy. Each names a real registry type, the props it
 // passes (coachLine and any seed props), and the engine + mode tag. ---
 
+type BeatPath = 'beginner' | 'advanced' | 'both';
+
 interface FlowBeat {
   id: string;
   type: string;
@@ -465,6 +533,7 @@ interface FlowBeat {
   engine: VoiceEngine;
   mode: VoiceMode;
   screenId?: string;
+  path?: BeatPath;
 }
 
 // The render starts at the very beginning: splash, get started, the coach
@@ -478,6 +547,7 @@ const BEATS: FlowBeat[] = [
     type: 'splash',
     engine: 'Silent',
     mode: null,
+    path: 'both',
   },
   // 0b. Get started. Brand + CTA, no coach voice.
   {
@@ -485,6 +555,7 @@ const BEATS: FlowBeat[] = [
     type: 'get-started',
     engine: 'Silent',
     mode: null,
+    path: 'both',
   },
   // 0c. Coach greeting. The locked SplashIntro sequence, MP3 verbatim.
   {
@@ -493,6 +564,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'COACH-GREETING',
+    path: 'both',
   },
   // 0d. Sign up. Name capture, no coach voice.
   {
@@ -501,6 +573,7 @@ const BEATS: FlowBeat[] = [
     engine: 'Silent',
     mode: null,
     screenId: 'ONBOARD-AUTH--FORM',
+    path: 'both',
   },
   // 0e. Mic permission. MP3 verbatim.
   {
@@ -515,6 +588,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'MIC-PERMISSION',
+    path: 'both',
   },
   // 1. Profile. Age + gender, greet by name. Cartesia VERBATIM: the opener is a
   // scripted line, but it carries the {name} token so it is read live, not an MP3.
@@ -524,13 +598,14 @@ const BEATS: FlowBeat[] = [
     props: {
       greeting: 'Good to meet you, {name}. Two quick things so I can tailor this to you.',
       askAge: 'How old are you?',
-      askGender: 'And your gender?',
-      age: '28',
+      askGender: "What's your gender?",
+      age: '35',
       gender: 'Male',
     },
     engine: 'Cartesia',
     mode: 'Verbatim',
     screenId: 'ONBOARD-01--FORM',
+    path: 'both',
   },
   // 7. Why intro. MP3 verbatim.
   {
@@ -538,11 +613,12 @@ const BEATS: FlowBeat[] = [
     type: 'why-intro',
     props: {
       coachLine:
-        "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.",
+        "We start with the morning check-in. So much of the day runs on autopilot, so this is your moment to stop and notice how you actually are. It's the first habit, everything else builds on it. And pretty quickly, the pieces start to connect. Your sleep, your mood, your energy, your stress, and how they pull on each other. You'll start to see your own patterns. And once you can see the pattern, the answer's usually right there in it. All of that, just by talking to me.",
     },
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-WHY-INTRO',
+    path: 'both',
   },
   // 8a. First state check, the first habit. MP3 verbatim opener.
   {
@@ -555,6 +631,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-STATE-CHECK',
+    path: 'both',
   },
   // 8b. Morning check-in time. MP3 verbatim opener.
   {
@@ -566,6 +643,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-MORNING-SETUP',
+    path: 'both',
   },
   // 9. Evening reflection setup, configured only. MP3 verbatim opener, options silent.
   {
@@ -578,6 +656,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-BEGINNER-07',
+    path: 'both',
   },
   // 10. Path fork. MP3 verbatim.
   {
@@ -589,6 +668,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-FORK--FORM',
+    path: 'both',
   },
   // 11. Beginner, category. MP3 verbatim opener, options silent.
   {
@@ -601,6 +681,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-BEGINNER-01',
+    path: 'beginner',
   },
   // 12. Beginner, subcategory. MP3 verbatim opener, options silent.
   {
@@ -610,6 +691,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-BEGINNER-02',
+    path: 'beginner',
   },
   // 13. Beginner, habits. MP3 verbatim opener, options silent.
   {
@@ -622,6 +704,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-BEGINNER-03',
+    path: 'beginner',
   },
   // 14. Beginner, per-habit schedule. MP3 scheduler with per-element control lines
   // (schedule, when, how-often, reminder). Not Vapi; the metadata marks it MP3.
@@ -634,6 +717,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-BEGINNER-04',
+    path: 'beginner',
   },
   // 15. Advanced lane. Users who already track habits read them out loud,
   // cards form live, each auto-classified build/break. MP3 verbatim opener.
@@ -649,6 +733,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-ADVANCED',
+    path: 'advanced',
   },
   // 16. Advanced lane, frequency. Same cards, day circles grow out. MP3 verbatim opener.
   {
@@ -661,6 +746,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-ADVANCED-FREQUENCY',
+    path: 'advanced',
   },
   // 17. Full plan, the one confirm. MP3 verbatim.
   {
@@ -674,6 +760,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-COMPLETE',
+    path: 'both',
   },
   // 18a-18e. Weekly projection. Five frames, each a different outcome state of
   // the habit week-grid, shown right after the plan confirm. MP3 verbatim.
@@ -687,6 +774,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-BLANK',
+    path: 'both',
   },
   {
     id: 'weekly-full',
@@ -698,6 +786,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-FULL',
+    path: 'both',
   },
   {
     id: 'weekly-p78',
@@ -710,6 +799,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-P78',
+    path: 'both',
   },
   {
     id: 'weekly-p36',
@@ -722,6 +812,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-P36',
+    path: 'both',
   },
   {
     id: 'weekly-gaps',
@@ -734,6 +825,7 @@ const BEATS: FlowBeat[] = [
     engine: 'MP3',
     mode: 'Verbatim',
     screenId: 'ONBOARD-WEEKLY-PROJECTION-GAPS',
+    path: 'both',
   },
 ];
 
@@ -956,7 +1048,7 @@ function FlowPhoneFrame({ beats, showWords = false }: { beats: FlowBeat[]; showW
             borderRight: '1px solid #e2e8f0',
             borderTopLeftRadius: 32,
             borderTopRightRadius: 32,
-            background: '#fff',
+            background: '#E8EEFC',
             padding: '16px 20px',
           }}
         >
@@ -984,50 +1076,62 @@ function FlowPhoneFrame({ beats, showWords = false }: { beats: FlowBeat[]; showW
       </div>
 
       {/* Per-beat rows. tag (left), beat (center), and words (right, when
-          showWords) are top-aligned in one row. */}
-      {beats.map((b) => (
-        <div key={b.id} data-beat-id={b.id} style={{ display: 'flex', alignItems: 'flex-start' }}>
-          {/* Tag column: fixed width, right-aligned so the tag sits flush to
-              the phone's left edge, top-aligned to the beat's opener. */}
-          <div
-            style={{
-              flex: `0 0 ${TAG_COL_W}px`,
-              display: 'flex',
-              justifyContent: 'flex-end',
-              paddingRight: TAG_GAP,
-              paddingTop: 24,
-            }}
-          >
-            <VoiceTag engine={b.engine} mode={b.mode} />
-          </div>
-          {/* Beat column: the phone interior, side borders + bg per row so the
-              rows read as one continuous phone. */}
-          <div
-            style={{
-              flex: `0 0 ${PHONE_W}px`,
-              borderLeft: '1px solid #e2e8f0',
-              borderRight: '1px solid #e2e8f0',
-              background: '#f9f9f9',
-              padding: '24px 20px',
-            }}
-          >
-            <IsolatedBeat type={b.type} props={b.props} />
-          </div>
-          {/* Words column: the right-hand authoring card, top-aligned with the
-              beat's opener. Only rendered on tabs with metadata (Onboarding). */}
-          {showWords && (
+          showWords) are top-aligned in one row. A path banner (BEGINNER /
+          ADVANCED / BOTH PATHS) sits above the row when the beat carries a
+          path (only the Onboarding tab has a path split). */}
+      {beats.map((b, i) => {
+        const branched = b.path === 'beginner' || b.path === 'advanced';
+        const isStart = branched && b.path !== beats[i - 1]?.path;
+        const isEnd = branched && b.path !== beats[i + 1]?.path;
+        return (
+        <div key={b.id} data-beat-id={b.id}>
+          {showWords && <BeatDivider n={i + 1} />}
+          {showWords && isStart && <PathBanner path={b.path} edge="start" />}
+          <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+            {/* Tag column: fixed width, right-aligned so the tag sits flush to
+                the phone's left edge, top-aligned to the beat's opener. */}
             <div
               style={{
-                flex: `0 0 ${WORDS_COL_W}px`,
-                marginLeft: WORDS_GAP,
+                flex: `0 0 ${TAG_COL_W}px`,
+                display: 'flex',
+                justifyContent: 'flex-end',
+                paddingRight: TAG_GAP,
                 paddingTop: 24,
               }}
             >
-              <WordsPanel screenId={b.screenId} />
+              <VoiceTag engine={b.engine} mode={b.mode} />
             </div>
-          )}
+            {/* Beat column: the phone interior, side borders + bg per row so the
+                rows read as one continuous phone. */}
+            <div
+              style={{
+                flex: `0 0 ${PHONE_W}px`,
+                borderLeft: '1px solid #e2e8f0',
+                borderRight: '1px solid #e2e8f0',
+                background: COACH_BG,
+                padding: '24px 20px',
+              }}
+            >
+              <IsolatedBeat type={b.type} props={b.props} />
+            </div>
+            {/* Words column: the right-hand authoring card, top-aligned with the
+                beat's opener. Only rendered on tabs with metadata (Onboarding). */}
+            {showWords && (
+              <div
+                style={{
+                  flex: `0 0 ${WORDS_COL_W}px`,
+                  marginLeft: WORDS_GAP,
+                  paddingTop: 24,
+                }}
+              >
+                <WordsPanel screenId={b.screenId} />
+              </div>
+            )}
+          </div>
+          {showWords && isEnd && <PathBanner path={b.path} edge="end" />}
         </div>
-      ))}
+        );
+      })}
 
       {/* Bottom input bar (offset to sit below the phone column) */}
       <div style={{ display: 'flex' }}>
@@ -1043,7 +1147,7 @@ function FlowPhoneFrame({ beats, showWords = false }: { beats: FlowBeat[]; showW
             borderRight: '1px solid #e2e8f0',
             borderBottomLeftRadius: 32,
             borderBottomRightRadius: 32,
-            background: '#fff',
+            background: '#C9D8F7',
             padding: '12px 16px',
           }}
         >

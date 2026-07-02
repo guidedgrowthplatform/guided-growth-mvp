@@ -43,9 +43,9 @@ export const checkInDimensions: CheckInDimensionConfig[] = [
     options: [
       { value: 1, icon: SleepPoor, label: 'Poor', color: '#e5484d' },
       { value: 2, icon: SleepFair, label: 'Fair', color: '#f08c00' },
-      { value: 3, icon: SleepGood, label: 'Good', color: '#f5c518' },
-      { value: 4, icon: SleepGreat, label: 'Great', color: '#6bcb77' },
-      { value: 5, icon: SleepDeep, label: 'Deep!', color: '#2fb344' },
+      { value: 3, icon: SleepGood, label: 'Decent', color: '#f5c518' },
+      { value: 4, icon: SleepGreat, label: 'Good', color: '#6bcb77' },
+      { value: 5, icon: SleepDeep, label: 'Great', color: '#2fb344' },
     ],
   },
   {
@@ -54,7 +54,7 @@ export const checkInDimensions: CheckInDimensionConfig[] = [
     options: [
       { value: 1, icon: MoodAwful, label: 'Awful', color: '#e5484d' },
       { value: 2, icon: MoodBad, label: 'Bad', color: '#f08c00' },
-      { value: 3, icon: MoodMeh, label: 'Meh', color: '#f5c518' },
+      { value: 3, icon: MoodMeh, label: 'OK', color: '#f5c518' },
       { value: 4, icon: MoodGood, label: 'Good', color: '#6bcb77' },
       { value: 5, icon: MoodAwesome, label: 'Awesome!', color: '#2fb344' },
     ],

@@ -1,6 +1,7 @@
 import { FONT, PRIMARY, SECTION_LABEL, SUBTLE, SPACE } from './_beatStyle';
 import { Button } from '@/components/ui/Button';
 import { type BeatDef } from '../beatKit';
+import { startFlow } from './_startGate';
 
 // Eyebrow accent: GG blue at 70% opacity, matching the Tailwind text-primary/70 intent.
 const PRIMARY_70 = 'rgba(19,91,235,0.7)';
@@ -39,7 +40,7 @@ function GetStarted(props?: Record<string, string>) {
 
       {/* CTA cluster */}
       <div className="flex w-full flex-col items-center" style={{ gap: SPACE.md }}>
-        <Button variant="primary" size="auth" fullWidth>
+        <Button variant="primary" size="auth" fullWidth onClick={startFlow}>
           {buttonLabel}
         </Button>
         <button

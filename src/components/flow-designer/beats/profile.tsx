@@ -35,7 +35,7 @@ function ProfileBeat(props?: Record<string, string>) {
     {
       id: 'gender',
       speaker: 'coach',
-      say: props?.askGender ?? 'And your gender?',
+      say: props?.askGender ?? "What's your gender?",
       render: (
         <ChipSelect
           options={['Male', 'Female', 'Other']}

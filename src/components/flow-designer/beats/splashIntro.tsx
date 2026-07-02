@@ -3,6 +3,7 @@
 // apply inside SplashIntro itself rather than at this wrapper level.
 import { SplashIntro } from '@/components/welcome/SplashIntro';
 import { useIsPlaying, type BeatDef } from '../beatKit';
+import { useHasStarted } from './_startGate';
 
 // Beat 3 IS the locked SplashIntro coach greeting: the orb blooms up and speaks,
 // the voice half breathing with the audio, the voice cone radiating, and the words
@@ -13,13 +14,20 @@ import { useIsPlaying, type BeatDef } from '../beatKit';
 // runs in Play).
 function CoachGreetingBeat() {
   const playing = useIsPlaying();
+  const started = useHasStarted();
+  // The greeting only goes live (real audio, single play) once Get Started is
+  // pressed. Until then it renders as the settled, silent orb, so the page no
+  // longer plays the MP3 the moment it loads. Pressing Get Started flips
+  // autoPlay false -> true, and SplashIntro's autoplay effect plays the clip
+  // from the top as a real user gesture.
+  const live = playing && started;
   return (
     <div style={{ position: 'relative', width: '100%', height: 728 }}>
       <SplashIntro
-        autoPlay
-        loop={!playing}
+        autoPlay={live}
+        loop={!live}
         audioSrc="/voice/splash_welcome.mp3"
-        muted={!playing}
+        muted={!live}
         skipSplash
       />
     </div>

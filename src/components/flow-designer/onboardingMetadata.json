@@ -2,10 +2,18 @@
   "_note": "Onboarding beats metadata. Source of truth is the App Master Sheet Beats Context tab (beat-level fields) + Beat Elements tab (per-element lines), spreadsheet 1iNEdUm5vqmjk3YGEF1uMwfurcvgVRHykWUeBGHDBqcw. Wording is PROVISIONAL (Yair refines the exact lines later); the structure, the elementIds, the engine/variable/bubble flags, and the order are what to wire against. showsAsBubble false means the line is spoken but the component (strip/control) carries the words, no chat bubble. Only ONBOARD-01--FORM is variable (name), so it is the only beat that must be live Cartesia; everything else is a fixed recorded MP3 in Pro Clone V1 / sonic-3.5-2026-05-04.",
   "beats": [
     { "screenId": "ONBOARD-AUTH--FORM", "engine": "Silent", "scripted": null, "variable": false, "opener": null, "openerShowsAsBubble": false, "expectedResponse": "Taps Apple, Google, or email sign-in", "elements": [] },
-    { "screenId": "COACH-GREETING", "engine": "MP3", "scripted": true, "variable": false, "opener": "Hey. I'm your coach inside Guided Growth. Give me two minutes and we'll set up something that actually sticks.", "openerShowsAsBubble": false, "expectedResponse": "Auto-advances", "elements": [] },
-    { "screenId": "MIC-PERMISSION", "engine": "MP3", "scripted": true, "variable": false, "opener": "I'd love to actually talk with you. If you let me use your mic, you can just speak.", "openerShowsAsBubble": false, "expectedResponse": "Taps Allow or Not now", "elements": [] },
-    { "screenId": "ONBOARD-01--FORM", "engine": "Cartesia", "scripted": true, "variable": true, "variableNote": "greets by {name}, cannot be a baked MP3", "opener": "Good to meet you, {name}. Two quick things so I can tailor this to you. How old are you?", "openerShowsAsBubble": true, "expectedResponse": "Says or taps age and gender", "elements": [] },
-    { "screenId": "ONBOARD-WHY-INTRO", "engine": "MP3", "scripted": true, "variable": false, "opener": "Here's the idea. The first habit isn't a workout or a diet. It's just checking in with yourself. It takes a minute, and it changes everything else. Let's start yours right now.", "openerShowsAsBubble": false, "expectedResponse": "Auto-advances", "elements": [] },
+    { "screenId": "COACH-GREETING", "engine": "MP3", "scripted": true, "variable": false, "opener": "Hey, I might have startled you. You're probably not used to an app just talking to you. I'm your AI coach here at your service at Guided Growth, and I'm excited to help you improve things in your life that are important to you. So let's get you in, and we'll get started.", "openerShowsAsBubble": true, "expectedResponse": "Auto-advances", "elements": [] },
+    { "screenId": "MIC-PERMISSION", "engine": "MP3", "scripted": true, "variable": false, "opener": "I'd love to actually talk with you. Please tap allow microphone, so you can speak to me.", "openerShowsAsBubble": false, "expectedResponse": "Taps Allow or Not now", "elements": [] },
+    { "screenId": "ONBOARD-01--FORM", "engine": "Cartesia", "scripted": true, "variable": true, "variableNote": "greeting is live Cartesia (name); the age and gender asks are MP3", "opener": "Good to meet you, {name}. Two quick things so I can tailor this to you.", "openerShowsAsBubble": true, "expectedResponse": "Says or taps age and gender", "elements": [
+      { "elementId": "age", "line": "How old are you?", "order": 1, "showsAsBubble": false, "engine": "MP3", "defaultValue": "35" },
+      { "elementId": "gender", "line": "What's your gender?", "order": 2, "showsAsBubble": false, "engine": "MP3" }
+    ] },
+    { "screenId": "ONBOARD-WHY-INTRO", "engine": "MP3", "scripted": true, "variable": false, "opener": "We start with the morning check-in. So much of the day runs on autopilot, so this is your moment to stop and notice how you actually are. It's the first habit, everything else builds on it. And pretty quickly, the pieces start to connect. Your sleep, your mood, your energy, your stress, and how they pull on each other. You'll start to see your own patterns. And once you can see the pattern, the answer's usually right there in it. All of that, just by talking to me.", "openerShowsAsBubble": true, "expectedResponse": "Auto-advances into the check-in", "clipNote": "narration in one big bubble; four tiles reveal on their per-element clips (why_03..why_06), illustration only, no user input", "elements": [
+      { "elementId": "sleep", "line": "Your sleep,", "order": 1, "showsAsBubble": false, "clip": "why_03_sleep" },
+      { "elementId": "mood", "line": "your mood,", "order": 2, "showsAsBubble": false, "clip": "why_04_mood" },
+      { "elementId": "energy", "line": "your energy,", "order": 3, "showsAsBubble": false, "clip": "why_05_energy" },
+      { "elementId": "stress", "line": "your stress.", "order": 4, "showsAsBubble": false, "clip": "why_06_stress" }
+    ] },
     { "screenId": "ONBOARD-STATE-CHECK", "engine": "MP3", "scripted": true, "variable": false, "opener": "Let's do your first check-in right now.", "openerShowsAsBubble": true, "expectedResponse": "Taps or says sleep, mood, energy, stress", "clipReuse": "reuses the daily morning state clips (state_sleep, state_mood, state_energy, state_stress)", "elements": [
       { "elementId": "sleep", "line": "How did you sleep?", "order": 1, "showsAsBubble": false },
       { "elementId": "mood", "line": "How's your mood?", "order": 2, "showsAsBubble": false },
@@ -13,28 +21,23 @@
       { "elementId": "stress", "line": "And your stress?", "order": 4, "showsAsBubble": false }
     ] },
     { "screenId": "ONBOARD-MORNING-SETUP", "engine": "MP3", "scripted": true, "variable": false, "openerMode": "Option A (no framing opener, the per-element control lines lead)", "opener": null, "expectedResponse": "Sets a time and days", "elements": [
-      { "elementId": "schedule", "line": "Weekdays, weekends, or every day?", "order": 1, "showsAsBubble": false },
+      { "elementId": "days", "line": "Weekdays, weekends, or your own days?", "order": 1, "showsAsBubble": false, "defaultValue": "Weekday preset by locale: Israel Sun to Thu, rest of world Mon to Fri" },
       { "elementId": "when", "line": "What time?", "order": 2, "showsAsBubble": false },
-      { "elementId": "how-often", "line": "Or your own days.", "order": 3, "showsAsBubble": false },
-      { "elementId": "reminder", "line": "Want a nudge when it's time?", "order": 4, "showsAsBubble": false }
+      { "elementId": "reminder", "line": "Want a nudge when it's time?", "order": 3, "showsAsBubble": false }
     ] },
     { "screenId": "ONBOARD-FORK--FORM", "engine": "MP3", "scripted": true, "variable": false, "opener": "Quick one. Have you tracked habits before, or is this new for you? Both are totally fine.", "openerShowsAsBubble": true, "expectedResponse": "New, or I already track habits", "elements": [] },
     { "screenId": "ONBOARD-BEGINNER-01", "engine": "MP3", "scripted": true, "variable": false, "opener": "What part of your life do you most want to work on right now? Pick the one that pulls you.", "openerShowsAsBubble": true, "expectedResponse": "Names or taps one category", "elements": [] },
     { "screenId": "ONBOARD-BEGINNER-02", "engine": "MP3", "scripted": true, "variable": false, "opener": "Within that, what's the piece you want to start with?", "openerShowsAsBubble": true, "expectedResponse": "Names or taps 1 to 2 goals", "elements": [] },
     { "screenId": "ONBOARD-BEGINNER-03", "engine": "MP3", "scripted": true, "variable": false, "opener": "Pick the habits that feel doable. Not impressive, just doable. One you'll actually keep beats five you won't. Make your own if nothing here fits.", "openerShowsAsBubble": true, "expectedResponse": "Names or taps 1 to 2 habits", "elements": [] },
     { "screenId": "ONBOARD-BEGINNER-04", "engine": "MP3", "scripted": true, "variable": false, "openerMode": "Option A (no framing opener, the per-element control lines lead)", "opener": null, "expectedResponse": "Sets days and time per habit", "elements": [
-      { "elementId": "schedule", "line": "Weekdays, weekends, or every day?", "order": 1, "showsAsBubble": false },
-      { "elementId": "when", "line": "What time?", "order": 2, "showsAsBubble": false },
-      { "elementId": "how-often", "line": "Or your own days.", "order": 3, "showsAsBubble": false },
-      { "elementId": "reminder", "line": "Want a reminder?", "order": 4, "showsAsBubble": false }
+      { "elementId": "days", "line": "Which days for each one?", "order": 1, "showsAsBubble": false, "defaultValue": "Weekday preset by locale: Israel Sun to Thu, rest of world Mon to Fri" }
     ] },
     { "screenId": "ONBOARD-BEGINNER-07", "engine": "MP3", "scripted": true, "variable": false, "openerMode": "Option B (keep the framing opener, then the control lines)", "opener": "One more. An evening reflection, a couple of minutes to close the day. How do you want to do it, and when?", "openerShowsAsBubble": true, "expectedResponse": "Picks a style and time", "elements": [
       { "elementId": "prompts", "line": "Three questions to close the day.", "order": 1, "showsAsBubble": false },
       { "elementId": "mode", "line": "Or freeform, just talk.", "order": 2, "showsAsBubble": false },
-      { "elementId": "schedule", "line": "Weekdays, weekends, or every day?", "order": 3, "showsAsBubble": false },
+      { "elementId": "days", "line": "Which days?", "order": 3, "showsAsBubble": false, "defaultValue": "Weekday preset by locale: Israel Sun to Thu, rest of world Mon to Fri" },
       { "elementId": "when", "line": "What time?", "order": 4, "showsAsBubble": false },
-      { "elementId": "how-often", "line": "Or your own days.", "order": 5, "showsAsBubble": false },
-      { "elementId": "reminder", "line": "Want a reminder?", "order": 6, "showsAsBubble": false }
+      { "elementId": "reminder", "line": "Want a reminder?", "order": 5, "showsAsBubble": false }
     ] },
     { "screenId": "ONBOARD-ADVANCED", "engine": "MP3", "scripted": true, "variable": false, "opener": "Read me the habits you already track. Less is more to start, you can always build on it.", "openerShowsAsBubble": true, "expectedResponse": "Reads or types their habits", "elements": [] },
     { "screenId": "ONBOARD-ADVANCED-FREQUENCY", "engine": "MP3", "scripted": true, "variable": false, "opener": "Now the days. Tell me how often each one runs and I'll fill them in.", "openerShowsAsBubble": true, "expectedResponse": "Says the days per habit", "elements": [] },
