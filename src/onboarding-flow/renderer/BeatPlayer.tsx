@@ -224,7 +224,8 @@ export function BeatConversation({
     <div className="flex flex-col gap-2">
       {/* opener (committed, the streaming opener before it commits, the
           authored failsafe if voice never spoke, or the authored line replayed
-          on a past beat whose thread has no committed opener) — ABOVE the card */}
+          on a past beat whose thread has no committed opener), always ABOVE
+          the card */}
       {opener && !coldOpenerPending ? (
         renderTurn(opener, partialExtendsOpener ? livePartial : null)
       ) : liveOpener ? (
