@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { COACH_VOICE_ID } from '@/config/voiceConfig';
 import { getApiBase, getAuthHeaders } from '@/lib/services/api-auth';
-import { setTtsSpeaking } from '@/lib/services/tts-service';
+import { cleanText, setTtsSpeaking } from '@/lib/services/tts-service';
 import { isVoiceOutEnabled } from '@/lib/services/voiceGate';
+import { countWords } from '@/lib/text/words';
 
 // Dynamic coach voice: Cartesia /tts/sse (raw PCM + word_timestamps) → Web Audio,
 // with a word-level reveal paced off the real audio clock.
@@ -133,28 +134,56 @@ async function drain(gen: number): Promise<void> {
   }
   if (c.state === 'suspended') await c.resume().catch(() => undefined);
   if (gen !== generation) return;
+  if (c.state !== 'running') {
+    // autoplay-locked ctx → frozen clock would hang the turn
+    queue = [];
+    draining = false;
+    maybeFinish(gen);
+    return;
+  }
 
   authHeaders = await getAuthHeaders();
   if (gen !== generation) return;
 
   while (queue.length > 0) {
     const text = queue.shift() as string;
-    let decoded: DecodedChunk | null;
-    try {
-      decoded = await synthChunk(text, gen);
-    } catch {
-      decoded = null;
+    const localCount = countWords(text);
+    const spoken = cleanText(text);
+    let decoded: DecodedChunk | null = null;
+    if (spoken) {
+      try {
+        decoded = await synthChunk(spoken, gen);
+      } catch {
+        decoded = null;
+      }
     }
     if (gen !== generation) return;
-    if (decoded) scheduleChunk(c, decoded, gen);
-    // else: skip this chunk; reveal snaps its words below via maybeFinish
+    let scheduled = false;
+    if (decoded && decoded.samples.length > 0) {
+      try {
+        scheduleChunk(c, decoded, gen, localCount);
+        scheduled = true;
+      } catch {
+        // don't wedge draining=true
+      }
+    }
+    // failed/empty chunk → reveal its words immediately so the count never lags
+    if (!scheduled && localCount > 0) {
+      for (let i = 0; i < localCount; i++) wordOnsets.push(0);
+      totalWords += localCount;
+    }
   }
 
   draining = false;
   maybeFinish(gen);
 }
 
-function scheduleChunk(c: AudioContext, decoded: DecodedChunk, gen: number): void {
+function scheduleChunk(
+  c: AudioContext,
+  decoded: DecodedChunk,
+  gen: number,
+  localCount: number,
+): void {
   const buffer = c.createBuffer(1, decoded.samples.length, SSE_SAMPLE_RATE);
   buffer.getChannelData(0).set(decoded.samples);
   const src = c.createBufferSource();
@@ -166,12 +195,18 @@ function scheduleChunk(c: AudioContext, decoded: DecodedChunk, gen: number): voi
   sources.push(src);
   src.onended = () => {
     sources = sources.filter((s) => s !== src);
+    // rAF frozen when backgrounded — also finish from the audio callback
+    if (sealed && !draining && sources.length === 0) finishTurn(gen);
   };
 
-  for (let i = 0; i < decoded.words.length; i++) {
-    wordOnsets.push(startAt + decoded.starts[i]);
+  // Map Cartesia onsets onto the chunk's own whitespace tokens — reveal count
+  // must match sliceWords, not Cartesia's tokenization.
+  const m = decoded.starts.length;
+  for (let i = 0; i < localCount; i++) {
+    const j = m > 0 ? Math.min(m - 1, Math.floor((i * m) / localCount)) : -1;
+    wordOnsets.push(j >= 0 ? startAt + decoded.starts[j] : startAt);
   }
-  totalWords += decoded.words.length;
+  totalWords += localCount;
   nextStartTime = startAt + buffer.duration;
 
   if (!speaking) {
@@ -208,14 +243,22 @@ function startRevealLoop(gen: number): void {
 }
 
 function maybeFinish(gen: number): void {
-  if (gen !== generation) return;
-  // Only once draining stops — mid-drain, empty wordOnsets just means the first
-  // chunk isn't synthesized yet, NOT that the turn is done.
-  if (!draining && wordOnsets.length === 0 && sealed) finishTurn(gen);
+  // mid-drain, empty wordOnsets just means the first chunk isn't synthesized yet
+  if (gen !== generation || draining || !sealed) return;
+  if (wordOnsets.length === 0) {
+    finishTurn(gen);
+    return;
+  }
+  // audio already done while rAF was frozen (backgrounded tab)
+  if (sources.length === 0 && audioCtx && audioCtx.currentTime >= nextStartTime) finishTurn(gen);
 }
 
 function finishTurn(gen: number): void {
   if (gen !== generation) return;
+  if (revealRaf !== null) {
+    cancelAnimationFrame(revealRaf);
+    revealRaf = null;
+  }
   useCartesiaRevealStore.setState({ revealedWords: totalWords, active: false });
   if (speaking) {
     speaking = false;

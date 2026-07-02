@@ -15,3 +15,9 @@ export function sliceWords(text: string, n: number): string {
   }
   return text; // fewer than n words present
 }
+
+// Whitespace-token count; same tokenization as sliceWords.
+export function countWords(text: string): number {
+  const t = text.trim();
+  return t ? t.split(/\s+/).length : 0;
+}

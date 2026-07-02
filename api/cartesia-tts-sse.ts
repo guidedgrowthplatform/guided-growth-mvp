@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Cartesia API key not configured', fallback: true });
   }
 
-  const { text, voice_id } = req.body as { text?: string; voice_id?: string };
+  const { text, voice_id } = (req.body ?? {}) as { text?: string; voice_id?: string };
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
     return res.status(400).json({ error: 'Missing or empty "text" field' });
   }
@@ -106,6 +106,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.flushHeaders?.();
 
   const reader = upstream.body.getReader();
+  // client gone → stop pulling from Cartesia
+  res.on('close', () => void reader.cancel().catch(() => undefined));
   try {
     for (;;) {
       const { done, value } = await reader.read();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sliceWords } from '../words';
+import { countWords, sliceWords } from '../words';
 
 describe('sliceWords', () => {
   it('returns the first n words', () => {
@@ -18,5 +18,14 @@ describe('sliceWords', () => {
   });
   it('keeps leading whitespace but still counts the first word', () => {
     expect(sliceWords('  lead word here', 1)).toBe('  lead');
+  });
+});
+
+describe('countWords', () => {
+  it('matches sliceWords tokenization', () => {
+    expect(countWords('the quick brown fox')).toBe(4);
+    expect(countWords('  a\n\nb c ')).toBe(3);
+    expect(countWords('')).toBe(0);
+    expect(countWords('   ')).toBe(0);
   });
 });

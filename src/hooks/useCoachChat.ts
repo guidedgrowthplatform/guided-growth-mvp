@@ -24,15 +24,15 @@ import {
   messageHasTodayHabits,
 } from '@/lib/chat/coachChatCards';
 import type { ChatMessage, CoachChatApi, VoiceChatState } from '@/lib/chat/coachChatTypes';
-import { nextSentenceChunks, flushSentenceTail } from '@/lib/services/sentenceChunks';
-import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
-import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import {
   beginVoiceTurn,
   endVoiceTurn,
   pushVoiceChunk,
   stopVoice,
 } from '@/lib/services/cartesiaVoice';
+import { nextSentenceChunks, flushSentenceTail } from '@/lib/services/sentenceChunks';
+import { startKeyWarmLoop, stopKeyWarmLoop } from '@/lib/services/soniox-temp-key-cache';
+import { stopTTS, useTtsPlaybackStore } from '@/lib/services/tts-service';
 import { isSemanticEndOfTurn, resolveTurnPauseMs } from '@/lib/voice/turnDecision';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { pickVariation } from '@gg/shared/checkin/scriptVariations';
@@ -305,7 +305,8 @@ export function useCoachChat(
     for (const m of llmMessages) if (m.role === 'user') lastUserId = m.id;
     if (lastUserId && lastUserId !== lastUserMsgIdRef.current) {
       lastUserMsgIdRef.current = lastUserId;
-      setInterim('');
+      // buffer non-empty → user already speaking the next utterance; keep it
+      if (!utteranceBufferRef.current) setInterim('');
     }
   }, [llmMessages, setInterim]);
 
@@ -579,6 +580,7 @@ export function useCoachChat(
   // State-4 "opening line only" is applied in CoachSubtitleBar, not here —
   // the overlay's streaming bubble reads this same bus.
   useEffect(() => {
+    const oneShot: string[] = [];
     for (const m of llmMessages) {
       if (m.role !== 'assistant' || !m.content) continue;
       if (spokenIdsRef.current.has(m.id)) continue;
@@ -603,11 +605,16 @@ export function useCoachChat(
         });
       } else {
         onTranscriptStream?.('assistant', m.content, 'final');
-        setTtsActive((c) => c + 1);
-        beginVoiceTurn();
-        pushVoiceChunk(m.content);
-        void endVoiceTurn().finally(() => setTtsActive((c) => Math.max(0, c - 1)));
+        oneShot.push(m.content);
       }
+    }
+    // one turn for all unspoken one-shots — per-message beginVoiceTurn would
+    // stop the previous message's audio
+    if (oneShot.length > 0 && !streamTurnActiveRef.current) {
+      setTtsActive((c) => c + 1);
+      beginVoiceTurn();
+      for (const t of oneShot) pushVoiceChunk(t);
+      void endVoiceTurn().finally(() => setTtsActive((c) => Math.max(0, c - 1)));
     }
   }, [llmMessages, voiceModeOn, onTranscriptStream, endCoachSpeechTurn]);
 
