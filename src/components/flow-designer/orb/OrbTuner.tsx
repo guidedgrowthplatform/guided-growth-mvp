@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { IconChatText, IconMicMuted } from '@/components/icons';
-import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
 import { HomeBarPreview } from './HomeBarPreview';
+import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
 import {
   AUTHOR_PRESETS,
   loadParams,
@@ -26,7 +26,8 @@ import {
 const BGS: Record<string, string> = {
   light: 'radial-gradient(120% 100% at 50% 0%, #ffffff 0%, #eef2f8 52%, #e2e8f1 100%)',
   blue: 'linear-gradient(to top, rgba(19,91,236,0.72) 0%, rgba(123,164,236,0.34) 50%, rgba(216,228,248,0.82) 100%), #ffffff',
-  yellow: 'linear-gradient(to top, rgba(253,208,23,0.74) 0%, rgba(250,228,140,0.34) 50%, rgba(244,241,226,0.82) 100%), #ffffff',
+  yellow:
+    'linear-gradient(to top, rgba(253,208,23,0.74) 0%, rgba(250,228,140,0.34) 50%, rgba(244,241,226,0.82) 100%), #ffffff',
   dark: 'radial-gradient(130% 100% at 50% 0%, #1b2030 0%, #10131c 55%, #0a0c12 100%)',
 };
 
@@ -48,6 +49,11 @@ const LIGHT_SLIDERS: { k: keyof OrbParams; label: string; min: number; max: numb
   { k: 'spread', label: 'Particle spread', min: 12, max: 60 },
   { k: 'pglow', label: 'Particle glow', min: 0, max: 100 },
   { k: 'rand', label: 'Randomness', min: 0, max: 100 },
+];
+const DEPTH_SLIDERS: { k: keyof OrbParams; label: string; min: number; max: number }[] = [
+  { k: 'aura', label: 'Outer aura', min: 0, max: 100 },
+  { k: 'iris', label: 'Iridescent rim', min: 0, max: 100 },
+  { k: 'depth', label: 'Glass depth', min: 0, max: 100 },
 ];
 const PULSE_SLIDERS: { k: keyof PulseParams; label: string; min: number; max: number }[] = [
   { k: 'size', label: 'Base size', min: 0, max: 40 },
@@ -94,7 +100,9 @@ export function OrbTuner() {
     navigator.mediaDevices
       .getUserMedia({ audio: true })
       .then((stream) => {
-        const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const AC =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         const ac = new AC();
         const src = ac.createMediaStreamSource(stream);
         const analyser = ac.createAnalyser();
@@ -218,38 +226,58 @@ export function OrbTuner() {
           <div className="ot-row">
             <span className="ot-lab">Background</span>
             {(['light', 'blue', 'yellow', 'dark'] as const).map((k) => (
-              <button key={k} className={`ot-btn${bg === k ? ' on' : ''}`} onClick={() => setBg(k)}>
-                {k === 'light' ? 'Light' : k === 'blue' ? 'App blue' : k === 'yellow' ? 'App yellow' : 'Dark'}
+              <button key={k} className={`ot-btn${bg === k ? 'on' : ''}`} onClick={() => setBg(k)}>
+                {k === 'light'
+                  ? 'Light'
+                  : k === 'blue'
+                    ? 'App blue'
+                    : k === 'yellow'
+                      ? 'App yellow'
+                      : 'Dark'}
               </button>
             ))}
           </div>
           <div className="ot-row">
             <span className="ot-lab">State</span>
             {(['idle', 'coach', 'user'] as const).map((k) => (
-              <button key={k} className={`ot-btn${state === k ? ' on' : ''}`} onClick={() => pickState(k)}>
+              <button
+                key={k}
+                className={`ot-btn${state === k ? 'on' : ''}`}
+                onClick={() => pickState(k)}
+              >
                 {k === 'idle' ? 'Idle' : k === 'coach' ? 'Coach talking' : 'User talking'}
               </button>
             ))}
-            <button className={`ot-btn${micOn ? ' on' : ''}`} onClick={toggleMic}>
+            <button className={`ot-btn${micOn ? 'on' : ''}`} onClick={toggleMic}>
               {micOn ? 'Mic on (stop)' : 'Use my mic'}
             </button>
           </div>
           <div className="ot-row">
             <span className="ot-lab">Talk style</span>
             {(['full', 'directional'] as const).map((k) => (
-              <button key={k} className={`ot-btn${style === k ? ' on' : ''}`} onClick={() => setStyle(k)}>
+              <button
+                key={k}
+                className={`ot-btn${style === k ? 'on' : ''}`}
+                onClick={() => setStyle(k)}
+              >
                 {k === 'full' ? 'Full circle' : 'Directional'}
               </button>
             ))}
           </div>
           <div className="ot-row">
             <span className="ot-lab">Edit</span>
-            {([
-              ['idle', 'Idle look'],
-              ['talk', 'Talking look'],
-              ['pulse', 'Pulse'],
-            ] as [EditTab, string][]).map(([k, lbl]) => (
-              <button key={k} className={`ot-btn${editTab === k ? ' on' : ''}`} onClick={() => pickEdit(k)}>
+            {(
+              [
+                ['idle', 'Idle look'],
+                ['talk', 'Talking look'],
+                ['pulse', 'Pulse'],
+              ] as [EditTab, string][]
+            ).map(([k, lbl]) => (
+              <button
+                key={k}
+                className={`ot-btn${editTab === k ? 'on' : ''}`}
+                onClick={() => pickEdit(k)}
+              >
                 {lbl}
               </button>
             ))}
@@ -259,7 +287,11 @@ export function OrbTuner() {
           <div className="ot-row">
             <span className="ot-lab">Author</span>
             {Object.keys(AUTHOR_PRESETS).map((au) => (
-              <button key={au} className={`ot-btn${author === au ? ' on' : ''}`} onClick={() => setAuthor(au)}>
+              <button
+                key={au}
+                className={`ot-btn${author === au ? 'on' : ''}`}
+                onClick={() => setAuthor(au)}
+              >
                 {au}
               </button>
             ))}
@@ -287,7 +319,11 @@ export function OrbTuner() {
               }}
               disabled={editTab === 'pulse'}
             />
-            <button className="ot-btn" onClick={saveCurrent} disabled={editTab === 'pulse' || !presetName.trim()}>
+            <button
+              className="ot-btn"
+              onClick={saveCurrent}
+              disabled={editTab === 'pulse' || !presetName.trim()}
+            >
               Save {activeKey === 'talk' ? 'talking' : 'idle'} look
             </button>
           </div>
@@ -299,10 +335,18 @@ export function OrbTuner() {
                 <span className="ot-lab">{gk === 'idle' ? 'Idle saved' : 'Talking saved'}</span>
                 {items.map((p) => (
                   <span key={p.id} className="ot-chip">
-                    <button className="ot-chip-name" onClick={() => applySaved(p)} title="Apply this look">
+                    <button
+                      className="ot-chip-name"
+                      onClick={() => applySaved(p)}
+                      title="Apply this look"
+                    >
                       {p.name}
                     </button>
-                    <button className="ot-chip-x" onClick={() => copySaved(p)} title="Copy line for orbPresets.ts">
+                    <button
+                      className="ot-chip-x"
+                      onClick={() => copySaved(p)}
+                      title="Copy line for orbPresets.ts"
+                    >
                       ⧉
                     </button>
                     <button className="ot-chip-x" onClick={() => deleteSaved(p.id)} title="Delete">
@@ -328,7 +372,13 @@ export function OrbTuner() {
               {GLASS_SLIDERS.map((s) => (
                 <div className="ot-sl" key={s.k}>
                   <span className="ot-lab">{s.label}</span>
-                  <input type="range" min={s.min} max={s.max} value={A[s.k]} onChange={(e) => setP(s.k, Number(e.target.value))} />
+                  <input
+                    type="range"
+                    min={s.min}
+                    max={s.max}
+                    value={A[s.k]}
+                    onChange={(e) => setP(s.k, Number(e.target.value))}
+                  />
                   <span className="ot-val">{A[s.k]}</span>
                 </div>
               ))}
@@ -336,7 +386,27 @@ export function OrbTuner() {
               {LIGHT_SLIDERS.map((s) => (
                 <div className="ot-sl" key={s.k}>
                   <span className="ot-lab">{s.label}</span>
-                  <input type="range" min={s.min} max={s.max} value={A[s.k]} onChange={(e) => setP(s.k, Number(e.target.value))} />
+                  <input
+                    type="range"
+                    min={s.min}
+                    max={s.max}
+                    value={A[s.k]}
+                    onChange={(e) => setP(s.k, Number(e.target.value))}
+                  />
+                  <span className="ot-val">{A[s.k]}</span>
+                </div>
+              ))}
+              <div className="ot-hdr">Depth &amp; aura</div>
+              {DEPTH_SLIDERS.map((s) => (
+                <div className="ot-sl" key={s.k}>
+                  <span className="ot-lab">{s.label}</span>
+                  <input
+                    type="range"
+                    min={s.min}
+                    max={s.max}
+                    value={A[s.k]}
+                    onChange={(e) => setP(s.k, Number(e.target.value))}
+                  />
                   <span className="ot-val">{A[s.k]}</span>
                 </div>
               ))}
@@ -347,7 +417,13 @@ export function OrbTuner() {
               {PULSE_SLIDERS.map((s) => (
                 <div className="ot-sl" key={s.k}>
                   <span className="ot-lab">{s.label}</span>
-                  <input type="range" min={s.min} max={s.max} value={pulse[s.k]} onChange={(e) => setPulseP(s.k, Number(e.target.value))} />
+                  <input
+                    type="range"
+                    min={s.min}
+                    max={s.max}
+                    value={pulse[s.k]}
+                    onChange={(e) => setPulseP(s.k, Number(e.target.value))}
+                  />
                   <span className="ot-val">{pulse[s.k]}</span>
                 </div>
               ))}

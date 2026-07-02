@@ -20,6 +20,10 @@ export interface OrbParams {
   pglow: number; // particle glow 0..100
   rand: number; // randomness 0..100
   pulse: number; // talking pulse 0..100
+  // Extra layers (additive, default 0 = off, so existing looks are unchanged)
+  aura: number; // breathing outer halo 0..100
+  iris: number; // iridescent rim sheen 0..100
+  depth: number; // glass 3D depth (inner shadow + top highlight) 0..100
 }
 
 export interface OrbStates {
@@ -45,6 +49,9 @@ export const DEFAULT_PARAMS: OrbStates = {
     pglow: 71,
     rand: 54,
     pulse: 50,
+    aura: 0,
+    iris: 0,
+    depth: 0,
   },
   talk: {
     glass: 35,
@@ -61,6 +68,9 @@ export const DEFAULT_PARAMS: OrbStates = {
     pglow: 82,
     rand: 66,
     pulse: 55,
+    aura: 0,
+    iris: 0,
+    depth: 0,
   },
 };
 
@@ -170,6 +180,9 @@ export const AUTHOR_PRESETS: Record<string, Record<string, Partial<OrbParams>>> 
       pglow: 40,
       rand: 20,
       pulse: 45,
+      aura: 15,
+      iris: 22,
+      depth: 42,
     },
     'Living Flow': {
       glass: 34,
@@ -186,6 +199,9 @@ export const AUTHOR_PRESETS: Record<string, Record<string, Partial<OrbParams>>> 
       pglow: 78,
       rand: 60,
       pulse: 60,
+      aura: 45,
+      iris: 15,
+      depth: 30,
     },
     Membrane: {
       glass: 30,
@@ -202,6 +218,9 @@ export const AUTHOR_PRESETS: Record<string, Record<string, Partial<OrbParams>>> 
       pglow: 72,
       rand: 74,
       pulse: 58,
+      aura: 82,
+      iris: 25,
+      depth: 25,
     },
     Aurora: {
       glass: 38,
@@ -218,6 +237,9 @@ export const AUTHOR_PRESETS: Record<string, Record<string, Partial<OrbParams>>> 
       pglow: 90,
       rand: 66,
       pulse: 55,
+      aura: 40,
+      iris: 72,
+      depth: 30,
     },
     'Calm Dawn': {
       glass: 60,
@@ -234,6 +256,9 @@ export const AUTHOR_PRESETS: Record<string, Record<string, Partial<OrbParams>>> 
       pglow: 38,
       rand: 16,
       pulse: 42,
+      aura: 26,
+      iris: 12,
+      depth: 55,
     },
   },
 };
@@ -249,7 +274,15 @@ function clone(s: OrbStates): OrbStates {
 export function loadParams(): OrbStates {
   try {
     const s = localStorage.getItem(LS_KEY);
-    if (s) return JSON.parse(s) as OrbStates;
+    if (s) {
+      // Merge onto defaults so looks saved before new fields (aura/iris/depth)
+      // existed get sensible 0 values instead of undefined.
+      const p = JSON.parse(s) as Partial<OrbStates>;
+      return {
+        idle: { ...DEFAULT_PARAMS.idle, ...(p.idle ?? {}) },
+        talk: { ...DEFAULT_PARAMS.talk, ...(p.talk ?? {}) },
+      };
+    }
   } catch {
     // ignore corrupt storage
   }
