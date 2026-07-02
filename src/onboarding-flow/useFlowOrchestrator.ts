@@ -159,7 +159,7 @@ export function serverCaptureForBeat(
       // Tap capture saves data.checkin; the record_checkin voice tool saves
       // data.stateCheck. Replay whichever exists (never fabricate defaults — the
       // old morningCheckin proxy poisoned the morning-setup card's prefill).
-      const d = data as Record<string, unknown>;
+      const d = (data ?? {}) as Record<string, unknown>;
       const checkin = d.stateCheck ?? d.checkin;
       if (checkin != null) out.data = { ...out.data, checkin } as BeatCapture['data'];
       break;
@@ -214,9 +214,11 @@ export function beatCompletionEvidence(
   const d = data as Record<string, unknown>;
   switch (node.componentType) {
     case 'profile-input':
-      // nickname is auto-seeded from sign-in at flow mount; gender is the field
-      // the profile beat itself requires (cannot be skipped).
-      return d.gender != null;
+      // nickname is auto-seeded from sign-in at flow mount. The beat itself
+      // collects age AND gender, and submit_profile saves partial fields, so
+      // gender alone is NOT proof of completion (a voice user can state gender,
+      // refresh, and resume past the beat with age missing forever). Require both.
+      return d.age != null && d.gender != null;
     case 'state-check':
       return d.stateCheck != null || d.checkin != null;
     case 'morning-checkin-setup':
@@ -495,9 +497,18 @@ export function useFlowOrchestrator(
   // fast-forward the local engine to the saved current_step so a refresh lands on
   // the beat the user was on (not back at AUTH). Runs once; afterwards the
   // leading-edge effect below owns live advances + back-nav semantics.
+  const startAtNodeIdRef = useRef(options?.startAtNodeId);
   const resumedRef = useRef(false);
   useEffect(() => {
     if (resumedRef.current) return;
+    // QA startAt seeds the machine directly at a target node; the server resume
+    // walk must not run at all in that mode, or the up-front nickname persist
+    // (which creates a server row) lets the walk yank the machine off the seeded
+    // beat (race-sensitive: seen as intermittently flashing past profile).
+    if (startAtNodeIdRef.current) {
+      resumedRef.current = true;
+      return;
+    }
     if (typeof serverStep !== 'number') return; // no server row (preview / not loaded yet)
     resumedRef.current = true;
     const resumed = resumeFromServerRow(

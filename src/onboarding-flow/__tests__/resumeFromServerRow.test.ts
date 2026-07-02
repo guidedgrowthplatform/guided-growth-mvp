@@ -196,6 +196,7 @@ describe('resumeFromServerRow — refresh matrix over a simulated run', () => {
       current_step: 8,
       data: {
         nickname: 'Yonas',
+        age: 30,
         gender: 'Male',
         checkin: { sleep: 3 },
         morningCheckin: { time: '08:00', days: [1], reminder: true },
@@ -208,6 +209,7 @@ describe('resumeFromServerRow — refresh matrix over a simulated run', () => {
   it('numeric back-nav intent: steps 2..5 with full data stop at the entry-step beat', () => {
     const fullData = {
       nickname: 'Yonas',
+      age: 30,
       gender: 'Male',
       checkin: { sleep: 3 },
       morningCheckin: { time: '08:00', days: [1], reminder: true },
@@ -229,6 +231,26 @@ describe('resumeFromServerRow — refresh matrix over a simulated run', () => {
         `back-nav to step ${step}`,
       ).toBe(screen);
     }
+  });
+
+  it('partial profile (gender without age) resumes AT profile, not past it', () => {
+    // submit_profile saves partial fields; gender alone must not count as
+    // completion evidence or a voice user who stated only gender loses the
+    // age question forever on refresh.
+    const st = resumeFromServerRow(flow, initFlowMachine(flow), 1, {
+      nickname: 'Yair',
+      gender: 'Male',
+    } as never);
+    expect(getNode(flow, st.currentNodeId)?.componentType).toBe('profile-input');
+  });
+
+  it('full profile (age AND gender) resumes past profile', () => {
+    const st = resumeFromServerRow(flow, initFlowMachine(flow), 1, {
+      nickname: 'Yair',
+      age: 30,
+      gender: 'Male',
+    } as never);
+    expect(getNode(flow, st.currentNodeId)?.componentType).not.toBe('profile-input');
   });
 
   it('never resumes into a completed flow', () => {
