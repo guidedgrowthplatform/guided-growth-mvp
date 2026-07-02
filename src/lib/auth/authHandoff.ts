@@ -27,6 +27,29 @@ export function consumePendingAuthHandoff(): AuthHandoffKind | null {
   }
 }
 
+const RETURN_TO_KEY = 'auth_return_to';
+
+const isInternalPath = (p: string) => p.startsWith('/') && !p.startsWith('//');
+
+export function setAuthReturnTo(path?: string): void {
+  try {
+    const p = path ?? window.location.pathname + window.location.search;
+    if (isInternalPath(p)) sessionStorage.setItem(RETURN_TO_KEY, p);
+  } catch {
+    /* */
+  }
+}
+
+export function consumeAuthReturnTo(): string | null {
+  try {
+    const p = sessionStorage.getItem(RETURN_TO_KEY);
+    if (p) sessionStorage.removeItem(RETURN_TO_KEY);
+    return p && isInternalPath(p) ? p : null;
+  } catch {
+    return null;
+  }
+}
+
 const ERROR_STORAGE_KEY = 'auth_error_pending';
 
 export function setPendingAuthError(message: string): void {

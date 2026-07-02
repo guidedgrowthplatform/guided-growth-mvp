@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { identify, resetIdentity, track } from '@/analytics';
 import { authScheme } from '@/lib/appVariant';
+import { setAuthReturnTo } from '@/lib/auth/authHandoff';
 import { clearPkceVerifier } from '@/lib/clearPkceVerifier';
 import { getWebOrigin } from '@/lib/env';
 import { SETTINGS_STORAGE_KEY } from '@/lib/preferences/snapshot';
@@ -188,6 +189,9 @@ function identifyUser(
   });
 }
 
+const toHex = (bytes: Uint8Array) =>
+  Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+
 function clearUserIdentity(setAnonId: (id: string | null) => void) {
   resetIdentity();
   Sentry.setUser(null);
@@ -209,6 +213,7 @@ export interface AuthState {
   signInAsGuest: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
+  signInWithApple: () => Promise<{ error: string | null }>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
   updateProfile: () => Promise<void>;
@@ -441,9 +446,83 @@ export const useAuthStore = create<AuthState>((set, get) => {
       const redirectTo = isNative
         ? `${await authScheme()}://auth/callback`
         : `${getWebOrigin()}/auth/callback`;
+      if (!isNative) setAuthReturnTo();
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: isNative,
+        },
+      });
+
+      if (error) return { error: friendlyError(error) };
+
+      if (isNative && data?.url) {
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.open({ url: data.url });
+      }
+
+      return { error: null };
+    },
+
+    signInWithApple: async () => {
+      // iOS: native ASAuthorization sheet + signInWithIdToken — no browser
+      // round-trip, the WebView never navigates away.
+      if (Capacitor.getPlatform() === 'ios') {
+        try {
+          const { SignInWithApple } = await import('@capacitor-community/apple-sign-in');
+          // Apple gets the SHA-256 hash; Supabase gets the raw nonce and
+          // hashes it server-side to match the token's nonce claim.
+          const rawNonce = toHex(crypto.getRandomValues(new Uint8Array(32)));
+          const hashedNonce = toHex(
+            new Uint8Array(
+              await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawNonce)),
+            ),
+          );
+          const { response } = await SignInWithApple.authorize({
+            // clientId/redirectURI are required by the plugin's types but the
+            // iOS implementation ignores them (token aud = bundle id).
+            clientId: 'app.guidedgrowth.mvp',
+            redirectURI: `${getWebOrigin()}/auth/callback`,
+            scopes: 'name email',
+            nonce: hashedNonce,
+          });
+          if (!response?.identityToken) return { error: null }; // treated as cancel
+          const { data, error } = await supabase.auth.signInWithIdToken({
+            provider: 'apple',
+            token: response.identityToken,
+            nonce: rawNonce,
+          });
+          if (error) return { error: friendlyError(error) };
+          // Apple only returns the name on FIRST authorization and the id
+          // token carries no name claim — persist it or it's gone.
+          const fullName = [response.givenName, response.familyName]
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+          if (fullName && !data.user?.user_metadata?.full_name) {
+            void supabase.auth.updateUser({ data: { full_name: fullName } });
+          }
+          return { error: null };
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } catch (err: any) {
+          // ASAuthorizationError code 1001 = user canceled the sheet.
+          const msg = String(err?.message ?? err);
+          if (/cancel/i.test(msg) || /1001/.test(msg)) return { error: null };
+          return { error: friendlyError(err) };
+        }
+      }
+
+      // Web + Android: same OAuth round-trip shape as Google.
+      const isNative = Capacitor.isNativePlatform();
+      const redirectTo = isNative
+        ? `${await authScheme()}://auth/callback`
+        : `${getWebOrigin()}/auth/callback`;
+      if (!isNative) setAuthReturnTo();
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
         options: {
           redirectTo,
           skipBrowserRedirect: isNative,
