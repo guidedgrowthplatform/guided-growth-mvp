@@ -1,14 +1,15 @@
-import { type MutableRefObject } from 'react';
 import { Icon } from '@iconify/react';
+import { type MutableRefObject } from 'react';
 import { IconChatText, IconMic } from '@/components/icons';
 import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
 import type { OrbStates, PulseParams } from './orbPresets';
 
 // The home bar canvas: a self-contained mockup of the app's bottom nav (the real
 // one is components/layout/BottomNav.tsx, which needs the router + voice
-// providers). The orb in the notch is the SAME live orb the tuner drives, so any
-// change to the orb shows here too. Build and improve the bar around it here;
-// keep the DualButton geometry and the scoop path matched to BottomNav.
+// providers). It mirrors the tuner live: the orb in the notch is the SAME orb the
+// tuner drives (look + talking state), and the phone screen background follows the
+// tuner's Background control, so you see the orb on the real app background. Build
+// and improve the bar around it here; keep the scoop path matched to BottomNav.
 
 function BarBackground() {
   return (
@@ -49,9 +50,26 @@ interface HomeBarPreviewProps {
   params: OrbStates;
   pulse: PulseParams;
   mic: MutableRefObject<OrbMic>;
+  // The app screen background, mirrored from the tuner's Background control.
+  screenBg: string;
+  bgKey: string; // 'light' | 'blue' | 'yellow' | 'dark' (drives text contrast)
 }
 
-export function HomeBarPreview({ orbState, orbStyle, params, pulse, mic }: HomeBarPreviewProps) {
+export function HomeBarPreview({
+  orbState,
+  orbStyle,
+  params,
+  pulse,
+  mic,
+  screenBg,
+  bgKey,
+}: HomeBarPreviewProps) {
+  const dark = bgKey === 'dark';
+  const subText = dark ? 'text-white/60' : 'text-slate-500';
+  const titleText = dark ? 'text-white' : 'text-slate-800';
+  const itemText = dark ? 'text-white/90' : 'text-slate-700';
+  const card = dark ? 'bg-white/10' : 'bg-white/60';
+  const block = dark ? 'bg-white/15' : 'bg-white/50';
   return (
     <div className="flex flex-col items-center gap-3">
       <div
@@ -61,15 +79,44 @@ export function HomeBarPreview({ orbState, orbStyle, params, pulse, mic }: HomeB
         Home bar (live)
       </div>
       <div
-        className="relative overflow-hidden rounded-[34px] bg-white"
-        style={{ width: 340, height: 560, boxShadow: '0 18px 50px rgba(20,30,60,.28)' }}
+        className="relative overflow-hidden rounded-[34px]"
+        style={{ width: 340, height: 560, background: screenBg, boxShadow: '0 18px 50px rgba(20,30,60,.28)' }}
       >
-        {/* Content placeholder: swap for the real home page while building. */}
-        <div className="flex h-full flex-col gap-3 p-5">
-          <div className="h-7 w-40 rounded-md bg-slate-100" />
-          <div className="h-28 rounded-2xl bg-slate-50" />
-          <div className="h-28 rounded-2xl bg-slate-50" />
-          <div className="h-28 rounded-2xl bg-slate-50" />
+        {/* Home content mock, so the bar and orb read in a real context. Cards are
+            translucent so they sit on whatever app background is selected. */}
+        <div className="flex h-full flex-col gap-4 p-5 pb-24">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className={`text-[11px] font-semibold ${subText}`}>Good morning</div>
+              <div className={`text-[18px] font-bold ${titleText}`}>Let&apos;s grow today</div>
+            </div>
+            <div className={`h-9 w-9 rounded-full ${block}`} />
+          </div>
+
+          {/* Coach hero card: the orb below is how you reach it. */}
+          <div
+            className="rounded-3xl p-4 text-white"
+            style={{ background: 'linear-gradient(135deg,#2f6bff,#5b8cff)' }}
+          >
+            <div className="text-[12px] font-semibold opacity-90">Your coach</div>
+            <div className="mt-1 text-[15px] font-bold leading-snug">
+              Tap the orb to talk it through
+            </div>
+            <div className="mt-3 h-1.5 w-24 rounded-full bg-white/30" />
+          </div>
+
+          {/* A few home items so the layout feels lived-in. */}
+          <div className="flex flex-col gap-3">
+            {['Morning focus', 'Reflect on yesterday', 'Plan your day'].map((t) => (
+              <div key={t} className={`flex items-center gap-3 rounded-2xl p-3 ${card}`}>
+                <div className={`h-9 w-9 shrink-0 rounded-xl ${block}`} />
+                <div className="flex-1">
+                  <div className={`text-[13px] font-semibold ${itemText}`}>{t}</div>
+                  <div className={`mt-1 h-2 w-2/3 rounded-full ${block}`} />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* The home bar: scooped background, the live orb in the notch, four tabs. */}
