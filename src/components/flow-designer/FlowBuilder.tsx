@@ -2970,6 +2970,14 @@ export function FlowBuilder() {
   // Top-level workspace: the flow builder, or the standalone orb design workspace
   // (palette + flow tabs hidden, just the orb and its tuner). One level up from flows.
   const [mode, setMode] = useState<'flows' | 'orb'>(() => {
+    // Deep link: ...?orb opens straight into the Orb builder (skips the toggle).
+    if (typeof window !== 'undefined') {
+      try {
+        if (new URLSearchParams(window.location.search).has('orb')) return 'orb';
+      } catch {
+        /* ignore */
+      }
+    }
     if (typeof localStorage === 'undefined') return 'flows';
     return localStorage.getItem(`${STORAGE_BASE}:mode`) === 'orb' ? 'orb' : 'flows';
   });

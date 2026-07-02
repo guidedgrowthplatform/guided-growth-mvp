@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
-import { IconChatText, IconMicMuted } from '@/components/icons';
 import { HomeBarPreview } from './HomeBarPreview';
-import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
+import { type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
 import {
   AUTHOR_PRESETS,
   MOTION_PRESETS,
@@ -73,7 +72,7 @@ export function OrbTuner() {
   const [state, setState] = useState<OrbStateSel>('idle');
   const [editTab, setEditTab] = useState<EditTab>('idle');
   const [style, setStyle] = useState<OrbTalkStyle>('full');
-  const [bg, setBg] = useState<string>('light');
+  const [bg, setBg] = useState<string>('blue');
   const [author, setAuthor] = useState<string>(Object.keys(AUTHOR_PRESETS)[0] ?? 'Yair');
   const [leftOn, setLeftOn] = useState(true);
   const [rightOn, setRightOn] = useState(true);
@@ -233,24 +232,17 @@ export function OrbTuner() {
 
   return (
     <div className="ot-workspace">
-      <div className="ot-root">
-        <div className="ot-stage" style={{ background: BGS[bg] }}>
-          <Orb
-            size={172}
-            state={state}
-            style={style}
-            params={params}
-            pulse={pulse}
-            leftOn={leftOn}
-            rightOn={rightOn}
-            mic={mic}
-            onToggleLeft={() => setLeftOn((v) => !v)}
-            onToggleRight={() => setRightOn((v) => !v)}
-            idleIcons={{ left: <IconChatText size={38} />, right: <IconMicMuted size={38} /> }}
-          />
-        </div>
+      <HomeBarPreview
+        orbState={state}
+        orbStyle={style}
+        params={params}
+        pulse={pulse}
+        mic={mic}
+        screenBg={BGS[bg]}
+        bgKey={bg}
+      />
 
-        <div className="ot-panel">
+      <div className="ot-panel">
           <div className="ot-row">
             <span className="ot-lab">Background</span>
             {(['light', 'blue', 'yellow', 'dark'] as const).map((k) => (
@@ -466,9 +458,6 @@ export function OrbTuner() {
             </>
           )}
         </div>
-      </div>
-
-      <HomeBarPreview orbState={state} orbStyle={style} params={params} pulse={pulse} mic={mic} screenBg={BGS[bg]} bgKey={bg} />
 
       <style>{OT_CSS}</style>
     </div>
@@ -476,7 +465,7 @@ export function OrbTuner() {
 }
 
 const OT_CSS = `
-.ot-workspace{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:40px}
+.ot-workspace{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:40px;color:#e8e8ee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
 .ot-root{--D:172px;color:#e8e8ee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;gap:18px;padding:8px}
 .ot-stage{width:min(380px,100%);height:302px;border-radius:30px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:46px;overflow:hidden;box-shadow:0 18px 50px rgba(20,30,60,.20), inset 0 0 0 1px rgba(255,255,255,.7)}
 .ot-panel{width:min(520px,100%);display:flex;flex-direction:column;gap:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:16px 18px;box-sizing:border-box}
