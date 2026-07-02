@@ -41,6 +41,7 @@ Updated the moment a status changes; this branch (`bugfix-status-2026-07-02`) is
 - 2026-07-02 15:45 — worktree node_modules lost to the dangling-symlink dance (B18 landmine); reinstalling; !396 untracks the symlink for good
 - 2026-07-02 16:05 — operator: Vercel SSO off for previews; both loop previews load (200) — Chrome extension still dead (2x timeout), switching to Playwright
 - 2026-07-02 16:12 — RULE-4 SANITY FAILED: loop previews, gg-qa-iota AND prod all bundle the PROD Supabase ref; supabase-environments.md §4 confirms Preview-scope env still prod-pointed. Interactive preview QA forbidden (writes would land in prod DB). Asked for Vercel Preview env fix + .env.staging.local. Team's gg-qa-iota walkthroughs have been writing to prod
+- 2026-07-02 16:25 — no-write verification lane built: Playwright headless vs the deployed preview's auth-free /onboarding-flow-preview (in-memory persistence, zero DB writes); walker cleared IntroGate but auth beat walls it — added ?startAt=<nodeId> QA param to the preview route (fa04074f on loop1, cherry-picked to loop2), CI redeploying
 - 2026-07-02 15:55 — Loop 2 batch 2 committed (62343899): four maps on V3 scale + flow-derived parity test; B20 completion (BEAT_COMPLETING += record_checkin/submit_morning_checkin, handlers GREATEST-bump, strictly-increasing bump w/ tool-to-beat guard); B2 voice forced ON at flow mount; B8 auth receipt suppressed; !396 allowedTools union guard picked up. tsc clean, 1365/1365 tests, build OK
 
 ## Loop status
