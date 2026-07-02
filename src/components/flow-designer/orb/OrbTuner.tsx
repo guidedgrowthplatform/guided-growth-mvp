@@ -59,6 +59,9 @@ const PULSE_SLIDERS: { k: keyof PulseParams; label: string; min: number; max: nu
   { k: 'size', label: 'Base size', min: 0, max: 40 },
   { k: 'amt', label: 'Extra pulse', min: 0, max: 100 },
   { k: 'speed', label: 'Pulse speed', min: 0, max: 100 },
+  { k: 'orbAmt', label: 'Orb expand', min: 0, max: 100 },
+  { k: 'mem', label: 'Membrane breathe', min: 0, max: 100 },
+  { k: 'memSpeed', label: 'Membrane speed', min: 0, max: 100 },
 ];
 
 export function OrbTuner() {
@@ -361,7 +364,7 @@ export function OrbTuner() {
             <span className="ot-lab" />
             <span style={{ fontSize: 11, color: '#8a92a8' }}>
               {editTab === 'pulse'
-                ? 'Pulse is how the orb expands and breathes while talking. Base size is how big it gets in general; extra pulse is the breathing on top.'
+                ? 'Two motion layers you can tune apart. The disc: Base size, Extra pulse, Pulse speed. The outer membrane: Membrane breathe and Membrane speed (its own tempo). Set Orb expand to 0 to keep the disc perfectly stable and let only the membrane and inner light move.'
                 : `Editing the ${activeKey === 'talk' ? 'Talking' : 'Idle'} look. Click a half in Idle to toggle it on / off. Name it and Save to keep it as a preset.`}
             </span>
           </div>

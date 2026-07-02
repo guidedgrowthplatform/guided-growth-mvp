@@ -334,8 +334,19 @@ export interface PulseParams {
   size: number; // baseline expansion when talking (0..40)
   amt: number; // extra breathing amplitude on top (0..100)
   speed: number; // breathing rate (0..100)
+  // Motion split into layers so each can move on its own:
+  orbAmt: number; // how much the orb DISC expands/contracts (0 = disc stays stable) 0..100
+  mem: number; // outer membrane breathe amount 0..100
+  memSpeed: number; // outer membrane breathe tempo (independent of the disc) 0..100
 }
-export const DEFAULT_PULSE: PulseParams = { size: 8, amt: 60, speed: 50 };
+export const DEFAULT_PULSE: PulseParams = {
+  size: 8,
+  amt: 60,
+  speed: 50,
+  orbAmt: 100,
+  mem: 60,
+  memSpeed: 35,
+};
 const LS_PULSE = 'gg-flow-builder-v18:orb-pulse';
 export function loadPulse(): PulseParams {
   try {

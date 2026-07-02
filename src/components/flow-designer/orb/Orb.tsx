@@ -379,10 +379,13 @@ export function Orb({
       const prate = 1 + (pz.speed / 100) * 3;
       const pbase = pz.size / 100;
       const pamt = pz.amt / 100;
+      // orbAmt scales the whole DISC expansion. 0 keeps the disc perfectly stable
+      // while the membrane and inner light still move on their own.
+      const oa = (pz.orbAmt ?? 100) / 100;
       if (full) {
         const micF = m.on ? 0.5 + m.amp * 0.9 : 1;
         const swing = (0.5 + 0.5 * Math.sin(t2 * prate * 2)) * pamt * 0.22;
-        const grow = 1 + (pbase + swing) * micF;
+        const grow = 1 + (pbase + swing) * micF * oa;
         orb.style.transform = `scale(${grow.toFixed(3)})`;
       } else {
         orb.style.transform = '';
@@ -391,7 +394,7 @@ export function Orb({
       if (talking && c.style === 'directional' && activeSide) {
         const micF = m.on ? 0.5 + m.amp * 0.9 : 1;
         const swing = (0.5 + 0.5 * Math.sin(t2 * prate * 2)) * pamt * 0.2;
-        const gv = 1 + (pbase * 0.85 + swing) * micF;
+        const gv = 1 + (pbase * 0.85 + swing) * micF * oa;
         if (leftHalfRef.current)
           leftHalfRef.current.style.transform =
             activeSide === 'left' ? `scale(${gv.toFixed(3)})` : '';
@@ -408,10 +411,12 @@ export function Orb({
       // unchanged. The morph itself is a CSS keyframe; JS drives size + color.
       if (shell && !flat) {
         const auraP = (aset.aura ?? 0) / 100;
-        const breathe = 0.78 + 0.22 * Math.sin(t2 * prate * 1.1);
+        const memAmt = (pz.mem ?? 60) / 100;
+        const mrate = 0.5 + ((pz.memSpeed ?? 35) / 100) * 2.2;
         const micA = m.on ? 0.7 + m.amp * 0.8 : 1;
+        const memSwing = (0.5 + 0.5 * Math.sin(t2 * mrate)) * (0.05 + 0.26 * memAmt);
         shell.style.setProperty('--mem', auraP.toFixed(3));
-        shell.style.setProperty('--memscale', (1 + auraP * (0.16 * breathe * micA)).toFixed(3));
+        shell.style.setProperty('--memscale', (1 + auraP * memSwing * micA).toFixed(3));
         shell.style.setProperty(
           '--memc',
           c.state === 'coach'
