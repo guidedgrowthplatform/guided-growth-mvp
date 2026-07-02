@@ -12,6 +12,9 @@
  *
  * Usage: node scripts/patch-ios-push.mjs
  * Called by `npm run cap:sync` / `cap:sync:all` and the ios-testflight CI job.
+ *
+ * ORDERING: must run BEFORE patch-ios-apple-signin.mjs — this script writes
+ * App.entitlements only-if-absent, while apple-signin merges into an existing file.
  */
 
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'fs';

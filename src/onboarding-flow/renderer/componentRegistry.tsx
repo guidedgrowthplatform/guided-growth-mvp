@@ -8,6 +8,7 @@
  * Each adapter renders the ACTIVE beat's interactive card. Past beats are shown
  * as a short user-answer summary (see summarizeBeat) by BeatView.
  */
+import { Capacitor } from '@capacitor/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/analytics';
 import { checkInDimensions } from '@/components/home/checkInConfig';
@@ -35,7 +36,6 @@ import { Button } from '@/components/ui/Button';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { DualButton } from '@/components/ui/DualButton';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { useToast } from '@/contexts/ToastContext';
 import {
   type OnboardingVoiceResult,
   useOnboardingVoiceActions,
@@ -163,14 +163,13 @@ function GoogleGlyph() {
 }
 
 function AuthAdapter({ onCapture, readOnly }: BeatAdapterProps) {
-  const { user, signInWithGoogle, signUp, signIn } = useAuth();
-  const toast = useToast();
+  const { user, signInWithGoogle, signInWithApple, signUp, signIn } = useAuth();
   const [mode, setMode] = useState<'default' | 'signup' | 'login'>('default');
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
-  const [busy, setBusy] = useState<null | 'google' | 'email'>(null);
+  const [busy, setBusy] = useState<null | 'google' | 'apple' | 'email'>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmationPending, setConfirmationPending] = useState(false);
 
@@ -205,9 +204,20 @@ function AuthAdapter({ onCapture, readOnly }: BeatAdapterProps) {
     // On success the page navigates away; no need to clear busy.
   };
 
-  const handleApple = () => {
-    // Matches the standalone pages: Apple sign-in is not wired yet.
-    toast.addToast('info', 'Apple sign-in coming soon');
+  const handleApple = async () => {
+    if (busy) return;
+    setError(null);
+    setBusy('apple');
+    // Web: OAuth redirect (same round-trip as Google). Native iOS: in-app
+    // Apple sheet + signInWithIdToken — `user` appears and auto-advance fires.
+    const { error: appleError } = await signInWithApple();
+    if (appleError) {
+      setError(appleError);
+      setBusy(null);
+      return;
+    }
+    // Clear busy for the native cancel case (error: null, no navigation).
+    if (Capacitor.isNativePlatform()) setBusy(null);
   };
 
   const handleEmail = async () => {
@@ -291,8 +301,8 @@ function AuthAdapter({ onCapture, readOnly }: BeatAdapterProps) {
           disabled={busy !== null}
           onClick={handleApple}
         >
-          <AppleGlyph />
-          Continue with Apple
+          {busy === 'apple' ? <LoadingSpinner color="text-white" /> : <AppleGlyph />}
+          {busy === 'apple' ? 'Connecting...' : 'Continue with Apple'}
         </Button>
         <Button
           variant="social-light"

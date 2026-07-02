@@ -55,8 +55,6 @@ type FlowId =
   | 'morning-checkin'
   | 'evening-checkin';
 
-const MIC_PROFILE_FLOW_ID: FlowId = 'mic-profile-start';
-
 interface FlowDef {
   id: FlowId;
   icon: string;
@@ -77,7 +75,7 @@ const FLOWS: FlowDef[] = [
     id: 'full-onboarding',
     icon: 'ic:round-play-arrow',
     label: 'Full onboarding',
-    desc: 'From auth (beat 0)',
+    desc: 'Fresh run from auth',
     // Navigate directly to /onboarding/flow, bypassing OnboardingEntry so the
     // QA path is never affected by the VITE_ONBOARDING_USE_ENGINE flag.
     navigate: (nav) => nav('/onboarding/flow', { replace: true }),
@@ -291,10 +289,13 @@ export function QAControlScreen() {
     }
   }
 
-  async function launchMicProfileFresh() {
+  // Tapping any flow tile launches that flow fresh (the common QA case), so every
+  // tile behaves the same. The account-state buttons below still cover the other
+  // entry modes (log in / keep data / reset) for the last-tapped flow.
+  async function launchFlowFresh(id: FlowId) {
     if (busy) return;
-    setFlowId(MIC_PROFILE_FLOW_ID);
-    await run('restart', MIC_PROFILE_FLOW_ID);
+    setFlowId(id);
+    await run('restart', id);
   }
 
   return (
@@ -348,7 +349,7 @@ export function QAControlScreen() {
           <p
             style={{ fontSize: 13, fontWeight: 500, color: 'rgb(100,116,139)', margin: '3px 0 0' }}
           >
-            Pick a test user and a flow, then choose how to start.
+            Pick a test user, then tap a flow to start it fresh.
           </p>
         </div>
 
@@ -437,22 +438,15 @@ export function QAControlScreen() {
           >
             {FLOWS.map((f) => {
               const isSelected = flowId === f.id;
-              const isMicProfile = f.id === MIC_PROFILE_FLOW_ID;
-              const isMicProfileBusy = isMicProfile && busy === 'restart';
+              const isLaunching = busy === 'restart' && flowId === f.id;
               return (
                 <button
                   key={f.id}
                   type="button"
-                  onClick={() => {
-                    if (isMicProfile) {
-                      void launchMicProfileFresh();
-                    } else {
-                      setFlowId(f.id);
-                    }
-                  }}
+                  onClick={() => void launchFlowFresh(f.id)}
                   disabled={busy !== null}
                   title={f.desc}
-                  aria-label={isMicProfile ? 'Mic + Profile fresh launch' : f.label}
+                  aria-label={`Start ${f.label} fresh`}
                   aria-pressed={isSelected}
                   style={{
                     display: 'flex',
@@ -472,7 +466,7 @@ export function QAControlScreen() {
                   }}
                 >
                   <Icon
-                    icon={isMicProfileBusy ? 'svg-spinners:ring-resize' : f.icon}
+                    icon={isLaunching ? 'svg-spinners:ring-resize' : f.icon}
                     style={{
                       fontSize: 22,
                       color: isSelected ? 'rgb(19,91,235)' : 'rgb(71,85,105)',
@@ -490,19 +484,6 @@ export function QAControlScreen() {
                   >
                     {f.label}
                   </span>
-                  {isMicProfile && (
-                    <span
-                      style={{
-                        fontSize: 8,
-                        fontWeight: 800,
-                        color: 'rgb(19,91,235)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
-                      }}
-                    >
-                      fresh launch
-                    </span>
-                  )}
                   {/* Warn that home-tour cannot run yet */}
                   {!f.fullyRunnable && (
                     <span
