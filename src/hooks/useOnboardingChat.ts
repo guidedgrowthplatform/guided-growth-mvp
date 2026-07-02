@@ -39,6 +39,16 @@ const TTS_LAND_POLL_MS = 500;
 const TTS_LAND_GRACE_TICKS = 6; // ~3s of continuous playback silence
 const TTS_LAND_MAX_TICKS = 120; // ~60s hard ceiling, even if isSpeaking sticks
 
+// Transient LLM failures worth ONE silent automatic retry before bothering the
+// user: watchdog timeout, truncated response, upstream 5xx / provider error,
+// killed stream. Codes are the `code:` prefix useLLM puts on server error
+// frames; the two bare phrases are thrown client-side by useLLM/streamLLM.
+const RETRYABLE_LLM_ERROR =
+  /^(llm_timeout|incomplete_response|openai_5\d\d|openai_error|stream_error|internal_error|tool_cap_reached|connection ended unexpectedly)/;
+
+// What the user sees when a turn failed for good (raw error codes never render).
+const LLM_ERROR_RETRY_TEXT = "Something didn't work on my end. Mind saying that again?";
+
 export interface UseOnboardingChatArgs {
   screenId: string | null;
   enabled: boolean;
@@ -115,7 +125,12 @@ export function useOnboardingChat({
 
   // Per-screen dedup/seed state — reset on screen change (no key= remount here).
   const mirroredIdsRef = useRef<Set<string>>(new Set());
-  const lastLlmErrorRef = useRef<string>('');
+  // Failure-episode state: one silent auto-retry, then one visible error bubble.
+  // Both cleared when a turn succeeds, the user sends again, or the beat changes.
+  const autoRetriedRef = useRef(false);
+  const errorBubbledRef = useRef(false);
+  // Beats whose opener already degraded to the authored line (never land twice).
+  const openerFallbackSidsRef = useRef<Set<string>>(new Set());
   const firedToolFailIdsRef = useRef<Set<string>>(new Set());
   const openerSeededRef = useRef<string | null>(null);
   const streamActiveRef = useRef(false);
@@ -178,19 +193,56 @@ export function useOnboardingChat({
   const startStream = useCallback((text: string) => {
     suppressTrailingRef.current = false;
     streamActiveRef.current = true;
+    // Fresh user attempt — re-arm the one-shot retry + error bubble.
+    autoRetriedRef.current = false;
+    errorBubbledRef.current = false;
     void llmRef.current.sendMessage(text);
   }, []);
 
+  // A failed/aborted opener stream degrades to the beat's authored line + card,
+  // so the beat never renders as dead air with its card lost (B11 wedge shape).
+  const landOpenerFallback = useCallback(
+    (sid: string) => {
+      if (screenIdRef.current !== sid) return;
+      if (openerFallbackSidsRef.current.has(sid)) return;
+      const pending = openerCardRef.current;
+      const nickname = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data
+        ?.nickname;
+      const line = getOnboardingOpenerForState(sid, nickname) ?? '';
+      const card = pending && pending.screenId === sid ? pending.card : null;
+      if (!line && !card) return;
+      openerFallbackSidsRef.current.add(sid);
+      if (card) openerCardRef.current = null;
+      appendMessage({
+        id: `opener-fallback-${sid}`,
+        role: 'ai',
+        text: line,
+        ...(card ? { cards: [card] } : {}),
+        screenId: sid,
+      });
+    },
+    [appendMessage, qc],
+  );
+
   // Fire the beat's opener now, or hold it until the in-flight stream drains.
-  const fireOrDeferOpener = useCallback((sid: string) => {
-    if (llmRef.current.isStreaming) {
-      pendingOpenerRef.current = sid;
-      return;
-    }
-    pendingOpenerRef.current = null;
-    streamActiveRef.current = true;
-    void llmRef.current.sendOpener();
-  }, []);
+  const fireOrDeferOpener = useCallback(
+    (sid: string) => {
+      if (llmRef.current.isStreaming) {
+        pendingOpenerRef.current = sid;
+        return;
+      }
+      pendingOpenerRef.current = null;
+      streamActiveRef.current = true;
+      void llmRef.current.sendOpener().then((ok) => {
+        if (ok) return;
+        // Busy no-op (a stream was already in flight) — the pending-opener
+        // machinery owns the re-fire; only a real failure degrades.
+        if (llmRef.current.isStreaming) return;
+        landOpenerFallback(sid);
+      });
+    },
+    [landOpenerFallback],
+  );
 
   // Barge-in: stop the coach's TTS and abort any in-flight reply. cancel() is a
   // no-op when nothing is streaming; stopTTS() a no-op when nothing is playing.
@@ -254,7 +306,8 @@ export function useOnboardingChat({
     openerSeededRef.current = screenId;
     const stable = useStableSessionRef.current;
     if (!stable) mirroredIdsRef.current = new Set();
-    lastLlmErrorRef.current = '';
+    autoRetriedRef.current = false;
+    errorBubbledRef.current = false;
     pendingTurnRef.current = null;
     streamActiveRef.current = false;
     suppressTrailingRef.current = true;
@@ -361,8 +414,11 @@ export function useOnboardingChat({
     if (sid !== screenIdRef.current) return;
     suppressTrailingRef.current = false;
     streamActiveRef.current = true;
-    void llmRef.current.sendOpener();
-  }, [llm.isStreaming]);
+    void llmRef.current.sendOpener().then((ok) => {
+      if (ok || llmRef.current.isStreaming) return;
+      landOpenerFallback(sid);
+    });
+  }, [llm.isStreaming, landOpenerFallback]);
 
   const toolActive = enabled || streamActiveRef.current;
 
@@ -511,32 +567,38 @@ export function useOnboardingChat({
     emitAssistant(llm.response, 'partial');
   }, [toolActive, llm.isStreaming, llm.response, emitAssistant]);
 
-  // Surface LLM errors as a coach bubble (dedup identical consecutive messages).
+  // A turn that completed re-arms the failure-episode state (retry + bubble).
+  useEffect(() => {
+    if (llm.status !== 'done') return;
+    autoRetriedRef.current = false;
+    errorBubbledRef.current = false;
+  }, [llm.status]);
+
+  // Surface LLM errors: silently retry a transient failure once, then degrade
+  // to a friendly retry bubble (raw error codes never render as coach text).
   useEffect(() => {
     if (!enabled || !llm.error) return;
     const msg = llm.error.message;
-    if (msg === lastLlmErrorRef.current) return;
-    lastLlmErrorRef.current = msg;
     // Opener turn failed → degrade to the authored line + card so the coach never
     // renders as a raw error (the LLM is the renderer; the authored line is the
     // source-of-truth fallback).
     const pending = openerCardRef.current;
     if (chatNative && pending && pending.screenId === screenIdRef.current) {
-      openerCardRef.current = null;
-      const nickname = qc.getQueryData<OnboardingState | null>(queryKeys.onboarding.state)?.data
-        ?.nickname;
-      const line = getOnboardingOpenerForState(screenIdRef.current, nickname) ?? '';
-      appendMessage({
-        id: `opener-fallback-${screenIdRef.current}`,
-        role: 'ai',
-        text: line,
-        cards: [pending.card],
-        ...(screenIdRef.current ? { screenId: screenIdRef.current } : {}),
-      });
+      landOpenerFallback(screenIdRef.current ?? '');
       return;
     }
-    appendMessage({ id: `llm-error-${Date.now()}`, role: 'ai', text: msg });
-  }, [enabled, llm.error, appendMessage, chatNative]);
+    // One silent retry per episode. regenerate() reuses the last user turn id,
+    // so the retried turn never renders a duplicate user bubble.
+    if (RETRYABLE_LLM_ERROR.test(msg) && !autoRetriedRef.current) {
+      autoRetriedRef.current = true;
+      streamActiveRef.current = true;
+      void llmRef.current.regenerate();
+      return;
+    }
+    if (errorBubbledRef.current) return;
+    errorBubbledRef.current = true;
+    appendMessage({ id: `llm-error-${Date.now()}`, role: 'ai', text: LLM_ERROR_RETRY_TEXT });
+  }, [enabled, llm.error, appendMessage, chatNative, landOpenerFallback]);
 
   // Failed write tool → soft retry bubble; never advance (useChatToolEvents is ok-gated).
   useEffect(() => {
