@@ -1,5 +1,24 @@
 # CLAUDE.md — Project Guide for AI Assistants
 
+## Staging sync (keep your branch from diverging) — read before you branch
+
+Every branch here starts from `staging`. The moment someone else merges a fix
+into staging, every other open branch is now BEHIND, missing that fix. When a
+stale branch later merges back, git brings its OLD copies of the shared files
+along and quietly re-introduces code that was already fixed. That is the "I fixed
+this same build error three or four times" loop: stale branches merging on top
+keep overwriting landed fixes. So keep every working branch close to staging:
+
+- At the START of a work chunk, and after any long pause, run `git fetch origin
+staging` then merge `origin/staging` into your working branch.
+- Clean merge: keep going. Non-trivial merge (real conflicts): STOP, surface it,
+  resolve deliberately. Do NOT push through blindly.
+- The #MVP-testing deploy ping tells you WHEN staging moved; this convention is
+  the habit of merging it in WHEN it does.
+
+Goal: no branch drifts far, so the merge back is small and clean and nobody
+re-fixes a landed bug.
+
 ## Architecture Overview
 
 **Monorepo layout:**
