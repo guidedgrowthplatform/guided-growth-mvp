@@ -1,0 +1,23 @@
+{
+    "session_id": "e6988bc9-ad79-4a62-a387-bc1247b50da9",
+    "screen_id": "ONBOARD-BEGINNER-04",
+    "user_message": "Uh, now, uh, I select workout, uh, on to select the days and create your own habit. Layout, workout closes the night before.",
+    "coaching_style": "warm",
+    "mode": "chat",
+    "chat_session_id": "c28a614f-b214-45eb-8396-d0ebda6938e3",
+    "user_turn_id": "410e1e4a-af15-4870-a485-43dae45aedc1",
+    "recent_events": [
+        {"id":"01509b05-0be2-424f-8101-2e814e757292","session_id":"e6988bc9-ad79-4a62-a387-bc1247b50da9","timestamp":"2026-07-02T10:52:30.395Z","event_type":"form_submit","screen_id":"ONBOARD-01","payload":{"nickname":"Yonas","screen_id":"ONBOARD-01"}},
+        {"id":"5d33f309-950e-4837-9f48-b358fbe16038","session_id":"e6988bc9-ad79-4a62-a387-bc1247b50da9","timestamp":"2026-07-02T10:52:32.769Z","event_type":"settings_changed","screen_id":"SETTINGS","payload":{"field":"micEnabled","new_value":true,"old_value":false}},
+        {"id":"68673eb9-3746-4eed-9390-1451ea9dd652","session_id":"e6988bc9-ad79-4a62-a387-bc1247b50da9","timestamp":"2026-07-02T10:53:05.403Z","event_type":"settings_changed","screen_id":"SETTINGS","payload":{"field":"micEnabled","new_value":false,"old_value":true}},
+        {"id":"2089740a-597a-4c11-aa0b-5af764d349f9","session_id":"e6988bc9-ad79-4a62-a387-bc1247b50da9","timestamp":"2026-07-02T10:54:08.180Z","event_type":"settings_changed","screen_id":"SETTINGS","payload":{"field":"micEnabled","new_value":true,"old_value":false}},
+        {"id":"72430dd1-2b07-4685-82fa-0c93390ff1c6","session_id":"e6988bc9-ad79-4a62-a387-bc1247b50da9","timestamp":"2026-07-02T10:54:23.924Z","event_type":"llm_call","screen_id":"ONBOARD-STATE-CHECK","payload":{"mode":"chat","screen_id":"ONBOARD-STATE-CHECK","latency_ms":3569,"tool_rounds":2,"total_tokens":5796}},
+        {"id":"00df2b3f-187e-4723-8e86-5d1c5107cc8a","session_id":"e6988bc9-ad79-4a62-a387-bc1247b50da9","timestamp":"2026-07-02T10:55:31.211Z","event_type":"form_submit","screen_id":"ONBOARD-01","payload":{"screen_id":"ONBOARD-01","nickname":"Yonas"}},
+        {"id":"19b9b506-ca51-45df-b185-242cc7344737","session_id":"e6988bc9-ad79-4a62-a387-bc1247b50da9","timestamp":"2026-07-02T10:58:03.529Z","event_type":"settings_changed","screen_id":"SETTINGS","payload":{"field":"micEnabled","old_value":false,"new_value":true}},
+        {"id":"75eabbdd-c852-4230-8b22-d8af38ecc933","session_id":"e6988bc9-ad79-4a62-a387-bc1247b50da9","timestamp":"2026-07-02T10:58:20.028Z","event_type":"llm_call","screen_id":"ONBOARD-BEGINNER-01","payload":{"screen_id":"ONBOARD-BEGINNER-01","mode":"opener","latency_ms":1372,"total_tokens":5636,"tool_rounds":0}},
+        {"id":"5f044f84-cf16-4faf-8218-7eb8c00484d1","session_id":"e6988bc9-ad79-4a62-a387-bc1247b50da9","timestamp":"2026-07-02T10:59:05.612Z","event_type":"settings_changed","screen_id":"SETTINGS","payload":{"field":"micEnabled","old_value":true,"new_value":false}},
+        {"id":"5059b34a-e361-40a1-9720-243b1e0d0d72","session_id":"e6988bc9-ad79-4a62-a387-bc1247b50da9","timestamp":"2026-07-02T11:01:36.951Z","event_type":"settings_changed","screen_id":"SETTINGS","payload":{"field":"micEnabled","old_value":false,"new_value":true}}
+    ],
+    "input_mode": "voice",
+    "timezone": "Africa/Addis_Ababa"
+}
