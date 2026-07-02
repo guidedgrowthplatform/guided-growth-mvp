@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { stopVoice, unlockCartesiaVoice } from '@/lib/services/cartesiaVoice';
 import { stopTTS, unlockTTS } from '@/lib/services/tts-service';
 
 export type MicRequestResult = 'granted' | 'denied' | 'unavailable';
@@ -21,7 +22,10 @@ export function useDualButtonControls(): DualButtonControls {
 
   const toggleVoice = useCallback(() => {
     const next = !voiceOn;
-    if (!next) stopTTS();
+    if (!next) {
+      stopTTS();
+      stopVoice();
+    }
     void updatePreferences({ voiceMode: next ? 'voice' : 'screen' });
   }, [voiceOn, updatePreferences]);
 
@@ -37,6 +41,7 @@ export function useDualButtonControls(): DualButtonControls {
       stream.getTracks().forEach((t) => t.stop());
       await updatePreferences({ micPermission: true, micEnabled: true });
       unlockTTS();
+      unlockCartesiaVoice();
       return 'granted';
     } catch (err) {
       const name = err instanceof DOMException ? err.name : '';
@@ -49,6 +54,7 @@ export function useDualButtonControls(): DualButtonControls {
       if (micAllowed) {
         void updatePreferences({ micEnabled: true });
         unlockTTS();
+        unlockCartesiaVoice();
         return 'granted';
       }
       return 'unavailable';

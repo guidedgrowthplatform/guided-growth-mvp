@@ -14,6 +14,11 @@ function setSpeaking(value: boolean) {
   }
 }
 
+// Shared so the Cartesia dynamic engine can feed the same speaking signal.
+export function setTtsSpeaking(value: boolean): void {
+  setSpeaking(value);
+}
+
 // User selects Male or Female on splash screen
 export type { VoiceGender };
 
@@ -447,7 +452,7 @@ async function speakCartesia(text: string, volume: number, generation: number): 
 }
 
 /** Strip emoji for cleaner TTS */
-function cleanText(text: string): string {
+export function cleanText(text: string): string {
   return text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
 }
 
