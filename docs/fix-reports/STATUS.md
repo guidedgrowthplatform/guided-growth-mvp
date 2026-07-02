@@ -29,8 +29,8 @@ Updated the moment a status changes; this branch (`bugfix-status-2026-07-02`) is
 
 | Loop | Scope | Status | Branch | MR |
 |---|---|---|---|---|
-| 0 | Prior-fix archaeology | in-progress | — (writes docs/prior-fixes/ notes, carried onto Loop 1 branch) | — |
-| 1 | B3 B4 B14 B15 | pending | — | — |
+| 0 | Prior-fix archaeology | done | bugfix-status-2026-07-02 (docs/prior-fixes/) | — |
+| 1 | B3 B4 B14 B15 | in-progress | — | — |
 | 2 | B9 B10 B2 B8 | pending | — | — |
 | 3 | B11 B12 | pending | — | — |
 | 4 | B5 B6 B7 B17 | pending | — | — |
