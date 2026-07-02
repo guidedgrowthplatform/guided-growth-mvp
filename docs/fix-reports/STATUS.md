@@ -14,8 +14,8 @@ Updated the moment a status changes; this branch (`bugfix-status-2026-07-02`) is
 | B6 | Chat bubbles disappear randomly | 4 | open | — | |
 | B7 | Profile card disappears after age + gender given | 4 | open | — | |
 | B8 | "You're signed in" banner shows during onboarding | 2 | open | — | |
-| B9 | Refresh mid-onboarding lands on wrong component + injects extras | 2 | open | — | live repro 2026-07-02 pm: refresh while stuck on habit-selection jumped 5 beats to weekly projection, no components rendered; MUST be a Loop 2 verification-matrix case |
-| B10 | Flow jumped welcome → profile, skipping in-between beat | 2 | open | — | |
+| B9 | Refresh mid-onboarding lands on wrong component + injects extras | 2 | fix-implemented (evidence-driven resume), preview verification pending | [!398](https://gitlab.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/398) | resumeFromServerRow stops at first beat missing its data fingerprint; refresh-matrix test derived from generated flow |
+| B10 | Flow jumped welcome → profile, skipping in-between beat | 2 | fix-implemented (same resume rewrite), preview verification pending | [!398](https://gitlab.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/398) | numeric step 2 no longer catapults past pre-fork beats (regression test in) |
 | B11 | LLM calls fail repeatedly; flow wedged at habit render | 3 | open | — | |
 | B12 | LLM invents process talk ("confirm your path choice") | 3 | open | — | likely falls out of Loop 2 map fix |
 | B13 | (folded into B4) | — | merged-into-other | — | |
@@ -34,7 +34,7 @@ Updated the moment a status changes; this branch (`bugfix-status-2026-07-02`) is
 |---|---|---|---|---|
 | 0 | Prior-fix archaeology | done | bugfix-status-2026-07-02 (docs/prior-fixes/) | — |
 | 1 | B3 B4 B14 B15 | fixes implemented + tested; preview verification pending (blocker below) | bugfix-loop1-audio | [!397](https://gitlab.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/397) |
-| 2 | B9 B10 B2 B8 B20 | in-progress: investigation done, root cause found, no code yet | bugfix-loop2-resume (pushed, at staging tip) | — |
+| 2 | B9 B10 B2 B8 B20 | in-progress: resume rewrite committed (B9/B10); maps + B20 wiring + B2/B8 next | bugfix-loop2-resume | [!398](https://gitlab.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/398) |
 | 3 | B11 B12 | pending | — | — |
 | 4 | B5 B6 B7 B17 | pending | — | — |
 | 5 | B16 | pending (stacks on 1+2) | — | — |
