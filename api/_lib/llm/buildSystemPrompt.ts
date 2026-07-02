@@ -7,6 +7,7 @@ import { GLOBAL_ONBOARDING_CONTEXT, getBeatContext } from './onboarding/beatCont
 import { buildCanonicalOptionsBlock } from './onboarding/canonicalOptions.js';
 import { ONBOARDING_TOOL_ADDENDUM } from './onboarding/systemPromptAddendum.js';
 import { stripForwardPointers } from './stripForwardPointers.js';
+import { fillBeatName } from './onboarding/fillBeatName.js';
 import { NO_PRENARRATION_RULE } from './noPrenarrationRule.js';
 import { NO_INTERNAL_NARRATION_RULE } from './noInternalNarrationRule.js';
 import {
@@ -117,12 +118,13 @@ export async function buildSystemPromptForRequest(
   // screen_contexts row, so legacy screens keep working.
   const beat = isOnboardingScreen ? getBeatContext(args.screen_id) : undefined;
   const onboardingGlobalBlock = isOnboardingScreen ? `\n\n${GLOBAL_ONBOARDING_CONTEXT}` : '';
-  // Direct-LLM only — Vapi keeps raw context elsewhere (it drives navigation).
-  // advance_step is the Direct-LLM nav tool; the shared bundle says navigate_next (Vapi's name).
-  const contextBlock = stripForwardPointers(beat ? beat.context : screen.context_block).replace(
-    /navigate_next/g,
-    'advance_step',
-  );
+  const onboardingRow = isOnboardingScreen ? await fetchOnboardingRow(args.anon_id) : null;
+  const nickname = (onboardingRow?.data?.nickname as string | undefined) ?? null;
+  // advance_step: Direct-LLM nav tool; shared bundle says navigate_next (Vapi's name).
+  const strippedBlock = stripForwardPointers(beat ? beat.context : screen.context_block);
+  const contextBlock = (
+    isOnboardingScreen ? fillBeatName(strippedBlock, nickname) : strippedBlock
+  ).replace(/navigate_next/g, 'advance_step');
   const contextMessage = buildContextMessage({
     screen_id: args.screen_id,
     context_block: contextBlock,
@@ -170,7 +172,6 @@ export async function buildSystemPromptForRequest(
     args.mode === 'opener' && args.screen_id === 'MCHECK-01' ? `\n\n${buildMorningOpener()}` : '';
   const inputModeBlock =
     args.input_mode === 'voice' ? `\n\n${VOICE_INPUT_RULE}` : `\n\n${TEXT_INPUT_RULE}`;
-  const onboardingRow = isOnboardingScreen ? await fetchOnboardingRow(args.anon_id) : null;
   const alreadyFilledBlock = onboardingRow ? buildAlreadyFilledBlock(onboardingRow) : '';
   const optionsBlock = isOnboardingScreen
     ? buildCanonicalOptionsBlock(args.screen_id, onboardingRow?.data ?? {})

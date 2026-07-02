@@ -46,11 +46,12 @@ describe('checkAdvanceData — canonical resync tail', () => {
     expect(gate(10, {})).toBeNull();
   });
 
-  it('spine cases 1-4: case 1 now requires both nickname AND gender', () => {
-    expect(gate(1, {})).toMatch(/profile_missing/);
-    // nickname-only is no longer sufficient — gender is required too
-    expect(gate(1, { nickname: 'Yo' })).toMatch(/gender_missing/);
-    expect(gate(1, { nickname: 'Yo', gender: 'Male' })).toBeNull();
+  it('spine cases 1-4: case 1 gates on age + gender (nickname captured at auth)', () => {
+    expect(gate(1, {})).toMatch(/age_missing/);
+    // age-only is not sufficient — gender is required too
+    expect(gate(1, { age: 28 })).toMatch(/gender_missing/);
+    // nickname absent is fine once age + gender are in
+    expect(gate(1, { age: 28, gender: 'Male' })).toBeNull();
     expect(gate(2, {}, { path: null })).toMatch(/path_missing/);
     expect(gate(2, {}, { path: 'simple' })).toBeNull();
     expect(gate(3, {})).toMatch(/category_or_braindump_missing/);

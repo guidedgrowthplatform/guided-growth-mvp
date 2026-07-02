@@ -47,18 +47,26 @@ function Wrapper({ children }: { children: ReactNode }) {
   );
 }
 
-function ToolBridge(props: { toolEvents: LLMToolEvent[]; resetKey: string | null }) {
+function ToolBridge(props: {
+  toolEvents: LLMToolEvent[];
+  resetKey: string | null;
+  onVoiceAction?: (r: unknown) => void;
+}) {
   useChatToolEvents({
     toolEvents: props.toolEvents,
     active: true,
     routes: [],
-    onVoiceAction: vi.fn(),
+    onVoiceAction: props.onVoiceAction ?? vi.fn(),
     resetKey: props.resetKey,
   });
   return null;
 }
 
-function render(props: { toolEvents: LLMToolEvent[]; resetKey: string | null }) {
+function render(props: {
+  toolEvents: LLMToolEvent[];
+  resetKey: string | null;
+  onVoiceAction?: (r: unknown) => void;
+}) {
   act(() => {
     root.render(
       <Wrapper>
@@ -135,5 +143,92 @@ describe('useChatToolEvents — dedup scope (Phase 2 resetKey)', () => {
     expect(cachedStep()).toBe(2);
     render({ toolEvents: [advanceStepEvt('tc-1', 3)], resetKey: 'screen-B' });
     expect(cachedStep()).toBe(3);
+  });
+});
+
+describe('useChatToolEvents — fans mapped voice actions for the card-fill beats', () => {
+  function dataEvt(id: string, name: string, args: Record<string, unknown>): LLMToolEvent {
+    return { id, name, args, result: { ok: true, payload: { ok: true, result: {} } } };
+  }
+  function actions(fn: ReturnType<typeof vi.fn>): string[] {
+    return fn.mock.calls.map((c) => (c[0] as { action: string }).action);
+  }
+
+  it('maps record_checkin to a record_checkin voice action', () => {
+    seedState(6);
+    const onVoiceAction = vi.fn();
+    render({
+      toolEvents: [dataEvt('rc-1', 'record_checkin', { sleep: 4, mood: 3, energy: 5, stress: 2 })],
+      resetKey: 'sess',
+      onVoiceAction,
+    });
+    expect(actions(onVoiceAction)).toContain('record_checkin');
+    expect(onVoiceAction.mock.calls[0][0]).toMatchObject({
+      action: 'record_checkin',
+      params: { sleep: 4, mood: 3, energy: 5, stress: 2 },
+    });
+  });
+
+  it('maps submit_morning_checkin to set_morning_checkin', () => {
+    seedState(6);
+    const onVoiceAction = vi.fn();
+    render({
+      toolEvents: [
+        dataEvt('mc-1', 'submit_morning_checkin', {
+          time: '08:00',
+          days: [0, 1, 2, 3, 4, 5, 6],
+          reminder: true,
+          schedule: 'Every day',
+        }),
+      ],
+      resetKey: 'sess',
+      onVoiceAction,
+    });
+    expect(actions(onVoiceAction)).toContain('set_morning_checkin');
+  });
+
+  it('maps update_habit to update_habit + set_habit_schedule when schedule present', () => {
+    seedState(6);
+    const onVoiceAction = vi.fn();
+    render({
+      toolEvents: [dataEvt('uh-1', 'update_habit', { name: 'Walking', time: '08:00' })],
+      resetKey: 'sess',
+      onVoiceAction,
+    });
+    expect(actions(onVoiceAction)).toEqual(
+      expect.arrayContaining(['update_habit', 'set_habit_schedule']),
+    );
+  });
+
+  it('maps submit_custom_prompts to a set_reflection_config prompts action', () => {
+    seedState(6);
+    const onVoiceAction = vi.fn();
+    render({
+      toolEvents: [
+        dataEvt('cp-1', 'submit_custom_prompts', {
+          prompts: ['What went well?', 'What drained you?'],
+        }),
+      ],
+      resetKey: 'sess',
+      onVoiceAction,
+    });
+    expect(actions(onVoiceAction)).toContain('set_reflection_config');
+    expect(onVoiceAction.mock.calls[0][0]).toMatchObject({
+      action: 'set_reflection_config',
+      params: { mode: 'prompts', prompts: ['What went well?', 'What drained you?'] },
+    });
+  });
+
+  it('does not fan any action when the tool result is not ok', () => {
+    seedState(6);
+    const onVoiceAction = vi.fn();
+    const rejected: LLMToolEvent = {
+      id: 'rc-x',
+      name: 'record_checkin',
+      args: { sleep: 4 },
+      result: { ok: false, payload: { ok: false, error: 'handler_error', message: 'bad' } },
+    };
+    render({ toolEvents: [rejected], resetKey: 'sess', onVoiceAction });
+    expect(onVoiceAction).not.toHaveBeenCalled();
   });
 });

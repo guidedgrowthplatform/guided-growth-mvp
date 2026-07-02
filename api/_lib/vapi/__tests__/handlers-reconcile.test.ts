@@ -368,13 +368,13 @@ describe('vapi navigateNext — skip + precondition guards', () => {
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects single-step forward when source data missing (step 1 → 2 with no nickname)', async () => {
+  it('rejects single-step forward when source data missing (step 1 → 2 with no age)', async () => {
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
       rows: [{ current_step: 1, data: {}, path: null, brain_dump_raw: null }],
     });
     const res = await navigateNext({ anon_id: ANON, target_step: 2 });
-    expect(res).toMatchObject({ error: expect.stringContaining('profile_missing') });
+    expect(res).toMatchObject({ error: expect.stringContaining('age_missing') });
     // Re-reads for the in-flight async submit, then rejects — never advances (no write).
     const wrote = pool.query.mock.calls.some((c) =>
       /INSERT INTO onboarding_states/i.test(String(c[0])),
@@ -398,15 +398,15 @@ describe('vapi navigateNext — skip + precondition guards', () => {
     expect(res).toMatchObject({ error: expect.stringContaining('path_missing') });
   });
 
-  it('allows single-step forward when source data is saved (step 1 → 2 with nickname + gender)', async () => {
+  it('allows single-step forward when source data is saved (step 1 → 2 with age + gender)', async () => {
     pool.query
       .mockResolvedValueOnce({
         rowCount: 1,
-        // gender is required to leave the profile step (strict gender gate).
+        // age + gender required to leave the profile step; nickname comes from auth.
         rows: [
           {
             current_step: 1,
-            data: { nickname: 'Yair', gender: 'Other' },
+            data: { age: 28, gender: 'Other' },
             path: null,
             brain_dump_raw: null,
           },
