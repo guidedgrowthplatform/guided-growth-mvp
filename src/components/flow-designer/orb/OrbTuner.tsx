@@ -167,6 +167,14 @@ export function OrbTuner() {
       saveParams(next);
       return next;
     });
+    // Yair's presets always snap back to his standard expand/contract motion, so
+    // his looks are never affected by motion experiments. Only Timothy's author
+    // block leaves the motion untouched, so it stays free to play with.
+    if (author === 'Yair') {
+      const ym = { ...MOTION_PRESETS['Yair default'] };
+      savePulse(ym);
+      setPulse(ym);
+    }
   };
 
   // Save the look you're editing (idle or talking) as a named, state-tagged preset.
