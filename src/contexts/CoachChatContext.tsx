@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from 'react';
+import { unlockCartesiaVoice } from '@/lib/services/cartesiaVoice';
 import { unlockTTS } from '@/lib/services/tts-service';
 
 export type CheckinScreenId = 'HOME-CHECKIN' | 'MCHECK-01' | 'ECHECK-01';
@@ -21,6 +22,7 @@ export function CoachChatProvider({ children }: { children: ReactNode }) {
   const openCoachChat = useCallback(
     (screenId: CheckinScreenId, opts?: { initiateCheckin?: boolean }) => {
       unlockTTS();
+      unlockCartesiaVoice();
       setOpenScreenId(screenId);
       if (opts?.initiateCheckin) setInitiateCheckinNonce((n) => n + 1);
     },

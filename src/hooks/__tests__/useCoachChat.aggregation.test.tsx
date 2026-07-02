@@ -92,9 +92,7 @@ const stopTTSMock = vi.fn();
 vi.mock('@/lib/services/tts-service', () => ({
   stopTTS: () => stopTTSMock(),
   speak: vi.fn(() => Promise.resolve()),
-  beginSpeechTurn: vi.fn(),
-  endSpeechTurn: vi.fn(() => Promise.resolve()),
-  pushSpeechChunk: vi.fn(),
+  setTtsSpeaking: vi.fn(),
   isAudioUnlocked: () => true,
   subscribeAudioUnlock: () => () => {},
   useTtsPlaybackStore: (sel: (s: { isSpeaking: boolean }) => unknown) => sel({ isSpeaking: false }),
