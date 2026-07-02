@@ -160,6 +160,7 @@ export function Orb({
   const leftCv = useRef<HTMLCanvasElement>(null);
   const rightCv = useRef<HTMLCanvasElement>(null);
   const fullCv = useRef<HTMLCanvasElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
 
   const cfg = useRef<OrbCfg>({ state, style, params, pulse, leftOn, rightOn });
   cfg.current = { state, style, params, pulse, leftOn, rightOn };
@@ -169,6 +170,7 @@ export function Orb({
   useEffect(() => {
     const orb = orbRef.current;
     if (!orb) return;
+    const shell = shellRef.current;
     const noise = makeNoise(701);
     const blobs = makeBlobs();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -400,23 +402,24 @@ export function Orb({
         if (leftHalfRef.current) leftHalfRef.current.style.transform = '';
         if (rightHalfRef.current) rightHalfRef.current.style.transform = '';
       }
-      // Breathing outer aura. box-shadow draws outside the clipped disc, so no
-      // DOM restructure is needed. Additive: aura 0 falls back to the CSS shadow.
-      if (!flat) {
+      // Organic outer membrane (matches the standalone HTML orb builder): morphing
+      // blobs that live outside the disc, breathing with the pulse and the mic.
+      // Driven by the aura param; 0 keeps it fully hidden so existing looks are
+      // unchanged. The morph itself is a CSS keyframe; JS drives size + color.
+      if (shell && !flat) {
         const auraP = (aset.aura ?? 0) / 100;
-        if (auraP > 0) {
-          const breathe = 0.6 + 0.4 * Math.sin(t2 * prate * 1.2);
-          const micA = m.on ? 0.7 + m.amp * 0.9 : 1;
-          const kk = auraP * breathe * micA;
-          const blur = 16 + 78 * kk;
-          const spr = 1 + 24 * kk;
-          const al = Math.min(0.6, 0.1 + 0.55 * auraP * breathe * micA);
-          const col =
-            c.state === 'coach' ? '59,130,246' : c.state === 'user' ? '250,190,45' : '129,150,255';
-          orb.style.boxShadow = `0 8px 22px rgba(20,30,60,.26), 0 0 ${blur.toFixed(1)}px ${spr.toFixed(1)}px rgba(${col},${al.toFixed(3)})`;
-        } else {
-          orb.style.boxShadow = '';
-        }
+        const breathe = 0.78 + 0.22 * Math.sin(t2 * prate * 1.1);
+        const micA = m.on ? 0.7 + m.amp * 0.8 : 1;
+        shell.style.setProperty('--mem', auraP.toFixed(3));
+        shell.style.setProperty('--memscale', (1 + auraP * (0.16 * breathe * micA)).toFixed(3));
+        shell.style.setProperty(
+          '--memc',
+          c.state === 'coach'
+            ? 'rgba(70,140,255,0.60)'
+            : c.state === 'user'
+              ? 'rgba(250,190,60,0.60)'
+              : 'rgba(150,175,255,0.55)',
+        );
       }
       drawHalf(leftCv.current, 'left', dt);
       drawHalf(rightCv.current, 'right', dt);
@@ -440,39 +443,52 @@ export function Orb({
 
   return (
     <div
-      ref={orbRef}
-      className={`ot-orb${flat ? 'ot-flat' : ''}`}
+      ref={shellRef}
+      className={`ot-shell${flat ? 'ot-flat' : ''}`}
       style={{ ['--D' as string]: `${size}px` } as React.CSSProperties}
     >
-      <div ref={leftHalfRef} className="ot-half ot-left" onClick={onToggleLeft}>
-        <canvas ref={leftCv} className="ot-cv" />
-        <div className="ot-glass" />
-        <div className="ot-spec" />
-        <div className="ot-ico">{showLeftIcon}</div>
+      <div className="ot-membrane" aria-hidden="true">
+        <div className="ot-mem ot-mem1" />
+        <div className="ot-mem ot-mem2" />
       </div>
-      <div ref={rightHalfRef} className="ot-half ot-right" onClick={onToggleRight}>
-        <canvas ref={rightCv} className="ot-cv" />
-        <div className="ot-glass" />
-        <div className="ot-spec" />
-        <div className="ot-ico">{showRightIcon}</div>
+      <div ref={orbRef} className="ot-orb">
+        <div ref={leftHalfRef} className="ot-half ot-left" onClick={onToggleLeft}>
+          <canvas ref={leftCv} className="ot-cv" />
+          <div className="ot-glass" />
+          <div className="ot-spec" />
+          <div className="ot-ico">{showLeftIcon}</div>
+        </div>
+        <div ref={rightHalfRef} className="ot-half ot-right" onClick={onToggleRight}>
+          <canvas ref={rightCv} className="ot-cv" />
+          <div className="ot-glass" />
+          <div className="ot-spec" />
+          <div className="ot-ico">{showRightIcon}</div>
+        </div>
+        <div className="ot-full-wrap">
+          <div className="ot-fullbody" />
+          <canvas ref={fullCv} className="ot-cv" />
+          <div className="ot-fullglass" />
+          <div className="ot-spec" />
+        </div>
+        <div className="ot-depth" />
+        <div className="ot-ring" />
+        <div className="ot-iris" />
       </div>
-      <div className="ot-full-wrap">
-        <div className="ot-fullbody" />
-        <canvas ref={fullCv} className="ot-cv" />
-        <div className="ot-fullglass" />
-        <div className="ot-spec" />
-      </div>
-      <div className="ot-depth" />
-      <div className="ot-ring" />
-      <div className="ot-iris" />
       <style>{ORB_CSS}</style>
     </div>
   );
 }
 
 const ORB_CSS = `
-.ot-orb{position:relative;width:var(--D);height:var(--D);border-radius:50%;overflow:hidden;--gap:max(5px, calc(var(--D)*0.06));--innerR:calc(var(--D)*0.0494);box-shadow:0 8px 22px rgba(20,30,60,.26), 0 0 24px 2px rgba(175,195,255,.16)}
-.ot-orb.ot-flat{box-shadow:none}
+.ot-shell{position:relative;display:inline-block;width:var(--D);height:var(--D)}
+.ot-membrane{position:absolute;left:50%;top:50%;width:calc(var(--D) * 1.42);height:calc(var(--D) * 1.42);transform:translate(-50%,-50%) scale(var(--memscale,1));opacity:var(--mem,0);pointer-events:none;z-index:0}
+.ot-shell.ot-flat .ot-membrane{display:none}
+.ot-mem{position:absolute;left:50%;top:50%;width:100%;height:100%;transform:translate(-50%,-50%);pointer-events:none;mix-blend-mode:screen;filter:blur(calc(var(--D) * 0.05));background:radial-gradient(circle at 42% 38%, var(--memc, rgba(150,175,255,.55)) 0%, transparent 66%);border-radius:46% 54% 52% 48% / 52% 46% 54% 48%;animation:ot-wob 7s ease-in-out infinite}
+.ot-mem2{width:80%;height:80%;opacity:.82;filter:blur(calc(var(--D) * 0.035));animation:ot-wob2 5.2s ease-in-out infinite}
+@keyframes ot-wob{0%,100%{border-radius:46% 54% 52% 48% / 52% 46% 54% 48%;rotate:0deg}50%{border-radius:54% 46% 48% 52% / 46% 54% 47% 53%;rotate:8deg}}
+@keyframes ot-wob2{0%,100%{border-radius:52% 48% 46% 54% / 48% 52% 50% 50%;rotate:0deg}50%{border-radius:47% 53% 55% 45% / 53% 47% 52% 48%;rotate:-9deg}}
+.ot-orb{position:relative;z-index:1;width:var(--D);height:var(--D);border-radius:50%;overflow:hidden;--gap:max(5px, calc(var(--D)*0.06));--innerR:calc(var(--D)*0.0494);box-shadow:0 8px 22px rgba(20,30,60,.26), 0 0 24px 2px rgba(175,195,255,.16)}
+.ot-shell.ot-flat .ot-orb{box-shadow:none}
 .ot-orb.ot-full{--gap:0px;--innerR:0px}
 .ot-half{position:absolute;top:0;height:100%;width:calc(50% - var(--gap)/2);overflow:hidden;background:radial-gradient(125% 125% at 50% 34%, rgba(255,255,255, calc(0.20 + 0.16*(1 - var(--body)))), rgba(255,255,255, calc(0.04 + 0.05*(1 - var(--body)))) 52%, rgba(8,11,22, calc(0.10 + 0.52*var(--body))) 100%)}
 .ot-half.ot-left{left:0;border-top-right-radius:var(--innerR);border-bottom-right-radius:var(--innerR);transform-origin:100% 50%}
