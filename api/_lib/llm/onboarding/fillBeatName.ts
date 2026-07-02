@@ -1,6 +1,5 @@
-// Server mirror of frontend applyName: normalize {name} in beat copy before the
-// LLM sees it. Known nickname → substituted; unknown → token dropped cleanly
-// (no literal "{name}" ever reaches the model).
+// Server mirror of frontend applyName: known nickname → substituted;
+// unknown → token dropped cleanly so no literal "{name}" reaches the model.
 export function fillBeatName(text: string, nickname?: string | null): string {
   if (!text.includes('{name}')) return text;
   const name = (nickname ?? '').trim();
