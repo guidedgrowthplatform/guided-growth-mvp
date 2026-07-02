@@ -9,6 +9,7 @@ import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { useCoachTranscripts } from '@/contexts/useCoachVoiceSession';
 import { useDualButtonControls } from '@/hooks/useDualButtonControls';
 import type { CoachChatApi } from '@/lib/chat/coachChatTypes';
+import { stopVoice, useCartesiaRevealStore } from '@/lib/services/cartesiaVoice';
 import { stopTTS } from '@/lib/services/tts-service';
 import { useVoiceStore } from '@/stores/voiceStore';
 
@@ -78,7 +79,7 @@ export function CoachChatView({
   displayName,
   onClose,
 }: CoachChatViewProps) {
-  const { micOn: micRuntimeOn } = useDualButtonControls();
+  const { micOn: micRuntimeOn, voiceOn: voiceChosen } = useDualButtonControls();
 
   // Soniox interim (set by useCoachChat's onInterim). Shows the user typing-by-voice.
   const interim = useVoiceStore((s) => s.interim);
@@ -95,6 +96,12 @@ export function CoachChatView({
   const displayedAssistant = partialAssistant;
   const displayedUser = interim;
 
+  const revealActive = useCartesiaRevealStore((s) => s.active);
+  const revealedWords = useCartesiaRevealStore((s) => s.revealedWords);
+  // Voice on: pace the bubble to audio from the first token (0 until audio) so it
+  // grows from empty instead of showing full then collapsing. Off: full stream.
+  const coachRevealWords = voiceChosen ? (revealActive ? revealedWords : 0) : null;
+
   let revealingId: string | null = null;
   if (displayedAssistant.length > 0) {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -107,6 +114,7 @@ export function CoachChatView({
   const renderedMessages = revealingId ? messages.filter((m) => m.id !== revealingId) : messages;
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const pinnedToBottomRef = useRef(true);
   const touchStartY = useRef<number | null>(null);
   // Captured just before loadOlder(): scrollHeight + the current top message id.
@@ -145,6 +153,20 @@ export function CoachChatView({
     if (pinnedToBottomRef.current) el.scrollTop = el.scrollHeight;
   }, [messages.length, firstMessageId, isProcessing, displayedAssistant, displayedUser]);
 
+  // Keep the bottom pinned through async growth the dep-array pin misses —
+  // typing→streaming→final-with-cards swap, card mounts, word-by-word reveal.
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    const content = contentRef.current;
+    if (!el || !content || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      if (prependAnchorRef.current !== null) return;
+      if (pinnedToBottomRef.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, []);
+
   useCoachTranscripts((evt) => {
     if (evt.role !== 'assistant') return;
     if (evt.kind === 'partial') setPartialAssistant(evt.text);
@@ -153,6 +175,7 @@ export function CoachChatView({
 
   const handleClose = useCallback(() => {
     stopTTS();
+    stopVoice();
     onClose();
   }, [onClose]);
 
@@ -229,44 +252,47 @@ export function CoachChatView({
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {loadingOlder && (
-          <div className="py-2 text-center text-[12px] font-medium text-slate-500">
-            Loading older messages…
-          </div>
-        )}
-        {renderedMessages.map((msg) => (
-          <CoachMessageRow
-            key={msg.id}
-            msg={msg}
-            displayName={displayName}
-            updateHabitDays={updateHabitDays}
-            onClose={handleClose}
-          />
-        ))}
-        {displayedAssistant.length > 0 && (
-          <ChatBubble
-            role="ai"
-            text={displayedAssistant}
-            userName={displayName}
-            eyebrowVariant="dark"
-            compact
-            animate={false}
-            streaming
-            markdown
-          />
-        )}
-        {micLive && displayedUser.length > 0 && (
-          <ChatBubble
-            role="user"
-            text={displayedUser}
-            userName={displayName}
-            eyebrowVariant="dark"
-            compact
-            animate={false}
-            streaming
-          />
-        )}
-        {isProcessing && partialAssistant.length === 0 && <TypingIndicator />}
+        <div ref={contentRef}>
+          {loadingOlder && (
+            <div className="py-2 text-center text-[12px] font-medium text-slate-500">
+              Loading older messages…
+            </div>
+          )}
+          {renderedMessages.map((msg) => (
+            <CoachMessageRow
+              key={msg.id}
+              msg={msg}
+              displayName={displayName}
+              updateHabitDays={updateHabitDays}
+              onClose={handleClose}
+            />
+          ))}
+          {displayedAssistant.length > 0 && (
+            <ChatBubble
+              role="ai"
+              text={displayedAssistant}
+              userName={displayName}
+              eyebrowVariant="dark"
+              compact
+              animate={false}
+              streaming
+              markdown
+              revealWords={coachRevealWords}
+            />
+          )}
+          {micLive && displayedUser.length > 0 && (
+            <ChatBubble
+              role="user"
+              text={displayedUser}
+              userName={displayName}
+              eyebrowVariant="dark"
+              compact
+              animate={false}
+              streaming
+            />
+          )}
+          {isProcessing && partialAssistant.length === 0 && <TypingIndicator />}
+        </div>
       </div>
 
       {/* clear nav bar (72) + orb half poking above it (46) + gap */}

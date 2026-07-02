@@ -10,8 +10,8 @@ voice-sync:
   resource_group: voice-sync
   timeout: 5 minutes
   variables:
-    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
-    GOOGLE_APPLICATION_CREDENTIALS: "$GCP_SA_KEY"
+    PIP_CACHE_DIR: '$CI_PROJECT_DIR/.pip-cache'
+    GOOGLE_APPLICATION_CREDENTIALS: '$GCP_SA_KEY'
   cache:
     key: voice-sync-pip
     paths:
@@ -47,7 +47,7 @@ deploy_qa_preview:
       case "$CI_COMMIT_REF_NAME" in
         staging|stable|main)
           if [ -n "$MATTERMOST_WEBHOOK_URL" ]; then
-            curl -s -X POST "$MATTERMOST_WEBHOOK_URL" -H 'Content-Type: application/json' -d "{\"text\": \"@yairamsel :rocket: \`${CI_COMMIT_REF_NAME}\` deployed -> ${SHOWN_URL}\n> ${CI_COMMIT_TITLE}\"}" || true
+            curl -s -X POST "$MATTERMOST_WEBHOOK_URL" -H 'Content-Type: application/json' -d "{\"text\": \"@yairamsel :rocket: \`${CI_COMMIT_REF_NAME}\` deployed by ${GITLAB_USER_NAME} -> ${SHOWN_URL}\n> ${CI_COMMIT_TITLE}\"}" || true
           fi
           ;;
         *)

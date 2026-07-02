@@ -1,5 +1,6 @@
 import { MarkdownMessage } from '@/components/chat/MarkdownMessage';
 import { safeStreamPrefix } from '@/lib/markdown/parse';
+import { sliceWords } from '@/lib/text/words';
 
 interface ChatBubbleProps {
   role: 'user' | 'ai';
@@ -10,6 +11,8 @@ interface ChatBubbleProps {
   compact?: boolean;
   streaming?: boolean;
   markdown?: boolean;
+  // Audio-synced reveal: clamp rendered text to the first N spoken words.
+  revealWords?: number | null;
 }
 
 function StreamingText({ text }: { text: string }) {
@@ -33,8 +36,11 @@ export function ChatBubble({
   compact = false,
   streaming = false,
   markdown = false,
+  revealWords = null,
 }: ChatBubbleProps) {
   const isUser = role === 'user';
+  // Clamp to the audio-revealed word count when driven; else full text.
+  const shownText = typeof revealWords === 'number' ? sliceWords(text, revealWords) : text;
   const isLightBackdrop = eyebrowVariant === 'dark';
   const userEyebrowColor = isLightBackdrop ? 'text-[#616f89]' : 'text-[rgba(255,255,255,0.4)]';
   const userBubbleSurface = isLightBackdrop
@@ -92,10 +98,12 @@ export function ChatBubble({
         >
           {markdown ? (
             <div className={textClasses}>
-              <MarkdownMessage text={streaming ? safeStreamPrefix(text) : text} />
+              <MarkdownMessage text={streaming ? safeStreamPrefix(shownText) : shownText} />
             </div>
           ) : (
-            <p className={textClasses}>{streaming ? <StreamingText text={text} /> : text}</p>
+            <p className={textClasses}>
+              {streaming ? <StreamingText text={shownText} /> : shownText}
+            </p>
           )}
         </div>
       </div>
