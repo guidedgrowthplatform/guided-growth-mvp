@@ -76,8 +76,12 @@ function deriveFinalData(answers: FlowAnswers): Partial<OnboardingStepData> {
  * (or until no progress). Used by the QA startAtNodeId seed to skip pre-beat
  * nodes (auth, mic) so a tester can jump straight to, e.g., the profile beat.
  * Each intermediate node is advanced with an empty capture (no data written).
- * Pure; does not mutate state. Returns the original state unchanged if the
- * target node is not reachable from the start.
+ * branchFallthrough is the QA-walk opt-in: it keeps merge-side ?startAt targets
+ * (into-app, the weekly beats) reachable past an unanswered fork now that the
+ * machine's default contract holds at it. Lane-side targets still stall at the
+ * fork here; the lane-aware walk (seeding the target lane's path) lands with
+ * MR !400 and composes with this flag. Pure; does not mutate state. Returns the
+ * original state unchanged if the target node is not reachable from the start.
  */
 export function fastForwardToNode(
   flow: FlowDocument,
@@ -88,7 +92,7 @@ export function fastForwardToNode(
   for (let guard = 0; guard < 50; guard++) {
     if (st.currentNodeId === targetNodeId) break;
     if (st.status === 'complete') break;
-    const next = applyCapture(flow, st, { data: {} });
+    const next = applyCapture(flow, st, { data: {} }, { branchFallthrough: true });
     if (next.currentNodeId === st.currentNodeId) break; // no progress
     st = next;
   }
@@ -173,6 +177,27 @@ export function serverCaptureForBeat(
       break;
   }
   return out;
+}
+
+/**
+ * Whether a server-derived capture actually proves the beat completed. A beat
+ * that persists fields must replay at least one of them (or the fork's path)
+ * before a server current_step climb may advance past it. The critical case is
+ * the branch node: the reflection save's climb (7 to 8) landing AFTER the fork
+ * became active used to push an EMPTY capture through the fork, which fell
+ * through to the merge node and ran the flow to the end with path=null (the
+ * live jump-to-end past an unanswered fork). Beats that persist nothing
+ * (why-intro, into-app, weekly projections) advance freely. Pure; kept
+ * IDENTICAL to MR !400's B21 gate so the two branches merge clean. Used ONLY
+ * by the live leading-edge advance (the resume walk keeps its own pass-through
+ * semantics, see resumeFromServerRow).
+ */
+export function captureCompletesBeat(node: FlowNode | undefined, cap: BeatCapture): boolean {
+  if (!node) return false;
+  const persistsData = node.persist != null || (node.tool?.persistsFields?.length ?? 0) > 0;
+  if (!persistsData) return true;
+  if (cap.path) return true;
+  return Object.keys(cap.data).length > 0;
 }
 
 /**
@@ -487,12 +512,19 @@ export function useFlowOrchestrator(
     }
   }, [serverStep, serverData, flow]);
 
+  // Baseline for the fork's evidence-arrival advance below: the path value the
+  // server row already held when the branch node became active (null = none,
+  // undefined = not yet observed). A back-nav to an already-answered fork must
+  // not be yanked straight forward by its own stale answer.
+  const forkEntryPathRef = useRef<OnboardingPath | null | undefined>(undefined);
+
   // Reset the per-beat baseline + fired-flag whenever the active beat changes, so
   // each beat judges advancement against the step seen on entry (not a prior
   // beat's) and a re-entered beat can advance again.
   useEffect(() => {
     baselineStepRef.current = null;
     advancedNodeRef.current = null;
+    forkEntryPathRef.current = undefined;
   }, [activeNodeId]);
   useEffect(() => {
     if (!activeNodeId || state.status === 'complete') return;
@@ -511,8 +543,43 @@ export function useFlowOrchestrator(
     // Advance only on a genuine climb past this beat's step (the coach saved it).
     if (serverStep <= baselineStepRef.current) return;
     if (serverStep <= thisStep) return;
-    advancedNodeRef.current = activeNodeId;
     const cap = serverCaptureForBeat(node, (serverData ?? {}) as OnboardingStepData);
+    // Data gate (parity with !400's B21 gate): a bare step climb must not push a
+    // beat forward with a capture the server row cannot replay yet. At the branch
+    // node this is the jump-to-end fix: under V3's non-monotonic persist steps a
+    // pre-fork save (reflection, step 8) lands its climb AFTER the fork becomes
+    // active, and the fork's own step (2) sits far below it — without the gate
+    // that stale climb advanced the fork with an empty capture. The once-per-beat
+    // latch is consumed only on a real advance, so a later row that does carry
+    // the data still advances this beat.
+    if (!captureCompletesBeat(node, cap)) return;
+    advancedNodeRef.current = activeNodeId;
+    applyAndAdvance(cap, false);
+  }, [activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
+
+  // Answered-fork advance (evidence arrival, no climb required). The fork can be
+  // answered with NO current_step movement at all: Vapi's submit_path_choice runs
+  // server-side and writes the path column, but the tap path's GREATEST pin keeps
+  // current_step at 8 (the pre-fork setup saves), so the leading-edge climb above
+  // never fires at the fork (its step, 2, is already far below the pin). Realtime
+  // still mirrors the row in — so at a branch node, advance the moment the row
+  // holds a lane value that was NOT there when the fork became active. A card tap
+  // advances synchronously in capture() and never reaches here; a pre-answered
+  // fork (voice back-nav) records its stale answer as the entry baseline and
+  // waits for the user.
+  useEffect(() => {
+    if (!activeNodeId || state.status === 'complete') return;
+    if (typeof serverStep !== 'number') return; // no server row (preview / not loaded)
+    const node = getNode(flow, activeNodeId);
+    if (!node || node.type !== 'branch') return;
+    const cap = serverCaptureForBeat(node, (serverData ?? {}) as OnboardingStepData);
+    if (forkEntryPathRef.current === undefined) {
+      forkEntryPathRef.current = cap.path ?? null;
+      if (cap.path) return; // entered with an existing answer: back-nav, hold
+    }
+    if (!cap.path || cap.path === forkEntryPathRef.current) return;
+    if (advancedNodeRef.current === activeNodeId) return; // fire once per beat
+    advancedNodeRef.current = activeNodeId;
     applyAndAdvance(cap, false);
   }, [activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
 
