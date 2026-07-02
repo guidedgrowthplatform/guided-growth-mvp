@@ -162,3 +162,4 @@ before !397 undrafts). No other WIP: every branch is fully committed + pushed.
    panel). Workaround in use: Playwright headless for no-write checks.
    **Yonas: check the Chrome extension side panel / restart Chrome.**
 - 2026-07-02 16:09 IDT — TAKEOVER: run continues in Yair's session; worktrees rebuilt under ~/Developer/claude-work; walker import made portable; starting Loop 1 no-write verification
+- 2026-07-02 19:28 IDT — Loop 1 no-write verification: pool fix (preview route now mounts preloadOpenerClips, commit on loop1) verified locally: all 18 clips + splash + mic warm at mount; full chain walked to ONBOARD-COMPLETE; no NotAllowedError silent settles; AbortErrors are walk-speed artifacts. Env flip: 4/5 Preview rows updated; VITE_SUPABASE_URL Preview missed (still Jun 29) — fresh previews still bundle prod ref; asked Yair for the one-row fix. Starting Loop 4.
