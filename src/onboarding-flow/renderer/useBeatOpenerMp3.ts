@@ -139,6 +139,9 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
     setProgress(null);
     setDone(false);
 
+    // TEMP(loop1): unconditional so "player never invoked" is distinguishable
+    // from playback failures in the preview console.
+    console.warn('[useBeatOpenerMp3] activating', src);
     const el = new Audio(src);
     el.preload = 'auto';
     // Apply QA mute state at creation so the element is pre-configured.
@@ -158,9 +161,13 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
       settle();
     };
     el.onerror = () => {
-      if (import.meta.env.DEV) {
-        console.warn('[useBeatOpenerMp3] failed to play', src);
-      }
+      // TEMP(loop1): unconditional so preview builds surface the failure class.
+      console.warn(
+        '[useBeatOpenerMp3] media error',
+        src,
+        el.error?.code,
+        el.error?.message ?? '',
+      );
       settle();
     };
 
@@ -186,9 +193,8 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
         // Autoplay blocked (iOS before gesture, or audio policy). Resolve cleanly
         // so the karaoke falls back to its fixed-cadence timer and the beat
         // doesn't dead-end.
-        if (import.meta.env.DEV) {
-          console.warn('[useBeatOpenerMp3] autoplay blocked:', err);
-        }
+        // TEMP(loop1): unconditional so preview builds surface the failure class.
+        console.warn('[useBeatOpenerMp3] play() rejected:', src, (err as Error)?.name, err);
         settle();
       });
 
