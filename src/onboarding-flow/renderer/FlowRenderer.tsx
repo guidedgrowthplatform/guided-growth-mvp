@@ -52,15 +52,25 @@ export function FlowRenderer({ orchestrator }: FlowRendererProps) {
           {state.visited.map((id) => {
             const node = getNode(flow, id);
             if (!node) return null;
+            const active = !isComplete && id === currentNode?.id;
             return (
-              <BeatView
+              // display:contents wrapper: zero layout impact, but tags each beat
+              // in the DOM (data-beat-id / data-beat-active) so QA walkers and
+              // timeline-stability checks can observe exactly which beats render.
+              <div
                 key={id}
-                node={node}
-                answers={answers}
-                active={!isComplete && id === currentNode?.id}
-                onCapture={capture}
-                onReveal={scrollToBottom}
-              />
+                style={{ display: 'contents' }}
+                data-beat-id={id}
+                data-beat-active={active || undefined}
+              >
+                <BeatView
+                  node={node}
+                  answers={answers}
+                  active={active}
+                  onCapture={capture}
+                  onReveal={scrollToBottom}
+                />
+              </div>
             );
           })}
 

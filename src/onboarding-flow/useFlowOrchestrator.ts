@@ -68,7 +68,7 @@ import {
 } from './flowMachine';
 import { composeBeatContext } from './generalContext';
 import type { FlowPersistence } from './persistence';
-import type { BeatCapture, FlowAnswers, FlowDocument, FlowNode } from './types';
+import type { BeatCapture, BranchNode, FlowAnswers, FlowDocument, FlowNode } from './types';
 
 /** The fields PlanReviewPage.complete() persists at the end of onboarding. */
 function deriveFinalData(answers: FlowAnswers): Partial<OnboardingStepData> {
@@ -77,12 +77,39 @@ function deriveFinalData(answers: FlowAnswers): Partial<OnboardingStepData> {
 }
 
 /**
+ * Which fork lane (if any) contains `targetNodeId`, walking each lane's chain
+ * from its entry to its exit. Lets the fast-forward walk resolve a branch
+ * TOWARD the target instead of falling through to the merge node (which used
+ * to skip the whole lane and run the machine to completion).
+ */
+function laneValueContaining(
+  flow: FlowDocument,
+  branch: BranchNode,
+  targetNodeId: string,
+): string | null {
+  for (const lane of branch.lanes) {
+    let id: string | null = lane.entryNodeId;
+    for (let guard = 0; guard < 50 && id; guard++) {
+      if (id === targetNodeId) return lane.value;
+      if (id === lane.exitNodeId) break;
+      const node = getNode(flow, id);
+      if (!node || node.type === 'branch') break;
+      id = node.nextId;
+    }
+  }
+  return null;
+}
+
+/**
  * Walk the machine forward from `fromState` until `currentNodeId === targetNodeId`
  * (or until no progress). Used by the QA startAtNodeId seed to skip pre-beat
  * nodes (auth, mic) so a tester can jump straight to, e.g., the profile beat.
- * Each intermediate node is advanced with an empty capture (no data written).
+ * Each intermediate node is advanced with an empty capture (no data written);
+ * a branch node is advanced with the path of the lane that contains the target
+ * (so ?startAt=goals lands ON goals instead of skipping the beginner lane).
  * Pure; does not mutate state. Returns the original state unchanged if the
- * target node is not reachable from the start.
+ * target node is not reached (e.g. an unknown id), instead of a fully-walked,
+ * already-complete machine.
  */
 export function fastForwardToNode(
   flow: FlowDocument,
@@ -91,13 +118,20 @@ export function fastForwardToNode(
 ): FlowMachineState {
   let st = fromState;
   for (let guard = 0; guard < 50; guard++) {
-    if (st.currentNodeId === targetNodeId) break;
+    if (st.currentNodeId === targetNodeId) return st;
     if (st.status === 'complete') break;
-    const next = applyCapture(flow, st, { data: {} });
+    const node = getNode(flow, st.currentNodeId);
+    const cap: BeatCapture = { data: {} };
+    if (node?.type === 'branch') {
+      const laneValue = laneValueContaining(flow, node, targetNodeId);
+      if (laneValue === 'simple' || laneValue === 'braindump') cap.path = laneValue;
+    }
+    const next = applyCapture(flow, st, cap);
     if (next.currentNodeId === st.currentNodeId) break; // no progress
     st = next;
   }
-  return st;
+  // Target never reached: seed at the entry instead of a burned-through flow.
+  return fromState;
 }
 
 /** The step this beat completes (persist.step is the canonical save step). */
@@ -177,6 +211,25 @@ export function serverCaptureForBeat(
       break;
   }
   return out;
+}
+
+/**
+ * Whether a server-derived capture actually proves the beat completed. A beat
+ * that persists fields must replay at least one of them (or the fork's path)
+ * before a server current_step climb may advance past it. Advancing a data
+ * beat on a bare step overshoot is how habit-select and habit-schedule ended
+ * up rendering SIMULTANEOUSLY (B21): a second step event skipped the picker
+ * with no habits chosen, freezing an empty card next to the schedule card.
+ * Beats that persist nothing (why-intro, into-app, weekly projections) advance
+ * freely. Pure, unit-tested; used ONLY by the live leading-edge advance (the
+ * resume walk keeps its own pass-through semantics, see Loop 2).
+ */
+export function captureCompletesBeat(node: FlowNode | undefined, cap: BeatCapture): boolean {
+  if (!node) return false;
+  const persistsData = node.persist != null || (node.tool?.persistsFields?.length ?? 0) > 0;
+  if (!persistsData) return true;
+  if (cap.path) return true;
+  return Object.keys(cap.data).length > 0;
 }
 
 /**
@@ -424,8 +477,13 @@ export function useFlowOrchestrator(
     // Advance only on a genuine climb past this beat's step (the coach saved it).
     if (serverStep <= baselineStepRef.current) return;
     if (serverStep <= thisStep) return;
-    advancedNodeRef.current = activeNodeId;
     const cap = serverCaptureForBeat(node, (serverData ?? {}) as OnboardingStepData);
+    // Data gate (B21): a step climb alone must not skip a data beat. If the
+    // persisted data does not replay this beat's capture yet, hold; a later
+    // realtime event carrying the data (same climb, fuller row) still advances
+    // because advancedNodeRef was not consumed.
+    if (!captureCompletesBeat(node, cap)) return;
+    advancedNodeRef.current = activeNodeId;
     applyAndAdvance(cap, false);
   }, [activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
 
