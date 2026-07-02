@@ -1,4 +1,8 @@
-import { chromium } from '/Users/jonah/Documents/gg-loop2/node_modules/playwright/index.mjs';
+// Run from a worktree root that has node_modules (e.g. the loop1 worktree):
+//   node ../gg-status/docs/fix-reports/preview-walker.mjs <url> [blocked]
+// Bare-specifier resolution walks up from THIS file, so keep a copy next to
+// node_modules or set NODE_PATH; simplest is `cp` into the worktree root.
+import { chromium } from 'playwright';
 
 const URL = process.argv[2] ?? 'https://gg-kxtkk853f-guided-growths-projects.vercel.app/onboarding-flow-preview';
 const AUTOPLAY = process.argv[3] !== 'blocked';
