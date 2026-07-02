@@ -12,13 +12,18 @@
  * never the card's own state, selection, voice capture, or saving. Those stay in
  * the card adapters and the orchestrator, untouched.
  */
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useReducer, useRef, useState, type ReactNode } from 'react';
 import {
   useOnboardingVoice,
   type OnboardingTranscriptListener,
   type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
+import {
+  COACH_THINKING_INITIAL,
+  coachThinkingReducer,
+  showCoachThinking,
+} from './coachThinking';
 import { openerTurns } from './openerTurns';
 import { countWords, useCoachSpeechReveal } from './useCoachSpeechReveal';
 
@@ -264,30 +269,43 @@ export function BeatConversation({
   );
 }
 
-// True after the user finishes a turn and before the coach starts replying (and
-// while a Direct-LLM turn is in flight). Keys off a USER final, so it never fires
-// during the opener (no user turn yet) and clears as soon as the coach speaks.
+// True after the user finishes a turn ON THIS BEAT and before the coach starts
+// replying. Keys off a USER final, so it never fires during the opener (no user
+// turn yet) and clears as soon as the coach speaks. The B19 rules live in the
+// pure coachThinkingReducer: a stream already busy at mount belongs to the
+// previous beat (no loading bubble on beat load), and a stream that settles
+// with no assistant output clears the latch (no stuck bubble).
 function useCoachThinking(): boolean {
   const session = useOnboardingVoice();
   const subscribe = session?.subscribeTranscripts;
   const speaking = session?.isAssistantSpeaking ?? false;
   const chatBusy = session?.chatBusy ?? false;
-  const [awaiting, setAwaiting] = useState(false);
+  const [state, dispatch] = useReducer(coachThinkingReducer, COACH_THINKING_INITIAL);
 
   useEffect(() => {
     if (!subscribe) return;
     const onTranscript: OnboardingTranscriptListener = (evt) => {
-      if (evt.role === 'user' && evt.kind === 'final') setAwaiting(true);
-      else if (evt.role === 'assistant') setAwaiting(false);
+      if (evt.role === 'user' && evt.kind === 'final') dispatch({ type: 'user-final' });
+      else if (evt.role === 'assistant') dispatch({ type: 'assistant-activity' });
     };
     return subscribe(onTranscript);
   }, [subscribe]);
 
   useEffect(() => {
-    if (speaking) setAwaiting(false);
+    if (speaking) dispatch({ type: 'assistant-activity' });
   }, [speaking]);
 
-  return (awaiting || chatBusy) && !speaking;
+  // Edge-detect chatBusy: only a rise observed while mounted counts as "busy
+  // here"; a settle clears everything (covers reply-less failures).
+  const prevBusyRef = useRef(chatBusy);
+  useEffect(() => {
+    const wasBusy = prevBusyRef.current;
+    prevBusyRef.current = chatBusy;
+    if (chatBusy && !wasBusy) dispatch({ type: 'busy-rose' });
+    else if (!chatBusy && wasBusy) dispatch({ type: 'busy-settled' });
+  }, [chatBusy]);
+
+  return showCoachThinking(state, speaking);
 }
 
 // The coach "thinking" loading cue in the flow feed. Uses the home coach's
