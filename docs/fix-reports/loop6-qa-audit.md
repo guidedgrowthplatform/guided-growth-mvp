@@ -7,15 +7,29 @@ redone here; rows below reference them where they apply.
 
 ## The audit table (button -> claimed -> actual -> verdict)
 
-Code-read on staging 9526b377; "preview" column filled after live verification
-on this branch's deploy_qa_preview URL (see MR).
+Code-read on staging 9526b377. Live verification 2026-07-02 evening on preview
+gg-415l647na (staging Supabase confirmed in-bundle: ppyouymvnrqxcsllrmsl x1,
+prod ref x0; user qa-onboarding-fable, Vapi off). Harness: Playwright headless,
+`docs/fix-reports/loop6-preview-walker.mjs` + `loop6-rerun-failures.mjs`;
+evidence (screenshots + results.json with request log) at /tmp/gg-verify-loop6.
+
+Verified verdicts: rows 1, 2 (incl. the B22 warm-heap fresh-state-read), 3, 5,
+6, 7, 8, 9, 10, 11 all PASS on the preview. Row 4 FAILS on this branch - the
+"Mic + Profile" tile lands on the PROFILE card, mic beat skipped. Root cause is
+the B10 class owned by Loop 2: FlowOnboarding persists the sign-in nickname up
+front (current_step=1) and staging's numeric resume then walks the machine past
+the seeded mic stop to the step-1 beat. MicPermissionAdapter has no auto-skip
+(headless artifact ruled out). Fix belongs to !398's evidence-driven resume (its
+own verification saw the mic beat present); re-verify this tile after !398
+merges rather than duplicating the resume fix here. Row 13 (voice ON at launch)
+likewise re-verifies after !398.
 
 | # | Control | Claims | Actually does (staging, pre-fix) | Verdict / action |
 |---|---|---|---|---|
 | 1 | Test user dropdown | "the dropdown reflects the real accounts" (live list from /api/qa/users, fallback static) | Endpoint verified healthy on staging previews now (200: Fable, Mintesnot). The worklog's "/api/qa/users 500s on both previews" observation is STALE - that was the pre-env-flip state. Fallback list contained five prod-era accounts, none of which exist on staging, so an endpoint outage would leave only sign-in-failing picks | Fixed (minor): fallback list now leads with the two accounts that exist on staging (Fable, Mintesnot); prod-era names kept behind them |
 | 2 | Tile "Full onboarding" - "Fresh run from auth" | Sign in as picked user, wipe server rows, navigate /onboarding/flow | Wipe works. The launch can still not LOOK fresh for the known reasons: B17 stale thread (owned by MR !400) and B9 resume (owned by MR !398) - both out of scope here. NEW latent bug B22 found while auditing the launch path: react-query gate/resume cache survives a user switch (see fix 1); latent today because every entry to the launcher is a fresh page load, but armed by any multi-action visit (including this MR's stay-put reset) or future SPA entry | Fixed (B22, defensive): queryClient.clear() before navigation. Composes with !400's hard reload |
-| 3 | Tile "Profile start" - "Skip auth, start at profile beat" | ?startAt=profile fast-forwards auth+mic with empty captures; user already signed in via ensureSignedIn | Mechanism real on staging (FlowOnboarding reads startAt; fastForwardToNode walks pre-fork nodes deterministically). Same B22 caveat as row 2 | True after fix 1; verified on preview |
-| 4 | Tile "Mic + Profile" - "Start at mic permission, then profile" | ?startAt=mic stops the seed walk at the mic node | Same as row 3, one hop earlier | True after fix 1; verified on preview |
+| 3 | Tile "Profile start" - "Skip auth, start at profile beat" | ?startAt=profile fast-forwards auth+mic with empty captures; user already signed in via ensureSignedIn | Mechanism real on staging (FlowOnboarding reads startAt; fastForwardToNode walks pre-fork nodes deterministically). Same B22 caveat as row 2 | PASS on preview: lands on the profile card (age picker + gender chips, name-filled greeting) |
+| 4 | Tile "Mic + Profile" - "Start at mic permission, then profile" | ?startAt=mic stops the seed walk at the mic node | FAILS live: lands on the PROFILE card, mic beat skipped. B10 class - the up-front nickname persist writes current_step=1 and staging's numeric resume walks past the seeded mic stop. MicPermissionAdapter has no auto-skip, so not a headless artifact | NOT fixed here (would duplicate Loop 2's resume rewrite). Owned by !398; re-verify after it merges |
 | 5 | Tile "Home tour" - "Post-onboarding app tour", tagged "partial" | Navigates /flow-preview/home-tour; 'home-tour' componentType absent from componentRegistry | Honest: the tile itself declares "partial" and the hint line explains. But launching it WIPED the picked user's server data for nothing (in-memory preview, see fix 2) | Fixed (fix 2): preview tiles no longer self-reset |
 | 6 | Tile "Morning check-in" - "4-beat morning state-check flow" | Navigates /flow-preview/morning-checkin | Beat count TRUE (4 nodes: greeting, state, are-you-done, wrap). All componentTypes registered. But the launch wiped the picked user's server data and the in-memory preview never reads it - a destructive no-op (a tester "just looking at the morning flow" silently destroys the selected account's data) | Fixed (fix 2) |
 | 7 | Tile "Evening check-in" - "5-beat evening flow" | Navigates /flow-preview/evening-checkin | Beat count TRUE (5 nodes). HabitReviewAdapter reads in-memory answers with a static sample fallback - confirmed no server reads, so the wipe changes nothing on screen | Fixed (fix 2) |
