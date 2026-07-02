@@ -41,10 +41,9 @@ export function FlowOnboarding() {
     ? { nickname: authNickname }
     : undefined;
 
-  // Persist the known name to onboarding_states up front (step 1, GREATEST keeps the
-  // real step) so the profile-advance precondition (data.nickname required) passes
-  // even though the user never states a name they gave at sign-in. Only a server-valid
-  // nickname (letters/digits/underscore) to avoid a 400 on names with spaces.
+  // Seed the sign-in name to onboarding_states up front (step 1, GREATEST keeps the
+  // real step) so the greeting/{name} has it before the profile beat.
+  // Only a server-valid nickname (letters/digits/underscore) to avoid a 400 on spaces.
   const persistedNameRef = useRef(false);
   useEffect(() => {
     if (persistedNameRef.current) return;

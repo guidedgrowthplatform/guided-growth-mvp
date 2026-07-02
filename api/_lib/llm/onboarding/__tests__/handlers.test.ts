@@ -45,10 +45,21 @@ beforeEach(() => {
 // ─── submit_profile ───────────────────────────────────────────────────
 
 describe('submit_profile', () => {
-  it('rejects missing nickname', async () => {
+  it('rejects a fully-empty payload', async () => {
     const r = await submitProfile(CTX, {});
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
     expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('accepts age+gender without a nickname', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { age: 28, gender: 'Female' }, current_step: 1 }],
+    });
+    const r = await submitProfile(CTX, { age: '28', gender: 'Female' });
+    expect(r.ok).toBe(true);
+    const [, params] = pool.query.mock.calls[0];
+    expect(JSON.parse(params[1] as string)).toEqual({ age: 28, gender: 'Female' });
   });
 
   it('rejects nickname over 50 chars', async () => {

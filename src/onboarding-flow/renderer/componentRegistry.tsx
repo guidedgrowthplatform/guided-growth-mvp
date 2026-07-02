@@ -1105,6 +1105,7 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
       reminder?: boolean;
       schedule?: string;
       mode?: string;
+      prompts?: string[];
     };
     if (typeof p.time === 'string' && /^\d{1,2}:\d{2}$/.test(p.time)) setTime(p.time);
     if (Array.isArray(p.days)) {
@@ -1119,6 +1120,10 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
     if (p.schedule === 'Weekday' || p.schedule === 'Weekend' || p.schedule === 'Every day')
       changeSchedule(p.schedule);
     if (p.mode === 'prompts' || p.mode === 'freeform') setMode(p.mode);
+    if (Array.isArray(p.prompts)) {
+      const ps = p.prompts.filter((x) => typeof x === 'string');
+      if (ps.length > 0) setPrompts(ps);
+    }
   });
 
   const submit = () => {
@@ -1465,7 +1470,9 @@ function AdvancedFrequencyAdapter({ answers, onCapture, readOnly }: BeatAdapterP
   const SAMPLE = ['Morning walk', 'No screens after 10 PM', 'Meditate'];
   const names = habitNames.length > 0 ? habitNames : SAMPLE;
 
-  const [configs, setConfigs] = useState<Record<string, { days: number[]; time: string; reminder: boolean }>>(() => {
+  const [configs, setConfigs] = useState<
+    Record<string, { days: number[]; time: string; reminder: boolean }>
+  >(() => {
     const base: Record<string, { days: number[]; time: string; reminder: boolean }> = {};
     for (const name of names) {
       base[name] = { days: [...WEEKDAYS], time: '09:00', reminder: true };
@@ -1484,7 +1491,10 @@ function AdvancedFrequencyAdapter({ answers, onCapture, readOnly }: BeatAdapterP
   };
 
   const submit = () => {
-    const habitConfigs: Record<string, { days: number[]; time: string; reminder: boolean; schedule: string }> = {};
+    const habitConfigs: Record<
+      string,
+      { days: number[]; time: string; reminder: boolean; schedule: string }
+    > = {};
     for (const [name, cfg] of Object.entries(configs)) {
       habitConfigs[name] = { ...cfg, schedule: 'Weekday' };
     }
@@ -1496,7 +1506,10 @@ function AdvancedFrequencyAdapter({ answers, onCapture, readOnly }: BeatAdapterP
       {names.map((name) => {
         const cfg = configs[name] ?? { days: [...WEEKDAYS], time: '09:00', reminder: true };
         return (
-          <div key={name} className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4">
+          <div
+            key={name}
+            className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4"
+          >
             <span className="text-[15px] font-semibold text-content">{name}</span>
             <div className="flex flex-wrap gap-2">
               {[1, 2, 3, 4, 5, 6, 0].map((d) => {
@@ -1544,10 +1557,7 @@ const PROJECTION_HABIT_NAMES = [
 ];
 
 // Returns a filled-fraction per row for each state.
-function rowFillForState(
-  state: ProjectionState,
-  rowIdx: number,
-): ('done' | 'missed' | 'empty')[] {
+function rowFillForState(state: ProjectionState, rowIdx: number): ('done' | 'missed' | 'empty')[] {
   const days = 7;
   const isHero = rowIdx < 2; // first two rows stay fully green
   return Array.from({ length: days }, (_, d) => {
@@ -1596,18 +1606,13 @@ function WeeklyProjectionAdapter({ node, onCapture }: BeatAdapterProps) {
             <div key={name} className="flex items-center gap-1">
               <span className="w-[112px] truncate text-[12px] text-content-secondary">{name}</span>
               {cells.map((cell, d) => (
-                <div
-                  key={d}
-                  className={`h-6 w-7 rounded ${STATE_CELL_COLOR[cell]}`}
-                />
+                <div key={d} className={`h-6 w-7 rounded ${STATE_CELL_COLOR[cell]}`} />
               ))}
             </div>
           );
         })}
       </div>
-      {ready && (
-        <Cta label="Next" onClick={() => onCapture({ data: {} })} />
-      )}
+      {ready && <Cta label="Next" onClick={() => onCapture({ data: {} })} />}
     </CardShell>
   );
 }
