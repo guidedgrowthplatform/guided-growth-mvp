@@ -145,9 +145,6 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
     setProgress(null);
     setDone(false);
 
-    // TEMP(loop1): unconditional so "player never invoked" is distinguishable
-    // from playback failures in the preview console.
-    console.warn('[useBeatOpenerMp3] activating', src);
     // Preloaded element when the pool has it (buffered at flow mount, B15);
     // fresh element as the lazy fallback when preloading missed or failed.
     const pooled = getPreloadedClip(src);
@@ -175,13 +172,8 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
       settle();
     };
     el.onerror = () => {
-      // TEMP(loop1): unconditional so preview builds surface the failure class.
-      console.warn(
-        '[useBeatOpenerMp3] media error',
-        src,
-        el.error?.code,
-        el.error?.message ?? '',
-      );
+      // One quiet warn per failed clip (media/network error class).
+      console.warn('[useBeatOpenerMp3] failed to play', src);
       settle();
     };
 
@@ -224,8 +216,9 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
       })
       .catch((err) => {
         if (settledRef.current) return;
-        // TEMP(loop1): unconditional so preview builds surface the failure class.
-        console.warn('[useBeatOpenerMp3] play() rejected:', src, (err as Error)?.name, err);
+        // One quiet warn per failed clip so a deployed build still surfaces
+        // the failure class without per-activation diagnostic noise.
+        console.warn('[useBeatOpenerMp3] opener failed', src, (err as Error)?.name ?? err);
         settle();
       });
 
