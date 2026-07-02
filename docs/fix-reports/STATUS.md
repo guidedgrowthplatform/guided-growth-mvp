@@ -39,6 +39,8 @@ Updated the moment a status changes; this branch (`bugfix-status-2026-07-02`) is
 - 2026-07-02 15:35 — operator update: plan v2.3; reviewed MR !396 (card-fill) → docs/fix-reports/mr396-review.md; verdict stack-on-it; B20 fill wiring covered there, beat-completion + post-fork bump + 4 maps remain Loop 2
 - 2026-07-02 15:40 — Loop 2 stacked on feat/onboarding-coach-card-fill (merge, no force-push); !398 is merge-after-!396
 - 2026-07-02 15:45 — worktree node_modules lost to the dangling-symlink dance (B18 landmine); reinstalling; !396 untracks the symlink for good
+- 2026-07-02 16:05 — operator: Vercel SSO off for previews; both loop previews load (200) — Chrome extension still dead (2x timeout), switching to Playwright
+- 2026-07-02 16:12 — RULE-4 SANITY FAILED: loop previews, gg-qa-iota AND prod all bundle the PROD Supabase ref; supabase-environments.md §4 confirms Preview-scope env still prod-pointed. Interactive preview QA forbidden (writes would land in prod DB). Asked for Vercel Preview env fix + .env.staging.local. Team's gg-qa-iota walkthroughs have been writing to prod
 - 2026-07-02 15:55 — Loop 2 batch 2 committed (62343899): four maps on V3 scale + flow-derived parity test; B20 completion (BEAT_COMPLETING += record_checkin/submit_morning_checkin, handlers GREATEST-bump, strictly-increasing bump w/ tool-to-beat guard); B2 voice forced ON at flow mount; B8 auth receipt suppressed; !396 allowedTools union guard picked up. tsc clean, 1365/1365 tests, build OK
 
 ## Loop status
@@ -96,14 +98,25 @@ lead); `npm install` in a worktree replaces it — never stage `node_modules` ch
 
 ## Blockers
 
-1. **Preview browser verification (affects every loop's close condition):**
-   preview deploys sit behind Vercel SSO (raw `*.vercel.app` deploy URLs 302 to
-   vercel.com/sso-api), so verification needs the operator's authenticated
-   Chrome — and the Claude-in-Chrome extension is currently unresponsive
-   (tabs_context times out; likely a pending permission prompt in the side
-   panel). **Yonas: check the Chrome extension side panel / restart Chrome.**
-2. **Staging Supabase service key not available locally:** `.env.local` holds
-   the PROD ref (pmunbflbjpoawicgimyc), so `scripts/qa/create-test-users.mjs`
-   cannot create the per-loop `qa-onboarding-fable-<loop>@` users on staging
-   (ppyouymvnrqxcsllrmsl). Fallback: use qa-onboarding-yonas (operator's own
-   account) once the browser works, or provide the staging service key.
+1. **ALL Vercel deployments point at PROD Supabase (pmunbflbjpoawicgimyc) — found
+   2026-07-02 ~16:10 via rule 4's sanity check.** Branch previews (!397/!398),
+   gg-qa-iota, and prod all resolve the same prod ref in their bundles; zero
+   deployed surface uses staging (ppyouymvnrqxcsllrmsl). This is the documented
+   §4 gap in docs/supabase-environments.md ("QA writes land in prod ... Not for
+   tester data-entry yet") — meaning the team's live QA walkthroughs on
+   gg-qa-iota have been writing to the prod DB. Interactive preview verification
+   is FORBIDDEN until fixed (would create QA rows on prod). **Yonas/Yair: fill
+   the Vercel Preview-scope env vars (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
+   / DATABASE_URL / SUPABASE_SERVICE_ROLE_KEY) with the staging project's values
+   per supabase-environments.md §4, then redeploy the loop branches.** SSO
+   protection itself is now off (previews load without login) — env is the last
+   wall.
+2. **Staging Supabase keys not available locally:** `.env.local` holds the PROD
+   ref; the `.env.staging.local` template from ENVIRONMENTS.md does not exist on
+   this machine. Blocks: create-test-users.mjs on staging, and any local
+   API-touching run against staging. **Provide `.env.staging.local` (staging
+   URL / anon / service-role / DATABASE_URL) or run `npm run env:staging` setup.**
+3. **Claude-in-Chrome extension unresponsive** (tabs_context times out; same
+   failure as prior session — likely a pending permission prompt in the side
+   panel). Workaround in use: Playwright headless for no-write checks.
+   **Yonas: check the Chrome extension side panel / restart Chrome.**
