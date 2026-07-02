@@ -13,7 +13,7 @@ on this branch's deploy_qa_preview URL (see MR).
 | # | Control | Claims | Actually does (staging, pre-fix) | Verdict / action |
 |---|---|---|---|---|
 | 1 | Test user dropdown | "the dropdown reflects the real accounts" (live list from /api/qa/users, fallback static) | Endpoint verified healthy on staging previews now (200: Fable, Mintesnot). The worklog's "/api/qa/users 500s on both previews" observation is STALE - that was the pre-env-flip state. Fallback list contained five prod-era accounts, none of which exist on staging, so an endpoint outage would leave only sign-in-failing picks | Fixed (minor): fallback list now leads with the two accounts that exist on staging (Fable, Mintesnot); prod-era names kept behind them |
-| 2 | Tile "Full onboarding" - "Fresh run from auth" | Sign in as picked user, wipe server rows, navigate /onboarding/flow | Wipe works, BUT the launch can still not LOOK fresh for two client-cache reasons: (a) B17 stale thread (owned by MR !400, not redone here), (b) NEW B22: react-query gate/resume cache survives the user switch (see fix 1). With a previously-onboarded user cached, AppGate bounces the "fresh run" straight to home - the launcher looks broken (B1's surviving mechanism) | Fixed (B22): queryClient.clear() before navigation. Composes with !400's hard reload (which also drops in-memory cache on the restart path; login/replay paths still need the explicit clear) |
+| 2 | Tile "Full onboarding" - "Fresh run from auth" | Sign in as picked user, wipe server rows, navigate /onboarding/flow | Wipe works. The launch can still not LOOK fresh for the known reasons: B17 stale thread (owned by MR !400) and B9 resume (owned by MR !398) - both out of scope here. NEW latent bug B22 found while auditing the launch path: react-query gate/resume cache survives a user switch (see fix 1); latent today because every entry to the launcher is a fresh page load, but armed by any multi-action visit (including this MR's stay-put reset) or future SPA entry | Fixed (B22, defensive): queryClient.clear() before navigation. Composes with !400's hard reload |
 | 3 | Tile "Profile start" - "Skip auth, start at profile beat" | ?startAt=profile fast-forwards auth+mic with empty captures; user already signed in via ensureSignedIn | Mechanism real on staging (FlowOnboarding reads startAt; fastForwardToNode walks pre-fork nodes deterministically). Same B22 caveat as row 2 | True after fix 1; verified on preview |
 | 4 | Tile "Mic + Profile" - "Start at mic permission, then profile" | ?startAt=mic stops the seed walk at the mic node | Same as row 3, one hop earlier | True after fix 1; verified on preview |
 | 5 | Tile "Home tour" - "Post-onboarding app tour", tagged "partial" | Navigates /flow-preview/home-tour; 'home-tour' componentType absent from componentRegistry | Honest: the tile itself declares "partial" and the hint line explains. But launching it WIPED the picked user's server data for nothing (in-memory preview, see fix 2) | Fixed (fix 2): preview tiles no longer self-reset |
@@ -26,18 +26,26 @@ on this branch's deploy_qa_preview URL (see MR).
 | 12 | Error line | Shows action errors | Works (setError in run's catch) | Unchanged; green notice line added next to it for fix 6 |
 | 13 | Launch voice default | (Loop 6 requirement: launches start with coach voice ON) | Voice preference default is B2, fixed on MR !398 (voice forced ON at flow mount), unmerged | NOT reimplemented here per the plan ("do not implement a second default-ON mechanism"). Until !398 merges, launches from this branch still start with voice OFF |
 
-## Fix 1 - B22 (new bug): stale react-query cache across QA user switch
+## Fix 1 - B22 (new bug, latent): stale react-query cache across QA user switch
 
 **What broke.** `useAppGate` caches the onboarding row under a global (not
 per-user) query key with `staleTime: Infinity, gcTime: Infinity`. The only
 cache clear in the app is in `authStore.signOut`. The QA screen switches users
 via `signIn` WITHOUT sign-out, and wipes rows server-side without touching the
-client cache. Result: launches are gated and resumed against the previous
-user's (or the pre-wipe) onboarding row. Two visible failures: a cached
-"completed" row bounces a fresh-run launch to home (the "launcher buttons
-looked broken" residue of B1), and a cached in-progress row lets the resume
-walk land mid-flow on a supposedly fresh run (the "does not look fresh" residue
-alongside B17/B9).
+client cache. In a warm heap, launches would be gated and resumed against the
+previous user's (or the pre-wipe) row: a cached "completed" row bounces a
+fresh-run launch to home; a cached in-progress row lets the resume walk land
+mid-flow on a supposedly fresh run.
+
+**Why latent (honest scoping).** Verified by search: NO in-SPA path enters
+/onboarding/qa today. QAFab signs out (which clears the cache) and does a full
+page load; tile launches navigate with replace:true so browser-back skips the
+launcher; direct URL entry is a fresh heap. So the visible B1 "looked broken"
+residue stays attributed to B17/B9 as the ledger says - this cache bug has NOT
+been firing. It arms the moment anything keeps the heap warm across actions:
+this MR's stay-put reset (fix 6) is exactly such a sequence, the pre-existing
+error-retry path is another, and any future SPA link to the launcher would be
+a third. Fixing it now is a prerequisite of fix 6, not gold-plating.
 
 **The fix.** `queryClient.clear()` in `run()` after sign-in and any wipe,
 before every navigation. Cheap and total: every user-scoped query (gate,
