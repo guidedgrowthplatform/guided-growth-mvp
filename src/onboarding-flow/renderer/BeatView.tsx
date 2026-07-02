@@ -210,12 +210,23 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   // Past beat with a real conversation: replay the persisted turns (opener +
   // dialogue) so the completed beat keeps its whole conversation on screen and
   // rehydrates after a refresh. Data beats also keep their frozen card receipt.
+  // The authored opener rides along as the fallback: Direct-LLM beats karaoke
+  // the opener without committing it to the store, so without this a completed
+  // beat lost its coach line and (via the old openerPresent card gate) its card
+  // the moment it left active state (B6/B7).
   if (!active && hasBeatConversation) {
     const frozenCard =
       Adapter && FROZEN_CARD_TYPES.has(node.componentType) ? (
         <Adapter node={node} answers={answers} onCapture={onCapture} readOnly />
       ) : undefined;
-    return <BeatConversation screenId={node.screenId} active={false} card={frozenCard} />;
+    return (
+      <BeatConversation
+        screenId={node.screenId}
+        active={false}
+        card={frozenCard}
+        fallbackOpener={opener}
+      />
+    );
   }
 
   // Past data beat with no captured conversation: the coach line(s), then the

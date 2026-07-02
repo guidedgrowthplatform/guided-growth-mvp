@@ -189,7 +189,17 @@ export function BeatConversation({
     opener?.source === 'opener' &&
     (openerReveal?.revealedWords ?? 0) < countWords(opener?.text ?? '');
   const cardReady = openerPresent && !liveOpener && !coldOpenerSpeaking;
-  const shouldRevealCard = cardReadyOverride ?? cardReady;
+  // A PAST beat is completed: its card is a persisted receipt and must ALWAYS
+  // render, never gated on whether the thread happens to hold a committed
+  // opener turn. (Direct-LLM beats karaoke their opener without committing it
+  // to the store, so a completed beat often has user turns but no stored coach
+  // opener; gating the card on openerPresent made those cards vanish: B6/B7.)
+  const shouldRevealCard = !active ? true : (cardReadyOverride ?? cardReady);
+  // Same never-disappear rule for the coach line: a past beat with dialogue but
+  // no committed opener re-renders the AUTHORED opener statically, so the line
+  // the coach actually spoke (karaoke, uncommitted) stays in the scrollback.
+  const authoredOpenerTurns =
+    !active && !opener && fallbackOpener ? openerTurns(fallbackOpener) : [];
 
   const renderTurn = (m: VoiceMessage, append?: string | null) => {
     const isColdOpener = coldOpenerLive && m.source === 'opener' && m.id === opener?.id;
@@ -207,14 +217,25 @@ export function BeatConversation({
 
   return (
     <div className="flex flex-col gap-2">
-      {/* opener (committed, the streaming opener before it commits, or the
-          authored failsafe if voice never spoke) — always ABOVE the card */}
+      {/* opener (committed, the streaming opener before it commits, the
+          authored failsafe if voice never spoke, or the authored line replayed
+          on a past beat whose thread has no committed opener) — ABOVE the card */}
       {opener && !coldOpenerPending ? (
         renderTurn(opener, partialExtendsOpener ? livePartial : null)
       ) : liveOpener ? (
         <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{liveOpener}</div>
       ) : showConnecting && fallbackOn && fallbackOpener ? (
-        <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{fallbackOpener}</div>
+        openerTurns(fallbackOpener).map((line, i) => (
+          <div key={`fallback-${i}`} className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>
+            {line}
+          </div>
+        ))
+      ) : authoredOpenerTurns.length > 0 ? (
+        authoredOpenerTurns.map((line, i) => (
+          <div key={`authored-${i}`} className={COACH_BUBBLE_CLASS}>
+            {line}
+          </div>
+        ))
       ) : null}
 
       {/* the beat component, IN the timeline — revealed only AFTER the coach has
