@@ -510,7 +510,7 @@ function specFor(component: FlowComponentType): EngineBeatSpec {
 }
 
 /** Pull the screenId out of a "SCREEN-ID: Label" sheetStage string. */
-export function screenIdFromSheetStage(sheetStage: string | undefined): string | undefined {
+function screenIdFromSheetStage(sheetStage: string | undefined): string | undefined {
   if (!sheetStage) return undefined;
   const [id] = sheetStage.split(':');
   const trimmed = id?.trim();
@@ -536,7 +536,7 @@ const slug = (value: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 
-export function parseList(raw: string | undefined): string[] {
+function parseList(raw: string | undefined): string[] {
   if (!raw) return [];
   return raw
     .split(/[,\n]/)

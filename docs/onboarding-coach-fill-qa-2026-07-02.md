@@ -52,10 +52,10 @@ not this beat) — this is the nickname-optional fix.
   Cartesia for the name beat). Silence on a dynamic reply is by design, not a failure.
 - **The coach never prints a literal `{name}`** — it substitutes the nickname (server `fillBeatName`).
 
-## Coach prompt is now export-driven
+## Coach tool gate is export-driven
 
-The per-beat coach prompt (context + already-spoken opener + per-element ask order + allowedTools) now
-comes from `api/_lib/llm/onboarding/flowBeatMeta.generated.json`, generated from the flow Export by
-`npm run flow:sync`. Editing the flow builder Export + re-running `flow:sync` updates the coach with no
-code change. To spot-check, log the assembled system prompt in dev and confirm it reflects the export's
-lines (e.g. the state-check "Ask for each in order" block).
+Each beat's `allowedTools` (the tools the coach may call) now comes from the flow builder via the unified
+`src/generated/onboarding_combined.json` (built by `scripts/build-onboarding-combined.ts`), read in
+`beatContexts.ts`. So a flow change updates the coach's tool gate with no code edit. Context/opener prose
+stays sourced from the Sheet/`beatContexts.ts`. To spot-check: `ONBOARD-COMPLETE` allows
+`update_habit` + `confirm_plan` (from the export), and export-absent beats keep their code-owned tools.

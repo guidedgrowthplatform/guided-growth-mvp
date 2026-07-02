@@ -2,10 +2,8 @@ import { isOnboardingToolName, type OnboardingToolName } from './schemas.js';
 // Synced content from Supabase (the synced-file model). Committed empty until the
 // first sync; sync_beat_contexts.py overwrites it. Overlaid onto the defaults below.
 import generatedBeatContent from './beatContexts.generated.json' with { type: 'json' };
-// Per-beat coach meta derived from the flow-builder Export (npm run flow:sync).
-// The Export is the single source of truth for allowedTools + spoken/per-element
-// lines, so a new flow ships as an export with no code change here.
-import flowBeatMeta from './flowBeatMeta.generated.json' with { type: 'json' };
+// allowedTools per beat from the flow builder (single source of truth for the gate).
+import onboardingCombined from '../../../../src/generated/onboarding_combined.json' with { type: 'json' };
 
 // Beat-context store — the Direct-LLM source of truth for what the coach sees on
 // each onboarding beat. Two layers, both sent fresh every request (the LLM never
@@ -403,35 +401,21 @@ DO NOT:
   }
 }
 
-// Export overlay: allowedTools + spoken/per-element lines come from the flow Export.
-// Hand-authored/synced prose stays the context base; the export APPENDS the
-// already-spoken opener (labeled so the coach never repeats it) + the per-element
-// ask order, and OVERRIDES allowedTools. Beats with no base (a future flow) are
-// built from the export alone.
+// Override allowedTools from the flow builder; beats absent (or with none) keep
+// their code-owned tools.
 {
-  interface ExportBeatMeta {
-    context: string;
-    spokenContent?: string;
-    perElement: { elementId: string; line: string; order: number }[];
-    allowedTools: string[];
+  interface CombinedBeat {
+    screenId: string;
+    meta?: { fill?: { allowedTools?: string[] } } | null;
   }
-  const exportBeats = flowBeatMeta as Record<string, ExportBeatMeta>;
-  for (const [screenId, meta] of Object.entries(exportBeats)) {
-    const base = BEAT_CONTEXTS[screenId];
-    const parts = [base?.context || meta.context || ''];
-    if (meta.spokenContent) {
-      parts.push(
-        `Opener (ALREADY SPOKEN aloud, do not repeat or paraphrase it): "${meta.spokenContent}"`,
-      );
-    }
-    if (meta.perElement.length > 0) {
-      const ordered = meta.perElement.map((e, i) => `${i + 1}. ${e.line}`).join(' ');
-      parts.push(`Ask for each in order: ${ordered}`);
-    }
-    BEAT_CONTEXTS[screenId] = {
+  const combinedBeats = (onboardingCombined as { beats?: CombinedBeat[] }).beats ?? [];
+  for (const beat of combinedBeats) {
+    const base = BEAT_CONTEXTS[beat.screenId];
+    const tools = beat.meta?.fill?.allowedTools;
+    if (!base || !tools || tools.length === 0) continue;
+    BEAT_CONTEXTS[beat.screenId] = {
       ...base,
-      context: parts.filter(Boolean).join('\n\n'),
-      allowedTools: meta.allowedTools.filter(isOnboardingToolName),
+      allowedTools: tools.filter(isOnboardingToolName),
     };
   }
 }
