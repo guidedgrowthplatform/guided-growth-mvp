@@ -7,13 +7,13 @@ Updated the moment a status changes; this branch (`bugfix-status-2026-07-02`) is
 | ID | Bug | Loop | Status | MR | Notes |
 |---|---|---|---|---|---|
 | B1 | QA control: "Full onboarding" didn't start from beginning | 6 | partially solved | — | c8f85490 one-tap-fresh verified live 2026-07-02; remainder = QA screen audit (Loop 6) + downstream B17/B9 |
-| B2 | Coach voice toggle OFF after refresh; must start ON | 2 | open | — | |
+| B2 | Coach voice toggle OFF after refresh; must start ON | 2 | fix-implemented, preview verification pending | [!398](https://gitlab.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/398) | forced ON once per flow mount; stored pref can hold 'screen' from home Talk-instead |
 | B3 | Cartesia opener silent while captions render | 1 | fix-implemented, preview verification pending | [!397](https://gitlab.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/397) | root cause: NO player existed for engine=cartesia beats in the flow renderer; new useBeatOpenerCartesia wraps speakOpener |
 | B4 | MP3 clips don't play; dead air + long LLM think after path answer | 1 | fix-implemented (playback facet), preview verification pending | [!397](https://gitlab.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/397) | autoplay-rejection now defers to next gesture; dead-air facet is NOT playback — cross-filed to Loop 3 (B11 LLM stall) + Loop 2 (B20 wiring) |
 | B5 | Age + gender prompts merged into one bubble | 4 | open | — | |
 | B6 | Chat bubbles disappear randomly | 4 | open | — | |
 | B7 | Profile card disappears after age + gender given | 4 | open | — | |
-| B8 | "You're signed in" banner shows during onboarding | 2 | open | — | |
+| B8 | "You're signed in" banner shows during onboarding | 2 | fix-implemented, preview verification pending | [!398](https://gitlab.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/398) | passed auth beat renders nothing in the timeline |
 | B9 | Refresh mid-onboarding lands on wrong component + injects extras | 2 | fix-implemented (evidence-driven resume), preview verification pending | [!398](https://gitlab.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/398) | resumeFromServerRow stops at first beat missing its data fingerprint; refresh-matrix test derived from generated flow |
 | B10 | Flow jumped welcome → profile, skipping in-between beat | 2 | fix-implemented (same resume rewrite), preview verification pending | [!398](https://gitlab.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/398) | numeric step 2 no longer catapults past pre-fork beats (regression test in) |
 | B11 | LLM calls fail repeatedly; flow wedged at habit render | 3 | open | — | |
@@ -25,7 +25,7 @@ Updated the moment a status changes; this branch (`bugfix-status-2026-07-02`) is
 | B17 | QA "Restart fresh" renders old chat thread (client cache not cleared) | 4 | open | — | root cause verified: QAControlScreen restart path never clears thread store |
 | B18 | Recurring staging build error re-merged by diverged branches | — | tracked-elsewhere | — | handled separately; Loop 3 rules it out before B11. **LEAD (found 2026-07-02):** origin/staging has a COMMITTED `node_modules` symlink (mode 120000) → `/Users/yairamsel/Developer/ggmvp-unified/node_modules` — a machine-local absolute path, dangling everywhere else, and exactly the kind of artifact diverged branches keep re-merging. Whoever owns B18 should delete it on staging and add a CI guard (`git ls-files node_modules` must be empty). |
 | B19 | Loading bubble renders/sticks on some beats when loading transcript/components | 4 | open | — | live QA walkthrough 2026-07-02 pm |
-| B20 | Voice check-in save acked by coach, but card never updates and next beat never loads | 2 | open | — | confirms the record_checkin/submit_morning_checkin wiring gap already in Loop 2 scope |
+| B20 | Voice check-in save acked by coach, but card never updates and next beat never loads | 2 | fix-implemented (fill: !396; completion: !398), preview verification pending | [!396](https://gitlab.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/396) + [!398](https://gitlab.com/guidedgrowth-group/guided-growth-mvp/-/merge_requests/398) | card fill lands in !396; beat completion + GREATEST bump + dead-air bump fix in !398 (stacked) |
 | B21 | Completed subcategory beat removed from timeline; habit-selection + habit-schedule render simultaneously | 4 | open | — | removal = B6/B7 unmount class; double-render its own sequencing defect |
 
 ## WORKLOG (append-only, one line per event; newest last)
@@ -39,6 +39,7 @@ Updated the moment a status changes; this branch (`bugfix-status-2026-07-02`) is
 - 2026-07-02 15:35 — operator update: plan v2.3; reviewed MR !396 (card-fill) → docs/fix-reports/mr396-review.md; verdict stack-on-it; B20 fill wiring covered there, beat-completion + post-fork bump + 4 maps remain Loop 2
 - 2026-07-02 15:40 — Loop 2 stacked on feat/onboarding-coach-card-fill (merge, no force-push); !398 is merge-after-!396
 - 2026-07-02 15:45 — worktree node_modules lost to the dangling-symlink dance (B18 landmine); reinstalling; !396 untracks the symlink for good
+- 2026-07-02 15:55 — Loop 2 batch 2 committed (62343899): four maps on V3 scale + flow-derived parity test; B20 completion (BEAT_COMPLETING += record_checkin/submit_morning_checkin, handlers GREATEST-bump, strictly-increasing bump w/ tool-to-beat guard); B2 voice forced ON at flow mount; B8 auth receipt suppressed; !396 allowedTools union guard picked up. tsc clean, 1365/1365 tests, build OK
 
 ## Loop status
 
