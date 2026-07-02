@@ -3,24 +3,32 @@
  *
  * Phase 1 (Get Started): shows the brand screen (heading + eyebrow + primary
  * button + login link). Pressing "Get started" is the browser gesture that
- * satisfies the autoplay policy; no audio plays here.
+ * satisfies the autoplay policy, and the click handler itself starts the
+ * coach MP3 (startOpenerFromGesture), synchronously in that gesture frame, so
+ * playback is deterministic and the unlock covers every later beat's audio.
  *
- * Phase 2 (Coach greeting): renders SplashIntro with autoPlay + skipSplash so
- * the coach MP3 fires immediately off the gesture from phase 1. Because the
- * play() call is synchronous with the button press, the browser allows it and
- * "Tap to play" never appears.
+ * Phase 2 (Coach greeting): renders SplashIntro with autoPlay + skipSplash and
+ * hands it the already-playing clip (adoptedOpener). SplashIntro adopts that
+ * element for the orb/captions instead of arming a second play(), so the clip
+ * is never double-started and never falls into the deferred-to-tap fallback.
  *
  * After SplashIntro fires onComplete the seen-flag is set and children (the
  * chat) are revealed. First-visit only: a returning/mid-flow user resumes
  * straight into chat, and the flag survives refresh so the intro never replays.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SplashIntro } from '@/components/welcome/SplashIntro';
 import { Button } from '@/components/ui/Button';
+import { SplashIntro } from '@/components/welcome/SplashIntro';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import {
+  startOpenerFromGesture,
+  type GestureStartedOpener,
+} from './renderer/openerGestureStart';
+import { preloadOpenerClips } from './renderer/openerPreloadPool';
 
 const INTRO_SEEN_KEY = 'gg_onboarding_intro_seen';
+const INTRO_AUDIO_SRC = '/voice/splash_welcome.mp3';
 
 // Urbanist matches the engine's font stack (same as the flow-builder's FONT token).
 const FONT = "Urbanist, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
@@ -45,6 +53,25 @@ export function IntroGate({ children }: { children: React.ReactNode }) {
   const [done, setDone] = useState(readSeen);
   const [phase, setPhase] = useState<Phase>('get-started');
   const navigate = useNavigate();
+
+  // The clip the Get-started tap will start, held for SplashIntro to adopt.
+  const openerRef = useRef<GestureStartedOpener | null>(null);
+
+  // Warm the intro clip while the Get-started screen shows, so the tap claims
+  // a buffered element (same B15 pool the flow beats use). Idempotent per src.
+  useEffect(() => {
+    if (done || hasProgress) return;
+    preloadOpenerClips([INTRO_AUDIO_SRC]);
+  }, [done, hasProgress]);
+
+  // Gate unmounted mid-intro: stop the clip and return it to the pool.
+  useEffect(
+    () => () => {
+      openerRef.current?.release();
+      openerRef.current = null;
+    },
+    [],
+  );
 
   if (done || hasProgress) return <>{children}</>;
 
@@ -89,7 +116,14 @@ export function IntroGate({ children }: { children: React.ReactNode }) {
             variant="primary"
             size="auth"
             fullWidth
-            onClick={() => setPhase('coach-greeting')}
+            onClick={() => {
+              // Start the first coach clip INSIDE this gesture frame: playback
+              // is deterministic (no deferred random-tap start later) and the
+              // play() doubles as the audio unlock for every later beat.
+              // SplashIntro adopts this element instead of re-playing it.
+              openerRef.current ??= startOpenerFromGesture(INTRO_AUDIO_SRC);
+              setPhase('coach-greeting');
+            }}
           >
             Get started
           </Button>
@@ -105,14 +139,18 @@ export function IntroGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Phase 2: Coach greeting. autoPlay fires immediately because the Get Started
-  // press (a real user gesture) already unlocked audio in this page context.
+  // Phase 2: Coach greeting. The clip is ALREADY playing (the Get-started tap
+  // started it in its own gesture frame), so SplashIntro adopts that element
+  // (adoptedOpener) rather than re-arming a second play().
   return (
     <SplashIntro
       autoPlay
       skipSplash
-      audioSrc="/voice/splash_welcome.mp3"
+      audioSrc={INTRO_AUDIO_SRC}
+      adoptedOpener={openerRef.current}
       onComplete={() => {
+        openerRef.current?.release();
+        openerRef.current = null;
         try {
           localStorage.setItem(INTRO_SEEN_KEY, '1');
         } catch {
