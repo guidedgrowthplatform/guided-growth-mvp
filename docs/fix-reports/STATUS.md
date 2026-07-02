@@ -41,6 +41,7 @@ Updated the moment a status changes; this branch (`bugfix-status-2026-07-02`) is
 - 2026-07-02 15:45 — worktree node_modules lost to the dangling-symlink dance (B18 landmine); reinstalling; !396 untracks the symlink for good
 - 2026-07-02 16:05 — operator: Vercel SSO off for previews; both loop previews load (200) — Chrome extension still dead (2x timeout), switching to Playwright
 - 2026-07-02 16:12 — RULE-4 SANITY FAILED: loop previews, gg-qa-iota AND prod all bundle the PROD Supabase ref; supabase-environments.md §4 confirms Preview-scope env still prod-pointed. Interactive preview QA forbidden (writes would land in prod DB). Asked for Vercel Preview env fix + .env.staging.local. Team's gg-qa-iota walkthroughs have been writing to prod
+- 2026-07-02 16:50 — HANDOFF to Yair's session: all branches pushed (loop1 fa04074f, loop2 1120062f, status current), STATUS rewritten with per-loop next steps + handoff notes; b11 request body still not received
 - 2026-07-02 16:25 — no-write verification lane built: Playwright headless vs the deployed preview's auth-free /onboarding-flow-preview (in-memory persistence, zero DB writes); walker cleared IntroGate but auth beat walls it — added ?startAt=<nodeId> QA param to the preview route (fa04074f on loop1, cherry-picked to loop2), CI redeploying
 - 2026-07-02 15:55 — Loop 2 batch 2 committed (62343899): four maps on V3 scale + flow-derived parity test; B20 completion (BEAT_COMPLETING += record_checkin/submit_morning_checkin, handlers GREATEST-bump, strictly-increasing bump w/ tool-to-beat guard); B2 voice forced ON at flow mount; B8 auth receipt suppressed; !396 allowedTools union guard picked up. tsc clean, 1365/1365 tests, build OK
 
@@ -56,46 +57,85 @@ Updated the moment a status changes; this branch (`bugfix-status-2026-07-02`) is
 | 5 | B16 | pending (stacks on 1+2) | — | — |
 | 6 | B1 remainder | pending | — | — |
 
-## Session wrap 2026-07-02 ~14:45 EAT (operator asked to stop; resume from here)
+## HANDOFF 2026-07-02 ~16:50 EAT — run continues in Yair's session
 
-**Loop 0 — DONE.** Three notes in `docs/prior-fixes/` (this branch). Headline: mic-arm +
-first-word fixes already exist on `feat/onboarding-voice-track1` (8de9b66, beed650), unmerged.
+**Per-loop state + EXACT next step:**
 
-**Loop 1 — fixes implemented + tested, awaiting preview verification.** Branch
-`bugfix-loop1-audio`, draft MR !397, all pushed. Latest preview:
-https://gg-kxtkk853f-guided-growths-projects.vercel.app (behind Vercel SSO — open from an
-authenticated browser). NEXT STEP: on that preview run fresh + mid-refresh onboarding
-passes with console open (temp diagnostics log `[useBeatOpenerMp3]`/`[opener]` lines),
-confirm every opener audible incl. the Cartesia name greeting, first words complete,
-Slow-3G start latency; then revert the temp diagnostics commit, undraft !397.
+**Loop 0 — DONE.** docs/prior-fixes/ on this branch.
 
-**Loop 2 — mid-investigation, no code yet.** Branch `bugfix-loop2-resume` pushed (empty, at
-staging tip b49d4987). ROOT CAUSE OF B9 CONFIRMED (bigger than the plan's framing): V3
-persist steps are non-monotonic vs flow order (pre-fork beats persist 6/7/8, post-fork 2–5)
-AND the server pins `current_step = GREATEST(...)` (api/onboarding/[...path].ts:37). So
-after state-check saves step 6, current_step ≥ 6 forever, and `resumeToServerStep`'s
-numeric stop condition (`entryServerStep >= serverStep`) can never match a post-fork beat
-(max entry 5) → every refresh post-state-check walks to the END. Numeric-scale resume is
-unfixable post-state-check; resume must become identity/data-driven. NEXT STEP: (1) write
-the parity/regression test first — derive resume targets + the four stale maps from the
-generated flow and assert refresh-at-each-persist-step stops at the right beat (failing
-today); (2) implement resume that maps current_step → target NODE explicitly (incl.
-6→STATE-CHECK, 7→MORNING-SETUP, 8→BEGINNER-07) and, for the post-fork ambiguity under
-GREATEST, falls back to first-beat-with-missing-data walk; (3) update the four stale maps
-in the same MR (systemPromptAddendum step ladder, preconditions.ts V3 tail,
-STEP_TO_SCREEN_ID in useOnboarding.ts:29, SCREEN_TO_STEP in onboardingStepBeats.ts) +
-record_checkin/submit_morning_checkin in toolEventToVoiceActions + BEAT_COMPLETING_TOOLS
-(B20); (4) voice default ON + signed-in banner removal; (5) run vapi reconcile tests.
-Also found: generated flow is MISSING the COACH-GREETING beat the oracle expects (B10 lead).
+**Loop 1 (B3 B4 B14 B15) — fixes + tests in, verification partially blocked.**
+Branch `bugfix-loop1-audio` @ fa04074f, draft MR !397. TEMP diagnostics commit
+**dae9bf1c** (unconditional playback logging in useBeatOpenerMp3) — revert before
+undraft. fa04074f adds `?startAt=<nodeId>` to /onboarding-flow-preview for
+headless no-write QA. Fresh preview: https://gg-9uy17rwjz-guided-growths-projects.vercel.app
+NEXT STEP: run docs/fix-reports/preview-walker.mjs (this branch) against
+`<preview>/onboarding-flow-preview?startAt=profile` twice (autoplay-allowed +
+default-blocked): assert every MP3 beat fetches its /voice/onboarding/<ID>.mp3
+(200) and plays (temp diagnostics lines), Cartesia opener speaks on profile
+(B3), no NotAllowedError settles-as-done (B4), preload pool warms clips at flow
+mount (B15). THEN (after the Vercel env fix, see Blockers): signed-in fresh +
+mid-refresh runs + Slow-3G latency on qa-onboarding-fable-loop1, revert
+dae9bf1c, undraft !397.
 
-**Loops 3–6 — not started.** Loop 3 evidence pending: Yonas said he'd paste the captured
-failing habit-selection request body — NOT received before the stop; ask him for it.
+**Loop 2 (B9 B10 B2 B8 B20) — ALL fixes implemented + unit-verified; preview
+matrix pending.** Branch `bugfix-loop2-resume` @ 1120062f, draft MR !398,
+**STACKED on !396** (merge after it). tsc clean, 1365/1365 tests, build OK.
+Landed: evidence-driven resume (resumeFromServerRow + refresh-matrix test),
+four V3 map remaps + flow-derived parity test (stepMapParity.test.ts), B20
+completion (BEAT_COMPLETING += record_checkin/submit_morning_checkin, handlers
+GREATEST-bump 6/7/8, strictly-increasing client bump + tool→beat guard), B2
+voice forced ON at flow mount, B8 auth receipt suppressed, !396 allowedTools
+union guard. Preview: https://gg-gd5e2zsf6-guided-growths-projects.vercel.app
+NEXT STEP (blocked on the Vercel staging env fix): refresh at persist steps
+6/7/8 → SAME beat, no extra components, voice toggle ON; full beginner run no
+skipped beats; advanced + fork resume; live B20 (voice save on state-check /
+morning advances the beat). Review docs/fix-reports/mr396-review.md first.
 
-**Worktrees:** gg-bugfix-loops (this status branch) · gg-loop1 · gg-loop2 · gg-flow-reference
-(oracle, dev server on :5199, `/flow-standalone/`; deps installed with --ignore-scripts, the
-supabase-cli postinstall download fails in this environment — reinstall the same way).
-Node-modules note: worktree checkouts materialize the committed dangling symlink (see B18
-lead); `npm install` in a worktree replaces it — never stage `node_modules` changes.
+**Loop 3 (B11 B12) — NOT STARTED.** The captured failing habit-selection
+request body was NEVER received (Yonas said he'd paste it — ask again; save as
+docs/fix-reports/b11-request-body.json on this branch). First step: rule out
+B18 (staging build state), then the CI-log server-side evidence plan in the
+fenced block.
+
+**Loop 4 (B5 B6 B7 B17 B19 B21) — NOT STARTED.** B17 root cause verified
+(QAControlScreen restart never clears the client thread store). The auth-free
+/onboarding-flow-preview + ?startAt is now available for no-write timeline
+repros (B6/B7/B21 unmount class).
+
+**Loop 5 (B16) — pending Loops 1+2.** Prior-fix notes in docs/prior-fixes/;
+mic-arm + first-word variants already exist on feat/onboarding-voice-track1
+(8de9b66, beed650), unmerged.
+
+**Loop 6 (B1 remainder) — pending.** Reuse Loop 2's B2 fix for launch-with-voice-ON.
+
+**Temp/WIP commit SHAs:** dae9bf1c (Loop 1 temp diagnostics — must be reverted
+before !397 undrafts). No other WIP: every branch is fully committed + pushed.
+
+## HANDOFF NOTES — machine-local, does NOT transfer
+
+- **Worktree layout on the old machine** (recreate as needed):
+  guided-growth-mvp (main checkout, operator's feat/onboarding-voice-track1 WIP
+  — untouched by the loop), ../gg-bugfix-loops (this status branch),
+  ../gg-loop1 (bugfix-loop1-audio), ../gg-loop2 (bugfix-loop2-resume),
+  ../gg-flow-reference (flow-annotated-render oracle; dev server was :5199,
+  `/flow-standalone/`). gg-spec cloned as sibling ../gg-spec.
+- **node_modules:** installed with `npm install --ignore-scripts` (supabase-cli
+  postinstall fails) + `npx tsc -b packages/shared` afterwards. On branches that
+  still track the dangling node_modules symlink (loop1, status), the working
+  tree shows a `D node_modules` — NEVER stage it (!396 untracks it properly).
+- **.env:** only `.env.local` exists (PROD-pointed). NO `.env.staging.local`
+  template exists on the old machine — staging keys were never local. Check
+  whether Yair's machine has them (unblocks local staging verification +
+  create-test-users.mjs).
+- **Playwright:** v1.59 from the repo devDeps; `npx playwright install
+  chromium` needed once (headless-shell v1217). The no-write walker is
+  committed here as docs/fix-reports/preview-walker.mjs (edit the ROOT import
+  path — it hardcoded the old worktree's node_modules; change to a plain
+  `import { chromium } from 'playwright'` run from the repo root).
+- **Claude-in-Chrome extension** was unresponsive on the old machine (2
+  sessions); irrelevant if Yair's works, and Playwright covers headless needs.
+- **Preview URLs churn per push** — always re-read the deploy_qa_preview job
+  log (`Deployed: https://...`) after any push.
 
 ## Blockers
 
