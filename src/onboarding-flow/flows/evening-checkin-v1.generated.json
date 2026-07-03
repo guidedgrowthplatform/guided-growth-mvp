@@ -27,7 +27,7 @@
       },
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "none",
           "mode": "verbatim",
           "lines": [
             {
@@ -35,7 +35,7 @@
               "text": "Hey, good evening. Here are your habits for today. How did the day go?",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "none"
             }
           ]
         },
@@ -52,10 +52,10 @@
         },
         "path": "path-3-direct-llm",
         "orb": {
-          "voiceOn": true,
+          "voiceOn": false,
           "micOn": true,
           "micAsking": false,
-          "bloomed": true
+          "bloomed": false
         },
         "toggles": {
           "expectsInput": true,
@@ -100,7 +100,7 @@
       },
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "none",
           "mode": "verbatim",
           "lines": [
             {
@@ -108,7 +108,7 @@
               "text": "Tap each habit to mark it, or just tell me how each one went.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "none"
             }
           ]
         },
@@ -125,10 +125,10 @@
         },
         "path": "path-3-direct-llm",
         "orb": {
-          "voiceOn": true,
+          "voiceOn": false,
           "micOn": true,
           "micAsking": false,
-          "bloomed": true
+          "bloomed": false
         },
         "toggles": {
           "expectsInput": true,
@@ -180,7 +180,7 @@
       },
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "none",
           "mode": "verbatim",
           "lines": [
             {
@@ -188,7 +188,7 @@
               "text": "Looks like there are a few items left. Want to add anything, or should we move on?",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "none"
             }
           ]
         },
@@ -205,10 +205,10 @@
         },
         "path": "path-3-direct-llm",
         "orb": {
-          "voiceOn": true,
+          "voiceOn": false,
           "micOn": true,
           "micAsking": false,
-          "bloomed": true
+          "bloomed": false
         },
         "toggles": {
           "expectsInput": true,
@@ -270,7 +270,7 @@
       },
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "none",
           "mode": "verbatim",
           "lines": [
             {
@@ -278,7 +278,7 @@
               "text": "Good. Now let's take a moment to reflect on the day itself.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "none"
             }
           ]
         },
@@ -295,10 +295,10 @@
         },
         "path": "path-3-direct-llm",
         "orb": {
-          "voiceOn": true,
+          "voiceOn": false,
           "micOn": true,
           "micAsking": false,
-          "bloomed": true
+          "bloomed": false
         },
         "toggles": {
           "expectsInput": true,
@@ -350,7 +350,7 @@
       },
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "none",
           "mode": "verbatim",
           "lines": [
             {
@@ -358,7 +358,7 @@
               "text": "That's it for tonight. Sleep well.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "none"
             }
           ]
         },
@@ -375,10 +375,10 @@
         },
         "path": "path-3-direct-llm",
         "orb": {
-          "voiceOn": true,
+          "voiceOn": false,
           "micOn": false,
           "micAsking": false,
-          "bloomed": true
+          "bloomed": false
         },
         "toggles": {
           "expectsInput": false,
