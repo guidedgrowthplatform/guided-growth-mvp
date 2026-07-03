@@ -119,11 +119,13 @@ export function HomeBarPreview({
       >
         Home bar (live)
       </div>
+      {/* iPhone 17 Pro logical frame: 402 x 874 pt, so the bar spacing reads
+          exactly like the real phone instead of a squeezed mock. */}
       <div
-        className="relative overflow-hidden rounded-[34px]"
+        className="relative overflow-hidden rounded-[55px]"
         style={{
-          width: 340,
-          height: 560,
+          width: 402,
+          height: 874,
           background: screenBg,
           boxShadow: '0 18px 50px rgba(20,30,60,.28)',
         }}
@@ -190,14 +192,21 @@ export function HomeBarPreview({
               <Tab icon="ic:round-person" label="Profile" tone={tabTone} />
             </div>
           </div>
-          {/* Safe-area strip, exactly like the real bar. env() is 0 in this mock. */}
+          {/* Safe-area strip. The real bar uses env(safe-area-inset-bottom); in
+              this mock we emulate the iPhone's 34pt home-indicator inset so the
+              bar sits exactly like it does on the phone. */}
           <div
-            className={glass ? '' : 'bg-surface'}
+            className={glass ? 'relative' : 'relative bg-surface'}
             style={{
-              height: 'env(safe-area-inset-bottom)',
+              height: 34,
               ...(glass ? { background: 'rgba(255,255,255,0.42)' } : {}),
             }}
-          />
+          >
+            <div
+              className="absolute bottom-2 left-1/2 h-[5px] w-[134px] -translate-x-1/2 rounded-full bg-slate-900/70"
+              aria-hidden="true"
+            />
+          </div>
         </div>
       </div>
     </div>
