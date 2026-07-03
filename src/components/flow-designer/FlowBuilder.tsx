@@ -38,8 +38,8 @@ import { HabitListItem } from '@/components/home/HabitListItem';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { QuickActionCards } from '@/components/home/QuickActionCards';
 import { AgeScrollPicker } from '@/components/onboarding/AgeScrollPicker';
-import { HabitScheduleCard } from '@/components/onboarding/HabitScheduleCard';
 import { DeleteHabitModal } from '@/components/onboarding/DeleteHabitModal';
+import { HabitScheduleCard } from '@/components/onboarding/HabitScheduleCard';
 import { HabitSummaryCard } from '@/components/onboarding/HabitSummaryCard';
 import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { OnboardingInput } from '@/components/onboarding/OnboardingInput';
@@ -48,25 +48,24 @@ import { Button } from '@/components/ui/Button';
 import { ChipSelect } from '@/components/ui/ChipSelect';
 import { DayPicker } from '@/components/ui/DayPicker';
 import { DualButton } from '@/components/ui/DualButton';
-import { BeatOrb, orbConfigForType, type OrbConfig } from './BeatOrb';
-import { clipsForStage } from './beatAudio';
 import { Toggle } from '@/components/ui/Toggle';
 import { ChatBubble } from '@/components/voice/ChatBubble';
-
-import { BEAT_DEFS } from './beats';
-import { PlayingCtx, AnimationsCtx, useAnimations, Karaoke } from './beatKit';
-import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
-import { EXTRA_REGISTRY, EXTRA_GROUPS } from './paletteExtras';
 import { CheckInResultCard } from '@/components/voice/CheckInResultCard';
 import { HabitSuggestionCard } from '@/components/voice/HabitSuggestionCard';
 import { TypingIndicator } from '@/components/voice/TypingIndicator';
 import { AIPulseVisual } from '@/components/welcome/AIPulseVisual';
+import { COACH_BG, USER_BG } from '@/components/welcome/beatMood';
 import {
   BEAT_TRANSITION_KINDS,
   BeatTransition,
   type BeatTransitionKind,
 } from '@/components/welcome/BeatTransition';
-import { COACH_BG, USER_BG } from '@/components/welcome/beatMood';
+import { clipsForStage } from './beatAudio';
+import { PlayingCtx, AnimationsCtx, useAnimations, Karaoke } from './beatKit';
+import { BeatOrb, orbConfigForType, type OrbConfig } from './BeatOrb';
+import { BEAT_DEFS } from './beats';
+import { FlowStateCtx, type FlowState, type HabitScheduleCfg } from './flowStateCtx';
+import { EXTRA_REGISTRY, EXTRA_GROUPS } from './paletteExtras';
 
 /**
  * FlowBuilder — two buckets. Left: every real component. Right: the flow.
@@ -508,6 +507,9 @@ interface DefaultBeat {
 // The default onboarding flow, pre-connected to the beats sheet so each beat
 // opens with its real context. Several components can share one sheet stage
 // (profile setup is name + age + gender), so they share a beat number.
+// NON-AUTHORITATIVE (L1-4): this in-builder starter set is a design-time palette
+// seed. The engine's source of truth is the Export JSON at
+// src/onboarding-flow/flows/designer-source.json, transformed by flow:sync.
 const DEFAULT_FLOW: DefaultBeat[] = [
   // The full onboarding, start to finish. background = who leads (coach blue when
   // the coach speaks, user yellow when you act). The orb state per beat lives in
@@ -609,7 +611,9 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     background: 'user',
     showOnPath: 'exp',
     sheetStage: 'ONBOARD-ADVANCED: Brain Dump',
-    props: { coachLine: "Perfect. Read me the habits you already track and I'll get them organized." },
+    props: {
+      coachLine: "Perfect. Read me the habits you already track and I'll get them organized.",
+    },
   },
   {
     // Advanced users schedule their captured habits with the same card the
@@ -652,7 +656,9 @@ const DEFAULT_FLOW: DefaultBeat[] = [
     beat: '14b',
     background: 'user',
     sheetStage: 'ONBOARD-STATE-CHECK: First State Check',
-    props: { coachLine: "Let's do your first one right now. How are you feeling in this exact moment?" },
+    props: {
+      coachLine: "Let's do your first one right now. How are you feeling in this exact moment?",
+    },
   },
 ];
 
@@ -685,7 +691,9 @@ const MORNING_CHECKIN_FLOW: DefaultBeat[] = [
     type: 'coach-bubble',
     beat: '3',
     sheetStage: 'are_you_done',
-    props: { text: 'Looks like there are a few items left. Want to add anything, or should we move on?' },
+    props: {
+      text: 'Looks like there are a few items left. Want to add anything, or should we move on?',
+    },
   },
   {
     type: 'coach-bubble',
@@ -711,7 +719,9 @@ const EVENING_CHECKIN_FLOW: DefaultBeat[] = [
     type: 'coach-bubble',
     beat: '3',
     sheetStage: 'are_you_done',
-    props: { text: 'Looks like there are a few items left. Want to add anything, or should we move on?' },
+    props: {
+      text: 'Looks like there are a few items left. Want to add anything, or should we move on?',
+    },
   },
   {
     type: 'reflection',
@@ -759,7 +769,8 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
     props: {
       userName: '{name}',
       stage: 'reveal',
-      coachLine: 'These are your habits. Tap one done when you finish it. Your reflections land here too.',
+      coachLine:
+        'These are your habits. Tap one done when you finish it. Your reflections land here too.',
     },
   },
   {
@@ -769,7 +780,8 @@ const HOME_TOUR_FLOW: DefaultBeat[] = [
     props: {
       userName: '{name}',
       stage: 'chat',
-      coachLine: "Feedback's here for me. And the chat's right here, tap it whenever. Otherwise, this is home.",
+      coachLine:
+        "Feedback's here for me. And the chat's right here, tap it whenever. Otherwise, this is home.",
     },
   },
   {
@@ -1551,7 +1563,8 @@ function MetaSection({
     void a.play().catch(() => {});
   };
   const orb = meta.orb ?? {};
-  const setOrb = (patch: Partial<NonNullable<BeatMeta['orb']>>) => setMeta({ orb: { ...orb, ...patch } });
+  const setOrb = (patch: Partial<NonNullable<BeatMeta['orb']>>) =>
+    setMeta({ orb: { ...orb, ...patch } });
   const engine = meta.engine ?? {};
   const setEngine = (patch: Partial<NonNullable<BeatMeta['engine']>>) =>
     setMeta({ engine: { ...engine, ...patch } });
@@ -1610,7 +1623,9 @@ function MetaSection({
             </MetaField>
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
-                <span className={META_LABEL}>MP3 clips{clips.length ? ` (${clips.length} variations)` : ''}</span>
+                <span className={META_LABEL}>
+                  MP3 clips{clips.length ? ` (${clips.length} variations)` : ''}
+                </span>
                 <button
                   type="button"
                   onClick={addClip}
@@ -2457,7 +2472,9 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
   const [morningTime, setMorningTime] = useState<string | null>(null);
   const [eveningTime, setEveningTime] = useState<string | null>(null);
   const [habitConfigs, setHabitConfigsState] = useState<Record<string, HabitScheduleCfg>>({});
-  const [tourHabitStatus, setTourHabitStatusState] = useState<Record<string, 'done' | 'missed' | 'none'>>({});
+  const [tourHabitStatus, setTourHabitStatusState] = useState<
+    Record<string, 'done' | 'missed' | 'none'>
+  >({});
   const [tourSelectedDate, setTourSelectedDateState] = useState<string | null>(null);
   const toggleIn = (v: string, max: number, set: (fn: (p: string[]) => string[]) => void) =>
     set((p) => (p.includes(v) ? p.filter((x) => x !== v) : p.length < max ? [...p, v] : p));
@@ -2583,96 +2600,101 @@ function FlowPhone({ placed, flowId }: { placed: Placed[]; flowId: string }) {
 
   return (
     <PlayingCtx.Provider value={true}>
-    <FlowStateCtx.Provider value={flowState}>
-    <div className="flex flex-col items-center gap-3">
-      <div
-        className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
-        style={{ width: PHONE_DISPLAY_W, height: PHONE_DISPLAY_H }}
-      >
-        <div
-          className="relative"
-          style={{
-            width: DEVICE_W,
-            height: DEVICE_H,
-            transform: `scale(${PHONE_SCALE})`,
-            transformOrigin: 'top left',
-            // Splash and Get Started advance on tap (tap splash to continue, press
-            // Get Started to move into the greeting). The dissolve grows the docked
-            // orb open into the bloomed greeting orb, the seamless connection.
-            cursor:
-              (current?.type === 'splash' || current?.type === 'get-started') &&
-              next &&
-              !advancing
-                ? 'pointer'
-                : undefined,
-          }}
-          onClick={
-            (current?.type === 'splash' || current?.type === 'get-started') &&
-            next &&
-            !advancing
-              ? advance
-              : undefined
-          }
-        >
-          {beats.length === 0 ? (
-            <div className="flex h-full items-center justify-center px-6 text-center text-[14px] text-content-tertiary">
-              Nothing in the flow yet. Add beats in the middle.
-            </div>
-          ) : next ? (
-            <BeatTransition
-              key={step}
-              first={screen(current)}
-              second={
-                // Remount the next beat the moment it becomes visible so any beat
-                // animation starts fresh on screen, instead of having run silently
-                // while it was the hidden waiting slot.
-                <div key={advancing ? 'enter' : 'wait'} className="absolute inset-0">
-                  {screen(next)}
-                </div>
+      <FlowStateCtx.Provider value={flowState}>
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className="relative shrink-0 overflow-hidden rounded-[34px] border-[3px] border-[#e2e8f0] bg-surface shadow-elevated"
+            style={{ width: PHONE_DISPLAY_W, height: PHONE_DISPLAY_H }}
+          >
+            <div
+              className="relative"
+              style={{
+                width: DEVICE_W,
+                height: DEVICE_H,
+                transform: `scale(${PHONE_SCALE})`,
+                transformOrigin: 'top left',
+                // Splash and Get Started advance on tap (tap splash to continue, press
+                // Get Started to move into the greeting). The dissolve grows the docked
+                // orb open into the bloomed greeting orb, the seamless connection.
+                cursor:
+                  (current?.type === 'splash' || current?.type === 'get-started') &&
+                  next &&
+                  !advancing
+                    ? 'pointer'
+                    : undefined,
+              }}
+              onClick={
+                (current?.type === 'splash' || current?.type === 'get-started') &&
+                next &&
+                !advancing
+                  ? advance
+                  : undefined
               }
-              showSecond={advancing}
-              kind={kind}
-              durationMs={animationsOn ? (current?.transition?.durationMs ?? 600) : 0}
-            />
-          ) : (
-            screen(current)
-          )}
+            >
+              {beats.length === 0 ? (
+                <div className="flex h-full items-center justify-center px-6 text-center text-[14px] text-content-tertiary">
+                  Nothing in the flow yet. Add beats in the middle.
+                </div>
+              ) : next ? (
+                <BeatTransition
+                  key={step}
+                  first={screen(current)}
+                  second={
+                    // Remount the next beat the moment it becomes visible so any beat
+                    // animation starts fresh on screen, instead of having run silently
+                    // while it was the hidden waiting slot.
+                    <div key={advancing ? 'enter' : 'wait'} className="absolute inset-0">
+                      {screen(next)}
+                    </div>
+                  }
+                  showSecond={advancing}
+                  kind={kind}
+                  durationMs={animationsOn ? (current?.transition?.durationMs ?? 600) : 0}
+                />
+              ) : (
+                screen(current)
+              )}
+            </div>
+          </div>
+          <div
+            className="flex items-center justify-between gap-2"
+            style={{ width: PHONE_DISPLAY_W }}
+          >
+            <button
+              type="button"
+              onClick={goBack}
+              disabled={step === 0}
+              className="flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[12px] font-semibold text-content-subtle disabled:opacity-40"
+            >
+              <Icon icon="ic:round-arrow-back" className="size-4" /> Back
+            </button>
+            <span className="text-[11px] font-medium text-content-tertiary">
+              {beats.length === 0
+                ? 'No beats'
+                : `Beat ${Math.min(step + 1, beats.length)} / ${beats.length}`}
+              {next ? ` · ${kind}` : ''}
+            </span>
+            {next ? (
+              <button
+                type="button"
+                onClick={advance}
+                disabled={advancing}
+                className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+              >
+                Next <Icon icon="ic:round-arrow-forward" className="size-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={restart}
+                className="flex items-center gap-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-content-subtle"
+              >
+                <Icon icon="ic:round-replay" className="size-4" /> Restart
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-      <div className="flex items-center justify-between gap-2" style={{ width: PHONE_DISPLAY_W }}>
-        <button
-          type="button"
-          onClick={goBack}
-          disabled={step === 0}
-          className="flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[12px] font-semibold text-content-subtle disabled:opacity-40"
-        >
-          <Icon icon="ic:round-arrow-back" className="size-4" /> Back
-        </button>
-        <span className="text-[11px] font-medium text-content-tertiary">
-          {beats.length === 0 ? 'No beats' : `Beat ${Math.min(step + 1, beats.length)} / ${beats.length}`}
-          {next ? ` · ${kind}` : ''}
-        </span>
-        {next ? (
-          <button
-            type="button"
-            onClick={advance}
-            disabled={advancing}
-            className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
-          >
-            Next <Icon icon="ic:round-arrow-forward" className="size-4" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={restart}
-            className="flex items-center gap-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-content-subtle"
-          >
-            <Icon icon="ic:round-replay" className="size-4" /> Restart
-          </button>
-        )}
-      </div>
-    </div>
-    </FlowStateCtx.Provider>
+      </FlowStateCtx.Provider>
     </PlayingCtx.Provider>
   );
 }
@@ -2782,7 +2804,9 @@ export function FlowBuilder() {
     setFlowId(fid);
     try {
       const raw = localStorage.getItem(flowKey(fid));
-      setPlaced(raw ? ensureQaControl(fid, hydrate(JSON.parse(raw) as StoredBeat[])) : buildDefault(fid));
+      setPlaced(
+        raw ? ensureQaControl(fid, hydrate(JSON.parse(raw) as StoredBeat[])) : buildDefault(fid),
+      );
     } catch {
       setPlaced(buildDefault(fid));
     }
@@ -2828,7 +2852,9 @@ export function FlowBuilder() {
     let next: Placed[];
     try {
       const raw = localStorage.getItem(flowKey(newId));
-      next = raw ? ensureQaControl(newId, hydrate(JSON.parse(raw) as StoredBeat[])) : buildDefault(newId);
+      next = raw
+        ? ensureQaControl(newId, hydrate(JSON.parse(raw) as StoredBeat[]))
+        : buildDefault(newId);
     } catch {
       next = buildDefault(newId);
     }
@@ -2941,7 +2967,11 @@ export function FlowBuilder() {
     mutateLane(splitUid, laneId, (l) => ({ ...l, label }));
 
   const reset = () => {
-    if (!window.confirm('Reset this flow to the default? The beats you authored in this flow will be replaced.'))
+    if (
+      !window.confirm(
+        'Reset this flow to the default? The beats you authored in this flow will be replaced.',
+      )
+    )
       return;
     setPlaced(buildDefault(flowId));
   };
@@ -2949,7 +2979,6 @@ export function FlowBuilder() {
     if (!window.confirm('Clear every beat from this flow? This cannot be undone.')) return;
     setPlaced([]);
   };
-
 
   const serializeBeat = (p: Placed, i: number) => ({
     beat: p.beat || String(i + 1),
@@ -3063,224 +3092,231 @@ export function FlowBuilder() {
 
   return (
     <UserNameCtx.Provider value={userName}>
-    <AnimationsCtx.Provider value={animationsOn}>
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragEnd={onDragEnd}
-      onDragCancel={() => {
-        setActiveLabel(null);
-        setDropIndex(null);
-      }}
-    >
-      <button
-        type="button"
-        onClick={() => setAnimationsOn((a) => !a)}
-        title={animationsOn ? 'Pause all animations' : 'Play all animations'}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5 text-[13px] font-semibold text-content shadow-elevated"
-      >
-        <Icon
-          icon={animationsOn ? 'ic:round-pause' : 'ic:round-play-arrow'}
-          className="size-5 text-primary"
-        />
-        {animationsOn ? 'Pause animations' : 'Play animations'}
-      </button>
-      <div
-        className="flex min-h-screen gap-5 p-5"
-        style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#e8ecf1' }}
-      >
-        {/* Left bucket: every component, rendered. Also a drop target to remove. */}
-        <div
-          ref={paletteDrop.setNodeRef}
-          className={`sticky top-5 flex h-[calc(100vh-2.5rem)] w-[400px] shrink-0 flex-col overflow-hidden rounded-2xl border bg-surface ${
-            removing ? 'border-danger ring-2 ring-danger' : 'border-border'
-          }`}
+      <AnimationsCtx.Provider value={animationsOn}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={onDragStart}
+          onDragOver={onDragOver}
+          onDragEnd={onDragEnd}
+          onDragCancel={() => {
+            setActiveLabel(null);
+            setDropIndex(null);
+          }}
         >
-          <div className="border-b border-border-light px-4 py-3">
-            <div className={`text-[15px] font-bold ${removing ? 'text-danger' : 'text-content'}`}>
-              {removing ? 'Drop here to remove' : 'Components'}
-            </div>
-            <div className="text-[12px] text-content-tertiary">
-              drag into the flow, or hover and send to top / middle / bottom
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto px-3 py-3">
-            {GROUPS.map((g) => (
-              <div key={g} className="mb-4">
-                <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-content-tertiary">
-                  {g}
+          <button
+            type="button"
+            onClick={() => setAnimationsOn((a) => !a)}
+            title={animationsOn ? 'Pause all animations' : 'Play all animations'}
+            className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5 text-[13px] font-semibold text-content shadow-elevated"
+          >
+            <Icon
+              icon={animationsOn ? 'ic:round-pause' : 'ic:round-play-arrow'}
+              className="size-5 text-primary"
+            />
+            {animationsOn ? 'Pause animations' : 'Play animations'}
+          </button>
+          <div
+            className="flex min-h-screen gap-5 p-5"
+            style={{ fontFamily: 'Urbanist, -apple-system, sans-serif', background: '#e8ecf1' }}
+          >
+            {/* Left bucket: every component, rendered. Also a drop target to remove. */}
+            <div
+              ref={paletteDrop.setNodeRef}
+              className={`sticky top-5 flex h-[calc(100vh-2.5rem)] w-[400px] shrink-0 flex-col overflow-hidden rounded-2xl border bg-surface ${
+                removing ? 'border-danger ring-2 ring-danger' : 'border-border'
+              }`}
+            >
+              <div className="border-b border-border-light px-4 py-3">
+                <div
+                  className={`text-[15px] font-bold ${removing ? 'text-danger' : 'text-content'}`}
+                >
+                  {removing ? 'Drop here to remove' : 'Components'}
                 </div>
-                <div className="flex flex-col gap-3">
-                  {REGISTRY.filter((r) => r.group === g).map((r) => (
-                    <PaletteCard key={r.type} item={r} onSend={insertWhere} />
-                  ))}
+                <div className="text-[12px] text-content-tertiary">
+                  drag into the flow, or hover and send to top / middle / bottom
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right bucket: the flow */}
-        <div className="flex flex-1 flex-col items-start gap-3">
-          <div className="flex w-[400px] max-w-full items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2">
-            <Icon icon="ic:round-person" className="size-4 text-primary" />
-            <span className="text-[11px] font-bold uppercase tracking-wide text-content-tertiary">
-              User's name
-            </span>
-            <input
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              placeholder="e.g. Yair"
-              className="min-w-0 flex-1 rounded-md border border-border bg-page px-2 py-1 text-[13px] text-content"
-            />
-            <span className="shrink-0 text-[10px] text-content-tertiary">fills {'{name}'}</span>
-          </div>
-          <div className="flex w-[400px] max-w-full flex-wrap items-center gap-1.5">
-            {FLOWS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => switchFlow(f.id)}
-                className={`rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                  f.id === flowId
-                    ? 'bg-primary text-white'
-                    : 'border border-border bg-surface text-content-subtle hover:text-content'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex w-[400px] max-w-full items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="text-[15px] font-bold text-content">Flow</div>
-              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
-                {(['production', 'qa'] as ActiveVariant[]).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setVariant(v)}
-                    title={v === 'qa' ? 'QA flow' : 'Production flow'}
-                    className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${
-                      variant === v ? 'bg-primary text-white' : 'text-content-subtle hover:text-content'
-                    }`}
-                  >
-                    {v === 'qa' ? 'QA' : 'Production'}
-                  </button>
+              <div className="flex-1 overflow-y-auto px-3 py-3">
+                {GROUPS.map((g) => (
+                  <div key={g} className="mb-4">
+                    <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-content-tertiary">
+                      {g}
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      {REGISTRY.filter((r) => r.group === g).map((r) => (
+                        <PaletteCard key={r.type} item={r} onSend={insertWhere} />
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] text-content-tertiary">{visible.length} components</span>
-              <button
-                type="button"
-                onClick={addSplit}
-                className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-primary"
-              >
-                + Split
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowJson((v) => !v)}
-                className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-content-subtle"
-              >
-                {showJson ? 'Hide JSON' : 'Export'}
-              </button>
-              <button
-                type="button"
-                onClick={reset}
-                className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-content-subtle"
-              >
-                Reset
-              </button>
-              <button
-                type="button"
-                onClick={clear}
-                className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-content-subtle"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
 
-          {showJson && (
-            <textarea
-              readOnly
-              value={exportJson}
-              onFocus={(e) => e.currentTarget.select()}
-              className="h-56 w-[400px] max-w-full rounded-xl border border-border bg-surface p-3 font-mono text-[11px] leading-[1.5] text-content"
-            />
-          )}
-
-          <div className="w-full">
-            <div className="min-h-[200px]">
-              {visible.length === 0 && dropIndex === null && (
-                <div className="py-16 text-center text-[14px] text-content-tertiary">
-                  Drag a component here, or hover one on the left and pick top / middle / bottom.
+            {/* Right bucket: the flow */}
+            <div className="flex flex-1 flex-col items-start gap-3">
+              <div className="flex w-[400px] max-w-full items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2">
+                <Icon icon="ic:round-person" className="size-4 text-primary" />
+                <span className="text-[11px] font-bold uppercase tracking-wide text-content-tertiary">
+                  User's name
+                </span>
+                <input
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  placeholder="e.g. Yair"
+                  className="min-w-0 flex-1 rounded-md border border-border bg-page px-2 py-1 text-[13px] text-content"
+                />
+                <span className="shrink-0 text-[10px] text-content-tertiary">fills {'{name}'}</span>
+              </div>
+              <div className="flex w-[400px] max-w-full flex-wrap items-center gap-1.5">
+                {FLOWS.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => switchFlow(f.id)}
+                    className={`rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                      f.id === flowId
+                        ? 'bg-primary text-white'
+                        : 'border border-border bg-surface text-content-subtle hover:text-content'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex w-[400px] max-w-full items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="text-[15px] font-bold text-content">Flow</div>
+                  <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
+                    {(['production', 'qa'] as ActiveVariant[]).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setVariant(v)}
+                        title={v === 'qa' ? 'QA flow' : 'Production flow'}
+                        className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${
+                          variant === v
+                            ? 'bg-primary text-white'
+                            : 'text-content-subtle hover:text-content'
+                        }`}
+                      >
+                        {v === 'qa' ? 'QA' : 'Production'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[12px] text-content-tertiary">
+                    {visible.length} components
+                  </span>
+                  <button
+                    type="button"
+                    onClick={addSplit}
+                    className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-primary"
+                  >
+                    + Split
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowJson((v) => !v)}
+                    className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-content-subtle"
+                  >
+                    {showJson ? 'Hide JSON' : 'Export'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={reset}
+                    className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-content-subtle"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clear}
+                    className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-content-subtle"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {showJson && (
+                <textarea
+                  readOnly
+                  value={exportJson}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="h-56 w-[400px] max-w-full rounded-xl border border-border bg-surface p-3 font-mono text-[11px] leading-[1.5] text-content"
+                />
               )}
-              <SortableContext
-                items={visible.map((p) => p.uid)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="flex flex-col gap-5">
-                  {visible.map((item, i) => (
-                    <div key={item.uid} className="flex flex-col gap-5">
-                      {dropIndex === i && <DropLine />}
-                      {item.type === 'split' ? (
-                        <SplitBlock
-                          item={item}
-                          onRemove={() => remove(item.uid)}
-                          onAddLane={() => addLane(item.uid)}
-                          onLabel={(laneId, v) => setLaneLabel(item.uid, laneId, v)}
-                          onRemoveLane={(laneId) => removeLane(item.uid, laneId)}
-                          onItem={(laneId, uid, patch) =>
-                            updateLaneItem(item.uid, laneId, uid, patch)
-                          }
-                          onRemoveItem={(laneId, uid) => removeLaneItem(item.uid, laneId, uid)}
-                          onMoveItem={(laneId, uid, dir) =>
-                            moveLaneItem(item.uid, laneId, uid, dir)
-                          }
-                        />
-                      ) : (
-                        <SortableCard
-                          item={item}
-                          onRemove={() => remove(item.uid)}
-                          onUpdate={(patch) => update(item.uid, patch)}
-                          sheetBeats={beats ?? []}
-                          checkin={flowId.includes('checkin')}
-                        />
-                      )}
-                      {i < visible.length - 1 && (
-                        <BeatConnector
-                          transition={item.transition}
-                          onChange={(t) => update(item.uid, { transition: t })}
-                        />
-                      )}
+
+              <div className="w-full">
+                <div className="min-h-[200px]">
+                  {visible.length === 0 && dropIndex === null && (
+                    <div className="py-16 text-center text-[14px] text-content-tertiary">
+                      Drag a component here, or hover one on the left and pick top / middle /
+                      bottom.
                     </div>
-                  ))}
-                  {dropIndex === visible.length && <DropLine />}
-                  <EndZone />
+                  )}
+                  <SortableContext
+                    items={visible.map((p) => p.uid)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="flex flex-col gap-5">
+                      {visible.map((item, i) => (
+                        <div key={item.uid} className="flex flex-col gap-5">
+                          {dropIndex === i && <DropLine />}
+                          {item.type === 'split' ? (
+                            <SplitBlock
+                              item={item}
+                              onRemove={() => remove(item.uid)}
+                              onAddLane={() => addLane(item.uid)}
+                              onLabel={(laneId, v) => setLaneLabel(item.uid, laneId, v)}
+                              onRemoveLane={(laneId) => removeLane(item.uid, laneId)}
+                              onItem={(laneId, uid, patch) =>
+                                updateLaneItem(item.uid, laneId, uid, patch)
+                              }
+                              onRemoveItem={(laneId, uid) => removeLaneItem(item.uid, laneId, uid)}
+                              onMoveItem={(laneId, uid, dir) =>
+                                moveLaneItem(item.uid, laneId, uid, dir)
+                              }
+                            />
+                          ) : (
+                            <SortableCard
+                              item={item}
+                              onRemove={() => remove(item.uid)}
+                              onUpdate={(patch) => update(item.uid, patch)}
+                              sheetBeats={beats ?? []}
+                              checkin={flowId.includes('checkin')}
+                            />
+                          )}
+                          {i < visible.length - 1 && (
+                            <BeatConnector
+                              transition={item.transition}
+                              onChange={(t) => update(item.uid, { transition: t })}
+                            />
+                          )}
+                        </div>
+                      ))}
+                      {dropIndex === visible.length && <DropLine />}
+                      <EndZone />
+                    </div>
+                  </SortableContext>
                 </div>
-              </SortableContext>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <PlayPanel placed={visible} flowId={flowId} onFullscreen={() => setPlay(true)} />
-      </div>
-
-      <DragOverlay>
-        {activeLabel ? (
-          <div className="rounded-lg border-2 border-primary bg-surface px-3 py-2 text-[13px] font-semibold text-primary shadow-elevated">
-            {activeLabel}
+            <PlayPanel placed={visible} flowId={flowId} onFullscreen={() => setPlay(true)} />
           </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
-    </AnimationsCtx.Provider>
+
+          <DragOverlay>
+            {activeLabel ? (
+              <div className="rounded-lg border-2 border-primary bg-surface px-3 py-2 text-[13px] font-semibold text-primary shadow-elevated">
+                {activeLabel}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      </AnimationsCtx.Provider>
     </UserNameCtx.Provider>
   );
 }

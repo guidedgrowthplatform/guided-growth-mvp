@@ -1,0 +1,312 @@
+{
+  "flowId": "morning-checkin-v1",
+  "name": "Morning Check-in",
+  "version": 1,
+  "publishedAt": "2026-06-26T00:00:00Z",
+  "entryNodeId": "morning-greeting",
+  "nodes": [
+    {
+      "id": "morning-greeting",
+      "type": "beat",
+      "beatNumber": 0,
+      "name": "Morning Greeting",
+      "screenId": "MCHECK-01",
+      "nextId": "morning-state",
+      "backId": null,
+      "context": {
+        "screenId": "MCHECK-01",
+        "screenName": "Morning Greeting",
+        "contextBlock": "Warm morning greeting. Invite the user into a quick check-in."
+      },
+      "componentType": "coach-bubble",
+      "componentProps": {},
+      "voice": {
+        "openerText": "Good morning. Ready to check in?",
+        "expectsInput": false,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "none",
+          "mode": "verbatim",
+          "lines": [
+            {
+              "id": "mcheck-01-line-1",
+              "text": "Good morning. Ready to check in?",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "none"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "none",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": false,
+          "micOn": false,
+          "micAsking": false,
+          "bloomed": false
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "morning-greeting",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
+      "tool": null,
+      "persist": null
+    },
+    {
+      "id": "morning-state",
+      "type": "beat",
+      "beatNumber": 1,
+      "name": "Morning State Check",
+      "screenId": "MCHECK-STATE",
+      "nextId": "morning-are-you-done",
+      "backId": "morning-greeting",
+      "context": {
+        "screenId": "MCHECK-STATE",
+        "screenName": "Morning State Check",
+        "contextBlock": "Capture how the user is landing this morning across sleep, mood, energy, and stress. They tap each row or just tell you. Record what they give, do not push for the rest."
+      },
+      "componentType": "state-check",
+      "componentProps": {
+        "dimensions": ["sleep", "mood", "energy", "stress"]
+      },
+      "voice": {
+        "openerText": "How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Tap what fits or just tell me.",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "none",
+          "mode": "verbatim",
+          "lines": [
+            {
+              "id": "mcheck-state-line-1",
+              "text": "How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Tap what fits or just tell me.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "none"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "soniox",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["record_checkin"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": false,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": false
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "morning-state",
+          "backId": "morning-greeting",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": ["checkin"],
+          "toolName": "record_checkin",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["checkin"]
+        },
+        "authoring": {}
+      },
+      "tool": {
+        "toolName": "record_checkin",
+        "persistsFields": ["checkin"],
+        "advancesStep": true
+      },
+      "persist": null
+    },
+    {
+      "id": "morning-are-you-done",
+      "type": "beat",
+      "beatNumber": 2,
+      "name": "Anything Else",
+      "screenId": "MCHECK-DONE",
+      "nextId": "morning-wrap",
+      "backId": "morning-state",
+      "context": {
+        "screenId": "MCHECK-DONE",
+        "screenName": "Anything Else",
+        "contextBlock": "Check whether the user wants to add anything before wrapping. If they are done, move on without pressure."
+      },
+      "componentType": "coach-bubble",
+      "componentProps": {},
+      "voice": {
+        "openerText": "Looks like there are a few items left. Want to add anything, or should we move on?",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "none",
+          "mode": "verbatim",
+          "lines": [
+            {
+              "id": "mcheck-done-line-1",
+              "text": "Looks like there are a few items left. Want to add anything, or should we move on?",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "none"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "soniox",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": false,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": false
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "morning-are-you-done",
+          "backId": "morning-state",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
+      "tool": null,
+      "persist": null
+    },
+    {
+      "id": "morning-wrap",
+      "type": "beat",
+      "beatNumber": 3,
+      "name": "Morning Wrap",
+      "screenId": "MCHECK-WRAP",
+      "nextId": null,
+      "backId": "morning-are-you-done",
+      "context": {
+        "screenId": "MCHECK-WRAP",
+        "screenName": "Morning Wrap",
+        "contextBlock": "Close the morning check-in warmly. Send them into the day."
+      },
+      "componentType": "coach-bubble",
+      "componentProps": {},
+      "voice": {
+        "openerText": "That's a good start. Go make it a good one.",
+        "expectsInput": false,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "none",
+          "mode": "verbatim",
+          "lines": [
+            {
+              "id": "mcheck-wrap-line-1",
+              "text": "That's a good start. Go make it a good one.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "none"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "none",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": false,
+          "micOn": false,
+          "micAsking": false,
+          "bloomed": false
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "morning-wrap",
+          "backId": "morning-are-you-done",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
+      "tool": null,
+      "persist": null
+    }
+  ]
+}

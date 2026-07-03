@@ -1,0 +1,109 @@
+{
+  "flowId": "home-tour-v1",
+  "name": "Home Tour",
+  "version": 1,
+  "publishedAt": "2026-06-29T00:00:00Z",
+  "source": "flow-builder HOME_TOUR_FLOW preset, enriched Export (authored 2026-07-03)",
+  "beats": [
+    {
+      "beat": "1",
+      "name": "Welcome home",
+      "componentType": "home-tour",
+      "background": "plain",
+      "sheetStage": "HOME-TOUR-01: Welcome home",
+      "context": "Onboarding is complete. Welcome the user to their home space.",
+      "props": {
+        "stage": "land",
+        "coachLine": "That's everything. Welcome home. This is your space."
+      },
+      "meta": {
+        "voiceEngine": "none",
+        "engine": {
+          "nodeId": "home-tour-1",
+          "voiceExpectsInput": false,
+          "voiceDirectLlmAllowed": false
+        }
+      }
+    },
+    {
+      "beat": "2",
+      "name": "Connect",
+      "componentType": "home-tour",
+      "background": "plain",
+      "sheetStage": "HOME-TOUR-02: Connect",
+      "context": "Show that the chat is always available and their work from onboarding is here.",
+      "props": {
+        "stage": "connect",
+        "coachLine": "Everything we just did lives here. The chat's always a tap away."
+      },
+      "meta": {
+        "voiceEngine": "none",
+        "engine": {
+          "nodeId": "home-tour-2",
+          "voiceExpectsInput": false,
+          "voiceDirectLlmAllowed": false
+        }
+      }
+    },
+    {
+      "beat": "3",
+      "name": "Reveal habits",
+      "componentType": "home-tour",
+      "background": "plain",
+      "sheetStage": "HOME-TOUR-03: Reveal habits",
+      "context": "Point to the habit list and the reflection log.",
+      "props": {
+        "stage": "reveal",
+        "coachLine": "These are your habits. Tap one done when you finish it. Your reflections land here too."
+      },
+      "meta": {
+        "voiceEngine": "none",
+        "engine": {
+          "nodeId": "home-tour-3",
+          "voiceExpectsInput": false,
+          "voiceDirectLlmAllowed": false
+        }
+      }
+    },
+    {
+      "beat": "4",
+      "name": "Chat access",
+      "componentType": "home-tour",
+      "background": "plain",
+      "sheetStage": "HOME-TOUR-04: Chat access",
+      "context": "Point to the feedback tab and the persistent chat button.",
+      "props": {
+        "stage": "chat",
+        "coachLine": "Feedback's here for me. And the chat's right here, tap it whenever. Otherwise, this is home."
+      },
+      "meta": {
+        "voiceEngine": "none",
+        "engine": {
+          "nodeId": "home-tour-4",
+          "voiceExpectsInput": false,
+          "voiceDirectLlmAllowed": false
+        }
+      }
+    },
+    {
+      "beat": "5",
+      "name": "Live",
+      "componentType": "home-tour",
+      "background": "plain",
+      "sheetStage": "HOME-TOUR-LIVE: Live",
+      "context": "The tour ends and the user is in the live app.",
+      "props": {
+        "stage": "live",
+        "coachLine": "You're all set. Go make it a good one."
+      },
+      "meta": {
+        "voiceEngine": "none",
+        "engine": {
+          "nodeId": "home-tour-5",
+          "voiceExpectsInput": false,
+          "voiceDirectLlmAllowed": false
+        }
+      }
+    }
+  ]
+}

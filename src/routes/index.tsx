@@ -87,36 +87,10 @@ const QAControlScreen = lazyWithRetry(() =>
   import('@/onboarding-flow/QAControlScreen').then((m) => ({ default: m.QAControlScreen })),
 );
 
-// QA flow preview components (gated inside QA_SCREEN_ENABLED block below).
-// Each lazy import co-loads the target FlowDocument and returns a zero-prop
-// wrapper so React Router can use it as an element with no runtime branching.
-const MorningCheckinPreview = lazyWithRetry(() =>
-  Promise.all([
-    import('@/onboarding-flow/FlowCheckinPreview'),
-    import('@/onboarding-flow/flows/checkin-flows'),
-  ]).then(([{ FlowCheckinPreview }, { morningCheckinV1 }]) => ({
-    default: () => <FlowCheckinPreview flow={morningCheckinV1} />,
-  })),
-);
-const EveningCheckinPreview = lazyWithRetry(() =>
-  Promise.all([
-    import('@/onboarding-flow/FlowCheckinPreview'),
-    import('@/onboarding-flow/flows/checkin-flows'),
-  ]).then(([{ FlowCheckinPreview }, { eveningCheckinV1 }]) => ({
-    default: () => <FlowCheckinPreview flow={eveningCheckinV1} />,
-  })),
-);
-// Home tour: routes correctly but renders incompletely -- the 'home-tour'
-// componentType is NOT in the engine componentRegistry.tsx (only in the flow
-// designer). Each beat shows the coach text only; no interactive card fires
-// onCapture, so the flow stalls per beat. Deferred to app-shell workstream.
-const HomeTourPreview = lazyWithRetry(() =>
-  Promise.all([
-    import('@/onboarding-flow/FlowCheckinPreview'),
-    import('@/onboarding-flow/flows/home-tour-v1'),
-  ]).then(([{ FlowCheckinPreview }, { homeTourV1 }]) => ({
-    default: () => <FlowCheckinPreview flow={homeTourV1} />,
-  })),
+// Generic QA flow preview (gated inside QA_SCREEN_ENABLED block below): renders
+// any registered flow by :flowId through the engine (L1-5).
+const FlowPreviewRoute = lazyWithRetry(() =>
+  import('@/onboarding-flow/FlowPreviewRoute').then((m) => ({ default: m.FlowPreviewRoute })),
 );
 
 // QA control launcher: gated to QA/dev builds only. Off in production by default,
@@ -226,21 +200,10 @@ export function AppRoutes() {
             (the second Route wins in React Router) and has been removed (spec STEP 7). */}
         {QA_SCREEN_ENABLED && <Route path="/onboarding/qa" element={<QAControlScreen />} />}
 
-        {/* QA auth-free flow previews (QA/dev builds only).
-            Each route renders a specific FlowDocument through the engine without a login.
-            morning-checkin and evening-checkin: fully runnable (all componentTypes registered).
-            home-tour: route is wired, but 'home-tour' componentType is missing from
-            componentRegistry.tsx, so each beat shows coach text only and stalls.
-            Deferred to the app-shell workstream (HANDOFF-app-shell-and-flow-order.md). */}
-        {QA_SCREEN_ENABLED && (
-          <Route path="/flow-preview/morning-checkin" element={<MorningCheckinPreview />} />
-        )}
-        {QA_SCREEN_ENABLED && (
-          <Route path="/flow-preview/evening-checkin" element={<EveningCheckinPreview />} />
-        )}
-        {QA_SCREEN_ENABLED && (
-          <Route path="/flow-preview/home-tour" element={<HomeTourPreview />} />
-        )}
+        {/* QA auth-free flow preview (QA/dev builds only): any registered flow by
+            id or slug, no login. home-tour still stalls per beat until its engine
+            adapter lands (L1-8). */}
+        {QA_SCREEN_ENABLED && <Route path="/flow-preview/:flowId" element={<FlowPreviewRoute />} />}
 
         {/* Privacy policy -- accessible from any state (onboarding, settings, anon) */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />

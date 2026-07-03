@@ -32,8 +32,13 @@ import type {
 } from '../types';
 import type { DesignerBeat } from './designerSource';
 
-/** designer `type` -> engine `componentType`. Unmapped types are skipped (intro). */
+/**
+ * designer `type` -> engine `componentType`. null = deliberately skipped.
+ * A type ABSENT from this map makes the transform throw (no silent beat drops).
+ */
 const TYPE_TO_COMPONENT: Record<string, FlowComponentType | null> = {
+  // QA launcher design beat; the engine ships QAControlScreen.tsx instead. Skipped (null).
+  'qa-control': null,
   // Intro beats render via IntroGate, not as engine nodes. Skipped (null).
   splash: null,
   'get-started': null,
@@ -61,6 +66,12 @@ const TYPE_TO_COMPONENT: Record<string, FlowComponentType | null> = {
   'into-app': 'into-app',
   // Five weekly-projection beats appended after into-app.
   'weekly-projection': 'weekly-projection',
+  // Check-in + tour components (linear flows; specs come from the authored
+  // Export beat, never ENGINE_BEAT_SPECS — see designerToLinearFlowDocument).
+  'coach-bubble': 'coach-bubble',
+  'habit-review': 'habit-review',
+  reflection: 'reflection',
+  'home-tour': 'home-tour',
 };
 
 /**
@@ -147,7 +158,7 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
       // resolveOpener). Newlines are turn breaks: one coach bubble per line, so
       // the age and gender prompts stay separate turns even on the fallback.
       openerText:
-        "Good to meet you, {name}. Two quick things so I can tailor this to you.\nHow old are you?\nAnd your gender?",
+        'Good to meet you, {name}. Two quick things so I can tailor this to you.\nHow old are you?\nAnd your gender?',
       expectsInput: true,
       directLlmAllowed: true,
     },
@@ -512,6 +523,21 @@ function specFor(component: FlowComponentType): EngineBeatSpec {
   return spec;
 }
 
+/**
+ * Resolve a designer type to its engine component (null = deliberately skipped).
+ * Throws on a type the map has never heard of; silence here used to drop beats.
+ */
+function componentFor(type: string): FlowComponentType | null {
+  const mapped = TYPE_TO_COMPONENT[type];
+  if (mapped === undefined) {
+    throw new Error(
+      `designerToFlow: unrecognized designer componentType "${type}". ` +
+        'Add it to TYPE_TO_COMPONENT (map to null to skip it deliberately).',
+    );
+  }
+  return mapped;
+}
+
 /** Pull the screenId out of a "SCREEN-ID: Label" sheetStage string. */
 function screenIdFromSheetStage(sheetStage: string | undefined): string | undefined {
   if (!sheetStage) return undefined;
@@ -542,9 +568,16 @@ function resolveOpener(beat: DesignerBeat | undefined, spec: EngineBeatSpec): st
     if (lines.length > 0) return lines.map((line) => line.trim()).join('\n');
   }
   if (spec.openerFromEngine) return spec.voice.openerText;
-  const coachLine = beat?.props?.coachLine;
-  const greeting = beat?.props?.greeting;
-  return coachLine ?? greeting ?? spec.voice.openerText;
+  return (
+    stringProp(beat?.props, 'coachLine') ??
+    stringProp(beat?.props, 'greeting') ??
+    spec.voice.openerText
+  );
+}
+
+function stringProp(props: Record<string, unknown> | undefined, key: string): string | undefined {
+  const value = props?.[key];
+  return typeof value === 'string' ? value : undefined;
 }
 
 const slug = (value: string): string =>
@@ -774,7 +807,119 @@ function resolveMeta(
 }
 
 /**
+ * Linear (fork-less) flows: one node per designer beat, in authoring order.
+ *
+ * Unlike the onboarding path below, NOTHING here reads ENGINE_BEAT_SPECS: a
+ * check-in state-check must not inherit onboarding's beatNumber/backId/persist.
+ * The Export beat itself carries the engine facts: meta.engine.nodeId (falls
+ * back to a slug of the name), a "SCREEN-ID: Name" sheetStage (required),
+ * props.text/coachLine (the opener; both are stripped from componentProps),
+ * meta.engine.toolName/toolPersistsFields/toolAdvancesStep, and
+ * meta.engine.voiceExpectsInput/voiceDirectLlmAllowed. persist stays null:
+ * linear flows never write the onboarding step counter (per-flow persistence
+ * is the adapter layer's job).
+ */
+export function designerToLinearFlowDocument(
+  designerFlow: DesignerBeat[],
+  options: TransformOptions = {},
+): FlowDocument {
+  if (!options.flowId) {
+    throw new Error('designerToFlow(linear): options.flowId is required (no onboarding default)');
+  }
+  const opts = { ...DEFAULTS, ...options };
+
+  const beats = designerFlow.filter((beat) => componentFor(beat.type) != null);
+  if (beats.length === 0) throw new Error('designerToFlow(linear): no engine-mapped beats');
+
+  const nodeIds = beats.map((beat) => {
+    const authored = beat.meta?.engine?.nodeId;
+    if (authored) return authored;
+    if (beat.name) return slug(beat.name);
+    throw new Error(
+      `designerToFlow(linear): beat "${beat.beat ?? '?'}" (${beat.type}) needs meta.engine.nodeId or a name`,
+    );
+  });
+  const dupes = nodeIds.filter((id, i) => nodeIds.indexOf(id) !== i);
+  if (dupes.length > 0) {
+    throw new Error(
+      `designerToFlow(linear): duplicate node id(s) ${[...new Set(dupes)].join(', ')}; ` +
+        'author distinct meta.engine.nodeId values',
+    );
+  }
+
+  const nodes: BeatNode[] = beats.map((beat, i) => {
+    const component = componentFor(beat.type) as FlowComponentType;
+    const screenId = screenIdFromSheetStage(beat.sheetStage);
+    if (!screenId) {
+      throw new Error(
+        `designerToFlow(linear): beat "${beat.beat ?? '?'}" (${beat.type}) needs a "SCREEN-ID: Name" sheetStage`,
+      );
+    }
+    const name = beat.name ?? screenId;
+    const opener = stringProp(beat.props, 'text') ?? stringProp(beat.props, 'coachLine') ?? null;
+    const componentProps: Record<string, unknown> = { ...(beat.props ?? {}) };
+    delete componentProps.text;
+    delete componentProps.coachLine;
+    const engine = beat.meta?.engine;
+    const tool: ToolConfig | null = engine?.toolName
+      ? {
+          toolName: engine.toolName,
+          persistsFields: parseList(engine.toolPersistsFields),
+          advancesStep: engine.toolAdvancesStep ?? false,
+        }
+      : null;
+    const voice: VoiceConfig = {
+      openerText: opener,
+      expectsInput: engine?.voiceExpectsInput ?? false,
+      directLlmAllowed: engine?.voiceDirectLlmAllowed ?? true,
+    };
+    const backId = engine?.backId ?? (i > 0 ? nodeIds[i - 1] : null);
+    const spec: EngineBeatSpec = {
+      nodeId: nodeIds[i],
+      beatNumber: i,
+      backId,
+      screenId,
+      componentProps,
+      voice,
+      tool,
+      persist: null,
+      screenName: name,
+      contextBlock: beat.context ?? '',
+    };
+    return {
+      id: nodeIds[i],
+      type: 'beat',
+      beatNumber: i,
+      name,
+      screenId,
+      nextId: i < beats.length - 1 ? nodeIds[i + 1] : null,
+      backId,
+      context: { screenId, screenName: name, contextBlock: beat.context ?? '' },
+      componentType: component,
+      componentProps,
+      voice,
+      meta: resolveMeta(beat, spec),
+      tool,
+      persist: null,
+    };
+  });
+
+  return {
+    flowId: opts.flowId,
+    name: opts.name,
+    version: opts.version,
+    publishedAt: opts.publishedAt,
+    entryNodeId: nodeIds[0],
+    nodes,
+  };
+}
+
+/**
  * Transform the designer flow into the engine FlowDocument.
+ *
+ * Fork-less designer flows route to designerToLinearFlowDocument: the fork
+ * passes below (lanes, advanced synthesis, merge assembly) run ONLY when a
+ * path-selection beat is present.
  *
  * V3 graph topology (beats in node order):
  *   auth -> mic -> profile -> why-intro -> state-check ->
@@ -799,6 +944,10 @@ export function designerToFlowDocument(
   designerFlow: DesignerBeat[],
   options: TransformOptions = {},
 ): FlowDocument {
+  // No fork beat = linear flow; the fork passes below must not run.
+  if (!designerFlow.some((beat) => componentFor(beat.type) === 'path-selection')) {
+    return designerToLinearFlowDocument(designerFlow, options);
+  }
   const opts = { ...DEFAULTS, ...options };
 
   // Collect all designer beats of a given designer type in authoring order.
@@ -811,9 +960,6 @@ export function designerToFlowDocument(
   // First designer beat for each type (opener + screenId lookup for non-multi types).
   const firstByDesignerType = new Map<string, DesignerBeat>();
   for (const [type, beats] of beatsByDesignerType) firstByDesignerType.set(type, beats[0]);
-
-  // Resolve a designer beat to its component type (null = skip).
-  const componentFor = (type: string): FlowComponentType | null => TYPE_TO_COMPONENT[type] ?? null;
 
   // Pass 1: spine component types in order. Skip: null-mapped, advanced-lane,
   // weekly-projection (all handled in dedicated passes).
@@ -831,7 +977,8 @@ export function designerToFlowDocument(
     const component = componentFor(beat.type);
     if (component == null) continue; // null-mapped
     if (SKIP_IN_SPINE.has(component)) continue;
-    if (!ENGINE_BEAT_SPECS[component]) continue; // no spec
+    // A mapped type with no spec used to be dropped silently; specFor throws.
+    specFor(component);
     spineComponents.push(component);
   }
 
@@ -971,7 +1118,7 @@ export function designerToFlowDocument(
     const spec = specFor('weekly-projection');
     const screenId = screenIdFromSheetStage(beat.sheetStage) ?? spec.screenId;
     const opener = resolveOpener(beat, spec);
-    const state = beat.props?.state ?? 'blank';
+    const state = stringProp(beat.props, 'state') ?? 'blank';
     return {
       id: projectionNodeIds[idx],
       type: 'beat' as const,

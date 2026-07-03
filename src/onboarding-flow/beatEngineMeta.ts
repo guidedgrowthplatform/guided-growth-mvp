@@ -10,21 +10,19 @@
  * classification is identical when meta is present and never regresses when it
  * is absent.
  *
- * Source: the same generated JSON useFlow loads. If a future flow is fetched
- * from Supabase, replace buildMetaMap with a fetch; callers are unchanged.
+ * Source: the LIVE FlowDocument from useFlow's loader (same validation + TS
+ * fallback as the engine), not an independent JSON re-import. If a future flow
+ * is fetched from Supabase, replace buildMetaMap with a fetch; callers are
+ * unchanged.
  */
 import { CHAT_VAPI_BEAT_SCREENS, LOCAL_CAPTURE_BEATS } from '@/lib/onboarding/onboardingStepBeats';
-import generatedJson from './flows/onboarding-beginner-v1.generated.json';
 import type { BeatRuntimeMeta } from './types';
-
-type MetaNode = { screenId?: string; meta?: BeatRuntimeMeta };
+import { loadPublishedFlow } from './useFlow';
 
 function buildMetaMap(): Map<string, BeatRuntimeMeta> {
   const map = new Map<string, BeatRuntimeMeta>();
-  const nodes = (generatedJson as unknown as { nodes?: MetaNode[] }).nodes;
-  if (!Array.isArray(nodes)) return map;
-  for (const n of nodes) {
-    if (n && typeof n.screenId === 'string' && n.meta) map.set(n.screenId, n.meta);
+  for (const node of loadPublishedFlow().nodes) {
+    if (node.meta) map.set(node.screenId, node.meta);
   }
   return map;
 }
