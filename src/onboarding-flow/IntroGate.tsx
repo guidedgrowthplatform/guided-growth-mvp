@@ -22,10 +22,12 @@ import { Button } from '@/components/ui/Button';
 import { SplashIntro } from '@/components/welcome/SplashIntro';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import {
+  blessOpenerClipsInGesture,
   startOpenerFromGesture,
   type GestureStartedOpener,
 } from './renderer/openerGestureStart';
 import { preloadOpenerClips } from './renderer/openerPreloadPool';
+import { ONBOARDING_BEAT_MP3S } from './renderer/useBeatOpenerMp3';
 
 const INTRO_SEEN_KEY = 'gg_onboarding_intro_seen';
 const INTRO_AUDIO_SRC = '/voice/splash_welcome.mp3';
@@ -122,6 +124,10 @@ export function IntroGate({ children }: { children: React.ReactNode }) {
               // play() doubles as the audio unlock for every later beat.
               // SplashIntro adopts this element instead of re-playing it.
               openerRef.current ??= startOpenerFromGesture(INTRO_AUDIO_SRC);
+              // Same gesture also blesses every beat clip (play+pause the
+              // pooled elements), covering per-element autoplay policies for
+              // the whole flow on main AND preview routes (B28).
+              blessOpenerClipsInGesture(Object.values(ONBOARDING_BEAT_MP3S));
               setPhase('coach-greeting');
             }}
           >

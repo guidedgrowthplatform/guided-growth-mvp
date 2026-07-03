@@ -86,6 +86,10 @@ export const HYBRID_OPENER_BEATS: ReadonlySet<string> = new Set([
 
 // ─── Hook ───────────────────────────────────────────────────────────────────
 
+// Autoplay hold longer than this reveals the text on the karaoke timer (B28)
+// while the tap-to-play affordance stays up. Settle semantics are untouched.
+export const OPENER_TEXT_FALLBACK_MS = 4000;
+
 export interface BeatOpenerMp3State {
   /** True while the audio element is actively playing. */
   playing: boolean;
@@ -96,6 +100,10 @@ export interface BeatOpenerMp3State {
    * null until the audio starts (so the caller can gate karaoke on it).
    */
   progress: number | null;
+  /** Autoplay-rejected and holding for the next user gesture (B28 affordance). */
+  blocked: boolean;
+  /** Held past OPENER_TEXT_FALLBACK_MS: reveal text without audio (B28). */
+  textFallback: boolean;
   /** Stop playback and release the element. */
   stop: () => void;
 }
@@ -109,6 +117,8 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [done, setDone] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [textFallback, setTextFallback] = useState(false);
 
   // One tracker per hook instance; each effect run begins its own activation.
   // React can run the effect twice for one logical activation (strict-mode
@@ -136,6 +146,15 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
     setPlaying(false);
     setProgress(null);
     setDone(false);
+    setBlocked(false);
+    setTextFallback(false);
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+    const clearFallbackTimer = () => {
+      if (fallbackTimer !== null) {
+        clearTimeout(fallbackTimer);
+        fallbackTimer = null;
+      }
+    };
 
     // Preloaded element when the pool has it (buffered at flow mount, B15) and
     // no other consumer holds it (the claim serializes the handout); fresh
@@ -178,6 +197,9 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
       // Only the current activation may touch the (shared, pooled) element and
       // the hook state; a stale activation records itself settled and exits.
       if (!activation.settle()) return;
+      clearFallbackTimer();
+      setBlocked(false);
+      setTextFallback(false);
       stopProgress();
       el.onended = null;
       el.onerror = null;
@@ -232,12 +254,30 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
       if (activation.isSettled() || abort.signal.aborted) {
         throw new DOMException('Playback attempt aborted', 'AbortError');
       }
-      await attemptPlayWithGestureFallback(el, { defer: true, signal: abort.signal });
+      await attemptPlayWithGestureFallback(el, {
+        defer: true,
+        signal: abort.signal,
+        // Entering the wait-for-gesture hold: surface the tap-to-play
+        // affordance now, and the text reveal after the fallback window (B28).
+        // Neither settles the clip; B4's hold semantics are untouched.
+        onDeferred: () => {
+          if (activation.isSettled() || !activation.isCurrent()) return;
+          setBlocked(true);
+          clearFallbackTimer();
+          fallbackTimer = setTimeout(() => {
+            if (activation.isSettled() || !activation.isCurrent()) return;
+            setTextFallback(true);
+          }, OPENER_TEXT_FALLBACK_MS);
+        },
+      });
     };
     const attempt = (retriesLeft: number) => {
       playGated()
         .then(() => {
           if (activation.isSettled() || !activation.isCurrent()) return;
+          clearFallbackTimer();
+          setBlocked(false);
+          setTextFallback(false);
           setPlaying(true);
           startProgressLoop();
         })
@@ -274,13 +314,13 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
       // to this activation, so a strict-mode re-run's fresh activation is
       // untouched by this cleanup's async fallout.
       abort.abort();
+      clearFallbackTimer();
       unsubQaSound();
       settle();
       // Belt and braces: release the claim even if a stale settle skipped it.
       pooled?.release();
       if (settleCurrentRef.current === settle) settleCurrentRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, src]);
 
   // When active flips to false, stop any in-flight audio.
@@ -290,5 +330,5 @@ export function useBeatOpenerMp3(src: string | null, active: boolean): BeatOpene
     }
   }, [active, stop]);
 
-  return { playing, progress, done, stop };
+  return { playing, progress, done, blocked, textFallback, stop };
 }

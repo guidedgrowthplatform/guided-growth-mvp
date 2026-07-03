@@ -21,7 +21,7 @@
  */
 
 import { isQaMuted } from '@/onboarding-flow/qaSound';
-import { claimPreloadedClip } from './openerPreloadPool';
+import { claimPreloadedClip, preloadOpenerClips } from './openerPreloadPool';
 
 export interface GestureStartedOpener {
   /** The audio element play() was called on inside the gesture. */
@@ -43,6 +43,37 @@ export interface GestureStartedOpener {
  * Claims the preloaded element when available (fresh Audio as fallback) and
  * calls play() in the same frame.
  */
+/**
+ * Bless a set of clips inside a user gesture WITHOUT audibly playing them:
+ * play() then pause() each POOLED element in the gesture frame, so the same
+ * element a beat later claims replays programmatically (the per-element
+ * autoplay unlock, B28). Entries are created via the preload pool, so this
+ * doubles as the B15 warm-up. Best-effort: rejections leave the deferred-to-
+ * tap fallback (+ affordance) as the safety net. MUST be called synchronously
+ * from a gesture handler.
+ */
+export function blessOpenerClipsInGesture(srcs: readonly string[]): void {
+  preloadOpenerClips(srcs);
+  for (const src of srcs) {
+    const pooled = claimPreloadedClip(src);
+    if (!pooled) continue;
+    const el = pooled.el;
+    try {
+      const p = el.play();
+      if (p && typeof p.then === 'function') {
+        p.catch(() => {
+          /* rejection = stays unblessed; the deferred fallback covers the beat */
+        });
+      }
+      el.pause();
+      el.currentTime = 0;
+    } catch {
+      /* ignore: bless is best-effort */
+    }
+    pooled.release();
+  }
+}
+
 export function startOpenerFromGesture(src: string): GestureStartedOpener {
   const pooled = claimPreloadedClip(src);
   const el = pooled?.el ?? new Audio(src);

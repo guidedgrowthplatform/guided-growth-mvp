@@ -27,9 +27,27 @@ import {
   type BeatStep,
 } from './BeatPlayer';
 import { FROZEN_CARD_TYPES, getAdapter, summarizeBeat } from './componentRegistry';
+import { openerRevealPin } from './openerReveal';
 import { openerTurns } from './openerTurns';
 import { useBeatOpenerCartesia } from './useBeatOpenerCartesia';
 import { useBeatOpenerMp3 } from './useBeatOpenerMp3';
+
+/**
+ * B28: visible affordance while a clip holds for the autoplay-unlock gesture.
+ * Purely visual: the deferred-to-tap listener (capture phase, window) starts
+ * the audio on ANY tap, this button included.
+ */
+function TapToPlayHint() {
+  return (
+    <button
+      type="button"
+      aria-label="Tap to play the coach audio"
+      className="animate-fade-in self-start rounded-full border border-border bg-surface px-3 py-1 text-xs font-semibold text-content-secondary shadow-sm"
+    >
+      🔊 Tap to play
+    </button>
+  );
+}
 
 export interface BeatViewProps {
   node: FlowNode;
@@ -90,21 +108,21 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
     setScreenContextDeferred(node.screenId, !mp3.done);
     return () => setScreenContextDeferred(node.screenId, false);
   }, [active, hasOpenerMp3, isHybridOpenerBeat, mp3.done, node.screenId, setScreenContextDeferred]);
-  // Map 0..1 progress fraction to a word count so Karaoke can light words in sync.
-  // While the opener audio is ARMED but not yet started (buffering, or holding
-  // for the autoplay-unlock gesture) the count pins to 0 so the karaoke and the
-  // card reveal WAIT for real audio instead of running the silent fallback
-  // cadence — otherwise a say-only beat auto-advances with no sound (B4).
-  // BeatPlayer's VOICE_REVEAL_MAX_MS safety still un-strands the beat if audio
-  // never starts. Beats with no opener audio keep the null fallback (karaoke
-  // runs its own timer).
-  const openerWordCount = opener
-    ? mp3.progress !== null
-      ? Math.round(mp3.progress * opener.trim().split(/\s+/).filter(Boolean).length)
-      : hasOpenerAudio && !mp3.done
-        ? 0
-        : null
-    : null;
+  // Map 0..1 progress fraction to a word count so Karaoke can light words in
+  // sync. The armed-not-started pin (B4), the playing-without-duration reveal
+  // (B29), and the long-hold text fallback (B28) all live in openerRevealPin;
+  // see its header for the invariants. BeatPlayer's VOICE_REVEAL_MAX_MS safety
+  // still un-strands the beat if audio never starts.
+  const openerWordCount = openerRevealPin({
+    wordCount: opener ? opener.trim().split(/\s+/).filter(Boolean).length : 0,
+    progress: mp3.progress,
+    hasOpenerAudio,
+    playing: mp3.playing,
+    done: mp3.done,
+    textFallback: mp3.textFallback,
+  });
+  // B28: the affordance shows whenever the clip is holding for a gesture.
+  const showTapToPlay = active && hasOpenerAudio && mp3.blocked;
 
   const handleReveal = useCallback(() => onReveal?.(), [onReveal]);
 
@@ -121,6 +139,7 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
             <Karaoke text={opener} active revealCount={openerWordCount} />
           </div>
         )}
+        {showTapToPlay && <TapToPlayHint />}
         <BeatConversation
           key={node.id}
           screenId={node.screenId}
@@ -180,6 +199,7 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
         {/* overrideRevealCount feeds the MP3 playback progress into the karaoke
             reveal so the word highlight tracks the pre-encoded clip. */}
         <BeatPlayer steps={steps} onReveal={handleReveal} overrideRevealCount={openerWordCount} />
+        {showTapToPlay && <TapToPlayHint />}
         <BeatConversation
           key={node.id}
           screenId={node.screenId}

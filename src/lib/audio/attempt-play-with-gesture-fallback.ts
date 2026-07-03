@@ -3,11 +3,12 @@ const GESTURE_EVENTS = ['pointerdown', 'touchstart', 'keydown'] as const;
 
 /**
  * play() the audio; on NotAllowedError with `defer`, retry after the next
- * user gesture. Resolves on actual playback start.
+ * user gesture. Resolves on actual playback start. `onDeferred` fires when
+ * entering the wait-for-gesture state (B28: callers surface an affordance).
  */
 export async function attemptPlayWithGestureFallback(
   audio: HTMLAudioElement,
-  opts?: { defer?: boolean; signal?: AbortSignal },
+  opts?: { defer?: boolean; signal?: AbortSignal; onDeferred?: () => void },
 ): Promise<void> {
   try {
     await audio.play();
@@ -18,6 +19,8 @@ export async function attemptPlayWithGestureFallback(
       throw err;
     }
   }
+
+  opts?.onDeferred?.();
 
   return new Promise<void>((resolve, reject) => {
     const cleanup = () => {
