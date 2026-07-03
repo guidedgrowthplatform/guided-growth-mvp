@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { isTraceOn, startTurnTrace } from '@/lib/debug/traceConsole';
 import { getAuthHeaders } from '@/lib/services/api-auth';
+import { emitLatencySpan } from '@/lib/telemetry/latencySpans';
 import type { LLMRequest, LLMStreamEvent } from '@gg/shared/types/llm';
 
 export type { LLMRequest, LLMStreamEvent } from '@gg/shared/types/llm';
@@ -58,7 +59,20 @@ export async function streamLLM(
     : null;
   let assembledText = '';
   let deltaCount = 0;
+  // Latency lane T1: fetch dispatch -> first SSE delta (client-leg TTFT).
+  // Includes network + server queueing, so it brackets the server-leg ttft_ms.
+  // Stamped right before fetch (below) so auth-header latency is excluded.
+  let fetchStartedAt = 0;
+  let ttftEmitted = false;
   const handleEvent = (evt: LLMStreamEvent): void => {
+    if (!ttftEmitted && evt.type === 'delta') {
+      ttftEmitted = true;
+      emitLatencySpan('llm_ttft_ms', performance.now() - fetchStartedAt, {
+        leg: 'client',
+        screen_id: req.screen_id,
+        ...(req.mode ? { mode: req.mode } : {}),
+      });
+    }
     if (tracing && trace) {
       switch (evt.type) {
         case 'delta':
@@ -100,6 +114,7 @@ export async function streamLLM(
 
   Object.assign(headers, await getAuthHeaders());
 
+  fetchStartedAt = performance.now();
   const response = await fetch(`${getApiUrl()}/api/llm`, {
     method: 'POST',
     credentials: 'include',
