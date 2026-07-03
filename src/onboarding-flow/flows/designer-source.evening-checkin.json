@@ -15,6 +15,7 @@
         "text": "Hey, good evening. Here are your habits for today. How did the day go?"
       },
       "meta": {
+        "voiceEngine": "none",
         "engine": {
           "nodeId": "evening-greeting",
           "voiceExpectsInput": true,
@@ -33,6 +34,7 @@
         "coachLine": "Tap each habit to mark it, or just tell me how each one went."
       },
       "meta": {
+        "voiceEngine": "none",
         "engine": {
           "nodeId": "evening-habit-review",
           "toolName": "complete_habit",
@@ -53,6 +55,7 @@
         "text": "Looks like there are a few items left. Want to add anything, or should we move on?"
       },
       "meta": {
+        "voiceEngine": "none",
         "engine": {
           "nodeId": "evening-are-you-done",
           "voiceExpectsInput": true,
@@ -69,13 +72,23 @@
       "props": {
         "coachLine": "Good. Now let's take a moment to reflect on the day itself.",
         "questions": [
-          { "key": "proud", "prompt": "What are you proud of today?" },
-          { "key": "forgive", "prompt": "What do you forgive yourself for today?" },
-          { "key": "grateful", "prompt": "What are you grateful for today?" }
+          {
+            "key": "proud",
+            "prompt": "What are you proud of today?"
+          },
+          {
+            "key": "forgive",
+            "prompt": "What do you forgive yourself for today?"
+          },
+          {
+            "key": "grateful",
+            "prompt": "What are you grateful for today?"
+          }
         ],
         "transition": "Good. Now let's take a moment to reflect on the day itself."
       },
       "meta": {
+        "voiceEngine": "none",
         "engine": {
           "nodeId": "evening-reflection",
           "toolName": "log_reflection",
@@ -92,8 +105,11 @@
       "componentType": "coach-bubble",
       "sheetStage": "ECHECK-WRAP: Evening Wrap",
       "context": "Close the evening check-in warmly. Wish them a good night.",
-      "props": { "text": "That's it for tonight. Sleep well." },
+      "props": {
+        "text": "That's it for tonight. Sleep well."
+      },
       "meta": {
+        "voiceEngine": "none",
         "engine": {
           "nodeId": "evening-wrap",
           "voiceExpectsInput": false,
