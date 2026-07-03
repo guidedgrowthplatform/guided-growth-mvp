@@ -1,0 +1,78 @@
+{
+  "flowId": "morning-checkin-v1",
+  "name": "Morning Check-in",
+  "version": 1,
+  "publishedAt": "2026-06-26T00:00:00Z",
+  "source": "flow-builder MORNING_CHECKIN_FLOW preset, enriched Export (authored 2026-07-03)",
+  "beats": [
+    {
+      "beat": "1",
+      "name": "Morning Greeting",
+      "componentType": "coach-bubble",
+      "sheetStage": "MCHECK-01: Morning Greeting",
+      "context": "Warm morning greeting. Invite the user into a quick check-in.",
+      "props": { "text": "Good morning. Ready to check in?" },
+      "meta": {
+        "engine": {
+          "nodeId": "morning-greeting",
+          "voiceExpectsInput": false,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    },
+    {
+      "beat": "2",
+      "name": "Morning State Check",
+      "componentType": "state-check",
+      "background": "user",
+      "sheetStage": "MCHECK-STATE: Morning State Check",
+      "context": "Capture how the user is landing this morning across sleep, mood, energy, and stress. They tap each row or just tell you. Record what they give, do not push for the rest.",
+      "props": {
+        "coachLine": "How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Tap what fits or just tell me.",
+        "dimensions": ["sleep", "mood", "energy", "stress"]
+      },
+      "meta": {
+        "engine": {
+          "nodeId": "morning-state",
+          "toolName": "record_checkin",
+          "toolPersistsFields": "checkin",
+          "toolAdvancesStep": true,
+          "voiceExpectsInput": true,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    },
+    {
+      "beat": "3",
+      "name": "Anything Else",
+      "componentType": "coach-bubble",
+      "sheetStage": "MCHECK-DONE: Anything Else",
+      "context": "Check whether the user wants to add anything before wrapping. If they are done, move on without pressure.",
+      "props": {
+        "text": "Looks like there are a few items left. Want to add anything, or should we move on?"
+      },
+      "meta": {
+        "engine": {
+          "nodeId": "morning-are-you-done",
+          "voiceExpectsInput": true,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    },
+    {
+      "beat": "4",
+      "name": "Morning Wrap",
+      "componentType": "coach-bubble",
+      "sheetStage": "MCHECK-WRAP: Morning Wrap",
+      "context": "Close the morning check-in warmly. Send them into the day.",
+      "props": { "text": "That's a good start. Go make it a good one." },
+      "meta": {
+        "engine": {
+          "nodeId": "morning-wrap",
+          "voiceExpectsInput": false,
+          "voiceDirectLlmAllowed": true
+        }
+      }
+    }
+  ]
+}
