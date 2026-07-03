@@ -25,7 +25,7 @@ VITE_STATE3_ENABLED=true
 ## Reach a clean profile beat
 
 1. Open `http://localhost:5173/onboarding/qa` (QA screen is on automatically under `vite dev`).
-2. Pick a QA user (`qa-onboarding-*@guidedgrowth.test`, password `guided-growth-qa-2026`).
+2. Pick a QA user (`qa-onboarding-*@guidedgrowth.test`; password is `VITE_QA_PASSWORD` from your QA build).
 3. Click **Restart onboarding (fresh)** (wipes state via `/api/qa/self-reset`), then **Profile start**
    or **Mic + Profile**.
 

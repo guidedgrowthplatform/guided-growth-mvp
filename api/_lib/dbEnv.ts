@@ -1,3 +1,4 @@
+import type { VercelResponse } from '@vercel/node';
 import { classifyTarget, type DbTarget } from '@gg/shared/env/projectRefs';
 
 export function resolveDbTarget(): DbTarget {
@@ -8,9 +9,7 @@ export function isProdDb(): boolean {
   return resolveDbTarget() === 'prod';
 }
 
-export function refuseIfProd(res: {
-  status: (code: number) => { json: (body: unknown) => unknown };
-}): boolean {
+export function refuseIfProd(res: Pick<VercelResponse, 'status'>): boolean {
   if (isProdDb()) {
     res
       .status(403)
