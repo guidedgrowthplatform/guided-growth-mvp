@@ -441,6 +441,96 @@ describe('useLLM', () => {
     expect(hookRef!.messages[1].content.trim().length).toBeGreaterThan(0);
   });
 
+  it('idle watchdog: a silent stream errors out with llm_timeout instead of stalling', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = pendingSSE();
+      const fetchMock = vi.fn().mockImplementation((_url, init?: RequestInit) => {
+        init?.signal?.addEventListener('abort', () => {
+          try {
+            pending.close();
+          } catch {
+            // ignore
+          }
+        });
+        return Promise.resolve(pending.response);
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      mount();
+      let sendPromise!: Promise<void>;
+      act(() => {
+        sendPromise = hookRef!.sendMessage('hi');
+      });
+      await flush();
+      expect(hookRef!.status).toBe('streaming');
+
+      await act(async () => {
+        vi.advanceTimersByTime(30_000);
+      });
+      await act(async () => {
+        await sendPromise;
+      });
+      await flush();
+
+      expect(hookRef!.status).toBe('error');
+      expect(hookRef!.error?.message).toMatch(/^llm_timeout/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('idle watchdog: events re-arm the timer, so a slow multi-round stream is untouched', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = pendingSSE();
+      const fetchMock = vi.fn().mockImplementation((_url, init?: RequestInit) => {
+        init?.signal?.addEventListener('abort', () => {
+          try {
+            pending.close();
+          } catch {
+            // ignore
+          }
+        });
+        return Promise.resolve(pending.response);
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      mount();
+      let sendPromise!: Promise<void>;
+      act(() => {
+        sendPromise = hookRef!.sendMessage('hi');
+      });
+      await flush();
+
+      // 20s of silence, then progress, then 20s more — never a 30s gap.
+      await act(async () => {
+        vi.advanceTimersByTime(20_000);
+      });
+      act(() => {
+        pending.emit({ type: 'delta', content: 'still ' });
+      });
+      await flush();
+      await act(async () => {
+        vi.advanceTimersByTime(20_000);
+      });
+      act(() => {
+        pending.emit({ type: 'delta', content: 'here' });
+        pending.emit({ type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 });
+        pending.close();
+      });
+      await act(async () => {
+        await sendPromise;
+      });
+      await flush();
+
+      expect(hookRef!.status).toBe('done');
+      expect(hookRef!.error).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('stream ends with no terminal frame: status leaves streaming (not stuck)', async () => {
     // delta then close, no done/error — simulates a truncated/killed stream
     const fetchMock = vi.fn().mockResolvedValue(mockSSE([{ type: 'delta', content: 'partial' }]));

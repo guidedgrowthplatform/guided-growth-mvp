@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { queryClient } from '@/lib/query';
 import { supabase } from '@/lib/supabase';
+import { clearThread } from '@/contexts/onboardingThreadStore';
 import { useAuthStore } from '@/stores/authStore';
 
 /**
@@ -19,7 +20,7 @@ import { useAuthStore } from '@/stores/authStore';
  *   5. Error line
  *
  * Each test account is a dedicated `qa-onboarding-*@guidedgrowth.test` user. They
- * share one embedded password so testers just pick a user and go.
+ * share one password (VITE_QA_PASSWORD) so testers just pick a user and go.
  */
 
 const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -41,11 +42,8 @@ const FALLBACK_USERS: QaUser[] = [
   { label: 'Timothy', email: 'qa-onboarding-timothy@guidedgrowth.test' },
 ];
 
-// Shared password for the QA test accounts. Embedded on purpose: these are
-// throwaway qa-onboarding-*@guidedgrowth.test accounts with no real data, behind
-// a QA-only gated route, so testers pick a user and go with no entry. The
-// create-test-users script seeds the accounts with this exact value.
-const QA_PASSWORD = 'guided-growth-qa-2026';
+// Set on the QA build; must match the QA_PASSWORD the create-test-users script seeded.
+const QA_PASSWORD = import.meta.env.VITE_QA_PASSWORD;
 
 // ---------------------------------------------------------------------------
 // Flow picker config
@@ -204,6 +202,10 @@ const ACTIONS: ActionDef[] = [
 
 export function QAControlScreen() {
   const navigate = useNavigate();
+  // Drop-in for the FlowDef navigate fns that forces a full page load (B17).
+  const hardNavigate = ((to: unknown) => {
+    if (typeof to === 'string') window.location.assign(to);
+  }) as ReturnType<typeof useNavigate>;
   const signIn = useAuthStore((s) => s.signIn);
   const [users, setUsers] = useState<QaUser[]>(FALLBACK_USERS);
   const [email, setEmail] = useState<string>(() => {
@@ -245,6 +247,7 @@ export function QAControlScreen() {
   }, []);
 
   async function ensureSignedIn() {
+    if (!QA_PASSWORD) throw new Error('VITE_QA_PASSWORD is not set on this build.');
     const { error: signInError } = await signIn(email, QA_PASSWORD);
     if (signInError) throw new Error(signInError);
     // QA accounts ship nameless; stamp the derived display name onto the session so
@@ -271,6 +274,11 @@ export function QAControlScreen() {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       throw new Error(body.error ?? `Reset failed (${res.status})`);
     }
+    // B17: the server wiped this QA user's rows, but the client-side thread
+    // cache (localStorage, keyed by anon_id) survives and replays the old
+    // conversation on the next mount. Clear it so restart-fresh starts empty.
+    const anonId = useAuthStore.getState().anonId;
+    if (anonId) clearThread(anonId);
   }
 
   const selectedFlow = FLOWS.find((f) => f.id === flowId) ?? FLOWS[0];
@@ -292,13 +300,21 @@ export function QAControlScreen() {
         // picked user's data without changing what the preview renders.
         if (flowToRun.kind === 'server') await selfReset();
         queryClient.clear();
-        flowToRun.navigate(navigate);
+        // Hard navigation on purpose (B17): the voice provider is mounted at the
+        // app root and keeps the old thread in memory across an SPA navigate. A
+        // full page load guarantees the fresh run starts with an empty thread.
+        flowToRun.navigate(hardNavigate);
+        return;
       } else if (action === 'reonboard') {
         // Auth-free full-flow render, outside AppGate: runnable from the top for
         // completed users too, in-memory persistence, no server writes.
         queryClient.clear();
         navigate('/onboarding-flow-preview', { replace: true });
       } else if (action === 'reset') {
+        // Reset data only: wipe, clear caches, stay on the QA screen with a
+        // visible confirmation (landing the wiped user inside onboarding lied,
+        // per the loop6 audit). selfReset already clears the thread cache (B17),
+        // and queryClient.clear() covers the stale-query gate (B23).
         await selfReset();
         queryClient.clear();
         const label = users.find((u) => u.email === email)?.label ?? email;
@@ -483,9 +499,7 @@ export function QAControlScreen() {
                     gap: 5,
                     padding: '10px 4px',
                     borderRadius: 14,
-                    border: isSelected
-                      ? '2px solid rgb(19,91,235)'
-                      : '2px solid rgb(226,232,240)',
+                    border: isSelected ? '2px solid rgb(19,91,235)' : '2px solid rgb(226,232,240)',
                     background: isSelected ? 'rgba(19,91,236,0.06)' : '#fff',
                     cursor: busy ? 'default' : 'pointer',
                     opacity: busy ? 0.6 : 1,

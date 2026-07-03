@@ -143,8 +143,11 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
       ageRange: { min: 13, max: 120 },
     },
     voice: {
+      // Fallback only (the designer props compose the real opener, see
+      // resolveOpener). Newlines are turn breaks: one coach bubble per line, so
+      // the age and gender prompts stay separate turns even on the fallback.
       openerText:
-        "Awesome {name}, two quick things so I can tailor this to you. How old are you? And what's your gender?",
+        "Good to meet you, {name}. Two quick things so I can tailor this to you.\nHow old are you?\nAnd your gender?",
       expectsInput: true,
       directLlmAllowed: true,
     },
@@ -287,7 +290,8 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
       placeholder: 'Tell me everything on your mind, what you want to build, drop, or change.',
     },
     voice: {
-      openerText: "Read me the habits you already track. Less is more to start, you can always build on it.",
+      openerText:
+        'Read me the habits you already track. Less is more to start, you can always build on it.',
       expectsInput: true,
       directLlmAllowed: true,
     },
@@ -518,18 +522,36 @@ function screenIdFromSheetStage(sheetStage: string | undefined): string | undefi
 
 /**
  * Resolve the opener for a beat. Beats flagged openerFromEngine keep the engine's
- * canonical opener verbatim (profile: the designer greeting is only the first
- * sentence). Otherwise the designer coachLine drives the opener, falling back to
- * the engine opener when the designer authored none.
+ * canonical opener verbatim. Otherwise the designer coachLine drives the opener,
+ * falling back to the engine opener when the designer authored none.
+ *
+ * Turn-break convention: a newline inside the opener is a TURN BREAK. The
+ * renderer draws one coach bubble per line (BeatView splits via openerTurns).
+ *
+ * Profile is composed, not copied: the designer authors its prompts as separate
+ * props (greeting, askAge, askGender), and the flow-annotated reference renders
+ * them as three separate coach turns. Joining them with newlines keeps the age
+ * and gender prompts as separate bubbles (B5) instead of one merged paragraph.
  */
 function resolveOpener(beat: DesignerBeat | undefined, spec: EngineBeatSpec): string | null {
+  if (spec.nodeId === 'profile') {
+    const props = beat?.props ?? {};
+    const lines = [props.greeting, props.askAge, props.askGender].filter(
+      (line): line is string => typeof line === 'string' && line.trim().length > 0,
+    );
+    if (lines.length > 0) return lines.map((line) => line.trim()).join('\n');
+  }
   if (spec.openerFromEngine) return spec.voice.openerText;
   const coachLine = beat?.props?.coachLine;
   const greeting = beat?.props?.greeting;
   return coachLine ?? greeting ?? spec.voice.openerText;
 }
 
-const slug = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const slug = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 
 function parseList(raw: string | undefined): string[] {
   if (!raw) return [];
@@ -549,7 +571,12 @@ function mapVoiceOutEngine(
   raw: string | undefined,
 ): BeatRuntimeMeta['voiceOut']['engine'] | undefined {
   const normalized = raw?.trim().toLowerCase();
-  if (normalized === 'mp3' || normalized === 'cartesia' || normalized === 'vapi' || normalized === 'none') {
+  if (
+    normalized === 'mp3' ||
+    normalized === 'cartesia' ||
+    normalized === 'vapi' ||
+    normalized === 'none'
+  ) {
     return normalized;
   }
   return undefined;
@@ -570,9 +597,12 @@ function mapPath(raw: string | undefined): BeatRuntimeMeta['path'] | undefined {
   return undefined;
 }
 
-function mapStatus(raw: string | undefined): NonNullable<BeatRuntimeMeta['authoring']>['status'] | undefined {
+function mapStatus(
+  raw: string | undefined,
+): NonNullable<BeatRuntimeMeta['authoring']>['status'] | undefined {
   const normalized = raw?.trim().toLowerCase();
-  if (normalized === 'draft' || normalized === 'ready' || normalized === 'locked') return normalized;
+  if (normalized === 'draft' || normalized === 'ready' || normalized === 'locked')
+    return normalized;
   return undefined;
 }
 
@@ -588,7 +618,10 @@ function firstNumberProp(props: Record<string, unknown>, keys: string[]): number
   return undefined;
 }
 
-function resolveMeta(designerBeat: DesignerBeat | undefined, spec: EngineBeatSpec): BeatRuntimeMeta {
+function resolveMeta(
+  designerBeat: DesignerBeat | undefined,
+  spec: EngineBeatSpec,
+): BeatRuntimeMeta {
   const screenId = screenIdFromSheetStage(designerBeat?.sheetStage) ?? spec.screenId;
   const opener = resolveOpener(designerBeat, spec);
   const authored = designerBeat?.meta;
@@ -628,7 +661,8 @@ function resolveMeta(designerBeat: DesignerBeat | undefined, spec: EngineBeatSpe
       isVapiBeat || voiceOutEngine === 'vapi'
       ? 'vapi'
       : 'direct-llm';
-  const path = mapPath(authored?.path) ?? (fillBrain === 'vapi' ? 'path-1-vapi' : 'path-3-direct-llm');
+  const path =
+    mapPath(authored?.path) ?? (fillBrain === 'vapi' ? 'path-1-vapi' : 'path-3-direct-llm');
   const allowedTools =
     parseList(authored?.allowedTools).length > 0
       ? parseList(authored?.allowedTools)
@@ -661,11 +695,11 @@ function resolveMeta(designerBeat: DesignerBeat | undefined, spec: EngineBeatSpe
   const captureFields =
     parseList(authored?.engine?.captureFields).length > 0
       ? parseList(authored?.engine?.captureFields)
-      : spec.tool?.persistsFields ?? [];
+      : (spec.tool?.persistsFields ?? []);
   const toolPersistsFields =
     parseList(authored?.engine?.toolPersistsFields).length > 0
       ? parseList(authored?.engine?.toolPersistsFields)
-      : spec.tool?.persistsFields ?? [];
+      : (spec.tool?.persistsFields ?? []);
 
   return {
     voiceOut: {
@@ -689,14 +723,16 @@ function resolveMeta(designerBeat: DesignerBeat | undefined, spec: EngineBeatSpe
         : {}),
     },
     voiceIn: {
-      engine: isVapiBeat || fillBrain === 'vapi' ? 'vapi' : spec.voice.expectsInput ? 'soniox' : 'none',
+      engine:
+        isVapiBeat || fillBrain === 'vapi' ? 'vapi' : spec.voice.expectsInput ? 'soniox' : 'none',
       enabled: spec.voice.expectsInput || isVapiBeat,
       micRequired: spec.voice.expectsInput || isVapiBeat,
       armOnBeatLoad: spec.voice.expectsInput || isVapiBeat,
     },
     fill: {
       brain: fillBrain,
-      llmActive: authored?.llmActive ?? (isVapiBeat || spec.voice.expectsInput || spec.tool != null),
+      llmActive:
+        authored?.llmActive ?? (isVapiBeat || spec.voice.expectsInput || spec.tool != null),
       allowedTools,
     },
     path,
@@ -777,8 +813,7 @@ export function designerToFlowDocument(
   for (const [type, beats] of beatsByDesignerType) firstByDesignerType.set(type, beats[0]);
 
   // Resolve a designer beat to its component type (null = skip).
-  const componentFor = (type: string): FlowComponentType | null =>
-    TYPE_TO_COMPONENT[type] ?? null;
+  const componentFor = (type: string): FlowComponentType | null => TYPE_TO_COMPONENT[type] ?? null;
 
   // Pass 1: spine component types in order. Skip: null-mapped, advanced-lane,
   // weekly-projection (all handled in dedicated passes).
@@ -893,7 +928,10 @@ export function designerToFlowDocument(
     },
     componentType: 'advanced-capture',
     componentProps: { ...advCaptureSpec.componentProps },
-    voice: { ...advCaptureSpec.voice, openerText: resolveOpener(advCaptureDesigner, advCaptureSpec) },
+    voice: {
+      ...advCaptureSpec.voice,
+      openerText: resolveOpener(advCaptureDesigner, advCaptureSpec),
+    },
     meta: resolveMeta(advCaptureDesigner, advCaptureSpec),
     tool: advCaptureSpec.tool,
     persist: advCaptureSpec.persist,
@@ -973,7 +1011,12 @@ export function designerToFlowDocument(
   if (forkNode) nodes.push(forkNode);
 
   // Beginner lane nodes (category through habit-schedule).
-  const beginnerComponents: FlowComponentType[] = ['category-grid', 'goals-list', 'habit-picker', 'habit-schedule'];
+  const beginnerComponents: FlowComponentType[] = [
+    'category-grid',
+    'goals-list',
+    'habit-picker',
+    'habit-schedule',
+  ];
   for (const c of beginnerComponents) {
     const n = nodeById.get(specFor(c).nodeId);
     if (n) nodes.push(n);

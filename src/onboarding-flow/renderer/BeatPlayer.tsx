@@ -12,13 +12,19 @@
  * never the card's own state, selection, voice capture, or saving. Those stay in
  * the card adapters and the orchestrator, untouched.
  */
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useReducer, useRef, useState, type ReactNode } from 'react';
 import {
   useOnboardingVoice,
   type OnboardingTranscriptListener,
   type VoiceMessage,
 } from '@/contexts/useOnboardingVoiceSession';
 import { useSmoothReveal } from '@/hooks/useSmoothReveal';
+import {
+  COACH_THINKING_INITIAL,
+  coachThinkingReducer,
+  showCoachThinking,
+} from './coachThinking';
+import { openerTurns } from './openerTurns';
 import { countWords, useCoachSpeechReveal } from './useCoachSpeechReveal';
 
 // Hard ceiling on how long the card waits behind a voice-driven coach line. If
@@ -50,9 +56,9 @@ export const COACH_BUBBLE_CLASS =
 export const USER_BUBBLE_CLASS =
   'max-w-[80%] self-end rounded-2xl rounded-tr-sm bg-[rgba(19,91,236,0.9)] px-4 py-2.5 text-[14px] font-medium text-white shadow-card';
 
-// A past beat replayed as static bubbles: the coach line, then the user's answer.
-// No karaoke, no timing (the beat already happened); same visual language as the
-// active beat so the scroll reads as one conversation.
+// A past beat replayed as static bubbles: the coach line(s), then the user's
+// answer. No karaoke, no timing (the beat already happened); same visual language
+// as the active beat so the scroll reads as one conversation.
 export function PastBeatBubbles({
   coach,
   reply,
@@ -62,7 +68,11 @@ export function PastBeatBubbles({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      {coach && <div className={COACH_BUBBLE_CLASS}>{coach}</div>}
+      {openerTurns(coach).map((line, i) => (
+        <div key={i} className={COACH_BUBBLE_CLASS}>
+          {line}
+        </div>
+      ))}
       {reply && <div className={USER_BUBBLE_CLASS}>{reply}</div>}
     </div>
   );
@@ -184,7 +194,17 @@ export function BeatConversation({
     opener?.source === 'opener' &&
     (openerReveal?.revealedWords ?? 0) < countWords(opener?.text ?? '');
   const cardReady = openerPresent && !liveOpener && !coldOpenerSpeaking;
-  const shouldRevealCard = cardReadyOverride ?? cardReady;
+  // A PAST beat is completed: its card is a persisted receipt and must ALWAYS
+  // render, never gated on whether the thread happens to hold a committed
+  // opener turn. (Direct-LLM beats karaoke their opener without committing it
+  // to the store, so a completed beat often has user turns but no stored coach
+  // opener; gating the card on openerPresent made those cards vanish: B6/B7.)
+  const shouldRevealCard = !active ? true : (cardReadyOverride ?? cardReady);
+  // Same never-disappear rule for the coach line: a past beat with dialogue but
+  // no committed opener re-renders the AUTHORED opener statically, so the line
+  // the coach actually spoke (karaoke, uncommitted) stays in the scrollback.
+  const authoredOpenerTurns =
+    !active && !opener && fallbackOpener ? openerTurns(fallbackOpener) : [];
 
   const renderTurn = (m: VoiceMessage, append?: string | null) => {
     const isColdOpener = coldOpenerLive && m.source === 'opener' && m.id === opener?.id;
@@ -202,14 +222,26 @@ export function BeatConversation({
 
   return (
     <div className="flex flex-col gap-2">
-      {/* opener (committed, the streaming opener before it commits, or the
-          authored failsafe if voice never spoke) — always ABOVE the card */}
+      {/* opener (committed, the streaming opener before it commits, the
+          authored failsafe if voice never spoke, or the authored line replayed
+          on a past beat whose thread has no committed opener), always ABOVE
+          the card */}
       {opener && !coldOpenerPending ? (
         renderTurn(opener, partialExtendsOpener ? livePartial : null)
       ) : liveOpener ? (
         <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{liveOpener}</div>
       ) : showConnecting && fallbackOn && fallbackOpener ? (
-        <div className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>{fallbackOpener}</div>
+        openerTurns(fallbackOpener).map((line, i) => (
+          <div key={`fallback-${i}`} className={`animate-fade-in ${COACH_BUBBLE_CLASS}`}>
+            {line}
+          </div>
+        ))
+      ) : authoredOpenerTurns.length > 0 ? (
+        authoredOpenerTurns.map((line, i) => (
+          <div key={`authored-${i}`} className={COACH_BUBBLE_CLASS}>
+            {line}
+          </div>
+        ))
       ) : null}
 
       {/* the beat component, IN the timeline — revealed only AFTER the coach has
@@ -238,30 +270,43 @@ export function BeatConversation({
   );
 }
 
-// True after the user finishes a turn and before the coach starts replying (and
-// while a Direct-LLM turn is in flight). Keys off a USER final, so it never fires
-// during the opener (no user turn yet) and clears as soon as the coach speaks.
+// True after the user finishes a turn ON THIS BEAT and before the coach starts
+// replying. Keys off a USER final, so it never fires during the opener (no user
+// turn yet) and clears as soon as the coach speaks. The B19 rules live in the
+// pure coachThinkingReducer: a stream already busy at mount belongs to the
+// previous beat (no loading bubble on beat load), and a stream that settles
+// with no assistant output clears the latch (no stuck bubble).
 function useCoachThinking(): boolean {
   const session = useOnboardingVoice();
   const subscribe = session?.subscribeTranscripts;
   const speaking = session?.isAssistantSpeaking ?? false;
   const chatBusy = session?.chatBusy ?? false;
-  const [awaiting, setAwaiting] = useState(false);
+  const [state, dispatch] = useReducer(coachThinkingReducer, COACH_THINKING_INITIAL);
 
   useEffect(() => {
     if (!subscribe) return;
     const onTranscript: OnboardingTranscriptListener = (evt) => {
-      if (evt.role === 'user' && evt.kind === 'final') setAwaiting(true);
-      else if (evt.role === 'assistant') setAwaiting(false);
+      if (evt.role === 'user' && evt.kind === 'final') dispatch({ type: 'user-final' });
+      else if (evt.role === 'assistant') dispatch({ type: 'assistant-activity' });
     };
     return subscribe(onTranscript);
   }, [subscribe]);
 
   useEffect(() => {
-    if (speaking) setAwaiting(false);
+    if (speaking) dispatch({ type: 'assistant-activity' });
   }, [speaking]);
 
-  return (awaiting || chatBusy) && !speaking;
+  // Edge-detect chatBusy: only a rise observed while mounted counts as "busy
+  // here"; a settle clears everything (covers reply-less failures).
+  const prevBusyRef = useRef(chatBusy);
+  useEffect(() => {
+    const wasBusy = prevBusyRef.current;
+    prevBusyRef.current = chatBusy;
+    if (chatBusy && !wasBusy) dispatch({ type: 'busy-rose' });
+    else if (!chatBusy && wasBusy) dispatch({ type: 'busy-settled' });
+  }, [chatBusy]);
+
+  return showCoachThinking(state, speaking);
 }
 
 // The coach "thinking" loading cue in the flow feed. Uses the home coach's

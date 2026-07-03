@@ -20,12 +20,17 @@ import { createClient } from '@supabase/supabase-js';
 
 const url = process.env.SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-// Must match QA_PASSWORD embedded in src/onboarding-flow/QAControlScreen.tsx, so
-// the screen can sign in with no entry. Override with QA_PASSWORD if you change it.
-const password = process.env.QA_PASSWORD || 'guided-growth-qa-2026';
+// Same value must be set as VITE_QA_PASSWORD on the QA build so the screen signs in.
+const password = process.env.QA_PASSWORD;
 
-if (!url || !serviceKey) {
-  console.error('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (e.g. node --env-file=.env.local).');
+if (!url || !serviceKey || !password) {
+  console.error(
+    'Set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and QA_PASSWORD (e.g. node --env-file=.env.local).',
+  );
+  process.exit(1);
+}
+if (password.length < 6) {
+  console.error('QA_PASSWORD must be at least 6 characters.');
   process.exit(1);
 }
 
@@ -60,4 +65,4 @@ for (const email of EMAILS) {
     console.log(error ? `FAIL  ${email}: ${error.message}` : `made  ${email} (${data.user?.id})`);
   }
 }
-console.log('Done. All five accounts now use the embedded QA password.');
+console.log('Done. All five accounts now use the provided QA_PASSWORD.');

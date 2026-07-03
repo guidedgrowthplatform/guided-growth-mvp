@@ -13,8 +13,10 @@ export function checkAdvanceData(args: {
   const { sourceStep, data, path, brainDumpRaw } = args;
   switch (sourceStep) {
     case 1:
-      if (!data.nickname) return 'profile_missing: call submit_profile (nickname required) first';
-      if (!data.gender) return 'gender_missing: call submit_profile with gender (Male | Female | Other) — gender is required and cannot be skipped';
+      // nickname captured at auth; this beat gates on age+gender only.
+      if (!data.age) return 'age_missing: call submit_profile with age first';
+      if (!data.gender)
+        return 'gender_missing: call submit_profile with gender (Male | Female | Other) — gender is required and cannot be skipped';
       return null;
     case 2:
       if (!path) return 'path_missing: call submit_path_choice first';
@@ -24,35 +26,50 @@ export function checkAdvanceData(args: {
         return 'category_or_braindump_missing: call submit_category (beginner) or submit_brain_dump (advanced) first';
       }
       return null;
-    case 4:
+    case 4: {
+      // Beginner: leaving goals. Advanced (braindump): leaving advanced-frequency,
+      // which schedules the parsed habits — gate on habitConfigs, not goals.
+      if (path === 'braindump' || path === 'advanced') {
+        const habits = data.habitConfigs as Record<string, unknown> | undefined;
+        if (!habits || Object.keys(habits).length === 0) {
+          return 'habits_missing: call add_habit at least once first';
+        }
+        return null;
+      }
       if (!Array.isArray(data.goals) || data.goals.length === 0) {
         return 'goals_missing: call submit_goals first (with the chosen goals)';
       }
       return null;
-    // Steps 5 and 6 are the two habit beats (habit-select + habit-schedule), both
-    // gated on habitConfigs — see docs/step-0-canonical-step-table.md. The merged
-    // resync tail is 5→6→7→8→9→10 (NOT the old reflection=6/plan=7 tail).
-    case 5:
-    case 6: {
+    }
+    // V3 persist scale (non-monotonic vs flow order — profile 1 → state-check 6 →
+    // morning 7 → reflection 8 → fork 2 → category 3 → goals 4 → habits 5,5).
+    // Step numbers are beat identities, not positions: 5 is the two habit beats,
+    // 6 state-check, 7 morning-setup, 8 reflection. Parity with the generated
+    // flow is locked by stepMapParity.test.ts.
+    case 5: {
       const habits = data.habitConfigs as Record<string, unknown> | undefined;
       if (!habits || Object.keys(habits).length === 0) {
         return 'habits_missing: call add_habit at least once first';
       }
       return null;
     }
-    case 7:
-      // Leaving plan-review — a display/confirm beat with no new data to gate on.
+    case 6:
+      // record_checkin (voice) writes stateCheck; the card tap writes checkin.
+      if (!data.stateCheck && !data.checkin) {
+        return 'state_check_missing: call record_checkin first (at least one of sleep/mood/energy/stress)';
+      }
       return null;
-    case 8:
+    case 7:
       if (!data.morningCheckin) {
         return 'morning_checkin_missing: call submit_morning_checkin first';
       }
       return null;
-    case 9:
+    case 8:
       if (!data.reflectionConfig) {
         return 'reflection_missing: call submit_reflection_config first';
       }
       return null;
+    // 9+ has no V3 beat (legacy plan-review scale point) — nothing to gate.
     default:
       return null;
   }

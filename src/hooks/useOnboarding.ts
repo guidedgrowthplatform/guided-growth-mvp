@@ -23,17 +23,19 @@ import type {
   ParsedHabit,
 } from '@gg/shared/types';
 
-// Step → canonical screen_id (matches screen_contexts). Steps 8-9 cover the
-// advanced flow and aren't keyed by integer — they fall through to the format
-// string fallback in the handler below.
+// Step → canonical screen_id for session_log labels, on the V3 persist-step
+// scale (the step each beat SAVES; 5 is shared by habit-select + habit-schedule
+// and labels as habit-select). The advanced lane isn't keyed by integer — it
+// falls through to the format-string fallback in the handler below.
 const STEP_TO_SCREEN_ID: Record<number, string> = {
   1: 'ONBOARD-01',
   2: 'ONBOARD-FORK',
   3: 'ONBOARD-BEGINNER-01',
   4: 'ONBOARD-BEGINNER-02',
   5: 'ONBOARD-BEGINNER-03',
-  6: 'ONBOARD-BEGINNER-04',
-  7: 'STARTING-PLAN',
+  6: 'ONBOARD-STATE-CHECK',
+  7: 'ONBOARD-MORNING-SETUP',
+  8: 'ONBOARD-BEGINNER-07',
 };
 
 export function useOnboarding() {

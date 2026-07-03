@@ -135,15 +135,13 @@ describe('toolEventToVoiceActions', () => {
 
   it('update_habit → update_habit with name + patch of only the provided fields', () => {
     const out = toolEventToVoiceActions(evt('update_habit', { name: 'Meditate', time: '08:00' }));
-    expect(out).toEqual([
-      {
-        success: true,
-        action: 'update_habit',
-        params: { name: 'Meditate', patch: { time: '08:00' } },
-        message: '',
-        confidence: 1,
-      },
-    ]);
+    expect(out[0]).toEqual({
+      success: true,
+      action: 'update_habit',
+      params: { name: 'Meditate', patch: { time: '08:00' } },
+      message: '',
+      confidence: 1,
+    });
   });
 
   it('update_habit with name only (no patch fields) emits nothing', () => {
@@ -177,24 +175,101 @@ describe('toolEventToVoiceActions', () => {
     expect(out[0].params).toEqual({ fieldName: 'brainDumpText', value: text });
   });
 
-  it('submit_custom_prompts fans out one fill_field per prompt with indexed fieldName', () => {
+  it('submit_custom_prompts → set_reflection_config with mode=prompts + prompts array', () => {
     const out = toolEventToVoiceActions(evt('submit_custom_prompts', { prompts: ['a', 'b'] }));
     expect(out).toEqual([
       {
         success: true,
-        action: 'fill_field',
-        params: { fieldName: 'customPrompts[0]', value: 'a' },
-        message: '',
-        confidence: 1,
-      },
-      {
-        success: true,
-        action: 'fill_field',
-        params: { fieldName: 'customPrompts[1]', value: 'b' },
+        action: 'set_reflection_config',
+        params: { mode: 'prompts', prompts: ['a', 'b'] },
         message: '',
         confidence: 1,
       },
     ]);
+  });
+
+  it('record_checkin → record_checkin with only present numeric fields', () => {
+    const out = toolEventToVoiceActions(
+      evt('record_checkin', { sleep: 4, mood: 3, energy: 5, stress: 2 }),
+    );
+    expect(out).toEqual([
+      {
+        success: true,
+        action: 'record_checkin',
+        params: { sleep: 4, mood: 3, energy: 5, stress: 2 },
+        message: '',
+        confidence: 1,
+      },
+    ]);
+  });
+
+  it('record_checkin drops non-numeric fields, keeps present ones', () => {
+    const out = toolEventToVoiceActions(evt('record_checkin', { mood: 3, energy: '5' }));
+    expect(out[0].params).toEqual({ mood: 3 });
+  });
+
+  it('record_checkin with no numeric fields emits nothing', () => {
+    expect(toolEventToVoiceActions(evt('record_checkin', {}))).toEqual([]);
+  });
+
+  it('submit_morning_checkin → set_morning_checkin with schedule shape', () => {
+    const out = toolEventToVoiceActions(
+      evt('submit_morning_checkin', {
+        time: '07:30',
+        days: [1, 2, 3, 4, 5],
+        reminder: true,
+        schedule: 'Weekday',
+      }),
+    );
+    expect(out).toEqual([
+      {
+        success: true,
+        action: 'set_morning_checkin',
+        params: { time: '07:30', days: [1, 2, 3, 4, 5], reminder: true, schedule: 'Weekday' },
+        message: '',
+        confidence: 1,
+      },
+    ]);
+  });
+
+  it('submit_morning_checkin with no fields emits nothing', () => {
+    expect(toolEventToVoiceActions(evt('submit_morning_checkin', {}))).toEqual([]);
+  });
+
+  it('add_habit additionally emits set_habit_schedule when schedule params present', () => {
+    const out = toolEventToVoiceActions(
+      evt('add_habit', { name: 'Walk', time: '09:00', days: [1, 2, 3] }),
+    );
+    expect(out).toHaveLength(2);
+    expect(out[1]).toMatchObject({
+      action: 'set_habit_schedule',
+      params: { time: '09:00', days: [1, 2, 3] },
+    });
+  });
+
+  it('add_habit does NOT emit set_habit_schedule when only name present', () => {
+    const out = toolEventToVoiceActions(evt('add_habit', { name: 'Walk' }));
+    expect(out).toHaveLength(1);
+    expect(out[0].action).toBe('add_habit');
+  });
+
+  it('update_habit additionally emits set_habit_schedule when schedule params present', () => {
+    const out = toolEventToVoiceActions(evt('update_habit', { name: 'Walk', time: '09:00' }));
+    expect(out).toHaveLength(2);
+    expect(out[1]).toMatchObject({
+      action: 'set_habit_schedule',
+      params: { time: '09:00' },
+    });
+  });
+
+  it('record_checkin returns nothing on failed result', () => {
+    const e: LLMToolEvent = {
+      id: 'call_x',
+      name: 'record_checkin',
+      args: { mood: 3 },
+      result: { ok: false, payload: { ok: false, error: 'x' } },
+    };
+    expect(toolEventToVoiceActions(e)).toEqual([]);
   });
 
   it('confirm_plan → confirm_plan action (PlanReviewPage completes)', () => {

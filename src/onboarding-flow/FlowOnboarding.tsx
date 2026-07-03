@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useOnboardingRealtimeSync } from '@/hooks/useOnboardingRealtimeSync';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useAuthStore } from '@/stores/authStore';
 import { IntroGate } from './IntroGate';
 import { useOnboardingPersistence } from './persistence';
@@ -41,10 +42,9 @@ export function FlowOnboarding() {
     ? { nickname: authNickname }
     : undefined;
 
-  // Persist the known name to onboarding_states up front (step 1, GREATEST keeps the
-  // real step) so the profile-advance precondition (data.nickname required) passes
-  // even though the user never states a name they gave at sign-in. Only a server-valid
-  // nickname (letters/digits/underscore) to avoid a 400 on names with spaces.
+  // Seed the sign-in name to onboarding_states up front (step 1, GREATEST keeps the
+  // real step) so the greeting/{name} has it before the profile beat.
+  // Only a server-valid nickname (letters/digits/underscore) to avoid a 400 on spaces.
   const persistedNameRef = useRef(false);
   useEffect(() => {
     if (persistedNameRef.current) return;
@@ -52,6 +52,20 @@ export function FlowOnboarding() {
     persistedNameRef.current = true;
     persistence.saveStep(1, { nickname: authNickname });
   }, [authNickname, persistence]);
+
+  // Onboarding starts with the coach voice ON, every entry (B2). The stored
+  // preference can hold 'screen' from elsewhere (home check-in's "Talk instead"
+  // writes it durably; QA resets wipe onboarding rows but not preferences), and
+  // the server row overrides the local default on refetch — so force it once
+  // per mount instead of relying on the default. An in-session toggle-off is
+  // respected (this fires once); a refresh re-enters with voice ON by design.
+  const { updatePreferences } = useUserPreferences();
+  const voiceOnForcedRef = useRef(false);
+  useEffect(() => {
+    if (voiceOnForcedRef.current) return;
+    voiceOnForcedRef.current = true;
+    void updatePreferences({ voiceMode: 'voice' });
+  }, [updatePreferences]);
 
   // QA only: ?startAt=<nodeId> lets the QA screen jump into a specific beat
   // (e.g. ?startAt=profile to skip auth and mic). The orchestrator seeds the

@@ -57,6 +57,7 @@ export async function submitMorningCheckin(
     `INSERT INTO onboarding_states (anon_id, current_step, status, data, updated_at)
      VALUES ($1, 7, 'in_progress', $2::jsonb, now())
      ON CONFLICT (anon_id) DO UPDATE SET
+       current_step = GREATEST(onboarding_states.current_step, 7),
        status = 'in_progress',
        data = onboarding_states.data || $2::jsonb,
        updated_at = now()

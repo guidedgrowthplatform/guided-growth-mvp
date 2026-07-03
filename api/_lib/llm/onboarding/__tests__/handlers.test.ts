@@ -45,10 +45,21 @@ beforeEach(() => {
 // ─── submit_profile ───────────────────────────────────────────────────
 
 describe('submit_profile', () => {
-  it('rejects missing nickname', async () => {
+  it('rejects a fully-empty payload', async () => {
     const r = await submitProfile(CTX, {});
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
     expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('accepts age+gender without a nickname', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ data: { age: 28, gender: 'Female' }, current_step: 1 }],
+    });
+    const r = await submitProfile(CTX, { age: '28', gender: 'Female' });
+    expect(r.ok).toBe(true);
+    const [, params] = pool.query.mock.calls[0];
+    expect(JSON.parse(params[1] as string)).toEqual({ age: 28, gender: 'Female' });
   });
 
   it('rejects nickname over 50 chars', async () => {
@@ -654,16 +665,17 @@ describe('submit_reflection_config', () => {
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
   });
 
-  it('accepts valid config, seeds step 6, does NOT bump current_step', async () => {
+  it('accepts valid config, GREATEST-bumps current_step to the V3 reflection step (8)', async () => {
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
-      rows: [{ data: { reflectionConfig: valid }, current_step: 6 }],
+      rows: [{ data: { reflectionConfig: valid }, current_step: 8 }],
     });
     const r = await submitReflectionConfig(CTX, valid);
     expect(r.ok).toBe(true);
     const [sql, params] = pool.query.mock.calls[0];
-    expect(sql).not.toMatch(/current_step = GREATEST/);
-    expect(sql).toMatch(/VALUES \(\$1, 6,/);
+    // Voice save == tap save: bump to the beat's own persist step, never rewind.
+    expect(sql).toMatch(/current_step = GREATEST\(onboarding_states.current_step, 8\)/);
+    expect(sql).toMatch(/VALUES \(\$1, 8,/);
     expect(JSON.parse(params[1] as string)).toEqual({ reflectionConfig: valid });
   });
 

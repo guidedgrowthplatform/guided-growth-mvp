@@ -1115,6 +1115,7 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
       reminder?: boolean;
       schedule?: string;
       mode?: string;
+      prompts?: string[];
     };
     if (typeof p.time === 'string' && /^\d{1,2}:\d{2}$/.test(p.time)) setTime(p.time);
     if (Array.isArray(p.days)) {
@@ -1129,6 +1130,10 @@ function ReflectionAdapter({ node, answers, onCapture, readOnly }: BeatAdapterPr
     if (p.schedule === 'Weekday' || p.schedule === 'Weekend' || p.schedule === 'Every day')
       changeSchedule(p.schedule);
     if (p.mode === 'prompts' || p.mode === 'freeform') setMode(p.mode);
+    if (Array.isArray(p.prompts)) {
+      const ps = p.prompts.filter((x) => typeof x === 'string');
+      if (ps.length > 0) setPrompts(ps);
+    }
   });
 
   const submit = () => {

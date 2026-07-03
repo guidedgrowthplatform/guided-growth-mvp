@@ -29,8 +29,8 @@
  */
 import pool, { type Queryable } from '../../db.js';
 // Shared with the Direct-LLM advance_step path so a beat advances IDENTICALLY
-// whether driven by Vapi navigate_next or Direct-LLM (step-1 needs nickname+age+
-// gender; step-4 braindump gates on the brain dump, not goals).
+// whether driven by Vapi navigate_next or Direct-LLM (step-1 needs age+gender;
+// step-4 braindump gates on the brain dump, not goals).
 import { checkAdvanceData, traceAdvanceStep0 } from '../../llm/onboarding/preconditions.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

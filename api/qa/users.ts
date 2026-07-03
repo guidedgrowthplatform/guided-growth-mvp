@@ -15,6 +15,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from '../_lib/db.js';
 import { supabaseAdmin } from '../_lib/supabase-admin.js';
 import { handlePreflight } from '../_lib/auth.js';
+import { refuseIfProd } from '../_lib/dbEnv.js';
 
 const QA_EMAIL_PATTERN = /^qa-onboarding-[a-z0-9-]+@guidedgrowth\.test$/;
 
@@ -26,6 +27,7 @@ function nameFromEmail(email: string): string {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  if (refuseIfProd(res)) return;
 
   try {
     // List auth users (a few pages is plenty for test accounts) and keep only QA.

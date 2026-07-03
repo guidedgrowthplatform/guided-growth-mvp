@@ -28,6 +28,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from './_lib/db.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
 import { getClientIp } from './_lib/validation.js';
+import { refuseIfProd } from './_lib/dbEnv.js';
 
 const QA_EMAIL_PATTERN = /^qa-onboarding-[a-z0-9-]+@guidedgrowth\.test$/;
 const DEFAULT_QA_EMAIL = 'qa-onboarding-fresh@guidedgrowth.test';
@@ -41,6 +42,7 @@ type DeletedCounts = {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (refuseIfProd(res)) return;
 
   const sourceIp = getClientIp(req.headers);
 
