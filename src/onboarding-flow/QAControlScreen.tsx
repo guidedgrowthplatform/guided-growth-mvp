@@ -18,7 +18,7 @@ import { useAuthStore } from '@/stores/authStore';
  *   5. Error line
  *
  * Each test account is a dedicated `qa-onboarding-*@guidedgrowth.test` user. They
- * share one embedded password so testers just pick a user and go.
+ * share one password (VITE_QA_PASSWORD) so testers just pick a user and go.
  */
 
 const FONT = 'Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
