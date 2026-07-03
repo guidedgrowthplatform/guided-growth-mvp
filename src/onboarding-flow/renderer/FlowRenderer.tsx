@@ -47,7 +47,7 @@ export function FlowRenderer({ orchestrator }: FlowRendererProps) {
         </div>
       )}
 
-      <div className="relative z-10 flex-1 overflow-y-auto px-4 pb-[160px] pt-2">
+      <div className="relative z-10 flex-1 overflow-y-auto px-4 pt-2">
         <div className="flex flex-col gap-5">
           {state.visited.map((id) => {
             const node = getNode(flow, id);
@@ -77,7 +77,19 @@ export function FlowRenderer({ orchestrator }: FlowRendererProps) {
           {/* The completion line is now the into-app terminal beat (rendered above
               as the last visited node), not a hardcoded bubble here. */}
 
-          <div ref={bottomRef} />
+          {/* B27: the clearance below the last beat is a REAL scroll-anchored
+              spacer, not trailing container padding. scrollIntoView(block:'end')
+              pins THIS element to the viewport bottom, so the spacer fills the
+              zone where FlowVoiceControls' orb sits (bottom-0, ~140px + safe
+              area) and the active card's CTA always lands ABOVE the orb. As
+              trailing container padding the clearance scrolled out of view and
+              the CTA parked under the orb, which swallowed real taps on phones. */}
+          <div
+            ref={bottomRef}
+            aria-hidden
+            className="shrink-0"
+            style={{ height: 'calc(180px + env(safe-area-inset-bottom))' }}
+          />
         </div>
       </div>
 
