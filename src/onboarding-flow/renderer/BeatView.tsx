@@ -31,6 +31,7 @@ import {
 } from './BeatPlayer';
 import { openerTurns } from './openerTurns';
 import { FROZEN_CARD_TYPES, getAdapter, summarizeBeat } from './componentRegistry';
+import { useBeatOpenerCartesia } from './useBeatOpenerCartesia';
 import { useBeatOpenerMp3 } from './useBeatOpenerMp3';
 
 export interface BeatViewProps {
@@ -75,7 +76,16 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
       ? (node.meta.voiceOut.mp3Assets?.[0]?.file ?? null)
       : null;
   const hasOpenerMp3 = !!openerMp3Src;
-  const mp3 = useBeatOpenerMp3(openerMp3Src, active && hasOpenerMp3);
+  const mp3Audio = useBeatOpenerMp3(openerMp3Src, active && hasOpenerMp3);
+  // Variable lines (engine 'cartesia', e.g. the name-greeting profile beat) get
+  // live TTS: same state shape, so downstream karaoke gating is engine-agnostic.
+  const isCartesiaOpener = node.meta?.voiceOut?.engine === 'cartesia' && !!opener;
+  const cartesiaAudio = useBeatOpenerCartesia(
+    isCartesiaOpener ? opener : null,
+    active && isCartesiaOpener,
+  );
+  const mp3 = isCartesiaOpener ? cartesiaAudio : mp3Audio;
+  const hasOpenerAudio = hasOpenerMp3 || isCartesiaOpener;
   const setScreenContextDeferred = session?.setScreenContextDeferred;
   const isHybridOpenerBeat = node.meta?.toggles?.continueVapiAfterMp3 === true;
   useLayoutEffect(() => {
@@ -91,11 +101,19 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
     setScreenContextDeferred,
   ]);
   // Map 0..1 progress fraction to a word count so Karaoke can light words in sync.
-  // Falls back to null when the MP3 hasn't started (karaoke runs its own timer).
+  // While the opener audio is ARMED but not yet started (buffering, or holding
+  // for the autoplay-unlock gesture) the count pins to 0 so the karaoke and the
+  // card reveal WAIT for real audio instead of running the silent fallback
+  // cadence — otherwise a say-only beat auto-advances with no sound (B4).
+  // BeatPlayer's VOICE_REVEAL_MAX_MS safety still un-strands the beat if audio
+  // never starts. Beats with no opener audio keep the null fallback (karaoke
+  // runs its own timer).
   const openerWordCount = opener
     ? mp3.progress !== null
       ? Math.round(mp3.progress * opener.trim().split(/\s+/).filter(Boolean).length)
-      : null
+      : hasOpenerAudio && !mp3.done
+        ? 0
+        : null
     : null;
 
   const handleReveal = useCallback(() => onReveal?.(), [onReveal]);
@@ -104,7 +122,7 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
   // the BeatConversation (Vapi continues). For hybrid beats the MP3 is the opener
   // only; for non-hybrid Vapi beats the MP3 replaces the Vapi-spoken opener but
   // Vapi still handles follow-up dialogue.
-  if (active && Adapter && isVapiBeat && hasOpenerMp3) {
+  if (active && Adapter && isVapiBeat && hasOpenerAudio) {
     // Render the opener bubble driven by MP3 progress, then the card + dialogue.
     return (
       <div className="flex flex-col gap-3">
@@ -144,10 +162,11 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
     );
   }
 
-  // Active non-Vapi beat with an MP3 opener: the MP3 plays for the opener bubble,
-  // then the card reveals; dialogue (if any) streams below. Each opener line is
-  // its own coach turn (newline = turn break, e.g. the profile prompts).
-  if (active && Adapter && hasOpenerMp3) {
+  // Active non-Vapi beat with an audio opener (MP3 clip or live Cartesia): the
+  // audio plays for the opener bubble, then the card reveals; dialogue (if any)
+  // streams below. Each opener line is its own coach turn (newline = turn
+  // break, e.g. the profile prompts).
+  if (active && Adapter && hasOpenerAudio) {
     const steps: BeatStep[] = openerTurns(opener).map((line, i) => ({
       id: `${node.id}-coach-${i}`,
       kind: 'coach' as const,

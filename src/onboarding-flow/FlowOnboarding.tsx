@@ -15,6 +15,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { IntroGate } from './IntroGate';
 import { useOnboardingPersistence } from './persistence';
 import { FlowRenderer } from './renderer/FlowRenderer';
+import { preloadOpenerClips } from './renderer/openerPreloadPool';
 import type { FlowAnswers } from './types';
 import { useFlow } from './useFlow';
 import { useFlowOrchestrator } from './useFlowOrchestrator';
@@ -33,6 +34,19 @@ export function FlowOnboarding() {
   const pinnedTag = (state?.data as { flowVersion?: string } | undefined)?.flowVersion ?? null;
   const { flow, tag, problems } = useFlow(pinnedTag);
   const persistence = useOnboardingPersistence();
+
+  // Warm every beat-opener clip at flow mount so playback start never rides
+  // the network when a beat activates (B15). Idempotent per src.
+  useEffect(() => {
+    if (!flow) return;
+    preloadOpenerClips(
+      flow.nodes.flatMap((n) =>
+        n.meta?.voiceOut?.engine === 'mp3' && n.meta.voiceOut.mp3Assets?.[0]?.file
+          ? [n.meta.voiceOut.mp3Assets[0].file]
+          : [],
+      ),
+    );
+  }, [flow]);
 
   // The name comes from sign-in (the profile beat says "you already know it"), so
   // seed it as a known answer — the coach greets by it and never re-asks. QA accounts
