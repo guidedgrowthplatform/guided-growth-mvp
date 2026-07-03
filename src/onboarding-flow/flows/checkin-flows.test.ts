@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { applyCapture, initFlowMachine, validateFlow } from '../flowMachine';
 import type { BeatCapture, FlowDocument } from '../types';
-import { CHECKIN_FLOWS, eveningCheckinV1, morningCheckinV1 } from './checkin-flows';
+import eveningGeneratedJson from './evening-checkin-v1.generated.json';
+import morningGeneratedJson from './morning-checkin-v1.generated.json';
+
+// Retargeted at the builder-generated flows (the runtime artifacts) after the
+// L1-6/L1-7 cutover; the hand defs live on as __fixtures__/checkin-flows-v1.ts.
+const morningCheckinV1 = morningGeneratedJson as unknown as FlowDocument;
+const eveningCheckinV1 = eveningGeneratedJson as unknown as FlowDocument;
+const CHECKIN_FLOWS = {
+  'morning-checkin-v1': morningCheckinV1,
+  'evening-checkin-v1': eveningCheckinV1,
+} as const;
 
 /** Drive a flow to completion with empty captures, returning the final state. */
 function walkToEnd(doc: FlowDocument): ReturnType<typeof initFlowMachine> {

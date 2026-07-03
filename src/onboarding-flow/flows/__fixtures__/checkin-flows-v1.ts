@@ -1,11 +1,9 @@
 /**
- * Check-in flow documents (morning + evening), in the engine FlowDocument shape.
- *
- * These mirror the flow builder's MORNING_CHECKIN_FLOW and EVENING_CHECKIN_FLOW
- * (ggmvp-flow-builder/src/components/flow-designer/FlowBuilder.tsx). Unlike the
- * onboarding flow, the check-in flows are NOT yet driven through the designer ->
- * transform pipeline; they are authored here directly as the engine source of
- * truth and validated by validateFlow at load.
+ * TEST FIXTURE (demoted, L1-6/L1-7): the hand-authored check-in FlowDocuments.
+ * Runtime now consumes the builder-authored Exports through flow:sync
+ * (designer-source.{morning,evening}-checkin.json -> *-checkin-v1.generated.json);
+ * linearTransform.test.ts asserts the generated flows equal these fixtures
+ * node-for-node. Not imported by any runtime module.
  *
  * Each beat carries its componentType (the renderer adapter), an opener (the
  * coach line), and, where the beat captures data, the matching check-in tool from
@@ -20,7 +18,7 @@
  *
  * NO EM DASHES.
  */
-import type { FlowDocument } from '../types';
+import type { FlowDocument } from '../../types';
 
 // Morning check-in: greeting -> state check (the four-row sleep/mood/energy/stress
 // card) -> are-you-done nudge -> wrap. Mirrors MORNING_CHECKIN_FLOW.
@@ -151,8 +149,7 @@ export const eveningCheckinV1: FlowDocument = {
       context: {
         screenId: 'ECHECK-01',
         screenName: 'Evening Greeting',
-        contextBlock:
-          "Warm evening greeting. Surface today's habits and ask how the day went.",
+        contextBlock: "Warm evening greeting. Surface today's habits and ask how the day went.",
       },
       componentType: 'coach-bubble',
       componentProps: {},

@@ -27,8 +27,9 @@
  */
 import { useMemo } from 'react';
 import { validateFlow } from './flowMachine';
-import { eveningCheckinV1, morningCheckinV1 } from './flows/checkin-flows';
+import eveningGeneratedJson from './flows/evening-checkin-v1.generated.json';
 import { homeTourV1 } from './flows/home-tour-v1';
+import morningGeneratedJson from './flows/morning-checkin-v1.generated.json';
 import { onboardingBeginnerV1 } from './flows/onboarding-beginner-v1';
 import generatedJson from './flows/onboarding-beginner-v1.generated.json';
 import type { FlowDocument, FlowNode } from './types';
@@ -86,6 +87,28 @@ function flowSlug(flowId: string): string {
   return flowId.replace(/-v\d+$/, '');
 }
 
+/**
+ * A generated LINEAR flow (builder Export -> flow:sync). No TS fallback: three
+ * build-time gates (zod Export parse, authoring validation, equivalence tests)
+ * make a bad file unshippable, and these flows back QA preview surfaces. An
+ * invalid file is logged and left unregistered (the preview 404s honestly).
+ */
+function acceptGeneratedFlow(raw: unknown, label: string): FlowDocument | null {
+  if (!isFlowDocumentShape(raw)) {
+    console.error(`[flow] generated ${label} flow has the wrong shape; not registered.`);
+    return null;
+  }
+  const problems = validateFlow(raw);
+  if (problems.length > 0) {
+    console.error(`[flow] generated ${label} flow failed validation; not registered:`, problems);
+    return null;
+  }
+  return raw;
+}
+
+const MORNING_CHECKIN_FLOW = acceptGeneratedFlow(morningGeneratedJson, 'morning-checkin');
+const EVENING_CHECKIN_FLOW = acceptGeneratedFlow(eveningGeneratedJson, 'evening-checkin');
+
 // The flow registry (L1-5). Each flow resolves three ways: flowId, versionTag
 // (the pin format flowId@vN), and the version-less slug (the /flow-preview/:flowId
 // route + QA tile URLs). Onboarding registers last so it wins any key collision.
@@ -95,8 +118,8 @@ function registerFlow(flow: FlowDocument): void {
   PUBLISHED_FLOWS[versionTag(flow)] = flow;
   PUBLISHED_FLOWS[flowSlug(flow.flowId)] = flow;
 }
-registerFlow(morningCheckinV1);
-registerFlow(eveningCheckinV1);
+if (MORNING_CHECKIN_FLOW) registerFlow(MORNING_CHECKIN_FLOW);
+if (EVENING_CHECKIN_FLOW) registerFlow(EVENING_CHECKIN_FLOW);
 registerFlow(homeTourV1);
 registerFlow(LATEST_FLOW);
 

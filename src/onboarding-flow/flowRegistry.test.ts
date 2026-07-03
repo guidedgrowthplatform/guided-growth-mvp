@@ -3,16 +3,16 @@
  * slug, and pin tag, while the original onboarding loader contract holds.
  */
 import { describe, expect, it } from 'vitest';
-import { eveningCheckinV1, morningCheckinV1 } from './flows/checkin-flows';
 import { homeTourV1 } from './flows/home-tour-v1';
 import { getPublishedFlow, listPublishedFlows, loadPublishedFlow, versionTag } from './useFlow';
 
 describe('flow registry (useFlow)', () => {
-  it('resolves check-in flows by flowId, slug, and pin tag', () => {
-    expect(getPublishedFlow('morning-checkin-v1')).toBe(morningCheckinV1);
-    expect(getPublishedFlow('morning-checkin')).toBe(morningCheckinV1);
-    expect(getPublishedFlow(versionTag(morningCheckinV1))).toBe(morningCheckinV1);
-    expect(getPublishedFlow('evening-checkin')).toBe(eveningCheckinV1);
+  it('resolves check-in flows by flowId, slug, and pin tag (generated docs)', () => {
+    const morning = getPublishedFlow('morning-checkin-v1');
+    expect(morning?.flowId).toBe('morning-checkin-v1');
+    expect(getPublishedFlow('morning-checkin')).toBe(morning);
+    expect(morning && getPublishedFlow(versionTag(morning))).toBe(morning);
+    expect(getPublishedFlow('evening-checkin')?.flowId).toBe('evening-checkin-v1');
     expect(getPublishedFlow('home-tour')).toBe(homeTourV1);
   });
 
@@ -24,7 +24,7 @@ describe('flow registry (useFlow)', () => {
     expect(loadPublishedFlow().flowId).toBe('onboarding-beginner-v1');
     expect(loadPublishedFlow('bogus@v9').flowId).toBe('onboarding-beginner-v1');
     // A check-in pin resolves through the same loader (pin format generalizes).
-    expect(loadPublishedFlow('morning-checkin-v1@v1')).toBe(morningCheckinV1);
+    expect(loadPublishedFlow('morning-checkin-v1@v1').flowId).toBe('morning-checkin-v1');
   });
 
   it('lists each registered flow exactly once', () => {
