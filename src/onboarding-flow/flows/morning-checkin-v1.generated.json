@@ -27,7 +27,7 @@
       },
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "none",
           "mode": "verbatim",
           "lines": [
             {
@@ -35,7 +35,7 @@
               "text": "Good morning. Ready to check in?",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "none"
             }
           ]
         },
@@ -52,10 +52,10 @@
         },
         "path": "path-3-direct-llm",
         "orb": {
-          "voiceOn": true,
+          "voiceOn": false,
           "micOn": false,
           "micAsking": false,
-          "bloomed": true
+          "bloomed": false
         },
         "toggles": {
           "expectsInput": false,
@@ -102,7 +102,7 @@
       },
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "none",
           "mode": "verbatim",
           "lines": [
             {
@@ -110,7 +110,7 @@
               "text": "How are you feeling this morning? Mood, energy, sleep, any stress on your mind. Tap what fits or just tell me.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "none"
             }
           ]
         },
@@ -127,10 +127,10 @@
         },
         "path": "path-3-direct-llm",
         "orb": {
-          "voiceOn": true,
+          "voiceOn": false,
           "micOn": true,
           "micAsking": false,
-          "bloomed": true
+          "bloomed": false
         },
         "toggles": {
           "expectsInput": true,
@@ -182,7 +182,7 @@
       },
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "none",
           "mode": "verbatim",
           "lines": [
             {
@@ -190,7 +190,7 @@
               "text": "Looks like there are a few items left. Want to add anything, or should we move on?",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "none"
             }
           ]
         },
@@ -207,10 +207,10 @@
         },
         "path": "path-3-direct-llm",
         "orb": {
-          "voiceOn": true,
+          "voiceOn": false,
           "micOn": true,
           "micAsking": false,
-          "bloomed": true
+          "bloomed": false
         },
         "toggles": {
           "expectsInput": true,
@@ -256,7 +256,7 @@
       },
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "none",
           "mode": "verbatim",
           "lines": [
             {
@@ -264,7 +264,7 @@
               "text": "That's a good start. Go make it a good one.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "none"
             }
           ]
         },
@@ -281,10 +281,10 @@
         },
         "path": "path-3-direct-llm",
         "orb": {
-          "voiceOn": true,
+          "voiceOn": false,
           "micOn": false,
           "micAsking": false,
-          "bloomed": true
+          "bloomed": false
         },
         "toggles": {
           "expectsInput": false,
