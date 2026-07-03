@@ -25,6 +25,7 @@ export interface OrbParams {
   iris: number; // iridescent rim sheen 0..100
   depth: number; // glass 3D depth (inner shadow + top highlight) 0..100
   auraSize: number; // membrane extent beyond the disc 0..100 (50 = the old fixed size)
+  ripple: number; // expanding listening rings while talking 0..100 (0 = off)
 }
 
 export interface OrbStates {
@@ -54,6 +55,7 @@ export const DEFAULT_PARAMS: OrbStates = {
     iris: 0,
     depth: 0,
     auraSize: 50,
+    ripple: 0,
   },
   talk: {
     glass: 35,
@@ -74,6 +76,7 @@ export const DEFAULT_PARAMS: OrbStates = {
     iris: 0,
     depth: 0,
     auraSize: 50,
+    ripple: 0,
   },
 };
 
@@ -382,7 +385,7 @@ export function saveColors(c: OrbColors): void {
 // A setup captures a COMPLETE orb configuration: both looks (idle + talking),
 // the motion, the side colors, and the home-bar style. This is where a whole
 // tuned-up local session gets promoted into git, so anyone can jump straight to it.
-export type BarStyle = 'white' | 'glass';
+export type BarStyle = 'white' | 'glass' | 'floating';
 export interface OrbSetup {
   params: OrbStates;
   pulse: PulseParams;
@@ -412,6 +415,7 @@ export const ORB_SETUPS: Record<string, OrbSetup> = {
         iris: 0,
         depth: 0,
         auraSize: 50,
+        ripple: 0,
       },
       talk: {
         glass: 35,
@@ -432,6 +436,7 @@ export const ORB_SETUPS: Record<string, OrbSetup> = {
         iris: 0,
         depth: 0,
         auraSize: 50,
+        ripple: 0,
       },
     },
     pulse: { size: 8, amt: 60, speed: 50, orbAmt: 100, mem: 60, memSpeed: 35 },
@@ -465,6 +470,7 @@ export const ORB_SETUPS: Record<string, OrbSetup> = {
         iris: 70,
         depth: 42,
         auraSize: 35,
+        ripple: 0,
       },
       talk: {
         glass: 34,
@@ -485,6 +491,7 @@ export const ORB_SETUPS: Record<string, OrbSetup> = {
         iris: 70,
         depth: 32,
         auraSize: 35,
+        ripple: 55,
       },
     },
     pulse: { size: 8, amt: 40, speed: 30, orbAmt: 0, mem: 62, memSpeed: 20 },

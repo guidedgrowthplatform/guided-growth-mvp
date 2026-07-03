@@ -62,6 +62,7 @@ const DEPTH_SLIDERS: { k: keyof OrbParams; label: string; min: number; max: numb
   { k: 'auraSize', label: 'Membrane size', min: 0, max: 100 },
   { k: 'iris', label: 'Iridescent rim', min: 0, max: 100 },
   { k: 'depth', label: 'Glass depth', min: 0, max: 100 },
+  { k: 'ripple', label: 'Listening ripple', min: 0, max: 100 },
 ];
 const PULSE_SLIDERS: { k: keyof PulseParams; label: string; min: number; max: number }[] = [
   { k: 'size', label: 'Base size', min: 0, max: 40 },
@@ -211,6 +212,7 @@ export function OrbTuner() {
         next[activeKey].aura = 0;
         next[activeKey].iris = 0;
         next[activeKey].depth = 0;
+        next[activeKey].ripple = 0;
       }
       saveParams(next);
       return next;
@@ -295,7 +297,11 @@ export function OrbTuner() {
           <div className="ot-row">
             <span className="ot-lab">Background</span>
             {(['light', 'blue', 'yellow', 'dark'] as const).map((k) => (
-              <button key={k} className={`ot-btn${bg === k ? 'on' : ''}`} onClick={() => setBg(k)}>
+              <button
+                key={k}
+                className={bg === k ? 'ot-btn on' : 'ot-btn'}
+                onClick={() => setBg(k)}
+              >
                 {k === 'light'
                   ? 'Light'
                   : k === 'blue'
@@ -311,13 +317,13 @@ export function OrbTuner() {
             {(['idle', 'coach', 'user'] as const).map((k) => (
               <button
                 key={k}
-                className={`ot-btn${state === k ? 'on' : ''}`}
+                className={state === k ? 'ot-btn on' : 'ot-btn'}
                 onClick={() => pickState(k)}
               >
                 {k === 'idle' ? 'Idle' : k === 'coach' ? 'Coach talking' : 'User talking'}
               </button>
             ))}
-            <button className={`ot-btn${micOn ? 'on' : ''}`} onClick={toggleMic}>
+            <button className={micOn ? 'ot-btn on' : 'ot-btn'} onClick={toggleMic}>
               {micOn ? 'Mic on (stop)' : 'Use my mic'}
             </button>
           </div>
@@ -326,7 +332,7 @@ export function OrbTuner() {
             {(['full', 'directional'] as const).map((k) => (
               <button
                 key={k}
-                className={`ot-btn${style === k ? 'on' : ''}`}
+                className={style === k ? 'ot-btn on' : 'ot-btn'}
                 onClick={() => setStyle(k)}
               >
                 {k === 'full' ? 'Full circle' : 'Directional'}
@@ -335,13 +341,13 @@ export function OrbTuner() {
           </div>
           <div className="ot-row">
             <span className="ot-lab">Bar style</span>
-            {(['white', 'glass'] as const).map((k) => (
+            {(['white', 'glass', 'floating'] as const).map((k) => (
               <button
                 key={k}
-                className={`ot-btn${barStyle === k ? 'on' : ''}`}
+                className={barStyle === k ? 'ot-btn on' : 'ot-btn'}
                 onClick={() => setBarStyle(k)}
               >
-                {k === 'white' ? 'White' : 'Glass'}
+                {k === 'white' ? 'White' : k === 'glass' ? 'Glass' : 'Floating'}
               </button>
             ))}
           </div>
@@ -378,7 +384,7 @@ export function OrbTuner() {
             ).map(([k, lbl]) => (
               <button
                 key={k}
-                className={`ot-btn${editTab === k ? 'on' : ''}`}
+                className={editTab === k ? 'ot-btn on' : 'ot-btn'}
                 onClick={() => pickEdit(k)}
               >
                 {lbl}
@@ -403,7 +409,7 @@ export function OrbTuner() {
             {Object.keys(AUTHOR_PRESETS).map((au) => (
               <button
                 key={au}
-                className={`ot-btn${author === au ? 'on' : ''}`}
+                className={author === au ? 'ot-btn on' : 'ot-btn'}
                 onClick={() => setAuthor(au)}
               >
                 {au}

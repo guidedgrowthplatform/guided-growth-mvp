@@ -501,15 +501,27 @@ export function Orb({
         const micF = m.on ? 0.5 + m.amp * 0.9 : 1;
         const swing = (0.5 + 0.5 * Math.sin(t2 * prate * 2)) * pamt * 0.2;
         const gv = 1 + (pbase * 0.85 + swing) * micF * oa;
-        if (leftHalfRef.current)
+        // Per-frame scale is JS-driven: kill the CSS merge transition on the
+        // driven half so the pulse stays crisp instead of low-pass filtered.
+        if (leftHalfRef.current) {
+          leftHalfRef.current.style.transition = activeSide === 'left' ? 'none' : '';
           leftHalfRef.current.style.transform =
             activeSide === 'left' ? `scale(${gv.toFixed(3)})` : '';
-        if (rightHalfRef.current)
+        }
+        if (rightHalfRef.current) {
+          rightHalfRef.current.style.transition = activeSide === 'right' ? 'none' : '';
           rightHalfRef.current.style.transform =
             activeSide === 'right' ? `scale(${gv.toFixed(3)})` : '';
+        }
       } else {
-        if (leftHalfRef.current) leftHalfRef.current.style.transform = '';
-        if (rightHalfRef.current) rightHalfRef.current.style.transform = '';
+        if (leftHalfRef.current) {
+          leftHalfRef.current.style.transition = '';
+          leftHalfRef.current.style.transform = '';
+        }
+        if (rightHalfRef.current) {
+          rightHalfRef.current.style.transition = '';
+          rightHalfRef.current.style.transform = '';
+        }
       }
       // Organic outer membrane (matches the standalone HTML orb builder): morphing
       // blobs that live outside the disc, breathing with the pulse and the mic.
@@ -538,6 +550,12 @@ export function Orb({
               ? rgbaStr(mixRgb(userBase, WHITE, 0.2), 0.6)
               : rgbaStr(mixRgb(aiBase, WHITE, 0.4), 0.55),
         );
+        // Listening ripple: expanding rings while a side talks. Amplitude rides
+        // the live mic when it is on, else the talking pulse. 0 = fully off.
+        const ripP = (aset.ripple ?? 0) / 100;
+        const ripAmp = m.on ? 0.35 + m.amp * 0.65 : 0.55 + 0.45 * Math.sin(t2 * prate * 2);
+        shell.style.setProperty('--rip', (talking ? ripP * ripAmp : 0).toFixed(3));
+        shell.style.setProperty('--ripc', rgbaStr(c.state === 'user' ? userBase : aiBase, 0.8));
       }
       drawHalf(leftCv.current, 'left', dt);
       drawHalf(rightCv.current, 'right', dt);
@@ -562,12 +580,16 @@ export function Orb({
   return (
     <div
       ref={shellRef}
-      className={`ot-shell${flat ? 'ot-flat' : ''}`}
+      className={flat ? 'ot-shell ot-flat' : 'ot-shell'}
       style={{ ['--D' as string]: `${size}px` } as React.CSSProperties}
     >
       <div className="ot-membrane" aria-hidden="true">
         <div className="ot-mem ot-mem1" />
         <div className="ot-mem ot-mem2" />
+      </div>
+      <div className="ot-ripwrap" aria-hidden="true">
+        <div className="ot-rip ot-rip1" />
+        <div className="ot-rip ot-rip2" />
       </div>
       <div ref={orbRef} className="ot-orb">
         <div ref={leftHalfRef} className="ot-half ot-left" onClick={onToggleLeft}>
@@ -601,6 +623,11 @@ const ORB_CSS = `
 .ot-shell{position:relative;display:inline-block;width:var(--D);height:var(--D)}
 .ot-membrane{position:absolute;left:50%;top:50%;width:calc(var(--D) * var(--memext,1.42));height:calc(var(--D) * var(--memext,1.42));transform:translate(-50%,-50%) scale(var(--memscale,1));opacity:var(--mem,0);pointer-events:none;z-index:0}
 .ot-shell.ot-flat .ot-membrane{display:none}
+.ot-ripwrap{position:absolute;inset:0;pointer-events:none;z-index:0;opacity:var(--rip,0)}
+.ot-shell.ot-flat .ot-ripwrap{display:none}
+.ot-rip{position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--ripc,rgba(120,160,255,.8));animation:ot-ripple 2.1s cubic-bezier(.2,.6,.35,1) infinite}
+.ot-rip2{animation-delay:1.05s}
+@keyframes ot-ripple{0%{transform:scale(1);opacity:.85}70%{opacity:.25}100%{transform:scale(1.75);opacity:0}}
 .ot-mem{position:absolute;left:50%;top:50%;width:100%;height:100%;transform:translate(-50%,-50%);pointer-events:none;mix-blend-mode:screen;filter:blur(calc(var(--D) * 0.05));background:radial-gradient(circle at 42% 38%, var(--memc, rgba(150,175,255,.55)) 0%, transparent 66%);border-radius:46% 54% 52% 48% / 52% 46% 54% 48%;animation:ot-wob 7s ease-in-out infinite}
 .ot-mem2{width:80%;height:80%;opacity:.82;filter:blur(calc(var(--D) * 0.035));animation:ot-wob2 5.2s ease-in-out infinite}
 @keyframes ot-wob{0%,100%{border-radius:46% 54% 52% 48% / 52% 46% 54% 48%;rotate:0deg}50%{border-radius:54% 46% 48% 52% / 46% 54% 47% 53%;rotate:8deg}}
@@ -611,13 +638,16 @@ const ORB_CSS = `
 .ot-half{position:absolute;top:0;height:100%;width:calc(50% - var(--gap)/2);overflow:hidden;background:radial-gradient(125% 125% at 50% 34%, rgba(255,255,255, calc(0.20 + 0.16*(1 - var(--body)))), rgba(255,255,255, calc(0.04 + 0.05*(1 - var(--body)))) 52%, rgba(8,11,22, calc(0.10 + 0.52*var(--body))) 100%)}
 .ot-half.ot-left{left:0;border-top-right-radius:var(--innerR);border-bottom-right-radius:var(--innerR);transform-origin:100% 50%}
 .ot-half.ot-right{right:0;border-top-left-radius:var(--innerR);border-bottom-left-radius:var(--innerR);transform-origin:0% 50%}
+.ot-half{transition:opacity .45s ease,transform .45s cubic-bezier(.3,1.1,.45,1),width .45s ease}
 .ot-orb.ot-full .ot-half{opacity:0}
+.ot-orb.ot-full .ot-half.ot-left{transform:translateX(calc(var(--D)*0.035))}
+.ot-orb.ot-full .ot-half.ot-right{transform:translateX(calc(var(--D)*-0.035))}
 .ot-cv{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .ot-glass{position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:var(--glass);backdrop-filter:blur(var(--blur,0px));-webkit-backdrop-filter:blur(var(--blur,0px));background:radial-gradient(120% 95% at 50% 16%, rgba(255,255,255,.6), rgba(255,255,255,.16) 46%, rgba(255,255,255,0) 72%)}
 .ot-spec{position:absolute;left:27%;top:15%;width:32%;height:24%;border-radius:50%;pointer-events:none;opacity:var(--hi,.4);background:radial-gradient(circle, rgba(255,255,255,.92), rgba(255,255,255,0) 70%);mix-blend-mode:screen}
 .ot-ico{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:4;color:rgba(40,52,78,.82);pointer-events:none;filter:drop-shadow(0 1px 1px rgba(255,255,255,.55))}
-.ot-full-wrap{position:absolute;inset:0;border-radius:50%;overflow:hidden;opacity:0;transition:opacity .3s;pointer-events:none;z-index:3}
-.ot-orb.ot-full .ot-full-wrap{opacity:1}
+.ot-full-wrap{position:absolute;inset:0;border-radius:50%;overflow:hidden;opacity:0;transform:scale(.94);transition:opacity .4s ease .06s,transform .45s cubic-bezier(.3,1.1,.45,1) .04s;pointer-events:none;z-index:3}
+.ot-orb.ot-full .ot-full-wrap{opacity:1;transform:scale(1)}
 .ot-fullbody{position:absolute;inset:0;border-radius:50%;background:radial-gradient(125% 125% at 50% 40%, rgba(255,255,255, calc(0.20 + 0.16*(1 - var(--body)))), rgba(255,255,255, calc(0.04 + 0.05*(1 - var(--body)))) 52%, rgba(8,11,22, calc(0.10 + 0.52*var(--body))) 100%)}
 .ot-fullglass{position:absolute;inset:0;border-radius:50%;opacity:var(--glass);backdrop-filter:blur(var(--blur,0px));-webkit-backdrop-filter:blur(var(--blur,0px));background:radial-gradient(120% 95% at 50% 16%, rgba(255,255,255,.6), rgba(255,255,255,.16) 46%, rgba(255,255,255,0) 72%)}
 .ot-ring{position:absolute;inset:0;border-radius:50%;pointer-events:none;z-index:6;box-shadow:inset 0 0 0 1.3px rgba(255,255,255, calc(0.4 + 0.5*var(--rim)))}

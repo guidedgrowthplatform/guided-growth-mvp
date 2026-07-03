@@ -53,6 +53,31 @@ function BarBackground({ glass }: { glass: boolean }) {
   );
 }
 
+// Hex -> rgba, for tinting the bar with the orb's side colors.
+function hexA(hex: string, a: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16) || 0;
+  const g = parseInt(h.slice(2, 4), 16) || 0;
+  const b = parseInt(h.slice(4, 6), 16) || 0;
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// The third bar skin: a detached floating glass pill (no scoop; the orb sits on
+// top of it like a center action button).
+function FloatingBarBackground() {
+  return (
+    <div
+      className="absolute inset-x-4 bottom-2 top-0 rounded-[32px]"
+      style={{
+        background: 'rgba(255,255,255,0.5)',
+        backdropFilter: 'blur(18px)',
+        WebkitBackdropFilter: 'blur(18px)',
+        boxShadow: '0 12px 32px rgba(20,30,60,0.18), inset 0 1px 0 rgba(255,255,255,0.6)',
+      }}
+    />
+  );
+}
+
 // Mirrors the real NavTab (layout/BottomNav.tsx): active tab is text-primary,
 // inactive is text-content-tertiary. On the glass bar over a dark background the
 // inactive tone lightens so it stays readable; active stays primary.
@@ -103,9 +128,11 @@ export function HomeBarPreview({
 }: HomeBarPreviewProps) {
   const dark = bgKey === 'dark';
   const glass = barStyle === 'glass';
+  const floating = barStyle === 'floating';
+  const glassy = glass || floating;
   // Inactive-tab tone. White bar = the real bar's text-content-tertiary; on the
-  // glass bar the app background shows through, so the tone follows it.
-  const tabTone = glass ? (dark ? 'text-white/75' : 'text-slate-500') : 'text-content-tertiary';
+  // glassy bars the app background shows through, so the tone follows it.
+  const tabTone = glassy ? (dark ? 'text-white/75' : 'text-slate-500') : 'text-content-tertiary';
   const subText = dark ? 'text-white/60' : 'text-slate-500';
   const titleText = dark ? 'text-white' : 'text-slate-800';
   const itemText = dark ? 'text-white/90' : 'text-slate-700';
@@ -170,7 +197,20 @@ export function HomeBarPreview({
         {/* The home bar: scooped background, the live orb in the notch, four tabs. */}
         <div className="absolute inset-x-0 bottom-0">
           <div className="relative" style={{ height: 72 }}>
-            <BarBackground glass={glass} />
+            {floating ? <FloatingBarBackground /> : <BarBackground glass={glass} />}
+            {/* Glow bleed: while a side talks, the bar borrows the orb's color
+                as a soft gradient rising from the notch, so nav and orb read as
+                one piece. Fades out at idle. */}
+            <div
+              className="pointer-events-none absolute left-1/2 top-0 z-40 -translate-x-1/2"
+              style={{
+                width: 240,
+                height: '100%',
+                background: `radial-gradient(130px 80px at 50% 0%, ${hexA(orbState === 'user' ? colors.user : colors.ai, 0.3)}, transparent 72%)`,
+                opacity: orbState === 'idle' ? 0 : 1,
+                transition: 'opacity 0.5s ease',
+              }}
+            />
             <div className="absolute left-1/2 top-0 z-50 -translate-x-1/2 -translate-y-1/2">
               <Orb
                 size={91}
@@ -196,7 +236,7 @@ export function HomeBarPreview({
               this mock we emulate the iPhone's 34pt home-indicator inset so the
               bar sits exactly like it does on the phone. */}
           <div
-            className={glass ? 'relative' : 'relative bg-surface'}
+            className={glassy ? 'relative' : 'relative bg-surface'}
             style={{
               height: 34,
               ...(glass ? { background: 'rgba(255,255,255,0.42)' } : {}),
