@@ -112,7 +112,6 @@ function runMatrix(path: 'simple' | 'braindump', stateCheckKey: 'checkin' | 'sta
 // stoppable beat earlier (display beats and the shared-field schedule beats
 // carry no evidence of their own).
 const EXACT = new Set([
-  'ONBOARD-01--FORM',
   'ONBOARD-MORNING-SETUP',
   'ONBOARD-BEGINNER-07',
   'ONBOARD-FORK--FORM',
@@ -126,8 +125,13 @@ const EXACT = new Set([
 
 // Where the conservative one-back landings are allowed to land.
 const ALLOWED_FALLBACK: Record<string, string[]> = {
-  'ONBOARD-AUTH--FORM': ['ONBOARD-01--FORM'], // head gates walk through on resume
-  'MIC-PERMISSION': ['ONBOARD-01--FORM'],
+  // R2 guard: while the row holds no beat evidence (nickname-only, the up-front
+  // sign-in persist), a refresh is a FRESH start at the entry node. The old
+  // expectation here (resume to profile) codified the bug that skipped the
+  // welcome and mic beats for every account with a nickname.
+  'ONBOARD-AUTH--FORM': ['ONBOARD-AUTH--FORM'],
+  'MIC-PERMISSION': ['ONBOARD-AUTH--FORM'],
+  'ONBOARD-01--FORM': ['ONBOARD-AUTH--FORM'], // visited before its save lands: still no evidence
   'ONBOARD-WHY-INTRO': ['ONBOARD-WHY-INTRO'],
   // Entering state-check leaves no trace until its save lands, so a refresh
   // there conservatively re-shows the why-intro display beat (never skips).
@@ -181,6 +185,29 @@ describe('resumeFromServerRow — refresh matrix over a simulated run', () => {
     expect(resumedScreenId(row)).toBe('ONBOARD-BEGINNER-03');
     const st = resumeFromServerRow(flow, initFlowMachine(flow), 8, row.data as OnboardingStepData);
     expect(st.status).toBe('running');
+  });
+
+  it('R2: a nickname-only row is a FRESH start, not a resume (mic/welcome must render)', () => {
+    // Every real signup writes this row shape at flow mount (saveStep(1, {nickname})).
+    // Pre-fix, resume walked the head gates and landed first runs on profile,
+    // so the welcome and mic beats never rendered for any named account.
+    const row: SimulatedRow = { current_step: 1, data: { nickname: 'Fable' } };
+    const st = resumeFromServerRow(flow, initFlowMachine(flow), 1, row.data as OnboardingStepData);
+    expect(getNode(flow, st.currentNodeId)?.screenId).toBe('ONBOARD-AUTH--FORM');
+    expect(st.status).toBe('running');
+  });
+
+  it('R2: an entirely empty row is also a fresh start', () => {
+    const st = resumeFromServerRow(flow, initFlowMachine(flow), 0, {} as OnboardingStepData);
+    expect(getNode(flow, st.currentNodeId)?.screenId).toBe('ONBOARD-AUTH--FORM');
+  });
+
+  it('R2: the guard lifts the moment any beat evidence exists (profile done → why-intro)', () => {
+    const row: SimulatedRow = {
+      current_step: 1,
+      data: { nickname: 'Fable', age: 30, gender: 'Male' },
+    };
+    expect(resumedScreenId(row)).toBe('ONBOARD-WHY-INTRO');
   });
 
   it('B10: advance_step(2) after profile does not catapult past the pre-fork beats', () => {
