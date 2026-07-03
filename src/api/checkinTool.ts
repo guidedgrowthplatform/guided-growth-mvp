@@ -1,0 +1,28 @@
+/**
+ * Tap-driven check-in tool calls from the flow engine (mined from
+ * feat/checkin-mp3-openers eed60219). Same handlers the coach fires by voice.
+ */
+import type { CheckInData } from '@gg/shared/types';
+import { apiPost } from './client';
+
+interface CheckinToolResult {
+  ok: true;
+  result: { recorded: boolean; date: string; checkin: CheckInData };
+}
+
+function callCheckinTool<T>(toolName: string, args: Record<string, unknown>): Promise<T> {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return apiPost<T>('/api/llm/checkin-tool', { toolName, args, timezone });
+}
+
+export function recordCheckinTool(args: Partial<CheckInData>): Promise<CheckinToolResult> {
+  return callCheckinTool<CheckinToolResult>('record_checkin', args);
+}
+
+export function completeHabitTool(habitId: string): Promise<{ ok: true }> {
+  return callCheckinTool<{ ok: true }>('complete_habit', { habit_id: habitId });
+}
+
+export function logReflectionTool(text: string): Promise<{ ok: true }> {
+  return callCheckinTool<{ ok: true }>('log_reflection', { text });
+}

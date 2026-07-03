@@ -30,6 +30,20 @@ export function getNode(flow: FlowDocument, id: string | null): FlowNode | undef
   return flow.nodes.find((n) => n.id === id);
 }
 
+/**
+ * The tool a TAP capture on this beat should fire through the persistence
+ * adapter (mined from feat/checkin-mp3-openers eed60219). Coach-driven saves
+ * (save=false) already wrote server-side; the adapter owns which tools it
+ * handles (onboarding omits saveTool, so this is a no-op there).
+ */
+export function toolSaveFor(
+  node: FlowNode | undefined,
+  save: boolean,
+): { toolName: string } | null {
+  if (!node || node.type !== 'beat' || !node.tool || !save) return null;
+  return { toolName: node.tool.toolName };
+}
+
 /** Read a dot-path like "answers.path" out of the answers object. */
 function readConditionValue(answers: FlowAnswers, source: string): unknown {
   const key = source.split('.').pop();

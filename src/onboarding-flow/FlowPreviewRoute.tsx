@@ -6,12 +6,23 @@
  *
  * NO EM DASHES.
  */
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { useCheckinFlowPersistence } from './checkinPersistence';
 import { FlowCheckinPreview } from './FlowCheckinPreview';
+import type { FlowDocument } from './types';
 import { getPublishedFlow, listPublishedFlows } from './useFlow';
+
+// ?persist=real routes taps through the real check-in save path (requires a
+// signed-in QA user; saves land in staging Supabase). Default stays in-memory.
+function RealCheckinPreview({ flow }: { flow: FlowDocument }) {
+  const type = flow.flowId.startsWith('evening') ? 'evening' : 'morning';
+  const persistence = useCheckinFlowPersistence(undefined, type);
+  return <FlowCheckinPreview flow={flow} persistence={persistence} />;
+}
 
 export function FlowPreviewRoute() {
   const { flowId = '' } = useParams();
+  const [search] = useSearchParams();
   const flow = getPublishedFlow(flowId);
 
   if (!flow) {
@@ -29,6 +40,11 @@ export function FlowPreviewRoute() {
       </div>
     );
   }
+
+  const wantsRealPersistence =
+    search.get('persist') === 'real' &&
+    (flow.flowId.startsWith('morning-checkin') || flow.flowId.startsWith('evening-checkin'));
+  if (wantsRealPersistence) return <RealCheckinPreview flow={flow} />;
 
   return <FlowCheckinPreview flow={flow} />;
 }

@@ -21,6 +21,7 @@ import {
   getCheckinOpenerTools,
 } from '../_lib/llm/checkin/registry.js';
 import { isCheckinToolName } from '../_lib/llm/checkin/schemas.js';
+import { handleCheckinTool } from '../_lib/llm/checkin/handleCheckinToolRoute.js';
 import { getOpenAIKey, OpenAIError } from '../_lib/llm/openai.js';
 import { openResponsesStream, type ResponseInputItem } from '../_lib/llm/openai-responses.js';
 import { handleParseBrainDump } from '../_lib/llm/parseBrainDump.js';
@@ -81,7 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const raw = req.query['...path'];
   const segments = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const route = segments[0] === '__index' ? '' : segments[0] || '';
-  if (route !== '' && route !== 'parse-brain-dump') {
+  if (route !== '' && route !== 'parse-brain-dump' && route !== 'checkin-tool') {
     return res.status(404).json({ error: 'Not found' });
   }
 
@@ -133,6 +134,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (route === 'parse-brain-dump') {
     return handleParseBrainDump(req, res, { anonId: user.anonId });
+  }
+
+  if (route === 'checkin-tool') {
+    return handleCheckinTool(req, res, { anonId: user.anonId });
   }
 
   const body = (req.body ?? {}) as Record<string, unknown>;
@@ -234,9 +239,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   };
   const debugInfo = (stage: string, err?: unknown) =>
-    debugRequested
-      ? { debug: { stage, class: (err as { name?: string } | undefined)?.name } }
-      : {};
+    debugRequested ? { debug: { stage, class: (err as { name?: string } | undefined)?.name } } : {};
 
   const isOnboardingScreen = screenId.startsWith('ONBOARD-');
   const requestModel: string | undefined = isOnboardingScreen ? ONBOARDING_MODEL : undefined;
