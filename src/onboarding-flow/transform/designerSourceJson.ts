@@ -107,12 +107,17 @@ const ExportBeatSchema = z.strictObject({
   sheetStage: z.string().optional(),
   transition: z.string().nullable().optional(),
   context: z.string().optional(),
-  props: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+  // Component-specific data (reflection questions etc. are structured), so
+  // values are free-form JSON; the KEY set stays whatever the component reads.
+  props: z.record(z.string(), z.unknown()).optional(),
   meta: ExportBeatMetaSchema,
 });
 
 const ExportDocumentSchema = z.strictObject({
   flowId: z.string().min(1),
+  name: z.string().optional(),
+  version: z.number().optional(),
+  publishedAt: z.string().optional(),
   source: z.string().optional(),
   beats: z.array(ExportBeatSchema).min(1),
 });
@@ -132,15 +137,15 @@ export function parseExportDocument(value: unknown): ExportDocument {
   return result.data;
 }
 
-/** Coerce the Export props (unknown values) into the string map the transform reads. */
-function coerceProps(
+/** Drop null/undefined prop values; everything else passes through untouched. */
+function cleanProps(
   props: Record<string, unknown> | undefined,
-): Record<string, string> | undefined {
+): Record<string, unknown> | undefined {
   if (!props) return undefined;
-  const out: Record<string, string> = {};
+  const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(props)) {
     if (value == null) continue;
-    out[key] = typeof value === 'string' ? value : String(value);
+    out[key] = value;
   }
   return out;
 }
@@ -217,22 +222,31 @@ function mapMeta(meta: Record<string, unknown> | undefined): DesignerBeatMeta | 
 
 /** Map one Export beat into a DesignerBeat (componentType -> type). */
 function mapBeat(beat: ExportBeat): DesignerBeat {
+  const props = cleanProps(beat.props);
+  const meta = mapMeta(beat.meta);
   return {
     type: beat.componentType,
     ...(beat.beat != null ? { beat: beat.beat } : {}),
+    ...(beat.name ? { name: beat.name } : {}),
     ...(beat.sheetStage ? { sheetStage: beat.sheetStage } : {}),
-    ...(coerceProps(beat.props) ? { props: coerceProps(beat.props) } : {}),
+    ...(beat.context ? { context: beat.context } : {}),
+    ...(props ? { props } : {}),
     ...(beat.background ? { background: beat.background } : {}),
     ...(beat.showOnPath !== undefined ? { showOnPath: beat.showOnPath } : {}),
-    ...(mapMeta(beat.meta) ? { meta: mapMeta(beat.meta) } : {}),
+    ...(meta ? { meta } : {}),
   };
+}
+
+/** Map a whole parsed Export into the DesignerBeat[] the transform consumes. */
+export function designerBeatsFromExport(doc: ExportDocument): DesignerBeat[] {
+  return doc.beats.map(mapBeat);
 }
 
 /**
  * The onboarding flow, sourced from the builder Export JSON. This drives flow:sync.
- * The hand-typed DESIGNER_ONBOARDING_FLOW mirror stays in designerSource.ts as a
- * fallback only. Build-time module (flow:sync + tests): the parse throw fails the
- * sync, never a user session.
+ * Build-time module (flow:sync + tests): the parse throw fails the sync, never
+ * a user session. No hand-typed mirror fallback exists anymore (L1-4).
  */
-export const DESIGNER_ONBOARDING_FLOW_FROM_JSON: DesignerBeat[] =
-  parseExportDocument(designerSourceJson).beats.map(mapBeat);
+export const DESIGNER_ONBOARDING_FLOW_FROM_JSON: DesignerBeat[] = designerBeatsFromExport(
+  parseExportDocument(designerSourceJson),
+);

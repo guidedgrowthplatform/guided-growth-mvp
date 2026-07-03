@@ -14,7 +14,7 @@
  *
  * NO EM DASHES.
  */
-import type { FlowDocument } from '../types';
+import type { FlowDocument } from '../../types';
 
 export const homeTourV1: FlowDocument = {
   flowId: 'home-tour-v1',
@@ -57,7 +57,8 @@ export const homeTourV1: FlowDocument = {
       context: {
         screenId: 'HOME-TOUR-02',
         screenName: 'Connect',
-        contextBlock: "Show that the chat is always available and their work from onboarding is here.",
+        contextBlock:
+          'Show that the chat is always available and their work from onboarding is here.',
       },
       componentType: 'home-tour',
       componentProps: { stage: 'connect' },

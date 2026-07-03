@@ -47,6 +47,7 @@ import {
   getNode,
   goBack,
   initFlowMachine,
+  toolSaveFor,
 } from './flowMachine';
 import { composeBeatContext } from './generalContext';
 import type { FlowPersistence } from './persistence';
@@ -329,8 +330,18 @@ export function resumeFromServerRow(
   // beat-owned field, including PARTIAL fills (gender without age still proves
   // the user reached profile); nickname and row metadata do not count.
   const PROGRESS_FIELDS = [
-    'age', 'gender', 'checkin', 'stateCheck', 'morningCheckin', 'reflectionConfig',
-    'path', 'category', 'goals', 'habitConfigs', 'brainDumpText', 'brainDumpRaw',
+    'age',
+    'gender',
+    'checkin',
+    'stateCheck',
+    'morningCheckin',
+    'reflectionConfig',
+    'path',
+    'category',
+    'goals',
+    'habitConfigs',
+    'brainDumpText',
+    'brainDumpRaw',
   ] as const;
   const d = (data ?? {}) as Record<string, unknown>;
   if (!PROGRESS_FIELDS.some((k) => d[k] != null)) {
@@ -464,6 +475,11 @@ export function useFlowOrchestrator(
           opts.onPin?.(opts.flowTag);
         }
       }
+
+      // Check-in beats save via a tool, not the onboarding step path. The
+      // adapter owns which tools it handles (onboarding omits saveTool: no-op).
+      const toolSave = toolSaveFor(node, save);
+      if (toolSave) persistence.saveTool?.(toolSave.toolName, cap.data);
 
       if (next.status === 'complete') {
         persistence.complete(deriveFinalData(next.answers));

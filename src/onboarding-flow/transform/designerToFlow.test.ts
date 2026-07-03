@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateFlow } from '../flowMachine';
-import { onboardingBeginnerV1 } from '../flows/onboarding-beginner-v1';
+import { onboardingBeginnerV1 } from '../flows/__fixtures__/onboarding-beginner-v1';
 import generatedJson from '../flows/onboarding-beginner-v1.generated.json';
 import { loadPublishedFlow, versionTag } from '../useFlow';
 import { DESIGNER_ONBOARDING_FLOW_FROM_JSON } from './designerSourceJson';
