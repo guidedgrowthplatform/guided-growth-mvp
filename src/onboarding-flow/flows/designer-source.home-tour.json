@@ -17,6 +17,7 @@
         "coachLine": "That's everything. Welcome home. This is your space."
       },
       "meta": {
+        "voiceEngine": "none",
         "engine": {
           "nodeId": "home-tour-1",
           "voiceExpectsInput": false,
@@ -36,6 +37,7 @@
         "coachLine": "Everything we just did lives here. The chat's always a tap away."
       },
       "meta": {
+        "voiceEngine": "none",
         "engine": {
           "nodeId": "home-tour-2",
           "voiceExpectsInput": false,
@@ -55,6 +57,7 @@
         "coachLine": "These are your habits. Tap one done when you finish it. Your reflections land here too."
       },
       "meta": {
+        "voiceEngine": "none",
         "engine": {
           "nodeId": "home-tour-3",
           "voiceExpectsInput": false,
@@ -74,6 +77,7 @@
         "coachLine": "Feedback's here for me. And the chat's right here, tap it whenever. Otherwise, this is home."
       },
       "meta": {
+        "voiceEngine": "none",
         "engine": {
           "nodeId": "home-tour-4",
           "voiceExpectsInput": false,
@@ -93,6 +97,7 @@
         "coachLine": "You're all set. Go make it a good one."
       },
       "meta": {
+        "voiceEngine": "none",
         "engine": {
           "nodeId": "home-tour-5",
           "voiceExpectsInput": false,

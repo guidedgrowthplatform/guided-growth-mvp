@@ -29,7 +29,7 @@
       },
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "none",
           "mode": "verbatim",
           "lines": [
             {
@@ -37,7 +37,7 @@
               "text": "That's everything. Welcome home. This is your space.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "none"
             }
           ]
         },
@@ -48,16 +48,16 @@
           "armOnBeatLoad": false
         },
         "fill": {
-          "brain": "direct-llm",
+          "brain": "none",
           "llmActive": false,
           "allowedTools": []
         },
         "path": "path-3-direct-llm",
         "orb": {
-          "voiceOn": true,
+          "voiceOn": false,
           "micOn": false,
           "micAsking": false,
-          "bloomed": true
+          "bloomed": false
         },
         "toggles": {
           "expectsInput": false,
@@ -104,7 +104,7 @@
       },
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "none",
           "mode": "verbatim",
           "lines": [
             {
@@ -112,7 +112,7 @@
               "text": "Everything we just did lives here. The chat's always a tap away.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "none"
             }
           ]
         },
@@ -123,16 +123,16 @@
           "armOnBeatLoad": false
         },
         "fill": {
-          "brain": "direct-llm",
+          "brain": "none",
           "llmActive": false,
           "allowedTools": []
         },
         "path": "path-3-direct-llm",
         "orb": {
-          "voiceOn": true,
+          "voiceOn": false,
           "micOn": false,
           "micAsking": false,
-          "bloomed": true
+          "bloomed": false
         },
         "toggles": {
           "expectsInput": false,
@@ -180,7 +180,7 @@
       },
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "none",
           "mode": "verbatim",
           "lines": [
             {
@@ -188,7 +188,7 @@
               "text": "These are your habits. Tap one done when you finish it. Your reflections land here too.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "none"
             }
           ]
         },
@@ -199,16 +199,16 @@
           "armOnBeatLoad": false
         },
         "fill": {
-          "brain": "direct-llm",
+          "brain": "none",
           "llmActive": false,
           "allowedTools": []
         },
         "path": "path-3-direct-llm",
         "orb": {
-          "voiceOn": true,
+          "voiceOn": false,
           "micOn": false,
           "micAsking": false,
-          "bloomed": true
+          "bloomed": false
         },
         "toggles": {
           "expectsInput": false,
@@ -256,7 +256,7 @@
       },
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "none",
           "mode": "verbatim",
           "lines": [
             {
@@ -264,7 +264,7 @@
               "text": "Feedback's here for me. And the chat's right here, tap it whenever. Otherwise, this is home.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "none"
             }
           ]
         },
@@ -275,16 +275,16 @@
           "armOnBeatLoad": false
         },
         "fill": {
-          "brain": "direct-llm",
+          "brain": "none",
           "llmActive": false,
           "allowedTools": []
         },
         "path": "path-3-direct-llm",
         "orb": {
-          "voiceOn": true,
+          "voiceOn": false,
           "micOn": false,
           "micAsking": false,
-          "bloomed": true
+          "bloomed": false
         },
         "toggles": {
           "expectsInput": false,
@@ -332,7 +332,7 @@
       },
       "meta": {
         "voiceOut": {
-          "engine": "cartesia",
+          "engine": "none",
           "mode": "verbatim",
           "lines": [
             {
@@ -340,7 +340,7 @@
               "text": "You're all set. Go make it a good one.",
               "voiceOnly": false,
               "onScreen": true,
-              "engine": "cartesia"
+              "engine": "none"
             }
           ]
         },
@@ -351,16 +351,16 @@
           "armOnBeatLoad": false
         },
         "fill": {
-          "brain": "direct-llm",
+          "brain": "none",
           "llmActive": false,
           "allowedTools": []
         },
         "path": "path-3-direct-llm",
         "orb": {
-          "voiceOn": true,
+          "voiceOn": false,
           "micOn": false,
           "micAsking": false,
-          "bloomed": true
+          "bloomed": false
         },
         "toggles": {
           "expectsInput": false,
