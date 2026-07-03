@@ -28,4 +28,4 @@ in staging Supabase was denied by the session permission layer. Preview WALKS ar
 user (see scratchpad/create-lane-user.mjs) or grant the Bash permission and say "retry the lane user".
 Named tester accounts are NOT used as fallback (human walkthroughs in progress).
 
-Updated: 2026-07-03 14:52 EAT
+Updated: 2026-07-03 15:32 EAT — ALL LEDGER ROWS CODE-COMPLETE as draft MRs; pending: preview walks (test-user blocker), reviews, merge-hold lift
