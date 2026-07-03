@@ -11,19 +11,21 @@ import type { BarStyle, OrbStates, PulseParams } from './orbPresets';
 // tuner's Background control, so you see the orb on the real app background. Build
 // and improve the bar around it here; keep the scoop path matched to BottomNav.
 
-// The scooped bar background in two skins: the current solid white, and a
-// glassmorph variant (translucent + backdrop blur + hairline highlight) that
-// matches the glass orb. The scoop path itself is identical in both.
+// The scooped bar background in two skins. White mirrors the REAL bar
+// (layout/BottomNav.tsx NavBarBackground) 1:1: bg-surface fills + text-surface
+// scoop svg + the same drop shadow. Glass is the glassmorph variant (translucent
+// + backdrop blur + hairline highlight) that matches the glass orb. The scoop
+// path itself is identical in both.
 function BarBackground({ glass }: { glass: boolean }) {
-  const fill = glass ? 'rgba(255,255,255,0.42)' : '#ffffff';
-  const sideStyle: React.CSSProperties = glass
+  const glassFill = 'rgba(255,255,255,0.42)';
+  const sideStyle: React.CSSProperties | undefined = glass
     ? {
-        background: fill,
+        background: glassFill,
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.55)',
       }
-    : { background: fill };
+    : undefined;
   return (
     <div
       className="absolute inset-0 flex"
@@ -33,9 +35,9 @@ function BarBackground({ glass }: { glass: boolean }) {
           : 'drop-shadow(0px -4px 12px rgba(0,0,0,0.06))',
       }}
     >
-      <div className="h-full flex-1" style={sideStyle} />
+      <div className={`h-full flex-1${glass ? '' : 'bg-surface'}`} style={sideStyle} />
       <svg
-        className="block h-full shrink-0"
+        className={`block h-full shrink-0${glass ? '' : 'text-surface'}`}
         width="140"
         height="72"
         viewBox="0 0 140 72"
@@ -43,17 +45,30 @@ function BarBackground({ glass }: { glass: boolean }) {
       >
         <path
           d="M0 0 L14 0 C17 0, 19 1, 20 4 C20 28, 42 50, 70 50 C98 50, 120 28, 120 4 C121 1, 123 0, 126 0 L140 0 L140 72 L0 72 Z"
-          fill={fill}
+          fill={glass ? glassFill : 'currentColor'}
         />
       </svg>
-      <div className="h-full flex-1" style={sideStyle} />
+      <div className={`h-full flex-1${glass ? '' : 'bg-surface'}`} style={sideStyle} />
     </div>
   );
 }
 
-function Tab({ icon, label, tone }: { icon: string; label: string; tone: string }) {
+// Mirrors the real NavTab (layout/BottomNav.tsx): active tab is text-primary,
+// inactive is text-content-tertiary. On the glass bar over a dark background the
+// inactive tone lightens so it stays readable; active stays primary.
+function Tab({
+  icon,
+  label,
+  isActive,
+  tone,
+}: {
+  icon: string;
+  label: string;
+  isActive?: boolean;
+  tone: string;
+}) {
   return (
-    <div className={`flex flex-col items-center justify-end ${tone}`}>
+    <div className={`flex flex-col items-center justify-end ${isActive ? 'text-primary' : tone}`}>
       <Icon icon={icon} width={24} />
       <span className="mt-0.5 text-[10px] font-bold">{label}</span>
     </div>
@@ -85,8 +100,9 @@ export function HomeBarPreview({
 }: HomeBarPreviewProps) {
   const dark = bgKey === 'dark';
   const glass = barStyle === 'glass';
-  // On the glass bar the app background shows through, so tab tone follows it.
-  const tabTone = glass ? (dark ? 'text-white/75' : 'text-slate-500') : 'text-slate-400';
+  // Inactive-tab tone. White bar = the real bar's text-content-tertiary; on the
+  // glass bar the app background shows through, so the tone follows it.
+  const tabTone = glass ? (dark ? 'text-white/75' : 'text-slate-500') : 'text-content-tertiary';
   const subText = dark ? 'text-white/60' : 'text-slate-500';
   const titleText = dark ? 'text-white' : 'text-slate-800';
   const itemText = dark ? 'text-white/90' : 'text-slate-700';
@@ -163,13 +179,21 @@ export function HomeBarPreview({
               />
             </div>
             <div className="relative grid h-full grid-cols-5 items-end px-6 pb-2">
-              <Tab icon="ic:round-home" label="Home" tone={tabTone} />
+              <Tab icon="ic:round-home" label="Home" isActive tone={tabTone} />
               <Tab icon="ic:round-leaderboard" label="Progress" tone={tabTone} />
               <div />
               <Tab icon="mingcute:stopwatch-fill" label="Focus" tone={tabTone} />
               <Tab icon="ic:round-person" label="Profile" tone={tabTone} />
             </div>
           </div>
+          {/* Safe-area strip, exactly like the real bar. env() is 0 in this mock. */}
+          <div
+            className={glass ? '' : 'bg-surface'}
+            style={{
+              height: 'env(safe-area-inset-bottom)',
+              ...(glass ? { background: 'rgba(255,255,255,0.42)' } : {}),
+            }}
+          />
         </div>
       </div>
     </div>
