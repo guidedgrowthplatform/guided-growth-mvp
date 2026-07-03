@@ -60,10 +60,15 @@ export interface DesignerBeat {
   type: string;
   /** 1-based beat number as authored in the builder (string in the source). */
   beat?: string;
+  /** Beat display name from the Export; linear flows use it as the node name. */
+  name?: string;
   /** "ONBOARD-01--FORM: Profile Setup" (screenId is the part before the colon). */
   sheetStage?: string;
-  /** Static props authored in the builder; coachLine / greeting carry the opener. */
-  props?: Record<string, string>;
+  /** Coach context block from the Export; linear flows inline it on the node. */
+  context?: string;
+  /** Static props authored in the builder; text / coachLine / greeting carry the
+   * opener; the rest pass through as componentProps on linear flows. */
+  props?: Record<string, unknown>;
   /** "coach" or "user": who leads the beat. Not consumed by the engine today. */
   background?: string;
   /**
@@ -215,7 +220,8 @@ export const DESIGNER_ONBOARDING_FLOW: DesignerBeat[] = [
     background: 'coach',
     sheetStage: 'ONBOARD-BEGINNER-04: Habit Schedule',
     props: {
-      coachLine: "How often, and roughly when, for each one? Add a reminder only if you want a nudge.",
+      coachLine:
+        'How often, and roughly when, for each one? Add a reminder only if you want a nudge.',
     },
   },
   // 11: Advanced path beats (showOnPath:'exp')
@@ -226,7 +232,7 @@ export const DESIGNER_ONBOARDING_FLOW: DesignerBeat[] = [
     sheetStage: 'ONBOARD-ADVANCED: Brain Dump',
     props: {
       coachLine:
-        "Read me the habits you already track. Less is more to start, you can always build on it.",
+        'Read me the habits you already track. Less is more to start, you can always build on it.',
       closeCoachLine:
         "Those are all in, and I marked each as build or break. Tell me if any look wrong. If they're good, we'll set the days next.",
     },
