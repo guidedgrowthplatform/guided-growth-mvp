@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { HomeBarPreview } from './HomeBarPreview';
-import { type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
+import { type OrbMic, type OrbStateSel, type OrbTalkStyle } from '@/components/orb/Orb';
 import {
   AUTHOR_PRESETS,
   MOTION_PRESETS,

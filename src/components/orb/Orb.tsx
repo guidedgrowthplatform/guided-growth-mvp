@@ -1,5 +1,5 @@
 import { useEffect, useRef, type MutableRefObject, type ReactNode } from 'react';
-import type { OrbStates, PulseParams } from './orbPresets';
+import type { OrbStates, PulseParams } from './orbConfig';
 
 // The reusable animated orb: a canvas-2D Siri-style glass button rendered at any
 // size and driven entirely by props (the look, the state, the pulse, the mic).

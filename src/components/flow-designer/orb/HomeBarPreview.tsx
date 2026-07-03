@@ -1,6 +1,6 @@
 import { Icon } from '@iconify/react';
 import { type MutableRefObject } from 'react';
-import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
+import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from '@/components/orb/Orb';
 import type { OrbStates, PulseParams } from './orbPresets';
 
 // The home bar canvas: a self-contained mockup of the app's bottom nav (the real
