@@ -30,3 +30,46 @@ export function emitLatencySpan(
     // Telemetry must never break the flow.
   }
 }
+
+// --- beat_transition_ms stitching ------------------------------------------
+// The transition's two client legs live in different hooks: the TRIGGER (a
+// streamed tool event applying a step bump in useChatToolEvents, or a Supabase
+// Realtime row receipt in useOnboardingRealtimeSync) and the COMMIT (the
+// coach-driven applyAndAdvance in useFlowOrchestrator). A module-level pending
+// mark carries the turn id across the gap. Single slot: transitions serialize
+// in practice, and the Direct-LLM path can trigger BOTH marks for one
+// transition (tool event first, then its own server write mirrored back via
+// Realtime) — first-mark-wins keeps the earlier, truer start. A mark that
+// never settles (e.g. routed-navigation path, no orchestrator) expires.
+interface PendingBeatTransition {
+  turnId: string;
+  source: 'tool_event' | 'realtime';
+  tool?: string;
+  t0: number;
+}
+const TRANSITION_STALE_MS = 15_000;
+let pendingTransition: PendingBeatTransition | null = null;
+
+export function markBeatTransition(
+  turnId: string,
+  source: 'tool_event' | 'realtime',
+  tool?: string,
+): void {
+  const now = performance.now();
+  if (pendingTransition && now - pendingTransition.t0 < TRANSITION_STALE_MS) return;
+  pendingTransition = { turnId, source, tool, t0: now };
+}
+
+export function settleBeatTransition(properties?: Record<string, unknown>): void {
+  const pending = pendingTransition;
+  pendingTransition = null;
+  if (!pending) return;
+  const ms = performance.now() - pending.t0;
+  if (ms > TRANSITION_STALE_MS) return; // expired mark from an abandoned turn
+  emitLatencySpan('beat_transition_ms', ms, {
+    turn_id: pending.turnId,
+    source: pending.source,
+    ...(pending.tool ? { tool: pending.tool } : {}),
+    ...properties,
+  });
+}
