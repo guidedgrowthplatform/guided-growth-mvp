@@ -17,4 +17,4 @@ walkthroughs (gg-qa-iota rebuilds on staging merges and would swap builds under 
 | L1-7 | Evening check-in from the builder                                                                                                                  | open   |     |
 | L1-8 | App tour from the builder (stretch)                                                                                                                | open   |     |
 
-Updated: 2026-07-03 12:48 EAT
+Updated: 2026-07-03 13:08 EAT
