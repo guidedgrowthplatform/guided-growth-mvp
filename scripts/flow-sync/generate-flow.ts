@@ -18,7 +18,6 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateFlowAuthoring } from '../../src/onboarding-flow/flowMachine';
-import { DESIGNER_ONBOARDING_FLOW } from '../../src/onboarding-flow/transform/designerSource';
 import {
   DESIGNER_ONBOARDING_FLOW_FROM_JSON,
   designerBeatsFromExport,
@@ -60,18 +59,10 @@ function gateAndWrite(flow: FlowDocument, outPath: string): void {
 }
 
 function main(): void {
-  // Drive from the builder Export JSON (the real source of truth). Fall back to
-  // the hand-typed mirror only if the Export is empty or missing, so a broken
-  // paste never wipes the flow.
-  const source =
-    DESIGNER_ONBOARDING_FLOW_FROM_JSON.length > 0
-      ? DESIGNER_ONBOARDING_FLOW_FROM_JSON
-      : DESIGNER_ONBOARDING_FLOW;
-  if (DESIGNER_ONBOARDING_FLOW_FROM_JSON.length === 0) {
-    console.warn('[flow:sync] designer-source.json is empty; falling back to the TS mirror.');
-  } else {
-    console.log('[flow:sync] source = designer-source.json (' + source.length + ' beats)');
-  }
+  // The builder Export IS the source of truth; a broken or empty Export fails
+  // the zod parse loud (L1-1), so no hand-typed mirror fallback exists anymore.
+  const source = DESIGNER_ONBOARDING_FLOW_FROM_JSON;
+  console.log('[flow:sync] source = designer-source.json (' + source.length + ' beats)');
   gateAndWrite(designerToFlowDocument(source), OUT_PATH);
 
   for (const entry of LINEAR_EXPORTS) {

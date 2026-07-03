@@ -8,7 +8,7 @@ import {
   resolveNextNodeId,
   validateFlow,
 } from './flowMachine';
-import { onboardingBeginnerV1 } from './flows/onboarding-beginner-v1';
+import { onboardingBeginnerV1 } from './flows/__fixtures__/onboarding-beginner-v1';
 import type { BeatCapture, FlowDocument } from './types';
 
 const flow = onboardingBeginnerV1;
