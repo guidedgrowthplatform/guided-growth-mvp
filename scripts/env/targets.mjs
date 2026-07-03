@@ -4,34 +4,24 @@
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { PROJECT_REFS, classifyTarget } from '@gg/shared/env/projectRefs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = resolve(__dirname, '../..');
 
-export const PROJECT_REFS = {
-  prod: 'pmunbflbjpoawicgimyc',
-  staging: 'ppyouymvnrqxcsllrmsl',
-};
-
-function classify(text) {
-  if (!text) return 'unknown';
-  for (const [name, ref] of Object.entries(PROJECT_REFS)) {
-    if (text.includes(ref)) return name;
-  }
-  return 'unknown';
-}
+export { PROJECT_REFS };
 
 // Which project the LIVE connection points at — reads the resolved env
 // (DATABASE_URL / SUPABASE_URL), so it guards the real target regardless of
 // whether it came from .env.local or an inline override.
 export function resolveTargetFromEnv() {
-  return classify(`${process.env.DATABASE_URL ?? ''} ${process.env.SUPABASE_URL ?? ''}`);
+  return classifyTarget(`${process.env.DATABASE_URL ?? ''} ${process.env.SUPABASE_URL ?? ''}`);
 }
 
 // Which project a dotenv file points at — for the switch script's reporting.
 export function resolveTargetFromFile(file = resolve(REPO_ROOT, '.env.local')) {
   try {
-    return classify(readFileSync(file, 'utf8'));
+    return classifyTarget(readFileSync(file, 'utf8'));
   } catch {
     return 'unknown';
   }
