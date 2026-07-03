@@ -50,4 +50,12 @@ Preview walks DONE without the QA test user (auth-free routes): morning + evenin
 check-ins and the 5-beat tour all VERIFIED end-to-end on preview (build gg-n0667ti91).
 Still needing the test user (operator blocker stands): full ONBOARDING walk + persist=real saves.
 
-Updated: 2026-07-03 22:15 EAT — chain MERGED to staging by Yair; !411 reconciled+ready; lane COMPLETE pending that one review
+ADD-ON (conductor, 2026-07-04): B28+B29 fixed in ONE draft MR !421 (anchor authorized the
+voice surfaces). Tap-to-play affordance + 4s text fallback on autoplay holds (B28), reveal
+un-pinned while audio plays without duration metadata (B29), gesture bless of the pooled
+clips on Get-started/QA-tile taps. B4 hold/settle semantics preserved and pinned by the new
+openerRevealPin unit matrix. Verified on the fix preview with autoplay BLOCKED: 5/5
+scenarios pass; before-run on staging shows the b1 frozen hold (pill=false, rejected=2).
+Conductor merges.
+
+Updated: 2026-07-04 00:55 EAT — lane items: !411 awaiting review; add-on !421 draft ready for the conductor
