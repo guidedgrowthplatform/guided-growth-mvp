@@ -24,32 +24,118 @@
  *
  * NO EM DASHES. Pure module, no IO beyond the static JSON import.
  */
+import { z } from 'zod';
 import designerSourceJson from '../flows/designer-source.json';
 import type { DesignerBeat, DesignerBeatMeta } from './designerSource';
 
-/** One raw beat as authored in the builder Export. */
-interface ExportBeat {
-  beat?: string;
-  name?: string;
-  componentType?: string;
-  variant?: string | null;
-  showOnPath?: string | null;
-  background?: string;
-  sheetStage?: string;
-  transition?: string | null;
-  context?: string;
-  props?: Record<string, unknown>;
-  meta?: Record<string, unknown>;
-}
+// Strict schemas: every key the builder Export may carry is enumerated, so a
+// typo'd or new field fails flow:sync loud instead of being silently dropped.
+const ExportMp3AssetSchema = z.strictObject({
+  id: z.string().optional(),
+  label: z.string(),
+  file: z.string(),
+  transcript: z.string(),
+  opener: z.string().optional(),
+  elementId: z.string().optional(),
+  timing: z.enum(['opener', 'element', 'full-beat']).optional(),
+});
 
-interface ExportDocument {
-  flowId?: string;
-  source?: string;
-  beats?: ExportBeat[];
+const ExportPerElementSchema = z.strictObject({
+  elementId: z.string(),
+  line: z.string(),
+  order: z.number().optional(),
+  showsAsBubble: z.boolean().optional(),
+});
+
+// persistStep / maxSelections: authored as strings, tolerate numbers (parseNumber downstream).
+const numericish = z.union([z.string(), z.number()]);
+
+const ExportEngineMetaSchema = z.strictObject({
+  nodeId: z.string().optional(),
+  backId: z.string().optional(),
+  persistStep: numericish.optional(),
+  pathField: z.boolean().optional(),
+  captureFields: z.string().optional(),
+  toolName: z.string().optional(),
+  toolAdvancesStep: z.boolean().optional(),
+  toolPersistsFields: z.string().optional(),
+  voiceExpectsInput: z.boolean().optional(),
+  voiceDirectLlmAllowed: z.boolean().optional(),
+  maxSelections: numericish.optional(),
+  optionSource: z.string().optional(),
+});
+
+const ExportOrbSchema = z.strictObject({
+  voiceOn: z.boolean().optional(),
+  micOn: z.boolean().optional(),
+  micAsking: z.boolean().optional(),
+  bloomed: z.boolean().optional(),
+});
+
+const ExportBeatMetaSchema = z.strictObject({
+  // Consumed by mapMeta below.
+  voiceEngine: z.string().optional(),
+  voiceMode: z.string().optional(),
+  voiceId: z.string().optional(),
+  spokenContent: z.string().optional(),
+  path: z.string().optional(),
+  llmActive: z.boolean().optional(),
+  allowedTools: z.string().optional(),
+  feedbackConfig: z.string().optional(),
+  animation: z.string().optional(),
+  figmaNode: z.string().optional(),
+  status: z.string().optional(),
+  voiceNotes: z.string().optional(),
+  mp3Assets: z.array(ExportMp3AssetSchema).optional(),
+  orb: ExportOrbSchema.optional(),
+  engine: ExportEngineMetaSchema.optional(),
+  // Authoring context the transform does not consume (kept faithful, keys still strict).
+  openerMode: z.string().optional(),
+  openerShowsAsBubble: z.boolean().optional(),
+  expectedResponse: z.string().optional(),
+  variable: z.boolean().optional(),
+  perElement: z.array(ExportPerElementSchema).optional(),
+});
+
+const ExportBeatSchema = z.strictObject({
+  beat: z.string(),
+  name: z.string(),
+  componentType: z.string().min(1),
+  variant: z.string().nullable().optional(),
+  showOnPath: z.string().nullable().optional(),
+  background: z.string().optional(),
+  sheetStage: z.string().optional(),
+  transition: z.string().nullable().optional(),
+  context: z.string().optional(),
+  props: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+  meta: ExportBeatMetaSchema,
+});
+
+const ExportDocumentSchema = z.strictObject({
+  flowId: z.string().min(1),
+  source: z.string().optional(),
+  beats: z.array(ExportBeatSchema).min(1),
+});
+
+type ExportBeat = z.infer<typeof ExportBeatSchema>;
+export type ExportDocument = z.infer<typeof ExportDocumentSchema>;
+
+/** Validate a raw builder Export. Throws with every offending path named. */
+export function parseExportDocument(value: unknown): ExportDocument {
+  const result = ExportDocumentSchema.safeParse(value);
+  if (!result.success) {
+    const details = result.error.issues
+      .map((issue) => `  - ${issue.path.join('.') || '(root)'}: ${issue.message}`)
+      .join('\n');
+    throw new Error(`[designer-source] builder Export failed validation:\n${details}`);
+  }
+  return result.data;
 }
 
 /** Coerce the Export props (unknown values) into the string map the transform reads. */
-function coerceProps(props: Record<string, unknown> | undefined): Record<string, string> | undefined {
+function coerceProps(
+  props: Record<string, unknown> | undefined,
+): Record<string, string> | undefined {
   if (!props) return undefined;
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(props)) {
@@ -79,9 +165,13 @@ function mapMeta(meta: Record<string, unknown> | undefined): DesignerBeatMeta | 
     ? {
         ...(asString(engineRaw.nodeId) ? { nodeId: asString(engineRaw.nodeId) } : {}),
         ...(asString(engineRaw.backId) ? { backId: asString(engineRaw.backId) } : {}),
-        ...(engineNum(engineRaw.persistStep) ? { persistStep: engineNum(engineRaw.persistStep) } : {}),
+        ...(engineNum(engineRaw.persistStep)
+          ? { persistStep: engineNum(engineRaw.persistStep) }
+          : {}),
         ...(asBool(engineRaw.pathField) != null ? { pathField: asBool(engineRaw.pathField) } : {}),
-        ...(asString(engineRaw.captureFields) ? { captureFields: asString(engineRaw.captureFields) } : {}),
+        ...(asString(engineRaw.captureFields)
+          ? { captureFields: asString(engineRaw.captureFields) }
+          : {}),
         ...(asString(engineRaw.toolName) ? { toolName: asString(engineRaw.toolName) } : {}),
         ...(asBool(engineRaw.toolAdvancesStep) != null
           ? { toolAdvancesStep: asBool(engineRaw.toolAdvancesStep) }
@@ -95,8 +185,12 @@ function mapMeta(meta: Record<string, unknown> | undefined): DesignerBeatMeta | 
         ...(asBool(engineRaw.voiceDirectLlmAllowed) != null
           ? { voiceDirectLlmAllowed: asBool(engineRaw.voiceDirectLlmAllowed) }
           : {}),
-        ...(engineNum(engineRaw.maxSelections) ? { maxSelections: engineNum(engineRaw.maxSelections) } : {}),
-        ...(asString(engineRaw.optionSource) ? { optionSource: asString(engineRaw.optionSource) } : {}),
+        ...(engineNum(engineRaw.maxSelections)
+          ? { maxSelections: engineNum(engineRaw.maxSelections) }
+          : {}),
+        ...(asString(engineRaw.optionSource)
+          ? { optionSource: asString(engineRaw.optionSource) }
+          : {}),
       }
     : undefined;
 
@@ -113,7 +207,9 @@ function mapMeta(meta: Record<string, unknown> | undefined): DesignerBeatMeta | 
     ...(asString(meta.figmaNode) ? { figmaNode: asString(meta.figmaNode) } : {}),
     ...(asString(meta.status) ? { status: asString(meta.status) } : {}),
     ...(asString(meta.voiceNotes) ? { voiceNotes: asString(meta.voiceNotes) } : {}),
-    ...(Array.isArray(meta.mp3Assets) ? { mp3Assets: meta.mp3Assets as DesignerBeatMeta['mp3Assets'] } : {}),
+    ...(Array.isArray(meta.mp3Assets)
+      ? { mp3Assets: meta.mp3Assets as DesignerBeatMeta['mp3Assets'] }
+      : {}),
     ...(meta.orb ? { orb: meta.orb as DesignerBeatMeta['orb'] } : {}),
     ...(engine ? { engine } : {}),
   };
@@ -122,7 +218,7 @@ function mapMeta(meta: Record<string, unknown> | undefined): DesignerBeatMeta | 
 /** Map one Export beat into a DesignerBeat (componentType -> type). */
 function mapBeat(beat: ExportBeat): DesignerBeat {
   return {
-    type: beat.componentType ?? '',
+    type: beat.componentType,
     ...(beat.beat != null ? { beat: beat.beat } : {}),
     ...(beat.sheetStage ? { sheetStage: beat.sheetStage } : {}),
     ...(coerceProps(beat.props) ? { props: coerceProps(beat.props) } : {}),
@@ -135,8 +231,8 @@ function mapBeat(beat: ExportBeat): DesignerBeat {
 /**
  * The onboarding flow, sourced from the builder Export JSON. This drives flow:sync.
  * The hand-typed DESIGNER_ONBOARDING_FLOW mirror stays in designerSource.ts as a
- * fallback only.
+ * fallback only. Build-time module (flow:sync + tests): the parse throw fails the
+ * sync, never a user session.
  */
-export const DESIGNER_ONBOARDING_FLOW_FROM_JSON: DesignerBeat[] = (
-  (designerSourceJson as ExportDocument).beats ?? []
-).map(mapBeat);
+export const DESIGNER_ONBOARDING_FLOW_FROM_JSON: DesignerBeat[] =
+  parseExportDocument(designerSourceJson).beats.map(mapBeat);

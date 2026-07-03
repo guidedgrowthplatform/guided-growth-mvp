@@ -32,8 +32,13 @@ import type {
 } from '../types';
 import type { DesignerBeat } from './designerSource';
 
-/** designer `type` -> engine `componentType`. Unmapped types are skipped (intro). */
+/**
+ * designer `type` -> engine `componentType`. null = deliberately skipped.
+ * A type ABSENT from this map makes the transform throw (no silent beat drops).
+ */
 const TYPE_TO_COMPONENT: Record<string, FlowComponentType | null> = {
+  // QA launcher design beat; the engine ships QAControlScreen.tsx instead. Skipped (null).
+  'qa-control': null,
   // Intro beats render via IntroGate, not as engine nodes. Skipped (null).
   splash: null,
   'get-started': null,
@@ -147,7 +152,7 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
       // resolveOpener). Newlines are turn breaks: one coach bubble per line, so
       // the age and gender prompts stay separate turns even on the fallback.
       openerText:
-        "Good to meet you, {name}. Two quick things so I can tailor this to you.\nHow old are you?\nAnd your gender?",
+        'Good to meet you, {name}. Two quick things so I can tailor this to you.\nHow old are you?\nAnd your gender?',
       expectsInput: true,
       directLlmAllowed: true,
     },
@@ -512,6 +517,21 @@ function specFor(component: FlowComponentType): EngineBeatSpec {
   return spec;
 }
 
+/**
+ * Resolve a designer type to its engine component (null = deliberately skipped).
+ * Throws on a type the map has never heard of; silence here used to drop beats.
+ */
+function componentFor(type: string): FlowComponentType | null {
+  const mapped = TYPE_TO_COMPONENT[type];
+  if (mapped === undefined) {
+    throw new Error(
+      `designerToFlow: unrecognized designer componentType "${type}". ` +
+        'Add it to TYPE_TO_COMPONENT (map to null to skip it deliberately).',
+    );
+  }
+  return mapped;
+}
+
 /** Pull the screenId out of a "SCREEN-ID: Label" sheetStage string. */
 function screenIdFromSheetStage(sheetStage: string | undefined): string | undefined {
   if (!sheetStage) return undefined;
@@ -812,9 +832,6 @@ export function designerToFlowDocument(
   const firstByDesignerType = new Map<string, DesignerBeat>();
   for (const [type, beats] of beatsByDesignerType) firstByDesignerType.set(type, beats[0]);
 
-  // Resolve a designer beat to its component type (null = skip).
-  const componentFor = (type: string): FlowComponentType | null => TYPE_TO_COMPONENT[type] ?? null;
-
   // Pass 1: spine component types in order. Skip: null-mapped, advanced-lane,
   // weekly-projection (all handled in dedicated passes).
   const SKIP_IN_SPINE = new Set<FlowComponentType>([
@@ -831,7 +848,8 @@ export function designerToFlowDocument(
     const component = componentFor(beat.type);
     if (component == null) continue; // null-mapped
     if (SKIP_IN_SPINE.has(component)) continue;
-    if (!ENGINE_BEAT_SPECS[component]) continue; // no spec
+    // A mapped type with no spec used to be dropped silently; specFor throws.
+    specFor(component);
     spineComponents.push(component);
   }
 

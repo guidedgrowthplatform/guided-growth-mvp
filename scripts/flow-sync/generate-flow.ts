@@ -17,7 +17,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateFlow } from '../../src/onboarding-flow/flowMachine';
+import { validateFlowAuthoring } from '../../src/onboarding-flow/flowMachine';
 import { DESIGNER_ONBOARDING_FLOW } from '../../src/onboarding-flow/transform/designerSource';
 import { DESIGNER_ONBOARDING_FLOW_FROM_JSON } from '../../src/onboarding-flow/transform/designerSourceJson';
 import { designerToFlowDocument } from '../../src/onboarding-flow/transform/designerToFlow';
@@ -43,7 +43,8 @@ function main(): void {
   }
   const flow = designerToFlowDocument(source);
 
-  const problems = validateFlow(flow);
+  // Authoring validation: graph integrity + meta presence + persist.step invariants.
+  const problems = validateFlowAuthoring(flow);
   if (problems.length > 0) {
     console.error('[flow:sync] generated flow failed validation:');
     for (const p of problems) console.error('  - ' + p);
