@@ -30,6 +30,11 @@ runs:
       shell: bash
       run: node scripts/patch-ios-plist.mjs
 
+    # Sign in with Apple entitlement (must not assume patch-ios-push ran)
+    - if: inputs.platform == 'ios'
+      shell: bash
+      run: node scripts/patch-ios-apple-signin.mjs
+
     # FCM has no GoogleService-Info.plist → +[FIRApp configure] crashes on launch
     - if: inputs.platform == 'ios'
       shell: bash

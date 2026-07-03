@@ -185,7 +185,7 @@
         }
       },
       "voice": {
-        "openerText": "Awesome {name}, two quick things so I can tailor this to you. How old are you? And what's your gender?",
+        "openerText": "Good to meet you, {name}. Two quick things so I can tailor this to you.\nHow old are you?\nAnd your gender?",
         "expectsInput": true,
         "directLlmAllowed": true
       },

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { checkAdvanceData } from '../preconditions.js';
 
-// Canonical resync step model (docs/step-0-canonical-step-table.md):
-// 1 nickname · 2 path · 3 category/braindump · 4 goals · 5 habits ·
-// 6 habits (habit-schedule) · 7 plan-review (pass) · 8 morningCheckin ·
-// 9 reflectionConfig · ≥10 pass.
+// V3 persist scale (steps are beat identities, not positions — parity with the
+// generated flow locked by src/onboarding-flow/__tests__/stepMapParity.test.ts):
+// 1 age+gender · 2 path · 3 category/braindump · 4 goals (advanced: habits) ·
+// 5 habits (both habit beats) · 6 state-check · 7 morningCheckin ·
+// 8 reflectionConfig · ≥9 pass (no V3 beat).
 const HABITS = { foo: { days: [1], time: '09:00', reminder: true } };
 const base = { path: null as string | null, brainDumpRaw: null as string | null };
 
@@ -18,39 +19,42 @@ describe('checkAdvanceData — canonical resync tail', () => {
     expect(gate(5, { habitConfigs: HABITS })).toBeNull();
   });
 
-  it('case 6 (leaving habit-schedule) requires habitConfigs — NOT reflection', () => {
-    expect(gate(6, {})).toMatch(/habits_missing/);
-    expect(gate(6, { habitConfigs: HABITS })).toBeNull();
-    // The old model gated case 6 on reflectionConfig; that would strand the
-    // habit-schedule beat. Reflection present but no habits must still fail.
-    expect(gate(6, { reflectionConfig: { time: '21:00', days: [1], reminder: true } })).toMatch(
-      /habits_missing/,
-    );
+  it('case 6 (leaving state-check) requires stateCheck or checkin — NOT habits', () => {
+    expect(gate(6, {})).toMatch(/state_check_missing/);
+    expect(gate(6, { stateCheck: { sleep: 3 } })).toBeNull();
+    // the card tap writes the same beat under `checkin`
+    expect(gate(6, { checkin: { mood: 4 } })).toBeNull();
+    // Habits present but no state-check must still fail (state-check is
+    // pre-fork in V3; habits do not exist yet when it advances).
+    expect(gate(6, { habitConfigs: HABITS })).toMatch(/state_check_missing/);
   });
 
-  it('case 7 (leaving plan-review) is a pass-through', () => {
-    expect(gate(7, {})).toBeNull();
+  it('case 7 (leaving morning-setup) requires morningCheckin', () => {
+    expect(gate(7, {})).toMatch(/morning_checkin_missing/);
+    expect(gate(7, { morningCheckin: { time: '07:30', days: [1], reminder: true } })).toBeNull();
   });
 
-  it('case 8 (leaving morning) requires morningCheckin', () => {
-    expect(gate(8, {})).toMatch(/morning_checkin_missing/);
-    expect(gate(8, { morningCheckin: { time: '07:30', days: [1], reminder: true } })).toBeNull();
+  it('case 8 (leaving reflection) requires reflectionConfig', () => {
+    expect(gate(8, {})).toMatch(/reflection_missing/);
+    expect(gate(8, { reflectionConfig: { time: '21:00', days: [1], reminder: true } })).toBeNull();
   });
 
-  it('case 9 (leaving reflection) requires reflectionConfig', () => {
-    expect(gate(9, {})).toMatch(/reflection_missing/);
-    expect(gate(9, { reflectionConfig: { time: '21:00', days: [1], reminder: true } })).toBeNull();
-  });
-
-  it('case ≥10 passes through', () => {
+  it('case ≥9 passes through (no V3 beat on the legacy plan-review scale)', () => {
+    expect(gate(9, {})).toBeNull();
     expect(gate(10, {})).toBeNull();
   });
 
-  it('spine cases 1-4: case 1 now requires both nickname AND gender', () => {
-    expect(gate(1, {})).toMatch(/profile_missing/);
-    // nickname-only is no longer sufficient — gender is required too
-    expect(gate(1, { nickname: 'Yo' })).toMatch(/gender_missing/);
-    expect(gate(1, { nickname: 'Yo', gender: 'Male' })).toBeNull();
+  it('case 4 on the advanced lane gates on habitConfigs (advanced-frequency), not goals', () => {
+    expect(gate(4, {}, { path: 'braindump' })).toMatch(/habits_missing/);
+    expect(gate(4, { habitConfigs: HABITS }, { path: 'braindump' })).toBeNull();
+  });
+
+  it('spine cases 1-4: case 1 gates on age + gender (nickname captured at auth)', () => {
+    expect(gate(1, {})).toMatch(/age_missing/);
+    // age-only is not sufficient — gender is required too
+    expect(gate(1, { age: 28 })).toMatch(/gender_missing/);
+    // nickname absent is fine once age + gender are in
+    expect(gate(1, { age: 28, gender: 'Male' })).toBeNull();
     expect(gate(2, {}, { path: null })).toMatch(/path_missing/);
     expect(gate(2, {}, { path: 'simple' })).toBeNull();
     expect(gate(3, {})).toMatch(/category_or_braindump_missing/);

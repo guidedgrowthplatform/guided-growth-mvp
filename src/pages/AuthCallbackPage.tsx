@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthResultScreen } from '@/components/auth';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { consumeAuthReturnTo } from '@/lib/auth/authHandoff';
 import { supabase } from '@/lib/supabase';
 
 type Status = 'pending' | 'email_confirmed' | 'error';
@@ -42,7 +43,8 @@ export function AuthCallbackPage() {
       }
       if (type === null) {
         handled = true;
-        navigate('/', { replace: true });
+        // OAuth round-trip: resume where sign-in started (e.g. /onboarding/flow)
+        navigate(consumeAuthReturnTo() ?? '/', { replace: true });
         return;
       }
       finish('email_confirmed');
@@ -68,9 +70,10 @@ export function AuthCallbackPage() {
       }
       eventSeen = true;
       // already-signed-in user visiting the URL without a fresh auth param
+      // (covers PKCE exchange finishing before this page mounts)
       if (!hasAuthParam) {
         handled = true;
-        navigate('/', { replace: true });
+        navigate(consumeAuthReturnTo() ?? '/', { replace: true });
         return;
       }
       if (type === 'recovery') handleRecovery();
@@ -91,11 +94,10 @@ export function AuthCallbackPage() {
   if (status === 'pending') return <LoadingScreen />;
 
   if (status === 'error') {
-    const isRecovery =
-      new URLSearchParams(window.location.search).get('type') === 'recovery';
+    const isRecovery = new URLSearchParams(window.location.search).get('type') === 'recovery';
     const body = isRecovery
-      ? "This password reset link is no longer valid. It may have expired, already been used, or been opened in a different browser than the one you requested it from.\n\nRequest a new reset link to continue."
-      : "This link is no longer valid. It may have expired, already been used, or been opened in a different browser than the one you signed up from.\n\nRequest a new email or sign in if your account is already verified.";
+      ? 'This password reset link is no longer valid. It may have expired, already been used, or been opened in a different browser than the one you requested it from.\n\nRequest a new reset link to continue.'
+      : 'This link is no longer valid. It may have expired, already been used, or been opened in a different browser than the one you signed up from.\n\nRequest a new email or sign in if your account is already verified.';
     return (
       <AuthResultScreen
         title="Link expired or invalid"
@@ -103,9 +105,7 @@ export function AuthCallbackPage() {
         iconName="ic:round-error-outline"
         iconTone="warning"
         primaryLabel={isRecovery ? 'Send new reset link' : 'Back to sign up'}
-        onPrimary={() =>
-          navigate(isRecovery ? '/forgot-password' : '/signup', { replace: true })
-        }
+        onPrimary={() => navigate(isRecovery ? '/forgot-password' : '/signup', { replace: true })}
         secondaryLabel="Back to sign in"
         onSecondary={() => navigate('/login', { replace: true })}
       />

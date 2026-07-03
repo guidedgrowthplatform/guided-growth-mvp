@@ -20,7 +20,7 @@ export function buildCanonicalOptionsBlock(
     return (
       `\n\n## Profile Fields\n` +
       `The user's name is already known from sign-in, so do NOT ask for it, and do NOT ask how they heard about us (no referral source). Collect two things, both required: age and gender (Male | Female | Other). Gender is required; always collect it and never let the user skip or decline it.\n` +
-      `Call submit_profile as fields come in. The tool requires the nickname on every call, so always pass the already-known nickname plus every field gathered so far.\n` +
+      `Call submit_profile as fields come in — pass every field gathered so far (include the already-known nickname only if you have it; it is optional).\n` +
       `Call advance_step only once BOTH age and gender are in. Do not block advance on a referral source.`
     );
   }

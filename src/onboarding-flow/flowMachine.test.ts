@@ -87,9 +87,35 @@ describe('flowMachine — the fork', () => {
     expect(resolveNextNodeId(flow, fork, { path: 'braindump' })).toBe('advanced-input');
   });
 
-  it('falls back to the merge node when no lane matches', () => {
+  it('an unanswered fork is UNRESOLVABLE by default (no merge fallthrough)', () => {
     const fork = flow.nodes.find((n) => n.id === 'path-fork')!;
-    expect(resolveNextNodeId(flow, fork, {})).toBe('plan-review');
+    expect(resolveNextNodeId(flow, fork, {})).toBeUndefined();
+  });
+
+  it('branchFallthrough (QA walks only) routes an unanswered fork to the merge', () => {
+    const fork = flow.nodes.find((n) => n.id === 'path-fork')!;
+    expect(resolveNextNodeId(flow, fork, {}, { branchFallthrough: true })).toBe('plan-review');
+  });
+
+  it('applyCapture HOLDS at an unanswered fork: empty captures never traverse it', () => {
+    let state = run(flow, [
+      { data: {} }, // auth
+      { data: {} }, // mic permission
+      { data: { age: 38, gender: 'Male' } }, // profile
+    ]);
+    expect(state.currentNodeId).toBe('path-fork');
+    // The live jump-to-end shape: repeated empty captures at the fork (a stale
+    // current_step climb replayed with no path) must not move the machine.
+    for (let i = 0; i < 3; i++) state = applyCapture(flow, state, { data: {} });
+    expect(state.currentNodeId).toBe('path-fork');
+    expect(state.status).toBe('running');
+    // Answers from a partial capture still merge while holding.
+    state = applyCapture(flow, state, { data: { age: 39 } });
+    expect(state.currentNodeId).toBe('path-fork');
+    expect(state.answers.age).toBe(39);
+    // The real answer then enters the chosen lane.
+    state = applyCapture(flow, state, { data: {}, path: 'simple' });
+    expect(state.currentNodeId).toBe('category');
   });
 
   it('beginner lane runs the full spine and completes at into-app', () => {

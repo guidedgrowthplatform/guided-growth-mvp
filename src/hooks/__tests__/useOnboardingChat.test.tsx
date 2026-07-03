@@ -675,3 +675,110 @@ describe('revisit "move on" shortcut (already-complete screen)', () => {
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/llm'))).toBe(false);
   });
 });
+
+describe('LLM failure resilience: silent auto-retry then friendly bubble (B11)', () => {
+  function errorStream(code = 'incomplete_response'): Response {
+    return mockSSE([{ type: 'error', code, message: 'response truncated — please retry' }]);
+  }
+
+  it('retries a retryable error once, then lands ONE friendly bubble (never the raw code)', async () => {
+    const appendMessage = vi.fn();
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(errorStream()));
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge appendMessage={appendMessage} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      hookRef!.sendUserTurn('every weekday at 7');
+    });
+    await flush();
+    await flush();
+
+    // First attempt + exactly one silent retry.
+    const llmCalls = fetchMock.mock.calls.filter((c) => String(c[0]).includes('/api/llm'));
+    expect(llmCalls.length).toBe(2);
+
+    const bubbles = appendMessage.mock.calls.map((c) => c[0] as VoiceMessage);
+    const errBubbles = bubbles.filter((b) => String(b.id).startsWith('llm-error-'));
+    expect(errBubbles.length).toBe(1);
+    expect(errBubbles[0].text).toBe("Something didn't work on my end. Mind saying that again?");
+    expect(errBubbles[0].text).not.toMatch(/incomplete_response/);
+  });
+
+  it('a retry that succeeds produces no error bubble', async () => {
+    const appendMessage = vi.fn();
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(() => Promise.resolve(errorStream('llm_timeout')))
+      .mockImplementation(() =>
+        Promise.resolve(
+          mockSSE([
+            { type: 'delta', content: 'all set' },
+            { type: 'done', latency_ms: 1, total_tokens: 1, tool_rounds: 0 },
+          ]),
+        ),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge appendMessage={appendMessage} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      hookRef!.sendUserTurn('every weekday at 7');
+    });
+    await flush();
+    await flush();
+
+    const bubbles = appendMessage.mock.calls.map((c) => c[0] as VoiceMessage);
+    expect(bubbles.some((b) => String(b.id).startsWith('llm-error-'))).toBe(false);
+    expect(bubbles.some((b) => b.role === 'ai' && b.text === 'all set')).toBe(true);
+  });
+
+  it('a fresh user turn after a failed episode re-arms the retry (not permanently spent)', async () => {
+    const appendMessage = vi.fn();
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(errorStream()));
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(
+        <Wrapper>
+          <Bridge appendMessage={appendMessage} />
+        </Wrapper>,
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      hookRef!.sendUserTurn('first try');
+    });
+    await flush();
+    await flush();
+    const callsAfterFirst = fetchMock.mock.calls.filter((c) =>
+      String(c[0]).includes('/api/llm'),
+    ).length;
+    expect(callsAfterFirst).toBe(2); // original + one retry
+
+    await act(async () => {
+      hookRef!.sendUserTurn('second try');
+    });
+    await flush();
+    await flush();
+    const callsAfterSecond = fetchMock.mock.calls.filter((c) =>
+      String(c[0]).includes('/api/llm'),
+    ).length;
+    expect(callsAfterSecond).toBe(4); // another original + retry pair
+  });
+});

@@ -1,7 +1,9 @@
-import type { OnboardingToolName } from './schemas.js';
+import { isOnboardingToolName, type OnboardingToolName } from './schemas.js';
 // Synced content from Supabase (the synced-file model). Committed empty until the
 // first sync; sync_beat_contexts.py overwrites it. Overlaid onto the defaults below.
 import generatedBeatContent from './beatContexts.generated.json' with { type: 'json' };
+// allowedTools per beat from the flow builder (single source of truth for the gate).
+import onboardingCombined from '../../../../src/generated/onboarding_combined.json' with { type: 'json' };
 
 // Beat-context store — the Direct-LLM source of truth for what the coach sees on
 // each onboarding beat. Two layers, both sent fresh every request (the LLM never
@@ -256,8 +258,7 @@ SPEAK MODE: VERBATIM_OPENER
 
 Ask for the mic so the user can talk to you. Keep it light, optional, no pressure. If they skip it, they can still type, and that's completely fine.`,
     allowedTools: [],
-    opener:
-      "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
+    opener: "I'd love to actually talk with you. If you let me use your mic, you can just speak.",
   },
 
   // Why intro. Framing-only beat, shown once. No data, frontend advances.
@@ -300,7 +301,7 @@ DO NOT:
 - Re-ask anything already captured.
 - Turn a reminder on unless they ask.`,
     allowedTools: ['add_habit', 'update_habit', 'advance_step'],
-    opener: 'Now the days. Tell me how often each one runs and I\'ll fill them in.',
+    opener: "Now the days. Tell me how often each one runs and I'll fill them in.",
   },
 
   // Weekly projection, frame 1 of 5. MP3-candidate narration. No data, frontend advances.
@@ -345,7 +346,7 @@ DO NOT:
 - Improvise or add.`,
     allowedTools: [],
     opener:
-      'More likely, you land around here. Mostly green, a few misses, your streaks holding. That\'s a real win.',
+      "More likely, you land around here. Mostly green, a few misses, your streaks holding. That's a real win.",
   },
 
   // Weekly projection, frame 4 of 5. MP3-candidate narration. No data, frontend advances.
@@ -361,7 +362,7 @@ DO NOT:
 - Make a rough week sound like failure.`,
     allowedTools: [],
     opener:
-      'Some weeks land here. One streak survives, the rest take a hit. Still fine, you\'re building. We reassess.',
+      "Some weeks land here. One streak survives, the rest take a hit. Still fine, you're building. We reassess.",
   },
 
   // Weekly projection, frame 5 of 5. MP3-candidate narration. No data, frontend advances.
@@ -397,6 +398,32 @@ DO NOT:
         ...(gen.opener !== undefined ? { opener: gen.opener } : {}),
       };
     }
+  }
+}
+
+// Override allowedTools from the flow builder; beats absent (or with none) keep
+// their code-owned tools.
+{
+  interface CombinedBeat {
+    screenId: string;
+    meta?: { fill?: { allowedTools?: string[] } } | null;
+  }
+  const combinedBeats = (onboardingCombined as { beats?: CombinedBeat[] }).beats ?? [];
+  for (const beat of combinedBeats) {
+    const base = BEAT_CONTEXTS[beat.screenId];
+    const tools = beat.meta?.fill?.allowedTools;
+    if (!base || !tools || tools.length === 0) continue;
+    const overlaid = tools.filter(isOnboardingToolName);
+    // The overlay REPLACES the code-owned list — never let a builder export
+    // silently drop the nav tool from a beat that had it (an interactive beat
+    // without advance_step becomes un-advanceable with no error anywhere).
+    if (base.allowedTools.includes('advance_step') && !overlaid.includes('advance_step')) {
+      overlaid.push('advance_step');
+    }
+    BEAT_CONTEXTS[beat.screenId] = {
+      ...base,
+      allowedTools: overlaid,
+    };
   }
 }
 

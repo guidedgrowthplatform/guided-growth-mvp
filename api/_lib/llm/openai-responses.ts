@@ -9,6 +9,10 @@ export type ResponsesStreamEvent =
   | { type: 'delta'; content: string }
   | { type: 'tool_call'; callId: string; name: string; argumentsRaw: string }
   | { type: 'completed'; responseId: string | null; totalTokens: number }
+  // Terminal 'response.incomplete' (e.g. max_output_tokens hit mid-turn). The
+  // turn is unusable as a normal finish — callers must surface a retryable
+  // failure, never a silent empty turn (B11).
+  | { type: 'incomplete'; reason: string; responseId: string | null; totalTokens: number }
   | { type: 'error'; code: string; message: string };
 
 export interface ToolSchema {
@@ -215,11 +219,44 @@ async function* iterateEvents(raw: AsyncIterable<unknown>): AsyncGenerator<Respo
           yield { type: 'completed', responseId, totalTokens };
           return;
         }
-        case 'response.failed':
+        // Terminal truncation (max_output_tokens / content_filter). Previously
+        // unhandled: the loop ended silently and callers treated the turn as a
+        // clean finish with no responseId and (often) no content — the B11
+        // "empty response" class. Surface it so the route can fail retryably.
+        case 'response.incomplete': {
+          const e = evt as {
+            response?: {
+              id?: unknown;
+              usage?: { total_tokens?: unknown };
+              incomplete_details?: { reason?: unknown };
+            };
+          };
+          const reason =
+            typeof e.response?.incomplete_details?.reason === 'string'
+              ? e.response.incomplete_details.reason
+              : 'unknown';
+          const responseId = typeof e.response?.id === 'string' ? e.response.id : null;
+          const totalTokens =
+            typeof e.response?.usage?.total_tokens === 'number' ? e.response.usage.total_tokens : 0;
+          yield { type: 'incomplete', reason, responseId, totalTokens };
+          return;
+        }
+        // 'response.failed' carries the error under response.error; a raw
+        // 'error' event carries code/message at the TOP level. The old shared
+        // reader used evt.error for both, so every upstream failure collapsed
+        // to "openai_error: Unknown error" (B11 — provider errors swallowed).
+        case 'response.failed': {
+          const e = evt as { response?: { error?: { code?: unknown; message?: unknown } } };
+          const err = e.response?.error;
+          const code = typeof err?.code === 'string' ? err.code : 'openai_error';
+          const message = typeof err?.message === 'string' ? err.message : 'Unknown error';
+          yield { type: 'error', code, message };
+          return;
+        }
         case 'error': {
-          const e = evt as { error?: { code?: unknown; message?: unknown } };
-          const code = typeof e.error?.code === 'string' ? e.error.code : 'openai_error';
-          const message = typeof e.error?.message === 'string' ? e.error.message : 'Unknown error';
+          const e = evt as { code?: unknown; message?: unknown };
+          const code = typeof e.code === 'string' ? e.code : 'openai_error';
+          const message = typeof e.message === 'string' ? e.message : 'Unknown error';
           yield { type: 'error', code, message };
           return;
         }
