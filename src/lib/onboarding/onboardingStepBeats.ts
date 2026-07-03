@@ -1,3 +1,4 @@
+import { DERIVED_STEP_MAPS } from '@/onboarding-flow/derivedStepMaps';
 import type { OnboardingPath } from '@gg/shared/types';
 import type { OnboardingCard } from './onboardingChatTypes';
 
@@ -42,72 +43,68 @@ export interface Beat {
   cardType: BeatCardType;
 }
 
-// current_step (+ path for the fork) → beat, on the V3 persist-step scale (the
-// step each beat SAVES: profile 1, fork 2, category/braindump 3, goals/frequency
-// 4, habit-select+schedule 5, state-check 6, morning-setup 7, reflection 8 —
-// non-monotonic vs flow order, see useFlowOrchestrator's resume notes). Parity
-// with the generated flow is locked by stepMapParity.test.ts.
+// Chat card per engine componentType. 'none' beats: the flow renderer owns the
+// card (V3 pre-fork setup) or the coach drives it in chat (advanced lane).
+const CARD_TYPE_BY_COMPONENT: Record<string, BeatCardType> = {
+  auth: 'auth',
+  'profile-input': 'profile',
+  'path-selection': 'pathChoice',
+  'category-grid': 'category',
+  'goals-list': 'goals',
+  'habit-picker': 'habits',
+  'habit-schedule': 'habits',
+  'advanced-capture': 'none',
+  'advanced-frequency': 'none',
+  'state-check': 'none',
+  'morning-checkin-setup': 'none',
+  'reflection-card': 'reflection',
+};
+
+// current_step (+ path for the fork) → beat. Screens + owners derived from the
+// generated flow (L1-3); the V3 scale stays non-monotonic vs flow order, see
+// useFlowOrchestrator's resume notes. Locked by stepMapParity.test.ts.
 export function beatForStep(step: number, path: OnboardingPath | null): Beat {
   const s = step < 0 ? 0 : step;
   const advanced = path === 'braindump' || path === 'advanced';
-  switch (s) {
-    case 0:
-      return { step: s, screenId: 'ONBOARD-AUTH--FORM', cardType: 'auth' };
-    case 1:
-      return { step: s, screenId: 'ONBOARD-01--FORM', cardType: 'profile' };
-    case 2:
-      return { step: s, screenId: 'ONBOARD-FORK--FORM', cardType: 'pathChoice' };
-    case 3:
-      // Advanced (braindump) captures free text — no inline card yet (Stage B
-      // advanced); the coach drives it in chat.
-      return advanced
-        ? { step: s, screenId: 'ONBOARD-ADVANCED', cardType: 'none' }
-        : { step: s, screenId: 'ONBOARD-BEGINNER-01', cardType: 'category' };
-    case 4:
-      return advanced
-        ? { step: s, screenId: 'ONBOARD-ADVANCED-FREQUENCY', cardType: 'none' }
-        : { step: s, screenId: 'ONBOARD-BEGINNER-02', cardType: 'goals' };
-    case 5:
-      return { step: s, screenId: 'ONBOARD-BEGINNER-03', cardType: 'habits' };
-    case 6:
-      // V3 pre-fork setup beats: the flow renderer owns their cards; the chat
-      // feed attaches none.
-      return { step: s, screenId: 'ONBOARD-STATE-CHECK', cardType: 'none' };
-    case 7:
-      return { step: s, screenId: 'ONBOARD-MORNING-SETUP', cardType: 'none' };
-    case 8:
-    default:
-      return { step: 8, screenId: 'ONBOARD-BEGINNER-07', cardType: 'reflection' };
+  if (s === 0) return { step: s, screenId: 'ONBOARD-AUTH--FORM', cardType: 'auth' };
+  const lane = advanced ? 'braindump' : 'simple';
+  const screens = DERIVED_STEP_MAPS.stepScreens[s];
+  const owners = DERIVED_STEP_MAPS.stepOwners[s];
+  const screenId = screens?.[lane] ?? screens?.[advanced ? 'simple' : 'braindump'];
+  const component = owners?.[lane] ?? owners?.[advanced ? 'simple' : 'braindump'];
+  if (screenId && component) {
+    return { step: s, screenId, cardType: CARD_TYPE_BY_COMPONENT[component] ?? 'none' };
   }
+  // Past the scale (legacy 9+ ids) or a gap: clamp to the last identity beat.
+  const max = DERIVED_STEP_MAPS.maxStep;
+  const maxScreens = DERIVED_STEP_MAPS.stepScreens[max];
+  return {
+    step: max,
+    screenId: maxScreens?.simple ?? maxScreens?.braindump ?? 'ONBOARD-BEGINNER-07',
+    cardType: 'reflection',
+  };
 }
 
-// Inverse of beatForStep on the same V3 persist-step scale — maps a screen_id
-// back to the step its beat saves, so coach-driven advancement is idempotent
-// (Math.max, not ++). Both fork lanes map to the same step; habit-select and
-// habit-schedule share 5 (the V3 two-5s).
-const SCREEN_TO_STEP: Record<string, number> = {
+// Inverse of beatForStep on the same scale — canonical entries derived from the
+// generated flow; the alias tail below covers ids the flow no longer carries.
+// Coach-driven advancement stays idempotent (Math.max, not ++).
+const LEGACY_SCREEN_STEP_ALIASES: Record<string, number> = {
   'ONBOARD-AUTH--FORM': 0,
   'ONBOARD-00--PREFS': 0,
-  'ONBOARD-01--FORM': 1,
   'ONBOARD-01': 1,
-  'ONBOARD-FORK--FORM': 2,
   'ONBOARD-FORK': 2,
-  'ONBOARD-BEGINNER-01': 3,
-  'ONBOARD-ADVANCED': 3,
-  'ONBOARD-BEGINNER-02': 4,
   'ONBOARD-ADVANCED-02': 4,
-  'ONBOARD-ADVANCED-FREQUENCY': 4,
-  'ONBOARD-BEGINNER-03': 5,
-  'ONBOARD-BEGINNER-04': 5,
   'ONBOARD-ADVANCED-04': 5,
-  'ONBOARD-STATE-CHECK': 6,
-  'ONBOARD-MORNING-SETUP': 7,
-  'ONBOARD-BEGINNER-07': 8,
   // Legacy plan-review ids (V3 has no plan-review beat — into-app follows
   // habit-schedule): mapped past the scale so a navigate_next never rewinds.
   'ONBOARD-BEGINNER-06': 9,
   'ONBOARD-ADVANCED-05': 9,
   'STARTING-PLAN': 9,
+};
+
+const SCREEN_TO_STEP: Record<string, number> = {
+  ...LEGACY_SCREEN_STEP_ALIASES,
+  ...DERIVED_STEP_MAPS.screenToStep,
 };
 
 export function stepForScreenId(screenId: string): number | undefined {
@@ -133,21 +130,15 @@ export const BEAT_COMPLETING_TOOLS: ReadonlySet<string> = new Set([
   'submit_brain_dump',
 ]);
 
-// The beat each completing tool belongs to. The optimistic advance fires only
-// when the tool's own beat is still the ACTIVE one — a tool racing in after the
-// user already tapped past (card tap + voice answer on the same beat) must not
-// push the NEXT beat forward with an empty capture. Parity with the generated
-// flow's node.tool.toolName is locked by stepMapParity.test.ts.
-export const BEAT_COMPLETING_TOOL_SCREEN: Readonly<Record<string, string>> = {
-  submit_profile: 'ONBOARD-01--FORM',
-  submit_path_choice: 'ONBOARD-FORK--FORM',
-  submit_category: 'ONBOARD-BEGINNER-01',
-  submit_goals: 'ONBOARD-BEGINNER-02',
-  record_checkin: 'ONBOARD-STATE-CHECK',
-  submit_morning_checkin: 'ONBOARD-MORNING-SETUP',
-  submit_reflection_config: 'ONBOARD-BEGINNER-07',
-  submit_brain_dump: 'ONBOARD-ADVANCED',
-};
+// The beat each completing tool belongs to, derived from the generated flow's
+// node.tool.toolName (L1-3). The optimistic advance fires only when the tool's
+// own beat is still the ACTIVE one — a tool racing in after the user already
+// tapped past must not push the NEXT beat forward with an empty capture.
+export const BEAT_COMPLETING_TOOL_SCREEN: Readonly<Record<string, string>> = Object.fromEntries(
+  [...BEAT_COMPLETING_TOOLS]
+    .map((tool) => [tool, DERIVED_STEP_MAPS.toolScreen[tool]])
+    .filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+);
 
 // Tools whose successful call moves the beat forward. The coach's trailing line
 // on such a turn is redundant (the next beat's opener carries the conversation),

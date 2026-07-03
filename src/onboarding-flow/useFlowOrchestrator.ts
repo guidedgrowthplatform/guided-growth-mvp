@@ -15,37 +15,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { DERIVED_STEP_MAPS } from './derivedStepMaps';
 // V3: all pre-fork beats (why-intro, state-check, morning-checkin-setup, reflection-card)
 // have persist steps 6-8 but appear BEFORE the fork in flow order. No ENGINE_PERSISTLESS_STEP
 // entries are needed in v3: into-app has persistsFields=[] so its tool is cosmetic, and
 // the weekly-projection nodes are pure display with no step.
 const ENGINE_PERSISTLESS_STEP: Record<string, number> = {};
-// Server-scale `current_step` each beat ENTERS at (v3 canonical step table).
-// Distinct from engine `beatStep`: the leading-edge model's two consecutive 5s
-// (habit-select + habit-schedule) make the stored server step run one AHEAD of
-// the engine step from habit-schedule on.
+// Server-scale `current_step` each beat ENTERS at, derived from the generated
+// flow's positional window (L1-3): the fork + its lanes + pre-fork beats below
+// the fork step. Distinct from engine `beatStep`: the leading-edge model's two
+// consecutive 5s (habit-select + habit-schedule) make the stored server step run
+// one AHEAD of the engine step from habit-schedule on.
 //
-// V3 flow order: auth -> mic -> profile (1) -> why-intro -> state-check (6) ->
-//   morning-checkin-setup (7) -> reflection-setup (8) -> path-fork (2) ->
-//   [beginner] category (3) -> goals (4) -> habit-select (5) -> habit-schedule (5)
-//   [advanced] advanced-capture (3) -> advanced-frequency (4)
-//   -> into-app -> weekly-projection x5
-//
-// Persist steps are non-monotonic vs flow order (1,6,7,8,2,3,4,5,5) and the tap
+// Persist steps stay non-monotonic vs flow order (1,6,7,8,2,3,4,5,5) and the tap
 // save path pins current_step with GREATEST — so past state-check the numeric
 // step is an identity label, not a position. Resume is therefore data-evidence
 // driven (resumeFromServerRow); this table survives only as the numeric stop for
 // the steps-2..5 back-nav window, where advance_step bare-sets restore meaning.
-const ENTRY_SERVER_STEP: Record<string, number> = {
-  'ONBOARD-01--FORM': 1,
-  'ONBOARD-FORK--FORM': 2,
-  'ONBOARD-BEGINNER-01': 3,
-  'ONBOARD-ADVANCED': 3,
-  'ONBOARD-BEGINNER-02': 4,
-  'ONBOARD-ADVANCED-FREQUENCY': 4,
-  'ONBOARD-BEGINNER-03': 5,
-  'ONBOARD-BEGINNER-04': 5,
-};
+const ENTRY_SERVER_STEP: Record<string, number> = DERIVED_STEP_MAPS.entryServerStep;
 
 /** The server `current_step` a beat is active at — the resume scale (NOT beatStep). */
 export function entryServerStep(node: FlowNode | undefined): number | undefined {

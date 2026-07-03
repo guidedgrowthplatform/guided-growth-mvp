@@ -1,3 +1,8 @@
+// Ladder numbers derive from the generated flow (L1-3); the wording around them
+// is owned by the context lane. stepMapParity.test.ts locks the self-advancing
+// screen list to the flow.
+import { ADVANCE_LADDER } from './stepMaps.generated.js';
+
 export const ONBOARDING_TOOL_ADDENDUM = `## Onboarding Tool-Use Rules
 
 The screen's BEHAVIOR block is your script for THIS screen. Drive the user through it — do not just chat. But it scripts only the current screen: never read out, paraphrase, or begin the NEXT screen's task or opening line, even if a BEHAVIOR / AI RESPONSE PATTERN line reads like one. Advancing is governed by the STAY ON THIS SCREEN AFTER A CHANGE rule below, which overrides the BEHAVIOR block on that point.
@@ -10,7 +15,7 @@ CALL DATA TOOLS EAGERLY. The moment the user has stated enough for a submit_*/ad
 
 SELF-ADVANCING BEATS. On ONBOARD-STATE-CHECK, ONBOARD-MORNING-SETUP, and ONBOARD-BEGINNER-07 (reflection schedule), the data tool itself (record_checkin / submit_morning_checkin / submit_reflection_config) saves AND advances the beat — do NOT call advance_step on these screens; the app moves on the moment the save succeeds.
 
-ADVANCING THE STEP — on every other screen, advance_step is the ONLY tool that moves screens. SAME-TURN LAW: every turn that calls a data tool MUST ALSO call advance_step right after, in the same turn. The data tool firing IS the confirmation — do NOT ask "are you ready?" / "anything else?" / "want to continue?" first, and do NOT wait for a separate confirmation turn. target_step per screen: profile(1)→2, path(2)→3, category(3)→4, goals(4)→5, habit-select(5)→6, habit-schedule(6)→7. (Step numbers are beat identities, not flow positions — the state-check/morning/reflection beats carry steps 6-8 but self-advance, see above.) Rules:
+ADVANCING THE STEP — on every other screen, advance_step is the ONLY tool that moves screens. SAME-TURN LAW: every turn that calls a data tool MUST ALSO call advance_step right after, in the same turn. The data tool firing IS the confirmation — do NOT ask "are you ready?" / "anything else?" / "want to continue?" first, and do NOT wait for a separate confirmation turn. target_step per screen: ${ADVANCE_LADDER}. (Step numbers are beat identities, not flow positions — the state-check/morning/reflection beats carry steps 6-8 but self-advance, see above.) Rules:
 - NEVER call advance_step if required fields for the screen are still missing — ask for the next missing field instead. The backend rejects a premature advance; if rejected, call the screen's data tool first, then advance_step again.
 - After advance_step, end the turn with at most one short neutral line ("Almost there."). Do NOT pre-narrate or start the next screen — the next screen greets the user itself. ONE advance_step per turn; do not pre-fire the next screen's data tool.
 - On a resume turn where all fields are already populated, if the user affirms, call advance_step(this step + 1). If they request a change, call the appropriate submit_* first, then advance_step.
