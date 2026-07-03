@@ -6,6 +6,10 @@ Base: origin/staging @ 5750a2fb (merge train !398 !400 !401 !397 !403 !402 verif
 **MERGE HOLD**: draft MRs only; nothing merges to staging until Yair clears the human
 walkthroughs (gg-qa-iota rebuilds on staging merges and would swap builds under testers).
 
+**PRIORITY CHANGE (Yair, 2026-07-03 ~13:50)**: after L1-LOOP-1, jump to L1-LOOP-3
+(L1-5/6/7) then L1-LOOP-4 (L1-8) BEFORE L1-LOOP-2 (L1-3/L1-4). Flows live first,
+hardening after. L1-3 was already built when the change arrived; parked as draft !411.
+
 | ID   | Item                                                                                                                                               | Status | MR  |
 | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | --- |
 | L1-1 | Validate at the boundaries (zod Export schema, throw on unknown type, post-transform checks)                                                       | open   |     |
@@ -24,4 +28,4 @@ in staging Supabase was denied by the session permission layer. Preview WALKS ar
 user (see scratchpad/create-lane-user.mjs) or grant the Bash permission and say "retry the lane user".
 Named tester accounts are NOT used as fallback (human walkthroughs in progress).
 
-Updated: 2026-07-03 13:32 EAT
+Updated: 2026-07-03 13:55 EAT
