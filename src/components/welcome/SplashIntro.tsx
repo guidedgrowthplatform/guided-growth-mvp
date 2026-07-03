@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconChatVoice, IconMicMuted } from '@/components/icons';
-import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
 import { DualButton } from '@/components/ui/DualButton';
 import { CoachIntroBubble } from '@/components/welcome/CoachIntroBubble';
 import { SPLASH_CAPTIONS } from '@/components/welcome/splashCaptions';
 import { VoiceCone } from '@/components/welcome/VoiceCone';
+import { isQaMuted, subscribe as subscribeQaSound } from '@/onboarding-flow/qaSound';
+import type { GestureStartedOpener } from '@/onboarding-flow/renderer/openerGestureStart';
 
 // Phase durations (ms)
 const PHASE_SPLASH_HOLD = 1200;
@@ -51,6 +52,12 @@ interface SplashIntroProps {
   // Skip the wordmark splash and start straight at the coach speaking (used when
   // an earlier beat already showed the wordmark).
   skipSplash?: boolean;
+  // A clip ALREADY started inside the previous tap's gesture frame (IntroGate's
+  // Get started). When present and its src matches audioSrc, adopt that element
+  // instead of arming a second play(): the gesture start is the real playback,
+  // this component only tracks it. If the gesture play() was rejected, falls
+  // back to the normal attempt (which keeps the tap-to-unlock safety net).
+  adoptedOpener?: GestureStartedOpener | null;
 }
 
 let stylesInjected = false;
@@ -82,6 +89,7 @@ export function SplashIntro({
   audioSrc,
   muted = false,
   skipSplash = false,
+  adoptedOpener = null,
 }: SplashIntroProps) {
   ensureStyles();
   const [phase, setPhase] = useState<Phase>(
@@ -243,32 +251,10 @@ export function SplashIntro({
       .catch((e) => console.warn('[splash-audio] play after gesture failed', e?.name, e?.message));
   };
 
-  const startSpeaking = () => {
-    speakingRef.current = true;
-    setPhase('orb');
-
-    if (prefersReducedMotion) {
-      speakTimerRef.current = setTimeout(finishSpeaking, REDUCED_HOLD_MS);
-      return;
-    }
-
-    const el = audioRef.current;
-    if (!el || !audioSrc) {
-      simulatePulse();
-      speakTimerRef.current = setTimeout(finishSpeaking, FALLBACK_SPEAK_MS);
-      return;
-    }
-
-    el.onended = () => finishSpeaking();
-    el.onerror = () =>
-      console.warn('[splash-audio] element error', el.error?.code, el.error?.message);
-    try {
-      el.currentTime = 0;
-    } catch {
-      // ignore
-    }
-    onPlayingRef.current = onPlaying;
-
+  // Arm our own play() on the element (the pre-adoption behavior). On
+  // rejection, hold for the next gesture: the deferred-to-tap safety net for
+  // entry paths that never went through a starting gesture.
+  const attemptPlay = (el: HTMLAudioElement) => {
     console.log('[splash-audio] play() attempt; readyState', el.readyState);
     const p = el.play();
     if (p && typeof p.then === 'function') {
@@ -280,6 +266,61 @@ export function SplashIntro({
     } else {
       onPlaying();
     }
+  };
+
+  const startSpeaking = () => {
+    speakingRef.current = true;
+    setPhase('orb');
+
+    if (prefersReducedMotion) {
+      speakTimerRef.current = setTimeout(finishSpeaking, REDUCED_HOLD_MS);
+      return;
+    }
+
+    // A clip already started inside the Get-started gesture frame: adopt it.
+    const adopted = adoptedOpener && adoptedOpener.src === audioSrc ? adoptedOpener : null;
+    if (adopted) audioRef.current = adopted.el;
+
+    const el = adopted?.el ?? audioRef.current;
+    if (!el || !audioSrc) {
+      simulatePulse();
+      speakTimerRef.current = setTimeout(finishSpeaking, FALLBACK_SPEAK_MS);
+      return;
+    }
+
+    el.onended = () => finishSpeaking();
+    el.onerror = () =>
+      console.warn('[splash-audio] element error', el.error?.code, el.error?.message);
+    onPlayingRef.current = onPlaying;
+
+    if (adopted) {
+      // Do NOT re-arm play() over the gesture-started element (double-start).
+      // Track the playback that is already underway; if the gesture play() was
+      // rejected, or something paused the element between the gesture and this
+      // mount (e.g. a dev strict-mode remount cleanup), fall back to our own
+      // attempt (which also re-installs the deferred-to-tap safety net).
+      console.log('[splash-audio] adopting gesture-started clip; readyState', el.readyState);
+      if (el.ended) {
+        finishSpeaking();
+        return;
+      }
+      void adopted.started.then((ok) => {
+        if (!speakingRef.current) return; // finished or torn down meanwhile
+        if (ok && !el.paused) {
+          onPlaying();
+          return;
+        }
+        attemptPlay(el);
+      });
+      return;
+    }
+
+    try {
+      el.currentTime = 0;
+    } catch {
+      // ignore
+    }
+    attemptPlay(el);
   };
 
   const runSequence = () => {
@@ -339,7 +380,7 @@ export function SplashIntro({
     // Apply immediately in case the element already exists.
     sync();
     return subscribeQaSound(sync);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [muted]);
 
   const showSplash = phase === 'splash' || phase === 'splash-out';
@@ -355,7 +396,16 @@ export function SplashIntro({
       className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden"
       aria-label="Guided Growth introduction"
     >
-      <audio ref={audioRef} src={audioSrc} preload="auto" playsInline muted={muted || isQaMuted()} className="hidden" />
+      {/* When a gesture-started clip is adopted, the internal element gets no
+          src (the adopted element IS the playback; no duplicate fetch). */}
+      <audio
+        ref={audioRef}
+        src={adoptedOpener && adoptedOpener.src === audioSrc ? undefined : audioSrc}
+        preload="auto"
+        playsInline
+        muted={muted || isQaMuted()}
+        className="hidden"
+      />
 
       {/* Soft blue glow around the screen edge, breathing with the voice
           (a calm take on the new Siri look). */}

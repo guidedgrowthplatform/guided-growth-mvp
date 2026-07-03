@@ -19,14 +19,43 @@ import { preloadOpenerClips } from './renderer/openerPreloadPool';
 import { useFlow } from './useFlow';
 import { useFlowOrchestrator } from './useFlowOrchestrator';
 
+// Marks (and pins) the throwaway preview identity. The Supabase anon_id
+// columns are uuid-typed, so the seeded id MUST be a plain uuid (the old
+// `preview-` prefix made every anon-keyed REST call 400 (invalid input syntax
+// for type uuid) and the mic-allow preference write wedged the beat). The
+// "this is a preview identity" signal lives in this localStorage key instead
+// of inside the id string; it also keeps the id stable across preview reloads.
+const PREVIEW_ANON_ID_KEY = 'gg_preview_anon_id';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function previewAnonId(): string {
+  let id: string | null = null;
+  try {
+    id = localStorage.getItem(PREVIEW_ANON_ID_KEY);
+  } catch {
+    /* private mode: fall through to a fresh id */
+  }
+  if (id && UUID_RE.test(id)) return id;
+  id = crypto.randomUUID();
+  try {
+    localStorage.setItem(PREVIEW_ANON_ID_KEY, id);
+  } catch {
+    /* best-effort */
+  }
+  return id;
+}
+
 export function FlowOnboardingPreview() {
   // No session here, so anonId is null. Vapi's live-gate requires a non-empty
   // anon_id (the backend rejects empty ones, every tool call would fail), so
-  // seed a throwaway one. This lets the auth-free walk run the full Vapi path,
-  // not just the Cartesia opener. A real session overwrites it on login.
+  // seed a throwaway one, a VALID uuid (see previewAnonId; previews point at
+  // staging, junk rows are acceptable). This lets the auth-free walk run the
+  // full Vapi path, not just the Cartesia opener. A real session overwrites it
+  // on login.
   useEffect(() => {
     if (!useAuthStore.getState().anonId) {
-      useAuthStore.setState({ anonId: `preview-${crypto.randomUUID()}` });
+      useAuthStore.setState({ anonId: previewAnonId() });
     }
   }, []);
 
