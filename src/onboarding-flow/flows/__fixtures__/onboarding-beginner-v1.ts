@@ -13,7 +13,7 @@
  * This must deep-equal designerToFlowDocument(DESIGNER_ONBOARDING_FLOW); the
  * transform test trips if the two ever diverge.
  */
-import type { FlowDocument } from '../types';
+import type { FlowDocument } from '../../types';
 
 export const onboardingBeginnerV1: FlowDocument = {
   flowId: 'onboarding-beginner-v1',

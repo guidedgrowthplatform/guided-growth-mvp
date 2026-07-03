@@ -244,9 +244,8 @@ export function designerBeatsFromExport(doc: ExportDocument): DesignerBeat[] {
 
 /**
  * The onboarding flow, sourced from the builder Export JSON. This drives flow:sync.
- * The hand-typed DESIGNER_ONBOARDING_FLOW mirror stays in designerSource.ts as a
- * fallback only. Build-time module (flow:sync + tests): the parse throw fails the
- * sync, never a user session.
+ * Build-time module (flow:sync + tests): the parse throw fails the sync, never
+ * a user session. No hand-typed mirror fallback exists anymore (L1-4).
  */
 export const DESIGNER_ONBOARDING_FLOW_FROM_JSON: DesignerBeat[] = designerBeatsFromExport(
   parseExportDocument(designerSourceJson),

@@ -30,12 +30,25 @@ import { validateFlow } from './flowMachine';
 import eveningGeneratedJson from './flows/evening-checkin-v1.generated.json';
 import homeTourGeneratedJson from './flows/home-tour-v1.generated.json';
 import morningGeneratedJson from './flows/morning-checkin-v1.generated.json';
-import { onboardingBeginnerV1 } from './flows/onboarding-beginner-v1';
 import generatedJson from './flows/onboarding-beginner-v1.generated.json';
 import type { FlowDocument, FlowNode } from './types';
 
-/** The hand-authored TS flow: the always-safe fallback if the JSON is unusable. */
-const FALLBACK_FLOW = onboardingBeginnerV1;
+/**
+ * Emergency sentinel only (L1-4: the diverged hand-authored fallback flow is a
+ * test fixture now). The generated JSON is gated in CI by the zod Export parse,
+ * the transform throws, authoring validation, and byte-parity tests, so an
+ * invalid file here means a broken BUILD. An empty flow keeps the app shell
+ * alive (beatEngineMeta imports this module app-wide) and makes the breakage
+ * unmissable in QA instead of silently serving a stale fork of the flow.
+ */
+const FALLBACK_FLOW: FlowDocument = {
+  flowId: 'onboarding-beginner-v1',
+  name: 'Beginner Onboarding (unavailable)',
+  version: 0,
+  publishedAt: '',
+  entryNodeId: 'auth',
+  nodes: [],
+};
 
 /**
  * Minimal structural guard before trusting the imported JSON as a FlowDocument.
