@@ -38,21 +38,38 @@ function readConditionValue(answers: FlowAnswers, source: string): unknown {
 }
 
 /**
+ * Advance options. The default (live) contract treats an unanswered branch as
+ * UNRESOLVABLE: the machine holds position instead of falling through to the
+ * merge node. The fallthrough is opt-in for QA walks only (fastForwardToNode's
+ * ?startAt targets on the merge side of a fork), never for a user-facing
+ * advance: the old always-on fallthrough let a stale current_step climb push
+ * an EMPTY capture through the fork, skipping the whole beginner/advanced lane
+ * and running the flow to the end with path=null.
+ */
+export interface AdvanceOptions {
+  branchFallthrough?: boolean;
+}
+
+/**
  * Given the node just captured and the merged answers, compute the next node id.
  * - beat: follow nextId (null = end of flow).
  * - branch: evaluate the condition against answers, enter the matching lane.
- *   Falls back to the merge node if no lane matches (never dead-ends mid-flow).
+ *   No lane matched (the fork is unanswered): `undefined` = unresolvable, the
+ *   caller holds position — unless options.branchFallthrough routes it to the
+ *   merge node (QA walks only, see AdvanceOptions).
  */
 export function resolveNextNodeId(
   _flow: FlowDocument,
   node: FlowNode,
   answers: FlowAnswers,
-): string | null {
+  options?: AdvanceOptions,
+): string | null | undefined {
   if (node.type === 'branch') {
     const branch = node as BranchNode;
     const value = readConditionValue(answers, branch.condition.source);
     const lane = branch.lanes.find((l) => l.value === value);
-    return lane?.entryNodeId ?? branch.mergeNodeId;
+    if (lane) return lane.entryNodeId;
+    return options?.branchFallthrough ? branch.mergeNodeId : undefined;
   }
   return node.nextId;
 }
@@ -75,6 +92,7 @@ export function applyCapture(
   flow: FlowDocument,
   state: FlowMachineState,
   capture: BeatCapture,
+  options?: AdvanceOptions,
 ): FlowMachineState {
   const current = getNode(flow, state.currentNodeId);
   if (!current || state.status === 'complete') return state;
@@ -85,9 +103,16 @@ export function applyCapture(
     ...(capture.path ? { path: capture.path } : {}),
   };
 
-  const nextId = resolveNextNodeId(flow, current, answers);
+  const nextId = resolveNextNodeId(flow, current, answers, options);
 
-  if (nextId == null) {
+  if (nextId === undefined) {
+    // Unanswered branch = HARD STOP: merge the answers (a partial capture may
+    // still carry data) but hold at the fork. The live path must never traverse
+    // a branch the user has not answered.
+    return { ...state, answers };
+  }
+
+  if (nextId === null) {
     return { currentNodeId: null, visited: state.visited, answers, status: 'complete' };
   }
 

@@ -23,18 +23,19 @@ const ENGINE_PERSISTLESS_STEP: Record<string, number> = {};
 // Server-scale `current_step` each beat ENTERS at (v3 canonical step table).
 // Distinct from engine `beatStep`: the leading-edge model's two consecutive 5s
 // (habit-select + habit-schedule) make the stored server step run one AHEAD of
-// the engine step from habit-schedule on. Resume maps a stored SERVER step back
-// to its beat on THIS scale, not engine beatStep.
+// the engine step from habit-schedule on.
 //
-// V3 flow order: auth -> mic -> profile (1) -> why-intro -> state-check ->
-//   morning-checkin-setup -> reflection-setup -> path-fork (2) ->
+// V3 flow order: auth -> mic -> profile (1) -> why-intro -> state-check (6) ->
+//   morning-checkin-setup (7) -> reflection-setup (8) -> path-fork (2) ->
 //   [beginner] category (3) -> goals (4) -> habit-select (5) -> habit-schedule (5)
 //   [advanced] advanced-capture (3) -> advanced-frequency (4)
 //   -> into-app -> weekly-projection x5
-// (state-check=6, morning-setup=7, reflection=8 have large persist steps but
-// appear before the fork; they are ABSENT from this table so the resume walk
-// passes through them when seeking steps 2-5, and they become stop targets only
-// when current_step is >= their persist step.)
+//
+// Persist steps are non-monotonic vs flow order (1,6,7,8,2,3,4,5,5) and the tap
+// save path pins current_step with GREATEST — so past state-check the numeric
+// step is an identity label, not a position. Resume is therefore data-evidence
+// driven (resumeFromServerRow); this table survives only as the numeric stop for
+// the steps-2..5 back-nav window, where advance_step bare-sets restore meaning.
 const ENTRY_SERVER_STEP: Record<string, number> = {
   'ONBOARD-01--FORM': 1,
   'ONBOARD-FORK--FORM': 2,
@@ -44,12 +45,6 @@ const ENTRY_SERVER_STEP: Record<string, number> = {
   'ONBOARD-ADVANCED-FREQUENCY': 4,
   'ONBOARD-BEGINNER-03': 5,
   'ONBOARD-BEGINNER-04': 5,
-  // V3 note: ONBOARD-STATE-CHECK (persist step 6), ONBOARD-MORNING-SETUP (7), and
-  // ONBOARD-BEGINNER-07 (8) appear BEFORE the fork in flow order but hold persist
-  // steps 6-8. They are intentionally absent from this resume table: the resume
-  // walk passes through them (serverCaptureForBeat is called but they are not stop
-  // targets for steps 2-5). For steps 6-8, the user is mid pre-fork setup; the
-  // leading-edge coach-advance handles those transitions, not the resume walk.
 };
 
 /** The server `current_step` a beat is active at — the resume scale (NOT beatStep). */
@@ -81,8 +76,12 @@ function deriveFinalData(answers: FlowAnswers): Partial<OnboardingStepData> {
  * (or until no progress). Used by the QA startAtNodeId seed to skip pre-beat
  * nodes (auth, mic) so a tester can jump straight to, e.g., the profile beat.
  * Each intermediate node is advanced with an empty capture (no data written).
- * Pure; does not mutate state. Returns the original state unchanged if the
- * target node is not reachable from the start.
+ * branchFallthrough is the QA-walk opt-in: it keeps merge-side ?startAt targets
+ * (into-app, the weekly beats) reachable past an unanswered fork now that the
+ * machine's default contract holds at it. Lane-side targets still stall at the
+ * fork here; the lane-aware walk (seeding the target lane's path) lands with
+ * MR !400 and composes with this flag. Pure; does not mutate state. Returns the
+ * original state unchanged if the target node is not reachable from the start.
  */
 export function fastForwardToNode(
   flow: FlowDocument,
@@ -93,7 +92,7 @@ export function fastForwardToNode(
   for (let guard = 0; guard < 50; guard++) {
     if (st.currentNodeId === targetNodeId) break;
     if (st.status === 'complete') break;
-    const next = applyCapture(flow, st, { data: {} });
+    const next = applyCapture(flow, st, { data: {} }, { branchFallthrough: true });
     if (next.currentNodeId === st.currentNodeId) break; // no progress
     st = next;
   }
@@ -156,14 +155,15 @@ export function serverCaptureForBeat(
       // V3: day-picker for braindump habits. Same field as habit-schedule.
       if (data.habitConfigs != null) out.data.habitConfigs = data.habitConfigs;
       break;
-    case 'state-check':
-      // V3: first check-in during onboarding. The checkin record is stored in
-      // its own server table, not in OnboardingStepData, so there is nothing to
-      // pull back here. Return morningCheckin as a proxy so the machine sees a
-      // non-empty replay and advances past this beat on resume (the actual checkin
-      // data is not needed by the engine for downstream routing).
-      out.data.morningCheckin = data.morningCheckin ?? { time: '08:00', days: [1,2,3,4,5], reminder: true, schedule: 'Weekday' };
+    case 'state-check': {
+      // Tap capture saves data.checkin; the record_checkin voice tool saves
+      // data.stateCheck. Replay whichever exists (never fabricate defaults — the
+      // old morningCheckin proxy poisoned the morning-setup card's prefill).
+      const d = (data ?? {}) as Record<string, unknown>;
+      const checkin = d.stateCheck ?? d.checkin;
+      if (checkin != null) out.data = { ...out.data, checkin } as BeatCapture['data'];
       break;
+    }
     case 'morning-checkin-setup':
       if (data.morningCheckin != null) out.data.morningCheckin = data.morningCheckin;
       break;
@@ -180,17 +180,121 @@ export function serverCaptureForBeat(
 }
 
 /**
- * Fast-forward a fresh machine to the saved server step so a page refresh lands
- * on the beat the user was on, not back at the entry node. Walks from `fromState`,
- * replaying each passed beat's server capture (so answers populate + the fork
- * resolves), and stops at the first beat whose ENTRY server step is >= `serverStep`
- * (the resume target). The comparison is on the server `current_step` scale
- * (`entryServerStep`), NOT engine `beatStep` — the two diverge past habit-schedule,
- * and using beatStep here overshoots the user to the end. Pre-step beats (auth/mic,
- * undefined entry step) are walked through — on resume the user is already authed and
- * mic-granted. Guarded against non-progress and the terminal node. Pure → unit-testable.
+ * Whether a server-derived capture actually proves the beat completed. A beat
+ * that persists fields must replay at least one of them (or the fork's path)
+ * before a server current_step climb may advance past it. The critical case is
+ * the branch node: the reflection save's climb (7 to 8) landing AFTER the fork
+ * became active used to push an EMPTY capture through the fork, which fell
+ * through to the merge node and ran the flow to the end with path=null (the
+ * live jump-to-end past an unanswered fork). Beats that persist nothing
+ * (why-intro, into-app, weekly projections) advance freely. Pure; kept
+ * IDENTICAL to MR !400's B21 gate so the two branches merge clean. Used ONLY
+ * by the live leading-edge advance (the resume walk keeps its own pass-through
+ * semantics, see resumeFromServerRow).
  */
-export function resumeToServerStep(
+export function captureCompletesBeat(node: FlowNode | undefined, cap: BeatCapture): boolean {
+  if (!node) return false;
+  const persistsData = node.persist != null || (node.tool?.persistsFields?.length ?? 0) > 0;
+  if (!persistsData) return true;
+  if (cap.path) return true;
+  return Object.keys(cap.data).length > 0;
+}
+
+/**
+ * Completion evidence: did the server row prove this persist-bearing beat was
+ * completed? `undefined` = the beat carries no evidence signal of its own
+ * (display beats, the head auth/mic gates, and habit-schedule/advanced-frequency,
+ * which share their field with the beat before them and so can never be proven
+ * separately — resume conservatively stops there once the shared field exists).
+ */
+export function beatCompletionEvidence(
+  node: FlowNode,
+  data: OnboardingStepData,
+): boolean | undefined {
+  const d = data as Record<string, unknown>;
+  switch (node.componentType) {
+    case 'profile-input':
+      // nickname is auto-seeded from sign-in at flow mount. The beat itself
+      // collects age AND gender, and submit_profile saves partial fields, so
+      // gender alone is NOT proof of completion (a voice user can state gender,
+      // refresh, and resume past the beat with age missing forever). Require both.
+      return d.age != null && d.gender != null;
+    case 'state-check':
+      return d.stateCheck != null || d.checkin != null;
+    case 'morning-checkin-setup':
+      return d.morningCheckin != null;
+    case 'reflection-card':
+      return d.reflectionConfig != null;
+    case 'path-selection':
+      return d.path === 'simple' || d.path === 'braindump' || d.path === 'advanced';
+    case 'category-grid':
+      return d.category != null;
+    case 'goals-list':
+      return Array.isArray(d.goals) && d.goals.length > 0;
+    case 'habit-picker':
+      return d.habitConfigs != null && Object.keys(d.habitConfigs as object).length > 0;
+    case 'advanced-capture':
+      return d.brainDumpText != null || d.brainDumpRaw != null;
+    case 'habit-schedule':
+    case 'advanced-frequency':
+      // Shares habitConfigs with the beat before it — unprovable, never passed.
+      return false;
+    default:
+      return undefined;
+  }
+}
+
+/** Any persist-bearing beat reachable from `node` (both fork lanes) with evidence? */
+function anyDownstreamEvidence(
+  flow: FlowDocument,
+  node: FlowNode,
+  data: OnboardingStepData,
+): boolean {
+  const seen = new Set<string>();
+  const queue: (string | null)[] = [];
+  const pushNext = (n: FlowNode) => {
+    if (n.type === 'branch') {
+      for (const lane of n.lanes) queue.push(lane.entryNodeId);
+      queue.push(n.mergeNodeId);
+    } else {
+      queue.push(n.nextId);
+    }
+  };
+  pushNext(node);
+  for (let guard = 0; guard < 100 && queue.length > 0; guard++) {
+    const id = queue.shift();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const n = getNode(flow, id);
+    if (!n) continue;
+    if (n.persist && beatCompletionEvidence(n, data) === true) return true;
+    pushNext(n);
+  }
+  return false;
+}
+
+/**
+ * Fast-forward a fresh machine to the beat a refresh should land on.
+ *
+ * Evidence-first: walk the flow in order, replaying each beat's server capture
+ * (answers populate, the fork resolves), and stop at the first persist-bearing
+ * beat whose completion evidence is missing from the server row. The numeric
+ * current_step CANNOT drive this walk on its own: persist steps run 1,6,7,8,
+ * 2,3,4,5,5 in V3 flow order and the tap path pins current_step with GREATEST,
+ * so every post-reflection row reads 8 forever (the old numeric-only walk found
+ * no stop target and pushed the user to the end of the flow — B9).
+ *
+ * The numeric scale keeps ONE job: for serverStep 2..5 (an advance_step bare-set
+ * or a voice back-nav, the only writers of those values under V3) the walk also
+ * stops at the first beat whose ENTRY step reaches serverStep, so an intentional
+ * back-nav survives a refresh even when all data exists.
+ *
+ * Head gates (auth, mic) always pass — on resume the user is authed and
+ * mic-granted. Display beats pass only while some later beat has evidence;
+ * otherwise they ARE the frontier and resume stops there (never skips unseen
+ * content, never walks into 'complete'). Pure → unit-testable.
+ */
+export function resumeFromServerRow(
   flow: FlowDocument,
   fromState: FlowMachineState,
   serverStep: number,
@@ -201,8 +305,18 @@ export function resumeToServerStep(
     if (st.status === 'complete') break;
     const node = getNode(flow, st.currentNodeId);
     if (!node) break;
-    const eStep = entryServerStep(node);
-    if (eStep !== undefined && eStep >= serverStep) break; // reached the saved beat
+    const isHeadGate = node.componentType === 'auth' || node.componentType === 'mic-permission';
+    if (!isHeadGate) {
+      if (node.persist) {
+        if (beatCompletionEvidence(node, data) !== true) break; // frontier: resume here
+        const eStep = entryServerStep(node);
+        if (serverStep >= 2 && serverStep <= 5 && eStep !== undefined && eStep >= serverStep) {
+          break; // numeric back-nav intent
+        }
+      } else if (!anyDownstreamEvidence(flow, node, data)) {
+        break; // display beat at the frontier
+      }
+    }
     const next = applyCapture(flow, st, serverCaptureForBeat(node, data));
     if (next.currentNodeId === st.currentNodeId) break; // no progress → stop
     st = next;
@@ -383,12 +497,21 @@ export function useFlowOrchestrator(
   // fast-forward the local engine to the saved current_step so a refresh lands on
   // the beat the user was on (not back at AUTH). Runs once; afterwards the
   // leading-edge effect below owns live advances + back-nav semantics.
+  const startAtNodeIdRef = useRef(options?.startAtNodeId);
   const resumedRef = useRef(false);
   useEffect(() => {
     if (resumedRef.current) return;
+    // QA startAt seeds the machine directly at a target node; the server resume
+    // walk must not run at all in that mode, or the up-front nickname persist
+    // (which creates a server row) lets the walk yank the machine off the seeded
+    // beat (race-sensitive: seen as intermittently flashing past profile).
+    if (startAtNodeIdRef.current) {
+      resumedRef.current = true;
+      return;
+    }
     if (typeof serverStep !== 'number') return; // no server row (preview / not loaded yet)
     resumedRef.current = true;
-    const resumed = resumeToServerStep(
+    const resumed = resumeFromServerRow(
       flow,
       stateRef.current,
       serverStep,
@@ -400,12 +523,19 @@ export function useFlowOrchestrator(
     }
   }, [serverStep, serverData, flow]);
 
+  // Baseline for the fork's evidence-arrival advance below: the path value the
+  // server row already held when the branch node became active (null = none,
+  // undefined = not yet observed). A back-nav to an already-answered fork must
+  // not be yanked straight forward by its own stale answer.
+  const forkEntryPathRef = useRef<OnboardingPath | null | undefined>(undefined);
+
   // Reset the per-beat baseline + fired-flag whenever the active beat changes, so
   // each beat judges advancement against the step seen on entry (not a prior
   // beat's) and a re-entered beat can advance again.
   useEffect(() => {
     baselineStepRef.current = null;
     advancedNodeRef.current = null;
+    forkEntryPathRef.current = undefined;
   }, [activeNodeId]);
   useEffect(() => {
     if (!activeNodeId || state.status === 'complete') return;
@@ -424,8 +554,43 @@ export function useFlowOrchestrator(
     // Advance only on a genuine climb past this beat's step (the coach saved it).
     if (serverStep <= baselineStepRef.current) return;
     if (serverStep <= thisStep) return;
-    advancedNodeRef.current = activeNodeId;
     const cap = serverCaptureForBeat(node, (serverData ?? {}) as OnboardingStepData);
+    // Data gate (parity with !400's B21 gate): a bare step climb must not push a
+    // beat forward with a capture the server row cannot replay yet. At the branch
+    // node this is the jump-to-end fix: under V3's non-monotonic persist steps a
+    // pre-fork save (reflection, step 8) lands its climb AFTER the fork becomes
+    // active, and the fork's own step (2) sits far below it — without the gate
+    // that stale climb advanced the fork with an empty capture. The once-per-beat
+    // latch is consumed only on a real advance, so a later row that does carry
+    // the data still advances this beat.
+    if (!captureCompletesBeat(node, cap)) return;
+    advancedNodeRef.current = activeNodeId;
+    applyAndAdvance(cap, false);
+  }, [activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
+
+  // Answered-fork advance (evidence arrival, no climb required). The fork can be
+  // answered with NO current_step movement at all: Vapi's submit_path_choice runs
+  // server-side and writes the path column, but the tap path's GREATEST pin keeps
+  // current_step at 8 (the pre-fork setup saves), so the leading-edge climb above
+  // never fires at the fork (its step, 2, is already far below the pin). Realtime
+  // still mirrors the row in — so at a branch node, advance the moment the row
+  // holds a lane value that was NOT there when the fork became active. A card tap
+  // advances synchronously in capture() and never reaches here; a pre-answered
+  // fork (voice back-nav) records its stale answer as the entry baseline and
+  // waits for the user.
+  useEffect(() => {
+    if (!activeNodeId || state.status === 'complete') return;
+    if (typeof serverStep !== 'number') return; // no server row (preview / not loaded)
+    const node = getNode(flow, activeNodeId);
+    if (!node || node.type !== 'branch') return;
+    const cap = serverCaptureForBeat(node, (serverData ?? {}) as OnboardingStepData);
+    if (forkEntryPathRef.current === undefined) {
+      forkEntryPathRef.current = cap.path ?? null;
+      if (cap.path) return; // entered with an existing answer: back-nav, hold
+    }
+    if (!cap.path || cap.path === forkEntryPathRef.current) return;
+    if (advancedNodeRef.current === activeNodeId) return; // fire once per beat
+    advancedNodeRef.current = activeNodeId;
     applyAndAdvance(cap, false);
   }, [activeNodeId, serverStep, serverData, state.status, flow, applyAndAdvance]);
 

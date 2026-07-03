@@ -665,16 +665,17 @@ describe('submit_reflection_config', () => {
     expect(r).toMatchObject({ ok: false, error: 'invalid_args' });
   });
 
-  it('accepts valid config, seeds step 6, does NOT bump current_step', async () => {
+  it('accepts valid config, GREATEST-bumps current_step to the V3 reflection step (8)', async () => {
     pool.query.mockResolvedValueOnce({
       rowCount: 1,
-      rows: [{ data: { reflectionConfig: valid }, current_step: 6 }],
+      rows: [{ data: { reflectionConfig: valid }, current_step: 8 }],
     });
     const r = await submitReflectionConfig(CTX, valid);
     expect(r.ok).toBe(true);
     const [sql, params] = pool.query.mock.calls[0];
-    expect(sql).not.toMatch(/current_step = GREATEST/);
-    expect(sql).toMatch(/VALUES \(\$1, 6,/);
+    // Voice save == tap save: bump to the beat's own persist step, never rewind.
+    expect(sql).toMatch(/current_step = GREATEST\(onboarding_states.current_step, 8\)/);
+    expect(sql).toMatch(/VALUES \(\$1, 8,/);
     expect(JSON.parse(params[1] as string)).toEqual({ reflectionConfig: valid });
   });
 
