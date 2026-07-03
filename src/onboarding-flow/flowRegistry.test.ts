@@ -3,7 +3,6 @@
  * slug, and pin tag, while the original onboarding loader contract holds.
  */
 import { describe, expect, it } from 'vitest';
-import { homeTourV1 } from './flows/home-tour-v1';
 import { getPublishedFlow, listPublishedFlows, loadPublishedFlow, versionTag } from './useFlow';
 
 describe('flow registry (useFlow)', () => {
@@ -13,7 +12,7 @@ describe('flow registry (useFlow)', () => {
     expect(getPublishedFlow('morning-checkin')).toBe(morning);
     expect(morning && getPublishedFlow(versionTag(morning))).toBe(morning);
     expect(getPublishedFlow('evening-checkin')?.flowId).toBe('evening-checkin-v1');
-    expect(getPublishedFlow('home-tour')).toBe(homeTourV1);
+    expect(getPublishedFlow('home-tour')?.flowId).toBe('home-tour-v1');
   });
 
   it('returns undefined for an unknown id (no onboarding fallback in the registry)', () => {

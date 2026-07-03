@@ -6,9 +6,11 @@
  * transform adds; the hand defs never carried one).
  */
 import { describe, expect, it } from 'vitest';
-import { validateFlow, validateFlowAuthoring } from '../flowMachine';
+import { applyCapture, initFlowMachine, validateFlow, validateFlowAuthoring } from '../flowMachine';
 import { eveningCheckinV1, morningCheckinV1 } from '../flows/__fixtures__/checkin-flows-v1';
+import { homeTourV1 } from '../flows/__fixtures__/home-tour-v1';
 import eveningExportJson from '../flows/designer-source.evening-checkin.json';
+import homeTourExportJson from '../flows/designer-source.home-tour.json';
 import morningExportJson from '../flows/designer-source.morning-checkin.json';
 import type { FlowDocument } from '../types';
 import { designerBeatsFromExport, parseExportDocument } from './designerSourceJson';
@@ -44,6 +46,29 @@ describe('linear transform: check-in Exports reproduce the hand-authored flows',
   it('evening check-in Export -> eveningCheckinV1 (node-for-node, minus added meta)', () => {
     const flow = transformExport(eveningExportJson);
     expect(withoutMeta(flow)).toEqual(eveningCheckinV1);
+  });
+
+  it('home tour Export -> homeTourV1 (node-for-node, minus added meta)', () => {
+    const flow = transformExport(homeTourExportJson);
+    expect(withoutMeta(flow)).toEqual(homeTourV1);
+    expect(validateFlowAuthoring(flow)).toEqual([]);
+  });
+
+  it('the generated tour walks its 5 beats to completion on captures', () => {
+    const flow = transformExport(homeTourExportJson);
+    let state = initFlowMachine(flow);
+    let guard = 0;
+    while (state.status === 'running' && guard++ < 10) {
+      state = applyCapture(flow, state, { data: {} });
+    }
+    expect(state.status).toBe('complete');
+    expect(state.visited).toEqual([
+      'home-tour-1',
+      'home-tour-2',
+      'home-tour-3',
+      'home-tour-4',
+      'home-tour-5',
+    ]);
   });
 
   it('generated check-in flows pass authoring validation (graph + meta + persist)', () => {

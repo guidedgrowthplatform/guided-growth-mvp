@@ -35,6 +35,7 @@ const OUT_PATH = resolve(FLOWS_DIR, 'onboarding-beginner-v1.generated.json');
 const LINEAR_EXPORTS = [
   { source: 'designer-source.morning-checkin.json', out: 'morning-checkin-v1.generated.json' },
   { source: 'designer-source.evening-checkin.json', out: 'evening-checkin-v1.generated.json' },
+  { source: 'designer-source.home-tour.json', out: 'home-tour-v1.generated.json' },
 ];
 
 function gateAndWrite(flow: FlowDocument, outPath: string): void {
