@@ -1,5 +1,5 @@
 import { useEffect, useRef, type MutableRefObject, type ReactNode } from 'react';
-import type { OrbStates, PulseParams } from './orbPresets';
+import type { OrbColors, OrbStates, PulseParams } from './orbPresets';
 
 // The reusable animated orb: a canvas-2D Siri-style glass button rendered at any
 // size and driven entirely by props (the look, the state, the pulse, the mic).
@@ -28,6 +28,86 @@ const GRAY: Rgb[] = [
   [228, 231, 237],
   [160, 168, 180],
 ];
+
+// --- Custom side colors (ported from the standalone HTML builder) -------------
+// When a custom color is picked, a 5-stop palette is generated from it in the
+// same shape as BLUE/GOLD (dark, base, light, near-white, hue-shifted accent).
+// The default hexes map to the original arrays exactly, so the stock look is
+// byte-identical until someone actually changes a color.
+const DEFAULT_AI_HEX = '#1e60eb';
+const DEFAULT_USER_HEX = '#dc9612';
+const WHITE: Rgb = [255, 255, 255];
+const NIGHT: Rgb = [0, 0, 0];
+function hexToRgb(hex: string): Rgb {
+  const h = hex.replace('#', '');
+  return [
+    parseInt(h.slice(0, 2), 16) || 0,
+    parseInt(h.slice(2, 4), 16) || 0,
+    parseInt(h.slice(4, 6), 16) || 0,
+  ];
+}
+function mixRgb(a: Rgb, b: Rgb, t: number): Rgb {
+  return [
+    Math.round(a[0] + (b[0] - a[0]) * t),
+    Math.round(a[1] + (b[1] - a[1]) * t),
+    Math.round(a[2] + (b[2] - a[2]) * t),
+  ];
+}
+function rotateHue(c: Rgb, deg: number): Rgb {
+  const r = c[0] / 255;
+  const g = c[1] / 255;
+  const b = c[2] / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  h = (h + deg + 360) % 360;
+  const C = (1 - Math.abs(2 * l - 1)) * s;
+  const X = C * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - C / 2;
+  let rr = 0;
+  let gg = 0;
+  let bb = 0;
+  if (h < 60) {
+    rr = C;
+    gg = X;
+  } else if (h < 120) {
+    rr = X;
+    gg = C;
+  } else if (h < 180) {
+    gg = C;
+    bb = X;
+  } else if (h < 240) {
+    gg = X;
+    bb = C;
+  } else if (h < 300) {
+    rr = X;
+    bb = C;
+  } else {
+    rr = C;
+    bb = X;
+  }
+  return [Math.round((rr + m) * 255), Math.round((gg + m) * 255), Math.round((bb + m) * 255)];
+}
+function makePalette(hex: string, accentRot: number): Rgb[] {
+  const base = hexToRgb(hex);
+  return [
+    mixRgb(base, NIGHT, 0.55),
+    base,
+    mixRgb(base, WHITE, 0.45),
+    mixRgb(base, WHITE, 0.9),
+    rotateHue(base, accentRot),
+  ];
+}
 
 export type OrbStateSel = 'idle' | 'coach' | 'user';
 export type OrbTalkStyle = 'full' | 'directional';
@@ -117,6 +197,7 @@ interface OrbCfg {
   pulse: PulseParams;
   leftOn: boolean;
   rightOn: boolean;
+  colors?: OrbColors;
 }
 
 interface OrbProps {
@@ -137,6 +218,8 @@ interface OrbProps {
   overlayIcons?: { left: ReactNode; right: ReactNode };
   /** Drop the drop-shadow (flat in the bar). */
   flat?: boolean;
+  /** Custom side colors (AI left / user right). Defaults = the stock palette. */
+  colors?: OrbColors;
 }
 
 export function Orb({
@@ -153,6 +236,7 @@ export function Orb({
   idleIcons,
   overlayIcons,
   flat,
+  colors,
 }: OrbProps) {
   const orbRef = useRef<HTMLDivElement>(null);
   const leftHalfRef = useRef<HTMLDivElement>(null);
@@ -162,8 +246,8 @@ export function Orb({
   const fullCv = useRef<HTMLCanvasElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
 
-  const cfg = useRef<OrbCfg>({ state, style, params, pulse, leftOn, rightOn });
-  cfg.current = { state, style, params, pulse, leftOn, rightOn };
+  const cfg = useRef<OrbCfg>({ state, style, params, pulse, leftOn, rightOn, colors });
+  cfg.current = { state, style, params, pulse, leftOn, rightOn, colors };
   const localMic = useRef<OrbMic>({ on: false, amp: 0 });
   const micRef = mic ?? localMic;
 
@@ -180,6 +264,28 @@ export function Orb({
     let tR = 0;
     let tF = 0;
     let irisAng = 0;
+
+    // Palette cache: regenerated only when a custom hex changes. The default
+    // hexes return the exact stock BLUE/GOLD arrays, so the standard look stays
+    // byte-identical.
+    const palCache = {
+      ai: { hex: DEFAULT_AI_HEX, pal: BLUE },
+      user: { hex: DEFAULT_USER_HEX, pal: GOLD },
+    };
+    const palFor = (kind: 'ai' | 'user'): Rgb[] => {
+      const def = kind === 'ai' ? DEFAULT_AI_HEX : DEFAULT_USER_HEX;
+      const hex = (kind === 'ai' ? cfg.current.colors?.ai : cfg.current.colors?.user) ?? def;
+      const slot = palCache[kind];
+      if (hex.toLowerCase() === def) {
+        slot.hex = hex;
+        slot.pal = kind === 'ai' ? BLUE : GOLD;
+      } else if (slot.hex !== hex) {
+        slot.hex = hex;
+        slot.pal = makePalette(hex, kind === 'ai' ? 30 : -14);
+      }
+      return slot.pal;
+    };
+    const rgbaStr = (c: Rgb, a: number): string => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
     const setVar = (name: string, v: string) => orb.style.setProperty(name, v);
 
@@ -199,7 +305,7 @@ export function Orb({
       const activeSide = c.state === 'coach' ? 'left' : c.state === 'user' ? 'right' : null;
       const isActive = talking && c.style === 'directional' && side === activeSide;
       const on = talking ? true : side === 'left' ? c.leftOn : c.rightOn;
-      const pal = on ? (side === 'left' ? BLUE : GOLD) : GRAY;
+      const pal = on ? (side === 'left' ? palFor('ai') : palFor('user')) : GRAY;
       const P = isActive ? c.params.talk : c.params.idle;
       const offMul = on ? 1 : 0.5;
       const m = micRef.current;
@@ -288,7 +394,7 @@ export function Orb({
         ctx.clearRect(0, 0, W, W);
         return;
       }
-      const pal = c.state === 'coach' ? BLUE : GOLD;
+      const pal = c.state === 'coach' ? palFor('ai') : palFor('user');
       const P = c.params.talk;
       const m = micRef.current;
       const micF = m.on ? 0.6 + m.amp * 0.55 : 1;
@@ -417,13 +523,20 @@ export function Orb({
         const memSwing = (0.5 + 0.5 * Math.sin(t2 * mrate)) * (0.05 + 0.26 * memAmt);
         shell.style.setProperty('--mem', auraP.toFixed(3));
         shell.style.setProperty('--memscale', (1 + auraP * memSwing * micA).toFixed(3));
+        // Membrane extent, mirroring the HTML builder's membrane-size control.
+        // auraSize 50 reproduces the previous fixed 1.42 extent exactly.
+        const ext = 1.18 + 0.48 * ((aset.auraSize ?? 50) / 100);
+        shell.style.setProperty('--memext', ext.toFixed(3));
+        // Membrane tint follows the (possibly custom) side colors.
+        const aiBase = palFor('ai')[1];
+        const userBase = palFor('user')[1];
         shell.style.setProperty(
           '--memc',
           c.state === 'coach'
-            ? 'rgba(70,140,255,0.60)'
+            ? rgbaStr(mixRgb(aiBase, WHITE, 0.2), 0.6)
             : c.state === 'user'
-              ? 'rgba(250,190,60,0.60)'
-              : 'rgba(150,175,255,0.55)',
+              ? rgbaStr(mixRgb(userBase, WHITE, 0.2), 0.6)
+              : rgbaStr(mixRgb(aiBase, WHITE, 0.4), 0.55),
         );
       }
       drawHalf(leftCv.current, 'left', dt);
@@ -486,7 +599,7 @@ export function Orb({
 
 const ORB_CSS = `
 .ot-shell{position:relative;display:inline-block;width:var(--D);height:var(--D)}
-.ot-membrane{position:absolute;left:50%;top:50%;width:calc(var(--D) * 1.42);height:calc(var(--D) * 1.42);transform:translate(-50%,-50%) scale(var(--memscale,1));opacity:var(--mem,0);pointer-events:none;z-index:0}
+.ot-membrane{position:absolute;left:50%;top:50%;width:calc(var(--D) * var(--memext,1.42));height:calc(var(--D) * var(--memext,1.42));transform:translate(-50%,-50%) scale(var(--memscale,1));opacity:var(--mem,0);pointer-events:none;z-index:0}
 .ot-shell.ot-flat .ot-membrane{display:none}
 .ot-mem{position:absolute;left:50%;top:50%;width:100%;height:100%;transform:translate(-50%,-50%);pointer-events:none;mix-blend-mode:screen;filter:blur(calc(var(--D) * 0.05));background:radial-gradient(circle at 42% 38%, var(--memc, rgba(150,175,255,.55)) 0%, transparent 66%);border-radius:46% 54% 52% 48% / 52% 46% 54% 48%;animation:ot-wob 7s ease-in-out infinite}
 .ot-mem2{width:80%;height:80%;opacity:.82;filter:blur(calc(var(--D) * 0.035));animation:ot-wob2 5.2s ease-in-out infinite}

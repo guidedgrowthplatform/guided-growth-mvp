@@ -4,9 +4,13 @@ import { HomeBarPreview } from './HomeBarPreview';
 import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
 import {
   AUTHOR_PRESETS,
+  DEFAULT_COLORS,
   MOTION_PRESETS,
   ORB_SETUPS,
   type BarStyle,
+  type OrbColors,
+  loadColors,
+  saveColors,
   loadParams,
   loadPulse,
   loadSaved,
@@ -55,6 +59,7 @@ const LIGHT_SLIDERS: { k: keyof OrbParams; label: string; min: number; max: numb
 ];
 const DEPTH_SLIDERS: { k: keyof OrbParams; label: string; min: number; max: number }[] = [
   { k: 'aura', label: 'Outer aura', min: 0, max: 100 },
+  { k: 'auraSize', label: 'Membrane size', min: 0, max: 100 },
   { k: 'iris', label: 'Iridescent rim', min: 0, max: 100 },
   { k: 'depth', label: 'Glass depth', min: 0, max: 100 },
 ];
@@ -81,6 +86,7 @@ export function OrbTuner() {
   const [rightOn, setRightOn] = useState(true);
   const [micOn, setMicOn] = useState(false);
   const [barStyle, setBarStyle] = useState<BarStyle>('white');
+  const [colors, setColors] = useState<OrbColors>(() => loadColors());
 
   const activeKey: 'idle' | 'talk' = editTab === 'idle' ? 'idle' : 'talk';
   const pickState = (k: OrbStateSel) => {
@@ -161,9 +167,21 @@ export function OrbTuner() {
     savePulse(next);
     setPulse(next);
   };
-  // Apply a complete setup: both looks, the motion, and the bar style, in one
-  // click. This is how a whole tuned session (promoted into ORB_SETUPS) is
-  // restored exactly.
+  const setColor = (k: keyof OrbColors, v: string) => {
+    setColors((prev) => {
+      const next = { ...prev, [k]: v };
+      saveColors(next);
+      return next;
+    });
+  };
+  const resetColors = () => {
+    const next = { ...DEFAULT_COLORS };
+    saveColors(next);
+    setColors(next);
+  };
+  // Apply a complete setup: both looks, the motion, the side colors, and the
+  // bar style, in one click. This is how a whole tuned session (promoted into
+  // ORB_SETUPS) is restored exactly.
   const applySetup = (name: string) => {
     const s = ORB_SETUPS[name];
     if (!s) return;
@@ -173,6 +191,9 @@ export function OrbTuner() {
     const nextPulse = { ...s.pulse };
     savePulse(nextPulse);
     setPulse(nextPulse);
+    const nextColors = { ...s.colors };
+    saveColors(nextColors);
+    setColors(nextColors);
     setBarStyle(s.bar);
   };
   const applyPreset = (name: string) => {
@@ -194,12 +215,14 @@ export function OrbTuner() {
       saveParams(next);
       return next;
     });
-    // Yair's presets also snap the motion back to his standard expand/contract.
-    // Only Timothy's block leaves motion untouched, so it stays free to play with.
+    // Yair's presets also snap the motion back to his standard expand/contract
+    // and the side colors back to stock. Only Timothy's block leaves those
+    // untouched, so they stay free to play with.
     if (isYair) {
       const ym = { ...MOTION_PRESETS['Yair default'] };
       savePulse(ym);
       setPulse(ym);
+      resetColors();
     }
   };
 
@@ -261,6 +284,7 @@ export function OrbTuner() {
             leftOn={leftOn}
             rightOn={rightOn}
             mic={mic}
+            colors={colors}
             onToggleLeft={() => setLeftOn((v) => !v)}
             onToggleRight={() => setRightOn((v) => !v)}
             idleIcons={{ left: <IconChatText size={38} />, right: <IconMicMuted size={38} /> }}
@@ -320,6 +344,28 @@ export function OrbTuner() {
                 {k === 'white' ? 'White' : 'Glass'}
               </button>
             ))}
+          </div>
+          <div className="ot-row">
+            <span className="ot-lab">Colors</span>
+            <label className="ot-color">
+              <input
+                type="color"
+                value={colors.ai}
+                onChange={(e) => setColor('ai', e.target.value)}
+              />
+              <span>AI (left)</span>
+            </label>
+            <label className="ot-color">
+              <input
+                type="color"
+                value={colors.user}
+                onChange={(e) => setColor('user', e.target.value)}
+              />
+              <span>User (right)</span>
+            </label>
+            <button className="ot-btn" onClick={resetColors}>
+              Reset colors
+            </button>
           </div>
           <div className="ot-row">
             <span className="ot-lab">Edit</span>
@@ -517,6 +563,7 @@ export function OrbTuner() {
         screenBg={BGS[bg]}
         bgKey={bg}
         barStyle={barStyle}
+        colors={colors}
       />
 
       <style>{OT_CSS}</style>
@@ -536,6 +583,8 @@ const OT_CSS = `
 .ot-btn:disabled{opacity:.4;cursor:default}
 .ot-input{padding:6px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#e8e8ee;font-size:12.5px;min-width:130px}
 .ot-input:disabled{opacity:.4}
+.ot-color{display:inline-flex;align-items:center;gap:7px;padding:5px 11px 5px 6px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);font-size:12.5px;color:#e8e8ee;cursor:pointer}
+.ot-color input{width:26px;height:26px;border:none;background:none;padding:0;border-radius:50%;cursor:pointer}
 .ot-chip{display:inline-flex;align-items:center;gap:0;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);overflow:hidden}
 .ot-chip-name{padding:6px 11px;background:transparent;border:none;color:#e8e8ee;font-size:12.5px;cursor:pointer}
 .ot-chip-name:hover{background:rgba(255,255,255,.12)}

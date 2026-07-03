@@ -24,6 +24,7 @@ export interface OrbParams {
   aura: number; // breathing outer halo 0..100
   iris: number; // iridescent rim sheen 0..100
   depth: number; // glass 3D depth (inner shadow + top highlight) 0..100
+  auraSize: number; // membrane extent beyond the disc 0..100 (50 = the old fixed size)
 }
 
 export interface OrbStates {
@@ -52,6 +53,7 @@ export const DEFAULT_PARAMS: OrbStates = {
     aura: 0,
     iris: 0,
     depth: 0,
+    auraSize: 50,
   },
   talk: {
     glass: 35,
@@ -71,6 +73,7 @@ export const DEFAULT_PARAMS: OrbStates = {
     aura: 0,
     iris: 0,
     depth: 0,
+    auraSize: 50,
   },
 };
 
@@ -348,14 +351,42 @@ export const DEFAULT_PULSE: PulseParams = {
   memSpeed: 35,
 };
 
+// --- Colors (ported from the standalone HTML builder) --------------------------
+// The two side colors are editable: AI (left) and user (right). The defaults are
+// exactly the palette the canvas orb has always used (BLUE base / GOLD base), so
+// nothing changes until someone actually picks a color.
+export interface OrbColors {
+  ai: string;
+  user: string;
+}
+export const DEFAULT_COLORS: OrbColors = { ai: '#1e60eb', user: '#dc9612' };
+const LS_COLORS = 'gg-flow-builder-v18:orb-colors';
+export function loadColors(): OrbColors {
+  try {
+    const s = localStorage.getItem(LS_COLORS);
+    if (s) return { ...DEFAULT_COLORS, ...(JSON.parse(s) as Partial<OrbColors>) };
+  } catch {
+    // ignore
+  }
+  return { ...DEFAULT_COLORS };
+}
+export function saveColors(c: OrbColors): void {
+  try {
+    localStorage.setItem(LS_COLORS, JSON.stringify(c));
+  } catch {
+    // ignore
+  }
+}
+
 // --- Full setups: everything in one click -------------------------------------
 // A setup captures a COMPLETE orb configuration: both looks (idle + talking),
-// the motion, and the home-bar style. This is where a whole tuned-up local
-// session gets promoted into git, so anyone can jump straight to it.
+// the motion, the side colors, and the home-bar style. This is where a whole
+// tuned-up local session gets promoted into git, so anyone can jump straight to it.
 export type BarStyle = 'white' | 'glass';
 export interface OrbSetup {
   params: OrbStates;
   pulse: PulseParams;
+  colors: OrbColors;
   bar: BarStyle;
 }
 export const ORB_SETUPS: Record<string, OrbSetup> = {
@@ -380,6 +411,7 @@ export const ORB_SETUPS: Record<string, OrbSetup> = {
         aura: 0,
         iris: 0,
         depth: 0,
+        auraSize: 50,
       },
       talk: {
         glass: 35,
@@ -399,14 +431,19 @@ export const ORB_SETUPS: Record<string, OrbSetup> = {
         aura: 0,
         iris: 0,
         depth: 0,
+        auraSize: 50,
       },
     },
     pulse: { size: 8, amt: 60, speed: 50, orbAmt: 100, mem: 60, memSpeed: 35 },
+    colors: { ai: '#1e60eb', user: '#dc9612' },
     bar: 'white',
   },
-  // Timothy's tuned session from the local builder: glassy split idle with a
-  // soft membrane, Aurora Bloom while talking, disc held stable with a calm
-  // membrane breathe, and the glass home bar to match.
+  // Timothy's tuned session, ported 1:1 from the standalone HTML builder
+  // (D:/Test/orb-builder.html defaults). Mapping: AI/user color pickers ->
+  // colors; iridescent rim 0.7 -> iris 70; membrane size 40 (range 8..100) ->
+  // auraSize 35; membrane opacity 0.7 -> idle aura 40 / talk aura 78; membrane
+  // wobble 0.6 -> Membrane breathe 62 with its own calm tempo; disc held stable
+  // (orb expand 0); glass home bar to match the glass orb.
   'Timothy setup': {
     params: {
       idle: {
@@ -424,9 +461,10 @@ export const ORB_SETUPS: Record<string, OrbSetup> = {
         pglow: 40,
         rand: 20,
         pulse: 45,
-        aura: 26,
-        iris: 22,
+        aura: 40,
+        iris: 70,
         depth: 42,
+        auraSize: 35,
       },
       talk: {
         glass: 34,
@@ -444,11 +482,13 @@ export const ORB_SETUPS: Record<string, OrbSetup> = {
         rand: 72,
         pulse: 58,
         aura: 78,
-        iris: 66,
+        iris: 70,
         depth: 32,
+        auraSize: 35,
       },
     },
     pulse: { size: 8, amt: 40, speed: 30, orbAmt: 0, mem: 62, memSpeed: 20 },
+    colors: { ai: '#2f9bff', user: '#ffd23f' },
     bar: 'glass',
   },
 };

@@ -2,7 +2,7 @@ import { Icon } from '@iconify/react';
 import { type MutableRefObject } from 'react';
 import { IconChatText, IconMic } from '@/components/icons';
 import { Orb, type OrbMic, type OrbStateSel, type OrbTalkStyle } from './Orb';
-import type { BarStyle, OrbStates, PulseParams } from './orbPresets';
+import type { BarStyle, OrbColors, OrbStates, PulseParams } from './orbPresets';
 
 // The home bar canvas: a self-contained mockup of the app's bottom nav (the real
 // one is components/layout/BottomNav.tsx, which needs the router + voice
@@ -86,6 +86,8 @@ interface HomeBarPreviewProps {
   bgKey: string; // 'light' | 'blue' | 'yellow' | 'dark' (drives text contrast)
   // Bar skin: the current solid white, or the glassmorph variant.
   barStyle: BarStyle;
+  // Side colors, mirrored from the tuner's Colors control.
+  colors: OrbColors;
 }
 
 export function HomeBarPreview({
@@ -97,6 +99,7 @@ export function HomeBarPreview({
   screenBg,
   bgKey,
   barStyle,
+  colors,
 }: HomeBarPreviewProps) {
   const dark = bgKey === 'dark';
   const glass = barStyle === 'glass';
@@ -174,6 +177,7 @@ export function HomeBarPreview({
                 params={params}
                 pulse={pulse}
                 mic={mic}
+                colors={colors}
                 flat
                 overlayIcons={{ left: <IconChatText size={24} />, right: <IconMic size={24} /> }}
               />
