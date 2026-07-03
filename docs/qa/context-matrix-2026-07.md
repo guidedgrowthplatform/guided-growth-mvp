@@ -55,6 +55,23 @@ Improvisation class = opener class / reply class. "BC match" = effective beat co
 - **M8 — Overlay filter hides tool-name drift.** `beatContexts.ts:416` silently drops overlay tool names that fail `isOnboardingToolName` — a builder export naming a removed tool would be masked, not flagged. C3's parity test must fail loudly on this.
 - **M9 — Orphan context entries (staleness, not runtime risk).** `BEAT_CONTEXTS` + the synced overlay carry beats absent from the generated flow: COACH-GREETING, ONBOARD-BEGINNER-05, ONBOARD-BEGINNER-06, ONBOARD-ADVANCED-02, ONBOARD-ADVANCED-04, ONBOARD-ADV-CUSTOM, ONBOARD-ADVANCED-05. The addendum correctly marks BEGINNER-06/ADVANCED-05 as legacy ids (`systemPromptAddendum.ts:7`). Keep or prune consciously in C3.
 
+## C4 static pass — opener wording vs spec (oracle: flow-annotated-render @ 5de9a561, onboardingMetadata.json)
+
+Filled 2026-07-03 by code comparison (browser walk still pending). Oracle wording is marked PROVISIONAL by Yair; per the bugfix plan, where app and page disagree the page wins, and page-looks-wrong goes to Yair. Beat ORDER ground truth stays the generated flow (Yair 2026-07-03) — order deltas are recorded, not acted on.
+
+**Match (15/20):** mic, why-intro, fork→beginner beats BEG-01/02/03, BEG-07 (framing opener, Option B), advanced, advanced-frequency, complete, weekly-projection ×5, auth (both silent).
+
+**Wording deltas (page wins → NEEDS-YAIR to confirm, then builder-lane/MP3 work):**
+- W1 `ONBOARD-FORK--FORM`: oracle + synced beatContexts say "Quick one. … Both are totally fine."; the flow/MP3 line is the short form. The MP3 transcript is the stale side (recording exists for the short line) → needs a re-recorded clip or an oracle downgrade. Supersedes M5's first item.
+- W2 `ONBOARD-01--FORM`: flow lines add "And your gender?" beyond the oracle/synced opener ("…How old are you?").
+- W3 `ONBOARD-STATE-CHECK`: oracle opener is only "Let's do your first check-in right now." with per-element clips (sleep/mood/energy/stress, reusing daily state clips); flow/synced append "How are you landing in this moment? Mood, energy, sleep, anything on you."
+- W4 `ONBOARD-MORNING-SETUP`: oracle is Option A — NO framing opener, element lines lead ("Weekdays, weekends, or every day?" etc.); app has a framing opener.
+- W5 `ONBOARD-BEGINNER-04`: same Option A delta — oracle says no framing opener, app has one.
+
+**Structural deltas (recorded only; flow order is ground truth):**
+- S1 COACH-GREETING exists in the oracle (own MP3 beat between auth and mic) and in beatContexts, but has NO node in the generated flow — the first-hello line currently has no beat to play on.
+- S2 Oracle places BEG-07 (evening reflection) after BEG-04 inside the beginner path; the flow places it pre-fork. Yair's flow-order ruling wins; recorded because the oracle's per-element reflection lines assume the post-fork position.
+
 ## Routing (per qa-taxonomy)
 
 - M1, M2, M3 → my lane's C2 scope for wording/values (RULE 11 in `assistant.ts` is mine); the *mechanism* question — whether the engine should stop feeding screens-era blocks to Vapi on beats that have beat contexts — touches `OnboardingVoiceProvider` (anchor territory, overlap rule 3) and `getScreenContext` (shared). Filed as NEEDS-COORDINATION with anchor; not edited from this lane.
