@@ -8,9 +8,9 @@ MERGE HOLD in force: draft MRs only; nothing merges to staging until Yair clears
 | ID | Item | Status | MR |
 |---|---|---|---|
 | C1 | Context-chain audit (matrix skeleton) | DONE — matrix with 20 beat rows + mismatches M1–M9 (file:line evidence). Committed in gg-spec on branch context-qa-matrix-2026-07 (local, push blocked — see blockers) and mirrored at docs/qa/context-matrix-2026-07.md on this branch | gg-spec MR blocked |
-| C2 | Anti-improvisation application | in progress | — |
-| C3 | allowedTools codification | not started | — |
-| C4 | Live QA matrix, text path | not started | — |
+| C2 | Anti-improvisation application | DONE pending review — fallbacks refreshed to synced v2, RULE 11 added (inert until post-merge vapi:sync). Sheet-owned wording (M5/M1) NEEDS-YAIR | !409 (draft) |
+| C3 | allowedTools codification | DONE pending review — per-beat justifications, COMPLETE aligned, parity test (12 tests) fails loudly on tool drift | !409 (draft) |
+| C4 | Live QA matrix, text path | in progress — preview walk on !409's branch | — |
 | C5 | Voice-parity spot pass (max 10 Vapi sessions) | not started | — |
 
 ## Ledger rows filed by this lane (for the central ledger)
