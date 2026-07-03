@@ -52,6 +52,7 @@ import {
   MAX_HABITS_ONBOARDING,
 } from '../flowData';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
+import { HomeTourAdapter } from './tour/HomeTourAdapter';
 
 export interface BeatAdapterProps {
   node: FlowNode;
@@ -1658,6 +1659,7 @@ export const ADAPTER_REGISTRY: Record<string, AdapterComponent> = {
   'why-intro': WhyIntroAdapter,
   'advanced-frequency': AdvancedFrequencyAdapter,
   'weekly-projection': WeeklyProjectionAdapter,
+  'home-tour': HomeTourAdapter,
 };
 
 export function getAdapter(componentType: string): AdapterComponent | undefined {

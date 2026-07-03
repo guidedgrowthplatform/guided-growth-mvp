@@ -28,7 +28,7 @@
 import { useMemo } from 'react';
 import { validateFlow } from './flowMachine';
 import eveningGeneratedJson from './flows/evening-checkin-v1.generated.json';
-import { homeTourV1 } from './flows/home-tour-v1';
+import homeTourGeneratedJson from './flows/home-tour-v1.generated.json';
 import morningGeneratedJson from './flows/morning-checkin-v1.generated.json';
 import { onboardingBeginnerV1 } from './flows/onboarding-beginner-v1';
 import generatedJson from './flows/onboarding-beginner-v1.generated.json';
@@ -108,6 +108,7 @@ function acceptGeneratedFlow(raw: unknown, label: string): FlowDocument | null {
 
 const MORNING_CHECKIN_FLOW = acceptGeneratedFlow(morningGeneratedJson, 'morning-checkin');
 const EVENING_CHECKIN_FLOW = acceptGeneratedFlow(eveningGeneratedJson, 'evening-checkin');
+const HOME_TOUR_FLOW = acceptGeneratedFlow(homeTourGeneratedJson, 'home-tour');
 
 // The flow registry (L1-5). Each flow resolves three ways: flowId, versionTag
 // (the pin format flowId@vN), and the version-less slug (the /flow-preview/:flowId
@@ -120,7 +121,7 @@ function registerFlow(flow: FlowDocument): void {
 }
 if (MORNING_CHECKIN_FLOW) registerFlow(MORNING_CHECKIN_FLOW);
 if (EVENING_CHECKIN_FLOW) registerFlow(EVENING_CHECKIN_FLOW);
-registerFlow(homeTourV1);
+if (HOME_TOUR_FLOW) registerFlow(HOME_TOUR_FLOW);
 registerFlow(LATEST_FLOW);
 
 /** The stable pin identifier for a flow document, e.g. "onboarding-beginner-v1@v1". */
