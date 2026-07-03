@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, useNavigate } from 'react-router-dom';
+import { DevDbTargetBanner } from '@/components/dev/DevDbTargetBanner';
 import { OnboardingVoiceProvider } from '@/contexts/OnboardingVoiceProvider';
 import { SessionLogProvider } from '@/contexts/SessionLogProvider';
 import { ToastProvider, useToast } from '@/contexts/ToastContext';
@@ -13,11 +14,11 @@ import {
   consumePendingAuthHandoff,
 } from '@/lib/auth/authHandoff';
 import { getFreshToken } from '@/lib/auth/tokenStore';
-import { QAFab } from '@/onboarding-flow/QAFab';
-import { QAVapiToggle } from '@/onboarding-flow/QAVapiToggle';
-import { QASoundToggle } from '@/onboarding-flow/QASoundToggle';
 import { queryClient } from '@/lib/query';
 import { reacquireIfActive, suspendWakeLock } from '@/lib/services/keepAwake';
+import { QAFab } from '@/onboarding-flow/QAFab';
+import { QASoundToggle } from '@/onboarding-flow/QASoundToggle';
+import { QAVapiToggle } from '@/onboarding-flow/QAVapiToggle';
 import { AppRoutes } from '@/routes';
 import { useAuthStore } from '@/stores/authStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
@@ -118,6 +119,7 @@ export default function App() {
         <SessionLogProvider>
           <VoiceProvider>
             <ToastProvider>
+              <DevDbTargetBanner />
               <DeepLinkErrorReporter />
               <AuthHandoffListener />
               <NavigateLogger />
