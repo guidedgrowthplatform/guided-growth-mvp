@@ -17,4 +17,11 @@ walkthroughs (gg-qa-iota rebuilds on staging merges and would swap builds under 
 | L1-7 | Evening check-in from the builder                                                                                                                  | open   |     |
 | L1-8 | App tour from the builder (stretch)                                                                                                                | open   |     |
 
-Updated: 2026-07-03 13:26 EAT
+BLOCKER (operator): creating the lane test user qa-onboarding-fable-builder@guidedgrowth.test
+in staging Supabase was denied by the session permission layer. Preview WALKS are deferred
+(code, tests, tsc, flow:sync all verified locally). To unblock, the operator can run:
+`! node --env-file=.env.local scripts/qa/create-test-users.mjs`-style admin call for the lane
+user (see scratchpad/create-lane-user.mjs) or grant the Bash permission and say "retry the lane user".
+Named tester accounts are NOT used as fallback (human walkthroughs in progress).
+
+Updated: 2026-07-03 13:32 EAT
