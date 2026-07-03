@@ -51,7 +51,7 @@ import {
   habitsByGoal,
   MAX_HABITS_ONBOARDING,
 } from '../flowData';
-import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
+import type { BeatCapture, FlowAnswers, FlowComponentType, FlowNode } from '../types';
 
 export interface BeatAdapterProps {
   node: FlowNode;
@@ -1631,7 +1631,9 @@ function WeeklyProjectionAdapter({ node, onCapture }: BeatAdapterProps) {
 
 type AdapterComponent = (props: BeatAdapterProps) => React.ReactNode;
 
-export const ADAPTER_REGISTRY: Record<string, AdapterComponent> = {
+// Total over FlowComponentType: adding a component type without deciding its
+// adapter here is a compile error. null = consciously no engine adapter yet.
+export const ADAPTER_REGISTRY = {
   auth: AuthAdapter,
   'mic-permission': MicPermissionAdapter,
   'profile-input': ProfileAdapter,
@@ -1658,10 +1660,12 @@ export const ADAPTER_REGISTRY: Record<string, AdapterComponent> = {
   'why-intro': WhyIntroAdapter,
   'advanced-frequency': AdvancedFrequencyAdapter,
   'weekly-projection': WeeklyProjectionAdapter,
-};
+  // Builder-authored tour; engine adapter is L1-8 (port of beats/homeTour.tsx).
+  'home-tour': null,
+} satisfies Record<FlowComponentType, AdapterComponent | null>;
 
 export function getAdapter(componentType: string): AdapterComponent | undefined {
-  return ADAPTER_REGISTRY[componentType];
+  return (ADAPTER_REGISTRY as Record<string, AdapterComponent | null>)[componentType] ?? undefined;
 }
 
 // Past beats of these types re-render their real card frozen in the captured
@@ -1672,19 +1676,37 @@ export function getAdapter(componentType: string): AdapterComponent | undefined 
 // the say-only / check-in beats (no captured card to freeze), and mic-permission —
 // its big dial must COLLAPSE to a short summary after Allow (the bottom orb takes
 // over) rather than persist as a static frozen dial.
-export const FROZEN_CARD_TYPES: ReadonlySet<string> = new Set([
-  'auth',
-  'profile-input',
-  'path-selection',
-  'category-grid',
-  'goals-list',
-  'habit-picker',
-  'habit-schedule',
-  'morning-checkin-setup',
-  'reflection-card',
-  'plan-cards',
-  'advanced-capture',
-]);
+// Total over FlowComponentType: every type states its freeze behavior explicitly.
+const FROZEN_BY_TYPE = {
+  auth: true,
+  'profile-input': true,
+  'path-selection': true,
+  'category-grid': true,
+  'goals-list': true,
+  'habit-picker': true,
+  'habit-schedule': true,
+  'morning-checkin-setup': true,
+  'reflection-card': true,
+  'plan-cards': true,
+  'advanced-capture': true,
+  'mic-permission': false,
+  'primary-button': false,
+  'advanced-frequency': false,
+  'into-app': false,
+  'why-intro': false,
+  'weekly-projection': false,
+  'state-check': false,
+  'habit-review': false,
+  reflection: false,
+  'coach-bubble': false,
+  'home-tour': false,
+} satisfies Record<FlowComponentType, boolean>;
+
+export const FROZEN_CARD_TYPES: ReadonlySet<string> = new Set(
+  Object.entries(FROZEN_BY_TYPE)
+    .filter(([, frozen]) => frozen)
+    .map(([type]) => type),
+);
 
 /* --------------------------------------------- past-beat answer summaries */
 
