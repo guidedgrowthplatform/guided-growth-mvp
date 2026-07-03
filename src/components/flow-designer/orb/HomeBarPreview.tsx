@@ -224,7 +224,13 @@ export function HomeBarPreview({
                 overlayIcons={{ left: <IconChatText size={24} />, right: <IconMic size={24} /> }}
               />
             </div>
-            <div className="relative grid h-full grid-cols-5 items-end px-6 pb-2">
+            <div
+              className={
+                floating
+                  ? 'relative grid h-full grid-cols-5 items-center px-6 pb-2'
+                  : 'relative grid h-full grid-cols-5 items-end px-6 pb-2'
+              }
+            >
               <Tab icon="ic:round-home" label="Home" isActive tone={tabTone} />
               <Tab icon="ic:round-leaderboard" label="Progress" tone={tabTone} />
               <div />
