@@ -52,6 +52,7 @@ import {
   MAX_HABITS_ONBOARDING,
 } from '../flowData';
 import type { BeatCapture, FlowAnswers, FlowComponentType, FlowNode } from '../types';
+import { HomeTourAdapter } from './tour/HomeTourAdapter';
 
 export interface BeatAdapterProps {
   node: FlowNode;
@@ -1660,8 +1661,7 @@ export const ADAPTER_REGISTRY = {
   'why-intro': WhyIntroAdapter,
   'advanced-frequency': AdvancedFrequencyAdapter,
   'weekly-projection': WeeklyProjectionAdapter,
-  // Builder-authored tour; engine adapter is L1-8 (port of beats/homeTour.tsx).
-  'home-tour': null,
+  'home-tour': HomeTourAdapter,
 } satisfies Record<FlowComponentType, AdapterComponent | null>;
 
 export function getAdapter(componentType: string): AdapterComponent | undefined {

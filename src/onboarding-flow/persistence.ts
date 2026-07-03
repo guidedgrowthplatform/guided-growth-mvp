@@ -19,6 +19,8 @@ export interface FlowPersistence {
   ) => void;
   /** Mirrors useOnboarding().complete — writes final state + navigates to /home. */
   complete: (finalData?: Partial<OnboardingStepData>) => void;
+  /** Fire a beat's tool (e.g. check-in record_checkin). Optional: onboarding omits it. */
+  saveTool?: (toolName: string, data: Record<string, unknown>) => void;
 }
 
 /** Production adapter: reuses the real Supabase save path. */
@@ -42,6 +44,9 @@ export function useLocalPersistence(
       complete: (finalData) => {
         console.info('[flow-preview] complete', finalData ?? {});
         onComplete?.(finalData);
+      },
+      saveTool: (toolName, data) => {
+        console.info('[flow-preview] saveTool', toolName, data);
       },
     }),
     [onComplete],

@@ -15,10 +15,7 @@
  */
 import { useCallback, useLayoutEffect } from 'react';
 import { useOnboardingVoice } from '@/contexts/useOnboardingVoiceSession';
-import {
-  CHAT_VAPI_BEAT_SCREENS,
-  LOCAL_CAPTURE_BEATS,
-} from '@/lib/onboarding/onboardingStepBeats';
+import { CHAT_VAPI_BEAT_SCREENS, LOCAL_CAPTURE_BEATS } from '@/lib/onboarding/onboardingStepBeats';
 import type { BeatCapture, FlowAnswers, FlowNode } from '../types';
 import { applyName } from './applyName';
 import {
@@ -29,8 +26,8 @@ import {
   PastBeatBubbles,
   type BeatStep,
 } from './BeatPlayer';
-import { openerTurns } from './openerTurns';
 import { FROZEN_CARD_TYPES, getAdapter, summarizeBeat } from './componentRegistry';
+import { openerTurns } from './openerTurns';
 import { useBeatOpenerCartesia } from './useBeatOpenerCartesia';
 import { useBeatOpenerMp3 } from './useBeatOpenerMp3';
 
@@ -92,14 +89,7 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
     if (!setScreenContextDeferred || !active || !hasOpenerMp3 || !isHybridOpenerBeat) return;
     setScreenContextDeferred(node.screenId, !mp3.done);
     return () => setScreenContextDeferred(node.screenId, false);
-  }, [
-    active,
-    hasOpenerMp3,
-    isHybridOpenerBeat,
-    mp3.done,
-    node.screenId,
-    setScreenContextDeferred,
-  ]);
+  }, [active, hasOpenerMp3, isHybridOpenerBeat, mp3.done, node.screenId, setScreenContextDeferred]);
   // Map 0..1 progress fraction to a word count so Karaoke can light words in sync.
   // While the opener audio is ARMED but not yet started (buffering, or holding
   // for the autoplay-unlock gesture) the count pins to 0 so the karaoke and the
@@ -145,6 +135,14 @@ export function BeatView({ node, answers, active, onCapture, onReveal }: BeatVie
         />
       </div>
     );
+  }
+
+  // Home-tour beats are full-screen takeovers: the adapter draws its own coach
+  // caption, so no opener bubbles; passed beats leave no receipt (not a chat).
+  if (node.componentType === 'home-tour') {
+    return active && Adapter ? (
+      <Adapter node={node} answers={answers} onCapture={onCapture} />
+    ) : null;
   }
 
   // Active Vapi beat (no MP3 override): opener → the beat component (IN the
