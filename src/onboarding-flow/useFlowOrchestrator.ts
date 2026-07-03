@@ -334,6 +334,21 @@ export function resumeFromServerRow(
   serverStep: number,
   data: OnboardingStepData,
 ): FlowMachineState {
+  // R2 guard: a server row with no progress signal is NOT a resume. Every real
+  // signup writes an up-front row (the nickname persist at sign-in), and
+  // treating that row as a resume walked the head gates (auth, mic always pass
+  // on resume) and landed every FIRST run on profile: the welcome and mic
+  // beats never rendered for any account with a nickname. Progress means any
+  // beat-owned field, including PARTIAL fills (gender without age still proves
+  // the user reached profile); nickname and row metadata do not count.
+  const PROGRESS_FIELDS = [
+    'age', 'gender', 'checkin', 'stateCheck', 'morningCheckin', 'reflectionConfig',
+    'path', 'category', 'goals', 'habitConfigs', 'brainDumpText', 'brainDumpRaw',
+  ] as const;
+  const d = (data ?? {}) as Record<string, unknown>;
+  if (!PROGRESS_FIELDS.some((k) => d[k] != null)) {
+    return fromState;
+  }
   let st = fromState;
   for (let guard = 0; guard < 50; guard++) {
     if (st.status === 'complete') break;
