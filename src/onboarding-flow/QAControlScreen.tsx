@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { queryClient } from '@/lib/query';
 import { supabase } from '@/lib/supabase';
 import { clearThread } from '@/contexts/onboardingThreadStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -15,7 +16,7 @@ import { useAuthStore } from '@/stores/authStore';
  *   1. Header (QA badge + title)
  *   2. Test user picker (select)
  *   3. "Start a flow" grid
- *   4. Account-state action buttons (log in / restart / re-onboard / reset)
+ *   4. Account-state action buttons (log in / restart / replay preview / reset)
  *   5. Error line
  *
  * Each test account is a dedicated `qa-onboarding-*@guidedgrowth.test` user. They
@@ -30,11 +31,14 @@ interface QaUser {
   onboarded?: boolean;
 }
 
+// First two exist on the staging project (the QA DB since the 2026-07-02 env
+// flip); the rest are prod-era accounts kept for the endpoint-down fallback.
 const FALLBACK_USERS: QaUser[] = [
+  { label: 'Fable', email: 'qa-onboarding-fable@guidedgrowth.test' },
+  { label: 'Mintesnot', email: 'qa-onboarding-mintesnot@guidedgrowth.test' },
   { label: 'Yair', email: 'qa-onboarding-yair@guidedgrowth.test' },
   { label: 'Alejandro', email: 'qa-onboarding-alejandro@guidedgrowth.test' },
   { label: 'Yonas', email: 'qa-onboarding-yonas@guidedgrowth.test' },
-  { label: 'Mintesnot', email: 'qa-onboarding-mintesnot@guidedgrowth.test' },
   { label: 'Timothy', email: 'qa-onboarding-timothy@guidedgrowth.test' },
 ];
 
@@ -66,6 +70,9 @@ interface FlowDef {
    * will render an empty or fallback beat for those nodes.
    */
   fullyRunnable: boolean;
+  // 'server' = real authed flow (Supabase-persisted; a fresh launch wipes the
+  // picked user first). 'preview' = in-memory render; a server wipe changes nothing.
+  kind: 'server' | 'preview';
 }
 
 const FLOWS: FlowDef[] = [
@@ -78,6 +85,7 @@ const FLOWS: FlowDef[] = [
     // QA path is never affected by the VITE_ONBOARDING_USE_ENGINE flag.
     navigate: (nav) => nav('/onboarding/flow', { replace: true }),
     fullyRunnable: true,
+    kind: 'server',
   },
   {
     id: 'profile-start',
@@ -89,6 +97,7 @@ const FLOWS: FlowDef[] = [
     // which ensureSignedIn in run() handles before this navigation fires.
     navigate: (nav) => nav('/onboarding/flow?startAt=profile', { replace: true }),
     fullyRunnable: true,
+    kind: 'server',
   },
   {
     id: 'mic-profile-start',
@@ -100,6 +109,7 @@ const FLOWS: FlowDef[] = [
     // the profile beat's MP3/live opener path needs playback.
     navigate: (nav) => nav('/onboarding/flow?startAt=mic', { replace: true }),
     fullyRunnable: true,
+    kind: 'server',
   },
   {
     id: 'home-tour',
@@ -113,6 +123,7 @@ const FLOWS: FlowDef[] = [
     // The route and button are wired correctly; the adapter is what is missing.
     navigate: (nav) => nav('/flow-preview/home-tour', { replace: true }),
     fullyRunnable: false,
+    kind: 'preview',
   },
   {
     id: 'morning-checkin',
@@ -121,6 +132,7 @@ const FLOWS: FlowDef[] = [
     desc: '4-beat morning state-check flow',
     navigate: (nav) => nav('/flow-preview/morning-checkin', { replace: true }),
     fullyRunnable: true,
+    kind: 'preview',
   },
   {
     id: 'evening-checkin',
@@ -129,6 +141,7 @@ const FLOWS: FlowDef[] = [
     desc: '5-beat evening flow',
     navigate: (nav) => nav('/flow-preview/evening-checkin', { replace: true }),
     fullyRunnable: true,
+    kind: 'preview',
   },
 ];
 
@@ -164,21 +177,21 @@ const ACTIONS: ActionDef[] = [
     key: 'restart',
     icon: 'ic:round-restart-alt',
     label: 'Restart onboarding (fresh)',
-    desc: 'Delete this user data, keep the account, run onboarding from the top.',
+    desc: 'Delete this user data, keep the account, run full onboarding from the top.',
     tone: 'neutral',
   },
   {
     key: 'reonboard',
     icon: 'ic:round-replay',
-    label: 'Re-run onboarding (keep data)',
-    desc: 'Go through onboarding again with the data already saved.',
+    label: 'Replay flow (preview)',
+    desc: 'Walk the full flow again in preview mode. Saved data untouched (and not loaded).',
     tone: 'neutral',
   },
   {
     key: 'reset',
     icon: 'ic:round-cleaning-services',
     label: 'Reset data only',
-    desc: 'Wipe this user data, keep the account. No onboarding.',
+    desc: 'Wipe this user data, keep the account. You stay on this screen.',
     tone: 'danger',
   },
 ];
@@ -205,6 +218,7 @@ export function QAControlScreen() {
   const [flowId, setFlowId] = useState<FlowId>('full-onboarding');
   const [busy, setBusy] = useState<ActionKey | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   // Pull the live list of QA accounts from Supabase so the dropdown reflects the
   // real accounts (and shows who already has data). Falls back to the static list.
@@ -274,25 +288,43 @@ export function QAControlScreen() {
     if (busy) return;
     setBusy(action);
     setError(null);
+    setNotice(null);
     try {
       await ensureSignedIn();
+      // signIn here never routes through signOut's queryClient.clear(), so the
+      // staleTime:Infinity gate/resume queries would launch against the PREVIOUS
+      // user's (or pre-wipe) onboarding row. Clear after every write, before nav.
       if (action === 'restart') {
-        await selfReset();
+        setFlowId(flowToRun.id);
+        // Preview flows persist in-memory only; a server wipe would destroy the
+        // picked user's data without changing what the preview renders.
+        if (flowToRun.kind === 'server') await selfReset();
+        queryClient.clear();
         // Hard navigation on purpose (B17): the voice provider is mounted at the
         // app root and keeps the old thread in memory across an SPA navigate. A
         // full page load guarantees the fresh run starts with an empty thread.
         flowToRun.navigate(hardNavigate);
         return;
       } else if (action === 'reonboard') {
-        flowToRun.navigate(navigate);
+        // Auth-free full-flow render, outside AppGate: runnable from the top for
+        // completed users too, in-memory persistence, no server writes.
+        queryClient.clear();
+        navigate('/onboarding-flow-preview', { replace: true });
       } else if (action === 'reset') {
-        // Reset data only: wipe and go home. Hard load for the same B17 reason.
+        // Reset data only: wipe, clear caches, stay on the QA screen with a
+        // visible confirmation (landing the wiped user inside onboarding lied,
+        // per the loop6 audit). selfReset already clears the thread cache (B17),
+        // and queryClient.clear() covers the stale-query gate (B23).
         await selfReset();
-        window.location.assign('/');
-        return;
+        queryClient.clear();
+        const label = users.find((u) => u.email === email)?.label ?? email;
+        setNotice(`Data wiped for ${label}. Account kept; still on the QA screen.`);
+        setBusy(null);
       } else {
-        // login: navigate to the selected flow.
-        flowToRun.navigate(navigate);
+        // login: land wherever the app really routes this user (home when
+        // onboarded, onboarding resume otherwise). AppGate decides.
+        queryClient.clear();
+        navigate('/', { replace: true });
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
@@ -537,7 +569,9 @@ export function QAControlScreen() {
               <button
                 key={a.key}
                 type="button"
-                onClick={() => run(a.key)}
+                // Restart is label-true: always full onboarding. Per-flow fresh
+                // launches are the tiles themselves.
+                onClick={() => run(a.key, a.key === 'restart' ? 'full-onboarding' : undefined)}
                 disabled={busy !== null}
                 style={{
                   display: 'flex',
@@ -606,6 +640,11 @@ export function QAControlScreen() {
         {error && (
           <p style={{ fontSize: 12.5, fontWeight: 600, color: 'rgb(220,38,38)', margin: 0 }}>
             {error}
+          </p>
+        )}
+        {notice && (
+          <p style={{ fontSize: 12.5, fontWeight: 600, color: 'rgb(22,101,52)', margin: 0 }}>
+            {notice}
           </p>
         )}
       </div>

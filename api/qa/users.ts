@@ -42,21 +42,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (data.users.length < 200) break;
     }
 
-    // Mark who has onboarded (onboarding_path is set on completion).
-    let onboardedIds = new Set<string>();
+    // Mark who has onboarded (onboarding_path is set on completion). Decoration
+    // only: a fresh DB or a stale pool credential must not kill the list.
+    let onboardedIds: Set<string> | null = null;
     if (qa.length) {
-      const { rows } = await pool.query<{ id: string }>(
-        `SELECT id FROM profiles WHERE id = ANY($1::uuid[]) AND onboarding_path IS NOT NULL`,
-        [qa.map((u) => u.id)],
-      );
-      onboardedIds = new Set(rows.map((r) => r.id));
+      try {
+        const { rows } = await pool.query<{ id: string }>(
+          `SELECT id FROM profiles WHERE id = ANY($1::uuid[]) AND onboarding_path IS NOT NULL`,
+          [qa.map((u) => u.id)],
+        );
+        onboardedIds = new Set(rows.map((r) => r.id));
+      } catch (err) {
+        console.error('[qa/users] onboarded enrichment failed, returning bare list', err);
+      }
     }
 
     const users = qa
       .map((u) => ({
         email: u.email,
         name: nameFromEmail(u.email),
-        onboarded: onboardedIds.has(u.id),
+        ...(onboardedIds ? { onboarded: onboardedIds.has(u.id) } : {}),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
