@@ -28,4 +28,6 @@ in staging Supabase was denied by the session permission layer. Preview WALKS ar
 user (see scratchpad/create-lane-user.mjs) or grant the Bash permission and say "retry the lane user".
 Named tester accounts are NOT used as fallback (human walkthroughs in progress).
 
-Updated: 2026-07-03 15:32 EAT — ALL LEDGER ROWS CODE-COMPLETE as draft MRs; pending: preview walks (test-user blocker), reviews, merge-hold lift
+STAGING MOVED 15:38 EAT (R2 resume fix 3ee5bb27 landed during the hold, presumably anchor demo-blocking): all 10 lane branches staging-synced via cascade merges, zero conflicts, suites green at chain tip (1516) and !411 (1499). Lane merge-hold discipline unchanged: drafts only.
+
+Updated: 2026-07-03 15:45 EAT — all ledger rows code-complete; auth-free preview verification in progress
