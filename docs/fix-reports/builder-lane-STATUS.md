@@ -21,12 +21,13 @@ hardening after. L1-3 was already built when the change arrived; parked as draft
 | L1-7 | Evening check-in from the builder                                                                                                                  | open   |     |
 | L1-8 | App tour from the builder (stretch)                                                                                                                | open   |     |
 
-BLOCKER (operator): creating the lane test user qa-onboarding-fable-builder@guidedgrowth.test
-in staging Supabase was denied by the session permission layer. Preview WALKS are deferred
-(code, tests, tsc, flow:sync all verified locally). To unblock, the operator can run:
-`! node --env-file=.env.local scripts/qa/create-test-users.mjs`-style admin call for the lane
-user (see scratchpad/create-lane-user.mjs) or grant the Bash permission and say "retry the lane user".
-Named tester accounts are NOT used as fallback (human walkthroughs in progress).
+RESOLVED BLOCKER: conductor granted exclusive use of qa-onboarding-fable@guidedgrowth.test
+(2026-07-03 ~16:20); all walks done with it. REMAINING permission gate: account RESET
+(mirror of qa-reset deletes) was denied by the session permission layer, so a
+STANDALONE !408 onboarding re-walk is parked (chain build contains !408; artifacts
+byte-identical, so coverage is substantive). QA_RESET_TOKEN is not in .env.local;
+operator can reset via the token'd endpoint or grant the delete permission if a
+standalone walk is wanted.
 
 STAGING MOVED 15:38 EAT (R2 resume fix 3ee5bb27 landed during the hold, presumably anchor demo-blocking): all 10 lane branches staging-synced via cascade merges, zero conflicts, suites green at chain tip (1516) and !411 (1499). Lane merge-hold discipline unchanged: drafts only.
 
@@ -46,4 +47,4 @@ Preview walks DONE without the QA test user (auth-free routes): morning + evenin
 check-ins and the 5-beat tour all VERIFIED end-to-end on preview (build gg-n0667ti91).
 Still needing the test user (operator blocker stands): full ONBOARDING walk + persist=real saves.
 
-Updated: 2026-07-03 16:10 EAT
+Updated: 2026-07-03 16:45 EAT — ALL verifications done (onboarding e2e, both check-ins incl. persist=real DB proof, tour x2); lane fully delivered pending reviews + merge-hold lift
