@@ -21,6 +21,13 @@ const EMPTY_TURN_FALLBACK = "Sorry, I didn't quite get that — could you say it
 // when each delta triggered its own React render + smooth-reveal animation.
 const DELTA_COALESCE_MS = 40;
 
+// Idle watchdog: abort a stream that produces NO event for this long. Bounds
+// the "indefinite thinking stall" (B11) — a wedged serverless function or a
+// half-open socket otherwise leaves status 'streaming' forever. Real progress
+// (deltas, tool_call/tool_result between rounds) resets the timer, so slow
+// multi-round turns are unaffected; only a genuinely dead stream trips it.
+const STREAM_IDLE_TIMEOUT_MS = 30_000;
+
 export interface LLMToolFailure {
   id: string;
   name: string;
@@ -202,10 +209,24 @@ export function useLLM(
       let succeeded = false;
       const localTools: LLMToolEvent[] = [];
 
+      // Idle watchdog — any received event proves the stream is alive and
+      // re-arms it; a stream that goes silent past the window is aborted and
+      // surfaced as a retryable timeout error (never an endless spinner).
+      let idleTimedOut = false;
+      let idleTimerId: ReturnType<typeof setTimeout> | null = null;
+      const armIdleWatchdog = () => {
+        if (idleTimerId !== null) clearTimeout(idleTimerId);
+        idleTimerId = setTimeout(() => {
+          idleTimedOut = true;
+          controller.abort();
+        }, STREAM_IDLE_TIMEOUT_MS);
+      };
+
       // Direct-LLM (Path 2/3) tap — onboarding only; same console timeline as Vapi.
       const debugOnb = isOnboardingScreen(screenId);
 
       const onEvent = (e: LLMStreamEvent) => {
+        armIdleWatchdog();
         switch (e.type) {
           case 'delta': {
             acc += e.content;
@@ -328,6 +349,7 @@ export function useLLM(
         const priorOpener = opts.mode === 'chat' ? priorOpenerRef.current : null;
         if (priorOpener) priorOpenerRef.current = null;
 
+        armIdleWatchdog();
         await streamLLM(
           {
             session_id: sessionId,
@@ -351,7 +373,10 @@ export function useLLM(
         const wasAborted =
           controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError');
         if (wasAborted) {
-          setStatus((prev) => (prev === 'error' ? 'error' : 'idle'));
+          // Watchdog aborts (idleTimedOut) are surfaced in `finally`, which
+          // also covers the no-throw path where the abort closes the stream
+          // cleanly. User cancels keep the old idle/error behavior.
+          if (!idleTimedOut) setStatus((prev) => (prev === 'error' ? 'error' : 'idle'));
         } else if (opts.surfaceErrors) {
           setStatus('error');
           setError(err instanceof Error ? err : new Error(String(err)));
@@ -360,13 +385,22 @@ export function useLLM(
         }
       } finally {
         if (timeoutId) clearTimeout(timeoutId);
+        if (idleTimerId !== null) clearTimeout(idleTimerId);
         if (abortRef.current === controller) {
           abortRef.current = null;
         }
         inFlightRef.current = false;
-        // Stream ended with no done/error frame (truncated/killed) — clear the
-        // stuck 'streaming' status, else every later send is gated to noop.
-        if (!sawTerminal && !controller.signal.aborted) {
+        if (idleTimedOut && !sawTerminal) {
+          // Watchdog fired — a dead stream, not a user cancel. Retryable error.
+          if (opts.surfaceErrors) {
+            setError((prev) => prev ?? new Error('llm_timeout: the coach stopped responding'));
+            setStatus('error');
+          } else {
+            setStatus((prev) => (prev === 'streaming' ? 'idle' : prev));
+          }
+        } else if (!sawTerminal && !controller.signal.aborted) {
+          // Stream ended with no done/error frame (truncated/killed) — clear the
+          // stuck 'streaming' status, else every later send is gated to noop.
           if (opts.surfaceErrors) {
             setError((prev) => prev ?? new Error('connection ended unexpectedly'));
             setStatus((prev) => (prev === 'streaming' ? 'error' : prev));
