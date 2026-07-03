@@ -29,13 +29,14 @@ export function FlowOnboardingPreview() {
     }
   }, []);
 
-  const { flow, tag } = useFlow(null);
-  const persistence = useLocalPersistence();
-  // QA: ?startAt=<nodeId> jumps past the auth/mic gates, same affordance the
-  // real FlowOnboarding gives QAControlScreen — lets headless preview QA reach
-  // specific beats without a sign-in.
+  // QA only: ?startAt=<nodeId> jumps the machine to a specific beat, mirroring
+  // FlowOnboarding. Pre-beat nodes (auth, mic) are walked with empty captures so
+  // a tester can land straight on, e.g., the profile beat with no sign-in.
   const [searchParams] = useSearchParams();
   const startAtNodeId = searchParams.get('startAt') ?? undefined;
+
+  const { flow, tag } = useFlow(null);
+  const persistence = useLocalPersistence();
   const orchestrator = useFlowOrchestrator(flow, persistence, { flowTag: tag, startAtNodeId });
 
   return (

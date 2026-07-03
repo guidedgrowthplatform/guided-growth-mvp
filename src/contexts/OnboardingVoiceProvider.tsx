@@ -80,6 +80,7 @@ import { useSessionLogStore } from '@/stores/sessionLogStore';
 import { useVoiceSettingsStore } from '@/stores/voiceSettingsStore';
 import type { OnboardingState } from '@gg/shared/types';
 import type { OnboardingThreadTurn } from '@gg/shared/types/llm';
+import { mergeThreadMessages } from './onboardingThreadMerge';
 import { clearThread, loadThread, saveThread } from './onboardingThreadStore';
 import { shouldWipeOnAnonIdChange } from './onboardingThreadWipe';
 
@@ -408,8 +409,11 @@ export function OnboardingVoiceProvider({ children }: { children: ReactNode }) {
             .map(threadTurnToVoiceMessage),
         );
         if (seeded.length === 0) return;
-        // Don't clobber a longer live/in-progress in-memory thread.
-        setMessages((cur) => (cur.length >= seeded.length ? cur : seeded));
+        // MERGE with the live thread instead of replacing it: the old
+        // longer-set-wins rule dropped live turns that had not mirrored yet
+        // (bubbles disappearing mid-run, B6). Server history is the base
+        // order; fresher live copies and unmirrored live turns are kept.
+        setMessages((cur) => mergeThreadMessages(seeded, cur));
         // Pre-seed the mirror dedup so hydrated turns don't re-POST.
         seeded.forEach((m) => mirroredTurnsRef.current.set(m.id, m.text));
       })

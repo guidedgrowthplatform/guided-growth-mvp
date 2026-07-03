@@ -143,8 +143,11 @@ const ENGINE_BEAT_SPECS: Partial<Record<FlowComponentType, EngineBeatSpec>> = {
       ageRange: { min: 13, max: 120 },
     },
     voice: {
+      // Fallback only (the designer props compose the real opener, see
+      // resolveOpener). Newlines are turn breaks: one coach bubble per line, so
+      // the age and gender prompts stay separate turns even on the fallback.
       openerText:
-        "Awesome {name}, two quick things so I can tailor this to you. How old are you? And what's your gender?",
+        "Good to meet you, {name}. Two quick things so I can tailor this to you.\nHow old are you?\nAnd your gender?",
       expectsInput: true,
       directLlmAllowed: true,
     },
@@ -519,11 +522,25 @@ function screenIdFromSheetStage(sheetStage: string | undefined): string | undefi
 
 /**
  * Resolve the opener for a beat. Beats flagged openerFromEngine keep the engine's
- * canonical opener verbatim (profile: the designer greeting is only the first
- * sentence). Otherwise the designer coachLine drives the opener, falling back to
- * the engine opener when the designer authored none.
+ * canonical opener verbatim. Otherwise the designer coachLine drives the opener,
+ * falling back to the engine opener when the designer authored none.
+ *
+ * Turn-break convention: a newline inside the opener is a TURN BREAK. The
+ * renderer draws one coach bubble per line (BeatView splits via openerTurns).
+ *
+ * Profile is composed, not copied: the designer authors its prompts as separate
+ * props (greeting, askAge, askGender), and the flow-annotated reference renders
+ * them as three separate coach turns. Joining them with newlines keeps the age
+ * and gender prompts as separate bubbles (B5) instead of one merged paragraph.
  */
 function resolveOpener(beat: DesignerBeat | undefined, spec: EngineBeatSpec): string | null {
+  if (spec.nodeId === 'profile') {
+    const props = beat?.props ?? {};
+    const lines = [props.greeting, props.askAge, props.askGender].filter(
+      (line): line is string => typeof line === 'string' && line.trim().length > 0,
+    );
+    if (lines.length > 0) return lines.map((line) => line.trim()).join('\n');
+  }
   if (spec.openerFromEngine) return spec.voice.openerText;
   const coachLine = beat?.props?.coachLine;
   const greeting = beat?.props?.greeting;

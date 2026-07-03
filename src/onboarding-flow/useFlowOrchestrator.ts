@@ -63,7 +63,7 @@ import {
 } from './flowMachine';
 import { composeBeatContext } from './generalContext';
 import type { FlowPersistence } from './persistence';
-import type { BeatCapture, FlowAnswers, FlowDocument, FlowNode } from './types';
+import type { BeatCapture, BranchNode, FlowAnswers, FlowDocument, FlowNode } from './types';
 
 /** The fields PlanReviewPage.complete() persists at the end of onboarding. */
 function deriveFinalData(answers: FlowAnswers): Partial<OnboardingStepData> {
@@ -72,16 +72,42 @@ function deriveFinalData(answers: FlowAnswers): Partial<OnboardingStepData> {
 }
 
 /**
+ * Which fork lane (if any) contains `targetNodeId`, walking each lane's chain
+ * from its entry to its exit. Lets the fast-forward walk resolve a branch
+ * TOWARD the target instead of falling through to the merge node (which used
+ * to skip the whole lane and run the machine to completion).
+ */
+function laneValueContaining(
+  flow: FlowDocument,
+  branch: BranchNode,
+  targetNodeId: string,
+): string | null {
+  for (const lane of branch.lanes) {
+    let id: string | null = lane.entryNodeId;
+    for (let guard = 0; guard < 50 && id; guard++) {
+      if (id === targetNodeId) return lane.value;
+      if (id === lane.exitNodeId) break;
+      const node = getNode(flow, id);
+      if (!node || node.type === 'branch') break;
+      id = node.nextId;
+    }
+  }
+  return null;
+}
+
+/**
  * Walk the machine forward from `fromState` until `currentNodeId === targetNodeId`
  * (or until no progress). Used by the QA startAtNodeId seed to skip pre-beat
  * nodes (auth, mic) so a tester can jump straight to, e.g., the profile beat.
- * Each intermediate node is advanced with an empty capture (no data written).
- * branchFallthrough is the QA-walk opt-in: it keeps merge-side ?startAt targets
- * (into-app, the weekly beats) reachable past an unanswered fork now that the
- * machine's default contract holds at it. Lane-side targets still stall at the
- * fork here; the lane-aware walk (seeding the target lane's path) lands with
- * MR !400 and composes with this flag. Pure; does not mutate state. Returns the
- * original state unchanged if the target node is not reachable from the start.
+ * Each intermediate node is advanced with an empty capture (no data written);
+ * a branch node is advanced with the path of the lane that contains the target
+ * (so ?startAt=goals lands ON goals instead of skipping the beginner lane).
+ * For merge-side targets (into-app, the weekly beats) no lane path applies, so
+ * the walk passes the unanswered fork via the branchFallthrough opt-in (QA-walk
+ * only; the machine's default contract holds at the fork). Pure; does not
+ * mutate state. Returns the original state unchanged if the target node is not
+ * reached (e.g. an unknown id), instead of a fully-walked, already-complete
+ * machine.
  */
 export function fastForwardToNode(
   flow: FlowDocument,
@@ -90,13 +116,20 @@ export function fastForwardToNode(
 ): FlowMachineState {
   let st = fromState;
   for (let guard = 0; guard < 50; guard++) {
-    if (st.currentNodeId === targetNodeId) break;
+    if (st.currentNodeId === targetNodeId) return st;
     if (st.status === 'complete') break;
-    const next = applyCapture(flow, st, { data: {} }, { branchFallthrough: true });
+    const node = getNode(flow, st.currentNodeId);
+    const cap: BeatCapture = { data: {} };
+    if (node?.type === 'branch') {
+      const laneValue = laneValueContaining(flow, node, targetNodeId);
+      if (laneValue === 'simple' || laneValue === 'braindump') cap.path = laneValue;
+    }
+    const next = applyCapture(flow, st, cap, { branchFallthrough: true });
     if (next.currentNodeId === st.currentNodeId) break; // no progress
     st = next;
   }
-  return st;
+  // Target never reached: seed at the entry instead of a burned-through flow.
+  return fromState;
 }
 
 /** The step this beat completes (persist.step is the canonical save step). */
@@ -182,15 +215,16 @@ export function serverCaptureForBeat(
 /**
  * Whether a server-derived capture actually proves the beat completed. A beat
  * that persists fields must replay at least one of them (or the fork's path)
- * before a server current_step climb may advance past it. The critical case is
- * the branch node: the reflection save's climb (7 to 8) landing AFTER the fork
- * became active used to push an EMPTY capture through the fork, which fell
- * through to the merge node and ran the flow to the end with path=null (the
- * live jump-to-end past an unanswered fork). Beats that persist nothing
- * (why-intro, into-app, weekly projections) advance freely. Pure; kept
- * IDENTICAL to MR !400's B21 gate so the two branches merge clean. Used ONLY
- * by the live leading-edge advance (the resume walk keeps its own pass-through
- * semantics, see resumeFromServerRow).
+ * before a server current_step climb may advance past it. Two failure classes
+ * this gate closes: (1) B21, a bare step overshoot skipping the habit picker so
+ * habit-select and habit-schedule rendered SIMULTANEOUSLY (an empty frozen card
+ * next to the schedule card); (2) the branch node: the reflection save's climb
+ * (7 to 8) landing AFTER the fork became active used to push an EMPTY capture
+ * through the fork, which fell through to the merge node and ran the flow to
+ * the end with path=null (the live jump-to-end past an unanswered fork). Beats
+ * that persist nothing (why-intro, into-app, weekly projections) advance
+ * freely. Pure, unit-tested; used ONLY by the live leading-edge advance (the
+ * resume walk keeps its own pass-through semantics, see resumeFromServerRow).
  */
 export function captureCompletesBeat(node: FlowNode | undefined, cap: BeatCapture): boolean {
   if (!node) return false;
