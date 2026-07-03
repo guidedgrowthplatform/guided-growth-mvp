@@ -10,8 +10,8 @@ MERGE HOLD in force: draft MRs only; nothing merges to staging until Yair clears
 | C1 | Context-chain audit (matrix skeleton) | DONE — matrix with 20 beat rows + mismatches M1–M9 (file:line evidence). Committed in gg-spec on branch context-qa-matrix-2026-07 (local, push blocked — see blockers) and mirrored at docs/qa/context-matrix-2026-07.md on this branch | gg-spec MR blocked |
 | C2 | Anti-improvisation application | DONE pending review — fallbacks refreshed to synced v2, RULE 11 added (inert until post-merge vapi:sync). Sheet-owned wording (M5/M1) NEEDS-YAIR | !409 (draft) |
 | C3 | allowedTools codification | DONE pending review — per-beat justifications, COMPLETE aligned, parity test (12 tests) fails loudly on tool drift | !409 (draft) |
-| C4 | Live QA matrix, text path | BLOCKED on human — preview is live (https://gg-f9mlkbl7g-guided-growths-projects.vercel.app, pipeline 2649643773 green) but Chrome extension is unresponsive to automation (pending side-panel prompt?) and browser selection needs the operator present. Retrying on next loop wake | — |
-| C5 | Voice-parity spot pass (max 10 Vapi sessions) | not started (needs C4's surface) | — |
+| C4 | Live QA matrix, text path | Static opener column DONE (W1–W5, S1–S2 vs oracle). LLM-behavior columns: API driver READY (scripts/qa/context-matrix-driver.mjs on !409's branch) — operator must run it with staging creds (assembling credentials was classifier-denied; browser walk dropped per operator instruction). Card-render column deferred to human walkthrough | !409 |
+| C5 | Voice-parity spot pass (max 10 Vapi sessions) | DEFERRED — needs live voice in a browser; operator ruled browser testing out for this session | — |
 
 ## Ledger rows filed by this lane (for the central ledger)
 
