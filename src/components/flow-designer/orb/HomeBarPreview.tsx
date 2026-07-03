@@ -35,9 +35,9 @@ function BarBackground({ glass }: { glass: boolean }) {
           : 'drop-shadow(0px -4px 12px rgba(0,0,0,0.06))',
       }}
     >
-      <div className={`h-full flex-1${glass ? '' : 'bg-surface'}`} style={sideStyle} />
+      <div className={glass ? 'h-full flex-1' : 'h-full flex-1 bg-surface'} style={sideStyle} />
       <svg
-        className={`block h-full shrink-0${glass ? '' : 'text-surface'}`}
+        className={glass ? 'block h-full shrink-0' : 'block h-full shrink-0 text-surface'}
         width="140"
         height="72"
         viewBox="0 0 140 72"
@@ -48,7 +48,7 @@ function BarBackground({ glass }: { glass: boolean }) {
           fill={glass ? glassFill : 'currentColor'}
         />
       </svg>
-      <div className={`h-full flex-1${glass ? '' : 'bg-surface'}`} style={sideStyle} />
+      <div className={glass ? 'h-full flex-1' : 'h-full flex-1 bg-surface'} style={sideStyle} />
     </div>
   );
 }
