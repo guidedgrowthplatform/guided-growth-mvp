@@ -3,8 +3,11 @@
 Lane doc: gg-spec/docs/fable-lane-builder-engine-2026-07-03.md (parent: fable-window-plan-2026-07-03.md).
 Base: origin/staging @ 5750a2fb (merge train !398 !400 !401 !397 !403 !402 verified merged).
 
-**MERGE HOLD**: draft MRs only; nothing merges to staging until Yair clears the human
-walkthroughs (gg-qa-iota rebuilds on staging merges and would swap builds under testers).
+**MERGE HOLD LIFTED** (observed 2026-07-03 ~22:00 EAT): Yair merged the whole chain
+!408 !412 !413 !414 !416 !418 !410 !419 into staging 16:10-16:39 EAT. Remaining: !411 only
+(L1-3 derive-maps), reconciled with the landed chain (planned generate-flow.ts conflict
+resolved keeping both sides), un-parked and marked READY for review. The orb bug this lane
+reported also landed as fix B27 (fix/orb-overlay-tap-clearance-b27).
 
 **PRIORITY CHANGE (Yair, 2026-07-03 ~13:50)**: after L1-LOOP-1, jump to L1-LOOP-3
 (L1-5/6/7) then L1-LOOP-4 (L1-8) BEFORE L1-LOOP-2 (L1-3/L1-4). Flows live first,
@@ -47,4 +50,4 @@ Preview walks DONE without the QA test user (auth-free routes): morning + evenin
 check-ins and the 5-beat tour all VERIFIED end-to-end on preview (build gg-n0667ti91).
 Still needing the test user (operator blocker stands): full ONBOARDING walk + persist=real saves.
 
-Updated: 2026-07-03 16:45 EAT — ALL verifications done (onboarding e2e, both check-ins incl. persist=real DB proof, tour x2); lane fully delivered pending reviews + merge-hold lift
+Updated: 2026-07-03 22:15 EAT — chain MERGED to staging by Yair; !411 reconciled+ready; lane COMPLETE pending that one review
