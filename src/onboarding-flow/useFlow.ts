@@ -27,6 +27,8 @@
  */
 import { useMemo } from 'react';
 import { validateFlow } from './flowMachine';
+import { eveningCheckinV1, morningCheckinV1 } from './flows/checkin-flows';
+import { homeTourV1 } from './flows/home-tour-v1';
 import { onboardingBeginnerV1 } from './flows/onboarding-beginner-v1';
 import generatedJson from './flows/onboarding-beginner-v1.generated.json';
 import type { FlowDocument, FlowNode } from './types';
@@ -79,19 +81,48 @@ const GENERATED_FLOW: FlowDocument | null = (() => {
 /** The published latest flow: the generated JSON if usable, else the TS fallback. */
 const LATEST_FLOW: FlowDocument = GENERATED_FLOW ?? FALLBACK_FLOW;
 
-const PUBLISHED_FLOWS: Record<string, FlowDocument> = {
-  [versionTag(LATEST_FLOW)]: LATEST_FLOW,
-};
+/** flowId minus its trailing version suffix: the stable route slug ("morning-checkin"). */
+function flowSlug(flowId: string): string {
+  return flowId.replace(/-v\d+$/, '');
+}
+
+// The flow registry (L1-5). Each flow resolves three ways: flowId, versionTag
+// (the pin format flowId@vN), and the version-less slug (the /flow-preview/:flowId
+// route + QA tile URLs). Onboarding registers last so it wins any key collision.
+const PUBLISHED_FLOWS: Record<string, FlowDocument> = {};
+function registerFlow(flow: FlowDocument): void {
+  PUBLISHED_FLOWS[flow.flowId] = flow;
+  PUBLISHED_FLOWS[versionTag(flow)] = flow;
+  PUBLISHED_FLOWS[flowSlug(flow.flowId)] = flow;
+}
+registerFlow(morningCheckinV1);
+registerFlow(eveningCheckinV1);
+registerFlow(homeTourV1);
+registerFlow(LATEST_FLOW);
 
 /** The stable pin identifier for a flow document, e.g. "onboarding-beginner-v1@v1". */
 export function versionTag(flow: FlowDocument): string {
   return `${flow.flowId}@v${flow.version}`;
 }
 
-/** Resolve the published flow for a pin tag, or the latest if unpinned/unknown. */
+/**
+ * Resolve the published ONBOARDING flow for a pin tag, or the latest if
+ * unpinned/unknown (the original loader contract; beatEngineMeta and the
+ * onboarding engine key off the no-arg call).
+ */
 export function loadPublishedFlow(pinnedTag?: string | null): FlowDocument {
   if (pinnedTag && PUBLISHED_FLOWS[pinnedTag]) return PUBLISHED_FLOWS[pinnedTag];
   return LATEST_FLOW;
+}
+
+/** Registry lookup by flowId / slug / pin tag. No onboarding fallback: unknown = undefined. */
+export function getPublishedFlow(idOrTag: string): FlowDocument | undefined {
+  return PUBLISHED_FLOWS[idOrTag];
+}
+
+/** Every distinct registered flow (for the preview route's not-found listing). */
+export function listPublishedFlows(): FlowDocument[] {
+  return [...new Set(Object.values(PUBLISHED_FLOWS))];
 }
 
 export interface LoadedFlow {
