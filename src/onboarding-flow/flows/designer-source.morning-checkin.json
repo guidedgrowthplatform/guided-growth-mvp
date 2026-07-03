@@ -11,8 +11,11 @@
       "componentType": "coach-bubble",
       "sheetStage": "MCHECK-01: Morning Greeting",
       "context": "Warm morning greeting. Invite the user into a quick check-in.",
-      "props": { "text": "Good morning. Ready to check in?" },
+      "props": {
+        "text": "Good morning. Ready to check in?"
+      },
       "meta": {
+        "voiceEngine": "none",
         "engine": {
           "nodeId": "morning-greeting",
           "voiceExpectsInput": false,
@@ -32,6 +35,7 @@
         "dimensions": ["sleep", "mood", "energy", "stress"]
       },
       "meta": {
+        "voiceEngine": "none",
         "engine": {
           "nodeId": "morning-state",
           "toolName": "record_checkin",
@@ -52,6 +56,7 @@
         "text": "Looks like there are a few items left. Want to add anything, or should we move on?"
       },
       "meta": {
+        "voiceEngine": "none",
         "engine": {
           "nodeId": "morning-are-you-done",
           "voiceExpectsInput": true,
@@ -65,8 +70,11 @@
       "componentType": "coach-bubble",
       "sheetStage": "MCHECK-WRAP: Morning Wrap",
       "context": "Close the morning check-in warmly. Send them into the day.",
-      "props": { "text": "That's a good start. Go make it a good one." },
+      "props": {
+        "text": "That's a good start. Go make it a good one."
+      },
       "meta": {
+        "voiceEngine": "none",
         "engine": {
           "nodeId": "morning-wrap",
           "voiceExpectsInput": false,

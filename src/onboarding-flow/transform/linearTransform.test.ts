@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { validateFlow, validateFlowAuthoring } from '../flowMachine';
-import { eveningCheckinV1, morningCheckinV1 } from '../flows/checkin-flows';
+import { eveningCheckinV1, morningCheckinV1 } from '../flows/__fixtures__/checkin-flows-v1';
 import eveningExportJson from '../flows/designer-source.evening-checkin.json';
 import morningExportJson from '../flows/designer-source.morning-checkin.json';
 import type { FlowDocument } from '../types';

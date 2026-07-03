@@ -1,0 +1,406 @@
+{
+  "flowId": "evening-checkin-v1",
+  "name": "Evening Check-in",
+  "version": 1,
+  "publishedAt": "2026-06-26T00:00:00Z",
+  "entryNodeId": "evening-greeting",
+  "nodes": [
+    {
+      "id": "evening-greeting",
+      "type": "beat",
+      "beatNumber": 0,
+      "name": "Evening Greeting",
+      "screenId": "ECHECK-01",
+      "nextId": "evening-habit-review",
+      "backId": null,
+      "context": {
+        "screenId": "ECHECK-01",
+        "screenName": "Evening Greeting",
+        "contextBlock": "Warm evening greeting. Surface today's habits and ask how the day went."
+      },
+      "componentType": "coach-bubble",
+      "componentProps": {},
+      "voice": {
+        "openerText": "Hey, good evening. Here are your habits for today. How did the day go?",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "none",
+          "mode": "verbatim",
+          "lines": [
+            {
+              "id": "echeck-01-line-1",
+              "text": "Hey, good evening. Here are your habits for today. How did the day go?",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "none"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "soniox",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": false,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": false
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "evening-greeting",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
+      "tool": null,
+      "persist": null
+    },
+    {
+      "id": "evening-habit-review",
+      "type": "beat",
+      "beatNumber": 1,
+      "name": "Habit Review",
+      "screenId": "ECHECK-HABITS",
+      "nextId": "evening-are-you-done",
+      "backId": "evening-greeting",
+      "context": {
+        "screenId": "ECHECK-HABITS",
+        "screenName": "Habit Review",
+        "contextBlock": "Walk today's habits. For each, mark it done, not done, or leave it pending as the user reports. Do not judge a missed habit."
+      },
+      "componentType": "habit-review",
+      "componentProps": {},
+      "voice": {
+        "openerText": "Tap each habit to mark it, or just tell me how each one went.",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "none",
+          "mode": "verbatim",
+          "lines": [
+            {
+              "id": "echeck-habits-line-1",
+              "text": "Tap each habit to mark it, or just tell me how each one went.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "none"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "soniox",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["complete_habit"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": false,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": false
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "evening-habit-review",
+          "backId": "evening-greeting",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": ["habitStatuses"],
+          "toolName": "complete_habit",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["habitStatuses"]
+        },
+        "authoring": {}
+      },
+      "tool": {
+        "toolName": "complete_habit",
+        "persistsFields": ["habitStatuses"],
+        "advancesStep": true
+      },
+      "persist": null
+    },
+    {
+      "id": "evening-are-you-done",
+      "type": "beat",
+      "beatNumber": 2,
+      "name": "Anything Else",
+      "screenId": "ECHECK-DONE",
+      "nextId": "evening-reflection",
+      "backId": "evening-habit-review",
+      "context": {
+        "screenId": "ECHECK-DONE",
+        "screenName": "Anything Else",
+        "contextBlock": "Check whether the user wants to add anything before reflecting. If they are done, move on."
+      },
+      "componentType": "coach-bubble",
+      "componentProps": {},
+      "voice": {
+        "openerText": "Looks like there are a few items left. Want to add anything, or should we move on?",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "none",
+          "mode": "verbatim",
+          "lines": [
+            {
+              "id": "echeck-done-line-1",
+              "text": "Looks like there are a few items left. Want to add anything, or should we move on?",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "none"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "soniox",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": false,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": false
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "evening-are-you-done",
+          "backId": "evening-habit-review",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
+      "tool": null,
+      "persist": null
+    },
+    {
+      "id": "evening-reflection",
+      "type": "beat",
+      "beatNumber": 3,
+      "name": "Evening Reflection",
+      "screenId": "ECHECK-REFLECT",
+      "nextId": "evening-wrap",
+      "backId": "evening-are-you-done",
+      "context": {
+        "screenId": "ECHECK-REFLECT",
+        "screenName": "Evening Reflection",
+        "contextBlock": "A short reflection: what they are proud of, what they forgive themselves for, what they are grateful for. Let the user answer in their own words. Save what they share."
+      },
+      "componentType": "reflection",
+      "componentProps": {
+        "questions": [
+          {
+            "key": "proud",
+            "prompt": "What are you proud of today?"
+          },
+          {
+            "key": "forgive",
+            "prompt": "What do you forgive yourself for today?"
+          },
+          {
+            "key": "grateful",
+            "prompt": "What are you grateful for today?"
+          }
+        ],
+        "transition": "Good. Now let's take a moment to reflect on the day itself."
+      },
+      "voice": {
+        "openerText": "Good. Now let's take a moment to reflect on the day itself.",
+        "expectsInput": true,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "none",
+          "mode": "verbatim",
+          "lines": [
+            {
+              "id": "echeck-reflect-line-1",
+              "text": "Good. Now let's take a moment to reflect on the day itself.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "none"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "soniox",
+          "enabled": true,
+          "micRequired": true,
+          "armOnBeatLoad": true
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": true,
+          "allowedTools": ["log_reflection"]
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": false,
+          "micOn": true,
+          "micAsking": false,
+          "bloomed": false
+        },
+        "toggles": {
+          "expectsInput": true,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "evening-reflection",
+          "backId": "evening-are-you-done",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": ["reflectionText"],
+          "toolName": "log_reflection",
+          "toolAdvancesStep": true,
+          "toolPersistsFields": ["reflectionText"]
+        },
+        "authoring": {}
+      },
+      "tool": {
+        "toolName": "log_reflection",
+        "persistsFields": ["reflectionText"],
+        "advancesStep": true
+      },
+      "persist": null
+    },
+    {
+      "id": "evening-wrap",
+      "type": "beat",
+      "beatNumber": 4,
+      "name": "Evening Wrap",
+      "screenId": "ECHECK-WRAP",
+      "nextId": null,
+      "backId": "evening-reflection",
+      "context": {
+        "screenId": "ECHECK-WRAP",
+        "screenName": "Evening Wrap",
+        "contextBlock": "Close the evening check-in warmly. Wish them a good night."
+      },
+      "componentType": "coach-bubble",
+      "componentProps": {},
+      "voice": {
+        "openerText": "That's it for tonight. Sleep well.",
+        "expectsInput": false,
+        "directLlmAllowed": true
+      },
+      "meta": {
+        "voiceOut": {
+          "engine": "none",
+          "mode": "verbatim",
+          "lines": [
+            {
+              "id": "echeck-wrap-line-1",
+              "text": "That's it for tonight. Sleep well.",
+              "voiceOnly": false,
+              "onScreen": true,
+              "engine": "none"
+            }
+          ]
+        },
+        "voiceIn": {
+          "engine": "none",
+          "enabled": false,
+          "micRequired": false,
+          "armOnBeatLoad": false
+        },
+        "fill": {
+          "brain": "direct-llm",
+          "llmActive": false,
+          "allowedTools": []
+        },
+        "path": "path-3-direct-llm",
+        "orb": {
+          "voiceOn": false,
+          "micOn": false,
+          "micAsking": false,
+          "bloomed": false
+        },
+        "toggles": {
+          "expectsInput": false,
+          "directLlmAllowed": true,
+          "instantOpenerEligible": false,
+          "suppressVapiDuringMp3": false,
+          "continueVapiAfterMp3": false,
+          "autoplayRequiresUnlock": false,
+          "qaForceEngineAllowed": true
+        },
+        "engine": {
+          "nodeId": "evening-wrap",
+          "backId": "evening-reflection",
+          "persistStep": null,
+          "pathField": false,
+          "captureFields": [],
+          "toolPersistsFields": []
+        },
+        "authoring": {}
+      },
+      "tool": null,
+      "persist": null
+    }
+  ]
+}
