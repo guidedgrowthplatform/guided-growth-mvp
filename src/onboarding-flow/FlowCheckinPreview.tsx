@@ -11,16 +11,18 @@
  */
 import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
-import { useLocalPersistence } from './persistence';
+import { type FlowPersistence, useLocalPersistence } from './persistence';
 import { FlowRenderer } from './renderer/FlowRenderer';
-import { useFlowOrchestrator } from './useFlowOrchestrator';
 import type { FlowDocument } from './types';
+import { useFlowOrchestrator } from './useFlowOrchestrator';
 
 interface FlowCheckinPreviewProps {
   flow: FlowDocument;
+  /** Adapter override (e.g. the real check-in save path); defaults to in-memory. */
+  persistence?: FlowPersistence;
 }
 
-export function FlowCheckinPreview({ flow }: FlowCheckinPreviewProps) {
+export function FlowCheckinPreview({ flow, persistence }: FlowCheckinPreviewProps) {
   // Seed a throwaway anonId so Vapi tool calls do not fail in preview mode.
   // Real sessions overwrite this on sign-in.
   useEffect(() => {
@@ -29,8 +31,8 @@ export function FlowCheckinPreview({ flow }: FlowCheckinPreviewProps) {
     }
   }, []);
 
-  const persistence = useLocalPersistence();
-  const orchestrator = useFlowOrchestrator(flow, persistence);
+  const localPersistence = useLocalPersistence();
+  const orchestrator = useFlowOrchestrator(flow, persistence ?? localPersistence);
 
   return (
     <div className="bg-background h-screen w-screen">
